@@ -16,6 +16,8 @@
 static void *backtrace_pointers[N_POINTERS];
 #endif
 
+void (*do_assert_hook)(void) = NULL;
+
 void toku_do_assert_fail (const char* expr_as_string,const char *function,const char*file,int line)
 {
 	fprintf(stderr, "%s:%d %s: Assertion `%s' failed\n", file,line,function,expr_as_string);
@@ -44,6 +46,9 @@ void toku_do_assert_fail (const char* expr_as_string,const char *function,const 
 	TerminateProcess(GetCurrentProcess(), 134); //Only way found so far to unconditionally
 	//Terminate the process
 #endif
+
+	if (do_assert_hook) do_assert_hook();
+
 	abort();
 }
 

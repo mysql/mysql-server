@@ -15,6 +15,10 @@ C_BEGIN
 
 static int event_count, event_count_trigger;
 
+static void my_assert_hook (void) {
+    fprintf(stderr, "event_count=%d\n", event_count);
+}
+
 static void reset_event_counts(void) {
     event_count = event_count_trigger = 0;
 }
@@ -76,19 +80,83 @@ static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
     return r;
 }
 
-static int my_malloc_event = 0;
+static FILE * 
+bad_fdopen(int fd, const char * mode) {
+    FILE * rval;
+    event_count++;
+    if (event_count_trigger == event_count) {
+	event_hit();
+	errno = EINVAL;
+	rval  = NULL;
+    } else {
+	rval = fdopen(fd, mode);
+    }
+    return rval;
+}
+
+static FILE * 
+bad_fopen(const char *filename, const char *mode) {
+    FILE * rval;
+    event_count++;
+    if (event_count_trigger == event_count) {
+	event_hit();
+	errno = EINVAL;
+	rval  = NULL;
+    } else {
+	rval = fopen(filename, mode);
+    }
+    return rval;
+}
+
+
+static int
+bad_open(const char *path, int oflag, int mode) {
+    int rval;
+    event_count++;
+    if (event_count_trigger == event_count) {
+	event_hit();
+	errno = EINVAL;
+	rval = -1;
+    } else {
+	rval = open(path, oflag, mode);
+    }
+    return rval;
+}
+
+
+
+static int
+bad_fclose(FILE * stream) {
+    int rval;
+    event_count++;
+    // Must close the stream even in the "error case" because otherwise there is no way to get the memory back.
+    rval = fclose(stream);
+    if (rval==0) {
+	if (event_count_trigger == event_count) {
+	    errno = ENOSPC;
+	    rval = -1;
+	}
+    }
+    return rval;
+}
+
+
+
+static int my_malloc_event = 1;
 static int my_malloc_count = 0, my_big_malloc_count = 0;
 
 static void reset_my_malloc_counts(void) {
     my_malloc_count = my_big_malloc_count = 0;
 }
 
+size_t min_malloc_error_size = 0;
+
 static void *my_malloc(size_t n) {
     void *caller = __builtin_return_address(0);
     if (!((void*)toku_malloc <= caller && caller <= (void*)toku_free))
         goto skip;
     my_malloc_count++;
-    if (n >= 64*1024) {
+    if (n >= min_malloc_error_size) {
         my_big_malloc_count++;
         if (my_malloc_event) {
             caller = __builtin_return_address(1);
@@ -194,11 +262,6 @@ static void test (const char *directory, BOOL is_error) {
 	assert(r==0);
     }
 
-    toku_set_func_malloc(my_malloc);
-    brtloader_set_os_fwrite(bad_fwrite);
-    toku_set_func_write(bad_write);
-    toku_set_func_pwrite(bad_pwrite);
-
     BRTLOADER bl;
     DB **XMALLOC_N(N_DEST_DBS, dbs);
     const struct descriptor **XMALLOC_N(N_DEST_DBS, descriptors);
@@ -238,6 +301,7 @@ static void test (const char *directory, BOOL is_error) {
 
     brt_loader_set_poll_function(&bl->poll_callback, loader_poll_callback, NULL);
 
+
     QUEUE q;
     { int r = queue_create(&q, 1000); assert(r==0); }
     DBUFIO_FILESET bfs;
@@ -265,6 +329,17 @@ static void test (const char *directory, BOOL is_error) {
 	int r = toku_pthread_create(&consumer, NULL, consumer_thread, (void*)&cthunk);
 	assert(r==0);
     }
+
+    toku_set_func_malloc(my_malloc);
+    brtloader_set_os_fwrite(bad_fwrite);
+    toku_set_func_write(bad_write);
+    toku_set_func_pwrite(bad_pwrite);
+    toku_set_func_fdopen(bad_fdopen);
+    toku_set_func_fopen(bad_fopen);
+    toku_set_func_open(bad_open);
+    toku_set_func_fclose(bad_fclose);
+
+
     int result = 0;
     {
 	int r = toku_merge_some_files_using_dbufio(TRUE, FIDX_NULL, q, N_SOURCES, bfs, src_fidxs, bl, 0, (DB*)NULL, compare_ints, 10000);
@@ -279,6 +354,17 @@ static void test (const char *directory, BOOL is_error) {
 	int r = queue_eof(q);
 	assert(r==0);
     }
+
+    toku_set_func_malloc(NULL);
+    brtloader_set_os_fwrite(NULL);
+    toku_set_func_write(NULL);
+    toku_set_func_pwrite(NULL);
+    toku_set_func_fdopen(NULL);
+    toku_set_func_fopen(NULL);
+    toku_set_func_open(NULL);
+    toku_set_func_fclose(NULL);
+    do_assert_hook = my_assert_hook;
+
     {
 	void *vresult;
 	int r = toku_pthread_join(consumer, &vresult);
@@ -323,16 +409,18 @@ static void test (const char *directory, BOOL is_error) {
 
 
 static int usage(const char *progname, int n) {
-    fprintf(stderr, "Usage:\n %s [-v] [-q] [-r %d] [-s] [-m] directory\n", progname, n);
+    fprintf(stderr, "Usage:\n %s [-v] [-q] [-r %d] [-s] [-m] [-tend NEVENTS] directory\n", progname, n);
     fprintf(stderr, "[-v] turn on verbose\n");
     fprintf(stderr, "[-q] turn off verbose\n");
     fprintf(stderr, "[-r %d] set the number of rows\n", n);
     fprintf(stderr, "[-s] set the small loader size factor\n");
     fprintf(stderr, "[-m] inject big malloc failures\n");
+    fprintf(stderr, "[-tend NEVENTS] stop testing after N events\n");
     return 1;
 }
 
 int test_main (int argc, const char *argv[]) {
+    int tend = -1;
     const char *progname=argv[0];
     argc--; argv++;
     while (argc>0) {
@@ -349,6 +437,9 @@ int test_main (int argc, const char *argv[]) {
             toku_brtloader_set_size_factor(1);
         } else if (strcmp(argv[0],"-m") == 0) {
             my_malloc_event = 1;
+	} else if (strcmp(argv[0],"-tend") == 0) {
+            argc--; argv++;
+	    tend = atoi(argv[0]);
 	} else if (argc!=1) {
             return usage(progname, N_RECORDS);
 	}
@@ -381,7 +472,8 @@ int test_main (int argc, const char *argv[]) {
 
     {
 	int event_limit = event_count;
-    if (verbose) printf("event_limit=%d\n", event_limit);
+	if (tend>0 && tend<event_limit) event_limit=tend;
+	if (verbose) printf("event_limit=%d\n", event_limit);
 
     for (int i = 1; i <= event_limit; i++) {
         reset_event_counts();

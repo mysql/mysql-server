@@ -62,14 +62,15 @@ int abort_on_poll = 0;  // set when test_loader() called with test_type of abort
 DB_ENV *env;
 enum {MAX_NAME=128};
 enum {MAX_DBS=256};
-int NUM_DBS=5;
-int NUM_ROWS=100000;
+#define default_NUM_DBS 5
+int NUM_DBS=default_NUM_DBS;
+#define default_NUM_ROWS 100000
+int NUM_ROWS=default_NUM_ROWS;
 //static int NUM_ROWS=50000000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
 int event_trigger_lo=0;  // what event triggers to use?
 int event_trigger_hi =0; // 0 and 0 mean none.
-int assert_temp_files = 0;
 enum {MAGIC=311};
 
 
@@ -208,6 +209,7 @@ bad_fopen(const char *filename, const char *mode) {
     fopen_count++;
     event_count++;
     if (fopen_count_trigger == fopen_count || event_count == event_count_trigger) {
+	printf("Doing fopen_count=%d event_count=%" PRId64 "\n", fopen_count, event_count);
 	errno = EINVAL;
 	rval  = NULL;
     } else {
@@ -666,6 +668,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	printf(" done\n");
 
     if (t == commit) {
+	event_count_nominal  = event_count;
 	fwrite_count_nominal = fwrite_count;  // capture how many fwrites were required for normal operation
 	write_count_nominal  =  write_count;  // capture how many  writes were required for normal operation
 	pwrite_count_nominal = pwrite_count;  // capture how many pwrites were required for normal operation
@@ -676,6 +679,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	
 	if (verbose) {
 	    printf("Nominal calls:  function  calls (number of calls for normal operation)\n");
+	    printf("                events    %" PRId64 "\n", event_count_nominal);
 	    printf("                fwrite    %d\n", fwrite_count_nominal);
 	    printf("                write     %d\n", write_count_nominal);
 	    printf("                pwrite    %d\n", pwrite_count_nominal);
@@ -707,14 +711,19 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 }
 
 
+int run_test_count = 0;
+
 static void run_test(enum test_type t, int trigger) 
 {
+    run_test_count++;
+
     int r;
 
-    if (verbose == 0) {  // if no other ouput, give indication of progress
-	printf(".");
+    if (verbose>0) {  // Don't print anything if verbose is 0.  Use "+" to indicate progress if verbose is positive
+	printf("+");
 	fflush(stdout);
     }
+
 
     r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
@@ -826,43 +835,45 @@ static void run_all_tests(void) {
     run_test(abort_txn, 0);
 
     if (event_trigger_lo || event_trigger_hi) {
-	if (verbose) printf("\n\nDoing events %d-%d\n", event_trigger_lo, event_trigger_hi);
-	for (int i=event_trigger_lo; i<=event_trigger_hi; i++)
+	printf("\n\nDoing events %d-%d\n", event_trigger_lo, event_trigger_hi);
+	for (int i=event_trigger_lo; i<=event_trigger_hi; i++) {
 	    run_test(event, i);
-	return;
-    }
-
-    enum test_type et[NUM_ERR_TYPES] = {enospc_f, enospc_w, enospc_p, einval_fdo, einval_fo, einval_o, enospc_fc};
-    int * nomp[NUM_ERR_TYPES] = {&fwrite_count_nominal, &write_count_nominal, &pwrite_count_nominal,
-				 &fdopen_count_nominal, &fopen_count_nominal, &open_count_nominal, &fclose_count_nominal};
-    int limit = NUM_DBS * 5;
-    int j;
-    for (j = 0; j<NUM_ERR_TYPES; j++) {
-	enum test_type t = et[j];
-	const char * write_type = err_type_str(t);
-	int nominal = *(nomp[j]);
-	if (verbose)
-	    printf("\nNow test with induced ENOSPC/EINVAL errors returned from %s, nominal = %d\n", write_type, nominal);
-	int i;
-	// induce write error at beginning of process
-	for (i = 1; i < limit && i < nominal+1; i++) {
-	    trigger = i;
-	    if (verbose) printf("\n\nTesting loader with enospc/einval induced at %s count %d (of %d)\n", write_type, trigger, nominal);
-	    run_test(t, trigger);
 	}
-	if (nominal > limit)  {  // if we didn't already test every possible case
-	    // induce write error sprinkled through process
-	    for (i = 2; i < 5; i++) {
-		trigger = nominal / i;
+    } else {
+
+	enum test_type et[NUM_ERR_TYPES] = {enospc_f, enospc_w, enospc_p, einval_fdo, einval_fo, einval_o, enospc_fc};
+	int * nomp[NUM_ERR_TYPES] = {&fwrite_count_nominal, &write_count_nominal, &pwrite_count_nominal,
+				     &fdopen_count_nominal, &fopen_count_nominal, &open_count_nominal, &fclose_count_nominal};
+	int limit = NUM_DBS * 5;
+	int j;
+	for (j = 0; j<NUM_ERR_TYPES; j++) {
+	    enum test_type t = et[j];
+	    const char * write_type = err_type_str(t);
+	    int nominal = *(nomp[j]);
+	    printf("Test %s %d\n", write_type, nominal);
+	    if (verbose)
+		printf("\nNow test with induced ENOSPC/EINVAL errors returned from %s, nominal = %d\n", write_type, nominal);
+	    int i;
+	    // induce write error at beginning of process
+	    for (i = 1; i < limit && i < nominal+1; i++) {
+		trigger = i;
 		if (verbose) printf("\n\nTesting loader with enospc/einval induced at %s count %d (of %d)\n", write_type, trigger, nominal);
 		run_test(t, trigger);
 	    }
-	    // induce write error at end of process
-	    for (i = 0; i < limit; i++) {
-		trigger =  nominal - i;
-		assert(trigger > 0);
-		if (verbose) printf("\n\nTesting loader with enospc/einval induced at %s count %d (of %d)\n", write_type, trigger, nominal);
-		run_test(t, trigger);
+	    if (nominal > limit)  {  // if we didn't already test every possible case
+		// induce write error sprinkled through process
+		for (i = 2; i < 5; i++) {
+		    trigger = nominal / i;
+		    if (verbose) printf("\n\nTesting loader with enospc/einval induced at %s count %d (of %d)\n", write_type, trigger, nominal);
+		    run_test(t, trigger);
+		}
+		// induce write error at end of process
+		for (i = 0; i < limit; i++) {
+		    trigger =  nominal - i;
+		    assert(trigger > 0);
+		    if (verbose) printf("\n\nTesting loader with enospc/einval induced at %s count %d (of %d)\n", write_type, trigger, nominal);
+		    run_test(t, trigger);
+		}
 	    }
 	}
     }
@@ -871,15 +882,9 @@ static void run_all_tests(void) {
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
 
-    printf("\nTesting loader with default size_factor\n");
-    assert_temp_files = 0;
     run_all_tests();
 
-    printf("\nTesting loader with size_factor=1\n");
-    db_env_set_loader_size_factor(1);
-    assert_temp_files = 1;
-    run_all_tests();
-    printf("\nTotal event_trigger count is %" PRId64 ".  (Use with -t N M, where 1<=N<=M<=%" PRId64 "\n", event_count, event_count);
+    printf("run_test_count=%d\n", run_test_count);
 
     return 0;
 }
@@ -897,7 +902,14 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: -h -c -s -p -d <num_dbs> -r <num_rows>\n%s\n", cmd);
+	    fprintf(stderr, "Usage: -h -c -s -p -d <num_dbs> -r <num_rows> -t <elow> <ehi> \n%s\n", cmd);
+	    fprintf(stderr, "  where -h              print this message.\n");
+	    fprintf(stderr, "        -c              check the results.\n");
+	    fprintf(stderr, "        -p              LOADER_USE_PUTS.\n");
+	    fprintf(stderr, "        -s              size_factor=1.\n");
+	    fprintf(stderr, "        -d <num_dbs>    Number of indexes to create (default=%d).\n", default_NUM_DBS);
+	    fprintf(stderr, "        -r <num_rows>   Number of rows to put (default=%d).\n", default_NUM_ROWS);
+	    fprintf(stderr, "        -t <elo> <ehi>  Instrument only events <elo> to <ehi> (default: instrument all).\n");
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-d")==0) {
             argc--; argv++;
@@ -921,6 +933,8 @@ static void do_args(int argc, char * const argv[]) {
 	    event_trigger_lo = atoi(argv[0]);
 	    argc--; argv++;
 	    event_trigger_hi = atoi(argv[0]);
+	} else if (strcmp(argv[0], "-s")==0) {
+	    db_env_set_loader_size_factor(1);            
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
