@@ -105,15 +105,20 @@ checkpoint_1.tdb$(BINSUF) checkpoint_stress.tdb$(BINSUF): checkpoint_test.h
 BDB_TESTS_THAT_SHOULD_FAIL= \
 #\ ends prev line
 ifeq ($(OS_CHOICE),windows)
-    #The following are nondeterministic test failures in windows.  Just get rid of them in BDB.
-    BDB_TESTS_THAT_SHOULD_FAIL += \
+    #The following are nondeterministic test failures or hangs in windows.  Just get rid of them in BDB. (for now)
+    WINDOWS_BDB_DONTRUN_TESTS += \
 	test_archive2 \
+	test_cursor_delete \
 	test_cursor_stickyness \
+	test_db_dbt_mem_behavior \
+	test_dup_insert \
 	test_dup_search \
+	test_dupsort_get \
 	test_dupsort_set \
 	test_unused_memory_crash \
 	test_dupsort_get_both_range \
-	test_db_dbt_mem_behavior \
+	test_reverse_compare_fun \
+	test-recover3 \
 #\ ends prev line
 endif
 
@@ -143,7 +148,6 @@ TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
 ifeq ($(OS_CHOICE),windows)
     #Tests that fail in windows but shouldn't.  TODO: Fix each one of these and remove from the list!
     TDB_TESTS_THAT_SHOULD_FAIL += \
-	test1426 \
 	test-recover2 \
 	test-recover3 \
 #\ ends prev line
@@ -423,11 +427,21 @@ tgbr_%_b.tdbrun: test_get_both_range.tdb$(BINSUF)
 tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -c $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
+ifeq ($(OS_CHOICE),windows)
+    #Windows BDB cannot run 1426.  Save output from linux and compare.
+dump.bdb.1426: test1426.bdbdump/dump.bdb.1426
+	cat $< | unix2dos --u2d > $@
+    	
+else
+dump.bdb.1426: test1426.bdb$(BINSUF)
+	./$< -q  && \
+	 $(BDBDIR)/bin/db_dump -p -h dir.test1426.c.bdb main > $@
+	diff -q $@ test1426.bdbdump/$@ #Assert output is correct.
+endif
+
 # test1426 is run by comparing the BDB output to the TDB output
-test1426.tdbrun: test1426.tdb$(BINSUF)  test1426.bdb$(BINSUF)
-	(./test1426.tdb -q && \
-	 ./test1426.bdb -q && \
-	 $(BDBDIR)/bin/db_dump -p -h dir.test1426.c.bdb main > dump.bdb.1426 && \
+test1426.tdbrun: test1426.tdb$(BINSUF) dump.bdb.1426
+	(./test1426.tdb$(BINSUF) -q && \
 	 $(TDBDUMP) -p -h dir.test1426.c.tdb main > dump.tdb.1426 && \
 	 diff -q -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
 	 $(MAYBEINVERTER) $(SUMMARIZE_CMD)
