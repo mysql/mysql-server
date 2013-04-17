@@ -62,6 +62,7 @@
    toku_os_get_phys_memory_size;
 
    toku_do_assert_fail;
+   toku_set_assert_on_write_enospc;
 
    test_db_redirect_dictionary;
  local: *;

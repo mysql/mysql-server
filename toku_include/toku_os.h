@@ -67,6 +67,9 @@ int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("d
 //
 int toku_os_is_absolute_name(const char* path)  __attribute__((__visibility__("default")));
 
+// Set whether or not writes assert when ENOSPC is returned or they wait for space
+void toku_set_assert_on_write_enospc(int do_assert) __attribute__((__visibility__("default")));
+
 // Get file system write information
 // *enospc_last_time is the last time ENOSPC was returned by write or pwrite
 // *enospc_current   is the number of threads waiting on space
