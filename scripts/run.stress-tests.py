@@ -130,7 +130,7 @@ class TestRunnerBase(object):
     @property
     def prepareloc(self):
         preparename = 'dir.%(execf)s-%(tsize)d-%(csize)d' % self
-        return os.path.join(self.tokudb, 'src', 'tests', preparename)
+        return os.path.join(self.builddir, 'src', 'tests', preparename)
 
     def prepare(self):
         if os.path.isdir(self.prepareloc):
