@@ -178,8 +178,12 @@ struct ctpair {
 
     // A PAIR is stored in a pair_list (which happens to be PAIR->list).
     // These variables are protected by the list lock in the pair_list
+    //
+    // clock_next,clock_prev represent a circular doubly-linked list.
     PAIR clock_next,clock_prev; // In clock.
     PAIR hash_chain;
+
+    // pending_next,pending_next represent a non-circular doubly-linked list.
     PAIR pending_next;
     PAIR pending_prev;
 };

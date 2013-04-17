@@ -74,7 +74,7 @@ status_init(void) {
 
 
 
-static void * const zero_value = 0;
+static void * const zero_value = nullptr;
 static PAIR_ATTR const zero_attr = {
     .size = 0, 
     .nonleaf_size = 0, 
@@ -1644,6 +1644,9 @@ beginning:
         // we only want to sleep once per call to get_and_pin. If we have already
         // slept and there is still cache pressure, then we might as 
         // well just complete the call, because the sleep did not help
+        // By sleeping only once per get_and_pin, we prevent starvation and ensure
+        // that we make progress (however slow) on each thread, which allows
+        // assumptions of the form 'x will eventually happen'.
         // This happens in extreme scenarios.
         if (ct->ev.should_client_thread_sleep() && !already_slept) {
             wait = true;
@@ -1652,8 +1655,8 @@ beginning:
         if (ct->ev.should_client_wake_eviction_thread()) {
             ct->ev.signal_eviction_thread();
         }
-        // Since we missed the pair, we need the write list
-        // lock.  So, we have to release the read list lock
+        // Since the pair was not found, we need the write list
+        // lock to add it.  So, we have to release the read list lock
         // first.
         ct->list.read_list_unlock();
         ct->list.write_list_lock();
@@ -1701,7 +1704,7 @@ beginning:
             write_callback,
             CACHETABLE_CLEAN
             );
-        assert(p);
+        invariant_notnull(p);
 
         // Pin the pair.
         pair_lock(p);
@@ -1710,7 +1713,7 @@ beginning:
 
         if (lock_type != PL_READ) {
             ct->list.read_pending_cheap_lock();
-            assert(!p->checkpoint_pending);
+            invariant(!p->checkpoint_pending);
             for (uint32_t i = 0; i < num_dependent_pairs; i++) {
                 dep_checkpoint_pending[i] = dependent_pairs[i]->checkpoint_pending;
                 dependent_pairs[i]->checkpoint_pending = false;
@@ -1745,6 +1748,10 @@ beginning:
         // downgrading, because we would have to possibly resolve the 
         // checkpointing again, and that would just make this function even 
         // messier.
+        //
+        // TODO(yoni): in case of PL_WRITE_CHEAP, write and use
+        // p->value_rwlock.write_change_status_to_not_expensive(); (Also name it better)
+        // to downgrade from an expensive write lock to a cheap one
         if (lock_type == PL_READ) {
             pair_lock(p);
             p->value_rwlock.write_unlock();
@@ -3343,9 +3350,9 @@ PAIR pair_list::remove_from_hash_chain (PAIR remove_me, PAIR list) {
 //
 void pair_list::pair_remove (PAIR p) {
     if (p->clock_prev == p) {
-        assert(m_clock_head == p);
-        assert(p->clock_next == p);
-        assert(m_cleaner_head == p);
+        invariant(m_clock_head == p);
+        invariant(p->clock_next == p);
+        invariant(m_cleaner_head == p);
         m_clock_head = NULL;
         m_cleaner_head = NULL;
     }
