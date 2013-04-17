@@ -12,4 +12,4 @@ void toku_add_trace_mem(const char *str, int n) __attribute__((__visibility__("d
 // pointer, a number, and the processor timestamp
 
 void toku_print_trace_mem(void) __attribute__((__visibility__("default")));
-// print the trace 
+// print the trace

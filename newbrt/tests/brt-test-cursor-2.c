@@ -9,7 +9,18 @@ static const char fname[]= __FILE__ ".brt";
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
+static int
+save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *v) {
+    assert(key!=NULL);
+    void **vp = v;
+    *vp = toku_memdup(val, vallen);
+    return 0;
+}
+
+
 // Verify that different cursors return different data items when a DBT is initialized to all zeros (no flags)
+// Note: The BRT test used to implement DBTs with per-cursor allocated space, but there isn't any such thing any more
+// so this test is a little bit obsolete.
 static void test_multiple_brt_cursor_dbts(int n, DB *db) {
     if (verbose) printf("test_multiple_brt_cursors:%d %p\n", n, db);
 
@@ -33,14 +44,14 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
 	snprintf(key, sizeof key, "k%04d", i);
 	snprintf(val, sizeof val, "v%04d", i);
 	r = toku_brt_insert(brt,
-			    toku_fill_dbt(&kbt, key, strlen(key)),
-			    toku_fill_dbt(&vbt, val, strlen(val)),
+			    toku_fill_dbt(&kbt, key, 1+strlen(key)),
+			    toku_fill_dbt(&vbt, val, 1+strlen(val)),
 			    0);
 	assert(r == 0);
     }
 
     for (i=0; i<n; i++) {
-        r = toku_brt_cursor(brt, &cursors[i], 0);
+        r = toku_brt_cursor(brt, &cursors[i]);
         assert(r == 0);
     }
 
@@ -50,24 +61,26 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
 	char key[10];
 	snprintf(key, sizeof key, "k%04d", i);
 	r = toku_brt_cursor_get(cursors[i],
-				toku_fill_dbt(&kbt, key, strlen(key)),
+				toku_fill_dbt(&kbt, key, 1+strlen(key)),
 				toku_init_dbt(&vbt),
+				save_data,
+				&ptrs[i],
 				DB_SET,
 				null_txn);
 	assert(r == 0);
-	ptrs[i] = vbt.data;
     }
 
     for (i=0; i<n; i++) {
 	int j;
 	for (j=i+1; j<n; j++) {
-	    assert(ptrs[i]!=ptrs[j]);
+	    assert(strcmp(ptrs[i],ptrs[j])!=0);
 	}
     }
 
     for (i=0; i<n; i++) {
         r = toku_brt_cursor_close(cursors[i]);
         assert(r == 0);
+	toku_free(ptrs[i]);
     }
 
     r = toku_close_brt(brt, 0, 0);

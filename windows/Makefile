@@ -12,10 +12,10 @@ SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,%.$(OEXT),$(SRCS))
 TARGET = libtokuportability.$(AEXT)
 
-install: $(LIBPORTABILITY)
+build install: $(LIBPORTABILITY)
 
 $(LIBPORTABILITY): $(TARGET)
-	cp $< $@
+	if ! diff $< $@ 2>/dev/null; then cp $< $@; fi
 
 $(TARGET): $(OBJS)
 

@@ -22,7 +22,7 @@ int threadpool_create(THREADPOOL *threadpoolptr, int max_threads) {
     threadpool->max_threads = max_threads;
     threadpool->current_threads = 0;
     int i;
-    for (i=0; i<max_threads; i++) 
+    for (i=0; i<max_threads; i++)
         threadpool->tids[i] = 0;
     *threadpoolptr = threadpool;
     return 0;

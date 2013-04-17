@@ -15,6 +15,7 @@ typedef void *OMTVALUE;
 #include "omt.h"
 #include "leafentry.h"
 #include "block_table.h"
+#include "leaflock.h"
 
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
@@ -94,6 +95,7 @@ struct brtnode {
         } n;
 	struct leaf {
 	    OMT buffer;
+	    LEAFLOCK leaflock;
 	    unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
             unsigned int seqinsert;         /* number of sequential inserts to this leaf */
 	    struct mempool buffer_mempool;
@@ -109,7 +111,7 @@ enum {
 
 struct remembered_hash {
     BOOL    valid;      // set to FALSE if the fullhash is invalid
-    FILENUM fnum; 
+    FILENUM fnum;
     BLOCKNUM root;
     u_int32_t fullhash; // fullhash is the hashed value of fnum and root.
 };
@@ -128,7 +130,7 @@ struct brt_header {
     BLOCKNUM *roots;            // An array of the roots of the various dictionaries.  Element 0 holds the element if no subdatabases allowed.
     struct remembered_hash *root_hashes;     // an array of hashes of the root offsets.
     unsigned int *flags_array;  // an array of flags.  Element 0 holds the element if no subdatabases allowed.
-    
+
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
 
     u_int64_t root_put_counter; // the generation number of the brt
@@ -151,8 +153,6 @@ struct brt {
     int (*compare_fun)(DB*,const DBT*,const DBT*);
     int (*dup_compare)(DB*,const DBT*,const DBT*);
     DB *db;           // To pass to the compare fun
-
-    void *skey,*sval; /* Used for DBT return values. */
 
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
 
@@ -208,18 +208,31 @@ extern u_int32_t toku_calc_fingerprint_cmdstruct (BRT_CMD cmd);
 unsigned int toku_brt_pivot_key_len (BRT, struct kv_pair *); // Given the tree
 unsigned int toku_brtnode_pivot_key_len (BRTNODE, struct kv_pair *); // Given the node
 
+// Values to be used to update brtcursor if a search is successful.
+struct brt_cursor_leaf_info_to_be {
+    u_int32_t index;
+    OMT       omt;
+};
+
+// Values to be used to pin a leaf for shortcut searches
+// and to access the leaflock.
+struct brt_cursor_leaf_info {
+    BLOCKNUM  blocknumber;
+    u_int32_t fullhash;
+    LEAFLOCK  leaflock;
+    struct brt_cursor_leaf_info_to_be  to_be;
+};
+
 /* a brt cursor is represented as a kv pair in a tree */
 struct brt_cursor {
     struct list cursors_link;
     BRT brt;
-    BOOL current_in_omt, prev_in_omt;
+    BOOL current_in_omt;
     BOOL prefetching;
     DBT key, val;             // The key-value pair that the cursor currently points to
-    DBT prevkey, prevval;     // The key-value pair that the cursor pointed to previously.  (E.g., when we do a DB_NEXT)
-    int is_temporary_cursor;  // If it is a temporary cursor then use the following skey and sval to return tokudb-managed values in dbts.  Otherwise use the brt's skey and skval.
-    void *skey, *sval;
     OMTCURSOR omtcursor;
     u_int64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
+    struct brt_cursor_leaf_info  leaf_info;
 };
 
 // logs the memory allocation, but not the creation of the new node

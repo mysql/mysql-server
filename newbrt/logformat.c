@@ -210,12 +210,12 @@ const struct logtype logtypes[] = {
 			   {"u_int32_t", "split_at",  0},
 			   {"u_int32_t", "new_nodesize", 0},
 			   {"u_int32_t", "new_rand4", "%08x"},
-			   {"u_int8_t",  "is_dupsort", 0},			   
+			   {"u_int8_t",  "is_dupsort", 0},			
 			   NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 
-  
+
 #define DO_STRUCTS(lt, array, body) do {	\
     const struct logtype *lt;    \
     for (lt=&array[0]; lt->name; lt++) {	\
@@ -265,7 +265,7 @@ generate_enum_internal (char *enum_name, char *enum_prefix, const struct logtype
 		    used_cmds[cmd]=1;
 		});
     fprintf(hf, "\n};\n\n");
-   
+
 }
 
 static void
@@ -306,7 +306,7 @@ generate_log_struct (void) {
     DO_LOGTYPES(lt, fprintf(hf,"    struct logtype_%s %s;\n", lt->name, lt->name));
     fprintf(hf, "  } u;\n");
     fprintf(hf, "};\n");
-    
+
     fprintf(hf, "struct roll_entry {\n");
     fprintf(hf, "  enum rt_cmd cmd;\n");
     fprintf(hf, "  union {\n");
@@ -412,7 +412,7 @@ generate_log_reader (void) {
     fprintf(cf, "  u_int32_t ignorelen=0;\n");
     fprintf(cf, "  struct x1764 checksum;\n");
     fprintf(cf, "  x1764_init(&checksum);\n");
-    fprintf(cf, "  r = toku_fread_u_int32_t(infile, &len1, &checksum, &ignorelen); if (r!=0) return r;\n"); 
+    fprintf(cf, "  r = toku_fread_u_int32_t(infile, &len1, &checksum, &ignorelen); if (r!=0) return r;\n");
     fprintf(cf, "  int cmd=fgetc(infile);\n");
     fprintf(cf, "  if (cmd==EOF) return EOF;\n");
     fprintf(cf, "  char cmdchar = (char)cmd;\n");
@@ -538,7 +538,7 @@ generate_rollbacks (void) {
 		fprintf(cf, ") {\n");
 		fprintf(cf, "  return 1 /* the cmd*/\n");
 		fprintf(cf, "         + 4 /* the int at the end saying the size */");
-		DO_FIELDS(ft, lt, 
+		DO_FIELDS(ft, lt,
 			  fprintf(cf, "\n         + toku_logsizeof_%s(%s)", ft->type, ft->name));
 		fprintf(cf, ";\n}\n");
 	    });
@@ -604,4 +604,4 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     }
     return 0;
 }
-   
+

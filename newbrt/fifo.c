@@ -5,7 +5,7 @@ struct fifo {
     char *memory;       // An array of bytes into which fifo_entries are embedded.
     int   memory_size;  // How big is fifo_memory
     int   memory_start; // Where is the first used byte?
-    int   memory_used;  // How many bytes are in use? 
+    int   memory_used;  // How many bytes are in use?
 };
 
 const int fifo_initial_size = 4096;

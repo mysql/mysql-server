@@ -1,4 +1,5 @@
 /* Scan the bench.tokudb/bench.db over and over. */
+#define DONT_DEPRECATE_MALLOC
 
 #include <toku_portability.h>
 #include <assert.h>
@@ -8,9 +9,12 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef TOKUDB
+#include "key.h"
+#endif
 
 const char *pname;
-enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY } run_mode = RUN_HWC;
+enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_HEAVI } run_mode = RUN_HWC;
 int do_txns=1, prelock=0, prelockflag=0;
 u_int32_t lock_flag = 0;
 long limitcount=-1;
@@ -34,6 +38,10 @@ static void parse_args (int argc, const char *argv[]) {
 	    run_mode = RUN_HWC;
 	} else if (strcmp(*argv, "--prelock")==0) prelock=1;
 #ifdef TOKUDB
+	else if (strcmp(*argv, "--heavi")==0)  {
+	    if (specified_run_mode && run_mode!=RUN_HEAVI) goto two_modes;
+	    run_mode = RUN_HEAVI;
+        }
         else if (strcmp(*argv, "--prelockflag")==0)      { prelockflag=1; lock_flag = DB_PRELOCKED; }
         else if (strcmp(*argv, "--prelockwriteflag")==0) { prelockflag=1; lock_flag = DB_PRELOCKED_WRITE; }
 #endif
@@ -185,7 +193,7 @@ struct extra_count {
     int rowcounter;
 };
 
-static void counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
+static int counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
     struct extra_count *e=extrav;
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
@@ -196,6 +204,7 @@ static void counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
             printf("%s:%d %"PRId64" %"PRId64"\n", __FUNCTION__, __LINE__, k, expect_key);
         expect_key = k + 1;
     }
+    return 0;
 }
 
 static void scanscan_lwc (void) {
@@ -222,13 +231,106 @@ static void scanscan_lwc (void) {
     }
 }
 
+struct extra_heavi {
+    long long totalbytes;
+    int rowcounter;
+    DBT key;
+    DBT val;
+};
+
+static int
+copy_dbt(DBT *target, DBT const *source) {
+    int r;
+    if (target->ulen < source->size) {
+        target->data = realloc(target->data, source->size);
+        target->ulen = source->size;
+    }
+    if (!target->data) r = ENOMEM;
+    else {
+        target->size = source->size;
+        memcpy(target->data, source->data, target->size);
+        r = 0;
+    }
+    return r;
+}
+
+typedef struct foo{int a; } FOO;
+
+static int
+heaviside_next(const DBT *key, const DBT *val, void *extra_h) {
+    struct extra_heavi *e=extra_h;
+
+    int cmp;
+    cmp = toku_default_compare_fun(db, key, &e->key);
+    if (cmp != 0) return cmp;
+    if (val) cmp = toku_default_compare_fun(db, val, &e->val);
+    if (cmp != 0) return cmp;
+    return -1; //Return negative on <=, positive on >
+}
+
+static int copy_and_counttotalbytes (DBT const *key, DBT const *val, void *extrav, int r_h) {
+    assert(r_h>0);
+    struct extra_heavi *e=extrav;
+    e->totalbytes += key->size + val->size;
+    e->rowcounter++;
+    int r;
+    r = copy_dbt(&e->key, key);
+    if (r==0) r = copy_dbt(&e->val, val);
+    return r;
+}
+
+static void scanscan_heaviside (void) {
+    int r;
+    int counter=0;
+    for (counter=0; counter<2; counter++) {
+	struct extra_heavi e;
+        memset(&e, 0, sizeof(e));
+        e.key.flags = DB_DBT_REALLOC;
+        e.val.flags = DB_DBT_REALLOC;
+	double prevtime = gettime();
+	DBC *dbc;
+	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
+        u_int32_t f_flags = 0;
+        if (prelockflag && (counter || prelock)) {
+            f_flags |= lock_flag;
+        }
+        //Get first manually.
+	long rowcounter=1;
+        r = dbc->c_get(dbc, &e.key, &e.val, DB_FIRST | f_flags); assert(r==0);
+        e.rowcounter = 1;
+        e.totalbytes = e.key.size + e.val.size;
+
+	while (0 == (r = dbc->c_getf_heaviside(dbc, f_flags, 
+                        copy_and_counttotalbytes, &e,
+                        heaviside_next, &e,
+                        1))) {
+	    rowcounter++;
+	    if (limitcount>0 && rowcounter>=limitcount) break;
+	}
+        assert(rowcounter==e.rowcounter);
+        if (e.key.data) {
+            free(e.key.data);
+            e.key.data = NULL;
+        }
+        if (e.val.data) {
+            free(e.val.data);
+            e.val.data = NULL;
+        }
+	r = dbc->c_close(dbc);                                      assert(r==0);
+	double thistime = gettime();
+	double tdiff = thistime-prevtime;
+	printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
+    }
+}
+
 struct extra_verify {
     long long totalbytes;
     int rowcounter;
     DBT k,v; // the k and v are gotten using the old cursor
 };
 
-static void checkbytes (DBT const *key, DBT const *data, void *extrav) {
+static int
+checkbytes (DBT const *key, DBT const *data, void *extrav) {
     struct extra_verify *e=extrav;
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
@@ -238,6 +340,7 @@ static void checkbytes (DBT const *key, DBT const *data, void *extrav) {
     assert(memcmp(e->v.data, data->data, data->size)==0);
     assert(e->k.data != key->data);
     assert(e->v.data != data->data);
+    return 0;
 }
     
 
@@ -287,6 +390,7 @@ int main (int argc, const char *argv[]) {
 #ifdef TOKUDB
     case RUN_LWC:    scanscan_lwc();    break;
     case RUN_VERIFY: scanscan_verify(); break;
+    case RUN_HEAVI:  scanscan_heaviside(); break;
 #else
     default:         assert(0);         break;
 #endif

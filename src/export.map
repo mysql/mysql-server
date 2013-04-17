@@ -40,6 +40,8 @@
 
    toku_cachetable_print_hash_histogram;
 
+   toku_default_compare_fun;
+
  local: *;
 };
 

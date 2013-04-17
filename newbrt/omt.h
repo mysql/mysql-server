@@ -254,7 +254,7 @@ int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v,
 // Returns:
 //    0            success
 //    DB_KEYEXIST  the key is present (h was equal to zero for some value)
-//    ENOMEM      
+//    ENOMEM
 // On nonzero return, omt is unchanged.
 // On nonzero non-DB_KEYEXIST return, *index is unchanged.
 // Performance: time=O(\log N) amortized.
@@ -332,7 +332,7 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
 //    If any of A, B, or C are not found, then asking for the
 //    associated direction will return DB_NOTFOUND.
 //    See find_zero for more information.
-//    
+//
 //    Let the following represent the signus of the heaviside function.
 //
 //    -...-
@@ -372,7 +372,7 @@ int toku_omt_split_at(OMT omt, OMT *newomt, u_int32_t idx);
 // Performance: time=O(n)
 // Rationale:  We don't need a split-evenly operation.  We need to split items so that their total sizes
 //  are even, and other similar splitting criteria.  It's easy to split evenly by calling toku_omt_size(), and dividing by two.
- 
+
 int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
 // Effect: Appends leftomt and rightomt to produce a new omt.
 //  Sets *newomt to the new omt.
@@ -468,6 +468,20 @@ void toku_omt_cursor_set_invalidate_callback(OMTCURSOR c, void (*f)(OMTCURSOR,vo
 // Requires:
 //  The lifetime of the 'extra' parameter must continue at least till the cursor
 //  is destroyed.
+
+void toku_omt_cursor_associate(OMT omt, OMTCURSOR c);
+// Effect:
+//  Associates an omtcursor with an omt.
+// Requires:
+//  The omtcursor is not associated with any other omt.
+// Requires:
+//  toku_omt_associate must be called when the omt-lock is held
+// Rationale:
+//  This is used by brt_cursors for omts representing leaf nodes.
+//  These omts are touched by multiple threads, and therefore require locks
+//  for modifying the list of omtcursors.
+//  We do not want to grab two locks (one for omt, and one for the old
+//  associated omt).
 
 #endif  /* #ifndef OMT_H */
 

@@ -48,6 +48,7 @@ BRT_SOURCES = \
   fingerprint \
   key \
   leafentry \
+  leaflock \
   log \
   log_code \
   memarena \

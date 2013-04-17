@@ -97,7 +97,6 @@ check: $(TARGETS) \
  check_create_dump_diff \
  check_test1 \
  check_test_errpfx \
- check_test_db_assoc3 \
  check_test_cursor_count \
  check_test_error_stream \
  check_test_reverse_compare_fun \

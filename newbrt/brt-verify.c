@@ -69,7 +69,7 @@ struct verify_pair_arg {
 };
 
 static void verify_pair (bytevec key, unsigned int keylen,
-                         bytevec data __attribute__((__unused__)), 
+                         bytevec data __attribute__((__unused__)),
                          unsigned int datalen __attribute__((__unused__)),
                          int type __attribute__((__unused__)),
                          TXNID xid __attribute__((__unused__)),
@@ -101,7 +101,7 @@ static int check_increasing (OMTVALUE lev, u_int32_t idx, void *arg) {
     struct check_increasing_arg *ciarg = (struct check_increasing_arg *)arg;
     LEAFENTRY v=lev;
     LEAFENTRY prev = ciarg->prev;
-    if (idx>0) 
+    if (idx>0)
         assert(compare_leafentries(ciarg->brt, prev, v)<0);
     ciarg->prev=v;
     return 0;

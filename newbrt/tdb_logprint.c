@@ -47,13 +47,13 @@ static void transcribe_txnid (void) {
 static void transcribe_fileid (void) {
     u_int32_t value = get_uint32();
     printf(" fileid=%d", value);
-}    
+}
 
 
 static void transcribe_diskoff (void) {
     long long value = get_uint64();
     printf(" diskoff=%lld", value);
-}    
+}
 
 static void transcribe_crc32 (void) {
     u_int32_t oldcrc=crc;

@@ -51,13 +51,11 @@ struct fieldinfo db_fields32[] = {
   {"void *app_private", 16, 4},
   {"DB_ENV *dbenv", 20, 4},
   {"void *api_internal", 248, 4},
-  {"int (*associate) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t)", 268, 4},
   {"int (*close) (DB*, u_int32_t)", 272, 4},
   {"int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t)", 276, 4},
   {"int (*del) (DB *, DB_TXN *, DBT *, u_int32_t)", 280, 4},
   {"int (*fd) (DB *, int *)", 296, 4},
   {"int (*get) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)", 300, 4},
-  {"int (*pget) (DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t)", 304, 4},
   {"int (*get_flags) (DB *, u_int32_t *)", 336, 4},
   {"int (*get_pagesize) (DB *, u_int32_t *)", 348, 4},
   {"int (*key_range) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)", 364, 4},
@@ -100,8 +98,6 @@ struct fieldinfo dbc_fields32[] = {
   {"int (*c_count) (DBC *, db_recno_t *, u_int32_t)", 192, 4},
   {"int (*c_del) (DBC *, u_int32_t)", 196, 4},
   {"int (*c_get) (DBC *, DBT *, DBT *, u_int32_t)", 204, 4},
-  {"int (*c_pget) (DBC *, DBT *, DBT *, DBT *, u_int32_t)", 208, 4},
-  {"int (*c_put) (DBC *, DBT *, DBT *, u_int32_t)", 212, 4},
   {0, 248, 248} /* size of whole struct */
 };
 struct fieldinfo dbt_fields32[] = {

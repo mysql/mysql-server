@@ -16,7 +16,7 @@
 #include <sys/types.h>
 
 typedef struct memarena *MEMARENA;
- 
+
 MEMARENA memarena_create (void);
 // Effect: Create a memarena.  In case of ENOMEM, aborts.
 

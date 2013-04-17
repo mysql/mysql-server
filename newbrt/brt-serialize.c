@@ -66,7 +66,7 @@ void toku_pwrite_lock_destroy(void) {
 
 static inline void
 lock_for_pwrite (void) {
-    // Locks the pwrite_mutex. 
+    // Locks the pwrite_mutex.
     int r = toku_pthread_mutex_lock(&pwrite_mutex);
     assert(r==0);
     pwrite_is_locked = 1;
@@ -295,7 +295,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     }
     assert(w.ndone<=w.size);
 #ifdef CRC_ATEND
-    wbuf_int(&w, crc32(toku_null_crc, w.buf, w.ndone)); 
+    wbuf_int(&w, crc32(toku_null_crc, w.buf, w.ndone));
 #endif
 #ifdef CRC_INCR
     {
@@ -395,7 +395,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	if (0) { died0: toku_free(result); }
 	return r;
     }
-    result->ever_been_written = 1; 
+    result->ever_been_written = 1;
     char uncompressed_header[uncompressed_magic_len + compression_header_len];
     u_int32_t compressed_size;
     u_int32_t uncompressed_size;
@@ -405,7 +405,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	//printf("%s:%d r=%d the datasize=%d\n", __FILE__, __LINE__, r, toku_ntohl(datasize_n));
 	if (r!=(int)sizeof(uncompressed_header)) {
 	    if (r==-1) r=errno;
-	    else r = toku_db_badformat(); 
+	    else r = toku_db_badformat();
 	    goto died0;
 	}
 	compressed_size   = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
@@ -414,7 +414,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
 	if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
     }
-    
+
     //printf("%s:%d serializing %" PRIu64 " size=%d\n", __FILE__, __LINE__, blocknum.b, uncompressed_size);
 
     unsigned char *MALLOC_N(compressed_size, compressed_data);
@@ -517,7 +517,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	    BNC_NBYTESINBUF(result,i) = 0;
 	    //printf("Child %d at %lld\n", i, result->children[i]);
 	}
-	result->u.n.n_bytes_in_buffers = 0; 
+	result->u.n.n_bytes_in_buffers = 0;
 	for (i=0; i<result->u.n.n_children; i++) {
 	    r=toku_fifo_create(&BNC_BUFFER(result,i));
 	    if (r!=0) {
@@ -535,7 +535,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 		//printf("%d in hash\n", n_in_hash);
 		for (i=0; i<n_in_this_hash; i++) {
 		    int diff;
-		    bytevec key; ITEMLEN keylen; 
+		    bytevec key; ITEMLEN keylen;
 		    bytevec val; ITEMLEN vallen;
 		    //toku_verify_counts(result);
                     int type = rbuf_char(&rc);
@@ -568,7 +568,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	result->u.l.n_bytes_in_buffer = 0;
         result->u.l.seqinsert = 0;
 
-	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
+	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer);
 	toku_mempool_init(&result->u.l.buffer_mempool, rc.buf, uncompressed_size + uncompressed_magic_len);
 
 	u_int32_t actual_sum = 0;
@@ -592,6 +592,8 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	    if (0) { died_21: toku_omt_destroy(&result->u.l.buffer); }
 	    return toku_db_badformat();
 	}
+        r = toku_leaflock_borrow(&result->u.l.leaflock);
+        if (r!=0) goto died_21;
 
 	result->u.l.buffer_mempool.frag_size = start_of_data;
 	result->u.l.buffer_mempool.free_offset = end_of_data;
@@ -604,7 +606,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	} else {
 	    //fprintf(stderr, "%s:%d Good checksum=%08x height=%d\n", __FILE__, __LINE__, actual_sum, result->height);
 	}
-	    
+	
 	//toku_verify_counts(result);
     }
     {
@@ -672,9 +674,9 @@ void toku_verify_counts (BRTNODE node) {
 	assert(sum==node->u.n.n_bytes_in_buffers);
     }
 }
-    
+
 int toku_serialize_brt_header_size (struct brt_header *h) {
-    unsigned int size = (+8 // "tokudata"  
+    unsigned int size = (+8 // "tokudata"
 			 +4 // size
 			 +4 // version
 			 +4 // tree's nodesize
@@ -935,7 +937,7 @@ unsigned int toku_brtnode_pivot_key_len (BRTNODE node, struct kv_pair *pk) {
 }
 
 // To serialize the fifo, we just write it all at the end of the file.
-// For now, just do all the writes as separate system calls.  This function is hardly ever called, and 
+// For now, just do all the writes as separate system calls.  This function is hardly ever called, and
 // we might not be able to allocate a large enough buffer to hold everything,
 // and it would be more complex to batch up several writes.
 int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo) {
@@ -967,7 +969,7 @@ int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo) {
 		     wbuf_char(&w, (unsigned char)type);
 		     wbuf_TXNID(&w, xid);
 		     wbuf_bytes(&w, key, keylen);
-		     //printf("%s:%d Writing %d bytes: %s\n", __FILE__, __LINE__, vallen, (char*)val); 
+		     //printf("%s:%d Writing %d bytes: %s\n", __FILE__, __LINE__, vallen, (char*)val);
 		     wbuf_bytes(&w, val, vallen);
 		     assert(w.ndone==size);
 		     ssize_t nwrote;

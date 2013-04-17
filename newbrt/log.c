@@ -107,7 +107,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     r = ml_init(&result->input_lock); if (r!=0) goto died0;
     r = ml_init(&result->output_lock); if (r!=0) goto died1;
     return 0;
-    
+
  died1:
     ml_destroy(&result->input_lock);
  died0:
@@ -150,7 +150,7 @@ static int open_logfile (TOKULOGGER logger) {
     if (logger->write_log_files) {
         logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     if (logger->fd==-1) return errno;
     } else {
-        logger->fd = open(DEV_NULL_FILE, O_WRONLY+O_BINARY);           
+        logger->fd = open(DEV_NULL_FILE, O_WRONLY+O_BINARY);
         // printf("%s: %s %d\n", __FUNCTION__, DEV_NULL_FILE, logger->fd); fflush(stdout);
         if (logger->fd==-1) return errno;
     }
@@ -182,7 +182,7 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     logger->next_log_file_number = nexti;
     open_logfile(logger);
 
-    logger->lsn.lsn = 0; // WRONG!!!  This should actually be calculated by looking at the log file. 
+    logger->lsn.lsn = 0; // WRONG!!!  This should actually be calculated by looking at the log file.
     logger->written_lsn.lsn = 0;
     logger->fsynced_lsn.lsn = 0;
 
@@ -220,7 +220,7 @@ int toku_logger_get_lg_max(TOKULOGGER logger, u_int32_t *lg_maxp) {
     if (logger->is_panicked) return EINVAL;
     *lg_maxp = logger->lg_max;
     return 0;
-    
+
 }
 
 int toku_logger_set_lg_bsize(TOKULOGGER logger, u_int32_t bsize) {
@@ -365,7 +365,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
 }
 
 // Entry: Holds no locks
-// Exit: Holds no locks 
+// Exit: Holds no locks
 // This is the exported fsync used by ydb.c
 int toku_logger_fsync (TOKULOGGER logger) {
     int r;
@@ -377,7 +377,7 @@ int toku_logger_fsync (TOKULOGGER logger) {
     return 0;
  panic:
     toku_logger_panic(logger, r);
-    return r; 
+    return r;
 }
 
 // wbuf points into logbytes
@@ -716,7 +716,7 @@ int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, struct
     else if (isprint(v)) fprintf(outf, "('%c')", v);
     else {}/*nothing*/
     return 0;
-    
+
 }
 
 int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
@@ -726,7 +726,7 @@ int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, struc
     fprintf(outf, " %s=", fieldname);
     fprintf(outf, format ? format : "%d", v);
     return 0;
-    
+
 }
 
 void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data) {
@@ -743,7 +743,7 @@ void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data) {
 	}
     }
     fprintf(outf, "\"}");
-    
+
 }
 
 int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
@@ -757,7 +757,7 @@ int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, stru
 }
 int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
     return toku_logprint_u_int32_t(outf, inf, fieldname, checksum, len, format);
-    
+
 }
 int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
     DISKOFF v;
@@ -780,7 +780,7 @@ int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname,
     if (r!=0) return r;
     fprintf(outf, " %s={size=%u flags=%u nodesize=%u free_blocks=%" PRId64 " unused_memory=%" PRId64 " n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.free_blocks.b, v.unused_blocks.b, v.n_named_roots);
     return 0;
-    
+
 }
 
 int toku_logprint_INTPAIRARRAY (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
@@ -902,9 +902,9 @@ int toku_set_func_fsync (int (*fsync_function)(int)) {
 static int peek_at_log (TOKULOGGER logger, char* filename, LSN *first_lsn) {
     logger=logger;
     int fd = open(filename, O_RDONLY+O_BINARY);
-    if (fd<0) { 
-        if (logger->write_log_files) printf("couldn't open: %s\n", strerror(errno)); 
-        return errno; 
+    if (fd<0) {
+        if (logger->write_log_files) printf("couldn't open: %s\n", strerror(errno));
+        return errno;
     }
     enum { SKIP = 12+1+4 }; // read the 12 byte header, the first cmd, and the first len
     unsigned char header[SKIP+8];
@@ -959,7 +959,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
 	for (i=all_n_logs-2; i>=0; i--) { // start at all_n_logs-2 because we never archive the most recent log
 	    r = peek_at_log(logger, all_logs[i], &earliest_lsn_seen);
 	    if (r!=0) continue; // In case of error, just keep going
-	    
+	
 	    //printf("%s:%d file=%s firstlsn=%lld checkpoint_lsns={%lld %lld}\n", __FILE__, __LINE__, all_logs[i], (long long)earliest_lsn_seen.lsn, (long long)logger->checkpoint_lsns[0].lsn, (long long)logger->checkpoint_lsns[1].lsn);
 	    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
 		(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)&&
@@ -968,7 +968,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
 	    }
 	}
     }
-    
+
     // all log files up to, but but not including, i can be archived.
     int n_to_archive=i;
     int count_bytes=0;
@@ -1018,7 +1018,7 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	txn->oldest_logentry = txn->newest_logentry = 0;
 	if (txn->rollentry_fd<0) {
 	    const char filenamepart[] = "/__rolltmp.";
-	    int fnamelen = strlen(txn->logger->directory)+sizeof(filenamepart)+16; 
+	    int fnamelen = strlen(txn->logger->directory)+sizeof(filenamepart)+16;
 	    assert(txn->rollentry_filename==0);
 	    txn->rollentry_filename = toku_malloc(fnamelen);
 	    if (txn->rollentry_filename==0) return errno;

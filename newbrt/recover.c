@@ -163,7 +163,6 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
 	pair->brt->compare_fun = 0;
 	pair->brt->dup_compare = 0;
 	pair->brt->db = 0;
-	pair->brt->skey = pair->brt->sval = 0;
     }
     pair->brt->h = h;
     pair->brt->nodesize = h->nodesize;
@@ -269,7 +268,7 @@ toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum,
     }
     assert(r==0);
     struct brt_header *h=h_v;
-    r = toku_fifo_enq(h->fifo, key.data, key.len, val.data, val.len, typ, xid); 
+    r = toku_fifo_enq(h->fifo, key.data, key.len, val.data, val.len, typ, xid);
     assert(r==0);
     r = toku_cachetable_unpin(pair->cf, header_blocknum, fullhash, CACHETABLE_DIRTY, 0);
     assert(r==0);
@@ -423,7 +422,7 @@ toku_recover_setpivot (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t ch
     BRTNODE node = node_v;
     assert(node->fullhash==fullhash);
     assert(node->height>0);
-    
+
     struct kv_pair *new_pivot = kv_pair_malloc(pivotkey.data, pivotkey.len, 0, 0);
 
     node->u.n.childkeys[childnum] = new_pivot;
@@ -475,7 +474,6 @@ toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM file
     brt->db = 0;
     r = toku_cachetable_openfd(&cf, ct, fd, fixedfname);
     assert(r==0);
-    brt->skey = brt->sval = 0;
     brt->cf=cf;
     toku_recover_note_cachefile(filenum, cf, brt);
     toku_free_BYTESTRING(fname);

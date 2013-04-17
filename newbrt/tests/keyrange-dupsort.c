@@ -41,8 +41,11 @@ static void test_flat (void) {
 	    snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	    snprintf(val, 100, "%08llu", (unsigned long long)2*j+1);
 	    DBT k,v;
-	    r = toku_brt_lookup(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)));
+	    struct check_pair pair = {1+strlen(key), key, 1+strlen(val), val, 0};
+	    r = toku_brt_lookup(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)),
+				lookup_checkf, &pair);
 	    assert(r==0);
+	    assert(pair.call_count==1);
 	}
     }
     for (i=0; i<limit; i++) {

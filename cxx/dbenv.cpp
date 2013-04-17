@@ -84,7 +84,7 @@ void DbEnv::set_errpfx(const char *errpfx) {
 }
 
 int DbEnv::maybe_throw_error(int err, DbEnv *env, int no_exceptions) throw (DbException) {
-    if (err==0 || err==DB_NOTFOUND || err==DB_KEYEXIST || err==DB_KEYEMPTY) return err;
+    if (err==0 || err==DB_NOTFOUND || err==DB_KEYEXIST) return err;
     if (no_exceptions) return err;
     if (err==DB_LOCK_DEADLOCK) {
 	DbDeadlockException e(env);

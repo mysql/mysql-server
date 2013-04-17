@@ -12,7 +12,7 @@
 #define CRC_INCR
 
 /* When serializing a value, write it into a buffer. */
-/* This code requires that the buffer be big enough to hold whatever you put into it. */ 
+/* This code requires that the buffer be big enough to hold whatever you put into it. */
 /* This abstraction doesn't do a good job of hiding its internals.
  * Why?  The performance of this code is important, and we want to inline stuff */
 //Why is size here an int instead of DISKOFF like in the initializer?
@@ -62,7 +62,7 @@ static void wbuf_uint (struct wbuf *w, u_int32_t i) {
 }
 
 static inline void wbuf_literal_bytes(struct wbuf *w, bytevec bytes_bv, u_int32_t nbytes) {
-    const unsigned char *bytes=bytes_bv; 
+    const unsigned char *bytes=bytes_bv;
 #if 0
     { int i; for (i=0; i<nbytes; i++) wbuf_char(w, bytes[i]); }
 #else
@@ -71,7 +71,7 @@ static inline void wbuf_literal_bytes(struct wbuf *w, bytevec bytes_bv, u_int32_
     x1764_add(&w->checksum, &w->buf[w->ndone], nbytes);
     w->ndone += nbytes;
 #endif
-    
+
 }
 
 static void wbuf_bytes (struct wbuf *w, bytevec bytes_bv, u_int32_t nbytes) {

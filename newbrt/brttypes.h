@@ -66,7 +66,7 @@ typedef struct loggedbrtheader {
 	    BLOCKNUM  root;
 	} one;
     } u;
-} LOGGEDBRTHEADER; 
+} LOGGEDBRTHEADER;
 
 typedef struct intpairarray {
     u_int32_t size;
@@ -116,5 +116,10 @@ build_brt_cmd (enum brt_cmd_type type, TXNID xid, DBT *key, DBT *val) {
 #define UU(x) x __attribute__((__unused__))
 
 typedef struct leafentry *LEAFENTRY;
+
+struct simple_dbt {
+    u_int32_t len;
+    void     *data;
+};
 
 #endif

@@ -5,8 +5,8 @@
 
 /* a memory pool is a contiguous region of memory that supports single
    allocations from the pool.  these allocated regions are never recycled.
-   when the memory pool no longer has free space, the allocated chunks 
-   must be relocated by the application to a new memory pool. */ 
+   when the memory pool no longer has free space, the allocated chunks
+   must be relocated by the application to a new memory pool. */
 
 #include <sys/types.h>
 

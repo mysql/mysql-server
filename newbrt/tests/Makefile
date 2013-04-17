@@ -73,6 +73,7 @@ REGRESSION_TESTS_RAW = \
 	keyrange-unflat \
 	keyrange-dupsort \
 	keyrange-dupsort-unflat \
+	keytest \
 	log-test \
 	log-test2 \
 	log-test3 \
@@ -127,7 +128,11 @@ check_ok:
 
 # Don't run 1305 under valgrind.  It takes way too long.
 check_test1305: VGRIND=
-check_test1305:
+
+ifeq ($(SKIP_VERY_SLOW_TESTS),1)
+check_test1305 check_test1308a:
+	@echo SKIPPED SLOW TEST $@
+endif
 
 check_benchmarktest_256: benchmark-test$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
@@ -157,4 +162,5 @@ clean:
 	rm -f cachetable-fd-test.ctest2.data test_oexcl.c.tmp
 	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out
 
-$(BINS):
+$(BINS): $(LINK_FILES)
+$(BINS): test.h

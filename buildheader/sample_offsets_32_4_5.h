@@ -50,7 +50,6 @@ struct fieldinfo db_fields32[] = {
   {"void *app_private", 16, 4},
   {"DB_ENV *dbenv", 20, 4},
   {"void *api_internal", 268, 4},
-  {"int (*associate) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t)", 288, 4},
   {"int (*close) (DB*, u_int32_t)", 292, 4},
   {"int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t)", 300, 4},
   {"int (*del) (DB *, DB_TXN *, DBT *, u_int32_t)", 304, 4},
@@ -60,7 +59,6 @@ struct fieldinfo db_fields32[] = {
   {"int (*get_pagesize) (DB *, u_int32_t *)", 384, 4},
   {"int (*key_range) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)", 420, 4},
   {"int (*open) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)", 424, 4},
-  {"int (*pget) (DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t)", 428, 4},
   {"int (*put) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)", 432, 4},
   {"int (*remove) (DB *, const char *, const char *, u_int32_t)", 436, 4},
   {"int (*rename) (DB *, const char *, const char *, const char *, u_int32_t)", 440, 4},
@@ -99,8 +97,6 @@ struct fieldinfo dbc_fields32[] = {
   {"int (*c_count) (DBC *, db_recno_t *, u_int32_t)", 208, 4},
   {"int (*c_del) (DBC *, u_int32_t)", 212, 4},
   {"int (*c_get) (DBC *, DBT *, DBT *, u_int32_t)", 220, 4},
-  {"int (*c_pget) (DBC *, DBT *, DBT *, DBT *, u_int32_t)", 224, 4},
-  {"int (*c_put) (DBC *, DBT *, DBT *, u_int32_t)", 228, 4},
   {0, 264, 264} /* size of whole struct */
 };
 struct fieldinfo dbt_fields32[] = {

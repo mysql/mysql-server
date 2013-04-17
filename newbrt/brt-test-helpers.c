@@ -122,7 +122,7 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_cmd_t
 				       toku_fill_dbt(&k, key, keylen),
 				       toku_fill_dbt(&v, val, vallen),
 				       brt);
-    
+
     r = toku_fifo_enq(BNC_BUFFER(node, childnum), key, keylen, val, vallen, cmdtype, (TXNID)0);
     assert(r==0);
     u_int32_t fdelta = node->rand4fingerprint * toku_calc_fingerprint_cmd(cmdtype, (TXNID)0, key, keylen, val, vallen);

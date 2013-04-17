@@ -28,6 +28,9 @@ typedef struct __toku_db_txn_stat DB_TXN_STAT;
 typedef struct __toku_dbc DBC;
 typedef struct __toku_dbt DBT;
 typedef u_int32_t db_recno_t;
+typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);
+typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);
+typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);
 typedef enum {
  DB_BTREE=1,
  DB_UNKNOWN=5
@@ -70,7 +73,6 @@ typedef enum {
 #define DB_USE_ENVIRON 16384
 #define DB_USE_ENVIRON_ROOT 32768
 #define DB_READ_UNCOMMITTED 134217728
-#define DB_KEYEMPTY -30997
 #define DB_KEYEXIST -30996
 #define DB_LOCK_DEADLOCK -30995
 #define DB_LOCK_NOTGRANTED -30994
@@ -89,6 +91,7 @@ typedef enum {
 #define DB_NEXT_DUP 17
 #define DB_NEXT_NODUP 18
 #define DB_PREV 23
+#define DB_PREV_DUP 24
 #define DB_PREV_NODUP 25
 #define DB_SET 26
 #define DB_SET_RANGE 27
@@ -107,6 +110,8 @@ typedef enum {
 #define TOKUDB_OUT_OF_LOCKS -100000
 #define TOKUDB_SUCCEEDED_EARLY -100001
 #define TOKUDB_DIRTY_DICTIONARY -100004
+#define TOKUDB_FOUND_BUT_REJECTED -100002
+#define TOKUDB_USER_CALLBACK_ERROR -100003
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
 #ifdef _TOKUDB_WRAP_H
 #undef txn_begin
@@ -197,8 +202,7 @@ struct __toku_db {
   void* __toku_dummy1[38];
   char __toku_dummy2[80];
   void *api_internal; /* 32-bit offset=276 size=4, 64=bit offset=464 size=8 */
-  void* __toku_dummy3[4];
-  int (*associate) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t); /* 32-bit offset=296 size=4, 64=bit offset=504 size=8 */
+  void* __toku_dummy3[5];
   int (*close) (DB*, u_int32_t); /* 32-bit offset=300 size=4, 64=bit offset=512 size=8 */
   void* __toku_dummy4[1];
   int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t); /* 32-bit offset=308 size=4, 64=bit offset=528 size=8 */
@@ -213,28 +217,28 @@ struct __toku_db {
   void* __toku_dummy8[9];
   int (*key_range) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t); /* 32-bit offset=440 size=4, 64=bit offset=792 size=8 */
   int (*open) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int); /* 32-bit offset=444 size=4, 64=bit offset=800 size=8 */
-  int (*pget) (DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t); /* 32-bit offset=448 size=4, 64=bit offset=808 size=8 */
+  void* __toku_dummy9[1];
   int (*put) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t); /* 32-bit offset=452 size=4, 64=bit offset=816 size=8 */
   int (*remove) (DB *, const char *, const char *, u_int32_t); /* 32-bit offset=456 size=4, 64=bit offset=824 size=8 */
   int (*rename) (DB *, const char *, const char *, const char *, u_int32_t); /* 32-bit offset=460 size=4, 64=bit offset=832 size=8 */
-  void* __toku_dummy9[2];
+  void* __toku_dummy10[2];
   int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=472 size=4, 64=bit offset=856 size=8 */
-  void* __toku_dummy10[3];
+  void* __toku_dummy11[3];
   int (*set_dup_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=488 size=4, 64=bit offset=888 size=8 */
-  void* __toku_dummy11[2];
-  void (*set_errfile) (DB *, FILE*); /* 32-bit offset=500 size=4, 64=bit offset=912 size=8 */
   void* __toku_dummy12[2];
+  void (*set_errfile) (DB *, FILE*); /* 32-bit offset=500 size=4, 64=bit offset=912 size=8 */
+  void* __toku_dummy13[2];
   int (*set_flags) (DB *, u_int32_t); /* 32-bit offset=512 size=4, 64=bit offset=936 size=8 */
-  void* __toku_dummy13[7];
-  int (*set_pagesize) (DB *, u_int32_t); /* 32-bit offset=544 size=4, 64=bit offset=1000 size=8 */
   void* __toku_dummy14[7];
+  int (*set_pagesize) (DB *, u_int32_t); /* 32-bit offset=544 size=4, 64=bit offset=1000 size=8 */
+  void* __toku_dummy15[7];
   int (*stat) (DB *, void *, u_int32_t); /* 32-bit offset=576 size=4, 64=bit offset=1064 size=8 */
-  void* __toku_dummy15[2];
+  void* __toku_dummy16[2];
   int (*truncate) (DB *, DB_TXN *, u_int32_t *, u_int32_t); /* 32-bit offset=588 size=4, 64=bit offset=1088 size=8 */
-  void* __toku_dummy16[1];
+  void* __toku_dummy17[1];
   int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t); /* 32-bit offset=596 size=4, 64=bit offset=1104 size=8 */
-  void* __toku_dummy17[5]; /* Padding at the end */ 
-  char __toku_dummy18[16];  /* Padding at the end */ 
+  void* __toku_dummy18[5]; /* Padding at the end */ 
+  char __toku_dummy19[16];  /* Padding at the end */ 
 };
 struct __toku_db_txn_active {
   u_int32_t txnid; /* 32-bit offset=0 size=4, 64=bit offset=0 size=4 */
@@ -274,26 +278,29 @@ struct __toku_db_txn_stat {
 struct __toku_dbc {
   DB *dbp; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   struct __toku_dbc_internal *i;
-  int (*c_getf_next)(DBC *, u_int32_t, void(*)(DBT const *, DBT  const *, void *), void *);
-  int (*c_getf_next_dup)(DBC *, u_int32_t, void(*)(DBT  const *, DBT const *, void *), void *);
-  int (*c_getf_next_no_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
-  int (*c_getf_prev)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
-  int (*c_getf_prev_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
-  int (*c_getf_prev_no_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
-  int (*c_getf_current)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
-  int (*c_getf_first)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
-  int (*c_getf_last)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
-  int (*c_getf_heavi)(DBC *, u_int32_t, void(*f)(DBT const *, DBT const *, void *, int), void *extra_f, int (*h)(const DBT *key, const DBT *value, void *extra_h), void *extra_h, int direction);
-  void* __toku_dummy0[23];
+  int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_next_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_next_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_prev)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_prev_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_prev_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_current)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_current_binding)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_heaviside)(DBC *, u_int32_t, YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra_f, YDB_HEAVISIDE_FUNCTION h, void *extra_h, int direction);
+  int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_get_both)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_get_both_range)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
+  void* __toku_dummy0[18];
   char __toku_dummy1[104];
   int (*c_close) (DBC *); /* 32-bit offset=244 size=4, 64=bit offset=384 size=8 */
   int (*c_count) (DBC *, db_recno_t *, u_int32_t); /* 32-bit offset=248 size=4, 64=bit offset=392 size=8 */
   int (*c_del) (DBC *, u_int32_t); /* 32-bit offset=252 size=4, 64=bit offset=400 size=8 */
   void* __toku_dummy2[1];
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t); /* 32-bit offset=260 size=4, 64=bit offset=416 size=8 */
-  int (*c_pget) (DBC *, DBT *, DBT *, DBT *, u_int32_t); /* 32-bit offset=264 size=4, 64=bit offset=424 size=8 */
-  int (*c_put) (DBC *, DBT *, DBT *, u_int32_t); /* 32-bit offset=268 size=4, 64=bit offset=432 size=8 */
-  void* __toku_dummy3[8]; /* Padding at the end */ 
+  void* __toku_dummy3[10]; /* Padding at the end */ 
 };
 struct __toku_dbt {
   void*data; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */

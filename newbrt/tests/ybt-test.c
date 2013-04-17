@@ -5,18 +5,31 @@
 
 #include "includes.h"
 
+static void
+cleanup_and_free(struct simple_dbt *v) {
+    if (v->data) toku_free(v->data);
+    v->data = NULL;
+    v->len = 0;
+}
+
+static void
+cleanup(struct simple_dbt *v) {
+    v->data = NULL;
+    v->len = 0;
+}
+
 static void ybt_test0 (void) {
-    void *v0=0,*v1=0;
+    struct simple_dbt v0 = {0,0}, v1 = {0,0};
     DBT  t0,t1;
     toku_init_dbt(&t0);
     toku_init_dbt(&t1);
     {
 	bytevec temp1 = "hello";
-	toku_dbt_set_value(&t0, &temp1, 6, &v0, FALSE);
+        toku_dbt_set(6, temp1, &t0, &v0);
     }
     {
         bytevec temp2 = "foo";
-	toku_dbt_set_value(&t1, &temp2,   4, &v1, FALSE);
+	toku_dbt_set(  4, temp2, &t1, &v1);
     }
     assert(t0.size==6);
     assert(strcmp(t0.data, "hello")==0); 
@@ -25,14 +38,15 @@ static void ybt_test0 (void) {
 
     {
         bytevec temp3 = "byebye";
-	toku_dbt_set_value(&t1, &temp3, 7, &v0, FALSE);      /* Use v0, not v1 */
+	toku_dbt_set(7, temp3, &t1, &v0);      /* Use v0, not v1 */
     }
     // This assertion would be wrong, since v0 may have been realloc'd, and t0.data may now point
     // at the wrong place
     //assert(strcmp(t0.data, "byebye")==0);     /* t0's data should be changed too, since it used v0 */
     assert(strcmp(t1.data, "byebye")==0);
 
-    toku_free(v0); toku_free(v1);
+    cleanup_and_free(&v0);
+    cleanup_and_free(&v1);
     toku_memory_check_all_free();
 
     /* See if we can probe to find out how big something is by setting ulen=0 with YBT_USERMEM */
@@ -41,7 +55,7 @@ static void ybt_test0 (void) {
     t0.ulen  = 0;
     {
         bytevec temp4 = "hello";
-	toku_dbt_set_value(&t0, &temp4, 6, 0, FALSE);
+	toku_dbt_set(6, temp4, &t0, 0);
     }
     assert(t0.data==0);
     assert(t0.size==6);
@@ -49,18 +63,18 @@ static void ybt_test0 (void) {
     /* Check realloc. */
     toku_init_dbt(&t0);
     t0.flags = DB_DBT_REALLOC;
-    v0 = 0;
+    cleanup(&v0);
     {
         bytevec temp5 = "internationalization";
-	toku_dbt_set_value(&t0, &temp5, 21, &v0, FALSE);
+	toku_dbt_set(21, temp5, &t0, &v0);
     }
-    assert(v0==0); /* Didn't change v0 */
+    assert(v0.data==0); /* Didn't change v0 */
     assert(t0.size==21);
     assert(strcmp(t0.data, "internationalization")==0);
 
     {
         bytevec temp6 = "provincial";
-	toku_dbt_set_value(&t0, &temp6, 11, &v0, FALSE);
+	toku_dbt_set(11, temp6, &t0, &v0);
     }
     assert(t0.size==11);
     assert(strcmp(t0.data, "provincial")==0);

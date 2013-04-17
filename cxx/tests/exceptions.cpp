@@ -12,6 +12,10 @@
 #define DB_DELETE_ANY 0
 #endif
 
+#ifndef DB_KEYEMPTY
+#define DB_KEYEMPTY DB_NOTFOUND
+#endif
+
 int verbose = 0;
 
 #define TC(expr, expect)           \

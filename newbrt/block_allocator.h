@@ -44,7 +44,7 @@ destroy_block_allocator (BLOCK_ALLOCATOR *ba);
 //  Also, set *ba=NULL.
 // Rationale:  If there was only one copy of the pointer, this kills that copy too.
 // Paramaters:
-//  ba (IN/OUT): 
+//  ba (IN/OUT):
 
 
 void

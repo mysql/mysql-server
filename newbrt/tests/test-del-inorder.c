@@ -53,8 +53,10 @@ doit (void) {
     assert(r==0);
 
     memset(&v, 0, sizeof(v));
-    r = toku_brt_lookup(t, &k, &v);
+    struct check_pair pair = {6, "hello", 6, "there", 0};
+    r = toku_brt_lookup(t, &k, &v, lookup_checkf, &pair);
     assert(r==0);
+    assert(pair.call_count == 1);
 
     r = toku_close_brt(t, 0, 0);    assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);

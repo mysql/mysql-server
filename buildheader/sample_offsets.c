@@ -126,7 +126,6 @@ void sample_db_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB, api_internal,   "void *%s"); /* Used for C++ hacking. */
     STRUCT_SETUP(DB, app_private,    "void *%s");
-    STRUCT_SETUP(DB, associate,      "int (*%s) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t)");
     STRUCT_SETUP(DB, close,          "int (*%s) (DB*, u_int32_t)");
     STRUCT_SETUP(DB, cursor,         "int (*%s) (DB *, DB_TXN *, DBC **, u_int32_t)");
     STRUCT_SETUP(DB, dbenv,          "DB_ENV *%s");
@@ -139,7 +138,6 @@ void sample_db_offsets (void) {
 #endif
     STRUCT_SETUP(DB, key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)");
     STRUCT_SETUP(DB, open,           "int (*%s) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)");
-    STRUCT_SETUP(DB, pget,           "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t)");
     STRUCT_SETUP(DB, put,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
     STRUCT_SETUP(DB, remove,         "int (*%s) (DB *, const char *, const char *, u_int32_t)");
     STRUCT_SETUP(DB, rename,         "int (*%s) (DB *, const char *, const char *, const char *, u_int32_t)");
@@ -185,8 +183,6 @@ void sample_dbc_offsets (void) {
     STRUCT_SETUP(DBC, c_count, "int (*%s) (DBC *, db_recno_t *, u_int32_t)");
     STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, u_int32_t)");
     STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
-    STRUCT_SETUP(DBC, c_pget,  "int (*%s) (DBC *, DBT *, DBT *, DBT *, u_int32_t)");
-    STRUCT_SETUP(DBC, c_put,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
     STRUCT_SETUP(DBC, dbp,     "DB *%s");
     sort_and_dump_fields("dbc", sizeof(DBC));
 }

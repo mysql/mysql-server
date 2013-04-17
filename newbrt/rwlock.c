@@ -25,7 +25,7 @@
  *   4) We want to guarantee nonstarvation (many rwlock
  *   implementations can starve the writers because another reader
  *   comes * along before all the other readers have unlocked.)
- *    
+ *
  *****************************************
  *      How it works
  *****************************************

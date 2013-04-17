@@ -3,6 +3,9 @@
 
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+//TODO: #1378  This is not threadsafe.  Make sure when splitting locks
+//that we protect these calls.
+
 // This list is intended to be embedded in other data structures.
 struct list {
     struct list *next, *prev;
@@ -69,7 +72,7 @@ static inline void list_move(struct list *newhead, struct list *oldhead) {
     list_init(oldhead);
 }
 
-// Note: Need the extra level of parens in these macros so that 
+// Note: Need the extra level of parens in these macros so that
 //   list_struct(h, foo, b)->zot
 // will work right.  Otherwise the type cast will try to include ->zot, and it will be all messed up.
 #if defined(__GNUC__) && __GNUC__ >= 4

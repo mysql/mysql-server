@@ -142,8 +142,9 @@ test_insert_and_abort_and_insert(u_int32_t num_to_insert, int abort_type) {
 #define bit0 (1<<0)
 #define bit1 (1<<1)
 
-static void
+static int
 do_nothing(DBT const *UU(a), DBT  const *UU(b), void *UU(c)) {
+    return 0;
 }
 
 static void

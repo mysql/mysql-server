@@ -8,7 +8,7 @@ enum brt_search_direction_e {
 
 struct brt_search;
 
-/* the search compare function should return 0 for all xy < kv and 1 for all xy >= kv 
+/* the search compare function should return 0 for all xy < kv and 1 for all xy >= kv
    the compare function should be a step function from 0 to 1 for a left to right search
    and 1 to 0 for a right to left search */
 

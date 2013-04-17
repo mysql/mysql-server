@@ -30,9 +30,11 @@ void print_db_notices (void) {
 #define dodefine(name) printf("#define %s %d\n", #name, name)
 
 enum {
-	TOKUDB_OUT_OF_LOCKS     = -100000,
-        TOKUDB_SUCCEEDED_EARLY  = -100001,
-        TOKUDB_DIRTY_DICTIONARY = -100004
+	TOKUDB_OUT_OF_LOCKS        = -100000,
+        TOKUDB_SUCCEEDED_EARLY     = -100001,
+        TOKUDB_FOUND_BUT_REJECTED  = -100002,
+        TOKUDB_USER_CALLBACK_ERROR = -100003,
+        TOKUDB_DIRTY_DICTIONARY    = -100004
 };
 
 void print_defines (void) {
@@ -85,7 +87,7 @@ void print_defines (void) {
 #ifdef DB_READ_UNCOMMITTED
     dodefine(DB_READ_UNCOMMITTED);
 #endif
-    dodefine(DB_KEYEMPTY);
+    //dodefine(DB_KEYEMPTY);      /// KEYEMPTY is no longer used.  We just use DB_NOTFOUND
     dodefine(DB_KEYEXIST);
     dodefine(DB_LOCK_DEADLOCK);
     dodefine(DB_LOCK_NOTGRANTED);
@@ -107,8 +109,7 @@ void print_defines (void) {
     dodefine(DB_NEXT_DUP);
     dodefine(DB_NEXT_NODUP);
     dodefine(DB_PREV);
-#if 0 && defined(DB_PREV_DUP)
-    // DB_PREV_DUP isn't working in tdb, so don't use it.
+#if defined(DB_PREV_DUP)
     dodefine(DB_PREV_DUP);
 #endif
     dodefine(DB_PREV_NODUP);
@@ -140,6 +141,8 @@ void print_defines (void) {
     dodefine(TOKUDB_OUT_OF_LOCKS);
     dodefine(TOKUDB_SUCCEEDED_EARLY);
     dodefine(TOKUDB_DIRTY_DICTIONARY);
+    dodefine(TOKUDB_FOUND_BUT_REJECTED);
+    dodefine(TOKUDB_USER_CALLBACK_ERROR);
 }
 
 //#define DECL_LIMIT 100
@@ -290,6 +293,9 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("typedef struct __toku_dbc DBC;\n");
     printf("typedef struct __toku_dbt DBT;\n");
     printf("typedef u_int32_t db_recno_t;\n");
+    printf("typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);\n");
+    printf("typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);\n");
+    printf("typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);\n");
     print_dbtype();
 //    print_db_notices();
     print_defines();
@@ -332,18 +338,24 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     print_struct("db_txn_stat", 0, db_txn_stat_fields32, db_txn_stat_fields64, sizeof(db_txn_stat_fields32)/sizeof(db_txn_stat_fields32[0]), 0);
 
     {
-	const char *extra[]={"int (*c_getf_next)(DBC *, u_int32_t, void(*)(DBT const *, DBT  const *, void *), void *)",
-			     "int (*c_getf_next_dup)(DBC *, u_int32_t, void(*)(DBT  const *, DBT const *, void *), void *)",
-			     "int (*c_getf_next_no_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
-			     "int (*c_getf_prev)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
-			     "int (*c_getf_prev_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
-			     "int (*c_getf_prev_no_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
-			     "int (*c_getf_current)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
-			     "int (*c_getf_first)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
-			     "int (*c_getf_last)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
-                             "int (*c_getf_heavi)(DBC *, u_int32_t, "
-                                 "void(*f)(DBT const *, DBT const *, void *, int), void *extra_f, "
-                                 "int (*h)(const DBT *key, const DBT *value, void *extra_h), void *extra_h, int direction)",
+	const char *extra[]={
+			     "int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+                             "int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_next_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_next_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_prev)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_prev_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_prev_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_current)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_current_binding)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+                             "int (*c_getf_heaviside)(DBC *, u_int32_t, "
+                                 "YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra_f, "
+                                 "YDB_HEAVISIDE_FUNCTION h, void *extra_h, int direction)",
+			     "int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_get_both)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_get_both_range)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     NULL};
 	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
 	print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);
