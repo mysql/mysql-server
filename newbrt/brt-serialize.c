@@ -296,8 +296,8 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 
     if (0) printf("Block %" PRId64 " Size before compressing %u, after compression %lu\n", blocknum.b, calculated_size-uncompressed_magic_len, compressed_len);
 
-    ((int32_t*)(compressed_buf+uncompressed_magic_len))[0] = htonl(compressed_len);
-    ((int32_t*)(compressed_buf+uncompressed_magic_len))[1] = htonl(uncompressed_len);
+    ((int32_t*)(compressed_buf+uncompressed_magic_len))[0] = toku_htonl(compressed_len);
+    ((int32_t*)(compressed_buf+uncompressed_magic_len))[1] = toku_htonl(uncompressed_len);
 
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
@@ -352,15 +352,15 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     {
 	// get the compressed size
 	r = pread(fd, uncompressed_header, sizeof(uncompressed_header), offset);
-	//printf("%s:%d r=%d the datasize=%d\n", __FILE__, __LINE__, r, ntohl(datasize_n));
+	//printf("%s:%d r=%d the datasize=%d\n", __FILE__, __LINE__, r, toku_ntohl(datasize_n));
 	if (r!=(int)sizeof(uncompressed_header)) {
 	    if (r==-1) r=errno;
 	    else r = DB_BADFORMAT;
 	    goto died0;
 	}
-	compressed_size   = ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
+	compressed_size   = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
 	if (compressed_size<=0   || compressed_size>(1<<30)) { r = DB_BADFORMAT; goto died0; }
-	uncompressed_size = ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len+4]));
+	uncompressed_size = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len+4]));
 	if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
 	if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = DB_BADFORMAT; goto died0; }
     }
@@ -767,7 +767,7 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
 	    u_int32_t x1764 = x1764_memory(tbuf, h->block_translation_size_on_disk - 4);
 	    u_int64_t offset = h->block_translation_size_on_disk - 4;
 	    //printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, h->block_translation_address_on_disk, offset, h->block_translation_size_on_disk);
-	    u_int32_t stored_x1764 = ntohl(*(int*)(tbuf + offset));
+	    u_int32_t stored_x1764 = toku_ntohl(*(int*)(tbuf + offset));
 	    assert(x1764 == stored_x1764);
 	}
 	// now read all that data.
@@ -838,7 +838,7 @@ int toku_deserialize_brtheader_from (int fd, BLOCKNUM blocknum, struct brt_heade
     if (r!=12) return EINVAL;
     assert(memcmp(magic,"tokudata",8)==0);
     // It's version 7 or later, and the magi clooks OK
-    return deserialize_brtheader(ntohl(*(int*)(&magic[8])), fd, offset, brth);
+    return deserialize_brtheader(toku_ntohl(*(int*)(&magic[8])), fd, offset, brth);
 }
 
 unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {
@@ -907,7 +907,7 @@ read_int (int fd, toku_off_t *at, u_int32_t *result) {
     ssize_t r = pread(fd, &v, 4, *at);
     if (r<0) return errno;
     assert(r==4);
-    *result = ntohl(v);
+    *result = toku_ntohl(v);
     (*at) += 4;
     return 0;
 }

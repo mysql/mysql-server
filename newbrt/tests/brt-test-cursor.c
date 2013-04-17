@@ -391,7 +391,7 @@ static void test_brt_cursor_rwalk(int n, DB *db) {
         int k; long long v;
         DBT kbt, vbt;
 
-        k = htonl(i);
+        k = toku_htonl(i);
         toku_fill_dbt(&kbt, &k, sizeof k);
         v = i;
         toku_fill_dbt(&vbt, &v, sizeof v);
@@ -655,7 +655,7 @@ static void test_multiple_brt_cursor_walk(int n, DB *db) {
     /* insert keys 0, 1, 2, ... n-1 */
     int i;
     for (i=0; i<n; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
@@ -729,7 +729,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
 
     /* insert keys 0, 10, 20 .. 10*(n-1) */
     for (i=0; i<n; i++) {
-        k = htonl(10*i);
+        k = toku_htonl(10*i);
         v = 10*i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
@@ -745,7 +745,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
         int vv;
 
         v = 10*(random() % n);
-        k = htonl(v);
+        k = toku_htonl(v);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_cursor_get(cursor, &key, &val, cursor_op, null_txn);
@@ -761,7 +761,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     for (i=0; i<10*n; i++) {
         if (i % 10 == 0)
             continue;
-        k = htonl(i);
+        k = toku_htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_cursor_get(cursor, &key, &val, DB_SET, null_txn);
@@ -802,7 +802,7 @@ static void test_brt_cursor_set_range(int n, DB *db) {
     /* insert keys 0, 10, 20 .. 10*(n-1) */
     int max_key = 10*(n-1);
     for (i=0; i<n; i++) {
-        k = htonl(10*i);
+        k = toku_htonl(10*i);
         v = 10*i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
@@ -819,7 +819,7 @@ static void test_brt_cursor_set_range(int n, DB *db) {
         int vv;
 
         v = random() % (10*n);
-        k = htonl(v);
+        k = toku_htonl(v);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_cursor_get(cursor, &key, &val, DB_SET_RANGE, null_txn);
@@ -870,7 +870,7 @@ static void test_brt_cursor_delete(int n, DB *db) {
     int i;
     /* insert keys 0, 1, 2, .. (n-1) */
     for (i=0; i<n; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
@@ -929,7 +929,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
     int k, v;
 
     /* verify get_both on an empty tree fails */
-    k = htonl(n+1);
+    k = toku_htonl(n+1);
     v = n+1;
     toku_fill_dbt(&key, &k, sizeof k);
     toku_fill_dbt(&val, &v, sizeof v);
@@ -939,7 +939,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
     int i;
     /* insert keys 0, 1, 2, .. (n-1) */
     for (i=0; i<n; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
@@ -948,7 +948,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
     }
 
     /* verify that keys not in the tree fail */
-    k = htonl(n+1);
+    k = toku_htonl(n+1);
     v = n-1;
     toku_fill_dbt(&key, &k, sizeof k);
     toku_fill_dbt(&val, &v, sizeof v);
@@ -957,7 +957,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
 
     /* verify that key match but data mismatch fails */
     for (i=0; i<n; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         v = i+1;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
@@ -967,7 +967,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
 
     /* verify that key and data matches succeeds */
     for (i=0; i<n; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
@@ -988,7 +988,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
         error = toku_brt_cursor_delete(cursor, 0, null_txn);
         assert(error == 0);
 
-        k = htonl(i);
+        k = toku_htonl(i);
         v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);

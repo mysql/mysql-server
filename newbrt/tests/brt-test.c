@@ -630,7 +630,7 @@ static void test_brt_delete_empty() {
     assert(r==0);
 
     DBT key;
-    int k = htonl(1);
+    int k = toku_htonl(1);
     toku_fill_dbt(&key, &k, sizeof k);
     r = toku_brt_delete(t, &key, null_txn);
     assert(r == 0);
@@ -662,7 +662,7 @@ static void test_brt_delete_present(int n) {
 
     /* insert 0 .. n-1 */
     for (i=0; i<n; i++) {
-        k = htonl(i); v = i;
+        k = toku_htonl(i); v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
         r = toku_brt_insert(t, &key, &val, 0);
@@ -671,7 +671,7 @@ static void test_brt_delete_present(int n) {
 
     /* delete 0 .. n-1 */
     for (i=0; i<n; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
         r = toku_brt_delete(t, &key, null_txn);
         assert(r == 0);
@@ -679,7 +679,7 @@ static void test_brt_delete_present(int n) {
 
     /* lookups should all fail */
     for (i=0; i<n; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_lookup(t, &key, &val);
@@ -723,7 +723,7 @@ static void test_brt_delete_not_present(int n) {
 
     /* insert 0 .. n-1 */
     for (i=0; i<n; i++) {
-        k = htonl(i); v = i;
+        k = toku_htonl(i); v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
         r = toku_brt_insert(t, &key, &val, 0);
@@ -732,14 +732,14 @@ static void test_brt_delete_not_present(int n) {
 
     /* delete 0 .. n-1 */
     for (i=0; i<n; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
         r = toku_brt_delete(t, &key, null_txn);
         assert(r == 0);
     }
 
     /* try to delete key n+1 not in the tree */
-    k = htonl(n+1);
+    k = toku_htonl(n+1);
     toku_fill_dbt(&key, &k, sizeof k);
     r = toku_brt_delete(t, &key, null_txn);
     /* the delete may be buffered or may be executed on a leaf node, so the
@@ -769,7 +769,7 @@ static void test_brt_delete_cursor_first(int n) {
 
     /* insert 0 .. n-1 */
     for (i=0; i<n; i++) {
-        k = htonl(i); v = i;
+        k = toku_htonl(i); v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
         r = toku_brt_insert(t, &key, &val, 0);
@@ -778,7 +778,7 @@ static void test_brt_delete_cursor_first(int n) {
 
     /* lookups 0 .. n-1 should succeed */
     for (i=0; i<n; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_lookup(t, &key, &val);
@@ -792,7 +792,7 @@ static void test_brt_delete_cursor_first(int n) {
 
     /* delete 0 .. n-2 */
     for (i=0; i<n-1; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
         r = toku_brt_delete(t, &key, null_txn);
         assert(r == 0);
@@ -804,7 +804,7 @@ static void test_brt_delete_cursor_first(int n) {
 
     /* lookup of 0 .. n-2 should all fail */
     for (i=0; i<n-1; i++) {
-        k = htonl(i);
+        k = toku_htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_lookup(t, &key, &val);
@@ -860,7 +860,7 @@ static void test_insert_delete_lookup(int n) {
 
     /* insert 0 .. n-1 */
     for (i=0; i<n; i++) {
-        k = htonl(i); v = i;
+        k = toku_htonl(i); v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
         r = toku_brt_insert(t, &key, &val, 0);
@@ -868,12 +868,12 @@ static void test_insert_delete_lookup(int n) {
     }
 
     if (n > 0) {
-        k = htonl(n-1);
+        k = toku_htonl(n-1);
         toku_fill_dbt(&key, &k, sizeof k);
         r = toku_brt_delete(t, &key, null_txn);
         assert(r == 0);
 
-        k = htonl(n-1);
+        k = toku_htonl(n-1);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_lookup(t, &key, &val);
@@ -908,26 +908,26 @@ static void test_brt_delete_both(int n) {
     int k, v;
 
     for (i=0; i<n; i++) {
-        k = htonl(0); v = htonl(i);
+        k = toku_htonl(0); v = toku_htonl(i);
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0);
         assert(r == 0);
     }
 
     for (i=0; i<n; i += 2) {
-        k = htonl(0); v = htonl(i);
+        k = toku_htonl(0); v = toku_htonl(i);
         r = toku_brt_delete_both(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), null_txn); assert(r == 0);
     }
 
 #if 0
     for (i=1; i<n; i += 2) {
-        k = htonl(0);
+        k = toku_htonl(0);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_lookup(t, &key, &val); assert(r == 0);
         int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
         if (val.data) free(val.data);
         r = toku_brt_delete_both(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &vv, sizeof vv), null_txn); assert(r == 0);
     }
@@ -946,7 +946,7 @@ static void test_brt_delete_both(int n) {
         int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
         toku_free(key.data);
         toku_free(val.data);
     }
@@ -1012,7 +1012,7 @@ static void test_new_brt_cursor_first(int n, int dup_mode) {
     int k, v;
 
     for (i=0; i<n; i++) {
-        k = htonl(i); v = htonl(i);
+        k = toku_htonl(i); v = toku_htonl(i);
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
@@ -1029,11 +1029,11 @@ static void test_new_brt_cursor_first(int n, int dup_mode) {
         int kk;
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
-        assert(kk == (int) htonl(i));
+        assert(kk == (int) toku_htonl(i));
         int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
 
         r = toku_brt_cursor_delete(cursor, 0, null_txn); assert(r == 0);
     }
@@ -1066,7 +1066,7 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
     int k, v;
 
     for (i=0; i<n; i++) {
-        k = htonl(i); v = htonl(i);
+        k = toku_htonl(i); v = toku_htonl(i);
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
@@ -1083,11 +1083,11 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
         int kk;
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
-        assert(kk == (int) htonl(i));
+        assert(kk == (int) toku_htonl(i));
         int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
 
 	//if (n==512 && i<=360) { printf("i=%d\n", i); toku_dump_brt(stdout, t); }
         r = toku_brt_cursor_delete(cursor, 0, null_txn); assert(r == 0);
@@ -1121,7 +1121,7 @@ static void test_new_brt_cursor_next(int n, int dup_mode) {
     int k, v;
 
     for (i=0; i<n; i++) {
-        k = htonl(i); v = htonl(i);
+        k = toku_htonl(i); v = toku_htonl(i);
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
@@ -1138,11 +1138,11 @@ static void test_new_brt_cursor_next(int n, int dup_mode) {
         int kk;
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
-        assert(kk == (int) htonl(i));
+        assert(kk == (int) toku_htonl(i));
         int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
     }
     assert(i == n);
 
@@ -1173,7 +1173,7 @@ static void test_new_brt_cursor_prev(int n, int dup_mode) {
     int k, v;
 
     for (i=0; i<n; i++) {
-        k = htonl(i); v = htonl(i);
+        k = toku_htonl(i); v = toku_htonl(i);
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
@@ -1190,11 +1190,11 @@ static void test_new_brt_cursor_prev(int n, int dup_mode) {
         int kk;
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
-        assert(kk == (int) htonl(i));
+        assert(kk == (int) toku_htonl(i));
         int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
     }
     assert(i == -1);
 
@@ -1225,7 +1225,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
     int k, v;
 
     for (i=0; i<n; i++) {
-        k = htonl(i); v = htonl(i);
+        k = toku_htonl(i); v = toku_htonl(i);
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
@@ -1242,27 +1242,27 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
         int kk;
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
-        assert(kk == (int) htonl(i));
+        assert(kk == (int) toku_htonl(i));
         int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
 
         r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT, null_txn); assert(r == 0);
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
-        assert(kk == (int) htonl(i));
+        assert(kk == (int) toku_htonl(i));
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
 
         r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT_BINDING, null_txn); assert(r == 0);
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
-        assert(kk == (int) htonl(i));
+        assert(kk == (int) toku_htonl(i));
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
 
         r = toku_brt_cursor_delete(cursor, 0, null_txn); assert(r == 0);
 
@@ -1271,10 +1271,10 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
         r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT_BINDING, null_txn); assert(r == 0);
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
-        assert(kk == (int) htonl(i));
+        assert(kk == (int) toku_htonl(i));
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
-        assert(vv == (int) htonl(i));
+        assert(vv == (int) toku_htonl(i));
     }
     assert(i == n);
 
@@ -1308,7 +1308,7 @@ static void test_new_brt_cursor_set_range(int n, int dup_mode) {
     /* insert keys 0, 10, 20 .. 10*(n-1) */
     int max_key = 10*(n-1);
     for (i=0; i<n; i++) {
-        k = htonl(10*i);
+        k = toku_htonl(10*i);
         v = 10*i;
         r = toku_brt_insert(brt, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
@@ -1321,7 +1321,7 @@ static void test_new_brt_cursor_set_range(int n, int dup_mode) {
         int vv;
 
         v = random() % (10*n);
-        k = htonl(v);
+        k = toku_htonl(v);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_cursor_get(cursor, &key, &val, DB_SET_RANGE, null_txn);
@@ -1364,7 +1364,7 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
 
     /* insert keys 0, 10, 20 .. 10*(n-1) */
     for (i=0; i<n; i++) {
-        k = htonl(10*i);
+        k = toku_htonl(10*i);
         v = 10*i;
         r = toku_brt_insert(brt, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
@@ -1376,7 +1376,7 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
         int vv;
 
         v = 10*(random() % n);
-        k = htonl(v);
+        k = toku_htonl(v);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_cursor_get(cursor, &key, &val, cursor_op, null_txn);
@@ -1392,7 +1392,7 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
     for (i=0; i<10*n; i++) {
         if (i % 10 == 0)
             continue;
-        k = htonl(i);
+        k = toku_htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = toku_brt_cursor_get(cursor, &key, &val, DB_SET, null_txn);
