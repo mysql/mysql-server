@@ -433,7 +433,7 @@ dump.bdb.1426: test1426.bdbdump/dump.bdb.1426
 	cat $< | unix2dos --u2d > $@
     	
 else
-dump.bdb.1426: test1426.bdb$(BINSUF)
+dump.bdb.1426: test1426.bdb$(BINSUF) test1426.bdbdump/dump.bdb.1426
 	./$< -q  && \
 	 $(BDBDIR)/bin/db_dump -p -h dir.test1426.c.bdb main > $@
 	diff -q $@ test1426.bdbdump/$@ #Assert output is correct.
