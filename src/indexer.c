@@ -221,8 +221,6 @@ static int
 build_index(DB_INDEXER *indexer) {
     int result = 0;
 
-    (void) toku_sync_fetch_and_increment_uint64(&status.build);
-
     DBT key; toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
     DBT le; toku_init_dbt(&le); le.flags = DB_DBT_REALLOC;
 
@@ -265,6 +263,13 @@ build_index(DB_INDEXER *indexer) {
     //  - garbage collect?
     //  - unique checks?
 
+    if ( result == 0 ) {
+        (void) toku_sync_fetch_and_increment_uint64(&status.build);
+    } else {
+	(void) toku_sync_fetch_and_increment_uint64(&status.build_fail);
+    }
+
+
     return result;
 }
 
@@ -275,7 +280,7 @@ close_indexer(DB_INDEXER *indexer) {
 
     toku_ydb_lock();
 /*
-Add all created dbs to the transaction’s checkpoint_before_commit list.  (This will cause a local checkpoint of created index files, which is necessary because these files are not necessarily on disk and all the operations to create them are not in the recovery log.)
+Add all created dbs to the transaction's checkpoint_before_commit list.  (This will cause a local checkpoint of created index files, which is necessary because these files are not necessarily on disk and all the operations to create them are not in the recovery log.)
 Disassociate the indexer from the hot dbs
 */
     disassociate_indexer_from_hot_dbs(indexer);

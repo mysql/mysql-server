@@ -1839,6 +1839,19 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->logsuppressfail = logsuppressfail;
 	}
 	{
+	    INDEXER_STATUS_S indexer_stat;
+	    toku_indexer_get_status(&indexer_stat);
+	    engstat->indexer_create         = indexer_stat.create;
+	    engstat->indexer_create_fail    = indexer_stat.create_fail;
+	    engstat->indexer_build          = indexer_stat.build;
+	    engstat->indexer_build_fail     = indexer_stat.build_fail;
+	    engstat->indexer_close          = indexer_stat.close;
+	    engstat->indexer_close_fail     = indexer_stat.close_fail;
+	    engstat->indexer_abort          = indexer_stat.abort;
+	    engstat->indexer_current        = indexer_stat.current;
+	    engstat->indexer_max            = indexer_stat.max;
+	}
+	{
 	    BRT_UPGRADE_STATUS_S brt_upgrade_stat;
 	    toku_brt_get_upgrade_status(&brt_upgrade_stat);
 
@@ -1975,7 +1988,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "enospc redzone ctr               %"PRIu64"\n", engstat.enospc_redzone_ctr);
 	n += snprintf(buff + n, bufsiz - n, "enospc state                     %"PRIu64"\n", engstat.enospc_state);
 	n += snprintf(buff + n, bufsiz - n, "loader_create                    %"PRIu64"\n", engstat.loader_create);
-	n += snprintf(buff + n, bufsiz - n, "loader_createf_fail              %"PRIu64"\n", engstat.loader_create_fail);
+	n += snprintf(buff + n, bufsiz - n, "loader_create_fail               %"PRIu64"\n", engstat.loader_create_fail);
 	n += snprintf(buff + n, bufsiz - n, "loader_put                       %"PRIu64"\n", engstat.loader_put);
 	n += snprintf(buff + n, bufsiz - n, "loader_close                     %"PRIu64"\n", engstat.loader_close);
 	n += snprintf(buff + n, bufsiz - n, "loader_close_fail                %"PRIu64"\n", engstat.loader_close_fail);
@@ -1984,6 +1997,15 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "loader_max                       %"PRIu32"\n", engstat.loader_max);
 	n += snprintf(buff + n, bufsiz - n, "logsuppress                      %"PRIu64"\n", engstat.logsuppress);
 	n += snprintf(buff + n, bufsiz - n, "logsuppressfail                  %"PRIu64"\n", engstat.logsuppressfail);
+	n += snprintf(buff + n, bufsiz - n, "indexer_create                   %"PRIu64"\n", engstat.indexer_create);
+	n += snprintf(buff + n, bufsiz - n, "indexer_create_fail              %"PRIu64"\n", engstat.indexer_create_fail);
+	n += snprintf(buff + n, bufsiz - n, "indexer_build                    %"PRIu64"\n", engstat.indexer_build);
+	n += snprintf(buff + n, bufsiz - n, "indexer_build_fail               %"PRIu64"\n", engstat.indexer_build_fail);
+	n += snprintf(buff + n, bufsiz - n, "indexer_close                    %"PRIu64"\n", engstat.indexer_close);
+	n += snprintf(buff + n, bufsiz - n, "indexer_close_fail               %"PRIu64"\n", engstat.indexer_close_fail);
+	n += snprintf(buff + n, bufsiz - n, "indexer_abort                    %"PRIu64"\n", engstat.indexer_abort);
+	n += snprintf(buff + n, bufsiz - n, "indexer_current                  %"PRIu32"\n", engstat.indexer_current);
+	n += snprintf(buff + n, bufsiz - n, "indexer_max                      %"PRIu32"\n", engstat.indexer_max);
 	n += snprintf(buff + n, bufsiz - n, "upgrade_env_status               %"PRIu64"\n", engstat.upgrade_env_status);
 	n += snprintf(buff + n, bufsiz - n, "upgrade_header                   %"PRIu64"\n", engstat.upgrade_header);
 	n += snprintf(buff + n, bufsiz - n, "upgrade_nonleaf                  %"PRIu64"\n", engstat.upgrade_nonleaf);
