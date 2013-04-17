@@ -576,6 +576,12 @@ test_le_empty_apply(void) {
                     generate_provpair_for(&ule_expected, &msg);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                 }
+                {
+                    msg_init(&msg, BRT_INSERT_NO_OVERWRITE, msg_xids, &key, &val);
+                    ULE_S ule_expected;
+                    generate_provpair_for(&ule_expected, &msg);
+                    test_le_apply(&ule_initial, &msg, &ule_expected);
+                }
             }
         }
     }
@@ -695,6 +701,17 @@ test_le_committed_apply(void) {
                     msg_init(&msg, BRT_INSERT, msg_xids, &key, &val2);
                     ULE_S ule_expected;
                     generate_both_for(&ule_expected, &val, &msg);
+                    test_le_apply(&ule_initial, &msg, &ule_expected);
+                }
+                {
+                    //INSERT_NO_OVERWRITE will not change a committed insert
+                    ULE_S ule_expected = ule_initial;
+                    u_int8_t valbuf2[MAX_SIZE];
+                    u_int32_t valsize2 = random() % MAX_SIZE;
+                    fillrandom(valbuf2, valsize2);
+                    DBT val2;
+                    toku_fill_dbt(&val2, valbuf2, valsize2);
+                    msg_init(&msg, BRT_INSERT_NO_OVERWRITE, msg_xids, &key, &val2);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                 }
             }
