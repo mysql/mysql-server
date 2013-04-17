@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "toku_assert.h"
@@ -50,7 +52,9 @@ test_mempool_malloc_mfree (size_t size) {
     free(base);
 }
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
     test_mempool_limits(0);
     test_mempool_limits(256);
     test_mempool_malloc_mfree(0);

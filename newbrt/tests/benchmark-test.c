@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 /* Insert a bunch of stuff */
 #include "includes.h"
 
@@ -18,7 +20,6 @@ static int keysize = sizeof (long long);
 static int valsize = sizeof (long long);
 static int do_verify =0; /* Do a slow verify after every insert. */
 
-static int verbose = 1;
 static int do_serial = 1;
 static int do_random = 1;
 
@@ -118,11 +119,13 @@ static void usage() {
     printf("[--verify]\n");
 }
 
-int main (int argc, char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
+    verbose=1; //Default
     /* parse parameters */
     int i;
     for (i=1; i<argc; i++) {
-        char *arg = argv[i];
+        const char *arg = argv[i];
         if (arg[0] != '-')
             break;
         if (strcmp(arg, "--nodesize") == 0) {

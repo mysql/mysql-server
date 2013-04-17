@@ -1,5 +1,7 @@
 /* The goal of this test.  Make sure that inserts stay behind deletes. */
 
+
+#include "test.h"
 #include "includes.h"
 
 static TOKUTXN const null_txn = 0;
@@ -58,7 +60,8 @@ doit (void) {
     r = toku_cachetable_close(&ct); assert(r==0);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     doit();
     return 0;
 }

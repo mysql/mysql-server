@@ -1,5 +1,7 @@
 #include "toku_portability.h"
 #include <string.h>
+
+#include "test.h"
 #include "brttypes.h"
 #include "includes.h"
 
@@ -97,7 +99,8 @@ static void test_leafentry_3long (void) {
     toku_free(l);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     test_leafentry_1();
     test_leafentry_2();
     test_leafentry_3();

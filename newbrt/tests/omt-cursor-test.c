@@ -1,5 +1,7 @@
 #include "toku_portability.h"
 #include <errno.h>
+
+#include "test.h"
 #include <stdio.h>
 
 typedef void *OMTVALUE;
@@ -92,7 +94,8 @@ static void test (void) {
     toku_omt_cursor_destroy(&curs3);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     test();
     return 0;
 }

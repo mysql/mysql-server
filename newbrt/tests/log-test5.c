@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 #include "includes.h"
 
 #define dname __FILE__ ".dir"
@@ -10,8 +12,9 @@
 
 #define LSIZE 100
 
-int main (int argc __attribute__((__unused__)),
-	  char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)),
+	  const char *argv[] __attribute__((__unused__))) {
     int r;
     system(rmrf);
     r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);

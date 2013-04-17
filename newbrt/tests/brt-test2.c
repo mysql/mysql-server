@@ -47,7 +47,8 @@ static void test2 (int memcheck, int limit) {
     if (verbose) printf("test2 ok\n");
 }
 
-int main (int argc , const char *argv[]) {
+int
+test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 //    if (verbose) printf("test2 checking memory\n");
 //    test2(1);

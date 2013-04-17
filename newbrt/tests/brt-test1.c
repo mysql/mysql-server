@@ -32,7 +32,8 @@ static void test1 (void) {
     toku_memory_check_all_free();
     if (verbose) printf("test1 ok\n");
 }
-int main (int argc , const char *argv[]) {
+int
+test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
      if (verbose) printf("test1\n");
     test1();

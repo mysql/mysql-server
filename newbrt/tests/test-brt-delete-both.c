@@ -43,7 +43,8 @@ doit (void) {
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     doit();
     if (verbose) printf("test ok\n");

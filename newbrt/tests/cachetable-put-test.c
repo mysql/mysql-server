@@ -83,7 +83,8 @@ cachetable_put_test (int n) {
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     cachetable_put_test(8);
     return 0;

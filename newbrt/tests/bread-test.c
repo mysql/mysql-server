@@ -1,5 +1,7 @@
 /* Test bread by writing random data and then reading it using bread_backwards() to see if it gives the right answer.
  * See test_1305 for another bread test (testing to see if it can read 1GB files) */
+
+#include "test.h"
 #include "toku_portability.h"
 
 #include <assert.h>
@@ -68,7 +70,8 @@ test (int seed) {
     unlink(FNAME);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     int i;
     for (i=0; i<10; i++) test(i);
     return 0;

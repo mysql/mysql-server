@@ -234,7 +234,8 @@ usage (const char *progname) {
     exit(1);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     test_mutex_init();
     test_chaining();

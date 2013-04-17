@@ -1,5 +1,7 @@
 #include "includes.h"
 
+
+#include "test.h"
 static const char fname[]= __FILE__ ".brt";
 
 static TOKUTXN const null_txn = 0;
@@ -10,7 +12,8 @@ BRT_CURSOR cursor;
 static int test_brt_cursor_keycompare(DB *db __attribute__((unused)), const DBT *a, const DBT *b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
-int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute__((__unused__))) {
     int r;
     DB a_db;
     DB *db = &a_db;

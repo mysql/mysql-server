@@ -72,7 +72,8 @@ test (u_int64_t fsize) {
     unlink(FNAME);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     test(1LL<<23);
     test(1LL<<30);
