@@ -30,12 +30,18 @@ test_main(int argc, char*const* argv) {
     assert(r == 0);
 
     r = dbenv->open(dbenv, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0666);
-#ifdef USE_TDB
     if (verbose) printf("r=%d\n", r);
-    assert(r != 0);
+#ifdef USE_TDB
+    assert(r == EINVAL);
+#elif USE_BDB
+#if DB_VERSION_MAJOR >= 5
+    assert(r == EINVAL);
 #else
     if (verbose) printf("test_db_env_open_open_close.bdb skipped.  (BDB apparently does not follow the spec).\n");
-    assert(r==0);
+    assert(r == 0);
+#endif
+#else
+#error
 #endif    
 
     r = dbenv->close(dbenv, 0);
