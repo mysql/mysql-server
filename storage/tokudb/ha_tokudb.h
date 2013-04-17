@@ -227,6 +227,7 @@ public:
     int update_row(const uchar * old_data, uchar * new_data);
     int delete_row(const uchar * buf);
 
+    int prepare_index_scan();
     int index_init(uint index, bool sorted);
     int index_end();
     int index_read(uchar * buf, const uchar * key, uint key_len, enum ha_rkey_function find_flag);
