@@ -54,34 +54,25 @@ endif ()
 FILE(GLOB XZ_ALL_FILES ${XZ_SOURCE_DIR}/*)
 if (CMAKE_GENERATOR STREQUAL Ninja)
   ## ninja doesn't understand "$(MAKE)"
-  ExternalProject_Add(build_lzma
-    PREFIX xz
-    DOWNLOAD_COMMAND
-        cd ${XZ_SOURCE_DIR} && cp -ru "${XZ_ALL_FILES}" "<SOURCE_DIR>/"
-    CONFIGURE_COMMAND
-        "<SOURCE_DIR>/configure" ${xz_configure_opts}
-        "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
-    BUILD_COMMAND
-        make -C src/liblzma
-    INSTALL_COMMAND
-        make -C src/liblzma install
-    )
+  set(SUBMAKE_COMMAND make)
 else ()
   ## use "$(MAKE)" for submakes so they can use the jobserver, doesn't
   ## seem to break Xcode...
-  ExternalProject_Add(build_lzma
+  set(SUBMAKE_COMMAND $(MAKE))
+endif ()
+
+ExternalProject_Add(build_lzma
     PREFIX xz
     DOWNLOAD_COMMAND
-        cd ${XZ_SOURCE_DIR} && cp -ru "${XZ_ALL_FILES}" "<SOURCE_DIR>/"
+        cp -au "${XZ_ALL_FILES}" "<SOURCE_DIR>/"
     CONFIGURE_COMMAND
         "<SOURCE_DIR>/configure" ${xz_configure_opts}
         "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
     BUILD_COMMAND
-        $(MAKE) -C src/liblzma
+        ${SUBMAKE_COMMAND} -C src/liblzma
     INSTALL_COMMAND
-        $(MAKE) -C src/liblzma install
-    )
-endif ()
+        ${SUBMAKE_COMMAND} -C src/liblzma install
+)
 FILE(GLOB_RECURSE XZ_ALL_FILES_RECURSIVE ${XZ_SOURCE_DIR}/*)
 ExternalProject_Add_Step(build_lzma reclone_src # Names of project and custom step
     COMMENT "(re)cloning xz source..."     # Text printed when step executes
