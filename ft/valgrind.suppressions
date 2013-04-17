@@ -154,21 +154,18 @@
    Memcheck:Leak
    ...
    obj:/usr/lib/dyld
-   ...
 }
 {
    dyld_on_OSX
    Memcheck:Value8
    ...
    obj:/usr/lib/dyld
-   ...
 }
 {
    dyld_on_OSX
    Memcheck:Cond
    ...
    obj:/usr/lib/dyld
-   ...
 }
 {
    ctime_on_OSX
@@ -177,7 +174,6 @@
    obj:/usr/lib/system/libsystem_c.dylib
    ...
    fun:asctime_r
-   ...
 }
 {
    ctime_on_OSX
@@ -186,7 +182,6 @@
    obj:/usr/lib/system/libsystem_c.dylib
    ...
    fun:ctime
-   ...
 }
 {
    pthread_join_on_OSX
@@ -194,5 +189,33 @@
    ...
    obj:/usr/lib/system/libsystem_c.dylib
    fun:pthread_join
+}
+{
+   pthread_start_on_OSX
+   Memcheck:Leak
    ...
+   fun:_pthread_start
+   obj:/usr/lib/system/libsystem_c.dylib
+}
+{
+   printf_etc_on_OSX
+   Memcheck:Leak
+   ...
+   fun:__dtoa
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+}
+{
+   printf_etc_on_OSX
+   Memcheck:Leak
+   ...
+   fun:__smakebuf
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+}
+{
+   popen_on_OSX
+   Memcheck:Leak
+   ...
+   fun:popen$DARWIN_EXTSN
 }
