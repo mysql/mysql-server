@@ -72,7 +72,7 @@ check_test_cursor_count: test_cursor_count
 	$(VGRIND) ./test_cursor_count $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 check_test_error_stream: test_error_stream
-	$(VGRIND) ./test_error_stream 2&> $@.out $(SUMMARIZE_CMD)
+	$(VGRIND) ./test_error_stream 2> $@.out $(SUMMARIZE_CMD)
 
 check_test1e: test1e
 	$(VGRIND) ./test1e > test1eactual.out && \
@@ -124,15 +124,15 @@ check_db_create_DSM: db_create
 check_db_create_1:
 	$(VGRIND) ./db_create > $@.out ; test $$? -ne 0  $(SUMMARIZE_CMD)
 check_db_create_2:
-	$(VGRIND) ./db_create -h 2&> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
+	$(VGRIND) ./db_create -h 2> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
 check_db_create_3:
-	$(VGRIND) ./db_create --help 2&> $@.out; test $$? -ne 0 $(SUMMARIZE_CMD)
+	$(VGRIND) ./db_create --help 2> $@.out; test $$? -ne 0 $(SUMMARIZE_CMD)
 check_db_create_4:
-	$(VGRIND) ./db_create -s 2&> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
+	$(VGRIND) ./db_create -s 2> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
 
 check_permissions:
 	rm -f permissions.tdb 
 	./db_create permissions.tdb 1 1 && \
 	 chmod -w permissions.tdb && \
-	 (./db_create permissions.tdb 2 2 2&> check_permissions.out; test $$? -ne 0) \
+	 (./db_create permissions.tdb 2 2 2> check_permissions.out; test $$? -ne 0) \
 	 $(SUMMARIZE_CMD)
