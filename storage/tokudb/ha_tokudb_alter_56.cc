@@ -396,7 +396,7 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
         error = alter_table_expand_varchar_columns(altered_table, ha_alter_info);
 
     if (error == 0 && ctx->expand_fixed_update_needed)
-        error = alter_table_expand_all_fixed_columns(altered_table, ha_alter_info);
+        error = alter_table_expand_columns(altered_table, ha_alter_info);
 
     bool result = false; // success
     if (error) {
@@ -784,23 +784,26 @@ change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_inf
 }
 
 int
-ha_tokudb::alter_table_expand_all_fixed_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+ha_tokudb::alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     assert(ctx->changed_fields.elements() <= 1);
     for (int ai = 0; error == 0 && ai < ctx->changed_fields.elements(); ai++) {
         uint expand_field_num = ctx->changed_fields.at(ai);
-        error = alter_table_expand_fixed_column(altered_table, ha_alter_info, expand_field_num);
+        error = alter_table_expand_one_column(altered_table, ha_alter_info, expand_field_num);
     }
 
     return error;
 }
 
 static uint32_t
-field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int expand_field_num) {
+field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int idx, int expand_field_num) {
     uint32_t offset = null_bytes;
-    for (int i = 0; i < expand_field_num; i++)
+    for (int i = 0; i < expand_field_num; i++) {
+        if (bitmap_is_set(&kc_info->key_filters[idx], i)) // skip key fields
+            continue;
         offset += kc_info->field_lengths[i];
+    }
     return offset;
 }
 
@@ -826,7 +829,7 @@ is_unsigned(Field *f) {
 
 // Send an expand message into all clustered indexes including the primary
 int
-ha_tokudb::alter_table_expand_fixed_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info, int expand_field_num) {
+ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info, int expand_field_num) {
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
@@ -867,7 +870,7 @@ ha_tokudb::alter_table_expand_fixed_column(TABLE *altered_table, Alter_inplace_i
             expand_ptr[0] = operation;
             expand_ptr += sizeof (uchar);
 
-            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->table_kc_info, expand_field_num);
+            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->table_kc_info, i, expand_field_num);
             memcpy(expand_ptr, &old_offset, sizeof old_offset);
             expand_ptr += sizeof old_offset;
 
@@ -876,7 +879,7 @@ ha_tokudb::alter_table_expand_fixed_column(TABLE *altered_table, Alter_inplace_i
             memcpy(expand_ptr, &old_length, sizeof old_length);
             expand_ptr += sizeof old_length;
 
-            uint32_t new_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, expand_field_num);
+            uint32_t new_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
             memcpy(expand_ptr, &new_offset, sizeof new_offset);
             expand_ptr += sizeof new_offset;
 
