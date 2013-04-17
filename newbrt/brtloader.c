@@ -2387,15 +2387,16 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    used_estimate += key.size + val.size + disksize_row_overhead;
 
 	    // Spawn off a node if
-	    //   a) this item would make the nodesize too big, or
-	    //   b) the remaining amount won't fit in the current node and the current node's data is more than the remaining amount
+            //   a) there is at least one row in it, and
+	    //   b) this item would make the nodesize too big, or
+	    //   c) the remaining amount won't fit in the current node and the current node's data is more than the remaining amount
 	    int remaining_amount = total_disksize_estimate - used_estimate;
 	    int used_here = lbuf->dbuf.off + 1000; // leave 1000 for various overheads.
 	    int target_size = (target_nodesize*7L)/8;     // use only 7/8 of the node.
 	    int used_here_with_next_key = used_here + key.size + val.size + disksize_row_overhead;
-	    if ((used_here_with_next_key >= target_size)
-		|| (used_here + remaining_amount >= target_size
-		    && lbuf->dbuf.off > remaining_amount)) {
+	    if (lbuf->n_in_buf > 0 && 
+                ((used_here_with_next_key >= target_size) || (used_here + remaining_amount >= target_size && lbuf->dbuf.off > remaining_amount))) {
+
 		//if (used_here_with_next_key < target_size) {
 		//    printf("%s:%d Runt avoidance: used_here=%d, remaining_amount=%d target_size=%d dbuf.off=%d\n", __FILE__, __LINE__, used_here, remaining_amount, target_size, lbuf->dbuf.off);  
 		//}
