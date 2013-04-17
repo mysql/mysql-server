@@ -114,7 +114,9 @@ test_set_closed_thread (void) {
     toku_pthread_t tid;
     r = toku_pthread_create(&tid, 0, test_set_closed_waiter, wqm); assert(r == 0);
     sleep(1);
+    r = toku_pthread_mutex_lock(&wqm->mutex); assert(r == 0);
     writequeue_set_closed(&wqm->writequeue);
+    r = toku_pthread_mutex_unlock(&wqm->mutex); assert(r == 0);
     void *ret;
     r = toku_pthread_join(tid, &ret);
     assert(r == 0 && ret == wqm);
