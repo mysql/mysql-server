@@ -689,6 +689,7 @@ test_update_stress.tdbrun: VGRIND=
 stress-test.tdbrun: VGRIND=
 stress-test.bdbrun: VGRIND=
 hot-optimize-table-tests.tdbrun: VGRIND=
+perf_checkpoint_var.tdbrun: VGRIND=
 
 
 libs:
