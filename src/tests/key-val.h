@@ -148,6 +148,55 @@ static int UU() uint_cmp(const void *ap, const void *bp) {
     return 0;
 }
 
+float last_progress = 0.0;
+static int UU() poll_print(void *extra, float progress) {
+    if ( verbose ) {
+        if ( last_progress + 0.01 < progress ) {
+            printf("  progress : %3.0f%%\n", progress * 100.0);
+            last_progress = progress;
+        }
+    }    
+    extra = extra;
+    return 0;
+}
+
+enum {MAX_CLIENTS=10};
+static inline UU() uint32_t key_to_put(int iter, int offset)
+{
+    return (uint32_t)(((iter+1) * MAX_CLIENTS) + offset);
+}
+
+static int UU() generate_initial_table(DB *db, DB_TXN *txn, uint32_t rows) 
+{
+    struct timeval start, now;
+    if ( verbose ) {
+        printf("generate_initial_table\n");
+        gettimeofday(&start,0);
+    }
+    int r = 0;
+    DBT key, val;
+    uint32_t k, v, i;
+    // create keys of stride MAX_CLIENTS
+    for (i=0; i<rows; i++)
+    {
+        k = key_to_put(i, 0);
+        v = generate_val(k, 0);
+        dbt_init(&key, &k, sizeof(k));
+        dbt_init(&val, &v, sizeof(v));
+        r = db->put(db, txn, &key, &val, 0);
+        if ( r != 0 ) break;
+    }
+    if ( verbose ) {
+        gettimeofday(&now,0);
+        int duration = (int)(now.tv_sec - start.tv_sec);
+        if ( duration > 0 )
+            printf("generate_initial_table : %u rows in %d sec = %d rows/sec\n", rows, duration, rows/duration);
+    }
+    
+    return r;
+}
+
+
 
 #if defined(__cilkplusplus) || defined(__cplusplus)
 } // extern "C"
