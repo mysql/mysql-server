@@ -15,7 +15,8 @@ enum srv_row_format_enum {
     SRV_ROW_FORMAT_QUICKLZ = 2,
     SRV_ROW_FORMAT_LZMA = 3,
     SRV_ROW_FORMAT_FAST = 4,
-    SRV_ROW_FORMAT_SMALL = 5
+    SRV_ROW_FORMAT_SMALL = 5,
+    SRV_ROW_FORMAT_DEFAULT = 6
 };
 typedef enum srv_row_format_enum srv_row_format_t;
 
