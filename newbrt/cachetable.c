@@ -4,11 +4,8 @@
 #include "includes.h"
 
 // execute the cachetable callbacks using a writer thread 0->no 1->yes
-#if defined(_WIN32)
-#define DO_WRITER_THREAD 0
-#else
 #define DO_WRITER_THREAD 1
-#endif
+
 #if DO_WRITER_THREAD
 static void *cachetable_writer(void *);
 #endif

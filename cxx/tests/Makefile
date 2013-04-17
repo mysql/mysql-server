@@ -1,3 +1,18 @@
+# -*- Mode: Makefile -*-
+# standard build: make
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
+.DEFAULT_GOAL= default
+TOKUROOT=../../
+INCLUDEDIRS=-I.
+DEPEND_COMPILE += \
+	../*.h \
+	./*.h \
+#end
+
+HERE = cxx/tests
+include $(TOKUROOT)include/Makefile.include
+
 SHOULD_FAIL = 
 $(SHOULD_FAIL): MAYBEINVERTER=;test $$? -ne 0
 
@@ -38,7 +53,7 @@ $(DBCXX):
 	cd ..;make
 
 clean:
-	rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db dir.test.db.assoc3 test_reverse_compare_fun.cpp.dir
+	$(MAYBEATSIGN)rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db dir.test.db.assoc3 test_reverse_compare_fun.cpp.dir
 
 check_test1: test1
 	$(VGRIND) ./$< $(SUMMARIZE_CMD)

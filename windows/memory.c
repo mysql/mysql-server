@@ -18,18 +18,39 @@ int toku_realloc_counter = 0;
 int toku_free_counter = 0;
 
 static inline size_t resize(size_t n) {
-#if defined(_WIN32) || defined(_WIN64)
-    if (64*1024 < n && n < 1024*1024)
-	n = 1024*1024;
-    return n;
-#else
-    return n;
+    if (n >= 1*1024*1024) 
+        n = (n+7) & ~7; // round up to make windbg !heap happy
+#define DO_PAD_64K 0
+#if DO_PAD_64K
+    else if (64*1024 <= n && n < 1*1024*1024)
+	n = 1*1024*1024; // map anything >= 64K to 1M
 #endif
+#define DO_ROUND_POW2 1
+#if DO_ROUND_POW2
+    else {
+        // make all buffers a power of 2 in size including the windows overhead
+        size_t r = 0;
+        size_t newn = 1<<r;
+        size_t overhead = 0x24;
+        n += overhead;
+        while (n > newn) {
+            r++;
+            newn = 1<<r;
+        }
+        n = newn - overhead;
+    }
+#endif
+    return n;
 }
 
 void *toku_calloc(size_t nmemb, size_t size) {
+    void *vp;
+    size_t newsize = resize(nmemb * size);
     toku_calloc_counter++;
-    return calloc(nmemb, resize(size));
+    vp = malloc(newsize);
+    if (vp) 
+        memset(vp, 0, newsize);
+    return vp;
 }
 
 void *toku_malloc(size_t size) {

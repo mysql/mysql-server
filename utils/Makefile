@@ -1,3 +1,16 @@
+# -*- Mode: Makefile -*-
+# standard build: make
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
+.DEFAULT_GOAL= build
+TOKUROOT=../
+INCLUDEDIRS=-I.
+DEPEND_COMPILE += \
+	./*.h \
+#end
+
+HERE = utils
+include $(TOKUROOT)include/Makefile.include
 ifndef BDBDIR
 BDBDIR=/usr/local/BerkeleyDB.4.4
 endif
@@ -168,5 +181,5 @@ test_dupsort:
 
 #if $(DIFF) -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
 clean:
-	rm -rf *.so *.o $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) *.temp *.gcno *.gcda *.gcov
+	$(MAYBEATSIGN)rm -rf *.so *.o $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) *.temp *.gcno *.gcda *.gcov
 

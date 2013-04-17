@@ -628,7 +628,7 @@ free_diskblocknumber (BLOCKNUM *b, struct brt_header *h, TOKULOGGER logger __att
 //  Watch out for the case where the disk block was never yet written to disk and is beyond the translated_blocknum_limit.
 {
     extend_block_translation(*b, h);
-    assert((u_int64_t)b->b <= h->translated_blocknum_limit);
+    assert((u_int64_t)b->b < h->translated_blocknum_limit); // as a "limit" it should be <
     assert(h->block_translation[b->b].size != size_is_free);
     h->block_translation[b->b].size = size_is_free;
     h->block_translation[b->b].diskoff = h->free_blocks.b;
@@ -2199,6 +2199,14 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 	if (did_merge) {
 	    BLOCKNUM bn = childb->thisnodename;
 	    rrb = toku_cachetable_unpin_and_remove(t->cf, bn);
+	    // If the block_translation indicates that the size is <=0 then there is no block allocated.
+	    // The block translation might not be big enough, and that also indicates no block allocated.
+	    assert(0 <= bn.b); // the blocknumber better be good
+            if ((unsigned)bn.b < t->h->translated_blocknum_limit) {
+                if (t->h->block_translation[bn.b].size > 0) {
+                    block_allocator_free_block(t->h->block_allocator, t->h->block_translation[bn.b].diskoff);
+                }
+            }
 	    rrb1 = free_diskblocknumber(&bn, t->h, logger);
 	} else {
 	    rrb = toku_unpin_brtnode(t, childb);

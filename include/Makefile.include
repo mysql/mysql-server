@@ -41,6 +41,10 @@
 # To make warnings be warnngs instead of errors do
 #   make WERROR=
 
+ifeq ($(filter --no-print-directory,$(MAKE)),)
+    MAKE+= --no-print-directory #Do not print 'entering directory' infomration.
+endif
+
 ifeq ($(DEBUG),)
     DEBUG = 0
 endif
@@ -135,10 +139,13 @@ DEPEND_LINK += \
 
 ifeq ($(CYGWIN),)
     OS_CHOICE=linux
+    OS_NOTCHOICE=windows
 else ifneq ($(CC),icc)
     OS_CHOICE=linux
+    OS_NOTCHOICE=windows
 else
     OS_CHOICE=windows
+    OS_NOTCHOICE=linux
 endif
 
 DEPEND_COMPILE += $(wildcard $(TOKUROOT)$(OS_CHOICE)/*.h)
@@ -186,7 +193,8 @@ ifneq ($(CYGWIN),)
     BINSUF=.exe
     WRONGBINSUF=#empty
     ALWAYS_LINK=$(LIBPORTABILITY) /usr/lib/libz.a
-    VGRIND   =#No Valgrind in cygwin
+    SRCPATH_DIRS = `find $(TOKUROOT) -type d | grep -v '/\.[^.]' | grep -F -v "$(TOKUROOT)$(OS_NOTCHOICE)" | tr '\n' ';'` 
+    VGRIND   = windbg -Q -c "ddddddddd;g" -y "$(SRCPATH_DIRS)" -srcpath "$(SRCPATH_DIRS)" #No Valgrind in cygwin #-G is quit at exit, but does not return ERROR on error!!! and quits on error to quickly
     HGRIND   =#No Hgrind in cygwin
     FPICFLAGS=#FPIC is default and not allowed as an option.
     VISIBILITY=#Not supported
@@ -281,9 +289,9 @@ cscope.files: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
 	$(MAYBEATSIGN)(echo $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch] | tr " " "\n") > $@ # Very long command line quieted.
 
 cscope.out: cscope.files $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
-	$(MAYBEATSIGN)$(CSCOPE) -b
+	$(MAYBEATSIGN)$(CSCOPE) -qb
 
-.PHONY: clean clean-default
+.PHONY: clean clean-default %.dir.clean
 clean: clean-default
 
 %.dir.clean:
@@ -406,4 +414,19 @@ endif
 BINS = $(patsubst %,%$(BINSUF),$(BINS_RAW))
 OBJS = $(patsubst %,%.$(OEXT),$(OBJS_RAW))
 REGRESSION_TESTS = $(patsubst %,%$(BINSUF),$(REGRESSION_TESTS_RAW))
+
+APPVERIFIER_TESTS=exceptions handles heaps locks memory threadpool tls dangerousapis dirtystacks filepaths inputoutput
+APPVERIFIER_TESTS_NONDEFAULT=heaps.backward:TRUE heaps.protect:TRUE
+ENABLE_APPVERIFIER_FOR=appverif -enable $(APPVERIFIER_TESTS) -with $(APPVERIFIER_TESTS_NONDEFAULT) -for
+DISABLE_APPVERIFIER_FOR=appverif -disable \* -for
+%.appverifyenable:
+	$(MAYBEATSIGN)$(ENABLE_APPVERIFIER_FOR) $*.exe
+%.appverifydisable:
+	$(MAYBEATSIGN)$(DISABLE_APPVERIFIER_FOR) $*.exe
+
+.PHONY:%.appverifyenable %.appverifydisable %.appverifymaybeenable %.appverifymaybedisable
+
+EXE_FILES = $(wildcard *.exe)
+appverifyenable: $(patsubst %.exe,%.appverifyenable,$(EXE_FILES));
+appverifydisable: $(patsubst %.exe,%.appverifydisable,$(EXE_FILES));
 
