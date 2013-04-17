@@ -140,12 +140,6 @@ toku_apply_txn (TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn,
 }
 
 void toku_rollback_txn_close (TOKUTXN txn) {
-    {
-        //Clean up all rollback logs if they exist.
-        //Note:  This will NOT cleanup any rollback logs as in 'rollinclude'
-        int r = toku_apply_txn(txn, NULL, NULL, ZERO_LSN, NULL);
-        assert(r==0);
-    }
     assert(txn->spilled_rollback_head.b == ROLLBACK_NONE.b);
     assert(txn->spilled_rollback_tail.b == ROLLBACK_NONE.b);
     assert(txn->current_rollback.b == ROLLBACK_NONE.b);
