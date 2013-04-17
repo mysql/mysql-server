@@ -786,9 +786,14 @@ toku_db_set_indexer(DB *db, DB_INDEXER * indexer) {
     return r;
 }
 
+DB_INDEXER *
+toku_db_get_indexer(DB *db) {
+    return db->i->indexer;
+}
+
 static void 
-toku_db_get_indexer(DB *db, DB_INDEXER **indexer_ptr) {
-    *indexer_ptr = db->i->indexer;
+db_get_indexer(DB *db, DB_INDEXER **indexer_ptr) {
+    *indexer_ptr = toku_db_get_indexer(db);
 }
 
 struct ydb_verify_context {
@@ -881,7 +886,6 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     USDB(fd);
     USDB(get_max_row_size);
     USDB(set_indexer);
-    USDB(get_indexer);
     USDB(pre_acquire_table_lock);
     USDB(pre_acquire_fileops_lock);
     USDB(key_range64);
@@ -892,6 +896,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     USDB(dbt_pos_infty);
     USDB(dbt_neg_infty);
 #undef USDB
+    result->get_indexer = db_get_indexer;
     result->del = autotxn_db_del;
     result->put = autotxn_db_put;
     result->update = autotxn_db_update;
