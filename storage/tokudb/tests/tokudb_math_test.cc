@@ -22,13 +22,13 @@ static void test_uint8() {
     uint64_t m;
     for (uint64_t x = 0; x <= (1ULL<<8)-1; x++) {
         for (uint64_t y = 0; y <= (1ULL<<8)-1; y++) {
-            n = uint_add(x, y, 8, over);
+            n = uint_add(x, y, 8, &over);
             m = x + y;
             if (m > (1ULL<<8)-1)
                 assert(over);
             else 
                 assert(!over && n == (m % 256));
-            n = uint_sub(x, y, 8, over);
+            n = uint_sub(x, y, 8, &over);
             m = x - y;
             if (m > x)
                 assert(over);
@@ -46,13 +46,13 @@ static void test_uint16() {
     uint64_t m;
     for (uint64_t x = 0; x <= (1ULL<<16)-1; x++) {
         for (uint64_t y = 0; y <= (1ULL<<16)-1; y++) {
-            n = uint_add(x, y, 16, over);
+            n = uint_add(x, y, 16, &over);
             m = x + y;
             if (m > (1ULL<<16)-1)
                 assert(over);
             else
                 assert(!over && n == (m % (1ULL<<16)));
-            n = uint_sub(x, y, 16, over);
+            n = uint_sub(x, y, 16, &over);
             m = x - y;
             if (m > x)
                 assert(over);
@@ -68,15 +68,15 @@ static void test_uint24() {
     bool over;
     uint64_t s;
 
-    s = uint_add((1ULL<<24)-1, (1ULL<<24)-1, 24, over); assert(over);
-    s = uint_add((1ULL<<24)-1, 1, 24, over); assert(over);
-    s = uint_add((1ULL<<24)-1, 0, 24, over); assert(!over && s == (1ULL<<24)-1);
-    s = uint_add(0, 1, 24, over); assert(!over && s == 1);
-    s = uint_add(0, 0, 24, over); assert(!over && s == 0);
-    s = uint_sub(0, 0, 24, over); assert(!over && s == 0);
-    s = uint_sub(0, 1, 24, over); assert(over);
-    s = uint_sub(0, (1ULL<<24)-1, 24, over); assert(over);
-    s = uint_sub((1ULL<<24)-1, (1ULL<<24)-1, 24, over); assert(!over && s == 0);
+    s = uint_add((1ULL<<24)-1, (1ULL<<24)-1, 24, &over); assert(over);
+    s = uint_add((1ULL<<24)-1, 1, 24, &over); assert(over);
+    s = uint_add((1ULL<<24)-1, 0, 24, &over); assert(!over && s == (1ULL<<24)-1);
+    s = uint_add(0, 1, 24, &over); assert(!over && s == 1);
+    s = uint_add(0, 0, 24, &over); assert(!over && s == 0);
+    s = uint_sub(0, 0, 24, &over); assert(!over && s == 0);
+    s = uint_sub(0, 1, 24, &over); assert(over);
+    s = uint_sub(0, (1ULL<<24)-1, 24, &over); assert(over);
+    s = uint_sub((1ULL<<24)-1, (1ULL<<24)-1, 24, &over); assert(!over && s == 0);
 }
 
 static void test_uint32() {
@@ -85,15 +85,15 @@ static void test_uint32() {
     bool over;
     uint64_t s;
 
-    s = uint_add((1ULL<<32)-1, (1ULL<<32)-1, 32, over); assert(over);
-    s = uint_add((1ULL<<32)-1, 1, 32, over); assert(over);
-    s = uint_add((1ULL<<32)-1, 0, 32, over); assert(!over && s == (1ULL<<32)-1);
-    s = uint_add(0, 1, 32, over); assert(!over && s == 1);
-    s = uint_add(0, 0, 32, over); assert(!over && s == 0);
-    s = uint_sub(0, 0, 32, over); assert(!over && s == 0);
-    s = uint_sub(0, 1, 32, over); assert(over);
-    s = uint_sub(0, (1ULL<<32)-1, 32, over); assert(over);
-    s = uint_sub((1ULL<<32)-1, (1ULL<<32)-1, 32, over); assert(!over && s == 0);
+    s = uint_add((1ULL<<32)-1, (1ULL<<32)-1, 32, &over); assert(over);
+    s = uint_add((1ULL<<32)-1, 1, 32, &over); assert(over);
+    s = uint_add((1ULL<<32)-1, 0, 32, &over); assert(!over && s == (1ULL<<32)-1);
+    s = uint_add(0, 1, 32, &over); assert(!over && s == 1);
+    s = uint_add(0, 0, 32, &over); assert(!over && s == 0);
+    s = uint_sub(0, 0, 32, &over); assert(!over && s == 0);
+    s = uint_sub(0, 1, 32, &over); assert(over);
+    s = uint_sub(0, (1ULL<<32)-1, 32, &over); assert(over);
+    s = uint_sub((1ULL<<32)-1, (1ULL<<32)-1, 32, &over); assert(!over && s == 0);
 }
 
 static void test_uint64() {
@@ -102,15 +102,15 @@ static void test_uint64() {
     bool over;
     uint64_t s;
 
-    s = uint_add(~0ULL, ~0ULL, 64, over); assert(over);
-    s = uint_add(~0ULL, 1, 64, over); assert(over);
-    s = uint_add(~0ULL, 0, 64, over); assert(!over && s == ~0ULL);
-    s = uint_add(0, 1, 64, over); assert(!over && s == 1);
-    s = uint_add(0, 0, 64, over); assert(!over && s == 0);
-    s = uint_sub(0, 0, 64, over); assert(!over && s == 0);
-    s = uint_sub(0, 1, 64, over); assert(over);
-    s = uint_sub(0, ~0ULL, 64, over); assert(over);
-    s = uint_sub(~0ULL, ~0ULL, 64, over); assert(!over && s == 0);
+    s = uint_add(~0ULL, ~0ULL, 64, &over); assert(over);
+    s = uint_add(~0ULL, 1, 64, &over); assert(over);
+    s = uint_add(~0ULL, 0, 64, &over); assert(!over && s == ~0ULL);
+    s = uint_add(0, 1, 64, &over); assert(!over && s == 1);
+    s = uint_add(0, 0, 64, &over); assert(!over && s == 0);
+    s = uint_sub(0, 0, 64, &over); assert(!over && s == 0);
+    s = uint_sub(0, 1, 64, &over); assert(over);
+    s = uint_sub(0, ~0ULL, 64, &over); assert(over);
+    s = uint_sub(~0ULL, ~0ULL, 64, &over); assert(!over && s == 0);
 }
 
 static int64_t sign_extend(uint length_bits, int64_t n) {
@@ -130,7 +130,7 @@ static void test_int8() {
         for (int64_t y = -max; y <= max-1; y++) {
             bool over;
             int64_t n, m;
-            n = int_add(x, y, 8, over);
+            n = int_add(x, y, 8, &over);
             m = x + y;
             if (m > max-1)
                 assert(over);
@@ -138,7 +138,7 @@ static void test_int8() {
                 assert(over);
             else
                 assert(!over && n == m);
-            n = int_sub(x, y, 8, over);
+            n = int_sub(x, y, 8, &over);
             m = x - y;
             if (m > max-1)
                 assert(over);
@@ -158,7 +158,7 @@ static void test_int16() {
         for (int64_t y = -max; y <= max-1; y++) {
             bool over;
             int64_t n, m;
-            n = int_add(x, y, 16, over);
+            n = int_add(x, y, 16, &over);
             m = x + y;
             if (m > max-1)
                 assert(over);
@@ -166,7 +166,7 @@ static void test_int16() {
                 assert(over);
             else
                 assert(!over && n == m);
-            n = int_sub(x, y, 16, over);
+            n = int_sub(x, y, 16, &over);
             m = x - y;
             if (m > max-1)
                 assert(over);
@@ -184,22 +184,22 @@ static void test_int24() {
     int64_t s;
     bool over;
 
-    s = int_add(1, (1ULL<<23)-1, 24, over); assert(over);
-    s = int_add((1ULL<<23)-1, 1, 24, over); assert(over);
-    s = int_sub(-1, (1ULL<<23), 24, over); assert(!over && s == (1ULL<<23)-1);
-    s = int_sub((1ULL<<23), 1, 24, over); assert(over);
+    s = int_add(1, (1ULL<<23)-1, 24, &over); assert(over);
+    s = int_add((1ULL<<23)-1, 1, 24, &over); assert(over);
+    s = int_sub(-1, (1ULL<<23), 24, &over); assert(!over && s == (1ULL<<23)-1);
+    s = int_sub((1ULL<<23), 1, 24, &over); assert(over);
 
-    s = int_add(0, 0, 24, over); assert(!over && s == 0);
-    s = int_sub(0, 0, 24, over); assert(!over && s == 0);
-    s = int_add(0, -1, 24, over); assert(!over && s == -1);
-    s = int_sub(0, 1, 24, over); assert(!over && s == -1);
-    s = int_add(0, (1ULL<<23), 24, over); assert(!over && (s & (1ULL<<24)-1) == (1ULL<<23));
-    s = int_sub(0, (1ULL<<23)-1, 24, over); assert(!over && (s & (1ULL<<24)-1) == (1ULL<<23)+1);
+    s = int_add(0, 0, 24, &over); assert(!over && s == 0);
+    s = int_sub(0, 0, 24, &over); assert(!over && s == 0);
+    s = int_add(0, -1, 24, &over); assert(!over && s == -1);
+    s = int_sub(0, 1, 24, &over); assert(!over && s == -1);
+    s = int_add(0, (1ULL<<23), 24, &over); assert(!over && (s & (1ULL<<24)-1) == (1ULL<<23));
+    s = int_sub(0, (1ULL<<23)-1, 24, &over); assert(!over && (s & (1ULL<<24)-1) == (1ULL<<23)+1);
 
-    s = int_add(-1, 0, 24, over); assert(!over && s == -1);
-    s = int_add(-1, 1, 24, over); assert(!over && s == 0);
-    s = int_sub(-1, -1, 24, over); assert(!over && s == 0);
-    s = int_sub(-1, (1ULL<<23)-1, 24, over); assert(!over && (s & (1ULL<<24)-1) == (1ULL<<23));
+    s = int_add(-1, 0, 24, &over); assert(!over && s == -1);
+    s = int_add(-1, 1, 24, &over); assert(!over && s == 0);
+    s = int_sub(-1, -1, 24, &over); assert(!over && s == 0);
+    s = int_sub(-1, (1ULL<<23)-1, 24, &over); assert(!over && (s & (1ULL<<24)-1) == (1ULL<<23));
 }
 
 static void test_int32() {
@@ -208,22 +208,22 @@ static void test_int32() {
     int64_t s;
     bool over;
 
-    s = int_add(1, (1ULL<<31)-1, 32, over); assert(over);
-    s = int_add((1ULL<<31)-1, 1, 32, over); assert(over);
-    s = int_sub(-1, (1ULL<<31), 32, over); assert(s == (1ULL<<31)-1 && !over);
-    s = int_sub((1ULL<<31), 1, 32, over); assert(over);
+    s = int_add(1, (1ULL<<31)-1, 32, &over); assert(over);
+    s = int_add((1ULL<<31)-1, 1, 32, &over); assert(over);
+    s = int_sub(-1, (1ULL<<31), 32, &over); assert(s == (1ULL<<31)-1 && !over);
+    s = int_sub((1ULL<<31), 1, 32, &over); assert(over);
 
-    s = int_add(0, 0, 32, over); assert(s == 0 && !over);
-    s = int_sub(0, 0, 32, over); assert(s == 0 && !over);
-    s = int_add(0, -1, 32, over); assert(s == -1 && !over);
-    s = int_sub(0, 1, 32, over); assert(s == -1 && !over);
-    s = int_add(0, (1ULL<<31), 32, over); assert((s & (1ULL<<32)-1) == (1ULL<<31) && !over);
-    s = int_sub(0, (1ULL<<31)-1, 32, over); assert((s & (1ULL<<32)-1) == (1ULL<<31)+1 && !over);
+    s = int_add(0, 0, 32, &over); assert(s == 0 && !over);
+    s = int_sub(0, 0, 32, &over); assert(s == 0 && !over);
+    s = int_add(0, -1, 32, &over); assert(s == -1 && !over);
+    s = int_sub(0, 1, 32, &over); assert(s == -1 && !over);
+    s = int_add(0, (1ULL<<31), 32, &over); assert((s & (1ULL<<32)-1) == (1ULL<<31) && !over);
+    s = int_sub(0, (1ULL<<31)-1, 32, &over); assert((s & (1ULL<<32)-1) == (1ULL<<31)+1 && !over);
 
-    s = int_add(-1, 0, 32, over); assert(s == -1 && !over);
-    s = int_add(-1, 1, 32, over); assert(s == 0 && !over);
-    s = int_sub(-1, -1, 32, over); assert(s == 0 && !over);
-    s = int_sub(-1, (1ULL<<31)-1, 32, over); assert((s & (1ULL<<32)-1) == (1ULL<<31) && !over);
+    s = int_add(-1, 0, 32, &over); assert(s == -1 && !over);
+    s = int_add(-1, 1, 32, &over); assert(s == 0 && !over);
+    s = int_sub(-1, -1, 32, &over); assert(s == 0 && !over);
+    s = int_sub(-1, (1ULL<<31)-1, 32, &over); assert((s & (1ULL<<32)-1) == (1ULL<<31) && !over);
 }
 
 static void test_int64() {
@@ -232,22 +232,22 @@ static void test_int64() {
     int64_t s;
     bool over;
 
-    s = int_add(1, (1ULL<<63)-1, 64, over); assert(over);
-    s = int_add((1ULL<<63)-1, 1, 64, over); assert(over);
-    s = int_sub(-1, (1ULL<<63), 64, over); assert(s == (1ULL<<63)-1 && !over);
-    s = int_sub((1ULL<<63), 1, 64, over); assert(over);
+    s = int_add(1, (1ULL<<63)-1, 64, &over); assert(over);
+    s = int_add((1ULL<<63)-1, 1, 64, &over); assert(over);
+    s = int_sub(-1, (1ULL<<63), 64, &over); assert(s == (1ULL<<63)-1 && !over);
+    s = int_sub((1ULL<<63), 1, 64, &over); assert(over);
 
-    s = int_add(0, 0, 64, over); assert(s == 0 && !over);
-    s = int_sub(0, 0, 64, over); assert(s == 0 && !over);
-    s = int_add(0, -1, 64, over); assert(s == -1 && !over);
-    s = int_sub(0, 1, 64, over); assert(s == -1 && !over);
-    s = int_add(0, (1ULL<<63), 64, over); assert(s == (1ULL<<63) && !over);
-    s = int_sub(0, (1ULL<<63)-1, 64, over); assert(s == (1ULL<<63)+1 && !over);
+    s = int_add(0, 0, 64, &over); assert(s == 0 && !over);
+    s = int_sub(0, 0, 64, &over); assert(s == 0 && !over);
+    s = int_add(0, -1, 64, &over); assert(s == -1 && !over);
+    s = int_sub(0, 1, 64, &over); assert(s == -1 && !over);
+    s = int_add(0, (1ULL<<63), 64, &over); assert(s == (1ULL<<63) && !over);
+    s = int_sub(0, (1ULL<<63)-1, 64, &over); assert(s == (1ULL<<63)+1 && !over);
 
-    s = int_add(-1, 0, 64, over); assert(s == -1 && !over);
-    s = int_add(-1, 1, 64, over); assert(s == 0 && !over);
-    s = int_sub(-1, -1, 64, over); assert(s == 0 && !over);
-    s = int_sub(-1, (1ULL<<63)-1, 64, over); assert(s == (1ULL<<63) && !over);
+    s = int_add(-1, 0, 64, &over); assert(s == -1 && !over);
+    s = int_add(-1, 1, 64, &over); assert(s == 0 && !over);
+    s = int_sub(-1, -1, 64, &over); assert(s == 0 && !over);
+    s = int_sub(-1, (1ULL<<63)-1, 64, &over); assert(s == (1ULL<<63) && !over);
 }
 
 static void test_int_sign(uint length_bits) {

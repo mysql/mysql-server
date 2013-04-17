@@ -12,7 +12,7 @@ static void test(int length_bits) {
     for (uint64_t x = 0; x <= max; x++) {
         for (uint64_t y = 0; y <= max; y++) {
             bool over;
-            uint64_t n = uint_add(x, y, max, over);
+            uint64_t n = uint_add(x, y, max, &over);
             printf("%llu %llu %llu\n", x, y, n);
         }
     }
