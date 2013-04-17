@@ -197,7 +197,7 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test944 \
 	test_truncate_txn_abort \
 	test_db_no_env \
-	loader-tpch-load \
+	loader-tpch-load.loader \
 #\ ends prev line
 #ifneq ($(OS_CHOICE),windows)
 #    TDB_TESTS_THAT_SHOULD_FAIL+= \
@@ -382,7 +382,7 @@ ABORTCODE=137
 .PHONY: %.loader
 # Generally these subtests cannot run in parallel until we fix #2645.
 %.loader: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) $(VERBVERBOSE)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 loader-cleanup-test.loader: EXTRA_ARGS = -s -r 8000
 
@@ -412,7 +412,7 @@ loader-stress-test: LOADLIBES+=-L.. -ltokudb -Wl,-rpath,..
 
 clean:
 	rm -f $(ALL_BINS)
-	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover *.check.output *.check.valgrind
+	rm -rf dir.* *.check.output *.check.valgrind
 	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
 
 ifeq ($(VGRIND),)

@@ -713,7 +713,8 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 
 
 static int run_test_count = 0;
-static char *envdir = ENVDIR;
+static char *free_me = NULL;
+static char *env_dir = ENVDIR;
 
 static void run_test(enum test_type t, int trigger) 
 {
@@ -726,10 +727,10 @@ static void run_test(enum test_type t, int trigger)
 	fflush(stdout);
     }
 
-    char rm_cmd[strlen("rm -rf ") + strlen(envdir) + 1];
-    sprintf(rm_cmd, "rm -rf %s", envdir);
+    char rm_cmd[strlen("rm -rf ") + strlen(env_dir) + 1];
+    sprintf(rm_cmd, "rm -rf %s", env_dir);
     r = system(rm_cmd);                                                                                       CKERR(r);
-    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
@@ -738,7 +739,7 @@ static void run_test(enum test_type t, int trigger)
     CKERR(r);
 
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
+    r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     //Disable auto-checkpointing
     r = env->checkpointing_set_period(env, 0);                                                                CKERR(r);
@@ -883,11 +884,9 @@ static void run_all_tests(void) {
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-
     run_all_tests();
-
     printf("run_test_count=%d\n", run_test_count);
-
+    if (free_me) toku_free(free_me);
     return 0;
 }
 
@@ -942,7 +941,12 @@ static void do_args(int argc, char * const argv[]) {
 	    db_env_set_loader_size_factor(1);            
         } else if (strcmp(argv[0],"-e") == 0 && argc > 1) {
             argc--; argv++;
-            envdir = argv[0];
+	    if (free_me) toku_free(free_me);
+	    int len = strlen(ENVDIR) + strlen(argv[0]) + 2;
+	    char full_env_dir[len];
+	    int r = snprintf(full_env_dir, len, "%s.%s", ENVDIR, argv[0]);
+	    assert(r<len);
+	    free_me = env_dir = toku_strdup(full_env_dir);
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
