@@ -100,7 +100,7 @@ check-no-rolltmp: $(TARGET_TDB)
 	./$(TARGET_TDB) $(VERBVERBOSE) --env no-rolltmp.dir --singlex --nolog --check_small_rolltmp $(SUMMARIZE_CMD)
 
 # Check to make sure that if we make a file that's bigger than 4GB that we can read the file back out and get all the rows.
-ifeq ($(SKIP_4G),1)
+ifeq ($(TOKU_SKIP_4G),1)
 check-4G:
 	@echo SKIPPED SLOW TEST $@
 else
