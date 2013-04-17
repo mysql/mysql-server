@@ -323,7 +323,6 @@ void toku_cachetable_release_reserved_memory(CACHETABLE ct, uint64_t reserved_me
     cachetable_lock(ct);
     ct->size_current -= reserved_memory;
     ct->size_reserved -= reserved_memory;
-    assert(ct->size_current >= unreservable_memory(ct->size_limit));
     cachetable_unlock(ct);
 }
 
