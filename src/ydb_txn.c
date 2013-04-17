@@ -203,8 +203,17 @@ toku_txn_abort_only(DB_TXN * txn,
 //           released here before the fsync.
 static int
 toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
-    if (!txn) return EINVAL;
-    if (txn->parent) return 0; // make this a NO-OP, MySQL calls this
+    int r = 0;
+    if (!txn) {
+        toku_multi_operation_client_unlock();
+        r = EINVAL;
+        goto exit;
+    }
+    if (txn->parent) {
+        toku_multi_operation_client_unlock();
+        r = 0; // make this a NO-OP, MySQL calls this
+        goto exit;
+    }
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively commit any children.
     if (db_txn_struct_i(txn)->child) {
@@ -218,7 +227,7 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     }
     assert(!db_txn_struct_i(txn)->child);
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
-    int r = toku_txn_prepare_txn(ttxn, xid);
+    r = toku_txn_prepare_txn(ttxn, xid);
     TOKULOGGER logger = txn->mgrp->i->logger;
     LSN do_fsync_lsn;
     bool do_fsync;
@@ -226,6 +235,7 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     // release the multi operation lock before fsyncing the log
     toku_multi_operation_client_unlock();
     toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync);
+exit:    
     return r;
 }
 
