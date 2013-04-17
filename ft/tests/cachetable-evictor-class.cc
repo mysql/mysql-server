@@ -44,10 +44,10 @@ void evictor_unit_test::verify_ev_init(long limit) {
     assert(m_ev.m_num_sleepers == 0);
     assert(m_ev.m_run_thread == true);
     assert(m_ev.m_size_current == 0);
-    assert(m_ev.m_size_leaf== 0);
-    assert(m_ev.m_size_nonleaf== 0);
-    assert(m_ev.m_size_rollback== 0);
-    assert(m_ev.m_size_cachepressure == 0);
+    assert(read_partitioned_counter(m_ev.m_size_leaf) == 0);
+    assert(read_partitioned_counter(m_ev.m_size_nonleaf) == 0);
+    assert(read_partitioned_counter(m_ev.m_size_rollback) == 0);
+    assert(read_partitioned_counter(m_ev.m_size_cachepressure) == 0);
     assert(m_ev.m_size_evicting == 0);
     // this comes from definition of unreservable_memory in cachetable.cc
     assert(m_ev.m_size_reserved == (limit/4)); 
@@ -81,10 +81,10 @@ void evictor_unit_test::verify_ev_counts() {
     m_ev.add_to_size_current(1);
     assert(m_ev.m_size_current == 1);
     assert(m_ev.m_size_reserved == expected_m_size_reserved);
-    assert(m_ev.m_size_leaf == 0);
-    assert(m_ev.m_size_nonleaf == 0);
-    assert(m_ev.m_size_rollback == 0);
-    assert(m_ev.m_size_cachepressure == 0);
+    assert(read_partitioned_counter(m_ev.m_size_leaf) == 0);
+    assert(read_partitioned_counter(m_ev.m_size_nonleaf) == 0);
+    assert(read_partitioned_counter(m_ev.m_size_rollback) == 0);
+    assert(read_partitioned_counter(m_ev.m_size_cachepressure) == 0);
     assert(m_ev.m_size_evicting == 0);
 
     m_ev.add_to_size_current(3);
@@ -105,16 +105,16 @@ void evictor_unit_test::verify_ev_counts() {
 
     m_ev.add_pair_attr(attr);
     assert(m_ev.m_size_current == 1);
-    assert(m_ev.m_size_nonleaf == 2);
-    assert(m_ev.m_size_leaf == 3);
-    assert(m_ev.m_size_rollback == 4);
-    assert(m_ev.m_size_cachepressure == 5);
+    assert(read_partitioned_counter(m_ev.m_size_nonleaf) == 2);
+    assert(read_partitioned_counter(m_ev.m_size_leaf) == 3);
+    assert(read_partitioned_counter(m_ev.m_size_rollback) == 4);
+    assert(read_partitioned_counter(m_ev.m_size_cachepressure) == 5);
     m_ev.remove_pair_attr(attr);
     assert(m_ev.m_size_current == 0);
-    assert(m_ev.m_size_leaf == 0);
-    assert(m_ev.m_size_nonleaf == 0);
-    assert(m_ev.m_size_rollback == 0);
-    assert(m_ev.m_size_cachepressure == 0);
+    assert(read_partitioned_counter(m_ev.m_size_leaf) == 0);
+    assert(read_partitioned_counter(m_ev.m_size_nonleaf) == 0);
+    assert(read_partitioned_counter(m_ev.m_size_rollback) == 0);
+    assert(read_partitioned_counter(m_ev.m_size_cachepressure) == 0);
     
     PAIR_ATTR other_attr = {
         .size = 2, 
@@ -126,10 +126,10 @@ void evictor_unit_test::verify_ev_counts() {
     };
     m_ev.change_pair_attr(attr, other_attr);
     assert(m_ev.m_size_current == 1);
-    assert(m_ev.m_size_leaf == 1);
-    assert(m_ev.m_size_nonleaf == 1);
-    assert(m_ev.m_size_rollback == 1);
-    assert(m_ev.m_size_cachepressure == 1);
+    assert(read_partitioned_counter(m_ev.m_size_leaf) == 1);
+    assert(read_partitioned_counter(m_ev.m_size_nonleaf) == 1);
+    assert(read_partitioned_counter(m_ev.m_size_rollback) == 1);
+    assert(read_partitioned_counter(m_ev.m_size_cachepressure) == 1);
     
     m_ev.destroy();
     this->verify_ev_destroy();
