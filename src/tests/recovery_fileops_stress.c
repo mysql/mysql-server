@@ -448,6 +448,7 @@ static void env_startup(int recovery_flags) {
     int r;
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | recovery_flags;
     r = db_env_create(&env, 0);                                     CKERR(r);
+    db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
     r=env->set_redzone(env, 0);                                     CKERR(r);
     env->set_errfile(env, stderr);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);  CKERR(r);
@@ -511,16 +512,18 @@ static void verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t num
     dbt_init(&key2, &k, sizeof(k));
     dbt_init(&val2, &v, sizeof(v));
 
-    k = firstkey;
-    v = generate_val(k);
-    r1 = c1->c_get(c1, &key2, &val2, DB_SET);
-    CKERR(r1);
+//    k = firstkey;
+//    v = generate_val(k);
+//    r1 = c1->c_get(c1, &key2, &val2, DB_SET);
+//    CKERR(r1);
 
     int64_t i;
-    for (i = 1; i<numkeys; i++) {
+    for (i = 0; i<numkeys; i++) {
 	k = i + firstkey;
 	v = generate_val(k);
         r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
+//        printf("k = %"PRIu64", v = %"PRIu64", key = %"PRIu64", val = %"PRIu64"\n",
+//               k, v, *((int64_t *)(key1.data)), *((int64_t *)(val1.data)));
         assert(r1==0);
 	rval = verify_identical_dbts(&key1, &key2) |
 	    verify_identical_dbts(&val1, &val2);
