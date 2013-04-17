@@ -333,7 +333,7 @@ endif
 ABORTCODE=137
 %.abortrecover: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
 ifeq ($(VGRIND),)
-	./$< --test >$<.check.output 2>&1; \
+	{ ./$< --test >$<.check.output 2>&1; } 2>/dev/null ;\
         if [ $$? -ne $(ABORTCODE) ] ; then \
 		test 0 = 1; \
         else \
@@ -341,7 +341,7 @@ ifeq ($(VGRIND),)
 	fi \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 else
-	./$< --test >$<.check.output 2>&1; \
+	{ ./$< --test >$<.check.output 2>&1; } 2>/dev/null ;\
         if [ $$? -ne $(ABORTCODE) ] ; then \
 		cat $<.check.output; test 0 = 1; \
         else \
