@@ -230,7 +230,7 @@ class TestRunnerBase(object):
     @property
     def testargs(self):
         return ['--num_seconds', str(self.test_time),
-                '--no-crash_on_update_failure',
+                '--no-crash_on_operation_failure',
                 '--num_ptquery_threads', str(self.num_ptquery),
                 '--num_update_threads', str(self.num_update)] + self.prepareargs
 
@@ -430,7 +430,7 @@ def rebuild(tokudb, builddir, installdir, cc, tests):
         os.mkdir(builddir)
     r = call(['cmake',
               '-DCMAKE_BUILD_TYPE=Debug',
-              '-DINTELCC=%s' % iccstr,
+              '-DINTEL_CC=%s' % iccstr,
               '-DCMAKE_INSTALL_DIR=%s' % installdir,
               tokudb],
              cwd=builddir)
