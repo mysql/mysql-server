@@ -425,9 +425,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
 			     bool release_multi_operation_client_lock) 
 // Effect: Among other things: if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
-    BOOL txn_prepared = FALSE;
     if (txn->state==TOKUTXN_PREPARING) {
-        txn_prepared = TRUE;
         txn->state=TOKUTXN_LIVE;
         invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
@@ -448,7 +446,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
     // recovery to properly recommit this transaction if the commit 
     // does not make it to disk. In the case of MySQL, that would be the
     // binary log.
-    txn->do_fsync = !txn_prepared && !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
+    txn->do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
 
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
