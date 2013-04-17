@@ -320,6 +320,13 @@ struct __toku_db_txn_active {
   u_int32_t txnid;
   DB_LSN lsn;
 };
+typedef struct __toku_txn_progress {
+  uint64_t entries_total;
+  uint64_t entries_processed;
+  uint8_t  is_commit;
+  uint8_t  stalled_on_checkpoint;
+} *TOKU_TXN_PROGRESS, TOKU_TXN_PROGRESS_S;
+typedef void(*TXN_PROGRESS_POLL_FUNCTION)(TOKU_TXN_PROGRESS, void*);
 struct txn_stat {
   u_int64_t rolltmp_raw_count;
 };
@@ -328,6 +335,8 @@ struct __toku_db_txn {
   DB_TXN *parent;
   int (*txn_stat)(DB_TXN *, struct txn_stat **);
   struct { void *next, *prev; } open_txns;
+  int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*);
+  int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*);
   void *api_internal;
   int (*abort) (DB_TXN *);
   int (*commit) (DB_TXN*, u_int32_t);

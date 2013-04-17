@@ -930,7 +930,7 @@ static int toku_recover_commit (struct logtype_commit *l, RECOVER_ENV renv) {
     }
 
     // commit the transaction
-    r = toku_txn_commit_with_lsn(txn, TRUE, recover_yield, NULL, l->lsn);
+    r = toku_txn_commit_with_lsn(txn, TRUE, recover_yield, NULL, l->lsn, NULL, NULL);
     assert(r == 0);
 
     // close the transaction
@@ -958,7 +958,7 @@ static int toku_recover_xabort (struct logtype_xabort *l, RECOVER_ENV renv) {
     }
 
     // abort the transaction
-    r = toku_txn_abort_with_lsn(txn, recover_yield, NULL, l->lsn);
+    r = toku_txn_abort_with_lsn(txn, recover_yield, NULL, l->lsn, NULL, NULL);
     assert(r == 0);
 
     // close the transaction
@@ -1089,7 +1089,7 @@ static void recover_abort_live_txns(RECOVER_ENV renv) {
         TOKUTXN txn = (TOKUTXN) v;
 
         // abort the transaction
-        r = toku_txn_abort_txn(txn, recover_yield, NULL);
+        r = toku_txn_abort_txn(txn, recover_yield, NULL, NULL, NULL);
         assert(r == 0);
 
         // close the transaction

@@ -369,6 +369,13 @@ struct __toku_db_txn_active {
   DB_LSN lsn; /* 32-bit offset=16 size=8, 64=bit offset=24 size=8 */
   char __toku_dummy2[184];  /* Padding at the end */ 
 };
+typedef struct __toku_txn_progress {
+  uint64_t entries_total;
+  uint64_t entries_processed;
+  uint8_t  is_commit;
+  uint8_t  stalled_on_checkpoint;
+} *TOKU_TXN_PROGRESS, TOKU_TXN_PROGRESS_S;
+typedef void(*TXN_PROGRESS_POLL_FUNCTION)(TOKU_TXN_PROGRESS, void*);
 struct txn_stat {
   u_int64_t rolltmp_raw_count;
 };
@@ -377,7 +384,9 @@ struct __toku_db_txn {
   DB_TXN *parent; /* 32-bit offset=4 size=4, 64=bit offset=8 size=8 */
   int (*txn_stat)(DB_TXN *, struct txn_stat **);
   struct { void *next, *prev; } open_txns;
-  void* __toku_dummy0[15];
+  int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*);
+  int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*);
+  void* __toku_dummy0[13];
   char __toku_dummy1[8];
   void *api_internal; /* 32-bit offset=84 size=4, 64=bit offset=160 size=8 */
   void* __toku_dummy2[2];

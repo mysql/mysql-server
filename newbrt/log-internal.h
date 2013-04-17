@@ -120,6 +120,10 @@ struct tokutxn {
     XIDS       xids;      //Represents the xid list
     BOOL       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
     BOOL       has_done_work;          //If this transaction has not done work, there is no need to fsync.
+    TXN_PROGRESS_POLL_FUNCTION progress_poll_fun;
+    void *                     progress_poll_fun_extra;
+    uint64_t   num_rollentries;
+    uint64_t   num_rollentries_processed;
 };
 
 static inline int toku_logsizeof_u_int8_t (u_int32_t v __attribute__((__unused__))) {

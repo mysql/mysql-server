@@ -345,7 +345,9 @@ toku_rollback_tablelock_on_empty_table (FILENUM filenum,
                                         LSN     UU(oplsn))
 {
     //TODO: Replace truncate function with something that doesn't need to mess with checkpoints.
+    toku_poll_txn_progress_function(txn, FALSE, TRUE);
     yield(toku_checkpoint_safe_client_lock, yield_v);
+    toku_poll_txn_progress_function(txn, FALSE, FALSE);
     // on rollback we have to make the file be empty, since we locked an empty table, and then may have done things to it.
 
     CACHEFILE cf;
