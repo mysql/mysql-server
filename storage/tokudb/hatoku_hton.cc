@@ -124,7 +124,6 @@ tokudb_checkpoint_lock_update(
     void* var_ptr,
     const void* save) 
 {
-    printf("Hello update!\n");
     my_bool* val = (my_bool *) var_ptr;
     *val= *(my_bool *) save ? TRUE : FALSE;
     if (*val) {
