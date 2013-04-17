@@ -1367,7 +1367,9 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s) {
     }
 }
 
-//Used for upgrade
+// Used for upgrade: 
+// if any valid log files exist in log_dir, then
+//   set *found_any_logs to TRUE and set *version_found to version number of latest log
 int
 toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint32_t *version_found) {
     BOOL found = FALSE;
@@ -1402,46 +1404,6 @@ toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint
         *found_any_logs = found;
         if (found)
             *version_found = highest_version;
-    }
-    return r;
-}
-
-//Used for upgrade
-int
-toku_delete_all_logs_of_version(const char *log_dir, uint32_t version_to_delete) {
-    int r = 0;
-
-    struct dirent *de;
-    DIR *d=opendir(log_dir);
-    if (d==NULL) {
-        r = errno;
-    }
-    else {
-        // Examine every file in the directory and if it is a log of the given version, delete it
-        while ((de=readdir(d))) {
-            uint32_t this_log_version;
-            uint64_t this_log_number;
-            BOOL is_log = is_a_logfile_any_version(de->d_name, &this_log_number, &this_log_version);
-            if (is_log && this_log_version == version_to_delete) {
-                char log_full_name[strlen(log_dir) + strlen(de->d_name) + 2]; //'\0' and '/'
-                { //Generate full fname
-                    int l = snprintf(log_full_name, sizeof(log_full_name),
-                                     "%s/%s", log_dir, de->d_name);
-                    assert(l+1 == (ssize_t)(sizeof(log_full_name)));
-                }
-
-                r = unlink(log_full_name);
-                if (r!=0) {
-                    r = errno;
-                    assert(r);
-                    break;
-                }
-            }
-        }
-    }
-    {
-        int r2 = closedir(d);
-        if (r==0) r = r2;
     }
     return r;
 }
