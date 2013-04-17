@@ -3038,7 +3038,7 @@ int ha_tokudb::prepare_index_key_scan( const uchar * key, uint key_len ) {
     int error = 0;
     DBT start_key, end_key;
     pack_key(&start_key, active_index, key_buff, key, key_len, COL_NEG_INF);
-    pack_key(&end_key, active_index, key_buff, key, key_len, COL_POS_INF);
+    pack_key(&end_key, active_index, key_buff2, key, key_len, COL_POS_INF);
 
     error = share->key_file[active_index]->pre_acquire_read_lock(
         share->key_file[active_index], 
