@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include "toku_assert.h"
 
 //Simulate as hard a crash as possible.
 //Choices:
@@ -77,8 +78,11 @@ toku_hard_crash_on_purpose(void) {
 //     12    SIGSYS       create core image
 //
 // We'll raise these in some sequence (common ones first), then try emulating the things that would cause these signals to be raised, then eventually just try to die normally and then loop like abort does.
+// Start with a toku assert because that hopefully prints a stacktrace.
 static void __attribute__((unused, noreturn))
 toku_crash_and_dump_core_on_purpose(void) {
+    assert(false);
+    invariant(0);
     raise(SIGQUIT);
     raise(SIGILL);
     raise(SIGABRT);
