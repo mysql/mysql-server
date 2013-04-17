@@ -223,10 +223,13 @@ static void test_chaining (void) {
             assert(r==0);
         }
 
-        long long pinned;
-        r = toku_cachetable_get_key_state(ct, make_blocknum(i), f[fnum], 0, 0, &pinned, 0);
-        assert(r==0);
-        assert(pinned == 0);
+        // now that we have a clock instead of an LRU, there
+	// is no guarantee that PAIR stays in cachetable
+
+        //long long pinned;
+        //r = toku_cachetable_get_key_state(ct, make_blocknum(i), f[fnum], 0, 0, &pinned, 0);
+        //assert(r==0);
+        //assert(pinned == 0);
 	verify_cachetable_against_present();
 
 	if (random()%10==0) {
