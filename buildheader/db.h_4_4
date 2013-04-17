@@ -43,6 +43,8 @@ typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */
   u_int64_t bt_dsize; /* how big are the keys+values (not counting the lengths) (an estimate, unless flattened) */
   u_int64_t bt_fsize; /* how big is the underlying file                                                         */
+  u_int64_t bt_create_time_sec; /* Creation time, in seconds */
+  u_int64_t bt_modify_time_sec; /* Time of last serialization, in seconds */
 } DB_BTREE_STAT64;
 typedef struct __toku_loader DB_LOADER;
 struct __toku_loader_internal;
