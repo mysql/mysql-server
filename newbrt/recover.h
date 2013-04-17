@@ -22,6 +22,6 @@ int tokudb_recover(const char *datadir, const char *logdir, brt_compare_func bt_
 // If the log is empty or if there is a clean shutdown at the end of the log, then we
 // dont need to run recovery.
 // Returns: TRUE if we need recovery, otherwise FALSE.
-int tokudb_needs_recovery(const char *logdir);
+int tokudb_needs_recovery(const char *logdir, BOOL ignore_empty_log);
 
 #endif // TOKURECOVER_H

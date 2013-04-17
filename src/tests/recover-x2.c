@@ -19,7 +19,7 @@
 #include <sys/wait.h>
 #include "test.h"
 
-const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN |DB_RECOVER;
+const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;
 char *namea="a.db";
 char *nameb="b.db";
 
@@ -79,7 +79,7 @@ do_x2_recover (BOOL did_commit) {
     DB_ENV *env;
     int r;
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
+    r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                                 CKERR(r);
     {

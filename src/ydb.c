@@ -314,7 +314,7 @@ static int needs_recovery (DB_ENV *env) {
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
-    BOOL recovery_needed = tokudb_needs_recovery(logdir);
+    BOOL recovery_needed = tokudb_needs_recovery(logdir, TRUE);
     toku_free(logdir);
     return recovery_needed ? DB_RUNRECOVERY : 0;
 }
