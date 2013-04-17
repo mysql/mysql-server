@@ -2367,6 +2367,7 @@ int ha_tokudb::write_row(uchar * record) {
     DB_TXN* sub_trans = NULL;
     DB_TXN* txn = NULL;
     tokudb_trx_data *trx = NULL;
+    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     declare_lockretry;
 
     //
@@ -2432,6 +2433,23 @@ int ha_tokudb::write_row(uchar * record) {
     put_flags = share->key_type[primary_key];
     thd = ha_thd();
     if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
+        put_flags = DB_YESOVERWRITE;
+    }
+    //
+    // optimization for "REPLACE INTO..." command
+    // if we the command is "REPLACE INTO" and the only table
+    // is the main table, then we can simply insert the element
+    // with DB_YESOVERWRITE. If the element does not exist,
+    // it will act as a normal insert, and if it does exist, it 
+    // will act as a replace, which is exactly what REPLACE INTO is supposed
+    // to do. We cannot do this if curr_num_DBs > 1, because then we lose
+    // consistency between indexes
+    //
+    if ( ( (thd_sql_command(thd) == SQLCOM_REPLACE) || 
+           (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT) 
+          ) && 
+         (curr_num_DBs == 1)
+        ) {
         put_flags = DB_YESOVERWRITE;
     }
  
