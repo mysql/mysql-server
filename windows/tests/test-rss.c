@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <toku_portability.h>
 #include <toku_os.h>
 
 static void do_mallocs(void) {
