@@ -45,5 +45,5 @@ else
 endif
 
 clean:
-	rm -rf $(TARGETS) *.valgrind
+	rm -rf $(TARGETS) *.valgrind pwrite4g.data testdir
 

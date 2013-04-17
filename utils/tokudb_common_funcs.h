@@ -140,7 +140,7 @@ printabletocstring(char* inputstr, char** poutputstr)
    assert(poutputstr);
    assert(*poutputstr == NULL);
 
-   cstring = (char*)malloc((strlen(inputstr) + 1) * sizeof(char));
+   cstring = (char*)toku_malloc((strlen(inputstr) + 1) * sizeof(char));
    if (cstring == NULL) {
       PRINT_ERROR(errno, "printabletocstring");
       goto error;
@@ -200,8 +200,8 @@ verify_library_version()
 
 static int last_caught = 0;
 
-static void catch_signal(int signal) {
-    last_caught = signal;
+static void catch_signal(int which_signal) {
+    last_caught = which_signal;
     if (last_caught == 0) last_caught = SIGINT;
 }
 

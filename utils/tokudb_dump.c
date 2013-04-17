@@ -236,7 +236,6 @@ int create_init_env()
    DB_ENV* dbenv;
    int flags;
    //TODO: Experiments to determine right cache size for tokudb, or maybe command line argument.
-   int cache = 1 << 20; /* 1 megabyte */
 
    retval = db_env_create(&dbenv, 0);
    if (retval) {
@@ -280,7 +279,6 @@ int create_init_env()
       PRINT_ERROR(retval, "DB_ENV->open");
       goto error;
    }
-success:
    g.dbenv = dbenv;
    return EXIT_SUCCESS;
 
@@ -378,15 +376,15 @@ error:
 static int dump_dbt(DBT* dbt)
 {
    char* str;
-   u_int32_t index;
+   u_int32_t idx;
    
    assert(dbt);
    str = (char*)dbt->data;
    if (g.leadingspace) printf(" ");
    if (dbt->size > 0) {
       assert(dbt->data);
-      for (index = 0; index < dbt->size; index++) {
-         outputbyte(str[index]);
+      for (idx = 0; idx < dbt->size; idx++) {
+         outputbyte(str[idx]);
          if (ferror(stdout)) {
             perror("stdout");
             goto error;
@@ -404,10 +402,8 @@ error:
 int dump_pairs()
 {
    int retval;
-   size_t length;
    DBT key;
    DBT data;
-   int spacech;
    DB* db = g.db;
    DBC* dbc = NULL;
 
@@ -438,7 +434,6 @@ cleanup:
       PRINT_ERROR(retval, "DBC->c_close");
       g.exitcode = EXIT_FAILURE;
    }
-success:
    return g.exitcode;
 }
 

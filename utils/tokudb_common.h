@@ -10,6 +10,7 @@
 #include <db.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <memory.h>
 
 typedef u_int8_t bool;
 
