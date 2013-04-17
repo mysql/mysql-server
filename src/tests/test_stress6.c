@@ -50,28 +50,38 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
         arg_init(&myargs[i], n, dbp, env, cli_args);
     }
 
+    struct scan_op_extra soe[4];
+
     // make the forward fast scanner
-    myargs[0].fast = TRUE;
-    myargs[0].fwd = TRUE;
+    soe[0].fast = TRUE;
+    soe[0].fwd = TRUE;
+    soe[0].prefetch = FALSE;
     myargs[0].lock_type = STRESS_LOCK_SHARED;
+    myargs[0].operation_extra = &soe[0];
     myargs[0].operation = scan_op;
 
     // make the forward slow scanner
-    myargs[1].fast = FALSE;
-    myargs[1].fwd = TRUE;
+    soe[1].fast = FALSE;
+    soe[1].fwd = TRUE;
+    soe[1].prefetch = FALSE;
     myargs[1].lock_type = STRESS_LOCK_SHARED;
+    myargs[1].operation_extra = &soe[1];
     myargs[1].operation = scan_op;
 
     // make the backward fast scanner
-    myargs[2].fast = TRUE;
-    myargs[2].fwd = FALSE;
+    soe[2].fast = TRUE;
+    soe[2].fwd = FALSE;
+    soe[2].prefetch = FALSE;
     myargs[2].lock_type = STRESS_LOCK_SHARED;
+    myargs[2].operation_extra = &soe[2];
     myargs[2].operation = scan_op;
 
     // make the backward slow scanner
-    myargs[3].fast = FALSE;
-    myargs[3].fwd = FALSE;
+    soe[3].fast = FALSE;
+    soe[3].fwd = FALSE;
+    soe[3].prefetch = FALSE;
     myargs[3].lock_type = STRESS_LOCK_SHARED;
+    myargs[3].operation_extra = &soe[3];
     myargs[3].operation = scan_op;
 
     // make the guy that removes and recreates the db
@@ -84,25 +94,27 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[5].operation = truncate_me;
 
     // make the guy that updates the db
+    struct update_op_args uoe = get_update_op_args(cli_args, NULL);
     for (int i = 6; i < 6 + cli_args->num_update_threads; ++i) {
-        myargs[i].bounded_update_range = false;
+        myargs[i].bounded_element_range = false;
         myargs[i].lock_type = STRESS_LOCK_SHARED;
+        myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
     }
 
     // make the guy that does point queries
     for (int i = 6 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].lock_type = STRESS_LOCK_SHARED;
-        myargs[i].bounded_update_range = false;
+        myargs[i].bounded_element_range = false;
         myargs[i].operation = ptquery_op_no_check;
     }
 
-    run_workers(myargs, num_threads, cli_args->time_of_test, false);
+    run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
 }
 
 int
 test_main(int argc, char *const argv[]) {
-    struct cli_args args = DEFAULT_ARGS;
+    struct cli_args args = get_default_args();
     parse_stress_test_args(argc, argv, &args);
     stress_test_main(&args);
     return 0;
