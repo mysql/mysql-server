@@ -1,6 +1,6 @@
 LIBNAME = libtokudb
 
-setup:
+local setup:
 	cp ../include/db.h include/tokudb.h
 	cp ../include/db.h include
 	cp ../include/tdb-internal.h include
