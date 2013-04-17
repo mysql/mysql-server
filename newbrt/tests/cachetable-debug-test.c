@@ -33,19 +33,19 @@ void cachetable_debug_test(int n) {
     for (i=1; i<=n; i++) {
         const int item_size = 1;
         u_int32_t hi;
-        hi = toku_cachetable_hash(f1, i);
-        r = toku_cachetable_put(f1, i, hi, (void *)(long)i, item_size, flush, fetch, 0);
+        hi = toku_cachetable_hash(f1, make_blocknum(i));
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, item_size, flush, fetch, 0);
         assert(r == 0);
 
         void *v; int dirty; long long pinned; long pair_size;
-        r = toku_cachetable_get_key_state(ct, i, f1, &v, &dirty, &pinned, &pair_size);
+        r = toku_cachetable_get_key_state(ct, make_blocknum(i), f1, &v, &dirty, &pinned, &pair_size);
         assert(r == 0);
         assert(v == (void *)(long)i);
         assert(dirty == CACHETABLE_DIRTY);
         assert(pinned == 1);
         assert(pair_size == item_size);
 
-        r = toku_cachetable_unpin(f1, i, hi, CACHETABLE_CLEAN, 1);
+        r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
 
         toku_cachetable_get_state(ct, &num_entries, &hash_size, &size_current, &size_limit);

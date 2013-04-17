@@ -48,7 +48,7 @@ int fnamelen;
 char *fname;
 
 void doit (int ksize __attribute__((__unused__))) {
-    DISKOFF cnodes[BRT_FANOUT], bnode, anode;
+    BLOCKNUM cnodes[BRT_FANOUT], bnode, anode;
     u_int32_t fingerprints[BRT_FANOUT];
 
     char *keys[BRT_FANOUT-1];

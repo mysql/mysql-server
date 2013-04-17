@@ -116,6 +116,9 @@ static inline int toku_logsizeof_FILENUM (FILENUM v __attribute__((__unused__)))
 static inline int toku_logsizeof_DISKOFF (DISKOFF v __attribute__((__unused__))) {
     return 8;
 }
+static inline int toku_logsizeof_BLOCKNUM (BLOCKNUM v __attribute__((__unused__))) {
+    return 8;
+}
 
 static inline int toku_logsizeof_TXNID (TXNID txnid __attribute__((__unused__))) {
     return 8;

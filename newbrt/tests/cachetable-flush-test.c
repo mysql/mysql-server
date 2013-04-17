@@ -31,15 +31,15 @@ void test_cachetable_flush(int n) {
     int i;
     for (i=0; i<n; i++) {
         u_int32_t hi;
-        hi = toku_cachetable_hash(f1, i);
-        r = toku_cachetable_put(f1, i, hi, (void *)(long)i, 1, flush, fetch, 0);
+        hi = toku_cachetable_hash(f1, make_blocknum(i));
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, fetch, 0);
         assert(r == 0);
-        r = toku_cachetable_unpin(f1, i, hi, CACHETABLE_CLEAN, 1);
+        r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
-        hi = toku_cachetable_hash(f2, i);
-        r = toku_cachetable_put(f2, i, hi, (void *)(long)i, 1, flush, fetch, 0);
+        hi = toku_cachetable_hash(f2, make_blocknum(i));
+        r = toku_cachetable_put(f2, make_blocknum(i), hi, (void *)(long)i, 1, flush, fetch, 0);
         assert(r == 0);
-        r = toku_cachetable_unpin(f2, i, hi, CACHETABLE_CLEAN, 1);
+        r = toku_cachetable_unpin(f2, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
     }
     toku_cachetable_verify(ct);
@@ -48,15 +48,15 @@ void test_cachetable_flush(int n) {
     for (i=0; i<n; i++) {
         u_int32_t hi;
         void *v;
-        hi = toku_cachetable_hash(f1, i);
-        r = toku_cachetable_maybe_get_and_pin(f1, i, hi, &v);
+        hi = toku_cachetable_hash(f1, make_blocknum(i));
+        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, &v);
         assert(r == 0 && v == (void *)(long)i);
-        r = toku_cachetable_unpin(f1, i, hi, CACHETABLE_CLEAN, 1);
+        r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
-        hi = toku_cachetable_hash(f2, i);
-        r = toku_cachetable_maybe_get_and_pin(f2, i, hi, &v);
+        hi = toku_cachetable_hash(f2, make_blocknum(i));
+        r = toku_cachetable_maybe_get_and_pin(f2, make_blocknum(i), hi, &v);
         assert(r == 0 && v == (void *)(long)i);
-        r = toku_cachetable_unpin(f2, i, hi, CACHETABLE_CLEAN, 1);
+        r = toku_cachetable_unpin(f2, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
     }
 
@@ -68,13 +68,13 @@ void test_cachetable_flush(int n) {
     for (i=0; i<n; i++) {
         u_int32_t hi;
         void *v;
-        hi = toku_cachetable_hash(f1, i);
-        r = toku_cachetable_maybe_get_and_pin(f1, i, hi, &v);
+        hi = toku_cachetable_hash(f1, make_blocknum(i));
+        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, &v);
         assert(r != 0);
-        hi = toku_cachetable_hash(f2, i);
-        r = toku_cachetable_maybe_get_and_pin(f2, i, hi, &v);
+        hi = toku_cachetable_hash(f2, make_blocknum(i));
+        r = toku_cachetable_maybe_get_and_pin(f2, make_blocknum(i), hi, &v);
         assert(r == 0);
-        r = toku_cachetable_unpin(f2, i, hi, CACHETABLE_CLEAN, 1);
+        r = toku_cachetable_unpin(f2, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
     }
 

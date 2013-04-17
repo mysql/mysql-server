@@ -98,6 +98,11 @@ static inline void wbuf_u_int32_t (struct wbuf *w, u_int32_t v) {
 static inline void wbuf_DISKOFF (struct wbuf *w, DISKOFF off) {
     wbuf_ulonglong(w, (u_int64_t)off);
 }
+static inline void wbuf_BLOCKNUM (struct wbuf *w, BLOCKNUM b) {
+    wbuf_ulonglong(w, b.b);
+}
+
+
 
 static inline void wbuf_TXNID (struct wbuf *w, TXNID tid) {
     wbuf_ulonglong(w, tid);
@@ -115,15 +120,15 @@ static inline void wbuf_LOGGEDBRTHEADER (struct wbuf *w, LOGGEDBRTHEADER h) {
     wbuf_uint(w, h.size);
     wbuf_uint(w, h.flags);
     wbuf_uint(w, h.nodesize);
-    wbuf_DISKOFF(w, h.freelist);
-    wbuf_DISKOFF(w, h.unused_memory);
+    wbuf_BLOCKNUM(w, h.free_blocks);
+    wbuf_BLOCKNUM(w, h.unused_blocks);
     wbuf_int(w, h.n_named_roots);
     if ((signed)h.n_named_roots==-1) {
-	wbuf_DISKOFF(w, h.u.one.root);
+	wbuf_BLOCKNUM(w, h.u.one.root);
     } else {
 	int i;
 	for (i=0; i<h.n_named_roots; i++) {
-	    wbuf_DISKOFF(w, h.u.many.roots[i]);
+	    wbuf_BLOCKNUM(w, h.u.many.roots[i]);
 	    wbuf_bytes  (w, h.u.many.names[i], (u_int32_t)(1+strlen(h.u.many.names[i])));
 	}
     }

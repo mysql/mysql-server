@@ -618,6 +618,10 @@ int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, struct x1764 *checksum, u_int
     int r = toku_fread_u_int64_t (f, (u_int64_t*)diskoff, checksum, len); // sign conversion will be OK.
     return r;
 }
+int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *blocknum, struct x1764 *checksum, u_int32_t *len) {
+    int r = toku_fread_u_int64_t (f, (u_int64_t*)&blocknum->b, checksum, len); // sign conversion will be OK.
+    return r;
+}
 int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, u_int32_t *len) {
     return toku_fread_u_int64_t (f, txnid, checksum, len);
 }
@@ -644,11 +648,11 @@ int toku_fread_LOGGEDBRTHEADER (FILE *f, LOGGEDBRTHEADER *v, struct x1764 *check
     r = toku_fread_u_int32_t(f, &v->size,          checksum, len); if (r!=0) return r;
     r = toku_fread_u_int32_t(f, &v->flags,         checksum, len); if (r!=0) return r;
     r = toku_fread_u_int32_t(f, &v->nodesize,      checksum, len); if (r!=0) return r;
-    r = toku_fread_DISKOFF  (f, &v->freelist,      checksum, len); if (r!=0) return r;
-    r = toku_fread_DISKOFF  (f, &v->unused_memory, checksum, len); if (r!=0) return r;
+    r = toku_fread_BLOCKNUM (f, &v->free_blocks,   checksum, len); if (r!=0) return r;
+    r = toku_fread_BLOCKNUM (f, &v->unused_blocks, checksum, len); if (r!=0) return r;
     r = toku_fread_int32_t  (f, &v->n_named_roots, checksum, len); if (r!=0) return r;
     assert(v->n_named_roots==-1);
-    r = toku_fread_DISKOFF  (f, &v->u.one.root,     checksum, len); if (r!=0) return r;
+    r = toku_fread_BLOCKNUM (f, &v->u.one.root,     checksum, len); if (r!=0) return r;
     return 0;
 }
 
@@ -740,11 +744,19 @@ int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, struct 
     fprintf(outf, " %s=%lld", fieldname, v);
     return 0;
 }
+int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+    BLOCKNUM v;
+    int r = toku_fread_BLOCKNUM(inf, &v, checksum, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=%"PRId64, fieldname, v.b);
+    return 0;
+}
+
 int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
     LOGGEDBRTHEADER v;
     int r = toku_fread_LOGGEDBRTHEADER(inf, &v, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, " %s={size=%d flags=%d nodesize=%d freelist=%lld unused_memory=%lld n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.freelist, v.unused_memory, v.n_named_roots);
+    fprintf(outf, " %s={size=%d flags=%d nodesize=%d free_blocks=%" PRId64 " unused_memory=%" PRId64 " n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.free_blocks.b, v.unused_blocks.b, v.n_named_roots);
     return 0;
     
 }

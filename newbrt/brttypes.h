@@ -10,6 +10,7 @@
 #define _FILE_OFFSET_BITS 64
 
 #include "../include/db.h"
+#include <inttypes.h>
 
 typedef struct brt *BRT;
 struct brt_header;
@@ -21,6 +22,10 @@ typedef const void *bytevec;
 
 typedef long long DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef u_int64_t TXNID;
+typedef struct s_blocknum { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
+
+static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }
+static const BLOCKNUM header_blocknum = {0};
 
 typedef struct {
     u_int32_t len;
@@ -46,16 +51,16 @@ typedef struct loggedbrtheader {
     u_int32_t size;
     u_int32_t flags;
     u_int32_t nodesize;
-    DISKOFF   freelist;
-    DISKOFF   unused_memory;
+    BLOCKNUM  free_blocks;
+    BLOCKNUM  unused_blocks;
     int32_t n_named_roots; // -1 for the union below to be "one".
     union {
 	struct {
 	    char **names;
-	    DISKOFF *roots;
+	    BLOCKNUM *roots;
 	} many;
 	struct {
-	    DISKOFF   root;
+	    BLOCKNUM  root;
 	} one;
     } u;
 } LOGGEDBRTHEADER; 
