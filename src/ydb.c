@@ -3873,6 +3873,7 @@ static char *construct_full_name(int count, ...) {
             name = newname;
         }
     }
+    va_end(ap);
 
     return name;
 }
