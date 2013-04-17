@@ -163,7 +163,6 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
 
     DB *dest_db = NULL;
     struct brtloader_s bl = {
-        .panic              = 0,
         .temp_file_template = template,
         .reserved_memory = 512*1024*1024,
     };
@@ -244,6 +243,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     brtloader_set_os_fwrite(bad_fwrite);
     toku_set_func_write(bad_write);
     toku_set_func_pwrite(bad_pwrite);
+    brt_loader_set_error_function(&bl.error_callback, NULL, NULL);
     brt_loader_set_poll_function(&bl.poll_callback, loader_poll_callback, NULL);
 
     r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est);
