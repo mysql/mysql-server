@@ -12,6 +12,7 @@ set(tokudb_srcs
   loader
   indexer
   indexer-undo-do
+  toku_patent
   )
 
 ## make the shared library
