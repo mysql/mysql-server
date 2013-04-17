@@ -16,7 +16,7 @@
 #include <errno.h>
 #include <string.h>
 
-/* TODO: reallocate the hash lth if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
+/* TODO: reallocate the hash lth if it grows too big. Perhaps, use toku_get_prime in ft/primes.c */
 const uint32_t __toku_lth_init_size = 521;
 
 static inline uint32_t toku__lth_hash(toku_lth* lth, toku_lock_tree* key) {

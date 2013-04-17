@@ -1,4 +1,4 @@
-#include <newbrt/omt.h>
+#include <ft/omt.h>
 
 typedef struct txnid_set {
     OMT ids; // private: set of ids

@@ -8,7 +8,7 @@
 #include <memory.h>
 #include <sys/stat.h>
 #include <db.h>
-#include <newbrt/tokuconst.h>
+#include <ft/tokuconst.h>
 #define MAX_NEST MAX_TRANSACTION_RECORDS
 #define MAX_SIZE MAX_TRANSACTION_RECORDS
 

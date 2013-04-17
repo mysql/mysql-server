@@ -30,12 +30,12 @@ static void *do_checkpoint_and_crash(void *arg) {
     return arg;
 }
 
-static void ft_callback(int ft_state, void* extra) {
+static void flt_callback(int flt_state, void* extra) {
     cnt++;
-        if (verbose) printf("ft_state!! %d\n", ft_state);
-    if (cnt > 0 && !starting_a_chkpt && ft_state == state_to_crash) {
+        if (verbose) printf("flt_state!! %d\n", flt_state);
+    if (cnt > 0 && !starting_a_chkpt && flt_state == state_to_crash) {
         starting_a_chkpt = TRUE;
-        if (verbose) printf("ft_state %d\n", ft_state);
+        if (verbose) printf("flt_state %d\n", flt_state);
         int r = toku_pthread_create(&checkpoint_tid, NULL, do_checkpoint_and_crash, extra); 
         assert(r==0);
         usleep(2*1000*1000);
@@ -68,12 +68,12 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[0].operation = update_op;
     //myargs[0].update_pad_frequency = 0;
 
-    db_env_set_flusher_thread_callback(ft_callback, env);
+    db_env_set_flusher_thread_callback(flt_callback, env);
     run_workers(myargs, num_threads, cli_args->time_of_test, true, cli_args);
 }
 
 static int
-run_recover_ft_test(int argc, char *const argv[]) {
+run_recover_flt_test(int argc, char *const argv[]) {
     struct cli_args args = get_default_args();
     // make test time arbitrarily high because we expect a crash
     args.time_of_test = 1000000000;

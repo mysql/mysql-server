@@ -15,15 +15,15 @@
 #include "test.h"
 #include <stdbool.h>
 
-#include <newbrt/tokuconst.h>
-#include <newbrt/brttypes.h>
-#include <newbrt/omt.h>
-#include <newbrt/leafentry.h>
-#include <newbrt/ule.h>
-#include <newbrt/ule-internal.h>
-#include <newbrt/le-cursor.h>
+#include <ft/tokuconst.h>
+#include <ft/fttypes.h>
+#include <ft/omt.h>
+#include <ft/leafentry.h>
+#include <ft/ule.h>
+#include <ft/ule-internal.h>
+#include <ft/le-cursor.h>
 #include "indexer-internal.h"
-#include <newbrt/xids-internal.h>
+#include <ft/xids-internal.h>
 
 struct txn {
     TXNID xid;

@@ -17,7 +17,7 @@ test_cursor_flags (int cursor_flags, int expectr) {
     if (verbose) printf("test_cursor_flags:%d %d\n", cursor_flags, expectr);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.cursor.delete.brt";
+    const char * const fname = "test.cursor.delete.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR); CKERR(r);

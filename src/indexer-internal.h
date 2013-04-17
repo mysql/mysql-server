@@ -10,7 +10,7 @@
 #ifndef TOKU_INDEXER_INTERNAL_H
 #define TOKU_INDEXER_INTERNAL_H
 
-#include <newbrt/txn_state.h>
+#include <ft/txn_state.h>
 
 // the indexer_commit_keys is an ordered set of keys described by a DBT in the keys array.
 // the array is a resizeable array with max size "max_keys" and current size "current_keys".

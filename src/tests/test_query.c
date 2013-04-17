@@ -115,7 +115,7 @@ static int cursor_cb(DBT const * key,
 }
 
 /**
- * Fill a BRT with the the given number of rows.
+ * Fill a FT with the the given number of rows.
  */
 static void fill_db(DB_ENV * env, DB * db, int num_rows)
 {

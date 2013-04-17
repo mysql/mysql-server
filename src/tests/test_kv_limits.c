@@ -19,7 +19,7 @@ static void test_key_size_limit (void) {
     if (verbose > 1) printf("%s\n", __FUNCTION__);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.rand.insert.brt";
+    const char * const fname = "test.rand.insert.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR);
@@ -78,7 +78,7 @@ static void test_data_size_limit (void) {
     if (verbose > 1) printf("%s\n", __FUNCTION__);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.rand.insert.brt";
+    const char * const fname = "test.rand.insert.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR);

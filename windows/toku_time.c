@@ -5,12 +5,12 @@
 
 int 
 gettimeofday(struct timeval *tv, struct timezone *tz) {
-    FILETIME ft;
+    FILETIME filetime;
     ULARGE_INTEGER t;
 
-    GetSystemTimeAsFileTime(&ft);
-    t.u.LowPart = ft.dwLowDateTime;
-    t.u.HighPart = ft.dwHighDateTime;
+    GetSystemTimeAsFileTime(&filetime);
+    t.u.LowPart = filetime.dwLowDateTime;
+    t.u.HighPart = filetime.dwHighDateTime;
     t.QuadPart -= 116444736000000000i64;
     t.QuadPart /= 10; // convert to microseconds
     if (tv) {
@@ -25,12 +25,12 @@ gettimeofday(struct timeval *tv, struct timezone *tz) {
 
 static int
 clock_get_realtime(toku_timespec_t *ts) {
-    FILETIME ft;
+    FILETIME filetime;
     ULARGE_INTEGER t;
 
-    GetSystemTimeAsFileTime(&ft);
-    t.u.LowPart = ft.dwLowDateTime;
-    t.u.HighPart = ft.dwHighDateTime;
+    GetSystemTimeAsFileTime(&filetime);
+    t.u.LowPart = filetime.dwLowDateTime;
+    t.u.HighPart = filetime.dwHighDateTime;
     t.QuadPart -= 116444736000000000i64;
     t.QuadPart *= 100; // convert to nanoseconds
     if (ts) {

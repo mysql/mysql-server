@@ -18,7 +18,7 @@ test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.already.exists.brt";
+    const char * const fname = "test.already.exists.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR);

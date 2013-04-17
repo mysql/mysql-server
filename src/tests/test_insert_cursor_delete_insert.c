@@ -21,7 +21,7 @@ test_insert_delete_insert (void) {
     if (verbose) printf("test_insert_delete_insert:\n");
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.cursor.insert.delete.insert.brt";
+    const char * const fname = "test.cursor.insert.delete.insert.ft_handle";
 
     /* create the dup database file */
     DB_ENV *env;

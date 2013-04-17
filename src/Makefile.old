@@ -2,12 +2,12 @@
 
 .DEFAULT_GOAL=build
 TOKUROOT=../
-INCLUDEDIRS=-I$(TOKUROOT)newbrt -I../include -I./lock_tree -I./range_tree
+INCLUDEDIRS=-I$(TOKUROOT)ft -I../include -I./lock_tree -I./range_tree
 DEPEND_COMPILE += \
 	ydb-internal.h \
 	$(TOKUROOT)include/db.h \
-	$(TOKUROOT)newbrt/cachetable.h \
-	$(TOKUROOT)newbrt/brt.h \
+	$(TOKUROOT)ft/cachetable.h \
+	$(TOKUROOT)ft/ft-ops.h \
 #End of line
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
@@ -78,8 +78,8 @@ export.def: export.map Makefile
 
 buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 
-$(LIBRARY):  $(OBJS) $(LOCKTREE) $(RANGETREE) ../lib/libnewbrt.a $(DEPEND_COMPILE) $(DEPEND_LINK) 
-$(LIBRARY): LINK_FILES=$(OBJS) $(LOCKTREE) $(RANGETREE) ../lib/libnewbrt.a $(LZMA_A)
+$(LIBRARY):  $(OBJS) $(LOCKTREE) $(RANGETREE) ../lib/libft.a $(DEPEND_COMPILE) $(DEPEND_LINK) 
+$(LIBRARY): LINK_FILES=$(OBJS) $(LOCKTREE) $(RANGETREE) ../lib/libft.a $(LZMA_A)
 ifeq ($(CC),icc)
  ifeq ($(HAVE_CILK),1)
   ifeq (0,0)

@@ -25,8 +25,8 @@ test_txn_recover3 (int nrows) {
     DB_ENV *env;
     DB *mdb, *sdb;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "t.tokudb/main.brt";
-    const char * const sname = "t.tokudb/status.brt";
+    const char * const fname = "t.tokudb/main.ft_handle";
+    const char * const sname = "t.tokudb/status.ft_handle";
 
     r = db_env_create(&env, 0);        assert(r == 0);
     env->set_errfile(env, stderr);

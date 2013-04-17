@@ -31,7 +31,7 @@ function retry() {
 
 n=100
 cc=gcc44
-brtloader=cilk
+ft_loader=cilk
 branch=toku
 revision=0
 tokudb=tokudb
@@ -124,7 +124,7 @@ fi
 # build it
 if [ $testresult = "PASS" ] ; then
     pushd $testdir
-        make release -s CC=$cc GCCVERSION=$gccversion BRTLOADER=$brtloader >>$runfile 2>&1
+        make release -s CC=$cc GCCVERSION=$gccversion FTLOADER=$ft_loader >>$runfile 2>&1
 	exitcode=$?
 	if [ $exitcode != 0 ] ; then testresult="FAIL"; fi
     popd

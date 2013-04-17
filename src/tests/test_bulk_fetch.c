@@ -60,29 +60,29 @@ u_int64_t num_basements_fetched_prefetch;
 
 static void
 init_eng_stat_vars(DB_ENV* env) {
-    num_pivots_fetched_prefetch = get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_PREFETCH");
-    num_basements_decompressed_aggressive = get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE");
-    num_basements_decompressed_prefetch = get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH");
-    num_basements_fetched_aggressive = get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE");
-    num_basements_fetched_prefetch = get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_PREFETCH");
+    num_pivots_fetched_prefetch = get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_PREFETCH");
+    num_basements_decompressed_aggressive = get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE");
+    num_basements_decompressed_prefetch = get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH");
+    num_basements_fetched_aggressive = get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE");
+    num_basements_fetched_prefetch = get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_PREFETCH");
 }
 
 static void
 check_eng_stat_vars_unchanged(DB_ENV* env) {
-    assert(num_pivots_fetched_prefetch == get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_PREFETCH"));
-    assert(num_basements_decompressed_aggressive == get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE"));
-    assert(num_basements_decompressed_prefetch == get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH"));
-    assert(num_basements_fetched_aggressive == get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE"));
-    assert(num_basements_fetched_prefetch == get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_PREFETCH"));
+    assert(num_pivots_fetched_prefetch == get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_PREFETCH"));
+    assert(num_basements_decompressed_aggressive == get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE"));
+    assert(num_basements_decompressed_prefetch == get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH"));
+    assert(num_basements_fetched_aggressive == get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE"));
+    assert(num_basements_fetched_prefetch == get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_PREFETCH"));
 }
 
 static void
 print_relevant_eng_stat_vars(DB_ENV* env) {
-    printf("num_pivots_fetched_prefetch %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_PREFETCH"));
-    printf("num_basements_decompressed_aggressive %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE"));
-    printf("num_basements_decompressed_prefetch %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH"));
-    printf("num_basements_fetched_aggressive %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE"));
-    printf("num_basements_fetched_prefetch %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_PREFETCH"));
+    printf("num_pivots_fetched_prefetch %"PRId64" \n", get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_PREFETCH"));
+    printf("num_basements_decompressed_aggressive %"PRId64" \n", get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE"));
+    printf("num_basements_decompressed_prefetch %"PRId64" \n", get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH"));
+    printf("num_basements_fetched_aggressive %"PRId64" \n", get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE"));
+    printf("num_basements_fetched_prefetch %"PRId64" \n", get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_PREFETCH"));
 }
 
 static void
@@ -90,7 +90,7 @@ test_bulk_fetch (u_int64_t n, BOOL prelock, BOOL disable_prefetching) {
     if (verbose) printf("test_rand_insert:%"PRId64" \n", n);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.bulk_fetch.brt";
+    const char * const fname = "test.bulk_fetch.ft_handle";
     int r;
     
 

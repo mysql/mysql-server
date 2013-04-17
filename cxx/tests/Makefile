@@ -47,7 +47,7 @@ endif
 ifneq ($(OSX),)
  VGRIND=
 else
- VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes --suppressions=../../newbrt/valgrind.suppressions
+ VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes --suppressions=../../ft/valgrind.suppressions
 endif
 
 default: build

@@ -12,7 +12,7 @@
 */
 
 #include <db.h>
-#include <newbrt/brttypes.h>
+#include <ft/fttypes.h>
 #include <range_tree/rangetree.h>
 
 #if defined(__cplusplus)

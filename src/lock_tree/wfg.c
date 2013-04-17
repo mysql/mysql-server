@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "toku_assert.h"
-#include <newbrt/brttypes.h>
+#include <ft/fttypes.h>
 #include "memory.h"
 #include "toku_list.h"
 #include "txnid_set.h"

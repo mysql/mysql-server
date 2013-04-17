@@ -44,7 +44,7 @@ test_txn_cursor_last_1 (int nrows) {
     DB_ENV *env;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.txn.cursor.last.1.brt";
+    const char * const fname = "test.txn.cursor.last.1.ft_handle";
 
     /* create the dup database file */
     r = db_env_create(&env, 0);        assert(r == 0);
@@ -129,7 +129,7 @@ test_txn_cursor_last_2 (int nrows) {
     DB_ENV *env;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.txn.cursor.last.1.brt";
+    const char * const fname = "test.txn.cursor.last.1.ft_handle";
 
     /* create the dup database file */
     r = db_env_create(&env, 0);        assert(r == 0);

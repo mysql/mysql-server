@@ -17,7 +17,7 @@ test_db_set_flags (int flags, int expectr, int flags2, int expectr2) {
     if (verbose) printf("test_db_set_flags:%d %d %d %d\n", flags, expectr, flags2, expectr2);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.db.set.flags.brt";
+    const char * const fname = "test.db.set.flags.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR); CKERR(r);

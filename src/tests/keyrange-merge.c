@@ -95,7 +95,7 @@ run_test(void) {
         }
         r = txn->commit(txn, 0); CKERR(r);
 
-        uint64_t merge_leaf = get_engine_status_val(env, "BRT_FLUSHER_MERGE_LEAF");
+        uint64_t merge_leaf = get_engine_status_val(env, "FT_FLUSHER_MERGE_LEAF");
         if (merge_leaf > 0) {
             if (verbose) printf("t=%d\n", t);
             break;

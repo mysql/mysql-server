@@ -1,7 +1,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <toku_assert.h>
-#include "../newbrt/brttypes.h"
+#include "../ft/fttypes.h"
 #include <db_cxx.h>
 
 DbEnv::DbEnv (u_int32_t flags)

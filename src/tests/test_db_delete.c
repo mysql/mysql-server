@@ -40,7 +40,7 @@ test_db_delete (int n, int dup_mode) {
     if (verbose) printf("test_db_delete:%d %d\n", n, dup_mode);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.db.delete.brt";
+    const char * const fname = "test.db.delete.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR);
@@ -113,7 +113,7 @@ test_db_get_datasize0 (void) {
     if (verbose) printf("test_db_get_datasize0\n");
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.db_delete.brt";
+    const char * const fname = "test.db_delete.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR);

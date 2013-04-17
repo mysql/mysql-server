@@ -5,7 +5,7 @@
 /* Is it feasible to run 4 billion transactions in one test in the regression tests? */
 #include <db.h>
 #include <sys/stat.h>
-#include <newbrt/log.h>
+#include <ft/log.h>
 
 static void
 four_billion_subtransactions (int do_something_in_children, int use_big_increment) {

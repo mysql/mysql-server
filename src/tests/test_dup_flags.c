@@ -17,7 +17,7 @@ test_dup_flags (u_int32_t dup_flags) {
     if (verbose) printf("test_dup_flags:%u\n", dup_flags);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test_dup_flags.brt";
+    const char * const fname = "test_dup_flags.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR); CKERR(r);

@@ -7,7 +7,7 @@
 
 .DEFAULT_GOAL= build
 TOKUROOT=../
-INCLUDEDIRS=-I. -I$(TOKUROOT)newbrt -I$(TOKUROOT)include -I$(TOKUROOT)/toku_include -I$(TOKUROOT)src
+INCLUDEDIRS=-I. -I$(TOKUROOT)ft -I$(TOKUROOT)include -I$(TOKUROOT)/toku_include -I$(TOKUROOT)src
 DEPEND_COMPILE += \
 	../*.h \
 	../range_tree/*.h \
@@ -144,7 +144,7 @@ OFILES = \
 	$(TOKUROOT)src/ydb.lib \
 	$(TOKUROOT)src/lock_tree/locktree.lib \
 	$(TOKUROOT)src/range_tree/rangetree.lib \
-	$(TOKUROOT)newbrt/newbrt.lib \
+	$(TOKUROOT)ft/ft.lib \
 	$(LIBPORTABILITY_SO) \
 #end
 

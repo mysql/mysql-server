@@ -5,10 +5,10 @@
 
 #include <toku_portability.h>
 #include <db.h>
-#include <newbrt/brt-internal.h>
-#include <newbrt/brt-flusher.h>
-#include <newbrt/checkpoint.h>
-#include <newbrt/brtloader.h>
+#include <ft/ft-internal.h>
+#include <ft/ft-flusher.h>
+#include <ft/checkpoint.h>
+#include <ft/ftloader.h>
 #include "ydb_env_func.h"
 
 // For test purposes only.
@@ -73,7 +73,7 @@ db_env_set_func_pread (ssize_t (*fun)(int, void *, size_t, off_t)) {
 
 void 
 db_env_set_func_loader_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
-    brtloader_set_os_fwrite(fwrite_fun);
+    ft_loader_set_os_fwrite(fwrite_fun);
 }
 
 int 
@@ -131,7 +131,7 @@ db_env_set_flusher_thread_callback(void (*callback_f)(int, void*), void* extra) 
 
 void 
 db_env_set_loader_size_factor (uint32_t factor) {
-    toku_brtloader_set_size_factor(factor);
+    toku_ft_loader_set_size_factor(factor);
 }
 
 void 

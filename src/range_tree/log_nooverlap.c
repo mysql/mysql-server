@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <toku_stdint.h>
 #include <string.h>
-#include <newbrt/omt.h>
+#include <ft/omt.h>
 
 struct __toku_range_tree_local {
     //Logarithmic non-overlapping version only fields:

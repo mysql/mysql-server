@@ -4,7 +4,7 @@ function usage() {
     echo "run the loader verify test"
     echo "[--rows=$rows]"
     echo "[--dictionaries=$dictionaries]"
-    echo "[--brtloader=$brtloader]"
+    echo "[--ft_loader=$ft_loader]"
     echo "[--tokudb=$tokudb]"
     echo "[--branch=$branch]"
     echo "[--revision=$revision]"
@@ -32,7 +32,7 @@ function retry() {
 
 rows=100000000
 dictionaries=3
-brtloader=cilk
+ft_loader=cilk
 tokudb=tokudb
 branch=.
 revision=0
@@ -125,8 +125,8 @@ fi
 
 if [ $testresult = "PASS" ] ; then
     pushd loader-stress-$branchrevision/$tokudb
-        echo `date` make release -s CC=$ftcc HAVE_CILK=$have_cilk BRTLOADER=$brtloader >>$runfile
-        make -s release CC=$ftcc HAVE_CILK=$have_cilk BRTLOADER=$brtloader >>$runfile 2>&1
+        echo `date` make release -s CC=$ftcc HAVE_CILK=$have_cilk FTLOADER=$ft_loader >>$runfile
+        make -s release CC=$ftcc HAVE_CILK=$have_cilk FTLOADER=$ft_loader >>$runfile 2>&1
 	exitcode=$?
 	echo `date` complete $exitcode >>$runfile
 	if [ $exitcode != 0 ] ; then testresult="FAIL"; fi

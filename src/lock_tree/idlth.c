@@ -17,7 +17,7 @@
 #include <string.h>
 
 /* TODO: investigate whether we can remove the user_memory functions */
-/* TODO: reallocate the hash idlth if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
+/* TODO: reallocate the hash idlth if it grows too big. Perhaps, use toku_get_prime in ft/primes.c */
 const uint32_t __toku_idlth_init_size = 521;
 
 static inline uint32_t toku__idlth_hash(toku_idlth* idlth, DICTIONARY_ID dict_id) {

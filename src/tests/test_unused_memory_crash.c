@@ -42,7 +42,7 @@ test_cursor_nonleaf_expand (int n, int reverse) {
     if (verbose) printf("test_cursor_nonleaf_expand:%d %d\n", n, reverse);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.insert.brt";
+    const char * const fname = "test.insert.ft_handle";
     int r;
 
     // r = system("rm -rf " ENVDIR); CKERR(r);

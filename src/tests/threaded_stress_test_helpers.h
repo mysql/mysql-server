@@ -9,7 +9,7 @@
 #include <config.h>
 #include "test.h"
 
-#include <newbrt/rwlock.h>
+#include <ft/rwlock.h>
 
 #include <stdio.h>
 #include <stdlib.h>

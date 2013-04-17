@@ -52,7 +52,7 @@ static void
 test (void) {
     if (verbose) printf("test_cursor\n");
 
-    const char * const fname = "test.cursor.brt";
+    const char * const fname = "test.cursor.ft_handle";
     int r;
 
     /* create the dup database file */

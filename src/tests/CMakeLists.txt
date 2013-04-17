@@ -132,16 +132,16 @@ if(BUILD_TESTING)
       recover-descriptor12.c
       recover-fclose-in-checkpoint.c
       recover-fcreate-basementnodesize.c
-      recover-ft1.c
-      recover-ft2.c
-      recover-ft3.c
-      recover-ft4.c
-      recover-ft5.c
-      recover-ft6.c
-      recover-ft7.c
-      recover-ft8.c
-      recover-ft9.c
-      recover-ft10.c
+      recover-flt1.c
+      recover-flt2.c
+      recover-flt3.c
+      recover-flt4.c
+      recover-flt5.c
+      recover-flt6.c
+      recover-flt7.c
+      recover-flt8.c
+      recover-flt9.c
+      recover-flt10.c
       recover-loader-test.c
       recover-lsn-filter-multiple.c
       recover-put-multiple.c
@@ -218,7 +218,6 @@ if(BUILD_TESTING)
       test_db_descriptor.c
       test_db_descriptor_named_db.c
       test_db_txn_locks_read_uncommitted.c
-      test_dbremove_old.c
       test_dupsort_get_both_range_reverse.c
       test_dupsort_set_range_reverse.c
       test_get_max_row_size.c

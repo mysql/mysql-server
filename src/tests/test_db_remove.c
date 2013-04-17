@@ -5,7 +5,7 @@
 
 DB_TXN * const null_txn = 0;
 
-const char * const fname = "test_db_remove.brt";
+const char * const fname = "test_db_remove.ft_handle";
 
 static void test_db_remove (void) {
     int r;

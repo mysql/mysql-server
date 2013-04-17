@@ -13,7 +13,7 @@
 #include <locktree.h>
 #include <locktree-internal.h>
 #include <ydb-internal.h>
-#include <newbrt/brt-internal.h>
+#include <ft/ft-internal.h>
 #include <toku_stdint.h>
 #include <valgrind/drd.h>
 

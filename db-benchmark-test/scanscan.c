@@ -11,8 +11,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #ifdef TOKUDB
-#include <newbrt/key.h>
-#include <newbrt/cachetable.h>
+#include <ft/key.h>
+#include <ft/cachetable.h>
 #endif
 
 static const char *pname;

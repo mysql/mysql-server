@@ -190,7 +190,7 @@ init_db(DB_ENV **env, DB **db)
     (*env)->set_errfile(*env, stderr);
     CHK((*env)->open(*env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0));
     CHK(db_create(db, *env, 0));
-    CHK((*db)->open(*db, null_txn, "test.stress.brt", "main",
+    CHK((*db)->open(*db, null_txn, "test.stress.ft_handle", "main",
         DB_BTREE, DB_CREATE, 0666));
 }
 

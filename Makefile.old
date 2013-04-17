@@ -12,16 +12,16 @@ else
     SRCDIRS_CXX = cxx db-benchmark-test-cxx
 endif
 
-SRCDIRS = $(OS_CHOICE) newbrt src/range_tree src/lock_tree src utils db-benchmark-test $(SRCDIRS_CXX)
+SRCDIRS = $(OS_CHOICE) ft src/range_tree src/lock_tree src utils db-benchmark-test $(SRCDIRS_CXX)
 BUILDDIRS = $(SRCDIRS) man/texi
 
 ifeq ($(OS_CHOICE),windows)
 .NOTPARALLEL:; #Windows/cygwin jobserver does not properly handle submakes.  Serialize
 endif
-newbrt.dir: $(OS_CHOICE).dir
+ft.dir: $(OS_CHOICE).dir
 src/range_tree.dir: $(OS_CHOICE).dir 
 src/lock_tree.dir: src/range_tree.dir
-src.dir: newbrt.dir src/lock_tree.dir
+src.dir: ft.dir src/lock_tree.dir
 utils.dir: src.dir
 db-benchmark-test.dir: src.dir
 cxx.dir: src.dir
@@ -41,7 +41,7 @@ build: $(patsubst %,%.dir, $(BUILDDIRS))
 %.check:
 	cd $(patsubst %.check, %,$@) && $(MAKE) check
 
-release: linux.local newbrt.local src.local release.local
+release: linux.local ft.local src.local release.local
 
 CHECKS = $(patsubst %,%.checkdir,$(SRCDIRS))
 
@@ -60,26 +60,26 @@ summarize: check
 
 check: $(CHECKS)
 
-.PHONY: fastbuild fastbuildtests fastcheck fastchecknewbrt fastcheckydb fastcheckonlyfail fastcheckonlyfailnewbrt fastcheckonlyfailydb
+.PHONY: fastbuild fastbuildtests fastcheck fastcheckft fastcheckydb fastcheckonlyfail fastcheckonlyfailft fastcheckonlyfailydb
 fastbuild:
 	$(MAKE) -s -k -C linux
-	$(MAKE) -s -k -C newbrt local
+	$(MAKE) -s -k -C ft local
 	$(MAKE) -s -k -C src local
 	$(MAKE) -s -k -C utils
 
 fastbuildtests: fastbuild
-	$(MAKE) -s -k -C newbrt/tests
+	$(MAKE) -s -k -C ft/tests
 	$(MAKE) -s -k -C src/tests tests.tdb
 
-fastcheck: fastchecknewbrt fastcheckydb
-fastchecknewbrt: fastbuildtests
-	$(MAKE) -s -k -C newbrt/tests fastcheck
+fastcheck: fastcheckft fastcheckydb
+fastcheckft: fastbuildtests
+	$(MAKE) -s -k -C ft/tests fastcheck
 fastcheckydb: fastbuildtests
 	$(MAKE) -s -k -C src/tests fastcheck.tdb
 
-fastcheckonlyfail: fastcheckonlyfailnewbrt fastcheckonlyfailydb
-fastcheckonlyfailnewbrt: fastbuildtests
-	$(MAKE) -s -k -C newbrt/tests fastcheckonlyfail
+fastcheckonlyfail: fastcheckonlyfailft fastcheckonlyfailydb
+fastcheckonlyfailft: fastbuildtests
+	$(MAKE) -s -k -C ft/tests fastcheckonlyfail
 fastcheckonlyfailydb: fastbuildtests
 	$(MAKE) -s -k -C src/tests fastcheckonlyfail.tdb
 
@@ -114,12 +114,12 @@ build-coverage:
 	$(MAKE) build OPTFLAGS= GCOV_FLAGS="-fprofile-arcs -ftest-coverage"
 
 # this is messy now since we dont have consistent make targets
-check-coverage: check-coverage-newbrt check-coverage-src-tests check-coverage-utils check-coverage-cxx-tests \
+check-coverage: check-coverage-ft check-coverage-src-tests check-coverage-utils check-coverage-cxx-tests \
 		check-coverage-db-benchmark-test check-coverage-db-benchmark-test-cxx \
 		check-coverage-range-tree-tests check-coverage-lock-tree-tests
 
-check-coverage-newbrt:
-	(cd newbrt && $(MAKE) -k check VGRIND="")
+check-coverage-ft:
+	(cd ft && $(MAKE) -k check VGRIND="")
 check-coverage-src-tests:
 	(cd src/tests && $(MAKE) -k check.tdb VGRIND="")
 check-coverage-utils:

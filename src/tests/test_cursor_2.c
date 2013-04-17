@@ -19,7 +19,7 @@ test_cursor (void) {
     DB_ENV * env;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.cursor.brt";
+    const char * const fname = "test.cursor.ft_handle";
     int r;
 
     /* create the dup database file */

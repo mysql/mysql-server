@@ -6,12 +6,12 @@
 #ident "$Id$"
 
 #include <db.h>
-#include "../newbrt/brttypes.h"
-#include "../newbrt/brt.h"
+#include "../ft/fttypes.h"
+#include "../ft/ft-ops.h"
 #include "toku_list.h"
 #include "./lock_tree/locktree.h"
 #include "./lock_tree/idlth.h"
-#include "../newbrt/minicron.h"
+#include "../ft/minicron.h"
 #include <limits.h>
 
 #if defined(__cplusplus)
@@ -24,7 +24,7 @@ struct __toku_db_internal {
     int opened;
     u_int32_t open_flags;
     int open_mode;
-    BRT brt;
+    FT_HANDLE ft_handle;
     DICTIONARY_ID dict_id;        // unique identifier used by locktree logic
     struct __toku_lock_tree* lt;
     struct simple_dbt skey, sval; // static key and value
@@ -222,7 +222,7 @@ struct __toku_db_txn_external {
 #define db_txn_struct_i(x) (&((struct __toku_db_txn_external *)x)->internal_part)
 
 struct __toku_dbc_internal {
-    struct brt_cursor *c;
+    struct ft_cursor *c;
     DB_TXN *txn;
     TOKU_ISOLATION iso;
     struct simple_dbt skey_s,sval_s;

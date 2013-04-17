@@ -614,7 +614,7 @@ if __name__ == '__main__':
     default_toplevel = os.path.dirname(os.path.dirname(a0))
     parser.add_option('--tokudb', type='string', dest='tokudb',
                       default=default_toplevel,
-                      help=('top of the tokudb tree (contains newbrt/ and src/) [default=%s]' % os.path.relpath(default_toplevel)))
+                      help=('top of the tokudb tree (contains ft/ and src/) [default=%s]' % os.path.relpath(default_toplevel)))
 
     test_group = OptionGroup(parser, 'Scheduler Options', 'Control how the scheduler runs jobs.')
     test_group.add_option('-t', '--test_time', type='int', dest='test_time',
