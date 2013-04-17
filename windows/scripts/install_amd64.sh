@@ -36,7 +36,7 @@ echo
 (
     cd amd64 &&
     if ! diff -q Cygwin.bat /cygdrive/c/cygwin/Cygwin.bat > /dev/null; then
-        cp Cygwin.bat /cygdrive/c/cygwin/
+        cp Cygwin.bat /cygdrive/c/cygwin/ || { echo Failed Cygwin.bat; exit 1; }
     fi
 )
 if ! grep 'export CC=' ~/.bashrc > /dev/null; then
@@ -50,18 +50,18 @@ fi
 
 #cygwin link is in the way
 if test -e /usr/bin/link; then
-    mv /usr/bin/link /usr/bin/link_DISABLED
+    mv /usr/bin/link /usr/bin/link_DISABLED || { echo Failed changing link; exit 1; }
 fi
 #cygwin cmake is in the way
 if test -e /usr/bin/cmake; then
-    mv /usr/bin/cmake /usr/bin/cmake_DISABLED
+    mv /usr/bin/cmake /usr/bin/cmake_DISABLED || { echo Failed changing link; exit 1; }
 fi
 
 #Set up aliases
-( cd amd64/symlinks && cp -d * /usr/local/bin/ )
+( cd amd64/symlinks && cp -d * /usr/local/bin/  || { echo Failed copying link; exit 1; } )
 
 #Copy nightly script.
-cp -u nightly.sh ~/
+cp -u nightly.sh ~/ || { echo Failed copying nightly.sh; exit 1; }
 
 
 echo You can now install the intel compiler.
