@@ -21,17 +21,10 @@
 #include "sub_block.h"
 #include "sub_block_map.h"
 #include "pqueue.h"
-#include "trace_mem.h"
 #include "dbufio.h"
 #include "leafentry.h"
 #include "log-internal.h"
 #include "brt_header.h"
-
-// to turn on tracing, 
-//   cd .../newbrt
-//   edit trace_mem.h, set #define BL_DO_TRACE 1
-//   make local
-//   cd ../src;make local
 
 #if defined(__cilkplusplus)
 #error DISABLING CILK ARTS CILK
@@ -498,12 +491,6 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     BRTLOADER CALLOC(bl); // initialized to all zeros (hence CALLOC)
     if (!bl) return errno;
 
-#if BL_DO_TRACE
-    BL_TRACE(blt_calibrate_begin);
-    sleep(1);
-    BL_TRACE(blt_calibrate_done);
-#endif
-
     bl->generate_row_for_put = g;
     bl->cachetable = cachetable;
     if (bl->cachetable)
@@ -634,7 +621,6 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
             (void) toku_brtloader_internal_destroy(bl, TRUE);
         }
     }
-    BL_TRACE(blt_open);
     return result;
 }
 
@@ -966,15 +952,12 @@ static int finish_primary_rows (BRTLOADER bl) {
 }
 
 static void* extractor_thread (void *blv) {
-    BL_TRACE(blt_extractor_init);
     BRTLOADER bl = (BRTLOADER)blv;
     int r = 0;
     while (1) {
 	void *item;
 	{
-	    BL_TRACE(blt_extractor);
 	    int rq = queue_deq(bl->primary_rowset_queue, &item, NULL, NULL);
-	    BL_TRACE(blt_extract_deq);
 	    if (rq==EOF) break;
 	    invariant(rq==0); // other errors are arbitrarily bad.
 	}
@@ -997,7 +980,6 @@ static void* extractor_thread (void *blv) {
 	    brt_loader_set_panic(bl, r, FALSE);
 	
     }
-    BL_TRACE(blt_extractor);
     return NULL;
 }
 
@@ -1019,9 +1001,7 @@ static int loader_do_put(BRTLOADER bl,
     if (result == 0 && row_wont_fit(&bl->primary_rowset, 0)) {
 	// queue the rows for further processing by the extractor thread.
 	//printf("%s:%d please extract %ld\n", __FILE__, __LINE__, bl->primary_rowset.n_rows);
-	BL_TRACE(blt_do_put);
 	enqueue_for_extraction(bl);
-	BL_TRACE(blt_extract_enq);
 	{
             int r = init_rowset(&bl->primary_rowset, memory_per_rowset_during_extract(bl)); 
             // bl->primary_rowset will get destroyed by toku_brt_loader_abort
@@ -1038,10 +1018,8 @@ finish_extractor (BRTLOADER bl) {
 
     int rval;
 
-    BL_TRACE(blt_do_put);
     if (bl->primary_rowset.n_rows>0) {
 	enqueue_for_extraction(bl);
-	BL_TRACE(blt_extract_enq);
     } else {
 	destroy_rowset(&bl->primary_rowset);
     }
@@ -1057,7 +1035,6 @@ finish_extractor (BRTLOADER bl) {
         resource_assert_zero(r); 
         invariant(toku_pthread_retval == NULL);
         bl->extractor_live = FALSE;
-	BL_TRACE(blt_join_on_extractor);
     }
     {
 	int r = queue_destroy(bl->primary_rowset_queue);
@@ -1161,10 +1138,8 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 
 	    if (row_wont_fit(rows, skey.size + sval.size)) {
 		//printf("%s:%d rows.n_rows=%ld rows.n_bytes=%ld\n", __FILE__, __LINE__, rows->n_rows, rows->n_bytes);
-		BL_TRACE(blt_extractor);
 		int r = sort_and_write_rows(*rows, fs, bl, i, bl->dbs[i], compare); // cannot spawn this because of the race on rows.  If we were to create a new rows, and if sort_and_write_rows were to destroy the rows it is passed, we could spawn it, however.
 		// If we do spawn this, then we must account for the additional storage in the memory_per_rowset() function.
-		BL_TRACE(blt_sort_and_write_rows);
 		init_rowset(rows, memory_per_rowset_during_extract(bl)); // we passed the contents of rows to sort_and_write_rows.
 		if (r != 0) {
 		    error_codes[i] = r;
@@ -1213,14 +1188,11 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
         invariant(r); // found the error 
     }
     toku_free(error_codes);
-    BL_TRACE(blt_extractor);
     return r;
 }
 
 static int process_primary_rows (BRTLOADER bl, struct rowset *primary_rowset) {
-    BL_TRACE(blt_extractor);
     int r = process_primary_rows_internal (bl, primary_rowset);
-    BL_TRACE(blt_extractor);
     return r;
 }
  
@@ -1648,9 +1620,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
     if (result==0) {
 	// load pqueue with first value from each source
 	for (int i=0; i<n_sources; i++) {
-	    BL_TRACE_QUIET(blt_do_i);
 	    int r = loader_read_row_from_dbufio(bfs, i, &keys[i], &vals[i]);
-	    BL_TRACE_QUIET(blt_read_row);
 	    if (r==EOF) continue; // if the file is empty, don't initialize the pqueue.
 	    if (r!=0) {
 		result = r;
@@ -1699,10 +1669,8 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
         }
 	if (to_q) {
 	    if (row_wont_fit(output_rowset, keys[mini].size + vals[mini].size)) {
-		BL_TRACE(blt_do_i);
 		{
 		    int r = queue_enq(q, (void*)output_rowset, 1, NULL);
-		    BL_TRACE(blt_fractal_enq);
 		    if (r!=0) {
 			result = r;
 			break;
@@ -1735,9 +1703,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
         
 	{
             // read next row from file that just sourced min value 
-	    BL_TRACE_QUIET(blt_do_i);
 	    int r = loader_read_row_from_dbufio(bfs, mini, &keys[mini], &vals[mini]);
-	    BL_TRACE_QUIET(blt_read_row);
 	    if (r!=0) {
 		if (r==EOF) {
                     // on feof, queue size permanently smaller
@@ -1776,9 +1742,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
         }
     }
     if (result==0 && to_q) {
-	BL_TRACE(blt_do_i);
 	int r = queue_enq(q, (void*)output_rowset, 1, NULL);
-	BL_TRACE(blt_fractal_enq);
         if (r!=0) 
             result = r;
         else 
@@ -2308,9 +2272,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     while (result == 0) {
 	void *item;
 	{
-	    BL_TRACE(blt_fractal_thread);
 	    int rr = queue_deq(q, &item, NULL, NULL);
-	    BL_TRACE(blt_fractal_deq);
 	    if (rr == EOF) break;
 	    if (rr != 0) {
                 brt_loader_set_panic(bl, rr, TRUE); // error after cilk sync
@@ -2482,7 +2444,6 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     subtrees_info_destroy(&sts);
     dbout_destroy(&out);
     drain_writer_q(q);
-    BL_TRACE(blt_fractal_thread);
 
     return result;
 }
@@ -2506,7 +2467,6 @@ int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 
 
 static void* fractal_thread (void *ftav) {
-    BL_TRACE(blt_start_fractal_thread);
     struct fractal_thread_args *fta = (struct fractal_thread_args *)ftav;
     int r = toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize, fta->target_compression_method);
     fta->errno_result = r;
@@ -2580,10 +2540,8 @@ static int loader_do_i (BRTLOADER bl,
 
 	{
 	    void *toku_pthread_retval;
-	    BL_TRACE(blt_do_i);
 	    int r2 = toku_pthread_join(bl->fractal_threads[which_db], &toku_pthread_retval);
 	    invariant(fta.bl==bl); // this is a gratuitous assertion to make sure that the fta struct is still live here.  A previous bug but that struct into a C block statement.
-	    BL_TRACE(blt_join_on_fractal);
 	    resource_assert_zero(r2);
             invariant(toku_pthread_retval==NULL);
 	    invariant(bl->fractal_threads_live[which_db]);
@@ -2603,7 +2561,6 @@ static int loader_do_i (BRTLOADER bl,
     toku_free(rows->data); rows->data = NULL;
     toku_free(rows->rows); rows->rows = NULL;
     toku_free(fs->data_fidxs); fs->data_fidxs = NULL;
-    BL_TRACE(blt_do_i);
     return r;
 }
 
@@ -2611,7 +2568,6 @@ static int toku_brt_loader_close_internal (BRTLOADER bl)
 /* Effect: Close the bulk loader.
  * Return all the file descriptors in the array fds. */
 {
-    BL_TRACE(blt_do_put);
     int result = 0;
     if (bl->N == 0)
         result = update_progress(PROGRESS_MAX, bl, "done");
@@ -2622,7 +2578,6 @@ static int toku_brt_loader_close_internal (BRTLOADER bl)
             // This calculation allocates all of the PROGRESS_MAX bits of progress to some job.
             int allocate_here = remaining_progress/(bl->N - i);
             remaining_progress -= allocate_here;
-            BL_TRACE(blt_close);
             char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(bl->cachetable, bl->new_fnames_in_env[i]);
             result = loader_do_i(bl, i, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd, allocate_here);
             toku_free(fname_in_cwd);
@@ -2645,8 +2600,6 @@ static int toku_brt_loader_close_internal (BRTLOADER bl)
     invariant(bl->progress == PROGRESS_MAX);
  error:
     toku_brtloader_internal_destroy(bl, (BOOL)(result!=0));
-    BL_TRACE(blt_close);
-    BL_TRACE_END;
     return result;
 }
 

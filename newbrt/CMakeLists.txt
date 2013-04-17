@@ -61,7 +61,6 @@ set(BRT_SOURCES
   sub_block.c
   ule.c
   threadpool.c
-  trace_mem.c
   txn.c
   workqueue.c
   x1764.c
