@@ -7622,7 +7622,6 @@ int ha_tokudb::final_drop_index(TABLE *table_arg) {
 }
 
 void ha_tokudb::print_error(int error, myf errflag) {
-    THD* thd = ha_thd();
     if (error == DB_LOCK_DEADLOCK)
         error = HA_ERR_LOCK_DEADLOCK;
     if (error == DB_LOCK_NOTGRANTED)
@@ -7642,9 +7641,12 @@ void ha_tokudb::print_error(int error, myf errflag) {
 #endif
     // TODO: should rename debug code to something better
     // just reusing this so that tests don' start complaining
+#if MYSQL_VERSION_ID < 50500
     if ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0) {
-      sql_print_error("query \"%s\" returned handler error %d", thd->query_string.str, error);
+        THD* thd = ha_thd();
+        sql_print_error("query \"%s\" returned handler error %d", thd->query_string.str, error);
     }
+#endif
     handler::print_error(error, errflag);
 }
 

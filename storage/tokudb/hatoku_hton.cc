@@ -1149,11 +1149,13 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
     ENGINE_STATUS engstat;
 
+#if MYSQL_VERSION_ID < 50500
     {
 	sys_var * version = intern_find_sys_var("version", 0, false);
 	snprintf(buf, bufsiz, "%s", version->value_ptr(thd, (enum_var_type)0, (LEX_STRING*)NULL));
 	STATPRINT("Version", buf);
     }
+#endif
     error = db_env->get_engine_status(db_env, &engstat, buf, bufsiz);
     if (strlen(buf)) {
 	STATPRINT("Environment panic string", buf);
