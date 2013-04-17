@@ -5614,7 +5614,7 @@ keysrange_in_leaf_partition (FT_HANDLE brt, FTNODE node,
         *equal_left = (r==0) ? 1 : 0;
 
         uint32_t size = toku_omt_size(bn->buffer);
-        printf("Estimated vs Actual: %" PRIu64 " vs %" PRIu32 "\n", estimated_num_rows, size);
+        if (0) printf("Estimated vs Actual: %" PRIu64 " vs %" PRIu32 "\n", estimated_num_rows, size);
         uint32_t idx_right = size;
         r = -1;
         if (single_basement && key_right) {
