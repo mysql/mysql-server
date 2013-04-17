@@ -1,7 +1,11 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 // Define BDB if you want to compile this to use Berkeley DB
+#include <stdint.h>
 #include <inttypes.h>
 #ifdef BDB
 #include <db.h>
@@ -14,10 +18,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <sys/time.h>
 
 static inline float toku_tdiff (struct timeval *a, struct timeval *b) {
     return (a->tv_sec - b->tv_sec) +1e-6*(a->tv_usec - b->tv_usec);
