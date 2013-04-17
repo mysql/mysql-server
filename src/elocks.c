@@ -107,6 +107,8 @@ toku_ydb_lock_destroy(void) {
     int r;
     r = toku_pthread_mutex_destroy(&ydb_big_lock.lock); assert(r == 0);
 #if YDB_LOCK_MISS_TIME
+    void * last_ydbtime = toku_pthread_getspecific(ydb_big_lock.time_key);
+    if (last_ydbtime) toku_free(last_ydbtime);
     r = toku_pthread_key_delete(ydb_big_lock.time_key); assert(r == 0);
 #endif
     return r;
