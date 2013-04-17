@@ -145,7 +145,7 @@ static MYSQL_THDVAR_BOOL(enable_fast_update,
     "enable fast update",
     NULL, // check
     NULL, // update
-    false // default
+    true // default
 );
 static MYSQL_THDVAR_BOOL(disable_slow_update, 
     PLUGIN_VAR_THDLOCAL, 
@@ -159,7 +159,7 @@ static MYSQL_THDVAR_BOOL(enable_fast_upsert,
     "enable fast upsert",
     NULL, // check
     NULL, // update
-    false // default
+    true // default
 );
 static MYSQL_THDVAR_BOOL(disable_slow_upsert, 
     PLUGIN_VAR_THDLOCAL, 
