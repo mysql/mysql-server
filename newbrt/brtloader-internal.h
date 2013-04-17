@@ -119,9 +119,11 @@ struct brtloader_s {
 
     DB *src_db;
     int N;
-    DB **dbs;
-    const struct descriptor **descriptors; // N of these
-    const char **new_fnames_in_env; // the file names that the final data will be written to (relative to env).
+    DB **dbs; // N of these
+    const struct descriptor **descriptors; // N of these.
+    const char **new_fnames_in_env; // N of these.  The file names that the final data will be written to (relative to env).
+
+    uint64_t *extracted_datasizes; // N of these.
 
     struct rowset primary_rowset; // the primary rows that have been put, but the secondary rows haven't been generated.
     struct rowset primary_rowset_temp; // the primary rows that are being worked on by the extractor_thread.
@@ -168,12 +170,13 @@ u_int64_t toku_brt_loader_get_n_rows(BRTLOADER bl);
 
 // The data passed into a fractal_thread via pthread_create.
 struct fractal_thread_args {
-    BRTLOADER bl;
+    BRTLOADER                bl;
     const struct descriptor *descriptor;
-    int fd; // write the brt into tfd.
-    int progress_allocation;
-    QUEUE q;
-    int errno_result; // the final result.
+    int                      fd; // write the brt into tfd.
+    int                      progress_allocation;
+    QUEUE                    q;
+    uint64_t                 total_disksize_estimate;
+    int                      errno_result; // the final result.
 };
 
 void toku_brt_loader_set_n_rows(BRTLOADER bl, u_int64_t n_rows);
@@ -200,11 +203,13 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 int brt_loader_sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func,
 				    int progress_allocation);
 
-int toku_loader_write_brt_from_q_in_C (BRTLOADER bl,
+// This is probably only for testing.
+int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 				       const struct descriptor *descriptor,
-				       int fd, // write to here
-				       int progress_allocation,
-				       QUEUE q);
+				       int                      fd, // write to here
+				       int                      progress_allocation,
+				       QUEUE                    q,
+				       uint64_t                  total_disksize_estimate);
 
 int brt_loader_mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func, BRTLOADER, struct rowset *);
 
@@ -228,6 +233,8 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 				   LSN load_lsn);
 
 void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error);
+
+enum { disksize_row_overhead = 9 }; // how much overhead for a row in the fractal tree
 
 C_END
 

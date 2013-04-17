@@ -171,6 +171,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
 
     // put rows in the row set
     struct rowset aset;
+    uint64_t size_est = 0;
     init_rowset(&aset, toku_brtloader_get_rowset_budget_for_testing());
     for (int i=0; i<n; i++) {
 	DBT key = {.size=sizeof i,
@@ -178,6 +179,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
 	DBT val = {.size=sizeof i,
 		   .data=&i};
 	add_row(&aset, &key, &val);
+	size_est += key.size + val.size + disksize_row_overhead;
     }
 
     toku_brt_loader_set_n_rows(&bl, n);
@@ -199,6 +201,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     assert(r==0);
 
     size_t num_found = 0;
+    size_t found_size_est = 0;
     while (1) {
 	void *v;
 	r = queue_deq(q, &v, NULL, NULL);
@@ -206,11 +209,12 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
 	struct rowset *rs = (struct rowset *)v;
 	if (verbose) printf("v=%p\n", v);
 
-	for (size_t i=num_found; i<rs->n_rows; i++) {
+	for (size_t i=0; i<rs->n_rows; i++) {
 	    struct row *row = &rs->rows[i];
 	    assert(row->klen==sizeof(int));
 	    assert(row->vlen==sizeof(int));
-	    assert((int)i==*(int*)(rs->data+row->off));
+	    assert((int)(num_found+i)==*(int*)(rs->data+row->off));
+	    found_size_est += row->klen + row->vlen + disksize_row_overhead; 
 	}
 
 	num_found += rs->n_rows;
@@ -219,6 +223,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
 	assert(r==0);
     }
     assert((int)num_found == n);
+    if (!expect_error) assert(found_size_est == size_est);
 
     r = queue_eof(q2);
     assert(r==0);
@@ -238,7 +243,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     toku_set_func_pwrite(bad_pwrite);
     brt_loader_set_poll_function(&bl.poll_callback, loader_poll_callback, NULL);
 
-    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2);
+    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est);
     // if (!(expect_error ? r != 0 : r == 0)) printf("WARNING%%d expect_error=%d r=%d\n", __LINE__, expect_error, r); 
     assert(expect_error ? r != 0 : r == 0);
 

@@ -229,7 +229,8 @@ static void test_read_write_rows (char *template) {
 static void fill_rowset (struct rowset *rows,
 			 int keys[],
 			 const char *vals[],
-			 int n) {
+			 int n,
+			 uint64_t *size_est) {
     init_rowset(rows, toku_brtloader_get_rowset_budget_for_testing());
     for (int i=0; i<n; i++) {
 	DBT key = {.size=sizeof(keys[i]),
@@ -237,6 +238,7 @@ static void fill_rowset (struct rowset *rows,
 	DBT val = {.size=strlen(vals[i]),
 		   .data=(void *)vals[i]};
 	add_row(rows, &key, &val);
+	*size_est += key.size + val.size + disksize_row_overhead;
     }
 }
 
@@ -294,8 +296,9 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     int sorted_keys[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     const char *sorted_vals[] = { "0", "a", "b", "c", "d", "e", "f", "g", "h", "i" };
     struct rowset aset, bset;
-    fill_rowset(&aset, a_keys, a_vals, 6);
-    fill_rowset(&bset, b_keys, b_vals, 4);
+    uint64_t size_est = 0;
+    fill_rowset(&aset, a_keys, a_vals, 6, &size_est);
+    fill_rowset(&bset, b_keys, b_vals, 4, &size_est);
 
     toku_brt_loader_set_n_rows(&bl, 6+4);
 
@@ -320,7 +323,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
     
-    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q);
+    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q, size_est);
     assert(r==0);
 
     destroy_merge_fileset(&fs);

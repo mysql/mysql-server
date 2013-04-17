@@ -295,6 +295,7 @@ void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
 	if (bl->new_fnames_in_env) 
             toku_free((char*)bl->new_fnames_in_env[i]);
     }
+    toku_free(bl->extracted_datasizes);
     toku_free(bl->new_fnames_in_env);
     toku_free(bl->bt_compare_funs);
     toku_free((char*)bl->temp_file_template);
@@ -406,6 +407,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     for (int i=0; i<N; i++) bl->descriptors[i]=descriptors[i];
     MY_CALLOC_N(N, bl->new_fnames_in_env);
     for (int i=0; i<N; i++) SET_TO_MY_STRDUP(bl->new_fnames_in_env[i], new_fnames_in_env[i]);
+    MY_CALLOC_N(N, bl->extracted_datasizes); // the calloc_n zeroed everything, which is what we want
     MY_CALLOC_N(N, bl->bt_compare_funs);
     for (int i=0; i<N; i++) bl->bt_compare_funs[i] = bt_compare_functions[i];
 
@@ -951,10 +953,11 @@ static DBT make_dbt (void *data, u_int32_t size) {
 }
 
 // gcc 4.1 does not like f&a
+// Previously this macro was defined without "()".  This macro should look like a function call not a variable dereference, however.
 #if defined(__cilkplusplus)
-#define inc_error_count __sync_fetch_and_add(&error_count, 1)
+#define inc_error_count() __sync_fetch_and_add(&error_count, 1)
 #else
-#define inc_error_count error_count++
+#define inc_error_count() error_count++
 #endif
 
 CILK_BEGIN
@@ -999,10 +1002,12 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 		int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &skey, &sval, &pkey, &pval, NULL);
 		if (r != 0) {
                     error_codes[i] = r;
-                    inc_error_count;
+                    inc_error_count();
                     break;
                 }
 	    }
+
+	    bl->extracted_datasizes[i] += skey.size + sval.size + disksize_row_overhead;
 
 	    if (row_wont_fit(rows, skey.size + sval.size)) {
 		//printf("%s:%d rows.n_rows=%ld rows.n_bytes=%ld\n", __FILE__, __LINE__, rows->n_rows, rows->n_bytes);
@@ -1014,14 +1019,14 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 		init_rowset(rows, memory_per_rowset(bl)); // we passed the contents of rows to sort_and_write_rows.
 		if (r != 0) {
 		    error_codes[i] = r;
-                    inc_error_count;
+                    inc_error_count();
 		    break;
 		}
 	    }
 	    int r = add_row(rows, &skey, &sval);
             if (r != 0) {
                 error_codes[i] = r;
-                inc_error_count;
+                inc_error_count();
                 break;
             }
 
@@ -2069,7 +2074,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 					 const struct descriptor *descriptor,
 					 int fd, // write to here
 					 int progress_allocation,
-					 QUEUE q)
+					 QUEUE q,
+					 uint64_t total_disksize_estimate)
 // Effect: Consume a sequence of rowsets work from a queue, creating a fractal tree.  Closes fd.
 {
     int result = 0;
@@ -2131,6 +2137,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     u_int64_t n_rows_remaining = bl->n_rows;
     u_int64_t old_n_rows_remaining = bl->n_rows;
 
+    uint64_t  used_estimate = 0; // how much diskspace have we used up?
+
     while (1) {
 	void *item;
 	{
@@ -2149,8 +2157,22 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    DBT key = make_dbt(output_rowset->data+output_rowset->rows[i].off,                               output_rowset->rows[i].klen);
 	    DBT val = make_dbt(output_rowset->data+output_rowset->rows[i].off + output_rowset->rows[i].klen, output_rowset->rows[i].vlen);
 
-	    if (lbuf->dbuf.off >= nodesize) {
+	    used_estimate += key.size + val.size + disksize_row_overhead;
 
+	    // Spawn off a node if
+	    //   a) this item would make the nodesize too big, or
+	    //   b) the remaining amount won't fit in the current node and the current node's data is more than the remaining amount
+	    int remaining_amount = total_disksize_estimate - used_estimate;
+	    int used_here = lbuf->dbuf.off + 1000; // leave 1000 for various overheads.
+	    int target_size = (nodesize*7L)/8;     // use only 7/8 of the node.
+	    int used_here_with_next_key = used_here + key.size + val.size + disksize_row_overhead;
+	    if ((used_here_with_next_key >= target_size)
+		|| (used_here + remaining_amount >= target_size
+		    && lbuf->dbuf.off > remaining_amount)) {
+		//if (used_here_with_next_key < target_size) {
+		//    printf("%s:%d Runt avoidance: used_here=%d, remaining_amount=%d target_size=%d dbuf.off=%d\n", __FILE__, __LINE__, used_here, remaining_amount, target_size, lbuf->dbuf.off);  
+		//}
+		    
 		int progress_this_node = progress_allocation * (double)(old_n_rows_remaining - n_rows_remaining)/(double)old_n_rows_remaining;
 		progress_allocation -= progress_this_node;
 		old_n_rows_remaining = n_rows_remaining;
@@ -2192,6 +2214,11 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     if (bl->panic) { // if there were any prior errors then exit
         result = bl->panic_errno; goto error;
+    }
+
+    // We haven't paniced, so the sum should add up.
+    if (result==0) {
+	invariant(used_estimate == total_disksize_estimate);
     }
 
     n_pivots++;
@@ -2279,17 +2306,18 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 }
 CILK_END
 
-int toku_loader_write_brt_from_q_in_C (BRTLOADER bl,
+int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 				       const struct descriptor *descriptor,
-				       int fd, // write to here
-				       int progress_allocation,
-				       QUEUE q)
+				       int                      fd, // write to here
+				       int                      progress_allocation,
+				       QUEUE                    q,
+				       uint64_t                 total_disksize_estimate)
 // This is probably only for testing.
 {
 #if defined(__cilkplusplus)
-    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q);
+    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q, total_disksize_estimate);
 #else
-    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q);
+    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate);
 #endif
 }
 
@@ -2298,9 +2326,9 @@ static void* fractal_thread (void *ftav) {
     BL_TRACE(blt_start_fractal_thread);
     struct fractal_thread_args *fta = (struct fractal_thread_args *)ftav;
 #if defined(__cilkplusplus)
-    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q);
+    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate);
 #else
-    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q);
+    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate);
 #endif
     fta->errno_result = r;
     return NULL;
@@ -2315,6 +2343,7 @@ static int loader_do_i (BRTLOADER bl,
                         int progress_allocation // how much progress do I need to add into bl->progress by the end..
                         )
 /* Effect: Handle the file creating for one particular DB in the bulk loader. */
+/* Requires: The data is fully extracted, so we can do merges out of files and write the brt file. */
 {
     //printf("doing i use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
     struct merge_fileset *fs = &(bl->fs[which_db]);
@@ -2337,12 +2366,13 @@ static int loader_do_i (BRTLOADER bl,
         }
 
 	// This structure must stay live until the join below.
-        struct fractal_thread_args fta = {bl,
-                                          descriptor,
-                                          fd,
-                                          progress_allocation,
-                                          bl->fractal_queues[which_db],
-                                          0 // result
+        struct fractal_thread_args fta = {.bl                      = bl,
+                                          .descriptor              = descriptor,
+                                          .fd                      = fd,
+                                          .progress_allocation     = progress_allocation,
+                                          .q                       = bl->fractal_queues[which_db],
+					  .total_disksize_estimate = bl->extracted_datasizes[which_db],
+                                          .errno_result            = 0
         };
 
 	r = toku_pthread_create(bl->fractal_threads+which_db, NULL, fractal_thread, (void*)&fta);
@@ -2924,7 +2954,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
         next_sts.n_subtrees_limit = 1;
 	XMALLOC_N(next_sts.n_subtrees_limit, next_sts.subtrees);
 
-	const int n_per_block = 16;
+	const int n_per_block = 15;
 	int64_t n_subtrees_used = 0;
 	while (sts->n_subtrees - n_subtrees_used >= n_per_block*2) {
 	    // grab the first N_PER_BLOCK and build a node.
