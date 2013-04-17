@@ -215,6 +215,7 @@ struct __toku_db_txn_internal {
     TOKU_ISOLATION iso;
     DB_TXN *child;
     struct toku_list dbs_that_must_close_before_abort;
+    toku_pthread_mutex_t txn_mutex;
 };
 struct __toku_db_txn_external {
     struct __toku_db_txn           external_part;

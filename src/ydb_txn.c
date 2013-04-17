@@ -53,6 +53,7 @@ toku_txn_destroy(DB_TXN *txn) {
     (void) __sync_fetch_and_sub(&txn->mgrp->i->open_txns, 1);
     assert(txn->mgrp->i->open_txns>=0);
     toku_txn_destroy_txn(db_txn_struct_i(txn)->tokutxn);
+    toku_mutex_destroy(&db_txn_struct_i(txn)->txn_mutex);
 #if !TOKUDB_NATIVE_H
     toku_free(db_txn_struct_i(txn));
 #endif
@@ -502,6 +503,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool 
         db_txn_struct_i(result->parent)->child = result;
     }
 
+    toku_mutex_init(&db_txn_struct_i(result)->txn_mutex, NULL);
     (void) __sync_fetch_and_add(&env->i->open_txns, 1);
 
     *txn = result;
