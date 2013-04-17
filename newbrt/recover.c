@@ -338,11 +338,12 @@ static int toku_recover_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
     return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags, 0, NULL);
 }
 
-static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
+static int
+maybe_do_fclose_during_recover_backward(RECOVER_ENV renv, FILENUM filenum) {
     if (renv->bs.bs == BS_SAW_CKPT_END) {
         // close the tree
         struct file_map_tuple *tuple = NULL;
-        int r = file_map_find(&renv->fmap, l->filenum, &tuple);
+        int r = file_map_find(&renv->fmap, filenum, &tuple);
         if (r == 0) {
             //Must keep existing lsn.
             //The only way this should be dirty, is if its doing a file-format upgrade.
@@ -351,9 +352,15 @@ static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV ren
             r = toku_close_brt_lsn(tuple->brt, 0, TRUE, tuple->brt->h->checkpoint_lsn);
             assert(r == 0);
             toku_free(fake_db); //Must free the DB after the brt is closed
-            file_map_remove(&renv->fmap, l->filenum);
+            file_map_remove(&renv->fmap, filenum);
         }
     }
+    return 0;
+}
+
+static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
+    int r = maybe_do_fclose_during_recover_backward(renv, l->filenum);
+    assert(r==0);
     return 0;
 }
 
@@ -365,7 +372,8 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
 }
 
 static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), RECOVER_ENV UU(renv)) {
-    // nothing
+    int r = maybe_do_fclose_during_recover_backward(renv, l->filenum);
+    assert(r==0);
     return 0;
 }
 
