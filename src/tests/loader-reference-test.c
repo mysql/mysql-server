@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 
 DB_ENV *env;
+int USE_PUTS=0;
 enum {MAX_NAME=128};
 enum {NUM_DBS=1};
 enum {NUM_KV_PAIRS=3};
@@ -47,7 +48,7 @@ static void test_loader(DB **dbs)
         db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = 0;
+    uint32_t loader_flags = USE_PUTS; // set with -p option
 
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
@@ -165,11 +166,8 @@ static void do_args(int argc, char * const argv[]) {
 	do_usage:
 	    fprintf(stderr, "Usage:\n%s\n", cmd);
 	    exit(resultcode);
-        } else if (strcmp(argv[0], "-v")==0) {
-	    verbose++;
-	} else if (strcmp(argv[0],"-q")==0) {
-	    verbose--;
-	    if (verbose<0) verbose=0;
+        } else if (strcmp(argv[0], "-p")==0) {
+            USE_PUTS = 1;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
