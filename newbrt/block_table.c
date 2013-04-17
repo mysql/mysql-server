@@ -91,20 +91,22 @@ brtheader_set_dirty(struct brt_header *h, BOOL for_checkpoint){
     }
 }
 
+//fd is protected (must be holding fdlock)
 static void
-maybe_truncate_cachefile(BLOCK_TABLE bt, struct brt_header *h, u_int64_t size_needed_before) {
+maybe_truncate_cachefile(BLOCK_TABLE bt, int fd, struct brt_header *h, u_int64_t size_needed_before) {
     assert(bt->is_locked);
     u_int64_t new_size_needed = block_allocator_allocated_limit(bt->block_allocator);
     //Save a call to toku_os_get_file_size (kernel call) if unlikely to be useful.
     if (new_size_needed < size_needed_before)
-        toku_maybe_truncate_cachefile(h->cf, new_size_needed);
+        toku_maybe_truncate_cachefile(h->cf, fd, new_size_needed);
 }
 
+//fd is protected (must be holding fdlock)
 void
-toku_maybe_truncate_cachefile_on_open(BLOCK_TABLE bt, struct brt_header *h) {
+toku_maybe_truncate_cachefile_on_open(BLOCK_TABLE bt, int fd, struct brt_header *h) {
     lock_for_blocktable(bt);
     u_int64_t size_needed = block_allocator_allocated_limit(bt->block_allocator);
-    toku_maybe_truncate_cachefile(h->cf, size_needed);
+    toku_maybe_truncate_cachefile(h->cf, fd, size_needed);
     unlock_for_blocktable(bt);
 }
 
@@ -189,8 +191,9 @@ PRNTF("free", i, pair->size, pair->u.diskoff, bt);
 //      free (offset,len) from checkpoint
 // move inprogress to checkpoint (resetting type)
 // inprogress = NULL
+//fd is protected (must be holding fdlock)
 void
-toku_block_translation_note_end_checkpoint (BLOCK_TABLE bt, struct brt_header *h) {
+toku_block_translation_note_end_checkpoint (BLOCK_TABLE bt, int fd, struct brt_header *h) {
     // Free unused blocks
     lock_for_blocktable(bt);
     u_int64_t allocated_limit_at_start = block_allocator_allocated_limit(bt->block_allocator);
@@ -219,7 +222,7 @@ PRNTF("free", i, pair->size, pair->u.diskoff, bt);
     bt->checkpointed = bt->inprogress;
     bt->checkpointed.type = TRANSLATION_CHECKPOINTED;
     memset(&bt->inprogress, 0, sizeof(bt->inprogress));
-    maybe_truncate_cachefile(bt, h, allocated_limit_at_start);
+    maybe_truncate_cachefile(bt, fd, h, allocated_limit_at_start);
 end:
     unlock_for_blocktable(bt);
 }
@@ -528,8 +531,9 @@ toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h) {
     unlock_for_blocktable(bt);
 }
     
+//fd is protected (must be holding fdlock)
 void
-toku_block_translation_truncate_unlocked(BLOCK_TABLE bt, struct brt_header *h) {
+toku_block_translation_truncate_unlocked(BLOCK_TABLE bt, int fd, struct brt_header *h) {
     assert(bt->is_locked);
     u_int64_t allocated_limit_at_start = block_allocator_allocated_limit(bt->block_allocator);
     brtheader_set_dirty(h, FALSE);
@@ -541,7 +545,7 @@ toku_block_translation_truncate_unlocked(BLOCK_TABLE bt, struct brt_header *h) {
         BLOCKNUM b = make_blocknum(i);
         if (t->block_translation[i].size >= 0) free_blocknum_unlocked(bt, &b, h);
     }
-    maybe_truncate_cachefile(bt, h, allocated_limit_at_start);
+    maybe_truncate_cachefile(bt, fd, h, allocated_limit_at_start);
 }
 
 //Verify there are no free blocks.

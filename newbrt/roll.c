@@ -29,10 +29,12 @@ toku_commit_fdelete (u_int8_t   file_was_open,
 	r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
 	assert(r == 0);  // must still be open  (toku_brt_remove_on_commit() incremented refcount)
 	{
-	    assert(!toku_cachefile_is_dev_null(cf));
+	    (void)toku_cachefile_get_and_pin_fd(cf);
+	    assert(!toku_cachefile_is_dev_null_unlocked(cf));
 	    struct brt_header *h = toku_cachefile_get_userdata(cf);
 	    DICTIONARY_ID dict_id = h->dict_id;
 	    toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
+            toku_cachefile_unpin_fd(cf);
 	}
 	r = toku_cachefile_redirect_nullfd(cf);
 	assert(r==0);
@@ -83,10 +85,12 @@ toku_rollback_fcreate (FILENUM    filenum,
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     assert(r == 0);
     {
-	assert(!toku_cachefile_is_dev_null(cf));
+        (void)toku_cachefile_get_and_pin_fd(cf);
+	assert(!toku_cachefile_is_dev_null_unlocked(cf));
 	struct brt_header *h = toku_cachefile_get_userdata(cf);
 	DICTIONARY_ID dict_id = h->dict_id;
 	toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
+        toku_cachefile_unpin_fd(cf);
     }
     r = toku_cachefile_redirect_nullfd(cf);
     assert(r==0);
@@ -111,15 +115,18 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     assert(r==0);
 
-    if (!toku_cachefile_is_dev_null(cf)) {
+    (void)toku_cachefile_get_and_pin_fd(cf);
+    if (!toku_cachefile_is_dev_null_unlocked(cf)) {
         OMTVALUE brtv=NULL;
         r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
         assert(r==0);
         BRT brt = brtv;
 
         LSN treelsn = toku_brt_checkpoint_lsn(brt);
-        if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn)
-            return 0;
+        if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn) {
+            r = 0;
+            goto cleanup;
+        }
 
         DBT key_dbt,data_dbt;
         XIDS xids = toku_txn_get_xids(txn);
@@ -131,6 +138,8 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
 
         r = toku_brt_root_put_cmd(brt, &brtcmd);
     }
+cleanup:
+    toku_cachefile_unpin_fd(cf);
     return r;
 }
 

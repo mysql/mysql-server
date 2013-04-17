@@ -51,6 +51,10 @@ int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf);
 // During a transaction, we cannot reuse an iname.
 int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CACHEFILE *cf);
 
+// Get the iname (within the cwd) associated with the cachefile
+// Return the filename
+char * toku_cachefile_fname_in_cwd (CACHEFILE cf);
+
 // TODO: #1510  Add comments on how these behave
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
 int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, 
@@ -104,20 +108,22 @@ int toku_cachefile_fsync(CACHEFILE cf);
 // When keep_me is false, the value should be freed.
 // When for_checkpoint is true, this was a 'pending' write
 // Returns: 0 if success, otherwise an error number.
-typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
+// Can access fd (fd is protected by a readlock during call)
+typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 
 // The fetch callback is called when a thread is attempting to get and pin a memory
 // object and it is not in the cachetable.
 // Returns: 0 if success, otherwise an error number.  The address and size of the object
 // associated with the key are returned.
-typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs);
+// Can access fd (fd is protected by a readlock during call)
+typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs);
 
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
-    int (*close_userdata)(CACHEFILE, void*, char **/*error_string*/, BOOL, LSN),
-    int (*checkpoint_userdata)(CACHEFILE, void*),
-    int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*),
-    int (*end_checkpoint_userdata)(CACHEFILE, void*),
+    int (*close_userdata)(CACHEFILE, int, void*, char **/*error_string*/, BOOL, LSN),
+    int (*checkpoint_userdata)(CACHEFILE, int, void*),
+    int (*begin_checkpoint_userdata)(CACHEFILE, int, LSN, void*),
+    int (*end_checkpoint_userdata)(CACHEFILE, int, void*),
     int (*note_pin_by_checkpoint)(CACHEFILE, void*),
     int (*note_unpin_by_checkpoint)(CACHEFILE, void*));
 // Effect: Store some cachefile-specific user data.  When the last reference to a cachefile is closed, we call close_userdata().
@@ -215,15 +221,15 @@ int toku_cachefile_flush (CACHEFILE);
 
 // Get the file descriptor associated with the cachefile
 // Return the file descriptor
-int toku_cachefile_fd (CACHEFILE);
+// Grabs a read lock protecting the fd
+int toku_cachefile_get_and_pin_fd (CACHEFILE);
 
 // Get the iname (within the environment) associated with the cachefile
 // Return the filename
 char * toku_cachefile_fname_in_env (CACHEFILE cf);
 
-// Get the iname (within the cwd) associated with the cachefile
-// Return the filename
-char * toku_cachefile_fname_in_cwd (CACHEFILE cf);
+// Releases the read lock (taken by toku_cachefile_get_and_pin_fd) protecting the fd
+void toku_cachefile_unpin_fd (CACHEFILE);
 
 // For test programs only.
 // Set the cachefile's fd and fname.
@@ -239,7 +245,8 @@ int toku_cachefile_redirect_nullfd (CACHEFILE cf);
 int toku_cachefile_truncate (CACHEFILE cf, toku_off_t new_size);
 
 //has it been redirected to dev null?
-BOOL toku_cachefile_is_dev_null (CACHEFILE cf);
+//Must have called toku_cachefile_get_and_pin_fd to hold a lock around this function
+BOOL toku_cachefile_is_dev_null_unlocked (CACHEFILE cf);
 
 // Return the logger associated with the cachefile
 TOKULOGGER toku_cachefile_logger (CACHEFILE);

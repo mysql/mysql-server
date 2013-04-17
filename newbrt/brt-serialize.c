@@ -94,19 +94,20 @@ enum {FILE_CHANGE_INCREMENT = (16<<20)};
 //Race condition if ydb lock is split.
 //Ydb lock is held when this function is called.
 //Not going to truncate and delete (redirect to devnull) at same time.
+//Must be holding a read or write lock on fdlock (fd is protected)
 void
-toku_maybe_truncate_cachefile (CACHEFILE cf, u_int64_t size_used)
+toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used)
 // Effect: If file size >= SIZE+32MiB, reduce file size.
 // (32 instead of 16.. hysteresis).
 // Return 0 on success, otherwise an error number.
 {
     //Check file size before taking pwrite lock to reduce likelihood of taking
-    //the lock needlessly.
+    //the pwrite lock needlessly.
     //Check file size after taking lock to avoid race conditions.
     int64_t file_size;
+    if (toku_cachefile_is_dev_null_unlocked(cf)) goto done;
     {
-        int r = toku_os_get_file_size(toku_cachefile_fd(cf), &file_size);
-        if (r!=0 && toku_cachefile_is_dev_null(cf)) goto done;
+        int r = toku_os_get_file_size(fd, &file_size);
         assert(r==0);
         assert(file_size >= 0);
     }
@@ -114,8 +115,7 @@ toku_maybe_truncate_cachefile (CACHEFILE cf, u_int64_t size_used)
     if ((u_int64_t)file_size >= size_used + (2*FILE_CHANGE_INCREMENT)) {
         lock_for_pwrite();
         {
-            int r = toku_os_get_file_size(toku_cachefile_fd(cf), &file_size);
-            if (r!=0 && toku_cachefile_is_dev_null(cf)) goto cleanup;
+            int r = toku_os_get_file_size(fd, &file_size);
             assert(r==0);
             assert(file_size >= 0);
         }
@@ -125,7 +125,6 @@ toku_maybe_truncate_cachefile (CACHEFILE cf, u_int64_t size_used)
             int r = toku_cachefile_truncate(cf, new_size);
             assert(r==0);
         }
-cleanup:
         unlock_for_pwrite();
     }
 done:
@@ -140,6 +139,10 @@ maybe_preallocate_in_file (int fd, u_int64_t size)
     int64_t file_size;
     {
         int r = toku_os_get_file_size(fd, &file_size);
+        if (r != 0) { // debug #2463
+            int the_errno = errno;
+            fprintf(stderr, "%s:%d fd=%d size=%"PRIu64"r=%d errno=%d\n", __FUNCTION__, __LINE__, fd, size, r, the_errno); fflush(stderr);
+        }
         assert(r==0);
     }
     assert(file_size >= 0);

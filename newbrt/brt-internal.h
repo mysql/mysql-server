@@ -244,8 +244,8 @@ struct brtenv {
     long long checksum_number;
 };
 
-extern void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
-extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs);
+extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
+extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs);
 extern int toku_brt_alloc_init_header(BRT t);
 extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header, BOOL* was_open);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
@@ -342,10 +342,10 @@ enum brt_layout_version_e {
 };
 
 void toku_brtheader_free (struct brt_header *h);
-int toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn);
-int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, LSN checkpoint_lsn, void *header_v);
-int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
-int toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v);
+int toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn);
+int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, int fd, LSN checkpoint_lsn, void *header_v);
+int toku_brtheader_checkpoint (CACHEFILE cachefile, int fd, void *header_v);
+int toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v);
 int toku_maybe_upgrade_brt(BRT t);
 int toku_db_badformat(void);
 

@@ -32,7 +32,7 @@ sleep_random (void)
 int expect_value = 42; // initially 42, later 43
 
 static void
-flush (CACHEFILE UU(thiscf), CACHEKEY UU(key), void *value, void *UU(extraargs), long size, BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint))
+flush (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), void *value, void *UU(extraargs), long size, BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint))
 {
     // printf("f");
     assert(size == item_size);
@@ -46,7 +46,7 @@ flush (CACHEFILE UU(thiscf), CACHEKEY UU(key), void *value, void *UU(extraargs),
 }
 
 static int
-fetch (CACHEFILE UU(thiscf), CACHEKEY UU(key), u_int32_t UU(fullhash), void **UU(value), long *UU(sizep), void *UU(extraargs))
+fetch (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), u_int32_t UU(fullhash), void **UU(value), long *UU(sizep), void *UU(extraargs))
 {
     assert(0); // should not be called
     return 0;

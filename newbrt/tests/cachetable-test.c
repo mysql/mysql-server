@@ -101,6 +101,7 @@ static void expectN(int64_t blocknum_n) {
 static CACHEFILE expect_f;
 
 static void flush (CACHEFILE f,
+                   int UU(fd),
 		   CACHEKEY key,
 		   void*value,
 		   void *extra __attribute__((__unused__)),
@@ -143,7 +144,7 @@ static struct item *make_item (u_int64_t key) {
 }
 
 static CACHEKEY did_fetch={-1};
-static int fetch (CACHEFILE f, CACHEKEY key, u_int32_t fullhash __attribute__((__unused__)), void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
+static int fetch (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash __attribute__((__unused__)), void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
     if (verbose) printf("Fetch %" PRId64 "\n", key.b);
     assert (expect_f==f);
     assert((long)extraargs==23);
@@ -296,7 +297,7 @@ static void test0 (void) {
     toku_memory_check_all_free();
 }
 
-static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)),
+static void flush_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEKEY key __attribute__((__unused__)),
 		     void *value,
 		     void *extra  __attribute__((__unused__)),
                      long size __attribute__((__unused__)),
@@ -305,7 +306,7 @@ static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __att
     int *v = value;
     assert(*v==0);
 }
-static int fetch_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)),
+static int fetch_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEKEY key __attribute__((__unused__)),
 		    u_int32_t fullhash  __attribute__((__unused__)),
                     void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert((long)extraargs==42);
@@ -358,6 +359,7 @@ static void test_nested_pin (void) {
 
 
 static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
+                        int UU(fd),
                         CACHEKEY k       __attribute__((__unused__)),
                         void *v          __attribute__((__unused__)),
                         void *extra      __attribute__((__unused__)),
@@ -367,14 +369,14 @@ static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
                         BOOL for_checkpoint __attribute__((__unused__))) {
 }
 
-static int add123_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
+static int add123_fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert(fullhash==toku_cachetable_hash(cf,key));
     assert((long)extraargs==123);
     *value = (void*)((unsigned long)key.b+123L);
     return 0;
 }
 
-static int add222_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
+static int add222_fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert(fullhash==toku_cachetable_hash(cf,key));
     assert((long)extraargs==222);
     *value = (void*)((unsigned long)key.b+222L);
@@ -430,6 +432,7 @@ static void test_multi_filehandles (void) {
 #endif
 
 static void test_dirty_flush(CACHEFILE f,
+                             int UU(fd),
 			     CACHEKEY key,
 			     void *value,
 			     void *extra __attribute__((__unused__)),
@@ -440,7 +443,7 @@ static void test_dirty_flush(CACHEFILE f,
     if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
 }
 
-static int test_dirty_fetch(CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void **value_ptr, long *size_ptr, void *arg) {
+static int test_dirty_fetch(CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value_ptr, long *size_ptr, void *arg) {
     *value_ptr = arg;
     assert(fullhash==toku_cachetable_hash(f,key));
     if (verbose) printf("test_dirty_fetch %p %" PRId64 " %p %ld %p\n", f, key.b, *value_ptr, *size_ptr, arg);
@@ -553,6 +556,7 @@ static int test_size_debug;
 static CACHEKEY test_size_flush_key;
 
 static void test_size_flush_callback(CACHEFILE f,
+                                     int UU(fd),
 				     CACHEKEY key,
 				     void *value,
 				     void *extra __attribute__((__unused__)),

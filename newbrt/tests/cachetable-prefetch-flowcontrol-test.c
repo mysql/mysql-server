@@ -12,6 +12,7 @@ static int evicted_keys = 0;
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
+       int UU(fd),
        CACHEKEY k,
        void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
@@ -33,6 +34,7 @@ static int fetch_calls = 0;
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       int UU(fd),
        CACHEKEY k,
        u_int32_t fullhash __attribute__((__unused__)),
        void **value,
