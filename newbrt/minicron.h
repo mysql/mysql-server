@@ -23,7 +23,7 @@
 
 struct minicron {
     toku_pthread_t thread;
-    struct timespec time_of_last_call_to_f;
+    toku_timespec_t time_of_last_call_to_f;
     toku_pthread_mutex_t mutex;
     toku_pthread_cond_t  condvar;
     int (*f)(void*);

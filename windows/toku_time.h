@@ -19,12 +19,12 @@ typedef enum {
     CLOCK_REALTIME = 0
 } clockid_t;
 
-struct timespec {
+typedef struct toku_timespec_struct {
     long tv_sec;
     long tv_nsec;
-};
+} toku_timespec_t;
 
-int clock_gettime(clockid_t clock_id, struct timespec *ts);
+int clock_gettime(clockid_t clock_id, toku_timespec_t *ts);
 
 static inline float toku_tdiff (struct timeval *a, struct timeval *b) {
     return (a->tv_sec - b->tv_sec) +1e-6*(a->tv_usec - b->tv_usec);

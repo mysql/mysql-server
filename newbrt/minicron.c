@@ -11,7 +11,7 @@
 #include "minicron.h"
 
 static void
-toku_gettime (struct timespec *a) {
+toku_gettime (toku_timespec_t *a) {
     struct timeval tv;
     gettimeofday(&tv, 0);
     a->tv_sec  = tv.tv_sec;
@@ -20,7 +20,7 @@ toku_gettime (struct timespec *a) {
     
 
 static int
-timespec_compare (struct timespec *a, struct timespec *b) {
+timespec_compare (toku_timespec_t *a, toku_timespec_t *b) {
     if (a->tv_sec > b->tv_sec) return 1;
     if (a->tv_sec < b->tv_sec) return -1;
     if (a->tv_nsec > b->tv_nsec) return 1;
@@ -51,9 +51,9 @@ minicron_do (void *pv)
 	    assert(r==0);
 	} else {
 	    // Recompute the wakeup time every time (instead of once per call to f) in case the period changges.
-	    struct timespec wakeup_at = p->time_of_last_call_to_f;
+	    toku_timespec_t wakeup_at = p->time_of_last_call_to_f;
 	    wakeup_at.tv_sec += p->period_in_seconds;
-	    struct timespec now;
+	    toku_timespec_t now;
 	    toku_gettime(&now);
 	    //printf("wakeup at %.6f (after %d seconds) now=%.6f\n", wakeup_at.tv_sec + wakeup_at.tv_nsec*1e-9, p->period_in_seconds, now.tv_sec + now.tv_nsec*1e-9);
 	    r = toku_pthread_cond_timedwait(&p->condvar, &p->mutex, &wakeup_at);
@@ -68,9 +68,9 @@ minicron_do (void *pv)
 	}
 	if (p->period_in_seconds >0) {
 	    // maybe do a checkpoint
-	    struct timespec now;
+	    toku_timespec_t now;
 	    toku_gettime(&now);
-	    struct timespec time_to_call = p->time_of_last_call_to_f;
+	    toku_timespec_t time_to_call = p->time_of_last_call_to_f;
 	    time_to_call.tv_sec += p->period_in_seconds;
 	    int compare = timespec_compare(&time_to_call, &now);
 	    //printf("compare(%.6f, %.6f)=%d\n", time_to_call.tv_sec + time_to_call.tv_nsec*1e-9, now.tv_sec+now.tv_nsec*1e-9, compare);

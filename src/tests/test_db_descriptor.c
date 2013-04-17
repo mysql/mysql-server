@@ -136,7 +136,7 @@ setup_data(void) {
         length[i] = i * MAX_LENGTH / (NUM-1);
         u_int32_t j;
         for (j = 0; j < length[i]; j++) {
-            data[i][j] = random() & 0xFF;
+            data[i][j] = (u_int8_t)(random() & 0xFF);
         }
         memset(&descriptors[i], 0, sizeof(descriptors[i]));
         descriptors[i].size = length[i];

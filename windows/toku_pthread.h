@@ -5,7 +5,13 @@
 extern "C" {
 #endif
 
+#include <toku_time.h>
 #include <windows.h>
+
+#if defined(ETIMEDOUT)
+#error
+#endif
+#define ETIMEDOUT (WAIT_TIMEOUT)
 
 // pthread types
 
@@ -87,12 +93,14 @@ int toku_pthread_cond_destroy(toku_pthread_cond_t *cond);
 
 int toku_pthread_cond_wait(toku_pthread_cond_t *cond, toku_pthread_mutex_t *mutex);
 
+int toku_pthread_cond_timedwait(toku_pthread_cond_t *cond, toku_pthread_mutex_t *mutex, toku_timespec_t *wakeup_at);
+
 int toku_pthread_cond_signal(toku_pthread_cond_t *cond);
 
 int toku_pthread_cond_broadcast(toku_pthread_cond_t *cond);
 
 #include <toku_assert.h>
-#include "rwlock.h"
+#include "../newbrt/rwlock.h"
 struct toku_pthread_rwlock {
     struct rwlock        rwlock;
     toku_pthread_mutex_t mutex;

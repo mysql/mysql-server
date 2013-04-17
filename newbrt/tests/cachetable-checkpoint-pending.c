@@ -16,12 +16,25 @@ static const int item_size = sizeof(int);
 
 static volatile int n_flush, n_write_me, n_keep_me, n_fetch;
 
+#if TOKU_WINDOWS
+//This is NOT correct, but close enough for now.
+//Obviously has race conditions.
+static void
+__sync_fetch_and_add(volatile int *num, int incr) {
+    *num += incr;
+}
+#endif
+
 static void
 sleep_random (void)
 {
-    struct timespec req = {.tv_sec  = 0,
+#if TOKU_WINDOWS
+    sleep(1);
+#else
+    toku_timespec_t req = {.tv_sec  = 0,
 			   .tv_nsec = random()%1000000};
     nanosleep(&req, NULL);
+#endif
 }
 
 int expect_value = 42; // initially 42, later 43
@@ -111,11 +124,11 @@ static void checkpoint_pending(void) {
     // all items should be kept in the cachetable
     n_flush = n_write_me = n_keep_me = n_fetch = 0; expect_value = 42;
     //printf("E42\n");
-    pthread_t checkpoint_thread, update_thread;
-    r = pthread_create(&checkpoint_thread, NULL, do_checkpoint, NULL);  assert(r==0);
-    r = pthread_create(&update_thread,     NULL, do_update,     NULL);  assert(r==0);
-    r = pthread_join(checkpoint_thread, 0);                             assert(r==0);
-    r = pthread_join(update_thread, 0);                                 assert(r==0);
+    toku_pthread_t checkpoint_thread, update_thread;
+    r = toku_pthread_create(&checkpoint_thread, NULL, do_checkpoint, NULL);  assert(r==0);
+    r = toku_pthread_create(&update_thread,     NULL, do_update,     NULL);  assert(r==0);
+    r = toku_pthread_join(checkpoint_thread, 0);                             assert(r==0);
+    r = toku_pthread_join(update_thread, 0);                                 assert(r==0);
     
     assert(n_flush == N && n_write_me == N && n_keep_me == N);
 

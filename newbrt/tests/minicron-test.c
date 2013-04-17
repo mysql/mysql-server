@@ -1,3 +1,4 @@
+#include "toku_portability.h"
 #include "minicron.h"
 #include <unistd.h>
 #include <assert.h>
@@ -39,6 +40,9 @@ static int __attribute__((__noreturn__))
 never_run (void *a) {
     assert(a==0);
     assert(0);
+#if TOKU_WINDOWS
+    return 0; //ICC ignores the noreturn attribute.
+#endif
 }
 
 // Can we start something with period=0 (the function should never run) and shut it down.
@@ -153,7 +157,7 @@ main (int argc, const char *argv[])
 		      test6
     };
 #define N (sizeof(testfuns)/sizeof(testfuns[0]))
-    pthread_t tests[N];
+    toku_pthread_t tests[N];
 
     unsigned int i;
     for (i=0; i<N; i++) {
