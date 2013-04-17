@@ -1,4 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -60,8 +61,8 @@ toku_commit_fdelete (u_int8_t   file_was_open,
         assert(r==0);
     }
     {
-	char *fname_in_env = fixup_fname(&bs_fname);
-	char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
+        char *fname_in_env = fixup_fname(&bs_fname);
+        char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
 
         // bug fix for #4718
         // bug was introduced in with fix for #3590
@@ -81,10 +82,10 @@ toku_commit_fdelete (u_int8_t   file_was_open,
             assert_zero(r);
         }
 
-	r = unlink(fname_in_cwd);
-	assert(r==0 || errno==ENOENT);
-	toku_free(fname_in_env);
-	toku_free(fname_in_cwd);
+        r = unlink(fname_in_cwd);
+        assert(r==0 || errno==ENOENT);
+        toku_free(fname_in_env);
+        toku_free(fname_in_cwd);
     }
 done:
     return 0;
@@ -147,13 +148,13 @@ toku_rollback_fcreate (FILENUM    filenum,
     assert(r==0);
 
     {
-	char *fname_in_env = fixup_fname(&bs_fname);
-	char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
+        char *fname_in_env = fixup_fname(&bs_fname);
+        char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
 
-	r = unlink(fname_in_cwd);
-	assert(r==0 || errno==ENOENT);
-	toku_free(fname_in_env);
-	toku_free(fname_in_cwd);
+        r = unlink(fname_in_cwd);
+        assert(r==0 || errno==ENOENT);
+        toku_free(fname_in_env);
+        toku_free(fname_in_cwd);
     }
 done:
     return 0;
@@ -174,7 +175,7 @@ static int find_ft_from_filenum (OMTVALUE v, void *filenumvp) {
 // The oplsn argument is ZERO_LSN for normal operation.  When this function is called for recovery, it has the LSN of
 // the operation (insert, delete, update, etc).
 static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data, TOKUTXN txn, LSN oplsn,
-			 BOOL reset_root_xid_that_created) {
+                         BOOL reset_root_xid_that_created) {
     CACHEFILE cf;
     // 2954 - ignore messages for aborted hot-index
     int r = toku_txn_ignore_contains(txn, filenum);
@@ -195,13 +196,13 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
         assert(r==0);
         FT h = hv;
 
-	if (oplsn.lsn != 0) {  // if we are executing the recovery algorithm
-	    LSN treelsn = toku_ft_checkpoint_lsn(h);  
-	    if (oplsn.lsn <= treelsn.lsn) {  // if operation was already applied to tree ...
-		r = 0;                       // ... do not apply it again.
-		goto cleanup;
-	    }
-	}
+        if (oplsn.lsn != 0) {  // if we are executing the recovery algorithm
+            LSN treelsn = toku_ft_checkpoint_lsn(h);  
+            if (oplsn.lsn <= treelsn.lsn) {  // if operation was already applied to tree ...
+                r = 0;                       // ... do not apply it again.
+                goto cleanup;
+            }
+        }
 
         DBT key_dbt,data_dbt;
         XIDS xids = toku_txn_get_xids(txn);
@@ -214,10 +215,10 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                                     : toku_init_dbt(&data_dbt) }};
 
         r = toku_ft_root_put_cmd(h, &ftcmd);
-	if (r == 0 && reset_root_xid_that_created) {
-	    TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
-	    toku_reset_root_xid_that_created(h, new_root_xid_that_created);
-	}
+        if (r == 0 && reset_root_xid_that_created) {
+            TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
+            toku_reset_root_xid_that_created(h, new_root_xid_that_created);
+        }
     }
 cleanup:
     toku_cachefile_unpin_fd(cf);
