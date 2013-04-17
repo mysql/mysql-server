@@ -113,6 +113,11 @@ test_main (int argc, const char *argv[]) {
         const char *arg = argv[i];
         if (strcmp(arg, "-v") == 0 || strcmp(arg, "--verbose") == 0) {
             verbose++;
+            verbose_decompress_sub_block = 1;
+            continue;
+        }
+        if (strcmp(arg, "-q") == 0) {
+            verbose_decompress_sub_block = 0;
             continue;
         }
         if (strcmp(arg, "-n") == 0) {

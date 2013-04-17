@@ -904,6 +904,32 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
     return 0;
 }
 
+// dump a buffer to stderr
+// no locking around this for now
+static void
+dump_bad_block(unsigned char *vp, u_int64_t size) {
+    const u_int64_t linesize = 64;
+    u_int64_t n = size / linesize;
+    for (u_int64_t i = 0; i < n; i++) {
+        fprintf(stderr, "%p: ", vp);
+	for (u_int64_t j = 0; j < linesize; j++) {
+	    unsigned char c = vp[j];
+	    fprintf(stderr, "%2.2X", c);
+	}
+	fprintf(stderr, "\n");
+	vp += linesize;
+    }
+    size = size % linesize;
+    for (u_int64_t i=0; i<size; i++) {
+        if ((i % linesize) == 0)
+            fprintf(stderr, "%p: ", vp+i);
+        fprintf(stderr, "%2.2X", vp[i]);
+        if (((i+1) % linesize) == 0)
+            fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+}
+
 static int
 decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
     toku_trace("decompress");
@@ -964,6 +990,10 @@ decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, 
 
     // decompress all the compressed sub blocks into the uncompressed buffer
     r = decompress_all_sub_blocks(n_sub_blocks, sub_block, compressed_data, uncompressed_data, num_cores, brt_pool);
+    if (r != 0) {
+        fprintf(stderr, "%s:%d block %"PRId64" failed %d at %p size %lu\n", __FUNCTION__, __LINE__, blocknum.b, r, raw_block, raw_block_size);
+        dump_bad_block(raw_block, raw_block_size);
+    }
     lazy_assert_zero(r);
 
     toku_trace("decompress done");
