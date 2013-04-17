@@ -156,6 +156,13 @@ typedef struct __toku_engine_status {
   u_int64_t        msn_discards;             /* how many messages were ignored by leaf because of msn */ 
   u_int64_t        max_workdone;             /* max workdone value of any buffer  */ 
   u_int64_t        dsn_gap;                  /* dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read) */ 
+  uint64_t         total_searches;              /* total number of searches */ 
+  uint64_t         total_retries;               /* total number of search retries due to TRY_AGAIN */ 
+  uint64_t         max_search_excess_retries;   /* max number of excess search retries (retries - treeheight) due to TRY_AGAIN */ 
+  uint64_t         max_search_root_tries;       /* max number of times root node was fetched in a single search */ 
+  uint64_t         search_root_retries;         /* number of searches that required the root node to be fetched more than once */ 
+  uint64_t         search_tries_gt_height;      /* number of searches that required more tries than the height of the tree */ 
+  uint64_t         search_tries_gt_heightplus3; /* number of searches that required more tries than the height of the tree plus three */ 
   u_int64_t        point_queries;           /* ydb point queries                      */ 
   u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
   u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ 

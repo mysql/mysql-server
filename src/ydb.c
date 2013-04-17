@@ -1969,6 +1969,13 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->msn_discards = brt_stat.msn_discards;
 	    engstat->max_workdone = brt_stat.max_workdone;
 	    engstat->dsn_gap = brt_stat.dsn_gap;	    
+	    engstat->total_searches = brt_stat.total_searches;              
+	    engstat->total_retries = brt_stat.total_retries;
+	    engstat->max_search_excess_retries = brt_stat.max_search_excess_retries;
+	    engstat->max_search_root_tries = brt_stat.max_search_root_tries;
+	    engstat->search_root_retries = brt_stat.search_root_retries;
+	    engstat->search_tries_gt_height = brt_stat.search_tries_gt_height;
+	    engstat->search_tries_gt_heightplus3 = brt_stat.search_tries_gt_heightplus3;	    
 	    engstat->cachetable_size_leaf = brt_stat.bytes_leaf;
 	    engstat->cachetable_size_nonleaf = brt_stat.bytes_nonleaf;
 	}
@@ -2181,6 +2188,13 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "msn_discards                     %"PRIu64"\n", engstat.msn_discards);
 	n += snprintf(buff + n, bufsiz - n, "max_workdone                     %"PRIu64"\n", engstat.max_workdone);
 	n += snprintf(buff + n, bufsiz - n, "dsn_gap                          %"PRIu64"\n", engstat.dsn_gap);
+	n += snprintf(buff + n, bufsiz - n, "total_searches                   %"PRIu64"\n", engstat.total_searches);
+	n += snprintf(buff + n, bufsiz - n, "total_retries                    %"PRIu64"\n", engstat.total_retries);
+	n += snprintf(buff + n, bufsiz - n, "max_search_excess_retries        %"PRIu64"\n", engstat.max_search_excess_retries);
+	n += snprintf(buff + n, bufsiz - n, "max_search_root_tries            %"PRIu64"\n", engstat.max_search_root_tries);
+	n += snprintf(buff + n, bufsiz - n, "search_root_retries              %"PRIu64"\n", engstat.search_root_retries);
+	n += snprintf(buff + n, bufsiz - n, "search_tries_gt_height           %"PRIu64"\n", engstat.search_tries_gt_height);
+	n += snprintf(buff + n, bufsiz - n, "search_tries_gt_heightplus3      %"PRIu64"\n", engstat.search_tries_gt_heightplus3);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts_fail               %"PRIu64"\n", engstat.multi_inserts_fail);
 	n += snprintf(buff + n, bufsiz - n, "multi_deletes                    %"PRIu64"\n", engstat.multi_deletes);
