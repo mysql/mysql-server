@@ -5071,8 +5071,7 @@ int ha_tokudb::fill_range_query_buf(
         // we tell the cursor to continue and don't store
         // the key locally
         else if (result == ICP_NO_MATCH) {
-            error = TOKUDB_CURSOR_CONTINUE;
-            goto cleanup;
+            goto check_bounds;
         }
     }
 #endif
@@ -5225,6 +5224,7 @@ int ha_tokudb::fill_range_query_buf(
         error = 0;
         goto cleanup;
     }
+ check_bounds:
     if (direction > 0) {
         // compare what we got to the right endpoint of prelocked range
         // because we are searching keys in ascending order
