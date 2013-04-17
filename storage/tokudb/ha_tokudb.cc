@@ -2070,7 +2070,6 @@ int ha_tokudb::verify_frm_data(const char* frm_name) {
     error = readfrm(frm_name,&mysql_frm_data,&mysql_frm_len);
     if (error) { goto cleanup; }
 
-    // TODO: get the frm data that we have stored
     key.data = &curr_key;
     key.size = sizeof(curr_key);
     error = share->status_block->getf_set(
