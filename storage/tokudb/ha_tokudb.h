@@ -721,7 +721,9 @@ private:
     int __close(int mutex_is_locked);
     int get_next(uchar* buf, int direction);
     int read_data_from_range_query_buff(uchar* buf, bool need_val);
+#if defined(MARIADB_BASE_VERSION)
     enum icp_result toku_handler_index_cond_check(Item* pushed_idx_cond);
+#endif
     void invalidate_bulk_fetch();
     void invalidate_icp();
     int delete_all_rows_internal();
