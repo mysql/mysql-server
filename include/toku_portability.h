@@ -75,9 +75,9 @@ extern "C" {
 #       pragma deprecated (fstat, getpid, syscall, sysconf, mkdir)
 #   else
 int      fstat()                        __attribute__((__deprecated__));
-int      getpid()                       __attribute__((__deprecated__));
+int      getpid(void)                   __attribute__((__deprecated__));
 long int syscall(long int __sysno, ...) __attribute__((__deprecated__));
-long int sysconf()                      __attribute__((__deprecated__));
+long int sysconf(int)                   __attribute__((__deprecated__));
 int      mkdir()                        __attribute__((__deprecated__));
 #   endif
 #endif
