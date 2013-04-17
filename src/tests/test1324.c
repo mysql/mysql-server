@@ -21,7 +21,7 @@ static void mkfile (const char *fname) {
 static void
 do_1324 (int moreflags)
 {
-    const char fname[] = ENVDIR "/__rolltmp.12345";
+    const char fname[] = ENVDIR "/__tokudb_rolltmp.12345";
     const char fnamekeep[] = ENVDIR "/keepme";
 
     system("rm -rf " ENVDIR);
