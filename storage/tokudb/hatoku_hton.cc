@@ -218,7 +218,7 @@ u_int32_t tokudb_read_status_frequency;
 #ifdef TOKUDB_VERSION
 char *tokudb_version = (char*) TOKUDB_VERSION;
 #else
- char *tokudb_version;
+char *tokudb_version;
 #endif
 static int tokudb_fs_reserve_percent;  // file system reserve as a percentage of total disk space
 
@@ -228,8 +228,26 @@ extern "C" {
 }
 #endif
 
-// let's us track if the tokudb_init_func failed
-static int tokudb_init_func_failed = 0;
+// A flag set if the handlerton is in an initialized, usable state,
+// plus a reader-write lock to protect it without serializing reads.
+// Since we don't have static initializers for the opaque rwlock type,
+// use constructor and destructor functions to create and destroy
+// the lock before and after main(), respectively.
+static int tokudb_hton_initialized;
+static rw_lock_t tokudb_hton_initialized_lock;
+
+static void create_tokudb_hton_intialized_lock(void)  __attribute__((constructor));
+static void destroy_tokudb_hton_initialized_lock(void) __attribute__((destructor));
+
+static void create_tokudb_hton_intialized_lock(void)
+{
+    my_rwlock_init(&tokudb_hton_initialized_lock, 0);
+}
+
+static void destroy_tokudb_hton_initialized_lock(void)
+{
+    rwlock_destroy(&tokudb_hton_initialized_lock);
+}
 
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
@@ -241,6 +259,11 @@ static int tokudb_init_func(void *p) {
             goto error;
         }
 #endif
+
+    // 3938: lock the handlerton's initialized status flag for writing
+    r = rw_wrlock(&tokudb_hton_initialized_lock);
+    assert(r == 0);
+
     db_env = NULL;
     metadata_db = NULL;
 
@@ -452,7 +475,9 @@ static int tokudb_init_func(void *p) {
         }
     }
 
-
+    //3938: succeeded, set the init status flag and unlock
+    tokudb_hton_initialized = 1;
+    rw_unlock(&tokudb_hton_initialized_lock);
     DBUG_RETURN(FALSE);
 
 error:
@@ -465,8 +490,10 @@ error:
         assert(rr==0);
         db_env = 0;
     }
-    // we failed, let's not forget that.
-    tokudb_init_func_failed = 1;
+
+    // 3938: failed to initialized, drop the flag and lock
+    tokudb_hton_initialized = 0;
+    rw_unlock(&tokudb_hton_initialized_lock);
     DBUG_RETURN(TRUE);
 }
 
@@ -482,6 +509,7 @@ static int tokudb_done_func(void *p) {
 #if defined(_WIN64)
         toku_ydb_destroy();
 #endif
+
     TOKUDB_DBUG_RETURN(0);
 }
 
@@ -494,6 +522,14 @@ static handler *tokudb_create_handler(handlerton * hton, TABLE_SHARE * table, ME
 int tokudb_end(handlerton * hton, ha_panic_function type) {
     TOKUDB_DBUG_ENTER("tokudb_end");
     int error = 0;
+    
+    // 3938: if we finalize the storage engine plugin, it is no longer
+    // initialized. grab a writer lock for the duration of the
+    // call, so we can drop the flag and destroy the mutexes
+    // in isolation.
+    rw_wrlock(&tokudb_hton_initialized_lock);
+    assert(tokudb_hton_initialized);
+
     if (metadata_db) {
         int r = metadata_db->close(metadata_db, 0);
         assert(r==0);
@@ -505,6 +541,11 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
         assert(error==0);
         db_env = NULL;
     }
+
+    // 3938: drop the initialized flag and unlock
+    tokudb_hton_initialized = 0;
+    rw_unlock(&tokudb_hton_initialized_lock);
+
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -1632,7 +1673,12 @@ static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, COND *cond)
     int error;
     uint64_t data_size;
     TABLE *table = tables->table;
-    if (tokudb_init_func_failed) {
+    
+    // 3938: Get a read lock on the status flag, since we must
+    // read it before safely proceeding
+    rw_rdlock(&tokudb_hton_initialized_lock);
+
+    if (!tokudb_hton_initialized) {
         my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
         error = -1;
     } else {
@@ -1642,6 +1688,9 @@ static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, COND *cond)
             error = schema_table_store_record(thd, table);
         }
     }
+
+    // 3938: unlock the status flag lock
+    rw_unlock(&tokudb_hton_initialized_lock);
     return error;
 }
 
@@ -1667,7 +1716,12 @@ static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, COND 
     int error;
     uint64_t data_size;
     TABLE *table = tables->table;
-    if (tokudb_init_func_failed) {
+
+    // 3938: Get a read lock on the status flag, since we must
+    // read it before safely proceeding
+    rw_rdlock(&tokudb_hton_initialized_lock);
+
+    if (!tokudb_hton_initialized) {
         my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
         error = -1;
     } else {
@@ -1677,6 +1731,9 @@ static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, COND 
             error = schema_table_store_record(thd, table);
         }
     }
+
+    //3938: unlock the status flag lock
+    rw_unlock(&tokudb_hton_initialized_lock);
     return error;
 }
 
