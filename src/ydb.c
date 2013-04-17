@@ -812,7 +812,13 @@ static int toku_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
 }
 
 static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
-    return toku_logger_log_checkpoint(env->i->logger); 
+    if (env->i->logger) {
+	// checkpoints the logger and the cachetable
+	return toku_logger_log_checkpoint(env->i->logger);
+    } else {
+	// if no logger, then checkpoint the cachetable only
+	return toku_cachetable_checkpoint(env->i->cachetable);
+    }
 }
 
 static int toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
