@@ -9,65 +9,27 @@ Managing the tree shape:  How insertion, deletion, and querying work
 
 When we insert a message into the BRT, here's what happens.
 
-insert_a_message_at_root(msg) {
-    root = find the root node
-    if root needs to be split {
-        split the root
-        root = find the new root node
-    }
-    insert_msg_into_node_buffer(root, msg)
-    if root has too many messages in its buffer and is a nonleaf node {
-        child = heaviest child of root 
-        if that child is non reactive and pinnable {
-            target = child
-            buffer = child's buffer
-        } else {
-            target = root
-            buffer = null
-        }
-        post a flusher thread work item to the cachetable kibbutz = {
-            flush_nonleaf_node(node_to_flush, buffer)
-        }
-    }
-}
+to insert a message at the root
+    - find the root node
+    - capture the next msn of the root node and assign it to the message
+    - split the root if it needs to be split
+    - insert the message into the root buffer
+    - if the root is too full, then flush_some_child() of the root
 
-flush_nonleaf_node(node, buffer) {
-    if we have a specific target node and non null buffer to flush {
-        flush_buffer_to_node(node, buffer)
-        if that node is now gorged and needs flushing {
-            flush_some_child(node, advice)
-        }
-    } else {
-        // the buffer is null, so the node given is not going to
-        // be the TARGET of a flush, but instead the source of one.
-        // we should find some child of the node and flush it.
-        flush_some_child(node, advice)
-    }
-}
+Flusher code uses an advice struct with some functions that tell
+it what to do based on the context of the flush. see brt-flusher.h
 
-flush_some_child(parent, advice) {
-    child = advice->pick_child()
+to flush some child, given a parent and some advice
+    - pick the child using advice->pick_child()
+    - remove that childs buffer from the parent
+    - flush the buffer to the child
+    - if the child has stable reactivity and 
+      advice->should_recursively_flush() is true, then
+      flush_some_child() of the child
+    - otherwise split the child if it needs to be split
+    - otherwise maybe merge the child if it needs to be merged
 
-    buffer = remove_child_buffer_from_parent(parent, child)
-    if the buffer is non null {
-        flush_buffer_to_node(child, buffer)
-    }
-
-    if child is stable and the advice says to recursively flush {
-        flush_some_child(child, advice)
-    } else if child needs to be split {
-        split the child
-    } else if the child _could_ be merged {
-        maybe_merge_child(child, parent)
-    }
-}
-
-We also have a background cleaner thread that traverses and flattens the tree:
-
-cleaner_thread() {
-
-}
-
+background flattener
    It's state is a height and a key and a child number
    Repeat:
       sleep (say 1s)
@@ -123,15 +85,15 @@ Split_or_merge (node, childnum) {
   }
 }
 
-Lookup:
- As of #3312, we don't do any tree shaping on lookup.
- We don't promote eagerly or use aggressive promotion or passive-aggressive promotion.	We just push messages down according to the traditional BRT algorithm
-  on insertions.
- For lookups, we maintain the invariant that the in-memory leaf nodes have a soft copy which reflects all the messages above it in the tree.
- So when a leaf node is brought into memory, we apply all messages above it.
- When a message is inserted into the tree, we apply it to all the leaf nodes to which it is applicable.
- When flushing to a leaf, we flush to the hard copy not to the soft copy.
-*/
+lookups:
+    - As of Dr. No, we don't do any tree shaping on lookup.
+    - We don't promote eagerly or use aggressive promotion or passive-aggressive 
+    promotion.	We just push messages down according to the traditional BRT 
+    algorithm on insertions.
+    - when a node is brought into memory, we apply ancestor messages above it.
+    - for point queries, we do not read the entire node into memory. instead,
+      only the required basement node is read
+    */
 
 #include "includes.h"
 #include "checkpoint.h"
