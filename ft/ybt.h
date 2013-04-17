@@ -25,6 +25,8 @@ DBT *toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len);
 
 DBT *toku_copyref_dbt(DBT *dst, const DBT src);
 
+DBT *toku_copy_dbt(DBT *dst, const DBT &src);
+
 DBT *toku_clone_dbt(DBT *dst, const DBT &src);
 
 int toku_dbt_set(ITEMLEN len, bytevec val, DBT *d, struct simple_dbt *sdbt);
