@@ -192,11 +192,11 @@ ctest -j$njobs \
     -D ${ctest_model}Configure \
     -D ${ctest_model}Build \
     -D ${ctest_model}Test \
-    -E '/drd' \
+    -E '/drd|/helgrind' \
     2>&1 | tee -a $tracefile
 ctest -j$njobs \
     -D ${ctest_model}MemCheck \
-    -E '^ydb/.*\.bdb$|test1426.tdb|/drd' \
+    -E '^ydb/.*\.bdb$|test1426.tdb|/drd|/helgrind' \
     2>&1 | tee -a $tracefile
 set -e
 
@@ -303,7 +303,7 @@ ctest -j$njobs \
     -D ${ctest_model}Configure \
     -D ${ctest_model}Build \
     -D ${ctest_model}Test \
-    -R '/drd' \
+    -R '/drd|/helgrind' \
     2>&1 | tee -a $tracefile
 set -e
 
