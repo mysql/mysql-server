@@ -520,6 +520,8 @@ typedef struct ltm_status {
 
 void toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS s);
 
+int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks);
+
 int toku_ltm_get_max_locks_per_db(toku_ltm* mgr, u_int32_t* max_locks);
 
 void toku_lt_add_ref(toku_lock_tree* tree);
