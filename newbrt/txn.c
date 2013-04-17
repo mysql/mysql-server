@@ -223,7 +223,6 @@ toku_txn_create_txn (
     result->current_rollback      = ROLLBACK_NONE;
     result->current_rollback_hash = 0;
     result->num_rollback_nodes = 0;
-    result->pinned_inprogress_rollback_log = NULL;
     result->snapshot_type = snapshot_type;
     result->snapshot_txnid64 = TXNID_NONE;
     result->container_db_txn = container_db_txn;

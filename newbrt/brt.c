@@ -120,7 +120,6 @@ basement nodes, bulk fetch,  and partial fetch:
 // Access to nested transaction logic
 #include "ule.h"
 #include "xids.h"
-#include "roll.h"
 #include "sub_block.h"
 #include "sort.h"
 #include <brt-cachetable-wrappers.h>
