@@ -133,6 +133,10 @@ static inline int32_t toku_sync_fetch_and_decrement_int32(volatile int32_t *a) {
     return toku_sync_fetch_and_add_int32(a, -1);
 }
 
+static inline int32_t toku_sync_add_and_fetch_int32(volatile int32_t *a, int32_t b) {
+    return __sync_add_and_fetch(a, b);
+}
+
 static inline int32_t toku_sync_increment_and_fetch_int32(volatile int32_t *a) {
     return toku_sync_add_and_fetch_int32(a, 1);
 }
@@ -161,11 +165,10 @@ static inline uint64_t toku_sync_fetch_and_increment_uint64(volatile uint64_t *a
 
 #endif
 
-DO_GCC_PRAGMA(GCC __sync_fetch_and_add __sync_add_and_fetch)
-
+// DO_GCC_PRAGMA(GCC __sync_fetch_and_add __sync_add_and_fetch)
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
-};
+}
 #endif
 
 
