@@ -124,11 +124,10 @@ const char *ha_tokudb_ext = ".tokudb";
 static u_int32_t tokudb_init_flags = 
     DB_CREATE | DB_THREAD | DB_PRIVATE | 
     DB_INIT_LOCK | 
-    DB_INIT_LOG | 
     DB_INIT_MPOOL |
     DB_INIT_TXN | 
-    DB_INIT_LOG |
-    0; // disabled for 1.0.1 DB_RECOVER;
+    0 | // disabled for 1.0.2 DB_INIT_LOG |
+    0;  // disabled for 1.0.1 DB_RECOVER;
 static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
 //static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
 //static ulong tokudb_log_buffer_size = 0;
