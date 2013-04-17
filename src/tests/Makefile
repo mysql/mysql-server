@@ -139,7 +139,6 @@ BDB_DONTRUN_TESTS = \
         isolation \
         isolation-read-committed \
         keyrange \
-	keyrange-merge \
 	last-verify-time \
         loader-cleanup-test \
 	loader-create-abort \
