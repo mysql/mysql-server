@@ -6,7 +6,8 @@
 
 #define PRINT 0
 
-u_int32_t x1764_memory (const void *buf, int len)
+
+u_int32_t x1764_memory_simple (const void *buf, int len)
 {
     const u_int64_t *lbuf=buf;
     u_int64_t c=0;
@@ -27,6 +28,37 @@ u_int32_t x1764_memory (const void *buf, int len)
     }
     return ~((c&0xFFFFFFFF) ^ (c>>32));
 }
+
+u_int32_t x1764_memory (const void *vbuf, int len)
+{
+    const u_int8_t *buf = vbuf;
+    int len_4_words = 4*sizeof(u_int64_t);
+    u_int64_t suma=0, sumb=0, sumc=0, sumd=0;
+    while (len >= len_4_words) {
+	suma = suma*(17LL*17LL*17LL*17LL) + *(u_int64_t*)(buf +0*sizeof(u_int64_t));
+	sumb = sumb*(17LL*17LL*17LL*17LL) + *(u_int64_t*)(buf +1*sizeof(u_int64_t));
+	sumc = sumc*(17LL*17LL*17LL*17LL) + *(u_int64_t*)(buf +2*sizeof(u_int64_t));
+	sumd = sumd*(17LL*17LL*17LL*17LL) + *(u_int64_t*)(buf +3*sizeof(u_int64_t));
+	buf += len_4_words;
+	len -= len_4_words;
+    }
+    u_int64_t sum = suma*17L*17L*17L + sumb*17L*17L + sumc*17L + sumd;
+    assert(len>=0);
+    while ((u_int64_t)len>=sizeof(u_int64_t)) {
+	sum = sum*17 + *(u_int64_t*)buf;
+	buf+=sizeof(u_int64_t);
+	len-=sizeof(u_int64_t);
+    }
+    if (len>0) {
+	u_int64_t tailsum = 0;
+	for (int i=0; i<len; i++) {
+	    tailsum |= ((u_int64_t)(buf[i]))<<(8*i);
+	}
+	sum = sum*17 + tailsum;
+    }
+    return ~((sum&0xFFFFFFFF) ^ (sum>>32));
+}
+
 
 void x1764_init(struct x1764 *l) {
     l->sum=0;
