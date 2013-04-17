@@ -273,16 +273,15 @@ static inline bool is_insert_ignore (THD* thd) {
 }
 
 static inline bool is_replace_into(THD* thd) {
-    return (thd_sql_command(thd) == SQLCOM_REPLACE) || 
-        (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
-
+    return thd->lex->duplicates == DUP_REPLACE;
 }
 
 static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_eligible) {
     uint pk_insert_mode = get_pk_insert_mode(thd);
+    printf("is replace into %d, insert ignore %d \n", is_replace_into(thd), is_insert_ignore(thd));
     return ( 
-        (is_replace_into(thd) || is_insert_ignore(thd)) && 
         opt_eligible && 
+        (is_replace_into(thd) || is_insert_ignore(thd)) && 
         ((!table->triggers && pk_insert_mode < 2) || pk_insert_mode == 0)
         );
 }
