@@ -2344,10 +2344,10 @@ int toku_brt_reopen(BRT brt, const char *fname, const char *fname_in_env, TOKUTX
     // set the cachefile
     r = toku_cachefile_set_fd(brt->cf, fd, fname_in_env);
     assert(r == 0);
+    brt->h = 0;  // set_fd should close the header
     toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(brt->cf));
 
     // init the tree header
-    assert(brt->h == 0);
     r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
     if (r == -1) {
         r = brt_alloc_init_header(brt, NULL, txn);
