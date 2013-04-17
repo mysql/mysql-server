@@ -143,7 +143,7 @@ static void test_read_write_rows (char *template) {
 	CKERR(r);
 	actual_size+=key.size + val.size + 8;
     }
-    if (actual_size != dataoff) fprintf(stderr, "actual_size=%ld, dataoff=%ld\n", actual_size, dataoff);
+    if (actual_size != dataoff) fprintf(stderr, "actual_size=%"PRIu64", dataoff=%"PRIu64"\n", actual_size, dataoff);
     assert(actual_size == dataoff);
 
     r = fclose(file);
