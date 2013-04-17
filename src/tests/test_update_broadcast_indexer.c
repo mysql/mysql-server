@@ -51,18 +51,18 @@ static int generate_row_for_put(
 }
 
 static void setup (void) {
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
-    CHK(env->set_generate_row_callback_for_put(env,generate_row_for_put));
-    CHK(env->set_generate_row_callback_for_del(env,generate_row_for_del));
+    { int chk_r = env->set_generate_row_callback_for_put(env,generate_row_for_put); CKERR(chk_r); }
+    { int chk_r = env->set_generate_row_callback_for_del(env,generate_row_for_del); CKERR(chk_r); }
     env->set_update(env, update_fun);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void cleanup (void) {
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 static void run_test(void) {
@@ -79,8 +79,8 @@ static void run_test(void) {
     
 
     IN_TXN_COMMIT(env, NULL, txn_create, 0, {
-            CHK(db_create(&db, env, 0));
-            CHK(db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+            { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+            { int chk_r = db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
         });
 
 
@@ -89,21 +89,21 @@ static void run_test(void) {
 
     val_data = 1;
     IN_TXN_COMMIT(env, NULL, txn_put1, 0, {
-            CHK(db->put(db, txn_put1, &key, &val, 0));
+            { int chk_r = db->put(db, txn_put1, &key, &val, 0); CKERR(chk_r); }
         });
-    CHK(env->txn_begin(env, NULL, &txn_read1, DB_TXN_SNAPSHOT));
+    { int chk_r = env->txn_begin(env, NULL, &txn_read1, DB_TXN_SNAPSHOT); CKERR(chk_r); }
 
     val_data = 2;
     IN_TXN_COMMIT(env, NULL, txn_put2, 0, {
-            CHK(db->put(db, txn_put2, &key, &val, 0));
+            { int chk_r = db->put(db, txn_put2, &key, &val, 0); CKERR(chk_r); }
         });
-    CHK(env->txn_begin(env, NULL, &txn_read2, DB_TXN_SNAPSHOT));
+    { int chk_r = env->txn_begin(env, NULL, &txn_read2, DB_TXN_SNAPSHOT); CKERR(chk_r); }
 
     val_data = 3;
     IN_TXN_COMMIT(env, NULL, txn_put3, 0, {
-            CHK(db->put(db, txn_put3, &key, &val, 0));
+            { int chk_r = db->put(db, txn_put3, &key, &val, 0); CKERR(chk_r); }
         });
-    CHK(env->txn_begin(env, NULL, &txn_read3, DB_TXN_SNAPSHOT));
+    { int chk_r = env->txn_begin(env, NULL, &txn_read3, DB_TXN_SNAPSHOT); CKERR(chk_r); }
 
     //
     // at this point, we should have a leafentry with 3 committed values.
@@ -115,7 +115,7 @@ static void run_test(void) {
     //
     val_data = 100;
     IN_TXN_COMMIT(env, NULL, txn_broadcast, 0, {
-            CHK(db->update_broadcast(db, txn_broadcast, &val, DB_IS_RESETTING_OP));
+            { int chk_r = db->update_broadcast(db, txn_broadcast, &val, DB_IS_RESETTING_OP); CKERR(chk_r); }
         });
 
     //
@@ -123,9 +123,9 @@ static void run_test(void) {
     //
     IN_TXN_COMMIT(env, NULL, txn_indexer, 0, {
         // create DB
-        CHK(db_create(&hot_index_db, env, 0));
-        CHK(hot_index_db->open(hot_index_db, txn_indexer, "bar.db", NULL, DB_BTREE, DB_CREATE|DB_IS_HOT_INDEX, 0666));
-        CHK(env->create_indexer(
+            { int chk_r = db_create(&hot_index_db, env, 0); CKERR(chk_r); }
+            { int chk_r = hot_index_db->open(hot_index_db, txn_indexer, "bar.db", NULL, DB_BTREE, DB_CREATE|DB_IS_HOT_INDEX, 0666); CKERR(chk_r); }
+            { int chk_r = env->create_indexer(
             env,
             txn_indexer,
             &indexer,
@@ -134,40 +134,40 @@ static void run_test(void) {
             &hot_index_db,
             &mult_db_flags,
             0
-            ));
-        CHK(indexer->build(indexer));
-        CHK(indexer->close(indexer));
+                    ); CKERR(chk_r); }
+            { int chk_r = indexer->build(indexer); CKERR(chk_r); }
+            { int chk_r = indexer->close(indexer); CKERR(chk_r); }
         });
 
     //verify that txn_read1,2,3 cannot open a cursor on db
     DBC* cursor = NULL;
-    CHK2(db->cursor(db, txn_read1, &cursor, 0), TOKUDB_MVCC_DICTIONARY_TOO_NEW);
-    CHK2(db->cursor(db, txn_read2, &cursor, 0), TOKUDB_MVCC_DICTIONARY_TOO_NEW);
-    CHK2(db->cursor(db, txn_read3, &cursor, 0), TOKUDB_MVCC_DICTIONARY_TOO_NEW);
+    { int chk_r = db->cursor(db, txn_read1, &cursor, 0); CKERR2(chk_r, TOKUDB_MVCC_DICTIONARY_TOO_NEW); }
+    { int chk_r = db->cursor(db, txn_read2, &cursor, 0); CKERR2(chk_r, TOKUDB_MVCC_DICTIONARY_TOO_NEW); }
+    { int chk_r = db->cursor(db, txn_read3, &cursor, 0); CKERR2(chk_r, TOKUDB_MVCC_DICTIONARY_TOO_NEW); }
     IN_TXN_COMMIT(env, NULL, txn_read_succ, 0, {
-        CHK(db->cursor(db, txn_read_succ, &cursor, 0));
-        CHK(cursor->c_close(cursor));
+            { int chk_r = db->cursor(db, txn_read_succ, &cursor, 0); CKERR(chk_r); }
+            { int chk_r = cursor->c_close(cursor); CKERR(chk_r); }
         cursor = NULL;
       });    
-    CHK(db->close(db, 0));
-    CHK(db_create(&db, env, 0));
-    CHK(db->open(db, NULL, "foo.db", NULL, DB_BTREE, 0, 0666));
-    CHK2(db->cursor(db, txn_read1, &cursor, 0), TOKUDB_MVCC_DICTIONARY_TOO_NEW);
-    CHK2(db->cursor(db, txn_read2, &cursor, 0), TOKUDB_MVCC_DICTIONARY_TOO_NEW);
-    CHK2(db->cursor(db, txn_read3, &cursor, 0), TOKUDB_MVCC_DICTIONARY_TOO_NEW);
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
+    { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+    { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, 0, 0666); CKERR(chk_r); }
+    { int chk_r = db->cursor(db, txn_read1, &cursor, 0); CKERR2(chk_r, TOKUDB_MVCC_DICTIONARY_TOO_NEW); }
+    { int chk_r = db->cursor(db, txn_read2, &cursor, 0); CKERR2(chk_r, TOKUDB_MVCC_DICTIONARY_TOO_NEW); }
+    { int chk_r = db->cursor(db, txn_read3, &cursor, 0); CKERR2(chk_r, TOKUDB_MVCC_DICTIONARY_TOO_NEW); }
     IN_TXN_COMMIT(env, NULL, txn_read_succ, 0, {
-        CHK(db->cursor(db, txn_read_succ, &cursor, 0));
-        CHK(cursor->c_close(cursor));
+            { int chk_r = db->cursor(db, txn_read_succ, &cursor, 0); CKERR(chk_r); }
+            { int chk_r = cursor->c_close(cursor); CKERR(chk_r); }
         cursor = NULL;
       });    
 
     // commit the read transactions
-    CHK(txn_read1->commit(txn_read1, 0)); 
-    CHK(txn_read2->commit(txn_read2, 0)); 
-    CHK(txn_read3->commit(txn_read3, 0)); 
+    { int chk_r = txn_read1->commit(txn_read1, 0); CKERR(chk_r); } 
+    { int chk_r = txn_read2->commit(txn_read2, 0); CKERR(chk_r); } 
+    { int chk_r = txn_read3->commit(txn_read3, 0); CKERR(chk_r); } 
 
-    CHK(db->close(db, 0));
-    CHK(hot_index_db->close(hot_index_db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
+    { int chk_r = hot_index_db->close(hot_index_db, 0); CKERR(chk_r); }
 
 }
 

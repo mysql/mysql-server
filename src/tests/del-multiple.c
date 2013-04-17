@@ -142,7 +142,7 @@ run_test(int ndbs, int nrows) {
 
         DBT dbt_dbnum; dbt_init(&dbt_dbnum, &dbnum, sizeof dbnum);
         IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-            CHK(db[dbnum]->change_descriptor(db[dbnum], txn_desc, &dbt_dbnum, 0));
+                { int chk_r = db[dbnum]->change_descriptor(db[dbnum], txn_desc, &dbt_dbnum, 0); CKERR(chk_r); }
         });
     }
 

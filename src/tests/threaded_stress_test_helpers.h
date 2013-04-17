@@ -402,14 +402,14 @@ static void *worker(void *arg_v) {
         r = arg->operation(txn, arg, arg->operation_extra, we->counters);
         if (r == 0) {
             if (!arg->cli->single_txn) {
-                CHK(txn->commit(txn,0));
+                { int chk_r = txn->commit(txn,0); CKERR(chk_r); }
             }
         } else {
             if (arg->cli->crash_on_operation_failure) {
                 CKERR(r);
             } else {
                 if (!arg->cli->single_txn) {
-                    CHK(txn->abort(txn));
+                    { int chk_r = txn->abort(txn); CKERR(chk_r); }
                 }
             }
         }
@@ -420,7 +420,7 @@ static void *worker(void *arg_v) {
         }
     }
     if (arg->cli->single_txn) {
-        CHK(txn->commit(txn, 0));
+        { int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
     }
     if (verbose)
         printf("%lu returning\n", (unsigned long) toku_pthread_self());
@@ -468,7 +468,7 @@ static int scan_op_and_maybe_check_sum(
     e.curr_sum = 0;
     e.num_elements = 0;
 
-    CHK(db->cursor(db, txn, &cursor, 0));
+    { int chk_r = db->cursor(db, txn, &cursor, 0); CKERR(chk_r); }
     if (sce->prefetch) {
         r = cursor->c_pre_acquire_range_lock(cursor, db->dbt_neg_infty(), db->dbt_pos_infty());
         assert(r == 0);
@@ -482,7 +482,7 @@ static int scan_op_and_maybe_check_sum(
         }
         assert(r==0 || r==DB_NOTFOUND);
     }
-    CHK(cursor->c_close(cursor));
+    { int chk_r = cursor->c_close(cursor); CKERR(chk_r); }
     if (r == DB_NOTFOUND) {
         r = 0;
     }
@@ -554,28 +554,31 @@ fill_zeroed_array(uint8_t *data, uint32_t size, struct random_data *random_data,
     }
 }
 
+static inline size_t
+size_t_max(size_t a, size_t b) {
+    return (a > b) ? a : b;
+}
+
 static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
     int r = 0;
-    union {
-        uint64_t key;
-        uint16_t i[4];
-        uint8_t  b[arg->cli->key_size];
-    } rand_key;
-    ZERO_STRUCT(rand_key);
+    uint8_t rand_key_b[size_t_max(arg->cli->key_size, sizeof(uint64_t))];
+    uint64_t *rand_key_key = (void *) rand_key_b;
+    uint16_t *rand_key_i = (void *) rand_key_b;
+    ZERO_ARRAY(rand_key_b);
     uint8_t valbuf[arg->cli->val_size];
     ZERO_ARRAY(valbuf);
 
     uint64_t puts_to_increment = 0;
     for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
-        rand_key.key = randu64(arg->random_data);
+        rand_key_key[0] = randu64(arg->random_data);
         if (arg->cli->interleave) {
-            rand_key.i[3] = arg->thread_idx;
+            rand_key_i[3] = arg->thread_idx;
         } else {
-            rand_key.i[0] = arg->thread_idx;
+            rand_key_i[0] = arg->thread_idx;
         }
         fill_zeroed_array(valbuf, arg->cli->val_size, arg->random_data, arg->cli->compressibility);
         DBT key, val;
-        dbt_init(&key, &rand_key, sizeof rand_key);
+        dbt_init(&key, &rand_key_b, sizeof rand_key_b);
         dbt_init(&val, valbuf, sizeof valbuf);
         r = db->put(db, txn, &key, &val, 0);
         if (r != 0) {
@@ -615,26 +618,24 @@ static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void 
     DB* db = arg->dbp[db_index];
 
     int r = 0;
-    union {
-        uint64_t key;
-        uint16_t i[4];
-        uint8_t  b[arg->cli->key_size];
-    } rand_key;
-    ZERO_STRUCT(rand_key);
+    uint8_t rand_key_b[size_t_max(arg->cli->key_size, sizeof(uint64_t))];
+    uint64_t *rand_key_key = (void *) rand_key_b;
+    uint16_t *rand_key_i = (void *) rand_key_b;
+    ZERO_ARRAY(rand_key_b);
     uint8_t valbuf[arg->cli->val_size];
     ZERO_ARRAY(valbuf);
 
     uint64_t puts_to_increment = 0;
     for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
-        rand_key.key = extra->current++;
+        rand_key_key[0] = extra->current++;
         if (arg->cli->interleave) {
-            rand_key.i[3] = arg->thread_idx;
+            rand_key_i[3] = arg->thread_idx;
         } else {
-            rand_key.i[0] = arg->thread_idx;
+            rand_key_i[0] = arg->thread_idx;
         }
         fill_zeroed_array(valbuf, arg->cli->val_size, arg->random_data, arg->cli->compressibility);
         DBT key, val;
-        dbt_init(&key, &rand_key, sizeof rand_key);
+        dbt_init(&key, &rand_key_b, sizeof rand_key_b);
         dbt_init(&val, valbuf, sizeof valbuf);
         r = db->put(db, txn, &key, &val, 0);
         if (r != 0) {
@@ -1146,11 +1147,11 @@ static int run_workers(
         worker_extra[i].operation_lock_mutex = &mutex;
         XCALLOC_N((int) NUM_OPERATION_TYPES, worker_extra[i].counters);
         DRD_IGNORE_VAR(worker_extra[i].counters);
-        CHK(toku_pthread_create(&tids[i], NULL, worker, &worker_extra[i]));
+        { int chk_r = toku_pthread_create(&tids[i], NULL, worker, &worker_extra[i]); CKERR(chk_r); }
         if (verbose) 
             printf("%lu created\n", (unsigned long) tids[i]);
     }
-    CHK(toku_pthread_create(&time_tid, NULL, test_time, &tte));
+    { int chk_r = toku_pthread_create(&time_tid, NULL, test_time, &tte); CKERR(chk_r); }
     if (verbose) 
         printf("%lu created\n", (unsigned long) time_tid);
 
@@ -1845,20 +1846,20 @@ stress_test_main(struct cli_args *args)
             stress_int_dbt_cmp,
             args->env_args
             );
-        CHK(fill_tables_with_zeroes(dbs, args->num_DBs, args->num_elements, args->key_size, args->val_size));
-        CHK(close_tables(env, dbs, args->num_DBs));
+        { int chk_r = fill_tables_with_zeroes(dbs, args->num_DBs, args->num_elements, args->key_size, args->val_size); CKERR(chk_r); }
+        { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
     }
     if (!args->only_create) {
-        CHK(open_tables(&env,
-                       dbs,
-                       args->num_DBs,
-                       stress_int_dbt_cmp,
-                       args->env_args));
+        { int chk_r = open_tables(&env,
+                                  dbs,
+                                  args->num_DBs,
+                                  stress_int_dbt_cmp,
+                                  args->env_args); CKERR(chk_r); }
         if (args->warm_cache) {
             do_warm_cache(env, dbs, args);
         }
         stress_table(env, dbs, args);
-        CHK(close_tables(env, dbs, args->num_DBs));
+        { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
     }
 }
 
@@ -1867,11 +1868,11 @@ UU() stress_recover(struct cli_args *args) {
     DB_ENV* env = NULL;
     DB* dbs[args->num_DBs];
     memset(dbs, 0, sizeof(dbs));
-    CHK(open_tables(&env,
-                   dbs,
-                   args->num_DBs,
-                   stress_int_dbt_cmp,
-                   args->env_args));
+    { int chk_r = open_tables(&env,
+                              dbs,
+                              args->num_DBs,
+                              stress_int_dbt_cmp,
+                              args->env_args); CKERR(chk_r); }
 
     DB_TXN* txn = NULL;    
     struct arg recover_args;
@@ -1884,8 +1885,8 @@ UU() stress_recover(struct cli_args *args) {
     soe.prefetch = FALSE;
     r = scan_op(txn, &recover_args, &soe, NULL);
     CKERR(r);
-    CHK(txn->commit(txn,0));
-    CHK(close_tables(env, dbs, args->num_DBs));
+    { int chk_r = txn->commit(txn,0); CKERR(chk_r); }
+    { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
 }
 
 #endif

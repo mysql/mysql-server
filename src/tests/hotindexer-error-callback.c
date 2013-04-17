@@ -112,7 +112,7 @@ static void run_test(void)
         sprintf(key_name, "key%d", i);
         r = dbs[i]->open(dbs[i], NULL, key_name, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);   CKERR(r);
         IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-            CHK(dbs[i]->change_descriptor(dbs[i], txn_desc, &desc, 0));
+                { int chk_r = dbs[i]->change_descriptor(dbs[i], txn_desc, &desc, 0); CKERR(chk_r); }
         });
     }
 

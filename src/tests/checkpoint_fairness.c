@@ -34,9 +34,9 @@ static void *start_txns (void *e) {
     DBT k={.size=sizeof(id), .data=&id};
     for (j=0; writer_done_count<W; j++) { // terminate the loop when the checkpoint thread has done it's W items.
 	DB_TXN *txn;
-	CHK(env->txn_begin(env, NULL, &txn, 0));
-	CHK(db->put(db, txn, &k, &k, 0));
-	CHK(txn->commit(txn, 0));
+	{ int chk_r = env->txn_begin(env, NULL, &txn, 0); CKERR(chk_r); }
+	{ int chk_r = db->put(db, txn, &k, &k, 0); CKERR(chk_r); }
+	{ int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
 	if (j==10) (void)__sync_fetch_and_add(&reader_start_count, 1);
 	if (j%1000==999) { printf("."); fflush(stdout); }
 	assert(j<1000); // Get upset if we manage to run this many transactions without the checkpoint thread 
@@ -48,7 +48,7 @@ static void start_checkpoints (void) {
     while (reader_start_count < n_threads) { sched_yield(); }
     for (int i=0; i<W; i++) {
 	if (verbose) printf("cks\n");
-	CHK(env->txn_checkpoint(env, 0, 0, 0));
+	{ int chk_r = env->txn_checkpoint(env, 0, 0, 0); CKERR(chk_r); }
 	if (verbose) printf("ck\n");
 	sched_yield();
 	(void)__sync_fetch_and_add(&writer_done_count, 1);
@@ -59,9 +59,9 @@ int test_main(int argc, char * const argv[]) {
     parse_args(argc, argv);
 
     // try to starve the checkpoint
-    CHK(db_env_create(&env, 0));
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
 #ifdef USE_TDB
-    CHK(env->set_redzone(env, 0));
+    { int chk_r = env->set_redzone(env, 0); CKERR(chk_r); }
 #endif
     {
 	const int size = 10+strlen(env_dir);
@@ -70,31 +70,31 @@ int test_main(int argc, char * const argv[]) {
 	int r = system(cmd);
         CKERR(r);
     }
-    CHK(toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 
     const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE | DB_RECOVER;
-    CHK(env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 
-    CHK(db_create(&db, env, 0));
+    { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
 
-    CHK(db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE|DB_AUTO_COMMIT, 0666));
+    { int chk_r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE|DB_AUTO_COMMIT, 0666); CKERR(chk_r); }
 
     pthread_t thds[n_threads];
     int       ids[n_threads];
     for (int i=0; i<n_threads; i++) {
 	ids[i]=i;
-	CHK(toku_pthread_create(&thds[i], NULL, start_txns, &ids[i]));
+	{ int chk_r = toku_pthread_create(&thds[i], NULL, start_txns, &ids[i]); CKERR(chk_r); }
     }
     start_checkpoints();
 
     for (int i=0; i<n_threads; i++) {
 	void *retval;
-	CHK(toku_pthread_join(thds[i], &retval));
+	{ int chk_r = toku_pthread_join(thds[i], &retval); CKERR(chk_r); }
 	assert(retval==NULL);
     }
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
 
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 
     return 0;
 }

@@ -51,18 +51,18 @@ static int generate_row_for_put(
 }
 
 static void setup (void) {
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
-    CHK(env->set_generate_row_callback_for_put(env,generate_row_for_put));
-    CHK(env->set_generate_row_callback_for_del(env,generate_row_for_del));
+    { int chk_r = env->set_generate_row_callback_for_put(env,generate_row_for_put); CKERR(chk_r); }
+    { int chk_r = env->set_generate_row_callback_for_del(env,generate_row_for_del); CKERR(chk_r); }
     env->set_update(env, update_fun);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void cleanup (void) {
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 static void run_test(void) {
@@ -76,8 +76,8 @@ static void run_test(void) {
     
 
     IN_TXN_COMMIT(env, NULL, txn_create, 0, {
-            CHK(db_create(&db, env, 0));
-            CHK(db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+            { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+            { int chk_r = db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
         });
 
 
@@ -92,7 +92,7 @@ static void run_test(void) {
     //
     val_data = 100;
     IN_TXN_COMMIT(env, NULL, txn_broadcast, 0, {
-            CHK(db->update_broadcast(db, txn_broadcast, &val, DB_IS_RESETTING_OP));
+            { int chk_r = db->update_broadcast(db, txn_broadcast, &val, DB_IS_RESETTING_OP); CKERR(chk_r); }
         });
 
     //
@@ -100,7 +100,7 @@ static void run_test(void) {
     //
     IN_TXN_COMMIT(env, NULL, txn_loader, 0, {
         // create DB
-        CHK(env->create_loader(
+            { int chk_r = env->create_loader(
             env,
             txn_loader,
             &loader,
@@ -110,16 +110,16 @@ static void run_test(void) {
             &mult_db_flags,
             &mult_dbt_flags,
             0
-            ));
-        CHK(loader->put(loader, &key, &val));
-        CHK(loader->close(loader));
+                    ); CKERR(chk_r); }
+            { int chk_r = loader->put(loader, &key, &val); CKERR(chk_r); }
+            { int chk_r = loader->close(loader); CKERR(chk_r); }
         });
 
     IN_TXN_COMMIT(env, NULL, txn_update, 0, {
-            CHK(db->update(db, txn_update, &key, &val, 0));
+            { int chk_r = db->update(db, txn_update, &key, &val, 0); CKERR(chk_r); }
         });
 
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
 
 }
 

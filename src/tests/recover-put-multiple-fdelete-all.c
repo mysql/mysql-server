@@ -65,12 +65,12 @@ static void run_test (void) {
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     which = 0;
     IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-        CHK(dba->change_descriptor(dba, txn_desc, &descriptor, 0));
+            { int chk_r = dba->change_descriptor(dba, txn_desc, &descriptor, 0); CKERR(chk_r); }
     });
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     which = 1;
     IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-        CHK(dbb->change_descriptor(dbb, txn_desc, &descriptor, 0));
+            { int chk_r = dbb->change_descriptor(dbb, txn_desc, &descriptor, 0); CKERR(chk_r); }
     });
 
     DB *dbs[num_dbs] = {dba, dbb};

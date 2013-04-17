@@ -28,24 +28,24 @@ static uint64_t tdelta_usec(struct timeval *tend, struct timeval *tstart) {
 }
 
 static void setup (void) {
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     db_env_set_checkpoint_callback(checkpoint_callback_1, NULL);
     env->set_errfile(env, stderr);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void cleanup (void) {
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 static void run_test(void) {
     DB* db = NULL;
     
     IN_TXN_COMMIT(env, NULL, txn_create, 0, {
-            CHK(db_create(&db, env, 0));
-            CHK(db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+            { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+            { int chk_r = db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
         });
     DBT key, val;
     int i = 0;
@@ -54,7 +54,7 @@ static void run_test(void) {
     dbt_init(&val, &v, sizeof(v));
     // put a value to make it dirty, just to make sure that checkpoint
     // will do something
-    CHK(db->put(db, NULL, &key, &val, 0));
+    { int chk_r = db->put(db, NULL, &key, &val, 0); CKERR(chk_r); }
 
     // at this point, we have a db that is dirty. Now we want to do the following
     // have two threads each start a checkpoint
@@ -66,16 +66,16 @@ static void run_test(void) {
     toku_pthread_t chkpt2_tid;
 
     
-    CHK(toku_pthread_create(&chkpt1_tid, NULL, run_checkpoint, NULL)); 
-    CHK(toku_pthread_create(&chkpt2_tid, NULL, run_checkpoint, NULL)); 
+    { int chk_r = toku_pthread_create(&chkpt1_tid, NULL, run_checkpoint, NULL); CKERR(chk_r); } 
+    { int chk_r = toku_pthread_create(&chkpt2_tid, NULL, run_checkpoint, NULL); CKERR(chk_r); } 
     usleep(2*1024*1024);
     struct timeval tstart;
     gettimeofday(&tstart, NULL);
     DB_TXN *txn = NULL;
-    CHK(env->txn_begin(env, NULL, &txn, 0));
+    { int chk_r = env->txn_begin(env, NULL, &txn, 0); CKERR(chk_r); }
     i = 1; v = 1;
-    CHK(db->put(db, txn, &key, &val, 0));
-    CHK(txn->commit(txn, 0));
+    { int chk_r = db->put(db, txn, &key, &val, 0); CKERR(chk_r); }
+    { int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
     
     struct timeval tend; 
     gettimeofday(&tend, NULL);
@@ -84,10 +84,10 @@ static void run_test(void) {
 
 
     void *ret;
-    CHK(toku_pthread_join(chkpt2_tid, &ret)); 
-    CHK(toku_pthread_join(chkpt1_tid, &ret)); 
+    { int chk_r = toku_pthread_join(chkpt2_tid, &ret); CKERR(chk_r); } 
+    { int chk_r = toku_pthread_join(chkpt1_tid, &ret); CKERR(chk_r); } 
 
-    CHK(db->close(db,0));
+    { int chk_r = db->close(db,0); CKERR(chk_r); }
     db = NULL;
 }
 

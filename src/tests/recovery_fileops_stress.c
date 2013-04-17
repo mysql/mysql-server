@@ -230,11 +230,11 @@ static void do_random_fileops(void)
     int i, state, next_state;
     DB_TXN *txn;
     for (i=0;i<NUM_DICTIONARIES;i++) {
-        CHK(env->txn_begin(env, NULL, &txn, 0));
+        { int chk_r = env->txn_begin(env, NULL, &txn, 0); CKERR(chk_r); }
         state = get_state(i);
         next_state = do_random_fileop(i, state);
         put_state(i, next_state);
-        CHK(txn->commit(txn, 0));
+        { int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
         update_crash_timer();
     }
 }

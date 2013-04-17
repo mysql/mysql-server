@@ -14,7 +14,6 @@ if(BUILD_TESTING)
         lock_tree_${impl}_static
         range_tree_${impl}_static
         ft
-        ${ZLIB_LIBRARIES}
         ${LIBTOKUPORTABILITY}
         )
       set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.c.${impl}")

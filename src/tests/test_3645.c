@@ -61,7 +61,7 @@ static void *scan_db(void *arg) {
     while(run_test) {
         int r = env->txn_begin(env, 0, &txn, DB_TXN_SNAPSHOT); CKERR(r);
         DBC* cursor = NULL;
-        CHK(db->cursor(db, txn, &cursor, 0));
+        { int chk_r = db->cursor(db, txn, &cursor, 0); CKERR(chk_r); }
         while (r != DB_NOTFOUND) {
             if (myarg->fwd) {
                 r = cursor->c_getf_next(cursor, 0, myarg->fast ? go_fast : go_slow, NULL);
@@ -72,8 +72,8 @@ static void *scan_db(void *arg) {
             assert(r==0 || r==DB_NOTFOUND);
         }
         
-        CHK(cursor->c_close(cursor));
-        CHK(txn->commit(txn,0));
+        { int chk_r = cursor->c_close(cursor); CKERR(chk_r); }
+        { int chk_r = txn->commit(txn,0); CKERR(chk_r); }
     }
     return arg;
 }
@@ -93,7 +93,7 @@ static void *ptquery_db(void *arg) {
         dbt_init(&key, &rand_key, sizeof(rand_key));
         r = db->get(db, txn, &key, &val, 0);
         assert(r != DB_NOTFOUND);
-        CHK(txn->commit(txn,0));
+        { int chk_r = txn->commit(txn,0); CKERR(chk_r); }
     }
     return arg;
 }
@@ -120,7 +120,7 @@ static void *update_db(void *arg) {
                 );
             CKERR(r);
         }
-        CHK(txn->commit(txn,0));
+        { int chk_r = txn->commit(txn,0); CKERR(chk_r); }
     }
     return arg;
 }
@@ -205,31 +205,31 @@ test_evictions (void) {
     // make the forward fast scanner
     myargs[0].fast = TRUE;
     myargs[0].fwd = TRUE;
-    CHK(toku_pthread_create(&mytids[0], NULL, scan_db, &myargs[0]));
+    { int chk_r = toku_pthread_create(&mytids[0], NULL, scan_db, &myargs[0]); CKERR(chk_r); }
 
     // make the forward slow scanner
     myargs[1].fast = FALSE;
     myargs[1].fwd = TRUE;
-    CHK(toku_pthread_create(&mytids[1], NULL, scan_db, &myargs[1]));
+    { int chk_r = toku_pthread_create(&mytids[1], NULL, scan_db, &myargs[1]); CKERR(chk_r); }
 
     // make the backward fast scanner
     myargs[2].fast = TRUE;
     myargs[2].fwd = FALSE;
-    CHK(toku_pthread_create(&mytids[2], NULL, scan_db, &myargs[2]));
+    { int chk_r = toku_pthread_create(&mytids[2], NULL, scan_db, &myargs[2]); CKERR(chk_r); }
 
     // make the backward slow scanner
     myargs[3].fast = FALSE;
     myargs[3].fwd = FALSE;
-    CHK(toku_pthread_create(&mytids[3], NULL, scan_db, &myargs[3]));
+    { int chk_r = toku_pthread_create(&mytids[3], NULL, scan_db, &myargs[3]); CKERR(chk_r); }
 
     // make the guy that updates the db
-    CHK(toku_pthread_create(&mytids[4], NULL, update_db, &myargs[4]));
+    { int chk_r = toku_pthread_create(&mytids[4], NULL, update_db, &myargs[4]); CKERR(chk_r); }
 
     // make the guy that does point queries
-    CHK(toku_pthread_create(&mytids[5], NULL, ptquery_db, &myargs[5]));
+    { int chk_r = toku_pthread_create(&mytids[5], NULL, ptquery_db, &myargs[5]); CKERR(chk_r); }
 
     // make the guy that sleeps
-    CHK(toku_pthread_create(&mytids[6], NULL, test_time, NULL));
+    { int chk_r = toku_pthread_create(&mytids[6], NULL, test_time, NULL); CKERR(chk_r); }
     
     for (u_int32_t i = 0; i < sizeof(myargs)/sizeof(myargs[0]); i++) {
         void *ret;

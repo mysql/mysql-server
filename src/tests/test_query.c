@@ -131,15 +131,15 @@ static void fill_db(DB_ENV * env, DB * db, int num_rows)
     const int ins_per_txn = 1000;
     assert(num_rows % ins_per_txn == 0);
     for (i = 0; i < num_rows; i+= ins_per_txn) {
-        r = env->txn_begin(env, NULL, &txn, 0); CHK(r);
+        r = env->txn_begin(env, NULL, &txn, 0); { int chk_r = r; CKERR(chk_r); }
         for (j = 0; j < ins_per_txn && (i + j) < num_rows; j++) {
             int v, k = toku_htonl(i + j);
             dbt_init(&key, &k, sizeof(int));
             dbt_init(&value, &v, sizeof(int));
             get_value_by_key(&key, &value);
-            r = db->put(db, txn, &key, &value, 0); CHK(r);
+            r = db->put(db, txn, &key, &value, 0); { int chk_r = r; CKERR(chk_r); }
         }
-        r = txn->commit(txn, 0); CHK(r);
+        r = txn->commit(txn, 0); { int chk_r = r; CKERR(chk_r); }
     }
 }
 
@@ -151,13 +151,13 @@ static void init_env(DB_ENV ** env, size_t ct_size)
 
     printf("initializing environment\n");
 
-    r = system("rm -rf " ENVDIR); CHK(r);
-    r = toku_os_mkdir(ENVDIR, 0755); CHK(r);
+    r = system("rm -rf " ENVDIR); { int chk_r = r; CKERR(chk_r); }
+    r = toku_os_mkdir(ENVDIR, 0755); { int chk_r = r; CKERR(chk_r); }
 
-    r = db_env_create(env, 0); CHK(r);
+    r = db_env_create(env, 0); { int chk_r = r; CKERR(chk_r); }
     assert(ct_size < 1024 * 1024 * 1024L);
-    r = (*env)->set_cachesize(*env, 0, ct_size, 1); CHK(r);
-    r = (*env)->open(*env, ENVDIR, envflags, 0755); CHK(r);
+    r = (*env)->set_cachesize(*env, 0, ct_size, 1); { int chk_r = r; CKERR(chk_r); }
+    r = (*env)->open(*env, ENVDIR, envflags, 0755); { int chk_r = r; CKERR(chk_r); }
 }
 
 static void init_db(DB_ENV * env, DB ** db)
@@ -169,12 +169,12 @@ static void init_db(DB_ENV * env, DB ** db)
     printf("initializing db\n");
 
     DB_TXN * txn;
-    r = db_create(db, env, 0); CHK(r);
-    r = (*db)->set_readpagesize(*db, bn_size); CHK(r);
-    r = (*db)->set_pagesize(*db, node_size); CHK(r);
-    r = env->txn_begin(env, NULL, &txn, 0); CHK(r);
-    r = (*db)->open(*db, txn, "db", NULL, DB_BTREE, DB_CREATE, 0644); CHK(r);
-    r = txn->commit(txn, 0); CHK(r);
+    r = db_create(db, env, 0); { int chk_r = r; CKERR(chk_r); }
+    r = (*db)->set_readpagesize(*db, bn_size); { int chk_r = r; CKERR(chk_r); }
+    r = (*db)->set_pagesize(*db, node_size); { int chk_r = r; CKERR(chk_r); }
+    r = env->txn_begin(env, NULL, &txn, 0); { int chk_r = r; CKERR(chk_r); }
+    r = (*db)->open(*db, txn, "db", NULL, DB_BTREE, DB_CREATE, 0644); { int chk_r = r; CKERR(chk_r); }
+    r = txn->commit(txn, 0); { int chk_r = r; CKERR(chk_r); }
 }
 
 static void cleanup_env_and_db(DB_ENV * env, DB * db)
@@ -182,8 +182,8 @@ static void cleanup_env_and_db(DB_ENV * env, DB * db)
     int r;
 
     printf("cleaning up environment and db\n");
-    r = db->close(db, 0); CHK(r);
-    r = env->close(env, 0); CHK(r);
+    r = db->close(db, 0); { int chk_r = r; CKERR(chk_r); }
+    r = env->close(env, 0); { int chk_r = r; CKERR(chk_r); }
 }
 
 static void do_test(size_t ct_size, int num_keys)
@@ -210,14 +210,14 @@ static void do_test(size_t ct_size, int num_keys)
         DBC * dbc;
         DB_TXN * txn;
         struct cursor_cb_info info;
-        r = env->txn_begin(env, NULL, &txn, 0); CHK(r);
-        r = db->cursor(db, txn, &dbc, 0); CHK(r);
+        r = env->txn_begin(env, NULL, &txn, 0); { int chk_r = r; CKERR(chk_r); }
+        r = db->cursor(db, txn, &dbc, 0); { int chk_r = r; CKERR(chk_r); }
         info.last_key_seen = -1;
         info.type = FIRST;
-        r = dbc->c_getf_first(dbc, 0, cursor_cb, &info); CHK(r);
+        r = dbc->c_getf_first(dbc, 0, cursor_cb, &info); { int chk_r = r; CKERR(chk_r); }
         assert(info.last_key_seen == 0);
-        r = dbc->c_close(dbc); CHK(r);
-        r = txn->commit(txn, 0); CHK(r);
+        r = dbc->c_close(dbc); { int chk_r = r; CKERR(chk_r); }
+        r = txn->commit(txn, 0); { int chk_r = r; CKERR(chk_r); }
     }
 
     // test c_getf_last
@@ -226,14 +226,14 @@ static void do_test(size_t ct_size, int num_keys)
         DBC * dbc;
         DB_TXN * txn;
         struct cursor_cb_info info;
-        r = env->txn_begin(env, NULL, &txn, 0); CHK(r);
-        r = db->cursor(db, txn, &dbc, 0); CHK(r);
+        r = env->txn_begin(env, NULL, &txn, 0); { int chk_r = r; CKERR(chk_r); }
+        r = db->cursor(db, txn, &dbc, 0); { int chk_r = r; CKERR(chk_r); }
         info.last_key_seen = -1;
         info.type = LAST;
-        r = dbc->c_getf_last(dbc, 0, cursor_cb, &info); CHK(r);
+        r = dbc->c_getf_last(dbc, 0, cursor_cb, &info); { int chk_r = r; CKERR(chk_r); }
         assert(info.last_key_seen == last_key);
-        r = dbc->c_close(dbc); CHK(r);
-        r = txn->commit(txn, 0); CHK(r);
+        r = dbc->c_close(dbc); { int chk_r = r; CKERR(chk_r); }
+        r = txn->commit(txn, 0); { int chk_r = r; CKERR(chk_r); }
     }
 
     // test c_getf_next
@@ -242,11 +242,12 @@ static void do_test(size_t ct_size, int num_keys)
         DBC * dbc;
         DB_TXN * txn;
         struct cursor_cb_info info;
-        r = env->txn_begin(env, NULL, &txn, 0); CHK(r);
-        r = db->cursor(db, txn, &dbc, 0); CHK(r);
+        r = env->txn_begin(env, NULL, &txn, 0); { int chk_r = r; CKERR(chk_r); }
+        r = db->cursor(db, txn, &dbc, 0); { int chk_r = r; CKERR(chk_r); }
         info.last_key_seen = -1;
         //info.type = FIRST;
-        //r = dbc->c_getf_first(dbc, 0, cursor_cb, &info); CHK(r);
+        //r = dbc->c_getf_first(dbc, 0, cursor_cb, &info); { int chk_r =
+        //r; CKERR(chk_r); }
         //assert(info.last_key_seen == 0);
         info.type = NEXT;
         while ((r = dbc->c_getf_next(dbc, 0, cursor_cb, &info)) == 0);
@@ -256,8 +257,8 @@ static void do_test(size_t ct_size, int num_keys)
                     info.last_key_seen, last_key);
         }
         assert(info.last_key_seen == last_key);
-        r = dbc->c_close(dbc); CHK(r);
-        r = txn->commit(txn, 0); CHK(r);
+        r = dbc->c_close(dbc); { int chk_r = r; CKERR(chk_r); }
+        r = txn->commit(txn, 0); { int chk_r = r; CKERR(chk_r); }
     }
 
     // test c_getf_prev
@@ -266,18 +267,19 @@ static void do_test(size_t ct_size, int num_keys)
         DBC * dbc;
         DB_TXN * txn;
         struct cursor_cb_info info;
-        r = env->txn_begin(env, NULL, &txn, 0); CHK(r);
-        r = db->cursor(db, txn, &dbc, 0); CHK(r);
+        r = env->txn_begin(env, NULL, &txn, 0); { int chk_r = r; CKERR(chk_r); }
+        r = db->cursor(db, txn, &dbc, 0); { int chk_r = r; CKERR(chk_r); }
         info.last_key_seen = -1;
         //info.type = LAST;
-        //r = dbc->c_getf_last(dbc, 0, cursor_cb, &info); CHK(r);
+        //r = dbc->c_getf_last(dbc, 0, cursor_cb, &info); { int chk_r = r;
+        //CKERR(chk_r); }
         //assert(info.last_key_seen == last_key);
         info.type = PREV;
         while ((r = dbc->c_getf_prev(dbc, 0, cursor_cb, &info)) == 0);
         assert(r == DB_NOTFOUND);
         assert(info.last_key_seen == 0);
-        r = dbc->c_close(dbc); CHK(r);
-        r = txn->commit(txn, 0); CHK(r);
+        r = dbc->c_close(dbc); { int chk_r = r; CKERR(chk_r); }
+        r = txn->commit(txn, 0); { int chk_r = r; CKERR(chk_r); }
     }
 
     printf("testing db->get, c getf set, current\n");
@@ -285,8 +287,8 @@ static void do_test(size_t ct_size, int num_keys)
         DBC * dbc;
         DB_TXN * txn;
         struct cursor_cb_info info;
-        r = env->txn_begin(env, NULL, &txn, 0); CHK(r); 
-        r = db->cursor(db, txn, &dbc, 0); CHK(r);
+        r = env->txn_begin(env, NULL, &txn, 0); { int chk_r = r; CKERR(chk_r); } 
+        r = db->cursor(db, txn, &dbc, 0); { int chk_r = r; CKERR(chk_r); }
         for (i = 0; i < 1000; i++) {
             DBT key;
             int k = random() % num_keys;
@@ -296,23 +298,23 @@ static void do_test(size_t ct_size, int num_keys)
             // test c_getf_set
             info.last_key_seen = -1;
             info.type = SET;
-            r = dbc->c_getf_set(dbc, 0, &key, cursor_cb, &info); CHK(r);
+            r = dbc->c_getf_set(dbc, 0, &key, cursor_cb, &info); { int chk_r = r; CKERR(chk_r); }
             assert(info.last_key_seen == k);
 
             // test c_getf_current
             info.last_key_seen = -1;
             info.type = CURRENT;
-            r = dbc->c_getf_current(dbc, 0, cursor_cb, &info); CHK(r);
+            r = dbc->c_getf_current(dbc, 0, cursor_cb, &info); { int chk_r = r; CKERR(chk_r); }
             assert(info.last_key_seen == k);
 
             // test db->get (point query)
             DBT value;
             memset(&value, 0, sizeof(DBT));
-            r = db->get(db, txn, &key, &value, 0); CHK(r);
+            r = db->get(db, txn, &key, &value, 0); { int chk_r = r; CKERR(chk_r); }
             verify_value_by_key(&key, &value);
         }
-        r = dbc->c_close(dbc); CHK(r);
-        r = txn->commit(txn, 0); CHK(r);
+        r = dbc->c_close(dbc); { int chk_r = r; CKERR(chk_r); }
+        r = txn->commit(txn, 0); { int chk_r = r; CKERR(chk_r); }
     }
 
     // delete some elements over a variable stride,
@@ -323,15 +325,15 @@ static void do_test(size_t ct_size, int num_keys)
         DBC * dbc;
         DB_TXN * txn;
         DBT key;
-        r = env->txn_begin(env, NULL, &txn, 0); CHK(r); 
-        r = db->cursor(db, txn, &dbc, 0); CHK(r);
+        r = env->txn_begin(env, NULL, &txn, 0); { int chk_r = r; CKERR(chk_r); } 
+        r = db->cursor(db, txn, &dbc, 0); { int chk_r = r; CKERR(chk_r); }
         for (i = 0; i < num_keys; i += stride) {
             int k = toku_htonl(i);
             dbt_init(&key, &k, sizeof(int));
             r = db->del(db, txn, &key, 0);
         }
-        r = dbc->c_close(dbc); CHK(r);
-        r = txn->commit(txn, 0); CHK(r);
+        r = dbc->c_close(dbc); { int chk_r = r; CKERR(chk_r); }
+        r = txn->commit(txn, 0); { int chk_r = r; CKERR(chk_r); }
     }
 
     // test getf set range and range reverse
@@ -341,8 +343,8 @@ static void do_test(size_t ct_size, int num_keys)
         DB_TXN * txn;
         DBT key;
         struct cursor_cb_info info;
-        r = env->txn_begin(env, NULL, &txn, 0); CHK(r); 
-        r = db->cursor(db, txn, &dbc, 0); CHK(r);
+        r = env->txn_begin(env, NULL, &txn, 0); { int chk_r = r; CKERR(chk_r); } 
+        r = db->cursor(db, txn, &dbc, 0); { int chk_r = r; CKERR(chk_r); }
         for (i = 0; i < num_keys; i += stride) {
             int k = toku_htonl(i);
             dbt_init(&key, &k, sizeof(int));
@@ -369,11 +371,11 @@ static void do_test(size_t ct_size, int num_keys)
                 assert(r == DB_NOTFOUND);
             } else {
                 assert(info.last_key_seen == i - 1);
-                CHK(r);
+                { int chk_r = r; CKERR(chk_r); }
             }
         }
-        r = dbc->c_close(dbc); CHK(r);
-        r = txn->commit(txn, 0); CHK(r);
+        r = dbc->c_close(dbc); { int chk_r = r; CKERR(chk_r); }
+        r = txn->commit(txn, 0); { int chk_r = r; CKERR(chk_r); }
     }
 
     cleanup_env_and_db(env, db);

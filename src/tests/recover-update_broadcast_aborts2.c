@@ -45,7 +45,8 @@ static int do_inserts(DB_TXN *txn, DB *db)
     DBT *valp = dbt_init(&val, &v, sizeof(v));
     for (i = 0; i < NUM_KEYS; ++i) {
         v = _v(i);
-        r = CHK(db->put(db, txn, keyp, valp, 0));
+        r = db->put(db, txn, keyp, valp, 0);
+        CKERR(r);
     }
     return r;
 }
@@ -53,7 +54,8 @@ static int do_inserts(DB_TXN *txn, DB *db)
 static int do_updates(DB_TXN *txn, DB *db) {
     DBT extra;
     DBT *extrap = dbt_init(&extra, NULL, 0);
-    int r = CHK(db->update_broadcast(db, txn, extrap, 0));
+    int r = db->update_broadcast(db, txn, extrap, 0);
+    CKERR(r);
     return r;
 }
 
@@ -63,29 +65,29 @@ DB *db;
 static void checkpoint_callback_1(void * extra) {
     assert(extra == NULL);
     IN_TXN_ABORT(env, NULL, txn_2, 0, {
-            CHK(do_updates(txn_2, db));
+            { int chk_r = do_updates(txn_2, db); CKERR(chk_r); }
         });
 }
 
 static void run_test(void)
 {
 
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     db_env_set_checkpoint_callback2(checkpoint_callback_1, NULL);
     env->set_errfile(env, stderr);
     env->set_update(env, update_fun);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
-            CHK(db_create(&db, env, 0));
-            CHK(db->open(db, txn_1, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+            { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+            { int chk_r = db->open(db, txn_1, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
 
-            CHK(do_inserts(txn_1, db));
+            { int chk_r = do_inserts(txn_1, db); CKERR(chk_r); }
         });
 
-    CHK(env->txn_checkpoint(env, 0, 0, 0));
+    { int chk_r = env->txn_checkpoint(env, 0, 0, 0); CKERR(chk_r); }
 
     toku_hard_crash_on_purpose();
 }
@@ -100,7 +102,8 @@ static int verify_unchanged(void)
 
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
             for (i = 0; i < NUM_KEYS; ++i) {
-                r = CHK(db->get(db, txn_1, keyp, valp, 0));
+                r = db->get(db, txn_1, keyp, valp, 0);
+                CKERR(r);
                 assert(val.size == sizeof(*vp));
                 vp = val.data;
                 assert(*vp == _v(i));
@@ -112,15 +115,15 @@ static int verify_unchanged(void)
 
 static void run_recover(void)
 {
-    CHK(db_env_create(&env, 0));
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
     env->set_update(env, update_fun);
-    CHK(env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_create(&db, env, 0));
-    CHK(db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666));
-    CHK(verify_unchanged());
-    CHK(db->close(db, 0));
-    CHK(env->close(env, 0));
+    { int chk_r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+    { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666); CKERR(chk_r); }
+    { int chk_r = verify_unchanged(); CKERR(chk_r); }
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 static int usage(void)

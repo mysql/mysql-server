@@ -244,7 +244,7 @@ run_test(int ndbs, int nrows) {
         char dbname[32]; sprintf(dbname, "%d.tdb", dbnum);
         r = db[dbnum]->open(db[dbnum], NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT+DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
         IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-            CHK(db[dbnum]->change_descriptor(db[dbnum], txn_desc, &dbt_dbnum, 0));
+                { int chk_r = db[dbnum]->change_descriptor(db[dbnum], txn_desc, &dbt_dbnum, 0); CKERR(chk_r); }
         });
     }
 

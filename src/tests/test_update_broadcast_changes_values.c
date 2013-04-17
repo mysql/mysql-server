@@ -38,16 +38,16 @@ static int update_fun(DB *UU(db),
 }
 
 static void setup (void) {
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
     env->set_update(env, update_fun);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void cleanup (void) {
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 static int do_inserts(DB_TXN *txn, DB *db) {
@@ -58,7 +58,7 @@ static int do_inserts(DB_TXN *txn, DB *db) {
     DBT *valp = dbt_init(&val, &v, sizeof(v));
     for (i = 0; i < NUM_KEYS; ++i) {
         v = _v(i);
-        r = CHK(db->put(db, txn, keyp, valp, 0));
+        r = db->put(db, txn, keyp, valp, 0); CKERR(r);
     }
     return r;
 }
@@ -66,7 +66,7 @@ static int do_inserts(DB_TXN *txn, DB *db) {
 static int do_updates(DB_TXN *txn, DB *db, u_int32_t flags) {
     DBT extra;
     DBT *extrap = dbt_init(&extra, NULL, 0);
-    int r = CHK(db->update_broadcast(db, txn, extrap, flags));
+    int r = db->update_broadcast(db, txn, extrap, flags); CKERR(r);
     return r;
 }
 
@@ -77,7 +77,7 @@ static int do_verify_results(DB_TXN *txn, DB *db) {
     DBT *keyp = dbt_init(&key, &i, sizeof(i));
     DBT *valp = dbt_init(&val, NULL, 0);
     for (i = 0; i < NUM_KEYS; ++i) {
-        r = CHK(db->get(db, txn, keyp, valp, 0));
+        r = db->get(db, txn, keyp, valp, 0); CKERR(r);
         assert(val.size == sizeof(*vp));
         vp = val.data;
         assert(*vp == _u(_v(i), _e(i)));
@@ -90,21 +90,21 @@ static void run_test(BOOL is_resetting) {
     u_int32_t update_flags = is_resetting ? DB_IS_RESETTING_OP : 0;
 
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
-            CHK(db_create(&db, env, 0));
-            CHK(db->open(db, txn_1, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+            { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+            { int chk_r = db->open(db, txn_1, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
 
-            CHK(do_inserts(txn_1, db));
+            { int chk_r = do_inserts(txn_1, db); CKERR(chk_r); }
         });
 
     IN_TXN_COMMIT(env, NULL, txn_2, 0, {
-            CHK(do_updates(txn_2, db, update_flags));
+            { int chk_r = do_updates(txn_2, db, update_flags); CKERR(chk_r); }
         });
 
     IN_TXN_COMMIT(env, NULL, txn_3, 0, {
-            CHK(do_verify_results(txn_3, db));
+            { int chk_r = do_verify_results(txn_3, db); CKERR(chk_r); }
         });
 
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
 }
 
 int test_main (int argc, char * const argv[]) {

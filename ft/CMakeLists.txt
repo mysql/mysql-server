@@ -92,7 +92,7 @@ add_dependencies(ft_static install_tdb_h build_lzma)
 
 ## link with lzma (which should be static) and link dependers with zlib
 target_link_libraries(ft LINK_PRIVATE lzma)
-target_link_libraries(ft LINK_INTERFACE_LIBRARIES ${ZLIB_LIBRARIES})
+target_link_libraries(ft LINK_PUBLIC ${ZLIB_LIBRARIES})
 target_link_libraries(ft_static LINK_PRIVATE lzma)
 
 if (CMAKE_C_COMPILER_ID STREQUAL Intel)

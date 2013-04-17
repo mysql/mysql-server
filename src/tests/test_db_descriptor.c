@@ -87,11 +87,11 @@ open_db(int descriptor, int which) {
     if (descriptor >= 0) {
         assert(descriptor < NUM);
         if (txn) {
-            CHK(db->change_descriptor(db, txn, &descriptors[descriptor], 0));
+            { int chk_r = db->change_descriptor(db, txn, &descriptors[descriptor], 0); CKERR(chk_r); }
         }
         else {
             IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-                CHK(db->change_descriptor(db, txn_desc, &descriptors[descriptor], 0));
+                    { int chk_r = db->change_descriptor(db, txn_desc, &descriptors[descriptor], 0); CKERR(chk_r); }
             });
         }
         last_open_descriptor = descriptor;

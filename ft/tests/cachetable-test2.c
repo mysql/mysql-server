@@ -257,7 +257,7 @@ static void test_chaining (void) {
     r = toku_cachetable_close(&ct); assert(r==0);
 }
 
-static void __attribute__((__noreturn__))
+static void __attribute__((__noreturn__,unused))
 usage (const char *progname) {
     fprintf(stderr, "Usage:\n %s [-v] [-q]\n", progname);
     exit(1);

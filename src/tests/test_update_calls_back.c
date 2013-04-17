@@ -30,16 +30,16 @@ static int update_fun(DB *UU(db),
 }
 
 static void setup (void) {
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
     env->set_update(env, update_fun);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void cleanup (void) {
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 int test_main (int argc, char * const argv[]) {
@@ -50,10 +50,10 @@ int test_main (int argc, char * const argv[]) {
 
     {
         DB_TXN* txna = NULL;
-        CHK(env->txn_begin(env, NULL, &txna, 0));
+        { int chk_r = env->txn_begin(env, NULL, &txna, 0); CKERR(chk_r); }
 
-        CHK(db_create(&db, env, 0));
-        CHK(db->open(db, txna, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+        { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+        { int chk_r = db->open(db, txna, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
 
         {
             DBT key, val;
@@ -61,16 +61,16 @@ int test_main (int argc, char * const argv[]) {
             DBT *keyp = dbt_init(&key, &i, sizeof(i));
             DBT *valp = dbt_init(&val, "a", 2);
             for (i = 0; i < (sizeof(to_update) / sizeof(to_update[0])); ++i) {
-                CHK(db->put(db, txna, keyp, valp, 0));
+                { int chk_r = db->put(db, txna, keyp, valp, 0); CKERR(chk_r); }
             }
         }
 
-        CHK(txna->commit(txna, 0));
+        { int chk_r = txna->commit(txna, 0); CKERR(chk_r); }
     }
 
     {
         DB_TXN *txnb = NULL;
-        CHK(env->txn_begin(env, NULL, &txnb, 0));
+        { int chk_r = env->txn_begin(env, NULL, &txnb, 0); CKERR(chk_r); }
 
         {
             DBT key, nullextra;
@@ -79,15 +79,15 @@ int test_main (int argc, char * const argv[]) {
             DBT *nullextrap = dbt_init(&nullextra, NULL, 0);
             for (i = 0; i < (sizeof(to_update) / sizeof(to_update[0])); ++i) {
                 if (to_update[i] == 1) {
-                    CHK(db->update(db, txnb, keyp, nullextrap, 0));
+                    { int chk_r = db->update(db, txnb, keyp, nullextrap, 0); CKERR(chk_r); }
                 }
             }
         }
 
-        CHK(txnb->commit(txnb, 0));
+        { int chk_r = txnb->commit(txnb, 0); CKERR(chk_r); }
     }
 
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
 
     cleanup();
 

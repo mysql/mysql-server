@@ -166,7 +166,7 @@ db_startup(DICTIONARY d, DB_TXN *open_txn) {
         DBT desc;
         IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
             dbt_init(&desc, "foo", sizeof("foo"));
-            CHK(db->change_descriptor(db, txn_desc, &desc,0));
+            { int chk_r = db->change_descriptor(db, txn_desc, &desc,0); CKERR(chk_r); }
             });
     }
 }

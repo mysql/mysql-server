@@ -15,12 +15,12 @@ static void clean_env (const char *envdir) {
 }
 
 static void setup_env (DB_ENV **envp, const char *envdir) {
-    CHK(db_env_create(envp, 0));
+    { int chk_r = db_env_create(envp, 0); CKERR(chk_r); }
     (*envp)->set_errfile(*envp, stderr);
 #ifdef TOKUDB
-    CHK((*envp)->set_redzone(*envp, 0));
+    { int chk_r = (*envp)->set_redzone(*envp, 0); CKERR(chk_r); }
 #endif
-    CHK((*envp)->open(*envp, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = (*envp)->open(*envp, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commit) {
@@ -33,7 +33,7 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commi
     CKERR((*envp)->txn_begin(*envp, 0, &txn, 0));
     DBT key={.size=4, .data="foo"};
     CKERR(db->put(db, txn, &key, &key, 0));
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
     u_int8_t gid[DB_GID_SIZE];
     memset(gid, 0, DB_GID_SIZE);
     gid[0]=42;
@@ -104,9 +104,9 @@ static void test (void) {
 	for (int i=1; i<DB_GID_SIZE; i++) {
 	    assert(l[0].gid[i]==0);
 	}
-	CHK(l->txn->commit(l->txn, 0));
+	{ int chk_r = l->txn->commit(l->txn, 0); CKERR(chk_r); }
     }
-    CHK(env ->close(env,  0));
+    { int chk_r = env ->close(env,  0); CKERR(chk_r); }
 }
 
 int test_main (int argc, char *const argv[]) {

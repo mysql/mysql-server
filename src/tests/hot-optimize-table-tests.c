@@ -58,21 +58,21 @@ hot_test_setup(void)
 {
     int r = 0;
     // Remove any previous environment.
-    CHK(system("rm -rf " ENVDIR));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
 
     // Set up a new TokuDB.
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);CKERR(r);
     env->set_update(env, update_func);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void
 hot_test_destroy(void)
 {
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 ///
@@ -105,7 +105,7 @@ hot_insert_keys(DB* db, unsigned int key_count)
     DBT *valueptr = dbt_init(&value_thing, dummy, size);
     for (key = 0; key < key_count; ++key)
     {
-        CHK(db->put(db, xact, keyptr, valueptr, 0));
+        { int chk_r = db->put(db, xact, keyptr, valueptr, 0); CKERR(chk_r); }
 
         // DEBUG OUTPUT
         //
@@ -129,8 +129,8 @@ hot_create_db(DB** db, const char* c)
     DB_TXN* xact;
     verbose ? printf("Creating DB.\n") : 0;
     r = env->txn_begin(env, 0, &xact, 0); CKERR(r);
-    CHK(db_create(db, env, 0));
-    CHK((*db)->open((*db), xact, c, NULL, DB_BTREE, DB_CREATE, 0666));
+    { int chk_r = db_create(db, env, 0); CKERR(chk_r); }
+    { int chk_r = (*db)->open((*db), xact, c, NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
     r = xact->commit(xact, 0); CKERR(r);
     verbose ? printf("DB Created.\n") : 0;
 }
@@ -154,7 +154,7 @@ hot_test(DB* db, unsigned int size)
     DBT *extrap = dbt_init(&extra, &x_results, sizeof x_results);
     DB_TXN * xact;
     r = env->txn_begin(env, 0, &xact, 0); CKERR(r);
-    r = CHK(db->update_broadcast(db, xact, extrap, 0));
+    r = db->update_broadcast(db, xact, extrap, 0); CKERR(r);
     r = xact->commit(xact, 0); CKERR(r);
 
     // Flatten the tree.
