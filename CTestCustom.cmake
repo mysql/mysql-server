@@ -124,7 +124,6 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE ${perf_tests})
 ## these tests fail often and aren't helpful
 set(known_failing_tests
   diskfull.tdb
-  recovery_fileops_unit.tdb
   )
 list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE ${known_failing_tests})
 list(APPEND CTEST_CUSTOM_TESTS_IGNORE ${known_failing_tests})
