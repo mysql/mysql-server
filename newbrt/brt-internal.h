@@ -386,6 +386,7 @@ void toku_le_get_status(LE_STATUS);
 typedef struct update_status {
     u_int64_t updates;
     u_int64_t updates_broadcast;
+    u_int64_t descriptor_set;
 } UPDATE_STATUS_S, *UPDATE_STATUS;
 
 void toku_update_get_status(UPDATE_STATUS);

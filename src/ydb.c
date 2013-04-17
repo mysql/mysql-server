@@ -1929,6 +1929,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    toku_update_get_status(&update_stat);
 	    engstat->le_updates = update_stat.updates;
 	    engstat->le_updates_broadcast = update_stat.updates_broadcast;
+	    engstat->descriptor_set = update_stat.descriptor_set;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -2115,6 +2116,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "updates_broadcast_fail           %"PRIu64"\n", engstat.updates_broadcast_fail);
 	n += snprintf(buff + n, bufsiz - n, "le_updates                       %"PRIu64"\n", engstat.le_updates);
 	n += snprintf(buff + n, bufsiz - n, "le_updates_broadcast             %"PRIu64"\n", engstat.le_updates_broadcast);
+	n += snprintf(buff + n, bufsiz - n, "descriptor_set                   %"PRIu64"\n", engstat.descriptor_set);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts_fail               %"PRIu64"\n", engstat.multi_inserts_fail);
 	n += snprintf(buff + n, bufsiz - n, "multi_deletes                    %"PRIu64"\n", engstat.multi_deletes);
