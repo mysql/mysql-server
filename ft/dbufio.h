@@ -14,7 +14,7 @@
 /* An implementation would typically use a separate thread or asynchronous I/O to fetch ahead data for each file.  The system will typically fill two buffers of size M for each file.  One buffer is being read out of using dbuf_read(), and the other buffer is either empty (waiting on the asynchronous I/O to start), being filled in by the asynchronous I/O mechanism, or is waiting for the caller to read data from it. */
 typedef struct dbufio_fileset *DBUFIO_FILESET; 
 
-int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t bufsize);
+int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t bufsize, bool compressed);
 
 int destroy_dbufio_fileset(DBUFIO_FILESET);
 

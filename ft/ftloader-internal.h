@@ -12,6 +12,19 @@
 #include <toku_pthread.h>
 #include "dbufio.h"
 
+enum { EXTRACTOR_QUEUE_DEPTH = 2,
+       FILE_BUFFER_SIZE  = 1<<24,
+       MIN_ROWSET_MEMORY = 1<<23,
+       MIN_MERGE_FANIN   = 2,
+       FRACTAL_WRITER_QUEUE_DEPTH = 3,
+       FRACTAL_WRITER_ROWSETS = FRACTAL_WRITER_QUEUE_DEPTH + 2,
+       DBUFIO_DEPTH = 2,
+       TARGET_MERGE_BUF_SIZE = 1<<24, // we'd like the merge buffer to be this big.
+       MIN_MERGE_BUF_SIZE = 1<<20, // always use at least this much
+       MAX_UNCOMPRESSED_BUF = MIN_MERGE_BUF_SIZE
+};
+
+
 /* These functions are exported to allow the tests to compile. */
 
 /* These structures maintain a collection of all the open temporary files used by the loader. */
@@ -56,7 +69,7 @@ int init_rowset (struct rowset *rows, uint64_t memory_budget);
 void destroy_rowset (struct rowset *rows);
 int add_row (struct rowset *rows, DBT *key, DBT *val);
 
-int loader_write_row(DBT *key, DBT *val, FIDX data, FILE*, uint64_t *dataoff, FTLOADER bl);
+int loader_write_row(DBT *key, DBT *val, FIDX data, FILE*, uint64_t *dataoff, struct wbuf *wb, FTLOADER bl);
 int loader_read_row (FILE *f, DBT *key, DBT *val);
 
 struct merge_fileset {
@@ -146,6 +159,7 @@ struct ft_loader_s {
 
     CACHETABLE cachetable;
     bool did_reserve_memory;
+    bool compress_intermediates;
     uint64_t   reserved_memory; // how much memory are we allowed to use?
 
     /* To make it easier to recover from errors, we don't use FILE*, instead we use an index into the file_infos. */
@@ -243,7 +257,8 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 				   const char *temp_file_template,
 				   LSN load_lsn,
                                    TOKUTXN txn,
-                                   bool reserve_memory);
+                                   bool reserve_memory,
+                                   bool compress_intermediates);
 
 void toku_ft_loader_internal_destroy (FTLOADER bl, bool is_error);
 

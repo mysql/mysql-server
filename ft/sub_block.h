@@ -44,7 +44,7 @@ sub_block_header_size(int n_sub_blocks);
 void
 set_compressed_size_bound(struct sub_block *se, enum toku_compression_method method);
 
-// get the sum of the sub block compressed sizes 
+// get the sum of the sub block compressed bound sizes 
 size_t 
 get_sum_compressed_size_bound(int n_sub_blocks, struct sub_block sub_block[], enum toku_compression_method method);
 

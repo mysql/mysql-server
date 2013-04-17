@@ -11,6 +11,9 @@
 #include <unistd.h>
 #include "memory.h"
 #include <string.h>
+#include "ftloader-internal.h"
+#include "ft-internal.h"
+#include "ft.h"
 
 struct dbufio_file {
     // i/o thread owns these
@@ -18,7 +21,7 @@ struct dbufio_file {
 
     // consumers own these
     size_t offset_in_buf;
-    toku_off_t  offset_in_file;
+    toku_off_t  offset_in_uncompressed_file;
 
     // need the mutex to modify these
     struct dbufio_file *next;
@@ -49,6 +52,7 @@ struct dbufio_fileset {
     size_t bufsize; // the bufsize is the constant (the same for all buffers).
 
     bool panic;
+    bool compressed;
     int  panic_errno;
     toku_pthread_t iothread;
 };
@@ -73,6 +77,162 @@ static void panic (DBUFIO_FILESET bfs, int r) {
 
 static bool paniced (DBUFIO_FILESET bfs) {
     return bfs->panic;
+}
+
+static ssize_t dbf_read_some_compressed(struct dbufio_file *dbf, char *buf, size_t bufsize) {
+    ssize_t ret;
+    invariant(bufsize >= MAX_UNCOMPRESSED_BUF);
+    unsigned char *raw_block = NULL;
+
+    // deserialize the sub block header
+
+    // total_size
+    // num_sub_blocks
+    // compressed_size,uncompressed_size,xsum (repeated num_sub_blocks times)
+    ssize_t readcode;
+    const uint32_t header_size = sizeof(uint32_t);
+    char header[header_size];
+
+    readcode = toku_os_read(dbf->fd, &header, header_size);
+    if (readcode < 0) {
+        ret = -1;
+        goto exit;
+    }
+    if (readcode == 0) {
+        ret = 0;
+        goto exit;
+    }
+    if (readcode < header_size) {
+        errno = TOKUDB_NO_DATA;
+        ret = -1;
+        goto exit;
+    }
+    uint32_t total_size;
+    {
+        uint32_t *p = (uint32_t *) &header[0];
+        total_size = toku_dtoh32(p[0]);
+    }
+    if (total_size == 0 || total_size > (1<<30)) {
+        errno = toku_db_badformat(); 
+        ret = -1;
+        goto exit;
+    }
+
+    //Cannot use XMALLOC
+    MALLOC_N(total_size, raw_block);
+    if (raw_block == nullptr) {
+        errno = ENOMEM;
+        ret = -1;
+        goto exit;
+    }
+    readcode = toku_os_read(dbf->fd, raw_block, total_size);
+    if (readcode < 0) {
+        ret = -1;
+        goto exit;
+    }
+    if (readcode < total_size) {
+        errno = TOKUDB_NO_DATA;
+        ret = -1;
+        goto exit;
+    }
+
+    struct sub_block sub_block[max_sub_blocks];
+    uint32_t *sub_block_header;
+    sub_block_header = (uint32_t *) &raw_block[0];
+    int32_t n_sub_blocks;
+    n_sub_blocks = toku_dtoh32(sub_block_header[0]);
+    sub_block_header++;
+    size_t size_subblock_header;
+    size_subblock_header = sub_block_header_size(n_sub_blocks);
+    if (n_sub_blocks == 0 || n_sub_blocks > max_sub_blocks || size_subblock_header > total_size) {
+        errno = toku_db_badformat(); 
+        ret = -1;
+        goto exit;
+    }
+    for (int i = 0; i < n_sub_blocks; i++) {
+        sub_block_init(&sub_block[i]);
+        sub_block[i].compressed_size = toku_dtoh32(sub_block_header[0]);
+        sub_block[i].uncompressed_size = toku_dtoh32(sub_block_header[1]);
+        sub_block[i].xsum = toku_dtoh32(sub_block_header[2]);
+        sub_block_header += 3;
+    }
+
+    // verify sub block sizes
+    size_t total_compressed_size;
+    total_compressed_size = 0;
+    for (int i = 0; i < n_sub_blocks; i++) {
+        uint32_t compressed_size = sub_block[i].compressed_size;
+        if (compressed_size<=0   || compressed_size>(1<<30)) { 
+            errno = toku_db_badformat(); 
+            ret = -1;
+            goto exit;
+        }
+
+        uint32_t uncompressed_size = sub_block[i].uncompressed_size;
+        if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { 
+            errno = toku_db_badformat(); 
+            ret = -1;
+            goto exit;
+        }
+        total_compressed_size += compressed_size;
+    }
+    if (total_size != total_compressed_size + size_subblock_header) {
+        errno = toku_db_badformat(); 
+        ret = -1;
+        goto exit;
+    }
+
+    // sum up the uncompressed size of the sub blocks
+    size_t uncompressed_size;
+    uncompressed_size = get_sum_uncompressed_size(n_sub_blocks, sub_block);
+    if (uncompressed_size > bufsize || uncompressed_size > MAX_UNCOMPRESSED_BUF) {
+        errno = toku_db_badformat(); 
+        ret = -1;
+        goto exit;
+    }
+
+    unsigned char *uncompressed_data;
+    uncompressed_data = (unsigned char *)buf;
+
+    // point at the start of the compressed data (past the node header, the sub block header, and the header checksum)
+    unsigned char *compressed_data;
+    compressed_data = raw_block + size_subblock_header;
+
+    // decompress all the compressed sub blocks into the uncompressed buffer
+    {
+        int r;
+        r = decompress_all_sub_blocks(n_sub_blocks, sub_block, compressed_data, uncompressed_data, get_num_cores(), get_ft_pool());
+        if (r != 0) {
+            fprintf(stderr, "%s:%d loader failed %d at %p size %" PRIu32"\n", __FUNCTION__, __LINE__, r, raw_block, total_size);
+            dump_bad_block(raw_block, total_size);
+            errno = r;
+            ret = -1;
+            goto exit;
+        }
+    }
+    ret = uncompressed_size;
+exit:
+    if (raw_block) {
+        toku_free(raw_block);
+    }
+    return ret;
+}
+
+static ssize_t dbf_read_compressed(struct dbufio_file *dbf, char *buf, size_t bufsize) {
+    invariant(bufsize >= MAX_UNCOMPRESSED_BUF);
+    size_t count = 0;
+
+    while (count + MAX_UNCOMPRESSED_BUF <= bufsize) {
+        ssize_t readcode = dbf_read_some_compressed(dbf, buf + count, bufsize - count);
+        if (readcode < 0) {
+            return readcode;
+        }
+        count += readcode;
+        if (readcode == 0) {
+            break;
+        }
+    }
+    return count;
 }
 
 static void* io_thread (void *v)
@@ -118,7 +278,13 @@ static void* io_thread (void *v)
             toku_mutex_unlock(&bfs->mutex);
 	    //printf("%s:%d Doing read fd=%d\n", __FILE__, __LINE__, dbf->fd);
 	    {
-		ssize_t readcode = toku_os_read(dbf->fd, dbf->buf[1], bfs->bufsize);
+		ssize_t readcode;
+                if (bfs->compressed) {
+                    readcode = dbf_read_compressed(dbf, dbf->buf[1], bfs->bufsize);
+                }
+                else {
+                    readcode = toku_os_read(dbf->fd, dbf->buf[1], bfs->bufsize);
+                }
 		//printf("%s:%d readcode=%ld\n", __FILE__, __LINE__, readcode);
 		if (readcode==-1) {
 		    // a real error.  Save the real error.
@@ -159,11 +325,14 @@ static void* io_thread (void *v)
     }
 }
 
-int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t bufsize) {
+int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t bufsize, bool compressed) {
     //printf("%s:%d here\n", __FILE__, __LINE__);
     int result = 0;
     DBUFIO_FILESET CALLOC(bfs);
     if (bfs==0) { result = get_error_errno(); }
+
+    bfs->compressed = compressed;
+
     bool mutex_inited = false, cond_inited = false;
     if (result==0) {
 	CALLOC_N(N, bfs->files);
@@ -190,7 +359,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 	for (int i=0; i<N; i++) {
 	    bfs->files[i].fd = fds[i];
 	    bfs->files[i].offset_in_buf = 0;
-	    bfs->files[i].offset_in_file = 0;
+	    bfs->files[i].offset_in_uncompressed_file = 0;
 	    bfs->files[i].next = NULL;
 	    bfs->files[i].second_buf_ready = false;
 	    for (int j=0; j<2; j++) {
@@ -202,12 +371,18 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 		bfs->files[i].error_code[j] = 0;
 	    }
 	    bfs->files[i].io_done = false;
-	    {
-		ssize_t r = toku_os_read(bfs->files[i].fd, bfs->files[i].buf[0], bufsize);
+            ssize_t r;
+            if (bfs->compressed) {
+                r = dbf_read_compressed(&bfs->files[i], bfs->files[i].buf[0], bufsize);
+            } else {
+                //TODO: 5663 If compressed need to read differently
+		r = toku_os_read(bfs->files[i].fd, bfs->files[i].buf[0], bufsize);
+            }
+            {
 		if (r<0) {
 		    result=get_error_errno();
 		    break;
-		} else if (r==0) {
+                } else if (r==0) {
 		    // it's EOF
 		    bfs->files[i].io_done = true;
 		    bfs->n_not_done--;
@@ -297,7 +472,7 @@ int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t co
 	// Enough data is present to do it all now
 	memcpy(buf, dbf->buf[0]+dbf->offset_in_buf, count);
 	dbf->offset_in_buf += count;
-	dbf->offset_in_file += count;
+	dbf->offset_in_uncompressed_file += count;
 	*n_read = count;
 	return 0;
     } else if (dbf->n_in_buf[0] > dbf->offset_in_buf) {
@@ -306,7 +481,7 @@ int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t co
 	assert(dbf->offset_in_buf + this_count <= bfs->bufsize);
 	memcpy(buf, dbf->buf[0]+dbf->offset_in_buf, this_count);
 	dbf->offset_in_buf += this_count;
-	dbf->offset_in_file += this_count;
+	dbf->offset_in_uncompressed_file += this_count;
 	size_t sub_n_read;
 	int r = dbufio_fileset_read(bfs, filenum, buf+this_count, count-this_count, &sub_n_read);
 	if (r==0) {

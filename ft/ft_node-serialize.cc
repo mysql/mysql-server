@@ -10,6 +10,7 @@
 #include <portability/toku_atomic.h>
 #include <util/sort.h>
 #include <util/threadpool.h>
+#include "ft.h"
 
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 
@@ -56,6 +57,14 @@ static inline void do_toku_trace(const char *cp, int len) {
 
 static int num_cores = 0; // cache the number of cores for the parallelization
 static struct toku_thread_pool *ft_pool = NULL;
+
+int get_num_cores(void) {
+    return num_cores;
+}
+
+struct toku_thread_pool *get_ft_pool(void) {
+    return ft_pool;
+}
 
 void 
 toku_ft_serialize_layer_init(void) {
@@ -980,7 +989,7 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
 
 // dump a buffer to stderr
 // no locking around this for now
-static void
+void
 dump_bad_block(unsigned char *vp, uint64_t size) {
     const uint64_t linesize = 64;
     uint64_t n = size / linesize;
@@ -1181,14 +1190,7 @@ read_and_decompress_sub_block(struct rbuf *rb, struct sub_block *sb)
         goto exit;
     }
 
-    sb->uncompressed_ptr = toku_xmalloc(sb->uncompressed_size);
-
-    toku_decompress(
-        (Bytef *) sb->uncompressed_ptr,
-        sb->uncompressed_size,
-        (Bytef *) sb->compressed_ptr,
-        sb->compressed_size
-        );
+    just_decompress_sub_block(sb);
 exit:
     return r;
 }

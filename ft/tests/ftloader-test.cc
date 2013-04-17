@@ -187,7 +187,7 @@ static void test_read_write_rows (char *tf_template) {
         toku_fill_dbt(&key, keystrings[i], strlen(keystrings[i]));
 	DBT val;
         toku_fill_dbt(&val, valstrings[i], strlen(valstrings[i]));
-	r = loader_write_row(&key, &val, file, toku_bl_fidx2file(&bl, file), &dataoff, &bl);
+	r = loader_write_row(&key, &val, file, toku_bl_fidx2file(&bl, file), &dataoff, nullptr, &bl);
 	CKERR(r);
 	actual_size+=key.size + val.size + 8;
     }

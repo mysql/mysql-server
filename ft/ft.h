@@ -110,4 +110,7 @@ void toku_ft_set_blackhole(FT_HANDLE ft_handle);
 //         The difference between the two is MVCC garbage.
 void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space);
 
+int get_num_cores(void);
+struct toku_thread_pool *get_ft_pool(void);
+void dump_bad_block(unsigned char *vp, uint64_t size);
 #endif

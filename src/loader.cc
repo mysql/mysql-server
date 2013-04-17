@@ -174,6 +174,7 @@ toku_loader_create_loader(DB_ENV *env,
 
     DB_LOADER *loader = NULL;
     bool puts_allowed = !(loader_flags & LOADER_DISALLOW_PUTS);
+    bool compress_intermediates = (loader_flags & LOADER_COMPRESS_INTERMEDIATES) != 0;
     XCALLOC(loader);       // init to all zeroes (thus initializing the error_callback and poll_func)
     XCALLOC(loader->i);    // init to all zeroes (thus initializing all pointers to NULL)
 
@@ -252,7 +253,8 @@ toku_loader_create_loader(DB_ENV *env,
                                  loader->i->temp_file_template,
                                  load_lsn,
                                  ttxn,
-                                 puts_allowed);
+                                 puts_allowed,
+                                 compress_intermediates);
         if ( rval!=0 ) {
             toku_free(new_inames_in_env);
             toku_free(brts);

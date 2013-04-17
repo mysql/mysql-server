@@ -546,14 +546,22 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   add_test(ydb/loader-stress-test2.tdb loader-stress-test.tdb -r 5000 -s -e dir.loader-stress-test2.tdb)
   add_test(ydb/loader-stress-test3.tdb loader-stress-test.tdb -u -c -e dir.loader-stress-test3.tdb)
   add_test(ydb/loader-stress-test4.tdb loader-stress-test.tdb -r 10000000 -c -e dir.loader-stress-test4.tdb)
-  add_test(ydb/loader-stress-test5.tdb loader-stress-test.tdb -c -z -e dir.loader-stress-test5.tdb)
+  add_test(ydb/loader-stress-test0z.tdb loader-stress-test.tdb -c -e dir.loader-stress-test0z.tdb -z)
+  add_test(ydb/loader-stress-test1z.tdb loader-stress-test.tdb -c -p -e dir.loader-stress-test1z.tdb -z)
+  add_test(ydb/loader-stress-test2z.tdb loader-stress-test.tdb -r 5000 -s -e dir.loader-stress-test2z.tdb -z)
+  add_test(ydb/loader-stress-test3z.tdb loader-stress-test.tdb -u -c -e dir.loader-stress-test3z.tdb -z)
+  add_test(ydb/loader-stress-test4z.tdb loader-stress-test.tdb -r 10000000 -c -e dir.loader-stress-test4z.tdb -z)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.loader-stress-test0.tdb
     dir.loader-stress-test1.tdb
     dir.loader-stress-test2.tdb
     dir.loader-stress-test3.tdb
     dir.loader-stress-test4.tdb
-    dir.loader-stress-test5.tdb
+    dir.loader-stress-test0z.tdb
+    dir.loader-stress-test1z.tdb
+    dir.loader-stress-test2z.tdb
+    dir.loader-stress-test3z.tdb
+    dir.loader-stress-test4z.tdb
     )
 
   list(REMOVE_ITEM loader_tests loader-dup-test.loader)
@@ -563,6 +571,12 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   add_test(ydb/loader-dup-test3.tdb loader-dup-test.tdb -d 1 -s -r 100 -e dir.loader-dup-test3.tdb)
   add_test(ydb/loader-dup-test4.tdb loader-dup-test.tdb -d 1 -s -r 1000 -e dir.loader-dup-test4.tdb)
   add_test(ydb/loader-dup-test5.tdb loader-dup-test.tdb -d 1 -s -r 1000 -E -e dir.loader-dup-test5.tdb)
+  add_test(ydb/loader-dup-test0z.tdb loader-dup-test.tdb -e dir.loader-dup-test0z.tdb -z)
+  add_test(ydb/loader-dup-test1z.tdb loader-dup-test.tdb -d 1 -r 500000 -e dir.loader-dup-test1z.tdb -z)
+  add_test(ydb/loader-dup-test2z.tdb loader-dup-test.tdb -d 1 -r 1000000 -e dir.loader-dup-test2z.tdb -z)
+  add_test(ydb/loader-dup-test3z.tdb loader-dup-test.tdb -d 1 -s -r 100 -e dir.loader-dup-test3z.tdb -z)
+  add_test(ydb/loader-dup-test4z.tdb loader-dup-test.tdb -d 1 -s -r 1000 -e dir.loader-dup-test4z.tdb -z)
+  add_test(ydb/loader-dup-test5z.tdb loader-dup-test.tdb -d 1 -s -r 1000 -E -e dir.loader-dup-test5z.tdb -z)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.loader-dup-test0.tdb
     dir.loader-dup-test1.tdb
@@ -570,6 +584,12 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     dir.loader-dup-test3.tdb
     dir.loader-dup-test4.tdb
     dir.loader-dup-test5.tdb
+    dir.loader-dup-test0z.tdb
+    dir.loader-dup-test1z.tdb
+    dir.loader-dup-test2z.tdb
+    dir.loader-dup-test3z.tdb
+    dir.loader-dup-test4z.tdb
+    dir.loader-dup-test5z.tdb
     )
 
   ## as part of #4503, we took out test 1 and 3
@@ -578,6 +598,8 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   #add_test(ydb/loader-cleanup-test1.tdb loader-cleanup-test.tdb -s -r 800 -p -e dir.loader-cleanup-test1.tdb)
   add_test(ydb/loader-cleanup-test2.tdb loader-cleanup-test.tdb -s -r 8000 -e dir.loader-cleanup-test2.tdb)
   #add_test(ydb/loader-cleanup-test3.tdb loader-cleanup-test.tdb -s -r 8000 -p -e dir.loader-cleanup-test3.tdb)
+  add_test(ydb/loader-cleanup-test0z.tdb loader-cleanup-test.tdb -s -r 800 -e dir.loader-cleanup-test0z.tdb -z)
+  add_test(ydb/loader-cleanup-test2z.tdb loader-cleanup-test.tdb -s -r 8000 -e dir.loader-cleanup-test2z.tdb -z)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.loader-cleanup-test0.tdb
     dir.loader-cleanup-test1.tdb
@@ -606,11 +628,15 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     )
 
   declare_custom_tests(maxsize-for-loader.tdb)
-  add_test(ydb/maxsize-for-loader-A.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-A.tdb -f)
-  add_test(ydb/maxsize-for-loader-B.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-B.tdb)
+  add_test(ydb/maxsize-for-loader-A.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-A.tdb -f -c)
+  add_test(ydb/maxsize-for-loader-B.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-B.tdb -c)
+  add_test(ydb/maxsize-for-loader-Az.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-Az.tdb -f -z -c)
+  add_test(ydb/maxsize-for-loader-Bz.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-Bz.tdb -z -c)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.maxsize-for-loader-A.tdb
     dir.maxsize-for-loader-B.tdb
+    dir.maxsize-for-loader-Az.tdb
+    dir.maxsize-for-loader-Bz.tdb
     )
 
   declare_custom_tests(hotindexer-undo-do-test.tdb)
@@ -667,6 +693,8 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/env-put-multiple.tdb
     ydb/filesize.tdb
     ydb/loader-cleanup-test0.tdb
+    ydb/loader-cleanup-test0z.tdb
+    ydb/loader-cleanup-test2z.tdb
     ydb/manyfiles.tdb
     ydb/recover-loader-test.abortrecover
     ydb/recovery_fileops_stress.tdb
@@ -712,6 +740,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/loader-stress-del.nop.loader
     ydb/loader-stress-del.p.loader
     ydb/loader-stress-del.comp.loader
+    ydb/loader-stress-test4z.tdb
     ydb/test3039.tdb
     ydb/test3529.tdb
     ydb/test_update_stress.tdb
