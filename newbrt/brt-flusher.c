@@ -147,7 +147,7 @@ update_flush_status(BRTNODE child, int cascades) {
 }
 
 static void
-maybe_destroy_child_blbs(BRTNODE node, BRTNODE child)
+maybe_destroy_child_blbs(BRTNODE node, BRTNODE child, struct brt_header* h)
 {
     // If the node is already fully in memory, as in upgrade, we don't
     // need to destroy the basement nodes because they are all equally
@@ -157,13 +157,9 @@ maybe_destroy_child_blbs(BRTNODE node, BRTNODE child)
         !child->dirty) {
         for (int i = 0; i < child->n_children; ++i) {
             if (BP_STATE(child, i) == PT_AVAIL &&
-                node->max_msn_applied_to_node_on_disk.msn < BLB_MAX_MSN_APPLIED(child, i).msn) {
-                BASEMENTNODE bn = BLB(child, i);
-                struct mempool * mp = &bn->buffer_mempool;
-                toku_mempool_destroy(mp);
-                destroy_basement_node(bn);
-                set_BNULL(child,i);
-                BP_STATE(child,i) = PT_ON_DISK;
+                node->max_msn_applied_to_node_on_disk.msn < BLB_MAX_MSN_APPLIED(child, i).msn) 
+            {
+                toku_evict_bn_from_memory(child, i, h);
             }
         }
     }
@@ -1060,7 +1056,7 @@ flush_this_child(
     int r;
     toku_assert_entire_node_in_memory(node);
     if (fa->should_destroy_basement_nodes(fa)) {
-        maybe_destroy_child_blbs(node, child);
+        maybe_destroy_child_blbs(node, child, h);
     }
     bring_node_fully_into_memory(child, h);
     toku_assert_entire_node_in_memory(child);
@@ -1510,7 +1506,7 @@ flush_some_child(
     call_flusher_thread_callback(ft_flush_after_child_pin);
 
     if (fa->should_destroy_basement_nodes(fa)) {
-        maybe_destroy_child_blbs(parent, child);
+        maybe_destroy_child_blbs(parent, child, h);
     }
 
     //Note that at this point, we don't have the entire child in.
@@ -1834,7 +1830,7 @@ flush_node_on_background_thread(struct brt_header *h, BRTNODE parent)
             // We're going to unpin the parent, so before we do, we must
             // check to see if we need to blow away the basement nodes to
             // keep the MSN invariants intact.
-            maybe_destroy_child_blbs(parent, child);
+            maybe_destroy_child_blbs(parent, child, h);
 
             //
             // can detach buffer and unpin root here

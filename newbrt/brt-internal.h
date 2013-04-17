@@ -531,6 +531,7 @@ struct brtenv {
     long long checksum_number;
 };
 
+void toku_evict_bn_from_memory(BRTNODE node, int childnum, struct brt_header* h);
 void toku_brt_status_update_pivot_fetch_reason(struct brtnode_fetch_extra *bfe);
 extern void toku_brtnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, BOOL for_checkpoint, void* write_extraargs);
 extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint, BOOL is_clone);
