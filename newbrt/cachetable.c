@@ -279,7 +279,7 @@ struct cachefile {
     int (*log_fassociate_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log all open files.
     int (*log_suppress_rollback_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log which files need rollbacks suppressed
     int (*close_userdata)(CACHEFILE cf, int fd, void *userdata, char **error_string, BOOL lsnvalid, LSN); // when closing the last reference to a cachefile, first call this function. 
-    int (*begin_checkpoint_userdata)(CACHEFILE cf, int fd, LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
+    int (*begin_checkpoint_userdata)(LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
     int (*checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // when checkpointing a cachefile, call this function.
     int (*end_checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // after checkpointing cachefiles call this function.
     int (*note_pin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
@@ -287,11 +287,9 @@ struct cachefile {
     toku_pthread_cond_t openfd_wait;    // openfd must wait until file is fully closed (purged from cachetable) if file is opened and closed simultaneously
     toku_pthread_cond_t closefd_wait;   // toku_cachefile_of_iname_and_add_reference() must wait until file is fully closed (purged from cachetable) if run while file is being closed.
     u_int32_t closefd_waiting;          // Number of threads waiting on closefd_wait (0 or 1, error otherwise).
-    struct rwlock checkpoint_lock; //protects checkpoint callback functions
-                                   //acts as fast mutex by only using 'write-lock'
     LSN most_recent_global_checkpoint_that_finished_early;
     LSN for_local_checkpoint;
-    enum cachefile_checkpoint_state checkpoint_state; //Protected by checkpoint_lock
+    enum cachefile_checkpoint_state checkpoint_state;
 
     int n_background_jobs; // how many jobs in the cachetable's kibbutz or
                            // on the cleaner thread (anything
@@ -758,7 +756,6 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
 	ct->cachefiles = newcf;
 
         rwlock_init(&newcf->fdlock);
-        rwlock_init(&newcf->checkpoint_lock);
         newcf->most_recent_global_checkpoint_that_finished_early = ZERO_LSN;
         newcf->for_local_checkpoint = ZERO_LSN;
         newcf->checkpoint_state = CS_NOT_IN_PROGRESS;
@@ -956,9 +953,6 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
 	    //assert(r == 0);
             rwlock_write_unlock(&cf->fdlock);
             rwlock_destroy(&cf->fdlock);
-            rwlock_write_lock(&cf->checkpoint_lock, ct->mutex); //Just to make sure we can get it
-            rwlock_write_unlock(&cf->checkpoint_lock);
-            rwlock_destroy(&cf->checkpoint_lock);
             assert(toku_list_empty(&cf->pairs_for_cachefile));
 	    toku_free(cf);
 	    *cfp = NULL;
@@ -1010,9 +1004,6 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
         cachetable_lock(ct);
         rwlock_write_unlock(&cf->fdlock);
         rwlock_destroy(&cf->fdlock);
-        rwlock_write_lock(&cf->checkpoint_lock, ct->mutex); //Just to make sure we can get it
-        rwlock_write_unlock(&cf->checkpoint_lock);
-        rwlock_destroy(&cf->checkpoint_lock);
         assert(toku_list_empty(&cf->pairs_for_cachefile));
         cachetable_unlock(ct);
 
@@ -3313,14 +3304,10 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             cachefiles_lock(ct);
 	    for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
 		if (cf->begin_checkpoint_userdata) {
-                    rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
-                    rwlock_write_lock(&cf->checkpoint_lock, ct->mutex);
                     assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
-		    int r = cf->begin_checkpoint_userdata(cf, cf->fd, ct->lsn_of_checkpoint_in_progress, cf->userdata);
+		    int r = cf->begin_checkpoint_userdata(ct->lsn_of_checkpoint_in_progress, cf->userdata);
 		    assert(r==0);
                     cf->checkpoint_state = CS_CALLED_BEGIN_CHECKPOINT;
-                    rwlock_write_unlock(&cf->checkpoint_lock);
-                    rwlock_read_unlock(&cf->fdlock);
 		}
 	    }
             cachefiles_unlock(ct);
@@ -3374,7 +3361,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 	for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
 	    if (cf->checkpoint_userdata) {
                 rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
-                rwlock_write_lock(&cf->checkpoint_lock, ct->mutex);
                 if (!logger || ct->lsn_of_checkpoint_in_progress.lsn != cf->most_recent_global_checkpoint_that_finished_early.lsn) {
                     assert(ct->lsn_of_checkpoint_in_progress.lsn >= cf->most_recent_global_checkpoint_that_finished_early.lsn);
                     cachetable_unlock(ct);
@@ -3389,7 +3375,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
                 else {
                     assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
                 }
-                rwlock_write_unlock(&cf->checkpoint_lock);
                 rwlock_read_unlock(&cf->fdlock);
 	    }
 	}
@@ -3403,7 +3388,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 	for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
 	    if (cf->end_checkpoint_userdata) {
                 rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
-                rwlock_write_lock(&cf->checkpoint_lock, ct->mutex);
                 if (!logger || ct->lsn_of_checkpoint_in_progress.lsn != cf->most_recent_global_checkpoint_that_finished_early.lsn) {
                     assert(ct->lsn_of_checkpoint_in_progress.lsn >= cf->most_recent_global_checkpoint_that_finished_early.lsn);
                     cachetable_unlock(ct);
@@ -3415,7 +3399,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
                     cachetable_lock(ct);
                 }
                 assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
-                rwlock_write_unlock(&cf->checkpoint_lock);
                 rwlock_read_unlock(&cf->fdlock);
 	    }
 	}
@@ -3618,7 +3601,7 @@ toku_cachefile_set_userdata (CACHEFILE cf,
                              int (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
 			     int (*close_userdata)(CACHEFILE, int, void*, char**, BOOL, LSN),
 			     int (*checkpoint_userdata)(CACHEFILE, int, void*),
-			     int (*begin_checkpoint_userdata)(CACHEFILE, int, LSN, void*),
+			     int (*begin_checkpoint_userdata)(LSN, void*),
                              int (*end_checkpoint_userdata)(CACHEFILE, int, void*),
                              int (*note_pin_by_checkpoint)(CACHEFILE, void*),
                              int (*note_unpin_by_checkpoint)(CACHEFILE, void*)) {
@@ -3841,133 +3824,3 @@ cleaner_thread (void *cachetable_v)
     return 0;
 }
 
-
-#if 0
-int 
-toku_cachetable_local_checkpoint_for_commit (CACHETABLE ct, TOKUTXN txn, uint32_t n, CACHEFILE cachefiles[n]) {
-    cachetable_lock(ct);
-    local_checkpoint++;
-    local_checkpoint_files += n;
-
-    LSN begin_checkpoint_lsn = ZERO_LSN;
-    uint32_t i;
-    TOKULOGGER logger = txn->logger; 
-    CACHEFILE cf;
-    assert(logger); //Need transaction, so there must be a logger
-    {
-        int r = toku_log_local_txn_checkpoint(logger, &begin_checkpoint_lsn, 0, txn->txnid64);
-        assert(r==0);
-    }
-    for (i = 0; i < n; i++) {
-        cf = cachefiles[i];
-        assert(cf->for_local_checkpoint.lsn == ZERO_LSN.lsn);
-        cf->for_local_checkpoint = begin_checkpoint_lsn;
-    }
-
-    //Write out all dirty pairs.
-    {
-        uint32_t num_pairs = 0;
-        uint32_t list_size = 256;
-        PAIR *list = NULL;
-        XMALLOC_N(list_size, list);
-        PAIR p;
-
-        //TODO: Determine if we can get rid of this use of pending_lock
-        rwlock_write_lock(&ct->pending_lock, ct->mutex);
-        for (i=0; i < ct->table_size; i++) {
-            for (p = ct->table[i]; p; p=p->hash_chain) {
-                //Only include pairs belonging to cachefiles in the checkpoint
-                if (p->cachefile->for_local_checkpoint.lsn != begin_checkpoint_lsn.lsn) continue;
-                if (p->state == CTPAIR_READING)
-                    continue;   // skip pairs being read as they will be clean
-                else if (p->state == CTPAIR_IDLE || p->state == CTPAIR_WRITING) {
-                    if (p->dirty) {
-                        ctpair_add_ref(p);
-                        list[num_pairs] = p;
-                        num_pairs++;
-                        if (num_pairs == list_size) {
-                            list_size *= 2;
-                            XREALLOC_N(list_size, list);
-                        }
-                    }
-                } else
-                    assert(0);
-            }
-        }
-        rwlock_write_unlock(&ct->pending_lock);
-
-        for (i = 0; i < num_pairs; i++) {
-            p = list[i];
-            if (!p->already_removed) {
-                write_pair_for_checkpoint(ct, p, TRUE);
-            }
-            ctpair_destroy(p);     //Release our reference
-            // Don't need to unlock and lock cachetable,
-            // because the cachetable was unlocked and locked while the flush callback ran.
-        }
-        toku_free(list);
-    }
-
-    for (i = 0; i < n; i++) {
-        int r;
-        cf = cachefiles[i];
-        rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
-        rwlock_write_lock(&cf->checkpoint_lock, ct->mutex);
-        BOOL own_cachetable_lock = TRUE;
-        switch (cf->checkpoint_state) {
-        case CS_NOT_IN_PROGRESS:
-            break;
-        case CS_CALLED_BEGIN_CHECKPOINT:
-            cachetable_unlock(ct);
-            own_cachetable_lock = FALSE;
-            assert(cf->checkpoint_state == CS_CALLED_BEGIN_CHECKPOINT);
-            r = cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
-            assert(r==0);
-            cf->checkpoint_state = CS_CALLED_CHECKPOINT;
-            //FALL THROUGH ON PURPOSE.
-        case CS_CALLED_CHECKPOINT:
-            if (own_cachetable_lock)
-                cachetable_unlock(ct);
-            //end_checkpoint fsyncs the fd, which needs the fdlock
-            assert(cf->checkpoint_state == CS_CALLED_CHECKPOINT);
-            r = cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
-            assert(r==0);
-            cf->checkpoint_state = CS_NOT_IN_PROGRESS;
-            cachetable_lock(ct);
-            assert(cf->most_recent_global_checkpoint_that_finished_early.lsn < ct->lsn_of_checkpoint_in_progress.lsn);
-            cf->most_recent_global_checkpoint_that_finished_early = ct->lsn_of_checkpoint_in_progress;
-	    local_checkpoint_during_checkpoint++;
-            break;
-        default:
-            assert(FALSE);
-        }
-        { //Begin
-            assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
-            r = cf->begin_checkpoint_userdata(cf, cf->fd, begin_checkpoint_lsn, cf->userdata);
-            assert(r==0);
-            cf->checkpoint_state = CS_CALLED_BEGIN_CHECKPOINT;
-        }
-        { //Middle
-            assert(cf->checkpoint_state == CS_CALLED_BEGIN_CHECKPOINT);
-            r = cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
-            assert(r==0);
-            cf->checkpoint_state = CS_CALLED_CHECKPOINT;
-        }
-        { //End
-            assert(cf->checkpoint_state == CS_CALLED_CHECKPOINT);
-            r = cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
-            assert(r==0);
-            cf->checkpoint_state = CS_NOT_IN_PROGRESS;
-        }
-        assert(cf->for_local_checkpoint.lsn == begin_checkpoint_lsn.lsn);
-        cf->for_local_checkpoint = ZERO_LSN;
-
-        rwlock_write_unlock(&cf->checkpoint_lock);
-        rwlock_read_unlock(&cf->fdlock);
-    }
-
-    cachetable_unlock(ct);
-
-    return 0;
-}
-#endif

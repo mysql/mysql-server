@@ -3667,7 +3667,7 @@ int toku_brt_create_cachetable(CACHETABLE *ct, long cachesize, LSN initial_lsn, 
 // Create checkpoint-in-progress versions of header and translation (btt) (and fifo for now...).
 //Has access to fd (it is protected).
 int
-toku_brtheader_begin_checkpoint (CACHEFILE UU(cachefile), int UU(fd), LSN checkpoint_lsn, void *header_v) {
+toku_brtheader_begin_checkpoint (LSN checkpoint_lsn, void *header_v) {
     struct brt_header *h = header_v;
     int r = h->panic;
     if (r==0) {
@@ -3897,7 +3897,7 @@ toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **malloc
 	    }
 	    int r2;
 	    //assert(lsn.lsn!=0);
-	    r2 = toku_brtheader_begin_checkpoint(cachefile, fd, lsn, header_v);
+	    r2 = toku_brtheader_begin_checkpoint(lsn, header_v);
 	    if (r==0) r = r2;
 	    r2 = toku_brtheader_checkpoint(cachefile, fd, h);
 	    if (r==0) r = r2;

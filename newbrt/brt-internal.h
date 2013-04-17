@@ -753,7 +753,7 @@ int toku_verify_brtnode (BRT brt, MSN rootmsn, MSN parentmsn,
 
 void toku_brtheader_free (struct brt_header *h);
 int toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn) __attribute__((__warn_unused_result__));
-int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, int fd, LSN checkpoint_lsn, void *header_v) __attribute__((__warn_unused_result__));
+int toku_brtheader_begin_checkpoint (LSN checkpoint_lsn, void *header_v) __attribute__((__warn_unused_result__));
 int toku_brtheader_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
 int toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
 int toku_maybe_upgrade_brt(BRT t) __attribute__((__warn_unused_result__));

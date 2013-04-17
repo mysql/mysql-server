@@ -266,8 +266,6 @@ static void *checkpoints(void *arg) {
 
 static int
 test_begin_checkpoint (
-    CACHEFILE UU(cachefile), 
-    int UU(fd), 
     LSN UU(checkpoint_lsn), 
     void* UU(header_v)) 
 {
