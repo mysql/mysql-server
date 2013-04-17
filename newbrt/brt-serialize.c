@@ -584,6 +584,7 @@ rebalance_brtnode_leaf(BRTNODE node)
         BLB_NBYTESINBUF(node, i) = sum_info.dsum;
 
         BP_STATE(node,i) = PT_AVAIL;
+        BP_TOUCH_CLOCK(node,i);
     }
     // now the subtree estimates
     toku_brt_leaf_reset_calc_leaf_stats(node);
@@ -992,9 +993,11 @@ setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe) {
     // setup memory needed for the node
     //
     for (int i = 0; i < node->n_children; i++) {
+        BP_INIT_UNTOUCHED_CLOCK(node,i);
         BP_STATE(node,i) = toku_brtnode_partition_state(bfe, i);
         if (BP_STATE(node,i) == PT_AVAIL) {
             setup_available_brtnode_partition(node, i);
+            BP_TOUCH_CLOCK(node,i);
         }
         else if (BP_STATE(node,i) == PT_COMPRESSED) {
             node->bp[i].ptr = toku_xmalloc(sizeof(struct sub_block));
@@ -1179,6 +1182,52 @@ cleanup:
         if (node) toku_free(node);
     }
     return r;
+}
+
+void
+toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode_fetch_extra* bfe) {
+    assert(BP_STATE(node,childnum) == PT_ON_DISK);
+    assert(node->bp[childnum].ptr == NULL);
+    
+    //
+    // setup the partition
+    //
+    setup_available_brtnode_partition(node, childnum);
+    BP_STATE(node,childnum) = PT_AVAIL;
+    
+    //
+    // read off disk and make available in memory
+    // 
+    // get the file offset and block size for the block
+    DISKOFF node_offset, total_node_disk_size;
+    toku_translate_blocknum_to_offset_size(
+        bfe->h->blocktable, 
+        node->thisnodename, 
+        &node_offset, 
+        &total_node_disk_size
+        );
+
+    u_int32_t curr_offset = (childnum==0) ? 0 : BP_OFFSET(node,childnum-1);
+    curr_offset += node->bp_offset;
+    u_int32_t curr_size = (childnum==0) ? BP_OFFSET(node,childnum) : (BP_OFFSET(node,childnum) - BP_OFFSET(node,childnum-1));
+    struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
+
+    u_int8_t *XMALLOC_N(curr_size, raw_block);
+    rbuf_init(&rb, raw_block, curr_size);
+    {
+        // read the block
+        ssize_t rlen = toku_os_pread(fd, raw_block, curr_size, node_offset+curr_offset);
+        lazy_assert((DISKOFF)rlen == curr_size);
+    }
+    
+    struct sub_block curr_sb;
+    sub_block_init(&curr_sb);
+
+    read_and_decompress_sub_block(&rb, &curr_sb);
+    // at this point, sb->uncompressed_ptr stores the serialized node partition
+    deserialize_brtnode_partition(&curr_sb, node, childnum);
+    toku_free(curr_sb.uncompressed_ptr);
+    toku_free(raw_block);
 }
 
 // Take a brtnode partition that is in the compressed state, and make it avail

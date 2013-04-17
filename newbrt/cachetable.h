@@ -135,7 +135,7 @@ typedef BOOL (*CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK)(void *brtnode_pv, voi
 // The partial fetch callback is called when a thread needs to read a subset of a PAIR into memory
 // Returns: 0 if success, otherwise an error number.  
 // The number of bytes added is returned in sizep
-typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_extraargs, long *sizep);
+typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_extraargs, int fd, long *sizep);
 
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),

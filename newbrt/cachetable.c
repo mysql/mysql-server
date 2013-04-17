@@ -1210,7 +1210,7 @@ static void flush_dirty_pair(CACHETABLE ct, PAIR p) {
     assert(p->dirty);
     // must check for readers before trying to grab write lock because this thread 
     // may be the thread that already grabbed a read lock via get_and_pin
-    if (!rwlock_readers(&p->rwlock)) {
+    if (!rwlock_users(&p->rwlock)) {
         rwlock_write_lock(&p->rwlock, ct->mutex);
         p->state = CTPAIR_WRITING;
         WORKITEM wi = &p->asyncwork;
@@ -1225,7 +1225,7 @@ static void try_evict_pair(CACHETABLE ct, PAIR p, BOOL* is_attainable) {
 
     // must check for before we grab the write lock because we may
     // be trying to evict something this thread is trying to read
-    if (!rwlock_readers(&p->rwlock)) {
+    if (!rwlock_users(&p->rwlock)) {
         rwlock_write_lock(&p->rwlock, ct->mutex);
         p->state = CTPAIR_WRITING;
         cachetable_write_pair(ct, p, TRUE);
@@ -1270,7 +1270,7 @@ static int maybe_flush_some (CACHETABLE ct, long size) {
         }
         if (curr_in_clock->count > 0) {
             // TODO: (Zardosht), this is where the callback function for node level eviction will happen
-            if (curr_in_clock->state == CTPAIR_IDLE && !rwlock_readers(&curr_in_clock->rwlock)) {
+            if (curr_in_clock->state == CTPAIR_IDLE && !rwlock_users(&curr_in_clock->rwlock)) {
                 curr_in_clock->count--;
                 // call the partial eviction callback
                 rwlock_write_lock(&curr_in_clock->rwlock, ct->mutex);
@@ -1533,12 +1533,18 @@ int toku_cachetable_get_and_pin (
             // to be decompressed. So, we check to see if a partial fetch is required
             //
             get_and_pin_footprint = 7;
+
+            rwlock_read_lock(&p->rwlock, ct->mutex);
+            if (do_wait_time)
+                cachetable_waittime += get_tnow() - t0;
+
             BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
             //
             // in this case, a partial fetch is required so we must grab the PAIR's write lock
             // and then call a callback to retrieve what we need
             //
             if (partial_fetch_required) {
+                rwlock_read_unlock(&p->rwlock);
                 rwlock_write_lock(&p->rwlock, ct->mutex);
                 if (do_wait_time) {
                     cachetable_waittime += get_tnow() - t0;
@@ -1546,17 +1552,20 @@ int toku_cachetable_get_and_pin (
 	        t0 = get_tnow();
                 long old_size = p->size;
                 long size = 0;
-                int r = pf_callback(p->value, read_extraargs, &size);
+                rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
+                cachetable_unlock(ct);
+                int r = pf_callback(p->value, read_extraargs, cachefile->fd, &size);
+                cachetable_lock(ct);
+                rwlock_read_unlock(&cachefile->fdlock);
                 p->size = size;
                 ct->size_current += size;
                 ct->size_current -= old_size;
                 lazy_assert_zero(r);                
                 cachetable_waittime += get_tnow() - t0;
                 rwlock_write_unlock(&p->rwlock);
+                rwlock_read_lock(&p->rwlock, ct->mutex);
             }
-            rwlock_read_lock(&p->rwlock, ct->mutex);
-            if (do_wait_time)
-                cachetable_waittime += get_tnow() - t0;
+
             get_and_pin_footprint = 8;
             if (p->state == CTPAIR_INVALID) {
                 get_and_pin_footprint = 9;
@@ -1810,22 +1819,26 @@ int toku_cachetable_get_and_pin_nonblocking (
 		return TOKUDB_TRY_AGAIN;
 	    case CTPAIR_IDLE:
                 {
+                    rwlock_read_lock(&p->rwlock, ct->mutex);
                     BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
+                    rwlock_read_unlock(&p->rwlock);
                     //
                     // in this case, a partial fetch is required so we must grab the PAIR's write lock
                     // and then call a callback to retrieve what we need
                     //
                     if (partial_fetch_required) {
+                        rwlock_write_lock(&p->rwlock, ct->mutex);
                         run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
                         if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
                         // Now wait for the I/O to occur.
-                        rwlock_write_lock(&p->rwlock, ct->mutex);
+                        rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
                         cachetable_unlock(ct);
                         long old_size = p->size;
                         long size = 0;
-                        int r = pf_callback(p->value, read_extraargs, &size);
+                        int r = pf_callback(p->value, read_extraargs, cf->fd, &size);
                         lazy_assert_zero(r);
                         cachetable_lock(ct);
+                        rwlock_read_unlock(&cf->fdlock);
                         p->size = size;
                         ct->size_current += size;
                         ct->size_current -= old_size;

@@ -80,8 +80,66 @@ static int check_leafentries(OMTVALUE v, u_int32_t UU(i), void *extra) {
     return 0;
 }
 
+enum brtnode_verify_type {
+    read_all=1,
+    read_compressed,
+    read_none
+};
+
 static void
-test_serialize_leaf_with_large_pivots(void) {
+setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE *dn) {
+    int r;
+    if (bft == read_all) {
+        struct brtnode_fetch_extra bfe;
+        fill_bfe_for_full_read(&bfe, brt_h);
+        r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe);
+        assert(r==0);
+    }
+    else if (bft == read_compressed || bft == read_none) {
+        struct brtnode_fetch_extra bfe;
+        fill_bfe_for_min_read(&bfe, brt_h);
+        r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe);
+        assert(r==0);
+        // assert all bp's are compressed
+        for (int i = 0; i < (*dn)->n_children; i++) {
+            assert(BP_STATE(*dn,i) == PT_COMPRESSED);
+        }
+        // if read_none, get rid of the compressed bp's
+        if (bft == read_none) {
+            long bytes_freed = 0;
+            toku_brtnode_pe_callback(*dn, 0xffffffff, &bytes_freed, NULL);
+            // assert all bp's are on disk
+            for (int i = 0; i < (*dn)->n_children; i++) {
+                if ((*dn)->height == 0) {
+                    assert(BP_STATE(*dn,i) == PT_ON_DISK);
+                    assert((*dn)->bp[i].ptr == NULL);
+                }
+                else {
+                    assert(BP_STATE(*dn,i) == PT_COMPRESSED);
+                    assert((*dn)->bp[i].ptr != NULL);
+                }
+            }
+        }
+        // now decompress them
+        fill_bfe_for_full_read(&bfe, brt_h);
+        assert(toku_brtnode_pf_req_callback(*dn, &bfe));
+        long size;
+        r = toku_brtnode_pf_callback(*dn, &bfe, fd, &size);
+        assert(r==0);
+        // assert all bp's are available
+        for (int i = 0; i < (*dn)->n_children; i++) {
+            assert(BP_STATE(*dn,i) == PT_AVAIL);
+        }
+        // continue on with test
+    }
+    else {
+        // if we get here, this is a test bug, NOT a bug in development code
+        assert(FALSE);
+    }
+}
+
+static void
+test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     int r;
     struct brtnode sn, *dn;
     const int keylens = 256*1024, vallens = 0, nrows = 8;
@@ -160,11 +218,8 @@ test_serialize_leaf_with_large_pivots(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
-    assert(r==0);
-
+    setup_dn(bft, fd, brt_h, &dn);
+    
     assert(dn->thisnodename.b==20);
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
@@ -211,7 +266,7 @@ test_serialize_leaf_with_large_pivots(void) {
 }
 
 static void
-test_serialize_leaf_with_many_rows(void) {
+test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
     int r;
     struct brtnode sn, *dn;
     const int keylens = sizeof(int), vallens = sizeof(int), nrows = 196*1024;
@@ -283,10 +338,7 @@ test_serialize_leaf_with_many_rows(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
-    assert(r==0);
+    setup_dn(bft, fd, brt_h, &dn);
 
     assert(dn->thisnodename.b==20);
 
@@ -335,7 +387,7 @@ test_serialize_leaf_with_many_rows(void) {
 }
 
 static void
-test_serialize_leaf_with_large_rows(void) {
+test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
     int r;
     struct brtnode sn, *dn;
     const size_t val_size = 512*1024;
@@ -412,10 +464,7 @@ test_serialize_leaf_with_large_rows(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
-    assert(r==0);
+    setup_dn(bft, fd, brt_h, &dn);
 
     assert(dn->thisnodename.b==20);
 
@@ -464,7 +513,7 @@ test_serialize_leaf_with_large_rows(void) {
 }
 
 static void
-test_serialize_leaf_with_empty_basement_nodes(void) {
+test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     const int nodesize = 1024;
     struct brtnode sn, *dn;
 
@@ -544,10 +593,7 @@ test_serialize_leaf_with_empty_basement_nodes(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
-    assert(r==0);
+    setup_dn(bft, fd, brt_h, &dn);
 
     assert(dn->thisnodename.b==20);
 
@@ -597,7 +643,7 @@ test_serialize_leaf_with_empty_basement_nodes(void) {
 }
 
 static void
-test_serialize_leaf(void) {
+test_serialize_leaf(enum brtnode_verify_type bft) {
     //    struct brt source_brt;
     const int nodesize = 1024;
     struct brtnode sn, *dn;
@@ -675,10 +721,7 @@ test_serialize_leaf(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
-    assert(r==0);
+    setup_dn(bft, fd, brt_h, &dn);
 
     assert(dn->thisnodename.b==20);
 
@@ -731,7 +774,7 @@ test_serialize_leaf(void) {
 }
 
 static void
-test_serialize_nonleaf(void) {
+test_serialize_nonleaf(enum brtnode_verify_type bft) {
     //    struct brt source_brt;
     const int nodesize = 1024;
     struct brtnode sn, *dn;
@@ -823,11 +866,7 @@ test_serialize_nonleaf(void) {
     assert(sn.max_msn_applied_to_node_on_disk.msn == TESTMSNMEMVAL);
     assert(sn.max_msn_applied_to_node_in_memory.msn == TESTMSNMEMVAL);
     
-
-    struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
-    assert(r==0);
+    setup_dn(bft, fd, brt_h, &dn);
 
     assert(dn->thisnodename.b==20);
     assert(dn->max_msn_applied_to_node_on_disk.msn == TESTMSNMEMVAL);
@@ -865,11 +904,29 @@ test_serialize_nonleaf(void) {
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     toku_memory_check = 1;
-    test_serialize_leaf();
-    test_serialize_leaf_with_empty_basement_nodes();
-    test_serialize_leaf_with_large_rows();
-    test_serialize_leaf_with_many_rows();
-    test_serialize_leaf_with_large_pivots();
-    test_serialize_nonleaf();
+
+    test_serialize_leaf(read_none);
+    test_serialize_leaf(read_all);
+    test_serialize_leaf(read_compressed);
+
+    test_serialize_leaf_with_empty_basement_nodes(read_none);
+    test_serialize_leaf_with_empty_basement_nodes(read_all);
+    test_serialize_leaf_with_empty_basement_nodes(read_compressed);
+
+    test_serialize_leaf_with_large_rows(read_none);
+    test_serialize_leaf_with_large_rows(read_all);
+    test_serialize_leaf_with_large_rows(read_compressed);
+
+    test_serialize_leaf_with_many_rows(read_none);
+    test_serialize_leaf_with_many_rows(read_all);
+    test_serialize_leaf_with_many_rows(read_compressed);
+
+    test_serialize_leaf_with_large_pivots(read_none);
+    test_serialize_leaf_with_large_pivots(read_all);
+    test_serialize_leaf_with_large_pivots(read_compressed);
+
+    test_serialize_nonleaf(read_none);
+    test_serialize_nonleaf(read_all);
+    test_serialize_nonleaf(read_compressed);
     return 0;
 }

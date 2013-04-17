@@ -527,9 +527,10 @@ static BOOL toku_rollback_pf_req_callback(void* UU(brtnode_pv), void* UU(read_ex
     return FALSE;
 }
 
-static int toku_rollback_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+static int toku_rollback_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
     // should never be called, given that toku_rollback_pf_req_callback always returns false
     assert(FALSE);
+    return 0;
 }
 
 

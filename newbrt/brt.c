@@ -513,6 +513,17 @@ next_dict_id(void) {
     return d;
 }
 
+static void 
+destroy_basement_node (BASEMENTNODE bn)
+{
+    // The buffer may have been freed already, in some cases.
+    if (bn->buffer) {
+	toku_omt_destroy(&bn->buffer);
+	bn->buffer = NULL;
+    }
+}
+
+
 u_int8_t 
 toku_brtnode_partition_state (struct brtnode_fetch_extra* bfe, int childnum)
 {
@@ -567,7 +578,6 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
     assert(*brtnode_pv == NULL);
     struct brtnode_fetch_extra *bfe = (struct brtnode_fetch_extra *)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    // TODO: (Zardosht) pass in bfe to toku_deserialize_brtnode_from so it can do the right thing
     int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, result, bfe);
     if (r == 0) {
 	*sizep = brtnode_memory_size(*result);
@@ -579,14 +589,61 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
 // callback for partially evicting a node
 int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_freed, void* UU(extraargs)) {
     BRTNODE node = (BRTNODE)brtnode_pv;
-    assert(node);
-    *bytes_freed = 0;
+    long orig_size = brtnode_memory_size(node);
     assert(bytes_to_free > 0);
+
+    // 
+    // nothing on internal nodes for now
+    //
+    if (node->dirty || node->height > 0) {
+        *bytes_freed = 0;
+    }
+    //
+    // partial eviction strategy for basement nodes:
+    //  if the bn is compressed, evict it
+    //  else: check if it requires eviction, if it does, evict it, if not, sweep the clock count
+    //
+    //
+    else {
+        for (int i = 0; i < node->n_children; i++) {
+            // Get rid of compressed stuff no matter what.
+            if (BP_STATE(node,i) == PT_COMPRESSED) {
+                struct sub_block* sb = (struct sub_block*)node->bp[i].ptr;
+                toku_free(sb->compressed_ptr);
+                toku_free(node->bp[i].ptr);
+                node->bp[i].ptr = NULL;
+                BP_STATE(node,i) = PT_ON_DISK;
+            }
+            else if (BP_STATE(node,i) == PT_AVAIL) {
+                if (BP_SHOULD_EVICT(node,i)) {
+                    // free the basement node
+                    BASEMENTNODE bn = (BASEMENTNODE)node->bp[i].ptr;
+                    OMT curr_omt = BLB_BUFFER(node, i);
+                    toku_omt_free_items(curr_omt);
+                    destroy_basement_node(bn);
+
+                    toku_free(node->bp[i].ptr);
+                    node->bp[i].ptr = NULL;
+                    BP_STATE(node,i) = PT_ON_DISK;
+                }
+                else {
+                    BP_SWEEP_CLOCK(node,i);
+                }
+            }
+            else if (BP_STATE(node,i) == PT_ON_DISK) {
+                continue;
+            }
+            else {
+                assert(FALSE);
+            }
+        }
+    }
+    *bytes_freed = orig_size - brtnode_memory_size(node);
     return 0;
 }
 
 
-// callback that sates if partially reading a node is necessary
+// callback that states if partially reading a node is necessary
 // could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
 BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
     // placeholder for now
@@ -599,6 +656,13 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
     else if (bfe->type == brtnode_fetch_all) {
         retval = FALSE;
         for (int i = 0; i < node->n_children; i++) {
+            BP_TOUCH_CLOCK(node,i);
+        }
+        for (int i = 0; i < node->n_children; i++) {
+            BP_TOUCH_CLOCK(node,i);
+            // if we find a partition that is not available,
+            // then a partial fetch is required because
+            // the entire node must be made available
             if (BP_STATE(node,i) != PT_AVAIL) {
                 retval = TRUE;
                 break;
@@ -618,6 +682,7 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
             node,
             bfe->search
             );
+        BP_TOUCH_CLOCK(node,bfe->child_to_read);
         retval = (BP_STATE(node,bfe->child_to_read) != PT_AVAIL);
     }
     else {
@@ -629,23 +694,31 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
 
 // callback for partially reading a node
 // could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
-int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, long* sizep) {
+int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, long* sizep) {
     BRTNODE node = brtnode_pv;
     struct brtnode_fetch_extra *bfe = (struct brtnode_fetch_extra *)read_extraargs;
     // there must be a reason this is being called. If we get a garbage type or the type is brtnode_fetch_none,
     // then something went wrong
     assert((bfe->type == brtnode_fetch_subset) || (bfe->type == brtnode_fetch_all));
+    // TODO: possibly cilkify expensive operations in this loop
+    // TODO: review this with others to see if it can be made faster
     for (int i = 0; i < node->n_children; i++) {
-
         if (BP_STATE(node,i) == PT_AVAIL) {
             continue;
         }
         if (toku_brtnode_partition_state(bfe, i) == PT_AVAIL) {
-            assert(BP_STATE(node,i) == PT_COMPRESSED);
-            //
-            // decompress the subblock
-            //
-            toku_deserialize_bp_from_compressed(node, i);
+            if (BP_STATE(node,i) == PT_COMPRESSED) {
+                //
+                // decompress the subblock
+                //
+                toku_deserialize_bp_from_compressed(node, i);
+            }
+            else if (BP_STATE(node,i) == PT_ON_DISK) {
+                toku_deserialize_bp_from_disk(node, i, fd, bfe);
+            }
+            else {
+                assert(FALSE);
+            }
         }
     }
     *sizep = brtnode_memory_size(node);
@@ -693,16 +766,6 @@ brt_compare_pivot(BRT brt, const DBT *key, bytevec ck)
     struct kv_pair *kv = (struct kv_pair *) ck;
     cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
     return cmp;
-}
-
-static void 
-destroy_basement_node (BASEMENTNODE bn)
-{
-    // The buffer may have been freed already, in some cases.
-    if (bn->buffer) {
-	toku_omt_destroy(&bn->buffer);
-	bn->buffer = NULL;
-    }
 }
 
 // destroys the internals of the brtnode, but it does not free the values
@@ -852,6 +915,7 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, int n
             BP_STATE(n,i) = PT_INVALID;
             BP_OFFSET(n,i) = 0;
             BP_SUBTREE_EST(n,i) = zero_estimates;
+            BP_INIT_TOUCHED_CLOCK(n, i);
             n->bp[i].ptr = NULL;
             if (height > 0) {
                 n->bp[i].ptr = toku_malloc(sizeof(struct brtnode_nonleaf_childinfo));
@@ -1167,6 +1231,7 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 	//
 
 	// handle the move of a subset of data in split_node from node to B
+
         BP_STATE(B,0) = PT_AVAIL;
 	struct subtree_estimates se_diff = zero_estimates;
 	u_int32_t diff_size = 0;
