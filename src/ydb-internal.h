@@ -68,7 +68,7 @@ struct __toku_db_env_internal {
     TOKULOGGER logger;
     toku_ltm* ltm;
 
-    int open_txns;                                      // Number of open transactions
+    int32_t open_txns;                                      // Number of open transactions
     DB *directory;                                      // Maps dnames to inames
     DB *persistent_environment;                         // Stores environment settings, can be used for upgrade
     OMT open_dbs;                                       // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
