@@ -284,6 +284,7 @@ BDB_DONTRUN_TESTS = \
         test_3755 \
 	test_4015 \
 	test_4368 \
+	test_4657 \
         test_abort1 \
         test_abort4 \
         test_abort5 \
