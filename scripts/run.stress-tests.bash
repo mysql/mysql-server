@@ -35,6 +35,8 @@ EOF
 
 set -e
 
+. /opt/intel/bin/compilervars.sh intel64
+
 scriptname=$(basename "$0")
 toku_toplevel=$(dirname $(dirname $(readlink -f "$PWD/$0")))
 log=/tmp/run.stress-tests.log
@@ -71,7 +73,7 @@ done
 
 src_tests="${toku_toplevel}/src/tests"
 testnames=(recover-test_stress1.tdb \
-    recover-test_stress2.tdb)
+           recover-test_stress2.tdb)
 
 save_failure() {
     dir="$1"; shift
@@ -83,7 +85,7 @@ save_failure() {
     num_ptquery=$1; shift
     num_update=$1; shift
     phase=$1; shift
-    dest="${dir}/${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-${phase}-$$"
+    dest="${dir}/${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-${phase}-${BASHPID}"
     mkdir -p "$dest"
     mv $out "${dest}/output.txt"
     mv core* "${dest}/"
@@ -106,7 +108,7 @@ run_test() {
     t0="$(date)"
     t1=""
     t2=""
-    envdir="../${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-$$.dir"
+    envdir="../${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-${BASHPID}.dir"
     cd $rundir
     if ! LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
         ../$exec -v --test --num_seconds 180 --envdir "$envdir" \
@@ -137,6 +139,8 @@ run_test() {
     rm -rf $rundir "$envdir"
 }
 
+running=no
+
 loop_test() {
     exec="$1"; shift
     table_size="$1"; shift
@@ -146,7 +150,7 @@ loop_test() {
 
     ptquery_rand=0
     update_rand=0
-    while true
+    while [[ $running = "yes" ]]
     do
         num_ptquery=1
         num_update=1
@@ -164,58 +168,66 @@ loop_test() {
     done
 }
 
-cd $src_tests
-
-for exec in ${testnames[@]}
-do
-    if [[ ! -x $exec ]]
-    then
-        echo "Please build $exec" 1>&2
-        exit 1
-    fi
-done
-
-mkdir -p $log
-mkdir -p $savedir
-
-declare -a pids
+declare -a pids=(0)
 i=0
 
 savepid() {
-    pids[i]=$1
+    pids[$i]=$1
     (( i = i + 1 ))
 }
 
 killchildren() {
-    for pid in ${pids[@]}
-    do
-        kill $pid
-    done
+    kill ${pids[@]} || true
     for exec in ${testnames[@]}
     do
-        pkill -f $exec
+        pkill -f $exec || true
     done
 }
 
-for exec in ${testnames[@]}
-do
-    for table_size in 2000 200000 50000000
-    do
-        (( small_cachetable = table_size * 50 ))
-        suffix="${exec}-${table_size}-${small_cachetable}-$$"
-        touch "${log}/${suffix}"
-        loop_test $exec $table_size $small_cachetable "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
-        tail -f "${log}/${suffix}" & savepid $!
-        suffix="${exec}-${table_size}-1000000000-$$"
-        touch "${log}/${suffix}"
-        loop_test $exec $table_size 1000000000 "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
-        tail -f "${log}/${suffix}" & savepid $!
-    done
-done
-
 trap killchildren INT TERM EXIT
 
-for pid in ${pids[@]}
+mkdir -p $log
+mkdir -p $savedir
+
+while true
 do
-    wait $pid
+    (cd $toku_toplevel; \
+        svn update; \
+        make CC=icc DEBUG=0 HAVE_CILK=0 clean fastbuild; \
+        make CC=icc DEBUG=0 HAVE_CILK=0 -C src/tests ${testnames[@]})
+
+    cd $src_tests
+
+    running=yes
+
+    for exec in ${testnames[@]}
+    do
+        for table_size in 2000 200000 50000000
+        do
+            (( small_cachetable = table_size * 50 ))
+            suffix="${exec}-${table_size}-${small_cachetable}-$$"
+            touch "${log}/${suffix}"
+            loop_test $exec $table_size $small_cachetable "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
+            tail -f "${log}/${suffix}" & savepid $!
+            suffix="${exec}-${table_size}-1000000000-$$"
+            touch "${log}/${suffix}"
+            loop_test $exec $table_size 1000000000 "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
+            tail -f "${log}/${suffix}" & savepid $!
+        done
+    done
+
+    sleep 1d
+
+    running=no
+
+    killchildren
+
+    wait ${pids[@]} || true
+
+    idx=0
+    for pid in ${pids[@]}
+    do
+        pids[$idx]=0
+        (( idx = idx + 1 ))
+    done
 done
