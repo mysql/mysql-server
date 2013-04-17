@@ -134,6 +134,10 @@ private:
     DsMrr_impl ds_mrr;
 #endif
 
+    // For ICP. Cache our own copies
+    Item* toku_pushed_idx_cond;
+    uint toku_pushed_idx_cond_keyno;  /* The index which the above condition is for */
+    bool icp_went_out_of_range;
 
     //
     // last key returned by ha_tokudb's cursor
@@ -568,6 +572,10 @@ public:
 #endif
 #endif
 
+    // ICP introduced in MariaDB 5.5
+    Item* idx_cond_push(uint keyno, class Item* idx_cond);
+
+
 #if TOKU_INCLUDE_ALTER_56
  public:
     enum_alter_inplace_result check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
@@ -698,7 +706,8 @@ public:
         DBT const *key, 
         DBT  const *row, 
         int direction,
-        THD* thd
+        THD* thd,
+        uchar* buf
         );
 
 #if MYSQL_VERSION_ID >= 50521
@@ -712,7 +721,9 @@ private:
     int __close(int mutex_is_locked);
     int get_next(uchar* buf, int direction);
     int read_data_from_range_query_buff(uchar* buf, bool need_val);
+    enum icp_result toku_handler_index_cond_check(Item* pushed_idx_cond);
     void invalidate_bulk_fetch();
+    void invalidate_icp();
     int delete_all_rows_internal();
     void close_dsmrr();
     void reset_dsmrr();
