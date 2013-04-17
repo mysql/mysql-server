@@ -164,7 +164,6 @@ static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, con
 static void tokudb_cleanup_log_files(void);
 static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table);
 static int free_share(TOKUDB_SHARE * share, TABLE * table, uint hidden_primary_key, bool mutex_is_locked);
-static int write_status(DB * status_block, char *buff, uint length);
 static void update_status(TOKUDB_SHARE * share, TABLE * table);
 static int tokudb_end(handlerton * hton, ha_panic_function type);
 static bool tokudb_flush_logs(handlerton * hton);
@@ -1785,22 +1784,6 @@ void ha_tokudb::get_status() {
         pthread_mutex_unlock(&share->mutex);
     }
     DBUG_VOID_RETURN;
-}
-
-static int write_status(DB * status_block, char *buff, uint length) {
-    TOKUDB_DBUG_ENTER("write_status");
-    DBT row, key;
-    int error;
-    const char *key_buff = "status";
-
-    bzero((void *) &row, sizeof(row));
-    bzero((void *) &key, sizeof(key));
-    row.data = buff;
-    key.data = (void *) key_buff;
-    key.size = sizeof(key_buff);
-    row.size = length;
-    error = status_block->put(status_block, 0, &key, &row, 0);
-    TOKUDB_DBUG_RETURN(error);
 }
 
 static void update_status(TOKUDB_SHARE * share, TABLE * table) {
@@ -3537,11 +3520,10 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
         if (!(error = (status_block->open(status_block, NULL, name_buff, NULL, DB_BTREE, DB_CREATE, 0)))) {
-            char rec_buff[4 + MAX_KEY * 4];
-            uint length = 4 + form->s->keys * 4;
-            bzero(rec_buff, length);
-            error = write_status(status_block, rec_buff, length);
-            status_block->close(status_block, 0);
+            //
+            // do nothing for now, used to write initial data for status.tokudb
+            // this data no longer needed
+            //
         }
         if (tokudb_debug & TOKUDB_DEBUG_OPEN)
             TOKUDB_TRACE("create:%s:error=%d\n", newname, error);
