@@ -442,6 +442,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     if (all) {
         trx->iso_level = hatoku_iso_not_set;
     }
+    reset_stmt_progress(&trx->stmt_progress);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -467,6 +468,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     if (all) {
         trx->iso_level = hatoku_iso_not_set;
     }
+    reset_stmt_progress(&trx->stmt_progress);
     TOKUDB_DBUG_RETURN(error);
 }
 

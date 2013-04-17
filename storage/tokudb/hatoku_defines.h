@@ -83,16 +83,32 @@ typedef enum {
 
 
 
+typedef struct st_tokudb_stmt_progress {
+    ulonglong inserted;
+    ulonglong updated;
+    ulonglong deleted;
+    ulonglong queried;
+} tokudb_stmt_progress;
+
+
 typedef struct st_tokudb_trx_data {
     DB_TXN *all;
     DB_TXN *stmt;
     DB_TXN *sp_level;
     uint tokudb_lock_count;
     HA_TOKU_ISO_LEVEL iso_level;
+    tokudb_stmt_progress stmt_progress;
 } tokudb_trx_data;
 
 extern char *tokudb_data_dir;
 extern const char *ha_tokudb_ext;
+
+static void reset_stmt_progress (tokudb_stmt_progress* val) {
+    val->deleted = 0;
+    val->inserted = 0;
+    val->updated = 0;
+    val->queried = 0;
+}
 
 static int get_name_length(const char *name) {
     int n = 0;
