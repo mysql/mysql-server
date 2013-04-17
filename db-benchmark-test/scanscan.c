@@ -15,6 +15,7 @@ int do_txns=1, prelock=0, prelockflag=0;
 u_int32_t lock_flag = 0;
 long limitcount=-1;
 u_int32_t cachesize = 127*1024*1024;
+static int do_mysql = 0;
 
 static void parse_args (int argc, const char *argv[]) {
     pname=argv[0];
@@ -46,6 +47,8 @@ static void parse_args (int argc, const char *argv[]) {
             char *end;
             argv++; argc--;
             cachesize=(u_int32_t)strtol(*argv, &end, 10);
+        } else if (strcmp(*argv, "--mysql") == 0) {
+            do_mysql = 1;
 	} else {
 	    fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag]\n", pname);
 	    fprintf(stderr, "  --hwc               run heavy weight cursors (this is the default)\n");
@@ -57,6 +60,7 @@ static void parse_args (int argc, const char *argv[]) {
 	    fprintf(stderr, "  --nox               no transactions\n");
 	    fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
             fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
+            fprintf(stderr, "  --mysql             compare keys that are mysql big int not null types\n");
             exit(1);
 	}
 	argc--;
@@ -76,12 +80,35 @@ int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT
 int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 char *dbfilename = "bench.db";
 
+static inline uint64_t mysql_get_bigint(unsigned char *d) {
+    uint64_t r = 0;
+    memcpy(&r, d, sizeof r);
+    return r;
+}
+
+static int mysql_key_compare(DB *mydb __attribute__((unused)),
+                               const DBT *adbt, const DBT *bdbt) {
+    unsigned char *adata = adbt->data;
+    unsigned char *bdata = bdbt->data;
+    uint64_t a, b;
+    assert(adbt->size == 9 && bdbt->size == 9);
+    assert(adata[0] == 0 && bdata[0] == 0);
+    a = mysql_get_bigint(adata+1);
+    b = mysql_get_bigint(bdata+1);
+    if (a < b) return -1;
+    if (a > b) return +1;
+    return 0;
+}
+
 static void scanscan_setup (void) {
     int r;
     r = db_env_create(&env, 0);                                                           assert(r==0);
     r = env->set_cachesize(env, 0, cachesize, 1);                                         assert(r==0);
     r = env->open(env, dbdir, do_txns? env_open_flags_yesx : env_open_flags_nox, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);   assert(r==0);
     r = db_create(&db, env, 0);                                                           assert(r==0);
+    if (do_mysql) {
+        r = db->set_bt_compare(db, mysql_key_compare); assert(r == 0);
+    }
     if (do_txns) {
 	r = env->txn_begin(env, 0, &tid, 0);                                              assert(r==0);
     }
@@ -162,6 +189,13 @@ static void counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
     struct extra_count *e=extrav;
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
+    if (do_mysql && 0) {
+        static uint64_t expect_key = 0;
+        uint64_t k = mysql_get_bigint(key->data+1);
+        if (k != expect_key)
+            printf("%s:%d %"PRId64" %"PRId64"\n", __FUNCTION__, __LINE__, k, expect_key);
+        expect_key = k + 1;
+    }
 }
 
 static void scanscan_lwc (void) {
