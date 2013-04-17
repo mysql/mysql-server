@@ -1997,13 +1997,6 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
                     n += snprintf(buff + n, bufsiz - n, "%" PRIu64 "\n", v);
                 }
                 break;
-#if 0
-            case MAXCOUNT:
-                {
-                    uint64_t v = read_max_partitioned_counter(mystat[row].value.maxcount);
-                    n += snprintf(buff + n, bufsiz - n, "%" PRIu64 "\n", v);
-                }
-#endif
             default:
                 n += snprintf(buff + n, bufsiz - n, "UNKNOWN STATUS TYPE: %d\n", mystat[row].type);
                 break;                
