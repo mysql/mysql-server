@@ -62,14 +62,6 @@ typedef struct st_tokudb_share {
     MULTI_COL_PACK_INFO mcp_info[MAX_KEY+1];
     COL_PACK_INFO* cp_info[MAX_KEY+1];
     u_int32_t num_offset_bytes; //number of bytes needed to encode the offset
-
-    //
-    // we want the following optimization for bulk loads, if the table is empty,
-    // attempt to grab a table lock. emptiness check can be expensive,
-    // so we try it once for a table. After that, we keep this variable around
-    // to tell us to not try it again.
-    //
-    bool try_table_lock;
 } TOKUDB_SHARE;
 
 #define HA_TOKU_VERSION 2
@@ -281,7 +273,7 @@ private:
 
     void set_query_columns(uint keynr);
     int prelock_range ( const key_range *start_key, const key_range *end_key);
-    bool may_table_be_empty();
+
  
 public:
     ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
