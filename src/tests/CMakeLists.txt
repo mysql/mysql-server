@@ -647,6 +647,7 @@ if(BUILD_TESTING)
     ydb/shutdown-3344.tdb
     ydb/stat64-create-modify-times.tdb
     ydb/test1572.tdb
+    ydb/test3529.tdb
     ydb/test_abort4_19_0.tdb
     ydb/test_abort4_19_1.tdb
     ydb/test_abort5.tdb
