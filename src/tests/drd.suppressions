@@ -84,3 +84,8 @@
    fun:_ZL18unsafe_touch_clockP6ftnodei
    ...
 }
+{
+   unsafe_read_single_txnid_optimization_possible
+   drd:ConflictingAccess
+   fun:_ZNK4toku8locktree46unsafe_read_single_txnid_optimization_possibleEv
+}

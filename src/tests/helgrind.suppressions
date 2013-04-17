@@ -33,7 +33,11 @@
    unsafe_touch_clock
    Helgrind:Race
    fun:_ZL18unsafe_touch_clockP6ftnodei
-   fun:_Z27toku_ftnode_pf_req_callbackPvS_
+}
+{
+   unsafe_read_single_txnid_optimization_possible
+   Helgrind:Race
+   fun:_ZNK4toku8locktree46unsafe_read_single_txnid_optimization_possibleEv
 }
 {
    kde_bug_307082_cond_destroy_without_signal
@@ -91,4 +95,28 @@
    fun:_Z21toku_ft_layer_destroyv
    fun:_Z16toku_ydb_destroyv
    fun:_ZL17libtokudb_destroyv
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   fun:_ZL17toku_cond_destroyP9toku_cond
+   fun:_Z22toku_minicron_shutdownP8minicron
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   fun:_ZL17toku_cond_destroyP9toku_cond
+   fun:_ZN4toku12lock_request7destroyEv
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   fun:_ZL17toku_cond_destroyP9toku_cond
+   fun:_Z17toku_logger_closePP10tokulogger
 }

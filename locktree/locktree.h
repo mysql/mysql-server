@@ -283,6 +283,12 @@ private:
     // effect: Sets the single txnid bit to be true for the given txnid
     void reset_single_txnid_optimization(TXNID txnid);
 
+    // Effect:
+    //  Provides a hook for a helgrind suppression.
+    // Returns:
+    //  m_single_txnid_optimization_possible
+    bool unsafe_read_single_txnid_optimization_possible(void) const;
+
     // effect: Creates a locktree that uses the given memory tracker
     //         to report memory usage and honor memory constraints.
     void create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_id,
