@@ -54,12 +54,6 @@ int toku_os_mkdir(const char *pathname, mode_t mode) __attribute__((__visibility
 // Get the current process user and kernel use times
 int toku_os_get_process_times(struct timeval *usertime, struct timeval *kerneltime);
 
-// Get the current in memory size (in bytes) of the current process
-int toku_os_get_rss(int64_t *rss);
-
-// Get the maximum in memory size (in bytes) of the current process
-int toku_os_get_max_rss(int64_t *maxrss);
-
 // Get the maximum size of the process data size (in bytes)
 // Success: returns 0 and sets *maxdata to the data size
 // Fail: returns an error number

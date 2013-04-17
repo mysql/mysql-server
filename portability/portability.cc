@@ -190,64 +190,6 @@ toku_os_initialize_settings(int UU(verbosity)) {
     return r;
 }
 
-int
-toku_os_get_max_rss(int64_t *maxrss) {
-    int r;
-    char statusname[100];
-    sprintf(statusname, "/proc/%d/status", getpid());
-    FILE *f = fopen(statusname, "r");
-    if (f == NULL) {
-        struct rusage rusage;
-        r = getrusage(RUSAGE_SELF, &rusage);
-        if (r != 0) {
-            return get_error_errno();
-        }
-        *maxrss = rusage.ru_maxrss * 1024; // ru_maxrss is in kB
-        return 0;
-    }
-    r = ENOENT;
-    char line[100];
-    while (fgets(line, sizeof line, f)) {
-        r = sscanf(line, "VmHWM:\t%lld kB\n", (long long *) maxrss);
-        if (r == 1) { 
-            *maxrss *= 1<<10;
-            r = 0;
-            break;
-        }
-    }
-    fclose(f);
-    return r;
-}
-
-int
-toku_os_get_rss(int64_t *rss) {
-    int r;
-    char statusname[100];
-    sprintf(statusname, "/proc/%d/status", getpid());
-    FILE *f = fopen(statusname, "r");
-    if (f == NULL) {
-        struct rusage rusage;
-        r = getrusage(RUSAGE_SELF, &rusage);
-        if (r != 0) {
-            return get_error_errno();
-        }
-        *rss = (rusage.ru_idrss + rusage.ru_ixrss + rusage.ru_isrss) * 1024;
-        return 0;
-    }
-    r = ENOENT;
-    char line[100];
-    while (fgets(line, sizeof line, f)) {
-        r = sscanf(line, "VmRSS:\t%lld kB\n", (long long *) rss);
-        if (r == 1) {
-            *rss *= 1<<10;
-            r = 0;
-            break;
-        }
-    }
-    fclose(f);
-    return r;
-}
-
 bool toku_os_is_absolute_name(const char* path) {
     return path[0] == '/';
 }
