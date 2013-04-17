@@ -1173,8 +1173,8 @@ locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *db
     DB_TXN *child_txn = NULL;
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (using_txns) {
-        ret = toku_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
-        invariant_zero(ret);
+        ret = toku_txn_begin(env, txn, &child_txn, 0);
+        lazy_assert_zero(ret);
     }
 
     // cannot begin a checkpoint
@@ -1184,11 +1184,11 @@ locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *db
 
     if (using_txns) {
         if (r == 0) {  // commit
-            ret = locked_txn_commit(child_txn, DB_TXN_NOSYNC);
-            invariant_zero(ret);
+            ret = locked_txn_commit(child_txn, 0);
+            lazy_assert_zero(ret);
         } else {
             ret = locked_txn_abort(child_txn);
-            invariant_zero(ret);
+            lazy_assert_zero(ret);
         }
     }
     return r;
@@ -1202,8 +1202,8 @@ locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbn
     DB_TXN *child_txn = NULL;
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (using_txns) {
-        ret = toku_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
-        invariant_zero(ret);
+        ret = toku_txn_begin(env, txn, &child_txn, 0);
+        lazy_assert_zero(ret);
     }
 
     // cannot begin a checkpoint
@@ -1213,11 +1213,11 @@ locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbn
 
     if (using_txns) {
         if (r == 0) {
-            ret = locked_txn_commit(child_txn, DB_TXN_NOSYNC);
-            invariant_zero(ret);
+            ret = locked_txn_commit(child_txn, 0);
+            lazy_assert_zero(ret);
         } else {
             ret = locked_txn_abort(child_txn);
-            invariant_zero(ret);
+            lazy_assert_zero(ret);
         }
     }
     return r;
@@ -2438,46 +2438,49 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
     r = toku_db_get(env->i->directory, txn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     char *iname = iname_dbt.data;
     DB *db = NULL;
-    if (r == DB_NOTFOUND) {
-        r = ENOENT;
-    } else if (r == 0) {
-        // remove (dname,iname) from directory
-        r = toku_db_del(env->i->directory, txn, &dname_dbt, DB_DELETE_ANY, TRUE);
-        if (r != 0) {
+    if (r != 0) {
+        if (r == DB_NOTFOUND) {
+            r = ENOENT;
+        }
+        goto exit;
+    }
+    // remove (dname,iname) from directory
+    r = toku_db_del(env->i->directory, txn, &dname_dbt, DB_DELETE_ANY, TRUE);
+    if (r != 0) {
+        goto exit;
+    }
+    r = toku_db_create(&db, env, 0);
+    lazy_assert_zero(r);
+    r = db_open_iname(db, txn, iname, 0, 0);
+    lazy_assert_zero(r);
+    if (txn) {
+        // Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
+        if (env_is_db_with_dname_open(env, dname)) {
+            r = toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
             goto exit;
         }
-        r = toku_db_create(&db, env, 0);
-        assert_zero(r);
-        r = db_open_iname(db, txn, iname, 0, 0);
-        assert_zero(r);
-        if (txn) {
-            // Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
-            if (env_is_db_with_dname_open(env, dname)) {
-                r = toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
-                goto exit;
-            }
-            // we know a live db handle does not exist.
-            //
-            // use the internally opened db to try and get a table lock
-            // 
-            // if we can't get it, then some txn needs the ft and we
-            // should return lock not granted.
-            //
-            // otherwise, we're okay in marking this ft as remove on
-            // commit. no new handles can open for this dictionary
-            // because the txn has directory write locks on the dname
-            if (toku_db_pre_acquire_table_lock(db, txn) != 0) {
-                r = DB_LOCK_NOTGRANTED;
-            } else {
-                // The ft will be unlinked when the txn commits
-                r = toku_ft_unlink_on_commit(db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
-                assert_zero(r);
-            }
+        // we know a live db handle does not exist.
+        //
+        // use the internally opened db to try and get a table lock
+        //
+        // if we can't get it, then some txn needs the ft and we
+        // should return lock not granted.
+        //
+        // otherwise, we're okay in marking this ft as remove on
+        // commit. no new handles can open for this dictionary
+        // because the txn has directory write locks on the dname
+        r = toku_db_pre_acquire_table_lock(db, txn);
+        if (r != 0) {
+            r = DB_LOCK_NOTGRANTED;
+            goto exit;
         }
-        else {
-            // unlink the ft without a txn
-            toku_ft_unlink(db->i->ft_handle);
-        }
+        // The ft will be unlinked when the txn commits
+        r = toku_ft_unlink_on_commit(db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
+        lazy_assert_zero(r);
+    }
+    else {
+        // unlink the ft without a txn
+        toku_ft_unlink(db->i->ft_handle);
     }
 
 exit:

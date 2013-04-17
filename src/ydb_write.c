@@ -74,7 +74,9 @@ ydb_getf_do_nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
 static inline int 
 env_check_avail_fs_space(DB_ENV *env) {
     int r = env->i->fs_state == FS_RED ? ENOSPC : 0; 
-    if (r) env->i->enospc_redzone_ctr++;
+    if (r) {
+        env->i->enospc_redzone_ctr++;
+    }
     return r;
 }
 
