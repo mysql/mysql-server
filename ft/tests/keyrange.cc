@@ -66,6 +66,49 @@ static void maybe_reopen (enum memory_state ms, uint64_t limit) {
     assert(0);
 }
 
+static void verify_keysrange(enum memory_state UU(ms), uint64_t limit,
+        uint64_t intkey1,
+        uint64_t intkey2,
+        uint64_t less,
+        uint64_t equal1,
+        uint64_t middle,
+        uint64_t equal2,
+        uint64_t greater,
+        bool middle3exact) {
+    uint64_t max_item = limit * 2 - 1;
+    uint64_t perfect_total = limit;
+    uint64_t perfect_less = intkey1 / 2;
+    uint64_t perfect_equal1 = intkey1 % 2 == 1;
+    uint64_t perfect_equal2 = intkey2 % 2 == 1 && intkey2 <= max_item;
+    uint64_t perfect_greater = intkey2 >= max_item ? 0 : (max_item + 1 - intkey2) / 2;
+    uint64_t perfect_middle = perfect_total - perfect_less - perfect_equal1 - perfect_equal2 - perfect_greater;
+
+    uint64_t total = less + equal1 + middle + equal2 + greater;
+    assert(total > 0);
+    assert(total < 2 * perfect_total);
+    assert(total > perfect_total / 2);
+
+    assert(equal1 == perfect_equal1 || (equal1 == 0 && !middle3exact));
+    assert(equal2 == perfect_equal2 || (equal2 == 0 && !middle3exact));
+
+    // As of 2013-02-25 this is accurate with fiddle ~= total/50.
+    // Set to 1/10th to prevent flakiness.
+    uint64_t fiddle = perfect_total / 10;
+    assert(less + fiddle > perfect_less);
+    assert(less < perfect_less + fiddle);
+
+    assert(middle + fiddle > perfect_middle);
+    assert(middle < perfect_middle + fiddle);
+
+    assert(greater + fiddle > perfect_greater);
+    assert(greater < perfect_greater + fiddle);
+
+    if (middle3exact) {
+        assert(middle == perfect_middle);
+    }
+}
+
+
 static void test_keyrange (enum memory_state ms, uint64_t limit) {
     open_ft_and_ct(true);
 
@@ -123,7 +166,9 @@ static void test_keyrange (enum memory_state ms, uint64_t limit) {
 #endif
 	    } else {
 		// after reopen, none of the basements are in memory
-		assert(equal == 0);
+		// However, "both" keys can be in the same basement (specifically the last basement node in the tree)
+                // Without trying to figure out how many are in the last basement node, we expect at least the first half not to be in the last basement node.
+                assert(i > limit / 2 || equal == 0);
 #if 0
 		if (i<10) {
 		    assert(less==0);
@@ -187,6 +232,80 @@ static void test_keyrange (enum memory_state ms, uint64_t limit) {
 	    }
 	}
 #endif
+    }
+
+    maybe_reopen(ms, limit);
+
+    {
+        uint64_t totalqueries = 0;
+        uint64_t num_middle3_exact = 0;
+        for (uint64_t i=0; i < 2*limit; i++) {
+	    char key[100];
+	    char keyplus4[100];
+	    char keyplus5[100];
+            uint64_t intkey = i;
+
+	    snprintf(key, 100, "%08" PRIu64 "", intkey);
+	    snprintf(keyplus4, 100, "%08" PRIu64 "", intkey+4);
+	    snprintf(keyplus5, 100, "%08" PRIu64 "", intkey+5);
+
+	    DBT k;
+	    DBT k2;
+	    DBT k3;
+            toku_fill_dbt(&k, key, 1+strlen(key));
+            toku_fill_dbt(&k2, keyplus4, 1+strlen(keyplus4));
+            toku_fill_dbt(&k3, keyplus5, 1+strlen(keyplus5));
+	    uint64_t less,equal1,middle,equal2,greater;
+            bool middle3exact;
+	    toku_ft_keysrange(t, &k, &k2, &less, &equal1, &middle, &equal2, &greater, &middle3exact);
+            if (ms == CLOSE_AND_REOPEN_LEAVE_ON_DISK) {
+                //TODO(yoni): when reading basement nodes is implemented, get rid of this hack
+                middle3exact = false;
+            }
+            totalqueries++;
+            num_middle3_exact += middle3exact;
+            if (verbose > 1) {
+                printf("Rkey2 %" PRIu64 "/%" PRIu64
+                       " %" PRIu64
+                       " %" PRIu64
+                       " %" PRIu64
+                       " %" PRIu64
+                       " %" PRIu64
+                       " %s\n",
+                       intkey, 2*limit, less, equal1, middle, equal2, greater, middle3exact ? "true" : "false");
+            }
+            verify_keysrange(ms, limit, intkey, intkey+4,
+                    less, equal1, middle, equal2, greater, middle3exact);
+
+	    toku_ft_keysrange(t, &k, &k3, &less, &equal1, &middle, &equal2, &greater, &middle3exact);
+            if (ms == CLOSE_AND_REOPEN_LEAVE_ON_DISK) {
+                //TODO(yoni): when reading basement nodes is implemented, get rid of this hack
+                middle3exact = false;
+            }
+            totalqueries++;
+            num_middle3_exact += middle3exact;
+            if (verbose > 1) {
+                printf("Rkey3 %" PRIu64 "/%" PRIu64
+                       " %" PRIu64
+                       " %" PRIu64
+                       " %" PRIu64
+                       " %" PRIu64
+                       " %" PRIu64
+                       " %s\n",
+                       intkey, 2*limit, less, equal1, middle, equal2, greater, middle3exact ? "true" : "false");
+            }
+            verify_keysrange(ms, limit, intkey, intkey+5,
+                    less, equal1, middle, equal2, greater, middle3exact);
+        }
+        assert(num_middle3_exact <= totalqueries);
+        if (ms == CLOSE_AND_REOPEN_LEAVE_ON_DISK) {
+            //TODO(yoni): when reading basement nodes is implemented, get rid of this hack
+            assert(num_middle3_exact == 0);
+        } else {
+            // About 85% of the time, the key for an int (and +4 or +5) is in the
+            // same basement node.  Check >= 70% so this isn't very flaky.
+            assert(num_middle3_exact > totalqueries * 7 / 10);
+        }
     }
 
     close_ft_and_ct();

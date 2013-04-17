@@ -420,7 +420,9 @@ static void print_db_struct (void) {
     STRUCT_SETUP(DB, set_pagesize,   "int (*%s) (DB *, uint32_t)");
     STRUCT_SETUP(DB, stat,           "int (*%s) (DB *, void *, uint32_t)");
     STRUCT_SETUP(DB, verify,         "int (*%s) (DB *, const char *, const char *, FILE *, uint32_t)");
-    const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, uint64_t *less, uint64_t *equal, uint64_t *greater, int *is_exact)",
+    const char *extra[]={
+                         "int (*key_range64)(DB*, DB_TXN *, DBT *, uint64_t *less, uint64_t *equal, uint64_t *greater, int *is_exact)",
+                         "int (*keys_range64)(DB*, DB_TXN *, DBT *keyleft, DBT *keyright, uint64_t *less, uint64_t *left, uint64_t *between, uint64_t *right, uint64_t *greater, bool *middle_3_exact)",
 			 "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
 			 "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",
 			 "int (*pre_acquire_fileops_lock)(DB*, DB_TXN*)",

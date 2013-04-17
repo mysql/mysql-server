@@ -205,6 +205,7 @@ enum ft_flags {
 };
 
 void toku_ft_keyrange(FT_HANDLE brt, DBT *key, uint64_t *less,  uint64_t *equal,  uint64_t *greater);
+void toku_ft_keysrange(FT_HANDLE brt, DBT* key_left, DBT* key_right, uint64_t *less_p, uint64_t* equal_left_p, uint64_t* middle_p, uint64_t* equal_right_p, uint64_t* greater_p, bool* middle_3_exact_p);
 
 struct ftstat64_s {
     uint64_t nkeys; /* estimate how many unique keys (even when flattened this may be an estimate)     */

@@ -642,17 +642,30 @@ toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
 }
 
 static int 
-toku_db_key_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, uint64_t* less, uint64_t* equal, uint64_t* greater, int* is_exact) {
+toku_db_keys_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* keyleft, DBT* keyright, uint64_t* less, uint64_t* left, uint64_t* between, uint64_t *right, uint64_t *greater, bool* middle_3_exact) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
 
-    // note that toku_ft_keyrange does not have a txn param
-    // this will be fixed later
-    // temporarily, because the caller, locked_db_keyrange, 
-    // has the ydb lock, we are ok
-    toku_ft_keyrange(db->i->ft_handle, key, less, equal, greater);
-    // temporarily set is_exact to 0 because ft_keyrange does not have this parameter
-    *is_exact = 0;
+    // note that we ignore the txn param.  It would be more complicated to support it.
+    // TODO(yoni): Maybe add support for txns later?  How would we do this?  ydb lock comment about db_keyrange64 is obsolete.
+    toku_ft_keysrange(db->i->ft_handle, keyleft, keyright, less, left, between, right, greater, middle_3_exact);
+    return 0;
+}
+
+static int 
+toku_db_key_range64(DB* db, DB_TXN* txn, DBT* key, uint64_t* less_p, uint64_t* equal_p, uint64_t* greater_p, int* is_exact) {
+    uint64_t less, equal_left, middle, equal_right, greater;
+    bool ignore;
+    int r = toku_db_keys_range64(db, txn, key, NULL, &less, &equal_left, &middle, &equal_right, &greater, &ignore);
+    if (r == 0) {
+        *less_p = less;
+        *equal_p = equal_left;
+        *greater_p = middle;
+        paranoid_invariant_zero(greater);  // no keys are greater than positive infinity
+        paranoid_invariant_zero(equal_right);  // no keys are equal to positive infinity
+        // toku_ft_keysrange does not know when all 3 are exact, so set is_exact to false
+        *is_exact = false;
+    }
     return 0;
 }
 
@@ -928,6 +941,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     USDB(pre_acquire_table_lock);
     USDB(pre_acquire_fileops_lock);
     USDB(key_range64);
+    USDB(keys_range64);
     USDB(hot_optimize);
     USDB(stat64);
     USDB(get_fractal_tree_info64);

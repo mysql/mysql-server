@@ -51,8 +51,23 @@ enum ftnode_fetch_type {
     ftnode_fetch_none=1, // no partitions needed.  
     ftnode_fetch_subset, // some subset of partitions needed
     ftnode_fetch_prefetch, // this is part of a prefetch call
-    ftnode_fetch_all // every partition is needed
+    ftnode_fetch_all, // every partition is needed
+    ftnode_fetch_keymatch, // one child is needed if it holds both keys
 };
+
+static bool is_valid_ftnode_fetch_type(enum ftnode_fetch_type type) UU();
+static bool is_valid_ftnode_fetch_type(enum ftnode_fetch_type type) {
+    switch (type) {
+        case ftnode_fetch_none:
+        case ftnode_fetch_subset:
+        case ftnode_fetch_prefetch:
+        case ftnode_fetch_all:
+        case ftnode_fetch_keymatch:
+            return true;
+        default:
+            return false;
+    }
+}
 
 //
 // An extra parameter passed to cachetable functions 
@@ -724,6 +739,46 @@ static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) 
     bfe->child_to_read = -1;
     bfe->disable_prefetching = false;
     bfe->read_all_partitions = false;
+    bfe->bytes_read = 0;
+    bfe->io_time = 0;
+    bfe->deserialize_time = 0;
+    bfe->decompress_time = 0;
+}
+
+//
+// Helper function to fill a ftnode_fetch_extra with data
+// that will tell the fetch callback that an explicit range of children is
+// necessary. Used in cases where the portion of the node that is required
+// is known in advance, e.g. for keysrange when the left and right key
+// are in the same basement node.
+//
+static inline void fill_bfe_for_keymatch(
+    struct ftnode_fetch_extra *bfe,
+    FT h,
+    DBT *left,
+    DBT *right,
+    bool disable_prefetching,
+    bool read_all_partitions
+    )
+{
+    paranoid_invariant(h->h->type == FT_CURRENT);
+    bfe->type = ftnode_fetch_keymatch;
+    bfe->h = h;
+    bfe->search = nullptr;
+    toku_init_dbt(&bfe->range_lock_left_key);
+    toku_init_dbt(&bfe->range_lock_right_key);
+    if (left) {
+        toku_copyref_dbt(&bfe->range_lock_left_key, *left);
+    }
+
+    if (right) {
+        toku_copyref_dbt(&bfe->range_lock_right_key, *right);
+    }
+    bfe->left_is_neg_infty = left == nullptr;
+    bfe->right_is_pos_infty = right == nullptr;
+    bfe->child_to_read = -1;
+    bfe->disable_prefetching = disable_prefetching;
+    bfe->read_all_partitions = read_all_partitions;
     bfe->bytes_read = 0;
     bfe->io_time = 0;
     bfe->deserialize_time = 0;
