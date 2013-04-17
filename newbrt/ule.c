@@ -1672,37 +1672,37 @@ ule_add_placeholders(ULE ule, XIDS xids) {
     }
 }
 
-int 
+uint64_t
 ule_num_uxrs(ULE ule) {
     return ule->num_cuxrs + ule->num_puxrs;
 }
 
 UXR 
-ule_get_uxr(ULE ule, int ith) {
-    invariant(0 <= ith && ith < ule_num_uxrs(ule));
+ule_get_uxr(ULE ule, uint64_t ith) {
+    invariant(ith < ule_num_uxrs(ule));
     return &ule->uxrs[ith];
 }
 
-int 
+uint32_t
 ule_get_num_committed(ULE ule) {
     return ule->num_cuxrs;
 }
 
-int 
+uint32_t
 ule_get_num_provisional(ULE ule) {
     return ule->num_puxrs;
 }
 
 int 
-ule_is_committed(ULE ule, int ith) {
-    invariant(0 <= ith && ith < ule_num_uxrs(ule));
-    return ith < (int) ule->num_cuxrs;
+ule_is_committed(ULE ule, uint64_t  ith) {
+    invariant(ith < ule_num_uxrs(ule));
+    return ith < ule->num_cuxrs;
 }
 
 int 
-ule_is_provisional(ULE ule, int ith) {
-    invariant(0 <= ith && ith < ule_num_uxrs(ule));
-    return ith >= (int) ule->num_cuxrs;
+ule_is_provisional(ULE ule, uint64_t ith) {
+    invariant(ith < ule_num_uxrs(ule));
+    return ith >= ule->num_cuxrs;
 }
 
 void *

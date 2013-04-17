@@ -168,18 +168,19 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
         lazy_assert(0);
     }
 
-    switch (dest_data->flags) {
-    case 0:
-        lazy_assert(0);
-        break;
-    case DB_DBT_REALLOC:
-        dest_data->data = toku_realloc(dest_data->data, src_key->size);
-        memcpy(dest_data->data, src_key->data, src_key->size);
-        dest_data->size = src_key->size;
-        break;
-    default:
-        lazy_assert(0);
-    }
+    if (dest_data)
+        switch (dest_data->flags) {
+        case 0:
+            lazy_assert(0);
+            break;
+        case DB_DBT_REALLOC:
+            dest_data->data = toku_realloc(dest_data->data, src_key->size);
+            memcpy(dest_data->data, src_key->data, src_key->size);
+            dest_data->size = src_key->size;
+            break;
+        default:
+            lazy_assert(0);
+        }
 
     return 0;
 }
