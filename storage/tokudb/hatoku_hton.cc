@@ -1685,8 +1685,8 @@ static ST_FIELD_INFO tokudb_user_data_exact_field_info[] = {
 };
 
 static ST_FIELD_INFO tokudb_dictionary_field_info[] = {
-    {"dictionary_name", 512, MYSQL_TYPE_BLOB, 0, 0, NULL, SKIP_OPEN_TABLE },
-    {"internal_file_name", 512, MYSQL_TYPE_BLOB, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
