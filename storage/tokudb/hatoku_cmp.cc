@@ -359,7 +359,7 @@ inline u_int32_t get_length_from_var_tokudata (uchar* buf, u_int32_t length_byte
 
 //
 // used to deduce the number of bytes used to store the length of a varstring/varbinary
-// in a field stored in tokudb
+// in a key field stored in tokudb
 //
 inline u_int32_t get_length_bytes_from_max(u_int32_t max_num_bytes) {
     return (max_num_bytes > 255) ? 2 : 1;
@@ -375,6 +375,9 @@ inline uchar* pack_toku_varbinary(
 {
     u_int32_t length = 0;
     switch (length_bytes_in_mysql) {
+    case (0):
+        length = max_num_bytes;
+        break;
     case (1):
         length = (u_int32_t)(*from_mysql);
         break;
@@ -417,6 +420,8 @@ inline uchar* unpack_toku_varbinary(
     // copy the length into the mysql buffer
     //
     switch (length_bytes_in_mysql) {
+    case (0):
+        break;
     case (1):
         *to_mysql = (uchar) length;
         break;
@@ -438,6 +443,66 @@ inline uchar* unpack_toku_varbinary(
     memcpy(to_mysql + length_bytes_in_mysql, from_tokudb + length_bytes_in_tokudb, length);
     return from_tokudb + length_bytes_in_tokudb+ length;
 }
+
+inline uchar* pack_toku_varstring(
+    uchar* to_tokudb, 
+    uchar* from_mysql, 
+    u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
+    u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
+    u_int32_t max_num_bytes,
+    CHARSET_INFO* charset
+    ) 
+{
+    u_int32_t length = 0;
+    u_int32_t local_char_length = 0;
+
+    switch (length_bytes_in_mysql) {
+    case (0):
+        length = max_num_bytes;
+        break;
+    case (1):
+        length = (u_int32_t)(*from_mysql);
+        break;
+    case (2):
+        length = uint2korr(from_mysql);
+        break;
+    case (3):
+        length = uint3korr(from_mysql);
+        break;
+    case (4):
+        length = uint4korr(from_mysql);
+        break;
+    }
+    set_if_smaller(length,max_num_bytes);
+
+    local_char_length= ((charset->mbmaxlen > 1) ?
+                       max_num_bytes/charset->mbmaxlen : max_num_bytes);
+    if (length > local_char_length)
+    {
+      local_char_length= my_charpos(
+        charset, 
+        from_mysql+length_bytes_in_mysql, 
+        from_mysql+length_bytes_in_mysql+length,
+        local_char_length
+        );
+      set_if_smaller(length, local_char_length);
+    }
+
+
+    //
+    // copy the length bytes, assuming both are in little endian
+    //
+    to_tokudb[0] = (uchar)length & 255;
+    if (length_bytes_in_tokudb > 1) {
+        to_tokudb[1] = (uchar) (length >> 8);
+    }
+    //
+    // copy the string
+    //
+    memcpy(to_tokudb + length_bytes_in_tokudb, from_mysql + length_bytes_in_mysql, length);
+    return to_tokudb + length + length_bytes_in_tokudb;
+}
+
 
 inline int cmp_toku_varbinary(
     uchar* a_buf, 
@@ -610,7 +675,6 @@ uchar* pack_toku_field(
             );
         goto exit;
     case (toku_type_varbinary):
-    case (toku_type_varstring):
         new_pos = pack_toku_varbinary(
             to_tokudb,
             from_mysql,
@@ -619,13 +683,24 @@ uchar* pack_toku_field(
             key_part_length
             );
         goto exit;
+    case (toku_type_varstring):
+        new_pos = pack_toku_varstring(
+            to_tokudb,
+            from_mysql,
+            get_length_bytes_from_max(key_part_length),
+            ((Field_varstring *)field)->length_bytes,
+            key_part_length,
+            field->charset()
+            );
+        goto exit;
     case (toku_type_blob):
-        new_pos = pack_toku_varbinary(
+        new_pos = pack_toku_varstring(
             to_tokudb,
             from_mysql,
             get_length_bytes_from_max(key_part_length),
             ((Field_blob *)field)->row_pack_length(), //only calling this because packlength is returned
-            key_part_length
+            key_part_length,
+            field->charset()
             );
         goto exit;
     default:
@@ -663,14 +738,23 @@ uchar* pack_key_toku_field(
         new_pos = pack_toku_field(to_tokudb, from_mysql, field, key_part_length);
         goto exit;
     case (toku_type_varbinary):
-    case (toku_type_varstring):
-    case (toku_type_blob):
         new_pos = pack_toku_varbinary(
             to_tokudb,
             from_mysql,
             get_length_bytes_from_max(key_part_length),
             2, // for some idiotic reason, 2 bytes are always used here, regardless of length of field
             key_part_length
+            );
+        goto exit;
+    case (toku_type_varstring):
+    case (toku_type_blob):
+        new_pos = pack_toku_varstring(
+            to_tokudb,
+            from_mysql,
+            get_length_bytes_from_max(key_part_length),
+            2, // for some idiotic reason, 2 bytes are always used here, regardless of length of field
+            key_part_length,
+            field->charset()
             );
         goto exit;
     default:
