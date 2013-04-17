@@ -29,7 +29,6 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     int r;
     DB_TXN* txn = NULL;
     u_int32_t flags = 0;
-    DBC* c = NULL;
     DBT key,val;
     DBT in_key,in_val;
     uint32_t in_key_data, in_val_data = 0;
@@ -47,14 +46,6 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     memset(&in_keys, 0, sizeof(in_keys));
     dbt_init(&key, "a", 4);
     dbt_init(&val, "a", 4);
-
-    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = db->pre_acquire_fileops_shared_lock(db, txn); CKERR2(r,DB_LOCK_NOTGRANTED);
-    r = txn->commit(txn,0); CKERR(r);
-
-    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = db->cursor(db, txn, &c, 0); CKERR2(r,DB_LOCK_NOTGRANTED);
-    r = txn->commit(txn,0); CKERR(r);
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
     r = db->put(
@@ -162,34 +153,23 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
 
 }
 
-static void verify_excl_ops_fail(DB_ENV* env, DB* db) {
+static void verify_excl_ops_fail(DB_ENV* env, const char* name) {
     DB_TXN* txn = NULL;
     int r; 
     DBT extra_up;
     dbt_init(&extra_up, NULL, 0);
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = db->pre_acquire_fileops_lock(db, txn);
-    CKERR2(r, DB_LOCK_NOTGRANTED);
+    r = env->dbrename(env, txn, name, NULL, "asdf.db", 0);
+    CKERR2(r, EINVAL);
     r = txn->commit(txn,0); CKERR(r);
 
-    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = db->update_broadcast(db, txn, &extra_up, DB_IS_RESETTING_OP);
-    CKERR2(r, DB_LOCK_NOTGRANTED);
-    r = txn->commit(txn,0); CKERR(r);
-
-    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = db->change_descriptor(db, txn, &extra_up, 0);
-    CKERR2(r, DB_LOCK_NOTGRANTED);
-    r = txn->commit(txn,0); CKERR(r);
 }
 
 
 int test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
     int r;
-    DBC* c1 = NULL;
-    DBC* c2 = NULL;
     DBT in_key,in_val;
     uint32_t in_key_data = 123456;
     uint32_t in_val_data = 654321;
@@ -232,7 +212,7 @@ int test_main (int argc, char * const argv[]) {
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = db_create(&db2, env, 0); CKERR(r);
     r = db2->open(db2, txna, "foo2.db", NULL, DB_BTREE, DB_CREATE|DB_IS_HOT_INDEX, 0666); CKERR(r);
-    verify_excl_ops_fail(env, db2);
+    verify_excl_ops_fail(env, "foo2.db");
     r = txna->commit(txna, 0); CKERR(r);
 
 
@@ -242,7 +222,6 @@ int test_main (int argc, char * const argv[]) {
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = db_create(&db, env, 0); CKERR(r);
     r = db->open(db, txna, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
-    verify_shared_ops_fail(env, db);
     r = txna->commit(txna, 0); CKERR(r);
 
     //
@@ -255,38 +234,6 @@ int test_main (int argc, char * const argv[]) {
     loader=NULL;
     r = txna->commit(txna, 0); CKERR(r);
 
-    //
-    // preacquire fileops lock
-    //
-    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
-    r = db->pre_acquire_fileops_lock(db,txna); CKERR(r);
-    verify_shared_ops_fail(env,db);
-    r = txna->commit(txna, 0); CKERR(r);
-
-    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
-    r = db->pre_acquire_fileops_lock(db,txna); CKERR(r);
-    verify_shared_ops_fail(env,db);
-    r = txna->commit(txna, 0); CKERR(r);
-
-
-    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
-    r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
-    r = db->pre_acquire_fileops_shared_lock(db, txna); CKERR(r);
-    r = db->pre_acquire_fileops_shared_lock(db, txnb); CKERR(r);
-    verify_excl_ops_fail(env,db);
-    r = txna->abort(txna); CKERR(r);
-    r = txnb->abort(txnb); CKERR(r);
-
-    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
-    r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
-    r = db->cursor(db, txna, &c1, 0); CKERR(r);
-    r = db->cursor(db, txnb, &c2, 0); CKERR(r);
-    verify_excl_ops_fail(env,db);
-    c1->c_close(c1);
-    c2->c_close(c2);
-    r = txna->abort(txna); CKERR(r);
-    r = txnb->abort(txnb); CKERR(r);
-
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
     DBT key,val;
@@ -296,7 +243,7 @@ int test_main (int argc, char * const argv[]) {
     dbt_init(&key, "b", 4);
     dbt_init(&val, "b", 4);
     r = db->put(db, txnb, &key, &val, 0);       CKERR(r);
-    verify_excl_ops_fail(env,db);
+    verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
 
@@ -306,7 +253,7 @@ int test_main (int argc, char * const argv[]) {
     r = db->del(db, txna, &key, DB_DELETE_ANY); CKERR(r);
     dbt_init(&key, "b", 4);
     r = db->del(db, txnb, &key, DB_DELETE_ANY); CKERR(r);
-    verify_excl_ops_fail(env,db);
+    verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
 
@@ -317,29 +264,16 @@ int test_main (int argc, char * const argv[]) {
     r = db->update(db, txna, &key, &val, 0); CKERR(r);
     dbt_init(&key, "b", 4);
     r = db->update(db, txnb, &key, &val, 0); CKERR(r);
-    verify_excl_ops_fail(env,db);
+    verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
 
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = db->update_broadcast(db, txna, &val, 0); CKERR(r);
-    verify_excl_ops_fail(env,db);
+    verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
-
-    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
-    r = db->update_broadcast(db, txna, &val, DB_IS_RESETTING_OP); CKERR(r);
-    verify_shared_ops_fail(env,db);
-    r = txna->abort(txna); CKERR(r);
-
-    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
-    r = db->change_descriptor(db, txna, &val, 0); CKERR(r);
-    verify_shared_ops_fail(env,db);
-    r = txna->abort(txna); CKERR(r);
-
-
 
     u_int32_t flags = 0;
-
 
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
@@ -357,7 +291,7 @@ int test_main (int argc, char * const argv[]) {
         &key, &val,
         1, &db, &in_key, &in_val, &flags);
     CKERR(r);
-    verify_excl_ops_fail(env,db);
+    verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
 
@@ -378,7 +312,7 @@ int test_main (int argc, char * const argv[]) {
         &key, &val,
         1, &db, &in_key, &flags);
     CKERR(r);
-    verify_excl_ops_fail(env,db);
+    verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
 
@@ -407,7 +341,7 @@ int test_main (int argc, char * const argv[]) {
         2, in_keys,
         1, &in_val);
     CKERR(r);
-    verify_excl_ops_fail(env,db);
+    verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
 

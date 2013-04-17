@@ -148,7 +148,6 @@ typedef enum {
 #define DB_IS_RESETTING_OP 0x01000000
 #define DB_PRELOCKED 0x00800000
 #define DB_PRELOCKED_WRITE 0x00400000
-#define DB_PRELOCKED_FILE_READ 0x00200000
 #define DB_IS_HOT_INDEX 0x00100000
 #define DBC_DISABLE_PREFETCHING 0x20000000
 #define DB_DBT_APPMALLOC 1
@@ -326,7 +325,6 @@ struct __toku_db {
   void *app_private; /* 32-bit offset=16 size=4, 64=bit offset=32 size=8 */
   DB_ENV *dbenv; /* 32-bit offset=20 size=4, 64=bit offset=40 size=8 */
   int (*pre_acquire_fileops_lock)(DB*, DB_TXN*);
-  int (*pre_acquire_fileops_shared_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   void (*get_max_row_size) (DB*, u_int32_t *max_key_size, u_int32_t *max_row_size);
@@ -344,7 +342,7 @@ struct __toku_db {
   int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going);
   int (*update)(DB *, DB_TXN*, const DBT *key, const DBT *extra, u_int32_t flags);
   int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, u_int32_t flags);
-  void* __toku_dummy0[13];
+  void* __toku_dummy0[14];
   char __toku_dummy1[96];
   void *api_internal; /* 32-bit offset=248 size=4, 64=bit offset=400 size=8 */
   void* __toku_dummy2[5];
