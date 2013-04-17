@@ -1615,6 +1615,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
     for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
 	if (p->key.b==key.b && p->cachefile==cf) {
             //Maybe check for pending and do write_pair_for_checkpoint()?
+            lru_touch(ct, p);
             break;
         }
     }
