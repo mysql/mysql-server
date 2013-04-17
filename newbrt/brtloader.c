@@ -1226,7 +1226,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     int size = header_len + compressed_len;
     if (0) {
 	fprintf(stderr, "uncompressed buf size=%d (amount of data compressed)\n", uncompressed_len);
-	fprintf(stderr, "compressed buf size=%u, off=%lld\n", compressed_len, off_of_leaf);
+	fprintf(stderr, "compressed buf size=%d, off=%lld\n", compressed_len, off_of_leaf);
 	fprintf(stderr, "compressed bytes are:");
 	//for (int i=0; i<compressed_len; i++) {
 	//    unsigned char c = compressed_buf[28+i];
