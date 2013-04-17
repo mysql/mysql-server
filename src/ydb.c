@@ -2036,6 +2036,8 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->partial_fetch_hit = brt_stat.partial_fetch_hit;
 	    engstat->partial_fetch_miss = brt_stat.partial_fetch_miss;
 	    engstat->partial_fetch_compressed = brt_stat.partial_fetch_compressed;
+        engstat->partial_evictions_internal = brt_stat.partial_evictions_internal;
+        engstat->partial_evictions_leaf = brt_stat.partial_evictions_leaf;
 	    engstat->msn_discards = brt_stat.msn_discards;
 	    engstat->max_workdone = brt_stat.max_workdone;
 	    engstat->dsn_gap = brt_stat.dsn_gap;	    
@@ -2163,23 +2165,22 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     char panicstring[stringsize];
     int n = 0;  // number of characters printed so far
 
-
     n = snprintf(buff, bufsiz - n, "BUILD_ID = %d\n", BUILD_ID);
 
     int r = env_get_engine_status(env, &engstat, panicstring, stringsize);    
 
     if (strlen(panicstring)) {
-	invariant(strlen(panicstring) <= stringsize);
-	n += snprintf(buff + n, bufsiz - n, "Env panic: %s\n", panicstring);
+        invariant(strlen(panicstring) <= stringsize);
+        n += snprintf(buff + n, bufsiz - n, "Env panic: %s\n", panicstring);
     }
 
     if (r) {
-	n += snprintf(buff + n, bufsiz - n, "Engine status not available: ");
+        n += snprintf(buff + n, bufsiz - n, "Engine status not available: ");
 	if (!env) {
-	    n += snprintf(buff + n, bufsiz - n, "no environment\n");
+        n += snprintf(buff + n, bufsiz - n, "no environment\n");
 	}
 	else if (!(env->i)) {
-	    n += snprintf(buff + n, bufsiz - n, "environment internal struct is null\n");
+        n += snprintf(buff + n, bufsiz - n, "environment internal struct is null\n");
 	}
 	else if (!env_opened(env)) {
 	    n += snprintf(buff + n, bufsiz - n, "environment is not open\n");
@@ -2266,6 +2267,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "partial_fetch_hit                %"PRIu64"\n", engstat.partial_fetch_hit);
 	n += snprintf(buff + n, bufsiz - n, "partial_fetch_miss               %"PRIu64"\n", engstat.partial_fetch_miss);
 	n += snprintf(buff + n, bufsiz - n, "partial_fetch_compressed         %"PRIu64"\n", engstat.partial_fetch_compressed);
+	n += snprintf(buff + n, bufsiz - n, "partial_evictions_internal       %"PRIu64"\n", engstat.partial_evictions_internal);
+	n += snprintf(buff + n, bufsiz - n, "partial_evictions_leaf           %"PRIu64"\n", engstat.partial_evictions_leaf);
 	n += snprintf(buff + n, bufsiz - n, "msn_discards                     %"PRIu64"\n", engstat.msn_discards);
 	n += snprintf(buff + n, bufsiz - n, "max_workdone                     %"PRIu64"\n", engstat.max_workdone);
 	n += snprintf(buff + n, bufsiz - n, "dsn_gap                          %"PRIu64"\n", engstat.dsn_gap);
