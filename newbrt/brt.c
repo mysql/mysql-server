@@ -3139,7 +3139,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_brt_open(%s, \"%s\", %d, %p, %d, %p)\n",
                           __FILE__, __LINE__, fname_in_env, dbname, is_create, newbrt, nodesize, cachetable));
     char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(cachetable, fname_in_env);
-    if (0) { died0:  toku_free(fname_in_cwd); assert(r); return r; }
+    if (0) { died0:  if (fname_in_cwd) toku_free(fname_in_cwd); assert(r); return r; }
 
     assert(is_create || !only_create);
     t->db = db;
@@ -3165,6 +3165,8 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
             if (r!=0) goto died1;
             r = brt_create_file(t, fname_in_cwd, &fd);
         }
+        toku_free(fname_in_cwd);
+        fname_in_cwd = NULL;
         if (r != 0) goto died1;
 	// TODO: #2090
         r=toku_cachetable_openfd_with_filenum(&t->cf, cachetable, fd, 
