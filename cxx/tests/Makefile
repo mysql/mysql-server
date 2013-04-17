@@ -33,9 +33,10 @@ TARGETS = $(patsubst %.cpp,%,$(SRCS))
 
 # OPTFLAGS = -O0
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CPPFLAGS = -I../ -I../../include -I../../linux -I$(TOKUROOT)toku_include
+CPPFLAGS = -I../ -I../../include -I../../linux -I$(TOKUROOT)toku_include -DUSE_ENV
 CXXFLAGS = -Wall $(OPTFLAGS) -g $(GCOV_FLAGS)
-LDLIBS = ../../lib/libtokudb_cxx.a ../../lib/libtokudb.a -lz -lpthread
+LDLIBS = ../../lib/libtokudb_cxx.a -ltokudb -lz -lpthread
+RPATH_DIRS=$(TOKUROOT)lib
 
 ifeq ($(CC),icc)
 CXXFLAGS += -diag-disable 981
