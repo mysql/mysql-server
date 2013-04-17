@@ -4460,11 +4460,34 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
     int error;
     DBC* tmp_cursor = NULL;
+    tokudb_trx_data *trx = NULL;
+    DB_TXN* txn = NULL;
+    bool do_commit = false;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+
+    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    if (trx == NULL) {
+        error = HA_ERR_UNSUPPORTED;
+        goto cleanup;
+    }
+
+    //
+    // optimize may be called without a valid transaction, so we have to do this
+    // in order to get a valid transaction
+    // this is a bit hacky, but it is the best we have right now
+    //
+    txn = trx->stmt ? trx->stmt : trx->sp_level;
+    if (txn == NULL) {        
+        error = db_env->txn_begin(db_env, NULL, &txn, 0);
+        if (error) {
+            goto cleanup;
+        }
+        do_commit = true;
+    }
     //
     // prelock so each scan goes faster
     //
-    error = acquire_table_lock(transaction,lock_read);
+    error = acquire_table_lock(txn,lock_read);
     if (error) {
         goto cleanup;
     }
@@ -4474,7 +4497,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     //
     for (uint i = 0; i < curr_num_DBs; i++) {
         error = 0;
-        if ((error = share->file->cursor(share->file, transaction, &tmp_cursor, 0))) {
+        if ((error = share->file->cursor(share->file, txn, &tmp_cursor, 0))) {
             tmp_cursor = NULL;
             goto cleanup;
         }
@@ -4489,6 +4512,9 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
 
     error = 0;
 cleanup:
+    if (do_commit) {
+        error = txn->commit(txn, 0);
+    }
     TOKUDB_DBUG_RETURN(error);
 }
 
