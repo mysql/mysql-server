@@ -14,8 +14,8 @@
 #include <pthread.h>
 
 
-DB_ENV *env;
-DB *db;
+static DB_ENV *env;
+static DB *db;
 
 static void
 insert(int i, DB_TXN *txn)
@@ -52,7 +52,7 @@ lookup(int i, DB_TXN *txn)
 }
 
 #define N_ROWS 1000000
-#define N_TXNS 1000000
+#define N_TXNS 10000
 #define N_ROWS_PER_TXN 1
 
 #define INITIAL_SIZE 1000
@@ -112,8 +112,10 @@ static void*
 start_b (void *arg __attribute__((__unused__))) {
     int r;
     for (int j=0; j<N_TXNS; j++) {
-	printf("."); fflush(stdout);
-	if (j%(N_TXNS/10)==0) printf("\n");
+	if (verbose) {
+	    printf("."); fflush(stdout);
+	    if (j%(N_TXNS/10)==0) printf("\n");
+	}
 	DB_TXN *txn;
 	r = env->txn_begin(env, 0, &txn, 0);                                              CKERR(r);
 	for (int i=0; i<N_ROWS_PER_TXN; i++) {
@@ -160,8 +162,9 @@ run_test (void)
     finish();
 }
 
-int test_main (int argc __attribute__((__unused__)), char*const argv[] __attribute__((__unused__))) {
+int test_main (int argc, char*const argv[]) {
+    parse_args(argc, argv);
     run_test();
-    printf("\n");
+    if (verbose) printf("\n");
     return 0;
 }

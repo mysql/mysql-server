@@ -1600,7 +1600,8 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
 }
 
 
-int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, long size)
+static int
+toku_cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, long size, BOOL have_ct_lock)
 // size==0 means that the size didn't change.
 {
     CACHETABLE ct = cachefile->cachetable;
@@ -1610,7 +1611,7 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
     int count = 0;
     int r = -1;
     //assert(fullhash == toku_cachetable_hash(cachefile, key));
-    cachetable_lock(ct);
+    if (!have_ct_lock) cachetable_lock(ct);
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
@@ -1634,16 +1635,36 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
 	}
     }
     note_hash_count(count);
-    cachetable_unlock(ct);
+    if (!have_ct_lock) cachetable_unlock(ct);
     return r;
+}
+
+int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, long size) {
+    // By default we don't have the lock
+    return toku_cachetable_unpin_internal(cachefile, key, fullhash, dirty, size, FALSE);
+}
+int toku_cachetable_unpin_ct_prelocked(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, long size) {
+    // By default we don't have the lock
+    return toku_cachetable_unpin_internal(cachefile, key, fullhash, dirty, size, TRUE);
+}
+
+static void
+run_unlockers (UNLOCKERS unlockers) {
+    while (unlockers) {
+	assert(unlockers->locked);
+	unlockers->locked = FALSE;
+	unlockers->f(unlockers->extra);
+	unlockers=unlockers->next;
+    }
 }
 
 int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 					     CACHETABLE_FLUSH_CALLBACK flush_callback, 
-					     CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs)
+					     CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs,
+					     UNLOCKERS unlockers)
 // Effect:  If the block is in the cachetable, then pin it and return it. 
 //   Otherwise call the lock_unlock_callback (to unlock), fetch the data (but don't pin it, since we'll just end up pinning it again later),  and the call (to lock)
-//   and return TOKU_DB_TRYAGAIN.
+//   and return TOKUDB_TRY_AGAIN.
 {
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
@@ -1670,9 +1691,11 @@ int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32
 	    case CTPAIR_INVALID: assert(0);
 	    case CTPAIR_READING:
 	    case CTPAIR_WRITING:
+		run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
 		if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
+		// Now wait for the I/O to occur.
 		// We need to obtain the read lock (waiting for the write to finish), but then we only waited so we could wake up again.  So rather than locking the read lock, and then releasing it we call this function.
-		rwlock_read_lock_and_unlock(&p->rwlock, ct->mutex); // recall that this lock releases and reacquires the ct->mutex.
+		rwlock_read_lock_and_unlock(&p->rwlock, ct->mutex); // recall that this lock releases and reacquires the ct->mutex, letting writers finish up first.
 		cachetable_unlock(ct);
 		if (ct->ydb_lock_callback) ct->ydb_lock_callback();
 		return TOKUDB_TRY_AGAIN;
@@ -1694,6 +1717,7 @@ int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32
     p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN);
     assert(p);
     rwlock_write_lock(&p->rwlock, ct->mutex);
+    run_unlockers(unlockers); // we hold the ct mutex.
     if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
     int r = cachetable_fetch_pair(ct, cf, p);
     cachetable_unlock(ct);

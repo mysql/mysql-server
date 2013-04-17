@@ -37,7 +37,6 @@ TRANSPARENT_UPGRADE_SRCS = $(wildcard upgrade*.c)
 NONSTANDARD_SRCS= \
 		  $(RECOVER_SRCS) \
 		  $(LOADER_SRCS) \
-	          test3219.c \
 
 SRCS = $(sort $(wildcard *.c))
 # To patch out upgrade tests, replace line above with line below

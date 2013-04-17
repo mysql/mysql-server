@@ -165,12 +165,21 @@ int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
 				CACHETABLE_FLUSH_CALLBACK flush_callback,
                                 CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
 
+typedef struct unlockers *UNLOCKERS;
+struct unlockers {
+    BOOL       locked;
+    void (*f)(void*extra);
+    void      *extra;
+    UNLOCKERS  next;
+};
+
 // Effect:  If the block is in the cachetable, then return it. 
-//   Otherwise call the release_lock_callback, fetch the data (but don't pin it, since we'll just end up pinning it again later),
+//   Otherwise call the release_lock_callback, call the functions in unlockers, fetch the data (but don't pin it, since we'll just end up pinning it again later),
 //   and return TOKU_DB_TRYAGAIN.
 int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 					     CACHETABLE_FLUSH_CALLBACK flush_callback, 
-					     CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
+					     CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs,
+					     UNLOCKERS unlockers);
 #define CAN_RELEASE_LOCK_DURING_IO
 
 // Maybe get and pin a memory object.
@@ -189,11 +198,16 @@ enum cachetable_dirty {
     CACHETABLE_DIRTY=1, // the cached object is dirty WRT the cachefile
 };
 
-// Unpin a memory object
+int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
+// Effect: Unpin a memory object
 // Effects: If the memory object is in the cachetable, then OR the dirty flag,
 // update the size, and release the read lock on the memory object.
 // Returns: 0 if success, otherwise returns an error number.
-int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
+// Requires: The ct is locked.
+
+int toku_cachetable_unpin_ct_prelocked(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
+// Effect: The same as tokud_cachetable_unpin, except that the ct must not be locked.
+// Requires: The ct is NOT locked.
 
 int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY); /* Removing something already present is OK. */
 // Effect: Remove an object from the cachetable.  Don't write it back.
