@@ -1076,6 +1076,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("leafentry updates", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.le_updates_broadcast);
       STATPRINT("leafentry broadcast updates", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.descriptor_set);
+      STATPRINT("descriptor_set", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts);
       STATPRINT("dictionary inserts multi", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts_fail);
