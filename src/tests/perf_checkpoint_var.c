@@ -95,6 +95,9 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
 int
 test_main(int argc, char *const argv[]) {
     struct cli_args args = get_default_args_for_perf();
+    args.env_args.checkpointing_period = 30;
+    args.num_DBs = 4;
+    args.num_ptquery_threads = 4;
     parse_stress_test_args(argc, argv, &args);
     stress_test_main(&args);
     return 0;
