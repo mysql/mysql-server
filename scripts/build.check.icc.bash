@@ -8,16 +8,15 @@
 function usage() {
     echo "build tokudb and run regressions"
     echo "--windows=$dowindows (if yes/1 must be first option)"
-    echo "--branch=$branch"
-    echo "--tokudb=$tokudb"
-    echo "--revision=$revision"
-    echo "--bdb=$bdb"
+    echo "--branch=$branch --tokudb=$tokudb --revision=$revision"
+    echo "--debugtests=$debugtest --releasetests=$releasetests"
     echo "--valgrind=$dovalgrind --VALGRIND=$VALGRIND"
-    echo "--commit=$docommit"
     echo "--j=$makejobs"
     echo "--deleteafter=$deleteafter"
     echo "--doclean=$doclean"
     echo "--cc=$cc --cxx=$cxx"
+    echo "--commit=$docommit"
+    echo "--bdb=$bdb"
 }
 
 function retry() {
@@ -178,57 +177,70 @@ function build() {
     # checkout into $productbuilddir
     runcmd 0 $productbuilddir retry svn checkout -q -r $revision $svnserver/$checkout . >>$tracefile 2>&1
 
-    # portability
-    runcmd 0 $productbuilddir/$oschoice       make local DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/$oschoice/tests make check -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+    if [ $debugtests != 0 ] ; then
 
-    # newbrt
-    runcmd 0 $productbuilddir/newbrt make local -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/newbrt make check -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+        # portability
+	runcmd 0 $productbuilddir/$oschoice       make local DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/$oschoice/tests make check -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	
+        # newbrt
+	runcmd 0 $productbuilddir/newbrt make local -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/newbrt make check -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
-    # src
-    runcmd 0 $productbuilddir/src make local -k -s -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0  >>$tracefile 2>&1
+        # src
+	runcmd 0 $productbuilddir/src make local -k -s -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0  >>$tracefile 2>&1
 
-    # utils
-    runcmd 0 $productbuilddir/utils make -k -s -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/utils make check -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+        # utils
+	runcmd 0 $productbuilddir/utils make -k -s -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/utils make check -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
-    # lock tree
-    runcmd 0 $productbuilddir/src/range_tree/tests make check -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/lock_tree/tests  make check -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+        # lock tree
+	runcmd 0 $productbuilddir/src/range_tree/tests make check -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/lock_tree/tests  make check -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
-    # src/tests
-    runcmd 0 $productbuilddir/src/tests make tests.bdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/tests make stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+        # src/tests
+	runcmd 0 $productbuilddir/src/tests make tests.bdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
 
-    # upgrade tests
-    runcmd 0 $productbuilddir/src/tests make upgrade-tests.tdbrun -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+        # upgrade tests
+	if [ $upgradetests != 0 ] ; then
+	    runcmd 0 $productbuilddir/src/tests make upgrade-tests.tdbrun -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	fi
 
-    # benchmark tests
-    runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/db-benchmark-test make check -k -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+        # benchmark tests
+	runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/db-benchmark-test make check -k -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
-    # run the brtloader tests with a debug build
-    runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/tests    make loader-tests    -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+        # run the brtloader tests with a debug build
+	runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests    make loader-tests    -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+    fi
 
-    # release build 
-    runcmd 0 $productbuilddir make clean >>$tracefile 2>&1
-    runcmd 0 $productbuilddir make release CC=icc >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/utils make CC=icc >>$tracefile 2>&1
+    if [ $releasetests != 0 ] ; then
 
-    # release tests
-    runcmd 0 $productbuilddir/newbrt/tests make check -j$makejobs -k -s SUMMARIZE=1 CC=icc VGRIND= >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 CC=icc VGRIND= >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 CC=icc >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 CC=icc VGRIND= >>$tracefile 2>&1
+        # release build 
+	runcmd 0 $productbuilddir make clean >>$tracefile 2>&1
+	runcmd 0 $productbuilddir make release CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/utils make CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+
+        # release tests
+	runcmd 0 $productbuilddir/newbrt/tests make check -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
+    fi
 
     # cilk tests
+    if [ 0 = 1 ] ; then
     runcmd 0 $productbuilddir make clean >>$tracefile 2>&1
     runcmd 0 $productbuilddir make release CC=icc DEBUG=1 >>$tracefile 2>&1
     runcmd 0 $productbuilddir/newbrt/tests make cilkscreen_brtloader -k -s SUMMARIZE=1 CC=icc DEBUG=1 >>$tracefile 2>&1
+    fi
 
     # cxx
     if [ 0 = 1 ] ; then
@@ -320,6 +332,9 @@ deleteafter=0
 j=-1
 cc=icc
 cxx=icpc
+debugtests=1
+releasetests=1
+upgradetests=0
 
 arg=$1;
 shopt -s compat31 #Necessary in some flavors of linux and windows
@@ -381,5 +396,6 @@ if [ $dovalgrind = 0 ] ; then export VGRIND=""; fi
 
 # limit execution time to 2 hours
 ulimit -t 7200
+ulimit -c unlimited
 
 build $bdb
