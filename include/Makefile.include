@@ -356,7 +356,7 @@ O_FROM_C_FLAGS=  $(CFLAGS) $(CPPFLAGS) -c $(OOUTPUT)$@
 	$(MAYBEATSIGN)$(CC) $< $(O_FROM_C_FLAGS) 
 
 %.$(AEXT):
-	$(MAYBEATSIGN)$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $^)
+	$(MAYBEATSIGN)$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
 %.bundle: %.$(AEXT)
 	mkdir -p $@; cd $@; $(AR) x ../$(<F)
 
