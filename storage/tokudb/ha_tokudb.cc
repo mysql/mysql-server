@@ -4973,6 +4973,16 @@ int ha_tokudb::delete_table(const char *name) {
     int error;
     char* newname = NULL;
     pthread_mutex_lock(&tokudb_meta_mutex);
+
+    //
+    // this can only fail if we have not opened the environment
+    // yet. I want to assert that rather than check for the error
+    //
+    error = db_env->checkpointing_begin_atomic_operation(db_env);
+    assert(!error);
+    error = db_env->checkpointing_postpone(db_env);
+    assert(!error);
+
     // remove all of the dictionaries in the table directory 
     error = drop_table_from_metadata(name);
     if (error) {
@@ -4987,6 +4997,13 @@ int ha_tokudb::delete_table(const char *name) {
     error = rmall(newname);
     my_errno = error;
 cleanup:
+    {
+       int r;
+       r = db_env->checkpointing_resume(db_env);
+       assert(r==0);
+       r = db_env->checkpointing_end_atomic_operation(db_env);
+       assert(r==0);
+    }
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
@@ -5013,6 +5030,8 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     // this can only fail if we have not opened the environment
     // yet. I want to assert that rather than check for the error
     //
+    error = db_env->checkpointing_begin_atomic_operation(db_env);
+    assert(!error);
     error = db_env->checkpointing_postpone(db_env);
     assert(!error);
 
@@ -5042,7 +5061,10 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
 
 cleanup:
     {
-       int r = db_env->checkpointing_resume(db_env);
+       int r;
+       r = db_env->checkpointing_resume(db_env);
+       assert(r==0);
+       r = db_env->checkpointing_end_atomic_operation(db_env);
        assert(r==0);
     }
     my_free(newfrom, MYF(MY_ALLOW_ZERO_PTR));
