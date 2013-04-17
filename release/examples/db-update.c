@@ -100,13 +100,15 @@ static inline float tdiff (struct timeval *a, struct timeval *b) {
     return (a->tv_sec - b->tv_sec) +1e-6*(a->tv_usec - b->tv_usec);
 }
 
-static void insert_and_update_all(DB_ENV *db_env, DB *db, long nrows, long max_rows_per_txn, int key_range, long rows_per_report, bool do_update_callback) {
+static void insert_and_update_all(DB_ENV *db_env, DB *db, long nrows, long max_rows_per_txn, int key_range, long rows_per_report, bool do_update_callback, bool do_txn) {
     int r;
     struct timeval tstart;
     r = gettimeofday(&tstart, NULL); assert(r == 0);
     struct timeval tlast = tstart;
     DB_TXN *txn = NULL;
-    r = db_env->txn_begin(db_env, NULL, &txn, 0); assert(r == 0);
+    if (do_txn) {
+        r = db_env->txn_begin(db_env, NULL, &txn, 0); assert(r == 0);
+    }
     long n_rows_per_txn = 0;
     long rowi;
     for (rowi = 0; rowi < nrows; rowi++) {
@@ -118,7 +120,7 @@ static void insert_and_update_all(DB_ENV *db_env, DB *db, long nrows, long max_r
         n_rows_per_txn++;
         
         // maybe commit
-        if (n_rows_per_txn == max_rows_per_txn) {
+        if (do_txn && n_rows_per_txn == max_rows_per_txn) {
             r = txn->commit(txn, 0); assert(r == 0);
             r = db_env->txn_begin(db_env, NULL, &txn, 0); assert(r == 0);
             n_rows_per_txn = 0;
@@ -132,8 +134,10 @@ static void insert_and_update_all(DB_ENV *db_env, DB *db, long nrows, long max_r
             tlast = tnow;
         }
     }
-    
-    r = txn->commit(txn, 0); assert(r == 0);
+
+    if (do_txn) {
+        r = txn->commit(txn, 0); assert(r == 0);
+    }
     struct timeval tnow;
     r = gettimeofday(&tnow, NULL); assert(r == 0);
     printf("total %.3f %.0f/s\n", tdiff(&tnow, &tstart), nrows/tdiff(&tnow, &tstart)); fflush(stdout);
@@ -148,6 +152,7 @@ int main(int argc, char *argv[]) {
     long rows_per_report = 100000;
     int key_range = 100000;
     bool do_update_callback = false;
+    bool do_txn = true;
 
     int i;
     for (i = 1; i < argc; i++) {
@@ -172,6 +177,10 @@ int main(int argc, char *argv[]) {
             key_range = atol(argv[++i]);
             continue;
         }
+        if (strcmp(arg, "--txn") == 0 && i+1 < argc) {
+            do_txn = atoi(argv[++i]);
+            continue;
+        }
         if (strcmp(arg, "--update_callback") == 0) {
             do_update_callback = true;
             continue;
@@ -193,18 +202,24 @@ int main(int argc, char *argv[]) {
 #if !defined(BDB)
     db_env->set_update(db_env, my_update_callback);
 #endif
+    if (!do_txn)
+        db_env_open_flags &= ~(DB_INIT_TXN | DB_INIT_LOG);
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 
     // create the db
     DB *db = NULL;
     r = db_create(&db, db_env, 0); assert(r == 0);
     DB_TXN *create_txn = NULL;
-    r = db_env->txn_begin(db_env, NULL, &create_txn, 0); assert(r == 0);
+    if (do_txn) {
+        r = db_env->txn_begin(db_env, NULL, &create_txn, 0); assert(r == 0);
+    }
     r = db->open(db, create_txn, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
-    r = create_txn->commit(create_txn, 0); assert(r == 0);
+    if (do_txn) {
+        r = create_txn->commit(create_txn, 0); assert(r == 0);
+    }
 
     // insert on duplicate key update
-    insert_and_update_all(db_env, db, rows, rows_per_txn, key_range, rows_per_report, do_update_callback);
+    insert_and_update_all(db_env, db, rows, rows_per_txn, key_range, rows_per_report, do_update_callback, do_txn);
 
     // shutdown
     r = db->close(db, 0); assert(r == 0); db = NULL;
