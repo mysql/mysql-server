@@ -4798,6 +4798,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
     // if this is a covering index, this is all we need
     if (this->key_read) {
         assert(!need_val);
+        extract_hidden_primary_key(active_index, &curr_key);
         read_key_only(buf, active_index, &curr_key);
         error = 0;
     }
