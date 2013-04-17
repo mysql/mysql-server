@@ -814,7 +814,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    brt_status.partial_evictions_internal++;
+                    brt_status.partial_evictions_nonleaf++;
                     cilk_spawn compress_internal_node_partition(node, i);
                 }
                 else {

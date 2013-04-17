@@ -109,8 +109,8 @@ struct __toku_db_env_internal {
 
 typedef struct {
     volatile u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released.  This is precise since it is updated only when the lock is held.                              */ 
-    volatile u_int32_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder).  This is precise since it is updated with a fetch-and-add. */
-    volatile u_int32_t        max_waiters;             /* max number of simultaneous client threads kept waiting for ydb lock.  This is precise (updated only when the lock is held) but may be running a little behind (while waiting for the lock it hasn't been updated).  */ 
+    volatile u_int64_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder).  This is precise since it is updated with a fetch-and-add. */
+    volatile u_int64_t        max_waiters;             /* max number of simultaneous client threads kept waiting for ydb lock.  This is precise (updated only when the lock is held) but may be running a little behind (while waiting for the lock it hasn't been updated).  */ 
     volatile u_int64_t        total_sleep_time;        /* total time spent sleeping for ydb lock scheduling (useconds).   This adds up over many clients. This is precise since it is updated with an atomic fetch-and-add. */ 
     volatile tokutime_t        max_time_ydb_lock_held;  /* max time the ydb lock was held (in microseconds).  This is precise since it is updated only when the lock is held.  */ 
     volatile tokutime_t        total_time_ydb_lock_held;/* total time the ydb lock has been held.  */
