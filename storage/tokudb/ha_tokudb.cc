@@ -6855,12 +6855,12 @@ cleanup:
     if (txn) {
         if (error) {
             //
-            // need to restore num_DBs
+            // need to restore num_DBs, and we have to do it before we close the dictionaries
+            // so that there is not a window 
             //
             if (incremented_numDBs) {
                 rw_wrlock(&share->num_DBs_lock);
                 share->num_DBs--;
-                rw_unlock(&share->num_DBs_lock);
             }
             curr_index = curr_num_DBs;
             for (uint i = 0; i < num_of_keys; i++, curr_index++) {
@@ -6874,6 +6874,9 @@ cleanup:
                 }
             }
             abort_txn(txn);
+            if (incremented_numDBs) {
+                rw_unlock(&share->num_DBs_lock);
+            }
         }
         else {
             commit_txn(txn,0);
