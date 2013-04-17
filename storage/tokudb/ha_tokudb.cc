@@ -571,13 +571,9 @@ void tokudb_cleanup_log_files(void) {
     char **names;
     int error;
 
-    // QQQ by HF. Sometimes it crashes. TODO - find out why
-#ifndef EMBEDDED_LIBRARY
-    /* XXX: Probably this should be done somewhere else, and
-     * should be tunable by the user. */
     if ((error = db_env->txn_checkpoint(db_env, 0, 0, 0)))
         my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
-#endif
+
     if ((error = db_env->log_archive(db_env, &names, 0)) != 0) {
         DBUG_PRINT("error", ("log_archive failed (error %d)", error));
         db_env->err(db_env, error, "log_archive");
@@ -587,8 +583,12 @@ void tokudb_cleanup_log_files(void) {
     if (names) {
         char **np;
         for (np = names; *np; ++np) {
-            printf("%d:%s:%d:delete:%s\n", my_tid(), __FILE__, __LINE__, *np);
-            // my_delete(*np, MYF(MY_WME));
+#if 1
+            if (tokudb_debug)
+                printf("%d:%s:%d:TBD delete:%s\n", my_tid(), __FILE__, __LINE__, *np);
+#else
+            my_delete(*np, MYF(MY_WME));
+#endif
         }
 
         free(names);
@@ -2665,7 +2665,7 @@ static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY
 
 static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 8 * 1024, 0, ~0L, 0);
 
-static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, PLUGIN_VAR_READONLY, "TokuDB Debug", NULL, NULL, 1, 0, ~0L, 0);
+static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, PLUGIN_VAR_READONLY, "TokuDB Debug", NULL, NULL, 0, 0, ~0L, 0);
 
 static MYSQL_SYSVAR_STR(log_dir, tokudb_log_dir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
 
