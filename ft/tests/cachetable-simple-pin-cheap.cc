@@ -52,7 +52,11 @@ run_test (pair_lock_type lock_type) {
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
     reset_unlockers(&unlockers);
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, PL_WRITE_EXPENSIVE, NULL, &unlockers);
-    if (lock_type == PL_WRITE_EXPENSIVE) {
+    // to fix #5393, we changed behavior on full fetch where if we 
+    // requested a PL_WRITE_CHEAP, and had to grab a PL_WRITE_EXPENSIVE for
+    // a full fetch, we keep it as a PL_WRITE_EXPENSIVE because downgrading back
+    // was too big a pain.
+    if (lock_type == PL_WRITE_EXPENSIVE || lock_type == PL_WRITE_CHEAP) {
         assert(r == TOKUDB_TRY_AGAIN); assert(!unlockers.locked);
     }
     else {
