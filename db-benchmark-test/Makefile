@@ -107,7 +107,7 @@ check-4G: $(TARGET_TDB)  $(SCANSCAN_TDB)
 
 clean:
 	rm -f $(TARGETS) 4g.out
-	rm -rf $(BENCHDBS)
+	rm -rf *.dir $(BENCHDBS)
 
 $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): BIN_FROM_C_FLAGS+=-DDIRSUF=tokudb -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)toku_include -I$(TOKUROOT)include
 
@@ -163,3 +163,57 @@ PARGS =
 ptest%: $(TARGET_TDB)
 	./$< --env $@.dir $(PARGS)
 parallel-test-8: ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7
+
+#benchmarks
+.PHONY: %.manybenchmark
+.PHONY: %.manyflattenedscan %.flattenedscan
+.PHONY: %.manyflatteningscan %.flatteningscan
+
+BENCH_TIME=time
+SCAN_TIME=time
+BENCH_RUNS=5
+QUIET_BENCH_ARG=
+
+%.manybenchmark: SHELL=/bin/bash
+%.manybenchmark: 
+	$(BENCH_TIME) for (( i = 0; i < $(BENCH_RUNS); i++ )) ; do rm -f $*.benchmark.dir; $(MAKE) -s $*.benchmark.dir BENCH_TIME= QUIET_BENCH_ARG=-q ; done
+%.benchmark.dir: SHELL=/bin/bash
+%.benchmark.dir: $(TARGET_TDB)
+	rm -rf $@
+	$(BENCH_TIME) ./$< --env $@ $(QUIET_BENCH_ARG) $(EXTRA_BENCH_ARGS)
+
+no-txn.benchmark.dir: EXTRA_BENCH_ARGS=
+txn.benchmark.dir:    EXTRA_BENCH_ARGS= -x --singlex --prelock
+abort.benchmark.dir:  EXTRA_BENCH_ARGS= -x --singlex --prelock --abort
+
+QUIET_SCAN_ARG=
+SCANSCAN_ARGS=--lwc --prelock --prelockflag --cachesize 268435456 # scanscan default, cache of windows (256MB)
+SCANSCAN_TDB = scanscan-tokudb$(BINSUF)
+
+%.manyflatteningscan: SHELL=/bin/bash
+%.manyflatteningscan: 
+	$(SCAN_TIME) for (( i = 0; i < $(BENCH_RUNS); i++ )) ; do rm -f $*.flatteningscan; $(MAKE) -s $*.flatteningscan SCAN_TIME= "QUIET_SCAN_ARG= >/dev/null" ; done
+
+%.flatteningscan: QUIET_BENCH_ARG=-q
+%.flatteningscan: SHELL=/bin/bash
+%.flatteningscan: BENCH_TIME=
+%.flatteningscan: $(SCANSCAN_TDB) %.benchmark.dir
+	rm -rf $@.dir
+	cp -R $*.benchmark.dir $@.dir
+	$(SCAN_TIME) ./$< --env $@.dir $(SCANSCAN_ARGS) $(QUIET_SCAN_ARG)
+
+%.manyflattenedscan: SHELL=/bin/bash
+%.manyflattenedscan: %.flattenedscan.dir
+	$(SCAN_TIME) for (( i = 0; i < $(BENCH_RUNS); i++ )) ; do rm -f $*.flattenedscan; $(MAKE) -s $*.flattenedscan SCAN_TIME= "QUIET_SCAN_ARG= >/dev/null" ; done
+
+%.flattenedscan.dir: QUIET_BENCH_ARG=-q
+%.flattenedscan.dir: QUIET_SCAN_ARGS=-q
+%.flattenedscan.dir: BENCH_TIME=
+%.flattenedscan.dir: $(SCANSCAN_TDB) %.benchmark.dir
+	cp -R $*.benchmark.dir $@
+	./$< --env $@ $(SCANSCAN_ARGS) $(QUIET_SCAN_ARG)
+
+%.flattenedscan: SHELL=/bin/bash
+%.flattenedscan: $(SCANSCAN_TDB) %.flattenedscan.dir
+	$(SCAN_TIME) ./$< --env $@.dir $(SCANSCAN_ARGS)$(QUIET_SCAN_ARG)
+
