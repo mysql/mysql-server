@@ -1463,34 +1463,6 @@ brt_merge_child(
     }
 }
 
-// FIXME started_at_root does not exist anymore. this is out of date.
-//
-// The parameter "started_at_root" is needed to resolve #4147 and #4160,
-// which are subtle interactions of background flushing (cleaner and
-// flusher threads) and MSN logic.
-//
-// When we rebalance basement nodes to write out a leaf, we can't have two
-// basement nodes with different max_msn_applieds.  When we flush to a
-// basement node, it may have stale ancestors' messages applied already.
-//
-// If we've flushed everything down from the root recursively, then there
-// is no problem.  Anything that was applied to the leaf node by a query
-// already must be in the batch of stuff we're flushing, so it's okay to
-// do whatever we want, the MSNs will be consistent.
-//
-// But if we started somewhere in the middle (as a cleaner thread does),
-// then we might not have all the messages that were applied to the leaf,
-// and some basement nodes may be in a different state than others.  So
-// before we flush to it, we have to destroy and re-read (off disk) the
-// basement nodes which have messages applied.  Similarly, if a flush
-// started in the middle wants to merge two leaf nodes, we can't do that
-// because we might create a leaf node in a bad state.
-//
-// We use "started_at_root" to decide what to do about this problem in
-// code further down.  For now, anything started by the cleaner thread
-// will have started_at_root==false and anything started by the flusher
-// thread will have started_at_root==true, but future mechanisms need to
-// be mindful of this issue.
 void
 flush_some_child(
     struct brt_header *h,
