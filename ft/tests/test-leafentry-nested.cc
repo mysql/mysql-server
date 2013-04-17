@@ -702,12 +702,12 @@ test_le_apply_messages(void) {
     test_le_committed_apply();
 }
 
-static bool ule_worth_running_garbage_collection(ULE ule, TXNID oldest_known_referenced_xid) {
+static bool ule_worth_running_garbage_collection(ULE ule, TXNID oldest_referenced_xid_known) {
     LEAFENTRY le;
     size_t initial_memsize;
     int r = le_pack(ule, &initial_memsize, &le, nullptr, nullptr, nullptr); CKERR(r);
     invariant_notnull(le);
-    bool worth_running = toku_le_worth_running_garbage_collection(le, oldest_known_referenced_xid);
+    bool worth_running = toku_le_worth_running_garbage_collection(le, oldest_referenced_xid_known);
     toku_free(le);
     return worth_running;
 }

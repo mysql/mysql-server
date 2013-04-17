@@ -97,7 +97,7 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
     assert(node->height == 1);
     assert(node->n_children == 1);
     assert(BP_BLOCKNUM(node, 0).b == grandchild_leaf_blocknum.b);
-    assert(node->oldest_known_referenced_xid == TXNID_NONE);
+    assert(node->oldest_referenced_xid_known == TXNID_NONE);
     toku_unpin_ftnode(t->ft, node);
 
     // now verify the root - keep it pinned so we can flush it below
@@ -115,11 +115,11 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
     assert(node->n_children == 1);
     assert(BP_BLOCKNUM(node, 0).b == child_nonleaf_blocknum.b);
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) > 0);
-    assert(node->oldest_known_referenced_xid == TXNID_NONE);
+    assert(node->oldest_referenced_xid_known == TXNID_NONE);
 
     // set the root's oldest referenced xid to something special
     const TXNID flush_xid = 25000;
-    node->oldest_known_referenced_xid = flush_xid;
+    node->oldest_referenced_xid_known = flush_xid;
 
     // do the flush
     struct flusher_advice fa;
@@ -147,7 +147,7 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
         NULL,
         &node
         );
-    assert(node->oldest_known_referenced_xid == flush_xid);
+    assert(node->oldest_referenced_xid_known == flush_xid);
 
     toku_unpin_ftnode(t->ft, node);
     r = toku_close_ft_handle_nolsn(t, 0);    assert(r==0);

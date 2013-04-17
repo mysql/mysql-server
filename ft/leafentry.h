@@ -178,7 +178,7 @@ void toku_le_apply_msg(FT_MSG   msg,
                        void **maybe_free,
                        int64_t * numbytes_delta_p);
 
-bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_known_referenced_xid);
+bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_referenced_xid_known);
 
 void toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
                              LEAFENTRY *new_leaf_entry,
@@ -189,7 +189,7 @@ void toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
                              const xid_omt_t &snapshot_xids,
                              const rx_omt_t &referenced_xids,
                              const xid_omt_t &live_root_txns,
-                             TXNID oldest_known_referenced_xid,
+                             TXNID oldest_referenced_xid_known,
                              int64_t * numbytes_delta_p);
 
 #endif /* TOKU_LEAFENTRY_H */

@@ -365,7 +365,7 @@ serialize_ftnode_info_size(FTNODE node)
     retval += 4; // nodesize
     retval += 4; // flags
     retval += 4; // height;
-    retval += 8; // oldest_known_referenced_xid
+    retval += 8; // oldest_referenced_xid_known
     retval += node->totalchildkeylens; // total length of pivots
     retval += (node->n_children-1)*4; // encode length of each pivot
     if (node->height > 0) {
@@ -389,7 +389,7 @@ static void serialize_ftnode_info(FTNODE node,
     wbuf_nocrc_uint(&wb, 0); // write a dummy value for where node->nodesize used to be
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
-    wbuf_TXNID(&wb, node->oldest_known_referenced_xid);
+    wbuf_TXNID(&wb, node->oldest_referenced_xid_known);
 
     // pivot information
     for (int i = 0; i < node->n_children-1; i++) {
@@ -1259,7 +1259,7 @@ deserialize_ftnode_info(
         (void) rbuf_int(&rb); // optimized_for_upgrade
     }
     if (node->layout_version_read_from_disk >= FT_LAYOUT_VERSION_22) {
-        rbuf_TXNID(&rb, &node->oldest_known_referenced_xid);
+        rbuf_TXNID(&rb, &node->oldest_referenced_xid_known);
     }
 
     // now create the basement nodes or childinfos, depending on whether this is a
@@ -1509,7 +1509,7 @@ static FTNODE alloc_ftnode_for_deserialize(uint32_t fullhash, BLOCKNUM blocknum)
     node->thisnodename = blocknum;
     node->dirty = 0;
     node->bp = nullptr;
-    node->oldest_known_referenced_xid = TXNID_NONE;
+    node->oldest_referenced_xid_known = TXNID_NONE;
     return node; 
 }
 

@@ -258,7 +258,7 @@ struct ftnode {
     // A better heuristic would be the oldest live txnid, but we use this since it
     // still works well most of the time, and its readily available on the inject
     // code path.
-    TXNID oldest_known_referenced_xid;
+    TXNID oldest_referenced_xid_known;
 
     // array of size n_children, consisting of ftnode partitions
     // each one is associated with a child

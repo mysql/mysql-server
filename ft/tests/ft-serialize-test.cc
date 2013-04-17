@@ -223,7 +223,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     sn.height = 0;
     sn.n_children = 2;
     sn.dirty = 1;
-    sn.oldest_known_referenced_xid = TXNID_NONE;
+    sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(1, sn.childkeys);
     toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("b", 2), 2);
@@ -369,7 +369,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     sn.height = 0;
     sn.n_children = nrows;
     sn.dirty = 1;
-    sn.oldest_known_referenced_xid = TXNID_NONE;
+    sn.oldest_referenced_xid_known = TXNID_NONE;
 
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
@@ -515,7 +515,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     sn.height = 0;
     sn.n_children = 1;
     sn.dirty = 1;
-    sn.oldest_known_referenced_xid = TXNID_NONE;
+    sn.oldest_referenced_xid_known = TXNID_NONE;
 
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
@@ -659,7 +659,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     sn.height = 0;
     sn.n_children = 1;
     sn.dirty = 1;
-    sn.oldest_known_referenced_xid = TXNID_NONE;
+    sn.oldest_referenced_xid_known = TXNID_NONE;
     
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
@@ -810,7 +810,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     sn.height = 0;
     sn.n_children = 7;
     sn.dirty = 1;
-    sn.oldest_known_referenced_xid = TXNID_NONE;
+    sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
     toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("A", 2), 2);
@@ -962,7 +962,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     sn.height = 0;
     sn.n_children = 4;
     sn.dirty = 1;
-    sn.oldest_known_referenced_xid = TXNID_NONE;
+    sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
     toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("A", 2), 2);
@@ -1083,7 +1083,7 @@ test_serialize_leaf(enum ftnode_verify_type bft, bool do_clone) {
     sn.height = 0;
     sn.n_children = 2;
     sn.dirty = 1;
-    sn.oldest_known_referenced_xid = TXNID_NONE;
+    sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(1, sn.childkeys);
     toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("b", 2), 2);
@@ -1226,7 +1226,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     sn.height = 1;
     sn.n_children = 2;
     sn.dirty = 1;
-    sn.oldest_known_referenced_xid = TXNID_NONE;
+    sn.oldest_referenced_xid_known = TXNID_NONE;
     hello_string = toku_strdup("hello");
     MALLOC_N(2, sn.bp);
     MALLOC_N(1, sn.childkeys);
