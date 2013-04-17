@@ -241,7 +241,7 @@ toku_block_get_offset_size(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF *offset, DISKOFF 
 }
 
 int
-toku_allocate_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *res, int *dirty, TOKULOGGER UU(logger)) {
+toku_allocate_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *res, int *dirty) {
     lock_for_blocktable();
     BLOCKNUM result;
     if (bt->free_blocks.b == diskoff_is_null) {
@@ -265,7 +265,7 @@ toku_allocate_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *res, int *dirty, TOKULOG
 
 
 int
-toku_free_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *b, int *dirty, TOKULOGGER UU(logger))
+toku_free_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *b, int *dirty)
 // Effect: Free a diskblock
 //  Watch out for the case where the disk block was never yet written to disk
 {
