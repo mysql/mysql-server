@@ -2508,29 +2508,22 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
     DBUG_PRINT("primary", ("index: %d", primary_key));
     DBUG_DUMP("prim_key", (uchar *) prim_key->data, prim_key->size);
 
-    if (keynr == active_index && cursor)
+    if (keynr == active_index && cursor) {
         error = cursor->c_del(cursor, 0);
+    }
     else if (keynr == primary_key) {  // Unique key
         DBUG_PRINT("Unique key", ("index: %d", keynr));
-        DBUG_ASSERT(keynr == primary_key || prim_key->data != key_buff2);
-        error = share->key_file[keynr]->del(share->key_file[keynr], trans, keynr == primary_key ? prim_key : create_dbt_key_from_table(&key, keynr, key_buff2, record, &has_null), 0);
-    } else {
-        /* QQQ use toku_db_delboth(key_file[keynr], key, val, trans);
-           To delete the not duplicated key, we need to open an cursor on the
-           row to find the key to be delete and delete it.
-           We will never come here with keynr = primary_key
-         */
-        DBUG_ASSERT(keynr != primary_key && prim_key->data != key_buff2);
-        DBC *tmp_cursor;
-        if (!(error = share->key_file[keynr]->cursor(share->key_file[keynr], trans, &tmp_cursor, 0))) {
-            if (!(error = tmp_cursor->c_get(tmp_cursor, create_dbt_key_from_table(&key, keynr, key_buff2, record, &has_null), prim_key, DB_GET_BOTH))) { 
-                DBUG_DUMP("cget key", (uchar *) key.data, key.size);
-                error = tmp_cursor->c_del(tmp_cursor, 0);
-            }
-            int result = tmp_cursor->c_close(tmp_cursor);
-            if (!error)
-                error = result;
-        }
+        error = share->key_file[keynr]->del(share->key_file[keynr], trans, prim_key , 0);
+    } 
+    else {
+        create_dbt_key_from_table(&key, keynr, key_buff2, record, &has_null);
+        error = share->key_file[keynr]->delboth(
+            share->key_file[keynr],
+            trans,
+            &key,
+            prim_key,
+            DB_DELETE_ANY
+            );
     }
     TOKUDB_DBUG_RETURN(error);
 }
