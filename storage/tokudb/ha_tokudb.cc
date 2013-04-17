@@ -7280,3 +7280,91 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
     last_dup_key = primary_key;
 }
 
+struct check_context {
+    THD *thd;
+};
+
+static int
+ha_tokudb_check_progress(void *extra, float progress) {
+    struct check_context *context = (struct check_context *) extra;
+    int result = 0;
+    if (context->thd->killed)
+        result = ER_ABORTING_CONNECTION;
+    return result;
+}
+
+static void
+ha_tokudb_check_info(THD *thd, const char *tablename, const char *msg) {
+    if (thd->vio_ok()) {
+        thd->protocol->prepare_for_resend();
+        thd->protocol->store(tablename, strlen(tablename), system_charset_info);
+        thd->protocol->store("check", 5, system_charset_info);
+        thd->protocol->store("info", 4, system_charset_info);
+        thd->protocol->store(msg, strlen(msg), system_charset_info);
+        thd->protocol->write();
+    }
+}
+
+static volatile int tokudb_check_stall = 0; // debug
+
+int
+ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
+    TOKUDB_DBUG_ENTER("check");
+    const char *old_proc_info = thd->proc_info;
+    thd_proc_info(thd, "tokudb::check");
+
+    while (tokudb_check_stall) sleep(1); // debug
+
+    int result = HA_ADMIN_OK;
+    int r;
+
+    int verbose = 0;
+    int keep_going = 1;
+
+    if (check_opt->flags & T_QUICK) {
+        keep_going = 0;
+    }
+    if (check_opt->flags & T_EXTEND) {
+        verbose = 1;
+        keep_going = 1;
+    }
+
+    r = acquire_table_lock(transaction, lock_write);
+    if (r != 0)
+        result = HA_ADMIN_INTERNAL_ERROR;
+    if (result == HA_ADMIN_OK) {
+        uint32_t num_DBs = table_share->keys + test(hidden_primary_key);
+        snprintf(write_status_msg, sizeof write_status_msg, 
+                 "check table %s primary=%d num=%d\n", share->table_name, primary_key, num_DBs);
+        if (verbose) 
+            fprintf(stderr, write_status_msg);
+        ha_tokudb_check_info(thd, share->table_name, write_status_msg);
+        for (uint i = 0; i < num_DBs; i++) {
+            time_t now;
+            DB *db = share->key_file[i];
+            const char *kname = table_share->key_info[i].name;
+            if (i == primary_key)
+                kname = "main"; // hidden primary key does not set name
+            now = time(0);
+            snprintf(write_status_msg, sizeof write_status_msg, 
+                     "%.24s %u: check key=%s\n", ctime(&now), i, kname);
+            thd_proc_info(thd, write_status_msg);
+            if (verbose) 
+                fprintf(stderr, write_status_msg);
+            ha_tokudb_check_info(thd, share->table_name, write_status_msg);
+            struct check_context check_context = { thd };
+            r = db->verify_with_progress(db, ha_tokudb_check_progress, &check_context, verbose, keep_going);
+            now = time(0);
+            snprintf(write_status_msg, sizeof write_status_msg, 
+                     "%.24s %u: check key=%s result=%d\n", ctime(&now), i, kname, r);
+            thd_proc_info(thd, write_status_msg);
+            if (verbose) 
+                fprintf(stderr, write_status_msg);
+            ha_tokudb_check_info(thd, share->table_name, write_status_msg);
+            if (result == HA_ADMIN_OK && r != 0)
+                result = HA_ADMIN_CORRUPT;
+        }
+    }
+    thd_proc_info(thd, old_proc_info);
+    TOKUDB_DBUG_RETURN(result);
+}
