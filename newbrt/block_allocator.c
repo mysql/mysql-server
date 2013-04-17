@@ -90,20 +90,21 @@ grow_blocks_array (BLOCK_ALLOCATOR ba) {
     grow_blocks_array_by(ba, 1);
 }
 
-static void
-merge_blockpairs_into (u_int64_t d, struct block_allocator_blockpair dst[/*d*/],
-		       u_int64_t s, struct block_allocator_blockpair src[/*s*/])
+void
+block_allocator_merge_blockpairs_into (u_int64_t d,       struct block_allocator_blockpair dst[/*d*/],
+				       u_int64_t s, const struct block_allocator_blockpair src[/*s*/])
 // Effect: Merge dst[d] and src[s] into dst[d+s], merging in place.
 //   Initially dst and src hold sorted arrays (sorted by increasing offset).
 //   Finally dst contains all d+s elements sorted in order.
 //   dst must be large enough.
 //   Requires no overlaps.
+// This is not static so that we can write a unit test for it.  (Otherwise, this is static only to be used from inside the block allocator)
 {
     u_int64_t tail = d+s;
     while (d>0 && s>0) {
-	struct block_allocator_blockpair *dp = &dst[d-1];
-	struct block_allocator_blockpair *sp = &src[s-1];
-	struct block_allocator_blockpair *tp = &dst[tail-1];
+	struct block_allocator_blockpair       *dp = &dst[d-1];
+	struct block_allocator_blockpair const *sp = &src[s-1];
+	struct block_allocator_blockpair       *tp = &dst[tail-1];
 	assert(tail>0);
 	if (dp->offset > sp->offset) {
 	    *tp = *dp;
@@ -123,8 +124,8 @@ merge_blockpairs_into (u_int64_t d, struct block_allocator_blockpair dst[/*d*/],
 	tail--;
     }
     while (s>0) {
-	struct block_allocator_blockpair *sp = &src[s-1];
-	struct block_allocator_blockpair *tp = &dst[tail-1];
+	struct block_allocator_blockpair const *sp = &src[s-1];
+	struct block_allocator_blockpair       *tp = &dst[tail-1];
 	*tp = *sp;
 	s--;
 	tail--;
@@ -141,7 +142,8 @@ compare_blockpairs (const void *av, const void *bv) {
 }
 
 void
-block_allocator_alloc_blocks_at (BLOCK_ALLOCATOR ba, u_int64_t n_blocks, struct block_allocator_blockpair *pairs)
+block_allocator_alloc_blocks_at (BLOCK_ALLOCATOR ba, u_int64_t n_blocks, struct block_allocator_blockpair pairs[/*n_blocks*/])
+// See the documentation in block_allocator.h
 {
     VALIDATE(ba);
     qsort(pairs, n_blocks, sizeof(*pairs), compare_blockpairs);
@@ -151,8 +153,8 @@ block_allocator_alloc_blocks_at (BLOCK_ALLOCATOR ba, u_int64_t n_blocks, struct 
 	ba->n_bytes_in_use += pairs[i].size;
     }
     grow_blocks_array_by(ba, n_blocks);
-    merge_blockpairs_into(ba->n_blocks, ba->blocks_array,
-			  n_blocks,     pairs);
+    block_allocator_merge_blockpairs_into(ba->n_blocks, ba->blocks_array,
+					  n_blocks,     pairs);
     ba->n_blocks += n_blocks;
     VALIDATE(ba);
 }
