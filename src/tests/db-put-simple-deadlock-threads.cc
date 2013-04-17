@@ -113,7 +113,7 @@ static void simple_deadlock(DB_ENV *db_env, DB *db, int do_txn, int n) {
         r = db_env->txn_begin(db_env, NULL, &txn_b, txn_flags); assert(r == 0);
     }
 
-    struct test_seq test_seq; test_seq_init(&test_seq);
+    struct test_seq test_seq; ZERO_STRUCT(test_seq); test_seq_init(&test_seq);
 
     toku_pthread_t tid;
     struct run_txn_b_arg arg = { &test_seq, txn_b, db, n};
