@@ -190,11 +190,19 @@ int toku_env_is_panicked(DB_ENV *dbenv);
 void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...) 
                          __attribute__((__format__(__printf__, 3, 4)));
 
+typedef enum __toku_isolation_level { 
+    TOKU_ISO_SERIALIZABLE=0,
+    TOKU_ISO_SNAPSHOT=1,
+    TOKU_ISO_READ_COMMITTED=2, 
+    TOKU_ISO_READ_UNCOMMITTED=3
+} TOKU_ISOLATION;
+
 struct __toku_db_txn_internal {
     //TXNID txnid64; /* A sixty-four bit txn id. */
     struct tokutxn *tokutxn;
     struct __toku_lth *lth;  //Hash table holding list of dictionaries this txn has touched
     u_int32_t flags;
+    TOKU_ISOLATION iso;
     DB_TXN *child;
     struct toku_list dbs_that_must_close_before_abort;
 };
@@ -202,6 +210,7 @@ struct __toku_db_txn_internal {
 struct __toku_dbc_internal {
     struct brt_cursor *c;
     DB_TXN *txn;
+    TOKU_ISOLATION iso;
     struct simple_dbt skey_s,sval_s;
     struct simple_dbt *skey,*sval;
 };

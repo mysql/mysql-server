@@ -63,6 +63,8 @@ int toku_brt_lookup (BRT brt, DBT *k, BRT_GET_CALLBACK_FUNCTION getf, void *getf
 // Returns 0 if successful
 int toku_brt_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn);
 
+int toku_brt_optimize (BRT brt);
+
 // Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
 int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging, enum brt_msg_type type);
@@ -125,12 +127,12 @@ int toku_verify_brt (BRT brt);
 //int show_brt_blocknumbers(BRT);
 
 typedef struct brt_cursor *BRT_CURSOR;
-int toku_brt_cursor (BRT, BRT_CURSOR*, TOKULOGGER, TXNID, BOOL);
+int toku_brt_cursor (BRT, BRT_CURSOR*, TOKUTXN, BOOL);
 
 // get is deprecated in favor of the individual functions below
 int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags);
 
-int toku_brt_flatten(BRT, TOKULOGGER logger);
+int toku_brt_flatten(BRT, TOKUTXN ttxn);
 int toku_brt_cursor_first(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_last(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_cursor_next(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
@@ -210,7 +212,10 @@ int toku_brt_zombie_needed (BRT brt);
 
 int toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report);
 int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_string);
-BOOL toku_brt_is_empty (BRT brt);
+
+BOOL toku_brt_is_empty (BRT brt, BOOL *try_again);
+// Effect: Return TRUE iff the tree is empty.  (However if  *try_again is set to TRUE by toku_brt_is_empty, then the answer is inconclusive, and the function should
+//  be tried again.  It's a good idea to release the big ydb lock in this case.
 
 double get_tdiff(void) __attribute__((__visibility__("default")));
 

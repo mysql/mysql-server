@@ -182,6 +182,7 @@ struct brt_header {
     TXNID txnid_that_created_or_locked_when_empty;
     TXNID root_that_created_or_locked_when_empty;
     TXNID txnid_that_suppressed_recovery_logs;
+    TXNID root_xid_that_created;
     struct toku_list live_brts;
     struct toku_list zombie_brts;
     struct toku_list checkpoint_before_commit_link;
@@ -251,7 +252,7 @@ struct brtenv {
 
 extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs);
-extern int toku_brt_alloc_init_header(BRT t);
+extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
 extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header, BOOL* was_open);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
 
@@ -293,9 +294,8 @@ struct brt_cursor {
     OMTCURSOR omtcursor;
     u_int64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
     TXNID      oldest_living_xid;// what was the oldest live txnid when we created the cursor?
-    TOKULOGGER logger; // to give access to list of live transactions, needed for read_committed queries
-    TXNID ancestor_id; // txnid of ancestor, needed for read_committed queries
-    BOOL is_read_committed; // true if query is read_committed, false otherwise
+    BOOL is_snapshot_read; // true if query is read_committed, false otherwise
+    TOKUTXN ttxn;
     struct brt_cursor_leaf_info  leaf_info;
 };
 
@@ -342,6 +342,7 @@ enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header, subdb support removed from brt layer
     BRT_LAYOUT_VERSION_11 = 11, // Diff from 10 to 11: Nested transaction leafentries (completely redesigned).  BRT_CMDs on disk now support XIDS (multiple txnids) instead of exactly one.
     BRT_LAYOUT_VERSION_12 = 12, // Diff from 11 to 12: Added BRT_CMD 'BRT_INSERT_NO_OVERWRITE', compressed block format, num old blocks
+    BRT_LAYOUT_VERSION_13 = 13, // Diff from 12 to 13: Added MVCC
     BRT_NEXT_VERSION,           // the version after the current version
     BRT_LAYOUT_VERSION   = BRT_NEXT_VERSION-1, // A hack so I don't have to change this line.
     BRT_LAYOUT_MIN_SUPPORTED_VERSION = BRT_LAYOUT_VERSION_12 // Minimum version supported

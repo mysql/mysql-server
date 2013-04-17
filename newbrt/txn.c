@@ -7,7 +7,11 @@
 #include "includes.h"
 #include "txn.h"
 #include "checkpoint.h"
+#include "ule.h"
 
+#if GARBAGE_COLLECTION_DEBUG
+static void verify_snapshot_system(TOKULOGGER logger);
+#endif
 
 // accountability
 static TXN_STATUS_S status = {.begin  = 0, 
@@ -21,12 +25,111 @@ toku_txn_get_status(TXN_STATUS s) {
     *s = status;
 }
 
-int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger) {
-    return toku_txn_begin_with_xid(parent_tokutxn, tokutxn, logger, 0);
+int toku_txn_begin_txn (
+    TOKUTXN parent_tokutxn, 
+    TOKUTXN *tokutxn, 
+    TOKULOGGER logger, 
+    TXN_SNAPSHOT_TYPE snapshot_type
+    ) 
+{
+    return toku_txn_begin_with_xid(
+        parent_tokutxn, 
+        tokutxn, logger, 
+        0, 
+        snapshot_type
+        );
 }
 
-int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger, TXNID xid) {
+static int
+fill_xids (OMTVALUE xev, u_int32_t idx, void *varray) {
+    TOKUTXN txn = xev;
+    TXNID *xids = varray;
+    xids[idx] = txn->txnid64;
+    return 0;
+}
+
+static int
+setup_live_root_txn_list(TOKUTXN txn) {
+    int r;
+    OMT global = txn->logger->live_root_txns;
+    uint32_t num = toku_omt_size(global);
+    // global list must have at least one live root txn, this current one
+    invariant(num > 0);
+    TXNID *XMALLOC_N(num, xids);
+    OMTVALUE *XMALLOC_N(num, xidsp);
+    uint32_t i;
+    for (i = 0; i < num; i++) {
+        xidsp[i] = &xids[i];
+    }
+    r = toku_omt_iterate(global, fill_xids, xids);
+    invariant(r==0);
+    
+    r = toku_omt_create_steal_sorted_array(&txn->live_root_txn_list, &xidsp, num, num);
+    return r;
+}
+
+static int
+snapshot_txnids_note_txn(TOKUTXN txn) {
+    int r;
+    OMT txnids = txn->logger->snapshot_txnids;
+    TXNID *XMALLOC(xid);
+    *xid = txn->txnid64;
+    r = toku_omt_insert_at(txnids, xid, toku_omt_size(txnids));
+    invariant(r==0);
+    return r;
+}
+
+static int
+live_list_reverse_note_txn_start_iter(OMTVALUE live_xidv, u_int32_t UU(index), void*txnv) {
+    TOKUTXN txn = txnv;
+    TXNID xid   = txn->txnid64;
+    TXNID *live_xid = live_xidv;
+    OMTVALUE pairv;
+    XID_PAIR pair;
+    uint32_t idx;
+
+    int r;
+    OMT reverse = txn->logger->live_list_reverse;
+    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, live_xid, &pairv, &idx, NULL);
+    if (r==0) {
+        pair = pairv;
+        invariant(pair->xid1 == *live_xid); //sanity check
+        invariant(pair->xid2 < xid);        //Must be older
+        pair->xid2 = txn->txnid64;
+    }
+    else {
+        invariant(r==DB_NOTFOUND);
+        //Make new entry
+        XMALLOC(pair);
+        pair->xid1 = *live_xid;
+        pair->xid2 = txn->txnid64;
+        r = toku_omt_insert_at(reverse, pair, idx);
+        invariant(r==0);
+    }
+    return r;
+}
+
+static int
+live_list_reverse_note_txn_start(TOKUTXN txn) {
+    int r;
+
+    r = toku_omt_iterate(txn->live_root_txn_list, live_list_reverse_note_txn_start_iter, txn);
+    invariant(r==0);
+    return r;
+}
+
+int toku_txn_begin_with_xid (
+    TOKUTXN parent_tokutxn, 
+    TOKUTXN *tokutxn, 
+    TOKULOGGER logger, 
+    TXNID xid, 
+    TXN_SNAPSHOT_TYPE snapshot_type
+    ) 
+{
     if (logger->is_panicked) return EINVAL;
+#if GARBAGE_COLLECTION_DEBUG
+    verify_snapshot_system(logger);
+#endif
     assert(logger->rollback_cachefile);
     TOKUTXN MALLOC(result);
     if (result==0) 
@@ -50,7 +153,6 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
         goto died;
     result->logger = logger;
     result->parent = parent_tokutxn;
-
     result->num_rollentries = 0;
     result->num_rollentries_processed = 0;
     result->progress_poll_fun = NULL;
@@ -63,6 +165,8 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     result->current_rollback_hash = 0;
     result->num_rollback_nodes = 0;
     result->pinned_inprogress_rollback_log = NULL;
+    result->snapshot_type = snapshot_type;
+    result->snapshot_txnid64 = TXNID_NONE;
 
     if (toku_omt_size(logger->live_txns) == 0) {
         assert(logger->oldest_living_xid == TXNID_NONE_LIVING);
@@ -72,14 +176,44 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
 
     {
         //Add txn to list (omt) of live transactions
-        u_int32_t idx;
-        r = toku_omt_insert(logger->live_txns, result, find_xid, result, &idx);
+        //We know it is the newest one.
+        r = toku_omt_insert_at(logger->live_txns, result, toku_omt_size(logger->live_txns));
         if (r!=0) goto died;
 
-        if (logger->oldest_living_xid == result->txnid64)
-            assert(idx == 0);
-        else
-            assert(idx > 0);
+        // add ancestor information, and maintain global live root txn list
+        if (parent_tokutxn==NULL) {
+            //Add txn to list (omt) of live root txns
+            r = toku_omt_insert_at(logger->live_root_txns, result, toku_omt_size(logger->live_root_txns)); //We know it is the newest one.
+            if (r!=0) goto died;
+            result->ancestor_txnid64 = result->txnid64;
+        }
+        else {
+            result->ancestor_txnid64 = result->parent->ancestor_txnid64;
+        }
+
+        // setup information for snapshot reads
+        if (snapshot_type != TXN_SNAPSHOT_NONE) {
+            // in this case, either this is a root level transaction that needs its live list setup, or it
+            // is a child transaction that specifically asked for its own snapshot
+            if (parent_tokutxn==NULL || snapshot_type == TXN_SNAPSHOT_CHILD) {
+                r = setup_live_root_txn_list(result);
+                invariant(r==0);
+                result->snapshot_txnid64 = result->txnid64;
+                r = snapshot_txnids_note_txn(result);
+                invariant(r==0);
+                r = live_list_reverse_note_txn_start(result);
+                invariant(r==0);
+            }
+            // in this case, it is a child transaction that specified its snapshot to be that 
+            // of the root transaction
+            else if (snapshot_type == TXN_SNAPSHOT_ROOT) {
+                result->live_root_txn_list = result->parent->live_root_txn_list;
+                result->snapshot_txnid64 = result->parent->snapshot_txnid64;
+            }
+            else {
+                assert(FALSE);
+            }
+        }
     }
 
     result->rollentry_raw_count = 0;
@@ -88,6 +222,9 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     toku_list_init(&result->checkpoint_before_commit);
     *tokutxn = result;
     status.begin++;
+#if GARBAGE_COLLECTION_DEBUG
+    verify_snapshot_system(logger);
+#endif
     return 0;
 
 died:
@@ -178,6 +315,9 @@ local_checkpoints_and_log_xcommit(void *thunk) {
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
+#if GARBAGE_COLLECTION_DEBUG
+    verify_snapshot_system(txn->logger);
+#endif
     int r;
     // panic handled in log_commit
 
@@ -211,6 +351,9 @@ int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
 
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
+#if GARBAGE_COLLECTION_DEBUG
+    verify_snapshot_system(txn->logger);
+#endif
     //printf("%s:%d aborting\n", __FILE__, __LINE__);
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
@@ -228,7 +371,14 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 }
 
 void toku_txn_close_txn(TOKUTXN txn) {
+#if GARBAGE_COLLECTION_DEBUG
+    TOKULOGGER logger = txn->logger;
+#endif
+    
     toku_rollback_txn_close(txn);
+#if GARBAGE_COLLECTION_DEBUG
+    verify_snapshot_system(logger);
+#endif
     status.close++;
     return;
 }
@@ -253,3 +403,153 @@ BOOL toku_txnid_eq(TXNID a, TXNID b) {
 void toku_txn_force_fsync_on_commit(TOKUTXN txn) {
     txn->force_fsync_on_commit = TRUE;
 }
+
+TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn) {
+    OMT omt = txn->live_root_txn_list;
+    invariant(toku_omt_size(omt)>0);
+    OMTVALUE v;
+    int r;
+    r = toku_omt_fetch(omt, 0, &v, NULL);
+    invariant(r==0);
+    TXNID *xidp = v;
+    return *xidp;
+}
+
+//Heaviside function to find a TXNID* by TXNID* (used to find the index)
+static int
+find_xidp (OMTVALUE v, void *xidv) {
+    TXNID *xid = v;
+    TXNID *xidfind = xidv;
+    if (*xid < *xidfind) return -1;
+    if (*xid > *xidfind) return +1;
+    return 0;
+}
+
+BOOL toku_is_txn_in_live_root_txn_list(TOKUTXN txn, TXNID xid) {
+    OMT omt = txn->live_root_txn_list;
+    OMTVALUE txnidpv;
+    uint32_t index;
+    BOOL retval = FALSE;
+    int r = toku_omt_find_zero(omt, find_xidp, &xid, &txnidpv, &index, NULL);
+    if (r==0) {
+        TXNID *txnidp = txnidpv;
+        invariant(*txnidp == xid);
+        retval = TRUE;
+    }
+    else {
+        invariant(r==DB_NOTFOUND);
+    }
+    return retval;
+}
+
+#if GARBAGE_COLLECTION_DEBUG
+static void
+verify_snapshot_system(TOKULOGGER logger) {
+    int     num_snapshot_txnids = toku_omt_size(logger->snapshot_txnids);
+    TXNID       snapshot_txnids[num_snapshot_txnids];
+    int     num_live_txns = toku_omt_size(logger->live_txns);
+    TOKUTXN     live_txns[num_live_txns];
+    int     num_live_list_reverse = toku_omt_size(logger->live_list_reverse);
+    XID_PAIR    live_list_reverse[num_live_list_reverse];
+
+    int r;
+    int i;
+    int j;
+    //set up arrays for easier access
+    for (i = 0; i < num_snapshot_txnids; i++) {
+        OMTVALUE v;
+        r = toku_omt_fetch(logger->snapshot_txnids, i, &v, NULL);
+        invariant(r==0);
+        snapshot_txnids[i] = *(TXNID*)v;
+    }
+    for (i = 0; i < num_live_txns; i++) {
+        OMTVALUE v;
+        r = toku_omt_fetch(logger->live_txns, i, &v, NULL);
+        invariant(r==0);
+        live_txns[i] = v;
+    }
+    for (i = 0; i < num_live_list_reverse; i++) {
+        OMTVALUE v;
+        r = toku_omt_fetch(logger->live_list_reverse, i, &v, NULL);
+        invariant(r==0);
+        live_list_reverse[i] = v;
+    }
+
+    {
+        //Verify snapshot_txnids
+        for (i = 0; i < num_snapshot_txnids; i++) {
+            TXNID snapshot_xid = snapshot_txnids[i];
+            invariant(is_txnid_live(logger, snapshot_xid));
+            TOKUTXN snapshot_txn;
+            r = toku_txnid2txn(logger, snapshot_xid, &snapshot_txn);
+            invariant(r==0);
+            int   num_live_root_txn_list = toku_omt_size(snapshot_txn->live_root_txn_list);
+            TXNID     live_root_txn_list[num_live_root_txn_list];
+            {
+                for (j = 0; j < num_live_root_txn_list; j++) {
+                    OMTVALUE v;
+                    r = toku_omt_fetch(snapshot_txn->live_root_txn_list, j, &v, NULL);
+                    invariant(r==0);
+                    live_root_txn_list[j] = *(TXNID*)v;
+                }
+            }
+            for (j = 0; j < num_live_root_txn_list; j++) {
+                TXNID live_xid = live_root_txn_list[j];
+                invariant(live_xid <= snapshot_xid);
+                TXNID youngest = toku_get_youngest_live_list_txnid_for(
+                    live_xid, 
+                    logger->live_list_reverse
+                    );
+                invariant(youngest!=TXNID_NONE);
+                invariant(youngest>=snapshot_xid);
+            }
+        }
+    }
+    {
+        //Verify live_list_reverse
+        for (i = 0; i < num_live_list_reverse; i++) {
+            XID_PAIR pair = live_list_reverse[i];
+            invariant(pair->xid1 <= pair->xid2);
+
+            {
+                //verify pair->xid2 is in snapshot_xids
+                u_int32_t index;
+                OMTVALUE v2;
+                r = toku_omt_find_zero(logger->snapshot_txnids,
+                                       toku_find_xid_by_xid,
+                                       &pair->xid2, &v2, &index, NULL);
+                invariant(r==0);
+            }
+            for (j = 0; j < num_live_txns; j++) {
+                TOKUTXN txn = live_txns[j];
+                if (txn->snapshot_type != TXN_SNAPSHOT_NONE) {
+                    BOOL expect = txn->snapshot_txnid64 >= pair->xid1 &&
+                                  txn->snapshot_txnid64 <= pair->xid2;
+                    BOOL found = toku_is_txn_in_live_root_txn_list(txn, pair->xid1);
+                    invariant((expect==FALSE) == (found==FALSE));
+                }
+            }
+        }
+    }
+    {
+        //Verify live_txns
+        for (i = 0; i < num_live_txns; i++) {
+            TOKUTXN txn = live_txns[i];
+
+            BOOL expect = txn->snapshot_txnid64 == txn->txnid64;
+            {
+                //verify pair->xid2 is in snapshot_xids
+                u_int32_t index;
+                OMTVALUE v2;
+                r = toku_omt_find_zero(logger->snapshot_txnids,
+                                       toku_find_xid_by_xid,
+                                       &txn->txnid64, &v2, &index, NULL);
+                invariant(r==0 || r==DB_NOTFOUND);
+                invariant((r==0) == (expect!=0));
+            }
+
+        }
+    }
+}
+#endif
+

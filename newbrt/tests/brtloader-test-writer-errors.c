@@ -132,7 +132,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     brt_loader_set_error_function(&bl.error_callback, NULL, NULL);
     brt_loader_set_poll_function(&bl.poll_callback, loader_poll_callback, NULL);
 
-    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est);
+    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est, 0);
     // if (!(expect_error ? r != 0 : r == 0)) printf("WARNING%%d expect_error=%d r=%d\n", __LINE__, expect_error, r); 
     assert(expect_error ? r != 0 : r == 0);
 

@@ -212,9 +212,9 @@ int toku_loader_create_loader(DB_ENV *env,
 	}
 	else {
 	    char **XMALLOC_N(N, new_inames_in_env);
-	    DESCRIPTOR *XMALLOC_N(N, descriptors);
+	    BRT *XMALLOC_N(N, brts);
 	    for (int i=0; i<N; i++) {
-		descriptors[i] = &dbs[i]->i->brt->h->descriptor;
+		brts[i] = dbs[i]->i->brt;
 	    }
 	    loader->i->ekeys = NULL;
 	    loader->i->evals = NULL;
@@ -222,29 +222,30 @@ int toku_loader_create_loader(DB_ENV *env,
 	    r = locked_ydb_load_inames (env, txn, N, dbs, new_inames_in_env, &load_lsn);
 	    if ( r!=0 ) {
 		toku_free(new_inames_in_env);
-		toku_free(descriptors);
+		toku_free(brts);
 		rval = r;
 		goto create_exit;
 	    }
+            TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
 	    r = toku_brt_loader_open(&loader->i->brt_loader,
 				     loader->i->env->i->cachetable,
 				     loader->i->env->i->generate_row_for_put,
 				     src_db,
 				     N,
-				     dbs,
-				     descriptors,
+				     brts,
 				     (const char **)new_inames_in_env,
 				     compare_functions,
 				     loader->i->temp_file_template,
-				     load_lsn);
+				     load_lsn,
+                                     ttxn);
             if ( r!=0 ) {
 		toku_free(new_inames_in_env);
-		toku_free(descriptors);
+		toku_free(brts);
                 rval = r;
                 goto create_exit;
             }
 	    loader->i->inames_in_env = new_inames_in_env;
-	    toku_free(descriptors);
+	    toku_free(brts);
 	    rval = 0;
 	}
     }

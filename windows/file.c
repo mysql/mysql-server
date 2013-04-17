@@ -600,3 +600,11 @@ ftello(FILE *stream) {
     return offset;
 }
 
+ssize_t 
+toku_os_read(int fd, void *buf, size_t count) {
+    return read(fd, buf, count);
+}
+
+
+
+

@@ -43,6 +43,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
  int toku_close_trace_file (void) { return 0; } 
 #endif
 
+#define DB_ISOLATION_FLAGS (DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_TXN_SNAPSHOT | DB_SERIALIZABLE | DB_INHERIT_ISOLATION)
 
 // Accountability: operation counters available for debugging and for "show engine status"
 static u_int64_t num_inserts;
@@ -2070,34 +2071,68 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     if (!(env->i->open_flags & DB_INIT_TXN))  return toku_ydb_do_error(env, EINVAL, "Environment does not have transactions enabled\n");
     u_int32_t txn_flags = 0;
     txn_flags |= DB_TXN_NOWAIT; //We do not support blocking locks.
-    uint32_t child_isolation_flags = 0;
-    uint32_t parent_isolation_flags = 0;
-    int inherit = 0;
-    int set_isolation = 0;
-    if ((flags & DB_READ_UNCOMMITTED) && (flags & DB_READ_COMMITTED)) {
+    TOKU_ISOLATION child_isolation = 0;
+    u_int32_t iso_flags = flags & DB_ISOLATION_FLAGS;
+    if (!(iso_flags == 0 || 
+          iso_flags == DB_TXN_SNAPSHOT || 
+          iso_flags == DB_READ_COMMITTED || 
+          iso_flags == DB_READ_UNCOMMITTED || 
+          iso_flags == DB_SERIALIZABLE || 
+          iso_flags == DB_INHERIT_ISOLATION)
+       ) 
+    {
         return toku_ydb_do_error(
             env, 
             EINVAL, 
-            "Transaction cannot have both DB_READ_COMMITTED and DB_READ_UNCOMMITTED set\n"
+            "Invalid isolation flags set\n"
             );
     }
-    if (stxn) {
-        parent_isolation_flags = db_txn_struct_i(stxn)->flags & (DB_READ_UNCOMMITTED | DB_READ_COMMITTED);
-        if (internal || flags&DB_INHERIT_ISOLATION) {
-            flags &= ~DB_INHERIT_ISOLATION;
-            inherit = 1;
-            set_isolation = 1;
-            child_isolation_flags = parent_isolation_flags;
+    flags &= ~iso_flags;
+
+    if (internal && stxn) {
+        child_isolation = db_txn_struct_i(stxn)->iso;
+    }
+    else {
+        switch (iso_flags) {
+            case (DB_INHERIT_ISOLATION):
+                if (stxn) {
+                    child_isolation = db_txn_struct_i(stxn)->iso;
+                }
+                else {
+                    return toku_ydb_do_error(
+                        env, 
+                        EINVAL, 
+                        "Cannot set DB_INHERIT_ISOLATION when no parent exists\n"
+                        );                    
+                }
+                break;
+            case (DB_READ_COMMITTED):
+                child_isolation = TOKU_ISO_READ_COMMITTED;
+                break;
+            case (DB_READ_UNCOMMITTED):
+                child_isolation = TOKU_ISO_READ_UNCOMMITTED;
+                break;
+            case (DB_TXN_SNAPSHOT):
+                child_isolation = TOKU_ISO_SNAPSHOT;
+                break;
+            case (DB_SERIALIZABLE):
+            case (0):
+                child_isolation = TOKU_ISO_SERIALIZABLE;
+                break;
+            default:
+                assert(FALSE); // error path is above, so this should not happen
+                break;
         }
     }
-    if (flags & (DB_READ_UNCOMMITTED|DB_READ_COMMITTED)) {
-        if (set_isolation)
-            return toku_ydb_do_error(env, EINVAL, "Cannot set isolation two different ways in DB_ENV->txn_begin\n");
-        set_isolation = 1;
-        child_isolation_flags |=  (flags & (DB_READ_UNCOMMITTED|DB_READ_COMMITTED));
-        flags                 &= ~(DB_READ_UNCOMMITTED | DB_READ_COMMITTED);
+    if (stxn && child_isolation != db_txn_struct_i(stxn)->iso) {
+        return toku_ydb_do_error(
+            env, 
+            EINVAL, 
+            "Cannot set isolation level of transaction to something different \
+                isolation level\n"
+            );   
     }
-    txn_flags |= child_isolation_flags;
+
     if (flags&DB_TXN_NOWAIT) {
         txn_flags |=  DB_TXN_NOWAIT;
         flags     &= ~DB_TXN_NOWAIT;
@@ -2107,10 +2142,6 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
         flags     &= ~DB_TXN_NOSYNC;
     }
     if (flags!=0) return toku_ydb_do_error(env, EINVAL, "Invalid flags passed to DB_ENV->txn_begin\n");
-    //Require child to have same isolation level as parent.
-    if (stxn && !inherit && parent_isolation_flags != child_isolation_flags) {
-        return toku_ydb_do_error(env, EINVAL, "DB_ENV->txn_begin: Child transaction isolation level must match parent's isolation level.\n");
-    }
 
     size_t result_size = sizeof(DB_TXN)+sizeof(struct __toku_db_txn_internal); // the internal stuff is stuck on the end.
     DB_TXN *result = toku_malloc(result_size);
@@ -2139,6 +2170,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
 #endif
     memset(db_txn_struct_i(result), 0, sizeof *db_txn_struct_i(result));
     db_txn_struct_i(result)->flags = txn_flags;
+    db_txn_struct_i(result)->iso = child_isolation;
     toku_list_init(&db_txn_struct_i(result)->dbs_that_must_close_before_abort);
 
     int r;
@@ -2155,7 +2187,31 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     }
     
     //r = toku_logger_txn_begin(stxn ? db_txn_struct_i(stxn)->tokutxn : 0, &db_txn_struct_i(result)->tokutxn, env->i->logger);
-    r = toku_txn_begin_txn(stxn ? db_txn_struct_i(stxn)->tokutxn : 0, &db_txn_struct_i(result)->tokutxn, env->i->logger);
+    TXN_SNAPSHOT_TYPE snapshot_type;
+    switch(db_txn_struct_i(result)->iso){
+        case(TOKU_ISO_SNAPSHOT):
+        {
+            snapshot_type = TXN_SNAPSHOT_ROOT;
+            break;
+        }
+        case(TOKU_ISO_READ_COMMITTED):
+        {
+            snapshot_type = TXN_SNAPSHOT_CHILD;
+            break;
+        }
+        default:
+        {
+            snapshot_type = TXN_SNAPSHOT_NONE;
+            break;
+        }
+    }
+    r = toku_txn_begin_txn(
+        stxn ? db_txn_struct_i(stxn)->tokutxn : 0, 
+        &db_txn_struct_i(result)->tokutxn, 
+        env->i->logger,
+        snapshot_type
+        );
+    
     if (r != 0)
         return r;
     //Add to the list of children for the parent.
@@ -2484,18 +2540,18 @@ typedef struct {
 } C_GET_VARS;
 
 
-static inline u_int32_t get_prelocked_flags(u_int32_t flags, DB_TXN* txn, DB* db) {
+static inline u_int32_t get_prelocked_flags(u_int32_t flags) {
+    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
+    return lock_flags;
+}
+
+static inline u_int32_t get_cursor_prelocked_flags(u_int32_t flags, DBC* dbc) {
     u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
 
-    // for internal (non-user) dictionary, do not set DB_PRELOCK
-    if (db->i->dname) {
-        //DB_READ_UNCOMMITTED and DB_READ_COMMITTED transactions 'own' all read locks for user-data dictionaries.
-        if (txn && 
-            (db_txn_struct_i(txn)->flags& (DB_READ_UNCOMMITTED | DB_READ_COMMITTED))
-           )
-        {
-            lock_flags |= DB_PRELOCKED;
-        }
+    //DB_READ_UNCOMMITTED and DB_READ_COMMITTED transactions 'own' all read locks for user-data dictionaries.
+    if (dbc_struct_i(dbc)->iso != TOKU_ISO_SERIALIZABLE)
+    {
+        lock_flags |= DB_PRELOCKED;
     }
     return lock_flags;
 }
@@ -2707,7 +2763,7 @@ query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, WRIT
     context->db      = c->dbp;
     context->f_extra = extra;
     context->is_write_op = is_write_op.is_write_op;
-    u_int32_t lock_flags = get_prelocked_flags(flag, dbc_struct_i(c)->txn, c->dbp);
+    u_int32_t lock_flags = get_cursor_prelocked_flags(flag, c);
     flag &= ~lock_flags;
     if (context->is_write_op) lock_flags &= DB_PRELOCKED_WRITE; // Only care about whether already locked for write
     assert(flag==0);
@@ -2750,7 +2806,7 @@ toku_c_del(DBC * c, u_int32_t flags) {
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     u_int32_t flag_for_brt = flags&DB_DELETE_ANY;
     unchecked_flags &= ~flag_for_brt;
-    u_int32_t lock_flags = get_prelocked_flags(flags, dbc_struct_i(c)->txn, c->dbp);
+    u_int32_t lock_flags = get_cursor_prelocked_flags(flags, c);
     unchecked_flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(c->dbp->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
 
@@ -3268,7 +3324,7 @@ toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     DBT currentkey;
 
     init_dbt_realloc(&currentkey);
-    u_int32_t lock_flags = get_prelocked_flags(flags, dbc_struct_i(cursor)->txn, cursor->dbp);
+    u_int32_t lock_flags = get_cursor_prelocked_flags(flags, cursor);
     flags &= ~lock_flags;
     if (flags != 0) {
         r = EINVAL; goto finish;
@@ -3310,7 +3366,9 @@ db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTIO
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     DBC *c;
-    int r = toku_db_cursor(db, txn, &c, 0, 1);
+    uint32_t iso_flags = flags & DB_ISOLATION_FLAGS;
+    flags &= ~DB_ISOLATION_FLAGS;
+    int r = toku_db_cursor(db, txn, &c, iso_flags, 1);
     if (r==0) {
         r = toku_c_getf_set(c, flags, key, f, extra);
         int r2 = toku_c_close(c);
@@ -3330,14 +3388,14 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
     unchecked_flags &= ~DB_DELETE_ANY;
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn, db);
+    u_int32_t lock_flags = get_prelocked_flags(flags);
     unchecked_flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
     int r = 0;
     if (unchecked_flags!=0) r = EINVAL;
     if (r==0 && error_if_missing) {
         //Check if the key exists in the db.
-        r = db_getf_set(db, txn, lock_flags, key, ydb_getf_do_nothing, NULL);
+        r = db_getf_set(db, txn, lock_flags|DB_SERIALIZABLE, key, ydb_getf_do_nothing, NULL);
     }
     if (r==0 && do_locking) {
         //Do locking if necessary.
@@ -3378,7 +3436,7 @@ env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
         //Generate the row
         r = env->i->generate_row_for_del(db, src_db, &keys[which_db], key, val, extra);
         if (r!=0) goto cleanup;
-        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db], txn, db);
+        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
         remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
         if (remaining_flags[which_db] & ~DB_DELETE_ANY) {
@@ -3388,7 +3446,7 @@ env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
         BOOL error_if_missing = (BOOL)(!(remaining_flags[which_db]&DB_DELETE_ANY));
         if (error_if_missing) {
             //Check if the key exists in the db.
-            r = db_getf_set(db, txn, lock_flags[which_db], &keys[which_db], ydb_getf_do_nothing, NULL);
+            r = db_getf_set(db, txn, lock_flags[which_db]|DB_SERIALIZABLE, &keys[which_db], ydb_getf_do_nothing, NULL);
             if (r!=0) goto cleanup;
         }
 
@@ -3440,12 +3498,24 @@ static int locked_c_del(DBC * c, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_c_del(c, flags); toku_ydb_unlock(); return r;
 }
 
+static int locked_c_pre_acquire_read_lock(DBC *dbc, const DBT *key_left, const DBT *key_right);
+
 static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporary_cursor) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    if (flags != 0)
-        return EINVAL;
+    DB_ENV* env = db->dbenv;
     size_t result_size = sizeof(DBC)+sizeof(struct __toku_dbc_internal); // internal stuff stuck on the end
+    if (!(flags == 0 || 
+          flags == DB_SERIALIZABLE || 
+          flags == DB_INHERIT_ISOLATION)
+       ) 
+    {
+        return toku_ydb_do_error(
+            env, 
+            EINVAL, 
+            "Invalid isolation flags set for toku_db_cursor\n"
+            );
+    }
     DBC *result = toku_malloc(result_size);
     if (result == 0)
         return ENOMEM;
@@ -3464,6 +3534,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
     SCRS(c_getf_set);
     SCRS(c_getf_set_range);
     SCRS(c_getf_set_range_reverse);
+    SCRS(c_pre_acquire_read_lock);
 #undef SCRS
 
 #if !TOKUDB_NATIVE_H
@@ -3481,24 +3552,36 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
 	dbc_struct_i(result)->skey = &dbc_struct_i(result)->skey_s;
 	dbc_struct_i(result)->sval = &dbc_struct_i(result)->sval_s;
     }
-    DB_TXN* txn_anc = NULL;
-    TXNID txn_anc_id = TXNID_NONE;
-    BOOL is_read_committed = FALSE;
+    switch(flags) {
+        case (DB_SERIALIZABLE):
+            dbc_struct_i(result)->iso = TOKU_ISO_SERIALIZABLE;
+            break;
+        default:
+            dbc_struct_i(result)->iso = txn ? db_txn_struct_i(txn)->iso : TOKU_ISO_SERIALIZABLE;
+            break;
+    }
+    BOOL is_snapshot_read = FALSE;
     if (txn) {
-        txn_anc = toku_txn_ancestor(txn);
-        txn_anc_id = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
-        is_read_committed = ((db_txn_struct_i(txn_anc)->flags & DB_READ_COMMITTED) != 0);
+        is_snapshot_read = (dbc_struct_i(result)->iso == TOKU_ISO_READ_COMMITTED || 
+                            dbc_struct_i(result)->iso == TOKU_ISO_SNAPSHOT);
     }
     int r = toku_brt_cursor(
         db->i->brt, 
-        &dbc_struct_i(result)->c, 
-        db->dbenv->i->logger, 
-        txn_anc_id, 
-        is_read_committed
+        &dbc_struct_i(result)->c,
+        txn ? db_txn_struct_i(txn)->tokutxn : NULL,
+        is_snapshot_read
         );
-    assert(r == 0);
-    *c = result;
-    return 0;
+    assert(r == 0 || r == TOKUDB_MVCC_DICTIONARY_TOO_NEW);
+    if (r == 0) {
+        *c = result;
+    }
+    else {
+#if !TOKUDB_NATIVE_H
+        toku_free(result->i); // otherwise it is allocated as part of result->ii
+#endif
+        toku_free(result);
+    }
+    return r;
 }
 
 static inline int db_thread_need_flags(DBT *dbt) {
@@ -3509,19 +3592,20 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r;
+    u_int32_t iso_flags = flags & DB_ISOLATION_FLAGS;
 
     if ((db->i->open_flags & DB_THREAD) && db_thread_need_flags(data))
         return EINVAL;
 
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn, db);
+    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
     flags &= ~lock_flags;
-    // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
+    flags &= ~DB_ISOLATION_FLAGS;
     // And DB_GET_BOTH is no longer supported. #2862.
     if (flags != 0) return EINVAL;
 
 
     DBC *dbc;
-    r = toku_db_cursor(db, txn, &dbc, 0, 1);
+    r = toku_db_cursor(db, txn, &dbc, iso_flags, 1);
     if (r!=0) return r;
     u_int32_t c_get_flags = DB_SET;
     r = toku_c_get(dbc, key, data, c_get_flags | lock_flags);
@@ -3684,6 +3768,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     //We support READ_UNCOMMITTED and READ_COMMITTED whether or not the flag is provided.
                                             unused_flags&=~DB_READ_UNCOMMITTED;
                                             unused_flags&=~DB_READ_COMMITTED;
+                                            unused_flags&=~DB_SERIALIZABLE;
     if (unused_flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;
@@ -3713,7 +3798,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     DBT iname_dbt;  // holds iname_in_env
     toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
     init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
-    r = toku_db_get(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, 0);  // allocates memory for iname
+    r = toku_db_get(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     char *iname = iname_dbt.data;
     if (r==DB_NOTFOUND && !is_db_create)
         r = ENOENT;
@@ -3779,6 +3864,7 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
     //We support READ_UNCOMMITTED and READ_COMMITTED whether or not the flag is provided.
                                             flags&=~DB_READ_UNCOMMITTED;
                                             flags&=~DB_READ_COMMITTED;
+                                            flags&=~DB_SERIALIZABLE;
     if (flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;
@@ -3880,7 +3966,7 @@ db_put_check_overwrite_constraint(DB *db, DB_TXN *txn, DBT *key, DBT *UU(val),
     else if (overwrite_flag==DB_NOOVERWRITE) {
         //Check if (key,anything) exists in dictionary.
         //If exists, fail.  Otherwise, do insert.
-        r = db_getf_set(db, txn, lock_flags, key, ydb_getf_do_nothing, NULL);
+        r = db_getf_set(db, txn, lock_flags|DB_SERIALIZABLE, key, ydb_getf_do_nothing, NULL);
         if (r==DB_NOTFOUND) r = 0;
         else if (r==0)      r = DB_KEYEXIST;
         //Any other error is passed through.
@@ -3907,7 +3993,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     int r;
 
     num_inserts++;
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn, db);
+    u_int32_t lock_flags = get_prelocked_flags(flags);
     flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
 
@@ -3959,7 +4045,7 @@ env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
         //Generate the row
         r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], key, val, extra);
         if (r!=0) goto cleanup;
-        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db], txn, db);
+        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
         remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
         //Check overwrite constraints
         r = db_put_check_overwrite_constraint(db, txn,
@@ -4063,7 +4149,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
     }
 
     // get iname
-    r = toku_db_get(env->i->directory, child, &dname_dbt, &iname_dbt, 0);  // allocates memory for iname
+    r = toku_db_get(env->i->directory, child, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     char *iname = iname_dbt.data;
     if (r==DB_NOTFOUND)
         r = ENOENT;
@@ -4176,13 +4262,13 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
 	assert(r==0);
     }
 
-    r = toku_db_get(env->i->directory, child, &old_dname_dbt, &iname_dbt, 0);  // allocates memory for iname
+    r = toku_db_get(env->i->directory, child, &old_dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     char *iname = iname_dbt.data;
     if (r==DB_NOTFOUND)
         r = ENOENT;
     else if (r==0) {
 	// verify that newname does not already exist
-	r = db_getf_set(env->i->directory, child, 0, &new_dname_dbt, ydb_getf_do_nothing, NULL);
+	r = db_getf_set(env->i->directory, child, DB_SERIALIZABLE, &new_dname_dbt, ydb_getf_do_nothing, NULL);
 	if (r == 0) 
 	    r = EEXIST;
 	else if (r == DB_NOTFOUND) {
@@ -4327,11 +4413,15 @@ cleanup:
     return r;
 }
 
-static int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *key_right) {
+static int toku_c_pre_acquire_read_lock(DBC *dbc, const DBT *key_left, const DBT *key_right) {
+    DB* db = dbc->dbp;
+    DB_TXN* txn = dbc_struct_i(dbc)->txn;
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
     //READ_UNCOMMITTED and READ_COMMITTED transactions do not need read locks.
-    if (db_txn_struct_i(txn)->flags&(DB_READ_UNCOMMITTED|DB_READ_COMMITTED)) return 0;
+    if (dbc_struct_i(dbc)->iso != TOKU_ISO_SERIALIZABLE) {
+         return 0;
+    }
 
     int r;
     {
@@ -4342,6 +4432,21 @@ static int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_lef
         r = grab_range_lock(&request);
     }
     return r;
+}
+
+static BOOL brt_is_empty_keep_trying (BRT brt) {
+    BOOL try_again = TRUE;
+    BOOL is_empty;
+    while (try_again) {
+	try_again = FALSE;
+	is_empty = toku_brt_is_empty(brt, &try_again);
+	if (try_again) {
+	    // If the tree changed shape, release the lock for a moment to give others a chance to work.
+	    toku_ydb_unlock();
+	    toku_ydb_lock();
+	}
+    }
+    return is_empty;
 }
 
 //static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
@@ -4362,7 +4467,7 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
 
     if (r==0 && !just_lock &&
         !toku_brt_is_recovery_logging_suppressed(db->i->brt) &&
-        toku_brt_is_empty(db->i->brt)
+        brt_is_empty_keep_trying(db->i->brt)
     ) {
         //Try to suppress both rollback and recovery logs
         DB_LOADER *loader;
@@ -4495,9 +4600,9 @@ static int locked_db_getf_set (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, Y
     toku_ydb_lock(); int r = autotxn_db_getf_set(db, txn, flags, key, f, extra); toku_ydb_unlock(); return r;
 }
 
-static int locked_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *key_right) {
+static int locked_c_pre_acquire_read_lock(DBC *dbc, const DBT *key_left, const DBT *key_right) {
     toku_ydb_lock();
-    int r = toku_db_pre_acquire_read_lock(db, txn, key_left, key_right);
+    int r = toku_c_pre_acquire_read_lock(dbc, key_left, key_right);
     toku_ydb_unlock();
     return r;
 }
@@ -4658,10 +4763,17 @@ static int locked_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32
 }
 
 static int
+toku_db_optimize(DB *db) {
+    HANDLE_PANICKED_DB(db);
+    int r = toku_brt_optimize(db->i->brt);
+    return r;
+}
+
+static int
 toku_db_flatten(DB *db, DB_TXN *txn) {
     HANDLE_PANICKED_DB(db);
-    TOKULOGGER logger = toku_txn_logger(txn ? db_txn_struct_i(txn)->tokutxn : NULL);
-    int r = toku_brt_flatten(db->i->brt, logger);
+    TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
+    int r = toku_brt_flatten(db->i->brt, ttxn);
     return r;
 }
 
@@ -4676,6 +4788,13 @@ static inline int autotxn_db_flatten(DB* db, DB_TXN* txn) {
 
 static int locked_db_flatten(DB *db, DB_TXN *txn) {
     toku_ydb_lock(); int r = autotxn_db_flatten(db, txn); toku_ydb_unlock(); return r;
+}
+
+static int locked_db_optimize(DB *db) {
+    toku_ydb_lock();
+    int r = toku_db_optimize(db);
+    toku_ydb_unlock();
+    return r;
 }
 
 static int
@@ -4731,12 +4850,12 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(get_flags);
     SDB(stat64);
     SDB(fd);
-    SDB(pre_acquire_read_lock);
     SDB(pre_acquire_table_lock);
     SDB(truncate);
     SDB(row_size_supported);
     SDB(getf_set);
     SDB(flatten);
+    SDB(optimize);
     SDB(get_fragmentation);
 #undef SDB
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
@@ -4923,7 +5042,7 @@ static int
 env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
     toku_ydb_lock();
     DB *directory = env->i->directory;
-    int r = autotxn_db_get(directory, NULL, dname_dbt, iname_dbt, DB_PRELOCKED); // allocates memory for iname
+    int r = autotxn_db_get(directory, NULL, dname_dbt, iname_dbt, DB_SERIALIZABLE|DB_PRELOCKED); // allocates memory for iname
     toku_ydb_unlock();
     return r;
 }
@@ -5037,7 +5156,7 @@ toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtx
 
     toku_fill_dbt(&dname_dbt, dname_of_new_file, strlen(dname_of_new_file)+1);
     init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
-    r = toku_db_get(db->dbenv->i->directory, dbtxn, &dname_dbt, &iname_dbt, 0);  // allocates memory for iname
+    r = toku_db_get(db->dbenv->i->directory, dbtxn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     assert(r==0);
     new_iname_in_env = iname_dbt.data;
 

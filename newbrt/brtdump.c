@@ -119,6 +119,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				 case BRT_COMMIT_BROADCAST_ALL: printf("COMMIT_BROADCAST_ALL"); goto ok;
 				 case BRT_COMMIT_BROADCAST_TXN: printf("COMMIT_BROADCAST_TXN"); goto ok;
 				 case BRT_ABORT_BROADCAST_TXN: printf("ABORT_BROADCAST_TXN"); goto ok;
+				 case BRT_OPTIMIZE: printf("OPTIMIZE"); goto ok;
 				 }
 				 printf("HUH?");
 			     ok:

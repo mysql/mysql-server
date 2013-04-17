@@ -51,7 +51,7 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
     }
 
     for (i=0; i<n; i++) {
-        r = toku_brt_cursor(brt, &cursors[i], NULL, TXNID_NONE, FALSE);
+        r = toku_brt_cursor(brt, &cursors[i], NULL, FALSE);
         assert(r == 0);
     }
 

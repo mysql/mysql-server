@@ -83,6 +83,9 @@ struct tokulogger {
     // To access these, you must have the input lock
     LSN lsn; // the next available lsn
     OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
+    OMT live_root_txns; // a sorted tree.
+    OMT snapshot_txnids;    //contains TXNID pairs (x,y) | x is snapshot txn, y is oldest in its live list
+    OMT live_list_reverse;  //contains TXNID pairs (x,y) | y is oldest txnid s.t. x is in y's live list
     struct logbuf inbuf; // data being accumulated for the write
 
     // To access these, you must have the output condition lock.
@@ -117,11 +120,15 @@ struct brtcachefile_pair {
 
 struct tokutxn {
     u_int64_t txnid64; /* this happens to be the first lsn */
+    u_int64_t ancestor_txnid64; /* this is the lsn of root transaction */
+    u_int64_t snapshot_txnid64; /* this is the lsn of the snapshot */
     TOKULOGGER logger;
     TOKUTXN    parent;
 
     u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
+    TXN_SNAPSHOT_TYPE snapshot_type;
+    OMT        live_root_txn_list; // the root txns live when the root ancestor (self if a root) started
     XIDS       xids;      //Represents the xid list
     BOOL       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
     TXN_PROGRESS_POLL_FUNCTION progress_poll_fun;
@@ -190,7 +197,7 @@ static inline int toku_logsizeof_BYTESTRING (BYTESTRING bs) {
 
 static inline char *fixup_fname(BYTESTRING *f) {
     assert(f->len>0);
-    char *fname = toku_xmalloc(f->len+1);
+    char *fname = (char*)toku_xmalloc(f->len+1);
     memcpy(fname, f->data, f->len);
     fname[f->len]=0;
     return fname;

@@ -18,6 +18,7 @@ extern "C" {
 
 //1 does much slower debugging
 #define ULE_DEBUG 0
+#define GARBAGE_COLLECTION_DEBUG 0
 
 /////////////////////////////////////////////////////////////////////////////////
 // Following data structures are the unpacked format of a leafentry. 
@@ -33,10 +34,10 @@ enum {XR_INSERT      = 1,
       XR_PLACEHOLDER = 3};
 
 typedef struct {     // unpacked transaction record
-    u_int8_t   type;     // delete/insert/placeholder
-    u_int32_t  vallen;   // number of bytes in value
-    void *     valp;     // pointer to value  (Where is value really stored?)
-    TXNID      xid;      // transaction id
+    uint8_t   type;     // delete/insert/placeholder
+    uint32_t  vallen;   // number of bytes in value
+    void *    valp;     // pointer to value  (Where is value really stored?)
+    TXNID     xid;      // transaction id
     // Note: when packing ule into a new leafentry, will need
     //       to copy actual data from valp to new leafentry
 } UXR_S, *UXR;
@@ -44,10 +45,13 @@ typedef struct {     // unpacked transaction record
 // Unpacked Leaf Entry is of fixed size because it's just on the 
 // stack and we care about ease of access more than the memory footprint.
 typedef struct {     // unpacked leaf entry
-    u_int8_t   num_uxrs;   // how many of uxrs[] are valid
-    u_int32_t  keylen;
-    void *     keyp;
-    UXR_S      uxrs[MAX_TRANSACTION_RECORDS];    // uxrs[0] is outermost, uxrs[num_uxrs-1] is innermost
+    uint32_t  num_puxrs;   // how many of uxrs[] are provisional
+    uint32_t  num_cuxrs;   // how many of uxrs[] are committed
+    uint32_t  keylen;
+    void *    keyp;
+    UXR_S     uxrs_static[MAX_TRANSACTION_RECORDS*2];    // uxrs[0] is oldest committed (txn commit time, not txn start time), uxrs[num_cuxrs] is outermost provisional value (if any exist/num_puxrs > 0)
+    UXR       uxrs;                                      //If num_cuxrs < MAX_TRANSACTION_RECORDS then &uxrs_static[0].
+                                                         //Otherwise we use a dynamically allocated array of size num_cuxrs + 1 + MAX_TRANSATION_RECORD.
 } ULE_S, *ULE;
 
 int apply_msg_to_leafentry(BRT_MSG   msg,
@@ -57,7 +61,24 @@ int apply_msg_to_leafentry(BRT_MSG   msg,
 			   LEAFENTRY *new_leafentry_p,
 			   OMT omt, 
 			   struct mempool *mp, 
-			   void **maybe_free);
+			   void **maybe_free,
+                           OMT snapshot_xids,
+                           OMT live_list_reverse);
+
+void 
+test_msg_modify_ule(ULE ule, BRT_MSG msg);
+
+//Callback contract:
+//  Returns:
+//      0:  Ignore this entry and go on to next one.
+//      TOKUDB_ACCEPT: Quit early, accept this transaction record and return appropriate data
+//      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r
+typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
+
+int le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
+
+int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *vallenp, TOKUTXN context);
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 //Functions exported for test purposes only (used internally for non-test purposes).
@@ -72,7 +93,9 @@ int le_pack(ULE ule,                            // data to be packed into new le
 
 
 size_t le_memsize_from_ule (ULE ule);
+void ule_cleanup(ULE ule);
 
+TXNID toku_get_youngest_live_list_txnid_for(TXNID xc, OMT live_list_reverse);
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

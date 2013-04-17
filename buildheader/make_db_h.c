@@ -41,6 +41,7 @@ void print_db_notices (void) {
     }                                           \
     assert(which < 32);                         \
     printf("#define %s %d\n", #name, bit);      \
+    flags |= bit;                               \
 } while (0)
 
 #define dodefine_track_enum(flags, name) do {assert(name>=0 && name<256); \
@@ -60,15 +61,17 @@ void print_db_notices (void) {
 
 
 enum {
-	TOKUDB_OUT_OF_LOCKS         = -100000,
-        TOKUDB_SUCCEEDED_EARLY      = -100001,
-        TOKUDB_FOUND_BUT_REJECTED   = -100002,
-        TOKUDB_USER_CALLBACK_ERROR  = -100003,
-        TOKUDB_DICTIONARY_TOO_OLD   = -100004,
-        TOKUDB_DICTIONARY_TOO_NEW   = -100005,
-        TOKUDB_DICTIONARY_NO_HEADER = -100006,
-        TOKUDB_CANCELED             = -100007,
-        TOKUDB_NO_DATA              = -100008,
+	TOKUDB_OUT_OF_LOCKS            = -100000,
+        TOKUDB_SUCCEEDED_EARLY         = -100001,
+        TOKUDB_FOUND_BUT_REJECTED      = -100002,
+        TOKUDB_USER_CALLBACK_ERROR     = -100003,
+        TOKUDB_DICTIONARY_TOO_OLD      = -100004,
+        TOKUDB_DICTIONARY_TOO_NEW      = -100005,
+        TOKUDB_DICTIONARY_NO_HEADER    = -100006,
+        TOKUDB_CANCELED                = -100007,
+        TOKUDB_NO_DATA                 = -100008,
+        TOKUDB_ACCEPT                  = -100009,
+        TOKUDB_MVCC_DICTIONARY_TOO_NEW = -100010,
 };
 
 static void print_defines (void) {
@@ -177,13 +180,27 @@ static void print_defines (void) {
         dodefine_track(txn_flags, DB_TXN_WRITE_NOSYNC);
         dodefine_track(txn_flags, DB_TXN_NOWAIT);
         dodefine_track(txn_flags, DB_TXN_SYNC);
+#ifdef DB_TXN_SNAPSHOT
+        dodefine_track(txn_flags, DB_TXN_SNAPSHOT);
+#endif
 #ifdef DB_READ_UNCOMMITTED
         dodefine_track(txn_flags, DB_READ_UNCOMMITTED);
 #endif
 #ifdef DB_READ_COMMITTED
         dodefine_track(txn_flags, DB_READ_COMMITTED);
 #endif
+        //Add them if they didn't exist
+#ifndef DB_TXN_SNAPSHOT
+        dodefine_from_track(txn_flags, DB_TXN_SNAPSHOT);
+#endif
+#ifndef DB_READ_UNCOMMITTED
+        dodefine_from_track(txn_flags, DB_READ_UNCOMMITTED);
+#endif
+#ifndef DB_READ_COMMITTED
+        dodefine_from_track(txn_flags, DB_READ_COMMITTED);
+#endif
         dodefine_from_track(txn_flags, DB_INHERIT_ISOLATION);
+        dodefine_from_track(txn_flags, DB_SERIALIZABLE);
     }
     
     printf("#endif\n");
@@ -199,6 +216,8 @@ static void print_defines (void) {
     dodefine(TOKUDB_DICTIONARY_NO_HEADER);
     dodefine(TOKUDB_CANCELED);
     dodefine(TOKUDB_NO_DATA);
+    dodefine(TOKUDB_ACCEPT);
+    dodefine(TOKUDB_MVCC_DICTIONARY_TOO_NEW);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");
@@ -597,7 +616,6 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 
 	const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
 			     "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
-			     "int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*)",
 			     "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",
 			     "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",
 			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
@@ -606,6 +624,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor) /* set row/dictionary descriptor for a db.  Available only while db is open */",
 			     "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
                              "int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */",
+                             "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
                              "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
 			     NULL};
 	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
@@ -650,6 +669,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 			     "int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_pre_acquire_read_lock)(DBC*, const DBT*, const DBT*)",
 			     NULL};
 	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
 	print_struct("dbc", INTERNAL_AT_END, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);

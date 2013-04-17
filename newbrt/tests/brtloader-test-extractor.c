@@ -1,5 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "$Id: brtloader-test-extractor-errors.c 20466 2010-05-20 17:45:19Z prohaska $"
+#ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -300,13 +300,11 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
 
     // open the brtloader. this runs the extractor.
     const int N = 1;
-    DB *dbs[N];
-    DESCRIPTOR descriptors[N];
+    BRT brts[N];
     const char *fnames[N];
     brt_compare_func compares[N];
     for (int i = 0; i < N; i++) {
-        dbs[i] = NULL;
-        descriptors[i] = NULL;
+        brts[i] = NULL;
         fnames[i] = "";
         compares[i] = compare_int;
     }
@@ -315,7 +313,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     BRTLOADER loader;
-    r = toku_brt_loader_open(&loader, NULL, generate, NULL, N, dbs, descriptors, fnames, compares, temp, ZERO_LSN);
+    r = toku_brt_loader_open(&loader, NULL, generate, NULL, N, brts, fnames, compares, temp, ZERO_LSN, TXNID_NONE);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];
