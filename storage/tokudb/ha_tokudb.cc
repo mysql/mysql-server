@@ -324,10 +324,10 @@ static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context)
 static int smart_dbt_metacallback (DBT const *key, DBT  const *row, void *context) {
     DBT* val = (DBT *)context;
     val->data = my_malloc(row->size, MYF(MY_WME|MY_ZEROFILL));
-	if (val->data == NULL) return ENOMEM;
-	memcpy(val->data, row->data, row->size);
-	val->size = row->size;
-	return 0;
+    if (val->data == NULL) return ENOMEM;
+    memcpy(val->data, row->data, row->size);
+    val->size = row->size;
+    return 0;
 }
 
 
@@ -5005,10 +5005,10 @@ double ha_tokudb::scan_time() {
 //      estimated time measured in disk seeks
 //
 double ha_tokudb::read_time(
-	uint	index,
-	uint	ranges,
-	ha_rows rows
-	)
+    uint    index,
+    uint    ranges,
+    ha_rows rows
+    )
 {
     double total_scan;
     double ret_val; 
