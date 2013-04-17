@@ -356,14 +356,12 @@ toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
 }
 
 int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
-                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                        bool release_multi_operation_client_lock)
+                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra)
 // Effect: Doesn't close the txn, just performs the commit operations.
 //  If release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     return toku_txn_commit_with_lsn(txn, nosync, yield, yieldv, ZERO_LSN,
-                                    poll, poll_extra,
-                                    release_multi_operation_client_lock);
+                                    poll, poll_extra);
 }
 
 
@@ -390,8 +388,7 @@ log_xcommit(void *thunk) {
 }
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
-                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                             bool release_multi_operation_client_lock) 
+                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) 
 // Effect: Among other things: if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     if (txn->state==TOKUTXN_PREPARING) {
@@ -431,23 +428,19 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
         r = toku_rollback_commit(txn, yield, yieldv, oplsn);
         STATUS_VALUE(TXN_COMMIT)++;
     }
-    // Make sure we release that lock (even if there was an error)
-    if (release_multi_operation_client_lock) toku_multi_operation_client_unlock();
     return r;
 }
 
 int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
-                       TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                       bool release_multi_operation_client_lock)
+                       TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra)
 // Effect: Doesn't close the txn, just performs the abort operations.
 // If release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
-    return toku_txn_abort_with_lsn(txn, yield, yieldv, ZERO_LSN, poll, poll_extra, release_multi_operation_client_lock);
+    return toku_txn_abort_with_lsn(txn, yield, yieldv, ZERO_LSN, poll, poll_extra);
 }
 
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
-                            TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                            bool release_multi_operation_client_lock)
+                            TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra)
 // Effect: Ammong other things, if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     if (txn->state==TOKUTXN_PREPARING) {
@@ -472,8 +465,6 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
         r = toku_rollback_abort(txn, yield, yieldv, oplsn);
         STATUS_VALUE(TXN_ABORT)++;
     }
-    // Make sure we multi_operation_client_unlock release will happen even if there is an error
-    if (release_multi_operation_client_lock) toku_multi_operation_client_unlock();
     return r;
 }
 

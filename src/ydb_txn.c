@@ -96,15 +96,17 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     if (flags!=0) {
         // frees the tokutxn
         // Calls ydb_yield(NULL) occasionally
-        r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra,
-                               release_multi_operation_client_lock);
+        r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra);
     } else {
         // frees the tokutxn
         // Calls ydb_yield(NULL) occasionally
         r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL,
-                                poll, poll_extra, release_multi_operation_client_lock);
+                                poll, poll_extra);
     }
-
+    if (release_multi_operation_client_lock) {
+        toku_multi_operation_client_unlock();
+    }
+    
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
         env_panic(txn->mgrp, r, "Error during commit.\n");
     }
@@ -208,7 +210,10 @@ toku_txn_abort_only(DB_TXN * txn,
     //All dbs that must close before abort, must now be closed
     assert(toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort));
 
-    int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra, release_multi_operation_client_lock);
+    int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra);
+    if (release_multi_operation_client_lock) {
+        toku_multi_operation_client_unlock();
+    }
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
         env_panic(txn->mgrp, r, "Error during abort.\n");
     }

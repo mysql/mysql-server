@@ -40,19 +40,15 @@ void toku_txn_start_txn(TOKUTXN txn);
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
-                         TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                         bool release_multi_operation_client_lock);
+                         TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 BOOL toku_txn_requires_checkpoint(TOKUTXN txn);
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
-                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                             bool release_multi_operation_client_lock);
+                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
 int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
-                       TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                       bool release_multi_operation_client_lock);
+                       TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
-                            TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                            bool release_multi_operation_client_lock);
+                            TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
 int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xid) __attribute__((warn_unused_result));
 // Effect: Do the internal work of preparing a transaction (does not log the prepare record).
