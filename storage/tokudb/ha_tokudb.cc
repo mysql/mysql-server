@@ -415,7 +415,6 @@ smart_dbt_callback_ir_keyread(DBT const *key, DBT  const *row, void *context) {
 //
 static int
 smart_dbt_callback_ir_rowread(DBT const *key, DBT  const *row, void *context) {
-    int cmp;
     INDEX_READ_INFO ir_info = (INDEX_READ_INFO)context;
     ir_info->cmp = ir_info->smart_dbt_info.ha->prefix_cmp_dbts(ir_info->smart_dbt_info.keynr, ir_info->orig_key, key);
     if (ir_info->cmp) {
@@ -4054,6 +4053,59 @@ cleanup:
 }
 
 
+int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
+    int error;
+    ulong tx_isolation = thd_tx_isolation(thd);
+    HA_TOKU_ISO_LEVEL toku_iso_level = tx_to_toku_iso(tx_isolation);
+
+    /* First table lock, start transaction */
+    if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && 
+         !trx->all &&
+         (thd_sql_command(thd) != SQLCOM_CREATE_TABLE) &&
+         (thd_sql_command(thd) != SQLCOM_DROP_TABLE) &&
+         (thd_sql_command(thd) != SQLCOM_ALTER_TABLE)) {
+        /* QQQ We have to start a master transaction */
+        DBUG_PRINT("trans", ("starting transaction all:  options: 0x%lx", (ulong) thd->options));
+        //
+        // set the isolation level for the tranaction
+        //
+        trx->iso_level = toku_iso_level;
+        if ((error = db_env->txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level)))) {
+            trx->tokudb_lock_count--;      // We didn't get the lock
+            goto cleanup;
+        }
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+            TOKUDB_TRACE("master:%p\n", trx->all);
+        }
+        trx->sp_level = trx->all;
+        trans_register_ha(thd, TRUE, tokudb_hton);
+    }
+    DBUG_PRINT("trans", ("starting transaction stmt"));
+    if (trx->stmt) { 
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+            TOKUDB_TRACE("warning:stmt=%p\n", trx->stmt);
+        }
+    }
+    u_int32_t txn_begin_flags;
+    if (trx->iso_level == hatoku_iso_not_set) {
+        txn_begin_flags = toku_iso_to_txn_flag(toku_iso_level);
+    }
+    else {
+        txn_begin_flags = toku_iso_to_txn_flag(trx->iso_level);
+    }
+    if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, txn_begin_flags))) {
+        /* We leave the possible master transaction open */
+        trx->tokudb_lock_count--;  // We didn't get the lock
+        goto cleanup;
+    }
+    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_TRACE("stmt:%p:%p\n", trx->sp_level, trx->stmt);
+    }
+    trans_register_ha(thd, FALSE, tokudb_hton);
+cleanup:
+    return error;
+}
+
 
 /*
   As MySQL will execute an external lock for every new table it uses
@@ -4077,8 +4129,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         TOKUDB_TRACE("%s cmd=%d %d\n", __FUNCTION__, thd_sql_command(thd), lock_type);
     // QQQ this is here to allow experiments without transactions
     int error = 0;
-    ulong tx_isolation = thd_tx_isolation(thd);
-    HA_TOKU_ISO_LEVEL toku_iso_level = tx_to_toku_iso(tx_isolation);
     tokudb_trx_data *trx = NULL;
 #if 0
     declare_lockretry;
@@ -4108,50 +4158,10 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         if (!trx->tokudb_lock_count++) {
             DBUG_ASSERT(trx->stmt == 0);
             transaction = NULL;    // Safety
-            /* First table lock, start transaction */
-            if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && 
-                 !trx->all &&
-                 (thd_sql_command(thd) != SQLCOM_CREATE_TABLE) &&
-                 (thd_sql_command(thd) != SQLCOM_DROP_TABLE) &&
-                 (thd_sql_command(thd) != SQLCOM_ALTER_TABLE)) {
-                /* QQQ We have to start a master transaction */
-                DBUG_PRINT("trans", ("starting transaction all:  options: 0x%lx", (ulong) thd->options));
-                //
-                // set the isolation level for the tranaction
-                //
-                trx->iso_level = toku_iso_level;
-                if ((error = db_env->txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level)))) {
-                    trx->tokudb_lock_count--;      // We didn't get the lock
-                    goto cleanup;
-                }
-                if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-                    TOKUDB_TRACE("master:%p\n", trx->all);
-                }
-                trx->sp_level = trx->all;
-                trans_register_ha(thd, TRUE, tokudb_hton);
-            }
-            DBUG_PRINT("trans", ("starting transaction stmt"));
-            if (trx->stmt) { 
-                if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-                    TOKUDB_TRACE("warning:stmt=%p\n", trx->stmt);
-                }
-            }
-            u_int32_t txn_begin_flags;
-            if (trx->iso_level == hatoku_iso_not_set) {
-                txn_begin_flags = toku_iso_to_txn_flag(toku_iso_level);
-            }
-            else {
-                txn_begin_flags = toku_iso_to_txn_flag(trx->iso_level);
-            }
-            if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, txn_begin_flags))) {
-                /* We leave the possible master transaction open */
-                trx->tokudb_lock_count--;  // We didn't get the lock
+            error = create_txn(thd, trx);
+            if (error) {
                 goto cleanup;
             }
-            if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-                TOKUDB_TRACE("stmt:%p:%p\n", trx->sp_level, trx->stmt);
-            }
-            trans_register_ha(thd, FALSE, tokudb_hton);
         }
         transaction = trx->stmt;
     }
@@ -4219,8 +4229,10 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
      */
     if (!trx->stmt) {
         DBUG_PRINT("trans", ("starting transaction stmt"));
-        error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, toku_iso_to_txn_flag(trx->iso_level));
-        trans_register_ha(thd, FALSE, tokudb_hton);
+        error = create_txn(thd, trx);
+        if (error) {
+            goto cleanup;
+        }
     }
     //
     // we know we are in lock tables
@@ -4242,6 +4254,7 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
         share->rows_from_locked_table = added_rows - deleted_rows;
     }
     transaction = trx->stmt;
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
