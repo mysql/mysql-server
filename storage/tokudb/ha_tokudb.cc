@@ -7078,6 +7078,15 @@ cleanup:
     return error;
 }
 
+
+//
+// for 5.5
+//
+int ha_tokudb::truncate() {
+    return delete_all_rows();
+}
+
+
 // delete all rows from a table
 //
 // effects: delete all of the rows in the main dictionary and all of the
