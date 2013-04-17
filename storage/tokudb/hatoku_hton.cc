@@ -1310,6 +1310,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       SHOWVAL(cleaner_max_buffer_workdone);
       SHOWVAL(cleaner_min_buffer_workdone);
       SHOWVAL(cleaner_total_buffer_workdone);
+      SHOWVAL(cleaner_num_leaf_merges_started);
+      SHOWVAL(cleaner_num_leaf_merges_running);
+      SHOWVAL(cleaner_num_leaf_merges_completed);
+
       SHOWVAL(cleaner_num_dirtied_for_leaf_merge);
       SHOWVAL(flush_total);
       SHOWVAL(flush_in_memory);
