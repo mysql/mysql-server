@@ -4297,9 +4297,34 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         }
         cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_ai_callback, &info);
     }
+    tmp_cursor->c_close(tmp_cursor);
+    tmp_cursor = NULL;
+
+    //
+    // Now flatten the new DB's created
+    //
+    for (uint i = 0; i < num_of_keys; i++) {
+        uint curr_index = i + curr_num_DBs;
+        if ((error = share->key_file[curr_index]->cursor(share->key_file[curr_index], txn, &tmp_cursor, 0))) {
+            tmp_cursor = NULL;             // Safety
+            goto cleanup;
+        }
+        error = 0;
+        while (error != DB_NOTFOUND) {
+            error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_opt_callback, NULL);
+            if (error && error != DB_NOTFOUND) {
+                tmp_cursor->c_close(tmp_cursor);
+                txn->commit(txn, 0);
+                goto cleanup;
+            }
+        }
+        
+        tmp_cursor->c_close(tmp_cursor);
+        tmp_cursor = NULL;
+    }
+
     error = txn->commit(txn, 0);
     assert(error == 0);
-    tmp_cursor->c_close(tmp_cursor);
     
     error = 0;
 cleanup:
