@@ -3566,12 +3566,8 @@ static void *eviction_thread(void *evictor_v) {
 //
 void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t eviction_period) {
     HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_ev_thread_is_running, sizeof m_ev_thread_is_running);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_size_nonleaf, sizeof m_size_nonleaf);
     HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_size_current, sizeof m_size_current);
     HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_size_evicting, sizeof m_size_evicting);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_size_leaf, sizeof m_size_leaf);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_size_rollback, sizeof m_size_rollback);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_size_cachepressure, sizeof m_size_cachepressure);
 
     m_low_size_watermark = _size_limit;
     // these values are selected kind of arbitrarily right now as 
