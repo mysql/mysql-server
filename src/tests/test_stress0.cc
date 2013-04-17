@@ -1,7 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-#ident "$Id: test_stress1.cc 46157 2012-07-25 20:49:56Z yfogel $"
+#ident "$Id$"
 #include "test.h"
 
 #include <stdio.h>

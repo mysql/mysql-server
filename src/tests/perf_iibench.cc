@@ -1,7 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
-#ident "$Id: perf_insert_multiple.cc 50140 2012-11-19 19:18:30Z esmet $"
+#ident "$Id$"
 
 #include <db.h>
 #include <portability/toku_atomic.h>

@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
-#ident "$Id: test-rwlock.cc 46971 2012-08-18 22:03:43Z zardosht $"
+#ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 
 #include <errno.h>

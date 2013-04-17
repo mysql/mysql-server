@@ -1,7 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-#ident "$Id: perf_checkpoint_var.cc 47109 2012-08-22 18:22:29Z zardosht $"
+#ident "$Id$"
 #include "test.h"
 
 #include <stdio.h>
