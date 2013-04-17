@@ -99,6 +99,10 @@ BDB_DONTRUN_TESTS = \
 	checkpoint_1 \
 	checkpoint_stress \
 	checkpoint_truncate_1 \
+	test_txn_nested1 \
+	test_txn_nested2 \
+	test_txn_nested3 \
+	test_txn_nested4 \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
