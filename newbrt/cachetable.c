@@ -453,7 +453,10 @@ toku_cachetable_reserve_filenum (CACHETABLE ct, FILENUM *reserved_filenum, BOOL 
     {
         //Reserve a filenum.
         FILENUM reserved;
-        reserved.fileid = next_filenum_to_use.fileid++;
+        if (with_filenum)
+            reserved.fileid = filenum.fileid;
+        else
+            reserved.fileid = next_filenum_to_use.fileid++;
         reserve_filenum(ct, reserved);
         *reserved_filenum = reserved;
         r = 0;
