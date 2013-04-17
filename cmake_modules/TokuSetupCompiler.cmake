@@ -152,9 +152,8 @@ set_cflags_if_supported(
   #-Wvector-optimization-performance
   )
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-  message(WARNING "Disabling -Wcast-align with clang.  TODO: fix casting and re-enable it.")
-else ()
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+  # Disabling -Wcast-align with clang.  TODO: fix casting and re-enable it, someday.
   set_cflags_if_supported(-Wcast-align)
 endif ()
 
