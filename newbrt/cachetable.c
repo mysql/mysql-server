@@ -1938,6 +1938,8 @@ int toku_cachetable_get_and_pin_nonblocking (
                     pair_touch(p);
                     *value = p->value;
                     if (sizep) *sizep = p->size;
+                    // for ticket #3755
+                    assert(!p->checkpoint_pending);
                     cachetable_unlock(ct);
                     return 0;
 	        }
