@@ -4,15 +4,17 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 
-#include <toku_portability.h>
 #include "test.h"
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
 
 #include "compress.h"
 #include "sub_block.h"
-#include "threadpool.h"
+
+#include <toku_portability.h>
+#include <util/threadpool.h>
+
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
 
 static uint8_t
 get_uint8_at_offset(void *vp, size_t offset) {

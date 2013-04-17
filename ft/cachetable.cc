@@ -9,16 +9,16 @@
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
-#include <toku_race_tools.h>
-#include "memory.h"
 #include "cachetable.h"
-#include "rwlock.h"
 #include <ft/log_header.h>
 #include "checkpoint.h"
 #include "log-internal.h"
-#include <toku_pthread.h>
-#include <toku_time.h>
 #include "cachetable-internal.h"
+#include <memory.h>
+#include <toku_race_tools.h>
+#include <portability/toku_pthread.h>
+#include <portability/toku_time.h>
+#include <util/rwlock.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status

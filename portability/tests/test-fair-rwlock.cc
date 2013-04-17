@@ -38,8 +38,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "../../ft/rwlock.h"
-#include "../../ft/frwlock.h"
+#include <util/rwlock.h>
+#include <util/frwlock.h>
 #include "toku_fair_rwlock.h"
 #include <sys/types.h>
 

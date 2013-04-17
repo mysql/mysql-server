@@ -41,7 +41,6 @@
 #include "ft.h"
 #include "ft-internal.h"
 #include "cachetable.h"
-#include "rwlock.h"
 #include "fifo.h"
 #include "toku_list.h"
 #include "key.h"
@@ -51,7 +50,6 @@
 #include "logcursor.h"
 #include "logfilemgr.h"
 #include "rbuf.h"
-#include "threadpool.h"
 #include "toku_assert.h"
 #include "wbuf.h"
 

@@ -69,7 +69,7 @@ verify_empty(DB_ENV *env, DB *db) {
     r = txn->commit(txn, 0); assert_zero(r);
 }
 
-static int
+static inline int
 max(int a, int b) {
     return a < b ? b : a;
 }

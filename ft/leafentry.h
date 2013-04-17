@@ -12,9 +12,9 @@
  */
 
 #include <toku_portability.h>
+#include <util/mempool.h>
 #include "rbuf.h"
 #include "x1764.h"
-#include "mempool.h"
 
 
 #if 0

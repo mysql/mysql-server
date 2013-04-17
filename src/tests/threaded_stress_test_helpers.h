@@ -10,15 +10,11 @@
 #include <config.h>
 #include "test.h"
 
-#include <ft/rwlock.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <toku_pthread.h>
 #include <locale.h>
 #include <unistd.h>
-#include <memory.h>
 #include <sys/stat.h>
 #include <db.h>
 #if defined(HAVE_MALLOC_H)
@@ -26,10 +22,13 @@
 #elif defined(HAVE_SYS_MALLOC_H)
 # include <sys/malloc.h>
 #endif
-#include <toku_race_tools.h>
 #include <math.h>
 
-#include "toku_random.h"
+#include <memory.h>
+#include <toku_race_tools.h>
+#include <portability/toku_pthread.h>
+#include <portability/toku_random.h>
+#include <util/rwlock.h>
 
 using namespace toku;
 

@@ -26,7 +26,7 @@ if(BUILD_TESTING)
 
   foreach(test ${tests})
     add_executable(${test} ${test})
-    target_link_libraries(${test} ${LIBTOKUPORTABILITY})
+    target_link_libraries(${test} ${LIBTOKUPORTABILITY} util)
     set_target_properties(${test} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     if(HAVE_CLOCK_REALTIME)
       target_link_libraries(${test} rt)
@@ -46,9 +46,6 @@ if(BUILD_TESTING)
       COMMAND ensure_memcheck_fails.sh $<TARGET_FILE:${test}> valgrind --error-exitcode=1 --quiet --leak-check=full --show-reachable=yes --trace-children=yes --trace-children-skip=sh,*/sh,rm,*/rm,cp,*/cp,mv,*/mv,cat,*/cat,diff,test,wc,*/wc)
   endforeach(test)
 
-  add_helgrind_test(portability/helgrind_test_partitioned_counter $<TARGET_FILE:test_partitioned_counter>)
-  add_helgrind_test(portability/helgrind_test-circular-buffer $<TARGET_FILE:test-circular-buffer>)
-
   foreach(test ${tests})
     add_test(portability/${test} ${test})
   endforeach(test)
@@ -59,10 +56,4 @@ if(BUILD_TESTING)
     )
 
   set_tests_properties(${portability_tests_should_fail} PROPERTIES WILL_FAIL TRUE)
-
-  set(long_tests
-    portability/helgrind_test_partitioned_counter
-    )
-  set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
-
 endif(BUILD_TESTING)

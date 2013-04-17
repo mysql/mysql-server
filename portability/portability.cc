@@ -43,7 +43,7 @@
 #include "toku_os.h"
 #include "toku_time.h"
 #include "memory.h"
-#include "partitioned_counter.h"
+#include <util/partitioned_counter.h>
 
 int
 toku_portability_init(void) {

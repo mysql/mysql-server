@@ -9,8 +9,18 @@
 // fractal tree file, one block at a time.
 ////////////////////////////////////////////////////////////////////
 
-#include <toku_portability.h>
+#include "fttypes.h"
+#include "ft-internal.h"
+#include "ft_layout_version.h"
+#include "block_table.h"
+#include "x1764.h"
+#include "rbuf.h"
+#include "sub_block.h"
+
 #include <toku_assert.h>
+#include <toku_list.h>
+#include <toku_portability.h>
+#include <util/threadpool.h>
 
 #include <fcntl.h>
 #include <math.h>
@@ -20,16 +30,6 @@
 #include <sys/types.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#include "fttypes.h"
-#include "ft-internal.h"
-#include "ft_layout_version.h"
-#include "block_table.h"
-#include "x1764.h"
-#include "rbuf.h"
-#include "sub_block.h"
-#include "threadpool.h"
-#include "toku_list.h"
 
 static int num_cores = 0; // cache the number of cores for the parallelization
 static struct toku_thread_pool *ft_pool = NULL;

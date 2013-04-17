@@ -7,6 +7,9 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
 
+#include "cachetable.h"
+
+#include <stdint.h>
 
 void toku_set_checkpoint_period(CACHETABLE ct, uint32_t new_period);
 //Effect: Change [end checkpoint (n) - begin checkpoint (n+1)] delay to
