@@ -114,16 +114,18 @@ close_db(void) {
         CKERR(r);
     }
     if (abort_type>0) {
+        r = db->close(db, 0);
+        CKERR(r);
         r = txn->abort(txn);
         CKERR(r);
     }
     else {
         r = txn->commit(txn, 0);
         CKERR(r);
+        r = db->close(db, 0);
+        CKERR(r);
     }
     txn = NULL;
-    r = db->close(db, 0);
-    CKERR(r);
 }
 
 static void

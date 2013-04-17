@@ -23,6 +23,10 @@ static inline unsigned int rbuf_char (struct rbuf *r) {
     return r->buf[r->ndone++];
 }
 
+static inline void rbuf_ma_u_int8_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), u_int8_t *num) {
+    *num = rbuf_char(r);
+}
+
 //Read an int that MUST be in network order regardless of disk order
 static unsigned int rbuf_network_int (struct rbuf *r) __attribute__((__unused__));
 static unsigned int rbuf_network_int (struct rbuf *r) {

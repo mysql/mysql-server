@@ -114,8 +114,6 @@ typedef enum {
 #define DB_INIT_MPOOL 524288
 #define DB_CLOSE_DONT_TRIM_LOG 1048576
 #define DB_INIT_TXN 2097152
-#define DB_USE_ENVIRON 16384
-#define DB_USE_ENVIRON_ROOT 32768
 #define DB_READ_UNCOMMITTED 134217728
 #define DB_KEYEXIST -30996
 #define DB_LOCK_DEADLOCK -30995
@@ -177,9 +175,12 @@ struct __toku_db_env {
   int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
   int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
+  int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */;
   void *app_private;
   void *api1_internal;
   int  (*close) (DB_ENV *, u_int32_t);
+  int  (*dbremove) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t);
+  int  (*dbrename) (DB_ENV *, DB_TXN *, const char *, const char *, const char *, u_int32_t);
   void (*err) (const DB_ENV *, int, const char *, ...);
   int (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *);
   int (*get_flags) (DB_ENV *, u_int32_t *);

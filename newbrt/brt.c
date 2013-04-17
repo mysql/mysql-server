@@ -559,7 +559,7 @@ void toku_brtnode_free (BRTNODE *nodep) {
         toku_leaflock_lock_by_leaf(node->u.l.leaflock);
         if (node->u.l.buffer) // The buffer may have been freed already, in some cases.
             toku_omt_destroy(&node->u.l.buffer);
-        toku_leaflock_unlock_and_return(&node->u.l.leaflock);
+        toku_leaflock_unlock_and_return(node->u.l.leaflock_pool, &node->u.l.leaflock);
         void *mpbase = toku_mempool_get_base(&node->u.l.buffer_mempool);
         toku_mempool_fini(&node->u.l.buffer_mempool);
         toku_free(mpbase);
@@ -654,7 +654,8 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, size_
         int r;
         r = toku_omt_create(&n->u.l.buffer);
         assert(r==0);
-        r = toku_leaflock_borrow(&n->u.l.leaflock);
+        n->u.l.leaflock_pool = toku_cachefile_leaflock_pool(t->h->cf);
+        r = toku_leaflock_borrow(n->u.l.leaflock_pool, &n->u.l.leaflock);
         assert(r==0);
         {
             // mpsize = max(suggest_mpsize, mp_pool_size_for_nodesize)
@@ -2764,7 +2765,7 @@ mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_f
 
 /* ******************** open,close and create  ********************** */
 
-// This one has no env
+// Test only function (not used in running system). This one has no env
 int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable, TOKUTXN txn,
                    int (*compare_fun)(DB*,const DBT*,const DBT*), DB *db) {
     BRT brt;
@@ -2843,6 +2844,18 @@ static int brt_open_file(BRT brt, const char *fname, int is_create, int *fdp, BO
     return 0;
 }
 
+static int
+brtheader_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
+    struct brt_header *h = header_v;
+    BYTESTRING bs = { strlen(h->fname), // don't include the NUL
+                      h->fname };
+    TOKULOGGER logger = toku_cachefile_logger(cf);
+    FILENUM filenum = toku_cachefile_filenum (cf);
+    int r = toku_log_fassociate(logger, NULL, 0, filenum, h->flags, bs);
+    return r;
+}
+
+
 static int 
 brt_init_header_partial (BRT t) {
     int r;
@@ -2880,7 +2893,7 @@ brt_init_header_partial (BRT t) {
     BLOCKNUM root = t->h->root;
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
-    toku_cachefile_set_userdata(t->cf, t->h, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
+    toku_cachefile_set_userdata(t->cf, t->h, brtheader_log_fassociate_during_checkpoint, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
 
     return r;
 }
@@ -2942,7 +2955,7 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
     if (r!=0) return r;
     h->cf = cf;
     h->root_put_counter = global_root_put_counter++;
-    toku_cachefile_set_userdata(cf, (void*)h, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
+    toku_cachefile_set_userdata(cf, (void*)h, brtheader_log_fassociate_during_checkpoint, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
     *header = h;
     return 0;
 }
@@ -2987,9 +3000,25 @@ brtheader_note_brt_open(BRT live, char** fnamep) {
     return retval;
 }
 
+static int
+verify_builtin_comparisons_consistent(BRT t, u_int32_t flags) {
+    if ((flags & TOKU_DB_KEYCMP_BUILTIN) && (t->compare_fun != toku_builtin_compare_fun))
+        return EINVAL;
+    if ((flags & TOKU_DB_VALCMP_BUILTIN) && (t->dup_compare != toku_builtin_compare_fun))
+        return EINVAL;
+    return 0;
+}
+
+// fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix)
+// fname is relative to the cwd (or absolute)
 int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
     int r;
     BOOL txn_created = FALSE;
+
+    if (t->did_set_flags) {
+        r = verify_builtin_comparisons_consistent(t, t->flags);
+        if (r!=0) return r;
+    }
 
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_brt_open(%s, \"%s\", %d, %p, %d, %p)\n",
@@ -3004,21 +3033,27 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         goto died0;
     }
     t->db = db;
+    BOOL log_fopen = FALSE;  // set true if we're opening a pre-existing file 
     {
         int fd = -1;
         BOOL did_create = FALSE;
         r = brt_open_file(t, fname, is_create, &fd, &did_create);
         if (r != 0) goto died00;
+	// TODO: #2090
         r=toku_cachetable_openfd_with_filenum(&t->cf, cachetable, fd, fname_in_env, t->did_set_filenum, t->filenum);
         if (r != 0) goto died00;
         if (did_create) {
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
-            r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode, t->flags);
+            r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode, t->flags, &(t->temp_descriptor));
             if (r != 0) goto died_after_open;
+	    if (txn) {
+		BYTESTRING bs = { .len=strlen(fname), .data = toku_strdup_in_rollback(txn, fname) };
+		r = toku_logger_save_rollback_fcreate(txn, toku_cachefile_filenum(t->cf), bs); // bs is a copy of the fname relative to the cwd
+		if (r != 0) goto died_after_open;
+	    }
             txn_created = (BOOL)(txn!=NULL);
-        } else {
-	    r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
-	}
+        } else
+            log_fopen = TRUE; //Log of fopen must be delayed till flags are available
     }
     if (r!=0) {
         died_after_open: 
@@ -3051,12 +3086,19 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         found_it:
         t->nodesize = t->h->nodesize;                 /* inherit the pagesize from the file */
         if (!t->did_set_flags) {
+            r = verify_builtin_comparisons_consistent(t, t->flags);
+            if (r!=0) goto died_after_read_and_pin;
             t->flags = t->h->flags;
+            t->did_set_flags = 1;
         } else {
             if (t->flags != t->h->flags) {                /* if flags have been set then flags must match */
                 r = EINVAL; goto died_after_read_and_pin;
             }
         }
+    }
+    if (log_fopen) {
+        r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf), t->flags);
+        if (r!=0) goto died_after_read_and_pin;
     }
     assert(t->h);
     if (t->did_set_descriptor) {
@@ -3103,7 +3145,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         t->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
         r = toku_txn_note_brt(txn, t);
         assert(r==0);
-    } 
+    }
 
     //Opening a brt may restore to previous checkpoint.  Truncate if necessary.
     toku_maybe_truncate_cachefile_on_open(t->h->blocktable, t->h);
@@ -3272,7 +3314,7 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
                 //NEED NAME
                 assert(h->fname);
                 BYTESTRING bs = {.len=strlen(h->fname), .data=h->fname};
-                r = toku_log_fclose(logger, &lsn, h->dirty, bs, toku_cachefile_filenum(cachefile)); // flush the log on close (if new header is being written), otherwise it might not make it out.
+                r = toku_log_fclose(logger, &lsn, h->dirty, bs, toku_cachefile_filenum(cachefile), h->flags); // flush the log on close (if new header is being written), otherwise it might not make it out.
                 if (r!=0) return r;
             }
         }
@@ -3383,8 +3425,8 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->did_set_descriptor = FALSE;
     brt->did_set_filenum = FALSE;
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
-    brt->compare_fun = toku_default_compare_fun;
-    brt->dup_compare = toku_default_compare_fun;
+    brt->compare_fun = toku_builtin_compare_fun;
+    brt->dup_compare = toku_builtin_compare_fun;
     int r = toku_omt_create(&brt->txns);
     if (r!=0) { toku_free(brt); return r; }
     *brt_ptr = brt;
@@ -4915,8 +4957,6 @@ toku_brt_lock_init(void) {
         r = toku_pwrite_lock_init();
     if (r==0)
         r = toku_logger_lock_init();
-    if (r==0)
-        r = toku_leaflock_init();
     return r;
 }
 
@@ -4927,8 +4967,6 @@ toku_brt_lock_destroy(void) {
         r = toku_pwrite_lock_destroy();
     if (r==0) 
         r = toku_logger_lock_destroy();
-    if (r==0) 
-        r = toku_leaflock_destroy();
     return r;
 }
 
@@ -5015,5 +5053,75 @@ void
 toku_calculate_leaf_stats (BRTNODE node) {
     assert(node->height == 0);
     node->u.l.leaf_stats = calc_leaf_stats(node);
+}
+
+#if 0
+
+int toku_logger_save_rollback_fdelete (TOKUTXN txn, u_int8_t file_was_open, FILENUM filenum, BYTESTRING iname) {
+
+int toku_logger_log_fdelete (TOKUTXN txn, const char *fname, FILENUM filenum, u_int8_t was_open) {
+#endif
+
+// Prepare to remove a dictionary from the database when this transaction is committed:
+//  - if cachetable has file open, mark it as in use so that cf remains valid until we're done
+//  - mark transaction as NEED fsync on commit
+//  - make entry in rolltmp log
+//  - make fdelete entry in recovery log
+int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_dbt_p, DBT* iname_within_cwd_dbt_p) {
+    assert(txn);
+    int r;
+    const char *iname = iname_dbt_p->data;
+    CACHEFILE cf = NULL;
+    u_int8_t was_open = 0;
+    FILENUM filenum   = {0};
+    //We need to hold a reference (to cf) for an fdelete because brt might not be open (and only cf is open).
+    //Normal txn operations grab reference to brt instead.
+    r = toku_cachefile_of_iname_and_add_reference(txn->logger->ct, iname, &cf);
+    if (r == 0) {
+        was_open = TRUE;
+        filenum = toku_cachefile_filenum(cf);
+    }
+    else 
+	assert(r==ENOENT);
+
+    txn->force_fsync_on_commit = 1;  //If the txn commits, the commit MUST be in the log
+                                     //before the file is actually unlinked
+    {
+        const char *iname_within_cwd = iname_within_cwd_dbt_p->data;
+        BYTESTRING iname_within_cwd_bs = {
+            .len=strlen(iname_within_cwd),
+            .data = toku_strdup_in_rollback(txn, iname_within_cwd)
+        };
+	// make entry in rolltmp log
+        r = toku_logger_save_rollback_fdelete(txn, was_open, filenum, iname_within_cwd_bs);
+        assert(r==0); //On error we would need to remove the CF reference, which is complicated.
+    }
+    if (r==0)
+	// make entry in recovery log
+        r = toku_logger_log_fdelete(txn, iname, filenum, was_open);
+    return r;
+}
+
+
+// 
+int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p, DBT* iname_within_cwd_dbt_p) {
+    int r;
+    const char *iname = iname_dbt_p->data;
+    CACHEFILE cf;
+    r = toku_cachefile_of_iname_and_add_reference(ct, iname, &cf);
+    if (r == 0) {
+	char *error_string = NULL;
+        r = toku_cachefile_redirect_nullfd(cf);
+        assert(r==0);
+	r = toku_cachefile_close(&cf, toku_cachefile_logger(cf), &error_string, FALSE, ZERO_LSN);
+	assert(r==0);
+    }
+    else
+	assert(r==ENOENT);
+    const char *iname_within_cwd = iname_within_cwd_dbt_p->data;
+    
+    r = unlink(iname_within_cwd);  // we need a pathname relative to cwd
+    assert(r==0);
+    return r;
 }
 

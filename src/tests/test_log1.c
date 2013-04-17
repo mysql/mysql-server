@@ -19,8 +19,7 @@ DB_ENV *env;
 DB *db;
 DB_TXN *tid;
 
-int
-test_main (int UU(argc), char UU(*argv[])) {
+static void make_db (BOOL close_env) {
     int r;
     system("rm -rf " ENVDIR);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
@@ -40,13 +39,47 @@ test_main (int UU(argc), char UU(*argv[])) {
 	r=db->put(db, tid, &key, &data, 0);
 	CKERR(r);
     }
+    char *filename;
+#if USE_TDB
+    {
+        DBT dname;
+        DBT iname;
+        dbt_init(&dname, "foo.db", sizeof("foo.db"));
+        dbt_init(&iname, NULL, 0);
+        iname.flags |= DB_DBT_MALLOC;
+        r = env->get_iname(env, &dname, &iname);
+        CKERR(r);
+        filename = iname.data;
+        assert(filename);
+    }
+#else
+    filename = toku_xstrdup("foo.db");
+#endif
+
+
     r=tid->commit(tid, 0);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);
-    r=env->close(env, 0);     assert(r==0);
     {
 	toku_struct_stat statbuf;
-	r = toku_stat(ENVDIR "/foo.db", &statbuf);
+        char fullfile[strlen(filename) + sizeof(ENVDIR "/")];
+        snprintf(fullfile, sizeof(fullfile), ENVDIR "/%s", filename);
+        toku_free(filename);
+	r = toku_stat(fullfile, &statbuf);
 	assert(r==0);
     }
+    if (close_env) {
+        r=env->close(env, 0);     assert(r==0);
+    }
+}
+
+int
+test_main (int argc, char *argv[]) {
+    BOOL close_env = TRUE;
+    for (int i=1; i<argc; i++) {
+        if (strcmp(argv[i], "--no-shutdown") == 0)
+            close_env = FALSE;
+    }
+    make_db(close_env);
     return 0;
 }
+

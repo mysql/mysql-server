@@ -85,8 +85,6 @@ void print_defines (void) {
     dodefine(DB_INIT_MPOOL);
     printf("#define DB_CLOSE_DONT_TRIM_LOG 1048576\n"); // tokudb
     dodefine(DB_INIT_TXN);
-    dodefine(DB_USE_ENVIRON);
-    dodefine(DB_USE_ENVIRON_ROOT);
 
 #ifdef DB_READ_UNCOMMITTED
     dodefine(DB_READ_UNCOMMITTED);
@@ -407,6 +405,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
                              "int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
                              "int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
 			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */",
+			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */",
 			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }

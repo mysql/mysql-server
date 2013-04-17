@@ -18,6 +18,11 @@ typedef struct brt *BRT;
 struct brt_header;
 struct wbuf;
 
+typedef struct descriptor {
+    u_int32_t version;
+    DBT       dbt;
+} *DESCRIPTOR, DESCRIPTOR_S;
+
 typedef unsigned int ITEMLEN;
 typedef const void *bytevec;
 //typedef const void *bytevec;

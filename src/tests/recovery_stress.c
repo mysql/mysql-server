@@ -410,7 +410,7 @@ static void run_test (int iter, int die UU()) {
     
     if (verbose) printf("%s: iter = %d\n", __FILE__, iter);
 
-    int recovery_flags = DB_INIT_LOG;
+    int recovery_flags = DB_INIT_LOG|DB_INIT_TXN;
     if ( iter != 0 )
         recovery_flags += DB_RECOVER;
 

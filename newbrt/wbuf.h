@@ -41,6 +41,12 @@ static inline void wbuf_nocrc_char (struct wbuf *w, unsigned char ch) {
     w->buf[w->ndone++]=ch;
 }
 
+/* Write a character. */
+static inline void wbuf_nocrc_u_int8_t (struct wbuf *w, u_int8_t ch) {
+    assert(w->ndone<w->size);
+    w->buf[w->ndone++]=ch;
+}
+
 static inline void wbuf_char (struct wbuf *w, unsigned char ch) {
     wbuf_nocrc_char (w, ch);
     x1764_add(&w->checksum, &w->buf[w->ndone-1], 1);

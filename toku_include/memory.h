@@ -93,6 +93,11 @@ void *toku_memdup (const void *v, size_t len);
 /* Toku-version of strdup.  Use this so that it calls toku_malloc() */
 char *toku_strdup (const char *s)   __attribute__((__visibility__("default")));
 
+/* Copy memory.  Analogous to strdup() Crashes instead of returning NULL */
+void *toku_xmemdup (const void *v, size_t len);
+/* Toku-version of strdup.  Use this so that it calls toku_xmalloc()  Crashes instead of returning NULL */
+char *toku_xstrdup (const char *s)   __attribute__((__visibility__("default")));
+
 void toku_malloc_cleanup (void); /* Before exiting, call this function to free up any internal data structures from toku_malloc.  Otherwise valgrind will complain of memory leaks. */
 
 /* Check to see if everything malloc'd was free.  Might be a no-op depending on how memory.c is configured. */

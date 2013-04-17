@@ -18,7 +18,7 @@ static void test1 (void) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = toku_open_brt(fname, 1, &t, 1024, ct, null_txn, toku_default_compare_fun, null_db);
+    r = toku_open_brt(fname, 1, &t, 1024, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r==0);
     toku_brt_insert(t, toku_fill_dbt(&k, "hello", 6), toku_fill_dbt(&v, "there", 6), null_txn);
     {

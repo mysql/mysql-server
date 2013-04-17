@@ -66,6 +66,9 @@ unlock_for_pwrite (void) {
 
 enum {FILE_CHANGE_INCREMENT = (16<<20)};
 
+//Race condition if ydb lock is split.
+//Ydb lock is held when this function is called.
+//Not going to truncate and delete (redirect to devnull) at same time.
 void
 toku_maybe_truncate_cachefile (CACHEFILE cf, u_int64_t size_used)
 // Effect: If file size >= SIZE+32MiB, reduce file size.
@@ -796,7 +799,7 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
         r = toku_db_badformat(); goto died_1;
     }
 
-    r = toku_leaflock_borrow(&result->u.l.leaflock);
+    r = toku_leaflock_borrow(result->u.l.leaflock_pool, &result->u.l.leaflock);
     if (r!=0) goto died_1;
     rb->buf = NULL; //Buffer was used for node's mempool.
     return 0;
@@ -843,8 +846,10 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
 
     if (result->height>0) 
         r = deserialize_brtnode_nonleaf_from_rbuf(result, magic, rb);
-    else
+    else {
+        result->u.l.leaflock_pool = toku_cachefile_leaflock_pool(h->cf);
         r = deserialize_brtnode_leaf_from_rbuf(result, magic, rb);
+    }
     if (r!=0) goto died0;
 
     //printf("%s:%d Ok got %lld n_children=%d\n", __FILE__, __LINE__, result->thisnodename, result->n_children);

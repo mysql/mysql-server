@@ -1277,8 +1277,9 @@ void toku_ltm_invalidate_lt(toku_ltm* mgr, toku_db_id* db_id) {
     assert(mgr && db_id);
     toku_lt_map* map = NULL;
     map = toku_idlth_find(mgr->idlth, db_id);
-    if (!map) { return; }
-    toku_idlth_delete(mgr->idlth, db_id);
+    if (map) { 
+	toku_idlth_delete(mgr->idlth, db_id);
+    }
 }
 
 

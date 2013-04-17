@@ -31,7 +31,7 @@ test_main(int argc, char *argv[]) {
     r = dbenv->set_lg_dir(dbenv, ".");
     assert(r == 0);
     
-    r = dbenv->open(dbenv, ENVDIR, DB_INIT_LOG|DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL, 0);
+    r = dbenv->open(dbenv, ENVDIR, DB_INIT_TXN|DB_INIT_LOG|DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL, 0);
     CKERR(r);
 
 #ifdef USE_TDB

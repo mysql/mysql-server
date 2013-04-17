@@ -30,10 +30,6 @@ typedef int(*BRT_GET_STRADDLE_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, byte
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
-struct descriptor {
-    u_int32_t version;
-    DBT       dbt;
-};
 u_int32_t toku_serialize_descriptor_size(struct descriptor *desc);
 int toku_brt_create(BRT *);
 int toku_brt_set_flags(BRT, unsigned int flags);
@@ -165,8 +161,10 @@ int toku_brt_get_fd(BRT, int *);
 int toku_brt_height_of_root(BRT, int *height); // for an open brt, return the current height.
 
 enum brt_header_flags {
-    TOKU_DB_DUP = 1,
-    TOKU_DB_DUPSORT = 2,
+    TOKU_DB_DUP             = (1<<0),
+    TOKU_DB_DUPSORT         = (1<<1),
+    TOKU_DB_KEYCMP_BUILTIN  = (1<<2),
+    TOKU_DB_VALCMP_BUILTIN  = (1<<3),
 };
 
 int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater);

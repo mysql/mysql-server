@@ -3,11 +3,12 @@
 #include <sys/stat.h>
 #include "test.h"
 
-const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;
+const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
 #define NAMEA "a.db"
 const char *namea=NAMEA;
 #define NAMEB "b.db"
+#define NAMEB_HINT "b_db"
 const char *nameb=NAMEB;
 
 // needed to get .bdb versions to compile
@@ -56,13 +57,23 @@ static void run_recover (void) {
     DB_ENV *env;
     int r;
 
-    r = rename(ENVDIR "/" NAMEB, ENVDIR "/" NAMEB ".save" ); printf("r=%d error=%d\n", r, errno); CKERR(r);
+    r = system("rm -rf " ENVDIR "/saveddbs");
+    CKERR(r);
+    r = toku_os_mkdir(ENVDIR "/saveddbs", S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
+
+    r = system("mv " ENVDIR "/"NAMEB_HINT "*.tokudb " ENVDIR "/saveddbs/");
+    CKERR(r);
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     assert(r == DB_RUNRECOVERY);
 
-    r = rename(ENVDIR "/" NAMEB ".save" , ENVDIR "/" NAMEB); printf("r=%d error=%d\n", r, errno); CKERR(r);
+    r = system("rm -rf " ENVDIR "/"NAMEB_HINT"*.tokudb");
+    CKERR(r);
+
+    r = system("mv "  ENVDIR "/saveddbs/*.tokudb " ENVDIR "/");
+    CKERR(r);
 
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);

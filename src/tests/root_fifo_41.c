@@ -12,10 +12,8 @@ static void create_non_empty(int n) {
     DB_ENV *env = null_env;
     int r;
     r = db_env_create(&env, 0); assert(r == 0); assert(env != NULL);
-    r = env->set_data_dir(env, ENVDIR);
-    r = env->set_lg_dir(env, ENVDIR);
     r = env->open(env, 
-                  0, 
+                  ENVDIR, 
                   DB_INIT_MPOOL+DB_INIT_LOG+DB_INIT_LOCK+DB_INIT_TXN+DB_PRIVATE+DB_CREATE, 
                   S_IRWXU+S_IRWXG+S_IRWXO); 
     assert(r == 0);
@@ -92,13 +90,21 @@ static void root_fifo_41(int n, int ntxn, BOOL do_populate) {
 
     DB_ENV *env = null_env;
     r = db_env_create(&env, 0); assert(r == 0); assert(env != NULL);
-    r = env->set_data_dir(env, ENVDIR);
-    r = env->set_lg_dir(env, ENVDIR);
     r = env->open(env, 
-                  0, 
+                  ENVDIR, 
                   DB_INIT_MPOOL+DB_INIT_LOG+DB_INIT_LOCK+DB_INIT_TXN+DB_PRIVATE+DB_CREATE, 
                   S_IRWXU+S_IRWXG+S_IRWXO); 
     assert(r == 0);
+    {
+        DB_TXN *txn;
+        DB *db = null_db;
+        r = env->txn_begin(env, null_txn, &txn, 0); CKERR(r);
+        r = db_create(&db, env, 0); CKERR(r);
+        r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
+        CKERR(r);
+        r = txn->commit(txn, 0); CKERR(r);
+        r = db->close(db, 0); CKERR(r);
+    }
 
     DB_TXN *txn[ntxn];
     int i;

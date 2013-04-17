@@ -7,7 +7,7 @@
 #include "log_header.h"
 #include "checkpoint.h"
 
-static int toku_recover_trace = 0;
+int toku_recover_trace = 0;
 
 //#define DO_VERIFY_COUNTS
 #ifdef DO_VERIFY_COUNTS
@@ -285,14 +285,12 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, 
     r = toku_brt_create(&brt);
     assert(r == 0);
 
-    // create tree with treeflags, otherwise use the treeflags from the tree
-    if (flags & O_CREAT)
-        toku_brt_set_flags(brt, treeflags);
+    toku_brt_set_flags(brt, treeflags);
 
     // set the key compare functions
-    if (renv->bt_compare)
+    if (!(treeflags & TOKU_DB_KEYCMP_BUILTIN) && renv->bt_compare)
         toku_brt_set_bt_compare(brt, renv->bt_compare);
-    if (renv->dup_compare)
+    if (!(treeflags & TOKU_DB_VALCMP_BUILTIN) && renv->dup_compare)
         toku_brt_set_dup_compare(brt, renv->dup_compare);
 
     // bind to filenum when opened
@@ -315,8 +313,8 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, 
 }
 
 static int toku_recover_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
-    char *fixedfname = fixup_fname(&l->fname);
-    return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, 0);
+    char *fixedfname = fixup_fname(&l->iname);
+    return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags);
 }
 
 static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
@@ -338,7 +336,7 @@ static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV ren
 
 // fcreate is like fopen except that the file must be created. Also creates the dir if needed.
 static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
-    char *fixedfname = fixup_fname(&l->fname);
+    char *fixedfname = fixup_fname(&l->iname);
     create_dir_from_file(fixedfname);
     return internal_toku_recover_fopen_or_fcreate(renv, O_CREAT|O_TRUNC, l->mode, fixedfname, l->filenum, l->treeflags);
 }
@@ -346,6 +344,19 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
 static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), RECOVER_ENV UU(renv)) {
     // nothing
     return 0;
+}
+
+// fdelete is a transactional file delete.
+static int toku_recover_fdelete (struct logtype_fdelete *UU(l), RECOVER_ENV UU(renv)) {
+    //TODO: #2037
+    //Put entry in rolltmp.
+    assert(FALSE);
+}
+
+static int toku_recover_backward_fdelete (struct logtype_fdelete *UU(l), RECOVER_ENV UU(renv)) {
+    //TODO: #2037
+    //Do we do anything here?  Perhaps open it?
+    assert(FALSE);
 }
 
 static int toku_recover_enq_insert (struct logtype_enq_insert *l, RECOVER_ENV renv) {
@@ -451,7 +462,7 @@ static int toku_recover_fclose (struct logtype_fclose *l, RECOVER_ENV UU(renv)) 
     struct file_map_tuple *tuple = NULL;
     int r = file_map_find(&renv->fmap, l->filenum, &tuple);
     if (r == 0) {
-        char *fixedfname = fixup_fname(&l->fname);
+        char *fixedfname = fixup_fname(&l->iname);
         assert(strcmp(tuple->fname, fixedfname) == 0);
         toku_free(fixedfname);
         r = toku_close_brt_lsn(tuple->brt, 0, 0, TRUE, l->lsn);
@@ -464,8 +475,8 @@ static int toku_recover_fclose (struct logtype_fclose *l, RECOVER_ENV UU(renv)) 
 static int toku_recover_backward_fclose (struct logtype_fclose *l, RECOVER_ENV renv) {
     if (renv->bs.bs == BS_SAW_CKPT) {
         // tree open
-        char *fixedfname = fixup_fname(&l->fname);
-        internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, 0);
+        char *fixedfname = fixup_fname(&l->iname);
+        internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags);
     }
     return 0;
 }
@@ -524,8 +535,8 @@ static int toku_recover_fassociate (struct logtype_fassociate *UU(l), RECOVER_EN
 }
 
 static int toku_recover_backward_fassociate (struct logtype_fassociate *l, RECOVER_ENV renv) {
-    char *fixedfname = fixup_fname(&l->fname);
-    return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, 0);
+    char *fixedfname = fixup_fname(&l->iname);
+    return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags);
 }
 
 static int toku_recover_xstillopen (struct logtype_xstillopen *UU(l), RECOVER_ENV UU(renv)) {
@@ -714,7 +725,7 @@ static void recover_abort_live_txns(RECOVER_ENV renv) {
     }
 }
 
-static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_dir) {
+static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_dir) {
     int r;
     int rr = 0;
     TOKULOGCURSOR logcursor = NULL;
@@ -739,6 +750,8 @@ static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_d
     
     r = toku_logcursor_last(logcursor, &le);
     if (r != 0) {
+        if (toku_recover_trace) 
+            printf("RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
         rr = DB_RUNRECOVERY; goto errorexit;
     }
 
@@ -749,7 +762,7 @@ static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_d
     r = toku_logcursor_create(&logcursor, log_dir);
     assert(r == 0);
 
-    r = chdir(data_dir); 
+    r = chdir(env_dir); 
     if (r != 0) {
         // no data directory error
         rr = errno; goto errorexit;
@@ -772,6 +785,8 @@ static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_d
         if (toku_recover_trace) 
             printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
         if (r != 0) {
+            if (toku_recover_trace) 
+                printf("DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
             rr = DB_RUNRECOVERY; goto errorexit;
         }
         if (renv->goforward) {
@@ -779,6 +794,8 @@ static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_d
             if (toku_recover_trace) 
                 printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
             if (r != 0) {
+                if (toku_recover_trace) 
+                    printf("DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
                 rr = DB_RUNRECOVERY; goto errorexit;
             }
             break;
@@ -801,6 +818,8 @@ static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_d
         if (toku_recover_trace) 
             printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
         if (r != 0) {
+            if (toku_recover_trace) 
+                printf("DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
             rr = DB_RUNRECOVERY; goto errorexit;
         }
     }
@@ -882,7 +901,7 @@ int tokudb_recover_delete_rolltmp_files(const char *UU(data_dir), const char *lo
     return r;
 }
 
-int tokudb_recover(const char *data_dir, const char *log_dir, brt_compare_func bt_compare, brt_compare_func dup_compare) {
+int tokudb_recover(const char *env_dir, const char *log_dir, brt_compare_func bt_compare, brt_compare_func dup_compare) {
     int r;
     int lockfd = -1;
 
@@ -902,7 +921,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir, brt_compare_func b
         r = recover_env_init(&renv, bt_compare, dup_compare);
         assert(r == 0);
 
-        rr = do_recovery(&renv, data_dir, log_dir);
+        rr = do_recovery(&renv, env_dir, log_dir);
 
         recover_env_cleanup(&renv, (BOOL)(rr == 0));
     }

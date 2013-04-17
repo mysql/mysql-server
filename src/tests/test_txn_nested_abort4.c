@@ -19,9 +19,7 @@ setup_db (void) {
 
     int r;
     r = db_env_create(&env, 0); CKERR(r);
-    r = env->set_data_dir(env, ENVDIR);
-    r = env->set_lg_dir(env, ENVDIR);
-    r = env->open(env, 0, DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN | DB_PRIVATE | DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
+    r = env->open(env, ENVDIR, DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN | DB_PRIVATE | DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
     CKERR(r);
 
     {

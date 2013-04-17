@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include "test.h"
 
-const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;
+const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
 char *namea="a.db";
 char *nameb="b.db";
@@ -23,7 +23,14 @@ static void run_test (void) {
     r = db->close(db, 0);                                                                CKERR(r);
 
     r = db_create(&db, env, 0);                                                          CKERR(r);
-    r = db->open(db, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); assert(r != 0);
+    r = db->open(db, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);
+#if USE_TDB
+        CKERR(r); //Success, so need a new handle
+    r = db->close(db, 0);                                                                CKERR(r);
+    r = db_create(&db, env, 0);                                                          CKERR(r);
+#else
+        assert(r != 0);
+#endif
     r = toku_os_mkdir(ENVDIR "/bdir", 0777); assert(r == 0);
     r = db->open(db, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); CKERR(r);
     r = db->close(db, 0);                                                                CKERR(r);

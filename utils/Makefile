@@ -14,8 +14,8 @@ include $(TOKUROOT)toku_include/Makefile.include
 ifndef BDBDIR
 BDBDIR=/usr/local/BerkeleyDB.4.6
 endif
-BDB_DUMP=$(BDBDIR)/bin/db_dump$(BINSUF)
-BDB_LOAD=$(BDBDIR)/bin/db_load$(BINSUF)
+BDB_DUMP=$(BDBDIR)/bin/db_dump$(BINSUF) -h dir.$@.bdb
+BDB_LOAD=$(BDBDIR)/bin/db_load$(BINSUF) -h dir.$@.bdb
 
 DIFF=diff -q -I 'db_pagesize='
 
@@ -103,10 +103,10 @@ copy.bdb:
 coverage: $(UTILS)
 
 %$(BINSUF): %.c
-	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST) -DUSE_TDB=1
 
 %.bdb$(BINSUF): %.c
-	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST) -DUSE_BDB=1
 
 %_static$(BINSUF): %.c ../lib/libtokudb.$(AEXT)
 	$(CC) $< ../lib/libtokudb.$(AEXT) $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
@@ -127,9 +127,9 @@ TEST_GEN_HEX_LENGTHLIMIT=1024
 TEST_GEN_HEX_FLAGS=-n $(TEST_GEN_HEX_NUMKEYS) -m $(TEST_GEN_HEX_LENGTHMIN) -M $(TEST_GEN_HEX_LENGTHLIMIT) -r 5
 
 TDB_GEN=./tokudb_gen$(BINSUF)
-TDB_LOAD=./tokudb_load$(BINSUF)
-TDB_DUMP=./tokudb_dump$(BINSUF)
-TDB_DUMPBDB=./tokudb_dump.bdb$(BINSUF)
+TDB_LOAD=./tokudb_load$(BINSUF) -h dir.$@.tdb
+TDB_DUMP=./tokudb_dump$(BINSUF) -h dir.$@.tdb
+TDB_DUMPBDB=./tokudb_dump.bdb$(BINSUF) -h dir.$@.bdb
 
 
 ifeq ($(OS_CHOICE),windows)
@@ -140,10 +140,12 @@ else
     TO_NATIVE = cat
 endif
 
-test_gen_hex:
+test_gen_hex: build
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
 	@#echo "Generating text input > db > text"
-	rm -f $@.*.temp
+	rm -rf dir.$@.*
+	mkdir dir.$@.tdb
+	mkdir dir.$@.bdb
 	$(TDB_GEN) $(TEST_GEN_HEX_FLAGS) > $@.gen.temp && \
 	$(BDB_LOAD) $@.db.temp < $@.gen.temp && \
 	$(BDB_DUMP) $@.db.temp > $@.load_dump.temp && \
@@ -155,10 +157,12 @@ test_gen_hex:
 
 test_load: test_load_hex test_load_text test_load_text_noendline
 
-test_load_hex:
+test_load_hex: build
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
 	@#echo "Generating text input > db > text"
-	rm -f $@.*.temp
+	rm -rf dir.$@.*
+	mkdir dir.$@.tdb
+	mkdir dir.$@.bdb
 	$(TDB_GEN) $(TEST_GEN_HEX_FLAGS) > $@.gen.temp && \
 	$(BDB_LOAD) $@.bdb.temp < $@.gen.temp && \
 	$(TDB_LOAD) $@.tokudb.temp < $@.gen.temp && \
@@ -169,10 +173,12 @@ test_load_hex:
 
 TEST_GEN_TEXT_FLAGS=-n $(TEST_GEN_HEX_NUMKEYS) -m $(TEST_GEN_HEX_LENGTHMIN) -M $(TEST_GEN_HEX_LENGTHLIMIT) -r 5 -T -P
 
-test_load_text:
+test_load_text: build
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
 	@#echo "Generating text input > db > text"
-	rm -f $@.*.temp
+	rm -rf dir.$@.*
+	mkdir dir.$@.tdb
+	mkdir dir.$@.bdb
 	$(TDB_GEN) $(TEST_GEN_TEXT_FLAGS) > $@.gen.temp && \
 	$(BDB_LOAD)   -T -t btree $@.bdb.temp < $@.gen.temp && \
 	$(TDB_LOAD) -T -t btree $@.tokudb.temp < $@.gen.temp && \
@@ -181,17 +187,21 @@ test_load_text:
 	$(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp \
 	$(SUMMARIZE_CMD)
 
-test_load_text_noendline:
+test_load_text_noendline: build
 	@#echo "Testing no end of line at end of file."
-	rm -f $@.*.temp
+	rm -rf dir.$@.*
+	mkdir dir.$@.tdb
+	mkdir dir.$@.bdb
 	echo -en "key\nvalue" > $@.gen.temp
 	$(TDB_LOAD) -T -t btree $@.tokudb.temp < $@.gen.temp $(SUMMARIZE_CMD)
 
 
-test_dump:
+test_dump: build
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
 	@#echo "Generating text input > db > text"
-	rm -f $@.*.temp
+	rm -rf dir.$@.*
+	mkdir dir.$@.tdb
+	mkdir dir.$@.bdb
 	$(TDB_GEN) $(TEST_GEN_HEX_FLAGS) > $@.gen.temp && \
 	$(BDB_LOAD) $@.bdb.temp < $@.gen.temp && \
 	$(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp && \
@@ -199,8 +209,10 @@ test_dump:
 	$(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp \
 	$(SUMMARIZE_CMD)
 
-test_nodup:
-	rm -rf $@.*.temp
+test_nodup: build
+	rm -rf dir.$@.*
+	mkdir dir.$@.tdb
+	mkdir dir.$@.bdb
 	$(TDB_GEN) $(TEST_GEN_HEX_FLAGS) >$@.gen.temp && \
 	$(BDB_LOAD) $@.bdb.temp <$@.gen.temp && \
 	$(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp && \
@@ -212,8 +224,10 @@ test_nodup:
 	$(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp \
 	$(SUMMARIZE_CMD)
 
-test_dupsort:
-	rm -rf $@.*.temp
+test_dupsort: build
+	rm -rf dir.$@.*
+	mkdir dir.$@.tdb
+	mkdir dir.$@.bdb
 	$(TDB_GEN) $(TEST_GEN_HEX_FLAGS) -D -S >$@.gen.temp && \
 	$(BDB_LOAD) $@.bdb.temp <$@.gen.temp && \
 	$(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp && \
@@ -228,5 +242,7 @@ test_dupsort:
 #if $(DIFF) -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
 clean:
 	rm -rf *.so *.o $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) *.temp *.gcno *.gcda *.gcov *.temp.clean *.temp.dirty
+	rm -rf tokudb.directory tokudb.environment *.log *.tokudb *.tokulog
+	rm -rf dir.*
 
 

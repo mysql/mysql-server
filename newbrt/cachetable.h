@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include "brttypes.h"
 #include "workqueue.h"
+#include "leaflock.h"
 
 // TODO: #1398  Get rid of this entire straddle_callback hack
 // Man is this ugly.
@@ -45,6 +46,10 @@ int toku_create_cachetable(CACHETABLE */*result*/, long size_limit, LSN initial_
 // What is the cachefile that goes with a particular filenum?
 // During a transaction, we cannot reuse a filenum.
 int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf);
+
+// What is the cachefile that goes with a particular iname?
+// During a transaction, we cannot reuse an iname.
+int toku_cachefile_of_iname_and_add_reference (CACHETABLE ct, const char *iname, CACHEFILE *cf);
 
 // TODO: #1510  Add comments on how these behave
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
@@ -91,7 +96,7 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, 
 // associated with the key are returned.
 typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs);
 
-void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*close_userdata)(CACHEFILE, void*, char **/*error_string*/, BOOL, LSN), int (*checkpoint_userdata)(CACHEFILE, void*), int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*), int (*end_checkpoint_userdata)(CACHEFILE, void*));
+void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*log_fassociate_during_checkpoint)(CACHEFILE, void*), int (*close_userdata)(CACHEFILE, void*, char **/*error_string*/, BOOL, LSN), int (*checkpoint_userdata)(CACHEFILE, void*), int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*), int (*end_checkpoint_userdata)(CACHEFILE, void*));
 // Effect: Store some cachefile-specific user data.  When the last reference to a cachefile is closed, we call close_userdata().
 // Before starting a checkpoint, we call checkpoint_prepare_userdata().
 // When the cachefile needs to be checkpointed, we call checkpoint_userdata().
@@ -259,5 +264,6 @@ typedef struct cachetable_status {
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);
 
+LEAFLOCK_POOL toku_cachefile_leaflock_pool(CACHEFILE cf);
 
 #endif

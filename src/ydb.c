@@ -51,7 +51,7 @@ static u_int64_t num_aborts;
 static u_int64_t num_point_queries;
 static u_int64_t num_sequential_queries;
 
-
+static int env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt);
 
 
 /** The default maximum number of persistent locks in a lock tree  */
@@ -130,20 +130,9 @@ static void env_remove_open_txn(DB_ENV *UU(env), DB_TXN *txn) {
 
 static int toku_txn_abort(DB_TXN * txn);
 
-// abort all of the open txn's
-static int env_abort_all_open_txns(DB_ENV *env) {
-    int r = list_empty(&env->i->open_txns) ? 0 : EINVAL;
-    while (!list_empty(&env->i->open_txns)) {
-        struct list *list = list_head(&env->i->open_txns);
-        DB_TXN *txn = list_struct(list, DB_TXN, open_txns);
-        toku_txn_abort(txn);
-    }
-    return r;
-}
-
 /* db methods */
 static inline int db_opened(DB *db) {
-    return db->i->full_fname != 0;
+    return db->i->opened != 0;
 }
 
 static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
@@ -336,7 +325,7 @@ static int delete_rolltmp_files(DB_ENV *env) {
 }
     
 static int do_recovery (DB_ENV *env) {
-    const char *datadir=env->i->dir;
+    const char *envdir=env->i->dir;
     char *logdir;
     if (env->i->lg_dir) {
 	logdir = construct_full_name(2, env->i->dir, env->i->lg_dir);
@@ -344,7 +333,7 @@ static int do_recovery (DB_ENV *env) {
 	logdir = toku_strdup(env->i->dir);
     }
     toku_ydb_unlock();
-    int r = tokudb_recover(datadir, logdir, env->i->bt_compare, env->i->dup_compare);
+    int r = tokudb_recover(envdir, logdir, env->i->bt_compare, env->i->dup_compare);
     toku_ydb_lock();
     toku_free(logdir);
     return r;
@@ -362,6 +351,65 @@ static int needs_recovery (DB_ENV *env) {
     return recovery_needed ? DB_RUNRECOVERY : 0;
 }
 
+static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags);
+static int toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *));
+static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, const DBT *));
+static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode);
+static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags);
+static int toku_db_close(DB * db, u_int32_t flags);
+static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
+static int toku_txn_commit(DB_TXN * txn, u_int32_t flags);
+static int db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mode);
+
+static void finalize_file_removal(int fd, void * extra);
+
+// Instruct db to use the default (built-in) key comparison function
+// by setting the flag bits in the db and brt structs
+static int
+db_use_builtin_key_cmp(DB *db) {
+    HANDLE_PANICKED_DB(db);
+    int r;
+    if (db_opened(db))
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be set after DB open.\n");
+    else if (db->i->key_compare_was_set)
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Key comparison function already set.\n");
+    else {
+        u_int32_t tflags;
+        r = toku_brt_get_flags(db->i->brt, &tflags);
+        if (r!=0) return r;
+
+        tflags |= TOKU_DB_KEYCMP_BUILTIN;
+        r = toku_brt_set_flags(db->i->brt, tflags);
+        if (!r)
+            db->i->key_compare_was_set = TRUE;
+    }
+    return r;
+}
+
+static int
+db_use_builtin_val_cmp(DB *db) {
+    HANDLE_PANICKED_DB(db);
+    int r;
+    if (db_opened(db))
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be set after DB open.\n");
+    else if (db->i->val_compare_was_set)
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Val comparison function already set.\n");
+    else {
+        u_int32_t tflags;
+        r = toku_brt_get_flags(db->i->brt, &tflags);
+        if (r!=0) return r;
+
+        tflags |= TOKU_DB_VALCMP_BUILTIN;
+        r = toku_brt_set_flags(db->i->brt, tflags);
+        if (!r)
+            db->i->val_compare_was_set = TRUE;
+    }
+    return r;
+}
+
+
+//    DB *directory; //Maps dnames to inames
+//    DB *persistent_environment; //Stores environment settings, can be used for upgrade
 static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     HANDLE_PANICKED_ENV(env);
     int r;
@@ -371,24 +419,18 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	return toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
     }
 
-    if ((flags & DB_USE_ENVIRON) && (flags & DB_USE_ENVIRON_ROOT)) {
-	return toku_ydb_do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible flags\n");
-    }
-
+    // DB_CREATE means create if env does not exist, and Tokudb requires it because
+    // Tokudb requries DB_PRIVATE.
     if ((flags & DB_PRIVATE) && !(flags & DB_CREATE)) {
 	return toku_ydb_do_error(env, ENOENT, "DB_PRIVATE requires DB_CREATE (seems gratuitous to us, but that's BDB's behavior\n");
     }
 
-    if (home) {
-        if ((flags & DB_USE_ENVIRON) || (flags & DB_USE_ENVIRON_ROOT)) {
-	    return toku_ydb_do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible with specifying a home\n");
-	}
+    if (!(flags & DB_PRIVATE)) {
+	return toku_ydb_do_error(env, ENOENT, "TokuDB requires DB_PRIVATE\n");
     }
-    else if ((flags & DB_USE_ENVIRON)) home = getenv("DB_HOME");
-#if !TOKU_WINDOWS
-    else if ((flags & DB_USE_ENVIRON_ROOT) && geteuid() == 0) home = getenv("DB_HOME");
-#endif
-    unused_flags &= ~DB_USE_ENVIRON & ~DB_USE_ENVIRON_ROOT; 
+
+    if ((flags & DB_INIT_LOG) && !(flags & DB_INIT_TXN)) 
+	return toku_ydb_do_error(env, EINVAL, "TokuDB requires transactions for logging\n");
 
     if (!home) home = ".";
 
@@ -447,7 +489,10 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         char* full_dir = NULL;
-        if (env->i->lg_dir) full_dir = construct_full_name(2, env->i->dir, env->i->lg_dir);
+        if (env->i->lg_dir) {
+            full_dir = construct_full_name(2, env->i->dir, env->i->lg_dir);
+            assert(full_dir);
+        }
 	assert(env->i->logger);
         toku_logger_write_log_files(env->i->logger, (BOOL)((flags & DB_INIT_LOG) != 0));
         r = toku_logger_open(full_dir ? full_dir : env->i->dir, env->i->logger);
@@ -481,20 +526,83 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
     if (r!=0) goto died2;
 
-    if (env->i->logger) toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
+    int using_txns = env->i->open_flags & DB_INIT_TXN;
+    if (env->i->logger) {
+	assert (using_txns);
+	toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
+	toku_logger_set_remove_finalize_callback(env->i->logger, finalize_file_removal, env->i->ltm);
+    }
 
+    DB_TXN *txn=NULL;
+    if (using_txns) {
+        r = toku_txn_begin(env, 0, &txn, 0);
+        assert(r==0);//For Now
+    }
+    //TODO: put environment, directory in environment home instead of in data dir
+    {
+        r = toku_db_create(&env->i->persistent_environment, env, 0);
+        assert(r==0);//For Now
+        r = db_use_builtin_key_cmp(env->i->persistent_environment);
+        assert(r==0);
+        r = db_use_builtin_val_cmp(env->i->persistent_environment);
+        assert(r==0);
+        r = db_open_iname(env->i->persistent_environment, txn, "tokudb.environment", DB_CREATE, mode);
+        assert(r==0);//For Now
+        //TODO: Insert environment variables into persistent environment
+    }
+    {
+        r = toku_db_create(&env->i->directory, env, 0);
+        assert(r==0);//For Now
+        r = db_use_builtin_key_cmp(env->i->directory);
+        assert(r==0);
+        r = db_use_builtin_val_cmp(env->i->directory);
+        assert(r==0);
+        r = db_open_iname(env->i->directory, txn, "tokudb.directory", DB_CREATE, mode);
+        assert(r==0);//For Now
+    }
+    if (using_txns) {
+        r = toku_txn_commit(txn, 0);
+        assert(r==0);//For Now
+    }
+    toku_ydb_unlock();
+    r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, NULL);
+    assert(r==0);//For Now
+    toku_ydb_lock();
     return 0;
 }
 
+
 static int toku_env_close(DB_ENV * env, u_int32_t flags) {
-    int is_panicked = toku_env_is_panicked(env);
-    char *panic_string = env->i->panic_string;
-    env->i->panic_string = 0;
+    int r = 0;
 
-    int open_txns_on_close = env_abort_all_open_txns(env);
+    // if panicked, or if any open transactions, or any open dbs, then do nothing.
 
-    // Even if the env is panicked, try to close as much as we can.
-    int r0=0,r1=0;
+    if (toku_env_is_panicked(env)) goto panic_and_quit_early;
+    if (!list_empty(&env->i->open_txns)) {
+        r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to open transactions\n");
+        goto panic_and_quit_early;
+    }
+    if (toku_omt_size(env->i->open_dbs) > 0) {
+        r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to open DBs\n");
+        goto panic_and_quit_early;
+    }
+    {
+        if (env->i->persistent_environment) {
+            r = toku_db_close(env->i->persistent_environment, 0);
+            if (r) {
+                toku_ydb_do_error(env, r, "Cannot close persistent environment dictionary (DB->close error)\n");
+                goto panic_and_quit_early;
+            }
+        }
+        if (env->i->directory) {
+            r = toku_db_close(env->i->directory, 0);
+            if (r) {
+                toku_ydb_do_error(env, r, "Cannot close Directory dictionary (DB->close error)\n");
+                goto panic_and_quit_early;
+            }
+        }
+    }
+
     if (env->i->cachetable) {
 	toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
 	toku_cachetable_minicron_shutdown(env->i->cachetable);
@@ -502,56 +610,67 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
             if ( flags && DB_CLOSE_DONT_TRIM_LOG ) {
                 toku_logger_trim_log_files(env->i->logger, FALSE);
             }
-            r0 = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, NULL);
-            assert(r0 == 0);
-            r0 = toku_logger_shutdown(env->i->logger); 
-            assert(r0 == 0);
+            r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, NULL);
+            if (r) {
+                toku_ydb_do_error(env, r, "Cannot close environment (error during checkpoint)\n");
+                goto panic_and_quit_early;
+            }
+            r = toku_logger_shutdown(env->i->logger); 
+            if (r) {
+                toku_ydb_do_error(env, r, "Cannot close environment (error during logger shutdown)\n");
+                goto panic_and_quit_early;
+            }
         }
 	toku_ydb_lock();
-        r0=toku_cachetable_close(&env->i->cachetable);
-	if (r0) {
-	    toku_ydb_do_error(env, r0, "Cannot close environment (cachetable close error)\n");
+        r=toku_cachetable_close(&env->i->cachetable);
+	if (r) {
+	    toku_ydb_do_error(env, r, "Cannot close environment (cachetable close error)\n");
+            goto panic_and_quit_early;
 	}
     }
     if (env->i->logger) {
-        r1=toku_logger_close(&env->i->logger);
-	if (r0==0 && r1) {
-	    toku_ydb_do_error(env, r0, "Cannot close environment (logger close error)\n");
+        r=toku_logger_close(&env->i->logger);
+	if (r) {
+            env->i->logger = NULL;
+	    toku_ydb_do_error(env, r, "Cannot close environment (logger close error)\n");
+            goto panic_and_quit_early;
 	}
     }
     // Even if nothing else went wrong, but we were panicked, then raise an error.
     // But if something else went wrong then raise that error (above)
-    if (is_panicked) {
-	if (r0==0 && r1==0) {
-	    toku_ydb_do_error(env, is_panicked, "Cannot close environment due to previous error: %s\n", panic_string);
-	}
-	if (panic_string) toku_free(panic_string);
-    } else {
-	assert(panic_string==0);
-    }
+    if (toku_env_is_panicked(env))
+        goto panic_and_quit_early;
+    else
+	assert(env->i->panic_string==0);
 
-    if (env->i->data_dirs) {
-        u_int32_t i;
-        assert(env->i->n_data_dirs > 0);
-        for (i = 0; i < env->i->n_data_dirs; i++) {
-            toku_free(env->i->data_dirs[i]);
-        }
-        toku_free(env->i->data_dirs);
-    }
+    if (env->i->data_dir)
+        toku_free(env->i->data_dir);
     if (env->i->lg_dir)
         toku_free(env->i->lg_dir);
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
+    if (env->i->open_dbs)
+        toku_omt_destroy(&env->i->open_dbs);
     toku_free(env->i->dir);
     toku_ltm_close(env->i->ltm);
     toku_free(env->i);
+    env->i = NULL;
     toku_free(env);
+    env = NULL;
     ydb_unref();
-    if (r0) return r0;
-    if (r1) return r1;
-    if ((flags!=0) && !(flags==DB_CLOSE_DONT_TRIM_LOG)) return EINVAL;
-    if (open_txns_on_close) return EINVAL;
-    return is_panicked;
+    if ((flags!=0) && !(flags==DB_CLOSE_DONT_TRIM_LOG))
+        r = EINVAL;
+    return r;
+
+panic_and_quit_early:
+    //r is the panic error
+    if (toku_env_is_panicked(env)) {
+        char *panic_string = env->i->panic_string;
+        r = toku_ydb_do_error(env, toku_env_is_panicked(env), "Cannot close environment due to previous error: %s\n", panic_string);
+    }
+    else
+        env->i->is_panicked = r;
+    return r;
 }
 
 static int toku_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
@@ -576,6 +695,31 @@ static int toku_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t byte
     return 0;
 }
 
+static int toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags);
+
+static int
+locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags) {
+    toku_multi_operation_client_lock(); //Cannot begin checkpoint
+    toku_ydb_lock();
+    int r = toku_env_dbremove(env, txn, fname, dbname, flags);
+    toku_ydb_unlock();
+    toku_multi_operation_client_unlock(); //Can now begin checkpoint
+    return r;
+}
+
+static int toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags);
+
+static int
+locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
+    toku_multi_operation_client_lock(); //Cannot begin checkpoint
+    toku_ydb_lock();
+    int r = toku_env_dbrename(env, txn, fname, dbname, newname, flags);
+    toku_ydb_unlock();
+    toku_multi_operation_client_unlock(); //Can now begin checkpoint
+    return r;
+}
+
+
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
 
 static int toku_env_get_cachesize(DB_ENV * env, u_int32_t *gbytes, u_int32_t *bytes, int *ncache) {
@@ -593,41 +737,22 @@ static int locked_env_get_cachesize(DB_ENV *env, u_int32_t *gbytes, u_int32_t *b
 
 static int toku_env_set_data_dir(DB_ENV * env, const char *dir) {
     HANDLE_PANICKED_ENV(env);
-    u_int32_t i;
     int r;
-    char** temp;
-    char* new_dir;
     
     if (env_opened(env) || !dir) {
-	return toku_ydb_do_error(env, EINVAL, "You cannot set the data dir after opening the env\n");
+	r = toku_ydb_do_error(env, EINVAL, "You cannot set the data dir after opening the env\n");
     }
-    
-    if (env->i->data_dirs) {
-        assert(env->i->n_data_dirs > 0);
-        for (i = 0; i < env->i->n_data_dirs; i++) {
-            if (!strcmp(dir, env->i->data_dirs[i])) {
-                //It is already in the list.  We're done.
-                return 0;
-            }
+    else if (env->i->data_dir)
+	r = toku_ydb_do_error(env, EINVAL, "You cannot set the data dir more than once.\n");
+    else {
+        env->i->data_dir = toku_strdup(dir);
+        if (env->i->data_dir==NULL) {
+            assert(errno == ENOMEM);
+            r = toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
         }
+        else r = 0;
     }
-    else assert(env->i->n_data_dirs == 0);
-    new_dir = toku_strdup(dir);
-    if (0) {
-        died1:
-        toku_free(new_dir);
-        return r;
-    }
-    if (new_dir==NULL) {
-	assert(errno == ENOMEM);
-	return toku_ydb_do_error(env, errno, "Out of memory\n");
-    }
-    temp = (char**) toku_realloc(env->i->data_dirs, (1 + env->i->n_data_dirs) * sizeof(char*));
-    if (temp==NULL) {assert(errno == ENOMEM); r = ENOMEM; goto died1;}
-    else env->i->data_dirs = temp;
-    env->i->data_dirs[env->i->n_data_dirs] = new_dir;
-    env->i->n_data_dirs++;
-    return 0;
+    return r;
 }
 
 static void toku_env_set_errcall(DB_ENV * env, toku_env_errcall_t errcall) {
@@ -1033,7 +1158,6 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
     return r;
 }
 
-
 static int locked_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 static int toku_db_lt_panic(DB* db, int r);
@@ -1051,55 +1175,53 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     if (result == 0) { r = ENOMEM; goto cleanup; }
     memset(result, 0, sizeof *result);
     result->err = (void (*)(const DB_ENV * env, int error, const char *fmt, ...)) toku_locked_env_err;
-    result->set_default_bt_compare = locked_env_set_default_bt_compare;
-    result->set_default_dup_compare = locked_env_set_default_dup_compare;
-    result->checkpointing_set_period = locked_env_checkpointing_set_period;
-    result->checkpointing_get_period = locked_env_checkpointing_get_period;
+#define SENV(name) result->name = locked_env_ ## name
+    SENV(dbremove);
+    SENV(dbrename);
+    SENV(set_default_bt_compare);
+    SENV(set_default_dup_compare);
+    SENV(checkpointing_set_period);
+    SENV(checkpointing_get_period);
     result->checkpointing_postpone = env_checkpointing_postpone;
     result->checkpointing_resume = env_checkpointing_resume;
     result->checkpointing_begin_atomic_operation = env_checkpointing_begin_atomic_operation;
     result->checkpointing_end_atomic_operation = env_checkpointing_end_atomic_operation;
     result->get_engine_status = env_get_engine_status;
-    result->open = locked_env_open;
-    result->close = locked_env_close;
+    result->get_iname = env_get_iname;
+    SENV(open);
+    SENV(close);
     result->txn_checkpoint = toku_env_txn_checkpoint;
-    result->log_flush = locked_env_log_flush;
+    SENV(log_flush);
     result->set_errcall = toku_env_set_errcall;
     result->set_errfile = toku_env_set_errfile;
     result->set_errpfx = toku_env_set_errpfx;
-    //result->set_noticecall = locked_env_set_noticecall;
-    result->set_flags = locked_env_set_flags;
-    result->set_data_dir = locked_env_set_data_dir;
-    result->set_tmp_dir = locked_env_set_tmp_dir;
-    result->set_verbose = locked_env_set_verbose;
-    result->set_lg_bsize = locked_env_set_lg_bsize;
-    result->set_lg_dir = locked_env_set_lg_dir;
-    result->set_lg_max = locked_env_set_lg_max;
-    result->get_lg_max = locked_env_get_lg_max;
-    result->set_lk_max_locks = locked_env_set_lk_max_locks;
-    result->get_lk_max_locks = locked_env_get_lk_max_locks;
-    result->set_cachesize = locked_env_set_cachesize;
+    //SENV(set_noticecall);
+    SENV(set_flags);
+    SENV(set_data_dir);
+    SENV(set_tmp_dir);
+    SENV(set_verbose);
+    SENV(set_lg_bsize);
+    SENV(set_lg_dir);
+    SENV(set_lg_max);
+    SENV(get_lg_max);
+    SENV(set_lk_max_locks);
+    SENV(get_lk_max_locks);
+    SENV(set_cachesize);
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
-    result->get_cachesize = locked_env_get_cachesize;
+    SENV(get_cachesize);
 #endif
-    result->set_lk_detect = locked_env_set_lk_detect;
+    SENV(set_lk_detect);
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
-    result->set_lk_max = locked_env_set_lk_max;
+    SENV(set_lk_max);
 #endif
-    result->log_archive = locked_env_log_archive;
-    result->txn_stat = locked_env_txn_stat;
+    SENV(log_archive);
+    SENV(txn_stat);
     result->txn_begin = locked_txn_begin;
+#undef SENV
 
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
     memset(result->i, 0, sizeof *result->i);
-    result->i->bt_compare  = toku_default_compare_fun;
-    result->i->dup_compare = toku_default_compare_fun;
-    result->i->is_panicked=0;
-    result->i->panic_string = 0;
-    result->i->errcall = 0;
-    result->i->errpfx = 0;
-    result->i->errfile = 0;
     env_init_open_txn(result);
 
     r = toku_ltm_create(&result->i->ltm, __toku_env_default_max_locks,
@@ -1113,6 +1235,11 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
 	if (r!=0) { goto cleanup; }
 	assert(result->i->logger);
     }
+    {
+        r = toku_omt_create(&result->i->open_dbs);
+        if (r!=0) goto cleanup;
+        assert(result->i->open_dbs);
+    }
 
     ydb_add_ref();
     *envp = result;
@@ -1124,6 +1251,8 @@ cleanup:
                 if (result->i->ltm) {
                     toku_ltm_close(result->i->ltm);
                 }
+                if (result->i->open_dbs)
+                    toku_omt_destroy(&result->i->open_dbs);
                 toku_free(result->i);
             }
             toku_free(result);
@@ -1174,11 +1303,13 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     if (!txn) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
-    int r_child_first = 0;
     if (db_txn_struct_i(txn)->child) {
         //commit of child sets the child pointer to NULL
         int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags);
-        if (!r_child_first) r_child_first = r_child;
+        if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
+            txn->mgrp->i->is_panicked = r_child;
+            txn->mgrp->i->panic_string = toku_strdup("Recursive child commit failed during parent commit.\n");
+        }
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
     }
@@ -1194,7 +1325,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     flags &= ~DB_TXN_NOSYNC;
 
     int r;
-    if (r_child_first || flags!=0)
+    if (flags!=0)
 	// frees the tokutxn
 	// Calls ydb_yield(NULL) occasionally
         //r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
@@ -1205,11 +1336,34 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
         //r = toku_logger_commit(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
         r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
 
+    if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
+        txn->mgrp->i->is_panicked = r;
+        txn->mgrp->i->panic_string = toku_strdup("Error during commit.\n");
+    }
+    //If panicked, we're done.
+    HANDLE_PANICKED_ENV(txn->mgrp);
+    assert(r==0);
+
     // Close the logger after releasing the locks
-    int r2 = toku_txn_release_locks(txn);
+    r = toku_txn_release_locks(txn);
     //toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
     toku_txn_close_txn(db_txn_struct_i(txn)->tokutxn);
     // the toxutxn is freed, and we must free the rest. */
+
+    //Promote list to parent (dbs that must close before abort)
+    if (txn->parent) {
+        //Combine lists.
+        while (!list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort)) {
+            struct list *list = list_pop(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort);
+            list_push(&db_txn_struct_i(txn->parent)->dbs_that_must_close_before_abort, list);
+        }
+    }
+    else {
+        //Empty the list
+        while (!list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort)) {
+            list_pop(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort);
+        }
+    }
 
     // The txn is no good after the commit even if the commit fails, so free it up.
 #if !TOKUDB_NATIVE_H
@@ -1218,7 +1372,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     toku_free(txn);
     num_commits++;      // accountability
     if (flags!=0) return EINVAL;
-    return r ? r : (r2 ? r2 : r_child_first);
+    return r;
 }
 
 static u_int32_t toku_txn_id(DB_TXN * txn) {
@@ -1230,12 +1384,14 @@ static u_int32_t toku_txn_id(DB_TXN * txn) {
 
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    //Recursively kill off children (abort or commit are both correct)
-    int r_child_first = 0;
+    //Recursively kill off children (abort or commit are both correct, commit is cheaper)
     if (db_txn_struct_i(txn)->child) {
         //commit of child sets the child pointer to NULL
         int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, DB_TXN_NOSYNC);
-        if (!r_child_first) r_child_first = r_child;
+        if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
+            txn->mgrp->i->is_panicked = r_child;
+            txn->mgrp->i->panic_string = toku_strdup("Recursive child commit failed during parent abort.\n");
+        }
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
     }
@@ -1246,9 +1402,19 @@ static int toku_txn_abort(DB_TXN * txn) {
         db_txn_struct_i(txn->parent)->child=NULL;
     }
     env_remove_open_txn(txn->mgrp, txn);
+
+    //All dbs that must close before abort, must now be closed
+    assert(list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort));
+
     //int r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
-    int r2 = toku_txn_release_locks(txn);
+    if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
+        txn->mgrp->i->is_panicked = r;
+        txn->mgrp->i->panic_string = toku_strdup("Error during abort.\n");
+    }
+    HANDLE_PANICKED_ENV(txn->mgrp);
+    assert(r==0);
+    r = toku_txn_release_locks(txn);
     //toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
     toku_txn_close_txn(db_txn_struct_i(txn)->tokutxn);
 
@@ -1257,10 +1423,8 @@ static int toku_txn_abort(DB_TXN * txn) {
 #endif
     toku_free(txn);
     num_aborts++;    // accountability
-    return r ? r : (r2 ? r2 : r_child_first);
+    return r;
 }
-
-static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 static int locked_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_txn_begin(env, stxn, txn, flags); toku_ydb_unlock(); return r;
@@ -1334,6 +1498,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
 #endif
     memset(db_txn_struct_i(result), 0, sizeof *db_txn_struct_i(result));
     db_txn_struct_i(result)->flags = txn_flags;
+    list_init(&db_txn_struct_i(result)->dbs_that_must_close_before_abort);
 
     int r;
     if (env->i->open_flags & DB_INIT_LOCK && !stxn) {
@@ -1404,10 +1569,9 @@ db_close_before_brt(DB *db, u_int32_t UU(flags)) {
     // printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
     // Even if panicked, let's close as much as we can.
     int is_panicked = toku_env_is_panicked(db->dbenv); 
-    toku_free(db->i->fname);
-    toku_free(db->i->full_fname);
     toku_sdbt_cleanup(&db->i->skey);
     toku_sdbt_cleanup(&db->i->sval);
+    if (db->i->dname) toku_free(db->i->dname);
     toku_free(db->i);
     toku_free(db);
     ydb_unref();
@@ -1417,7 +1581,82 @@ db_close_before_brt(DB *db, u_int32_t UU(flags)) {
     return 0;
 }
 
+// return 0 if v and dbv refer to same db (including same dname)
+// return <0 if v is earlier in omt than dbv
+// return >0 if v is later in omt than dbv
+static int
+find_db_by_db (OMTVALUE v, void *dbv) {
+    DB *db = v;            // DB* that is stored in the omt
+    DB *dbfind = dbv;      // extra, to be compared to v
+    int cmp;
+    cmp = strcmp(db->i->dname, dbfind->i->dname);
+    if (cmp != 0) return cmp;
+    if (db < dbfind) return -1;
+    if (db > dbfind) return 1;
+    return 0;
+}
+
+// Tell env that there is a new db handle (with non-unique dname in db->i-dname)
+static void
+env_note_db_opened(DB_ENV *env, DB *db) {
+    assert(db->i->dname);  // internal (non-user) dictionary has no dname
+    int r;
+    OMTVALUE dbv;
+    uint32_t idx;
+    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
+    assert(r==DB_NOTFOUND); //Must not already be there.
+    r = toku_omt_insert_at(env->i->open_dbs, db, idx);
+    assert(r==0);
+}
+
+static void
+env_note_db_closed(DB_ENV *env, DB *db) {
+    assert(db->i->dname);
+    int r;
+    OMTVALUE dbv;
+    uint32_t idx;
+    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
+    assert(r==0); //Must already be there.
+    assert((DB*)dbv == db);
+    r = toku_omt_delete_at(env->i->open_dbs, idx);
+    assert(r==0);
+}
+
+static int
+find_db_by_dname (OMTVALUE v, void *dnamev) {
+    DB *db = v;
+    const char *dname     = db->i->dname;
+    const char *dnamefind = dnamev;
+    return strcmp(dname, dnamefind);
+}
+
+// return true if there is any db open with the given dname
+static BOOL
+env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
+    int r;
+    BOOL rval;
+    OMTVALUE dbv;
+    uint32_t idx;
+    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_dname, (void*)dname, &dbv, &idx, NULL);
+    if (r==0) {
+        DB *db = dbv;
+        assert(strcmp(dname, db->i->dname) == 0);
+        rval = TRUE;
+    }
+    else {
+        assert(r==DB_NOTFOUND);
+        rval = FALSE;
+    }
+    return rval;
+}
+
 static int toku_db_close(DB * db, u_int32_t flags) {
+    if (db_opened(db) && db->i->dname) // internal (non-user) dictionary has no dname
+        env_note_db_closed(db->dbenv, db);  // tell env that this db is no longer in use by the user of this api (user-closed, may still be in use by fractal tree internals)
+    //Remove from transaction's list of 'must close' if necessary.
+    if (!list_empty(&db->i->dbs_that_must_close_before_abort))
+        list_remove(&db->i->dbs_that_must_close_before_abort);
+
     int r = toku_brt_db_delay_closed(db->i->brt, db, db_close_before_brt, flags);
     return r;
 }
@@ -1512,11 +1751,15 @@ typedef struct {
     BOOL        tmp_val_malloced;
 } C_GET_VARS;
 
-static inline u_int32_t get_prelocked_flags(u_int32_t flags, DB_TXN* txn) {
+
+static inline u_int32_t get_prelocked_flags(u_int32_t flags, DB_TXN* txn, DB* db) {
     u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
 
-    //DB_READ_UNCOMMITTED transactions 'own' all read locks.
-    if (txn && db_txn_struct_i(txn)->flags&DB_READ_UNCOMMITTED) lock_flags |= DB_PRELOCKED;
+    // for internal (non-user) dictionary, do not set DB_PRELOCK
+    if (db->i->dname) {
+	//DB_READ_UNCOMMITTED transactions 'own' all read locks for user-data dictionaries.
+	if (txn && db_txn_struct_i(txn)->flags&DB_READ_UNCOMMITTED) lock_flags |= DB_PRELOCKED;
+    }
     return lock_flags;
 }
 
@@ -1814,7 +2057,7 @@ query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, WRIT
     context->db      = c->dbp;
     context->f_extra = extra;
     context->is_write_op = is_write_op.is_write_op;
-    u_int32_t lock_flags = get_prelocked_flags(flag, dbc_struct_i(c)->txn);
+    u_int32_t lock_flags = get_prelocked_flags(flag, dbc_struct_i(c)->txn, c->dbp);
     flag &= ~lock_flags;
     if (context->is_write_op) lock_flags &= DB_PRELOCKED_WRITE; // Only care about whether already locked for write
     assert(flag==0);
@@ -1857,7 +2100,7 @@ toku_c_del(DBC * c, u_int32_t flags) {
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     u_int32_t flag_for_brt = flags&DB_DELETE_ANY;
     unchecked_flags &= ~flag_for_brt;
-    u_int32_t lock_flags = get_prelocked_flags(flags, dbc_struct_i(c)->txn);
+    u_int32_t lock_flags = get_prelocked_flags(flags, dbc_struct_i(c)->txn, c->dbp);
     unchecked_flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(c->dbp->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
 
@@ -2878,7 +3121,7 @@ toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     DBT currentkey;
 
     init_dbt_realloc(&currentkey);
-    u_int32_t lock_flags = get_prelocked_flags(flags, dbc_struct_i(cursor)->txn);
+    u_int32_t lock_flags = get_prelocked_flags(flags, dbc_struct_i(cursor)->txn, cursor->dbp);
     flags &= ~lock_flags;
     if (flags != 0) {
         r = EINVAL; goto finish;
@@ -2958,7 +3201,7 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
     unchecked_flags &= ~DB_DELETE_ANY;
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn, db);
     unchecked_flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
     int r = 0;
@@ -3065,7 +3308,7 @@ toku_db_delboth(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
     unchecked_flags &= ~DB_DELETE_ANY;
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn, db);
     unchecked_flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
     int r = 0;
@@ -3102,7 +3345,7 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
     if ((db->i->open_flags & DB_THREAD) && db_thread_need_flags(data))
         return EINVAL;
 
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn, db);
     flags &= ~lock_flags;
     if (flags != 0 && flags != DB_GET_BOTH) return EINVAL;
     // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
@@ -3148,40 +3391,6 @@ static char *construct_full_name(int count, ...) {
     }
 
     return name;
-}
-
-static int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) {
-    u_int32_t i;
-    int r;
-    toku_struct_stat statbuf;
-    char* full_name;
-    
-    assert(full_name_out);    
-    if (dbenv->i->data_dirs!=NULL) {
-        assert(dbenv->i->n_data_dirs > 0);
-        for (i = 0; i < dbenv->i->n_data_dirs; i++) {
-            full_name = construct_full_name(3, dbenv->i->dir, dbenv->i->data_dirs[i], fname);
-            if (!full_name) return ENOMEM;
-            r = toku_stat(full_name, &statbuf);
-            if (r == 0) goto finish;
-            else {
-                toku_free(full_name);
-                r = errno;
-                if (r != ENOENT) return r;
-            }
-        }
-        //Did not find it at all.  Return the first data dir.
-        full_name = construct_full_name(3, dbenv->i->dir, dbenv->i->data_dirs[0], fname);
-        goto finish;
-    }
-    //Default without data_dirs is the environment directory.
-    full_name = construct_full_name(2, dbenv->i->dir, fname);
-    goto finish;
-
-finish:
-    if (!full_name) return ENOMEM;
-    *full_name_out = full_name;
-    return 0;    
 }
 
 static int toku_db_lt_panic(DB* db, int r) {
@@ -3231,73 +3440,94 @@ static int toku_db_fd(DB *db, int *fdp) {
     return toku_brt_get_fd(db->i->brt, fdp);
 }
 
-static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode);
-
-static int multiple_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
-    //Only flag we look at is create.  If create is there, we create directory if necessary.
-    //If create is not set and directory not exists, we quit out with errors.
-    int is_db_create  = flags & DB_CREATE;
-
-    char *directory_name = NULL;
-    BOOL created_directory = FALSE;
-    int r = find_db_file(db->dbenv, fname, &directory_name);
-    if (r!=0) goto cleanup;
-    toku_struct_stat statbuf;
-    r = toku_stat(directory_name, &statbuf);
-    if (r!=0) { r = errno; assert(r!=0); }
-    if (r==0 && !S_ISDIR(statbuf.st_mode)) { r = ENOTDIR; goto cleanup; } //File exists, but is not a directory.
-    if (r!=0 && r!=ENOENT) goto cleanup;
-    if (r==ENOENT && is_db_create) {
-        //Try to create the directory.
-        r = toku_os_mkdir(directory_name, S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
-        if (r==0) created_directory = TRUE;
-        else { r = errno; assert(r!=0); }
-    }
-    if (r!=0) goto cleanup;
-    {
+static int
+db_open_subdb(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
+    int r;
+    if (!fname || !dbname) r = EINVAL;
+    else {
         char subdb_full_name[strlen(fname) + sizeof("/") + strlen(dbname)];
         int bytes = snprintf(subdb_full_name, sizeof(subdb_full_name), "%s/%s", fname, dbname);
         assert(bytes==(int)sizeof(subdb_full_name)-1);
         const char *null_subdbname = NULL;
         r = toku_db_open(db, txn, subdb_full_name, null_subdbname, dbtype, flags, mode);
     }
-
-cleanup:
-    if (r!=0) {
-        if (created_directory) {
-            //Failure on create, and directory did not previously exist.
-            //Lets delete the directory.
-            //TODO: Since we failed the db create, perhaps we should delete
-            //the directory (it was only made for this).
-            //Possible race conditions could exist if we do this.
-            //Files may still be there.
-        }
-    }
-    if (directory_name) toku_free(directory_name);
     return r;
 }
 
-static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
+static void
+create_iname_hint(const char *dname, char *hint) {
+    //Requires: size of hint array must be > strlen(dname)
+    //Copy alphanumeric characters only.
+    //Replace strings of non-alphanumeric characters with a single underscore.
+    BOOL underscored = FALSE;
+    while (*dname) {
+        if (isalnum(*dname)) {
+            *hint++ = *dname++;
+            underscored = FALSE;
+        }
+        else {
+            if (!underscored)
+                *hint++ = '_';
+            dname++;
+            underscored = TRUE;
+        }
+    }
+    *hint = '\0';
+}
+
+static char *
+create_iname(DB_ENV *env, u_int64_t id, char *hint) {
+    char inamebase[strlen(hint) +
+		   8 +  // hex version
+		   16 + // hex id
+		   sizeof("__.tokudb")]; // extra pieces
+    int bytes = snprintf(inamebase, sizeof(inamebase), "%s_%"PRIx64"_%"PRIx32".tokudb", hint, id, BRT_LAYOUT_VERSION);
+    assert(bytes>0);
+    assert(bytes<=(int)sizeof(inamebase)-1);
+    char *rval;
+    //TODO: #2037 add 'tokudb.dictionaries' directory inside data_dir!!!
+    if (env->i->data_dir)
+        rval = construct_full_name(2, env->i->data_dir, inamebase);
+    else
+        rval = construct_full_name(1, inamebase);
+    assert(rval);
+    return rval;
+}
+
+
+static int db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mode);
+
+
+// inames are created here.
+// algorithm:
+//  begin txn
+//  convert dname to iname (possibly creating new iname)
+//  open file (toku_brt_open() will handle logging)
+//  close txn
+//  if created a new iname, take full range lock
+static int 
+toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     if (dbname!=NULL) 
-        return multiple_db_open(db, txn, fname, dbname, dbtype, flags, mode);
+        return db_open_subdb(db, txn, fname, dbname, dbtype, flags, mode);
 
+    // at this point fname is the dname
     //This code ONLY supports single-db files.
     assert(dbname==NULL);
-    // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
-    BOOL need_locktree = (BOOL)((db->dbenv->i->open_flags & DB_INIT_LOCK) &&
-                                (db->dbenv->i->open_flags & DB_INIT_TXN));
+    const char * dname = fname;  // db_open_subdb() converts (fname, dbname) to dname
 
-    int openflags = 0;
+    ////////////////////////////// do some level of parameter checking.
+    u_int32_t unused_flags = flags;
+    int using_txns = db->dbenv->i->open_flags & DB_INIT_TXN;
     int r;
     if (dbtype!=DB_BTREE && dbtype!=DB_UNKNOWN) return EINVAL;
-    int is_db_excl    = flags & DB_EXCL;    flags&=~DB_EXCL;
-    int is_db_create  = flags & DB_CREATE;  flags&=~DB_CREATE;
-    int is_db_rdonly  = flags & DB_RDONLY;  flags&=~DB_RDONLY;
+    int is_db_excl    = flags & DB_EXCL;    unused_flags&=~DB_EXCL;
+    int is_db_create  = flags & DB_CREATE;  unused_flags&=~DB_CREATE;
+
     //We support READ_UNCOMMITTED whether or not the flag is provided.
-                                            flags&=~DB_READ_UNCOMMITTED;
-    if (flags & ~DB_THREAD) return EINVAL; // unknown flags
+                                            unused_flags&=~DB_READ_UNCOMMITTED;
+    if (unused_flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;
     if (dbtype==DB_UNKNOWN && is_db_excl) return EINVAL;
@@ -3312,51 +3542,122 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 
     if (db_opened(db))
         return EINVAL;              /* It was already open. */
-    
-    r = find_db_file(db->dbenv, fname, &db->i->full_fname);
-    if (r != 0) goto error_cleanup;
-    // printf("Full name = %s\n", db->i->full_fname);
-    assert(db->i->fname == 0);
-    db->i->fname = toku_strdup(fname);
-    if (db->i->fname == 0) { 
-        r = ENOMEM; goto error_cleanup;
+    //////////////////////////////
+
+    DB_TXN *child = NULL;
+    // begin child (unless transactionless)
+    if (using_txns) {
+	r = toku_txn_begin(db->dbenv, txn, &child, DB_TXN_NOSYNC);
+	assert(r==0);
     }
-    if (is_db_rdonly)
-        openflags |= O_RDONLY;
-    else
-        openflags |= O_RDWR;
-    
-    {
-        toku_struct_stat statbuf;
-        if (toku_stat(db->i->full_fname, &statbuf) == 0) {
-            /* If the database exists at the file level, and we specified no db_name, then complain here. */
-            if (dbname == 0 && is_db_create) {
-                if (is_db_excl) {
-                    r = EEXIST;
-                    goto error_cleanup;
-                }
-		is_db_create = 0; // It's not a create after all, since the file exists.
-            }
-        } else {
-            if (!is_db_create) {
-                r = ENOENT;
-                goto error_cleanup;
-            }
+
+    // convert dname to iname
+    //  - look up dname, get iname
+    //  - if dname does not exist, create iname and make entry in directory
+    DBT dname_dbt;  // holds dname
+    DBT iname_dbt;  // holds iname
+    toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
+    init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
+    r = toku_db_get(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, 0);  // allocates memory for iname
+    char *iname = iname_dbt.data;
+    if (r==DB_NOTFOUND && !is_db_create)
+        r = ENOENT;
+    else if (r==0 && is_db_excl) {
+        r = EEXIST;
+    }
+    else if (r==DB_NOTFOUND) {
+	char hint[strlen(dname) + 1];
+
+	// create iname and make entry in directory
+	u_int64_t id = 0;
+	
+	if (using_txns)
+	    id = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
+	create_iname_hint(dname, hint);
+        iname = create_iname(db->dbenv, id, hint);  // allocated memory for iname
+        toku_fill_dbt(&iname_dbt, iname, strlen(iname) + 1);
+        r = toku_db_put(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE for performance only, avoid unnecessary query
+    }
+
+    // we now have an iname
+    if (r == 0) {
+	r = db_open_iname(db, child, iname, flags, mode);
+        if (r==0) {
+            db->i->dname = toku_xstrdup(dname);
+            env_note_db_opened(db->dbenv, db);  // tell env that a new db handle is open (using dname)
         }
     }
-    if (is_db_create) openflags |= O_CREAT;
 
+    // free string holding iname
+    if (iname) toku_free(iname);
+
+    if (using_txns) {
+	// close txn
+	if (r == 0) {  // commit
+	    r = toku_txn_commit(child, DB_TXN_NOSYNC);
+	    assert(r==0);  // TODO panic
+	}
+	else {         // abort
+	    int r2 = toku_txn_abort(child);
+	    assert(r2==0);  // TODO panic
+	}
+    }
+
+    return r;
+}
+
+static int 
+db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mode) {
+    int r;
+
+    //Set comparison functions if not yet set.
+    if (!db->i->key_compare_was_set && db->dbenv->i->bt_compare) {
+        r = toku_brt_set_bt_compare(db->i->brt, db->dbenv->i->bt_compare);
+        assert(r==0);
+        db->i->key_compare_was_set = TRUE;
+    }
+    if (!db->i->val_compare_was_set && db->dbenv->i->dup_compare) {
+        r = toku_brt_set_dup_compare(db->i->brt, db->dbenv->i->dup_compare);
+        assert(r==0);
+        db->i->val_compare_was_set = TRUE;
+    }
+    BOOL need_locktree = (BOOL)((db->dbenv->i->open_flags & DB_INIT_LOCK) &&
+                                (db->dbenv->i->open_flags & DB_INIT_TXN));
+
+    int is_db_excl    = flags & DB_EXCL;    flags&=~DB_EXCL;
+    int is_db_create  = flags & DB_CREATE;  flags&=~DB_CREATE;
+    //We support READ_UNCOMMITTED whether or not the flag is provided.
+                                            flags&=~DB_READ_UNCOMMITTED;
+    if (flags & ~DB_THREAD) return EINVAL; // unknown flags
+
+    if (is_db_excl && !is_db_create) return EINVAL;
+
+    /* tokudb supports no duplicates and sorted duplicates only */
+    unsigned int tflags;
+    r = toku_brt_get_flags(db->i->brt, &tflags);
+    if (r != 0) 
+        return r;
+    if ((tflags & TOKU_DB_DUP) && !(tflags & TOKU_DB_DUPSORT))
+        return EINVAL;
+
+    if (db_opened(db))
+        return EINVAL;              /* It was already open. */
+    
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    r = toku_brt_open(db->i->brt, db->i->full_fname, fname,
+    char *iname_from_cwd = construct_full_name(2, db->dbenv->i->dir, iname); // allocates memory for iname_from_cwd
+    assert(iname_from_cwd);
+    r = toku_brt_open(db->i->brt, iname_from_cwd, iname,
 		      is_db_create, is_db_excl,
 		      db->dbenv->i->cachetable,
 		      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN,
 		      db);
+    toku_free(iname_from_cwd);
     if (r != 0)
         goto error_cleanup;
 
+    db->i->opened = 1;
     if (need_locktree) {
         unsigned int brtflags;
         BOOL dups;
@@ -3372,6 +3673,12 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
         r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, dups, db->i->db_id);
         if (r!=0) { goto error_cleanup; }
     }
+    //Add to transaction's list of 'must close' if necessary.
+    if (txn) {
+        //Do last so we don't have to undo.
+        list_push(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort,
+                  &db->i->dbs_that_must_close_before_abort);
+    }
 
     return 0;
  
@@ -3380,14 +3687,7 @@ error_cleanup:
         toku_db_id_remove_ref(&db->i->db_id);
         db->i->db_id = NULL;
     }
-    if (db->i->full_fname) {
-        toku_free(db->i->full_fname);
-        db->i->full_fname = NULL;
-    }
-    if(db->i->fname) {
-        toku_free(db->i->fname);
-        db->i->fname = NULL;
-    }
+    db->i->opened = 0;
     if (db->i->lt) {
         toku_lt_remove_ref(db->i->lt);
         db->i->lt = NULL;
@@ -3482,7 +3782,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
 
     num_inserts++;
 
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn, db);
     flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
 
@@ -3509,120 +3809,259 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
 
 static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags);
 
+
+//We do not (yet?) support deleting subdbs by deleting the enclosing 'fname'
 static int
-toku_db_remove_subdb(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
-    BOOL need_close = TRUE;
-    char *directory_name = NULL;
-    int r = find_db_file(db->dbenv, fname, &directory_name);
-    if (r!=0) goto cleanup;
-    toku_struct_stat statbuf;
-    r = toku_stat(directory_name, &statbuf);
-    if (r==0 && !S_ISDIR(statbuf.st_mode)) { r = ENOTDIR; goto cleanup; } //File exists, but is not a directory.
-    if (r!=0) { r = errno; assert(r!=0); goto cleanup; }
-    {
+env_dbremove_subdb(DB_ENV * env, DB_TXN * txn, const char *fname, const char *dbname, int32_t flags) {
+    int r;
+    if (!fname || !dbname) r = EINVAL;
+    else {
         char subdb_full_name[strlen(fname) + sizeof("/") + strlen(dbname)];
         int bytes = snprintf(subdb_full_name, sizeof(subdb_full_name), "%s/%s", fname, dbname);
         assert(bytes==(int)sizeof(subdb_full_name)-1);
         const char *null_subdbname = NULL;
-        need_close = FALSE;
-        r = toku_db_remove(db, subdb_full_name, null_subdbname, flags);
+        r = toku_env_dbremove(env, txn, subdb_full_name, null_subdbname, flags);
     }
-
-cleanup:
-    if (need_close) {
-        int r2 = toku_db_close(db, 0);
-        if (r==0) r = r2;
-    }
-    if (directory_name) toku_free(directory_name);
     return r;
 }
 
-//TODO: Maybe delete directory when last 'subdb' is deleted.
-static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
-    HANDLE_PANICKED_DB(db);
-    if (dbname)
-        return toku_db_remove_subdb(db, fname, dbname, flags);
-    int r = ENOSYS;
-    int r2 = 0;
-    toku_db_id* db_id = NULL;
-    BOOL need_close   = TRUE;
-    char* full_name   = NULL;
-    toku_ltm* ltm     = NULL;
 
-    //TODO: Verify DB* db not yet opened
-    //TODO: Verify db file not in use. (all dbs in the file must be unused)
-    r = toku_db_open(db, NULL, fname, dbname, DB_UNKNOWN, 0, S_IRWXU|S_IRWXG|S_IRWXO);
-    if (r==TOKUDB_DICTIONARY_TOO_OLD || r==TOKUDB_DICTIONARY_TOO_NEW || r==TOKUDB_DICTIONARY_NO_HEADER) {
-        need_close = FALSE;
-        goto delete_db_file;
-    }
-    if (r!=0) { goto cleanup; }
-    if (db->i->lt) {
-        /* Lock tree exists, therefore:
-           * Non-private environment (since we are using transactions)
-           * Environment will exist after db->close */
-        if (db->i->db_id) {
-            /* 'copy' the db_id */
-            db_id = db->i->db_id;
-            toku_db_id_add_ref(db_id);
-        }
-        if (db->dbenv->i->ltm) { ltm = db->dbenv->i->ltm; }
-    }
-    
-delete_db_file:
-    r = find_db_file(db->dbenv, fname, &full_name);
-    if (r!=0) { goto cleanup; }
-    assert(full_name);
-    r = toku_db_close(db, 0);
-    need_close = FALSE;
-    if (r!=0) { goto cleanup; }
-    if (unlink(full_name) != 0) { r = errno; goto cleanup; }
-
-    if (ltm && db_id) { toku_ltm_invalidate_lt(ltm, db_id); }
-
-    r = 0;
-cleanup:
-    if (need_close) { r2 = toku_db_close(db, 0); }
-    if (full_name)  { toku_free(full_name); }
-    if (db_id)      { toku_db_id_remove_ref(&db_id); }
-    return r ? r : r2;
-}
-
-/* TODO: Either
-    -find a way for the DB_ID to survive this rename (i.e. be
-     the same before and after
-    or
-    -Go through all DB_IDs in the ltm, and rename them so we
-     have the correct unique ids.
-   TODO: Verify the DB file is not in use (either a single db file or
-         a file with multi-databases).
-   TODO: Check the other directories in the environment for the file
-TODO: Alert the BRT layer (for logging/recovery purposes)
-*/
-static int toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
-    HANDLE_PANICKED_DB(db);
-    if (flags!=0) return EINVAL;
-    char afull[PATH_MAX], cfull[PATH_MAX];
+//Called during committing an fdelete ONLY IF you still have an fd AND it is not connected to /dev/null
+//Called during aborting an fcreate (harmless to do, and definitely correct)
+static void
+finalize_file_removal(int fd, void * extra) {
     int r;
-    if (nameb)
-        r = snprintf(afull, PATH_MAX, "%s%s/%s", db->dbenv->i->dir, namea, nameb);
-    else
-        r = snprintf(afull, PATH_MAX, "%s%s", db->dbenv->i->dir, namea);
-    assert(r < PATH_MAX);
-    r = snprintf(cfull, PATH_MAX, "%s%s", db->dbenv->i->dir, namec);
-    assert(r < PATH_MAX);
-    return rename(afull, cfull);
+    toku_ltm *ltm = (toku_ltm*) extra;
+    if (ltm) {
+        toku_db_id *id;
+        r = toku_db_id_create(&id, fd);
+        assert(r==0);
+
+        //Poison the lock tree to prevent a future file from re-using it.
+        toku_ltm_invalidate_lt(ltm, id);
+        toku_db_id_remove_ref(&id);
+    }
 }
 
-static int toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
+static int
+toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags) {
+    int r;
+    HANDLE_PANICKED_ENV(env);
+    HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
+    if (!env_opened(env)) return EINVAL;
+    if (dbname!=NULL) 
+        return env_dbremove_subdb(env, txn, fname, dbname, flags);
+    // env_dbremove_subdb() converts (fname, dbname) to dname
+
+    const char * dname = fname;
+    assert(dbname == NULL);
+
+    if (flags!=0) return EINVAL;
+    if (env_is_db_with_dname_open(env, dname))
+        return toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
+    
+    DBT dname_dbt;  
+    DBT iname_dbt;  
+    toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
+    init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
+
+    int using_txns = env->i->open_flags & DB_INIT_TXN;
+    DB_TXN *child = NULL;
+    // begin child (unless transactionless)
+    if (using_txns) {
+	r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC);
+	assert(r==0);
+    }
+
+    // get iname
+    r = toku_db_get(env->i->directory, child, &dname_dbt, &iname_dbt, 0);  // allocates memory for iname
+    char *iname = iname_dbt.data;
+    if (r==DB_NOTFOUND)
+        r = ENOENT;
+    else if (r==0) {
+	// remove (dname,iname) from directory
+	r = toku_db_del(env->i->directory, child, &dname_dbt, DB_DELETE_ANY);
+	if (r == 0) {
+	    char *iname_within_cwd = construct_full_name(2, env->i->dir, iname_dbt.data);  
+	    assert(iname_within_cwd);
+	    DBT iname_within_cwd_dbt;
+	    toku_fill_dbt(&iname_within_cwd_dbt, iname_within_cwd, strlen(iname_within_cwd)+1);
+            if (using_txns) {
+                r = toku_brt_remove_on_commit(db_txn_struct_i(child)->tokutxn,
+                                              &iname_dbt, &iname_within_cwd_dbt);
+		assert(r==0);
+            }
+            else {
+                r = toku_brt_remove_now(env->i->cachetable, &iname_dbt, &iname_within_cwd_dbt);
+		assert(r==0);
+            }
+	    toku_free(iname_within_cwd);
+	}
+    }
+
+    if (using_txns) {
+	// close txn
+	if (r == 0) {  // commit
+	    r = toku_txn_commit(child, DB_TXN_NOSYNC);
+	    assert(r==0);  // TODO panic
+	}
+	else {         // abort
+	    int r2 = toku_txn_abort(child);
+	    assert(r2==0);  // TODO panic
+	}
+    }
+
+    if (iname) toku_free(iname);
+    return r;
+
+}
+
+
+static int
+toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_brt_set_bt_compare(db->i->brt, bt_compare);
+    DB_TXN *null_txn = NULL;
+    int r  = toku_env_dbremove(db->dbenv, null_txn, fname, dbname, flags);
+    int r2 = toku_db_close(db, 0);
+    if (r==0) r = r2;
     return r;
 }
 
-static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, const DBT *)) {
+static int
+env_dbrename_subdb(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
+    int r;
+    if (!fname || !dbname || !newname) r = EINVAL;
+    else {
+        char subdb_full_name[strlen(fname) + sizeof("/") + strlen(dbname)];
+        {
+            int bytes = snprintf(subdb_full_name, sizeof(subdb_full_name), "%s/%s", fname, dbname);
+            assert(bytes==(int)sizeof(subdb_full_name)-1);
+        }
+        char new_full_name[strlen(fname) + sizeof("/") + strlen(dbname)];
+        {
+            int bytes = snprintf(new_full_name, sizeof(new_full_name), "%s/%s", fname, dbname);
+            assert(bytes==(int)sizeof(new_full_name)-1);
+        }
+        const char *null_subdbname = NULL;
+        r = toku_env_dbrename(env, txn, subdb_full_name, null_subdbname, new_full_name, flags);
+    }
+    return r;
+}
+
+
+static int
+toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
+    int r;
+    HANDLE_PANICKED_ENV(env);
+    HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
+    if (!env_opened(env)) return EINVAL;
+    if (dbname!=NULL) 
+        return env_dbrename_subdb(env, txn, fname, dbname, newname, flags);
+    // env_dbrename_subdb() converts (fname, dbname) to dname and (fname, newname) to newdname
+
+    const char * dname = fname;
+    assert(dbname == NULL);
+
+    if (flags!=0) return EINVAL;
+    if (env_is_db_with_dname_open(env, dname))
+        return toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary with an open handle.\n");
+    if (env_is_db_with_dname_open(env, newname))
+        return toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary; Dictionary with target name has an open handle.\n");
+    
+    DBT old_dname_dbt;  
+    DBT new_dname_dbt;  
+    DBT iname_dbt;  
+    toku_fill_dbt(&old_dname_dbt, dname, strlen(dname)+1);
+    toku_fill_dbt(&new_dname_dbt, newname, strlen(newname)+1);
+    init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
+
+    int using_txns = env->i->open_flags & DB_INIT_TXN;
+    DB_TXN *child = NULL;
+    // begin child (unless transactionless)
+    if (using_txns) {
+	r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC);
+	assert(r==0);
+    }
+
+    r = toku_db_get(env->i->directory, child, &old_dname_dbt, &iname_dbt, 0);  // allocates memory for iname
+    char *iname = iname_dbt.data;
+    if (r==DB_NOTFOUND)
+        r = ENOENT;
+    else if (r==0) {
+	// verify that newname does not already exist
+	r = db_getf_set(env->i->directory, child, 0, &new_dname_dbt, ydb_getf_do_nothing, NULL);
+	if (r == 0) 
+	    r = EEXIST;
+	else if (r == DB_NOTFOUND) {
+	    // remove old (dname,iname) and insert (newname,iname) in directory
+	    r = toku_db_del(env->i->directory, child, &old_dname_dbt, DB_DELETE_ANY);
+	    if (r == 0)
+		r = toku_db_put(env->i->directory, child, &new_dname_dbt, &iname_dbt, DB_YESOVERWRITE);
+	}
+    }
+
+    if (using_txns) {
+	// close txn
+	if (r == 0) {  // commit
+	    r = toku_txn_commit(child, DB_TXN_NOSYNC);
+	    assert(r==0);  // TODO panic
+	}
+	else {         // abort
+	    int r2 = toku_txn_abort(child);
+	    assert(r2==0);  // TODO panic
+	}
+    }
+
+    if (iname) toku_free(iname);
+    return r;
+
+}
+
+static int
+toku_db_rename(DB * db, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_brt_set_dup_compare(db->i->brt, dup_compare);
+    DB_TXN *null_txn = NULL;
+    int r  = toku_env_dbrename(db->dbenv, null_txn, fname, dbname, newname, flags);
+    int r2 = toku_db_close(db, 0);
+    if (r==0) r = r2;
+    return r;
+}
+
+// set key comparison function to function provided by user (pre-empting environment key comparison function)
+static int
+toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
+    HANDLE_PANICKED_DB(db);
+    int r;
+    if (db_opened(db))
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be set after DB open.\n");
+    else if (!bt_compare)
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be NULL.\n");
+    else if (db->i->key_compare_was_set)
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Key comparison function already set.\n");
+    else {
+        r = toku_brt_set_bt_compare(db->i->brt, bt_compare);
+        if (!r)
+            db->i->key_compare_was_set = TRUE;
+    }
+    return r;
+}
+
+// set val comparison function to function provided by user (pre-empting environment val comparison function)
+static int
+toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, const DBT *)) {
+    HANDLE_PANICKED_DB(db);
+    int r;
+    if (db_opened(db))
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be set after DB open.\n");
+    else if (!dup_compare)
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be NULL.\n");
+    else if (db->i->val_compare_was_set)
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Val comparison function already set.\n");
+    else {
+        r = toku_brt_set_dup_compare(db->i->brt, dup_compare);
+        if (!r)
+            db->i->val_compare_was_set = TRUE;
+    }
     return r;
 }
 
@@ -3647,9 +4086,9 @@ static int toku_db_set_flags(DB *db, u_int32_t flags) {
     if (r!=0) return r;
     
     if (flags & DB_DUP)
-        tflags += TOKU_DB_DUP;
+        tflags |= TOKU_DB_DUP;
     if (flags & DB_DUPSORT)
-        tflags += TOKU_DB_DUPSORT;
+        tflags |= TOKU_DB_DUPSORT;
     r = toku_brt_set_flags(db->i->brt, tflags);
     return r;
 }
@@ -3668,6 +4107,10 @@ static int toku_db_get_flags(DB *db, u_int32_t *pflags) {
     if (tflags & TOKU_DB_DUPSORT) {
         tflags &= ~TOKU_DB_DUPSORT;
         flags  |= DB_DUPSORT;
+    }
+    { // ignore internal flags
+        tflags &= ~TOKU_DB_KEYCMP_BUILTIN;
+        tflags &= ~TOKU_DB_VALCMP_BUILTIN; 
     }
     assert(tflags == 0);
     *pflags = flags;
@@ -3915,7 +4358,10 @@ static inline int autotxn_db_open(DB* db, DB_TXN* txn, const char *fname, const 
 }
 
 static int locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
-    toku_ydb_lock(); int r = autotxn_db_open(db, txn, fname, dbname, dbtype, flags, mode); toku_ydb_unlock(); return r;
+    toku_multi_operation_client_lock(); //Cannot begin checkpoint
+    toku_ydb_lock(); int r = autotxn_db_open(db, txn, fname, dbname, dbtype, flags, mode); toku_ydb_unlock();
+    toku_multi_operation_client_unlock(); //Can now begin checkpoint
+    return r;
 }
 
 static inline int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data,
@@ -3933,20 +4379,20 @@ static int locked_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t
 }
 
 static int locked_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
-    toku_checkpoint_safe_client_lock();
+    toku_multi_operation_client_lock(); //Cannot begin checkpoint
     toku_ydb_lock();
     int r = toku_db_remove(db, fname, dbname, flags);
     toku_ydb_unlock();
-    toku_checkpoint_safe_client_unlock();
+    toku_multi_operation_client_unlock(); //Can now begin checkpoint
     return r;
 }
 
 static int locked_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
-    toku_checkpoint_safe_client_lock();
+    toku_multi_operation_client_lock(); //Cannot begin checkpoint
     toku_ydb_lock();
     int r = toku_db_rename(db, namea, nameb, namec, flags);
     toku_ydb_unlock();
-    toku_checkpoint_safe_client_unlock();
+    toku_multi_operation_client_unlock(); //Can now begin checkpoint
     return r;
 }
 
@@ -4084,20 +4530,17 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     memset(result->i, 0, sizeof *result->i);
     result->i->db = result;
     result->i->freed = 0;
-    result->i->full_fname = 0;
+    result->i->opened = 0;
     result->i->open_flags = 0;
     result->i->open_mode = 0;
     result->i->brt = 0;
+    list_init(&result->i->dbs_that_must_close_before_abort);
     r = toku_brt_create(&result->i->brt);
     if (r != 0) {
         toku_free(result->i);
         toku_free(result);
         return r;
     }
-    r = toku_brt_set_bt_compare(result->i->brt, env->i->bt_compare);
-    assert(r==0);
-    r = toku_brt_set_dup_compare(result->i->brt, env->i->dup_compare);
-    assert(r==0);
     ydb_add_ref();
     *db = result;
     return 0;
@@ -4198,5 +4641,14 @@ void db_env_set_checkpoint_callback2 (void (*callback_f)(void*), void* extra) {
 static void __attribute__((__used__))
 include_toku_pthread_yield (void) {
     toku_pthread_yield();
+}
+
+
+// For test purposes only, translate dname to iname
+static int 
+env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
+    DB *directory = env->i->directory;
+    int r = autotxn_db_get(directory, NULL, dname_dbt, iname_dbt, DB_PRELOCKED); // allocates memory for iname
+    return r;
 }
 

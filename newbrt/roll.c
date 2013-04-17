@@ -11,8 +11,67 @@
 #include "roll.h"
 
 int
-toku_commit_fcreate (TXNID UU(xid),
-                     FILENUM UU(filenum),
+toku_commit_fdelete (u_int8_t   file_was_open,
+		     FILENUM    filenum,    // valid if file_was_open
+		     BYTESTRING bs_fname,   // cwd/iname
+		     TOKUTXN    txn,
+		     YIELDF     UU(yield),
+		     void      *UU(yield_v),
+                     LSN        oplsn) //oplsn is the lsn of the commit
+{
+    //TODO: #2037 verify the file is (user) closed
+    char *fname = fixup_fname(&bs_fname);
+
+    //Remove reference to the fd in the cachetable
+    CACHEFILE cf;
+    int r;
+    if (file_was_open) {  // file was open when toku_brt_remove_on_commit() was called
+	r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+	assert(r == 0);  // must still be open  (toku_brt_remove_on_commit() incremented refcount)
+	{
+	    int fd = toku_cachefile_fd(cf);
+	    assert(!toku_cachefile_is_dev_null(cf));
+	    toku_logger_call_remove_finalize_callback(txn->logger, fd);
+	}
+	r = toku_cachefile_redirect_nullfd(cf);
+	assert(r==0);
+        char *error_string = NULL;
+        r = toku_cachefile_close(&cf, txn->logger, &error_string, TRUE, oplsn);
+        assert(r==0);
+    }
+    r = unlink(fname);  // pathname relative to cwd
+    assert(r==0);
+    toku_free(fname);
+    return 0;
+}
+
+int
+toku_rollback_fdelete (u_int8_t   UU(file_was_open),
+                       FILENUM    UU(filenum),
+		       BYTESTRING UU(bs_fname),
+		       TOKUTXN    UU(txn),
+		       YIELDF     UU(yield),
+		       void*      UU(yield_v),
+                       LSN        oplsn) //oplsn is the lsn of the abort
+{
+    //TODO: #2037 verify the file is (user) closed
+    //Rolling back an fdelete is (almost) a no-op.
+    //If the rollback entry is holding a reference to the cachefile, remove the reference.
+    int r = 0;
+    if (file_was_open) {
+        CACHEFILE cf;
+	r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+	assert(r == 0);
+        char *error_string = NULL;
+	// decrement refcount that was incremented in toku_brt_remove_on_commit()
+        r = toku_cachefile_close(&cf, txn->logger, &error_string, TRUE, oplsn);
+        assert(r==0);
+    }
+    return r;
+}
+
+int
+toku_commit_fcreate (FILENUM UU(filenum),
 		     BYTESTRING UU(bs_fname),
 		     TOKUTXN    UU(txn),
 		     YIELDF     UU(yield),
@@ -23,32 +82,30 @@ toku_commit_fcreate (TXNID UU(xid),
 }
 
 int
-toku_rollback_fcreate (TXNID      UU(xid),
-                       FILENUM    filenum,
-		       BYTESTRING bs_fname,
+toku_rollback_fcreate (FILENUM    filenum,
+		       BYTESTRING bs_fname,  // cwd/iname
 		       TOKUTXN    txn,
-		       YIELDF     yield,
-		       void*      yield_v,
+		       YIELDF     UU(yield),
+		       void*      UU(yield_v),
                        LSN        UU(oplsn))
 {
-    yield(toku_checkpoint_safe_client_lock, yield_v);
+    //TODO: #2037 verify the file is (user) closed
     char *fname = fixup_fname(&bs_fname);
-    char *directory = txn->logger->directory;
-    int  full_len=strlen(fname)+strlen(directory)+2;
-    char full_fname[full_len];
-    int l = snprintf(full_fname,full_len, "%s/%s", directory, fname);
-    assert(l+1 == full_len);
+
     //Remove reference to the fd in the cachetable
     CACHEFILE cf;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
-    if (r == 0) {
-        r = toku_cachefile_redirect_nullfd(cf);
-        assert(r==0);
+    assert(r == 0);
+    {
+	int fd = toku_cachefile_fd(cf);
+	assert(!toku_cachefile_is_dev_null(cf));
+	toku_logger_call_remove_finalize_callback(txn->logger, fd);
     }
-    r = unlink(full_fname);
+    r = toku_cachefile_redirect_nullfd(cf);
+    assert(r==0);
+    r = unlink(fname);  // fname is relative to cwd
     assert(r==0);
     toku_free(fname);
-    toku_checkpoint_safe_client_unlock();
     return 0;
 }
 
@@ -67,33 +124,32 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     assert(r==0);
 
-    OMTVALUE brtv=NULL;
-    r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
-    assert(r==0);
-    BRT brt = brtv;
+    if (!toku_cachefile_is_dev_null(cf)) {
+        OMTVALUE brtv=NULL;
+        r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
+        assert(r==0);
+        BRT brt = brtv;
 
-    LSN treelsn = toku_brt_checkpoint_lsn(brt);
-    if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn)
-        return 0;
+        LSN treelsn = toku_brt_checkpoint_lsn(brt);
+        if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn)
+            return 0;
 
-    DBT key_dbt,data_dbt;
-    XIDS xids = toku_txn_get_xids(txn);
-    BRT_MSG_S brtcmd = { type, xids,
-			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
-				data
-				? toku_fill_dbt(&data_dbt, data->data, data->len)
-				: toku_init_dbt(&data_dbt) }};
+        DBT key_dbt,data_dbt;
+        XIDS xids = toku_txn_get_xids(txn);
+        BRT_MSG_S brtcmd = { type, xids,
+                             .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
+                                    data
+                                    ? toku_fill_dbt(&data_dbt, data->data, data->len)
+                                    : toku_init_dbt(&data_dbt) }};
 
-    r = toku_brt_root_put_cmd(brt, &brtcmd);
+        r = toku_brt_root_put_cmd(brt, &brtcmd);
+    }
     return r;
 }
 
 
-static int do_nothing_with_filenum(TOKUTXN txn, FILENUM filenum) {
-    CACHEFILE cf;
-    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
-    assert(r==0);
-    return r;
+static int do_nothing_with_filenum(TOKUTXN UU(txn), FILENUM UU(filenum)) {
+    return 0;
 }
 
 
@@ -303,6 +359,7 @@ toku_rollback_tablelock_on_empty_table (FILENUM filenum,
                                         void*   yield_v,
                                         LSN     UU(oplsn))
 {
+    //TODO: Replace truncate function with something that doesn't need to mess with checkpoints.
     yield(toku_checkpoint_safe_client_lock, yield_v);
     // on rollback we have to make the file be empty, since we locked an empty table, and then may have done things to it.
 

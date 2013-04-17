@@ -21,7 +21,6 @@ test_db_open_aborts (void) {
     DB *db;
 
     int r;
-    toku_struct_stat buf;
     system("rm -rf " ENVDIR);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
@@ -56,15 +55,27 @@ test_db_open_aborts (void) {
 	    r=db->put(db, tid, &key, &data, 0);
 	    CKERR(r);
 	}
+        r=db->close(db, 0);       assert(r==0);
 	r=tid->abort(tid);        assert(r==0);
     }
     {
-	r=toku_stat(ENVDIR "/foo.db", &buf);
-	assert(r!=0);
-	assert(errno==ENOENT);
+#if USE_TDB
+        {
+            DBT dname;
+            DBT iname;
+            dbt_init(&dname, "foo.db", sizeof("foo.db"));
+            dbt_init(&iname, NULL, 0);
+            iname.flags |= DB_DBT_MALLOC;
+            r = env->get_iname(env, &dname, &iname);
+            CKERR2(r, DB_NOTFOUND);
+        }
+#endif
+        toku_struct_stat statbuf;
+        r = toku_stat(ENVDIR "/foo.db", &statbuf);
+        assert(r!=0);
+        assert(errno==ENOENT);
     }
 
-    r=db->close(db, 0);       assert(r==0);
     r=env->close(env, 0);     assert(r==0);
 }
 
@@ -121,8 +132,27 @@ test_db_put_aborts (void) {
     }
     // The database should exist
     {
-	toku_struct_stat buf;
-	r=toku_stat(ENVDIR "/foo.db", &buf);
+        char *filename;
+#if USE_TDB
+        {
+            DBT dname;
+            DBT iname;
+            dbt_init(&dname, "foo.db", sizeof("foo.db"));
+            dbt_init(&iname, NULL, 0);
+            iname.flags |= DB_DBT_MALLOC;
+            r = env->get_iname(env, &dname, &iname);
+            CKERR(r);
+            filename = iname.data;
+            assert(filename);
+        }
+#else
+        filename = toku_xstrdup("foo.db");
+#endif
+	toku_struct_stat statbuf;
+        char fullfile[strlen(filename) + sizeof(ENVDIR "/")];
+        snprintf(fullfile, sizeof(fullfile), ENVDIR "/%s", filename);
+        toku_free(filename);
+	r = toku_stat(fullfile, &statbuf);
 	assert(r==0);
     }
     // But the item should not be in it.

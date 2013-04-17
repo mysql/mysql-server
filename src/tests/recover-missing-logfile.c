@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include "test.h"
 
-const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;
+const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
 char *namea="a.db";
 char *nameb="b.db";
@@ -15,8 +15,10 @@ char *nameb="b.db";
 
 static void run_test (void) {
     int r;
-    system("rm -rf " ENVDIR);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
     DB_ENV *env;
     DB *dba;
 
@@ -54,15 +56,23 @@ static void run_recover (void) {
     DB_ENV *env;
     int r;
 
-    r = rename(ENVDIR "/log000000000001.tokulog", ENVDIR "/save000000000001");
-    assert(r == 0);
+    r = system("rm -rf " ENVDIR "/savedlogs");
+    CKERR(r);
+    r = toku_os_mkdir(ENVDIR "/savedlogs", S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
+
+    r = system("mv " ENVDIR "/*.tokulog " ENVDIR "/savedlogs/");
+    CKERR(r);
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     assert(r == DB_RUNRECOVERY);
 
-    r = rename(ENVDIR "/save000000000001", ENVDIR "/log000000000001.tokulog");
-    assert(r == 0);
+    r = system("rm -rf " ENVDIR "/*.tokulog");
+    CKERR(r);
+
+    r = system("mv "  ENVDIR "/savedlogs/*.tokulog " ENVDIR "/");
+    CKERR(r);
 
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);

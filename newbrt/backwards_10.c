@@ -633,7 +633,7 @@ deserialize_brtnode_leaf_from_rbuf_10 (BRTNODE result, bytevec magic, struct rbu
         r = toku_db_badformat(); goto died_1;
     }
 
-    r = toku_leaflock_borrow(&result->u.l.leaflock);
+    r = toku_leaflock_borrow(result->u.l.leaflock_pool, &result->u.l.leaflock);
     if (r!=0) goto died_1;
     rb->buf = NULL; //Buffer was used for node's mempool.
     return 0;
@@ -783,8 +783,10 @@ deserialize_brtnode_from_rbuf_10 (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE
 
     if (result->height>0) 
         r = deserialize_brtnode_nonleaf_from_rbuf_10(result, magic, rb);
-    else
+    else {
+        result->u.l.leaflock_pool = toku_cachefile_leaflock_pool(h->cf);
         r = deserialize_brtnode_leaf_from_rbuf_10(result, magic, rb);
+    }
     if (r!=0) goto died0;
 
     //printf("%s:%d Ok got %lld n_children=%d\n", __FILE__, __LINE__, result->thisnodename, result->n_children);

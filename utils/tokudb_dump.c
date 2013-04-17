@@ -251,8 +251,8 @@ int create_init_env()
    /* Open the dbenvironment. */
    g.is_private = false;
    //flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_USE_ENVIRON;
-   flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL; ///TODO: UNCOMMENT/IMPLEMENT | DB_USE_ENVIRON;
-   //TODO: Transactions.. SET_BITS(flags, DB_INIT_TXN);
+   flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL |DB_RECOVER; ///TODO: UNCOMMENT/IMPLEMENT | DB_USE_ENVIRON;
+   SET_BITS(flags, DB_INIT_TXN);
    
    /*
    ///TODO: UNCOMMENT/IMPLEMENT  Notes:  We require DB_PRIVATE
@@ -271,8 +271,17 @@ int create_init_env()
    //TODO: Do we want to support transactions even in single-process mode?
    //Logging is not necessary.. this is read-only.
    //However, do we need to use DB_INIT_LOG to join a logging environment?
-   REMOVE_BITS(flags, DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN);
+   //REMOVE_BITS(flags, DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN);
    SET_BITS(flags, DB_CREATE | DB_PRIVATE);
+#if USE_BDB==1
+   {
+       int r;
+       r = dbenv->set_lk_max_objects(dbenv, 100000);
+       assert(r==0);
+       r = dbenv->set_lk_max_locks(dbenv, 100000);
+       assert(r==0);
+   }
+#endif
 
    retval = dbenv->open(dbenv, g.homedir, flags, 0);
    if (retval) {
@@ -343,9 +352,9 @@ int open_database()
    DB* db = g.db;
    int retval;
 
-   int open_flags = DB_RDONLY;
+   int open_flags = 0;//|DB_RDONLY;
    //TODO: Transaction auto commit stuff
-   //if (TXN_ON(dbenv)) SET_BITS(open_flags, DB_AUTO_COMMIT);
+   SET_BITS(open_flags, DB_AUTO_COMMIT);
 
    retval = db->open(db, NULL, g.database, g.subdatabase, g.dbtype, open_flags, 0666);
    if (retval != 0) {
@@ -410,7 +419,14 @@ int dump_pairs()
    memset(&key, 0, sizeof(key));
    memset(&data, 0, sizeof(data));
 
-   if ((retval = db->cursor(db, (DB_TXN*)NULL, &dbc, 0)) != 0) {
+   DB_TXN* txn = NULL;
+   retval = g.dbenv->txn_begin(g.dbenv, NULL, &txn, 0);
+   if (retval) {
+      PRINT_ERROR(retval, "DB_ENV->txn_begin");
+      goto error;
+   }
+
+   if ((retval = db->cursor(db, txn, &dbc, 0)) != 0) {
       PRINT_ERROR(retval, "DB->cursor");
       goto error;
    }
@@ -433,6 +449,16 @@ cleanup:
    if (dbc && (retval = dbc->c_close(dbc)) != 0) {
       PRINT_ERROR(retval, "DBC->c_close");
       g.exitcode = EXIT_FAILURE;
+   }
+   if (txn) {
+       if (retval) {
+           int r2 = txn->abort(txn);
+           if (r2) PRINT_ERROR(r2, "DB_TXN->abort");
+       }
+       else {
+           retval = txn->commit(txn, 0);
+           if (retval) PRINT_ERROR(retval, "DB_TXN->abort");
+       }
    }
    return g.exitcode;
 }

@@ -65,7 +65,7 @@ struct tokulogger {
     BOOL write_log_files;
     BOOL trim_log_files; // for test purposes
     int panic_errno;
-    char *directory;
+    char *directory;  // file system directory
     int fd;
     CACHETABLE ct;
     int lg_max; // The size of the single file in the log.  Default is 100MB in TokuDB
@@ -87,6 +87,9 @@ struct tokulogger {
 
     u_int32_t write_block_size;       // How big should the blocks be written to various logs?
     TXNID oldest_living_xid;
+
+    void (*remove_finalize_callback) (int, void*);  // ydb-level callback to be called when a transaction that ...
+    void * remove_finalize_callback_extra;     // ... deletes a file is committed or when one that creates a file is aborted.
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
@@ -115,6 +118,7 @@ struct tokutxn {
     u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
     XIDS       xids;      //Represents the xid list
+    int        force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
 };
 
 static inline int toku_logsizeof_u_int8_t (u_int32_t v __attribute__((__unused__))) {
@@ -164,7 +168,7 @@ static inline int toku_logsizeof_INTPAIRARRAY (INTPAIRARRAY pa) {
 
 static inline char *fixup_fname(BYTESTRING *f) {
     assert(f->len>0);
-    char *fname = toku_malloc(f->len+1);
+    char *fname = toku_xmalloc(f->len+1);
     memcpy(fname, f->data, f->len);
     fname[f->len]=0;
     return fname;

@@ -44,9 +44,14 @@ struct logtype {
 int logformat_version_number = 0;
 
 const struct logtype rollbacks[] = {
-    {"fcreate", 'F', FA{{"TXNID", "txnid", 0},
-                        {"FILENUM", "filenum", 0},
-			{"BYTESTRING", "fname", 0},
+    //TODO: #2037 Add dname
+    {"fdelete", 'U', FA{{"u_int8_t",   "file_was_open", 0},
+			{"FILENUM",    "filenum", 0},
+			{"BYTESTRING", "iname", 0},
+			NULLFIELD}},
+    //TODO: #2037 Add dname
+    {"fcreate", 'F', FA{{"FILENUM", "filenum", 0},
+			{"BYTESTRING", "iname", 0},
 			NULLFIELD}},
     // cmdinsert is used to insert a key-value pair into a NODUP DB.  For rollback we don't need the data.
     {"cmdinsert", 'i', FA{
@@ -93,28 +98,43 @@ const struct logtype logtypes[] = {
     // Records produced by checkpoints
     {"begin_checkpoint", 'x', FA{{"u_int64_t", "timestamp", 0}, NULLFIELD}},
     {"end_checkpoint",   'X', FA{{"TXNID", "txnid", 0}, {"u_int64_t", "timestamp", 0}, NULLFIELD}},  // TXNID is LSN of begin_checkpoint
+    //TODO: #2037 Add dname
     {"fassociate",  'f', FA{{"FILENUM", "filenum", 0},
-			    {"BYTESTRING", "fname", 0},   // pathname of file
+                            {"u_int32_t",  "treeflags", 0},
+			    {"BYTESTRING", "iname", 0},   // pathname of file
 			    NULLFIELD}},
     {"xstillopen", 's', FA{{"TXNID", "txnid", 0}, 
                            {"TXNID", "parent", 0}, 
                            NULLFIELD}}, // only record root transactions
-    // Reords produced by transactions
+    // Records produced by transactions
     {"commit", 'C', FA{{"TXNID", "txnid", 0},NULLFIELD}},
     {"xabort", 'q', FA{{"TXNID", "txnid", 0},NULLFIELD}},
     {"xbegin", 'b', FA{{"TXNID", "parenttxnid", 0},NULLFIELD}},
+    //TODO: #2037 Add dname
+    {"fdelete", 'U', FA{{"TXNID",      "txnid", 0},
+                        {"u_int8_t",   "file_was_open", 0},
+			{"FILENUM",    "filenum", 0},
+			{"BYTESTRING", "iname", 0},
+			NULLFIELD}},
+    //TODO: #2037 Add dname
     {"fcreate", 'F', FA{{"TXNID",      "txnid", 0},
                         {"FILENUM",    "filenum", 0},
-			{"BYTESTRING", "fname", 0},
+			{"BYTESTRING", "iname", 0},
 			{"u_int32_t",  "mode",  "0%o"},
                         {"u_int32_t",  "treeflags", 0},
+			{"u_int32_t",  "descriptor_version", 0},
+			{"BYTESTRING", "descriptor", 0},
 			NULLFIELD}},
+    //TODO: #2037 Add dname
     {"fopen",   'O', FA{{"TXNID",      "txnid", 0},
-			{"BYTESTRING", "fname", 0},
+			{"BYTESTRING", "iname", 0},
 			{"FILENUM",    "filenum", 0},
+                        {"u_int32_t",  "treeflags", 0},
 			NULLFIELD}},
-    {"fclose",   'e', FA{{"BYTESTRING", "fname", 0},
+    //TODO: #2037 Add dname
+    {"fclose",   'e', FA{{"BYTESTRING", "iname", 0},
                          {"FILENUM",    "filenum", 0},
+                         {"u_int32_t",  "treeflags", 0},
                          NULLFIELD}},
     {"tablelock_on_empty_table", 'L', FA{{"FILENUM",    "filenum", 0},
                            {"TXNID",      "xid", 0},
