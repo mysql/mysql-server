@@ -1064,7 +1064,7 @@ exit:
 // Using a valgrind suppressions file is better than the DRD_IGNORE_VAR macro because it's more targeted.
 // We need a function to have something a drd suppression can reference
 // see src/tests/drd.suppressions (unsafe_touch_clock)
-static inline void unsafe_touch_clock(FTNODE node, int i) {
+static void unsafe_touch_clock(FTNODE node, int i) {
     BP_TOUCH_CLOCK(node, i);
 }
 
