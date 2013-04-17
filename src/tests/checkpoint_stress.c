@@ -12,37 +12,34 @@
 /***
 
 
+Purpose of this test is to stress the checkpoint logic.  
 
-Accept n as iteration number
-Operate on more than one dictionary simultaneously
+Multiple dictionaries are used.  Data is inserted, checkpoints are taken,
+and this test verifies that all checkpoints are valid.  
+
 
 Parameters:
- -i # iteration number
- -d # number of dictionaries (default 5)
- -o # number of operations per iteration (x)
- -t (0|1|2) type of crash (perhaps a function of iteration number)
- -b #, -e # verify from/to
+ -cC crash or not (not crashing useful for running valgrind)
+ -i # iteration number (default 5)
+ -n # number of operations per iteration (default 5001)
  -v verbose
  -q quiet
 
 Each iteration does:
- - Verify that previous iteration was correctly executed
+ - Verify that previous two iterations were correctly executed
    - Previous inserts were done correctly
    - There are no rows after last expected
- - Perform more inserts/deletes to end of iteration (e.g. on keys a though a+x-1)
- - take checkpoint
-  - sometimes crash right here (after checkpoint returns)
- - Perform more inserts/deletes beyond end of iteration (e.g. on keys a+x through a+2x-1)  
- - drop dead(type)
-  - sometimes in callback, sometimes during inserts
-  - perhaps spawn separate thread to scribble over database while main thread sleeps random interval then drops dead
-    (simulating crash at different times)
+ - Take checkpoint
+ - Scribble over database (verifying that changes after checkpoint are not effective)
+ - Spawn another thread to perform random acts (inserts/deletes/queries) to
+   simulate normal database operations
+ - Drop dead
 
 ***/
 
 #define NUM_DICTIONARIES 4       // any more than 3 is overkill to exercise linked list logic
 
-const int oper_per_iter = 5001;  // not-very-nice odd number (not a multiple of a power of two)
+static int oper_per_iter = 5001;  // not-very-nice odd number (not a multiple of a power of two)
 
 static toku_pthread_t thread;
 
@@ -270,7 +267,7 @@ test_main (int argc, char *argv[]) {
 
     int c;
     int crash = 0;
-    while ((c = getopt(argc, argv, "cChi:qv")) != -1) {
+    while ((c = getopt(argc, argv, "cChi:qvn:")) != -1) {
 	switch(c) {
         case 'c':
             crash = 1;
@@ -280,6 +277,9 @@ test_main (int argc, char *argv[]) {
             break;
 	case 'i':
 	    iter = atoi(optarg);
+	    break;
+	case 'n':
+	    oper_per_iter = atoi(optarg);
 	    break;
 	case 'v':
 	    verbose++;
@@ -299,7 +299,7 @@ test_main (int argc, char *argv[]) {
     }
     if (argc!=optind) { usage(argv[0]); return 1; }
 
-    // for developing this test
+    // for developing this test and for exercising with valgrind (no crash)
     if (iter <0) {
 	if (verbose)
 	    printf("No argument, just run five times without crash\n");
