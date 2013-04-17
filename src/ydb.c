@@ -458,9 +458,7 @@ static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t f
 static int toku_db_update(DB *db, DB_TXN *txn, const DBT *key, const DBT *update_function_extra, u_int32_t flags);
 static int toku_db_update_broadcast(DB *db, DB_TXN *txn, const DBT *update_function_extra, u_int32_t flags);
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
-static int toku_db_cursor(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int is_temporary_cursor);
-
-/* txn methods */
+static int toku_db_cursor_internal(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int is_temporary_cursor, bool holds_ydb_lock);
 
 /* lightweight cursor methods. */
 static int toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
@@ -4111,7 +4109,10 @@ c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, b
     return r;
 }
 
-static int toku_c_close(DBC * c) {
+// Close a cursor.
+// Does not require the ydb lock held when called.
+static int 
+toku_c_close(DBC * c) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     int r = toku_brt_cursor_close(dbc_struct_i(c)->c);
@@ -4150,7 +4151,7 @@ toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     //   lock_flags |= DB_PRELOCKED
     //}
     
-    r = toku_db_cursor(cursor->dbp, dbc_struct_i(cursor)->txn, &count_cursor, DBC_DISABLE_PREFETCHING, 0);
+    r = toku_db_cursor_internal(cursor->dbp, dbc_struct_i(cursor)->txn, &count_cursor, DBC_DISABLE_PREFETCHING, 0, true);
     if (r != 0) goto finish;
 
     r = toku_c_getf_set(count_cursor, lock_flags, &currentkey, ydb_getf_do_nothing, NULL);
@@ -4179,7 +4180,7 @@ db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTIO
     DBC *c;
     uint32_t create_flags = flags & (DB_ISOLATION_FLAGS | DB_RMW);
     flags &= ~DB_ISOLATION_FLAGS;
-    int r = toku_db_cursor(db, txn, &c, create_flags | DBC_DISABLE_PREFETCHING, 1);
+    int r = toku_db_cursor_internal(db, txn, &c, create_flags | DBC_DISABLE_PREFETCHING, 1, true);
     if (r==0) {
         r = toku_c_getf_set(c, flags, key, f, extra);
         int r2 = toku_c_close(c);
@@ -4402,11 +4403,6 @@ locked_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
 }
 
 static int 
-locked_c_close(DBC * c) {
-    toku_ydb_lock(); int r = toku_c_close(c); toku_ydb_unlock(); return r;
-}
-
-static int 
 locked_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_c_count(cursor, count, flags); toku_ydb_unlock(); return r;
 }
@@ -4419,11 +4415,10 @@ locked_c_del(DBC * c, u_int32_t flags) {
 static int locked_c_pre_acquire_range_lock(DBC *dbc, const DBT *key_left, const DBT *key_right);
 
 static int 
-toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporary_cursor) {
+toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporary_cursor, bool holds_ydb_lock) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     DB_ENV* env = db->dbenv;
-    int r;
 
     if (flags & ~(DB_SERIALIZABLE | DB_INHERIT_ISOLATION | DB_RMW | DBC_DISABLE_PREFETCHING)) {
         return toku_ydb_do_error(
@@ -4433,17 +4428,22 @@ toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporar
             );
     }
 
-    r = toku_grab_read_lock_on_directory(db, txn);
-    if (r != 0) 
-        return r;
-    
+    int r = 0;
+    if (1) {
+        if (!holds_ydb_lock) toku_ydb_lock();
+        r = toku_grab_read_lock_on_directory(db, txn);
+        if (!holds_ydb_lock) toku_ydb_unlock();
+        if (r != 0) 
+            return r;
+    }
+
     struct __toku_dbc_external *XMALLOC(eresult); // so the internal stuff is stuck on the end
     memset(eresult, 0, sizeof(*eresult));
     DBC *result = &eresult->external_part;
 
+    // methods that grab the ydb lock
 #define SCRS(name) result->name = locked_ ## name
     SCRS(c_get);
-    SCRS(c_close);
     SCRS(c_del);
     SCRS(c_count);
     SCRS(c_getf_first);
@@ -4457,6 +4457,8 @@ toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporar
     SCRS(c_getf_set_range_reverse);
     SCRS(c_pre_acquire_range_lock);
 #undef SCRS
+    // unlocked methods
+    result->c_close = toku_c_close;
 
 #if !TOKUDB_NATIVE_H
     MALLOC(result->i); // otherwise it is allocated as part of result->ii
@@ -4528,7 +4530,7 @@ toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
 
 
     DBC *dbc;
-    r = toku_db_cursor(db, txn, &dbc, iso_flags | DBC_DISABLE_PREFETCHING, 1);
+    r = toku_db_cursor_internal(db, txn, &dbc, iso_flags | DBC_DISABLE_PREFETCHING, 1, true);
     if (r!=0) return r;
     u_int32_t c_get_flags = DB_SET;
     r = toku_c_get(dbc, key, data, c_get_flags | lock_flags);
@@ -5874,12 +5876,15 @@ autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
         return toku_ydb_do_error(db->dbenv, EINVAL,
               "Cursors in a transaction environment must have transactions.\n");
     }
-    return toku_db_cursor(db, txn, c, flags, 0);
+    return toku_db_cursor_internal(db, txn, c, flags, 0, false);
 }
 
+// Create a cursor on a db.
+// Called without holding the ydb lock.
 static int 
-locked_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
-    toku_ydb_lock(); int r = autotxn_db_cursor(db, txn, c, flags); toku_ydb_unlock(); return r;
+toku_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
+    int r = autotxn_db_cursor(db, txn, c, flags);
+    return r;
 }
 
 static inline int 
@@ -6352,10 +6357,10 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     }
     memset(result, 0, sizeof *result);
     result->dbenv = env;
+    // methods that grab the ydb lock
 #define SDB(name) result->name = locked_db_ ## name
     SDB(key_range64);
     SDB(close);
-    SDB(cursor);
     SDB(del);
     SDB(get);
     //    SDB(key_range);
@@ -6389,6 +6394,9 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(get_indexer);
     SDB(verify_with_progress);
 #undef SDB
+    // unlocked methods
+    result->cursor = toku_db_cursor;
+
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;
     MALLOC(result->i);

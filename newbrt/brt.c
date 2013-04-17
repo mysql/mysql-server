@@ -3478,6 +3478,8 @@ static void (*callback_db_set_brt)(DB *db, BRT brt)  = NULL;
 static void
 brt_redirect_cursors (BRT brt_to, BRT brt_from) {
     assert(brt_to->db == brt_from->db);
+    toku_spin_lock(&brt_to->cursors_lock);
+    toku_spin_lock(&brt_from->cursors_lock);
     while (!toku_list_empty(&brt_from->cursors)) {
 	struct toku_list * c_list = toku_list_head(&brt_from->cursors);
 	BRT_CURSOR c = toku_list_struct(c_list, struct brt_cursor, cursors_link);
@@ -3488,6 +3490,8 @@ brt_redirect_cursors (BRT brt_to, BRT brt_from) {
 
 	c->brt = brt_to;
     }
+    toku_spin_unlock(&brt_to->cursors_lock);
+    toku_spin_unlock(&brt_from->cursors_lock);
 }
 
 static void
@@ -4092,9 +4096,10 @@ int toku_close_brt_lsn (BRT brt, char **error_string, BOOL oplsn_valid, LSN opls
     int r;
     while (!toku_list_empty(&brt->cursors)) {
 	BRT_CURSOR c = toku_list_struct(toku_list_pop(&brt->cursors), struct brt_cursor, cursors_link);
-	r=toku_brt_cursor_close(c);
+	r = toku_brt_cursor_close(c);
 	if (r!=0) return r;
     }
+    toku_spin_destroy(&brt->cursors_lock);
 
     // Must do this work before closing the cf
     r=toku_txn_note_close_brt(brt);
@@ -4133,6 +4138,10 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->update_fun = NULL;
     int r = toku_omt_create(&brt->txns);
     if (r!=0) { toku_free(brt); return r; }
+    pthread_mutexattr_t attr;
+    r = pthread_mutexattr_init(&attr); assert_zero(r);
+    r = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ADAPTIVE_NP); assert_zero(r);
+    toku_spin_init(&brt->cursors_lock, 0); 
     *brt_ptr = brt;
     return 0;
 }
@@ -4236,7 +4245,11 @@ int toku_brt_cursor (
     cursor->is_leaf_mode = FALSE;
     cursor->ttxn = ttxn;
     cursor->disable_prefetching = disable_prefetching;
+    if (1) {
+    toku_spin_lock(&brt->cursors_lock);
     toku_list_push(&brt->cursors, &cursor->cursors_link);
+    toku_spin_unlock(&brt->cursors_lock);
+    }
     *cursorptr = cursor;
     return 0;
 }
@@ -4278,8 +4291,6 @@ toku_brt_cursor_set_range_lock(BRT_CURSOR cursor, const DBT *left, const DBT *ri
     }
 }
 
-//TODO: #1378 When we split the ydb lock, touching cursor->cursors_link
-//is not thread safe.
 int toku_brt_cursor_close(BRT_CURSOR cursor) {
     brt_cursor_cleanup_dbts(cursor);
     if (cursor->range_lock_left_key.data) {
@@ -4290,8 +4301,12 @@ int toku_brt_cursor_close(BRT_CURSOR cursor) {
         toku_free(cursor->range_lock_right_key.data);
         toku_destroy_dbt(&cursor->range_lock_right_key);
     }
+    if (1) {
+    toku_spin_lock(&cursor->brt->cursors_lock);
     toku_list_remove(&cursor->cursors_link);
-    toku_free_n(cursor, sizeof *cursor);
+    toku_spin_unlock(&cursor->brt->cursors_lock);
+    }
+    toku_free(cursor);
     return 0;
 }
 
@@ -5738,9 +5753,10 @@ BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c) {
 
 int toku_brt_get_cursor_count (BRT brt) {
     int n = 0;
-    struct toku_list *list;
-    for (list = brt->cursors.next; list != &brt->cursors; list = list->next)
+    toku_spin_lock(&brt->cursors_lock);
+    for (struct toku_list *list = brt->cursors.next; list != &brt->cursors; list = list->next)
 	n += 1;
+    toku_spin_unlock(&brt->cursors_lock);
     return n;
 }
 

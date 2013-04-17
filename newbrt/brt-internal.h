@@ -413,6 +413,7 @@ struct brt {
     // The header is shared.  It is also ephemeral.
     struct brt_header *h;
 
+    toku_spinlock_t cursors_lock;
     struct toku_list cursors;
 
     unsigned int nodesize;

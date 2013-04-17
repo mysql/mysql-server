@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <stdint.h>
+#include "toku_assert.h"
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
@@ -117,6 +118,56 @@ toku_pthread_mutex_trylock(toku_pthread_mutex_t *mutex) {
 static inline int 
 toku_pthread_mutex_unlock(toku_pthread_mutex_t *mutex) {
     return pthread_mutex_unlock(mutex);
+}
+
+static inline void
+toku_mutex_init(toku_pthread_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
+    int r = pthread_mutex_init(mutex, attr);
+    assert_zero(r);
+}
+
+static inline void
+toku_mutex_destroy(toku_pthread_mutex_t *mutex) {
+    int r = pthread_mutex_destroy(mutex);
+    assert_zero(r);
+}
+
+static inline void
+toku_mutex_lock(toku_pthread_mutex_t *mutex) {
+    int r = pthread_mutex_lock(mutex);
+    assert_zero(r);
+}
+
+static inline void
+toku_mutex_unlock(toku_pthread_mutex_t *mutex) {
+    int r = pthread_mutex_unlock(mutex);
+    assert_zero(r);
+}
+
+typedef pthread_spinlock_t toku_spinlock_t;
+
+static inline void
+toku_spin_init(toku_spinlock_t *lock, int pshared) {
+    int r = pthread_spin_init(lock, pshared);
+    assert_zero(r);
+}
+
+static inline void
+toku_spin_destroy(toku_spinlock_t *lock) {
+    int r = pthread_spin_destroy(lock);
+    assert_zero(r);
+}
+
+static inline void
+toku_spin_lock(toku_spinlock_t *lock) {
+    int r = pthread_spin_lock(lock);
+    assert_zero(r);
+}
+
+static inline void
+toku_spin_unlock(toku_spinlock_t *lock) {
+    int r = pthread_spin_unlock(lock);
+    assert_zero(r);
 }
 
 static inline int 
