@@ -458,6 +458,7 @@ if(BUILD_TESTING)
       add_drd_test(ydb/drd_tiny_${test} $<TARGET_FILE:tiny_${test}> --num_seconds 5 --num_elements 150)
       add_custom_executable(mid ${test} ${base})
       add_drd_test(ydb/drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100)
+      set_tests_properties(ydb/drd_mid_${test} PROPERTIES TIMEOUT 3000)
       add_custom_executable(large ${test} ${base})
       add_drd_test(ydb/drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000)
       set_tests_properties(ydb/drd_large_${test} PROPERTIES TIMEOUT 12000)
@@ -635,6 +636,7 @@ if(BUILD_TESTING)
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
     ydb/checkpoint_1.tdb
+    ydb/drd_test_groupcommit_count.tdb
     ydb/env-put-multiple.tdb
     ydb/hot-optimize-table-tests.tdb
     ydb/loader-cleanup-test0.tdb
@@ -669,7 +671,6 @@ if(BUILD_TESTING)
       ydb/root_fifo_1.bdb
       ydb/root_fifo_31.bdb
       ydb/rowsize.bdb
-      ydb/test_groupcommit_count.bdb
       ydb/test_log10.bdb
       ydb/test_log7.bdb
       ydb/test_logmax.bdb
@@ -686,6 +687,11 @@ if(BUILD_TESTING)
     ydb/loader-stress-test4.tdb
     ydb/test3039.tdb
     )
+  if (BDB_FOUND)
+    list(APPEND extra_long_tests
+      ydb/test_groupcommit_count.bdb
+      )
+  endif (BDB_FOUND)
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
   ## these really take a long time with valgrind
   set(phenomenally_long_tests
