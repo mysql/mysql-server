@@ -16,6 +16,7 @@
 #define DB_KEYEMPTY DB_NOTFOUND
 #endif
 
+#define DIR __FILE__ ".dir"
 int verbose = 0;
 
 #define TC(expr, expect)           \
@@ -41,54 +42,67 @@ int verbose = 0;
 static void test_env_exceptions (void) {
     {
 	DbEnv env(0);
-	TC(env.open("no.such.dir", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE, 0777),        ENOENT);
+	TC(env.open(DIR "no.such.dir", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE, 0777),        ENOENT);
     }
     {
 	DbEnv env(0);
-	TC(env.open("no.such.dir", -1, 0777),                                            EINVAL);
+	TC(env.open(DIR "no.such.dir", -1, 0777),                                            EINVAL);
     }
     {
+	system("rm -rf " DIR);
+	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
-	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE, 0777),                  0);
+	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE, 0777),                  0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    EINVAL); // not configured for transactions
     }
     {
+	system("rm -rf " DIR);
+	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
-	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG, 0777),    0);
-	DbTxn *txn;
-	TC(env.txn_begin(0, &txn, 0),                                                    EINVAL); // not configured for transactions
+	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG, 0777),    EINVAL); // cannot do logging without txns
     }
     {
+	system("rm -rf " DIR);
+	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
-	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_TXN, 0777),    0);
+	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_TXN, 0777),    0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
 	TC(txn->commit(0),                                                               0); 
         delete txn;
     }
     {
+	system("rm -rf " DIR);
+	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
-	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN, 0777),    0);
+	env.set_errfile(stderr);
+	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN, 0777),    0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
 	TC(txn->commit(0),                                                               0); 
         delete txn;
     }
     {
+	system("rm -rf " DIR);
+	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
-	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_TXN, 0777),    0);
+	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_TXN, 0777),    0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
 	TC(txn->commit(-1),                                                              EINVAL);
         delete txn;
     }
+    system("rm -rf " DIR);
 }
 
 
 static void test_db_exceptions (void) {
+    system("rm -rf " DIR);
+    toku_os_mkdir(DIR, 0777);
     DbEnv env(0);
-    TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
+    TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
+    env.set_errfile(stderr);
     TC( ({ Db db(&env, -1); assert(0); }),   EINVAL); // Create with flags=-1 should do an EINVAL
     Db db(&env, 0);
     DB *dbdb=db.get_DB();
@@ -152,8 +166,10 @@ static void test_db_exceptions (void) {
 	
 
 static void test_dbc_exceptions () {
+    system("rm -rf " DIR);
+    toku_os_mkdir(DIR, 0777);
     DbEnv env(0);
-    TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
+    TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
     Db db(&env, 0);
     unlink(FNAME);
     TC(db.open(0, FNAME, 0, DB_BTREE, DB_CREATE, 0777), 0);
@@ -187,6 +203,6 @@ int main(int argc, char *argv[]) {
     test_env_exceptions();
     test_db_exceptions();
     test_dbc_exceptions();
-    system("rm *.tokulog");
+    system("rm -rf " DIR);
     return 0;
 }

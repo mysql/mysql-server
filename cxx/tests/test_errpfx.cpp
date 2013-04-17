@@ -10,7 +10,6 @@ void test_db_env(void) {
     DbEnv dbenv(DB_CXX_NO_EXCEPTIONS);
     int r;
     
-    r = dbenv.set_data_dir(".");    assert(r == 0);
     r = dbenv.set_data_dir("..");   assert(r == 0);
     r = dbenv.set_data_dir(NULL);   assert(r == EINVAL);
     dbenv.set_errpfx("Prefix");

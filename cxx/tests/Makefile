@@ -120,14 +120,17 @@ check: $(TARGETS) \
  check_db_create_DSM \
  check_db_create_1 check_db_create_2 check_db_create_3 check_db_create_4 \
  check_permissions \
+ check_exceptions \
  check_a_bunch
 
 check_a_bunch:
-	$(VGRIND) ./exceptions  $(SUMMARIZE_CMD)
 	$(VGRIND) ./test_no_env  $(SUMMARIZE_CMD)
 	$(VGRIND) ./test_fd  $(SUMMARIZE_CMD)
 	$(VGRIND) ./test_db_delete  $(SUMMARIZE_CMD)
 	$(VGRIND) ./test_get_not_found  $(SUMMARIZE_CMD)
+
+check_exceptions:
+	$(VGRIND) ./exceptions  $(SUMMARIZE_CMD)
 
 check_db_create: db_create
 	rm -rf $@.tdb
