@@ -462,18 +462,10 @@ struct ft {
     // the on-disk layout version is from before basement nodes)
     int layout_version_read_from_disk;
 
-    // If a transaction created this BRT, which one?
-    // If a transaction locked the BRT when it was empty, which transaction?  (Only the latest one matters)
-    // 0 if no such transaction
-    // only one thread can write to these at once, this is enforced by
-    // the lock tree
-    TXNID txnid_that_created_or_locked_when_empty;
-    TXNID txnid_that_suppressed_recovery_logs;
-
     // Logically the reference count is zero if live_ft_handles is empty, txns is 0, and pinned_by_checkpoint is false.
 
     // ft_ref_lock protects modifying live_ft_handles, txns, and pinned_by_checkpoint.
-    toku_mutex_t ft_ref_lock;     
+    toku_mutex_t ft_ref_lock;
     struct toku_list live_ft_handles;
     // Number of transactions that are using this FT.  you should only be able
     // to modify this if you have a valid handle in live_ft_handles

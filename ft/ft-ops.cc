@@ -2991,7 +2991,7 @@ void toku_ft_hot_index(FT_HANDLE brt __attribute__ ((unused)), TOKUTXN txn, FILE
 void
 toku_ft_log_put (TOKUTXN txn, FT_HANDLE brt, const DBT *key, const DBT *val) {
     TOKULOGGER logger = toku_txn_logger(txn);
-    if (logger && brt->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+    if (logger) {
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
         TXNID xid = toku_txn_get_txnid(txn);
@@ -3000,28 +3000,22 @@ toku_ft_log_put (TOKUTXN txn, FT_HANDLE brt, const DBT *key, const DBT *val) {
 }
 
 void
-toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int num_fts, const DBT *key, const DBT *val) {
+toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32_t num_fts, const DBT *key, const DBT *val) {
     assert(txn);
     assert(num_fts > 0);
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
         FILENUM         fnums[num_fts];
-        int i;
-        uint32_t num_unsuppressed_fts = 0;
+        uint32_t i;
         for (i = 0; i < num_fts; i++) {
-            if (brts[i]->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-                //Logging not suppressed for this brt.
-                fnums[num_unsuppressed_fts++] = toku_cachefile_filenum(brts[i]->ft->cf);
-            }
+            fnums[i] = toku_cachefile_filenum(brts[i]->ft->cf);
         }
-        if (num_unsuppressed_fts) {
-            FILENUMS filenums = {.num = num_unsuppressed_fts, .filenums = fnums};
-            BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
-            BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
-            TXNID xid = toku_txn_get_txnid(txn);
-            FILENUM src_filenum = src_ft ? toku_cachefile_filenum(src_ft->ft->cf) : FILENUM_NONE;
-            toku_log_enq_insert_multiple(logger, (LSN*)0, 0, txn, src_filenum, filenums, xid, keybs, valbs);
-        }
+        FILENUMS filenums = {.num = num_fts, .filenums = fnums};
+        BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
+        BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
+        TXNID xid = toku_txn_get_txnid(txn);
+        FILENUM src_filenum = src_ft ? toku_cachefile_filenum(src_ft->ft->cf) : FILENUM_NONE;
+        toku_log_enq_insert_multiple(logger, (LSN*)0, 0, txn, src_filenum, filenums, xid, keybs, valbs);
     }
 }
 
@@ -3030,21 +3024,13 @@ void toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, bool
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn) {
-        if (ft_h->ft->txnid_that_created_or_locked_when_empty != xid) {
-            BYTESTRING keybs = {key->size, (char *) key->data};
-            toku_logger_save_rollback_cmdinsert(txn, toku_cachefile_filenum(ft_h->ft->cf), &keybs);
-            toku_txn_maybe_note_ft(txn, ft_h->ft);
-            //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
-            message_xids = toku_txn_get_xids(txn);
-        }
-        else if (txn->ancestor_txnid64 != ft_h->ft->h->root_xid_that_created) {
-            //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.         We must send the full root-to-leaf-path
-            message_xids = toku_txn_get_xids(txn);
-        }
+        BYTESTRING keybs = {key->size, (char *) key->data};
+        toku_logger_save_rollback_cmdinsert(txn, toku_cachefile_filenum(ft_h->ft->cf), &keybs);
+        toku_txn_maybe_note_ft(txn, ft_h->ft);
+        message_xids = toku_txn_get_xids(txn);
     }
     TOKULOGGER logger = toku_txn_logger(txn);
-    if (do_logging && logger &&
-        ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+    if (do_logging && logger) {
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
         if (type == FT_INSERT) {
@@ -3084,8 +3070,7 @@ void toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_func
 
     TOKULOGGER logger;
     logger = toku_txn_logger(txn);
-    if (do_logging && logger &&
-        ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+    if (do_logging && logger) {
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         BYTESTRING extrabs = {.len=update_function_extra->size,
                               .data = (char *) update_function_extra->data};
@@ -3116,8 +3101,7 @@ void toku_ft_maybe_update_broadcast(FT_HANDLE ft_h, const DBT *update_function_e
 
     TOKULOGGER logger;
     logger = toku_txn_logger(txn);
-    if (do_logging && logger &&
-        ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+    if (do_logging && logger) {
         BYTESTRING extrabs = {.len=update_function_extra->size,
                               .data = (char *) update_function_extra->data};
         toku_log_enq_updatebroadcast(logger, NULL, 0, txn,
@@ -3157,7 +3141,7 @@ void toku_ft_delete(FT_HANDLE brt, DBT *key, TOKUTXN txn) {
 void
 toku_ft_log_del(TOKUTXN txn, FT_HANDLE brt, const DBT *key) {
     TOKULOGGER logger = toku_txn_logger(txn);
-    if (logger && brt->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+    if (logger) {
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         TXNID xid = toku_txn_get_txnid(txn);
         toku_log_enq_delete_any(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(brt->ft->cf), xid, keybs);
@@ -3165,28 +3149,22 @@ toku_ft_log_del(TOKUTXN txn, FT_HANDLE brt, const DBT *key) {
 }
 
 void
-toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int num_fts, const DBT *key, const DBT *val) {
+toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32_t num_fts, const DBT *key, const DBT *val) {
     assert(txn);
     assert(num_fts > 0);
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
         FILENUM         fnums[num_fts];
-        int i;
-        uint32_t num_unsuppressed_fts = 0;
+        uint32_t i;
         for (i = 0; i < num_fts; i++) {
-            if (brts[i]->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-                //Logging not suppressed for this brt.
-                fnums[num_unsuppressed_fts++] = toku_cachefile_filenum(brts[i]->ft->cf);
-            }
+            fnums[i] = toku_cachefile_filenum(brts[i]->ft->cf);
         }
-        if (num_unsuppressed_fts) {
-            FILENUMS filenums = {.num = num_unsuppressed_fts, .filenums = fnums};
-            BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
-            BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
-            TXNID xid = toku_txn_get_txnid(txn);
-            FILENUM src_filenum = src_ft ? toku_cachefile_filenum(src_ft->ft->cf) : FILENUM_NONE;
-            toku_log_enq_delete_multiple(logger, (LSN*)0, 0, txn, src_filenum, filenums, xid, keybs, valbs);
-        }
+        FILENUMS filenums = {.num = num_fts, .filenums = fnums};
+        BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
+        BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
+        TXNID xid = toku_txn_get_txnid(txn);
+        FILENUM src_filenum = src_ft ? toku_cachefile_filenum(src_ft->ft->cf) : FILENUM_NONE;
+        toku_log_enq_delete_multiple(logger, (LSN*)0, 0, txn, src_filenum, filenums, xid, keybs, valbs);
     }
 }
 
@@ -3194,21 +3172,13 @@ void toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, bool oplsn_vali
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn) {
-        if (ft_h->ft->txnid_that_created_or_locked_when_empty != xid) {
-            BYTESTRING keybs = {key->size, (char *) key->data};
-            toku_logger_save_rollback_cmddelete(txn, toku_cachefile_filenum(ft_h->ft->cf), &keybs);
-            toku_txn_maybe_note_ft(txn, ft_h->ft);
-            //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
-            message_xids = toku_txn_get_xids(txn);
-        }
-        else if (txn->ancestor_txnid64 != ft_h->ft->h->root_xid_that_created) {
-            //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.         We must send the full root-to-leaf-path
-            message_xids = toku_txn_get_xids(txn);
-        }
+        BYTESTRING keybs = {key->size, (char *) key->data};
+        toku_logger_save_rollback_cmddelete(txn, toku_cachefile_filenum(ft_h->ft->cf), &keybs);
+        toku_txn_maybe_note_ft(txn, ft_h->ft);
+        message_xids = toku_txn_get_xids(txn);
     }
     TOKULOGGER logger = toku_txn_logger(txn);
-    if (do_logging && logger &&
-        ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+    if (do_logging && logger) {
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         toku_log_enq_delete_any(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs);
     }
@@ -3550,7 +3520,6 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
     toku_ft_note_ft_handle_open(ft, ft_h);
     if (txn_created) {
         assert(txn);
-        toku_ft_suppress_rollbacks(ft, txn);
         toku_txn_maybe_note_ft(txn, ft);
     }
 
@@ -5795,15 +5764,6 @@ void toku_ft_open_close_lock(void) {
 
 void toku_ft_open_close_unlock(void) {
     toku_mutex_unlock(&ft_open_close_lock);
-}
-
-//Suppress both rollback and recovery logs.
-void
-toku_ft_suppress_recovery_logs (FT_HANDLE brt, TOKUTXN txn) {
-    assert(brt->ft->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(txn));
-    assert(brt->ft->txnid_that_suppressed_recovery_logs           == TXNID_NONE);
-    brt->ft->txnid_that_suppressed_recovery_logs                   = toku_txn_get_txnid(txn);
-    txn->checkpoint_needed_before_commit = true;
 }
 
 // Prepare to remove a dictionary from the database when this transaction is committed:

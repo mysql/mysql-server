@@ -219,26 +219,21 @@ toku_txn_prepare (DB_TXN *txn, uint8_t gid[DB_GID_SIZE]) {
     return toku_txn_xa_prepare(txn, &xid);
 }
 
-static int 
+static int
 toku_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     XMALLOC(*txn_stat);
-    return toku_logger_txn_rollback_raw_count(db_txn_struct_i(txn)->tokutxn, &(*txn_stat)->rollback_raw_count);
+    return toku_logger_txn_rollback_stats(db_txn_struct_i(txn)->tokutxn, *txn_stat);
 }
 
-static int 
+static int
 locked_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
-    int r = toku_txn_txn_stat(txn, txn_stat); 
+    int r = toku_txn_txn_stat(txn, txn_stat);
     return r;
 }
 
 static int
 locked_txn_commit_with_progress(DB_TXN *txn, uint32_t flags,
                                 TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
-    TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
-    if (toku_txn_requires_checkpoint(ttxn)) {
-        CHECKPOINTER cp = toku_cachetable_get_checkpointer(txn->mgrp->i->cachetable);
-        toku_checkpoint(cp, txn->mgrp->i->logger, NULL, NULL, NULL, NULL, TXN_COMMIT_CHECKPOINT);
-    }
     bool holds_mo_lock = false;
     if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
         // A readonly transaction does no logging, and therefore does not

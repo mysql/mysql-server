@@ -44,7 +44,6 @@ int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync,
                          TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
-bool toku_txn_requires_checkpoint(TOKUTXN txn);
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
@@ -65,9 +64,6 @@ void toku_txn_get_fsync_info(TOKUTXN ttxn, bool* do_fsync, LSN* do_fsync_lsn);
 
 // Complete and destroy a txn
 void toku_txn_close_txn(TOKUTXN txn);
-
-// Require a checkpoint upon commit
-void toku_txn_require_checkpoint_on_commit(TOKUTXN txn);
 
 // Remove a txn from any live txn lists
 void toku_txn_complete_txn(TOKUTXN txn);

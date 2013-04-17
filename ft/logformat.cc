@@ -131,15 +131,12 @@ const struct logtype logtypes[] = {
                                    {"uint64_t", "rollentry_raw_count", 0}, 
                                    {"FILENUMS",  "open_filenums", 0},
                                    {"uint8_t",  "force_fsync_on_commit", 0}, 
-                                   {"uint64_t", "num_rollback_nodes", 0}, 
-                                   {"uint64_t", "num_rollentries", 0}, 
-                                   {"BLOCKNUM",  "spilled_rollback_head", 0}, 
-                                   {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
-                                   {"BLOCKNUM",  "current_rollback", 0}, 
+                                   {"uint64_t", "num_rollback_nodes", 0},
+                                   {"uint64_t", "num_rollentries", 0},
+                                   {"BLOCKNUM",  "spilled_rollback_head", 0},
+                                   {"BLOCKNUM",  "spilled_rollback_tail", 0},
+                                   {"BLOCKNUM",  "current_rollback", 0},
                                    NULLFIELD}, ASSERT_BEGIN_WAS_LOGGED}, // record all transactions
-    {"suppress_rollback", 'S', FA{{"FILENUM",    "filenum", 0},
-                                  {"TXNID",      "xid", 0},
-                                  NULLFIELD}, SHOULD_LOG_BEGIN},
     // Records produced by transactions
     {"xbegin", 'b', FA{{"TXNID", "xid", 0},{"TXNID", "parentxid", 0},NULLFIELD}, IGNORE_LOG_BEGIN},
     {"xcommit",'C', FA{{"TXNID", "xid", 0},NULLFIELD}, ASSERT_BEGIN_WAS_LOGGED},
@@ -413,7 +410,6 @@ generate_log_writer (void) {
                         switch (lt->log_begin_action) {
                         case SHOULD_LOG_BEGIN: {
                             fprintf(cf, "  //txn can be NULL during tests\n");
-                            fprintf(cf, "  //txn can be also be NULL for suppress_rollback during checkpoint,\n");
                             fprintf(cf, "  //never null when not checkpoint.\n");
                             fprintf(cf, "  if (txn && !txn->begin_was_logged) {\n");
                             fprintf(cf, "    toku_maybe_log_begin_txn_for_write_operation(txn);\n");

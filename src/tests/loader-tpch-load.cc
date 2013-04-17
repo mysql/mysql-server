@@ -13,7 +13,8 @@ enum {MAX_NAME=128};
 enum {MAX_DBS=16};
 enum {MAX_ROW_LEN=1024};
 static int NUM_DBS=10;
-static int USE_PUTS=0;
+static int DISALLOW_PUTS=0;
+static int COMPRESS=0;
 static int USE_REGION=0;
 static const char *envdir = ENVDIR;
 
@@ -291,7 +292,7 @@ static int test_loader(DB **dbs)
         db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = USE_PUTS; // set with -p option
+    uint32_t loader_flags = DISALLOW_PUTS | COMPRESS; // set with -p option
 
     FILE *fp;
     // select which table to loader
@@ -335,7 +336,11 @@ static int test_loader(DB **dbs)
         dbt_init(&key, &k, sizeof(int));
         dbt_init(&val, v, strlen(v)+1);
         r = loader->put(loader, &key, &val);
-        CKERR(r);
+        if (DISALLOW_PUTS) {
+            CKERR2(r, EINVAL);
+        } else {
+            CKERR(r);
+        }
         if (verbose) { if((i++%10000) == 0){printf("."); fflush(stdout);} }
         c = tpch_read_row(fp, &k, v);
     }
@@ -350,7 +355,7 @@ static int test_loader(DB **dbs)
     printf(" done\n");
     CKERR(r);
 
-    if ( USE_PUTS == 0 ) assert(poll_count>0);
+    if ( DISALLOW_PUTS == 0 ) assert(poll_count>0);
 
     r = txn->commit(txn, 0);
     CKERR(r);
@@ -442,7 +447,9 @@ static void do_args(int argc, char * const argv[]) {
 	    fprintf(stderr, "Usage: -h -p -g\n%s\n", cmd);
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-p")==0) {
-            USE_PUTS = 1;
+            DISALLOW_PUTS = LOADER_DISALLOW_PUTS;
+        } else if (strcmp(argv[0], "-z")==0) {
+            COMPRESS = LOADER_COMPRESS_INTERMEDIATES;
         } else if (strcmp(argv[0], "-g")==0) {
             USE_REGION = 1;
         } else if (strcmp(argv[0], "-e") == 0) {

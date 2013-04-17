@@ -210,10 +210,11 @@ exit:
 }
 
 // Return the number of bytes that went into the rollback data structure (the uncompressed count if there is compression)
-int toku_logger_txn_rollback_raw_count(TOKUTXN txn, uint64_t *raw_count)
+int toku_logger_txn_rollback_stats(TOKUTXN txn, struct txn_stat *txn_stat)
 {
     toku_txn_lock(txn);
-    *raw_count = txn->roll_info.rollentry_raw_count;
+    txn_stat->rollback_raw_count = txn->roll_info.rollentry_raw_count;
+    txn_stat->rollback_num_entries = txn->roll_info.num_rollentries;
     toku_txn_unlock(txn);
     return 0;
 }

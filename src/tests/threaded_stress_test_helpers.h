@@ -881,7 +881,7 @@ static int UU() loader_op(DB_TXN* txn, ARG UU(arg), void* UU(operation_extra), v
         r = db_load->open(db_load, txn, "loader-db", NULL, DB_BTREE, DB_CREATE, 0666);
         assert(r == 0);
         DB_LOADER *loader;
-        uint32_t loader_flags = (num == 0) ? 0 : LOADER_USE_PUTS;
+        uint32_t loader_flags = (num == 0) ? 0 : LOADER_COMPRESS_INTERMEDIATES;
         r = env->create_loader(env, txn, &loader, db_load, 1, &db_load, &db_flags, &dbt_flags, loader_flags);
         CKERR(r);
 

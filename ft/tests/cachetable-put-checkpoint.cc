@@ -457,25 +457,24 @@ cachetable_test (void) {
     time_of_test = 60;
 
     int r;
-    
+
     toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test-put-checkpoint.dat";
     unlink(fname1);
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-    
+
     toku_cachefile_set_userdata(
-        f1, 
-        NULL, 
+        f1,
+        NULL,
         &dummy_log_fassociate,
-        &dummy_log_rollback,
         &dummy_close_usr,
         &dummy_chckpnt_usr,
         test_begin_checkpoint, // called in begin_checkpoint
-        &dummy_end, 
+        &dummy_end,
         &dummy_note_pin,
         &dummy_note_unpin
         );
-    
+
     toku_pthread_t time_tid;
     toku_pthread_t checkpoint_tid;
     toku_pthread_t move_tid[NUM_MOVER_THREADS];

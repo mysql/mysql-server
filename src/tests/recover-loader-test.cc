@@ -53,7 +53,7 @@ static bool do_test=false, do_recover=false;
 
 static DB_ENV *env;
 static int NUM_ROWS=50000000;
-static int USE_PUTS=0;
+static int COMPRESS=0;
 
 enum {MAX_NAME=128};
 enum {MAGIC=311};
@@ -290,7 +290,7 @@ static void test_loader(DB **dbs)
         db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = USE_PUTS; // set with -p option
+    uint32_t loader_flags = COMPRESS; // set with -p option
 
     int n = count_temp(env->i->real_data_dir);
     assert(n == 0);  // Must be no temp files before loader is run
@@ -308,7 +308,7 @@ static void test_loader(DB **dbs)
     r = loader->set_poll_function(loader, poll_function, expect_poll_void);
     CKERR(r);
 
-    printf("USE_PUTS = %d\n", USE_PUTS);
+    printf("COMPRESS = %d\n", COMPRESS);
     if (verbose) printf("new inames:\n");
     get_inames(new_inames, dbs);
 
@@ -461,9 +461,9 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);
-        } else if (strcmp(argv[0], "-p")==0) {
-            USE_PUTS = LOADER_USE_PUTS;
-	    printf("Using puts\n");
+        } else if (strcmp(argv[0], "-z")==0) {
+            COMPRESS = LOADER_COMPRESS_INTERMEDIATES;
+	    printf("Compressing\n");
 	} else if (strcmp(argv[0], "--test")==0) {
 	    do_test=true;
         } else if (strcmp(argv[0], "--recover") == 0) {

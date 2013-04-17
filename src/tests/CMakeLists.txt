@@ -541,12 +541,14 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   add_test(ydb/loader-stress-test2.tdb loader-stress-test.tdb -r 5000 -s -e dir.loader-stress-test2.tdb)
   add_test(ydb/loader-stress-test3.tdb loader-stress-test.tdb -u -c -e dir.loader-stress-test3.tdb)
   add_test(ydb/loader-stress-test4.tdb loader-stress-test.tdb -r 10000000 -c -e dir.loader-stress-test4.tdb)
+  add_test(ydb/loader-stress-test5.tdb loader-stress-test.tdb -c -z -e dir.loader-stress-test5.tdb)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.loader-stress-test0.tdb
     dir.loader-stress-test1.tdb
     dir.loader-stress-test2.tdb
     dir.loader-stress-test3.tdb
     dir.loader-stress-test4.tdb
+    dir.loader-stress-test5.tdb
     )
 
   list(REMOVE_ITEM loader_tests loader-dup-test.loader)
@@ -643,11 +645,12 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     get_filename_component(base ${loader_test} NAME_WE)
     add_test(ydb/${base}.nop.loader ${base}.tdb -e "dir.${base}.nop.loader")
     add_test(ydb/${base}.p.loader ${base}.tdb -p -e "dir.${base}.p.loader")
+    add_test(ydb/${base}.comp.loader ${base}.tdb -z -e "dir.${base}.comp.loader")
     if("${tdb_tests_that_should_fail}" MATCHES "${base}.loader")
       list(REMOVE_ITEM tdb_tests_that_should_fail ${base}.loader)
-      list(APPEND tdb_tests_that_should_fail ${base}.nop.loader ${base}.p.loader)
+      list(APPEND tdb_tests_that_should_fail ${base}.nop.loader ${base}.p.loader ${base}.comp.loader)
     endif()
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.nop.loader" "dir.${base}.p.loader")
+    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.nop.loader" "dir.${base}.p.loader" "dir.${base}.comp.loader")
   endforeach(loader_test)
 
   set(tdb_tests_that_should_fail "ydb/${tdb_tests_that_should_fail}")

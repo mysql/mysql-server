@@ -143,9 +143,9 @@ void toku_ft_load(FT_HANDLE brt, TOKUTXN txn, char const * new_iname, int do_fsy
 void toku_ft_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, int do_log, LSN *hot_index_lsn);
 void toku_ft_hot_index(FT_HANDLE brt, TOKUTXN txn, FILENUMS filenums, int do_fsync, LSN *lsn);
 
-void toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int num_fts, const DBT *key, const DBT *val);
+void toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32_t num_fts, const DBT *key, const DBT *val);
 void toku_ft_log_put (TOKUTXN txn, FT_HANDLE brt, const DBT *key, const DBT *val);
-void toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int num_fts, const DBT *key, const DBT *val);
+void toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32_t num_fts, const DBT *key, const DBT *val);
 void toku_ft_log_del (TOKUTXN txn, FT_HANDLE brt, const DBT *key);
 
 // Effect: Delete a key from a brt
@@ -232,12 +232,6 @@ void toku_maybe_truncate_file (int fd, uint64_t size_used, uint64_t expected_siz
 void toku_maybe_preallocate_in_file (int fd, int64_t size, int64_t expected_size, int64_t *new_size);
 // Effect: make the file bigger by either doubling it or growing by 16MiB whichever is less, until it is at least size
 // Return 0 on success, otherwise an error number.
-
-void toku_ft_suppress_recovery_logs (FT_HANDLE brt, TOKUTXN txn);
-// Effect: suppresses recovery logs
-// Requires: this is a (target) redirected brt
-//           implies: txnid_that_created_or_locked_when_empty matches txn 
-//           implies: toku_txn_note_ft(brt, txn) has been called
 
 int toku_ft_get_fragmentation(FT_HANDLE brt, TOKU_DB_FRAGMENTATION report) __attribute__ ((warn_unused_result));
 

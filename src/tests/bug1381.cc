@@ -84,7 +84,7 @@ static void do_1381_maybe_lock (int do_loader, uint64_t *raw_count) {
                 &db, 
                 &mult_put_flags,
                 &mult_dbt_flags,
-                LOADER_USE_PUTS
+                LOADER_COMPRESS_INTERMEDIATES
                 );
             CKERR(r);
 	}
@@ -102,7 +102,7 @@ static void do_1381_maybe_lock (int do_loader, uint64_t *raw_count) {
                 CKERR(r);
             }
             else {
-	        r = db->put(db, txn, &key, &val, 0);                          
+	        r = db->put(db, txn, &key, &val, 0);
                 CKERR(r);
             }
 	}
@@ -116,11 +116,13 @@ static void do_1381_maybe_lock (int do_loader, uint64_t *raw_count) {
 
 	*raw_count = s2->rollback_raw_count - s1->rollback_raw_count;
 	if (do_loader) {
-	    assert(s1->rollback_raw_count == s2->rollback_raw_count);
+	    assert(s1->rollback_raw_count < s2->rollback_raw_count);
+            assert(s1->rollback_num_entries + 1 == s2->rollback_num_entries);
 	} else {
 	    assert(s1->rollback_raw_count < s2->rollback_raw_count);
+            assert(s1->rollback_num_entries < s2->rollback_num_entries);
 	}
-	
+
 	toku_free(s1); toku_free(s2);
 
 	r = txn->commit(txn, 0);                                              CKERR(r);

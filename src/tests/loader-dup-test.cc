@@ -14,7 +14,8 @@ enum {MAX_DBS=256};
 int NUM_DBS=5;
 int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
-int USE_PUTS=0;
+int DISALLOW_PUTS=0;
+int COMPRESS=0;
 enum {MAGIC=311};
 
 bool dup_row_at_end = false; // false: duplicate at the begining.  true: duplicate at the end.   The duplicated row is row 0.
@@ -156,14 +157,18 @@ static void check_results(DB **dbs)
         r = dbs[j]->cursor(dbs[j], txn, &cursor, 0);
         CKERR(r);
         for(int i=0;i<NUM_ROWS;i++) {
-            r = cursor->c_get(cursor, &key, &val, DB_NEXT);    
-            CKERR(r);
-            k = *(unsigned int*)key.data;
-            pkey_for_db_key = (j == 0) ? k : inv_twiddle32(k, j);
-            v = *(unsigned int*)val.data;
-            // test that we have the expected keys and values
-            assert((unsigned int)pkey_for_db_key == (unsigned int)pkey_for_val(v, j));
+            r = cursor->c_get(cursor, &key, &val, DB_NEXT);
+            if (DISALLOW_PUTS) {
+                CKERR2(r, EINVAL);
+            } else {
+                CKERR(r);
+                k = *(unsigned int*)key.data;
+                pkey_for_db_key = (j == 0) ? k : inv_twiddle32(k, j);
+                v = *(unsigned int*)val.data;
+                // test that we have the expected keys and values
+                assert((unsigned int)pkey_for_db_key == (unsigned int)pkey_for_val(v, j));
 //            printf(" DB[%d] key = %10u, val = %10u, pkey_for_db_key = %10u, pkey_for_val=%10d\n", j, v, k, pkey_for_db_key, pkey_for_val(v, j));
+            }
         }
         {printf("."); fflush(stdout);}
         r = cursor->c_close(cursor);
@@ -200,14 +205,14 @@ static void test_loader(DB **dbs)
     DB_LOADER *loader;
     uint32_t db_flags[MAX_DBS];
     uint32_t dbt_flags[MAX_DBS];
-    for(int i=0;i<MAX_DBS;i++) { 
-        db_flags[i] = DB_NOOVERWRITE; 
+    for(int i=0;i<MAX_DBS;i++) {
+        db_flags[i] = DB_NOOVERWRITE;
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = USE_PUTS; // set with -p option
+    uint32_t loader_flags = DISALLOW_PUTS | COMPRESS; // set with -p option
 
     // create and initialize loader
-    r = env->txn_begin(env, NULL, &txn, 0);                                                               
+    r = env->txn_begin(env, NULL, &txn, 0);
     CKERR(r);
     r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags);
     CKERR(r);
@@ -238,11 +243,9 @@ static void test_loader(DB **dbs)
         dbt_init(&key, &k, sizeof(unsigned int));
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
-        if (USE_PUTS) {
-            //PUT loader can return -1 if it finds an error during the puts.
-            CKERR2s(r, 0,-1);
-        }
-        else {
+        if (DISALLOW_PUTS) {
+            CKERR2(r, EINVAL);
+        } else {
             CKERR(r);
         }
         if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
@@ -351,7 +354,7 @@ int test_main(int argc, char * const *argv) {
     else {
 	int sizes[]={1,4000000,-1};
         //Make PUT loader take about the same amount of time:
-        if (USE_PUTS) sizes[1] /= 25;
+        if (DISALLOW_PUTS) sizes[1] /= 25;
 	for (int i=0; sizes[i]>=0; i++) {
 	    if (verbose) printf("Doing %d\n", sizes[i]);
 	    NUM_ROWS = sizes[i];
@@ -404,8 +407,10 @@ static void do_args(int argc, char * const argv[]) {
 	    num_rows_set = true;
         } else if (strcmp(argv[0], "-c")==0) {
             CHECK_RESULTS = 1;
+        } else if (strcmp(argv[0], "-z")==0) {
+            COMPRESS = LOADER_COMPRESS_INTERMEDIATES;
         } else if (strcmp(argv[0], "-p")==0) {
-            USE_PUTS = 1;
+            DISALLOW_PUTS = LOADER_DISALLOW_PUTS;
         } else if (strcmp(argv[0], "-s")==0) {
 	    db_env_set_loader_size_factor(1);            
 	} else if (strcmp(argv[0], "-E")==0) {
