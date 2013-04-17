@@ -194,8 +194,6 @@ int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_by
             ret_val = a_num-b_num;
             goto exit;
         case (4):
-            printf("a: %d, %d, %d, %d\n", a_buf[0], a_buf[1], a_buf[2], a_buf[3]);
-            printf("a: %d, %d, %d, %d\n", a_buf[0], a_buf[1], a_buf[2], a_buf[3]);
             a_num = uint4korr(a_buf);
             b_num = uint4korr(b_buf);
             if (a_num < b_num) {
@@ -274,7 +272,6 @@ int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_by
     //
     assert(false);
 exit:
-    printf("ret_val %d\n", ret_val);
     return ret_val;    
 }
 
