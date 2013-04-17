@@ -3144,7 +3144,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
                     mult_put_flags[primary_key] = DB_NOOVERWRITE;
                 }
                 uint32_t loader_flags = (get_load_save_space(thd)) ? 
-                    LOADER_USE_PUTS : 0;
+                    LOADER_COMPRESS_INTERMEDIATES : 0;
 
                 int error = db_env->create_loader(
                     db_env, 
@@ -7336,9 +7336,9 @@ int ha_tokudb::tokudb_add_index(
     THD* thd = ha_thd(); 
     DB_LOADER* loader = NULL;
     DB_INDEXER* indexer = NULL;
-    bool loader_use_puts = get_load_save_space(thd);
+    bool loader_save_space = get_load_save_space(thd);
     bool use_hot_index = (lock.type == TL_WRITE_ALLOW_WRITE);
-    uint32_t loader_flags = loader_use_puts ? LOADER_USE_PUTS : 0;
+    uint32_t loader_flags = loader_save_space ? LOADER_COMPRESS_INTERMEDIATES : 0;
     uint32_t indexer_flags = 0;
     uint32_t mult_db_flags[MAX_KEY + 1] = {0};
     uint32_t mult_put_flags[MAX_KEY + 1];
@@ -7592,12 +7592,7 @@ int ha_tokudb::tokudb_add_index(
             num_processed++; 
 
             if ((num_processed % 1000) == 0) {
-                if (loader_use_puts) {
-                    sprintf(status_msg, "Adding indexes: Processed %llu of about %llu rows.", num_processed, (long long unsigned) share->rows);
-                }
-                else {
-                    sprintf(status_msg, "Adding indexes: Fetched %llu of about %llu rows, loading of data still remains.", num_processed, (long long unsigned) share->rows);
-                }
+                sprintf(status_msg, "Adding indexes: Fetched %llu of about %llu rows, loading of data still remains.", num_processed, (long long unsigned) share->rows);
                 thd_proc_info(thd, status_msg);
 
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
