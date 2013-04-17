@@ -6585,6 +6585,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     lc.ha = this;
     loader_error = 0;
     bool rw_lock_taken = false;
+    bool modified_DBs = false;
     for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
         mult_put_flags[i] = DB_YESOVERWRITE;
         mult_dbt_flags[i] = DB_DBT_REALLOC;
@@ -6634,7 +6635,15 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     // they go to the end of share->key_file
     //
     creating_hot_index = use_hot_index && num_of_keys == 1 && (key_info[0].flags & HA_NOSAME) == 0;
+    if (use_hot_index && (share->num_DBs > curr_num_DBs)) {
+        //
+        // already have hot index in progress, get out
+        //
+        error = HA_ERR_INTERNAL_ERROR;
+        goto cleanup;
+    }
     curr_index = curr_num_DBs;
+    modified_DBs = true;
     for (uint i = 0; i < num_of_keys; i++, curr_index++) {
         if (key_info[i].flags & HA_CLUSTERING) {
             set_key_filter(
@@ -6673,14 +6682,6 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     }
     
     if (creating_hot_index) {
-        if (share->num_DBs > curr_num_DBs) {
-            //
-            // already have hot index in progress, get out
-            //
-            error = HA_ERR_INTERNAL_ERROR;
-            rw_unlock(&share->num_DBs_lock);
-            goto cleanup;
-        }
         share->num_DBs++;
         incremented_numDBs = true;
         error = db_env->create_indexer(
@@ -6847,11 +6848,6 @@ cleanup:
         thd_proc_info(thd, status_msg);
         indexer->abort(indexer);
     }
-    if (error) { // 3144
-        curr_index = curr_num_DBs;
-        for (uint i = 0; i < num_of_keys; i++, curr_index++)
-            reset_key_and_col_info(&share->kc_info, curr_index);
-    }
     if (txn) {
         if (error) {
             //
@@ -6862,15 +6858,21 @@ cleanup:
                 rw_wrlock(&share->num_DBs_lock);
                 share->num_DBs--;
             }
-            curr_index = curr_num_DBs;
-            for (uint i = 0; i < num_of_keys; i++, curr_index++) {
-                if (share->key_file[curr_index]) {
-                    int r = share->key_file[curr_index]->close(
-                        share->key_file[curr_index],
-                        0
-                        );
-                    assert(r==0);
-                    share->key_file[curr_index] = NULL;
+            if (modified_DBs) {
+                curr_index = curr_num_DBs; //3144
+                for (uint i = 0; i < num_of_keys; i++, curr_index++) {
+                    reset_key_and_col_info(&share->kc_info, curr_index);
+                }
+                curr_index = curr_num_DBs;
+                for (uint i = 0; i < num_of_keys; i++, curr_index++) {
+                    if (share->key_file[curr_index]) {
+                        int r = share->key_file[curr_index]->close(
+                            share->key_file[curr_index],
+                            0
+                            );
+                        assert(r==0);
+                        share->key_file[curr_index] = NULL;
+                    }
                 }
             }
             abort_txn(txn);
