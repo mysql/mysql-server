@@ -98,15 +98,8 @@ static int do_nothing_with_filenum(TOKUTXN txn, FILENUM filenum) {
 
 
 int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING key, TOKUTXN txn, YIELDF UU(yield), void *UU(yieldv), LSN oplsn) {
-    static TXNID last_xid;
-    static FILENUM last_filenum;
-    if (txn->txnid64 == last_xid && last_filenum.fileid == filenum.fileid)
-        return 0;
-    last_xid = txn->txnid64;
-    last_filenum = filenum;
-
 #if TOKU_DO_COMMIT_CMD_INSERT
-    return do_insertion (BRT_COMMIT_BROADCAST_TXN, filenum, key, 0, txn, oplsn);
+    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn);
 #else
     key = key; oplsn = oplsn;
     return do_nothing_with_filenum(txn, filenum);
@@ -122,15 +115,8 @@ toku_commit_cmdinsertboth (FILENUM    filenum,
 			   void *     UU(yieldv),
                            LSN        oplsn)
 {
-    static TXNID last_xid;
-    static FILENUM last_filenum;
-    if (txn->txnid64 == last_xid && last_filenum.fileid == filenum.fileid)
-        return 0;
-    last_xid = txn->txnid64;
-    last_filenum = filenum;
-
 #if TOKU_DO_COMMIT_CMD_INSERT
-    return do_insertion (BRT_COMMIT_BROADCAST_TXN, filenum, key, &data, txn, oplsn);
+    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn, oplsn);
 #else
     key = key; data = data; oplsn = oplsn;
     return do_nothing_with_filenum(txn, filenum);
@@ -145,14 +131,7 @@ toku_rollback_cmdinsert (FILENUM    filenum,
 			 void *     UU(yieldv),
                          LSN        oplsn)
 {
-    static TXNID last_xid;
-    static FILENUM last_filenum;
-    if (txn->txnid64 == last_xid && last_filenum.fileid == filenum.fileid)
-        return 0;
-    last_xid = txn->txnid64;
-    last_filenum = filenum;
-
-    return do_insertion (BRT_ABORT_BROADCAST_TXN, filenum, key, 0, txn, oplsn);
+    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn);
 }
 
 int
@@ -164,14 +143,7 @@ toku_rollback_cmdinsertboth (FILENUM    filenum,
 			     void *     UU(yieldv),
                              LSN        oplsn)
 {
-    static TXNID last_xid;
-    static FILENUM last_filenum;
-    if (txn->txnid64 == last_xid && last_filenum.fileid == filenum.fileid)
-        return 0;
-    last_xid = txn->txnid64;
-    last_filenum = filenum;
-
-    return do_insertion (BRT_ABORT_BROADCAST_TXN, filenum, key, &data, txn, oplsn);
+    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn, oplsn);
 }
 
 int
@@ -183,15 +155,8 @@ toku_commit_cmddeleteboth (FILENUM    filenum,
 			   void *     UU(yieldv),
                            LSN        oplsn)
 {
-    static TXNID last_xid;
-    static FILENUM last_filenum;
-    if (txn->txnid64 == last_xid && last_filenum.fileid == filenum.fileid)
-        return 0;
-    last_xid = txn->txnid64;
-    last_filenum = filenum;
-
 #if TOKU_DO_COMMIT_CMD_DELETE_BOTH
-    return do_insertion (BRT_COMMIT_BROADCAST_TXN, filenum, key, &data, txn, oplsn);
+    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn, oplsn);
 #else
     xid = xid; key = key; data = data;
     return do_nothing_with_filenum(txn, filenum);
@@ -207,14 +172,7 @@ toku_rollback_cmddeleteboth (FILENUM    filenum,
 			     void *     UU(yieldv),
                              LSN        oplsn)
 {
-    static TXNID last_xid;
-    static FILENUM last_filenum;
-    if (txn->txnid64 == last_xid && last_filenum.fileid == filenum.fileid)
-        return 0;
-    last_xid = txn->txnid64;
-    last_filenum = filenum;
-
-    return do_insertion (BRT_ABORT_BROADCAST_TXN, filenum, key, &data, txn, oplsn);
+    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn, oplsn);
 }
 
 int
@@ -225,15 +183,8 @@ toku_commit_cmddelete (FILENUM    filenum,
 		       void *     UU(yieldv),
                        LSN        oplsn)
 {
-    static TXNID last_xid;
-    static FILENUM last_filenum;
-    if (txn->txnid64 == last_xid && last_filenum.fileid == filenum.fileid)
-        return 0;
-    last_xid = txn->txnid64;
-    last_filenum = filenum;
-
 #if TOKU_DO_COMMIT_CMD_DELETE
-    return do_insertion (BRT_COMMIT_BROADCAST_TXN, filenum, key, 0, txn, oplsn);
+    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn);
 #else
     xid = xid; key = key;
     return do_nothing_with_filenum(txn, filenum);
@@ -248,14 +199,7 @@ toku_rollback_cmddelete (FILENUM    filenum,
 			 void *     UU(yieldv),
                          LSN        oplsn)
 {
-    static TXNID last_xid;
-    static FILENUM last_filenum;
-    if (txn->txnid64 == last_xid && last_filenum.fileid == filenum.fileid)
-        return 0;
-    last_xid = txn->txnid64;
-    last_filenum = filenum;
-
-    return do_insertion (BRT_ABORT_BROADCAST_TXN, filenum, key, 0, txn, oplsn);
+    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn);
 }
 
 int
