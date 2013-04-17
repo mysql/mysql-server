@@ -290,6 +290,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_update_broadcast_nested_updates
       test_update_nested_updates
       test_update_with_empty_table
+      test_updates_single_key
       txn-ignore
       transactional_fileops
       update-multiple-data-diagonal
