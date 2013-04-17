@@ -101,11 +101,11 @@ MORE_BDB_BINS = test1426.bdb
 
 .PHONY: default all check tests check.lin check.tlog check.log tests.lin tests.log tests.tlog
 
-default all build: $(ALL_TESTS)
+default all build: $(ALL_TESTS) $(MORE_BDB_BINS)
 
 check: check.tdb check.bdb ;
 tests: tests.bdb tests.tdb ;
-tests.bdb: $(BDB_TESTS) $(MORE_BDB_BINS) ;
+tests.bdb: $(BDB_TESTS) ;
 check.bdb: $(RUN_BDB_TESTS) ;
 tests.tdb: $(TDB_TESTS) ;
 check.tdb: $(RUN_TDB_TESTS) ;
