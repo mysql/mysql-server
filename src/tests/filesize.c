@@ -7,6 +7,7 @@
  *    checkpoint
  *    note file size
  *    lots of deletes
+ *    optimize (flatten tree)
  *    checkpoint 
  *    note file size
  *
@@ -112,41 +113,13 @@ delete_n (u_int32_t ah)
 }
 
 static void
-scan(int n) {
-    DBT k,v;
-    DBC *dbc;
-    int i,r;
-
-    r = db->cursor(db, 0, &dbc, 0);                           
+optimize(void) {
+    if (verbose) printf("Filesize: begin optimize dictionary\n");
+    int r = db->hot_optimize(db, NULL, NULL);
     CKERR(r);
-    memset(&k, 0, sizeof(k));
-    memset(&v, 0, sizeof(v));
-    r = dbc->c_get(dbc, &k, &v, DB_FIRST);
-    if (r==0) {
-	nread++;
-	//	if (verbose) printf("First read, r = %0X, key = %0X (size=%d)\n", r, *(uint32_t*)k.data, k.size);
-    }
-    else if (r == DB_NOTFOUND)  {
-	nread_notfound++;
-	//	if (verbose) printf("First read failed: %d\n", r);
-    }
-    else
-	nread_failed++;
-    for (i = 1; i<n; i++) {
-	r = dbc->c_get(dbc, &k, &v, DB_NEXT);
-	if (r == 0) {
-	    nread++;
-	    //	    if (verbose) printf("read key = %0X (size=%d)\n", *(uint32_t*)k.data, k.size);
-	}
-	else if (r == DB_NOTFOUND)
-	    nread_notfound++;
-	else
-	    nread_failed++;
-    }
-    r = dbc->c_close(dbc);
-    CKERR(r);
-
+    if (verbose) printf("Filesize: end optimize dictionary\n");
 }
+
 
 static void
 get_file_pathname(void) {
@@ -199,9 +172,7 @@ test_filesize (void)
 	for (i = preserve; i<(N); i++) {  // leave a little at the beginning
 	    delete_n(i + offset);
 	}
-	if (verbose) printf("Filesize: Doing scan\n");
-	scan(N);
-	if (verbose) printf("Filesize: Did scan\n");
+	optimize();
 
 	r = env->txn_checkpoint(env, 0, 0, 0);
 	CKERR(r);
@@ -214,7 +185,7 @@ test_filesize (void)
 	for (i = preserve; i<(N); i++) {  // leave a little at the beginning
 	    delete_n(i + offset);
 	}
-	scan(N);
+	optimize();
 	r = env->txn_checkpoint(env, 0, 0, 0);
 	CKERR(r);
 	sizeM = getsizeM();
