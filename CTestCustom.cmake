@@ -93,6 +93,23 @@ foreach(test ${stress_tests})
   endif()
 endforeach(test)
 
+## upgrade stress tests are 5 minutes long, don't need to run them always
+if(NOT @RUN_LONG_TESTS@)
+  foreach(test ${stress_tests})
+    if (NOT ${test} MATCHES test_stress_openclose)
+      foreach(oldver 4.2.0 5.0.8 5.2.7)
+        foreach(p_or_s pristine stressed)
+          if (NOT (${test} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
+            foreach(size 2000 200000 50000000)
+              list(APPEND CTEST_CUSTOM_TESTS_IGNORE ydb/${test}/upgrade/${oldver}/${p_or_s})
+            endforeach(size)
+          endif ()
+        endforeach(p_or_s)
+      endforeach(ver)
+    endif ()
+  endforeach(test)
+endif()
+
 set(tdb_tests_that_should_fail "ydb/${stress_tests}")
 string(REGEX REPLACE ";" ";ydb/" stress_tests "${stress_tests}")
 
