@@ -96,6 +96,10 @@ void *realloc(void*, size_t)            __attribute__((__deprecated__));
 #   endif
 #endif
 
+void *os_malloc(size_t);
+void *os_realloc(void*,size_t);
+void  os_free(void*);
+
 #if defined __cplusplus
 };
 #endif
