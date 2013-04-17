@@ -2585,13 +2585,13 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     workqueue_init(&cq);
 
     // find all of the pairs owned by a cachefile and redirect their completion
-    // to a completion queue.  flush and remove pairs in the IDLE state if they
-    // are dirty.  pairs in the READING or WRITING states are already in the
-    // work queue.
+    // to a completion queue.  If an unlocked PAIR is dirty, flush and remove 
+    // the PAIR. Locked PAIRs are on either a reader/writer thread (or maybe a
+    // checkpoint thread?) and therefore will be placed on the completion queue.
     // The assumptions above lead to this reasoning. All pairs belonging to
     // this cachefile are either:
     //  - unlocked
-    //  - locked and on a writer thread.
+    //  - locked and on a writer thread (or possibly on a checkpoint thread?).
     // We find all the pairs owned by the cachefile and do the following:
     //  - if the PAIR is clean and unlocked, then remove the PAIR
     //  - if the PAIR is dirty and unlocked, write the PAIR to disk on a writer thread
@@ -2600,7 +2600,7 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     //    when the function started).
     //  - Once the writer thread is done with a PAIR, remove it
     //
-    // An question from Zardosht: Is it possible for a checkpoint thread
+    // A question from Zardosht: Is it possible for a checkpoint thread
     // to be running, and also trying to get access to a PAIR while 
     // the PAIR is on the writer thread? Will this cause problems?
     // This question is encapsulated in #3941
@@ -2653,7 +2653,7 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
             p->cq = &cq;
             //
             // Once again, the assumption is that any PAIR
-            // that is either unlocked or on a writer thread work queue
+            // is either unlocked or on a writer thread work queue
             //
             if (!nb_mutex_writers(&p->nb_mutex)) {
                 flush_and_maybe_remove(ct, p);
@@ -2664,6 +2664,22 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     toku_free(list);
 
     // wait for all of the pairs in the work queue to complete
+    //
+    // An important assumption here is that none of the PAIRs that we
+    // pop off  the work queue need to be written out to disk. So, it is
+    // safe to simply call cachetable_maybe_remove_and_free_pair on 
+    // the PAIRs we find. The reason we can make this assumption
+    // is based on the assumption that upon entry of this function,
+    // all PAIRs belonging to this cachefile are either idle,
+    // being processed by a writer thread, or being processed by a kibbutz. 
+    // At this point in the code, kibbutz work is finished and we 
+    // assume the client will not add any more kibbutz work for this cachefile.
+    // 
+    // If it were possible
+    // for some thread to change the state of the node before passing
+    // it off here, and a write to disk were necessary, then the code
+    // below would be wrong.
+    //
     for (i=0; i<nfound; i++) {
         cachetable_unlock(ct);
         WORKITEM wi = 0;
@@ -2746,7 +2762,21 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key, BOOL ct
 	    assert(nb_mutex_writers(&p->nb_mutex));
             nb_mutex_write_unlock(&p->nb_mutex);
             //
-            // need to find a way to assert that ONLY the checkpoint thread may be blocked here
+            // need to find a way to assert that 
+            // ONLY the checkpoint thread may be blocked here
+            //
+            // The assumption here is that only the checkpoint thread may 
+            // be blocked here. No writer thread may be a blocked writer, 
+            // because the writer thread has only locked PAIRs. 
+            // The writer thread does not try to acquire a lock. It cannot be a 
+            // client thread either, because no client thread should be trying 
+            // to lock a node that another thread is trying to remove 
+            // from the cachetable. It cannot be a kibbutz thread either
+            // because the client controls what work is done on the kibbutz, 
+            // and should be smart enough to make sure that no other thread 
+            // tries to lock a PAIR while trying to unpin_and_remove it. So, 
+            // the only thread that is left that can possibly be a blocked 
+            // writer is the checkpoint thread.
             //
             if (nb_mutex_blocked_writers(&p->nb_mutex)>0) {
                 struct workqueue cq;
@@ -2776,6 +2806,10 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key, BOOL ct
                     cachetable_lock(ct);
                     assert(nb_mutex_writers(&p->nb_mutex) == 1);
                     BOOL destroyed = FALSE;
+                    // Because we assume it is just the checkpoint thread
+                    // that may have been blocked (as argued above),
+                    // it is safe to simply remove the PAIR from the 
+                    // cachetable. We don't need to write anything out.
                     cachetable_complete_write_pair(ct, p, TRUE, &destroyed);
                     if (destroyed) {
                         break;
