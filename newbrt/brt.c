@@ -2105,6 +2105,25 @@ void toku_apply_cmd_to_leaf(
 {
     VERIFY_NODE(t, node);
     toku_assert_entire_node_in_memory(node);
+    MSN cmd_msn = cmd->msn;
+    
+    //
+    // Because toku_apply_cmd_to_leaf is called with the intent of permanently
+    // applying a message to a leaf node (meaning the message is permanently applied
+    // and will be purged from the system after this call, as opposed to
+    // maybe_apply_ancestors_messages_to_node, which applies a message
+    // for a query, but the message may still reside in the system and 
+    // be reapplied later), we take the opportunity to update
+    // node->max_msn_applied_to_node_on_disk.
+    //
+    // we cannot blindly update node->max_msn_applied_to_node_on_disk,
+    // we must check to see if the msn is greater that the one already stored,
+    // because the cmd may have already been applied earlier (via 
+    // maybe_apply_ancestors_messages_to_node) to answer a query
+    //
+    if (cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn) {
+        node->max_msn_applied_to_node_on_disk = cmd_msn;
+    }
 
     if (brt_msg_applies_once(cmd)) {
         unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, desc, compare_fun);
@@ -2161,6 +2180,8 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
     TOKULOGGER logger = toku_cachefile_logger(brt->cf);
     OMT snapshot_txnids = logger ? logger->snapshot_txnids : NULL;
     OMT live_list_reverse = logger ? logger->live_list_reverse : NULL;
+    MSN cmd_msn = cmd->msn;
+    invariant(cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn);
     brtnode_put_cmd(
         brt->compare_fun,
         brt->update_fun,
@@ -2171,15 +2192,10 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
         snapshot_txnids,
         live_list_reverse
         );
-    if (node->height == 0) {
-        MSN cmd_msn = cmd->msn;
-        invariant(cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn);
-        // max_msn_applied_to_node_on_disk is normally set only when leaf is serialized, 
-        // but needs to be done here (for root leaf) so msn can be set in new commands.
-        node->max_msn_applied_to_node_on_disk = cmd_msn;
-        toku_mark_node_dirty(node);
-    }
-    else {
+    toku_mark_node_dirty(node);
+
+    // update some status variables
+    if (node->height != 0) {
         uint64_t msgsize = brt_msg_size(cmd);
         brt_status.msg_bytes_in += msgsize;
         brt_status.msg_bytes_curr += msgsize;
