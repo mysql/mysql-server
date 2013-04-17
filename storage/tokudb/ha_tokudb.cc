@@ -1291,7 +1291,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     }
 
     thr_lock_data_init(&share->lock, &lock, NULL);
-    bzero((void *) &current_row, sizeof(current_row));
 
     /* Fill in shared structure, if needed */
     pthread_mutex_lock(&share->mutex);
@@ -1492,7 +1491,7 @@ int ha_tokudb::__close(int mutex_is_locked) {
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
     rec_buff = NULL;
     alloc_ptr = NULL;
-    ha_tokudb::reset();         // current_row buffer
+    ha_tokudb::reset();
     TOKUDB_DBUG_RETURN(free_share(share, mutex_is_locked));
 }
 
@@ -3868,7 +3867,6 @@ cleanup:
 int ha_tokudb::rnd_init(bool scan) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_init");
     int error;
-    current_row.flags = DB_DBT_REALLOC;
     range_lock_grabbed = false;
     if (scan) {
         DB* db = share->key_file[primary_key];
@@ -4194,13 +4192,6 @@ int ha_tokudb::reset(void) {
     TOKUDB_DBUG_ENTER("ha_tokudb::reset");
     key_read = 0;
     using_ignore = 0;
-    if (current_row.flags & (DB_DBT_MALLOC | DB_DBT_REALLOC)) {
-        current_row.flags = 0;
-        if (current_row.data) {
-            free(current_row.data);
-            current_row.data = 0;
-        }
-    }
     TOKUDB_DBUG_RETURN(0);
 }
 
