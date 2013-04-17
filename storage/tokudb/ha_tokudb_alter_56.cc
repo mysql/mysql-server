@@ -100,13 +100,12 @@ ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_i
     printf("******\n");
 }
 
-// Append all changed fields to the changed_fields array
+// Given two tables with equal number of fields, find all of the fields with different types
+// and return the indexes of the different fields in the changed_fields array. This function ignores field
+// name differences.
 static int
 find_changed_fields(TABLE *table_a, TABLE *table_b, Dynamic_array<uint> &changed_fields) {
-    uint nfields = table_a->s->fields;
-    if (nfields > table_b->s->fields)
-        nfields = table_b->s->fields;
-    for (uint i = 0; i < nfields; i++) {
+    for (uint i = 0; i < table_a->s->fields; i++) {
         Field *field_a = table_a->field[i];
         Field *field_b = table_b->field[i];
         if (!fields_are_same_type(field_a, field_b)) 
@@ -189,13 +188,16 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         print_alter_info(altered_table, ha_alter_info);
     }
 
-    tokudb_alter_ctx *ctx = new tokudb_alter_ctx;
-    ha_alter_info->handler_ctx = ctx;
-
     THD *thd = ha_thd();
     enum_alter_inplace_result result = HA_ALTER_INPLACE_NOT_SUPPORTED; // default is NOT inplace
 
+    // setup context
+    tokudb_alter_ctx *ctx = new tokudb_alter_ctx;
+    ha_alter_info->handler_ctx = ctx;
     ctx->handler_flags = fix_handler_flags(table, altered_table, ha_alter_info);
+    ctx->table_kc_info = &share->kc_info;
+    ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
+    memset(ctx->altered_table_kc_info, 0, sizeof (KEY_AND_COL_INFO));
 
     // add or drop index
     if (only_flags(ctx->handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX + 
@@ -237,7 +239,9 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     } else    
     // add column
     if (ctx->handler_flags & Alter_inplace_info::ADD_COLUMN &&
-        only_flags(ctx->handler_flags, Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER)) {
+        only_flags(ctx->handler_flags, Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER) &&
+        setup_kc_info(altered_table, ctx->altered_table_kc_info) == 0) {
+
         uint32_t added_columns[altered_table->s->fields];
         uint32_t num_added_columns = 0;
         int r = find_changed_columns(added_columns, &num_added_columns, table, altered_table);
@@ -254,7 +258,9 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     } else
     // drop column
     if (ctx->handler_flags & Alter_inplace_info::DROP_COLUMN &&
-        only_flags(ctx->handler_flags, Alter_inplace_info::DROP_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER)) {
+        only_flags(ctx->handler_flags, Alter_inplace_info::DROP_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER) &&
+        setup_kc_info(altered_table, ctx->altered_table_kc_info) == 0) {
+
         uint32_t dropped_columns[table->s->fields];
         uint32_t num_dropped_columns = 0;
         int r = find_changed_columns(dropped_columns, &num_dropped_columns, altered_table, table);
@@ -273,32 +279,22 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     if ((ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) && 
         only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH + Alter_inplace_info::ALTER_COLUMN_DEFAULT) &&
         table->s->fields == altered_table->s->fields &&
-        find_changed_fields(table, altered_table, ctx->changed_fields) > 0) {
+        find_changed_fields(table, altered_table, ctx->changed_fields) > 0 && 
+        setup_kc_info(altered_table, ctx->altered_table_kc_info) == 0) {
 
-        ctx->table_kc_info = &share->kc_info;
-        ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
-        memset(ctx->altered_table_kc_info, 0, sizeof (KEY_AND_COL_INFO));
-        int error = setup_kc_info(altered_table, ctx->altered_table_kc_info);
-        if (!error) {
-            if (change_length_is_supported(table, altered_table, ha_alter_info, ctx)) {
-                result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
-            }
+        if (change_length_is_supported(table, altered_table, ha_alter_info, ctx)) {
+            result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
     } else
     // change column type
     if ((ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_TYPE) &&
         only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_TYPE + Alter_inplace_info::ALTER_COLUMN_DEFAULT) && 
         table->s->fields == altered_table->s->fields && 
-        find_changed_fields(table, altered_table, ctx->changed_fields) > 0) {
+        find_changed_fields(table, altered_table, ctx->changed_fields) > 0 &&
+        setup_kc_info(altered_table, ctx->altered_table_kc_info) == 0) {
         
-        ctx->table_kc_info = &share->kc_info;
-        ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
-        memset(ctx->altered_table_kc_info, 0, sizeof (KEY_AND_COL_INFO));
-        int error = setup_kc_info(altered_table, ctx->altered_table_kc_info);
-        if (!error) {
-            if (change_type_is_supported(table, altered_table, ha_alter_info, ctx)) {
-                result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
-            }
+        if (change_type_is_supported(table, altered_table, ha_alter_info, ctx)) {
+            result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
     } else
     if (only_flags(ctx->handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION)) {
@@ -471,8 +467,6 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     int error;
     uchar *column_extra = NULL;
-    uchar *row_desc_buff = NULL;
-    uint32_t max_new_desc_size = 0;
     uint32_t max_column_extra_size;
     uint32_t num_column_extra;
     uint32_t num_columns = 0;
@@ -480,16 +474,6 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
 
     uint32_t columns[table->s->fields + altered_table->s->fields]; // set size such that we know it is big enough for both cases
     memset(columns, 0, sizeof(columns));
-
-    KEY_AND_COL_INFO altered_kc_info;
-    memset(&altered_kc_info, 0, sizeof(altered_kc_info));
-
-    error = setup_kc_info(altered_table, &altered_kc_info);
-    if (error) { goto cleanup; }
-
-    max_new_desc_size = get_max_desc_size(&altered_kc_info, altered_table);
-    row_desc_buff = (uchar *)my_malloc(max_new_desc_size, MYF(MY_WME));
-    if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
 
     // generate the array of columns
     if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_COLUMN) {
@@ -518,41 +502,15 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
     if (column_extra == NULL) { error = ENOMEM; goto cleanup; }
     
     for (uint32_t i = 0; i < curr_num_DBs; i++) {
-        DBT row_descriptor;
-        memset(&row_descriptor, 0, sizeof(row_descriptor));
-        KEY* prim_key = (hidden_primary_key) ? NULL : &altered_table->s->key_info[primary_key];
-        KEY* key_info = &altered_table->key_info[i];
-        if (i == primary_key) {
-            row_descriptor.size = create_main_key_descriptor(
-                                                             row_desc_buff,
-                                                             prim_key,
-                                                             hidden_primary_key,
-                                                             primary_key,
-                                                             altered_table,
-                                                             &altered_kc_info
-                                                             );
-            row_descriptor.data = row_desc_buff;
-        }
-        else {
-            row_descriptor.size = create_secondary_key_descriptor(
-                                                                  row_desc_buff,
-                                                                  key_info,
-                                                                  prim_key,
-                                                                  hidden_primary_key,
-                                                                  altered_table,
-                                                                  primary_key,
-                                                                  i,
-                                                                  &altered_kc_info
-                                                                  );
-            row_descriptor.data = row_desc_buff;
-        }
-        error = share->key_file[i]->change_descriptor(
-                                                      share->key_file[i],
-                                                      ctx->alter_txn,
-                                                      &row_descriptor,
-                                                      0
-                                                      );
-        if (error) { goto cleanup; }
+        // change to a new descriptor
+        DBT row_descriptor; memset(&row_descriptor, 0, sizeof row_descriptor);
+        error = new_row_descriptor(table, altered_table, ha_alter_info, i, &row_descriptor);
+        if (error)
+            goto cleanup;
+        error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
+        my_free(row_descriptor.data);
+        if (error)
+            goto cleanup;
         
         if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
             num_column_extra = fill_row_mutator(
@@ -560,7 +518,7 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
                                                 columns,
                                                 num_columns,
                                                 altered_table,
-                                                &altered_kc_info,
+                                                ctx->altered_table_kc_info,
                                                 i,
                                                 (ha_alter_info->handler_flags & Alter_inplace_info::ADD_COLUMN) != 0 // true if adding columns, otherwise is a drop
                                                 );
@@ -581,8 +539,6 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
 
     error = 0;
  cleanup:
-    free_key_and_col_info(&altered_kc_info);
-    my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(column_extra, MYF(MY_ALLOW_ZERO_PTR));
     return error;
 }
