@@ -538,12 +538,13 @@ endif
 SO_FLAGS=$(SHARED) $(BIN_FROM_O_FLAGS) $(EXPORTMAP)
 
 ifeq ($(BRTLOADER),cilk)
-SO_FLAGS += -Wl,-z,now
+CILK_LINKER_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,now
 ifeq ($(ARCH),x86_64)
-SO_FLAGS += -L$(CILKROOT)/lib64 -lcilkrts_pic
+CILKRTS_LIB = -L$(CILKROOT)/lib64 -lcilkrts_pic
 else
-SO_FLAGS += -L$(CILKROOT)/lib32 -lcilkrta_pic
+CILKRTS_LIB = -L$(CILKROOT)/lib32 -lcilkrta_pic
 endif
+SO_FLAGS += $(CILK_LINKER_FLAGS) $(CILKRTS_LIB)
 TOKULINKER = $(CXX)
 else
 TOKULINKER = $(CC)

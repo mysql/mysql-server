@@ -145,14 +145,6 @@ check_brtloader-test-writer-errors-3: brtloader-test-writer-errors$(BINSUF)
 check_brtloader-test-writer-errors-4: brtloader-test-writer-errors$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -s -m --malloc_limit 0 -r 10000 dir.$@ $(SUMMARIZE_CMD)
 
-brtloader-%$(BINSUF): brtloader-%.$(OEXT)
-ifeq ($(BRTLOADER),cilk)
-	$(CILKPP) $(CILKFLAGS) $< -o $@ $(LDFLAGS)
-endif
-ifeq ($(BRTLOADER),cxx)
-	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
-endif
-
 check_%: % $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
 
