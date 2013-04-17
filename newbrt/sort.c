@@ -125,53 +125,44 @@ quicksort_r(void *va, int n, int width,
 {
     if (n <= 1) { return 0; }
     unsigned char *a = va;
-    unsigned char *pivot = &a[(n - 1) * width];
-    unsigned char *mid = &a[(n / 2) * width];
+    unsigned char *lo = a;
+    unsigned char *pivot = &a[(n / 2) * width];
+    unsigned char *hi = &a[(n - 1) * width];
     // The pivot is the last position in the array, but is the median of
     // three elements (first, middle, last).
-    if (cmp(extra, a, pivot) > 0) {
-        swap(a, pivot, width);
+    if (cmp(extra, lo, pivot) > 0) {
+        swap(lo, pivot, width);
     }
-    if (cmp(extra, pivot, mid) > 0) {
-        swap(pivot, mid, width);
-        if (cmp(extra, a, pivot) > 0) {
-            swap(a, pivot, width);
+    if (cmp(extra, pivot, hi) > 0) {
+        swap(pivot, hi, width);
+        if (cmp(extra, lo, pivot) > 0) {
+            swap(lo, pivot, width);
         }
     }
-    unsigned char *lp = a, *rp = &a[(n - 2) * width];
-    while (lp < rp) {
-        // In the case where we have a lot of duplicate elements, this is
-        // kind of horrible (it's O(n^2)).  It could be fixed by
-        // partitioning into less, equal, and greater, but since the only
-        // place we're using it right now has no duplicates (the MSNs are
-        // guaranteed unique), it's fine to do it this way, and probably
-        // better because it's simpler.
+    unsigned char *lp = lo + width, *rp = hi - width;
+    while (lp <= rp) {
         while (cmp(extra, lp, pivot) < 0) {
             lp += width;
         }
-        while (cmp(extra, pivot, rp) <= 0) {
+        while (cmp(extra, pivot, rp) < 0) {
             rp -= width;
         }
         if (lp < rp) {
             swap(lp, rp, width);
+            // fix up pivot if we moved it
+            if (pivot == lp) { pivot = rp; }
+            else if (pivot == rp) { pivot = lp; }
+            lp += width;
+            rp -= width;
+        } else if (lp == rp) {
             lp += width;
             rp -= width;
         }
     }
-    if (lp == rp && cmp(extra, lp, pivot) < 0) {
-        // A weird case where lp and rp are both pointing to the rightmost
-        // element less than the pivot, we want lp to point to the first
-        // element greater than or equal to the pivot.
-        lp += width;
-    }
-    // Swap the pivot back into place.
-    swap(pivot, lp, width);
-    int r = quicksort_r(a, (lp - a) / width, width, extra, cmp);
+
+    int r = quicksort_r(lo, 1 + (rp - a) / width, width, extra, cmp);
     if (r != 0) { return r; }
-    // The pivot is in this spot and we don't need to sort it, so move
-    // over one space before calling quicksort_r again.
-    lp += width;
-    r = quicksort_r(lp, n - (lp - a) / width, width, extra, cmp);
+    r = quicksort_r(lp, 1 + (hi - lp) / width, width, extra, cmp);
     return r;
 }
 
