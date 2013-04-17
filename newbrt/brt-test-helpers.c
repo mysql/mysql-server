@@ -143,7 +143,9 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
         &brt->h->descriptor,
         node,
         &cmd,
-        true
+        true,
+	NULL,
+	NULL
         );    
 
     toku_verify_or_set_counts(node);
