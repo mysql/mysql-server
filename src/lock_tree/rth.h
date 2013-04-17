@@ -16,6 +16,10 @@
 #include <brttypes.h>
 #include <rangetree.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct __rt_forest rt_forest;
 struct __rt_forest {
     TXNID          hash_key;
@@ -67,5 +71,9 @@ int             toku_rth_insert     (toku_rth* table, TXNID key);
 void            toku_rth_clear      (toku_rth* rth);
 
 BOOL            toku_rth_is_empty   (toku_rth* rth);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

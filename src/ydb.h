@@ -3,6 +3,10 @@
 #if !defined(TOKU_YDB_INTERFACE_H)
 #define TOKU_YDB_INTERFACE_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 // Initialize the ydb library globals.  
 // Called when the ydb library is loaded.
 int toku_ydb_init(void);
@@ -23,5 +27,9 @@ int db_create_toku10(DB **, DB_ENV *, u_int32_t) __attribute__((__visibility__("
 int toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtxn) __attribute__((__visibility__("default")));
 
 uint64_t toku_test_get_latest_lsn(DB_ENV *env) __attribute__((__visibility__("default")));
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

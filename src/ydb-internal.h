@@ -13,6 +13,10 @@
 #include "../newbrt/minicron.h"
 #include <limits.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 struct __toku_lock_tree;
 
 struct __toku_db_internal {
@@ -198,5 +202,9 @@ struct __toku_dbc_internal {
 };
 
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
