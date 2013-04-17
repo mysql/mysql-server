@@ -34,8 +34,8 @@ locktree.$(OEXT) locktree_nooverlap.$(OEXT) $(OBJS): CPPFLAGS+=-I$(TOKUROOT)incl
 $(LOCKTREE): $(LOCKTREE_TLOG)
 	cp $< $@
 
-.PHONY: build check
-build: $(LIBRARIES)
+.PHONY: build local check
+build local: $(LIBRARIES)
 
 locktree_nooverlap.$(OEXT): CPPFLAGS+=-DTOKU_RT_NOOVERLAPS
 locktree_nooverlap.$(OEXT): locktree.c $(DEPEND_COMPILE)

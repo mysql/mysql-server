@@ -1,6 +1,7 @@
 #include <toku_portability.h>
 #include <string.h>
 #include <locktree.h>
+#include <locktree-internal.h>
 #include <db.h>
 #include <brttypes.h>
 #include <stdlib.h>

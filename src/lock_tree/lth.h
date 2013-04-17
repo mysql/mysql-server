@@ -15,7 +15,6 @@
 //Defines bool data type.
 #include <db.h>
 #include <brttypes.h>
-#include <locktree.h>
 
 #if defined(__cplusplus)
 extern "C" {

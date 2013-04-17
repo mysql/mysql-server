@@ -6,12 +6,12 @@
 #include <db.h>
 #include "ydb-internal.h"
 #include "ydb_row_lock.h"
+#include "lth.h"
 
 static int 
 toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
     int r = ENOSYS;
     assert(txn && lt);
-    toku_mutex_lock(&lt->mgr->mutex);
     toku_lth* lth = db_txn_struct_i(txn)->lth;
     // we used to initialize the transaction's lth during begin.
     // Now we initialize the lth only if the transaction needs the lth, here
@@ -33,7 +33,6 @@ toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
     toku_lt_add_ref(lt);
     r = 0;
 cleanup:
-    toku_mutex_unlock(&lt->mgr->mutex);
     return r;
 }
 
