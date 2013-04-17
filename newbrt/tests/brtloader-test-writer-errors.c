@@ -81,9 +81,11 @@ static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
 
 static int my_malloc_event = 0;
 static int my_malloc_count = 0, my_big_malloc_count = 0;
-
+static int my_realloc_count = 0, my_big_realloc_count = 0;
+   
 static void reset_my_malloc_counts(void) {
     my_malloc_count = my_big_malloc_count = 0;
+    my_realloc_count = my_big_realloc_count = 0;
 }
 
 static void *my_malloc(size_t n) {
@@ -107,6 +109,29 @@ static void *my_malloc(size_t n) {
     }
  skip:
     return malloc(n);
+}
+
+static void *my_realloc(void *p, size_t n) {
+    void *caller = __builtin_return_address(0);
+    if (!((void*)toku_realloc <= caller && caller <= (void*)toku_free))
+        goto skip;
+    my_realloc_count++;
+    if (n >= 64*1024) {
+        my_big_realloc_count++;
+        if (my_malloc_event) {
+            caller = __builtin_return_address(1);
+            if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_malloc_report)
+                goto skip;
+            event_count++;
+            if (event_count == event_count_trigger) {
+                event_hit();
+                errno = ENOMEM;
+                return NULL;
+            }
+        }
+    }
+ skip:
+    return realloc(p, n);
 }
 
 static int qsort_compare_ints (const void *a, const void *b) {
@@ -207,6 +232,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     assert(fd>=0);
 
     toku_set_func_malloc(my_malloc);
+    toku_set_func_realloc(my_realloc);
     brtloader_set_os_fwrite(bad_fwrite);
     toku_set_func_write(bad_write);
     toku_set_func_pwrite(bad_pwrite);
@@ -217,6 +243,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     assert(expect_error ? r != 0 : r == 0);
 
     toku_set_func_malloc(NULL);
+    toku_set_func_realloc(NULL);
     brtloader_set_os_fwrite(NULL);
     toku_set_func_write(NULL);
     toku_set_func_pwrite(NULL);
@@ -289,6 +316,7 @@ int test_main (int argc, const char *argv[]) {
     write_dbfile(template, n, output_name, FALSE);
 
     if (verbose) printf("my_malloc_count=%d big_count=%d\n", my_malloc_count, my_big_malloc_count);
+    if (verbose) printf("my_realloc_count=%d big_count=%d\n", my_realloc_count, my_big_realloc_count);
 
     int event_limit = event_count;
     if (verbose) printf("event_limit=%d\n", event_limit);
