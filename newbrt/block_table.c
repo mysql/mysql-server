@@ -759,43 +759,6 @@ toku_blocktable_create_new(BLOCK_TABLE *btp) {
     *btp = bt;
 }    
 
-
-
-// Depend on disk format.
-#if 0
-void 
-toku_blocktable_create_from_loggedheader(BLOCK_TABLE *btp, LOGGEDBRTHEADER h) {
-    // We don't need the lock for the block table for this operation.
-    BLOCK_TABLE bt = blocktable_create_internal();
-    // TODO: get translation  Question: how is this different from translation_deserialize_from_buffer()?
-    assert(0);
-    blocktable_note_translation(bt->block_allocator, &bt->current);
-    copy_translation(&bt->checkpointed, &bt->current, TRANSLATION_CHECKPOINTED);
-    *btp = bt;
-
-
-
-    /********** obsolete:
-    toku_blocktable_create_internal (&bt,
-				     h.free_blocks,
-				     h.unused_blocks,
-				     h.btt_size.b,
-				     h.btt_diskoff);
-    int64_t i;
-    for (i=0; i<h.btt_size.b; i++) {
-	bt->block_translation[i].u.diskoff = h.btt_pairs[i].off;
-	bt->block_translation[i].size    = h.btt_pairs[i].size;
-	if (h.btt_pairs[i].size > 0) {
-	    block_allocator_alloc_block_at(bt->block_allocator, h.btt_pairs[i].size, h.btt_pairs[i].off);
-	}
-    }
-    *btp = bt;
-
-    *********************/
-}
-
-#endif
-
 int
 toku_blocktable_iterate (BLOCK_TABLE bt, enum translation_type type, BLOCKTABLE_CALLBACK f, void *extra, BOOL data_only, BOOL used_only) {
     struct translation *src;

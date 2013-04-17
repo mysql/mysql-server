@@ -63,26 +63,6 @@ struct logged_btt_pair {
     int32_t size;
 };
 
-// The data that appears in the log to encode a brtheader. */
-typedef struct loggedbrtheader {
-    u_int32_t size;
-    u_int32_t flags;
-    u_int32_t nodesize;
-    BLOCKNUM  free_blocks;
-    BLOCKNUM  unused_blocks;
-    BLOCKNUM  root;
-    BLOCKNUM btt_size; // block translation table size
-    DISKOFF  btt_diskoff;
-    struct logged_btt_pair *btt_pairs;
-} LOGGEDBRTHEADER;
-
-typedef struct intpairarray {
-    u_int32_t size;
-    struct intpair {
-	u_int32_t a,b;
-    } *array;
-} INTPAIRARRAY;
-
 typedef struct cachetable *CACHETABLE;
 typedef struct cachefile *CACHEFILE;
 

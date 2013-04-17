@@ -193,31 +193,4 @@ static inline void wbuf_FILENUM (struct wbuf *w, FILENUM fileid) {
     wbuf_uint(w, fileid.fileid);
 }
 
-static inline void wbuf_LOGGEDBRTHEADER (struct wbuf *w, LOGGEDBRTHEADER h) {
-    wbuf_uint(w, h.size);
-    wbuf_uint(w, h.flags);
-    wbuf_uint(w, h.nodesize);
-    wbuf_BLOCKNUM(w, h.free_blocks);
-    wbuf_BLOCKNUM(w, h.unused_blocks);
-    wbuf_BLOCKNUM(w, h.root);
-    wbuf_BLOCKNUM(w, h.btt_size);
-    wbuf_DISKOFF(w, h.btt_diskoff);
-    {
-	BLOCKNUM i;
-	for (i.b=0; i.b<h.btt_size.b; i.b++) {
-	    wbuf_DISKOFF(w, h.btt_pairs[i.b].off);
-	    wbuf_int(w, h.btt_pairs[i.b].size);
-	}
-    }
-}
-
-static inline void wbuf_INTPAIRARRAY (struct wbuf *w, INTPAIRARRAY h) {
-    u_int32_t i;
-    wbuf_uint(w, h.size);
-    for (i=0; i<h.size; i++) {
-	wbuf_uint(w, h.array[i].a);
-	wbuf_uint(w, h.array[i].b);
-    }
-}
-
 #endif
