@@ -663,6 +663,7 @@ if(BUILD_TESTING)
     ydb/test_txn_nested2.tdb
     ydb/test_txn_nested4.tdb
     ydb/test_txn_nested5.tdb
+    ydb/test_update_broadcast_stress.tdb
     ydb/test_update_stress.tdb
     )
   if (BDB_FOUND)
