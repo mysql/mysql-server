@@ -54,6 +54,7 @@ def main():
                "db_env_set_func_pwrite", 
                "db_env_set_func_write", 
                "db_env_set_checkpoint_callback",
+               "db_env_set_checkpoint_callback2",
                "setup_dlmalloc", "dlfree", "dlmalloc", "dlrealloc" ]:
         exceptsymbols[n] = 1
     return checkglobals(libname, exceptsymbols, verbose)
