@@ -19,6 +19,10 @@ add_dependencies(locktree install_tdb_h)
 add_library(locktree_static STATIC ${locktree_srcs})
 add_space_separated_property(TARGET locktree_static COMPILE_FLAGS "-fvisibility=hidden -fPIC")
 add_dependencies(locktree_static install_tdb_h)
+# The locktree uses the standard portability layer and also the ybt 
+# functions from the ft layer. Maybe one day the ybt functions will be
+# elsewhere.
+target_link_libraries(locktree LINK_PRIVATE ft ${LIBTOKUPORTABILITY})
 
 maybe_add_gcov_to_libraries(locktree locktree_static)
 
