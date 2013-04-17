@@ -167,7 +167,9 @@ do_writes_that_fail (void) {
     if (verbose) { printf("About to fail at %d:\n", fail_at); fflush(stdout); }
     toku_set_assert_on_write_enospc(TRUE);
     db_env_set_func_pwrite(pwrite_counting_and_failing);
+    db_env_set_func_full_pwrite(pwrite_counting_and_failing);
     db_env_set_func_write (write_counting_and_failing);
+    db_env_set_func_full_write (write_counting_and_failing);
     write_count=0;
     do_db_work();
     printf("%d", write_count);

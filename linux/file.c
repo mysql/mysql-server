@@ -94,7 +94,25 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
     errno = errno_write;
 }
 
+static ssize_t (*t_write)(int, const void *, size_t) = 0;
+static ssize_t (*t_full_write)(int, const void *, size_t) = 0;
 static ssize_t (*t_pwrite)(int, const void *, size_t, off_t) = 0;
+static ssize_t (*t_full_pwrite)(int, const void *, size_t, off_t) = 0;
+
+
+int 
+toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
+    t_write = write_fun;
+    return 0;
+}
+
+int 
+toku_set_func_full_write (ssize_t (*write_fun)(int, const void *, size_t)) {
+    t_full_write = write_fun;
+    return 0;
+}
+
+
 
 int 
 toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
@@ -102,13 +120,63 @@ toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
     return 0;
 }
 
+int 
+toku_set_func_full_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
+    t_full_pwrite = pwrite_fun;
+    return 0;
+}
+
+
+
+void
+toku_os_full_write (int fd, const void *buf, size_t len) {
+    const char *bp = (const char *) buf;
+    while (len > 0) {
+        ssize_t r;
+        if (t_full_write) {
+            r = t_full_write(fd, bp, len);
+        } else {
+            r = write(fd, bp, len);
+        }
+        if (r > 0) {
+            len           -= r;
+            bp            += r;
+        }
+        else {
+            try_again_after_handling_write_error(fd, len, r);
+        }
+    }
+    assert(len == 0);
+}
+
+int
+toku_os_write (int fd, const void *buf, size_t len) {
+    const char *bp = (const char *) buf;
+    int result = 0;
+    while (len > 0) {
+        ssize_t r;
+        if (t_write) {
+            r = t_write(fd, bp, len);
+        } else {
+            r = write(fd, bp, len);
+        }
+        if (r < 0) {
+            result = errno;
+            break;
+        }
+        len           -= r;
+        bp            += r;
+    }
+    return result;
+}
+
 void
 toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
     const char *bp = (const char *) buf;
     while (len > 0) {
         ssize_t r;
-        if (t_pwrite) {
-            r = t_pwrite(fd, bp, len, off);
+        if (t_full_pwrite) {
+            r = t_full_pwrite(fd, bp, len, off);
         } else {
             r = pwrite(fd, bp, len, off);
         }
@@ -146,55 +214,7 @@ toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
     return result;
 }
 
-static ssize_t (*t_write)(int, const void *, size_t) = 0;
 
-int 
-toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
-    t_write = write_fun;
-    return 0;
-}
-
-void
-toku_os_full_write (int fd, const void *buf, size_t len) {
-    const char *bp = (const char *) buf;
-    while (len > 0) {
-        ssize_t r;
-        if (t_write) {
-            r = t_write(fd, bp, len);
-        } else {
-            r = write(fd, bp, len);
-        }
-        if (r > 0) {
-            len           -= r;
-            bp            += r;
-        }
-        else {
-            try_again_after_handling_write_error(fd, len, r);
-        }
-    }
-    assert(len == 0);
-}
-
-int
-toku_os_write (int fd, const void *buf, size_t len) {
-    const char *bp = (const char *) buf;
-    int result = 0;
-    while (len > 0) {
-        ssize_t r;
-        if (t_write) {
-            r = t_write(fd, bp, len);
-        } else {
-            r = write(fd, bp, len);
-        }
-        if (r < 0) {
-            result = errno;
-            break;
-        }
-        len           -= r;
-        bp            += r;
-    }
-    return result;
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // fsync logic:
