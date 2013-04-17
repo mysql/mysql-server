@@ -286,7 +286,7 @@ static void iibench_rangequery_db(DB *db, DB_TXN *txn, ARG arg, uint64_t max_pk)
 
     // Get a random key no greater than max pk
     DBT start_key, end_key;
-    uint64_t start_k = myrandom_r(arg->random_data) % max_pk;
+    uint64_t start_k = myrandom_r(arg->random_data) % (max_pk + 1);
     uint64_t end_k = start_k + limit;
     dbt_init(&start_key, &start_k, 8);
     dbt_init(&end_key, &end_k, 8);
