@@ -703,8 +703,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
 }
 
 
-// callback that states if partially reading a node is necessary
-// could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
+// Callback that states if a partial fetch of the node is necessary
 // Currently, this function is responsible for the following things:
 //  - reporting to the cachetable whether a partial fetch is required (as required by the contract of the callback)
 //  - A couple of things that are NOT required by the callback, but we do for efficiency and simplicity reasons:
@@ -718,6 +717,14 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
     BOOL retval = FALSE;
     BRTNODE node = brtnode_pv;
     struct brtnode_fetch_extra *bfe = read_extraargs;
+    //
+    // The three types of fetches that the brt layer may request are:
+    //  - brtnode_fetch_none: no partitions are necessary (example use: stat64)
+    //  - brtnode_fetch_subset: some subset is necessary (example use: toku_brt_search)
+    //  - brtnode_fetch_all: entire node is necessary (example use: flush, split, merge)
+    // The code below checks if the necessary partitions are already in memory, 
+    // and if they are, return FALSE, and if not, return TRUE
+    //
     if (bfe->type == brtnode_fetch_none) {
         retval = FALSE;
     }
@@ -5568,7 +5575,7 @@ brt_search_node(
         // of child_to_search, we enter the while loop again with a 
         // child_to_search that may not be in memory. If it is not,
         // we need to return TOKUDB_TRY_AGAIN so the query can
-        // read teh appropriate partition into memory
+        // read the appropriate partition into memory
         //
         if (BP_STATE(node,child_to_search) != PT_AVAIL) {
             return TOKUDB_TRY_AGAIN;
@@ -5625,7 +5632,6 @@ brt_search_node(
         // code becomes simpler. The point is at this point in the code,
         // we know that we got DB_NOTFOUND and we have to continue
         assert(r == DB_NOTFOUND);
-        // TODO: (Zardosht), if the necessary partition is not available, we need to return and get the partition
         if (search->direction == BRT_SEARCH_LEFT) {
             child_to_search++;
         }
@@ -5654,6 +5660,32 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
 
     BRTNODE node;
 
+    //
+    // Here is how searches work
+    // At a high level, we descend down the tree, using the search parameter
+    // to guide us towards where to look. But the search parameter is not
+    // used here to determine which child of a node to read (regardless
+    // of whether that child is another node or a basement node)
+    // The search parameter is used while we are pinning the node into
+    // memory, because that is when the system needs to ensure that
+    // the appropriate partition of the child we are using is in memory.
+    // So, here are the steps for a search (and this applies to this function
+    // as well as brt_search_child:
+    //  - Take the search parameter, and create a brtnode_fetch_extra, that will be used by toku_pin_brtnode(_holding_lock)
+    //  - Call toku_pin_brtnode(_holding_lock) with the bfe as the extra for the fetch callback (in case the node is not at all in memory)
+    //       and the partial fetch callback (in case the node is perhaps partially in memory) to the fetch the node
+    //  - This eventually calls either toku_brtnode_fetch_callback or  toku_brtnode_pf_req_callback depending on whether the node is in 
+    //     memory at all or not.
+    //  - Within these functions, the "brt_search_t search" parameter is used to evaluate which child the search is interested in.
+    //     If the node is not in memory at all, toku_brtnode_fetch_callback will read the node and decompress only the partition for the 
+    //     relevant child, be it a message buffer or basement node. If the node is in memory, then toku_brtnode_pf_req_callback
+    //     will tell the cachetable that a partial fetch is required if and only if the relevant child is not in memory. If the relevant child
+    //     is not in memory, then toku_brtnode_pf_callback is called to fetch the partition.
+    //  - These functions set bfe->child_to_read so that the search code does not need to reevaluate it.
+    //  - Just to reiterate, all of the last item happens within toku_brtnode_pin(_holding_lock)
+    //  - At this point, toku_brtnode_pin_holding_lock has returned, with bfe.child_to_read set,
+    //  - brt_search_node is called, assuming that the node and its relevant partition are in memory.
+    //
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_subset_read(
         &bfe, 
@@ -5675,8 +5707,8 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
             //  case 1 is when some later call to toku_pin_brtnode returned
             //  that value and unpinned all the nodes anyway. case 2
             //  is when brt_search_node had to stop its search because
-            //  some piece of a node that it needed was not in memory. In this case,
-            //  the node was not unpinned, so we unpin it here
+            //  some piece of a node that it needed was not in memory. 
+            //  In this case, the node was not unpinned, so we unpin it here
             if (unlockers.locked) {
                 toku_unpin_brtnode(brt, node);
             }
