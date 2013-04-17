@@ -71,11 +71,11 @@ DBT old_inames[MAX_DBS];
 DBT new_inames[MAX_DBS];
 
 
-int count_temp(char * dirname);
-void get_inames(DBT* inames, DB** dbs);
-int verify_file(char * dirname, char * filename);
-void assert_inames_missing(DBT* inames);
-ssize_t bad_write(int, const void *, size_t);
+static int count_temp(char * dirname);
+static void get_inames(DBT* inames, DB** dbs);
+static int verify_file(char * dirname, char * filename);
+static void assert_inames_missing(DBT* inames);
+static ssize_t bad_write(int, const void *, size_t);
 
 int fwrite_count = 0;
 int fwrite_count_nominal = 0;  // number of fwrite calls for normal operation, initially zero

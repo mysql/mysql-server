@@ -183,6 +183,9 @@ static void check_results(DB **dbs)
 static void *expect_poll_void = &expect_poll_void;
 static uint64_t poll_count=0;
 static uint64_t bomb_after_poll_count=UINT64_MAX;
+#if TOKU_WINDOWS
+#define ECANCELED (-1)
+#endif
 static int poll_function (void *extra, float progress) {
     if (0) {
 	static int did_one=0;

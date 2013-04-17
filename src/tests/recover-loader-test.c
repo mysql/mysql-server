@@ -68,10 +68,10 @@ static char const * const new_iname_str[NUM_DBS] = {"qo_0000_35_c_L_0.tokudb",
 						    "qo_0004_35_c_L_4.tokudb"};
 
 
-int count_temp(char * dirname);
-void get_inames(DBT* inames, DB** dbs);
-int verify_file(char const * const dirname, char const * const filename);
-int print_dir(char * dirname);
+static int count_temp(char * dirname);
+static void get_inames(DBT* inames, DB** dbs);
+static int verify_file(char const * const dirname, char const * const filename);
+static int print_dir(char * dirname);
 
 // return number of temp files
 int
