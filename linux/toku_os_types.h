@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <sys/types.h>
+#include <sys/stat.h>
 
 typedef int toku_os_handle_t;
 
