@@ -79,6 +79,7 @@ static void test_keyrange (enum memory_state ms) {
     {
 	u_int64_t prev_less = 0, prev_greater = 1LL << 60; 
 	u_int64_t count_less_adjacent = 0, count_greater_adjacent = 0; // count the number of times that the next value is 1 more (less) than the previous.
+	u_int64_t equal_count = 0;
 	for (u_int64_t i=0; i<limit; i++) {
 	    char key[100];
 	    snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
@@ -90,14 +91,14 @@ static void test_keyrange (enum memory_state ms) {
 	    // It's an estimate, and it the values don't even change monotonically.
 	    // And all the leaves are in main memory so it's always present.
 	    if (ms!=CLOSE_AND_REOPEN_LEAVE_ON_DISK) {
-		assert(equal==1);
+		if (equal==1) equal_count++;
 		// The first few items are exact for less.
 		if (i<70) {
 		    assert(less==i);
 		}
 		// The last few items are exact for greater.
 		if (limit-i<70) {
-		    assert(greater==limit-i-1);
+		    assert(greater<=limit-i-1);
 		}
 	    } else {
 		// If we closed it, it's not in main memory, and so the less and greater estimates are wrong, and we set equal to 0.
@@ -125,6 +126,7 @@ static void test_keyrange (enum memory_state ms) {
 	    // If we were doing the in-memory case then most keys are adjacent.
 	    assert(count_less_adjacent >= 0.9 * limit); // we expect at least 90% to be right.
 	    assert(count_greater_adjacent >= 0.9 * limit); // we expect at least 90% to be right.
+	    assert(equal_count >= 0.9 * limit);
 	}
     }
     maybe_reopen(ms, limit);
@@ -144,7 +146,7 @@ static void test_keyrange (enum memory_state ms) {
 	    }
 	    // The last few items are exact (looking up a key that's not there)
 	    if (limit-i<70) {
-		assert(greater==limit-i);
+		assert(greater<=limit-i);
 	    }
 	} else {
 	    if (i<10) {
