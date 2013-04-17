@@ -38,7 +38,7 @@ PORTABILITY=
 SKIP_WARNING=
 COMBINE_C = -combine -c
 LINK_FILES= -lz -lpthread
-C99       = -std=gnu99
+C99       = -std=c99
 
 #Tools
 VGRIND    = valgrind --quiet --error-exitcode=1 --leak-check=yes
