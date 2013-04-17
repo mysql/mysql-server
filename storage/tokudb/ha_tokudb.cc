@@ -276,7 +276,7 @@ static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_
 
 static inline uint get_key_parts(const KEY *key) {
 #if 50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-    return key->usable_key_parts;
+    return key->user_defined_key_parts;
 #else
     return key->key_parts;
 #endif
