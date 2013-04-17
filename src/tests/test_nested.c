@@ -1,11 +1,10 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 /* Nested transactions. */
 
-#include <toku_portability.h>
 #include <db.h>
 #include <sys/stat.h>
-#include "test.h"
 
 static DB_ENV *env;
 static DB *db;

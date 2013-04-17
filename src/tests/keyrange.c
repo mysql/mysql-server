@@ -1,13 +1,11 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
-#ident "Copyright (c) 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 
 #include <assert.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include "test.h"
 
 static DB_ENV *env;
 static DB_TXN *txn = 0;

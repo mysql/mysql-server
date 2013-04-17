@@ -1,15 +1,14 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 /* Test to see if DB->get works on a zeroed DBT. */
 
-#include <toku_portability.h>
 #include <db.h>
 #include <memory.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <sys/stat.h>
 
-#include "test.h"
 
 
 static void

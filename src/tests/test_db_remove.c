@@ -1,8 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
-#include <toku_portability.h>
-#include <fcntl.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include "test.h"
+#include <fcntl.h>
 
 DB_ENV * const null_env = 0;
 DB *db1, *db2;

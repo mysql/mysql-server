@@ -1,5 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 // truncate a named database
 // verify that the database is empty
 
@@ -8,9 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <toku_portability.h>
 #include <db.h>
-#include "test.h"
 
 static int
 test_truncate_subdb (int n) {

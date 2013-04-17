@@ -1,16 +1,14 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 
 /* Test what happens if we have deleted the first thing in the database.
  * Also the last.
  * Also if we've deleted a lot of stuff, so that the first good thing is not on the first page.
  */
 
-#include <toku_portability.h>
 #include <db.h>
 #include <sys/stat.h>
-#include "test.h"
 
 static DB_ENV *env;
 static DB *db;

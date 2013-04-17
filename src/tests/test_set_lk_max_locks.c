@@ -1,19 +1,17 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 
 /* Test to see if the set_lk_max_locks works. */
 /* This is very specific to TokuDB.  It won't work with Berkeley DB. */
 
 #include <assert.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <memory.h>
-#include "test.h"
 
 // ENVDIR is defined in the Makefile
 

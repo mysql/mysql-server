@@ -1,14 +1,12 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-
 #include "test.h"
+
 
 /* Test to see if we can do logging and recovery. */
 /* This is very specific to TokuDB.  It won't work with Berkeley DB. */
 
 #include <assert.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

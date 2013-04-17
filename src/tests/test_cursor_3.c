@@ -1,8 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 // Verify that different cursors return different data items when DBT is given no flags.
 
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,10 +11,8 @@
 #include <memory.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <toku_portability.h>
 #include <db.h>
 
-#include "test.h"
 
 static void
 verify_distinct_pointers (void **ptrs, int n) {

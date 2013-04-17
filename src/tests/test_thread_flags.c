@@ -1,15 +1,14 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <memory.h>
-#include "test.h"
 
 const char *dbfile = ENVDIR "/" "test.db";
 const char *dbname = 0;

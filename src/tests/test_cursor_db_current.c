@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,11 +8,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <toku_portability.h>
 #include <memory.h>
 #include <db.h>
 
-#include "test.h"
 
 static void
 db_put (DB *db, int k, int v) {

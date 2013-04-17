@@ -1,17 +1,16 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 /* Find out about weak transactions.
  *  User A does a transaction.
  *  User B does somethign without a transaction, and it conflicts.
  */
 
 #include <assert.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <sys/stat.h>
-#include "test.h"
 
 static void
 test_autotxn (u_int32_t env_flags, u_int32_t db_flags) {

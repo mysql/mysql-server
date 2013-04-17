@@ -1,11 +1,10 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 
 /* Do test_log1, except abort instead of commit. */
 
 #include <assert.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <errno.h>
 #include <stdio.h>
@@ -14,7 +13,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "test.h"
 
 // ENVDIR is defined in the Makefile
 

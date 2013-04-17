@@ -1,18 +1,16 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-
 #define DONT_DEPRECATE_MALLOC
-#include <toku_portability.h>
+#include "test.h"
+
 
 /* Test to see if setting malloc works, and if dlmalloc works. */
 
-#include <toku_portability.h>
 #include <memory.h>
 #include <db.h>
 #ifdef USE_TDB
 #include <dlmalloc.h>
 #endif
-#include "test.h"
 
 static int malloc_counter=0;
 static int realloc_counter=0;

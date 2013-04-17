@@ -1,15 +1,14 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 /* Put some insert messages into an internal buffer (by first creating a DB, filling it up, then closing it, and reopening, and inserting a few things)
  * Then perform a transaction that overwrites some of those internal things.
  * Then abort the transaction.
  * Make sure those middle things made it back into the tree.
  */
 
-#include <toku_portability.h>
 #include <db.h>
 #include <sys/stat.h>
-#include "test.h"
 
 static DB_ENV *env;
 static DB *db;

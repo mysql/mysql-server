@@ -1,14 +1,13 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <memory.h>
 #include <sys/stat.h>
-#include <toku_portability.h>
 #include <db.h>
-#include "test.h"
 
 // Recreate a mysqld crash by closing and opening a db within a transaction.
 // The crash occurs when writing a dirty cachetable pair, so we insert one

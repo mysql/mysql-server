@@ -1,15 +1,14 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 /* Test to see if delete works right with dupsort.
  * The issue is that things might look OK before the commit, but bad after the commit.
  * In #690 we saw corrupted checksum errors.  This actually tries to get that error to occur, whereas
  *  test_dupsort_del.c notices that the wrong thing is being saved.
  */
 
-#include <toku_portability.h>
 #include <db.h>
 #include <sys/stat.h>
-#include "test.h"
 
 static DB_ENV *env;
 static DB *db;
