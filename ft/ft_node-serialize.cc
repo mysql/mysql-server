@@ -2961,7 +2961,7 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
 
     DISKOFF size_aligned = roundup_to_multiple(512, size);
-    uint8_t *XMALLOC_N_ALIGNED(512, size, raw_block);
+    uint8_t *XMALLOC_N_ALIGNED(512, size_aligned, raw_block);
     {
         // read the (partially compressed) block
         ssize_t rlen = toku_os_pread(fd, raw_block, size_aligned, offset);
