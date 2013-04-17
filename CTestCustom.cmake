@@ -134,6 +134,7 @@ set(perf_tests
   ydb/perf_nop.tdb
   ydb/perf_ptquery.tdb
   ydb/perf_ptquery2.tdb
+  ydb/perf_read_write.tdb
   ydb/perf_xmalloc_free.tdb
   )
 
