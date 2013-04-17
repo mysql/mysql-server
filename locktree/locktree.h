@@ -251,6 +251,8 @@ public:
     };
     ENSURE_POD(manager);
 
+    manager::memory_tracker *get_mem_tracker(void) const;
+
 private:
     manager::memory_tracker *m_mem_tracker;
 

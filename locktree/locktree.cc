@@ -671,6 +671,10 @@ void locktree::set_descriptor(DESCRIPTOR desc) {
     m_cmp->set_descriptor(desc);
 }
 
+locktree::manager::memory_tracker *locktree::get_mem_tracker(void) const {
+    return m_mem_tracker;
+}
+
 int locktree::compare(const locktree *lt) {
     if (m_dict_id.dictid < lt->m_dict_id.dictid) {
         return -1;
