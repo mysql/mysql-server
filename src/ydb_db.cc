@@ -483,11 +483,11 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
     BOOL update_cmp_descriptor = ((flags & DB_UPDATE_CMP_DESCRIPTOR) != 0);
 
     toku_init_dbt(&old_descriptor);
-    if (!db_opened(db) || !txn || !descriptor || (descriptor->size>0 && !descriptor->data)){
+    if (!db_opened(db) || !descriptor || (descriptor->size>0 && !descriptor->data)){
         r = EINVAL;
         goto cleanup;
     }
-    if (txn->parent != NULL) {
+    if (txn && txn->parent != NULL) {
         r = EINVAL; // cannot have a parent if you are a resetting op
         goto cleanup;
     }
