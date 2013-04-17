@@ -123,6 +123,12 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void 
 // Can access fd (fd is protected by a readlock during call)
 typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *read_extraargs);
 
+// The partial eviction callback is called by the cachetable to possibly try and partially evict pieces
+// of the PAIR. The strategy for what to evict is left to the callback. The callback may choose to free
+// nothing, may choose to free as much as possible.
+// bytes_to_free is the number of bytes the cachetable wants freed.
+// bytes_freed is returned by the callback telling the cachetable how much space was freed
+// Requires a write lock to be held on the PAIR in the cachetable while this function is called
 typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *brtnode_pv, long bytes_to_free, long* bytes_freed, void *write_extraargs);
 
 // This callback is called by the cachetable to ask if a partial fetch is required of brtnode_pv. If a partial fetch
@@ -130,11 +136,14 @@ typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *brtnode_pv, long bytes
 // this callback exists instead of just doing the same functionality in CACHETABLE_PARTIAL_FETCH_CALLBACK 
 // is so that we can call this cheap function with the ydb lock held, in the hopes of avoiding the more expensive sequence
 // of releasing the ydb lock, calling the partial_fetch_callback, reading nothing, reacquiring the ydb lock
+// Requires: a read lock to be held on the PAIR
 typedef BOOL (*CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK)(void *brtnode_pv, void *read_extraargs);
 
-// The partial fetch callback is called when a thread needs to read a subset of a PAIR into memory
+// The partial fetch callback is called when a thread needs to read a subset of a PAIR into memory.
+// An example would be needing to read a basement node into memory. In that case, 
+// Requires a write lock to be held on the PAIR in the cachetable while this function is called
+// The new size of the PAIR is returned in sizep
 // Returns: 0 if success, otherwise an error number.  
-// The number of bytes added is returned in sizep
 typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_extraargs, int fd, long *sizep);
 
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
