@@ -27,6 +27,12 @@ run_test(void) {
     r = toku_log_comment(logger, NULL, TRUE, 0, there); assert(r == 0);
     r = toku_logger_close(&logger); assert(r == 0);
 
+    // redirect stderr
+    int devnul = open("/dev/null", O_WRONLY);
+    assert(devnul>=0);
+    r = dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr));
+    r = close(devnul);                      assert(r==0);
+
     // run recovery
     r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, 0); 
     assert(r == 0);
