@@ -5,13 +5,11 @@
 
 /* TODO:
  *
- *  Decide how to cause enospc, implement.
+ *  Improve enospc testing
+ *   - fail only after n calls to write()
+ *   - capture stream write() calls
  *
  *  Decide how to test on recovery (using checkpoint_stress technique?), implement.
- *
- *  Consider USE_PUTS:
- *   - no new inames
- *   - no test for old names deleted
  *
  */
 
@@ -67,6 +65,7 @@ int NUM_DBS=5;
 int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
+int INDUCE_ENOSPC=0;
 enum {MAGIC=311};
 
 
@@ -78,6 +77,9 @@ int count_temp(char * dirname);
 void get_inames(DBT* inames, DB** dbs);
 int verify_file(char * dirname, char * filename);
 void assert_inames_missing(DBT* inames);
+ssize_t bad_write(int, const void *, size_t);
+
+
 
 // return number of temp files
 int
@@ -146,6 +148,11 @@ assert_inames_missing(DBT* inames) {
     }
 }
 
+ssize_t 
+bad_write(int UU(fd), const void * UU(src), size_t UU(n)) {
+    errno= ENOSPC;
+    return -1;
+}
 
 
 #if 0
@@ -422,6 +429,13 @@ static void test_loader(enum test_type t, DB **dbs)
 	r = loader->close(loader);
 	assert(r);  // not defined what close() returns when poll function returns non-zero
     }
+    else if (t == enospc) {
+	r = db_env_set_func_write(bad_write);
+	CKERR(r);
+	printf("closing, but expecting failure from enospc\n");
+	r = loader->close(loader);
+	assert(r);  
+    }
     else {
 	printf("aborting loader"); fflush(stdout);
 	r = loader->abort(loader);
@@ -516,6 +530,10 @@ int test_main(int argc, char * const *argv) {
     }
     if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
     run_test(abort_txn);
+    if (INDUCE_ENOSPC) {
+	if (verbose) printf("\n\nTesting loader with enospc induced during loader close\n");
+	run_test(enospc);
+    }
     return 0;
 }
 
@@ -554,6 +572,9 @@ static void do_args(int argc, char * const argv[]) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = LOADER_USE_PUTS;
+	    printf("Using puts\n");
+        } else if (strcmp(argv[0], "-e")==0) {
+	    INDUCE_ENOSPC = 1;
 	    printf("Using puts\n");
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
