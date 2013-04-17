@@ -2740,10 +2740,9 @@ int set_filenum_in_array(const FT &ft, const uint32_t index, FILENUM *const arra
     return 0;
 }
 
-int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *const ctp);
-int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *const ctp) {
+int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), checkpointer * const cp);
+int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), checkpointer * const cp) {
     int r;
-    CACHETABLE ct = *ctp;
     TOKULOGGER logger = txn->logger;
     FILENUMS open_filenums;
     uint32_t num_filenums = txn->open_fts.size();
@@ -2752,7 +2751,7 @@ int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *cons
         goto cleanup;
     }
     else {
-        ct->cp.increment_num_txns();
+        cp->increment_num_txns();
     }
 
     open_filenums.num      = num_filenums;
@@ -4322,9 +4321,9 @@ void checkpointer::log_begin_checkpoint() {
     }
     
     // Write open transactions to the log.
-    r = toku_txn_manager_iter_over_live_txns<CACHETABLE, log_open_txn> (
+    r = toku_txn_manager_iter_over_live_txns<checkpointer, log_open_txn> (
         m_logger->txn_manager, 
-        &m_ct);
+        this);
     assert(r == 0);
     
     // Writes list of dictionaries that have had
