@@ -78,7 +78,7 @@ pe_callback (
     ) 
 {
     *bytes_freed = make_pair_attr(bytes_to_free.size-1);
-    printf("calling pe_callback\n");
+    if (verbose) printf("calling pe_callback\n");
     expected_bytes_to_free--;
     int* foo = brtnode_pv;
     int blah = *foo;

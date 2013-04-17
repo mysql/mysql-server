@@ -328,7 +328,7 @@ static void test_nested_pin (void) {
     int r;
     void *vv,*vv2;
     char fname[] = __FILE__ "test_ct.dat";
-    printf("creating cachetable\n");
+    if (verbose) printf("creating cachetable\n");
     r = toku_create_cachetable(&t, 1, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
