@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <malloc.h>
 #if defined(TOKUDB)
 #include "trace_mem.h"
 #endif
@@ -356,8 +357,10 @@ static void benchmark_shutdown (void) {
         r = db->close(db, 0);
         assert(r == 0);
     }
-    if (engine_status)
+    if (engine_status) {
 	print_engine_status(dbenv);
+        malloc_stats();
+    }
     r = dbenv->close(dbenv, 0);
     assert(r == 0);
 }
