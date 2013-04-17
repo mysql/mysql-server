@@ -49,8 +49,6 @@
 #cmakedefine HAVE_MALLOC_USABLE_SIZE 1
 #cmakedefine HAVE_MEMALIGN 1
 #cmakedefine HAVE_VALLOC 1
-#cmakedefine HAVE_CPUSET_GETAFFINITY 1
-#cmakedefine HAVE_SCHED_GETAFFINITY 1
 #cmakedefine HAVE_NRAND48 1
 #cmakedefine HAVE_RANDOM_R 1
 
