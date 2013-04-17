@@ -757,9 +757,11 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 	toku_free(w_main.buf);
 	if (rr) {
 	    if (h->panic==0) {
-		char s[200];
+		char *e = strerror(rr);
+		int l = 200 + strlen(e);
+		char s[l];
 		h->panic=rr;
-		snprintf(s, sizeof(s), "%s:%d: Error writing header to data file.  errno=%d (%s)\n", __FILE__, __LINE__, rr, strerror(rr));
+		snprintf(s, l-1, "%s:%d: Error writing header to data file.  errno=%d (%s)\n", __FILE__, __LINE__, rr, e);
 		h->panic_string = toku_strdup(s);
 	    }
 	    goto finish;

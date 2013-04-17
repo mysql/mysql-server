@@ -385,18 +385,22 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *
             int r = toku_graceful_dirty(cachefile);
 	    if (r) {
 		if (h->panic==0) {
-		    char s[200];
+		    char *e = strerror(r);
+		    int   l = 200 + strlen(e);
+		    char s[l];
 		    h->panic=r;
-		    snprintf(s, sizeof(s), "While creating dirty bit, error %d (%s)", r, strerror(r));
+		    snprintf(s, l-1, "While creating dirty bit, error %d (%s)", r, e);
 		    h->panic_string = toku_strdup(s);
 		}
 	    }
 	    r = toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode, h, n_workitems, n_threads);
 	    if (r) {
 		if (h->panic==0) {
-		    char s[200];
+		    char *e = strerror(r);
+		    int   l = 200 + strlen(e);
+		    char s[l];
 		    h->panic=r;
-		    snprintf(s, sizeof(s), "While writing data to disk, error %d (%s)", r, strerror(r));
+		    snprintf(s, l-1, "While writing data to disk, error %d (%s)", r, e);
 		    h->panic_string = toku_strdup(s);
 		}
 	    }
