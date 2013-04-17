@@ -133,7 +133,6 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
 
     THD *thd = ha_thd();
     enum_alter_inplace_result result = HA_ALTER_INPLACE_NOT_SUPPORTED; // default is NOT inplace
-    HA_CREATE_INFO *create_info = ha_alter_info->create_info;
 
     ulong handler_flags = fix_handler_flags(ha_alter_info, table, altered_table);
 
@@ -210,8 +209,10 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             }
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
-    } else
-    if (only_flags(handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION)) {
+    } 
+#ifndef MARIADB_BASE_VERSION
+    else if (only_flags(handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION)) {
+        HA_CREATE_INFO *create_info = ha_alter_info->create_info;
         // alter auto_increment
         if (only_flags(create_info->used_fields, HA_CREATE_USED_AUTO)) {
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
@@ -221,6 +222,7 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
     }
+#endif
 
     // turn not supported into error if the slow alter table (copy) is disabled
     if (result == HA_ALTER_INPLACE_NOT_SUPPORTED && get_disable_slow_alter(thd)) {
