@@ -3,38 +3,11 @@
  
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <toku_portability.h>
-#include <toku_pthread.h>
-#include <ctype.h>
-#include <errno.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <db.h>
-#include "toku_assert.h"
-#include "ydb.h"
 #include "ydb-internal.h"
-#include "brt-internal.h"
-#include "brt-flusher.h"
-#include "cachetable.h"
-#include "log.h"
-#include "memory.h"
-#include "dlmalloc.h"
-#include "checkpoint.h"
-#include "key.h"
-#include "loader.h"
 #include "indexer.h"
-#include "ydb_load.h"
-#include "brtloader.h"
 #include "log_header.h"
-#include "ydb_cursor.h"
 #include "ydb_row_lock.h"
-#include "ydb_env_func.h"
 #include "ydb_write.h"
 #include "ydb_db.h"
 
