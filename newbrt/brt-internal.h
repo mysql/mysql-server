@@ -146,6 +146,7 @@ struct brt_header {
     enum brtheader_type type;
     struct brt_header * checkpoint_header;
     CACHEFILE cf;
+    char *fname; // the filename
     u_int64_t checkpoint_count; // Free-running counter incremented once per checkpoint (toggling LSB).
                                 // LSB indicates which header location is used on disk so this
                                 // counter is effectively a boolean which alternates with each checkpoint.
@@ -176,7 +177,6 @@ struct brt_header {
 
 struct brt {
     CACHEFILE cf;
-    char *fname; // the filename
     // The header is shared.  It is also ephemeral.
     struct brt_header *h;
 
@@ -329,7 +329,7 @@ enum brt_layout_version_e {
 };
 
 void toku_brtheader_free (struct brt_header *h);
-int toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **error_string, LSN);
+int toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn);
 int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, LSN checkpoint_lsn, void *header_v);
 int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
 int toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v);

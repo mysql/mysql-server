@@ -77,7 +77,7 @@ cachetable_put_test (int n) {
     r = toku_cachetable_unpin(f1, k, toku_cachetable_hash(f1, k), CACHETABLE_CLEAN, 1);
     assert(r != 0);
 
-    r = toku_cachefile_close(&f1, NULL_LOGGER, 0, ZERO_LSN); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, NULL_LOGGER, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

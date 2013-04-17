@@ -76,6 +76,7 @@ static void file_map_close_dictionaries(struct file_map *fmap) {
         assert(r == 0);
         struct file_map_tuple *tuple = v;
 	assert(tuple->brt);
+        //Logging is already back on.  No need to pass LSN into close.
         r = toku_close_brt(tuple->brt, 0, 0);
         assert(r == 0);
         file_map_tuple_destroy(tuple);
@@ -304,6 +305,9 @@ static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV ren
         struct file_map_tuple *tuple = NULL;
         int r = file_map_find(&renv->fmap, l->filenum, &tuple);
         if (r == 0) {
+            //Must not write header to disk.  If not dirty, it will not be written.
+            //Since we're not writing to disk, we do not need to provide an LSN.
+            assert(!tuple->brt->h->dirty);
             r = toku_close_brt(tuple->brt, 0, 0);
             assert(r == 0);
             file_map_remove(&renv->fmap, l->filenum);
@@ -412,14 +416,14 @@ static int toku_recover_backward_enq_delete_any (struct logtype_enq_delete_any *
     return 0;
 }
 
-static void toku_recover_fclose (LSN UU(lsn), BYTESTRING fname, FILENUM filenum, RECOVER_ENV UU(renv)) {
+static void toku_recover_fclose (LSN lsn, BYTESTRING fname, FILENUM filenum, RECOVER_ENV UU(renv)) {
     struct file_map_tuple *tuple = NULL;
     int r = file_map_find(&renv->fmap, filenum, &tuple);
     if (r == 0) {
         char *fixedfname = fixup_fname(&fname);
         assert(strcmp(tuple->fname, fixedfname) == 0);
         toku_free(fixedfname);
-        r = toku_close_brt(tuple->brt, 0, 0);
+        r = toku_close_brt_lsn(tuple->brt, 0, 0, TRUE, lsn);
         assert(r == 0);
         file_map_remove(&renv->fmap, filenum);
     }
@@ -853,6 +857,8 @@ int tokudb_recover(const char *data_dir, const char *log_dir, brt_compare_func b
         assert(r == 0);
 
         rr = do_recovery(&renv, data_dir, log_dir);
+        assert(rr==0);  //Recovery must succeed.
+                        //To support failure, you need to be careful not to write dictionaries to disk, like recover_env_cleanup does.
 
         recover_env_cleanup(&renv);
     }
