@@ -249,16 +249,17 @@ void toku_rollback_txn_close (TOKUTXN txn) {
     assert(txn->spilled_rollback_tail.b == ROLLBACK_NONE.b);
     assert(txn->current_rollback.b == ROLLBACK_NONE.b);
     int r;
-    r = toku_pthread_mutex_lock(&txn->logger->txn_list_lock); assert_zero(r);
+    TOKULOGGER logger = txn->logger;
+    r = toku_pthread_mutex_lock(&logger->txn_list_lock); assert_zero(r);
     {
         {
             //Remove txn from list (omt) of live transactions
             OMTVALUE txnagain;
             u_int32_t idx;
-            r = toku_omt_find_zero(txn->logger->live_txns, find_xid, txn, &txnagain, &idx);
+            r = toku_omt_find_zero(logger->live_txns, find_xid, txn, &txnagain, &idx);
             assert(r==0);
             assert(txn==txnagain);
-            r = toku_omt_delete_at(txn->logger->live_txns, idx);
+            r = toku_omt_delete_at(logger->live_txns, idx);
             assert(r==0);
         }
 
@@ -266,10 +267,10 @@ void toku_rollback_txn_close (TOKUTXN txn) {
             OMTVALUE txnagain;
             u_int32_t idx;
             //Remove txn from list of live root txns
-            r = toku_omt_find_zero(txn->logger->live_root_txns, find_xid, txn, &txnagain, &idx);
+            r = toku_omt_find_zero(logger->live_root_txns, find_xid, txn, &txnagain, &idx);
             assert(r==0);
             assert(txn==txnagain);
-            r = toku_omt_delete_at(txn->logger->live_root_txns, idx);
+            r = toku_omt_delete_at(logger->live_root_txns, idx);
             assert(r==0);
         }
         //
@@ -284,11 +285,11 @@ void toku_rollback_txn_close (TOKUTXN txn) {
                 u_int32_t idx;
                 OMTVALUE v;
                 //Free memory used for snapshot_txnids
-                r = toku_omt_find_zero(txn->logger->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, &v, &idx);
+                r = toku_omt_find_zero(logger->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, &v, &idx);
                 invariant(r==0);
                 TXNID xid = (TXNID) v;
                 invariant(xid == txn->txnid64);
-                r = toku_omt_delete_at(txn->logger->snapshot_txnids, idx);
+                r = toku_omt_delete_at(logger->snapshot_txnids, idx);
                 invariant(r==0);
             }
             live_list_reverse_note_txn_end(txn);
@@ -304,34 +305,28 @@ void toku_rollback_txn_close (TOKUTXN txn) {
             }
         }
     }
-    r = toku_pthread_mutex_unlock(&txn->logger->txn_list_lock); assert_zero(r);
+    r = toku_pthread_mutex_unlock(&logger->txn_list_lock); assert_zero(r);
 
-    assert(txn->logger->oldest_living_xid <= txn->txnid64);
-    if (txn->txnid64 == txn->logger->oldest_living_xid) {
-        TOKULOGGER logger = txn->logger;
-
+    assert(logger->oldest_living_xid <= txn->txnid64);
+    if (txn->txnid64 == logger->oldest_living_xid) {
         OMTVALUE oldest_txnv;
         r = toku_omt_fetch(logger->live_txns, 0, &oldest_txnv);
         if (r==0) {
             TOKUTXN oldest_txn = oldest_txnv;
             assert(oldest_txn != txn); // We just removed it
-            assert(oldest_txn->txnid64 > txn->logger->oldest_living_xid); //Must be newer than the previous oldest
-            txn->logger->oldest_living_xid = oldest_txn->txnid64;
-            txn->logger->oldest_living_starttime = oldest_txn->starttime;
+            assert(oldest_txn->txnid64 > logger->oldest_living_xid); //Must be newer than the previous oldest
+            logger->oldest_living_xid = oldest_txn->txnid64;
+            logger->oldest_living_starttime = oldest_txn->starttime;
         }
         else {
             //No living transactions
             assert(r==EINVAL);
-            txn->logger->oldest_living_xid = TXNID_NONE_LIVING;
-            txn->logger->oldest_living_starttime = 0;
+            logger->oldest_living_xid = TXNID_NONE_LIVING;
+            logger->oldest_living_starttime = 0;
         }
     }
 
     note_txn_closing(txn);
-    xids_destroy(&txn->xids);
-    toku_txn_ignore_free(txn); // 2954
-    toku_free(txn);
-    return;
 }
 
 void* toku_malloc_in_rollback(ROLLBACK_LOG_NODE log, size_t size) {
@@ -816,7 +811,6 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
 // for every BRT in txn, remove it.
 static void note_txn_closing (TOKUTXN txn) {
     toku_omt_iterate(txn->open_brts, remove_txn, txn);
-    toku_omt_destroy(&txn->open_brts);
 }
 
 // Return the number of bytes that went into the rollback data structure (the uncompressed count if there is compression)
