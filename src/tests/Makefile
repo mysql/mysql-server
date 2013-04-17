@@ -274,6 +274,7 @@ BDB_DONTRUN_TESTS = \
 	test_stress4 \
 	test_stress5 \
 	test_stress6 \
+	test_stress_with_verify \
         test_transactional_descriptor \
         test_trans_desc_during_chkpt \
         test_trans_desc_during_chkpt2 \
