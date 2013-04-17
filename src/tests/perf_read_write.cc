@@ -29,25 +29,7 @@ static int perf_read(DB_TXN *txn, ARG arg, void* operation_extra, void *stats_ex
 static int perf_write(DB_TXN *txn, ARG arg, void* operation_extra, void *stats_extra) {
     int db_index = *(int *)operation_extra;
     DB* db = arg->dbp[db_index];
-    int val_size = arg->cli->val_size;
-    char data[val_size];
-    memset(data, 0, sizeof(data));
-
-    for (uint32_t i = 0; i < arg->cli->txn_size; i++) {
-        // do a random insertion
-        int rand_key = random() % arg->cli->num_elements;
-        DBT key, val;
-        // do not care about errors
-        db->put(
-            db, 
-            txn, 
-            dbt_init(&key, &rand_key, sizeof(rand_key)), 
-            dbt_init(&val, data, sizeof(data)), 
-            0);
-        increment_counter(stats_extra, PUTS, 1);
-    }
-
-    return 0;
+    return random_put_in_db(db, txn, arg, true, stats_extra);
 }
 
 
