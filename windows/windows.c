@@ -418,3 +418,8 @@ ftruncate(int fd, int64_t offset) {
     return 0;
 }
 
+int 
+toku_os_is_absolute_name(const char* path) {
+    return (path[0] == '\\' || 
+            (isalpha(path[0]) && path[1]==':' && path[2]=='\\'));
+}

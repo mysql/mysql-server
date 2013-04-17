@@ -2732,15 +2732,21 @@ static int construct_full_name_in_buf(const char *dir, const char *fname, char* 
     int l;
 
     if (!full) return EINVAL;
-    l = snprintf(full, length, "%s", dir);
-    if (l >= length) return ENAMETOOLONG;
-    if (l == 0 || full[l - 1] != '/') {
-        if (l + 1 == length) return ENAMETOOLONG;
-            
-        /* Didn't put a slash down. */
-        if (fname[0] != '/') {
-            full[l++] = '/';
-            full[l] = 0;
+    if (toku_os_is_absolute_name(fname)) {
+        l = 0;
+        full[0] = '\0';
+    }
+    else {
+        l = snprintf(full, length, "%s", dir);
+        if (l >= length) return ENAMETOOLONG;
+        if (l == 0 || full[l - 1] != '/') {
+            if (l + 1 == length) return ENAMETOOLONG;
+                
+            /* Didn't put a slash down. */
+            if (fname[0] != '/') {
+                full[l++] = '/';
+                full[l] = 0;
+            }
         }
     }
     l += snprintf(full + l, length - l, "%s", fname);
@@ -2749,7 +2755,7 @@ static int construct_full_name_in_buf(const char *dir, const char *fname, char* 
 }
 
 static char *construct_full_name(const char *dir, const char *fname) {
-    if (fname[0] == '/')
+    if (toku_os_is_absolute_name(fname))
         dir = "";
     {
         int dirlen = strlen(dir);

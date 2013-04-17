@@ -53,6 +53,11 @@ int toku_os_get_max_rss(int64_t *maxrss);
 
 int toku_os_initialize_settings(int verbosity);
 
+//
+// this int acts like a bool, returns 0 for false, 1 for true
+//
+int toku_os_is_absolute_name(const char* path);
+
 #if defined __cplusplus
 };
 #endif

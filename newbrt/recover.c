@@ -61,6 +61,10 @@ create_dir_from_file (const char *fname) {
     char *tmp=toku_strdup(fname);
     char ch;
     for (i=0; (ch=fname[i]); i++) {
+        //
+        // TODO: this may fail in windows, double check the absolute path names
+        // and '/' as the directory delimiter or something
+        //
 	if (ch=='/') {
 	    if (i>0) {
 		tmp[i]=0;
