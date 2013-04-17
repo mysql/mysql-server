@@ -3874,7 +3874,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
   if (!field_translation && merge_underlying_list)
   {
     Field_translator *transl;
-    SELECT_LEX *select= &view->select_lex;
+    SELECT_LEX *select= view->select_lex;
     Item *item;
     TABLE_LIST *tbl;
     List_iterator_fast<Item> it(select->item_list);
@@ -3914,12 +3914,12 @@ bool TABLE_LIST::setup_underlying(THD *thd)
     /* TODO: use hash for big number of fields */
 
     /* full text function moving to current select */
-    if (view->select_lex.ftfunc_list->elements)
+    if (view->select_lex->ftfunc_list->elements)
     {
       Item_func_match *ifm;
       SELECT_LEX *current_select= thd->lex->current_select;
       List_iterator_fast<Item_func_match>
-        li(*(view->select_lex.ftfunc_list));
+        li(*(view->select_lex->ftfunc_list));
       while ((ifm= li++))
         current_select->ftfunc_list->push_front(ifm);
     }
@@ -4801,7 +4801,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
                                Name_resolution_context *context)
 {
-  bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
+  bool save_wrapper= thd->lex->select_lex->no_wrap_view_item;
   Item *field= *field_ref;
   DBUG_ENTER("create_view_field");
 
@@ -6294,7 +6294,7 @@ bool TABLE_LIST::handle_derived(LEX *lex,
 
 st_select_lex_unit *TABLE_LIST::get_unit() const
 {
-  return (view ? &view->unit : derived);
+  return (view ? view->unit : derived);
 }
 
 

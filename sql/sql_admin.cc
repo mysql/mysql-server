@@ -272,7 +272,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                               int (view_operator_func)(THD *, TABLE_LIST*))
 {
   TABLE_LIST *table;
-  SELECT_LEX *select= &thd->lex->select_lex;
+  SELECT_LEX *select= thd->lex->select_lex;
   List<Item> field_list;
   Item *item;
   Protocol *protocol= thd->protocol;
@@ -1038,7 +1038,7 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 
 bool Sql_cmd_analyze_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex->get_table_list();
   bool res= TRUE;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   DBUG_ENTER("Sql_cmd_analyze_table::execute");
@@ -1058,7 +1058,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd)
     */
     res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;
 
 error:
@@ -1068,7 +1068,7 @@ error:
 
 bool Sql_cmd_check_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex->get_table_list();
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   bool res= TRUE;
   DBUG_ENTER("Sql_cmd_check_table::execute");
@@ -1082,7 +1082,7 @@ bool Sql_cmd_check_table::execute(THD *thd)
                          lock_type, 0, 0, HA_OPEN_FOR_REPAIR, 0,
                          &handler::ha_check, &view_checksum);
 
-  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;
 
 error:
@@ -1092,7 +1092,7 @@ error:
 
 bool Sql_cmd_optimize_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex->get_table_list();
   bool res= TRUE;
   DBUG_ENTER("Sql_cmd_optimize_table::execute");
 
@@ -1113,7 +1113,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd)
     */
     res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;
 
 error:
@@ -1123,7 +1123,7 @@ error:
 
 bool Sql_cmd_repair_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex->get_table_list();
   bool res= TRUE;
   DBUG_ENTER("Sql_cmd_repair_table::execute");
 
@@ -1145,7 +1145,7 @@ bool Sql_cmd_repair_table::execute(THD *thd)
     */
     res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;
 
 error:

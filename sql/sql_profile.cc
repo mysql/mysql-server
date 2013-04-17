@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -112,7 +112,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table)
   };
 
   ST_FIELD_INFO *field_info;
-  Name_resolution_context *context= &thd->lex->select_lex.context;
+  Name_resolution_context *context= &thd->lex->select_lex->context;
   int i;
 
   for (i= 0; schema_table->fields_info[i].field_name != NULL; i++)
@@ -456,8 +456,8 @@ bool PROFILING::show_profiles()
                                  Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  SELECT_LEX *sel= &thd->lex->select_lex;
-  SELECT_LEX_UNIT *unit= &thd->lex->unit;
+  SELECT_LEX *sel= thd->lex->select_lex;
+  SELECT_LEX_UNIT *unit= thd->lex->unit;
   ha_rows idx= 0;
   Protocol *protocol= thd->protocol;
 

@@ -1286,8 +1286,8 @@ CREATE VIEW v7 AS SELECT * FROM v1;
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-2	DERIVED	<derived4>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#2 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` group by 1) `tt`
 SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
@@ -1302,8 +1302,8 @@ JOIN of above two
 EXPLAIN EXTENDED SELECT * FROM v6 JOIN v7 ON f2=f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived5>	ref	<auto_key0>	<auto_key0>	5	test.t2.f2	2	100.00	NULL
-5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	5	test.t2.f2	2	100.00	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22`,`v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`t2` join `test`.`v1` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)) and (`test`.`t2`.`f2` < 7))
 SELECT * FROM v6 JOIN v7 ON f2=f1;

@@ -5546,7 +5546,7 @@ WHERE t1field IN (SELECT v1field FROM v1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
 2	DEPENDENT SUBQUERY	a	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index; Using where
-4	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
+3	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
 SELECT t1.t1field
 FROM t1 LEFT JOIN t1 AS t2 ON t1.t1field IN (SELECT v1field FROM v1);
 t1field
@@ -5561,7 +5561,7 @@ WHERE t1field IN (SELECT v1field FROM v1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
 2	DEPENDENT SUBQUERY	a	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index; Using where
-4	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
+3	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
 CREATE PROCEDURE p1() 
 BEGIN 
 SELECT t1field
@@ -9142,12 +9142,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	table1	index	NULL	col_int_key	5	NULL	20	Using index
 1	PRIMARY	table2	ALL	PRIMARY	NULL	NULL	NULL	20	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	table3	ref	col_int_key	col_int_key	5	test.table2.pk	1	Using where
+2	DEPENDENT SUBQUERY	subquery2_t1	ref	col_int_key	col_int_key	5	func	1	Using index
+2	DEPENDENT SUBQUERY	subquery2_t3	index	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	20	Using where; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	subquery2_t2	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	Using where
 3	DEPENDENT SUBQUERY	subquery1_t2	ALL	PRIMARY	NULL	NULL	NULL	20	Using where
 3	DEPENDENT SUBQUERY	subquery1_t3	ref	col_varchar_key	col_varchar_key	4	test.subquery1_t2.col_varchar_nokey	1	Using where
 3	DEPENDENT SUBQUERY	subquery1_t1	index	PRIMARY	col_int_key	5	NULL	20	Using where; Using index; Using join buffer (Block Nested Loop)
-4	DEPENDENT SUBQUERY	subquery2_t1	ref	col_int_key	col_int_key	5	func	1	Using index
-4	DEPENDENT SUBQUERY	subquery2_t3	index	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	20	Using where; Using index; Using join buffer (Block Nested Loop)
-4	DEPENDENT SUBQUERY	subquery2_t2	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	Using where
 SELECT * FROM v1;
 field1
 v
@@ -9570,10 +9570,10 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	11	Using where
 1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	4	test.alias2.col_varchar_key	2	Using where
-4	DEPENDENT SUBQUERY	<derived7>	index_subquery	<auto_key0>	<auto_key0>	6	func,func	2	Using index; Using where
-7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union7,8>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	DEPENDENT SUBQUERY	<derived5>	index_subquery	<auto_key0>	<auto_key0>	6	func,func	2	Using index; Using where
+5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+6	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union5,6>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 3	DEPENDENT SUBQUERY	sq2_alias1	ALL	NULL	NULL	NULL	NULL	15	Using where
 3	DEPENDENT SUBQUERY	sq2_alias2	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	Using where
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
