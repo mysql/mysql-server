@@ -1644,7 +1644,7 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
     return toku_cachetable_unpin_internal(cachefile, key, fullhash, dirty, size, FALSE);
 }
 int toku_cachetable_unpin_ct_prelocked(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, long size) {
-    // By default we don't have the lock
+    // We hold the cachetable mutex.
     return toku_cachetable_unpin_internal(cachefile, key, fullhash, dirty, size, TRUE);
 }
 

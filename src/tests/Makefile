@@ -30,7 +30,6 @@ TLIBTDB=../libtokudbtrace.$(SOEXT)
 %.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
 endif
 
-
 RECOVER_SRCS = $(wildcard recover-*.c)
 LOADER_SRCS = $(wildcard loader-*.c)
 TRANSPARENT_UPGRADE_SRCS = $(wildcard upgrade*.c)
@@ -720,8 +719,6 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 
 preload-db-nested.tdbrun: VGRIND=
 upgrade-test-4.tdbrun: VGRIND=
-
-
 
 loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
 	true
