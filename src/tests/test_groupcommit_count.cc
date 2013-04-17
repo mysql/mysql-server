@@ -16,7 +16,12 @@ DB_ENV *env;
 DB *db;
 int do_sync=1;
 
+#ifdef TOKUDB
 #define NITER 100
+#else
+// BDB is slow.  Reduce the work.
+#define NITER 25
+#endif
 
 static void *start_a_thread (void *i_p) {
     int *CAST_FROM_VOIDP(which_thread_p, i_p);
@@ -124,7 +129,12 @@ do_test (int N) {
     }
 }
 
+#ifdef TOKUDB
 int log_max_n_threads_over_10 = 3;
+#else
+// BDB is slow.  Reduce the work.
+int log_max_n_threads_over_10 = 2;
+#endif
 
 static void
 my_parse_args (int argc, char *const argv[]) {
