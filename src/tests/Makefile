@@ -94,6 +94,9 @@ endif
 # For diskfull.bdb: db-4.6 seems OK, but db-4.3 segfaults
 BDB_DONTRUN_TESTS = \
         backwards_10_each_le_and_msg \
+	blocking-prelock-range \
+	blocking-set-range-reverse-0 \
+	blocking-table-lock \
         bug1381 \
         bug627 \
 	cachetable-race \
@@ -186,6 +189,14 @@ BDB_DONTRUN_TESTS = \
         recover-descriptor12 \
         recover-fclose-in-checkpoint \
         recover-fcreate-basementnodesize \
+	recover-ft1 \
+	recover-ft2 \
+	recover-ft3 \
+	recover-ft4 \
+	recover-ft5 \
+	recover-ft6 \
+	recover-ft7 \
+	recover-ft8 \
         recover-loader-test \
         recover-lsn-filter-multiple \
 	recover-put-multiple \
@@ -197,6 +208,8 @@ BDB_DONTRUN_TESTS = \
         recover-tablelock \
 	recover-test-logsuppress \
 	recover-test-logsuppress-put \
+	recover-test_stress1 \
+	recover-test_stress2 \
 	recover-upgrade-db-descriptor-multihandle \
 	recover-upgrade-db-descriptor \
 	recover-update-multiple \
@@ -246,11 +259,18 @@ BDB_DONTRUN_TESTS = \
         test_cursor_delete_2119 \
         test_db_descriptor \
         test_db_descriptor_named_db \
+	test_db_txn_locks_read_uncommitted \
         test_dbremove_old \
         test_dupsort_get_both_range_reverse \
         test_dupsort_set_range_reverse \
 	test_large_update_broadcast_small_cachetable \
         test_logflush \
+	test_stress1 \
+	test_stress2 \
+	test_stress3 \
+	test_stress4 \
+	test_stress5 \
+	test_stress6 \
         test_transactional_descriptor \
         test_trans_desc_during_chkpt \
         test_trans_desc_during_chkpt2 \
