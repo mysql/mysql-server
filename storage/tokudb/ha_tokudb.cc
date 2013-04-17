@@ -148,44 +148,10 @@ static uchar *tokudb_get_key(TOKUDB_SHARE * share, size_t * length, my_bool not_
     return (uchar *) share->table_name;
 }
 
-// declare a thread specific variable
-// stole this from my_thr_init.h with MontyW's advice
-#ifdef USE_TLS
-pthread_key(void **, tokudb_thr_private);
-#else
-pthread_key(void *, tokudb_thr_private);
-#endif /* USE_TLS */
-
-int tokudb_thr_private_create(void) {
-    if ((pthread_key_create(&tokudb_thr_private, NULL)) != 0)
-        return 1;
-    return 0;
-}
-
-void *tokudb_thr_private_get(void) {
-    void **tmp;
-    tmp = my_pthread_getspecific(void **, tokudb_thr_private);
-    if (tmp == NULL)
-        return NULL;
-    return *tmp;
-}
-
-void tokudb_thr_private_set(void *v) {
-    // if i alloc'ed v to store here,
-    //  make SURE to set a thread cleanup function to de-alloc it
-    //  because the thread may terminate unexpectedly early
-    pthread_setspecific(tokudb_thr_private, v);
-    return;
-}
-
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
 
     tokudb_hton = (handlerton *) p;
-
-    if (tokudb_thr_private_create()) {
-        DBUG_RETURN(TRUE);
-    }
 
     VOID(pthread_mutex_init(&tokudb_mutex, MY_MUTEX_INIT_FAST));
     (void) hash_init(&tokudb_open_tables, system_charset_info, 32, 0, 0, (hash_get_key) tokudb_get_key, 0, 0);
@@ -336,8 +302,6 @@ static int tokudb_done_func(void *p) {
         error = 1;
     hash_free(&tokudb_open_tables);
     pthread_mutex_destroy(&tokudb_mutex);
-    pthread_key_delete(tokudb_thr_private);
-
     TOKUDB_DBUG_RETURN(0);
 }
 
@@ -1207,7 +1171,7 @@ void ha_tokudb::get_status() {
         pthread_mutex_lock(&share->mutex);
 
         (void) extra(HA_EXTRA_KEYREAD);
-        read_last();
+        error = read_last();
         (void) extra(HA_EXTRA_NO_KEYREAD);
 
         if (error == 0) {
@@ -2534,8 +2498,10 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
 }
 
 void ha_tokudb::print_error(int error, myf errflag) {
-    if (error == DB_LOCK_DEADLOCK || error == DB_LOCK_NOTGRANTED)
+    if (error == DB_LOCK_DEADLOCK)
         error = HA_ERR_LOCK_DEADLOCK;
+    if (error == DB_LOCK_NOTGRANTED)
+        error = ER_CANT_LOCK;
     handler::print_error(error, errflag);
 }
 
