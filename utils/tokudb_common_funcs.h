@@ -239,14 +239,14 @@ resend_signals(void) {
 }
 
 #include <memory.h>
-#if IS_TDB && !TOKU_WINDOWS && TDB_IS_STATIC
+#if IS_TDB && (TOKU_WINDOWS || TDB_IS_STATIC)
 #include <ydb.h>
 #endif
 static int test_main (int argc, char *const argv[]);
 int
 main(int argc, char *const argv[]) {
     int r;
-#if IS_TDB && !TOKU_WINDOWS && TDB_IS_STATIC
+#if IS_TDB && (TOKU_WINDOWS || TDB_IS_STATIC)
     toku_ydb_init();
 #endif
 #if !IS_TDB && DB_VERSION_MINOR==4 && DB_VERSION_MINOR == 7
@@ -255,7 +255,7 @@ main(int argc, char *const argv[]) {
     r = db_env_set_func_realloc(toku_realloc);   assert(r==0);
 #endif
     r = test_main(argc, argv);
-#if IS_TDB && !TOKU_WINDOWS && TDB_IS_STATIC
+#if IS_TDB && (TOKU_WINDOWS || TDB_IS_STATIC)
     toku_ydb_destroy();
 #endif
     return r;

@@ -1,6 +1,7 @@
 /* Scan the bench.tokudb/bench.db over and over. */
 
 #include <toku_portability.h>
+#include "tokudb_common_funcs.h"
 #include <toku_assert.h>
 #include <db.h>
 #include <errno.h>
@@ -132,7 +133,7 @@ static void scanrace_lwc (void) {
     printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
 }
   
-int main (int argc, const char *const argv[]) {
+static int test_main (int argc, char *const argv[]) {
 
     parse_args(argc,argv);
 

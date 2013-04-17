@@ -3,8 +3,8 @@
 
 /* Insert a bunch of stuff */
 #include <toku_portability.h>
+#include "tokudb_common_funcs.h"
 #include <toku_time.h>
-#include <db.h>
 #include <toku_assert.h>
 #include <errno.h>
 #include <string.h>
@@ -544,7 +544,7 @@ test1514(void) {
 }
 #endif
 
-int main (int argc, const char *const argv[]) {
+static int test_main (int argc, char *const argv[]) {
     struct timeval t1,t2,t3;
     long long total_n_items = default_n_items;
     char *endptr;
