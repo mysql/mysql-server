@@ -43,6 +43,8 @@ void toku_indexer_unlock(DB_INDEXER* indexer);
 //
 // Returns 0 if the indexer has been created and sets *indexer to the indexer object.
 // If an error occurred while creating the indexer object, a non-zero error number is returned.
+//
+// Clients must not operate on any of the dest_dbs concurrently with create_indexer();
 int toku_indexer_create_indexer(DB_ENV *env,
                                 DB_TXN *txn,
                                 DB_INDEXER **indexer,
