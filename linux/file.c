@@ -82,3 +82,20 @@ again:
     return r;
 }
 
+static int (*t_fsync)(int) = 0;
+
+int
+toku_set_func_fsync(int (*fsync_function)(int)) {
+    t_fsync = fsync_function;
+    return 0;
+}
+
+int
+toku_file_fsync(int fd) {
+    int r;
+    if (t_fsync)
+        r = t_fsync(fd);
+    else
+        r = fsync(fd);
+    return r;
+}
