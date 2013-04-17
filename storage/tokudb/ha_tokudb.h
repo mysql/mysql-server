@@ -46,6 +46,26 @@ typedef struct st_tokudb_share {
     uint ai_field_index;
 } TOKUDB_SHARE;
 
+
+//
+// information for hidden primary keys
+//
+#define TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+
+//
+// function to convert a hidden primary key into a byte stream that can be stored in DBT
+//
+inline void hpk_num_to_char(uchar* to, ulonglong num) {
+    int8store(to, num);
+}
+
+//
+// function that takes a byte stream of a hidden primary key and returns a ulonglong
+//
+inline ulonglong hpk_char_to_num(uchar* val) {
+    return uint8korr(val);
+}
+
 #define HA_TOKU_VERSION 2
 //
 // no capabilities yet
@@ -208,7 +228,6 @@ private:
     char write_status_msg[200]; //buffer of 200 should be a good upper bound.
 
     bool fix_rec_buff_for_blob(ulong length);
-#define TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH 8
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
     ulong max_row_length(const uchar * buf);
@@ -344,7 +363,7 @@ public:
     inline void get_auto_primary_key(uchar * to) {
         pthread_mutex_lock(&share->mutex);
         share->auto_ident++;
-        int8store(to, share->auto_ident);
+        hpk_num_to_char(to, share->auto_ident);
         pthread_mutex_unlock(&share->mutex);
     }
     virtual void get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values);
