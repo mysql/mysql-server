@@ -101,8 +101,7 @@ function runcmd() {
 }
 
 function my_mktemp() {
-    local prefix=$1
-    mktemp /tmp/$prefix.XXXXXXXXXX
+    mktemp /tmp/$(whoami).$1.XXXXXXXXXX
 }
 
 # build a version of tokudb with a specific BDB target
@@ -195,25 +194,26 @@ function build() {
 	cat $range_trace >>$tracefile; rm $range_trace
 	cat $lock_trace >>$tracefile; rm $lock_trace
 
-	eval runcmd 0 $productbuilddir/newbrt make check -j$n -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
-	eval runcmd 0 $productbuilddir/src/tests make check.tdb -j$n -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
-
-        # brtloader tests 
-	newbrt_loader_trace=$(my_mktemp newbrt_loader)
-	eval runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$newbrt_loader_trace 2>&1 $BG
-	loader_trace=$(my_mktemp loader)
-	eval runcmd 0 $productbuilddir/src/tests    make loader-tests    -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$loader_trace 2>&1 $BG
-	# stress tests
-	stress_trace=$(my_mktemp stress)
-	eval runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$stress_trace 2>&1 $BG
+	newbrt_trace=$(my_mktemp newbrt)
+	eval runcmd 0 $productbuilddir/newbrt make check -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$newbrt_trace 2>&1 $BG
+	ydb_trace=$(my_mktemp ydb)
+	eval runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$ydb_trace 2>&1 $BG
 	wait
-	cat $newbrt_loader_trace >>$tracefile; rm $newbrt_loader_trace
-	cat $loader_trace >>$tracefile; rm $loader_trace
-	cat $stress_trace >>$tracefile; rm $stress_trace
+	cat $newbrt_trace >>$tracefile; rm $newbrt_trace
+	cat $ydb_trace >>$tracefile; rm $ydb_trace
 
         # benchmark tests
 	eval runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/db-benchmark-test make check -k -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
+
+	# stress tests
+	stress_trace=$(my_mktemp stress)
+	eval runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$stress_trace 2>&1 $BG
+	drd_trace=$(my_mktemp drd)
+	eval runcmd 0 $productbuilddir/src/tests make stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$drd_trace 2>&1 $BG
+	wait
+	cat $stress_trace >>$tracefile; rm $stress_trace
+	cat $drd_trace >>$tracefile; rm $drd_trace
 
         # upgrade tests
 	if [ $upgradetests != 0 ] ; then
@@ -241,7 +241,6 @@ function build() {
 	cat $range_trace >>$tracefile; rm $range_trace
 	cat $lock_trace >>$tracefile; rm $lock_trace
 	eval runcmd 0 $productbuilddir/newbrt/tests make check -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
-	eval runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
     fi
