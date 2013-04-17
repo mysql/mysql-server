@@ -218,8 +218,8 @@ void toku_brtheader_free (struct brt_header *h) {
 
 int toku_brtheader_close (CACHEFILE cachefile, void *header_v) {
     struct brt_header *h = header_v;
-    printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
-	   block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
+    //printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
+    //       block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
     if (h->dirty) {
 	toku_serialize_brt_header_to(toku_cachefile_fd(cachefile), h);
 	toku_serialize_fifo_at(toku_cachefile_fd(cachefile), block_allocator_allocated_limit(h->block_allocator), h->fifo);
