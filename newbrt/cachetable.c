@@ -2140,6 +2140,12 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             // some basement node is missing or some message buffer needs
             // to be decompressed. So, we check to see if a partial fetch is required
             //
+            if (p->state == CTPAIR_READING) {
+                cachetable_wait_reading++;
+            }
+            else if (p->state == CTPAIR_WRITING) {
+                cachetable_wait_writing++;
+            }
             nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
             BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
             //
@@ -2470,6 +2476,12 @@ int toku_cachetable_get_and_pin_nonblocking (
                     write_pair_for_checkpoint(ct, p);
                 }
                 else {
+                    if (p->state == CTPAIR_READING) {
+                        cachetable_wait_reading++;
+                    }
+                    else if (p->state == CTPAIR_WRITING) {
+                        cachetable_wait_writing++;
+                    }
                     nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
                     nb_mutex_write_unlock(&p->nb_mutex);
                 }
