@@ -167,7 +167,7 @@ static void fill_array (unsigned char *data, int size) {
     if (compressibility>0) {
 	int i;
 	for (i=0; i<size/compressibility; i++) {
-	    data[i] = random();
+	    data[i] = (unsigned char)random();
 	}
     }
 }
