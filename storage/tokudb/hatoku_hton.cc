@@ -2156,7 +2156,7 @@ enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
 static SHOW_VAR *toku_global_status_variables = NULL;
 
 // Retrieves variables for information_schema.global_status.
-// Names (keyname) are automatically converted to upper case, and prefixed with "TOKUDB_"
+// Names (columnname) are automatically converted to upper case, and prefixed with "TOKUDB_"
 static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
     TOKUDB_DBUG_ENTER("show_tokudb_vars");
 
@@ -2234,7 +2234,7 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
 
         for (uint64_t row = 0; row < num_rows; row++) {
             SHOW_VAR &status = toku_global_status_variables[row];
-            status.name = mystat[row].keyname;
+            status.name = mystat[row].columnname;
             switch (mystat[row].type) {
             case FS_STATE:
             case UINT64:
