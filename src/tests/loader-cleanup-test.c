@@ -4,14 +4,12 @@
 
 
 /* TODO:
- *  Is it worth capturing the inames before and after the loader is created,
- *  then verifying that the expected inames are present?
- *
- *  Decide how to abort, implement.
  *
  *  Decide how to cause enospc, implement.
  *
  *  Decide how to test on recovery (using checkpoint_stress technique?), implement.
+ *
+ *  Consider USE_PUTS
  *
  */
 
@@ -38,7 +36,8 @@
  *  - use loader to create table
  *  - verify presence of temp files
  *  - commit / abort / enospc / crash
- *  - verify absense of temp files
+ *  - verify absence of temp files
+ *  - verify absence of unwanted iname files (old inames if committed, new inames if aborted)
  *
  *  
  */
@@ -55,6 +54,10 @@
 #include "ydb-internal.h"
 
 
+enum test_type {commit, abort_loader, abort_via_poll, enospc, abort_txn};
+
+int abort_on_poll = 0;  // set when test_loader() called with test_type of abort_via_poll
+
 DB_ENV *env;
 enum {MAX_NAME=128};
 enum {MAX_DBS=256};
@@ -65,7 +68,14 @@ int USE_PUTS=0;
 enum {MAGIC=311};
 
 
+DBT old_inames[MAX_DBS];
+DBT new_inames[MAX_DBS];
+
+
 int count_temp(char * dirname);
+void get_inames(DBT* inames, DB** dbs);
+int verify_file(char * dirname, char * filename);
+void assert_inames_missing(DBT* inames);
 
 // return number of temp files
 int
@@ -85,7 +95,6 @@ count_temp(char * dirname) {
 }
 
 
-int verify_file(char * dirname, char * filename);
 
 // return non-zero if file exists
 int 
@@ -103,10 +112,44 @@ verify_file(char * dirname, char * filename) {
     return n;
 }
 
-void verify_inames(DB** dbs);
-
 void
-verify_inames(DB** dbs) {
+get_inames(DBT* inames, DB** dbs) {
+    int i;
+    for (i = 0; i < NUM_DBS; i++) {
+	DBT dname;
+	char * dname_str = dbs[i]->i->dname;
+	dbt_init(&dname, dname_str, sizeof(dname_str));
+	dbt_init(&(inames[i]), NULL, 0);
+	inames[i].flags |= DB_DBT_MALLOC;
+	int r = env->get_iname(env, &dname, &inames[i]);
+	CKERR(r);
+	char * iname_str = (char*) (inames[i].data);
+	if (verbose) printf("dname = %s, iname = %s\n", dname_str, iname_str);
+    }
+}
+
+
+void 
+assert_inames_missing(DBT* inames) {
+    int i;
+    char * dir = env->i->real_data_dir;
+    for (i=0; i<NUM_DBS; i++) {
+	char * iname = inames[i].data;
+	int r = verify_file(dir, iname);
+	if (r) {
+	    printf("File %s exists, but it should not\n", iname);
+	}
+	assert(r == 0);
+	if (verbose) printf("File has been properly deleted: %s\n", iname);
+    }
+}
+
+
+
+#if 0
+void print_inames(DB** dbs);
+void
+print_inames(DB** dbs) {
     int i;
     for (i = 0; i < NUM_DBS; i++) {
 	DBT dname;
@@ -124,6 +167,7 @@ verify_inames(DB** dbs) {
 	toku_free(iname.data);
     }
 }
+#endif
 
 
 //
@@ -307,8 +351,13 @@ static int poll_function (void *extra, float progress) {
     return 0;
 }
 
-static void test_loader(DB **dbs)
+static void test_loader(enum test_type t, DB **dbs)
 {
+    if (t == abort_via_poll)
+	abort_on_poll = 1;
+    else
+	abort_on_poll = 0;
+
     int r;
     DB_TXN    *txn;
     DB_LOADER *loader;
@@ -318,8 +367,11 @@ static void test_loader(DB **dbs)
         db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = USE_PUTS; // set with -p option
+    uint32_t loader_flags = 0; //USE_PUTS; // set with -p option
 
+    if (verbose) printf("old inames:\n");
+    get_inames(old_inames, dbs);
+    
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
     CKERR(r);
@@ -329,6 +381,9 @@ static void test_loader(DB **dbs)
     CKERR(r);
     r = loader->set_poll_function(loader, poll_function, expect_poll_void);
     CKERR(r);
+
+    if (verbose) printf("new inames:\n");
+    get_inames(new_inames, dbs);
 
     // using loader->put, put values into DB
     DBT key, val;
@@ -350,35 +405,47 @@ static void test_loader(DB **dbs)
     int n = count_temp(env->i->real_data_dir);
     printf("Num temp files = %d\n", n);
 
-    // close the loader
-    printf("closing"); fflush(stdout);
-    r = loader->close(loader);
+    if (t == commit || t == abort_txn) {
+	// close the loader
+	printf("closing\n"); fflush(stdout);
+	r = loader->close(loader);
+	CKERR(r);
+	if (!USE_PUTS)
+	    assert(poll_count>0);
+    }
+
+    else {
+	printf("aborting loader"); fflush(stdout);
+	r = loader->abort(loader);
+	CKERR(r);
+    }
+
+    n = count_temp(env->i->real_data_dir);
+    if (verbose) printf("Num temp files = %d\n", n);
+    assert(n==0);
+
     printf(" done\n");
 
-    verify_inames(dbs);
-
-    n = count_temp(env->i->real_data_dir);
-    printf("Num temp files = %d\n", n);
-
-    CKERR(r);
-
-    if (!USE_PUTS)
-        assert(poll_count>0);
-
-    r = txn->commit(txn, 0);
-    CKERR(r);
-
-    n = count_temp(env->i->real_data_dir);
-    printf("Num temp files = %d\n", n);
-
-    // verify the DBs
-    if ( CHECK_RESULTS ) {
-        check_results(dbs);
+    if (t == commit) {
+	if (verbose) printf("Testing commit\n");
+	r = txn->commit(txn, 0);
+	CKERR(r);
+	assert_inames_missing(old_inames);
+	if ( CHECK_RESULTS ) {
+	    check_results(dbs);
+	}
     }
+    else {
+	if (verbose) printf("Testing abort\n");
+	r = txn->abort(txn);
+	CKERR(r);
+	assert_inames_missing(new_inames);
+    }
+
 }
 
 
-static void run_test(void) 
+static void run_test(enum test_type t) 
 {
     int r;
     r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
@@ -412,15 +479,9 @@ static void run_test(void)
         r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666);                                CKERR(r);
     }
 
-    verify_inames(dbs);
-
     generate_permute_tables();
 
-//    printf("running test_loader()\n");
-    // -------------------------- //
-    test_loader(dbs);
-    // -------------------------- //
-//    printf("done    test_loader()\n");
+    test_loader(t, dbs);
 
     for(int i=0;i<NUM_DBS;i++) {
         dbs[i]->close(dbs[i], 0);                                                                             CKERR(r);
@@ -435,7 +496,14 @@ static void do_args(int argc, char * const argv[]);
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    run_test();
+    if (verbose) printf("\n\nTesting loader with close and commit (normal)\n");
+    run_test(commit);
+    if (verbose) printf("\n\nTesting loader with loader abort and txn abort\n");
+    run_test(abort_loader);
+    if (verbose) printf("\n\nTesting loader with loader abort_via_poll and txn abort\n");
+    run_test(abort_via_poll);
+    if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
+    run_test(abort_txn);
     return 0;
 }
 
