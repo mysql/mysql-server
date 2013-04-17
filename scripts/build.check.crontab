@@ -1,0 +1,2 @@
+# run daily at 2am
+0 2 * * * $HOME/bin/tokudb.build.check.bash
