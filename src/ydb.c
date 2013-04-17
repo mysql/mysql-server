@@ -31,7 +31,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "key.h"
 #include "loader.h"
 #include "ydb_load.h"
-
+#include "brtloader.h"
 
 #ifdef TOKUTRACE
  #define DB_ENV_CREATE_FUN db_env_create_toku10
@@ -5054,20 +5054,27 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
         uint32_t dbt_flags[1] = {0};
         uint32_t loader_flags = DB_PRELOCKED_WRITE; //Don't recursively prelock
         DB_ENV *env = db->dbenv;
+	DB_TXN *child = NULL;
+	
+	{
+	    // begin child
+	    int rt = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1);
+	    assert(rt==0);
+	}
 
         toku_ydb_unlock(); //Cannot hold ydb lock when creating loader
-        int r_loader;
-        r_loader = env->create_loader(env, txn, &loader, NULL, 1, dbs, db_flags, dbt_flags, loader_flags);
+	
+        int r_loader = env->create_loader(env, child, &loader, NULL, 1, dbs, db_flags, dbt_flags, loader_flags);
         if (r_loader==0) {
-            int r2;
-            r2 = loader->set_error_callback(loader, NULL, NULL);
-            assert(r2==0);
-            r2 = loader->set_poll_function(loader, NULL, NULL);
-            assert(r2==0);
+            r_loader = loader->set_error_callback(loader, NULL, NULL);
+            assert(r_loader==0);
+            r_loader = loader->set_poll_function(loader, NULL, NULL);
+            assert(r_loader==0);
             // close the loader
-            r2 = loader->close(loader);
-            assert(r2==0);
-            toku_brt_suppress_recovery_logs(db->i->brt, db_txn_struct_i(txn)->tokutxn);
+            r_loader = loader->close(loader);
+	    if (r_loader==0) {
+		toku_brt_suppress_recovery_logs(db->i->brt, db_txn_struct_i(child)->tokutxn);
+	    }
         }
         else if (r_loader != DB_LOCK_NOTGRANTED) {
             //Lock not granted is not an error.
@@ -5075,6 +5082,16 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
             assert(r==0);
             r = r_loader;
         }
+
+	if (r_loader == 0) { // commit
+	    r = locked_txn_commit(child, 0);
+	    assert(r==0);
+	}
+	else {  // abort
+	    r = locked_txn_abort(child);
+	    assert(r==0);
+	}
+
         toku_ydb_lock(); //Reaquire ydb lock.
     }
 
@@ -5517,6 +5534,12 @@ int db_env_set_func_pwrite (ssize_t (*pwrite_function)(int, const void *, size_t
 int db_env_set_func_write (ssize_t (*write_function)(int, const void *, size_t)) {
     return toku_set_func_write(write_function);
 }
+
+void 
+db_env_set_func_loader_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
+    brtloader_set_os_fwrite(fwrite_fun);
+}
+
 
 int db_env_set_func_malloc (void *(*f)(size_t)) {
     return toku_set_func_malloc(f);

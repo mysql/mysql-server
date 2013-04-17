@@ -486,6 +486,7 @@ int db_env_set_func_malloc (void *(*)(size_t)) __attribute__((__visibility__("de
 int db_env_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_write (ssize_t (*)(int, const void *, size_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_realloc (void *(*)(void*, size_t)) __attribute__((__visibility__("default")));
+void db_env_set_func_loader_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) __attribute__((__visibility__("default")));
 void db_env_set_checkpoint_callback (void (*)(void*), void*) __attribute__((__visibility__("default")));
 void db_env_set_checkpoint_callback2 (void (*)(void*), void*) __attribute__((__visibility__("default")));
 void db_env_set_recover_callback (void (*)(void*), void*) __attribute__((__visibility__("default")));
