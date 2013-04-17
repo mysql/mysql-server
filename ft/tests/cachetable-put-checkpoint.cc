@@ -426,11 +426,6 @@ test_begin_checkpoint (
     memcpy(checkpointed_data, data, sizeof(int64_t)*NUM_ELEMENTS);
 }
 
-static int
-dummy_int_checkpoint_userdata(CACHEFILE UU(cf), int UU(n), void* UU(extra)) {
-    return 0;
-}
-
 static void sum_vals(void) {
     int64_t sum = 0;
     for (int i = 0; i < NUM_ELEMENTS; i++) {
@@ -478,7 +473,7 @@ cachetable_test (void) {
         &dummy_log_fassociate,
         &dummy_log_rollback,
         &dummy_close_usr,
-        dummy_int_checkpoint_userdata,
+        &dummy_chckpnt_usr,
         test_begin_checkpoint, // called in begin_checkpoint
         &dummy_end, 
         &dummy_note_pin,

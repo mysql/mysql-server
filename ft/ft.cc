@@ -164,8 +164,7 @@ ft_hack_highest_unused_msn_for_upgrade_for_checkpoint(FT ft) {
 // checkpoints hold references to FTs and so they cannot be closed during a checkpoint.
 // ft_close is not reentrant for a single FT
 // end_checkpoint is not reentrant period
-static int
-ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
+static void ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
     FT ft = (FT) header_v;
     FT_HEADER ch = ft->checkpoint_header;
     //printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
@@ -195,8 +194,6 @@ ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
     else {
         toku_block_translation_note_skipped_checkpoint(ft->blocktable);
     }
-    // TODO can't fail
-    return 0;
 }
 
 // maps to cf->end_checkpoint_userdata
@@ -215,8 +212,7 @@ static void ft_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) 
 
 // maps to cf->close_userdata
 // Has access to fd (it is protected).
-static int
-ft_close(CACHEFILE cachefile, int fd, void *header_v, bool oplsn_valid, LSN oplsn) {
+static void ft_close(CACHEFILE cachefile, int fd, void *header_v, bool oplsn_valid, LSN oplsn) {
     FT ft = (FT) header_v;
     assert(ft->h->type == FT_CURRENT);
     // We already have exclusive access to this field already, so skip the locking.
@@ -250,15 +246,11 @@ ft_close(CACHEFILE cachefile, int fd, void *header_v, bool oplsn_valid, LSN opls
             assert(logger->rollback_cachefile != cachefile);
         }
         ft_begin_checkpoint(lsn, header_v);
-        // TODO: can't fail
-        int r = ft_checkpoint(cachefile, fd, ft);
-        invariant(r == 0);
+        ft_checkpoint(cachefile, fd, ft);
         ft_end_checkpoint(cachefile, fd, header_v);
         assert(!ft->h->dirty); // dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
     }
     toku_ft_free(ft);
-    // TODO: can't fail
-    return 0;
 }
 
 // maps to cf->note_pin_by_checkpoint
