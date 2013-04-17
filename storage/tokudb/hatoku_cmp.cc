@@ -31,6 +31,9 @@ inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
     case MYSQL_TYPE_NEWDECIMAL:
         ret_val = toku_type_decimal;
         break;
+    case MYSQL_TYPE_BIT:
+        ret_val = toku_type_bitstream;
+        break;
     //
     // I believe these are old types that are no longer
     // in any 5.1 tables, so tokudb does not need
@@ -323,6 +326,7 @@ int compare_field(
         *b_bytes_read = sizeof(double);
         goto exit;
     case (toku_type_decimal):
+    case (toku_type_bitstream):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
         ret_val = cmp_toku_binary(a_buf, num_bytes, b_buf,num_bytes);
@@ -377,6 +381,7 @@ uchar* pack_field(
         new_pos = pack_toku_double(to_tokudb, from_mysql);
         goto exit;
     case (toku_type_decimal):
+    case (toku_type_bitstream):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
         new_pos = pack_toku_binary(
@@ -414,6 +419,7 @@ uchar* pack_key_field(
     case (toku_type_double):
     case (toku_type_float):
     case (toku_type_decimal):
+    case (toku_type_bitstream):
         new_pos = pack_field(to_tokudb, from_mysql, field, key_part_length);
         goto exit;
     default:
@@ -462,6 +468,7 @@ uchar* unpack_field(
         new_pos = unpack_toku_float(to_mysql, from_tokudb);
         goto exit;
     case (toku_type_decimal):
+    case (toku_type_bitstream):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
         new_pos = unpack_toku_binary(
