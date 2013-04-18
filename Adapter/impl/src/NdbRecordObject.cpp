@@ -24,7 +24,7 @@
 
 #include "adapter_global.h"
 #include "unified_debug.h"
-#include "jsWrapper.h"
+#include "JsWrapper.h"
 #include "NdbRecordObject.h"
 
 
