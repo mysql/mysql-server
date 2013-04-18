@@ -398,7 +398,7 @@ def	information_schema	USER_STATISTICS	ROWS_UPDATED	14	0	NO	bigint	NULL	NULL	19	
 def	information_schema	USER_STATISTICS	SELECT_COMMANDS	15	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select	
 def	information_schema	USER_STATISTICS	TOTAL_CONNECTIONS	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select	
 def	information_schema	USER_STATISTICS	UPDATE_COMMANDS	16	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select	
-def	information_schema	USER_STATISTICS	USER	1		NO	varchar	48	144	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(48)			select	
+def	information_schema	USER_STATISTICS	USER	1		NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select	
 def	information_schema	VIEWS	CHARACTER_SET_CLIENT	9		NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 def	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 def	information_schema	VIEWS	COLLATION_CONNECTION	10		NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -844,7 +844,7 @@ NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	USER_PRIVILEGES	TABLE_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	USER_PRIVILEGES	PRIVILEGE_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	USER_PRIVILEGES	IS_GRANTABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
-3.0000	information_schema	USER_STATISTICS	USER	varchar	48	144	utf8	utf8_general_ci	varchar(48)
+3.0000	information_schema	USER_STATISTICS	USER	varchar	128	384	utf8	utf8_general_ci	varchar(128)
 NULL	information_schema	USER_STATISTICS	TOTAL_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(11)
 NULL	information_schema	USER_STATISTICS	CONCURRENT_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(11)
 NULL	information_schema	USER_STATISTICS	CONNECTED_TIME	int	NULL	NULL	NULL	NULL	int(11)

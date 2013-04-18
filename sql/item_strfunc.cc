@@ -59,6 +59,8 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
+size_t username_char_length= 16;
+
 /**
    @todo Remove this. It is not safe to use a shared String object.
  */

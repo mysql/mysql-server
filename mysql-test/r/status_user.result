@@ -27,7 +27,7 @@ ACCESS_DENIED	bigint(21)	NO		0
 EMPTY_QUERIES	bigint(21)	NO		0	
 show columns from information_schema.user_statistics;
 Field	Type	Null	Key	Default	Extra
-USER	varchar(48)	NO			
+USER	varchar(128)	NO			
 TOTAL_CONNECTIONS	int(11)	NO		0	
 CONCURRENT_CONNECTIONS	int(11)	NO		0	
 CONNECTED_TIME	int(11)	NO		0	

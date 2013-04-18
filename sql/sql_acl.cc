@@ -828,6 +828,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
   table->use_all_columns();
   (void) my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100);
+  username_char_length= min(table->field[1]->char_length(), USERNAME_CHAR_LENGTH);
   password_length= table->field[2]->field_length /
     table->field[2]->charset()->mbmaxlen;
   if (password_length < SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
@@ -8626,14 +8627,15 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
 
   /*
     Clip username to allowed length in characters (not bytes).  This is
-    mostly for backward compatibility.
+    mostly for backward compatibility (to truncate long usernames, as
+    old 5.1 did)
   */
   {
     CHARSET_INFO *cs= system_charset_info;
     int           err;
 
     user_len= (uint) cs->cset->well_formed_len(cs, user, user + user_len,
-                                               USERNAME_CHAR_LENGTH, &err);
+                                               username_char_length, &err);
     user[user_len]= '\0';
   }
 

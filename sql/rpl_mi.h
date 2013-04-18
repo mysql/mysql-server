@@ -67,7 +67,7 @@ class Master_info : public Slave_reporting_capability
   /* the variables below are needed because we can change masters on the fly */
   char master_log_name[FN_REFLEN];
   char host[HOSTNAME_LENGTH*SYSTEM_CHARSET_MBMAXLEN+1];
-  char user[USERNAME_LENGTH*+1];
+  char user[USERNAME_LENGTH+1];
   char password[MAX_PASSWORD_LENGTH*SYSTEM_CHARSET_MBMAXLEN+1];
   bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];

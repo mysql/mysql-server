@@ -1555,14 +1555,15 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 */
 
 static bool get_string_parameter(char *to, const char *from, size_t length,
-                                 const char *name)
+                                 const char *name, CHARSET_INFO *cs)
 {
   if (from)                                     // Empty paramaters allowed
   {
-    size_t from_length;
-    if ((from_length= strlen(from)) > length)
+    size_t from_length= strlen(from);
+    uint from_numchars= cs->cset->numchars(cs, from, from + from_length);
+    if (from_numchars > length / cs->mbmaxlen)
     {
-      my_error(ER_WRONG_STRING_LENGTH, MYF(0), from, name, (int) length);
+      my_error(ER_WRONG_STRING_LENGTH, MYF(0), from, name, length / cs->mbmaxlen);
       return 1;
     }
     memcpy(to, from, from_length+1);
@@ -1662,11 +1663,12 @@ bool change_master(THD* thd, Master_info* mi)
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
 
   if (get_string_parameter(mi->host, lex_mi->host, sizeof(mi->host)-1,
-                           "MASTER_HOST") ||
+                           "MASTER_HOST", system_charset_info) ||
       get_string_parameter(mi->user, lex_mi->user, sizeof(mi->user)-1,
-                           "MASTER_USER") ||
+                           "MASTER_USER", system_charset_info) ||
       get_string_parameter(mi->password, lex_mi->password,
-                           sizeof(mi->password)-1, "MASTER_PASSWORD"))
+                           sizeof(mi->password)-1, "MASTER_PASSWORD",
+                           &my_charset_bin))
   {
     ret= TRUE;
     goto err;

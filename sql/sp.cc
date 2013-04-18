@@ -114,7 +114,7 @@ TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("definer") },
-    { C_STRING_WITH_LEN("char(77)") },
+    { C_STRING_WITH_LEN("char(") },
     { C_STRING_WITH_LEN("utf8") }
   },
   {

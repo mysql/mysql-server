@@ -1,0 +1,107 @@
+#
+# MDEV-4332 Increase username length from 16 characters
+#
+
+# user names here have the pattern
+#  <letter><length><more letters>0
+# where '0' at the end is the end-of-name marker
+
+--source include/not_embedded.inc
+
+set global event_scheduler = on;
+
+--enable_metadata
+select user();
+--disable_metadata
+
+--error ER_WRONG_STRING_LENGTH
+create user a17aaaaaaaaaaaaa0@localhost;
+
+alter table mysql.user modify User char(80) binary not null default '';
+alter table mysql.db modify User char(80) binary not null default '';
+alter table mysql.tables_priv modify User char(80) binary not null default '';
+alter table mysql.columns_priv modify User char(80) binary not null default '';
+alter table mysql.procs_priv modify User char(80) binary not null default '';
+alter table mysql.proc modify definer char(141) collate utf8_bin not null default '';
+alter table mysql.event modify definer char(141) collate utf8_bin not null default '';
+flush privileges;
+
+--enable_metadata
+select user();
+--disable_metadata
+
+create user a17aaaaaaaaaaaaa0@localhost;
+grant usage on *.* to a17aaaaaaaaaaaaa0@localhost;
+grant select on mysql.user to b64bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0@localhost;
+grant select(User) on mysql.tables_priv to c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0@localhost;
+
+connect (a17,localhost,a17aaaaaaaaaaaaa0,,);
+connect (b64,localhost,b64bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0,,);
+connect (c80,localhost,c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0,,);
+
+connection a17;
+select user(), current_user();
+show grants;
+
+connection b64;
+select user(), current_user();
+show grants;
+select user,host from mysql.user where user like '%0';
+--error ER_TABLEACCESS_DENIED_ERROR
+select user,host from mysql.db;
+
+connection c80;
+select user(), current_user();
+show grants;
+select user from mysql.tables_priv;
+--error ER_COLUMNACCESS_DENIED_ERROR
+select user,host from mysql.tables_priv;
+
+create procedure test.p1() select user(), current_user(), user from mysql.tables_priv;
+
+show create procedure test.p1;
+
+create table test.t1 (a text);
+create event e1 on schedule every 1 second
+  do insert test.t1 values (concat(user(), ' ', current_user()));
+
+connection default;
+
+call test.p1();
+
+disconnect a17;
+disconnect b64;
+disconnect c80;
+
+let $wait_timeout= 10;
+let $wait_condition= SELECT 1 from t1;
+--source include/wait_condition.inc
+
+select * from t1 limit 1;
+--error ER_WRONG_STRING_LENGTH
+grant usage on *.* to d81ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0@lodalhost;
+
+--error ER_WRONG_STRING_LENGTH
+drop user d81ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0@lodalhost;
+drop user c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0@localhost;
+drop user b64bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0@localhost;
+drop user a17aaaaaaaaaaaaa0@localhost;
+
+set global event_scheduler = off;
+drop event e1;
+drop procedure test.p1;
+drop table t1;
+
+alter table mysql.user modify User char(16) binary not null default '';
+alter table mysql.db modify User char(16) binary not null default '';
+alter table mysql.tables_priv modify User char(16) binary not null default '';
+alter table mysql.columns_priv modify User char(16) binary not null default '';
+alter table mysql.procs_priv modify User char(16) binary not null default '';
+alter table mysql.proc modify definer char(77) collate utf8_bin not null default '';
+alter table mysql.event modify definer char(77) collate utf8_bin not null default '';
+flush privileges;
+
+--enable_metadata
+select user();
+--disable_metadata
+

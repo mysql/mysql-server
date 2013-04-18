@@ -16903,13 +16903,14 @@ static void test_bug31418()
 */
 
 #define LARGE_BUFFER_SIZE 2048
+#define OLD_USERNAME_CHAR_LENGTH 16
 
 static void test_bug31669()
 {
   int rc;
   static char buff[LARGE_BUFFER_SIZE+1];
 #ifndef EMBEDDED_LIBRARY
-  static char user[USERNAME_CHAR_LENGTH+1];
+  static char user[OLD_USERNAME_CHAR_LENGTH+1];
   static char db[NAME_CHAR_LEN+1];
   static char query[LARGE_BUFFER_SIZE*2];
 #endif
@@ -16946,7 +16947,7 @@ static void test_bug31669()
   myquery(rc);
 
   memset(user, 'b', sizeof(user));
-  user[USERNAME_CHAR_LENGTH]= 0;
+  user[OLD_USERNAME_CHAR_LENGTH]= 0;
   memset(buff, 'c', sizeof(buff));
   buff[LARGE_BUFFER_SIZE]= 0;
   strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' IDENTIFIED BY "
@@ -16965,11 +16966,11 @@ static void test_bug31669()
   rc= mysql_change_user(conn, user, buff, db);
   DIE_UNLESS(!rc);
 
-  user[USERNAME_CHAR_LENGTH-1]= 'a';
+  user[OLD_USERNAME_CHAR_LENGTH-1]= 'a';
   rc= mysql_change_user(conn, user, buff, db);
   DIE_UNLESS(rc);
 
-  user[USERNAME_CHAR_LENGTH-1]= 'b';
+  user[OLD_USERNAME_CHAR_LENGTH-1]= 'b';
   buff[LARGE_BUFFER_SIZE-1]= 'd';
   rc= mysql_change_user(conn, user, buff, db);
   DIE_UNLESS(rc);

@@ -25,6 +25,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+extern size_t username_char_length;
+
 class MY_LOCALE;
 
 class Item_str_func :public Item_func
@@ -494,8 +496,8 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec()
   {
-    max_length= (USERNAME_LENGTH +
-                 (HOSTNAME_LENGTH + 1) * SYSTEM_CHARSET_MBMAXLEN);
+    max_length= (username_char_length +
+                 HOSTNAME_LENGTH + 1) * SYSTEM_CHARSET_MBMAXLEN;
   }
   const char *func_name() const { return "user"; }
   const char *fully_qualified_func_name() const { return "user()"; }
