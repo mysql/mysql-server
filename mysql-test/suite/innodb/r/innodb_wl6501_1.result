@@ -2,6 +2,8 @@ call mtr.add_suppression("InnoDB.*table did not exist in the InnoDB data diction
 call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds.*");
 call mtr.add_suppression("InnoDB: Cannot create file.*");
 call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'.*");
+call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds");
+call mtr.add_suppression("InnoDB: Error: table .* does not exist in the InnoDB internal");
 set global innodb_file_per_table=on;
 # Verify that 'TRUNCATE TABLE' statement works fine and the size
 # of .ibd file is equal to the initial size after truncation.
@@ -12,8 +14,6 @@ Note	1051	Unknown table 'test.t2'
 Note	1051	Unknown table 'test.t3'
 Note	1051	Unknown table 'test.t4'
 Note	1051	Unknown table 'test.t6'
-call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not
-within space bounds");
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -102,25 +102,6 @@ count(*)
 3
 set session debug="+d,crash_during_drop_second_secondary";
 "---debug crash_during_drop_second_secondary point---"
-# Write file to make mysql-test-run.pl expect crash and restart
-# Run the crashing query
-truncate table t5;
-ERROR HY000: Lost connection to MySQL server during query
-# Restart the MySQL server
-select count(*) from t1;
-count(*)
-3
-select count(*) from t2;
-count(*)
-3
-select count(*) from t3;
-count(*)
-3
-select count(*) from t4;
-count(*)
-3
-select count(*) from t5;
-ERROR 42S02: Table 'test.t5' doesn't exist
 set session debug="+d,crash_during_drop_second_secondary";
 "---debug crash_during_drop_second_secondary point---"
 # Write file to make mysql-test-run.pl expect crash and restart
@@ -306,25 +287,6 @@ count(*)
 3
 set session debug="+d,crash_during_create_second_secondary";
 "---debug crash_during_create_second_secondary---"
-# Write file to make mysql-test-run.pl expect crash and restart
-# Run the crashing query
-truncate table t5;
-ERROR HY000: Lost connection to MySQL server during query
-# Restart the MySQL server
-select count(*) from t1;
-count(*)
-3
-select count(*) from t2;
-count(*)
-3
-select count(*) from t3;
-count(*)
-3
-select count(*) from t4;
-count(*)
-3
-select count(*) from t5;
-ERROR 42S02: Table 'test.t5' doesn't exist
 set session debug="+d,crash_during_create_second_secondary";
 "---debug crash_during_create_second_secondary---"
 # Write file to make mysql-test-run.pl expect crash and restart

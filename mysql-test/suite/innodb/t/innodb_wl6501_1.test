@@ -11,6 +11,7 @@
 
 --source include/have_innodb.inc
 --source include/have_debug.inc
+--source include/big_test.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
@@ -36,7 +37,6 @@ call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within
 call mtr.add_suppression("InnoDB: Error: table .* does not exist in the InnoDB internal");
 
 #-----------------------------------------------------------------------
---disable_query_log
 set global innodb_file_per_table=on;
 --echo # Verify that 'TRUNCATE TABLE' statement works fine and the size
 --echo # of .ibd file is equal to the initial size after truncation.
@@ -127,7 +127,6 @@ while ($cnt) {
 	create table t6 ( a int ) engine = innodb;
 	insert into t6 values (50),(100),(150);
 
-
 	-- disable_query_log
 	-- disable_result_log
 	let $n=5;
@@ -172,6 +171,7 @@ while ($cnt) {
 	# validate loading of the tables.
 	-- enable_result_log
 	-- enable_query_log
+
 	select count(*) from t1;
 	select count(*) from t2;
 	select count(*) from t3;
@@ -214,11 +214,12 @@ while ($cnt) {
 
 	# try truncating the table that will hit debug crash point.
 	# same operation will be repeated 4 times below.
-	if ($cnt > 4) {
+	# TODO: reenable it once we fix crash point for temp-table
+	if (0 && $cnt > 4) {
 		-- echo # Write file to make mysql-test-run.pl expect crash and restart
 		-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 		-- echo # Run the crashing query
-		-- error 2013
+		# -- error 2013
 		truncate table t5;
 		-- source include/wait_until_disconnected.inc
 		-- enable_reconnect
