@@ -98,12 +98,6 @@ UNIV_INTERN lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
 UNIV_INTERN lsn_t	srv_shutdown_lsn;
 
-#ifdef HAVE_DARWIN_THREADS
-# include <sys/utsname.h>
-/** TRUE if the F_FULLFSYNC option is available */
-UNIV_INTERN ibool	srv_have_fullfsync = FALSE;
-#endif
-
 /** TRUE if a raw partition is in use */
 UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
@@ -1140,32 +1134,6 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
-
-#ifdef HAVE_DARWIN_THREADS
-# ifdef F_FULLFSYNC
-	/* This executable has been compiled on Mac OS X 10.3 or later.
-	Assume that F_FULLFSYNC is available at run-time. */
-	srv_have_fullfsync = TRUE;
-# else /* F_FULLFSYNC */
-	/* This executable has been compiled on Mac OS X 10.2
-	or earlier.  Determine if the executable is running
-	on Mac OS X 10.3 or later. */
-	struct utsname utsname;
-	if (uname(&utsname)) {
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: cannot determine Mac OS X version!\n", stderr);
-	} else {
-		srv_have_fullfsync = strcmp(utsname.release, "7.") >= 0;
-	}
-	if (!srv_have_fullfsync) {
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: On Mac OS X, fsync() may be "
-		      "broken on internal drives,\n", stderr);
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: making transactions unsafe!\n", stderr);
-	}
-# endif /* F_FULLFSYNC */
-#endif /* HAVE_DARWIN_THREADS */
 
 	if (sizeof(ulint) != sizeof(void*)) {
 		ut_print_timestamp(stderr);
