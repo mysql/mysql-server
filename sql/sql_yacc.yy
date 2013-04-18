@@ -15190,7 +15190,7 @@ handler_rkey_mode:
 /* GRANT / REVOKE */
 
 revoke:
-          REVOKE clear_privileges revoke_command
+          REVOKE clear_privileges { Lex->sql_command= SQLCOM_REVOKE; } revoke_command
           {}
         ;
 
@@ -15198,7 +15198,6 @@ revoke_command:
           grant_privileges ON opt_table grant_ident FROM grant_list
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= 0;
           }
         | grant_privileges ON FUNCTION_SYM grant_ident FROM grant_list
@@ -15209,7 +15208,6 @@ revoke_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_FUNCTION;
           }
         | grant_privileges ON PROCEDURE_SYM grant_ident FROM grant_list
@@ -15220,7 +15218,6 @@ revoke_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
         | ALL opt_privileges ',' GRANT OPTION FROM grant_list
@@ -15231,13 +15228,12 @@ revoke_command:
           {
             LEX *lex= Lex;
             lex->users_list.push_front ($3);
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_PROXY;
           } 
         ;
 
 grant:
-          GRANT clear_privileges grant_command
+          GRANT clear_privileges { Lex->sql_command= SQLCOM_GRANT; } grant_command
           {}
         ;
 
@@ -15246,7 +15242,6 @@ grant_command:
           require_clause grant_options
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= 0;
           }
         | grant_privileges ON FUNCTION_SYM grant_ident TO_SYM grant_list
@@ -15258,7 +15253,6 @@ grant_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_FUNCTION;
           }
         | grant_privileges ON PROCEDURE_SYM grant_ident TO_SYM grant_list
@@ -15270,14 +15264,12 @@ grant_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
         | PROXY_SYM ON user TO_SYM grant_list opt_grant_option
           {
             LEX *lex= Lex;
             lex->users_list.push_front ($3);
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_PROXY;
           } 
         ;
@@ -15288,7 +15280,13 @@ opt_table:
         ;
 
 grant_privileges:
-          object_privilege_list {}
+          object_privilege_list
+          {
+            LEX *lex= Lex;
+            if (lex->grant == GLOBAL_ACLS &&
+                lex->sql_command == SQLCOM_REVOKE)
+              lex->sql_command= SQLCOM_REVOKE_ALL;
+          }
         | ALL opt_privileges
           { 
             Lex->all_privileges= 1; 
@@ -15474,7 +15472,10 @@ grant_user:
           {
             $$=$1; $1->password=$4;
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             String *password = new (YYTHD->mem_root) String((const char*)$4.str,
                                     YYTHD->variables.character_set_client);
             check_password_policy(password);
@@ -15488,7 +15489,10 @@ grant_user:
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           { 
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             $$= $1; 
             $1->password= $5; 
             if (!strcmp($5.str, ""))
@@ -15505,7 +15509,10 @@ grant_user:
         | user IDENTIFIED_SYM WITH ident_or_text
           {
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             $$= $1;
             $1->plugin= $4;
             $1->auth= empty_lex_str;
@@ -15514,7 +15521,10 @@ grant_user:
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
           {
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             $$= $1;
             $1->plugin= $4;
             $1->auth= $6;

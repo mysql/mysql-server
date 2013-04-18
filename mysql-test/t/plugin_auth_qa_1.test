@@ -34,7 +34,7 @@ SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 --echo 1)
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
 --exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
---error ER_GRANT_PLUGIN_USER_EXISTS
+--error ER_PARSE_ERROR
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
                          IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 --echo 2)
@@ -57,7 +57,7 @@ GRANT PROXY ON plug_dest TO plug_user;
 --echo 2)
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
 --exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
---error ER_GRANT_PLUGIN_USER_EXISTS
+--error ER_PARSE_ERROR
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
                          IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 #REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_dest'
