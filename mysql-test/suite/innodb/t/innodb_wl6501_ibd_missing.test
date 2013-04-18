@@ -28,9 +28,9 @@ set session debug="+d,crash_if_ibd_file_is_missing";
 --echo # and the table is marked as corrupt when the .ibd file
 --echo # is missing.
 
-CREATE DATABASE wl6501;
+use test;
 
-create table wl6501.t1(a int not null,
+create table t1(a int not null,
  b int not null,
  c int not null,
  primary key (a),
@@ -43,19 +43,19 @@ engine=innodb row_format=compact;
 let $n=100;
 while ($n)
 {
-  eval insert into wl6501.t1 values($n,$n,$n);
+  eval insert into t1 values($n,$n,$n);
   dec $n;
 }
 -- enable_result_log
 -- enable_query_log
-select count(*) from wl6501.t1;
+select count(*) from t1;
 
 -- echo # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- echo # Run the crashing query
 #-- error 2013
 --error ER_GET_ERRNO
-truncate table wl6501.t1;
+truncate table t1;
 
 -- enable_reconnect
 -- echo # Restart the MySQL server
@@ -63,10 +63,9 @@ truncate table wl6501.t1;
 -- source include/wait_until_connected_again.inc
 -- disable_reconnect
 
-show create table wl6501.t1;
+show create table t1;
 
-drop table wl6501.t1;
-drop database wl6501;
+drop table t1;
 
 --disable_query_log
 set session debug="-d,crash_if_ibd_file_is_missing";
