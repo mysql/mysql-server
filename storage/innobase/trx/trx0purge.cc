@@ -1318,7 +1318,7 @@ trx_purge_stop(void)
 		/* We need to wakeup the purge thread in case it is suspended,
 		so that it can acknowledge the state change. */
 
-		srv_wake_purge_thread_if_not_active();
+		srv_purge_wakeup();
 	}
 
 	purge_sys->state = PURGE_STATE_STOP;
