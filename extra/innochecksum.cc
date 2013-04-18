@@ -287,23 +287,22 @@ open_file(
  @retval no. of bytes read.
 */
 ulong read_file(
-	byte**	buf,
+	byte*	buf,
 	bool	partial_page_read,
 	ulong	physical_page_size,
-	FILE**	fil_in)
+	FILE*	fil_in)
 {
 	ulong bytes = 0;
+
+	DBUG_ASSERT(physical_page_size >= UNIV_PAGE_SIZE_MIN);
+
 	if (partial_page_read) {
-		bytes = fread(*buf + UNIV_PAGE_SIZE_MIN, 1,
-				physical_page_size - UNIV_PAGE_SIZE_MIN,
-				*fil_in);
-
-		bytes += UNIV_PAGE_SIZE_MIN;
-
-	} else {
-		bytes = fread(*buf, 1, physical_page_size, *fil_in);
+		buf += UNIV_PAGE_SIZE_MIN;
+		physical_page_size -= UNIV_PAGE_SIZE_MIN;
+		bytes = UNIV_PAGE_SIZE_MIN;
 	}
-	return bytes;
+
+	return bytes + fread(buf, 1, physical_page_size, fil_in);
 }
 
 /*****************************************************************//*
@@ -1186,10 +1185,10 @@ int main(
 					(fseeko() on stdin doesn't work). So
 					read only the remaining part of page,
 					if partial_page_read is enable. */
-					bytes = read_file(&buf,
+					bytes = read_file(buf,
 							  partial_page_read,
 							  physical_page_size,
-							  &fil_in);
+							  fil_in);
 
 					partial_page_read = 0;
 					count++;
@@ -1224,8 +1223,8 @@ int main(
 		lastt = 0;
 		while (!feof(fil_in)) {
 
-			bytes = read_file(&buf, partial_page_read,
-					  physical_page_size,&fil_in);
+			bytes = read_file(buf, partial_page_read,
+					  physical_page_size, fil_in);
 			partial_page_read = 0;
 
 			if (!bytes && feof(fil_in)) {
