@@ -10,6 +10,8 @@ Berkeley DB.
 To build the full MySQL product, see the instructions for
 [ft-engine][ft-engine].  This document covers TokuKV only.
 
+[ft-engine]: http://github.com/Tokutek/ft-engine
+
 
 Building
 --------
@@ -43,8 +45,20 @@ some header files, and some examples to `ft-index/prefix/`.  It will also
 build jemalloc and install it alongside these libraries, you should link
 to that if you are planning to run benchmarks or in production.
 
+### Platforms
+
 TokuKV is supported on 64-bit Centos, should work on other 64-bit linux
 distributions, and may work on OSX 10.8 and FreeBSD.
+
+[Transparent hugepages][transparent-hugepages] is a feature in newer linux
+kernel versions that causes problems for the memory usage tracking
+calculations in TokuKV and can lead to memory overcommit.  If you have
+this feature enabled, TokuKV will not start, and you should turn it off.
+If you want to run with transparent hugepages on, you can set an
+environment variable `TOKU_HUGE_PAGES_OK=1`, but only do this for testing,
+and only with a small cache size.
+
+[transparent-hugepages]: https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Performance_Tuning_Guide/s-memory-transhuge.html
 
 
 Examples
@@ -103,6 +117,4 @@ License
 TokuKV is available under the GPL version 2, with slight modifications.
 See [README-TOKUDB][license].
 
-
-[ft-engine]: http://github.com/Tokutek/ft-engine
 [license]: http://github.com/Tokutek/ft-index/blob/master/README-TOKUDB
