@@ -1,0 +1,39 @@
+set global innodb_file_per_table = on;
+use test;
+set global innodb_file_per_table = 1;
+create table t (i int) engine=innodb;
+insert into t values (1), (2), (3);
+select * from t;
+i
+1
+2
+3
+select table_id, name, space from information_schema.innodb_sys_tables
+where name = 'test/t';
+table_id	name	space
+20	test/t	8
+select index_id, name, table_id from information_schema.innodb_sys_indexes
+where table_id in (select table_id from
+information_schema.innodb_sys_tables where name = 'test/t');
+index_id	name	table_id
+22	GEN_CLUST_INDEX	20
+set session debug = "+d,ib_truncate_crash_while_writing_redo_log";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i
+1
+2
+3
+select table_id, name, space from information_schema.innodb_sys_tables
+where name = 'test/t';
+table_id	name	space
+20	test/t	8
+select index_id, name, table_id from information_schema.innodb_sys_indexes
+where table_id in (select table_id from
+information_schema.innodb_sys_tables where name = 'test/t');
+index_id	name	table_id
+22	GEN_CLUST_INDEX	20
+drop table t;
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 1;

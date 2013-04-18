@@ -545,7 +545,7 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 {
 	row_mysql_unlock_data_dictionary(trx);
 
-	if (!Tablespace::is_system_tablespace(table->id)
+	if (!Tablespace::is_system_tablespace(table->space)
 	    && flags != ULINT_UNDEFINED
 	    && err == DB_SUCCESS) {
 
@@ -915,19 +915,60 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	dberr_t		err;
 	ulint		old_space = table->space;
 
-	/* How do we prevent crashes caused by ongoing operations on
-	the table? Old operations could try to access non-existent
-	pages.
+	/* Understanding the truncate flow.
 
-	1) SQL queries, INSERT, SELECT, ...: we must get an exclusive
-	InnoDB table lock on the table before we can do TRUNCATE
-	TABLE. Then there are no running queries on the table.
+	Step-1: Perform intiial sanity check to ensure table can be truncated.
+	This would include check for tablespace discard status, ibd file
+	missing, etc ....
 
-	2) Purge and rollback: we assign a new table id for the
+	Step-2: Start transaction (only for non-temp table as temp-table don't
+	modify any data on disk doesn't need transaction object).
+
+	Step-3: Validate ownership of needed locks (Exclusive lock).
+	Ownership will also ensure there is no active SQL queries, INSERT,
+	SELECT, .....
+
+	Step-4: Stop all the background process associated with table.
+
+	Step-5: There are few foreign key related constraint under which
+	we can't truncate table (due to referential integrity unless it is
+	turned off). Ensure this condition is satisfied.
+
+	Step-6: Truncate operation can be rolled back in case of error
+	till some point. Associate rollback segment to record undo log.
+
+	**** Based on whether table reside in system or per-table tablespace
+	follow-up steps might turn-conditional.
+
+	Step-7: (Only for per-tablespace): REDO log information about
+	tablespace which mainly include index information (id, type).
+	In event of crash post this point on recovery using REDO log
+	tablespace can be re-created with appropriate index id and type
+	information.
+
+	Step-8: Drop all indexes (this include freeing of the pages
+	associated with them). (FIXME: freeing of pages should be conditional
+	and should be applicable only when using shared tablespaces.)
+
+	Step-9: Re-create new indexes.
+
+	Step-10: Generate new table-id.
+	Why we need new table-id ?
+	Purge and rollback: we assign a new table id for the
 	table. Since purge and rollback look for the table based on
 	the table id, they see the table as 'dropped' and discard
 	their operations.
 
+	Step-11: Update new table-id to in-memory cache (dictionary),
+	on-disk (INNODB_SYS_TABLES). INNODB_SYS_INDEXES also needs to
+	get updated to reflect updated page-no of new index created
+	and updated table-id. 
+
+	Step-12: Cleanup Stage. Reset auto-inc value to 1.
+	Release all the locks.
+	Commit the transaction. Update trx operation state.
+
+	FIXME:
 	3) Insert buffer: TRUNCATE TABLE is analogous to DROP TABLE,
 	so we do not have to remove insert buffer records, as the
 	insert buffer works at a low level. If a freed page is later
@@ -941,58 +982,34 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	4) Linear readahead and random readahead: we use the same
 	method as in 3) to discard ongoing operations. (This is only
 	relevant for TRUNCATE TABLE by TRUNCATE TABLESPACE.)
+	Ensure that the table will be dropped by
+	trx_rollback_active() in case of a crash.
+	*/
 
-	5) FOREIGN KEY operations: if
-	table->n_foreign_key_checks_running > 0, we do not allow the
-	TRUNCATE. We also reserve the data dictionary latch.
+	/*-----------------------------------------------------------------*/
 
-	Lock all the indexes of the table in X mode, this is to prevent
-	concurrent access.
-
-	High level algorithm:
-
-	1. Write a TRUNCATE redo log record.
-
-	2. Drop all indexes of the table, don't update the root_page number
-	   in the system tables.
-
-	3. Reinitialise the tablespace header.
-
-	4. Truncate the .ibd file
-
-	5. Recreate the indexes in the table.
-
-	6. Give the table a new ID.
-
-	7. Reset the AUTOINC value to 1, if table contains an AUTOINC column.
-
-	The tablespace id remains the same.
-
-	For temporary tables we don't update the DD files on disk and we
-	disable REDO logging. We don't start the transaction and do any
-	UNDO loggin either. */
-
+	/* Step-1: Perform intiial sanity check to ensure table can be
+	truncated. This would include check for tablespace discard status,
+	ibd file missing, etc .... */
 	err = row_truncate_sanity_checks(table);
-
 	if (err != DB_SUCCESS) {
-
 		return(err);
 
-	} else if (!dict_table_is_temporary(table)) {
+	}
+
+	/* Step-2: Start transaction (only for non-temp table as temp-table
+	don't modify any data on disk doesn't need transaction object). */
+	if (!dict_table_is_temporary(table)) {
 
 		/* Avoid transaction overhead for temporary table DDL. */
 		trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
 	}
 
+	/* Step-3: Validate ownership of needed locks (Exclusive lock).
+	Ownership will also ensure there is no active SQL queries, INSERT,
+	SELECT, .....*/
 	trx->op_info = "truncating table";
-
-	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
-
 	ut_a(trx->dict_operation_lock_mode == 0);
-
-	/* Prevent foreign key checks etc. while we are truncating the
-	table */
 
 	row_mysql_lock_data_dictionary(trx);
 
@@ -1001,37 +1018,30 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	/* Disable background stats collection on the table. */
+	/* Step-4: Stop all the background process associated with table. */
 	dict_stats_wait_bg_to_stop_using_table(table, trx);
 
+	/* Step-5: There are few foreign key related constraint under which
+	we can't truncate table (due to referential integrity unless it is
+	turned off). Ensure this condition is satisfied. */
 	ulint	flags = ULINT_UNDEFINED;
-
 	err = row_truncate_foreign_key_checks(table, trx);
-
 	if (err != DB_SUCCESS) {
 		return(row_truncate_complete(table, trx, flags, err));
 	}
 
 	/* Remove all locks except the table-level X lock. */
-
 	lock_remove_all_on_table(table, FALSE);
-
-	/* Ensure that the table will be dropped by
-	trx_rollback_active() in case of a crash. */
-
 	trx->table_id = table->id;
-
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-	/* Temporary tables don't need undo logging for autocommit stmt.
-	On crash (i.e. mysql restart) temporary tables are anyway not
-	accessible. */
-
+	/* Step-6: Truncate operation can be rolled back in case of error
+	till some point. Associate rollback segment to record undo log. */
 	if (!dict_table_is_temporary(table)) {
 
-		/* Assign an undo segment for the transaction, so that the
-		transaction will be recovereed in case of a crash. */
-
+		/* Temporary tables don't need undo logging for autocommit stmt.
+		On crash (i.e. mysql restart) temporary tables are anyway not
+		accessible. */
 		mutex_enter(&trx->undo_mutex);
 
 		err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
@@ -1043,6 +1053,20 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		}
 	}
 
+	/* Step-7: (Only for per-tablespace): REDO log information about
+	tablespace which mainly include index information (id, type).
+	In event of crash post this point on recovery using REDO log
+	tablespace can be re-created with appropriate index id and type
+	information. */
+
+	/* Lock all index trees for this table, as we will truncate
+	the table/index and possibly change their metadata. All
+	DML/DDL are blocked by table level lock, with a few exceptions
+	such as queries into information schema about the table,
+	MySQL could try to access index stats for this kind of query,
+	we need to use index locks to sync up */
+	dict_table_x_lock_indexes(table);
+
 	if (!Tablespace::is_system_tablespace(table->space)
 	    && !dict_table_is_temporary(table)) {
 
@@ -1051,15 +1075,6 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		if (err != DB_SUCCESS) {
 			return(row_truncate_complete(table, trx, flags, err));
 		}
-
-		/* Lock all index trees for this table, as we will truncate
-		the table/index and possibly change their metadata. All
-		DML/DDL are blocked by table level lock, with a few exceptions
-		such as queries into information schema about the table,
-		MySQL could try to access index stats for this kind of query,
-		we need to use index locks to sync up */
-
-		dict_table_x_lock_indexes(table);
 
 		/* Write the TRUNCATE redo log. */
 		Logger logger(table, flags);
@@ -1072,37 +1087,25 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 		/* Write the TRUNCATE log record into redo log */
 		logger.log();
-
-	} else {
-
-		/* Lock all index trees for this table, as we will
-		truncate the table/index and possibly change their metadata.
-		All DML/DDL are blocked by table level lock, with
-		a few exceptions such as queries into information schema
-		about the table, MySQL could try to access index stats
-		for this kind of query, we need to use index locks to sync up */
-
-		dict_table_x_lock_indexes(table);
 	}
 
 	/* This is the event horizon, if an error occurs after this point then
 	the table will be tagged as corrupt in memory. On restart we will
 	recreate the table as per REDO semantics from the REDO log record
 	that we wrote above. */
-
-	/* All of the table's indexes should be locked in X mode. */
-
 	DBUG_EXECUTE_IF("crash_after_drop_tablespace",
 			log_buffer_flush_to_disk(););
-
 	DBUG_EXECUTE_IF("crash_after_drop_tablespace",
 			ut_ad(fil_discard_tablespace(table->space)
 			      == DB_SUCCESS););
-
 	DBUG_EXECUTE_IF("crash_after_drop_tablespace", DBUG_SUICIDE(););
 
+	/* Step-8: Drop all indexes (this include freeing of the pages
+	associated with them). (FIXME: freeing of pages should be conditional
+	and should be applicable only when using shared tablespaces.) */
 	if (!dict_table_is_temporary(table)) {
 
+		/* Drop all the indexes. */
 		DropIndex	dropIndex(table, flags);
 
 		err = SysIndexIterator().for_each(dropIndex);
@@ -1113,42 +1116,17 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		}
 
 	} else {
-		/* For temporary tables we don't have entries in SYSTEM
-		TABLES. */
-
-#ifdef UNIV_DEBUG
-		ulint	ind_count = 0;
-#endif /* UNIV_DEBUG */
-
+		/* For temporary tables we don't have entries in
+		SYSTEM TABLES. */
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
-
-#ifdef UNIV_DEBUG
-			/* Crash during the drop of the second secondary
-			index on a temporary table. This test doesn't
-			really do much because temporary table meta-data
-			is not stored in the data dictionary. */
-			if (++ind_count == DEBUG_CRASH_COUNT) {
-
-				DBUG_EXECUTE_IF(
-					"crash_during_drop_second_secondary",
-					log_buffer_flush_to_disk(););
-
-				DBUG_EXECUTE_IF(
-					"crash_during_drop_second_secondary",
-					DBUG_SUICIDE(););
-			}
-#endif /* UNIV_DEBUG */
 
 			dict_truncate_index_tree_in_mem(index);
 		}
 	}
 
-	/* Release index tree locks, subsequent work relates to table level
-	meta-data changes. */
-
-	if (!Tablespace::is_system_tablespace(table->id)
+	if (!Tablespace::is_system_tablespace(table->space)
 	    && !dict_table_is_temporary(table)
 	    && flags != ULINT_UNDEFINED) {
 
@@ -1157,6 +1135,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			table->indexes.count + FIL_IBD_FILE_INITIAL_SIZE + 1);
 	}
 
+	/* Step-9: Re-create new indexes. */
 	if (!dict_table_is_temporary(table)) {
 
 		/* Recreate all the indexes. */
@@ -1168,40 +1147,21 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			row_truncate_rollback(table, trx);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
-	} else {
-#ifdef UNIV_DEBUG
-		ulint	ind_count = 0;
-
-		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
-		     index != NULL;
-		     index = UT_LIST_GET_NEXT(indexes, index)) {
-
-			/* Crash during the drop of the second secondary
-			index on a temporary table. This test doesn't
-			really do much because temporary table meta-data
-			is not stored in the data dictionary. */
-
-			if (++ind_count == DEBUG_CRASH_COUNT) {
-
-				DBUG_EXECUTE_IF(
-					"crash_during_create_second_secondary",
-					log_buffer_flush_to_disk(););
-
-				DBUG_EXECUTE_IF(
-					"crash_during_create_second_secondary",
-					DBUG_SUICIDE(););
-			}
-		}
-#endif /* UNIV_DEBUG */
 	}
 
 	/* Done with index truncation, release index tree locks,
 	subsequent work relates to table level metadata change */
 	dict_table_x_unlock_indexes(table);
 
+	/* Step-10: Generate new table-id.
+	Why we need new table-id ?
+	Purge and rollback: we assign a new table id for the
+	table. Since purge and rollback look for the table based on
+	the table id, they see the table as 'dropped' and discard
+	their operations. */
 	table_id_t	new_id;
-
 	dict_hdr_get_new_id(&new_id, NULL, NULL, table, false);
+
 
 	/* Create new FTS auxiliary tables with the new_id, and
 	drop the old index later, only if everything runs successful. */
@@ -1219,6 +1179,10 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		}
 	}
 
+	/* Step-11: Update new table-id to in-memory cache (dictionary),
+	on-disk (INNODB_SYS_TABLES). INNODB_SYS_INDEXES also needs to
+	get updated to reflect updated page-no of new index created
+	and updated table-id. */
 	if (dict_table_is_temporary(table)) {
 
 		dict_table_change_id_in_cache(table, new_id);
@@ -1237,7 +1201,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		}
 	}
 
-	/* Reset auto-increment. */
+	/* Step-12: Cleanup Stage. Reset auto-inc value to 1.
+	Release all the locks.
+	Commit the transaction. Update trx operation state. */
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
