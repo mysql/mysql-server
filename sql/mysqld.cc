@@ -125,12 +125,6 @@ using std::vector;
 
 #define mysqld_charset &my_charset_latin1
 
-/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
-
-#if defined(HAVE_purify) && defined(__linux__)
-#define HAVE_CLOSE_SERVER_SOCK 1
-#endif
-
 extern "C" {          // Because of SCO 3.2V4.2
 #include <errno.h>
 #include <sys/stat.h>
@@ -1474,7 +1468,8 @@ static void close_connections(void)
 
 static void close_server_sock()
 {
-#ifdef HAVE_CLOSE_SERVER_SOCK
+/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
+#if defined(HAVE_purify) && defined(__linux__)
   DBUG_ENTER("close_server_sock");
   MYSQL_SOCKET tmp_sock;
   tmp_sock=ip_sock;

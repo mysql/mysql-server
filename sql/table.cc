@@ -20,7 +20,6 @@
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "table.h"
-#include "frm_crypt.h"           // get_crypt_for_frm
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
                                                 // primary_key_name
@@ -1220,13 +1219,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     share->system= 1;				/* one-record-database */
-#ifdef HAVE_CRYPTED_FRM
-  else if (*(head+26) == 2)
-  {
-    crypted= get_crypt_for_frm();
-    share->crypted= 1;
-  }
-#endif
 
   record_offset= (ulong) (uint2korr(head+6)+
                           ((uint2korr(head+14) == 0xffff ?
@@ -1475,14 +1467,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;                                   /* purecov: inspected */
 
   mysql_file_seek(file, pos+288, MY_SEEK_SET, MYF(0));
-#ifdef HAVE_CRYPTED_FRM
-  if (crypted)
-  {
-    crypted->decode((char*) forminfo+256,288-256);
-    if (sint2korr(forminfo+284) != 0)		// Should be 0
-      goto err;                                 // Wrong password
-  }
-#endif
 
   share->fields= uint2korr(forminfo+258);
   pos= uint2korr(forminfo+260);   /* Length of all screens */
@@ -1515,14 +1499,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
-#ifdef HAVE_CRYPTED_FRM
-  if (crypted)
-  {
-    crypted->decode((char*) disk_buff,read_length);
-    delete crypted;
-    crypted=0;
-  }
-#endif
+
   strpos= disk_buff+pos;
 
   share->intervals= (TYPELIB*) (field_ptr+share->fields+1);
