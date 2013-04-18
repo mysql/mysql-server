@@ -1,0 +1,105 @@
+#
+# WL#6501: make truncate table atomic
+#
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/big_test.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Embedded server does not support crashing
+--source include/not_embedded.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+################################################################################
+#
+# Will test following scenarios:
+# 1. Test some basic dml action involving truncate of table.
+# 2. Hit crash point while writing redo log.
+#
+################################################################################
+
+#-----------------------------------------------------------------------------
+#
+# create test-bed
+#
+let $per_table = `select @@innodb_file_per_table`;
+let $format = `select @@innodb_file_format`;
+
+set global innodb_file_per_table = on;
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
+let $MYSQL_DATA_DIR = `select @@datadir`;
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+
+#-----------------------------------------------------------------------------
+#
+# 1. Test some basic dml action involving truncate of table.
+#
+create table t1
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+        ) engine = innodb;
+create table t2
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+        ) engine = innodb;
+--source suite/innodb/include/innodb_dml_ops.inc
+drop table t1;
+#
+create temporary table t1
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+        ) engine = innodb;
+create temporary table t2
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+        ) engine = innodb;
+--source suite/innodb/include/innodb_dml_ops.inc
+drop table t1;
+
+#-----------------------------------------------------------------------------
+#
+# 2. Hit crash point while writing redo log.
+#
+use test;
+set global innodb_file_per_table = 1;
+create table t (i int) engine=innodb;
+insert into t values (1), (2), (3);
+select * from t;
+#
+select table_id, name, space from information_schema.innodb_sys_tables
+	where name = 'test/t';
+select index_id, name, table_id, page_no from
+	information_schema.innodb_sys_indexes
+	where table_id in (select table_id from
+	information_schema.innodb_sys_tables where name = 'test/t');
+#
+set session debug = "+d,ib_truncate_crash_while_writing_redo_log";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+truncate table t;
+#
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+select * from t;
+#
+select table_id, name, space from information_schema.innodb_sys_tables
+	where name = 'test/t';
+select index_id, name, table_id, page_no from
+	information_schema.innodb_sys_indexes
+	where table_id in (select table_id from
+	information_schema.innodb_sys_tables where name = 'test/t');
+#
+drop table t;
+
+#-----------------------------------------------------------------------------
+#
+# remove test-bed
+#
+eval set global innodb_file_format = $format;
+eval set global innodb_file_per_table = $per_table;
+
