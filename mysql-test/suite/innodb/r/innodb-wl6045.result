@@ -433,7 +433,7 @@ See REFMAN for usage hints.
   -I, --info          Synonym for --help.
   -V, --version       Displays version information and exits.
   -v, --verbose       Verbose (prints progress every 5 seconds).
-  -d, --debug[=name]  Output debug log. See
+  -#, --debug[=name]  Output debug log. See
                       REFMAN
   -c, --count         Print the count of pages in the file and exits.
   -s, --start-page=#  Start on this page number (0 based).

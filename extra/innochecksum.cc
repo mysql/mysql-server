@@ -854,69 +854,70 @@ innochecksum_get_one_option(
 	char			*argument __attribute__((unused)))
 {
 	switch (optid) {
-		case 'd':
-			dbug_setting = argument ? argument :
-				       IF_WIN("d:O,innochecksum.trace",
-					      "d:o,/tmp/innochecksum.trace");
-			DBUG_PUSH(dbug_setting);
-			break;
-		case 'e':
-			use_end_page = TRUE;
-			break;
-		case 'p':
-			end_page = start_page = do_page;
-			use_end_page = TRUE;
-			do_one_page = TRUE;
-			break;
-		case 'V':
-			print_version();
-			exit(0);
-			break;
-		case 'C':
-			strict_verify = TRUE;
-			switch ((srv_checksum_algorithm_t) strict_check) {
+	case '#':
+		dbug_setting = argument
+			? argument
+			: IF_WIN("d:O,innochecksum.trace",
+				 "d:o,/tmp/innochecksum.trace");
+		DBUG_PUSH(dbug_setting);
+		break;
+	case 'e':
+		use_end_page = TRUE;
+		break;
+	case 'p':
+		end_page = start_page = do_page;
+		use_end_page = TRUE;
+		do_one_page = TRUE;
+		break;
+	case 'V':
+		print_version();
+		exit(EXIT_SUCCESS);
+		break;
+	case 'C':
+		strict_verify = TRUE;
+		switch ((srv_checksum_algorithm_t) strict_check) {
 
-				case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
-				case SRV_CHECKSUM_ALGORITHM_CRC32:
-					srv_checksum_algorithm =
-						SRV_CHECKSUM_ALGORITHM_STRICT_CRC32;
-					break;
+		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+		case SRV_CHECKSUM_ALGORITHM_CRC32:
+			srv_checksum_algorithm =
+				SRV_CHECKSUM_ALGORITHM_STRICT_CRC32;
+			break;
 
-				case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-				case SRV_CHECKSUM_ALGORITHM_INNODB:
-					srv_checksum_algorithm =
-						SRV_CHECKSUM_ALGORITHM_STRICT_INNODB;
-				break;
+		case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+		case SRV_CHECKSUM_ALGORITHM_INNODB:
+			srv_checksum_algorithm =
+				SRV_CHECKSUM_ALGORITHM_STRICT_INNODB;
+			break;
 
-				case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
-				case SRV_CHECKSUM_ALGORITHM_NONE:
-					srv_checksum_algorithm =
-						SRV_CHECKSUM_ALGORITHM_STRICT_NONE;
-					break;
-				default :
-					return (TRUE);
-			}
+		case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+		case SRV_CHECKSUM_ALGORITHM_NONE:
+			srv_checksum_algorithm =
+				SRV_CHECKSUM_ALGORITHM_STRICT_NONE;
 			break;
-		case 'n':
-			no_check = TRUE;
-			break;
-		case 'a':
-		case 'S':
-			break;
-		case 'w':
-			do_write = TRUE;
-			break;
-		case 'D':
-			page_type_dump = TRUE;
-			break;
-		case 'I':
-		case '?':
-			usage();
-			exit(FALSE);
-			break;
+		default:
+			return(TRUE);
+		}
+		break;
+	case 'n':
+		no_check = TRUE;
+		break;
+	case 'a':
+	case 'S':
+		break;
+	case 'w':
+		do_write = TRUE;
+		break;
+	case 'D':
+		page_type_dump = TRUE;
+		break;
+	case 'I':
+	case '?':
+		usage();
+		exit(EXIT_SUCCESS);
+		break;
 	}
 
-	return (FALSE);
+	return(FALSE);
 }
 
 static
