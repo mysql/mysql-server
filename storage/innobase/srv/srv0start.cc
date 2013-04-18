@@ -1678,12 +1678,10 @@ innobase_start_or_create_for_mysql(void)
 	srv_log_file_size_requested = srv_log_file_size;
 
 	if (create_new_db) {
-		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-		ut_a(success);
+
+		buf_flush_sync_all_buf_pools();
 
 		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
-
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 		err = create_log_files(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
@@ -1894,12 +1892,9 @@ files_checked:
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
-		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-		ut_a(success);
+		buf_flush_sync_all_buf_pools();
 
 		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
-
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 		/* Stamp the LSN to the data files. */
 		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
@@ -2006,9 +2001,7 @@ files_checked:
 			}
 
 			/* Clean the buffer pool. */
-			bool success = buf_flush_list(
-				ULINT_MAX, LSN_MAX, NULL);
-			ut_a(success);
+			buf_flush_sync_all_buf_pools();
 
 			RECOVERY_CRASH(1);
 
@@ -2022,10 +2015,6 @@ files_checked:
 				(unsigned) srv_n_log_files,
 				(unsigned) srv_log_file_size_requested,
 				max_flushed_lsn);
-
-			buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-
-			RECOVERY_CRASH(2);
 
 			/* Flush the old log files. */
 			log_buffer_flush_to_disk();
