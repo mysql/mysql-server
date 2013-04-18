@@ -769,18 +769,18 @@ NEW_VERSION=%{mysql_version}-%{release}
 # Check for the existence of subdirectory "mysql/", the database of system
 # tables like "mysql.user".
 if [ -d $mysql_datadir/mysql ] ; then
-	echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
-	echo "'pre' step running at `date`"          >> $STATUS_FILE
-	echo                                         >> $STATUS_FILE
-	fcount=`ls -ltr $mysql_datadir/*.err 2>/dev/null | wc -l`       
+        echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
+        echo "'pre' step running at `date`"          >> $STATUS_FILE
+        echo                                         >> $STATUS_FILE
+        fcount=`ls -ltr $mysql_datadir/*.err 2>/dev/null | wc -l`
         if [ $fcount -gt 0 ] ; then
              echo "ERR file(s):"                          >> $STATUS_FILE
-	     ls -ltr $mysql_datadir/*.err                 >> $STATUS_FILE
-	     echo                                         >> $STATUS_FILE
-	     echo "Latest 'Version' line in latest file:" >> $STATUS_FILE
-	     grep '^Version' `ls -tr $mysql_datadir/*.err | tail -1` | \
-		tail -1                              >> $STATUS_FILE
-	     echo                                         >> $STATUS_FILE
+             ls -ltr $mysql_datadir/*.err                 >> $STATUS_FILE
+             echo                                         >> $STATUS_FILE
+             echo "Latest 'Version' line in latest file:" >> $STATUS_FILE
+             grep '^Version' `ls -tr $mysql_datadir/*.err | tail -1` | \
+                tail -1                              >> $STATUS_FILE
+             echo                                         >> $STATUS_FILE
         fi
 
 	if [ -n "$SERVER_TO_START" ] ; then
