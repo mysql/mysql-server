@@ -82,13 +82,14 @@ set(BUILDNAME "${branchname} ${buildname_build_type} ${CMAKE_SYSTEM} ${machine_t
 include(CTest)
 
 set(TOKUDB_DATA "${TokuDB_SOURCE_DIR}/../tokudb.data" CACHE FILEPATH "Path to data files for tests")
-set(WARNED_ABOUT_DATA 0)
-if (NOT EXISTS "${TOKUDB_DATA}/" AND NOT WARNED_ABOUT_DATA)
-  message(WARNING "Test data files are missing from ${TOKUDB_DATA}, which will cause some tests to fail.  Please put them there or modify TOKUDB_DATA to avoid this.")
-  set(WARNED_ABOUT_DATA 1)
-endif ()
 
 if (BUILD_TESTING OR BUILD_FT_TESTS OR BUILD_SRC_TESTS)
+  set(WARNED_ABOUT_DATA 0)
+  if (NOT EXISTS "${TOKUDB_DATA}/" AND NOT WARNED_ABOUT_DATA)
+    message(WARNING "Test data files are missing from ${TOKUDB_DATA}, which will cause some tests to fail.  Please put them there or modify TOKUDB_DATA to avoid this.")
+    set(WARNED_ABOUT_DATA 1)
+  endif ()
+
   ## set up full valgrind suppressions file (concatenate the suppressions files)
   file(READ ft/valgrind.suppressions valgrind_suppressions)
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/valgrind.suppressions" "${valgrind_suppressions}")
