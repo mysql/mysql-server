@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -84,17 +84,6 @@ btr_cur_get_page_zip(
 	btr_cur_t*	cursor)	/*!< in: tree cursor */
 {
 	return(buf_block_get_page_zip(btr_cur_get_block(cursor)));
-}
-
-/*********************************************************//**
-Invalidates a tree cursor by setting record pointer to NULL. */
-UNIV_INLINE
-void
-btr_cur_invalidate(
-/*===============*/
-	btr_cur_t*	cursor)	/*!< in: tree cursor */
-{
-	page_cur_invalidate(&(cursor->page_cur));
 }
 
 /*********************************************************//**
