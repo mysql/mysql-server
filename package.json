@@ -17,7 +17,7 @@
   ,
   "main"        : "Adapter/api/mynode"
   ,
-  "scripts"     : {"preinstall" : "node configure; node-gyp configure build" }
+  "scripts"     : {"preinstall" : "node configure && node-gyp configure build" }
   ,
   "dependencies": []
   ,
