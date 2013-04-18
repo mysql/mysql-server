@@ -43,9 +43,9 @@ Please report bugs in TokuDB here on github.
 We have two publicly accessible mailing lists:
 
  - tokudb-user@googlegroups.com is for general and support related
-   questions about the use of TokuDB, TokuKV, and TokuDS.
+   questions about the use of TokuDB.
  - tokudb-dev@googlegroups.com is for discussion of the development of
-   TokuDB, TokuKV, and TokuDS.
+   TokuDB.
 
 We are also available on IRC on freenode.org, in the #tokutek channel.
 
