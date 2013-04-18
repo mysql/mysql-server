@@ -105,7 +105,7 @@ page-type-dump                    (No default value)
        #	Index page
        #	Undo log page
        #	Inode page
-       #	INSERT buffer free list page
+       #	Insert buffer free list page
        #	Freshly allocated page
        #	Insert buffer bitmap
        #	System page
