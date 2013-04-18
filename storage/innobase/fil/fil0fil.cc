@@ -6536,7 +6536,9 @@ fil_mtr_rename_log(
 /**
 Set the truncate redo log values for a compressed table. */
 void
-truncate_t::index_t::set(const dict_index_t* index)
+truncate_t::index_t::set(
+/*=====================*/
+	const dict_index_t* index)
 {
 	/* Collects info for creating compressed index page during recovery */
 	ulint	pos;
@@ -6587,6 +6589,7 @@ Create an index for a table.
 @return root page no or FIL_NULL on failure */
 ulint
 truncate_t::create_index(
+/*=====================*/
 	const char*	table_name,
 	ulint		space_id,
 	ulint		zip_size,
@@ -6623,6 +6626,7 @@ truncate_t::create_index(
 @return DB_SUCCESS or error code. */
 dberr_t
 truncate_t::create_indexes(
+/*=======================*/
 	const char*	table_name,
 	ulint		space_id,
 	ulint		zip_size,
@@ -6681,6 +6685,7 @@ Write a redo log record for truncating a single-table tablespace.
 @param format_flags	page format */
 void
 truncate_t::write(
+/*==============*/
 	ulint		space_id,
 	const char*	tablename,
 	ulint		flags,
@@ -6817,7 +6822,11 @@ Parses MLOG_FILE_TRUNCATE redo record during recovery
 
 @return true if successfully parsed the MLOG_FILE_TRUNCATE record */
 bool
-truncate_t::parse(byte** ptr, const byte** end_ptr, ulint flags)
+truncate_t::parse(
+/*==============*/
+	byte** ptr,
+	const byte** end_ptr,
+	ulint flags)
 {
 	ut_ad(m_indexes.empty());
 
@@ -6913,6 +6922,7 @@ in the memory cache.
 @return DB_SUCCESS or error */
 dberr_t
 truncate_t::truncate(
+/*=================*/
 	ulint		id,
 	const char*	tablename,
 	const char*	dir_path,
