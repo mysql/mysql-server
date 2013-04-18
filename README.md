@@ -37,7 +37,7 @@ scripts/make.mysql.bash --git_tag=tokudb-7.0.0 --mysql=mariadb-5.5.30
 Contributing
 ------------
 
-Please report bugs in TokuKV here on github.
+Please report bugs in TokuDB here on github.
 
 We have two publicly accessible mailing lists:
 
@@ -52,10 +52,7 @@ We are also available on IRC on freenode.org, in the #tokutek channel.
 License
 -------
 
-TokuDB is available under the GPL version 2.  See [COPYING][copying].
+TokuDB is available under the GPL version 2, with slight modifications.
+See [README-TOKUDB][license].
 
-TokuKV (a component of TokuDB) is available under the GPL with slight
-modifications.  See [README-TOKUDB][license] in the ft-index repository.
-
-[copying]: http://github.com/Tokutek/ft-engine/blob/master/COPYING
 [license]: http://github.com/Tokutek/ft-index/blob/master/README-TOKUDB
