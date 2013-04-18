@@ -108,6 +108,17 @@ function build_fractal_tree() {
         github_download Tokutek/ft-index $git_tag ft-index
         if [ $? != 0 ] ; then exit 1; fi
 
+        # get the commit id of the ft-index repo
+        local ft_revision=0
+        if [ ! -z $github_token ] ; then
+            local ft_index_ls
+            ft_index_ls=$(git ls-remote https://$github_token:x-oauth-basic@github.com/Tokutek/ft-index.git $git_tag)
+            if [ $? != 0 ] ; then exit 1; fi
+            local ft_revision_hex
+            ft_revision_hex=0x$(echo $ft_index_ls | cut -c-7)
+            let ft_revision=$ft_revision_hex
+        fi
+
         pushd ft-index
         if [ $? != 0 ] ; then exit 1; fi
 
@@ -133,9 +144,8 @@ function build_fractal_tree() {
         CC=$cc CXX=$cxx cmake \
             -D LIBTOKUDB=$tokufractaltree \
             -D LIBTOKUPORTABILITY=$tokuportability \
-            -D CMAKE_TOKUDB_REVISION=0 \
+            -D CMAKE_TOKUDB_REVISION=$ft_revision \
             -D CMAKE_BUILD_TYPE=$ft_build_type \
-            -D TOKU_SVNROOT=$basedir \
             -D JEMALLOC_SOURCE_DIR=../../jemalloc \
             -D CMAKE_INSTALL_PREFIX=../../$tokufractaltreedir \
             -D BUILD_TESTING=OFF \
@@ -352,6 +362,9 @@ function generate_build_from_src() {
                 echo 'sed -i -e"s/^%define mysql_version.*/&-${tokudb_distro_version}/" SPECS/$specfile'
                 echo 'sed -i -e"s/^%define release.*/%define release $(echo ${tokudb_distro_version}|tr - .)/" SPECS/$specfile'
                 # echo 'sed -i -e"s/^\(.*-DMYSQL_SERVER_SUFFIX=.*\)$/& -DEXTRA_VERSION=-${tokudb_distro_version}/" SPECS/$specfile'
+                
+                # include README-TOKUDB in the RPM
+                echo 'sed -i -e"s/README/& %{src_dir}\/README-TOKUDB/" SPECS/$specfile'
 
                 # add jemalloc to the linker flags
                 echo 'sed -i -e"s/^\(.*-DMYSQL_SERVER_SUFFIX=.*\)$/& -DCMAKE_EXE_LINKER_FLAGS=\"-Wl,--whole-archive \$\{TOKUFRACTALTREE\}\/lib\/libjemalloc.a -Wl,-no-whole-archive\"/" SPECS/$specfile'
@@ -447,6 +460,12 @@ function build_mysql_src() {
 
         # generate the tokudb.build.bash script from the mysql src and the fractal tree tarballs
         generate_build_from_src $mysqlsrc $tokufractaltreedir >$mysqlsrc/scripts/tokudb.build.bash
+
+        # add README-TOKUDB
+        if [ ! -f $mysqlsrc/README-TOKUDB ] ; then
+            cp ft-engine/README-TOKUDB $mysqlsrc
+        fi
+        sed -i -e's/FILES README DESTINATION/FILES README README-TOKUDB DESTINATION/' $mysqlsrc/CMakeLists.txt
 
         # make the mysql src tarball
         tar czf $mysqlsrc.tar.gz $mysqlsrc
