@@ -39,6 +39,14 @@ node is 32-bit, MySQL must be 32-bit.
 The mysql backend requires version 2.0 of node-mysql, an all-JavaScript 
 MySQL client.
 
+### WINDOWS REQURIREMENTS LIST ###
+1. Microsoft Visual Studio
+2. MySQL Cluster
+3. Python 2.6 or 2.7
+4. Node.JS
+5. node-gyp 
+
+
 
 BUILDING
 --------
@@ -47,7 +55,16 @@ of MySQL, and it will prompt you to accept its choice or enter an alternative.
 
 * To build the module in place, type:
     ```node configure.js```
-    
+
+* After configuring, build a binary.  The -d argument to node-gyp makes it a 
+"debug" binary
+    ```node-gyp configure build -d``` 
+
+* After testing the debug binary, on platforms other than Windows, it is 
+possible to build an optimized (non-debug) binary.  *Non-debug builds are 
+generally not possible on Windows, and usually result in link-time errors.* 
+    ```node-gyp rebuild```
+
 
 DIRECTORY STRUCTURE
 -------------------

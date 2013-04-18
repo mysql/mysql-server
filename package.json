@@ -2,7 +2,7 @@
 {
   "name"        : "mysql-js"
   ,
-  "version"     : "0.0.421-dmr"
+  "version"     : "0.0.424-dmr"
   ,  
   "description" : "Lightweight object mapping layer for MySQL and MySQL Cluster"
   ,
@@ -17,7 +17,10 @@
   ,
   "main"        : "Adapter/api/mynode"
   ,
-  "scripts"     : {"preinstall" : "node configure && node-gyp configure build" }
+  "scripts"     : {
+                  "preinstall" : "node configure && node-gyp rebuild -d",
+                  "test" : "cd test && node driver" 
+                  }
   ,
   "dependencies": []
   ,
