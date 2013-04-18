@@ -786,17 +786,17 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
     DBUG_RETURN(1);
 
   /*
-    If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
+    If it's SHOW EVENTS then thd->lex->select_lex->db is guaranteed not to
     be NULL. Let's do an assert anyway.
   */
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
-    DBUG_ASSERT(thd->lex->select_lex.db);
-    if (!is_infoschema_db(thd->lex->select_lex.db) && // There is no events in I_S
-        check_access(thd, EVENT_ACL, thd->lex->select_lex.db,
+    DBUG_ASSERT(thd->lex->select_lex->db);
+    if (!is_infoschema_db(thd->lex->select_lex->db) && // No events in I_S
+        check_access(thd, EVENT_ACL, thd->lex->select_lex->db,
                      NULL, NULL, 0, 0))
       DBUG_RETURN(1);
-    db= thd->lex->select_lex.db;
+    db= thd->lex->select_lex->db;
   }
   ret= db_repository->fill_schema_events(thd, tables, db);
 

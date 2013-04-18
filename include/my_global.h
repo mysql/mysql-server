@@ -35,22 +35,6 @@
 */
 #define INNODB_COMPATIBILITY_HOOKS
 
-#ifdef __CYGWIN__
-/* We use a Unix API, so pretend it's not Windows */
-#undef WIN
-#undef WIN32
-#undef _WIN
-#undef _WIN32
-#undef _WIN64
-#undef __WIN__
-#undef __WIN32__
-#define HAVE_ERRNO_AS_DEFINE
-#endif /* __CYGWIN__ */
-
-#if defined(__OpenBSD__) && (OpenBSD >= 200411)
-#define HAVE_ERRNO_AS_DEFINE
-#endif
-
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
