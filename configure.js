@@ -38,10 +38,10 @@
  02110-1301  USA
 */
 
-// On Windows, we write config.gypi and build with gyp.
-//
-// On non-Windows, we write a shell script (pathname supplied on the command
-// line) and build with node-waf.
+// configure.js:
+//    Try to find installed mysql that matches architecture of node
+//    Ask user for mysql pathname
+//    Write mysql pathname into config.gypi and config.waf
 
 "use strict";
 
@@ -94,6 +94,7 @@ var greeting =
 '# ' +lf;
 
 function verify(dir) {
+  var stats;
   try {
     stats = fs.statSync(dir);
     return stats.isDirectory();
@@ -137,7 +138,7 @@ function get_candidates() {
     }
   }
 
-  if(verify('opt/mysql/server-5.6/share/java'))  {   // Debian
+  if(verify('/opt/mysql/server-5.6/share/java'))  {   // Debian
     candidates.push('/opt/mysql/server-5.6');
   }
   
@@ -164,15 +165,21 @@ function build_prompt(candidates) {
             '# ' +lf;
   }
   found += ' [' + String(++i) + ']  Choose custom mysql directory' +lf;
-  found += ' [' + String(++i) + ']  Skip (Do not build the ndb backend)' +lf+lf;
 
   return found;
 }
 
 function finish() {
   console.log("");
-  console.log("Now run this command:\n\tnode-gyp configure build");
+  console.log("Now run this command:\n\tnode-gyp configure build -d");
   process.exit(0);
+}
+
+function testPath(mysqlPath) {
+  // We assert that a path is a valid mysql install true if and only if 
+  // it contains a mysql-test directory
+  var testPath = path.join(mysqlPath.trim(), "mysql-test");
+  return verify(testPath);
 }
 
 function configure(mysql, layout) {
@@ -194,20 +201,20 @@ function configure(mysql, layout) {
 function completion(line) {
   var matches = [];
   var dir, base, files, stat;
-//wrong:mmmm
-  try {  // input is a directory?
+ 
+ if(line.slice(-1) == path_sep) {
     dir = line;
     files = fs.readdirSync(dir);
     base = "";
   }
-  catch(e) {
+  else {
     dir = path.dirname(line);   // returns "." if path is unrooted
     base = path.basename(line);
     files = fs.readdirSync(dir);
   }
  
   for(var i = 0; i < files.length ; i++) {
-    if(files[i].match("^" + base)) {
+    if(files[i].substring(0,1) !== "." && files[i].match("^" + base)) {
       matches.push(path.join(dir, files[i]));
     }
   }
@@ -241,18 +248,19 @@ function main() {
   }
 
   function onEntry(choice) {
-    var range = candidates.length + 2;
+    var range = candidates.length + 1;
     var num = Number(choice);
-    
-    if(num < 1 || num > range) {
+
+    if(num == NaN) {  // user skipped straight to pathname entry
+      onPath(choice); 
+    }
+    else if(num < 1 || num > range) {
       rl.write("Please enter a number between 1 and " + range + "." + lf);
       rl.write("Hit CTRL-C to exit." +lf);
-      rl.prompt();
-    }
-    else if(num === range) {  // skip
-      hangup();
+      rl.prompt(true);
     }
     else if(num === (range - 1)) {
+      rl.removeListener('line', onEntry);
       customMode();
     }
     else {
@@ -261,28 +269,39 @@ function main() {
     }
   }
 
-  function onPath(path) {
-    rl.close();
-    configure(path);
+  function onPath(mysqlPath) {
+    if(testPath(mysqlPath)) {
+      rl.close();
+      configure(mysqlPath);
+    }
+    else {
+      console.log("ERROR: not a MySQL install tree" + lf);
+      rl.prompt(true);
+    }
   }
 
   function mainMode() {
     rl.setPrompt('Your choice> ', 13);
-    rl.on('line', onEntry).on('SIGINT', hangup);
+    rl.on('line', onEntry);
     rl.prompt(true);
   }
 
   function customMode() {
     rl.setPrompt('MySQL Install Path> ', 20);
-    rl.removeListener('line', onEntry);
     rl.on('line', onPath);
     rl.prompt(true);
   }
 
   /* Start here: */
   rl.write(greeting);
-  rl.write(text);
-  mainMode();  
+  rl.on('SIGINT', hangup);
+  if(candidates.length) {
+    rl.write(text);
+    mainMode();  
+  }
+  else {
+    customMode();
+  }
 }
  
  
