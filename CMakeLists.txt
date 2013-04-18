@@ -57,7 +57,7 @@ add_subdirectory(toku_include)
 add_subdirectory(examples)
 
 install(
-  FILES README README-TOKUDB
+  FILES README.md README-TOKUDB
   DESTINATION .
   )
 
