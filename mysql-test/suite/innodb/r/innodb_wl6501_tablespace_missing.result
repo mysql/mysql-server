@@ -1,24 +1,23 @@
 set global innodb_file_per_table=on;
 # Verify that the TRUNCATE TABLE statement works fine
 # if the tablespace is missing.
-CREATE DATABASE wl6501;
-create table wl6501.t1(a int not null,
+use test;
+create table t1(a int not null,
 b int not null,
 c int not null,
 primary key (a),
 index (b),
 index (c))
 engine=innodb row_format=compact;
-select count(*) from wl6501.t1;
+select count(*) from t1;
 count(*)
 100
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
-truncate table wl6501.t1;
+truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the MySQL server
-select count(*) from wl6501.t1;
+select count(*) from t1;
 count(*)
 100
-drop table wl6501.t1;
-drop database wl6501;
+drop table t1;

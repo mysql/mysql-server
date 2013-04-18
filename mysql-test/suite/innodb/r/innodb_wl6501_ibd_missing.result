@@ -2,23 +2,23 @@ set global innodb_file_per_table=on;
 # Verify that the TRUNCATE TABLE statement is rollbacked
 # and the table is marked as corrupt when the .ibd file
 # is missing.
-CREATE DATABASE wl6501;
-create table wl6501.t1(a int not null,
+use test;
+create table t1(a int not null,
 b int not null,
 c int not null,
 primary key (a),
 index (b),
 index (c))
 engine=innodb row_format=compact;
-select count(*) from wl6501.t1;
+select count(*) from t1;
 count(*)
 100
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
-truncate table wl6501.t1;
+truncate table t1;
 ERROR HY000: Got error -1 from storage engine
 # Restart the MySQL server
-show create table wl6501.t1;
+show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
@@ -28,5 +28,4 @@ t1	CREATE TABLE `t1` (
   KEY `b` (`b`),
   KEY `c` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
-drop table wl6501.t1;
-drop database wl6501;
+drop table t1;
