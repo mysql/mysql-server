@@ -361,14 +361,12 @@ Requires:       MySQL-client perl
 Provides:       MySQL-test
 Conflicts:      mysql-test mysql-test-advanced
 Obsoletes:      MySQL-test
-Obsoletes:      mysql-bench MySQL-bench
 Obsoletes:      MySQL-test-classic MySQL-test-community MySQL-test-enterprise
 Obsoletes:      MySQL-test-advanced MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
 AutoReqProv:    no
 %else
 Requires:       MySQL-client perl
 Conflicts:      mysql-test mysql-test-advanced
-Obsoletes:      mysql-bench MySQL-bench
 Obsoletes:      MySQL-test < %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      MySQL-test-classic MySQL-test-community MySQL-test-enterprise
