@@ -1703,9 +1703,6 @@ const lock_t*
 lock_rec_other_has_expl_req(
 /*========================*/
 	enum lock_mode		mode,	/*!< in: LOCK_S or LOCK_X */
-	ulint			gap,	/*!< in: LOCK_GAP if also gap
-					locks are taken into account,
-					or 0 if not */
 	ulint			wait,	/*!< in: LOCK_WAIT if also
 					waiting locks are taken into
 					account, or 0 if not */
@@ -1720,7 +1717,6 @@ lock_rec_other_has_expl_req(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
-	ut_ad(gap == 0 || gap == LOCK_GAP);
 	ut_ad(wait == 0 || wait == LOCK_WAIT);
 
 	for (lock = lock_rec_get_first(block, heap_no);
@@ -1728,9 +1724,8 @@ lock_rec_other_has_expl_req(
 	     lock = lock_rec_get_next_const(heap_no, lock)) {
 
 		if (lock->trx != trx
-		    && (gap
-			|| !(lock_rec_get_gap(lock)
-			     || heap_no == PAGE_HEAP_NO_SUPREMUM))
+		    && !(heap_no == PAGE_HEAP_NO_SUPREMUM
+			 || lock_rec_get_gap(lock))
 		    && (wait || !lock_get_wait(lock))
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)) {
 
@@ -2182,7 +2177,7 @@ lock_rec_add_to_queue(
 			? LOCK_X
 			: LOCK_S;
 		const lock_t*	other_lock
-			= lock_rec_other_has_expl_req(mode, 0, LOCK_WAIT,
+			= lock_rec_other_has_expl_req(mode, LOCK_WAIT,
 						      block, heap_no, trx);
 		ut_a(!other_lock);
 	}
@@ -5351,7 +5346,7 @@ lock_rec_queue_validate(
 		because lock_trx_release_locks() acquires lock_sys->mutex */
 
 		if (impl_trx != NULL
-		    && lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
+		    && lock_rec_other_has_expl_req(LOCK_S, LOCK_WAIT,
 						   block, heap_no, impl_trx)) {
 
 			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
@@ -5379,7 +5374,7 @@ lock_rec_queue_validate(
 				mode = LOCK_S;
 			}
 			ut_a(!lock_rec_other_has_expl_req(
-				     mode, 0, 0, block, heap_no, lock->trx));
+				     mode, 0, block, heap_no, lock->trx));
 
 		} else if (lock_get_wait(lock) && !lock_rec_get_gap(lock)) {
 
