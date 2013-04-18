@@ -1689,17 +1689,13 @@ recv_recover_page_func(
 				start_lsn = recv->start_lsn;
 			}
 
-#ifdef UNIV_DEBUG
-			if (log_debug_writes) {
-				fprintf(stderr,
-					"InnoDB: Applying log rec"
-					" type %lu len %lu"
-					" to space %lu page no %lu\n",
-					(ulong) recv->type, (ulong) recv->len,
-					(ulong) recv_addr->space,
-					(ulong) recv_addr->page_no);
-			}
-#endif /* UNIV_DEBUG */
+			DBUG_PRINT("ib_log",
+				   ("apply " DBUG_LSN_PF ": %u len %u "
+				    "page %u:%u", recv->start_lsn,
+				    (unsigned) recv->type,
+				    (unsigned) recv->len,
+				    (unsigned) recv_addr->space,
+				    (unsigned) recv_addr->page_no));
 
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
@@ -2387,15 +2383,11 @@ loop:
 		recv_sys->recovered_offset += len;
 		recv_sys->recovered_lsn = new_recovered_lsn;
 
-#ifdef UNIV_DEBUG
-		if (log_debug_writes) {
-			fprintf(stderr,
-				"InnoDB: Parsed a single log rec"
-				" type %lu len %lu space %lu page no %lu\n",
-				(ulong) type, (ulong) len, (ulong) space,
-				(ulong) page_no);
-		}
-#endif /* UNIV_DEBUG */
+		DBUG_PRINT("ib_log",
+			   ("scan " DBUG_LSN_PF ": log rec %u len %u "
+			    "page %u:%u", old_lsn,
+			    (unsigned) type, (unsigned) len,
+			    (unsigned) space, (unsigned) page_no));
 
 		if (type == MLOG_DUMMY_RECORD) {
 			/* Do nothing */
@@ -2482,16 +2474,12 @@ loop:
 			}
 #endif /* UNIV_LOG_DEBUG */
 
-#ifdef UNIV_DEBUG
-			if (log_debug_writes) {
-				fprintf(stderr,
-					"InnoDB: Parsed a multi log rec"
-					" type %lu len %lu"
-					" space %lu page no %lu\n",
-					(ulong) type, (ulong) len,
-					(ulong) space, (ulong) page_no);
-			}
-#endif /* UNIV_DEBUG */
+			DBUG_PRINT("ib_log",
+				   ("scan " DBUG_LSN_PF ": multi-log rec %u "
+				    "len %u page %u:%u",
+				    recv_sys->recovered_lsn,
+				    (unsigned) type, (unsigned) len,
+				    (unsigned) space, (unsigned) page_no));
 
 			total_len += len;
 			n_recs++;
@@ -3382,12 +3370,7 @@ recv_recovery_from_checkpoint_finish(void)
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-#ifdef UNIV_DEBUG
-	if (log_debug_writes) {
-		fprintf(stderr,
-			"InnoDB: Log records applied to the database\n");
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_log", ("apply completed"));
 
 	if (recv_needed_recovery) {
 		trx_sys_print_mysql_master_log_pos();

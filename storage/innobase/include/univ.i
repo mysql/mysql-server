@@ -433,6 +433,7 @@ macro ULINTPF. */
 # define INT64PF	"%I64d"
 # define UINT64PF	"%I64u"
 # define UINT64PFx	"%016I64u"
+# define DBUG_LSN_PF    "%llu"
 typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
@@ -442,6 +443,7 @@ typedef unsigned __int32 ib_uint32_t;
 # define INT64PF	"%"PRId64
 # define UINT64PF	"%"PRIu64
 # define UINT64PFx	"%016"PRIx64
+# define DBUG_LSN_PF    UINT64PF
 typedef int64_t ib_int64_t;
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;
