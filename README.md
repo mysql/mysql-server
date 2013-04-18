@@ -53,7 +53,10 @@ We are also available on IRC on freenode.org, in the #tokutek channel.
 License
 -------
 
-TokuDB is available under the GPL version 2, with slight modifications.
-See [README-TOKUDB][license].
+TokuDB is available under the GPL version 2.  See [COPYING][copying]
 
+The TokuKV component of TokuDB is available under the GPL version 2, with
+slight modifications.  See [README-TOKUDB][license].
+
+[copying]: http://github.com/Tokutek/ft-engine/blob/master/COPYING
 [license]: http://github.com/Tokutek/ft-index/blob/master/README-TOKUDB
