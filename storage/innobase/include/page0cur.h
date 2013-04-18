@@ -376,7 +376,9 @@ page_delete_rec(
 /** Index page cursor */
 
 struct page_cur_t{
-	byte*		rec;	/*!< pointer to a record on page */
+	const dict_index_t*	index;
+	rec_t*		rec;	/*!< pointer to a record on page */
+	ulint*		offsets;
 	buf_block_t*	block;	/*!< pointer to the block containing rec */
 };
 
