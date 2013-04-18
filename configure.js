@@ -210,7 +210,11 @@ function completion(line) {
   else {
     dir = path.dirname(line);   // returns "." if path is unrooted
     base = path.basename(line);
-    files = fs.readdirSync(dir);
+    files = [];
+    try { 
+      files = fs.readdirSync(dir);
+    }
+    catch(e) {}
   }
  
   for(var i = 0; i < files.length ; i++) {
