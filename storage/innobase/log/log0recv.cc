@@ -1749,7 +1749,6 @@ loop:
 	}
 
 	if (!allow_ibuf) {
-		bool	success;
 
 		/* Flush all the file pages to disk and invalidate them in
 		the buffer pool */
@@ -1765,11 +1764,7 @@ loop:
 		/* Wait for any currently run batch to end. */
 		buf_flush_wait_LRU_batch_end();
 
-		success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-
-		ut_a(success);
-
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+		buf_flush_sync_all_buf_pools();
 
 		buf_pool_invalidate();
 
