@@ -4678,7 +4678,8 @@ innobase_update_foreign_cache(
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
 	DBUG_RETURN(dict_load_foreigns(user_table->name,
-				       ctx->col_names, false, true));
+				       ctx->col_names, false, true,
+				       DICT_ERR_IGNORE_NONE));
 }
 
 /** Commit the changes made during prepare_inplace_alter_table()
