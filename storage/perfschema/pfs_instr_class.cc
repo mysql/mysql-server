@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -980,11 +980,14 @@ PFS_file_key register_file_class(const char *name, uint name_length,
 /**
   Register a stage instrumentation metadata.
   @param name                         the instrumented name
+  @param prefix_length                length in bytes of the name prefix
   @param name_length                  length in bytes of name
   @param flags                        the instrumentation flags
   @return a stage instrumentation key
 */
-PFS_stage_key register_stage_class(const char *name, uint name_length,
+PFS_stage_key register_stage_class(const char *name,
+                                   uint prefix_length,
+                                   uint name_length,
                                    int flags)
 {
   /* See comments in register_mutex_class */
@@ -1000,6 +1003,7 @@ PFS_stage_key register_stage_class(const char *name, uint name_length,
   {
     entry= &stage_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
+    entry->m_prefix_length= prefix_length;
     entry->m_event_name_index= index;
     entry->m_enabled= false; /* disabled by default */
     entry->m_timed= false;
