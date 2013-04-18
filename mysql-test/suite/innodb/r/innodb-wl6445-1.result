@@ -1269,6 +1269,12 @@ i	j
 5	mysql database innodb support
 6	innodb engine
 USE testdb_wl6445;
+show tables;
+Tables_in_testdb_wl6445
+t1
+select * from t1 where i = 4;
+i	j
+4	mysql database
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 UPDATE t1 SET i = i + 20;
@@ -1336,3 +1342,38 @@ i
 3
 USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
+case # 7 (restart server in read-only mode and perform check table) 
+use test;
+create table t1 (
+i int,
+f float,
+c char(100),
+b blob
+) engine = innodb;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 100) DO
+insert into t1 values (
+i, 2.323,
+'adfaqfafafafafsasfafsa',
+'badfadfsaeerer234234asdfdsafdasr2354234324234234');
+SET i = i + 1;
+END WHILE;
+END|
+begin;
+call populate_t1();
+commit;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+"restarting server in read-only-mode"
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+"restarting server in normal mode"
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+drop procedure populate_t1;

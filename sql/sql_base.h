@@ -364,10 +364,11 @@ inline bool setup_fields_with_no_wrap(THD *thd, Ref_ptr_array ref_pointer_array,
                                       bool allow_sum_func)
 {
   bool res;
-  thd->lex->select_lex.no_wrap_view_item= TRUE;
+  DBUG_ASSERT(thd->lex->select_lex != NULL);
+  thd->lex->select_lex->no_wrap_view_item= true;
   res= setup_fields(thd, ref_pointer_array, item, mark_used_columns,
                     sum_func_list, allow_sum_func);
-  thd->lex->select_lex.no_wrap_view_item= FALSE;
+  thd->lex->select_lex->no_wrap_view_item= false;
   return res;
 }
 

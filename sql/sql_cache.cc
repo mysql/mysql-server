@@ -3738,12 +3738,12 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
       lex->safe_to_cache_query &&
       !lex->describe &&
       (thd->variables.query_cache_type == 1 ||
-       (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
+       (thd->variables.query_cache_type == 2 && (lex->select_lex->options &
 						 OPTION_TO_QUERY_CACHE))))
   {
     DBUG_PRINT("qcache", ("options: %lx  %lx  type: %u",
                           (long) OPTION_TO_QUERY_CACHE,
-                          (long) lex->select_lex.options,
+                          (long) lex->select_lex->options,
                           (int) thd->variables.query_cache_type));
 
     if (!(table_count= process_and_count_tables(thd, tables_used,
@@ -3764,7 +3764,7 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
 	     ("not interesting query: %d or not cacheable, options %lx %lx  type: %u",
 	      (int) lex->sql_command,
 	      (long) OPTION_TO_QUERY_CACHE,
-	      (long) lex->select_lex.options,
+	      (long) lex->select_lex->options,
 	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);
 }

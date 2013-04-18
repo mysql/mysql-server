@@ -5001,9 +5001,9 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
   */
   Name_resolution_context *last_checked_context= context;
   Item **ref= (Item **) not_found_item;
-  SELECT_LEX *current_sel= (SELECT_LEX *) thd->lex->current_select;
-  Name_resolution_context *outer_context= 0;
-  SELECT_LEX *select= 0;
+  SELECT_LEX *current_sel= thd->lex->current_select;
+  Name_resolution_context *outer_context= NULL;
+  SELECT_LEX *select= NULL;
   /* Currently derived tables cannot be correlated */
   if (current_sel->master_unit()->first_select()->linkage !=
       DERIVED_TABLE_TYPE)
