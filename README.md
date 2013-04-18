@@ -38,6 +38,8 @@ Before you start, make sure you have a C++11-compatible compiler (GCC >=
 4.7 is recommended) and the libraries and header files for valgrind,
 zlib, and Berkeley DB.  On Centos, `yum install valgrind-devel zlib-devel
 libdb-devel`, on Ubuntu, `apt-get install valgrind zlib1g-dev libdb-dev`.
+If your default compiler is not new enough, you can pass a different one:
+`scripts/make.mysql.bash --cc=gcc47 --cxx=g++47`.
 
 
 Contributing
