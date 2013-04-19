@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -192,3 +192,32 @@ def xml_to_python(xml_str):
     xml.sax.parseString(xml_str, cp, xml.sax.handler.ErrorHandler())
     return cp.get_obj()
 
+
+def _parse_until_delim(ctx, fld, delim):
+    """ Return False unless delim exists in ctx['str']. Assign ctx['str'] excluding delim to ctx[fld] and assign ctx[str] to the remainder, excluding delim, and return True otherwise."""
+    i = ctx['str'].find(delim)
+    if (i == -1):
+        return False
+ 
+    ctx[fld] = ctx['str'][0:i]
+    ctx['str'] = ctx['str'][i+len(delim):]
+    return True	
+
+def parse_empty_line(ctx):
+    """Return False unless ctx[str] starts with an empty line. Consume the empty line and return True otherwise."""
+    if ctx['str'].startswith('\n'):
+        ctx['str'] = ctx['str'][1:]
+        return True
+    return False	
+  
+def parse_property(ctx, delim):
+    """Return False unless key and value parsing succeeds. Add kv-pair to ctx['properties'] and return True otherwise."""
+    if _parse_until_delim(ctx, 'key', delim) and _parse_until_delim(ctx, 'val', '\n'):
+        ctx['properties'][ctx['key']] = ctx['val']
+        return True
+    return False
+  
+def parse_properties(ctx, delim='='):
+    """Return False unless ctx['str'] is a list of properties, a single property or an empty line. 
+    Parse the list of properties and return True otherwise."""
+    return parse_property(ctx,delim) and parse_properties(ctx,delim) or parse_empty_line(ctx)
