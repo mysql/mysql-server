@@ -683,14 +683,6 @@ skip_field:
 		memcpy(data, dfield_get_data(dfield), local_prefix_len);
 		/* Clear the extern field reference (BLOB pointer). */
 		memset(data + local_prefix_len, 0, BTR_EXTERN_FIELD_REF_SIZE);
-#if 0
-		/* The following would fail the Valgrind checks in
-		page_cur_insert_rec_low() and page_cur_insert_rec_zip().
-		The BLOB pointers in the record will be initialized after
-		the record and the BLOBs have been written. */
-		UNIV_MEM_ALLOC(data + local_prefix_len,
-			       BTR_EXTERN_FIELD_REF_SIZE);
-#endif
 
 		dfield_set_data(dfield, data, local_len);
 		dfield_set_ext(dfield);
