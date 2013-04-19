@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -30,6 +30,7 @@ Created 10/4/1994 Heikki Tuuri
 #endif
 
 #include "page0zip.h"
+#include "btr0btr.h"
 #include "mtr0log.h"
 #include "log0recv.h"
 #include "ut0ut.h"
@@ -773,7 +774,7 @@ page_cur_parse_insert_rec(
 	byte*	buf;
 	byte*	ptr2			= ptr;
 	ulint	info_and_status_bits = 0; /* remove warning */
-	page_cur_t cursor;
+	page_cur_t	cursor;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -1160,84 +1161,22 @@ use_heap:
 }
 
 /***********************************************************//**
-Compresses or reorganizes a page after an optimistic insert.
-@return	rec if succeed, NULL otherwise */
-static
-rec_t*
-page_cur_insert_rec_zip_reorg(
-/*==========================*/
-	rec_t**		current_rec,/*!< in/out: pointer to current record after
-				which the new record is inserted */
-	buf_block_t*	block,	/*!< in: buffer block */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	rec_t*		rec,	/*!< in: inserted record */
-	ulint		rec_size,/*!< in: size of the inserted record */
-	page_t*		page,	/*!< in: uncompressed page */
-	page_zip_des_t*	page_zip,/*!< in: compressed page */
-	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
-{
-	ulint		pos;
-
-	/* Make a local copy as the values can change dynamically. */
-	bool		log_compressed = page_log_compressed_pages;
-	ulint		level = page_compression_level;
-
-	/* Recompress or reorganize and recompress the page. */
-	if (page_zip_compress(page_zip, page, index, level,
-			      log_compressed ? mtr : NULL)) {
-		if (!log_compressed) {
-			page_cur_insert_rec_write_log(
-				rec, rec_size, *current_rec, index, mtr);
-			page_zip_compress_write_log_no_data(
-				level, page, index, mtr);
-		}
-
-		return(rec);
-	}
-
-	/* Before trying to reorganize the page,
-	store the number of preceding records on the page. */
-	pos = page_rec_get_n_recs_before(rec);
-	ut_ad(pos > 0);
-
-	if (page_zip_reorganize(block, index, mtr)) {
-		/* The page was reorganized: Find rec by seeking to pos,
-		and update *current_rec. */
-		if (pos > 1) {
-			rec = page_rec_get_nth(page, pos - 1);
-		} else {
-			rec = page + PAGE_NEW_INFIMUM;
-		}
-
-		*current_rec = rec;
-		rec = page + rec_get_next_offs(rec, TRUE);
-
-		return(rec);
-	}
-
-	/* Out of space: restore the page */
-	btr_blob_dbg_remove(page, index, "insert_zip_fail");
-	if (!page_zip_decompress(page_zip, page, FALSE)) {
-		ut_error; /* Memory corrupted? */
-	}
-	ut_ad(page_validate(page, index));
-	btr_blob_dbg_add(page, index, "insert_zip_fail");
-	return(NULL);
-}
-
-/***********************************************************//**
 Inserts a record next to page cursor on a compressed and uncompressed
 page. Returns pointer to inserted record if succeed, i.e.,
 enough space available, NULL otherwise.
 The cursor stays at the same position.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return	pointer to record if succeed, NULL otherwise */
 UNIV_INTERN
 rec_t*
 page_cur_insert_rec_zip(
 /*====================*/
-	rec_t**		current_rec,/*!< in/out: pointer to current record after
-				which the new record is inserted */
-	buf_block_t*	block,	/*!< in: buffer block of *current_rec */
+	page_cur_t*	cursor,	/*!< in/out: page cursor */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	const rec_t*	rec,	/*!< in: pointer to a physical record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
@@ -1255,19 +1194,19 @@ page_cur_insert_rec_zip(
 					record */
 	page_zip_des_t*	page_zip;
 
-	page_zip = buf_block_get_page_zip(block);
+	page_zip = page_cur_get_page_zip(cursor);
 	ut_ad(page_zip);
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	page = page_align(*current_rec);
+	page = page_cur_get_page(cursor);
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(page_is_comp(page));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
 	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
 
-	ut_ad(!page_rec_is_supremum(*current_rec));
+	ut_ad(!page_cur_is_after_last(cursor));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
@@ -1292,14 +1231,74 @@ page_cur_insert_rec_zip(
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 
+	const bool reorg_before_insert = page_has_garbage(page)
+		&& rec_size > page_get_max_insert_size(page, 1)
+		&& rec_size <= page_get_max_insert_size_after_reorganize(
+			page, 1);
+
 	/* 2. Try to find suitable space from page memory management */
 	if (!page_zip_available(page_zip, dict_index_is_clust(index),
-				rec_size, 1)) {
+				rec_size, 1)
+	    || reorg_before_insert) {
+		/* The values can change dynamically. */
+		bool	log_compressed	= page_zip_log_pages;
+		ulint	level		= page_zip_level;
+#ifdef UNIV_DEBUG
+		rec_t*	cursor_rec	= page_cur_get_rec(cursor);
+#endif /* UNIV_DEBUG */
+
+		/* If we are not writing compressed page images, we
+		must reorganize the page before attempting the
+		insert. */
+		if (recv_recovery_is_on()) {
+			/* Insert into the uncompressed page only.
+			The page reorganization or creation that we
+			would attempt outside crash recovery would
+			have been covered by a previous redo log record. */
+		} else if (page_is_empty(page)) {
+			ut_ad(page_cur_is_before_first(cursor));
+
+			/* This is an empty page. Recreate it to
+			get rid of the modification log. */
+			page_create_zip(page_cur_get_block(cursor), index,
+					page_header_get_field(page, PAGE_LEVEL),
+					0, mtr);
+			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
+
+			if (page_zip_available(
+				    page_zip, dict_index_is_clust(index),
+				    rec_size, 1)) {
+				goto use_heap;
+			}
+
+			/* The cursor should remain on the page infimum. */
+			return(NULL);
+		} else if (!page_zip->m_nonempty && !page_has_garbage(page)) {
+			/* The page has been freshly compressed, so
+			reorganizing it will not help. */
+		} else if (log_compressed && !reorg_before_insert) {
+			/* Insert into uncompressed page only, and
+			try page_zip_reorganize() afterwards. */
+		} else if (btr_page_reorganize_low(
+				   recv_recovery_is_on(), level,
+				   cursor, index, mtr)) {
+			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
+
+			if (page_zip_available(
+				    page_zip, dict_index_is_clust(index),
+				    rec_size, 1)) {
+				/* After reorganizing, there is space
+				available. */
+				goto use_heap;
+			}
+		} else {
+			ut_ad(cursor->rec == cursor_rec);
+			return(NULL);
+		}
 
 		/* Try compressing the whole page afterwards. */
-		insert_rec = page_cur_insert_rec_low(*current_rec,
-						     index, rec, offsets,
-						     NULL);
+		insert_rec = page_cur_insert_rec_low(
+			cursor->rec, index, rec, offsets, NULL);
 
 		/* If recovery is on, this implies that the compression
 		of the page was successful during runtime. Had that not
@@ -1318,16 +1317,82 @@ page_cur_insert_rec_zip(
 		we call page_zip_validate only after processing
 		all changes to a page under a single mtr during
 		recovery. */
-		if (insert_rec != NULL && !recv_recovery_is_on()) {
-			insert_rec = page_cur_insert_rec_zip_reorg(
-				current_rec, block, index, insert_rec,
-				rec_size, page, page_zip, mtr);
-#ifdef UNIV_DEBUG
-			if (insert_rec) {
-				rec_offs_make_valid(
-					insert_rec, index, offsets);
+		if (insert_rec == NULL) {
+			/* Out of space.
+			This should never occur during crash recovery,
+			because the MLOG_COMP_REC_INSERT should only
+			be logged after a successful operation. */
+			ut_ad(!recv_recovery_is_on());
+		} else if (recv_recovery_is_on()) {
+			/* This should be followed by
+			MLOG_ZIP_PAGE_COMPRESS_NO_DATA,
+			which should succeed. */
+			rec_offs_make_valid(insert_rec, index, offsets);
+		} else {
+			ulint	pos = page_rec_get_n_recs_before(insert_rec);
+			ut_ad(pos > 0);
+
+			if (!log_compressed) {
+				if (page_zip_compress(
+					    page_zip, page, index,
+					    level, NULL)) {
+					page_cur_insert_rec_write_log(
+						insert_rec, rec_size,
+						cursor->rec, index, mtr);
+					page_zip_compress_write_log_no_data(
+						level, page, index, mtr);
+
+					rec_offs_make_valid(
+						insert_rec, index, offsets);
+					return(insert_rec);
+				}
+
+				ut_ad(cursor->rec
+				      == (pos > 1
+					  ? page_rec_get_nth(
+						  page, pos - 1)
+					  : page + PAGE_NEW_INFIMUM));
+			} else {
+				/* We are writing entire page images
+				to the log. Reduce the redo log volume
+				by reorganizing the page at the same time. */
+				if (page_zip_reorganize(
+					    cursor->block, index, mtr)) {
+					/* The page was reorganized:
+					Seek to pos. */
+					if (pos > 1) {
+						cursor->rec = page_rec_get_nth(
+							page, pos - 1);
+					} else {
+						cursor->rec = page
+							+ PAGE_NEW_INFIMUM;
+					}
+
+					insert_rec = page + rec_get_next_offs(
+						cursor->rec, TRUE);
+					rec_offs_make_valid(
+						insert_rec, index, offsets);
+					return(insert_rec);
+				}
+
+				/* Theoretically, we could try one
+				last resort of btr_page_reorganize_low()
+				followed by page_zip_available(), but
+				that would be very unlikely to
+				succeed. (If the full reorganized page
+				failed to compress, why would it
+				succeed to compress the page, plus log
+				the insert of this record? */
 			}
-#endif /* UNIV_DEBUG */
+
+			/* Out of space: restore the page */
+			btr_blob_dbg_remove(page, index, "insert_zip_fail");
+			if (!page_zip_decompress(page_zip, page, FALSE)) {
+				ut_error; /* Memory corrupted? */
+			}
+			ut_ad(page_validate(page, index));
+			btr_blob_dbg_add(page, index, "insert_zip_fail");
+			insert_rec = NULL;
 		}
 
 		return(insert_rec);
@@ -1344,7 +1409,7 @@ page_cur_insert_rec_zip(
 		rec_offs_init(foffsets_);
 
 		foffsets = rec_get_offsets(free_rec, index, foffsets,
-					ULINT_UNDEFINED, &heap);
+					   ULINT_UNDEFINED, &heap);
 		if (rec_offs_size(foffsets) < rec_size) {
 too_small:
 			if (UNIV_LIKELY_NULL(heap)) {
@@ -1452,18 +1517,19 @@ use_heap:
 	rec_offs_make_valid(insert_rec, index, offsets);
 
 	/* 4. Insert the record in the linked list of records */
-	ut_ad(*current_rec != insert_rec);
+	ut_ad(cursor->rec != insert_rec);
 
 	{
 		/* next record after current before the insertion */
-		rec_t*	next_rec = page_rec_get_next(*current_rec);
-		ut_ad(rec_get_status(*current_rec)
+		const rec_t*	next_rec = page_rec_get_next_low(
+			cursor->rec, TRUE);
+		ut_ad(rec_get_status(cursor->rec)
 		      <= REC_STATUS_INFIMUM);
 		ut_ad(rec_get_status(insert_rec) < REC_STATUS_INFIMUM);
 		ut_ad(rec_get_status(next_rec) != REC_STATUS_INFIMUM);
 
 		page_rec_set_next(insert_rec, next_rec);
-		page_rec_set_next(*current_rec, insert_rec);
+		page_rec_set_next(cursor->rec, insert_rec);
 	}
 
 	page_header_set_field(page, page_zip, PAGE_N_RECS,
@@ -1477,7 +1543,7 @@ use_heap:
 	UNIV_MEM_ASSERT_RW(rec_get_start(insert_rec, offsets),
 			   rec_offs_size(offsets));
 
-	page_zip_dir_insert(page_zip, *current_rec, free_rec, insert_rec);
+	page_zip_dir_insert(page_zip, cursor->rec, free_rec, insert_rec);
 
 	/* 6. Update the last insertion info in page header */
 
@@ -1491,7 +1557,7 @@ use_heap:
 							PAGE_NO_DIRECTION);
 		page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
 
-	} else if ((last_insert == *current_rec)
+	} else if ((last_insert == cursor->rec)
 		   && (page_header_get_field(page, PAGE_DIRECTION)
 		       != PAGE_LEFT)) {
 
@@ -1544,7 +1610,7 @@ use_heap:
 	/* 9. Write log record of the insert */
 	if (UNIV_LIKELY(mtr != NULL)) {
 		page_cur_insert_rec_write_log(insert_rec, rec_size,
-					      *current_rec, index, mtr);
+					      cursor->rec, index, mtr);
 	}
 
 	return(insert_rec);
@@ -1638,7 +1704,12 @@ page_parse_copy_rec_list_to_created_page(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Copies records from page to a newly created page, from a given record onward,
-including that record. Infimum and supremum records are not copied. */
+including that record. Infimum and supremum records are not copied.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit(). */
 UNIV_INTERN
 void
 page_copy_rec_list_end_to_created_page(
@@ -1939,6 +2010,21 @@ page_cur_delete_rec(
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));
+
+	if (page_get_n_recs(page) == 1) {
+		/* Empty the page. */
+		ut_ad(page_is_leaf(page));
+		/* Usually, this should be the root page,
+		and the whole index tree should become empty.
+		However, this could also be a call in
+		btr_cur_pessimistic_update() to delete the only
+		record in the page and to insert another one. */
+		page_cur_move_to_next(cursor);
+		ut_ad(page_cur_is_after_last(cursor));
+		page_create_empty(page_cur_get_block(cursor),
+				  const_cast<dict_index_t*>(index), mtr);
+		return;
+	}
 
 	/* Save to local variables some data associated with current_rec */
 	cur_slot_no = page_dir_find_owner_slot(current_rec);

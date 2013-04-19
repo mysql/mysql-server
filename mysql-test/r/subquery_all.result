@@ -394,13 +394,13 @@ INSERT INTO t1 (topic,date,pseudo) VALUES
 ('43506','2002-10-02','joce'),('40143','2002-08-03','joce');
 EXPLAIN EXTENDED SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	43	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	43	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = '2002-08-03')
 EXPLAIN EXTENDED SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	SUBQUERY	t1	index	NULL	PRIMARY	43	NULL	2	100.00	Using where; Using index
+2	SUBQUERY	t1	index	PRIMARY	PRIMARY	43	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select distinct `test`.`t1`.`date` from `test`.`t1` where (`test`.`t1`.`date` = '2002-08-03')) AS `(SELECT DISTINCT date FROM t1 WHERE date='2002-08-03')`
 SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
@@ -6710,7 +6710,7 @@ t1 AS t1f STRAIGHT_JOIN t3 AS t3f;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1f	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	t3f	index	NULL	col_varchar_key	9	NULL	3	Using index; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t1s	ref	col_int_key	col_int_key	5	const	1	Using index condition; Using where
+2	DEPENDENT SUBQUERY	t1s	ref	col_int_key	col_int_key	5	const	1	Using where
 2	DEPENDENT SUBQUERY	t3s	index	NULL	col_int_key	5	NULL	3	Using index; Using join buffer (Block Nested Loop)
 DROP TABLE t1,t3;
 #

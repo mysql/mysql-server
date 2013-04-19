@@ -1,0 +1,762 @@
+###############################################################################
+#                                                                             #
+# Authorization and authentication of the key-value pair shared between       #
+# the server and the client when server is started with open SSL and client   #
+# is connected with SSL                                                       #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-12-20                                                   #
+# Author : Tanjot Singh Uppal                                                 #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of validates the authentication of the handshake     #
+# information when server started with open SSL and client started with SSL   #
+#                                                                             #
+###############################################################################
+
+--source include/not_embedded.inc
+--source include/have_ssl.inc
+--source include/have_openssl.inc
+--source include/have_sha256_rsa_auth.inc
+--source include/have_ssl_communication.inc
+
+let $crllen=`select length(trim(coalesce(@@ssl_crl, ''))) + length(trim(coalesce(@@ssl_crlpath, '')))`;
+if (!$crllen)
+{
+  skip Needs OpenSSL;
+}
+
+
+# This test will intentionally generate errors in the server error log
+# when a broken password is inserted into the mysql.user table.
+# The below suppression is to clear those errors.
+
+--disable_query_log
+call mtr.add_suppression(".*Password salt for user.*");
+--enable_query_log
+
+--disable_query_log
+call mtr.add_suppression(".*SSL.*");
+--enable_query_log
+
+
+# The default authentication plugin at the server side is mysql_native_password
+
+--echo
+--echo 
+--echo ======================================================================================
+--echo Checking the user access with SSL through user created with mysql_old_password plugin
+--echo ======================================================================================
+--echo 
+
+# Creating a user at localhost with mysql_old_password plugin
+
+--echo Creating a user with the mysql_old_plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+
+set @@session.old_passwords=1;
+
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+
+GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
+
+# Trying connecting the client with the mysql_old_password user with the SSL credentials with secure auth enabled.
+
+--echo The client should not connect with secure auth enabled.
+
+select @@global.secure_auth;
+--echo 1 Expected
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+
+
+# Trying connecting the client with the mysql_old_password user with the SSL credentials with secure auth disabled.
+
+--echo The client should connect with secure auth disabled.
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 1 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 1 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 1 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 1 for SESSION Expected
+
+
+
+# Trying connecting the client with the mysql_old_password user with the SSL credentials with secure auth disabled at the server side but enabled at the client side.
+
+--echo The mysql_old_password plugin client should not connect with secure auth enabled at the client side.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+
+# Dropping the created users
+
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+--echo
+--echo 
+--echo ======================================================================================
+--echo Checking the user access with SSL through user created with mysql_native_password plugin
+--echo ======================================================================================
+--echo 
+
+# Creating a user at localhost with mysql_native_password plugin
+
+--echo Creating a user with the mysql_old_plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+
+set @@session.old_passwords=0;
+
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+
+GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
+
+# Trying connecting the client with the mysql_native_password user with the SSL credentials with secure auth enabled.
+
+--echo The client should connect with secure auth enabled.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+
+# Trying connecting the client with the mysql_native_password user with the SSL credentials with secure auth disabled.
+
+--echo The client should connect with secure auth disabled.
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+# Trying connecting the client with the mysql_native_password user with the SSL credentials with secure auth disabled at the server side but enabled at the client side.
+
+--echo The mysql_native_password plugin client should  connect with secure auth enabled at the client side.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+# Dropping the created users
+
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+
+--echo
+--echo 
+--echo ======================================================================================
+--echo Checking the user access with SSL through user created with sha256_password plugin
+--echo ======================================================================================
+--echo 
+
+# Creating a user at localhost with sha256_password plugin
+
+--echo Creating a user with the mysql_old_plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+
+set @@session.old_passwords=2;
+
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+
+GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
+
+# Trying connecting the client with the sha256_password user with the SSL credentials with secure auth enabled.
+
+--echo The client should connect with secure auth enabled.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+
+# Trying connecting the client with the sha256_password user with the SSL credentials with secure auth disabled.
+
+--echo The client should connect with secure auth disabled.
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+# Trying connecting the client with the mysql_native_password user with the SSL credentials with secure auth disabled at the server side but enabled at the client side.
+
+--echo The mysql_native_password plugin client should  connect with secure auth enabled at the client side.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 0 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+# Dropping the created users
+
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+
+--echo
+--echo 
+--echo =================================================================================================
+--echo Starting the server with the default authentication sha256_password
+--echo =================================================================================================
+--echo 
+
+--echo # Restart server with default-authentication-plugin=sha256_password;
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+-- exec echo "restart:--default-authentication-plugin=sha256_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+
+
+--echo
+--echo 
+--echo ======================================================================================
+--echo Checking the user access with SSL through user created with mysql_old_password plugin
+--echo ======================================================================================
+--echo 
+
+# Creating a user at localhost with mysql_old_password plugin
+
+--echo Creating a user with the mysql_old_plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+
+set @@session.old_passwords=1;
+
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+
+GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
+
+# Trying connecting the client with the mysql_old_password user with the SSL credentials with secure auth enabled.
+
+--echo The client should not connect with secure auth enabled.
+
+select @@global.secure_auth;
+--echo 1 Expected
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+
+
+# Trying connecting the client with the mysql_old_password user with the SSL credentials with secure auth disabled.
+
+--echo The client should connect with secure auth disabled.
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 1 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 1 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 1 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 1 for SESSION Expected
+
+
+
+# Trying connecting the client with the mysql_old_password user with the SSL credentials with secure auth disabled at the server side but enabled at the client side.
+
+--echo The mysql_old_password plugin client should not connect with secure auth enabled at the client side.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+
+
+# Dropping the created users
+
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+--echo
+--echo 
+--echo ======================================================================================
+--echo Checking the user access with SSL through user created with mysql_native_password plugin
+--echo ======================================================================================
+--echo 
+
+# Creating a user at localhost with mysql_native_password plugin
+
+--echo Creating a user with the mysql_old_plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+
+set @@session.old_passwords=0;
+
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+
+GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
+
+# Trying connecting the client with the mysql_native_password user with the SSL credentials with secure auth enabled.
+
+--echo The client should connect with secure auth enabled.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+
+# Trying connecting the client with the mysql_native_password user with the SSL credentials with secure auth disabled.
+
+--echo The client should connect with secure auth disabled.
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+# Trying connecting the client with the mysql_native_password user with the SSL credentials with secure auth disabled at the server side but enabled at the client side.
+
+--echo The mysql_native_password plugin client should  connect with secure auth enabled at the client side.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 0 for SESSION Expected
+
+
+# Dropping the created users
+
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+
+--echo
+--echo 
+--echo ======================================================================================
+--echo Checking the user access with SSL through user created with sha256_password plugin
+--echo ======================================================================================
+--echo 
+
+# Creating a user at localhost with sha256_password plugin
+
+--echo Creating a user with the sha256_plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+
+set @@session.old_passwords=2;
+
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+
+GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
+
+# Trying connecting the client with the sha256_password user with the SSL credentials with secure auth enabled.
+
+--echo The client should connect with secure auth enabled.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+# Below section is hased out till Bug #16048665 is fixed
+
+#--echo **** connecting client using the ssl credentials
+#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+#--echo 2 for GLOBAL Expected
+#--echo 2 for SESSION Expected
+
+
+# Trying connecting the client with the sha256_password user with the SSL credentials with secure auth disabled.
+
+--echo The client should connect with secure auth disabled.
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+# Below section is hased out till Bug #16048665 is fixed
+
+#--echo **** connecting client using the ssl credentials
+#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+#--echo 2 for GLOBAL Expected
+#--echo 2 for SESSION Expected
+
+
+# Trying connecting the client with the mysql_native_password user with the SSL credentials with secure auth disabled at the server side but enabled at the client side.
+
+--echo The mysql_native_password plugin client should  connect with secure auth enabled at the client side.
+
+select @@global.secure_auth;
+--echo 0 Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+
+--echo **** connecting client using the ssl credentials
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo 2 for GLOBAL Expected
+--echo 2 for SESSION Expected
+
+# Below section is hased out till Bug #16048665 is fixed
+
+#--echo **** connecting client using the ssl credentials
+#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select @@Global.old_passwords;select @@session.old_passwords"
+#--echo 2 for GLOBAL Expected
+#--echo 2 for SESSION Expected
+
+
+# Dropping the created users
+
+DROP USER 'Tanjotuser1'@'localhost';
+
+set @@global.secure_auth=default;
+set @@session.old_passwords=default;

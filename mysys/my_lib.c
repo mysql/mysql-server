@@ -97,7 +97,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   MEM_ROOT      *names_storage;
   DIR		*dirp;
   struct dirent *dp;
-  char		tmp_path[FN_REFLEN+1],*tmp_file;
+  char		tmp_path[FN_REFLEN + 2], *tmp_file;
   char	dirent_tmp[sizeof(struct dirent)+_POSIX_PATH_MAX+1];
 
   DBUG_ENTER("my_dir");
@@ -202,10 +202,11 @@ char * directory_file_name (char * dst, const char *src)
 {
   /* Process as Unix format: just remove test the final slash. */
   char *end;
+  DBUG_ASSERT(strlen(src) < (FN_REFLEN + 1));
 
   if (src[0] == 0)
     src= (char*) ".";				/* Use empty as current */
-  end=strmov(dst, src);
+  end= strnmov(dst, src, FN_REFLEN + 1);
   if (end[-1] != FN_LIBCHAR)
   {
     end[0]=FN_LIBCHAR;				/* Add last '/' */

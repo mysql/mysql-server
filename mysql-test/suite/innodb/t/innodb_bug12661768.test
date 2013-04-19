@@ -17,7 +17,7 @@ SET NAMES utf8;
 # expected result is that it should appear as #mysql50#bug12661768_2ä in the
 # error message, but due to a bug it is reported as bug12661768_2ä. See
 # Bug#11758916 51180: EXPLAIN_FILENAME CANNOT EXPLAIN #SQL TEMPORARY FILE NAMES
--- let $t2_name = bug12661768_2ä2222222222222222222222222222222222222222222222222
+-- let $t2_name = bug12661768_2ä2222222222222222222222222222222222222222222
 -- let $fk_name = ab_on_2_fkfkfäfkffkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfk
 -- let $key_str = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 

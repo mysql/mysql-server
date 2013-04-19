@@ -55,7 +55,7 @@ if (!$eval_result)
 {
   --echo ######## Test assertion failed: $assert_text ########
   --echo Dumping debug info:
-  if ($rpl_inited)
+  if ($show_rpl_debug_info)
   {
     --source include/show_rpl_debug_info.inc
   }

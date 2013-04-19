@@ -9,18 +9,14 @@ main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.fun
 main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
 
 main.index_merge_innodb                  # BUG#11754168 2012-05-08 jorgen Doing an attempt at reenabling tests disabled by bug. EXPLAIN's row estimates varies for innodb so marked experimental for a while
-main.kill @freebsd                       # Bug#12619719 2011-08-04 Occasional failure in PB2
-main.kill @darwin                        # Bug#12619719 2012-07-12 Occasional failure in PB2
 
 innodb.innodb_monitor                    # Bug#12320827 2011-08-04 Occasional failure in PB2
 
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
 rpl.rpl_innodb_bug28430                  # Bug#11754425
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
-rpl.rpl_parallel_switch_sequential       # BUG#13626976 2012-02-07 dlenev Fails sporadically on pb2
+rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-02-09 anitha Fails very frequently on windows
 
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
-rpl.rpl_mixed_mts_rec_crash_safe @solaris          # Bug#12902514 2011-08-19 andrei mts recovery tests are slow
-rpl.rpl_mixed_mts_rec_crash_safe_checksum @solaris # Bug#12902514 2011-08-19 andrei same as rpl_mixed_mts_rec_crash_safe
-rpl.rpl_mixed_mts_crash_safe @solaris              # Bug#12902514 2011-08-19 andrei same as rpl_mixed_mts_rec_crash_safe
+

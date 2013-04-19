@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -162,6 +162,12 @@ Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
 the same logical position, but the physical position may change if it is
 pointing to a compressed page that was reorganized.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return	pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t*
@@ -181,6 +187,12 @@ Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
 the same logical position, but the physical position may change if it is
 pointing to a compressed page that was reorganized.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return	pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t*
@@ -205,27 +217,38 @@ page_cur_insert_rec_low(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	const rec_t*	rec,	/*!< in: pointer to a physical record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle, or NULL */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
+	__attribute__((nonnull(1,2,3,4), warn_unused_result));
 /***********************************************************//**
 Inserts a record next to page cursor on a compressed and uncompressed
 page. Returns pointer to inserted record if succeed, i.e.,
 enough space available, NULL otherwise.
 The cursor stays at the same position.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return	pointer to record if succeed, NULL otherwise */
 UNIV_INTERN
 rec_t*
 page_cur_insert_rec_zip(
 /*====================*/
-	rec_t**		current_rec,/*!< in/out: pointer to current record after
-				which the new record is inserted */
-	buf_block_t*	block,	/*!< in: buffer block of *current_rec */
+	page_cur_t*	cursor,	/*!< in/out: page cursor */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	const rec_t*	rec,	/*!< in: pointer to a physical record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle, or NULL */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
+	__attribute__((nonnull(1,2,3,4), warn_unused_result));
 /*************************************************************//**
 Copies records from page to a newly created page, from a given record onward,
-including that record. Infimum and supremum records are not copied. */
+including that record. Infimum and supremum records are not copied.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit(). */
 UNIV_INTERN
 void
 page_copy_rec_list_end_to_created_page(

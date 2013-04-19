@@ -173,7 +173,6 @@ IF(WIN32)
 ENDIF()
 
 # Merge several convenience libraries into one big mysqlclient
-# and link them together into shared library.
 MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
@@ -197,7 +196,11 @@ IF(UNIX)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} COMPONENT SharedLibraries)
+  # Merge several convenience libraries into one big mysqlclient
+  # and link them together into shared library.
+  MERGE_LIBRARIES(libmysql SHARED ${LIBS}
+    EXPORTS ${CLIENT_API_FUNCTIONS}
+    COMPONENT SharedLibraries)
   IF(UNIX)
     # libtool compatability
     IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)

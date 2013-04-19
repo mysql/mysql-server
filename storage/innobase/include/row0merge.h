@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -206,14 +206,14 @@ will not be committed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
-row_merge_rename_tables(
-/*====================*/
+row_merge_rename_tables_dict(
+/*=========================*/
 	dict_table_t*	old_table,	/*!< in/out: old table, renamed to
 					tmp_name */
 	dict_table_t*	new_table,	/*!< in/out: new table, renamed to
 					old_table->name */
 	const char*	tmp_name,	/*!< in: new name for old_table */
-	trx_t*		trx)		/*!< in: transaction handle */
+	trx_t*		trx)		/*!< in/out: dictionary transaction */
 	__attribute__((nonnull, warn_unused_result));
 
 /*********************************************************************//**
@@ -265,7 +265,7 @@ row_merge_is_index_usable(
 /*********************************************************************//**
 Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
-dict_stats_wait_bg_to_stop_using_tables() after locking the dictionary and
+dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and
 before calling this function.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN

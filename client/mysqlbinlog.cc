@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1134,8 +1134,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
            event was not skipped).
         */
         if (skip_event)
-          if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
+          if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
+                                                   result_file, stop_never /* flush result_file */) ||
+              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache,
+                                                  result_file, stop_never /* flush result_file */)))
             goto err;
       }
 
@@ -1177,8 +1179,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       if (stmt_end)
       {
         print_event_info->have_unflushed_events= FALSE;
-        if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file))
+        if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
+                                                result_file, stop_never /* flush result file */) ||
+            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache,
+                                                result_file, stop_never /* flush result file */))
           goto err;
         goto end;
       }
@@ -1218,7 +1222,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     }
     /* Flush head cache to result_file for every event */
     if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
-                                            result_file))
+                                            result_file, stop_never /* flush result_file */))
       goto err;
   }
 
@@ -1551,7 +1555,7 @@ static void cleanup()
 
 static void print_version()
 {
-  printf("%s Ver 3.3 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 3.4 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -2049,6 +2053,21 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
 
     type= (Log_event_type) net->read_pos[1 + EVENT_TYPE_OFFSET];
+
+    /*
+      Ignore HEARBEAT events. They can show up if mysqlbinlog is
+      running with:
+
+        --read-from-remote-server
+        --read-from-remote-master=BINLOG-DUMP-GTIDS'
+        --stop-never
+        --stop-never-slave-server-id
+
+      i.e., acting as a fake slave.
+    */
+    if (type == HEARTBEAT_LOG_EVENT)
+      continue;
+
     if (!raw_mode || (type == ROTATE_EVENT) || (type == FORMAT_DESCRIPTION_EVENT))
     {
       if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,

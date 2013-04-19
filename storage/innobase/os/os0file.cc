@@ -1800,8 +1800,8 @@ Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
 bool
-os_file_delete_if_exists(
-/*=====================*/
+os_file_delete_if_exists_func(
+/*==========================*/
 	const char*	name)	/*!< in: file path as a null-terminated
 				string */
 {
@@ -1862,8 +1862,8 @@ Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
 bool
-os_file_delete(
-/*===========*/
+os_file_delete_func(
+/*================*/
 	const char*	name)	/*!< in: file path as a null-terminated
 				string */
 {
@@ -3341,8 +3341,8 @@ os_file_make_data_dir_path(
 The function os_file_dirname returns a directory component of a
 null-terminated pathname string. In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
-is the component following the final '/'. Trailing '/' charac­
-ters are not counted as part of the pathname.
+is the component following the final '/'. Trailing '/' characters
+are not counted as part of the pathname.
 
 If path does not contain a slash, dirname returns the string ".".
 
@@ -5295,7 +5295,7 @@ consecutive_loop:
 
 		if (slot->reserved
 		    && slot != aio_slot
-		    && slot->offset == slot->offset + aio_slot->len
+		    && slot->offset == aio_slot->offset + aio_slot->len
 		    && slot->type == aio_slot->type
 		    && slot->file == aio_slot->file) {
 

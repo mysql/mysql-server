@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#define CHECK_VERSION "2.5.0"
+#define CHECK_VERSION "2.5.1"
 
 #include "client_priv.h"
 #include "my_default.h"
@@ -29,6 +29,10 @@
 
 #define EX_USAGE 1
 #define EX_MYSQLERR 2
+
+/* ALTER instead of repair. */
+#define MAX_ALTER_STR_SIZE 128 * 1024
+#define KEY_PARTITIONING_CHANGED_STR "KEY () partitioning changed"
 
 static MYSQL mysql_connection, *sock = 0;
 static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
@@ -45,7 +49,8 @@ static char *opt_password = 0, *current_user = 0,
 	    *default_charset= 0, *current_host= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
-DYNAMIC_ARRAY tables4repair, tables4rebuild;
+static char *opt_skip_database;
+DYNAMIC_ARRAY tables4repair, tables4rebuild, alter_table_cmds;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
@@ -175,6 +180,9 @@ static struct my_option my_long_options[] =
 #endif
   {"silent", 's', "Print only error messages.", &opt_silent,
    &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip_database", 0, "Don't process the database specified as argument", 
+   &opt_skip_database, &opt_skip_database, 0, GET_STR, REQUIRED_ARG, 
+   0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -399,6 +407,7 @@ static int get_options(int *argc, char ***argv)
 	   my_progname);
     return 1;
   }
+
   if (*argc < 1 && !opt_alldbs)
   {
     printf("You forgot to give the arguments! Please see %s --help\n",
@@ -598,6 +607,17 @@ static int process_all_tables_in_db(char *database)
 } /* process_all_tables_in_db */
 
 
+static int run_query(const char *query)
+{
+  if (mysql_query(sock, query))
+  {
+    fprintf(stderr, "Failed to %s\n", query);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    return 1;
+  }
+  return 0;
+}
+
 
 static int fix_table_storage_name(const char *name)
 {
@@ -606,12 +626,7 @@ static int fix_table_storage_name(const char *name)
   if (strncmp(name, "#mysql50#", 9))
     return 1;
   sprintf(qbuf, "RENAME TABLE `%s` TO `%s`", name, name + 9);
-  if (mysql_query(sock, qbuf))
-  {
-    fprintf(stderr, "Failed to %s\n", qbuf);
-    fprintf(stderr, "Error: %s\n", mysql_error(sock));
-    rc= 1;
-  }
+  rc= run_query(qbuf);
   if (verbose)
     printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
   return rc;
@@ -624,12 +639,7 @@ static int fix_database_storage_name(const char *name)
   if (strncmp(name, "#mysql50#", 9))
     return 1;
   sprintf(qbuf, "ALTER DATABASE `%s` UPGRADE DATA DIRECTORY NAME", name);
-  if (mysql_query(sock, qbuf))
-  {
-    fprintf(stderr, "Failed to %s\n", qbuf);
-    fprintf(stderr, "Error: %s\n", mysql_error(sock));
-    rc= 1;
-  }
+  rc= run_query(qbuf);
   if (verbose)
     printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
   return rc;
@@ -658,6 +668,10 @@ static int rebuild_table(char *name)
 
 static int process_one_db(char *database)
 {
+  if (opt_skip_database && opt_alldbs &&
+      !strcmp(database, opt_skip_database))
+    return 0;
+
   if (what_to_do == DO_UPGRADE)
   {
     int rc= 0;
@@ -692,13 +706,7 @@ static int use_db(char *database)
 static int disable_binlog()
 {
   const char *stmt= "SET SQL_LOG_BIN=0";
-  if (mysql_query(sock, stmt))
-  {
-    fprintf(stderr, "Failed to %s\n", stmt);
-    fprintf(stderr, "Error: %s\n", mysql_error(sock));
-    return 1;
-  }
-  return 0;
+  return run_query(stmt);
 }
 
 static int handle_request_for_tables(char *tables, uint length)
@@ -768,12 +776,14 @@ static void print_result()
   MYSQL_RES *res;
   MYSQL_ROW row;
   char prev[NAME_LEN*2+2];
+  char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
   my_bool found_error=0, table_rebuild=0;
 
   res = mysql_use_result(sock);
 
   prev[0] = '\0';
+  prev_alter[0]= 0;
   for (i = 0; (row = mysql_fetch_row(res)); i++)
   {
     int changed = strcmp(prev, row[0]);
@@ -790,12 +800,18 @@ static void print_result()
 	  strcmp(row[3],"OK"))
       {
         if (table_rebuild)
-          insert_dynamic(&tables4rebuild, prev);
+        {
+          if (prev_alter[0])
+            insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
+          else
+            insert_dynamic(&tables4rebuild, (uchar*) prev);
+        }
         else
           insert_dynamic(&tables4repair, prev);
       }
       found_error=0;
       table_rebuild=0;
+      prev_alter[0]= 0;
       if (opt_silent)
 	continue;
     }
@@ -804,11 +820,30 @@ static void print_result()
     else if (!status && changed)
     {
       printf("%s\n%-9s: %s", row[0], row[2], row[3]);
-      if (strcmp(row[2],"note"))
+      if (opt_auto_repair && strcmp(row[2],"note"))
       {
-	found_error=1;
-        if (opt_auto_repair && strstr(row[3], "ALTER TABLE") != NULL)
+        const char *alter_txt= strstr(row[3], "ALTER TABLE");
+        found_error=1;
+        if (alter_txt)
+        {
           table_rebuild=1;
+          if (!strncmp(row[3], KEY_PARTITIONING_CHANGED_STR,
+                       strlen(KEY_PARTITIONING_CHANGED_STR)) &&
+              strstr(alter_txt, "PARTITION BY"))
+          {
+            if (strlen(alter_txt) >= MAX_ALTER_STR_SIZE)
+            {
+              printf("Error: Alter command too long (>= %d),"
+                     " please do \"%s\" or dump/reload to fix it!\n",
+                     MAX_ALTER_STR_SIZE,
+                     alter_txt);
+              table_rebuild= 0;
+              prev_alter[0]= 0;
+            }
+            else
+              strcpy(prev_alter, alter_txt);
+          }
+        }
       }
     }
     else
@@ -820,7 +855,12 @@ static void print_result()
   if (found_error && opt_auto_repair && what_to_do != DO_REPAIR)
   {
     if (table_rebuild)
-      insert_dynamic(&tables4rebuild, prev);
+    {
+      if (prev_alter[0])
+        insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
+      else
+        insert_dynamic(&tables4rebuild, (uchar*) prev);
+    }
     else
       insert_dynamic(&tables4repair, prev);
   }
@@ -931,7 +971,8 @@ int main(int argc, char **argv)
 
   if (opt_auto_repair &&
       (my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64) ||
-       my_init_dynamic_array(&tables4rebuild, sizeof(char)*(NAME_LEN*2+2),16,64)))
+       my_init_dynamic_array(&tables4rebuild, sizeof(char)*(NAME_LEN*2+2),16,64) ||
+       my_init_dynamic_array(&alter_table_cmds, MAX_ALTER_STR_SIZE, 0, 1)))
   {
     first_error = 1;
     goto end;
@@ -959,6 +1000,8 @@ int main(int argc, char **argv)
     }
     for (i = 0; i < tables4rebuild.elements ; i++)
       rebuild_table((char*) dynamic_array_ptr(&tables4rebuild, i));
+    for (i = 0; i < alter_table_cmds.elements ; i++)
+      run_query((char*) dynamic_array_ptr(&alter_table_cmds, i));
   }
  end:
   dbDisconnect(current_host);

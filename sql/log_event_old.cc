@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,12 +49,14 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
   uchar const *row_start= ev->m_rows_buf;
 
   /*
-    If m_table_id == ~0UL, then we have a dummy event that does not
-    contain any data.  In that case, we just remove all tables in the
+    If m_table_id == ~0U or max 6 Bytes integer, then we have a dummy event that
+    does not contain any data.  In that case, we just remove all tables in the
     tables_to_lock list, close the thread tables, and return with
     success.
    */
-  if (ev->m_table_id == ~0UL)
+  if ((ev->m_table_id.id() == ~0U || ev->m_table_id.id() == (~0ULL >> 16)) &&
+      ev->m_cols.n_bits == 1 && ev->m_cols.bitmap[0] == 0)
+
   {
     /*
        This one is supposed to be set: just an extra check so that
@@ -1351,8 +1353,8 @@ Old_rows_log_event::Old_rows_log_event(const char *buf, uint event_len,
 
   const uchar* const ptr_rows_data= (const uchar*) ptr_after_width;
   size_t const data_size= event_len - (ptr_rows_data - (const uchar *) buf);
-  DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %lu",
-                     m_table_id, m_flags, m_width, (ulong) data_size));
+  DBUG_PRINT("info",("m_table_id: %llu  m_flags: %d  m_width: %lu  data_size: %lu",
+                     m_table_id.id(), m_flags, m_width, (ulong) data_size));
   DBUG_DUMP("rows_data", (uchar*) ptr_rows_data, data_size);
 
   m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
@@ -1464,12 +1466,13 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
   int error= 0;
 
   /*
-    If m_table_id == ~0UL, then we have a dummy event that does not
-    contain any data.  In that case, we just remove all tables in the
+    If m_table_id == ~0U or max 6 Bytes integer, then we have a dummy event that
+    does not contain any data.  In that case, we just remove all tables in the
     tables_to_lock list, close the thread tables, and return with
     success.
    */
-  if (m_table_id == ~0UL)
+  if ((m_table_id.id() == ~0U || m_table_id.id() == (~0ULL >> 16)) &&
+      m_cols.n_bits == 1 && m_cols.bitmap[0] == 0)
   {
     /*
        This one is supposed to be set: just an extra check so that
@@ -1878,21 +1881,9 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 bool Old_rows_log_event::write_data_header(IO_CACHE *file)
 {
-  uchar buf[ROWS_HEADER_LEN];	// No need to init the buffer
-
   // This method should not be reached.
   assert(0);
-
-  DBUG_ASSERT(m_table_id != ~0UL);
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                  {
-                    int4store(buf + 0, m_table_id);
-                    int2store(buf + 4, m_flags);
-                    return (my_b_safe_write(file, buf, 6));
-                  });
-  int6store(buf + RW_MAPID_OFFSET, (ulonglong)m_table_id);
-  int2store(buf + RW_FLAGS_OFFSET, m_flags);
-  return (my_b_safe_write(file, buf, ROWS_HEADER_LEN));
+  return TRUE;
 }
 
 
@@ -1934,7 +1925,7 @@ int Old_rows_log_event::pack_info(Protocol *protocol)
   char const *const flagstr=
     get_flags(STMT_END_F) ? " flags: STMT_END_F" : "";
   size_t bytes= my_snprintf(buf, sizeof(buf),
-                               "table_id: %lu%s", m_table_id, flagstr);
+                            "table_id: %llu%s", m_table_id.id(), flagstr);
   protocol->store(buf, bytes, &my_charset_bin);
   return 0;
 }
@@ -1952,8 +1943,8 @@ void Old_rows_log_event::print_helper(FILE *file,
   {
     bool const last_stmt_event= get_flags(STMT_END_F);
     print_header(head, print_event_info, !last_stmt_event);
-    my_b_printf(head, "\t%s: table id %lu%s\n",
-                name, m_table_id,
+    my_b_printf(head, "\t%s: table id %llu%s\n",
+                name, m_table_id.id(),
                 last_stmt_event ? " flags: STMT_END_F" : "");
     print_base64(body, print_event_info, !last_stmt_event);
   }

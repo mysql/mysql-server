@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -126,7 +126,7 @@ ENDMACRO()
 
 MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
   # To produce a library we need at least one source file.
-  # It is created by ADD_CUSTOM_COMMAND below and will helps 
+  # It is created by ADD_CUSTOM_COMMAND below and will
   # also help to track dependencies.
   SET(SOURCE_FILE ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_depends.c)
   ADD_LIBRARY(${TARGET} STATIC ${SOURCE_FILE})
@@ -158,6 +158,7 @@ MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
   IF(OSLIBS)
     LIST(REMOVE_DUPLICATES OSLIBS)
     TARGET_LINK_LIBRARIES(${TARGET} ${OSLIBS})
+    MESSAGE(STATUS "Library ${TARGET} depends on OSLIBS ${OSLIBS}")
   ENDIF()
 
   # Make the generated dummy source file depended on all static input

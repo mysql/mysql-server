@@ -12,10 +12,16 @@ set time_zone="+03:00";
 CREATE TABLE t1 (a int, t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 CREATE TABLE t2 (a int, t datetime);
 SET TIMESTAMP=1234;
-insert into t1 values(1,NULL);
+if (!$explicit_defaults_for_timestamp)
+{
+ insert into t1 values(1,NULL);
+}
 insert into t1 values(2,"2002-03-03");
 SET TIMESTAMP=1235;
-insert into t1 values(3,NULL);
+if (!$explicit_defaults_for_timestamp)
+{
+ insert into t1 values(3,NULL);
+}
 SET TIMESTAMP=1236;
 insert into t1 (a) values(4);
 insert into t2 values(5,"2002-03-04"),(6,NULL),(7,"2002-03-05"),(8,"00-00-00");
@@ -321,10 +327,13 @@ CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
                   f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                   f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
 INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
-INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
-INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
-INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME('9999999999'));
-INSERT INTO t1 (f2,f3) VALUES (NOW(), TIME(NULL));
+if (!$explicit_defaults_for_timestamp)
+{
+ INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
+ INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
+ INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME('9999999999'));
+ INSERT INTO t1 (f2,f3) VALUES (NOW(), TIME(NULL));
+}
 UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
 SELECT f1,f2-f3 FROM t1;
 DROP TABLE t1;
@@ -508,44 +517,6 @@ DROP TABLE t1;
 
 SET @@sql_mode= @org_mode;
 --echo # END of Test for bug#11747847 - 34280
-
---echo #
---echo # WL6292 - Test cases to test new behavior with 
---echo #          --explicit_defaults_for_timestamp
---echo # Almost all the scenario's required to test this WL, is already tested
---echo # by most of existing test case. Adding some basic tests here.
---echo #
-CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP);
-ALTER TABLE t1 ADD COLUMN (f3 TIMESTAMP NOT NULL);
-ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
-ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
-ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-
---echo # Following is expected out of SHOW CREATE TABLE
---echo #  `f1` timestamp NULL DEFAULT NULL,
---echo #  `f2` timestamp NULL DEFAULT NULL,
---echo #  `f3` timestamp NOT NULL,
---echo #  `f4` timestamp NULL DEFAULT NULL,
---echo #  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00'
---echo #  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
-SHOW CREATE TABLE t1;
-
---echo # The new behavior affects CREATE SELECT with column definitions
---echo # before SELECT keyword. The columns f1,f2 in t2 do not get promoted
---echo # with the new behavior. Following is expected out of SHOW CREATE TABLE
---echo #
---echo # `f1` timestamp NULL DEFAULT NULL,
---echo # `f2` timestamp NULL DEFAULT NULL,
---echo # `f3` timestamp NOT NULL,
---echo # `f4` timestamp NULL DEFAULT NULL,
---echo # `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
---echo # `f6` timestamp NULL DEFAULT NULL
-
-CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
-SHOW CREATE TABLE t2;
-
-DROP TABLE t1;
-DROP TABLE t2;
 
 --echo #
 --echo # End of 5.6 tests

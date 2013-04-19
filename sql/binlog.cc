@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2314,6 +2314,7 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_cond_destroy(&update_cond);
     my_atomic_rwlock_destroy(&m_prep_xids_lock);
     mysql_cond_destroy(&m_prep_xids_cond);
+    stage_manager.deinit();
   }
   DBUG_VOID_RETURN;
 }
@@ -2536,24 +2537,30 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         else
           ret= GOT_GTIDS;
       }
-      Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
-      rpl_sidno sidno= gtid_ev->get_sidno(false/*false=don't need lock*/);
-      if (sidno < 0)
-        ret= ERROR, done= true;
       /*
-        We need to read GTID_LOG_EVENT when all_gtids == NULL to allow
-        read both PREVIOUS_GTIDS_LOG_EVENT and GTID_LOG_EVENT events.
+        When all_gtids==NULL, we just check if the binary log contains
+        at least one Gtid_log_event, so that we can distinguish the
+        return values GOT_GTID and GOT_PREVIOUS_GTIDS. We don't need
+        to read anything else from the binary log.
       */
-      else if (NULL != all_gtids)
+      if (all_gtids == NULL)
+        ret= GOT_GTIDS, done= true;
+      else
       {
-        if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
+        Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
+        rpl_sidno sidno= gtid_ev->get_sidno(false/*false=don't need lock*/);
+        if (sidno < 0)
           ret= ERROR, done= true;
-        else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
-                 RETURN_STATUS_OK)
-          ret= ERROR, done= true;
+        {
+          if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
+            ret= ERROR, done= true;
+          else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
+                   RETURN_STATUS_OK)
+            ret= ERROR, done= true;
+        }
+        DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
+                            filename, sidno, gtid_ev->get_gno()));
       }
-      DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
-                          filename, sidno, gtid_ev->get_gno()));
       break;
     }
     case ANONYMOUS_GTID_LOG_EVENT:
@@ -2591,6 +2598,113 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   DBUG_RETURN(ret);
 }
 
+bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
+                                                   const Gtid_set *gtid_set,
+                                                   const char **errmsg)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::gtid_read_start_binlog");
+  /*
+    Gather the set of files to be accessed.
+  */
+  list<string> filename_list;
+  LOG_INFO linfo;
+  int error;
+
+  list<string>::reverse_iterator rit;
+  Gtid_set previous_gtid_set(gtid_set->get_sid_map());
+
+  mysql_mutex_lock(&LOCK_index);
+  for (error= find_log_pos(&linfo, NULL, false/*need_lock_index=false*/);
+       !error; error= find_next_log(&linfo, false/*need_lock_index=false*/))
+  {
+    DBUG_PRINT("info", ("read log filename '%s'", linfo.log_file_name));
+    filename_list.push_back(string(linfo.log_file_name));
+  }
+  mysql_mutex_unlock(&LOCK_index);
+  if (error != LOG_INFO_EOF)
+  {
+    *errmsg= "Failed to read the binary log index file while "
+      "looking for the oldest binary log that contains any GTID "
+      "that is not in the given gtid set";
+    error= -1;
+    goto end;
+  }
+
+  if (filename_list.empty())
+  {
+    *errmsg= "Could not find first log file name in binary log index file "
+      "while looking for the oldest binary log that contains any GTID "
+      "that is not in the given gtid set";
+    error= -2;
+    goto end;
+  }
+
+  /*
+    Iterate over all the binary logs in reverse order, and read only
+    the Previous_gtids_log_event, to find the first one, that is the
+    subset of the given gtid set. Since every binary log begins with
+    a Previous_gtids_log_event, that contains all GTIDs in all
+    previous binary logs.
+  */
+  DBUG_PRINT("info", ("Iterating backwards through binary logs, and reading "
+                      "only the Previous_gtids_log_event, to find the first "
+                      "one, that is the subset of the given gtid set."));
+  rit= filename_list.rbegin();
+  error= 0;
+  while (rit != filename_list.rend())
+  {
+    const char *filename= rit->c_str();
+    DBUG_PRINT("info", ("Read Previous_gtids_log_event from filename='%s'",
+                        filename));
+    switch (read_gtids_from_binlog(filename, NULL, &previous_gtid_set,
+                                   opt_master_verify_checksum))
+    {
+    case ERROR:
+      *errmsg= "Error reading header of binary log while looking for "
+        "the oldest binary log that contains any GTID that is not in "
+        "the given gtid set";
+      error= -3;
+      goto end;
+    case NO_GTIDS:
+      *errmsg= "Found old binary log without GTIDs while looking for "
+        "the oldest binary log that contains any GTID that is not in "
+        "the given gtid set";
+      error= -4;
+      goto end;
+    case GOT_GTIDS:
+    case GOT_PREVIOUS_GTIDS:
+      if (previous_gtid_set.is_subset(gtid_set))
+      {
+        strcpy(binlog_file_name, filename);
+        /*
+          Verify that the selected binlog is not the first binlog,
+        */
+        DBUG_EXECUTE_IF("slave_reconnect_with_gtid_set_executed",
+                        DBUG_ASSERT(strcmp(filename_list.begin()->c_str(),
+                                           binlog_file_name) != 0););
+        goto end;
+      }
+    case TRUNCATED:
+      break;
+    }
+    previous_gtid_set.clear();
+
+    rit++;
+  }
+
+  if (rit == filename_list.rend())
+  {
+    *errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+    error= -5;
+  }
+
+end:
+  if (error)
+    DBUG_PRINT("error", ("'%s'", *errmsg));
+  filename_list.clear();
+  DBUG_PRINT("info", ("returning %d", error));
+  DBUG_RETURN(error != 0 ? true : false);
+}
 
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
                                    bool verify_checksum, bool need_lock)
@@ -6780,13 +6894,13 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
 {
   int error;
   DBUG_ENTER("THD::binlog_write_table_map");
-  DBUG_PRINT("enter", ("table: 0x%lx  (%s: #%lu)",
+  DBUG_PRINT("enter", ("table: 0x%lx  (%s: #%llu)",
                        (long) table, table->s->table_name.str,
-                       table->s->table_map_id));
+                       table->s->table_map_id.id()));
 
   /* Pre-conditions */
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
-  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
+  DBUG_ASSERT(table->s->table_map_id.is_valid());
 
   Table_map_log_event
     the_event(this, table, table->s->table_map_id, is_transactional);
@@ -7554,8 +7668,6 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        const uchar* extra_row_info)
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");
-  /* Pre-conditions */
-  DBUG_ASSERT(table->s->table_map_id != ~0UL);
 
   /* Fetch the type code for the RowsEventT template parameter */
   int const general_type_code= RowsEventT::TYPE_CODE;

@@ -10,19 +10,29 @@ reset master;
 drop table if exists t1,t2,t3;
 -- enable_warnings
 
-create table t1 (a int);
-select @@server_id;
-source include/show_binlog_events2.inc;
+--let $i=3
+while ($i)
+{
+  RESET MASTER;
+  --eval set global server_id=$i
+  --eval create table t$i (a int)
 
-set global server_id=2;
-create table t2 (b int);
-select @@server_id;
-source include/show_binlog_events2.inc;
+  --let $row_number= 2
+  if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+  {
+    # Previous_gtid_log_event + Gtid_log_event
+    --let $row_number=`SELECT $row_number + 2`
+  }
 
-set global server_id=3;
-create table t3 (c int);
-select @@server_id;
-source include/show_binlog_events2.inc;
+  --let $binlog_server_id= query_get_value(SHOW BINLOG EVENTS, Server_id, $row_number)
+  --let $server_id= `SELECT @@server_id`
+
+  --let $assert_text= Server Ids must match ($binlog_server_id == $server_id)
+  --let $assert_cond= $binlog_server_id = $server_id
+  --source include/assert.inc
+
+  --dec $i
+}
 
 # cleanup
 eval set global server_id=$saved_server_id;

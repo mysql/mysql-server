@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,12 +286,13 @@ void unlock_slave_threads(Master_info* mi)
 }
 
 #ifdef HAVE_PSI_INTERFACE
-static PSI_thread_key key_thread_slave_io, key_thread_slave_sql;
+static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slave_worker;
 
 static PSI_thread_info all_slave_threads[]=
 {
   { &key_thread_slave_io, "slave_io", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_GLOBAL}
+  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_GLOBAL},
+  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_GLOBAL}
 };
 
 static void init_slave_psi_keys(void)
@@ -1586,8 +1587,10 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   else if (!master_row && master_res)
   {
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
-               "Unknown system variable 'SERVER_UUID' on master, "
-               "maybe it is a *VERY OLD MASTER*.");
+               "Unknown system variable 'SERVER_UUID' on master. "
+               "A probable cause is that the variable is not supported on the "
+               "master (version: %s), even though it is on the slave (version: %s)",
+               mysql->server_version, server_version);
   }
 
   if (master_res)
@@ -1615,6 +1618,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   char err_buff[MAX_SLAVE_ERRMSG];
   const char* errmsg= 0;
   int err_code= 0;
+  int version_number=0;
+  version_number= atoi(mysql->server_version);
+
   MYSQL_RES *master_res= 0;
   MYSQL_ROW master_row;
   DBUG_ENTER("get_master_version_and_clock");
@@ -1623,6 +1629,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     Free old mi_description_event (that is needed if we are in
     a reconnection).
   */
+  DBUG_EXECUTE_IF("unrecognized_master_version",
+                 {
+                   version_number= 1;
+                 };);
   mysql_mutex_lock(&mi->data_lock);
   mi->set_mi_description_event(NULL);
 
@@ -1637,20 +1647,20 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     /*
       Note the following switch will bug when we have MySQL branch 30 ;)
     */
-    switch (*mysql->server_version)
+    switch (version_number)
     {
-    case '0':
-    case '1':
-    case '2':
+    case 0:
+    case 1:
+    case 2:
       errmsg = "Master reported unrecognized MySQL version";
       err_code= ER_SLAVE_FATAL_ERROR;
       sprintf(err_buff, ER(err_code), errmsg);
       break;
-    case '3':
+    case 3:
       mi->set_mi_description_event(new
         Format_description_log_event(1, mysql->server_version));
       break;
-    case '4':
+    case 4:
       mi->set_mi_description_event(new
         Format_description_log_event(3, mysql->server_version));
       break;
@@ -1677,7 +1687,11 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   */
 
   if (errmsg)
+  {
+    /* unlock the mutex on master info structure */
+    mysql_mutex_unlock(&mi->data_lock);
     goto err;
+  }
 
   /* as we are here, we tried to allocate the event */
   if (mi->get_mi_description_event() == NULL)
@@ -2148,7 +2162,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
       {
         mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                    "The slave IO thread stops because the master has "
-                   "an unknown GTID_MODE.");
+                   "an unknown @@GLOBAL.GTID_MODE.");
         DBUG_RETURN(1);
       }
       mi->master_gtid_mode= typelib_index - 1;
@@ -2158,8 +2172,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
         gtid_mode > mi->master_gtid_mode + 1)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has GTID_MODE "
-                 "%s and this server has GTID_MODE %s",
+                 "The slave IO thread stops because the master has "
+                 "@@GLOBAL.GTID_MODE %s and this server has "
+                 "@@GLOBAL.GTID_MODE %s",
                  gtid_mode_names[mi->master_gtid_mode],
                  gtid_mode_names[gtid_mode]);
       DBUG_RETURN(1);
@@ -2167,8 +2182,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
     if (mi->is_auto_position() && mi->master_gtid_mode != 3)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has GTID_MODE "
-                 "%s and we are trying to connect using MASTER_AUTO_POSITION.",
+                 "The slave IO thread stops because the master has "
+                 "@@GLOBAL.GTID_MODE %s and we are trying to connect "
+                 "using MASTER_AUTO_POSITION.",
                  gtid_mode_names[mi->master_gtid_mode]);
       DBUG_RETURN(1);
     }
@@ -3704,6 +3720,11 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       mysql_mutex_unlock(&rli->data_lock);
     */
 
+    /* For deferred events, the ptr_ev is set to NULL
+        in Deferred_log_events::add() function.
+        Hence deferred events wont be deleted here.
+        They will be deleted in Deferred_log_events::rewind() funciton.
+    */
     if (*ptr_ev)
     {
       DBUG_ASSERT(*ptr_ev == ev); // event remains to belong to Coordinator
@@ -3877,7 +3898,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 {
   mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
   thd->proc_info= messages[SLAVE_RECON_MSG_WAIT];
-#ifdef SIGNAL_WITH_VIO_CLOSE  
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN  
   thd->clear_active_vio();
 #endif
   end_server(mysql);
@@ -4285,11 +4306,11 @@ err:
       Here we need to clear the active VIO before closing the
       connection with the master.  The reason is that THD::awake()
       might be called from terminate_slave_thread() because somebody
-      issued a STOP SLAVE.  If that happends, the close_active_vio()
+      issued a STOP SLAVE.  If that happends, the shutdown_active_vio()
       can be called in the middle of closing the VIO associated with
       the 'mysql' object, causing a crash.
     */
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     thd->clear_active_vio();
 #endif
     mysql_close(mysql);
@@ -5007,8 +5028,8 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
   set_dynamic(&rli->workers, (uchar*) &w, i);
 
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
-      pthread_create(&th, &connection_attrib, handle_slave_worker,
-                     (void*) w))
+      mysql_thread_create(key_thread_slave_worker, &th, &connection_attrib,
+                          handle_slave_worker, (void*) w))
   {
     sql_print_error("Failed during slave worker thread create");
     error= 1;
@@ -6560,7 +6581,7 @@ err:
 
 extern "C" void slave_io_thread_detach_vio()
 {
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   THD *thd= current_thd;
   if (thd && thd->slave_thread)
     thd->clear_active_vio();
@@ -6738,7 +6759,7 @@ replication resumed in log '%s' at position %s", mi->get_user(),
       general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
                         mi->get_user(), mi->host, mi->port);
     }
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     thd->set_active_vio(mysql->net.vio);
 #endif
   }
@@ -7044,6 +7065,12 @@ static Log_event* next_event(Relay_log_info* rli)
     if (cur_log->error < 0)
     {
       errmsg = "slave SQL thread aborted because of I/O error";
+      if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+        /*
+          MTS group status is set to MTS_KILLED_GROUP, whenever a read event
+          error happens and there was already a non-terminal event scheduled.
+        */
+        rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
       if (hot_log)
         mysql_mutex_unlock(log_lock);
       goto err;
