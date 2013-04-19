@@ -333,9 +333,21 @@ ConfigManager::init(void)
   if (!init_nodeid())
     DBUG_RETURN(false);
 
-  if (m_opts.initial && !delete_saved_configs())
-    DBUG_RETURN(false);
-
+  if (m_opts.initial)
+  {
+    /**
+     * Verify valid -f before delete_saved_configs()
+     */
+    Config* conf = load_config();
+    if (conf == NULL)
+      DBUG_RETURN(false);
+    
+    delete conf;
+    
+    if (!delete_saved_configs())
+      DBUG_RETURN(false);
+  }
+    
   if (failed_config_change_exists())
     DBUG_RETURN(false);
 
