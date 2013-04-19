@@ -467,6 +467,7 @@ i
 2
 3
 drop table t;
+"4. Hit crash point while dropping indexes."
 use test;
 set global innodb_file_per_table = 1;
 create table t (
@@ -535,6 +536,162 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+drop table t;
+"5. Hit crash point on completing drop of all indexes before creation"
+"   of index is commenced."
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_drop_reinit_done_create_to_start1";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_drop_reinit_done_create_to_start2";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
+"6. Hit crash point while creating indexes."
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_on_create_of_clust_index";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_on_create_of_uniq_index";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_on_create_of_sec_index";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
+"7. Hit crash point after data is updated to system-table and"
+"   in-memory dict."
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_on_updating_dict_sys_info1";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_on_updating_dict_sys_info2";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+select * from t;
+i	f	c
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
