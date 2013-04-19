@@ -37,6 +37,7 @@ Created 11/5/1995 Heikki Tuuri
 #endif
 
 #ifdef UNIV_INNOCHECKSUM
+#include "string.h"
 #include "mach0data.h"	/* mach_read_from_4 */
 #endif /* UNIV_INNOCHECKSUM */
 #ifndef UNIV_INNOCHECKSUM
