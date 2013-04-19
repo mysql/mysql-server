@@ -44,8 +44,13 @@ function ValueVerifier(testCase, field, value) {
     /* Date objects can only be compared using Date.valueOf(), 
        so compare using x.valueOf(), but report using just x
     */
-    if(value.valueOf() !== rowRead[field].valueOf()) {
-      testCase.errorIfNotEqual(field, value, rowRead[field]);
+    try {
+      if(value.valueOf() !== rowRead[field].valueOf()) {
+        testCase.errorIfNotEqual(field, value, rowRead[field]);
+      }
+    }
+    catch(e) {
+      testCase.appendErrorMessage(e);
     }
     testCase.failOnError();
   };
