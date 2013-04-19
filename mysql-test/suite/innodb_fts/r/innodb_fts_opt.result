@@ -30,8 +30,8 @@ FTS_DOC_ID	title	score1	score2
 6	MySQL Security	0	0.000000003771856604828372
 No sorting for this query
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
 title	score
@@ -45,8 +45,8 @@ Sort_rows	0
 Sort_scan	0
 No sorting for this query even if MATCH is part of an expression
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database') > 0.1
 ORDER BY score DESC;
 title	score
@@ -62,8 +62,8 @@ No sorting even if there are several MATCH expressions as long as the
 right one is used in ORDER BY
 FLUSH STATUS;
 SELECT title, MATCH(title, text) AGAINST ('database') AS score1,
-MATCH(title, text) AGAINST ('mysql') AS score2 
-FROM wp 
+MATCH(title, text) AGAINST ('mysql') AS score2
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score1 DESC;
 title	score1	score2
@@ -77,8 +77,8 @@ Sort_rows	0
 Sort_scan	0
 Sorting since it is not a single table query
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp, t1 
+SELECT title, MATCH(title, text) AGAINST ('database') AS score
+FROM wp, t1
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID = t1.i
 ORDER BY score DESC;
 title	score
@@ -89,8 +89,8 @@ Variable_name	Value
 Sort_rows	2
 Sorting since there is no WHERE clause
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 ORDER BY score DESC;
 title	score
 MySQL vs. YourSQL	0.45528939366340637
@@ -104,8 +104,8 @@ Variable_name	Value
 Sort_rows	6
 Sorting since ordering on multiple columns
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC, FTS_DOC_ID;
 title	score
@@ -116,8 +116,8 @@ Variable_name	Value
 Sort_rows	2
 Sorting since ordering is not descending
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score ASC;
 title	score
@@ -128,8 +128,8 @@ Variable_name	Value
 Sort_rows	2
 Sorting because one is ordering on a different MATCH expression
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('mysql') AS score 
-FROM wp 
+SELECT title, MATCH(title, text) AGAINST ('mysql') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
 title	score
@@ -140,8 +140,8 @@ Variable_name	Value
 Sort_rows	2
 No sorting for this query
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 ORDER BY score DESC LIMIT 2;
 title	score
 MySQL vs. YourSQL	0.45528939366340637
@@ -155,8 +155,8 @@ Sort_scan	0
 Revert to table scan and sorting for this query since not
 enough matching rows to satisfy LIMIT clause
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 ORDER BY score DESC LIMIT 3;
 title	score
 MySQL vs. YourSQL	0.45528939366340637
@@ -176,8 +176,8 @@ Variable_name	Value
 Sort_rows	3
 Sorting since no LIMIT clause
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 ORDER BY score DESC;
 title	score
 MySQL vs. YourSQL	0.45528939366340637
@@ -203,8 +203,8 @@ Variable_name	Value
 Sort_rows	2
 Sorting since ordering is not on a simple MATCH expressions
 FLUSH STATUS;
-SELECT title, (MATCH(title, text) AGAINST ('database')) * 100 AS score 
-FROM wp 
+SELECT title, (MATCH(title, text) AGAINST ('database')) * 100 AS score
+FROM wp
 ORDER BY score DESC LIMIT 2;
 title	score
 MySQL vs. YourSQL	45.52893936634064
@@ -214,8 +214,8 @@ Variable_name	Value
 Sort_rows	2
 No ordinary handler accesses when only accessing FTS_DOC_ID and MATCH
 FLUSH STATUS;
-SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 docid	score
 5	0.45528939366340637
@@ -231,8 +231,8 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 Still no handler accesses when adding FTS_DOC_ID to WHERE clause
 FLUSH STATUS;
-SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID > 2;
 docid	score
 5	0.45528939366340637
@@ -247,8 +247,8 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 Still no handler accesses when ordering by MATCH expression
 FLUSH STATUS;
-SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score;
 docid	score
@@ -265,8 +265,8 @@ Handler_read_rnd	2
 Handler_read_rnd_next	0
 Optimization is disabled when ordering on FTS_DOC_ID
 FLUSH STATUS;
-SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY 1 DESC;
 docid	score
@@ -284,8 +284,8 @@ Handler_read_rnd_next	0
 Optimization also work with several MATCH expressions
 FLUSH STATUS;
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score1,
-MATCH(title, text) AGAINST ('mysql') AS score2 
-FROM wp 
+MATCH(title, text) AGAINST ('mysql') AS score2
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 docid	score1	score2
 5	0.45528939366340637	0.000000001885928302414186
@@ -300,11 +300,11 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 Optimization does not apply if sorting on a different MATCH expressions
-from the one used to access the 
+from the one used to access the
 FLUSH STATUS;
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score1,
-MATCH(title, text) AGAINST ('mysql') AS score2 
-FROM wp 
+MATCH(title, text) AGAINST ('mysql') AS score2
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score2 DESC;
 docid	score1	score2
@@ -322,7 +322,7 @@ Handler_read_rnd_next	0
 FLUSH STATUS;
 Optimization does not apply for GROUP BY
 SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('database') AS score
-FROM wp 
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 GROUP BY score;
 FTS_DOC_ID	score
@@ -340,8 +340,8 @@ Handler_read_rnd_next	3
 No sorting and no table access with LIMIT clause and only information
 from FTS result
 FLUSH STATUS;
-SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 ORDER BY score DESC LIMIT 2;
 docid	score
 5	0.45528939366340637
@@ -361,16 +361,16 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
-If count optimization applies, EXPLAIN shows 
+If count optimization applies, EXPLAIN shows
 "Select tables optimized away."
-EXPLAIN SELECT COUNT(*) 
-FROM wp 
+EXPLAIN SELECT COUNT(*)
+FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 FLUSH STATUS;
-SELECT COUNT(*) 
-FROM wp 
+SELECT COUNT(*)
+FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 COUNT(*)
 2
@@ -385,13 +385,13 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 Optimization applies also to COUNT(expr) as long as expr is not nullable
-EXPLAIN SELECT COUNT(title) 
-FROM wp 
+EXPLAIN SELECT COUNT(title)
+FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-SELECT COUNT(title) 
-FROM wp 
+SELECT COUNT(title)
+FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 COUNT(title)
 2
@@ -441,9 +441,9 @@ WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 COUNT(dummy)
 0
 FLUSH STATUS;
-SELECT title, 
-MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score 
-FROM wp 
+SELECT title,
+MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
 title	score
@@ -461,8 +461,8 @@ Sort_rows	0
 Sort_scan	0
 FLUSH STATUS;
 SELECT title,
-MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score 
-FROM wp 
+MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
+FROM wp
 ORDER BY score DESC LIMIT 2;
 title	score
 MySQL vs. YourSQL	2.2718474864959717
@@ -474,9 +474,9 @@ Sort_range	0
 Sort_rows	0
 Sort_scan	0
 FLUSH STATUS;
-SELECT FTS_DOC_ID docid, 
-MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score 
-FROM wp 
+SELECT FTS_DOC_ID docid,
+MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 docid	score
 5	2.2718474864959717
@@ -492,8 +492,8 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
 SELECT FTS_DOC_ID docid,
-MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score 
-FROM wp 
+MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
+FROM wp
 ORDER BY score DESC LIMIT 2;
 docid	score
 5	2.2718474864959717
@@ -513,14 +513,14 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
-EXPLAIN SELECT COUNT(*) 
-FROM wp 
+EXPLAIN SELECT COUNT(*)
+FROM wp
 WHERE MATCH(title,text) AGAINST ('database' WITH QUERY EXPANSION);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 FLUSH STATUS;
-SELECT COUNT(*) 
-FROM wp 
+SELECT COUNT(*)
+FROM wp
 WHERE MATCH(title,text) AGAINST ('database' WITH QUERY EXPANSION);
 COUNT(*)
 6
@@ -534,9 +534,9 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
-SELECT title, 
-MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
-FROM wp 
+SELECT title,
+MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE)
 ORDER BY score DESC;
 title	score
@@ -552,8 +552,8 @@ Sort_rows	0
 Sort_scan	0
 FLUSH STATUS;
 SELECT title,
-MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
-FROM wp 
+MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+FROM wp
 ORDER BY score DESC LIMIT 2;
 title	score
 MySQL Security	0.000000003771856604828372
@@ -565,11 +565,17 @@ Sort_range	0
 Sort_rows	0
 Sort_scan	0
 FLUSH STATUS;
-SELECT FTS_DOC_ID docid, 
-MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
-FROM wp 
+SELECT FTS_DOC_ID docid,
+MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('+MySQL -database');
 docid	score
+5	0
+1	0
+6	0.000000003771856604828372
+2	0.000000001885928302414186
+3	0.000000001885928302414186
+4	0.000000001885928302414186
 SHOW SESSION STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -229,7 +229,9 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
 
   const Gtid_specification *gtid_next= &thd->variables.gtid_next;
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) &&
-      thd->in_active_multi_stmt_transaction() &&
+      (thd->in_active_multi_stmt_transaction() ||
+       (!is_update_query(thd->lex->sql_command) &&
+        !thd->lex->is_set_password_sql)) &&
       gtid_next->type != AUTOMATIC_GROUP)
   {
     my_error(ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET, MYF(0));

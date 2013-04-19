@@ -3566,17 +3566,10 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                     },
                     {
                       "table": "`t3`",
-                      "const_keys_added": {
-                        "keys": [
-                        ] /* keys */,
-                        "cause": "group_by"
-                      } /* const_keys_added */,
-                      "range_analysis": {
-                        "table_scan": {
-                          "rows": 8,
-                          "cost": 5.7195
-                        } /* table_scan */
-                      } /* range_analysis */
+                      "table_scan": {
+                        "rows": 8,
+                        "cost": 2
+                      } /* table_scan */
                     }
                   ] /* rows_estimation */
                 },
@@ -4122,38 +4115,10 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
               },
               {
                 "table": "`t7` `link_alias_142`",
-                "const_keys_added": {
-                  "keys": [
-                    "PRIMARY"
-                  ] /* keys */,
-                  "cause": "group_by"
-                } /* const_keys_added */,
-                "range_analysis": {
-                  "table_scan": {
-                    "rows": 3,
-                    "cost": 4.7156
-                  } /* table_scan */,
-                  "potential_range_indices": [
-                    {
-                      "index": "PRIMARY",
-                      "usable": true,
-                      "key_parts": [
-                        "t7_id"
-                      ] /* key_parts */
-                    },
-                    {
-                      "index": "_field_166",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    }
-                  ] /* potential_range_indices */,
-                  "setup_range_conditions": [
-                  ] /* setup_range_conditions */,
-                  "group_index_range": {
-                    "chosen": false,
-                    "cause": "not_single_table"
-                  } /* group_index_range */
-                } /* range_analysis */
+                "table_scan": {
+                  "rows": 3,
+                  "cost": 2
+                } /* table_scan */
               },
               {
                 "table": "`t6`",
@@ -4209,48 +4174,10 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
               },
               {
                 "table": "`t1` `link_alias_133`",
-                "const_keys_added": {
-                  "keys": [
-                    "PRIMARY"
-                  ] /* keys */,
-                  "cause": "group_by"
-                } /* const_keys_added */,
-                "range_analysis": {
-                  "table_scan": {
-                    "rows": 3,
-                    "cost": 4.741
-                  } /* table_scan */,
-                  "potential_range_indices": [
-                    {
-                      "index": "PRIMARY",
-                      "usable": true,
-                      "key_parts": [
-                        "t1_id"
-                      ] /* key_parts */
-                    },
-                    {
-                      "index": "_field_72",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    },
-                    {
-                      "index": "_field_115",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    },
-                    {
-                      "index": "_field_122",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    }
-                  ] /* potential_range_indices */,
-                  "setup_range_conditions": [
-                  ] /* setup_range_conditions */,
-                  "group_index_range": {
-                    "chosen": false,
-                    "cause": "not_single_table"
-                  } /* group_index_range */
-                } /* range_analysis */
+                "table_scan": {
+                  "rows": 3,
+                  "cost": 2
+                } /* table_scan */
               },
               {
                 "table": "`t2`",
@@ -4306,63 +4233,10 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
               },
               {
                 "table": "`t5` `link_alias_148`",
-                "const_keys_added": {
-                  "keys": [
-                    "PRIMARY"
-                  ] /* keys */,
-                  "cause": "group_by"
-                } /* const_keys_added */,
-                "range_analysis": {
-                  "table_scan": {
-                    "rows": 2,
-                    "cost": 4.5137
-                  } /* table_scan */,
-                  "potential_range_indices": [
-                    {
-                      "index": "PRIMARY",
-                      "usable": true,
-                      "key_parts": [
-                        "t5_id"
-                      ] /* key_parts */
-                    },
-                    {
-                      "index": "_field_156",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    },
-                    {
-                      "index": "_field_157",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    },
-                    {
-                      "index": "_field_158",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    },
-                    {
-                      "index": "_field_159",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    },
-                    {
-                      "index": "_field_160",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    },
-                    {
-                      "index": "_field_161",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    }
-                  ] /* potential_range_indices */,
-                  "setup_range_conditions": [
-                  ] /* setup_range_conditions */,
-                  "group_index_range": {
-                    "chosen": false,
-                    "cause": "not_single_table"
-                  } /* group_index_range */
-                } /* range_analysis */
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 2
+                } /* table_scan */
               }
             ] /* rows_estimation */
           },
@@ -4819,17 +4693,10 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             "rows_estimation": [
               {
                 "table": "`t1` `alias1`",
-                "const_keys_added": {
-                  "keys": [
-                  ] /* keys */,
-                  "cause": "group_by"
-                } /* const_keys_added */,
-                "range_analysis": {
-                  "table_scan": {
-                    "rows": 20,
-                    "cost": 8.1977
-                  } /* table_scan */
-                } /* range_analysis */
+                "table_scan": {
+                  "rows": 20,
+                  "cost": 2
+                } /* table_scan */
               },
               {
                 "table": "`t2` `alias2`",

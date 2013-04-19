@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -141,8 +141,6 @@ static uint innobase_old_blocks_pct;
 /** Maximum on-disk size of change buffer in terms of percentage
 of the buffer pool. */
 static uint innobase_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
-
-static ulong innobase_compression_level = DEFAULT_COMPRESSION_LEVEL;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -383,7 +381,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
 	{&index_online_log_key, "index_online_log", 0},
 	{&dict_table_stats_latch_key, "dict_table_stats", 0},
-	{&hash_table_rw_lock_key, "hash table locks", 0}
+	{&hash_table_rw_lock_key, "hash_table_locks", 0}
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -400,7 +398,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	{&srv_master_thread_key, "srv_master_thread", 0},
 	{&srv_purge_thread_key, "srv_purge_thread", 0},
 	{&buf_page_cleaner_thread_key, "page_cleaner_thread", 0},
-	{&recv_writer_thread_key, "recovery writer thread", 0}
+	{&recv_writer_thread_key, "recv_writer_thread", 0}
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -1493,6 +1491,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_OUT_OF_MEM);
 	case DB_TABLESPACE_EXISTS:
 		return(HA_ERR_TABLESPACE_EXISTS);
+	case DB_IDENTIFIER_TOO_LONG:
+		return(HA_ERR_INTERNAL_ERROR);
 	}
 }
 
@@ -1583,6 +1583,37 @@ innobase_convert_from_table_id(
 	uint	errors;
 
 	strconvert(cs, from, &my_charset_filename, to, (uint) len, &errors);
+}
+
+/**********************************************************************
+Check if the length of the identifier exceeds the maximum allowed.
+The input to this function is an identifier in charset my_charset_filename.
+return true when length of identifier is too long. */
+UNIV_INTERN
+my_bool
+innobase_check_identifier_length(
+/*=============================*/
+	const char*	id)	/* in: identifier to check.  it must belong
+				to charset my_charset_filename */
+{
+	char		tmp[MAX_TABLE_NAME_LEN + 10];
+	uint		errors;
+	uint		len;
+	int		well_formed_error = 0;
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = thd_charset(current_thd);
+
+	len = strconvert(cs1, id, cs2, tmp, MAX_TABLE_NAME_LEN + 10, &errors);
+
+	uint res = cs2->cset->well_formed_len(cs2, tmp, tmp + len,
+					      NAME_CHAR_LEN,
+					      &well_formed_error);
+
+	if (well_formed_error || res != len) {
+		my_error(ER_TOO_LONG_IDENT, MYF(0), tmp);
+		return(true);
+	}
+	return(false);
 }
 
 /******************************************************************//**
@@ -1728,9 +1759,14 @@ innobase_mysql_tmpfile(void)
 /*========================*/
 {
 	int	fd2 = -1;
-	File	fd = mysql_tmpfile("ib");
+	File	fd;
 
-	DBUG_EXECUTE_IF("innobase_tmpfile_creation_failure", return(-1););
+	DBUG_EXECUTE_IF(
+		"innobase_tmpfile_creation_failure",
+		return(-1);
+	);
+
+	fd = mysql_tmpfile("ib");
 
 	if (fd >= 0) {
 		/* Copy the file descriptor, so that the additional resources
@@ -2072,8 +2108,8 @@ UNIV_INTERN
 void
 innobase_copy_frm_flags_from_create_info(
 /*=====================================*/
-	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
-	HA_CREATE_INFO*	create_info)		/*!< in: create info */
+	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
+	const HA_CREATE_INFO*	create_info)	/*!< in: create info */
 {
 	ibool	ps_on;
 	ibool	ps_off;
@@ -2108,8 +2144,8 @@ UNIV_INTERN
 void
 innobase_copy_frm_flags_from_table_share(
 /*=====================================*/
-	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
-	TABLE_SHARE*	table_share)		/*!< in: table share */
+	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
+	const TABLE_SHARE*	table_share)	/*!< in: table share */
 {
 	ibool	ps_on;
 	ibool	ps_off;
@@ -2858,12 +2894,31 @@ mem_free_and_error:
 
 	srv_normalize_path_for_win(srv_log_group_home_dir);
 
-	if (strchr(srv_log_group_home_dir, ';')
-	    || innobase_mirrored_log_groups != 1) {
-		sql_print_error("syntax error in innodb_log_group_home_dir, "
-				"or a wrong number of mirrored log groups");
-
+	if (strchr(srv_log_group_home_dir, ';')) {
+		sql_print_error("syntax error in innodb_log_group_home_dir");
 		goto mem_free_and_error;
+	}
+
+	if (innobase_mirrored_log_groups == 1) {
+		sql_print_warning(
+			"innodb_mirrored_log_groups is an unimplemented "
+			"feature and the variable will be completely "
+			"removed in a future version.");
+	}
+
+	if (innobase_mirrored_log_groups > 1) {
+		sql_print_error(
+		"innodb_mirrored_log_groups is an unimplemented feature and "
+		"the variable will be completely removed in a future version. "
+		"Using values other than 1 is not supported.");
+		goto mem_free_and_error;
+	}
+
+	if (innobase_mirrored_log_groups == 0) {
+		/* To throw a deprecation warning message when the option is
+		passed, the default was changed to '0' (as a workaround). Since
+		the only value accepted for this option is '1', reset it to 1 */
+		innobase_mirrored_log_groups = 1;
 	}
 
 	/* Validate the file format by animal name */
@@ -3069,8 +3124,6 @@ innobase_change_buffering_inited_ok:
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-
-	page_compression_level = (ulint) innobase_compression_level;
 
 	if (!innobase_use_checksums) {
 		ut_print_timestamp(stderr);
@@ -5327,8 +5380,8 @@ ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
 	CHARSET_INFO*	cs,		/*!< in: Character set */
-	byte*           start,		/*!< in: start of text */
-	byte*		end,		/*!< in: one character past end of
+	const byte*	start,		/*!< in: start of text */
+	const byte*	end,		/*!< in: one character past end of
 					text */
 	fts_string_t*	token,		/*!< out: token's text */
 	ulint*		offset)		/*!< out: offset to token,
@@ -5336,7 +5389,7 @@ innobase_mysql_fts_get_token(
 					'start' */
 {
 	int		mbl;
-	uchar*		doc = start;
+	const uchar*	doc = start;
 
 	ut_a(cs);
 
@@ -5352,7 +5405,7 @@ innobase_mysql_fts_get_token(
 			int	ctype;
 
 			mbl = cs->cset->ctype(
-				cs, &ctype, (uchar*) doc, (uchar*) end);
+				cs, &ctype, doc, (const uchar*) end);
 
 			if (true_word_char(ctype, *doc)) {
 				break;
@@ -5364,7 +5417,7 @@ innobase_mysql_fts_get_token(
 		ulint	mwc = 0;
 		ulint	length = 0;
 
-		token->f_str = doc;
+		token->f_str = const_cast<byte*>(doc);
 
 		while (doc < end) {
 
@@ -7109,6 +7162,12 @@ ha_innobase::unlock_row(void)
 	if (prebuilt->select_lock_type == LOCK_NONE) {
 		DBUG_VOID_RETURN;
 	}
+
+	/* Ideally, this assert must be in the beginning of the function.
+	But there are some calls to this function from the SQL layer when the
+	transaction is in state TRX_STATE_NOT_STARTED.  The check on
+	prebuilt->select_lock_type above gets around this issue. */
+	ut_ad(trx_state_eq(prebuilt->trx, TRX_STATE_ACTIVE));
 
 	switch (prebuilt->row_read_type) {
 	case ROW_READ_WITH_LOCKS:
@@ -9469,7 +9528,7 @@ ha_innobase::create(
 
 		/* Check whether there already exists FTS_DOC_ID_INDEX */
 		ret = innobase_fts_check_doc_id_index_in_def(
-			form->s->keys, form->s->key_info);
+			form->s->keys, form->key_info);
 
 		switch (ret) {
 		case FTS_INCORRECT_DOC_ID_INDEX:
@@ -10039,8 +10098,10 @@ innobase_rename_table(
 
 	DEBUG_SYNC_C("innodb_rename_table_ready");
 
+	trx_start_if_not_started(trx);
+
 	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
+	no deadlocks can occur then in these operations. */
 
 	row_mysql_lock_data_dictionary(trx);
 
@@ -14815,6 +14876,80 @@ innodb_srv_buf_dump_filename_validate(
 # define innodb_srv_buf_dump_filename_validate NULL
 #endif /* __WIN__ */
 
+#ifdef UNIV_DEBUG
+static char* srv_buffer_pool_evict;
+
+/****************************************************************//**
+Evict all uncompressed pages of compressed tables from the buffer pool.
+Keep the compressed pages in the buffer pool.
+@return whether all uncompressed pages were evicted */
+static __attribute__((warn_unused_result))
+bool
+innodb_buffer_pool_evict_uncompressed(void)
+/*=======================================*/
+{
+	bool	all_evicted = true;
+
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t*	buf_pool = &buf_pool_ptr[i];
+
+		buf_pool_mutex_enter(buf_pool);
+
+		for (buf_block_t* block = UT_LIST_GET_LAST(
+			     buf_pool->unzip_LRU);
+		     block != NULL; ) {
+			buf_block_t*	prev_block = UT_LIST_GET_PREV(
+				unzip_LRU, block);
+			ut_ad(buf_block_get_state(block)
+			      == BUF_BLOCK_FILE_PAGE);
+			ut_ad(block->in_unzip_LRU_list);
+			ut_ad(block->page.in_LRU_list);
+
+			if (!buf_LRU_free_page(&block->page, false)) {
+				all_evicted = false;
+			}
+
+			block = prev_block;
+		}
+
+		buf_pool_mutex_exit(buf_pool);
+	}
+
+	return(all_evicted);
+}
+
+/****************************************************************//**
+Called on SET GLOBAL innodb_buffer_pool_evict=...
+Handles some values specially, to evict pages from the buffer pool.
+SET GLOBAL innodb_buffer_pool_evict='uncompressed'
+evicts all uncompressed page frames of compressed tablespaces. */
+static
+void
+innodb_buffer_pool_evict_update(
+/*============================*/
+	THD*			thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*var,	/*!< in: pointer to system variable */
+	void*			var_ptr,/*!< out: ignored */
+	const void*		save)	/*!< in: immediate result
+					from check function */
+{
+	if (const char* op = *static_cast<const char*const*>(save)) {
+		if (!strcmp(op, "uncompressed")) {
+			for (uint tries = 0; tries < 10000; tries++) {
+				if (innodb_buffer_pool_evict_uncompressed()) {
+					return;
+				}
+
+				os_thread_sleep(10000);
+			}
+
+			/* We failed to evict all uncompressed pages. */
+			ut_ad(0);
+		}
+	}
+}
+#endif /* UNIV_DEBUG */
+
 /****************************************************************//**
 Update the system variable innodb_monitor_enable and enable
 specified monitor counter.
@@ -14889,29 +15024,6 @@ innodb_reset_all_monitor_update(
 {
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE,
 			      TRUE);
-}
-
-/****************************************************************//**
-Update the system variable innodb_compression_level using the "saved"
-value. This function is registered as a callback with MySQL. */
-static
-void
-innodb_compression_level_update(
-/*============================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	/* We have this call back just to avoid confusion between
-	ulong and ulint datatypes. */
-	innobase_compression_level =
-			(*static_cast<const ulong*>(save));
-	page_compression_level =
-			(static_cast<const ulint>(innobase_compression_level));
 }
 
 /****************************************************************//**
@@ -15380,7 +15492,7 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   32, 0);		/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
-  PLUGIN_VAR_OPCMDARG,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Size of the mutex/lock wait array.",
   NULL, NULL,
   1,			/* Default setting */
@@ -15581,12 +15693,20 @@ static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
   "innodb_thread_concurrency is reached (0 by default)",
   NULL, NULL, 0, 0, ~0UL, 0);
 
-static MYSQL_SYSVAR_ULONG(compression_level, innobase_compression_level,
+static MYSQL_SYSVAR_UINT(compression_level, page_zip_level,
   PLUGIN_VAR_RQCMDARG,
   "Compression level used for compressed row format.  0 is no compression"
   ", 1 is fastest, 9 is best compression and default is 6.",
-  NULL, innodb_compression_level_update,
-  DEFAULT_COMPRESSION_LEVEL, 0, 9, 0);
+  NULL, NULL, DEFAULT_COMPRESSION_LEVEL, 0, 9, 0);
+
+static MYSQL_SYSVAR_BOOL(log_compressed_pages, page_zip_log_pages,
+       PLUGIN_VAR_OPCMDARG,
+  "Enables/disables the logging of entire compressed page images."
+  " InnoDB logs the compressed pages to prevent corruption if"
+  " the zlib compression algorithm changes."
+  " When turned OFF, InnoDB will assume that the zlib"
+  " compression algorithm doesn't change.",
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -15637,6 +15757,13 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_dump_at_shutdown, srv_buffer_pool_dump_at_s
   PLUGIN_VAR_RQCMDARG,
   "Dump the buffer pool into a file named @@innodb_buffer_pool_filename",
   NULL, NULL, FALSE);
+
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_STR(buffer_pool_evict, srv_buffer_pool_evict,
+  PLUGIN_VAR_RQCMDARG,
+  "Evict pages from the buffer pool",
+  NULL, innodb_buffer_pool_evict_update, "");
+#endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_BOOL(buffer_pool_load_now, innodb_buffer_pool_load_now,
   PLUGIN_VAR_RQCMDARG,
@@ -15782,10 +15909,12 @@ static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   "Number of log files in the log group. InnoDB writes to the files in a circular fashion.",
   NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
 
+/* Note that the default and minimum values are set to 0 to
+detect if the option is passed and print deprecation message */
 static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
-  NULL, NULL, 1, 1, 10, 0);
+  NULL, NULL, 0, 0, 10, 0);
 
 static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
   PLUGIN_VAR_RQCMDARG,
@@ -16061,6 +16190,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(buffer_pool_filename),
   MYSQL_SYSVAR(buffer_pool_dump_now),
   MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(buffer_pool_evict),
+#endif /* UNIV_DEBUG */
   MYSQL_SYSVAR(buffer_pool_load_now),
   MYSQL_SYSVAR(buffer_pool_load_abort),
   MYSQL_SYSVAR(buffer_pool_load_at_startup),
@@ -16111,6 +16243,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),
+  MYSQL_SYSVAR(log_compressed_pages),
   MYSQL_SYSVAR(max_dirty_pages_pct),
   MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
   MYSQL_SYSVAR(adaptive_flushing_lwm),
@@ -16227,7 +16360,6 @@ i_s_innodb_buffer_page_lru,
 i_s_innodb_buffer_stats,
 i_s_innodb_metrics,
 i_s_innodb_ft_default_stopword,
-i_s_innodb_ft_inserted,
 i_s_innodb_ft_deleted,
 i_s_innodb_ft_being_deleted,
 i_s_innodb_ft_config,

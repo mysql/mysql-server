@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -478,7 +478,8 @@ is the global server default. */
 #define HA_ERR_TABLE_IN_FK_CHECK  183    /* Table being used in foreign key check */
 #define HA_ERR_TABLESPACE_EXISTS  184    /* The tablespace existed in storage engine */
 #define HA_ERR_TOO_MANY_FIELDS    185    /* Table has too many columns */
-#define HA_ERR_LAST               185    /* Copy of last error nr */
+#define HA_ERR_ROW_IN_WRONG_PARTITION 186 /* Row in wrong partition */
+#define HA_ERR_LAST               186    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

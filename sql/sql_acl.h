@@ -444,4 +444,7 @@ bool acl_check_proxy_grant_access (THD *thd, const char *host, const char *user,
 void init_default_auth_plugin();
 int set_default_auth_plugin(char *, int);
 
+/** controls the extra checks on plugin availability for mysql.user records */
+extern my_bool validate_user_plugins;
+
 #endif /* SQL_ACL_INCLUDED */

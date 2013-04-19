@@ -46,6 +46,6 @@ DROP DATABASE test_3;
 DROP DATABASE test_2;
 DROP DATABASE test_1;
 SET @@global.default_storage_engine= @save_default_storage_engine;
-include/stop_slave.inc
 SET @@global.default_storage_engine= @save_default_storage_engine;
 SET GLOBAL slave_parallel_workers= @save_slave_parallel_workers;
+include/rpl_end.inc

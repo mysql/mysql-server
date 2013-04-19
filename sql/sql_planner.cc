@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -282,10 +282,13 @@ public:
   }
 
   /**
-    Check if an index can be used for LooseScan, part 2
+    Check if ref access can be used for LooseScan, part 2
 
     Record this LooseScan index if it is cheaper than the currently
     cheapest LooseScan index.
+
+    @note Actually ref access is not used by LooseScan:
+    JOIN::set_access_methods() always sets up a index/range scan.
 
     @param key            The key being checked for the associated table
     @param start_key      First applicable keyuse for this key.
@@ -633,7 +636,8 @@ void Optimize_table_order::best_access_path(
                 in ReuseRangeEstimateForRef-3.
               */
               if (table->quick_keys.is_set(key) &&
-                  (const_part & ((1 << table->quick_key_parts[key])-1)) ==
+                  (const_part &
+                    (((key_part_map)1 << table->quick_key_parts[key])-1)) ==
                   (((key_part_map)1 << table->quick_key_parts[key])-1) &&
                   table->quick_n_ranges[key] == 1 &&
                   records > (double) table->quick_rows[key])
@@ -807,7 +811,8 @@ void Optimize_table_order::best_access_path(
               */
               if (table->quick_keys.is_set(key) &&
                   table->quick_key_parts[key] <= max_key_part &&
-                  const_part & (1 << table->quick_key_parts[key]) &&
+                  const_part &
+                    ((key_part_map)1 << table->quick_key_parts[key]) &&
                   table->quick_n_ranges[key] == 1 + test(ref_or_null_part &
                                                          const_part) &&
                   records > (double) table->quick_rows[key])
@@ -829,7 +834,10 @@ void Optimize_table_order::best_access_path(
           else
             tmp= best_time;                    // Do nothing
         }
+        // {semijoin LooseScan + ref} is disabled
+#if 0
         loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
+#endif
 
       } /* not ft_key */
 

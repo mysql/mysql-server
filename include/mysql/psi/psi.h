@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1372,7 +1372,7 @@ typedef void (*set_thread_state_v1_t)(const char* state);
   @param info the process into string
   @param info_len the process into string length
 */
-typedef void (*set_thread_info_v1_t)(const char* info, int info_len);
+typedef void (*set_thread_info_v1_t)(const char* info, uint info_len);
 
 /**
   Attach a thread instrumentation to the running thread.

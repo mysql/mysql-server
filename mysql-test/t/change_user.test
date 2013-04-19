@@ -1,6 +1,7 @@
 #
 # functional change user tests
 #
+connect (con_main,localhost,root,,,,,SKIPSECUREAUTH);
 
 SET GLOBAL secure_auth = OFF;
 grant select on test.* to test_nopw;
@@ -50,6 +51,11 @@ select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 drop user test_nopw;
 drop user test_oldpw;
 drop user test_newpw;
+
+SET GLOBAL secure_auth = DEFAULT;
+
+connection default;
+disconnect con_main;
 
 #
 # Bug#20023 mysql_change_user() resets the value of SQL_BIG_SELECTS
@@ -127,5 +133,3 @@ if ($after != $before){
   die The value of com_select changed during change_user;
 }
 echo Value of com_select did not change;
-
-SET GLOBAL secure_auth = DEFAULT;

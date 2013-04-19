@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -436,7 +436,7 @@ void JOIN_CACHE::set_constants()
   */
   uint len= length + fields*sizeof(uint)+blobs*sizeof(uchar *) +
             (prev_cache ? prev_cache->get_size_of_rec_offset() : 0) +
-            sizeof(ulong);
+            sizeof(ulong) + aux_buffer_min_size();
   buff_size= max<size_t>(join->thd->variables.join_buff_size, 2*len);
   size_of_rec_ofs= offset_size(buff_size);
   size_of_rec_len= blobs ? size_of_rec_ofs : offset_size(len); 
@@ -842,8 +842,30 @@ uint JOIN_CACHE_BKA::aux_buffer_incr()
   set_if_bigger(rec_per_key, 1);
   if (records == 1)
     incr=  ref->key_length + tab->file->ref_length;
+  /*
+    When adding a new record to the join buffer this can match
+    multiple keys in this table. We use rec_per_key as estimate for
+    the number of records that will match and reserve space in the
+    DS-MRR sort buffer for this many record references.
+  */
   incr+= tab->file->stats.mrr_length_per_rec * rec_per_key;
   return incr; 
+}
+
+
+/**
+  Calculate the minimume size for the MRR buffer.
+
+  @return The minumum size that must be allocated for the MRR buffer
+*/
+
+uint JOIN_CACHE_BKA::aux_buffer_min_size() const
+{
+  /*
+    For DS-MRR to work, the sort buffer must have space to store the
+    reference (or primary key) for at least one record.
+  */
+  return join_tab->table->file->stats.mrr_length_per_rec;
 }
 
 

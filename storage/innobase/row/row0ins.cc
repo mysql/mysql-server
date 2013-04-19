@@ -1705,16 +1705,22 @@ do_possible_lock_wait:
 		/* We had temporarily released dict_operation_lock in
 		above lock sleep wait, now we have the lock again, and
 		we will need to re-check whether the foreign key has been
-		dropped */
-		for (const dict_foreign_t* check_foreign = UT_LIST_GET_FIRST(
-			table->referenced_list);
-		     check_foreign;
-		     check_foreign = UT_LIST_GET_NEXT(
-                                referenced_list, check_foreign)) {
-			if (check_foreign == foreign) {
-				verified = true;
-				break;
+		dropped. We only need to verify if the table is referenced
+		table case (check_ref == 0), since MDL lock will prevent
+		concurrent DDL and DML on the same table */
+		if (!check_ref) {
+			for (const dict_foreign_t* check_foreign
+				= UT_LIST_GET_FIRST( table->referenced_list);
+			     check_foreign;
+			     check_foreign = UT_LIST_GET_NEXT(
+					referenced_list, check_foreign)) {
+				if (check_foreign == foreign) {
+					verified = true;
+					break;
+				}
 			}
+		} else {
+			verified = true;
 		}
 
 		if (!verified) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -587,34 +587,36 @@ bool st_select_lex_unit::optimize()
   Explain UNION.
 */
 
-void st_select_lex_unit::explain()
+bool st_select_lex_unit::explain()
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
   Explain_format *fmt= thd->lex->explain_format;
   DBUG_ENTER("st_select_lex_unit::explain");
   JOIN *join;
+  bool ret= false;
 
   DBUG_ASSERT((is_union() || fake_select_lex) && describe && optimized);
   executed= true;
 
   if (fmt->begin_context(CTX_UNION))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(true);
 
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     if (fmt->begin_context(CTX_QUERY_SPEC))
-      DBUG_VOID_RETURN;
+      DBUG_RETURN(true);
     DBUG_ASSERT(sl->join);
-    sl->join->explain();
+    if (sl->join->explain() || thd->is_error())
+      DBUG_RETURN(true);
     if (fmt->end_context(CTX_QUERY_SPEC))
-      DBUG_VOID_RETURN;
+      DBUG_RETURN(true);
   }
 
   if (init_prepare_fake_select_lex(thd, true))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(true);
 
   if (thd->is_fatal_error)
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(true);
   join= fake_select_lex->join;
 
   /*
@@ -637,13 +639,15 @@ void st_select_lex_unit::explain()
                           result, this, fake_select_lex);
   }
   else
-    join->explain();
+    ret= join->explain();
 
   thd->lex->current_select= lex_select_save;
 
+  if (saved_error || ret || thd->is_error())
+    DBUG_RETURN(true);
   fmt->end_context(CTX_UNION);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 

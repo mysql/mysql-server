@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -629,7 +629,7 @@ public:
   bool prepare(THD *thd, select_result *result, ulong additional_options);
   bool optimize();
   bool exec();
-  void explain();
+  bool explain();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
@@ -779,7 +779,8 @@ public:
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
   int nest_level;     /* nesting level of select */
-  Item_sum *inner_sum_func_list; /* list of sum func in nested selects */ 
+  /* Circularly linked list of sum func in nested selects */
+  Item_sum *inner_sum_func_list;
   uint with_wild; /* item list contain '*' */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
@@ -2395,6 +2396,12 @@ struct LEX: public Query_tables_list
   bool all_privileges;
   bool proxy_priv;
   bool is_change_password;
+  /*
+    Temporary variable to distinguish SET PASSWORD command from others
+    SQLCOM_SET_OPTION commands. Should be removed when WL#6409 is
+    introduced.
+  */
+  bool is_set_password_sql;
   bool contains_plaintext_password;
 
 private:

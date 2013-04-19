@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -48,6 +48,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "btr0btr.h"
 #include "dict0boot.h"
+#include <set>
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -369,7 +370,7 @@ struct lock_deadlock_ctx_t {
 struct lock_stack_t {
 	const lock_t*	lock;			/*!< Current lock */
 	const lock_t*	wait_lock;		/*!< Waiting for lock */
-	unsigned	heap_no:16;		/*!< heap number if rec lock */
+	ulint		heap_no;		/*!< heap number if rec lock */
 };
 
 /** Stack to use during DFS search. Currently only a single stack is required
@@ -1860,6 +1861,7 @@ lock_rec_enqueue_waiting(
 	trx_id_t		victim_trx_id;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
 
 	trx = thr_get_trx(thr);
@@ -2113,6 +2115,8 @@ lock_rec_lock_fast(
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
 
+	DBUG_EXECUTE_IF("innodb_report_deadlock", return(LOCK_REC_FAIL););
+
 	lock = lock_rec_get_first_on_page(block);
 
 	trx = thr_get_trx(thr);
@@ -2190,8 +2194,9 @@ lock_rec_lock_slow(
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
 
-	trx = thr_get_trx(thr);
+	DBUG_EXECUTE_IF("innodb_report_deadlock", return(DB_DEADLOCK););
 
+	trx = thr_get_trx(thr);
 	trx_mutex_enter(trx);
 
 	lock = lock_rec_has_expl(mode, block, heap_no, trx);
@@ -3599,16 +3604,14 @@ lock_get_next_lock(
 		} else {
 			ut_ad(heap_no == ULINT_UNDEFINED);
 			ut_ad(lock_get_type_low(lock) == LOCK_TABLE);
+
 			lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock);
 		}
+	} while (lock != NULL
+		 && lock->trx->lock.deadlock_mark > ctx->mark_start);
 
-		if (lock == NULL) {
-			return(NULL);
-		}
-
-	} while (lock->trx->lock.deadlock_mark > ctx->mark_start);
-
-	ut_ad(lock_get_type_low(lock) == lock_get_type_low(ctx->wait_lock));
+	ut_ad(lock == NULL
+	      || lock_get_type_low(lock) == lock_get_type_low(ctx->wait_lock));
 
 	return(lock);
 }
@@ -3643,20 +3646,20 @@ lock_get_first_lock(
 		lock = lock_rec_get_first_on_page_addr(
 			lock->un_member.rec_lock.space,
 			lock->un_member.rec_lock.page_no);
+
+		/* Position on the first lock on the physical record. */
+		if (!lock_rec_get_nth_bit(lock, *heap_no)) {
+			lock = lock_rec_get_next_const(*heap_no, lock);
+		}
+
 	} else {
 		*heap_no = ULINT_UNDEFINED;
 		ut_ad(lock_get_type_low(lock) == LOCK_TABLE);
 		lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock);
 	}
 
-	ut_ad(lock != NULL);
-
-	/* Skip sub-trees that have already been searched. */
-
-	if (lock->trx->lock.deadlock_mark > ctx->mark_start) {
-		return(lock_get_next_lock(ctx, lock, *heap_no));
-	}
-
+	ut_a(lock != NULL);
+	ut_a(lock != ctx->wait_lock);
 	ut_ad(lock_get_type_low(lock) == lock_get_type_low(ctx->wait_lock));
 
 	return(lock);
@@ -3735,44 +3738,6 @@ lock_deadlock_select_victim(
 }
 
 /********************************************************************//**
-Check whether the current waiting lock in the context has to wait for
-the given lock that is ahead in the queue.
-@return lock instance that could cause potential deadlock. */
-static
-const lock_t*
-lock_deadlock_check(
-/*================*/
-	const lock_deadlock_ctx_t*	ctx,	/*!< in: deadlock context */
-	const lock_t*			lock)	/*!< in: lock to check */
-{
-	ut_ad(lock_mutex_own());
-
-	/* If it is the joining transaction wait lock or the joining
-	transaction was granted its lock due to deadlock detection. */
-	if (lock == ctx->start->lock.wait_lock
-	    || ctx->start->lock.wait_lock == NULL) {
-		; /* Skip */
-	} else if (lock == ctx->wait_lock) {
-
-		/* We can mark this subtree as searched */
-		ut_ad(lock->trx->lock.deadlock_mark <= ctx->mark_start);
-		lock->trx->lock.deadlock_mark = ++lock_mark_counter;
-
-		/* We are not prepared for an overflow. This 64-bit
-		counter should never wrap around. At 10^9 increments
-		per second, it would take 10^3 years of uptime. */
-
-		ut_ad(lock_mark_counter > 0);
-
-	} else if (lock_has_to_wait(ctx->wait_lock, lock)) {
-
-		return(lock);
-	}
-
-	return(NULL);
-}
-
-/********************************************************************//**
 Pop the deadlock search state from the stack.
 @return stack slot instance that was on top of the stack. */
 static
@@ -3781,23 +3746,11 @@ lock_deadlock_pop(
 /*==============*/
 	lock_deadlock_ctx_t*	ctx)		/*!< in/out: context */
 {
-	const lock_stack_t*	stack;
-	const trx_lock_t*	trx_lock;
-
 	ut_ad(lock_mutex_own());
 
 	ut_ad(ctx->depth > 0);
 
-	do {
-		/* Restore search state. */
-
-		stack = &lock_stack[--ctx->depth];
-		trx_lock = &stack->lock->trx->lock;
-
-		/* Skip sub-trees that have already been searched. */
-	} while (ctx->depth > 0 && trx_lock->deadlock_mark > ctx->mark_start);
-
-	return(ctx->depth == 0) ? NULL : stack;
+	return(&lock_stack[--ctx->depth]);
 }
 
 /********************************************************************//**
@@ -3853,23 +3806,54 @@ lock_deadlock_search(
 
 	/* Look at the locks ahead of wait_lock in the lock queue. */
 	lock = lock_get_first_lock(ctx, &heap_no);
-	do {
+
+	for (;;) {
+
 		/* We should never visit the same sub-tree more than once. */
-		ut_ad(lock->trx->lock.deadlock_mark <= ctx->mark_start);
+		ut_ad(lock == NULL
+		      || lock->trx->lock.deadlock_mark <= ctx->mark_start);
 
-		++ctx->cost;
+		while (ctx->depth > 0 && lock == NULL) {
+			const lock_stack_t*	stack;
 
-		if (lock_deadlock_check(ctx, lock) == NULL) {
+			/* Restore previous search state. */
 
-			/* No conflict found, skip this lock. */
+			stack = lock_deadlock_pop(ctx);
+
+			lock = stack->lock;
+			heap_no = stack->heap_no;
+			ctx->wait_lock = stack->wait_lock;
+
+			lock = lock_get_next_lock(ctx, lock, heap_no);
+		}
+
+		if (lock == NULL) {
+			break;
+		} else if (lock == ctx->wait_lock) {
+
+			/* We can mark this subtree as searched */
+			ut_ad(lock->trx->lock.deadlock_mark <= ctx->mark_start);
+
+			lock->trx->lock.deadlock_mark = ++lock_mark_counter;
+
+			/* We are not prepared for an overflow. This 64-bit
+			counter should never wrap around. At 10^9 increments
+			per second, it would take 10^3 years of uptime. */
+
+			ut_ad(lock_mark_counter > 0);
+
+			lock = NULL;
+
+		} else if (!lock_has_to_wait(ctx->wait_lock, lock)) {
+
+			/* No conflict, next lock */
+			lock = lock_get_next_lock(ctx, lock, heap_no);
 
 		} else if (lock->trx == ctx->start) {
 
 			/* Found a cycle. */
 
-			if (!srv_read_only_mode) {
-				lock_deadlock_notify(ctx, lock);
-			}
+			lock_deadlock_notify(ctx, lock);
 
 			return(lock_deadlock_select_victim(ctx)->id);
 
@@ -3887,6 +3871,8 @@ lock_deadlock_search(
 			/* Another trx ahead has requested a lock in an
 			incompatible mode, and is itself waiting for a lock. */
 
+			++ctx->cost;
+
 			/* Save current search state. */
 			if (!lock_deadlock_push(ctx, lock, heap_no)) {
 
@@ -3901,31 +3887,17 @@ lock_deadlock_search(
 			ctx->wait_lock = lock->trx->lock.wait_lock;
 			lock = lock_get_first_lock(ctx, &heap_no);
 
-			if (lock != NULL) {
-				continue;
+			if (lock->trx->lock.deadlock_mark > ctx->mark_start) {
+				lock = lock_get_next_lock(ctx, lock, heap_no);
 			}
-		}
 
-		if (lock != NULL) {
+		} else {
 			lock = lock_get_next_lock(ctx, lock, heap_no);
 		}
+	}
 
-		if (lock == NULL && ctx->depth > 0) {
-			const lock_stack_t*	stack;
-
-			/* Restore previous search state. */
-
-			stack = lock_deadlock_pop(ctx);
-
-			if (stack != NULL) {
-				lock = stack->lock;
-				heap_no = stack->heap_no;
-				ctx->wait_lock = stack->wait_lock;
-			}
-		}
-
-	} while (lock != NULL || ctx->depth > 0);
-
+	ut_a(lock == NULL && ctx->depth == 0);
+ 
 	/* No deadlock found. */
 	return(0);
 }
@@ -4278,6 +4250,7 @@ lock_table_enqueue_waiting(
 	trx_id_t	victim_trx_id;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
 	trx = thr_get_trx(thr);
 	ut_ad(trx_mutex_own(trx));
@@ -5820,8 +5793,11 @@ bool
 lock_validate()
 /*===========*/
 {
-	lock_mutex_enter();
+	typedef	std::pair<ulint, ulint> page_addr_t;
+	typedef std::set<page_addr_t> page_addr_set;
+	page_addr_set pages;
 
+	lock_mutex_enter();
 	mutex_enter(&trx_sys->mutex);
 
 	ut_a(lock_validate_table_locks(&trx_sys->rw_trx_list));
@@ -5840,19 +5816,18 @@ lock_validate()
 			ulint	space = lock->un_member.rec_lock.space;
 			ulint	page_no = lock->un_member.rec_lock.page_no;
 
-			lock_mutex_exit();
-			mutex_exit(&trx_sys->mutex);
-
-			lock_rec_block_validate(space, page_no);
-
-			lock_mutex_enter();
-			mutex_enter(&trx_sys->mutex);
+			pages.insert(std::make_pair(space, page_no));
 		}
 	}
 
 	mutex_exit(&trx_sys->mutex);
-
 	lock_mutex_exit();
+
+	for (page_addr_set::const_iterator it = pages.begin();
+	     it != pages.end();
+	     ++it) {
+		lock_rec_block_validate((*it).first, (*it).second);
+	}
 
 	return(true);
 }

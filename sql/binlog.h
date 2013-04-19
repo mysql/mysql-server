@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, 2012, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -448,6 +448,20 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
+  /**
+    Find the oldest binary log that contains any GTID that
+    is not in the given gtid set.
+
+    @param[out] binlog_file_name, the file name of oldest binary log found
+    @param[in]  gtid_set, the given gtid set
+    @param[out] errmsg, the error message outputted, which is left untouched
+                if the function returns false
+    @return false on success, true on error.
+  */
+  bool find_first_log_not_in_gtid_set(char *binlog_file_name,
+                                      const Gtid_set *gtid_set,
+                                      const char **errmsg);
+
   /**
     Reads the set of all GTIDs in the binary log, and the set of all
     lost GTIDs in the binary log, and stores each set in respective

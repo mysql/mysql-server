@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5330,7 +5330,7 @@ partition:
         ;
 
 part_type_def:
-          opt_linear KEY_SYM '(' part_field_list ')'
+          opt_linear KEY_SYM opt_key_algo '(' part_field_list ')'
           {
             partition_info *part_info= Lex->part_info;
             part_info->list_of_part_fields= TRUE;
@@ -5354,6 +5354,25 @@ opt_linear:
           /* empty */ {}
         | LINEAR_SYM
           { Lex->part_info->linear_hash_ind= TRUE;}
+        ;
+
+opt_key_algo:
+          /* empty */
+          { Lex->part_info->key_algorithm= partition_info::KEY_ALGORITHM_NONE;}
+        | ALGORITHM_SYM EQ real_ulong_num
+          {
+            switch ($3) {
+            case 1:
+              Lex->part_info->key_algorithm= partition_info::KEY_ALGORITHM_51;
+              break;
+            case 2:
+              Lex->part_info->key_algorithm= partition_info::KEY_ALGORITHM_55;
+              break;
+            default:
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
         ;
 
 part_field_list:
@@ -5437,7 +5456,7 @@ opt_sub_part:
         | SUBPARTITION_SYM BY opt_linear HASH_SYM sub_part_func
           { Lex->part_info->subpart_type= HASH_PARTITION; }
           opt_num_subparts {}
-        | SUBPARTITION_SYM BY opt_linear KEY_SYM
+        | SUBPARTITION_SYM BY opt_linear KEY_SYM opt_key_algo
           '(' sub_part_field_list ')'
           {
             partition_info *part_info= Lex->part_info;
@@ -10290,7 +10309,8 @@ udf_expr:
                parse it out. If we hijack the input stream with
                remember_name we may get quoted or escaped names.
             */
-            else if ($2->type() != Item::FIELD_ITEM)
+            else if ($2->type() != Item::FIELD_ITEM &&
+                     $2->type() != Item::REF_ITEM /* For HAVING */ )
               $2->item_name.copy($1, (uint) ($3 - $1), YYTHD->charset());
             $$= $2;
           }
@@ -11620,7 +11640,7 @@ procedure_analyse_clause:
 
             if ((lex->proc_analyse= new Proc_analyse_params) == NULL)
             {
-              my_error(ER_OUTOFMEMORY, MYF(0));
+              my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR));
               MYSQL_YYABORT;
             }
             
@@ -14841,6 +14861,7 @@ option_value_no_option_type:
 
             lex->var_list.push_back(var);
             lex->autocommit= TRUE;
+            lex->is_set_password_sql= true;
             lex->is_change_password= TRUE;
 
             if (sp)
@@ -14857,6 +14878,7 @@ option_value_no_option_type:
               MYSQL_YYABORT;
             lex->var_list.push_back(var);
             lex->autocommit= TRUE;
+            lex->is_set_password_sql= true;
             if (lex->sphead)
               lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
             /*

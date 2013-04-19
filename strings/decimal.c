@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1260,7 +1260,7 @@ int double2lldiv_t(double nr, lldiv_t *lld)
 
     And for -1234567890.1234 it would be
 
-                7E F2 04 37 2D FB 2D
+                7E F2 04 C7 2D FB 2D
 */
 int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
 {
@@ -2453,6 +2453,10 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
   }
 done:
   my_afree(tmp1);
+  tmp1= remove_leading_zeroes(to, &to->intg);
+  if(to->buf != tmp1)
+    memmove(to->buf, tmp1,
+            (ROUND_UP(to->intg) + ROUND_UP(to->frac)) * sizeof(dec1));
   return error;
 }
 

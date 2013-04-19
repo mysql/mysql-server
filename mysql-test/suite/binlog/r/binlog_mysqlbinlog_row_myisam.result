@@ -4179,6 +4179,18 @@ INSERT INTO t3 VALUES
 ('2008-03-09','VARCHAR-03-09',39);
 affected rows: 9
 info: Records: 9  Duplicates: 0  Warnings: 0
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+affected rows: 1
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+affected rows: 1
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+affected rows: 1
 #
 # Multi-table update.
 #
@@ -4484,6 +4496,21 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+ANALYZE TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+ANALYZE TABLE t2
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+ANALYZE TABLE t3
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
