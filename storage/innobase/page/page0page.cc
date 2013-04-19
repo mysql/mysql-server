@@ -579,61 +579,28 @@ page_copy_rec_list_end_no_locks(
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	page_t*		new_page	= buf_block_get_frame(new_block);
-	page_cur_t	cur1;
 	rec_t*		cur2;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
-
-	page_cur_position(rec, block, &cur1);
-
-	if (page_cur_is_before_first(&cur1)) {
-
-		page_cur_move_to_next(&cur1);
-	}
 
 	btr_assert_not_corrupted(new_block, index);
 	ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
 	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
 	     (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
+	PageCur cur1(*mtr, *index, *block, rec);
+
+	if ((cur1.isBeforeFirst() && !cur1.next())
+	    || cur1.isAfterLast()) {
+		return;
+	}
+
 	cur2 = page_get_infimum_rec(buf_block_get_frame(new_block));
 
 	/* Copy records from the original page to the new page */
 
-	while (!page_cur_is_after_last(&cur1)) {
-		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
-		rec_t*	ins_rec;
-		offsets = rec_get_offsets(cur1_rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		ins_rec = page_cur_insert_rec_low(cur2, index,
-						  cur1_rec, offsets, mtr);
-		if (UNIV_UNLIKELY(!ins_rec)) {
-			/* Track an assertion failure reported on the mailing
-			list on June 18th, 2003 */
-
-			buf_page_print(new_page, 0,
-				       BUF_PAGE_PRINT_NO_CRASH);
-			buf_page_print(page_align(rec), 0,
-				       BUF_PAGE_PRINT_NO_CRASH);
-			ut_print_timestamp(stderr);
-
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"rec offset %lu, cur1 offset %lu,"
-				" cur2 offset %lu",
-				(ulong) page_offset(rec),
-				(ulong) page_offset(page_cur_get_rec(&cur1)),
-				(ulong) page_offset(cur2));
-		}
-
-		page_cur_move_to_next(&cur1);
-		cur2 = ins_rec;
-	}
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
+	do {
+		cur2 = cur1.insert(cur2);
+		ut_a(cur2);
+	} while (cur1.next());
 }
 
 #ifndef UNIV_HOTBACKUP

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -423,6 +423,29 @@ rec_get_n_extern_new(
 	ulint			n)	/*!< in: number of columns to scan */
 	__attribute__((nonnull, warn_unused_result));
 
+/** Determines the offsets to each field in the record.
+
+The offsets are written to a previously allocated array of ulint,
+where rec_offs_n_fields(offsets) has been initialized to the number of
+fields in the record.  The rest of the array will be initialized by
+this function.  rec_offs_base(offsets)[0] will be set to the extra
+size (if REC_OFFS_COMPACT is set, the record is in the new format; if
+REC_OFFS_EXTERNAL is set, the record contains externally stored
+columns), and rec_offs_base(offsets)[1..n_fields] will be set to
+offsets past the end of fields 0..n_fields, or to the beginning of
+fields 1..n_fields+1.  When the high-order bit of the offset at [i+1]
+is set (REC_OFFS_SQL_NULL), the field i is NULL.  When the second
+high-order bit of the offset at [i+1] is set (REC_OFFS_EXTERNAL), the
+field i is being stored externally. */
+UNIV_INTERN
+void
+rec_init_offsets(
+/*=============*/
+	const rec_t*		rec,	/*!< in: physical record */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	ulint*			offsets)/*!< in/out: array of offsets;
+					in: n=rec_offs_n_fields(offsets) */
+	__attribute__((nonnull));
 /******************************************************//**
 The following function determines the offsets to each field
 in the record.	It can reuse a previously allocated array.
@@ -738,6 +761,17 @@ rec_copy(
 	const rec_t*	rec,	/*!< in: physical record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 	__attribute__((nonnull));
+/** Get the size of a ROW_FORMAT=REDUNDANT record.
+@param[in]	rec	physical record in ROW_FORMAT=REDUNDANT
+@param[out]	extra	length of the record header, in bytes
+@return	data size, in bytes */
+UNIV_INLINE
+ulint
+rec_get_size_old(
+/*=============*/
+	const rec_t*	rec,
+	ulint&		extra)
+	__attribute__((nonnull, pure, warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Determines the size of a data tuple prefix in a temporary file.
