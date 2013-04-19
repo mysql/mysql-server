@@ -1649,6 +1649,31 @@ rec_get_converted_size(
 	return(data_size + extra_size);
 }
 
+/** Get the size of a ROW_FORMAT=REDUNDANT record.
+@param[in]	rec	physical record in ROW_FORMAT=REDUNDANT
+@param[out]	extra	length of the record header, in bytes
+@return	data size, in bytes */
+UNIV_INLINE
+ulint
+rec_get_size_old(
+/*=============*/
+	const rec_t*	rec,
+	ulint&		extra)
+{
+	ulint	n_fields = rec_get_n_fields_old(rec);
+
+	if (rec_get_1byte_offs_flag(rec)) {
+		extra = REC_N_OLD_EXTRA_BYTES + n_fields;
+		return(rec_1_get_field_end_info(rec, n_fields - 1)
+		       & ~REC_1BYTE_SQL_NULL_MASK);
+	} else {
+		extra = REC_N_OLD_EXTRA_BYTES + 2 * n_fields;
+		return(rec_2_get_field_end_info(rec, n_fields - 1)
+		       & ~(REC_2BYTE_SQL_NULL_MASK
+			   | REC_2BYTE_EXTERN_MASK));
+	}
+}
+
 #ifndef UNIV_HOTBACKUP
 /************************************************************//**
 Folds a prefix of a physical record to a ulint. Folds only existing fields,

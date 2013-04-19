@@ -375,6 +375,177 @@ struct page_cur_t{
 	buf_block_t*	block;	/*!< pointer to the block containing rec */
 };
 
+/** Index page cursor */
+class PageCur
+{
+public:
+	/** Constructor
+	@param[in/out]	mtr	mini-transaction
+	@param[in]	index	B-tree index
+	@param[in/out]	block	B-tree page
+	@param[in]	rec	B-tree record in block */
+	PageCur(mtr_t& mtr, dict_index_t& index,
+		const buf_block_t& block, const rec_t* rec)
+		: mtr (&mtr), index (&index), block (&block), rec (rec),
+		  offsets (0) {
+		ut_ad(rec);
+		if (dict_table_is_comp(this->index->table)) {
+			init();
+		}
+	}
+
+	/** Constructor.
+	Initializes the cursor to point to the page infimum.
+	@param[in/out]	mtr	mini-transaction
+	@param[in]	index	B-tree index
+	@param[in/out]	block	B-tree page */
+	PageCur(mtr_t& mtr, dict_index_t& index, buf_block_t& block)
+		: mtr (&mtr), index (&index), block (&block),
+		  rec (0), offsets (0) {
+		if (dict_table_is_comp(this->index->table)) {
+			init();
+		}
+	}
+
+	/** Destructor */
+	~PageCur() { delete[] offsets; }
+
+	/** Get the mini-transaction */
+	mtr_t* getMtr() const { return(mtr); }
+
+	/** Get the record */
+	const rec_t* getRec() const {
+		ut_ad(rec);
+		ut_ad(!offsets == !dict_table_is_comp(index->table));
+		ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
+		return(rec);
+	}
+
+	/** Get the offsets */
+	const ulint* getOffsets() const {
+		ut_ad(rec_offs_validate(rec, index, offsets));
+		return(offsets);
+	}
+
+	/** Determine if the cursor is positioned on a user record. */
+	bool isUser() const { return(page_rec_is_user_rec(rec)); }
+	/** Determine if the cursor is before the first user record. */
+	bool isBeforeFirst() const { return(page_rec_is_infimum(rec)); }
+	/** Determine if the cursor is after the last user record. */
+	bool isAfterLast() const { return(page_rec_is_supremum(rec)); }
+
+	/** Move to the next record.
+	@return true if the next record is a user record */
+	bool next() {
+		bool wasSentinel = isBeforeFirst();
+		ut_ad(!isAfterLast());
+		ut_ad(!offsets == !dict_table_is_comp(index->table));
+		rec = page_rec_get_next_const(rec);
+
+		if (!offsets) {
+			return(!isAfterLast());
+		} else if (isAfterLast()) {
+			adjustSentinelOffsets();
+			return(false);
+		} else {
+			adjustOffsets(wasSentinel);
+			return(true);
+		}
+	}
+
+	/** Move to the previous record.
+	@return true if the previous record is a user record */
+	bool prev() {
+		bool wasSentinel = isAfterLast();
+		ut_ad(!isBeforeFirst());
+		rec = page_rec_get_prev_const(rec);
+
+		if (!offsets) {
+			return(!isBeforeFirst());
+		} else if (isBeforeFirst()) {
+			adjustSentinelOffsets();
+			return(false);
+		} else {
+			adjustOffsets(wasSentinel);
+			return(true);
+		}
+	}
+
+	/** Insert the record that the page cursor is pointing to,
+	to another page.
+	@param[in/out] rec	record after which to insert
+	@return	pointer to record if enough space available, NULL otherwise */
+	rec_t* insert (rec_t* current) const;
+
+private:
+	/** Copy constructor */
+	PageCur(const PageCur&);
+	/** Assignment operator */
+	PageCur& operator== (const PageCur&);
+	/** Initialize a page cursor, either to rec or the page infimum.
+	Allocates and initializes offsets[]. */
+	void init(void);
+
+	/** Adjust rec_get_offsets() after moving the cursor. */
+	void adjustOffsets(bool wasSentinel) {
+		ut_ad(isUser());
+		ut_ad(offsets);
+		ut_ad(dict_table_is_comp(index->table));
+
+		if (wasSentinel) {
+			rec_offs_set_n_fields(
+				offsets,
+				page_is_leaf(page_align(rec))
+				? dict_index_get_n_fields(index)
+				: dict_index_get_n_unique_in_tree(index) + 1);
+recalc:
+			ut_ad(rec_offs_n_fields(offsets)
+			      + (1 + REC_OFFS_HEADER_SIZE)
+			      == rec_offs_get_n_alloc(offsets));
+			rec_init_offsets(rec, index, offsets);
+		} else {
+			ut_ad(rec_offs_n_fields(offsets)
+			      == page_is_leaf(page_align(rec))
+			      ? dict_index_get_n_fields(index)
+			      : dict_index_get_n_unique_in_tree(index) + 1);
+			/* TODO: optimize.
+			(remove index->trx_id_offset,
+			add ifield->fixed_offset) */
+			goto recalc;
+		}
+	}
+
+	/** Adjust rec_get_offsets() after moving the cursor to the
+	page infimum or page supremum. */
+	void adjustSentinelOffsets() {
+		ut_ad(!isUser());
+		ut_ad(offsets);
+		ut_ad(dict_table_is_comp(index->table));
+
+		rec_offs_set_n_fields(offsets, 1);
+
+		if (page_rec_is_comp(rec)) {
+			rec_offs_base(offsets)[0]
+				= REC_N_NEW_EXTRA_BYTES | REC_OFFS_COMPACT;
+			rec_offs_base(offsets)[1] = 8;
+			rec_offs_make_valid(rec, index, offsets);
+		} else {
+			rec_init_offsets(rec, index, offsets);
+		}
+	}
+
+	/** The mini-transaction */
+	mtr_t*			mtr;
+	/** The index B-tree */
+	dict_index_t*const	index;
+	/** The page the cursor is positioned on */
+	const buf_block_t*	block;
+	/** Cursor position (current record) */
+	const rec_t*		rec;
+	/** Offsets to the record fields. NULL for ROW_FORMAT=REDUNDANT. */
+	ulint*			offsets;
+};
+
 #ifndef UNIV_NONINL
 #include "page0cur.ic"
 #endif

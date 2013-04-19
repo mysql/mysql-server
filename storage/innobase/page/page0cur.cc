@@ -2124,6 +2124,217 @@ page_cur_delete_rec(
 #endif /* UNIV_ZIP_DEBUG */
 }
 
+/** Initialize a page cursor, either to rec or the page infimum.
+Allocates and initializes offsets[]. */
+UNIV_INTERN
+void
+PageCur::init(void)
+{
+	const page_t*	page	= buf_block_get_frame(block);
+
+	ut_ad(dict_table_is_comp(index->table));
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(recv_recovery_on
+	      || mtr->inside_ibuf
+	      || btr_page_get_index_id(page) == index->id);
+
+	const ulint	n	= page_is_leaf(page)
+		? dict_index_get_n_fields(index)
+		: dict_index_get_n_unique_in_tree(index) + 1;
+	const ulint	size	= n + (1 + REC_OFFS_HEADER_SIZE);
+
+	offsets = new ulint[size];
+	rec_offs_set_n_alloc(offsets, size);
+	rec_offs_set_n_fields(offsets, n);
+
+	if (!rec) {
+		/* Initialize to the page infimum. */
+		rec = page + page_get_infimum_offset(page);
+	} else {
+		ut_ad(page_align(rec) == page);
+		if (isUser()) {
+			rec_init_offsets(rec, index, offsets);
+			return;
+		}
+	}
+
+	adjustSentinelOffsets();
+}
+
+/** Insert the record that the page cursor is pointing to, to another page.
+@param[in/out] rec	record after which to insert
+@return	pointer to record if enough space available, NULL otherwise */
+UNIV_INTERN
+rec_t*
+PageCur::insert(rec_t* current) const
+{
+	byte*		insert_buf;
+	ulint		extra_size;
+	ulint		data_size;
+	page_t*		page		= page_align(current);
+	rec_t*		last_insert;	/*!< cursor position at previous
+					insert */
+	ulint		heap_no;	/*!< heap number of the inserted
+					record */
+
+	if (offsets) {
+		ut_ad(rec_offs_validate(rec, index, offsets));
+		ut_ad(dict_table_is_comp(index->table));
+		ut_ad(page_is_comp(page));
+
+		extra_size = rec_offs_extra_size(offsets);
+		data_size = rec_offs_data_size(offsets);
+	} else {
+		ut_ad(!dict_table_is_comp(index->table));
+		ut_ad(!page_is_comp(page));
+		data_size = rec_get_size_old(rec, extra_size);
+	}
+
+	ut_ad(page != page_align(rec));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
+	      == index->id || recv_recovery_is_on() || mtr->inside_ibuf);
+	ut_ad(!page_rec_is_supremum(current));
+
+	const ulint rec_size = data_size + extra_size;
+
+	UNIV_MEM_ASSERT_RW(rec - extra_size, rec_size);
+
+	if (rec_t* free_rec = page_header_get_ptr(page, PAGE_FREE)) {
+		/* Try to allocate from the head of the free list. */
+		ulint		foffsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*		foffsets	= foffsets_;
+		mem_heap_t*	heap		= NULL;
+
+		rec_offs_init(foffsets_);
+
+		/* TODO: avoid this call */
+		foffsets = rec_get_offsets(
+			free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
+		if (rec_offs_size(foffsets) < rec_size) {
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
+			}
+
+			goto use_heap;
+		}
+
+		insert_buf = free_rec - rec_offs_extra_size(foffsets);
+
+		if (UNIV_LIKELY_NULL(heap)) {
+			mem_heap_free(heap);
+		}
+
+		heap_no = page_rec_get_heap_no(free_rec);
+		page_mem_alloc_free(page, NULL, page_rec_get_next(free_rec),
+				    rec_size);
+	} else {
+use_heap:
+		insert_buf = page_mem_alloc_heap(
+			page, NULL, rec_size, &heap_no);
+
+		if (UNIV_UNLIKELY(insert_buf == NULL)) {
+			return(NULL);
+		}
+	}
+
+	memcpy(insert_buf, rec - extra_size, rec_size);
+
+	rec_t*	insert_rec = insert_buf + extra_size;
+	/* next record after current before the insertion */
+	rec_t*	next_rec = page_rec_get_next(current);
+
+	ut_ad(current != insert_rec);
+
+#ifdef UNIV_DEBUG
+	if (page_is_comp(page)) {
+		ut_ad(rec_get_status(current) <= REC_STATUS_INFIMUM);
+		ut_ad(rec_get_status(insert_rec) < REC_STATUS_INFIMUM);
+		ut_ad(rec_get_status(next_rec) != REC_STATUS_INFIMUM);
+	}
+#endif
+	page_rec_set_next(insert_rec, next_rec);
+	page_rec_set_next(current, insert_rec);
+
+	page_header_set_field(page, NULL, PAGE_N_RECS,
+			      1 + page_get_n_recs(page));
+
+	if (page_is_comp(page)) {
+		rec_set_n_owned_new(insert_rec, NULL, 0);
+		rec_set_heap_no_new(insert_rec, heap_no);
+	} else {
+		rec_set_n_owned_old(insert_rec, 0);
+		rec_set_heap_no_old(insert_rec, heap_no);
+	}
+
+	/* Update the last insertion info in page header */
+
+	last_insert = page_header_get_ptr(page, PAGE_LAST_INSERT);
+	ut_ad(!last_insert || !page_is_comp(page)
+	      || rec_get_node_ptr_flag(last_insert)
+	      == rec_get_node_ptr_flag(insert_rec));
+
+	if (UNIV_UNLIKELY(last_insert == NULL)) {
+		page_header_set_field(page, NULL, PAGE_DIRECTION,
+				      PAGE_NO_DIRECTION);
+		page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+
+	} else if (last_insert == current
+		   && page_header_get_field(page, PAGE_DIRECTION)
+		   != PAGE_LEFT) {
+
+		page_header_set_field(page, NULL, PAGE_DIRECTION,
+							PAGE_RIGHT);
+		page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+				      page_header_get_field(
+					      page, PAGE_N_DIRECTION) + 1);
+
+	} else if ((page_rec_get_next(insert_rec) == last_insert)
+		   && (page_header_get_field(page, PAGE_DIRECTION)
+		       != PAGE_RIGHT)) {
+
+		page_header_set_field(page, NULL, PAGE_DIRECTION,
+							PAGE_LEFT);
+		page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+				      page_header_get_field(
+					      page, PAGE_N_DIRECTION) + 1);
+	} else {
+		page_header_set_field(page, NULL, PAGE_DIRECTION,
+							PAGE_NO_DIRECTION);
+		page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+	}
+
+	page_header_set_ptr(page, NULL, PAGE_LAST_INSERT, insert_rec);
+
+	/* Update the owner record. */
+	rec_t*	owner_rec	= page_rec_find_owner_rec(insert_rec);
+	ulint	n_owned;
+	if (page_is_comp(page)) {
+		n_owned = rec_get_n_owned_new(owner_rec);
+		rec_set_n_owned_new(owner_rec, NULL, n_owned + 1);
+	} else {
+		n_owned = rec_get_n_owned_old(owner_rec);
+		rec_set_n_owned_old(owner_rec, n_owned + 1);
+	}
+
+	if (UNIV_UNLIKELY(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED)) {
+		page_dir_split_slot(
+			page, NULL, page_dir_find_owner_slot(owner_rec));
+	}
+
+	page_cur_insert_rec_write_log(insert_rec, rec_size,
+				      current, index, mtr);
+
+	if (offsets) {
+		rec_offs_make_valid(insert_rec, index, offsets);
+		btr_blob_dbg_add_rec(insert_rec, index, offsets,
+				     "PageCur::insert");
+	}
+
+	return(insert_rec);
+}
+
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
 /*******************************************************************//**
