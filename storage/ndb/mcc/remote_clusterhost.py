@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import ntpath
 import logging
 import os.path
 import tempfile
+import contextlib
 
 import clusterhost
 from clusterhost import ABClusterHost
@@ -116,10 +117,11 @@ class RemoteClusterHost(ABClusterHost):
         self.sftp.put(cmdv[0], hi)
         self.sftp.chmod(hi, stat.S_IRWXU)
         return self.exec_cmdv([self.path_module.join('.', hi)] + cmdv[1:-1])
-            
+
     def open(self, filename, mode='r'):
-        """Forward to paramiko.SFTPClient.open for remote hosts."""
-        return self.sftp.open(filename, mode)
+        """Forward to paramiko.SFTPClient.open for remote hosts. 
+        Wrap in contextlib.closing so that clients can use with-statements on it."""
+        return contextlib.closing(self.sftp.open(filename, mode))
         
     def drop(self, paths=[]):
         """Close open connections and remove files.
