@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -204,12 +204,12 @@ void Server_side_cursor::operator delete(void *ptr, size_t size)
 Materialized_cursor::Materialized_cursor(select_result *result_arg,
                                          TABLE *table_arg)
   :Server_side_cursor(&table_arg->mem_root, result_arg),
+  fake_unit(),
   table(table_arg),
   fetch_limit(0),
   fetch_count(0),
   is_rnd_inited(0)
 {
-  fake_unit.init_query();
   fake_unit.thd= table->in_use;
 }
 

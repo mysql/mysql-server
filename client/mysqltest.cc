@@ -60,11 +60,6 @@ using std::max;
 #define SIGNAL_FMT "signal %d"
 #endif
 
-/* Use cygwin for --exec and --system before 5.0 */
-#if MYSQL_VERSION_ID < 50000
-#define USE_CYGWIN
-#endif
-
 #define MAX_VAR_NAME_LENGTH    256
 #define MAX_COLUMNS            256
 #define MAX_EMBEDDED_SERVER_ARGS 64
@@ -579,7 +574,6 @@ const char *get_errname_from_code (uint error_code);
 int multi_reg_replace(struct st_replace_regex* r,char* val);
 
 #ifdef __WIN__
-void free_tmp_sh_file();
 void free_win_path_patterns();
 #endif
 
@@ -1367,7 +1361,6 @@ void free_used_memory()
   free_defaults(default_argv);
   free_re();
 #ifdef __WIN__
-  free_tmp_sh_file();
   free_win_path_patterns();
 #endif
 
@@ -2968,33 +2961,6 @@ void do_source(struct st_command *command)
 }
 
 
-#if defined __WIN__
-
-#ifdef USE_CYGWIN
-/* Variables used for temporary sh files used for emulating Unix on Windows */
-char tmp_sh_name[64], tmp_sh_cmd[70];
-#endif
-
-void init_tmp_sh_file()
-{
-#ifdef USE_CYGWIN
-  /* Format a name for the tmp sh file that is unique for this process */
-  my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
-  /* Format the command to execute in order to run the script */
-  my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
-#endif
-}
-
-
-void free_tmp_sh_file()
-{
-#ifdef USE_CYGWIN
-  my_delete(tmp_sh_name, MYF(0));
-#endif
-}
-#endif
-
-
 FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
                struct st_command *command)
 {
@@ -3041,13 +3007,7 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
   }
 #endif /* __WIN__ */
 
-#if defined __WIN__ && defined USE_CYGWIN
-  /* Dump the command into a sh script file and execute with popen */
-  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
-  return popen(tmp_sh_cmd, mode);
-#else
   return popen(ds_cmd->str, mode);
-#endif
 }
 
 
@@ -3160,14 +3120,12 @@ void do_exec(struct st_command *command)
   }
 
 #ifdef __WIN__
-#ifndef USE_CYGWIN
   /* Replace /dev/null with NUL */
   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
     ;
   /* Replace "closed stdout" with non existing output fd */
   while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
     ;
-#endif
 #endif
 
   /* exec command is interpreted externally and will not take newlines */
@@ -8620,10 +8578,7 @@ int main(int argc, char **argv)
 
   init_builtin_echo();
 #ifdef __WIN__
-#ifndef USE_CYGWIN
   is_windows= 1;
-#endif
-  init_tmp_sh_file();
   init_win_path_patterns();
 #endif
 

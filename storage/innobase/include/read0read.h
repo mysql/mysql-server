@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -83,51 +83,11 @@ read_view_sees_trx_id(
 	const read_view_t*	view,	/*!< in: read view */
 	trx_id_t		trx_id)	/*!< in: trx id */
 	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
-Prints a read view to stderr. */
-UNIV_INTERN
-void
-read_view_print(
-/*============*/
-	const read_view_t*	view);	/*!< in: read view */
-/*********************************************************************//**
-Create a consistent cursor view for mysql to be used in cursors. In this
-consistent read view modifications done by the creating transaction or future
-transactions are not visible. */
-UNIV_INTERN
-cursor_view_t*
-read_cursor_view_create_for_mysql(
-/*==============================*/
-	trx_t*		cr_trx);/*!< in: trx where cursor view is created */
-/*********************************************************************//**
-Close a given consistent cursor view for mysql and restore global read view
-back to a transaction read view. */
-UNIV_INTERN
-void
-read_cursor_view_close_for_mysql(
-/*=============================*/
-	trx_t*		trx,		/*!< in: trx */
-	cursor_view_t*	curview);	/*!< in: cursor view to be closed */
-/*********************************************************************//**
-This function sets a given consistent cursor view to a transaction
-read view if given consistent cursor view is not NULL. Otherwise, function
-restores a global read view to a transaction read view. */
-UNIV_INTERN
-void
-read_cursor_set_for_mysql(
-/*======================*/
-	trx_t*		trx,	/*!< in: transaction where cursor is set */
-	cursor_view_t*	curview);/*!< in: consistent cursor view to be set */
 
 /** Read view lists the trx ids of those transactions for which a consistent
 read should not see the modifications to the database. */
 
 struct read_view_t{
-	ulint		type;	/*!< VIEW_NORMAL, VIEW_HIGH_GRANULARITY */
-	undo_no_t	undo_no;/*!< 0 or if type is
-				VIEW_HIGH_GRANULARITY
-				transaction undo_no when this high-granularity
-				consistent read view was created */
 	trx_id_t	low_limit_no;
 				/*!< The view does not need to see the undo
 				logs for transactions whose transaction number
@@ -156,32 +116,6 @@ struct read_view_t{
 				/*!< trx id of creating transaction */
 	UT_LIST_NODE_T(read_view_t) view_list;
 				/*!< List of read views in trx_sys */
-};
-
-/** Read view types @{ */
-#define VIEW_NORMAL		1	/*!< Normal consistent read view
-					where transaction does not see changes
-					made by active transactions except
-					creating transaction. */
-#define VIEW_HIGH_GRANULARITY	2	/*!< High-granularity read view where
-					transaction does not see changes
-					made by active transactions and own
-					changes after a point in time when this
-					read view was created. */
-/* @} */
-
-/** Implement InnoDB framework to support consistent read views in
-cursors. This struct holds both heap where consistent read view
-is allocated and pointer to a read view. */
-
-struct cursor_view_t{
-	mem_heap_t*	heap;
-				/*!< Memory heap for the cursor view */
-	read_view_t*	read_view;
-				/*!< Consistent read view of the cursor*/
-	ulint		n_mysql_tables_in_use;
-				/*!< number of Innobase tables used in the
-				processing of this cursor */
 };
 
 #ifndef UNIV_NONINL

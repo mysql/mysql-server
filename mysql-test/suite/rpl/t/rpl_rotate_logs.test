@@ -164,6 +164,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/rpl_rotate_logs.tmp;
 --eval SELECT @time_for_purge:=DATE_ADD('$tmpval', INTERVAL 1 SECOND)
 --enable_result_log
 
+replace_regex /\.[\\\/]master/master/;
 purge master logs before (@time_for_purge);
 source include/show_binary_logs.inc;
 insert into t2 values (65);
@@ -252,9 +253,11 @@ sync_slave_with_master;
 #
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events in 'non existing_binlog_file';
+replace_regex /\.[\\\/]slave/slave/;
 purge master logs before now();
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events in '';
+replace_regex /\.[\\\/]slave/slave/;
 purge master logs before now();
 
 --echo End of 5.0 tests

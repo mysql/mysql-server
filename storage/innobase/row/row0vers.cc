@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -520,44 +520,7 @@ row_vers_build_for_consistent_read(
 
 	for (;;) {
 		mem_heap_t*	heap2	= heap;
-		trx_undo_rec_t* undo_rec;
-		roll_ptr_t	roll_ptr;
-		undo_no_t	undo_no;
 		heap = mem_heap_create(1024);
-
-		/* If we have high-granularity consistent read view and
-		creating transaction of the view is the same as trx_id in
-		the record we see this record only in the case when
-		undo_no of the record is < undo_no in the view. */
-
-		if (view->type == VIEW_HIGH_GRANULARITY
-		    && view->creator_trx_id == trx_id) {
-
-			roll_ptr = row_get_rec_roll_ptr(version, index,
-							*offsets);
-			undo_rec = trx_undo_get_undo_rec_low(roll_ptr, heap);
-			undo_no = trx_undo_rec_get_undo_no(undo_rec);
-			mem_heap_empty(heap);
-
-			if (view->undo_no > undo_no) {
-				/* The view already sees this version: we can
-				copy it to in_heap and return */
-
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-				ut_a(!rec_offs_any_null_extern(
-					     version, *offsets));
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-
-				buf = static_cast<byte*>(mem_heap_alloc(
-					in_heap, rec_offs_size(*offsets)));
-
-				*old_vers = rec_copy(buf, version, *offsets);
-				rec_offs_make_valid(*old_vers, index,
-						    *offsets);
-				err = DB_SUCCESS;
-				break;
-			}
-		}
 
 		err = trx_undo_prev_version_build(rec, mtr, version, index,
 						  *offsets, heap,

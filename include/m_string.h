@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,9 +69,6 @@ extern void (*my_str_free)(void *);
 #define strmov(A,B) __builtin_stpcpy((A),(B))
 #elif defined(HAVE_STPCPY)
 #define strmov(A,B) stpcpy((A),(B))
-#ifndef stpcpy
-extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
-#endif
 #endif
 
 /* Declared in int2str() */

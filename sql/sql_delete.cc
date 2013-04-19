@@ -64,7 +64,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
                            order_list->first : NULL);
   uint usable_index= MAX_KEY;
-  SELECT_LEX   *select_lex= &thd->lex->select_lex;
+  SELECT_LEX   *select_lex= thd->lex->select_lex;
   THD::killed_state killed_status= THD::NOT_KILLED;
   THD::enum_binlog_query_type query_type= THD::ROW_QUERY_TYPE;
   DBUG_ENTER("mysql_delete");
@@ -99,7 +99,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 	  setup_order(thd, select_lex->ref_pointer_array, &tables,
                     fields, all_fields, order))
     {
-      free_underlaid_joins(thd, &thd->lex->select_lex);
+      free_underlaid_joins(thd, thd->lex->select_lex);
       DBUG_RETURN(TRUE);
     }
   }
@@ -302,9 +302,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       if ((table->sort.found_records= filesort(thd, table, &fsort, true,
                                                &examined_rows, &found_rows))
 	  == HA_POS_ERROR)
-      {
         goto exit_without_my_ok;
-      }
+
       thd->inc_examined_row_count(examined_rows);
       /*
         Filesort has already found and selected the rows we want to delete,
@@ -521,13 +520,13 @@ exit_without_my_ok:
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 {
   Item *fake_conds= 0;
-  SELECT_LEX *select_lex= &thd->lex->select_lex;
+  SELECT_LEX *select_lex= thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
   List<Item> all_fields;
 
   thd->lex->allow_sum_func= 0;
-  if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
-                                    &thd->lex->select_lex.top_join_list,
+  if (setup_tables_and_check_access(thd, &select_lex->context,
+                                    &select_lex->top_join_list,
                                     table_list, 
                                     &select_lex->leaf_tables, FALSE, 
                                     DELETE_ACL, SELECT_ACL) ||
@@ -594,10 +593,10 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
 
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
-  if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
-                                    &thd->lex->select_lex.top_join_list,
+  if (setup_tables_and_check_access(thd, &thd->lex->select_lex->context,
+                                    &thd->lex->select_lex->top_join_list,
                                     lex->query_tables,
-                                    &lex->select_lex.leaf_tables, FALSE, 
+                                    &lex->select_lex->leaf_tables, false, 
                                     DELETE_ACL, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
@@ -607,11 +606,9 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
     Multi-delete can't be constructed over-union => we always have
     single SELECT on top and have to check underlying SELECTs of it
   */
-  lex->select_lex.exclude_from_table_unique_test= TRUE;
+  lex->select_lex->exclude_from_table_unique_test= true;
   /* Fix tables-to-be-deleted-from list to point at opened tables */
-  for (target_tbl= (TABLE_LIST*) aux_tables;
-       target_tbl;
-       target_tbl= target_tbl->next_local)
+  for (target_tbl= aux_tables; target_tbl; target_tbl= target_tbl->next_local)
   {
     ++(*table_count);
 
@@ -651,7 +648,7 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
     Reset the exclude flag to false so it doesn't interfare
     with further calls to unique_table
   */
-  lex->select_lex.exclude_from_table_unique_test= FALSE;
+  lex->select_lex->exclude_from_table_unique_test= false;
   DBUG_RETURN(FALSE);
 }
 

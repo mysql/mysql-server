@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,10 +24,6 @@
 #include <m_string.h>
 #include <queues.h>
 #include "thr_alarm.h"
-
-#ifdef HAVE_SYS_SELECT_H
-#include <sys/select.h>				/* AIX needs this for fd_set */
-#endif
 
 #ifndef ETIME
 #define ETIME ETIMEDOUT
@@ -602,11 +598,7 @@ static mysql_cond_t COND_thread_count;
 static mysql_mutex_t LOCK_thread_count;
 static uint thread_count;
 
-#ifdef HPUX10
-typedef int * fd_set_ptr;
-#else
 typedef fd_set * fd_set_ptr;
-#endif /* HPUX10 */
 
 static void *test_thread(void *arg)
 {

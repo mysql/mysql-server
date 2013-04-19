@@ -3911,13 +3911,6 @@ String *Item_func_udf_str::val_str(String *str)
   return res;
 }
 
-
-/**
-  @note
-  This has to come last in the udf_handler methods, or C for AIX
-  version 6.0.0.0 fails to compile with debugging enabled. (Yes, really.)
-*/
-
 udf_handler::~udf_handler()
 {
   /* Everything should be properly cleaned up by this moment. */
@@ -4430,7 +4423,7 @@ longlong Item_func_last_insert_id::val_int()
 
 bool Item_func_last_insert_id::fix_fields(THD *thd, Item **ref)
 {
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   return Item_int_func::fix_fields(thd, ref);
 }
 
@@ -6471,7 +6464,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
       return 0;
     }
   }
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
 
   set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
   

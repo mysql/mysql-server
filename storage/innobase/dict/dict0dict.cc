@@ -3225,11 +3225,16 @@ UNIV_INTERN
 dberr_t
 dict_foreign_add_to_cache(
 /*======================*/
-	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
-	const char**	col_names,	/*!< in: column names, or NULL to use
-					foreign->foreign_table->col_names */
-	bool		check_charsets)	/*!< in: whether to check charset
-					compatibility */
+	dict_foreign_t*		foreign,
+				/*!< in, own: foreign key constraint */
+	const char**		col_names,
+				/*!< in: column names, or NULL to use
+				foreign->foreign_table->col_names */
+	bool			check_charsets,
+				/*!< in: whether to check charset
+				compatibility */
+	dict_err_ignore_t	ignore_err)
+				/*!< in: error to be ignored */
 {
 	dict_table_t*	for_table;
 	dict_table_t*	ref_table;
@@ -3269,7 +3274,8 @@ dict_foreign_add_to_cache(
 			for_in_cache->n_fields, for_in_cache->foreign_index,
 			check_charsets, false);
 
-		if (index == NULL) {
+		if (index == NULL
+		    && !(ignore_err & DICT_ERR_IGNORE_FK_NOKEY)) {
 			dict_foreign_error_report(
 				ef, for_in_cache,
 				"there is no index in referenced table"
@@ -3304,7 +3310,8 @@ dict_foreign_add_to_cache(
 			& (DICT_FOREIGN_ON_DELETE_SET_NULL
 			   | DICT_FOREIGN_ON_UPDATE_SET_NULL));
 
-		if (index == NULL) {
+		if (index == NULL
+		    && !(ignore_err & DICT_ERR_IGNORE_FK_NOKEY)) {
 			dict_foreign_error_report(
 				ef, for_in_cache,
 				"there is no index in the table"

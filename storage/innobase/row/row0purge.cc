@@ -156,6 +156,8 @@ row_purge_remove_clust_if_poss_low(
 		goto func_exit;
 	}
 
+	ut_ad(rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
+
 	if (mode == BTR_MODIFY_LEAF) {
 		success = btr_cur_optimistic_delete(
 			btr_pcur_get_btr_cur(&node->pcur), 0, &mtr);
@@ -816,6 +818,7 @@ row_purge_record_func(
 	clust_index = dict_table_get_first_index(node->table);
 
 	node->index = dict_table_get_next_index(clust_index);
+	ut_ad(!trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
 	switch (node->rec_type) {
 	case TRX_UNDO_DEL_MARK_REC:

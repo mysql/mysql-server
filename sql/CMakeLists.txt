@@ -295,7 +295,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   IF(NOT mysqld_link_flags)
     SET(mysqld_link_flags)
   ENDIF()
-  IF (MINGW OR CYGWIN)
+  IF (MINGW)
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} -Wl,--export-all-symbols")
   ENDIF()
   IF(MSVC)
@@ -408,12 +408,15 @@ IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   # udf_example depends on strings 
   IF(WIN32)
     IF(MSVC)
-     SET_TARGET_PROPERTIES(udf_example PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
+     SET_TARGET_PROPERTIES(udf_example
+       PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
     ENDIF()
     TARGET_LINK_LIBRARIES(udf_example strings)
   ELSE()
     # udf_example is using safemutex exported by mysqld
     TARGET_LINK_LIBRARIES(udf_example mysqld)
+    SET_TARGET_PROPERTIES(udf_example
+      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
   ENDIF()
 ENDIF()
 
