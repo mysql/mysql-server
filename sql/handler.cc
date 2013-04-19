@@ -43,6 +43,7 @@
 #include "myisam.h"
 #include "probes_mysql.h"
 #include "debug_sync.h"         // DEBUG_SYNC
+#include "sql_audit.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -3689,7 +3690,6 @@ int
 handler::ha_delete_table(const char *name)
 {
   mark_trx_read_write();
-
   return delete_table(name);
 }
 
@@ -3722,8 +3722,11 @@ int
 handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info)
 {
   mark_trx_read_write();
-
-  return create(name, form, info);
+  int error= create(name, form, info);
+  if (!error &&
+      !(info->options & (HA_LEX_CREATE_TMP_TABLE | HA_CREATE_TMP_ALTER)))
+    mysql_audit_create_table(form);
+  return error;
 }
 
 
@@ -5099,7 +5102,11 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   int error= external_lock(thd, lock_type);
 
   if (error == 0)
+  {
     cached_table_flags= table_flags();
+    if (table_share->tmp_table == NO_TMP_TABLE)
+      mysql_audit_external_lock(thd, table_share, lock_type);
+  }
 
   if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() ||
       MYSQL_HANDLER_WRLOCK_DONE_ENABLED() ||

@@ -22,11 +22,12 @@
 #define __attribute__(A)
 #endif
 
-static volatile int number_of_calls; /* for SHOW STATUS, see below */
-static volatile int number_of_calls_general_log;
-static volatile int number_of_calls_general_error;
-static volatile int number_of_calls_general_result;
+static volatile int ncalls; /* for SHOW STATUS, see below */
+static volatile int ncalls_general_log;
+static volatile int ncalls_general_error;
+static volatile int ncalls_general_result;
 
+FILE *f;
 
 /*
   Initialize the plugin at server start or plugin installation.
@@ -44,11 +45,16 @@ static volatile int number_of_calls_general_result;
 
 static int audit_null_plugin_init(void *arg __attribute__((unused)))
 {
-  number_of_calls= 0;
-  number_of_calls_general_log= 0;
-  number_of_calls_general_error= 0;
-  number_of_calls_general_result= 0;
-  return(0);
+  ncalls= 0;
+  ncalls_general_log= 0;
+  ncalls_general_error= 0;
+  ncalls_general_result= 0;
+
+  f = fopen("audit_null_tables.log", "w");
+  if (!f)
+    return 1;
+
+  return 0;
 }
 
 
@@ -67,7 +73,8 @@ static int audit_null_plugin_init(void *arg __attribute__((unused)))
 
 static int audit_null_plugin_deinit(void *arg __attribute__((unused)))
 {
-  return(0);
+  fclose(f);
+  return 0;
 }
 
 
@@ -86,7 +93,7 @@ static void audit_null_notify(MYSQL_THD thd __attribute__((unused)),
                               const void *event)
 {
   /* prone to races, oh well */
-  number_of_calls++;
+  ncalls++;
   if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
   {
     const struct mysql_event_general *event_general=
@@ -94,17 +101,55 @@ static void audit_null_notify(MYSQL_THD thd __attribute__((unused)),
     switch (event_general->event_subclass)
     {
     case MYSQL_AUDIT_GENERAL_LOG:
-      number_of_calls_general_log++;
+      ncalls_general_log++;
+      fprintf(f, "%s\t>> %s\n", event_general->general_user,
+              event_general->general_query);
       break;
     case MYSQL_AUDIT_GENERAL_ERROR:
-      number_of_calls_general_error++;
+      ncalls_general_error++;
       break;
     case MYSQL_AUDIT_GENERAL_RESULT:
-      number_of_calls_general_result++;
+      ncalls_general_result++;
       break;
     default:
       break;
     }
+  }
+  else
+  if (event_class == MYSQL_AUDIT_TABLE_CLASS)
+  {
+    const struct mysql_event_table *event_table=
+      (const struct mysql_event_table *) event;
+    const char *ip= event_table->ip ? event_table->ip : "";
+    const char *op= 0;
+    char buf[1024];
+
+    switch (event_table->event_subclass)
+    {
+    case MYSQL_AUDIT_TABLE_LOCK:
+      op= event_table->read_only ? "read" : "write";
+      break;
+    case MYSQL_AUDIT_TABLE_CREATE:
+      op= "create";
+      break;
+    case MYSQL_AUDIT_TABLE_DROP:
+      op= "drop";
+      break;
+    case MYSQL_AUDIT_TABLE_ALTER:
+      op= "alter";
+      break;
+    case MYSQL_AUDIT_TABLE_RENAME:
+      snprintf(buf, sizeof(buf), "rename to %s.%s",
+               event_table->new_database, event_table->new_table);
+      buf[sizeof(buf)-1]= 0;
+      op= buf;
+      break;
+    }
+
+    fprintf(f, "%s[%s] @ %s [%s]\t%s.%s : %s\n",
+            event_table->priv_user, event_table->user,
+            event_table->host, ip,
+            event_table->database, event_table->table, op);
   }
 }
 
@@ -115,10 +160,8 @@ static void audit_null_notify(MYSQL_THD thd __attribute__((unused)),
 
 static struct st_mysql_audit audit_null_descriptor=
 {
-  MYSQL_AUDIT_INTERFACE_VERSION,                    /* interface version    */
-  NULL,                                             /* release_thd function */
-  audit_null_notify,                                /* notify function      */
-  { (unsigned long) MYSQL_AUDIT_GENERAL_CLASSMASK } /* class mask           */
+  MYSQL_AUDIT_INTERFACE_VERSION, NULL, audit_null_notify,
+  { MYSQL_AUDIT_GENERAL_CLASSMASK | MYSQL_AUDIT_TABLE_CLASSMASK }
 };
 
 /*
@@ -127,12 +170,10 @@ static struct st_mysql_audit audit_null_descriptor=
 
 static struct st_mysql_show_var simple_status[]=
 {
-  { "Audit_null_called", (char *) &number_of_calls, SHOW_INT },
-  { "Audit_null_general_log", (char *) &number_of_calls_general_log, SHOW_INT },
-  { "Audit_null_general_error", (char *) &number_of_calls_general_error,
-    SHOW_INT },
-  { "Audit_null_general_result", (char *) &number_of_calls_general_result,
-    SHOW_INT },
+  { "Audit_null_called", (char *) &ncalls, SHOW_INT },
+  { "Audit_null_general_log", (char *) &ncalls_general_log, SHOW_INT },
+  { "Audit_null_general_error", (char *) &ncalls_general_error, SHOW_INT },
+  { "Audit_null_general_result", (char *) &ncalls_general_result, SHOW_INT },
   { 0, 0, 0}
 };
 

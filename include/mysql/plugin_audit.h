@@ -25,7 +25,7 @@
 
 #define MYSQL_AUDIT_CLASS_MASK_SIZE 1
 
-#define MYSQL_AUDIT_INTERFACE_VERSION 0x0300
+#define MYSQL_AUDIT_INTERFACE_VERSION 0x0301
 
 
 /*************************************************************************
@@ -97,6 +97,50 @@ struct mysql_event_connection
   unsigned int database_length;
 };
 
+/*
+  AUDIT CLASS : TABLE
+  
+  LOCK occurs when a connection "locks" (this does not necessarily mean a table
+  lock and also happens for row-locking engines) the table at the beginning of
+  a statement. This event is generated at the beginning of every statement for
+  every affected table, unless there's a LOCK TABLES statement in effect (in
+  which case it is generated once for LOCK TABLES and then is suppressed until
+  the tables are unlocked).
+
+  CREATE/DROP/RENAME occur when a table is created, dropped, or renamed.
+*/
+
+#define MYSQL_AUDIT_TABLE_CLASS 15
+#define MYSQL_AUDIT_TABLE_CLASSMASK (1 << MYSQL_AUDIT_TABLE_CLASS)
+#define MYSQL_AUDIT_TABLE_LOCK   0
+#define MYSQL_AUDIT_TABLE_CREATE 1
+#define MYSQL_AUDIT_TABLE_DROP   2
+#define MYSQL_AUDIT_TABLE_RENAME 3
+#define MYSQL_AUDIT_TABLE_ALTER  4
+
+struct mysql_event_table
+{
+  unsigned int event_subclass;
+  unsigned long thread_id;
+  const char *user;
+  const char *priv_user;
+  const char *priv_host;
+  const char *external_user;
+  const char *proxy_user;
+  const char *host;
+  const char *ip;
+  const char *database;
+  unsigned int database_length;
+  const char *table;
+  unsigned int table_length;
+  /* for MYSQL_AUDIT_TABLE_LOCK, true if read-only, false if read/write */
+  int read_only;
+  /* for MYSQL_AUDIT_TABLE_RENAME */
+  const char *new_database;
+  unsigned int new_database_length;
+  const char *new_table;
+  unsigned int new_table_length;
+};
 
 /*************************************************************************
   Here we define the descriptor structure, that is referred from

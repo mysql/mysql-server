@@ -54,6 +54,7 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
+#include "sql_audit.h"
 
 #ifdef __WIN__
 #include <io.h>
@@ -2343,6 +2344,10 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (wrong_tables.length())
 	wrong_tables.append(',');
       wrong_tables.append(String(table->table_name,system_charset_info));
+    }
+    else
+    {
+      mysql_audit_drop_table(thd, table);
     }
     DBUG_PRINT("table", ("table: 0x%lx  s: 0x%lx", (long) table->table,
                          table->table ? (long) table->table->s : (long) -1));
@@ -4728,6 +4733,8 @@ mysql_rename_table(handlerton *base, const char *old_db,
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
   else if (error)
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
+  else if (!(flags & FN_IS_TMP))
+    mysql_audit_rename_table(thd, old_db, old_name, new_db, new_name);
   DBUG_RETURN(error != 0);
 }
 
@@ -6054,6 +6061,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   mysql_ha_rm_tables(thd, table_list);
 
+  mysql_audit_alter_table(thd, table_list);
+
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     /* Conditionally writes to binlog. */
@@ -6716,6 +6725,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                   HA_OPTION_PACK_RECORD));
   }
   tmp_disable_binlog(thd);
+  create_info->options|=HA_CREATE_TMP_ALTER;
   error= mysql_create_table_no_lock(thd, new_db, tmp_name,
                                     create_info,
                                     alter_info,

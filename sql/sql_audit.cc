@@ -31,8 +31,7 @@ unsigned long mysql_global_audit_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
 
 static mysql_mutex_t LOCK_audit_mask;
 
-static void event_class_dispatch(THD *thd, unsigned int event_class,
-                                 const void *event);
+static void event_class_dispatch(THD *, unsigned int, const void *);
 
 
 static inline
@@ -111,9 +110,36 @@ static void connection_class_handler(THD *thd, uint event_subclass, va_list ap)
 }
 
 
+static void table_class_handler(THD *thd, uint event_subclass, va_list ap)
+{
+  mysql_event_table event;
+  event.event_subclass= event_subclass;
+  event.read_only= va_arg(ap, int);
+  event.thread_id= va_arg(ap, unsigned long);
+  event.user= va_arg(ap, const char *);
+  event.priv_user= va_arg(ap, const char *);
+  event.priv_host= va_arg(ap, const char *);
+  event.external_user= va_arg(ap, const char *);
+  event.proxy_user= va_arg(ap, const char *);
+  event.host= va_arg(ap, const char *);
+  event.ip= va_arg(ap, const char *);
+  event.database= va_arg(ap, const char *);
+  event.database_length= va_arg(ap, unsigned int);
+  event.table= va_arg(ap, const char *);
+  event.table_length= va_arg(ap, unsigned int);
+  event.new_database= va_arg(ap, const char *);
+  event.new_database_length= va_arg(ap, unsigned int);
+  event.new_table= va_arg(ap, const char *);
+  event.new_table_length= va_arg(ap, unsigned int);
+  event_class_dispatch(thd, MYSQL_AUDIT_TABLE_CLASS, &event);
+}
+
+
 static audit_handler_t audit_handlers[] =
 {
-  general_class_handler, connection_class_handler
+  general_class_handler, connection_class_handler,
+  0,0,0,0,0,0,0,0,0,0,0,0,0, /* placeholders */
+  table_class_handler
 };
 
 static const uint audit_handlers_count=

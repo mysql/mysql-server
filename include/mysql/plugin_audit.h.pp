@@ -279,6 +279,27 @@ struct mysql_event_connection
   const char *database;
   unsigned int database_length;
 };
+struct mysql_event_table
+{
+  unsigned int event_subclass;
+  unsigned long thread_id;
+  const char *user;
+  const char *priv_user;
+  const char *priv_host;
+  const char *external_user;
+  const char *proxy_user;
+  const char *host;
+  const char *ip;
+  const char *database;
+  unsigned int database_length;
+  const char *table;
+  unsigned int table_length;
+  int read_only;
+  const char *new_database;
+  unsigned int new_database_length;
+  const char *new_table;
+  unsigned int new_table_length;
+};
 struct st_mysql_audit
 {
   int interface_version;

@@ -43,17 +43,23 @@ static inline bool mysql_audit_general_enabled()
   return mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK;
 }
 
+static inline bool mysql_audit_table_enabled()
+{
+  return mysql_global_audit_mask[0] & MYSQL_AUDIT_TABLE_CLASSMASK;
+}
+
 #else
 static inline void mysql_audit_notify(THD *thd, uint event_class,
                                       uint event_subtype, ...) { }
 #define mysql_audit_general_enabled() 0
+#define mysql_audit_table_enabled() 0
 #endif
 extern void mysql_audit_release(THD *thd);
 
 #define MAX_USER_HOST_SIZE 512
 static inline uint make_user_name(THD *thd, char *buf)
 {
-  Security_context *sctx= thd->security_ctx;
+  const Security_context *sctx= thd->security_ctx;
   return strxnmov(buf, MAX_USER_HOST_SIZE,
                   sctx->priv_user[0] ? sctx->priv_user : "", "[",
                   sctx->user ? sctx->user : "", "] @ ",
@@ -173,5 +179,88 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->security_ctx->ip,\
   (thd)->security_ctx->ip ? strlen((thd)->security_ctx->ip) : 0,\
   (thd)->db, (thd)->db ? strlen((thd)->db) : 0)
+
+static inline
+void mysql_audit_external_lock(THD *thd, TABLE_SHARE *share, int lock)
+{
+  if (lock != F_UNLCK && mysql_audit_table_enabled())
+  {
+    const Security_context *sctx= thd->security_ctx;
+    mysql_audit_notify(thd, MYSQL_AUDIT_TABLE_CLASS, MYSQL_AUDIT_TABLE_LOCK,
+                       (int)(lock == F_RDLCK), (ulong)thd->thread_id,
+                       sctx->user, sctx->priv_user, sctx->priv_host,
+                       sctx->external_user, sctx->proxy_user, sctx->host,
+                       sctx->ip, share->db.str, (uint)share->db.length,
+                       share->table_name.str, (uint)share->table_name.length,
+                       0,0,0,0);
+  }
+}
+
+static inline
+void mysql_audit_create_table(TABLE *table)
+{
+  if (mysql_audit_table_enabled())
+  {
+    THD *thd= table->in_use;
+    const TABLE_SHARE *share= table->s;
+    const Security_context *sctx= thd->security_ctx;
+    mysql_audit_notify(thd, MYSQL_AUDIT_TABLE_CLASS, MYSQL_AUDIT_TABLE_CREATE,
+                       0, (ulong)thd->thread_id,
+                       sctx->user, sctx->priv_user, sctx->priv_host,
+                       sctx->external_user, sctx->proxy_user, sctx->host,
+                       sctx->ip, share->db.str, (uint)share->db.length,
+                       share->table_name.str, (uint)share->table_name.length,
+                       0,0,0,0);
+  }
+}
+
+static inline
+void mysql_audit_drop_table(THD *thd, TABLE_LIST *table)
+{
+  if (mysql_audit_table_enabled())
+  {
+    const Security_context *sctx= thd->security_ctx;
+    mysql_audit_notify(thd, MYSQL_AUDIT_TABLE_CLASS, MYSQL_AUDIT_TABLE_DROP,
+                       0, (ulong)thd->thread_id,
+                       sctx->user, sctx->priv_user, sctx->priv_host,
+                       sctx->external_user, sctx->proxy_user, sctx->host,
+                       sctx->ip, table->db, (uint)table->db_length,
+                       table->table_name, (uint)table->table_name_length,
+                       0,0,0,0);
+  }
+}
+
+static inline
+void mysql_audit_rename_table(THD *thd, const char *old_db, const char *old_tb,
+                              const char *new_db, const char *new_tb)
+{
+  if (mysql_audit_table_enabled())
+  {
+    const Security_context *sctx= thd->security_ctx;
+    mysql_audit_notify(thd, MYSQL_AUDIT_TABLE_CLASS, MYSQL_AUDIT_TABLE_RENAME,
+                       0, (ulong)thd->thread_id,
+                       sctx->user, sctx->priv_user, sctx->priv_host,
+                       sctx->external_user, sctx->proxy_user, sctx->host,
+                       sctx->ip,
+                       old_db, (uint)strlen(old_db), old_tb, (uint)strlen(old_tb),
+                       new_db, (uint)strlen(new_db), new_tb, (uint)strlen(new_tb));
+  }
+}
+
+static inline
+void mysql_audit_alter_table(THD *thd, TABLE_LIST *table)
+{
+  if (mysql_audit_table_enabled())
+  {
+    const Security_context *sctx= thd->security_ctx;
+    mysql_audit_notify(thd, MYSQL_AUDIT_TABLE_CLASS, MYSQL_AUDIT_TABLE_ALTER,
+                       0, (ulong)thd->thread_id,
+                       sctx->user, sctx->priv_user, sctx->priv_host,
+                       sctx->external_user, sctx->proxy_user, sctx->host,
+                       sctx->ip, table->db, (uint)table->db_length,
+                       table->table_name, (uint)table->table_name_length,
+                       0,0,0,0);
+  }
+}
 
 #endif /* SQL_AUDIT_INCLUDED */
