@@ -38,6 +38,7 @@ concat('<', user(), '>')	concat('<', current_user(), '>')	database()
 drop user test_nopw;
 drop user test_oldpw;
 drop user test_newpw;
+SET GLOBAL secure_auth = DEFAULT;
 Bug#20023
 SELECT @@session.sql_big_selects;
 @@session.sql_big_selects
@@ -86,4 +87,3 @@ IS_USED_LOCK('bug31418')
 NULL
 FLUSH STATUS;
 Value of com_select did not change
-SET GLOBAL secure_auth = DEFAULT;

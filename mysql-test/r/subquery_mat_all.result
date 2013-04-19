@@ -140,7 +140,7 @@ explain extended
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2i	range	NULL	it2i3	9	NULL	3	100.00	Using index for group-by
+2	SUBQUERY	t2i	range	it2i1,it2i3	it2i3	9	NULL	3	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having 1 ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`max(b2)`)))))
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
@@ -151,11 +151,11 @@ prepare st1 from "explain select * from t1 where (a1, a2) in (select b1, max(b2)
 execute st1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t2i	range	NULL	it2i3	9	NULL	3	Using index for group-by
+2	SUBQUERY	t2i	range	it2i1,it2i3	it2i3	9	NULL	3	Using index for group-by
 execute st1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t2i	range	NULL	it2i3	9	NULL	3	Using index for group-by
+2	SUBQUERY	t2i	range	it2i1,it2i3	it2i3	9	NULL	3	Using index for group-by
 prepare st2 from "select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
 execute st2;
 a1	a2
@@ -654,7 +654,7 @@ a
 explain extended
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	index	NULL	it1a	4	NULL	7	100.00	Using index
+1	PRIMARY	t1	index	it1a	it1a	4	NULL	7	100.00	Using index
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`c`)))))
@@ -666,7 +666,7 @@ create index iab on t1(a, b);
 explain extended
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	index	NULL	it1a	4	NULL	7	100.00	Using index
+1	PRIMARY	t1	index	it1a,iab	it1a	4	NULL	7	100.00	Using index
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`c`)))))
@@ -678,7 +678,7 @@ explain extended
 select a from t1 group by a
 having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	index	NULL	iab	8	NULL	7	100.00	Using index
+1	PRIMARY	t1	index	it1a,iab	iab	8	NULL	7	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
@@ -779,7 +779,7 @@ Sort_scan	1
 EXPLAIN SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
+2	SUBQUERY	t1	ALL	a	NULL	NULL	NULL	9	Using temporary; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
@@ -1292,7 +1292,7 @@ HAVING COUNT(*) > 0
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	table1	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	table2	system	PRIMARY	NULL	NULL	NULL	1	NULL
-2	DEPENDENT SUBQUERY	innr	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	innr	ALL	col_int_key	NULL	NULL	NULL	2	Using where; Using temporary; Using filesort
 FLUSH STATUS;
 SELECT table1.pk, table2.pk
 FROM t2 AS table1 LEFT JOIN t2 AS table2

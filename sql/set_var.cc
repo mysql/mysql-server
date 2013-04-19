@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -248,17 +248,14 @@ uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
     return session_value_ptr(thd, base);
 }
 
-bool sys_var::set_default(THD *thd, enum_var_type type)
+bool sys_var::set_default(THD *thd, set_var* var)
 {
-  LEX_STRING empty={0,0};
-  set_var var(type, 0, &empty, 0);
-
-  if (type == OPT_GLOBAL || scope() == GLOBAL)
-    global_save_default(thd, &var);
+  if (var->type == OPT_GLOBAL || scope() == GLOBAL)
+    global_save_default(thd, var);
   else
-    session_save_default(thd, &var);
+    session_save_default(thd, var);
 
-  return check(thd, &var) || update(thd, &var);
+  return check(thd, var) || update(thd, var);
 }
 
 void sys_var::do_deprecated_warning(THD *thd)
@@ -670,7 +667,7 @@ int set_var::light_check(THD *thd)
 */
 int set_var::update(THD *thd)
 {
-  return value ? var->update(thd, this) : var->set_default(thd, type);
+  return value ? var->update(thd, this) : var->set_default(thd, this);
 }
 
 /**
@@ -771,7 +768,13 @@ int set_var_password::check(THD *thd)
       user->host.length= 1;
     }
   }
-  if (user->user.length == 0)
+  /*
+    In case of anonymous user, user->user is set to empty string with length 0.
+    But there might be case when user->user.str could be NULL. For Ex:
+    "set password for current_user() = password('xyz');". In this case,
+    set user information as of the current user.
+  */
+  if (!user->user.str)
   {
     DBUG_ASSERT(thd->security_ctx->user);
     user->user.str= (char *) thd->security_ctx->user;

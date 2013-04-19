@@ -1,0 +1,10 @@
+-- source include/not_embedded.inc
+
+CREATE USER u1@localhost IDENTIFIED BY 'secret';
+GRANT SELECT ON test.* TO u1@localhost REQUIRE SSL;
+ 
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL -uu1 -psecret -h127.0.0.1 --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-sha512.pem --ssl-cipher=EDH-RSA-DES-CBC3-SHA test -e "SHOW VARIABLES like '%ssl%';"
+
+DROP USER u1@localhost;
+

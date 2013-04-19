@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,10 +46,10 @@
 #define LEX_YYSTYPE YYSTYPE
 
 /**
-  Token array : 
+  Token array :
   Token array is an array of bytes to store tokens recieved during parsing.
   Following is the way token array is formed.
-     
+
       ...<non-id-token><non-id-token><id-token><id_len><id_text>...
 
   For Ex:
@@ -64,7 +64,7 @@ ulong digest_lost= 0;
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
 /** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 bool flag_statements_digest= true;
-/** 
+/**
   Current index in Stat array where new record is to be inserted.
   index 0 is reserved for "all else" case when entire array is full.
 */
@@ -75,7 +75,7 @@ static bool digest_hash_inited= false;
 
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
-  @param digest_sizing      
+  @param digest_sizing
 */
 int init_digest(const PFS_global_param *param)
 {
@@ -347,7 +347,7 @@ void reset_esms_by_digest()
     statements_digest_stat_array[index].reset_data();
   }
 
-  /* 
+  /*
     Reset index which indicates where the next calculated digest information
     to be inserted in statements_digest_stat_array.
   */
@@ -368,7 +368,7 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
   lex_token_string *tok_data;
   /* -4 is to make sure extra space for '...' and a '\0' at the end. */
   int bytes_available= COL_DIGEST_TEXT_SIZE - 4;
-  
+
   /* Convert text to utf8 */
   const CHARSET_INFO *from_cs= get_charset(digest_storage->m_charset_number, MYF(0));
   const CHARSET_INFO *to_cs= &my_charset_utf8_bin;
@@ -401,7 +401,7 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
   {
     current_byte= read_token(digest_storage, current_byte, &tok);
     tok_data= &lex_token_array[tok];
-    
+
     switch (tok)
     {
     /* All identifiers are printed with their name. */
@@ -440,7 +440,7 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
           break;
         }
         /* Copy the converted identifier into the digest string. */
-        bytes_needed= id_length + (tok == IDENT ? 1 : 3); 
+        bytes_needed= id_length + (tok == IDENT ? 1 : 3);
         if (bytes_needed <= bytes_available)
         {
           if (tok == IDENT_QUOTED)
@@ -464,7 +464,7 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
 
     /* Everything else is printed as is. */
     default:
-      /* 
+      /*
         Make sure not to overflow digest_text buffer.
         +1 is to make sure extra space for ' '.
       */
@@ -509,30 +509,33 @@ static inline uint peek_token(const PSI_digest_storage *digest, int index)
 
 /**
   Function to read last two tokens from token array. If an identifier
-  is found, do not look for token after that.
+  is found, do not look for token before that.
 */
 static inline void peek_last_two_tokens(const PSI_digest_storage* digest_storage,
                                         int last_id_index, uint *t1, uint *t2)
 {
   int byte_count= digest_storage->m_byte_count;
+  int peek_index= byte_count - PFS_SIZE_OF_A_TOKEN;
 
-  if (last_id_index <= byte_count - PFS_SIZE_OF_A_TOKEN)
+  if (last_id_index <= peek_index)
   {
     /* Take last token. */
-    *t1= peek_token(digest_storage, byte_count - PFS_SIZE_OF_A_TOKEN);
+    *t1= peek_token(digest_storage, peek_index);
+
+    peek_index-= PFS_SIZE_OF_A_TOKEN;
+    if (last_id_index <= peek_index)
+    {
+      /* Take 2nd token from last. */
+      *t2= peek_token(digest_storage, peek_index);
+    }
+    else
+    {
+      *t2= TOK_PFS_UNUSED;
+    }
   }
   else
   {
     *t1= TOK_PFS_UNUSED;
-  }
-
-  if (last_id_index <= byte_count - 2*PFS_SIZE_OF_A_TOKEN)
-  {
-    /* Take 2nd token from last. */
-    *t2= peek_token(digest_storage, byte_count - 2 * PFS_SIZE_OF_A_TOKEN);
-  }
-  else
-  {
     *t2= TOK_PFS_UNUSED;
   }
 }
@@ -575,15 +578,12 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
   if (digest_storage->m_full || token == END_OF_INPUT)
     return NULL;
 
-  /* 
+  /*
     Take last_token 2 tokens collected till now. These tokens will be used
     in reduce for normalisation. Make sure not to consider ID tokens in reduce.
   */
   uint last_token;
   uint last_token2;
-  
-  peek_last_two_tokens(digest_storage, state->m_last_id_index,
-                       &last_token, &last_token2);
 
   switch (token)
   {
@@ -607,6 +607,9 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
     /* fall through */
     case NULL_SYM:
     {
+      peek_last_two_tokens(digest_storage, state->m_last_id_index,
+                           &last_token, &last_token2);
+
       if ((last_token2 == TOK_PFS_GENERIC_VALUE ||
            last_token2 == TOK_PFS_GENERIC_VALUE_LIST ||
            last_token2 == NULL_SYM) &&
@@ -616,7 +619,7 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
           REDUCE:
           TOK_PFS_GENERIC_VALUE_LIST :=
             (TOK_PFS_GENERIC_VALUE|NULL_SYM) ',' (TOK_PFS_GENERIC_VALUE|NULL_SYM)
-          
+
           REDUCE:
           TOK_PFS_GENERIC_VALUE_LIST :=
             TOK_PFS_GENERIC_VALUE_LIST ',' (TOK_PFS_GENERIC_VALUE|NULL_SYM)
@@ -632,17 +635,20 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
     }
     case ')':
     {
+      peek_last_two_tokens(digest_storage, state->m_last_id_index,
+                           &last_token, &last_token2);
+
       if (last_token == TOK_PFS_GENERIC_VALUE &&
-          last_token2 == '(') 
-      { 
+          last_token2 == '(')
+      {
         /*
           REDUCE:
           TOK_PFS_ROW_SINGLE_VALUE :=
-            '(' TOK_PFS_GENERIC_VALUE ')' 
+            '(' TOK_PFS_GENERIC_VALUE ')'
         */
         digest_storage->m_byte_count-= 2*PFS_SIZE_OF_A_TOKEN;
         token= TOK_PFS_ROW_SINGLE_VALUE;
-      
+
         /* Read last two tokens again */
         peek_last_two_tokens(digest_storage, state->m_last_id_index,
                              &last_token, &last_token2);
@@ -653,11 +659,11 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
         {
           /*
             REDUCE:
-            TOK_PFS_ROW_SINGLE_VALUE_LIST := 
+            TOK_PFS_ROW_SINGLE_VALUE_LIST :=
               TOK_PFS_ROW_SINGLE_VALUE ',' TOK_PFS_ROW_SINGLE_VALUE
 
             REDUCE:
-            TOK_PFS_ROW_SINGLE_VALUE_LIST := 
+            TOK_PFS_ROW_SINGLE_VALUE_LIST :=
               TOK_PFS_ROW_SINGLE_VALUE_LIST ',' TOK_PFS_ROW_SINGLE_VALUE
           */
           digest_storage->m_byte_count-= 2*PFS_SIZE_OF_A_TOKEN;
@@ -665,7 +671,7 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
         }
       }
       else if (last_token == TOK_PFS_GENERIC_VALUE_LIST &&
-               last_token2 == '(') 
+               last_token2 == '(')
       {
         /*
           REDUCE:

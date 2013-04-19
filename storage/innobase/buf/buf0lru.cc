@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -137,19 +137,19 @@ The caller must hold buf_pool->mutex, the buf_page_get_mutex() mutex
 and the appropriate hash_lock. This function will release the
 buf_page_get_mutex() and the hash_lock.
 
-If a compressed page or a compressed-only block descriptor is freed,
-other compressed pages or compressed-only block descriptors may be
-relocated.
-@return the new state of the block (BUF_BLOCK_ZIP_FREE if the state
-was BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH otherwise) */
-static
-enum buf_page_state
-buf_LRU_block_remove_hashed_page(
-/*=============================*/
+If a compressed page is freed other compressed pages may be relocated.
+@retval true if BUF_BLOCK_FILE_PAGE was removed from page_hash. The
+caller needs to free the page to the free list
+@retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
+this case the block is already returned to the buddy allocator. */
+static __attribute__((nonnull, warn_unused_result))
+bool
+buf_LRU_block_remove_hashed(
+/*========================*/
 	buf_page_t*	bpage,	/*!< in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
-	ibool		zip);	/*!< in: TRUE if should remove also the
+	bool		zip);	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
 /******************************************************************//**
 Puts a file page whose has no hash index to the free list. */
@@ -778,22 +778,16 @@ scan_again:
 
 		/* Remove from the LRU list. */
 
-		if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
-		    != BUF_BLOCK_ZIP_FREE) {
-
+		if (buf_LRU_block_remove_hashed(bpage, true)) {
 			buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
-
 		} else {
-			/* The block_mutex should have been released
-			by buf_LRU_block_remove_hashed_page() when it
-			returns BUF_BLOCK_ZIP_FREE. */
 			ut_ad(block_mutex == &buf_pool->zip_mutex);
 		}
 
 		ut_ad(!mutex_own(block_mutex));
 
 #ifdef UNIV_SYNC_DEBUG
-		/* buf_LRU_block_remove_hashed_page() releases the hash_lock */
+		/* buf_LRU_block_remove_hashed() releases the hash_lock */
 		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
 		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -972,7 +966,7 @@ buf_LRU_free_from_unzip_LRU_list(
 		ut_ad(block->in_unzip_LRU_list);
 		ut_ad(block->page.in_LRU_list);
 
-		freed = buf_LRU_free_block(&block->page, FALSE);
+		freed = buf_LRU_free_page(&block->page, false);
 
 		block = prev_block;
 	}
@@ -1017,7 +1011,7 @@ buf_LRU_free_from_common_LRU_list(
 		ut_ad(bpage->in_LRU_list);
 
 		accessed = buf_page_is_accessed(bpage);
-		freed = buf_LRU_free_block(bpage, TRUE);
+		freed = buf_LRU_free_page(bpage, true);
 		if (freed && !accessed) {
 			/* Keep track of pages that are evicted without
 			ever being accessed. This gives us a measure of
@@ -1788,24 +1782,23 @@ buf_LRU_make_block_old(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns TRUE, it will temporarily
+NOTE: If this function returns true, it will temporarily
 release buf_pool->mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
 The caller must hold buf_pool->mutex and must not hold any
 buf_page_get_mutex() when calling this function.
-@return TRUE if freed, FALSE otherwise. */
+@return true if freed, false otherwise. */
 UNIV_INTERN
-ibool
-buf_LRU_free_block(
+bool
+buf_LRU_free_page(
 /*===============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
-	ibool		zip)	/*!< in: TRUE if should remove also the
+	bool		zip)	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
 {
 	buf_page_t*	b = NULL;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-	enum buf_page_state		page_state;
 	const ulint	fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
 	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
@@ -1853,7 +1846,7 @@ buf_LRU_free_block(
 func_exit:
 		rw_lock_x_unlock(hash_lock);
 		mutex_exit(block_mutex);
-		return(FALSE);
+		return(false);
 
 	} else if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
 		b = buf_page_alloc_descriptor();
@@ -1885,19 +1878,15 @@ func_exit:
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(buf_page_can_relocate(bpage));
 
-	page_state = buf_LRU_block_remove_hashed_page(bpage, zip);
+	if (!buf_LRU_block_remove_hashed(bpage, zip)) {
+		return(true);
+	}
 
 #ifdef UNIV_SYNC_DEBUG
-	/* buf_LRU_block_remove_hashed_page() releases the hash_lock */
+	/* buf_LRU_block_remove_hashed() releases the hash_lock */
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
 	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
-
-	if (page_state == BUF_BLOCK_ZIP_FREE) {
-		return(TRUE);
-	}
-
-	ut_ad(page_state == BUF_BLOCK_REMOVE_HASH);
 
 	/* We have just freed a BUF_BLOCK_FILE_PAGE. If b != NULL
 	then it was a compressed page with an uncompressed frame and
@@ -1926,7 +1915,7 @@ func_exit:
 		/* The fields in_page_hash and in_LRU_list of
 		the to-be-freed block descriptor should have
 		been cleared in
-		buf_LRU_block_remove_hashed_page(), which
+		buf_LRU_block_remove_hashed(), which
 		invokes buf_LRU_remove_block(). */
 		ut_ad(!bpage->in_page_hash);
 		ut_ad(!bpage->in_LRU_list);
@@ -1935,7 +1924,7 @@ func_exit:
 		ut_ad(!((buf_block_t*) bpage)->in_unzip_LRU_list);
 
 		/* The fields of bpage were copied to b before
-		buf_LRU_block_remove_hashed_page() was invoked. */
+		buf_LRU_block_remove_hashed() was invoked. */
 		ut_ad(!b->in_zip_hash);
 		ut_ad(b->in_page_hash);
 		ut_ad(b->in_LRU_list);
@@ -2037,7 +2026,7 @@ func_exit:
 
 	/* Remove possible adaptive hash index on the page.
 	The page was declared uninitialized by
-	buf_LRU_block_remove_hashed_page().  We need to flag
+	buf_LRU_block_remove_hashed().  We need to flag
 	the contents of the page valid (which it still is) in
 	order to avoid bogus Valgrind warnings.*/
 
@@ -2073,7 +2062,7 @@ func_exit:
 	mutex_exit(block_mutex);
 
 	buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
-	return(TRUE);
+	return(true);
 }
 
 /******************************************************************//**
@@ -2147,19 +2136,19 @@ The caller must hold buf_pool->mutex, the buf_page_get_mutex() mutex
 and the appropriate hash_lock. This function will release the
 buf_page_get_mutex() and the hash_lock.
 
-If a compressed page or a compressed-only block descriptor is freed,
-other compressed pages or compressed-only block descriptors may be
-relocated.
-@return the new state of the block (BUF_BLOCK_ZIP_FREE if the state
-was BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH otherwise) */
+If a compressed page is freed other compressed pages may be relocated.
+@retval true if BUF_BLOCK_FILE_PAGE was removed from page_hash. The
+caller needs to free the page to the free list
+@retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
+this case the block is already returned to the buddy allocator. */
 static
-enum buf_page_state
-buf_LRU_block_remove_hashed_page(
-/*=============================*/
+bool
+buf_LRU_block_remove_hashed(
+/*========================*/
 	buf_page_t*	bpage,	/*!< in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
-	ibool		zip)	/*!< in: TRUE if should remove also the
+	bool		zip)	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
 {
 	ulint			fold;
@@ -2252,7 +2241,7 @@ buf_LRU_block_remove_hashed_page(
 		UNIV_MEM_ASSERT_W(bpage->zip.data,
 				  page_zip_get_size(&bpage->zip));
 		break;
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
@@ -2319,7 +2308,7 @@ buf_LRU_block_remove_hashed_page(
 
 		buf_pool_mutex_exit_allow(buf_pool);
 		buf_page_free_descriptor(bpage);
-		return(BUF_BLOCK_ZIP_FREE);
+		return(false);
 
 	case BUF_BLOCK_FILE_PAGE:
 		memset(((buf_block_t*) bpage)->frame
@@ -2370,9 +2359,9 @@ buf_LRU_block_remove_hashed_page(
 			page_zip_set_size(&bpage->zip, 0);
 		}
 
-		return(BUF_BLOCK_REMOVE_HASH);
+		return(true);
 
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
@@ -2382,7 +2371,7 @@ buf_LRU_block_remove_hashed_page(
 	}
 
 	ut_error;
-	return(BUF_BLOCK_ZIP_FREE);
+	return(false);
 }
 
 /******************************************************************//**
@@ -2427,12 +2416,11 @@ buf_LRU_free_one_page(
 	rw_lock_x_lock(hash_lock);
 	mutex_enter(block_mutex);
 
-	if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
-	    != BUF_BLOCK_ZIP_FREE) {
+	if (buf_LRU_block_remove_hashed(bpage, true)) {
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 	}
 
-	/* buf_LRU_block_remove_hashed_page() releases hash_lock and block_mutex */
+	/* buf_LRU_block_remove_hashed() releases hash_lock and block_mutex */
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
 	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
@@ -2606,7 +2594,7 @@ buf_LRU_validate_instance(
              bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
 
 		switch (buf_page_get_state(bpage)) {
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_READY_FOR_USE:
 		case BUF_BLOCK_MEMORY:

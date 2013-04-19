@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -774,7 +774,7 @@ int orig_argc;
 char **orig_argv;
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
-int init_rsa_keys(void);
+bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 #endif
@@ -1183,7 +1183,7 @@ static const char* default_dbug_option;
 const char *libwrapName= NULL;
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
-#endif
+#endif /* HAVE_LIBWRAP */
 #ifdef HAVE_QUERY_CACHE
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
@@ -2631,7 +2631,7 @@ static bool block_until_new_connection()
         this thread for handling of new THD object/connection.
       */
       thd->mysys_var->abort= 0;
-      thd->thr_create_utime= my_micro_time();
+      thd->thr_create_utime= thd->start_utime= my_micro_time();
       add_global_thread(thd);
       mysql_mutex_unlock(&LOCK_thread_count);
       return true;
@@ -2673,6 +2673,21 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   */
   DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   remove_global_thread(thd);
+  if (kill_blocked_pthreads_flag)
+  {
+    // Do not block if we are about to shut down
+    block_pthread= false;
+  }
+
+  // Clean up errors now, before possibly waiting for a new connection.
+#ifndef EMBEDDED_LIBRARY
+  ERR_remove_state(0);
+#endif
+
+  /*
+    Using global resources (like mutexes) is unsafe once we have released
+    the mutex here: the server may be shutting down.
+   */
   mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 
@@ -2686,9 +2701,6 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
-#ifndef EMBEDDED_LIBRARY
-  ERR_remove_state(0);
-#endif
   mysql_cond_broadcast(&COND_thread_count);
 
   pthread_exit(0);
@@ -3995,9 +4007,24 @@ int init_common_variables()
   /* Set collactions that depends on the default collation */
   global_system_variables.collation_server=  default_charset_info;
   global_system_variables.collation_database=  default_charset_info;
-  global_system_variables.collation_connection=  default_charset_info;
-  global_system_variables.character_set_results= default_charset_info;
-  global_system_variables.character_set_client=  default_charset_info;
+
+  if (is_supported_parser_charset(default_charset_info))
+  {
+    global_system_variables.collation_connection= default_charset_info;
+    global_system_variables.character_set_results= default_charset_info;
+    global_system_variables.character_set_client= default_charset_info;
+  }
+  else
+  {
+    sql_print_information("'%s' can not be used as client character set. "
+                          "'%s' will be used as default client character set.",
+                          default_charset_info->csname,
+                          my_charset_latin1.csname);
+    global_system_variables.collation_connection= &my_charset_latin1;
+    global_system_variables.character_set_results= &my_charset_latin1;
+    global_system_variables.character_set_client= &my_charset_latin1;
+  }
+
   if (!(character_set_filesystem=
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
@@ -4280,6 +4307,7 @@ static int init_ssl()
 #ifndef HAVE_YASSL
   CRYPTO_malloc_init();
 #endif
+  ssl_start();
 #ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
@@ -5311,7 +5339,7 @@ int mysqld_main(int argc, char **argv)
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
   openlog(libwrapName, LOG_PID, LOG_AUTH);
-#endif
+#endif /* HAVE_LIBWRAP */
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
@@ -5429,7 +5457,7 @@ int mysqld_main(int argc, char **argv)
   }
 
   if (init_ssl())
-    return 1;
+    unireg_abort(1);
   network_init();
 
 #ifdef __WIN__
@@ -5455,6 +5483,7 @@ int mysqld_main(int argc, char **argv)
   */
   error_handler_hook= my_message_sql;
   start_signal_handler();       // Creates pidfile
+  sql_print_warning_hook = sql_print_warning;
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
@@ -6292,7 +6321,7 @@ void handle_connections_sockets()
             The connection was refused by TCP wrappers.
             There are no details (by client IP) available to update the host_cache.
           */
-          statistic_increment(connection_tcpwrap_errors, &LOCK_status);
+          statistic_increment(connection_errors_tcpwrap, &LOCK_status);
           continue;
         }
       }
@@ -6941,14 +6970,6 @@ struct my_option my_long_options[]=
    "Don't log extra information to update and slow-query logs.",
    &opt_short_log_format, &opt_short_log_format,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-slow-admin-statements", 0,
-   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
-   "the slow log if it is open.", &opt_log_slow_admin_statements,
-   &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
- {"log-slow-slave-statements", 0,
-  "Log slow statements executed by slave thread to the slow log if it is open.",
-  &opt_log_slow_slave_statements, &opt_log_slow_slave_statements,
-  0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc", 0,
    "Path to transaction coordinator log (used for transactions that affect "
    "more than one storage engine, when binary log is disabled).",
@@ -7191,12 +7212,15 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
+  mysql_mutex_assert_owner(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   var->value= buff;
   *((my_bool *)buff)= (my_bool) (active_mi &&
                                  active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
                                  active_mi->rli->slave_running);
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
@@ -7206,6 +7230,8 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
     TODO: with multimaster, have one such counter per line in
     SHOW SLAVE STATUS, and have the sum over all lines here.
   */
+  mysql_mutex_assert_owner(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
@@ -7218,11 +7244,14 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
 static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
 {
+  mysql_mutex_assert_owner(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
@@ -7235,12 +7264,15 @@ static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
 static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 {
   MYSQL_TIME received_heartbeat_time;
+  mysql_mutex_assert_owner(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
@@ -7258,11 +7290,15 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
 static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 {
+  DEBUG_SYNC(thd, "dsync_show_heartbeat_period");
+  mysql_mutex_assert_owner(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
@@ -7273,6 +7309,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
@@ -8422,7 +8459,12 @@ mysqld_get_one_option(int optid,
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
     break;
   case OPT_DEFAULT_AUTH:
-    set_default_auth_plugin(argument, strlen(argument));
+    if (set_default_auth_plugin(argument, strlen(argument)))
+    {
+      sql_print_error("Can't start server: "
+                      "Invalid value for --default-authentication-plugin");
+      return 1;
+    }
     break;
   case OPT_SECURE_AUTH:
     if (opt_secure_auth == 0)

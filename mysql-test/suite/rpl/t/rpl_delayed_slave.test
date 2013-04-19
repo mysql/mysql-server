@@ -100,7 +100,7 @@ eval CHANGE MASTER TO MASTER_DELAY = $time2;
 
 --let $assert_text= SHOW SLAVE STATUS should return the same delay that we set with CHANGE MASTER
 --let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = $time2
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --echo [on master]
 --connection master
@@ -133,11 +133,11 @@ INSERT INTO t1 SELECT delay_on_slave(2), 4;
 
 --let $assert_text= No query executed
 --let $assert_cond= MAX(b) = 1 FROM t1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be 'Waiting until MASTER_DELAY...'
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Waiting until MASTER_DELAY%"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --echo # wait for first query to execute
 --sync_with_master
@@ -147,22 +147,22 @@ INSERT INTO t1 SELECT delay_on_slave(2), 4;
 
 --let $assert_text= Second query executed
 --let $assert_cond= MAX(b) = 3 FROM t1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be executing third query (i.e., 'User sleep')
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" = "User sleep"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --echo # sleep 2*T
 --sleep $time2
 
 --let $assert_text= Third query executed
 --let $assert_cond= MAX(b) = 4 FROM t1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be 'Has read all relay log...'
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Slave has read all relay log%"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 
 --echo ==== Seconds_Behind_Master ====
@@ -193,14 +193,14 @@ INSERT INTO t1 VALUES (delay_on_slave(1), 6);
 
 --let $assert_cond= [SHOW SLAVE STATUS, Seconds_Behind_Master, 1] >= 0 AND <1> < $time2
 --let $assert_text= Seconds_Behind_Master should be between 0 and the 2*T
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --echo # sleep 1*T
 --sleep $time1
 
 --let $assert_cond= [SHOW SLAVE STATUS, Seconds_Behind_Master, 1] >= $time2
 --let $assert_text= Seconds_Behind_Master should be at least 2*T
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --sync_with_master
 
@@ -231,25 +231,25 @@ INSERT INTO t1 VALUES ('stop slave and start slave: DML', 7);
 
 --let $assert_text= STOP SLAVE should finish quickly, not wait for the ongoing sleep to finish
 --let $assert_cond= UNIX_TIMESTAMP() - $timestamp_before_stop < $time1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= SQL thread position should not increase after STOP SLAVE
 --let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Query should not be executed after STOP SLAVE
 --let $assert_cond= MAX(b) = 6 FROM t1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be '' after STOP SLAVE
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" = ""
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --source include/start_slave.inc
 
 --let $assert_text= START SLAVE should finish quickly
 --let $assert_cond= UNIX_TIMESTAMP() - $timestamp_before_stop < $time1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $query_number= 7
 --source extra/rpl_tests/delayed_slave_wait_on_query.inc
@@ -275,36 +275,36 @@ CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
 
 --let $assert_text= STOP SLAVE should finish quickly, not wait for the ongoing sleep to finish
 --let $assert_cond= UNIX_TIMESTAMP() - $timestamp_before_stop < $time1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= SQL thread position should not increase after STOP SLAVE
 --let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Query should not be executed after STOP SLAVE
 --let $assert_cond= COUNT(*) = 0 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = "t_check_dml_not_executed_prematurely"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be '' after STOP SLAVE
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" = ""
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --source include/start_slave.inc
 
 --let $assert_text= START SLAVE should finish quickly
 --let $assert_cond= UNIX_TIMESTAMP() - $timestamp_before_stop < $time1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --echo # sleep 1*T
 --sleep $time1
 
 --let $assert_text= DDL Query should not be executed after START SLAVE
 --let $assert_cond= COUNT(*) = 0 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = "t_check_dml_not_executed_prematurely"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be 'Waiting until MASTER_DELAY...'
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Waiting until MASTER_DELAY%"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --echo # sleep 1*T
 --sleep $time1
@@ -314,11 +314,11 @@ CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
 
 --let $assert_text= DDL Query should be executed
 --let $assert_cond= COUNT(*) = 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = "t_check_dml_not_executed_prematurely"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be 'Has read all relay log...'
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Slave has read all relay log%"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --source include/check_slave_is_running.inc
 
@@ -332,7 +332,7 @@ CHANGE MASTER TO MASTER_DELAY = 0;
 
 --let $assert_text= Delay should be 0 when we set it to 0
 --let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 0
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --source include/start_slave.inc
 
@@ -347,11 +347,11 @@ INSERT INTO t1 VALUES ('change back to no delay', 8);
 
 --let $assert_text= Query should be executed
 --let $assert_cond= MAX(b) = 8 FROM t1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be 'Slave has read all relay log...'
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" Like "Slave has read all relay log%"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 
 --echo ==== Reset delay with RESET SLAVE ====
@@ -362,7 +362,7 @@ CHANGE MASTER TO MASTER_DELAY = 71;
 
 --let $assert_text= Delay should be 71 when we set it to 71
 --let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 71
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --source include/stop_slave.inc
 RESET SLAVE;
@@ -375,7 +375,7 @@ RESET MASTER;
 
 --let $assert_text= Delay should be 0 after RESET SLAVE
 --let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 0
---source include/rpl_assert.inc
+--source include/assert.inc
 
 
 --echo ==== Set an invalid value for the delay ====

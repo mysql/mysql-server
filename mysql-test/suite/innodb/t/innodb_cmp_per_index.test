@@ -3,6 +3,17 @@
 #
 
 -- source include/have_innodb.inc
+
+# Using innodb_log_compressed=0 leads to a larger number of page
+# compressions, because page_cur_insert_rec_zip() will reorganize the
+# page before attempting an insert followed by page compression and
+# page_zip_compress_write_log_no_data().
+
+if (`SELECT @@innodb_log_compressed_pages = 0`)
+{
+  --skip Needs innodb_log_compressed_pages
+}
+
 # numbers read in this test depend on the page size
 -- source include/have_innodb_16k.inc
 # include/restart_mysqld.inc does not work in embedded mode

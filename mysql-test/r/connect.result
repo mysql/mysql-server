@@ -260,6 +260,11 @@ Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a futu
 #Expect deprecation warning
 GRANT SELECT on test.* TO old_gpwd@localhost 
 IDENTIFIED BY 'aha3';
+ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+#Expect deprecation warning
+GRANT SELECT on test.* TO old_gpwd@localhost 
+IDENTIFIED WITH 'mysql_old_password';
+SET PASSWORD FOR old_gpwd@localhost= OLD_PASSWORD('aha4');
 Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 #Expected normal flush, no warnings  
@@ -400,11 +405,11 @@ CREATE USER wl6587@localhost IDENTIFIED BY 'wl6587';
 ALTER USER wl6587@localhost PASSWORD EXPIRE;
 # non-interactive mysql should fail
 Warning: Using a password on the command line interface can be insecure.
-ERROR 1820 (HY000): You must SET PASSWORD before executing this statement
+ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
 # mysqladmin non-password should fail
 Warning: Using a password on the command line interface can be insecure.
 mysqladmin: connect to server at 'localhost' failed
-error: 'You must SET PASSWORD before executing this statement'
+error: 'Your password has expired. To log in you must change it using a client that supports expired passwords.'
 # mysqladmin password should work
 Warning: Using a password on the command line interface can be insecure.
 DROP USER wl6587@localhost;

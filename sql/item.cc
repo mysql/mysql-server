@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -600,7 +600,7 @@ Item::Item(THD *thd, Item *item):
   fixed(item->fixed),
   collation(item->collation),
   cmp_context(item->cmp_context),
-  with_subselect(item->with_subselect),
+  with_subselect(item->has_subquery()),
   with_stored_program(item->with_stored_program),
   tables_locked_cache(item->tables_locked_cache)
 {
@@ -5406,14 +5406,12 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     /*
       We should resolve this as an outer field reference if
       1. we haven't done it before, and
-      2. the outer context is set, and
-      3. the select_lex of the table that contains this field is
+      2. the select_lex of the table that contains this field is
          different from the select_lex of the current name resolution
          context.
      */
     if (!outer_fixed &&                                                    // 1
-        context->outer_context &&                                          // 2
-        cached_table && cached_table->select_lex && context->select_lex && // 3
+        cached_table && cached_table->select_lex && context->select_lex && // 2
         cached_table->select_lex != context->select_lex)
     {
       int ret;

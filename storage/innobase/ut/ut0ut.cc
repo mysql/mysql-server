@@ -814,6 +814,8 @@ ut_strerr(
 		return("Log size exceeded during online index creation");
 	case DB_DICT_CHANGED:
 		return("Table dictionary has changed");
+	case DB_IDENTIFIER_TOO_LONG:
+		return("Identifier name is too long");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

@@ -1158,3 +1158,103 @@ DROP TABLE `A B`;
 CREATE TABLE `t-26`(a VARCHAR(10),FULLTEXT KEY(a)) ENGINE=INNODB;
 INSERT INTO `t-26` VALUES('117');
 DROP TABLE `t-26`;
+
+# Test on phrase search with stopwords contained in the search string
+CREATE TABLE `t1` (
+  `id` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+  `content` TEXT NOT NULL,
+  PRIMARY KEY (`id`),
+  FULLTEXT INDEX `IDX_CONTEXT_FULLTEXT`(`content`)
+)
+ENGINE = InnoDB;
+
+insert into t1 (content)
+values
+('This is a story which has has a complicated phrase structure here in the
+middle'),
+('This is a story which doesn''t have that text'),
+('This is a story that has complicated the phrase structure');
+
+select * from t1
+where match(content) against('"complicated phrase structure"' in boolean
+mode);
+
+# Test single phrase search with "+" symbol, one row should be returned
+select * from t1
+where match(content) against('+"complicated phrase structure"' in boolean
+mode);
+
+# Test phrase search with stopwords in between, one row should be returned
+select * from t1
+where match(content) against('"complicated the phrase structure"' in boolean
+mode);
+
+# Test phrase search with multiple "+" symbols
+select * from t1 where match(content) against('+"this is a story which" +"complicated the phrase structure"' in boolean mode);
+
+# Test phrase search with leading word is a stopword, such stopword would be
+# ignored
+select * from t1 where match(content) against('"the complicated the phrase structure"' in boolean mode);
+
+# Test phrase search with non-matching stopword in between, no row should be
+# returned
+select * from t1 where match(content) against('"complicated a phrase structure"' in boolean mode);
+
+DROP TABLE t1;
+
+CREATE TABLE my (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c VARCHAR(32), FULLTEXT(c)) ENGINE = INNODB;
+
+INSERT INTO my (c) VALUES ('green-iguana');
+
+SELECT * FROM my WHERE MATCH(c) AGAINST ('green-iguana');
+
+DROP TABLE my;
+
+CREATE TABLE ift (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`),
+  FULLTEXT KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO ift values (1, "skip");
+INSERT INTO ift values (2, "skip and networking");
+INSERT INTO ift values (3, "--skip-networking");
+INSERT INTO ift values (4, "-donot--skip-networking");
+
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('--skip-networking');
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('skip-networking');
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('----');
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('-donot--skip-networking');
+
+DROP TABLE ift;
+
+# Test special cases of wildword.
+# Create FTS table
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('( that''s me )','When configured properly, MySQL ...');
+
+SELECT * FROM articles WHERE MATCH (title,body)
+        AGAINST ('( that''s* )' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH (title,body)
+	AGAINST ('s*' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH (title,body)
+        AGAINST ('stands\'] | * | show[@database' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;

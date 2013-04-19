@@ -52,12 +52,12 @@ perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-
 
 # Run with 4K page size
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=main_ps_row_4k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_binlog_ps_row_4k_size --vardir=var-rpl_binlog-ps_row --suite=rpl,binlog --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
 perl mysql-test-run.pl --debug-server  --timer --force --parallel=auto --comment=main_embedded_4k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
 
 # Run with 8K page size
 perl mysql-test-run.pl --debug-server  --timer --force --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=main_ps_row_8k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_binlog_ps_row_8k_size --vardir=var-rpl_binlog-ps_row --suite=rpl,binlog --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=main_embedded_8k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
 
 

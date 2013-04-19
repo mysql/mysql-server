@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ ENDIF()
 # As a consequence of ALARMs no longer being used, thread
 # notification for KILL must close the socket to wake up
 # other threads.
-SET(SIGNAL_WITH_VIO_CLOSE 1)
+SET(SIGNAL_WITH_VIO_SHUTDOWN 1)
 
 # Always enable -Wall for gnu C/C++
 IF(CMAKE_COMPILER_IS_GNUCXX)
@@ -63,6 +63,15 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
 ENDIF()
 IF(CMAKE_COMPILER_IS_GNUCC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+ENDIF()
+
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
+ENDIF()
+IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS
+    "${CMAKE_C_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
 ENDIF()
 
 # The default C++ library for SunPro is really old, and not standards compliant.
@@ -217,6 +226,11 @@ IF(UNIX)
     IF(HAVE_LIBWRAP)
       SET(MYSYS_LIBWRAP_SOURCE  ${CMAKE_SOURCE_DIR}/mysys/my_libwrap.c)
       SET(LIBWRAP "wrap")
+    ELSE()
+      MESSAGE(FATAL_ERROR 
+      "WITH_LIBWRAP is defined, but can not find a working libwrap. "
+      "Make sure both the header files (tcpd.h) "
+      "and the library (libwrap) are installed.")
     ENDIF()
   ENDIF()
 ENDIF()

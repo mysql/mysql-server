@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,8 +37,8 @@ typedef struct st_vio Vio;
 
 enum enum_vio_type
 {
-  VIO_CLOSED, VIO_TYPE_TCPIP, VIO_TYPE_SOCKET, VIO_TYPE_NAMEDPIPE,
-  VIO_TYPE_SSL, VIO_TYPE_SHARED_MEMORY
+  VIO_TYPE_TCPIP, VIO_TYPE_SOCKET, VIO_TYPE_NAMEDPIPE, VIO_TYPE_SSL, 
+  VIO_TYPE_SHARED_MEMORY
 };
 
 /**
@@ -71,19 +71,19 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
 #define HANDLE void *
 #endif /* __WIN__ */
 
-void	vio_delete(Vio* vio);
-int	vio_close(Vio* vio);
+void    vio_delete(Vio* vio);
+int vio_shutdown(Vio* vio);
 my_bool vio_reset(Vio* vio, enum enum_vio_type type,
                   my_socket sd, void *ssl, uint flags);
-size_t	vio_read(Vio *vio, uchar *	buf, size_t size);
+size_t  vio_read(Vio *vio, uchar *	buf, size_t size);
 size_t  vio_read_buff(Vio *vio, uchar * buf, size_t size);
-size_t	vio_write(Vio *vio, const uchar * buf, size_t size);
+size_t  vio_write(Vio *vio, const uchar * buf, size_t size);
 /* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible */
-int	vio_fastsend(Vio *vio);
+int vio_fastsend(Vio *vio);
 /* setsockopt SO_KEEPALIVE at SOL_SOCKET level, when possible */
-int	vio_keepalive(Vio *vio, my_bool	onoff);
+int vio_keepalive(Vio *vio, my_bool	onoff);
 /* Whenever we should retry the last read/write operation. */
-my_bool	vio_should_retry(Vio *vio);
+my_bool vio_should_retry(Vio *vio);
 /* Check that operation was timed out */
 my_bool vio_was_timeout(Vio *vio);
 /* Short text description of the socket for those, who are curious.. */
@@ -161,35 +161,36 @@ int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
 
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
-		       const char *ca_file,  const char *ca_path,
-		       const char *cipher, enum enum_ssl_init_error *error,
+                       const char *ca_file,  const char *ca_path,
+                       const char *cipher, enum enum_ssl_init_error *error,
                        const char *crl_file, const char *crl_path);
 struct st_VioSSLFd
 *new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
-		      const char *ca_file,const char *ca_path,
-		      const char *cipher, enum enum_ssl_init_error *error,
+                      const char *ca_file,const char *ca_path,
+                      const char *cipher, enum enum_ssl_init_error *error,
                       const char *crl_file, const char *crl_path);
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 
+void ssl_start(void);
 void vio_end(void);
 
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 }
 #endif
 
 #if !defined(DONT_MAP_VIO)
-#define vio_delete(vio) 			(vio)->viodelete(vio)
-#define vio_errno(vio)	 			(vio)->vioerrno(vio)
+#define vio_delete(vio)                         (vio)->viodelete(vio)
+#define vio_errno(vio)                          (vio)->vioerrno(vio)
 #define vio_read(vio, buf, size)                ((vio)->read)(vio,buf,size)
 #define vio_write(vio, buf, size)               ((vio)->write)(vio, buf, size)
-#define vio_fastsend(vio)			(vio)->fastsend(vio)
-#define vio_keepalive(vio, set_keep_alive)	(vio)->viokeepalive(vio, set_keep_alive)
-#define vio_should_retry(vio) 			(vio)->should_retry(vio)
+#define vio_fastsend(vio)                       (vio)->fastsend(vio)
+#define vio_keepalive(vio, set_keep_alive)  (vio)->viokeepalive(vio, set_keep_alive)
+#define vio_should_retry(vio)                   (vio)->should_retry(vio)
 #define vio_was_timeout(vio)                    (vio)->was_timeout(vio)
-#define vio_close(vio)				((vio)->vioclose)(vio)
-#define vio_peer_addr(vio, buf, prt, buflen)	(vio)->peer_addr(vio, buf, prt, buflen)
+#define vio_shutdown(vio)                       ((vio)->vioshutdown)(vio)
+#define vio_peer_addr(vio, buf, prt, buflen)    (vio)->peer_addr(vio, buf, prt, buflen)
 #define vio_io_wait(vio, event, timeout)        (vio)->io_wait(vio, event, timeout)
 #define vio_is_connected(vio)                   (vio)->is_connected(vio)
 #endif /* !defined(DONT_MAP_VIO) */
@@ -209,13 +210,14 @@ enum SSL_type
 /* This structure is for every connection on both sides */
 struct st_vio
 {
-  MYSQL_SOCKET  mysql_socket;     /* Instrumented socket */
-  my_bool		localhost;	/* Are we from localhost? */
-  struct sockaddr_storage	local;		/* Local internet address */
-  struct sockaddr_storage	remote;		/* Remote internet address */
+  MYSQL_SOCKET  mysql_socket;           /* Instrumented socket */
+  my_bool       localhost;              /* Are we from localhost? */
+  struct sockaddr_storage   local;      /* Local internet address */
+  struct sockaddr_storage   remote;     /* Remote internet address */
   int addrLen;                          /* Length of remote address */
-  enum enum_vio_type	type;		/* Type of connection */
-  char			desc[VIO_DESCRIPTION_SIZE]; /* Description string. This
+  enum enum_vio_type    type;           /* Type of connection */
+  my_bool               inactive; /* Connection inactive (has been shutdown) */
+  char                  desc[VIO_DESCRIPTION_SIZE]; /* Description string. This
                                                       member MUST NOT be
                                                       used directly, but only
                                                       via function
@@ -226,7 +228,16 @@ struct st_vio
   char                  *read_end;      /* end of unfetched data */
   int                   read_timeout;   /* Timeout value (ms) for read ops. */
   int                   write_timeout;  /* Timeout value (ms) for write ops. */
-  /* function pointers. They are similar for socket/SSL/whatever */
+  
+  /* 
+     VIO vtable interface to be implemented by VIO's like SSL, Socket,
+     Named Pipe, etc.
+  */
+  
+  /* 
+     viodelete is responsible for cleaning up the VIO object by freeing 
+     internal buffers, closing descriptors, handles. 
+  */
   void    (*viodelete)(Vio*);
   int     (*vioerrno)(Vio*);
   size_t  (*read)(Vio*, uchar *, size_t);
@@ -238,7 +249,12 @@ struct st_vio
   void    (*in_addr)(Vio*, struct sockaddr_storage*);
   my_bool (*should_retry)(Vio*);
   my_bool (*was_timeout)(Vio*);
-  int     (*vioclose)(Vio*);
+  /* 
+     vioshutdown is resposnible to shutdown/close the channel, so that no 
+     further communications can take place, however any related buffers,
+     descriptors, handles can remain valid after a shutdown.
+  */
+  int     (*vioshutdown)(Vio*);
   my_bool (*is_connected)(Vio*);
   my_bool (*has_data) (Vio*);
   int (*io_wait)(Vio*, enum enum_vio_io_event, int);
@@ -248,7 +264,7 @@ struct st_vio
   HANDLE hPipe;
 #endif
 #ifdef HAVE_OPENSSL
-  void	  *ssl_arg;
+  void    *ssl_arg;
 #endif
 #ifdef HAVE_SMEM
   HANDLE  handle_file_map;

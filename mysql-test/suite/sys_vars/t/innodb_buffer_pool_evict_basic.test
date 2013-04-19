@@ -1,0 +1,10 @@
+-- source include/have_innodb.inc
+# This is a debug variable for now
+-- source include/have_debug.inc
+
+SELECT @@global.innodb_buffer_pool_evict;
+
+SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+
+# Should always be empty.
+SELECT @@global.innodb_buffer_pool_evict;

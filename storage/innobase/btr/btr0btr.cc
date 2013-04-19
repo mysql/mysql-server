@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1032,7 +1032,7 @@ btr_page_create(
 	btr_blob_dbg_assert_empty(index, buf_block_get_page_no(block));
 
 	if (page_zip) {
-		page_create_zip(block, index, level, mtr);
+		page_create_zip(block, index, level, 0, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
 		/* Set the level of the new index page */
@@ -1602,7 +1602,7 @@ btr_create(
 	page_zip = buf_block_get_page_zip(block);
 
 	if (page_zip) {
-		page = page_create_zip(block, index, 0, mtr);
+		page = page_create_zip(block, index, 0, 0, mtr);
 	} else {
 		page = page_create(block, mtr,
 				   dict_table_is_comp(index->table));
@@ -1727,22 +1727,32 @@ btr_free_root(
 #endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************//**
-Reorganizes an index page. */
-static
-ibool
+Reorganizes an index page.
+
+IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index. This has to
+be done either within the same mini-transaction, or by invoking
+ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
+IBUF_BITMAP_FREE is unaffected by reorganization.
+
+@retval true if the operation was successful
+@retval false if it is a compressed page, and recompression failed */
+UNIV_INTERN
+bool
 btr_page_reorganize_low(
 /*====================*/
-	ibool		recovery,/*!< in: TRUE if called in recovery:
+	bool		recovery,/*!< in: true if called in recovery:
 				locks should not be updated, i.e.,
 				there cannot exist locks on the
 				page, and a hash index should not be
 				dropped: it cannot exist */
-	ulint		compression_level,/*!< in: compression level to be used
+	ulint		z_level,/*!< in: compression level to be used
 				if dealing with compressed page */
-	buf_block_t*	block,	/*!< in: page to be reorganized */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	mtr_t*		mtr)	/*!< in: mtr */
+	page_cur_t*	cursor,	/*!< in/out: page cursor */
+	dict_index_t*	index,	/*!< in: the index tree of the page */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
+	buf_block_t*	block		= page_cur_get_block(cursor);
 #ifndef UNIV_HOTBACKUP
 	buf_pool_t*	buf_pool	= buf_pool_from_bpage(&block->page);
 #endif /* !UNIV_HOTBACKUP */
@@ -1755,9 +1765,8 @@ btr_page_reorganize_low(
 	ulint		data_size2;
 	ulint		max_ins_size1;
 	ulint		max_ins_size2;
-	ibool		success		= FALSE;
-	byte		type;
-	byte*		log_ptr;
+	bool		success		= false;
+	ulint		pos;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	btr_assert_not_corrupted(block, index);
@@ -1766,27 +1775,6 @@ btr_page_reorganize_low(
 #endif /* UNIV_ZIP_DEBUG */
 	data_size1 = page_get_data_size(page);
 	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
-
-#ifndef UNIV_HOTBACKUP
-	/* Write the log record */
-	if (page_zip) {
-		type = MLOG_ZIP_PAGE_REORGANIZE;
-	} else if (page_is_comp(page)) {
-		type = MLOG_COMP_PAGE_REORGANIZE;
-	} else {
-		type = MLOG_PAGE_REORGANIZE;
-	}
-
-	log_ptr = mlog_open_and_write_index(
-		mtr, page, index, type, page_zip ? 1 : 0);
-
-	/* For compressed pages write the compression level. */
-	if (log_ptr && page_zip) {
-		mach_write_to_1(log_ptr, compression_level);
-		mlog_close(mtr, log_ptr + 1);
-	}
-
-#endif /* !UNIV_HOTBACKUP */
 
 	/* Turn logging off */
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -1811,6 +1799,9 @@ btr_page_reorganize_low(
 #endif /* !UNIV_HOTBACKUP */
 	btr_blob_dbg_remove(page, index, "btr_page_reorganize");
 
+	/* Save the cursor position. */
+	pos = page_rec_get_n_recs_before(page_cur_get_rec(cursor));
+
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
@@ -1828,14 +1819,13 @@ btr_page_reorganize_low(
 		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
 		page_set_max_trx_id(block, NULL, max_trx_id, mtr);
 		/* In crash recovery, dict_index_is_sec_or_ibuf() always
-		returns TRUE, even for clustered indexes.  max_trx_id is
+		holds, even for clustered indexes.  max_trx_id is
 		unused in clustered index pages. */
 		ut_ad(max_trx_id != 0 || recovery);
 	}
 
 	if (page_zip
-	    && !page_zip_compress(page_zip, page, index,
-				  compression_level, NULL)) {
+	    && !page_zip_compress(page_zip, page, index, z_level, NULL)) {
 
 		/* Restore the old page and exit. */
 		btr_blob_dbg_restore(page, temp_page, index,
@@ -1890,7 +1880,14 @@ btr_page_reorganize_low(
 			(unsigned long) max_ins_size2);
 		ut_ad(0);
 	} else {
-		success = TRUE;
+		success = true;
+	}
+
+	/* Restore the cursor position. */
+	if (pos > 0) {
+		cursor->rec = page_rec_get_nth(page, pos);
+	} else {
+		ut_ad(cursor->rec == page_get_infimum_rec(page));
 	}
 
 func_exit:
@@ -1904,27 +1901,89 @@ func_exit:
 	/* Restore logging mode */
 	mtr_set_log_mode(mtr, log_mode);
 
+#ifndef UNIV_HOTBACKUP
+	if (success) {
+		byte	type;
+		byte*	log_ptr;
+
+		/* Write the log record */
+		if (page_zip) {
+			ut_ad(page_is_comp(page));
+			type = MLOG_ZIP_PAGE_REORGANIZE;
+		} else if (page_is_comp(page)) {
+			type = MLOG_COMP_PAGE_REORGANIZE;
+		} else {
+			type = MLOG_PAGE_REORGANIZE;
+		}
+
+		log_ptr = mlog_open_and_write_index(
+			mtr, page, index, type, page_zip ? 1 : 0);
+
+		/* For compressed pages write the compression level. */
+		if (log_ptr && page_zip) {
+			mach_write_to_1(log_ptr, z_level);
+			mlog_close(mtr, log_ptr + 1);
+		}
+	}
+#endif /* !UNIV_HOTBACKUP */
+
 	return(success);
+}
+
+/*************************************************************//**
+Reorganizes an index page.
+
+IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index. This has to
+be done either within the same mini-transaction, or by invoking
+ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
+IBUF_BITMAP_FREE is unaffected by reorganization.
+
+@retval true if the operation was successful
+@retval false if it is a compressed page, and recompression failed */
+static __attribute__((nonnull))
+bool
+btr_page_reorganize_block(
+/*======================*/
+	bool		recovery,/*!< in: true if called in recovery:
+				locks should not be updated, i.e.,
+				there cannot exist locks on the
+				page, and a hash index should not be
+				dropped: it cannot exist */
+	ulint		z_level,/*!< in: compression level to be used
+				if dealing with compressed page */
+	buf_block_t*	block,	/*!< in/out: B-tree page */
+	dict_index_t*	index,	/*!< in: the index tree of the page */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	page_cur_t	cur;
+	page_cur_set_before_first(block, &cur);
+
+	return(btr_page_reorganize_low(recovery, z_level, &cur, index, mtr));
 }
 
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Reorganizes an index page.
-IMPORTANT: if btr_page_reorganize() is invoked on a compressed leaf
-page of a non-clustered index, the caller must update the insert
-buffer free bits in the same mini-transaction in such a way that the
-modification will be redo-logged.
-@return	TRUE on success, FALSE on failure */
+
+IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index. This has to
+be done either within the same mini-transaction, or by invoking
+ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
+IBUF_BITMAP_FREE is unaffected by reorganization.
+
+@retval true if the operation was successful
+@retval false if it is a compressed page, and recompression failed */
 UNIV_INTERN
-ibool
+bool
 btr_page_reorganize(
 /*================*/
-	buf_block_t*	block,	/*!< in: page to be reorganized */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	mtr_t*		mtr)	/*!< in: mtr */
+	page_cur_t*	cursor,	/*!< in/out: page cursor */
+	dict_index_t*	index,	/*!< in: the index tree of the page */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	return(btr_page_reorganize_low(FALSE, page_compression_level,
-				       block, index, mtr));
+	return(btr_page_reorganize_low(false, page_zip_level,
+				       cursor, index, mtr));
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1942,7 +2001,7 @@ btr_parse_page_reorganize(
 	buf_block_t*	block,	/*!< in: page to be reorganized, or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
-	ulint	level = page_compression_level;
+	ulint	level;
 
 	ut_ad(ptr && end_ptr);
 
@@ -1954,14 +2013,16 @@ btr_parse_page_reorganize(
 			return(NULL);
 		}
 
-		level = (ulint)mach_read_from_1(ptr);
+		level = mach_read_from_1(ptr);
 
 		ut_a(level <= 9);
 		++ptr;
+	} else {
+		level = page_zip_level;
 	}
 
 	if (block != NULL) {
-		btr_page_reorganize_low(TRUE, level, block, index, mtr);
+		btr_page_reorganize_block(true, level, block, index, mtr);
 	}
 
 	return(ptr);
@@ -1995,7 +2056,7 @@ btr_page_empty(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	if (page_zip) {
-		page_create_zip(block, index, level, mtr);
+		page_create_zip(block, index, level, 0, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
 		btr_page_set_level(page, NULL, level, mtr);
@@ -2043,7 +2104,7 @@ btr_root_raise_and_insert(
 	root = btr_cur_get_page(cursor);
 	root_block = btr_cur_get_block(cursor);
 	root_page_zip = buf_block_get_page_zip(root_block);
-	ut_ad(page_get_n_recs(root) > 0);
+	ut_ad(!page_is_empty(root));
 	index = btr_cur_get_index(cursor);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!root_page_zip || page_zip_validate(root_page_zip, root, index));
@@ -2091,8 +2152,8 @@ btr_root_raise_and_insert(
 	    || new_page_zip
 #endif /* UNIV_ZIP_COPY */
 	    || !page_copy_rec_list_end(new_block, root_block,
-				     page_get_infimum_rec(root),
-				     index, mtr)) {
+				       page_get_infimum_rec(root),
+				       index, mtr)) {
 		ut_a(new_page_zip);
 
 		/* Copy the page byte for byte. */
@@ -2779,7 +2840,7 @@ func_start:
 	page_zip = buf_block_get_page_zip(block);
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	ut_ad(page_get_n_recs(page) >= 1);
+	ut_ad(!page_is_empty(page));
 
 	page_no = buf_block_get_page_no(block);
 
@@ -2909,7 +2970,7 @@ insert_empty:
 		    || page_zip
 #endif /* UNIV_ZIP_COPY */
 		    || !page_move_rec_list_start(new_block, block, move_limit,
-					       cursor->index, mtr)) {
+						 cursor->index, mtr)) {
 			/* For some reason, compressing new_page failed,
 			even though it should contain fewer records than
 			the original page.  Copy the page byte for byte
@@ -2951,7 +3012,7 @@ insert_empty:
 		    || page_zip
 #endif /* UNIV_ZIP_COPY */
 		    || !page_move_rec_list_end(new_block, block, move_limit,
-					     cursor->index, mtr)) {
+					       cursor->index, mtr)) {
 			/* For some reason, compressing new_page failed,
 			even though it should contain fewer records than
 			the original page.  Copy the page byte for byte
@@ -3033,15 +3094,16 @@ insert_empty:
 		goto func_exit;
 	}
 
-	/* 8. If insert did not fit, try page reorganization */
+	/* 8. If insert did not fit, try page reorganization.
+	For compressed pages, page_cur_tuple_insert() will have
+	attempted this already. */
 
-	if (!btr_page_reorganize(insert_block, cursor->index, mtr)) {
+	if (page_cur_get_page_zip(page_cursor)
+	    || !btr_page_reorganize(page_cursor, cursor->index, mtr)) {
 
 		goto insert_failed;
 	}
 
-	page_cur_search(insert_block, cursor->index, tuple,
-			PAGE_CUR_LE, page_cursor);
 	rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,
 				    offsets, heap, n_ext, mtr);
 
@@ -3049,9 +3111,10 @@ insert_empty:
 		/* The insert did not fit on the page: loop back to the
 		start of the function for a new split */
 insert_failed:
-		/* We play safe and reset the free bits for new_page */
+		/* We play safe and reset the free bits */
 		if (!dict_index_is_clust(cursor->index)) {
 			ibuf_reset_free_bits(new_block);
+			ibuf_reset_free_bits(block);
 		}
 
 		/* fprintf(stderr, "Split second round %lu\n",
@@ -3576,7 +3639,8 @@ err_exit:
 
 		/* We have to reorganize merge_page */
 
-		if (!btr_page_reorganize(merge_block, index, mtr)) {
+		if (!btr_page_reorganize_block(
+			    false, page_zip_level, merge_block, index, mtr)) {
 
 			goto err_exit;
 		}
@@ -3816,17 +3880,16 @@ btr_discard_only_page_on_level(
 #endif /* UNIV_BTR_DEBUG */
 
 	btr_page_empty(block, buf_block_get_page_zip(block), index, 0, mtr);
+	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 
 	if (!dict_index_is_clust(index)) {
 		/* We play it safe and reset the free bits for the root */
 		ibuf_reset_free_bits(block);
 
-		if (page_is_leaf(buf_block_get_frame(block))) {
-			ut_a(max_trx_id);
-			page_set_max_trx_id(block,
-					    buf_block_get_page_zip(block),
-					    max_trx_id, mtr);
-		}
+		ut_a(max_trx_id);
+		page_set_max_trx_id(block,
+				    buf_block_get_page_zip(block),
+				    max_trx_id, mtr);
 	}
 }
 
@@ -4489,9 +4552,9 @@ loop:
 	right_page_no = btr_page_get_next(page, &mtr);
 	left_page_no = btr_page_get_prev(page, &mtr);
 
-	ut_a(page_get_n_recs(page) > 0 || (level == 0
-					   && page_get_page_no(page)
-					   == dict_index_get_page(index)));
+	ut_a(!page_is_empty(page)
+	     || (level == 0
+		 && page_get_page_no(page) == dict_index_get_page(index)));
 
 	if (right_page_no != FIL_NULL) {
 		const rec_t*	right_rec;

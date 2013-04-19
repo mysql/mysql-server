@@ -610,7 +610,7 @@ row_quiesce_table_complete(
 
 	srv_get_meta_data_filename(table, cfg_name, sizeof(cfg_name));
 
-	os_file_delete_if_exists(cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Deleting the meta-data file '%s'", cfg_name);
