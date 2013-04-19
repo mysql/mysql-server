@@ -1160,6 +1160,13 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			table->indexes.count + FIL_IBD_FILE_INITIAL_SIZE + 1);
 	}
 
+	DBUG_EXECUTE_IF("ib_crash_drop_reinit_done_create_to_start1",
+			DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_crash_drop_reinit_done_create_to_start2",
+			log_buffer_flush_to_disk();
+			os_thread_sleep(2000000);
+			DBUG_SUICIDE(););
+
 	/* Step-9: Re-create new indexes. */
 	if (!dict_table_is_temporary(table)) {
 
@@ -1225,6 +1232,12 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			table->corrupted = true;
 		}
 	}
+
+	DBUG_EXECUTE_IF("ib_crash_on_updating_dict_sys_info1", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_crash_on_updating_dict_sys_info2",
+			log_buffer_flush_to_disk();
+			os_thread_sleep(2000000);
+			DBUG_SUICIDE(););
 
 	/* Step-12: Cleanup Stage. Reset auto-inc value to 1.
 	Release all the locks.
