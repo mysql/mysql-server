@@ -133,27 +133,29 @@ def start_proc(proc, body):
     """
     f = proc['file']
     (user, pwd) = get_cred(body)
-    ch = produce_ABClusterHost(f['hostName'], user, pwd)
-    pc = proc['procCtrl']
-    params = proc['params']
-    if f.has_key('autoComplete'): 
-        if isinstance(f['autoComplete'], list):
-            executable = ch.auto_complete(f['path'], f['autoComplete'], f['name'])
+ 
+    with produce_ABClusterHost(f['hostName'], user, pwd) as ch:
+        pc = proc['procCtrl']
+        params = proc['params']
+        if f.has_key('autoComplete'): 
+            if isinstance(f['autoComplete'], list):
+                executable = ch.auto_complete(f['path'], f['autoComplete'], f['name'])
+            else:
+                executable = ch.auto_complete(f['path'], ['bin', 'scripts', '', ch.path_module.join('..','scripts')], f['name'])
         else:
-            executable = ch.auto_complete(f['path'], ['bin', 'scripts', '', ch.path_module.join('..','scripts')], f['name'])
-    else:
-        executable = ch.path_module.join(f['path'], f['name'])
+            executable = ch.path_module.join(f['path'], f['name'])
         
-    stdinFile = None
-    if f.has_key('stdinFile'):
-        assert (ch.file_exists(f['stdinFile'])), 'File ' + f['stdinFile'] + " does not exist on host " + ch.host
-        stdinFile = f['stdinFile']
+        stdinFile = None
+        if f.has_key('stdinFile'):
+            assert (ch.file_exists(f['stdinFile'])), 'File ' + f['stdinFile'] + " does not exist on host " + ch.host
+            stdinFile = f['stdinFile']
 
-    _logger.debug('Attempting to launch '+executable+' on '+ch.host)
+        _logger.debug('Attempting to launch '+executable+' on '+ch.host)
 
-    ch.exec_cmdv(util.params_to_cmdv(executable, params), pc, stdinFile)
-    _logger.debug('pc='+str(pc))
+        ch.exec_cmdv(util.params_to_cmdv(executable, params), pc, stdinFile)
+        _logger.debug('pc='+str(pc))
    
+
 def start_pgroup(pgroup, body):
     """Start a process group specified in a startClusterReq command. Starts all 
     processes in the group and then waits until those processes have started, 
@@ -191,27 +193,21 @@ def handle_createFileReq(req, body):
     
     (user, pwd) = get_cred(body)
     f = body['file']
-    ch = produce_ABClusterHost(f['hostName'], user, pwd)
-    pathname = f['path']
-    if f.has_key('name'):
-        pathname = ch.path_module.join(f['path'], f['name'])
-        assert not (f.has_key('autoComplete') and f['autoComplete']) 
-        assert not (not (f.has_key('overwrite') and f['overwrite']) and ch.file_exists(pathname)), 'File '+pathname+' already exists on host '+ch.host
-        ch.mkdir_p(f['path'])
-        rf = ch.open(pathname, 'w+')
-        rf.write(body['contentString'])
-        rf.close()
-        rf = ch.open(pathname)
-        try:
-            assert rf.read() == body['contentString']
-        finally:
-            rf.close()
-            if util.get_val(f, 'transient'):
-                ch.drop([pathname])
-            else:
-                ch.drop()
-    else:
-        ch.mkdir_p(f['path'])
+    
+    with produce_ABClusterHost(f['hostName'], user, pwd) as ch:
+        pathname = f['path']
+        if f.has_key('name'):
+            pathname = ch.path_module.join(f['path'], f['name'])
+            assert not (f.has_key('autoComplete') and f['autoComplete']) 
+            assert not (not (f.has_key('overwrite') and f['overwrite']) and ch.file_exists(pathname)), 'File '+pathname+' already exists on host '+ch.host
+            ch.mkdir_p(f['path'])
+            with ch.open(pathname, 'w+') as rf:
+                rf.write(body['contentString'])
+
+            with ch.open(pathname) as rf:
+                assert rf.read() == body['contentString']
+        else:
+            ch.mkdir_p(f['path'])
 
     _logger.debug('pathname ' + pathname + ' created')
 
@@ -231,22 +227,15 @@ def handle_appendFileReq(req, body):
     assert (sf.has_key('path') and sf.has_key('name') and sf.has_key('hostName'))
     assert (df.has_key('path') and df.has_key('name') and df.has_key('hostName'))
 
-    ch = produce_ABClusterHost(sf['hostName'], user, pwd)
+    with produce_ABClusterHost(sf['hostName'], user, pwd) as ch:
+        sp = ch.path_module.join(sf['path'], sf['name'])
+        dp = ch.path_module.join(df['path'], df['name'])
 
-    sp = ch.path_module.join(sf['path'], sf['name'])
-    dp = ch.path_module.join(df['path'], df['name'])
+        assert (ch.file_exists(dp)), 'File ' + dp + ' does not exist on host ' + ch.host
+        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
 
-    assert (ch.file_exists(dp)), 'File ' + dp + " does not exist on host " + ch.host
-    assert (ch.file_exists(sp)), 'File ' + sp + " does not exist on host " + ch.host
-
-    sourceFile = ch.open(sp)
-    destinationFile = ch.open(dp, 'a+')
-
-    destinationFile.write(sourceFile.read())
-
-    sourceFile.close()
-    destinationFile.close()
-    ch.drop()
+        with (ch.open(sp), ch.open(dp, 'a+')) as (sourceFile, destinationFile):
+            destinationFile.write(sourceFile.read())
 
     return make_rep(req)
 
@@ -282,21 +271,11 @@ def handle_getLogTailReq(req, body):
     sf = body['logFile']
     assert (sf.has_key('path') and sf.has_key('name') and sf.has_key('hostName'))
 
-    ch = None
-    logFile = None
-    try:
-        ch = produce_ABClusterHost(sf['hostName'], user, pwd)
+    with produce_ABClusterHost(sf['hostName'], user, pwd) as ch:
         sp = ch.path_module.join(sf['path'], sf['name'])
-        assert (ch.file_exists(sp)), 'File ' + sp + " does not exist on host " + ch.host
-        logFile = ch.open(sp)
-        rep = make_rep(req, {'tail': logFile.read()})
-    finally:
-        if logFile: 
-            logFile.close()
-        if ch:
-            ch.drop()
-
-    return rep 
+        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
+        with ch.open(sp) as logFile:
+            return make_rep(req, {'tail': logFile.read()})
 
 
 from util import _parse_until_delim, parse_properties
@@ -316,21 +295,15 @@ class mgmd_reply(dict):
   def __str__(self):
     return self.reply_type+'\n'+'\n'.join(['{0}: {1}'.format(str(k), str(self[k])) for k in self.keys()])+'\n'
 
+
 def handle_runMgmdCommandReq(req, body):
     """Handler function for runMgmdCommandReq commands. Opens a new connection to mgmd, sends command, parses reply and wraps reply in mcc Rep object."""
 
     hostname = body['hostname'].encode('ascii', 'ignore')
     port = body['port']
-    mgmd = None
-
-    try:
-        mgmd = socket.create_connection((hostname, port))
+    with util.socket_shutter(socket.create_connection((hostname, port))) as mgmd:
         mgmd.sendall(body['mgmd_command']+'\n\n')
         s = mgmd.recv(4096)
-    finally:
-        if mgmd:
-            mgmd.shutdown(socket.SHUT_RDWR)
-            mgmd.close()
         
     status = mgmd_reply(s)
     sd = {}
@@ -351,7 +324,7 @@ def handle_getConfigIni(req, body):
 
     with produce_ABClusterHost(sf['hostName'], user, pwd) as ch:
         sp = ch.path_module.join(sf['path'], sf['name'])
-        assert (ch.file_exists(sp)), 'File ' + sp + " does not exist on host " + ch.host
+        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
         with ch.open(sp) as ini:
             return make_rep(req, {'config': config_parser.parse_cluster_config_ini_(ini)})
     
