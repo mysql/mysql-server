@@ -673,7 +673,6 @@ dberr_t
 row_truncate_update_system_tables(
 	dict_table_t*	table,
 	table_id_t	new_id,
-	ulint		old_space,
 	bool		has_internal_doc_id,
 	trx_t*		trx)
 {
@@ -683,7 +682,6 @@ row_truncate_update_system_tables(
 	ut_a(!dict_table_is_temporary(table));
 
 	info = pars_info_create();
-	pars_info_add_int4_literal(info, "new_space", (lint) table->space);
 	pars_info_add_ull_literal(info, "old_id", table->id);
 	pars_info_add_ull_literal(info, "new_id", new_id);
 
@@ -692,39 +690,15 @@ row_truncate_update_system_tables(
 		"PROCEDURE RENUMBER_TABLE_ID_PROC () IS\n"
 		"BEGIN\n"
 		"UPDATE SYS_TABLES"
-		" SET ID = :new_id, SPACE = :new_space\n"
+		" SET ID = :new_id\n"
 		" WHERE ID = :old_id;\n"
 		"UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
 		" WHERE TABLE_ID = :old_id;\n"
 		"UPDATE SYS_INDEXES"
-		" SET TABLE_ID = :new_id,"
-		" SPACE = :new_space\n"
+		" SET TABLE_ID = :new_id\n"
 		" WHERE TABLE_ID = :old_id;\n"
 		"END;\n"
 		, FALSE, trx);
-
-	if (err == DB_SUCCESS && old_space != table->space) {
-		info = pars_info_create();
-
-		pars_info_add_int4_literal(
-			info, "old_space", (lint) old_space);
-		pars_info_add_int4_literal
-			(info, "new_space", (lint) table->space);
-
-		err = que_eval_sql(
-			info,
-			"PROCEDURE "
-			"RENUMBER_TABLESPACE_PROC () IS\n"
-			"BEGIN\n"
-			"UPDATE SYS_TABLESPACES"
-			" SET SPACE = :new_space\n"
-			" WHERE SPACE = :old_space;\n"
-			"UPDATE SYS_DATAFILES"
-			" SET SPACE = :new_space"
-			" WHERE SPACE = :old_space;\n"
-			"END;\n"
-			, FALSE, trx);
-	}
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_before_fts_truncate", err = DB_ERROR;);
 
@@ -1224,9 +1198,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 		/* If this fails then we are in an inconsistent state and
 		the results are undefined. */
-
+		ut_ad(old_space == table->space);
 		err = row_truncate_update_system_tables(
-			table, new_id, old_space, has_internal_doc_id, trx);
+			table, new_id, has_internal_doc_id, trx);
 
 		if (err != DB_SUCCESS) {
 			table->corrupted = true;
