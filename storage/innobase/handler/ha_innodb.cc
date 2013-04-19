@@ -11420,7 +11420,7 @@ static MYSQL_SYSVAR_BOOL(use_atomic_writes, innobase_use_atomic_writes,
 static MYSQL_SYSVAR_BOOL(use_fallocate, innobase_use_fallocate,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Preallocate files fast, using operating system functionality. On POSIX systems, posix_fallocate system call is used.",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
