@@ -1,25 +1,5 @@
-
-/* 
-
-    TODO
-    DONE: Move this script up to top level configure.js 
-    In README direct people to say "node configure.js"
-    DONE: Remove interactive and readline support from waf builds
-    DONE: Read mysql path from filesystem in wscript? 
-    Auto-detect mysql layout here, and write about it in config.gypi
-    Fix crash if user types ~ in path name
-    Tab completion bug:
-      7.1.23/ 7.1.23-m32/ 7.1.23-m64/   completion supplies / after 23 
-    Verify default windows install path for 7.3
-    Don't offer the "skip" choice
-    If the first character is not a number, it's a path
-    If it's a tilde try to expand it to process.env.HOME
-    
-    
-*/
-
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -42,6 +22,8 @@
 //    Try to find installed mysql that matches architecture of node
 //    Ask user for mysql pathname
 //    Write mysql pathname into config.gypi and config.waf
+
+// TODO: Auto-detect mysql layout here, and write about it in config.gypi
 
 "use strict";
 
@@ -200,21 +182,26 @@ function configure(mysql, layout) {
 // Returns [ [array of matches], original substring ]
 function completion(line) {
   var matches = [];
-  var dir, base, files, stat;
+  var files = [];
+  var dir, base, stat;
+
+  function readCurrentDir(dir) {
+    files = [];  // parent scope
+    try {
+      files = fs.readdirSync(dir);
+    }
+    catch(e) {}
+  }
  
  if(line.slice(-1) == path_sep) {
     dir = line;
-    files = fs.readdirSync(dir);
+    readCurrentDir(dir);
     base = "";
   }
   else {
     dir = path.dirname(line);   // returns "." if path is unrooted
     base = path.basename(line);
-    files = [];
-    try { 
-      files = fs.readdirSync(dir);
-    }
-    catch(e) {}
+    readCurrentDir(dir);
   }
  
   for(var i = 0; i < files.length ; i++) {
@@ -228,8 +215,7 @@ function completion(line) {
       stat = fs.statSync(matches[0]);
       if(stat.isDirectory()) matches[0] += path_sep;
     }
-    catch(e) {
-    };
+    catch(e) {}
   }
   
   return [matches, line];
