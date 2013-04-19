@@ -108,7 +108,7 @@ We have two publicly accessible mailing lists:
  - tokudb-dev@googlegroups.com is for discussion of the development of
    TokuDB.
 
-We are also available on IRC on freenode.org, in the #tokutek channel.
+We are also available on IRC on freenode.net, in the #tokutek channel.
 
 
 License
