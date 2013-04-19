@@ -10,7 +10,7 @@ Suitable for running on a dev branch, or a release branch, or main.
 
 Just run the script from within a branch you want to test.
 
-By default, we stop everything, update from svn, rebuild, and restart the
+By default, we stop everything, update from git, rebuild, and restart the
 tests once a day.
 """
 
@@ -495,7 +495,7 @@ The test was upgrading from %s.''' % runner.oldversionstr
             upgradestr = ''
         send_mail(self.email,
                   'Stress test failure on %(hostname)s running %(branch)s.' % { 'hostname': h, 'branch': self.branch },
-                  ('''A stress test failed on %(hostname)s running %(branch)s at svn revision %(rev)s after %(test_duration)d seconds.%(upgradestr)s
+                  ('''A stress test failed on %(hostname)s running %(branch)s at revision %(rev)s after %(test_duration)d seconds.%(upgradestr)s
 Its environment is saved to %(tarfile)s on that machine.
 
 The test configuration was:
@@ -537,11 +537,13 @@ def send_mail(toaddrs, subject, body):
     s.sendmail(fromaddr, toaddrs, str(m))
     s.quit()
 
-def rebuild(tokudb, builddir, toku_svnroot, cc, cxx, tests):
-    info('Updating from svn.')
+def update(tokudb):
+    info('Updating from git.')
     devnull = open(os.devnull, 'w')
-    call(['svn', 'up'], stdout=devnull, stderr=STDOUT, cwd=tokudb)
+    call(['git', 'pull'], stdout=devnull, stderr=STDOUT, cwd=tokudb)
     devnull.close()
+
+def rebuild(tokudb, builddir, tokudb_data, cc, cxx, tests):
     info('Building tokudb.')
     if not os.path.exists(builddir):
         os.mkdir(builddir)
@@ -555,7 +557,7 @@ def rebuild(tokudb, builddir, toku_svnroot, cc, cxx, tests):
               '-DUSE_CTAGS=OFF',
               '-DUSE_ETAGS=OFF',
               '-DUSE_CSCOPE=OFF',
-              '-DTOKU_SVNROOT=%s' % toku_svnroot,
+              '-DTOKUDB_DATA=%s' % tokudb_data,
               tokudb],
              env=newenv,
              cwd=builddir)
@@ -570,7 +572,7 @@ def rebuild(tokudb, builddir, toku_svnroot, cc, cxx, tests):
         sys.exit(r)
 
 def revfor(tokudb):
-    proc = Popen("svn info | awk '/Revision/ {print $2}'",
+    proc = Popen("git describe --tags",
                  shell=True, cwd=tokudb, stdout=PIPE)
     (out, err) = proc.communicate()
     rev = out.strip()
@@ -580,7 +582,7 @@ def revfor(tokudb):
 def main(opts):
     builddir = os.path.join(opts.tokudb, 'build')
     if opts.build:
-        rebuild(opts.tokudb, builddir, opts.toku_svnroot, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
+        rebuild(opts.tokudb, builddir, opts.tokudb_data, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
     rev = revfor(opts.tokudb)
 
     if not os.path.exists(opts.savedir):
@@ -668,7 +670,8 @@ def main(opts):
             if scheduler.error is not None:
                 error('Scheduler reported an error.')
                 raise scheduler.error
-            rebuild(opts.tokudb, builddir, opts.toku_svnroot, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
+            update(opts.tokudb)
+            rebuild(opts.tokudb, builddir, opts.tokudb_data, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
             rev = revfor(opts.tokudb)
             for runner in runners:
                 runner.rev = rev
@@ -739,12 +742,12 @@ if __name__ == '__main__':
                                  'recover-test_stress_openclose.tdb']
     build_group = OptionGroup(parser, 'Build Options', 'Control how the fractal tree and tests get built.')
     build_group.add_option('--skip_build', action='store_false', dest='build', default=True,
-                           help='skip the svn up and build phase before testing [default=False]')
+                           help='skip the git pull and build phase before testing [default=False]')
     build_group.add_option('--rebuild_period', type='int', dest='rebuild_period', default=60 * 60 * 24,
-                           help='how many seconds between doing an svn up and rebuild, 0 means never rebuild [default=24 hours]')
-    default_toku_svnroot = os.path.abspath(os.path.join(default_toplevel, '..', '..'))
-    build_group.add_option('--toku_svnroot', type='string', dest='toku_svnroot', default=default_toku_svnroot,
-                           help='passed to cmake as TOKU_SVNROOT [default=%s]' % default_toku_svnroot)
+                           help='how many seconds between doing an git pull and rebuild, 0 means never rebuild [default=24 hours]')
+    default_tokudb_data = os.path.abspath(os.path.join(default_toplevel, '..', 'tokudb.data'))
+    build_group.add_option('--tokudb_data', type='string', dest='tokudb_data', default=default_tokudb_data,
+                           help='passed to cmake as TOKUDB_DATA [default=%s]' % default_tokudb_data)
     build_group.add_option('--cc', type='string', dest='cc', default='gcc47',
                            help='which compiler to use [default=gcc47]')
     build_group.add_option('--cxx', type='string', dest='cxx', default='g++47',
@@ -765,7 +768,7 @@ if __name__ == '__main__':
     upgrade_group.add_option('--add_old_version', action='append', type='choice', dest='old_versions', choices=['4.2.0', '5.0.8', '5.2.7', '6.0.0', '6.1.0', '6.5.1', '6.6.3'],
                              help='which old versions to use for running the stress tests in upgrade mode. can be specified multiple times [options=4.2.0, 5.0.8, 5.2.7, 6.0.0, 6.1.0, 6.5.1, 6.6.3]')
     upgrade_group.add_option('--old_environments_dir', type='string', dest='old_environments_dir',
-                             default='../../tokudb.data/old-stress-test-envs',
+                             default=('%s/old-stress-test-envs' % default_tokudb_data),
                              help='directory containing old version environments (should contain 5.0.8/, 5.2.7/, etc, and the environments should be in those) [default=../../tokudb.data/stress_environments]')
     parser.add_option_group(upgrade_group)
 
