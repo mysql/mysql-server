@@ -117,11 +117,14 @@ def handle_hostInfoReq(req, body):
     """
     
     (user, pwd) = get_cred(body)
-    ch = produce_ABClusterHost(body['hostName'], user, pwd)
+    with produce_ABClusterHost(body['hostName'], user, pwd) as ch:
+        return make_rep(req, { 'host': {'name': ch.host },
+                               'hostRes': {'ram':ch.ram, 
+                                           'cores': ch.cores, 
+                                           'uname': ch.hostInfo.uname,
+                                           'installdir': ch.installdir, 
+                                           'datadir': ch.hostInfo.pm.join(ch.homedir, 'MySQL_Cluster') }})
 
-    rep = make_rep(req, ch.hostInfo.rep)
-    ch.drop()
-    return rep
 
 def start_proc(proc, body):
     """Start individual process as specified in startClusterReq command.
@@ -296,38 +299,11 @@ def handle_getLogTailReq(req, body):
     return rep 
 
 
-def _parse_until_delim(ctx, fld, delim):
-    """ Return False unless delim exists in ctx['str']. Assign ctx['str'] excluding delim to ctx[fld] and assign ctx[str] to the remainder, excluding delim, and return True otherwise."""
-    i = ctx['str'].find(delim)
-    if (i == -1):
-        return False
- 
-    ctx[fld] = ctx['str'][0:i]
-    ctx['str'] = ctx['str'][i+len(delim):]
-    return True	
-
-def parse_empty_line(ctx):
-    """Return False unless ctx[str] starts with an empty line. Consume the empty line and return True otherwise."""
-    if ctx['str'].startswith('\n'):
-        ctx['str'] = ctx['str'][1:]
-        return True
-    return False	
-  
-def parse_property(ctx):
-    """Return False unless key and value parsing succeeds. Add kv-pair to ctx['properties'] and return True otherwise."""
-    if _parse_until_delim(ctx, 'key', ': ') and _parse_until_delim(ctx, 'val', '\n'):
-        ctx['properties'][ctx['key']] = ctx['val']
-        return True
-    return False
-  
-def parse_properties(ctx):
-    """Return False unless ctx['str'] is a list of properties, a single property or an empty line. 
-    Parse the list of properties and return True otherwise."""
-    return parse_property(ctx) and parse_properties(ctx) or parse_empty_line(ctx)
+from util import _parse_until_delim, parse_properties
 
 def parse_reply(ctx):
     """Return False unless ctx['str'] is an mgmd reply. Assign first line to ctx['reply_type], parse property list and return True otherwise."""
-    return _parse_until_delim(ctx, 'reply_type', '\n') and parse_properties(ctx)
+    return _parse_until_delim(ctx, 'reply_type', '\n') and parse_properties(ctx,':')
 
 
 class mgmd_reply(dict):

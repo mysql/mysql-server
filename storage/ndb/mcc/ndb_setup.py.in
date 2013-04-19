@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     (pymajor, pyminor) = num_py_major_minor_tuple()
     assert (pymajor == 2 and pyminor >= 6), 'Unsupported Python version: '+str(platform.python_version())
-    sys.path.append('/usr/local/lib/bzr-2.1.0-2010.03/lib/python2.6/site-packages')
+    sys.path.append('/opt/csw/lib/python/site-packages')
 
     import request_handler
     request_handler.main(prefix, abs_install_subdir)
