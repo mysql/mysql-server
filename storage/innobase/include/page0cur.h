@@ -136,13 +136,6 @@ page_cur_position(
 					the record */
 	page_cur_t*		cur);	/*!< out: page cursor */
 /**********************************************************//**
-Invalidates a page cursor by setting the record pointer NULL. */
-UNIV_INLINE
-void
-page_cur_invalidate(
-/*================*/
-	page_cur_t*	cur);	/*!< out: page cursor */
-/**********************************************************//**
 Moves the cursor to the next record on page. */
 UNIV_INLINE
 void
