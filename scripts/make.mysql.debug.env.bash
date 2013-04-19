@@ -97,7 +97,7 @@ echo 'if [ $? != 0 ] ; then exit 1; fi'
 echo popd
 
 echo '# build in the mysql directory'
-echo cd \$builddir/mysql
+echo cd \$builddir/$mysql
 echo export TOKUFRACTALTREE_LIBNAME=\${TOKUFRACTALTREE_LIBNAME}_static
 echo export TOKUPORTABILITY_LIBNAME=\${TOKUPORTABILITY_LIBNAME}_static
 echo mkdir build.debug
