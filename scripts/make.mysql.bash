@@ -208,11 +208,11 @@ function generate_cmake_cmd() {
     echo -n cmake .. $extra_flags -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=$cmake_build_type
     if [ $system = linux ] ; then
         echo -n " " \
-            -DCMAKE_EXE_LINKER_FLAGS=\"-Wl,--whole-archive \$TOKUFRACTALTREE/lib/libjemalloc.a -Wl,-no-whole-archive\"
+            -DTOKU_JEMALLOC_LIBRARY=\"-Wl,--whole-archive \$TOKUFRACTALTREE/lib/libjemalloc.a -Wl,-no-whole-archive\"
     elif [ $system = darwin ] ; then
         echo -n " " \
             -DWITH_SAFEMALLOC=OFF -DWITH_SSL=system \
-            -DCMAKE_EXE_LINKER_FLAGS=\"-Wl,-force_load -Wl,\$TOKUFRACTALTREE/lib/libjemalloc.a\"
+            -DTOKU_JEMALLOC_LIBRARY=\"-Wl,-force_load -Wl,\$TOKUFRACTALTREE/lib/libjemalloc.a\"
     else
         exit 1
     fi
@@ -367,7 +367,7 @@ function generate_build_from_src() {
                 echo 'sed -i -e"s/README/& %{src_dir}\/README-TOKUDB/" SPECS/$specfile'
 
                 # add jemalloc to the linker flags
-                echo 'sed -i -e"s/^\(.*-DMYSQL_SERVER_SUFFIX=.*\)$/& -DCMAKE_EXE_LINKER_FLAGS=\"-Wl,--whole-archive \$\{TOKUFRACTALTREE\}\/lib\/libjemalloc.a -Wl,-no-whole-archive\"/" SPECS/$specfile'
+                echo 'sed -i -e"s/^\(.*-DMYSQL_SERVER_SUFFIX=.*\)$/& -DTOKU_JEMALLOC_LIBRARY=\"-Wl,--whole-archive \$\{TOKUFRACTALTREE\}\/lib\/libjemalloc.a -Wl,-no-whole-archive\"/" SPECS/$specfile'
 
                 # add the hot backup lib to the server package file list
                 echo 'sed -i -e"s/%{_datadir}\/mysql\/$/&\n%attr(755, root, root) %{_libdir}\/libHotBackup*.so/" SPECS/$specfile'
@@ -463,7 +463,7 @@ function build_mysql_src() {
 
         # add README-TOKUDB
         if [ ! -f $mysqlsrc/README-TOKUDB ] ; then
-            cp ft-engine/README-TOKUDB $mysqlsrc
+            cp ft-index/README-TOKUDB $mysqlsrc
         fi
         sed -i -e's/FILES README DESTINATION/FILES README README-TOKUDB DESTINATION/' $mysqlsrc/CMakeLists.txt
 
