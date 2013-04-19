@@ -36,7 +36,7 @@ tst_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 mcc_dir = os.path.dirname(tst_dir)
 
 # Paramiko from Bazaar 
-sys.path += [tst_dir, mcc_dir, '/usr/local/lib/bzr-2.1.0-2010.03/lib/python2.6/site-packages', '/usr/local/lib/bzr-2.1.0/lib/python/site-packages', '/opt/csw/lib/python/site-packages' ]
+sys.path += [tst_dir, mcc_dir, '/opt/csw/lib/python/site-packages' ]
 
 import logging
 if pyminor < 7:
@@ -57,6 +57,7 @@ import stat
 import tempfile
 import platform
 import time
+import contextlib
 
 import request_handler
 import config_parser
@@ -105,18 +106,16 @@ def host_is_unreachable(hostname, port=22):
     return util.try_connect(hostname, port, False, rd)
 
 def is_local_sshd_available():
-    c = SSHClient()
-    c.set_missing_host_key_policy(WarningPolicy())
-    #c.load_system_host_keys()
-    try:
-        c.connect(local_ipv4_ssh_addr(), password=util.get_val(os.environ, 'SSH_PWD'))
-    except:
-        logging.exception('No usable sshd on this machine: ')
-        return False
-    else:
-        return True
-    finally:
-        c.close()
+    with contextlib.closing(SSHClient()) as c:
+        c.set_missing_host_key_policy(WarningPolicy())
+        #c.load_system_host_keys()
+        try:
+            c.connect(local_ipv4_ssh_addr(), password=util.get_val(os.environ, 'SSH_PWD'))
+        except:
+            logging.exception('No usable sshd on this machine: ')
+            return False
+        else:
+            return True
 
 def mock_msg_as_json(cmd, body):
     return json.dumps(mock_msg(cmd,body))
@@ -219,14 +218,11 @@ class _TestABClusterHost:
         logging.debug('d='+d)
         self.ch.mkdir_p(d)
         bazname = self.ch.path_module.join(d, 'baz')
-        f = self.ch.open(bazname, 'w+')
-        try:
+        with self.ch.open(bazname, 'w+') as f:
             f.write('Some text here...\n')
-            f.close()
-            f = self.ch.open(bazname)
+
+        with self.ch.open(bazname) as f:
             self.assertEqual(f.read(), 'Some text here...\n')
-        finally:
-            f.close()
 
     def test_stat_dir_2(self):
         if not hasattr(self.ch, 'sftp'):
@@ -255,9 +251,9 @@ class _TestABClusterHost:
         self.ch.mkdir_p(somedir_name)
 
     def test_hostInfo(self):
-        hir = json_normalize(self.ch.hostInfo.rep)
-        self.assertGreater(hir['hostRes']['ram'], 1000)
-        self.assertGreater(hir['hostRes']['cores'], 0)
+        self.assertGreater(self.ch.hostInfo.ram, 1000)
+        self.assertGreater(self.ch.hostInfo.cores, 0)
+        self.assertIsNotNone(self.ch.hostInfo.homedir)
 
 
 class Test4LocalClusterHost(utmod.TestCase, _TestABClusterHost):

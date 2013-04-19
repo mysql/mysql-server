@@ -22,8 +22,19 @@ import errno
 import stat
 import platform
 import logging
+import contextlib
 
 _logger = logging.getLogger(__name__)
+
+@contextlib.contextmanager
+def socket_shutter(sock):
+    """x"""
+    try:
+        yield sock
+    finally:
+        sock.shutdown(socket.SHUT_RDWR)
+        sock.close()
+
 
 def is_set(val, mask):
     """Return True if bits in mask are also set in val."""

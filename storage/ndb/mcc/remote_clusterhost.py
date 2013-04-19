@@ -216,8 +216,7 @@ class RemoteClusterHost(ABClusterHost):
             contents = stdin.read()
             stdin.close()
 
-        chan = self.client.get_transport().open_session()
-        try:
+        with contextlib.closing(self.client.get_transport().open_session()) as chan:
             chan.set_combine_stderr(True)
             _logger.debug('cmdln='+cmdln)
             chan.exec_command(cmdln)
@@ -242,8 +241,6 @@ class RemoteClusterHost(ABClusterHost):
                 if chan.exit_status_ready():
                     output = chan.makefile('rb')
                     raise RemoteExecException(self.host, cmdln, chan.recv_exit_status(), output)
-        finally:
-            chan.close()
             
     def exec_cmdv(self, cmdv, procCtrl={ 'waitForCompletion': True }, stdinFile=None):
         """Execute an OS command vector on the remote host.
