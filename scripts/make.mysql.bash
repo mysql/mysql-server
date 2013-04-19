@@ -70,6 +70,7 @@ function github_download() {
                 $rev) | \
             tar --extract \
                 --directory $dest
+        if [ $? != 0 ] ; then exit 1; fi
 
         rm -rf $tempdir
     fi
@@ -121,8 +122,6 @@ function build_fractal_tree() {
 
         pushd ft-index
         if [ $? != 0 ] ; then exit 1; fi
-
-        echo `date` make $tokudb $cc $($cc --version)
 
         local ft_build_type=""
         local use_valgrind=""
@@ -522,16 +521,14 @@ function build_mysql_release() {
 PATH=$HOME/bin:$PATH
 
 git_server=git@github.com
-git_tag=
+git_tag=HEAD
 mysql=mysql-5.5.30
-tokudb=tokudb
 do_s3=1
 do_make_check=1
 cc=gcc47
 cxx=g++47
 system=`uname -s | tr '[:upper:]' '[:lower:]'`
 arch=`uname -m | tr '[:upper:]' '[:lower:]'`
-svnserver=https://svn.tokutek.com/tokudb
 makejobs=$(get_ncpus)
 build_debug=0
 build_type=community
@@ -551,19 +548,20 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-if [ -z $git_tag ] ; then exit 1; fi
-
 # set tokudb version
-if [[ $git_tag =~ tokudb-(.*) ]] ; then
+if [ $git_tag = HEAD ] ; then
+    tokudb_version=$(date +%s)
+elif [[ $git_tag =~ tokudb-(.*) ]] ; then
     tokudb_version=${BASH_REMATCH[1]}
 else
     tokudb_version=$git_tag
+    git_tag=HEAD
 fi
 if [ $build_debug != 0 ] ; then
     if [ $cmake_build_type = RelWithDebInfo ] ; then cmake_build_type=Debug; fi
     tokudb_version=$tokudb_version-debug
 fi
-if [ $build_type == enterprise ] ; then
+if [ $build_type = enterprise ] ; then
     tokudb_version=$tokudb_version-e
 fi
 
@@ -576,7 +574,7 @@ else
 fi
 
 # set build dir
-builddir=build-$tokudb-$tokudb_version
+builddir=build-tokudb-$tokudb_version
 if [ ! -d $builddir ] ; then mkdir $builddir; fi
 pushd $builddir
 
@@ -615,7 +613,7 @@ if [ $do_s3 != 0 ] ; then
         exitcode=$?
         echo `date` s3put tokutek-mysql-build-date $d/$f $exitcode
     done
-    if [ ! -z $git_tag ] ; then
+    if [[ $git_tag =~ tokudb-.* ]] ; then
         s3mkbucket tokutek-mysql-$git_tag
         if [ $? = 0 ] ; then
             files=$(ls $tokufractaltreedir.tar.gz* $mysqldir.tar.gz* $mysqlsrc.tar.gz* *.rpm*)
