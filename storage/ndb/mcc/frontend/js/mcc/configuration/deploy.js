@@ -130,24 +130,24 @@ function setupContext() {
         var waitItems = [];
         var waitAllItems = null;
         for (var i in items) {
-            waitItems[i] = new dojo.Deferred();
             clusterItems[items[i].getId()] = items[i];
             processTypes.push(items[i]);
             processTypeMap[items[i].getValue("name")] = items[i];
             // The first ptype of the given family will be prototypical 
             if (!processFamilyMap[items[i].getValue("family")]) {
                 processFamilyMap[items[i].getValue("family")] = items[i];
+                // Setup process family parameters
+                waitItems.push(new dojo.Deferred());
+                (function (i, j) {
+                    mcc.configuration.typeSetup(items[i]).then(
+                        function () {
+                            mcc.util.dbg("Setup process family " + 
+                                items[i].getValue("family") + " done");
+                            waitItems[j].resolve();
+                        }
+                    );
+                })(i, waitItems.length-1);
             }
-            // Setup process family parameters
-            (function (i) {
-                mcc.configuration.typeSetup(items[i]).then(
-                    function () {
-                        mcc.util.dbg("Setup process family " + 
-                            items[i].getValue("family") + " done");
-                        waitItems[i].resolve();
-                    }
-                );
-            })(i);
         }
         waitAllItems = new dojo.DeferredList(waitItems);
         waitAllItems.then(function (res) {
