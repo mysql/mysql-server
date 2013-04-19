@@ -288,240 +288,243 @@ function hwDepParams(processTypeName) {
 }
 
 // Calculate process type parameters depending on environment and external input
-function typeSetup(processItem) {
+function typeSetup(processTypeItem) {
 
-    var processtype = processItem.getValue("family");
+    var processFamilyName = processTypeItem.getValue("family");
     var waitCondition = new dojo.Deferred();
-    mcc.util.dbg("Setup process type defaults for " + processtype);
+    mcc.util.dbg("Setup process type defaults for family " + processFamilyName);
 
-    // Process type specific assignments
-    if (processtype == "management") {
-        // Get portbase, set default port
-        var pbase = processItem.getValue("Portbase");
-        if (pbase === undefined) {
-            pbase = mcc.configuration.getPara(processtype, null, 
-                    "Portbase", "defaultValueType");
-        }
-        mcc.configuration.setPara(processtype, null, "Portnumber",
-                "defaultValueType", pbase);
-        // Leave process type level datadir undefined
-        waitCondition.resolve();
-    } else if (processtype == "data") {
-
-        // Check parameters that depend on cluster defaults
-        mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
+    // Get the prototypical process type for this family
+    mcc.storage.processTypeStorage().getItems({family: processFamilyName}).then(function(pTypes) {
+        var processFamilyItem= pTypes[0]; 
+        
+        // Process type specific assignments
+        if (processFamilyName == "management") {
+            // Get portbase, set default port
+            var pbase = processFamilyItem.getValue("Portbase");
+            if (pbase === undefined) {
+                pbase = mcc.configuration.getPara(processFamilyName, null, 
+                        "Portbase", "defaultValueType");
+            }
+            mcc.configuration.setPara(processFamilyName, null, "Portnumber",
+                    "defaultValueType", pbase);
             // Leave process type level datadir undefined
+            waitCondition.resolve();
+        } else if (processFamilyName == "data") {
 
-            // Check real time or web mode
-            if (cluster.getValue("apparea") != "realtime") {
-                mcc.configuration.setPara(processtype, null, 
-                        "HeartbeatIntervalDbDb", "defaultValueType", 15000);
-                mcc.configuration.setPara(processtype, null, 
-                        "HeartbeatIntervalDbApi", "defaultValueType", 15000);
-            } else {
-                mcc.configuration.setPara(processtype, null, 
-                        "HeartbeatIntervalDbDb", "defaultValueType", 1500);
-                mcc.configuration.setPara(processtype, null, 
-                        "HeartbeatIntervalDbApi", "defaultValueType", 1500);
-            }
+            // Check parameters that depend on cluster defaults
+            mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
+                // Leave process type level datadir undefined
 
-            // Check read/write load
-            if (cluster.getValue("writeload") == "high") {
-                mcc.configuration.setPara(processtype, null, 
-                        "SendBufferMemory", "defaultValueType", 8);
-                mcc.configuration.setPara(processtype, null, 
-                        "ReceiveBufferMemory", "defaultValueType", 8);
-                mcc.configuration.setPara(processtype, null, 
-                        "RedoBuffer", "defaultValueType", 64);
-            } else if (cluster.getValue("writeload") == "medium") {
-                mcc.configuration.setPara(processtype, null, 
-                        "SendBufferMemory", "defaultValueType", 4);
-                mcc.configuration.setPara(processtype, null, 
-                        "ReceiveBufferMemory", "defaultValueType", 4);
-                mcc.configuration.setPara(processtype, null, 
-                        "RedoBuffer", "defaultValueType", 32);
-            } else {
-                mcc.configuration.setPara(processtype, null, 
-                        "SendBufferMemory", "defaultValueType", 2);
-                mcc.configuration.setPara(processtype, null, 
-                        "ReceiveBufferMemory", "defaultValueType", 2);
-                mcc.configuration.setPara(processtype, null, 
-                        "RedoBuffer", "defaultValueType", 32);
-            }
-
-            // Get disk page buffer memory, assign shared global memory
-            var diskBuf = processItem.getValue(
-                    mcc.configuration.getPara(processtype, null, 
-                            "DiskPageBufferMemory", "attribute"));
-            if (!diskBuf) {
-                diskBuf = mcc.configuration.getPara(processtype, null, 
-                    "DiskPageBufferMemory", "defaultValueType");
-            }
-
-            if (diskBuf > 8192) {
-                mcc.configuration.setPara(processtype, null, 
-                        "SharedGlobalMemory", "defaultValueType", 1024);
-            } else if (diskBuf > 64) {
-                mcc.configuration.setPara(processtype, null, 
-                        "SharedGlobalMemory", "defaultValueType", 384);
-            } else {
-                mcc.configuration.setPara(processtype, null, 
-                        "SharedGlobalMemory", "defaultValueType", 20);
-            }
-
-            // Restrict MaxNoOfTables
-            var maxTab = processItem.getValue(
-                    mcc.configuration.getPara(processtype, null, 
-                            "MaxNoOfTables", "attribute"));
-            if (maxTab) {
-                if (maxTab > 20320) {
-                    processItem.setValue(
-                        mcc.configuration.getPara(processtype, null, 
-                            "MaxNoOfTables", "attribute"), 20320);
-                } else if (maxTab < 128) {
-                    processItem.setValue(
-                        mcc.configuration.getPara(processtype, null, 
-                            "MaxNoOfTables", "attribute"), 128);
+                // Check real time or web mode
+                if (cluster.getValue("apparea") != "realtime") {
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "HeartbeatIntervalDbDb", "defaultValueType", 15000);
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "HeartbeatIntervalDbApi", "defaultValueType", 15000);
+                } else {
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "HeartbeatIntervalDbDb", "defaultValueType", 1500);
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "HeartbeatIntervalDbApi", "defaultValueType", 1500);
                 }
-                mcc.storage.processStorage().save();
-            }
 
-            // Calculate datamem, indexmem, and maxexecthreads
-            hwDepParams("ndbd").then(function () {
-                hwDepParams("ndbmtd").then(function () {
+                // Check read/write load
+                if (cluster.getValue("writeload") == "high") {
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "SendBufferMemory", "defaultValueType", 8);
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "ReceiveBufferMemory", "defaultValueType", 8);
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "RedoBuffer", "defaultValueType", 64);
+                } else if (cluster.getValue("writeload") == "medium") {
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "SendBufferMemory", "defaultValueType", 4);
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "ReceiveBufferMemory", "defaultValueType", 4);
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "RedoBuffer", "defaultValueType", 32);
+                } else {
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "SendBufferMemory", "defaultValueType", 2);
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "ReceiveBufferMemory", "defaultValueType", 2);
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "RedoBuffer", "defaultValueType", 32);
+                }
 
-                    // Get predefined data node parameters
-                    var params = mcc.configuration.getAllPara("data");
+                // Get disk page buffer memory, assign shared global memory
+                var diskBuf = processFamilyItem.getValue(
+                        mcc.configuration.getPara(processFamilyName, null, 
+                                "DiskPageBufferMemory", "attribute"));
+                if (!diskBuf) {
+                    diskBuf = mcc.configuration.getPara(processFamilyName, null, 
+                        "DiskPageBufferMemory", "defaultValueType");
+                }
 
-                    function setLow(param) {
-                        var low = undefined;
-                        // Loop over instance values, collect min, set
-                        for (var i in params[param].defaultValueInstance) {
-                            var curr = params[param].defaultValueInstance[i];
-                            if (low === undefined || 
-                                    (curr !== undefined && curr < low)) {
-                                low = curr;
+                if (diskBuf > 8192) {
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "SharedGlobalMemory", "defaultValueType", 1024);
+                } else if (diskBuf > 64) {
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "SharedGlobalMemory", "defaultValueType", 384);
+                } else {
+                    mcc.configuration.setPara(processFamilyName, null, 
+                            "SharedGlobalMemory", "defaultValueType", 20);
+                }
+
+                // Restrict MaxNoOfTables
+                var maxTab = processFamilyItem.getValue(
+                        mcc.configuration.getPara(processFamilyName, null, 
+                                "MaxNoOfTables", "attribute"));
+                if (maxTab) {
+                    if (maxTab > 20320) {
+                        processFamilyItem.setValue(
+                            mcc.configuration.getPara(processFamilyName, null, 
+                                "MaxNoOfTables", "attribute"), 20320);
+                    } else if (maxTab < 128) {
+                        processFamilyItem.setValue(
+                            mcc.configuration.getPara(processFamilyName, null, 
+                                "MaxNoOfTables", "attribute"), 128);
+                    }
+                    mcc.storage.processStorage().save();
+                }
+
+                // Calculate datamem, indexmem, and maxexecthreads
+                hwDepParams("ndbd").then(function () {
+                    hwDepParams("ndbmtd").then(function () {
+
+                        // Get predefined data node parameters
+                        var params = mcc.configuration.getAllPara("data");
+
+                        function setLow(param) {
+                            var low = undefined;
+                            // Loop over instance values, collect min, set
+                            for (var i in params[param].defaultValueInstance) {
+                                var curr = params[param].defaultValueInstance[i];
+                                if (low === undefined || 
+                                        (curr !== undefined && curr < low)) {
+                                    low = curr;
+                                }
+                            }
+                            mcc.util.dbg("Lowest value for " + param + 
+                                    " now: " + low);
+                            if (low !== undefined) {
+                                mcc.configuration.setPara(processFamilyName, null, 
+                                        param, "defaultValueType", low);
                             }
                         }
-                        mcc.util.dbg("Lowest value for " + param + 
-                                " now: " + low);
-                        if (low !== undefined) {
-                            mcc.configuration.setPara(processtype, null, 
-                                    param, "defaultValueType", low);
+
+                        setLow("DataMemory");
+                        setLow("IndexMemory");
+                        setLow("MaxNoOfExecutionThreads");
+
+                        // Get overridden redo log file size
+                        var fileSz = processFamilyItem.getValue("FragmentLogFileSize");
+
+                        // If not overridden, set value depending on app area
+                        if (!fileSz) {
+                            // Lower value if simple testing, easier on resources
+                            if (cluster.getValue("apparea") == "simple testing") {
+                                fileSz = 64;
+                            } else {
+                                fileSz = 256;                        
+                            }
+                            mcc.configuration.setPara(processFamilyName, null, 
+                                    "FragmentLogFileSize", "defaultValueType", fileSz);
                         }
-                    }
+                        mcc.util.dbg("FragmentLogFileSize=" + fileSz);
 
-                    setLow("DataMemory");
-                    setLow("IndexMemory");
-                    setLow("MaxNoOfExecutionThreads");
+                        // Caclulate and set number of files
+                        var dataMem = mcc.configuration.getPara(processFamilyName, null, 
+                                        "DataMemory", "defaultValueType");
+                        var noOfFiles = 16;
 
-                    // Get overridden redo log file size
-                    var fileSz = processItem.getValue("FragmentLogFileSize");
-                    
-                    // If not overridden, set value depending on app area
-                    if (!fileSz) {
-                        // Lower value if simple testing, easier on resources
-                        if (cluster.getValue("apparea") == "simple testing") {
-                            fileSz = 64;
-                        } else {
-                            fileSz = 256;                        
+                        // Use def value unless not simple testing and DataMem defined
+                        if (cluster.getValue("apparea") != "simple testing" && dataMem) {
+                            noOfFiles = Math.floor(6 * dataMem / fileSz / 4);
                         }
-                        mcc.configuration.setPara(processtype, null, 
-                                "FragmentLogFileSize", "defaultValueType", fileSz);
-                    }
-                    mcc.util.dbg("FragmentLogFileSize=" + fileSz);
 
-                    // Caclulate and set number of files
-                    var dataMem = mcc.configuration.getPara(processtype, null, 
-                                    "DataMemory", "defaultValueType");
-                    var noOfFiles = 16;
+                        // At least three files in each set
+                        if (noOfFiles < 3) {
+                            noOfFiles = 3;
+                        }
+                        mcc.util.dbg("NoOfFragmentLogFiles=" + noOfFiles);
+                        mcc.configuration.setPara(processFamilyName, null, 
+                                "NoOfFragmentLogFiles", "defaultValueType", 
+                                noOfFiles);
 
-                    // Use def value unless not simple testing and DataMem defined
-                    if (cluster.getValue("apparea") != "simple testing" && dataMem) {
-                        noOfFiles = Math.floor(6 * dataMem / fileSz / 4);
-                    }
-                        
-                    // At least three files in each set
-                    if (noOfFiles < 3) {
-                        noOfFiles = 3;
-                    }
-                    mcc.util.dbg("NoOfFragmentLogFiles=" + noOfFiles);
-                    mcc.configuration.setPara(processtype, null, 
-                            "NoOfFragmentLogFiles", "defaultValueType", 
-                            noOfFiles);
-
-		    // Get number of data nodes
-		    mcc.util.getNodeDistribution().then(function (nNodes) {
-                        mcc.configuration.setPara(processtype, null, 
-                                "NoOfReplicas", "defaultValueType", 
-                                2 - (nNodes['ndbd'] + nNodes['ndbmtd']) % 2);
-			waitCondition.resolve();
-		    });
+                        // Get number of data nodes
+                        mcc.util.getNodeDistribution().then(function (nNodes) {
+                            mcc.configuration.setPara(processFamilyName, null, 
+                                    "NoOfReplicas", "defaultValueType", 
+                                    2 - (nNodes['ndbd'] + nNodes['ndbmtd']) % 2);
+                            waitCondition.resolve();
+                        });
+                    });
                 });
             });
-        });
-    } else if (processtype == "sql") {
-        // Get portbase, set default port
-        var pbase = processItem.getValue("Portbase");
-        if (pbase === undefined) {
-            pbase = mcc.configuration.getPara(processtype, null, 
-                    "Portbase", "defaultValueType");
+        } else if (processFamilyName == "sql") {
+            // Get portbase, set default port
+            var pbase = processFamilyItem.getValue("Portbase");
+            if (pbase === undefined) {
+                pbase = mcc.configuration.getPara(processFamilyName, null, 
+                        "Portbase", "defaultValueType");
+            }
+            mcc.configuration.setPara(processFamilyName, null, "Port",
+                    "defaultValueType", pbase);
+            // Leave process type level socket and datadir undefined
+            waitCondition.resolve();
+        } else if (processFamilyName == "api") {
+            waitCondition.resolve();
         }
-        mcc.configuration.setPara(processtype, null, "Port",
-                "defaultValueType", pbase);
-        // Leave process type level socket and datadir undefined
-        waitCondition.resolve();
-    } else if (processtype == "api") {
-        waitCondition.resolve();
-    }
+    });
     return waitCondition;
 }
 
 // ndb_mgmd process specific parameter assignments
-function ndb_mgmd_setup(processitem, processtype, host, waitCondition) {
-    var id = processitem.getId();
+function ndb_mgmd_setup(processItem, processFamilyItem, host, waitCondition) {
+    var id = processItem.getId();
     var datadir = host.getValue("datadir");
     var dirSep = mcc.util.dirSep(datadir);
+    var processFamilyName = processFamilyItem.getValue("family");
 
     // Set datadir
-    mcc.configuration.setPara(processtype, id, "DataDir",
+    mcc.configuration.setPara(processFamilyName, id, "DataDir",
             "defaultValueInstance", datadir +
-            processitem.getValue("NodeId") + dirSep);
+            processItem.getValue("NodeId") + dirSep);
 
     // Get colleague nodes, find own index on host
-    mcc.util.getColleagueNodes(processitem).then(function (colleagues) {
-        var myIdx = dojo.indexOf(colleagues, processitem.getId());
+    mcc.util.getColleagueNodes(processItem).then(function (colleagues) {
+        var myIdx = dojo.indexOf(colleagues, processItem.getId());
 
-        // Get process type
-        mcc.storage.processTypeStorage().getItem(
-                processitem.getValue("processtype")).then(function (ptype) {
-            // Get type's overridden port base
-            var pbase = ptype.getValue("Portbase");
+        // Get type's overridden port base
+        var pbase = processFamilyItem.getValue("Portbase");
 
-            // If not overridden, use type default
-            if (pbase === undefined) {
-                pbase = mcc.configuration.getPara(processtype, null, 
-                        "Portbase", "defaultValueType");
-            }
-            // Set port using retrieved portbase and node index on host
-            mcc.configuration.setPara(processtype, id, "Portnumber",
-                    "defaultValueInstance", myIdx + pbase);
+        // If not overridden, use type default
+        if (pbase === undefined) {
+            pbase = mcc.configuration.getPara(processFamilyName, null, 
+                    "Portbase", "defaultValueType");
+        }
+        // Set port using retrieved portbase and node index on host
+        mcc.configuration.setPara(processFamilyName, id, "Portnumber",
+                "defaultValueInstance", myIdx + pbase);
 
-            waitCondition.resolve();
-        });
+        waitCondition.resolve();
     });
 }
 
 // ndbXd process specific parameter assignments
-function ndbd_setup(processitem, processtype, host, waitCondition) {
-    var id = processitem.getId();
+function ndbd_setup(processItem, processFamilyItem, host, waitCondition) {
+    var id = processItem.getId();
     var datadir = host.getValue("datadir");
     var dirSep = mcc.util.dirSep(datadir);
-
+    var processFamilyName = processFamilyItem.getValue("family");
+        
     // Set datadir
-    mcc.configuration.setPara(processtype, id, "DataDir",
+    mcc.configuration.setPara(processFamilyName, id, "DataDir",
             "defaultValueInstance", datadir +
-            processitem.getValue("NodeId") + dirSep);
+            processItem.getValue("NodeId") + dirSep);
 
     // Get cluster attributes
     mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
@@ -529,22 +532,27 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
         mcc.util.getNodeDistribution().then(function(nNodes) {
             var noOfMysqld= nNodes["mysqld"];
             var noOfNdbd= nNodes["ndbd"] + nNodes["ndbmtd"];
-        
+                        
+            // Return overridden value, if defined, otherwise, return predefined
+            function getRealValue(attr) {
+                var val= processFamilyItem.getValue(attr);
+                if (val === undefined) {
+                    val= mcc.configuration.getPara(processFamilyName, null,
+                        attr, "defaultValueType");
+                }
+                return val;
+            }
+
             // Need these for calculations below
-            var MaxNoOfTables= mcc.configuration.getPara(processtype, null,
-                    "MaxNoOfTables", "defaultValueType");
-            var sendreceive=  mcc.configuration.getPara(processtype, null,
-                    "SendBufferMemory", "defaultValueType");
-            var DiskPageBufferMemory=  mcc.configuration.getPara(processtype,
-                    null, "DiskPageBufferMemory", "defaultValueType");
-            var SharedGlobalMemory=  mcc.configuration.getPara(processtype, 
-                    null, "SharedGlobalMemory", "defaultValueType");
-            var RedoBuffer=  mcc.configuration.getPara(processtype, null,
-                    "RedoBuffer", "defaultValueType");
-    
+            var MaxNoOfTables= getRealValue("MaxNoOfTables");
+            var sendreceive= getRealValue("SendBufferMemory");
+            var DiskPageBufferMemory= getRealValue("DiskPageBufferMemory");
+            var SharedGlobalMemory= getRealValue("SharedGlobalMemory");
+            var RedoBuffer= getRealValue("RedoBuffer");
+
             // Change this setting if we support managing connection pooling
             var connectionPool= 1;
-    
+
             // Temporary variables used in memory calculations
             var reserveMemoryToOS = 1024 * 1;
             var buffers = 300 * 1;
@@ -557,11 +565,11 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
                     + 2 * 2 * sendreceive +
                     (noOfNdbd * (noOfNdbd - 1) * 2 * sendreceive);
             var multiplier = 800;
-    
+
             // Get host ram and cores
-            mcc.storage.hostStorage().getItem(processitem.getValue("host")).
+            mcc.storage.hostStorage().getItem(processItem.getValue("host")).
                     then(function (host) {
-                        
+
                 var machineRAM = host.getValue("ram");
                 var machineCores = host.getValue("cores");
 
@@ -585,8 +593,8 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
                                 nExecThreads = 4;
                             }
                         }
-                        
-                        mcc.configuration.setPara(processtype, id, 
+
+                        mcc.configuration.setPara(processFamilyName, id, 
                                 "MaxNoOfExecutionThreads",
                                 "defaultValueInstance", nExecThreads);
                     }
@@ -607,7 +615,7 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
 
                         // Obey constraints
                         var indexConstraints = mcc.configuration.
-                                getPara(processtype, null,
+                                getPara(processFamilyName, null,
                                 "IndexMemory", "constraints");
                         if (indexMemory < indexConstraints.min) {
                             indexMemory = indexConstraints.min;
@@ -615,16 +623,12 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
                             indexMemory = indexConstraints.max;
                         }
 
-                        mcc.configuration.setPara(processtype, id, 
+                        mcc.configuration.setPara(processFamilyName, id, 
                                 "IndexMemory",
                                 "defaultValueInstance", indexMemory);
 
                         // Use overridden indexMemory for dataMemory calc
-                        var realIndexMemory = processitem.
-                                getValue("IndexMemory");
-                        if (!realIndexMemory) {
-                            realIndexMemory = indexMemory;
-                        }
+                        var realIndexMemory = getRealValue("IndexMemory");
 
                         // Set DataMemory
                         var dataMemory= Math.floor(multiplier * 
@@ -641,18 +645,20 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
 
                         // Obey constraints
                         var dataConstraints = mcc.configuration.
-                                getPara(processtype, null,
+                                getPara(processFamilyName, null,
                                 "DataMemory", "constraints");
                         if (dataMemory < dataConstraints.min) {
                             dataMemory = dataConstraints.min;
                         } else if (dataMemory > dataConstraints.max) {
                             dataMemory = dataConstraints.max;
                         }
-                        
-                        mcc.configuration.setPara(processtype, id, "DataMemory",
+
+                        mcc.configuration.setPara(processFamilyName, id, "DataMemory",
                                 "defaultValueInstance", dataMemory);
+                        waitCondition.resolve();
+                    } else {
+                        waitCondition.resolve();
                     }
-                    waitCondition.resolve();
                 });
             });
         });
@@ -660,76 +666,76 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
 }
 
 // mysqld process specific parameter assignments
-function mysqld_setup(processitem, processtype, host, waitCondition) {
-    var id = processitem.getId();
+function mysqld_setup(processItem, processFamilyItem, host, waitCondition) {
+    var id = processItem.getId();
     var datadir = host.getValue("datadir");
     var dirSep = mcc.util.dirSep(datadir);
+    var processFamilyName = processFamilyItem.getValue("family");
 
     // Set datadir and socket
-    mcc.configuration.setPara(processtype, id, "DataDir",
+    mcc.configuration.setPara(processFamilyName, id, "DataDir",
             "defaultValueInstance", datadir +
-            processitem.getValue("NodeId") + dirSep);
+            processItem.getValue("NodeId") + dirSep);
 
-    mcc.configuration.setPara(processtype, id, "Socket",
+    mcc.configuration.setPara(processFamilyName, id, "Socket",
             "defaultValueInstance", datadir +
-            processitem.getValue("NodeId") + dirSep + 
+            processItem.getValue("NodeId") + dirSep + 
             "mysql.socket");
 
     // Get colleague nodes, find own index on host
-    mcc.util.getColleagueNodes(processitem).then(function (colleagues) {
-        var myIdx = dojo.indexOf(colleagues, processitem.getId());
+    mcc.util.getColleagueNodes(processItem).then(function (colleagues) {
+        var myIdx = dojo.indexOf(colleagues, processItem.getId());
 
-        // Get process type
-        mcc.storage.processTypeStorage().getItem(
-                processitem.getValue("processtype")).then(function (ptype) {
-            // Get type's overridden port base
-            var pbase = ptype.getValue("Portbase");
+        // Get type's overridden port base
+        var pbase = processFamilyItem.getValue("Portbase");
 
-            // If not overridden, use type default
-            if (pbase === undefined) {
-                pbase = mcc.configuration.getPara(processtype, null, 
-                        "Portbase", "defaultValueType");
-            }
+        // If not overridden, use type's predefined'
+        if (pbase === undefined) {
+            pbase = mcc.configuration.getPara(processFamilyName, null, 
+                    "Portbase", "defaultValueType");
+        }
 
-            // Set port using retrieved portbase and node index on host
-            mcc.configuration.setPara(processtype, id, "Port",
-                    "defaultValueInstance", myIdx + pbase);
+        // Set port using retrieved portbase and node index on host
+        mcc.configuration.setPara(processFamilyName, id, "Port",
+                "defaultValueInstance", myIdx + pbase);
 
-            waitCondition.resolve();
-        });
+        waitCondition.resolve();
     });
 }
 
-// Calculate predefined values for a given process instance
-function instanceSetup(processfam, processitem) {
+// Calculate predefined values for a given process type instance
+function instanceSetup(processFamilyName, processItem) {
     // Wait condition to return
     var waitCondition = new dojo.Deferred();
-    var id = processitem.getId();
+    var id = processItem.getId();
     
     mcc.util.dbg("Setup process instance defaults for " + 
-            processitem.getValue("name"));
+            processItem.getValue("name"));
 
-    // For any process, set HostName and datadir, unless wildcard host
-    mcc.storage.hostStorage().getItem(processitem.getValue("host")).then(
+    // For any process type, set HostName and datadir, unless wildcard host
+    mcc.storage.hostStorage().getItem(processItem.getValue("host")).then(
             function (host) {
         if (host.getValue("anyHost")) {
-            mcc.configuration.setPara(processfam, id, "HostName",
+            mcc.configuration.setPara(processFamilyName, id, "HostName",
                     "defaultValueInstance", null);
         } else {
-            mcc.configuration.setPara(processfam, id, "HostName",
+            mcc.configuration.setPara(processFamilyName, id, "HostName",
                     "defaultValueInstance", host.getValue("name"));
         }
 
-        // Process specific assignments
-        if (processfam == "management") {
-            ndb_mgmd_setup(processitem, processfam, host, waitCondition);
-        } else if (processfam == "data") {
-            ndbd_setup(processitem, processfam, host, waitCondition);
-        } else if (processfam == "sql") {
-            mysqld_setup(processitem, processfam, host, waitCondition);
-        } else if (processfam == "api") {
-            waitCondition.resolve();
-        }
+        // Get prototypical process type and do process specific assignments
+        mcc.storage.processTypeStorage().getItems({family: processFamilyName}).then(function(ptypes) {
+            var processFamilyItem = ptypes[0];
+            if (processFamilyName == "management") {
+                ndb_mgmd_setup(processItem, processFamilyItem, host, waitCondition);
+            } else if (processFamilyName == "data") {
+                ndbd_setup(processItem, processFamilyItem, host, waitCondition);
+            } else if (processFamilyName == "sql") {
+                mysqld_setup(processItem, processFamilyItem, host, waitCondition);
+            } else if (processFamilyName == "api") {
+                waitCondition.resolve();
+            }            
+        });
     });
     return waitCondition;
 }
