@@ -215,11 +215,10 @@ class WindowsHostInfo(CygwinHostInfo):
     @property
     def homedir(self):
         env = self.ch.env
-        if env.has_key('HOMEPATH'):
-            return env['HOMEPATH']
-        else:
+        if env.has_key('USERPROFILE'):
             return env['USERPROFILE']
-
+        
+        return env['HOMEDRIVE']+env['HOMEPATH']
             
 
     @property
