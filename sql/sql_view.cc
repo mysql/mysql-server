@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1086,6 +1086,33 @@ err:
 }
 
 
+/**
+   Go through a list of tables and join nests, recursively, and if they have
+   the name_resolution_context which points to removed_select, repoint it to
+   parent_select.
+
+   @param  join_list  List of tables and join nests
+   @param  removed_select  select_lex which is removed (merged into
+   parent_lex)
+   @param  parent_select
+ */
+static void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
+                                           SELECT_LEX *removed_select,
+                                           SELECT_LEX *parent_select)
+{
+  List_iterator_fast<TABLE_LIST> ti(join_list);
+  TABLE_LIST *tbl;
+  while ((tbl= ti++))
+  {
+    if (tbl->context_of_embedding &&
+        tbl->context_of_embedding->select_lex == removed_select)
+      tbl->context_of_embedding->select_lex= parent_select;
+    if (tbl->nested_join)
+      repoint_contexts_of_join_nests(tbl->nested_join->join_list,
+                                     removed_select, parent_select);
+  }
+}
+
 
 /**
   read VIEW .frm and create structures
@@ -1203,10 +1230,10 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
     be used here
   */
   DBUG_ASSERT(share->view_def != NULL);
-  if (share->view_def->parse((uchar*)table, thd->mem_root, view_parameters,
-                             required_view_parameters,
-                             &file_parser_dummy_hook))
-    goto err;
+  if ((result= share->view_def->parse((uchar*)table, thd->mem_root,
+                                      view_parameters, required_view_parameters,
+                                      &file_parser_dummy_hook)))
+    goto end;
 
   /*
     check old format view .frm
@@ -1269,6 +1296,11 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
+  if (!table->view)
+  {
+    result= true;
+    goto end;
+  }
 
   {
     char old_db_buf[NAME_LEN+1];
@@ -1603,7 +1635,16 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       /* prepare view context */
       lex->select_lex.context.resolve_in_table_list_only(view_main_select_tables);
       lex->select_lex.context.outer_context= 0;
+
+      /*
+        Correct all name resolution contexts which point to the view's
+        select_lex.
+      */
       lex->select_lex.context.select_lex= table->select_lex;
+      repoint_contexts_of_join_nests(view_select->top_join_list,
+                                     view_select,
+                                     table->select_lex);
+
       lex->select_lex.select_n_having_items+=
         table->select_lex->select_n_having_items;
 

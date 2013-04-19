@@ -11,6 +11,8 @@
 # done..
 # 'test-login-path2'
 # done..
+# 'test-login-path3'
+# done..
 
 ################################################
 # Tests for mysql_config_editor's print command
@@ -44,6 +46,11 @@ host = 127.0.0.1
 [test-login-path2]
 user = test_user3
 host = www.mysql.com
+[test-login-path3]
+user = test_user4
+host = 127.0.0.1
+socket = /tmp/configtest.sock
+port = 15000
 
 #
 # Overwrite existing paths, test-login-path2 & default
@@ -52,6 +59,11 @@ host = www.mysql.com
 [test-login-path1]
 user = test_user2
 host = 127.0.0.1
+[test-login-path3]
+user = test_user4
+host = 127.0.0.1
+socket = /tmp/configtest.sock
+port = 15000
 [test-login-path2]
 user = test_user4
 [client]
@@ -65,12 +77,17 @@ user = test_user5
 # done..
 # test-login-path1
 # done..
+# test-login-path3
+# done..
 
 ########################
 # Printing the leftovers
 ########################
 #
 # using all
+[test-login-path3]
+user = test_user4
+host = 127.0.0.1
 [test-login-path2]
 user = test_user4
 
@@ -100,8 +117,8 @@ and boolean options {FALSE|TRUE}  Value (after reading options)
 verbose                           FALSE
 
 Where command can be any one of the following :
-       set [command options]     Sets user name/password/host name for a
-                                 given login path (section).
+       set [command options]     Sets user name/password/host name/socket/port
+                                 for a given login path (section).
        remove [command options]  Remove a login path from the login file.
        print [command options]   Print all the options for a specified
                                  login path.
@@ -115,6 +132,15 @@ Where command can be any one of the following :
 ######################
 #
 # Inserting login paths default & test-login-path1
+File exists.
+File has the required permission.
+Opening the file.
+Reading the login key.
+Login key read successfully.
+Executing set command.
+Successfully decrypted the login file.
+Key successfully written to the file.
+Successfully written encrypted data to the login file.
 File exists.
 File has the required permission.
 Opening the file.
@@ -168,6 +194,11 @@ host = localhost
 [test-login-path1]
 user = test_user2
 host = 127.0.0.1
+[test-login-path2]
+user = test_user3
+host = 127.0.0.1
+socket = /tmp/configtest.sock
+port = 15000
 [client_suffix1]
 user = test_user3
 
@@ -189,6 +220,12 @@ ERROR 1045 (28000): Access denied for user 'test_user3'@'localhost' (using passw
 --host=localhost
 --user=test_user2
 --host=127.0.0.1
+--user=test_user1
+--host=localhost
+--user=test_user3
+--host=127.0.0.1
+--socket=/tmp/configtest.sock
+--port=15000
 
 # (c) With --no-defaults & --defaults-group-suffix
 --user=test_user1

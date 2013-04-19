@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -469,7 +469,8 @@ handler *get_ha_partition(partition_info *part_info)
   }
   else
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(ha_partition)));
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+             static_cast<int>(sizeof(ha_partition)));
   }
   DBUG_RETURN(((handler*) partition));
 }
@@ -1553,7 +1554,20 @@ int ha_rollback_trans(THD *thd, bool all)
 #ifndef DBUG_OFF
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
 #endif
-
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transaction is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+    We establish the value of 'is_real_trans' by checking
+    if it's an explicit COMMIT or BEGIN statement, or implicit
+    commit issued by DDL (in these cases all == TRUE),
+    or if we're running in autocommit mode (it's only in the autocommit mode
+    ha_commit_one_phase() is called with an empty
+    transaction.all.ha_list, see why in trans_register_ha()).
+  */
+  bool is_real_trans= all || thd->transaction.all.ha_list == NULL;
   DBUG_ENTER("ha_rollback_trans");
 
   /*
@@ -1581,12 +1595,17 @@ int ha_rollback_trans(THD *thd, bool all)
     tc_log->rollback(thd, all);
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
-  if (all)
+  if (is_real_trans)
     thd->transaction.cleanup();
   if (all)
     thd->transaction_rollback_request= FALSE;
 
-  gtid_rollback(thd);
+  /*
+    Only call gtid_rollback(THD*), which will purge thd->owned_gtid, if
+    complete transaction is being rollback or autocommit=1.
+  */
+  if (is_real_trans)
+    gtid_rollback(thd);
 
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this
@@ -1601,8 +1620,7 @@ int ha_rollback_trans(THD *thd, bool all)
   thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
   thd->transaction.all.dbug_unsafe_rollback_flags("all");
 #endif
-  if ((all || thd->transaction.stmt.ha_list == 0) &&
-      thd->transaction.all.cannot_safely_rollback() &&
+  if (is_real_trans && thd->transaction.all.cannot_safely_rollback() &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     thd->transaction.push_unsafe_rollback_warnings(thd);
   DBUG_RETURN(error);
@@ -2667,6 +2685,20 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
+  DBUG_RETURN(result);
+}
+
+int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
+                                    key_part_map keypart_map)
+{
+  int result;
+  DBUG_ENTER("handler::ha_index_read_last_map");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
+
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read_last_map(buf, key, keypart_map); })
   DBUG_RETURN(result);
 }
 
@@ -3975,6 +4007,9 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
       return 0;
   }
   if ((error= check(thd, check_opt)))
+    return error;
+  /* Skip updating frm version if not main handler. */
+  if (table->file != this)
     return error;
   return update_frm_version(table);
 }
@@ -7225,6 +7260,8 @@ int handler::ha_write_row(uchar *buf)
               m_lock_type == F_WRLCK);
 
   DBUG_ENTER("handler::ha_write_row");
+  DBUG_EXECUTE_IF("inject_error_ha_write_row",
+                  DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
@@ -7256,6 +7293,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
     (and the old record is in record[1]).
    */
   DBUG_ASSERT(new_data == table->record[0]);
+  DBUG_ASSERT(old_data == table->record[1]);
 
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
@@ -7277,6 +7315,13 @@ int handler::ha_delete_row(const uchar *buf)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
+  /*
+    Normally table->record[0] is used, but sometimes table->record[1] is used.
+  */
+  DBUG_ASSERT(buf == table->record[0] ||
+              buf == table->record[1]);
+  DBUG_EXECUTE_IF("inject_error_ha_delete_row",
+                  return HA_ERR_INTERNAL_ERROR; );
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();

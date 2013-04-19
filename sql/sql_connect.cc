@@ -441,6 +441,14 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
                      global_system_variables.character_set_client->name,
                      cs->name))
   {
+    if (!is_supported_parser_charset(
+      global_system_variables.character_set_client))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               global_system_variables.character_set_client->csname);
+      return true;
+    }    
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
     thd->variables.collation_connection=
@@ -501,7 +509,7 @@ static int check_connection(THD *thd)
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   thd->set_active_vio(net->vio);
 #endif
 

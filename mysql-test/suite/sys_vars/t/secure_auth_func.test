@@ -72,7 +72,7 @@ CREATE USER 'testUser'@'localhost' identified with 'mysql_old_password';
 SET PASSWORD FOR 'testUser'@'localhost'= OLD_PASSWORD('newpass');
 
 --echo ** Connecting con_user2 using testUser **
-connect (con_user2,localhost,testUser,newpass,);
+connect (con_user2,localhost,testUser,newpass,,,,SKIPSECUREAUTH);
 
 --echo ** Connection default**
 connection default;
@@ -107,7 +107,7 @@ SET PASSWORD FOR 'testUser'@'localhost' = OLD_PASSWORD('newpass');
 --echo ** Connecting con_user4 using testUser **
 --disable_query_log
 --error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-connect (con_user4,localhost,testUser,newpass,);
+connect (con_user4,localhost,testUser,newpass,,,,SKIPSECUREAUTH);
 --enable_query_log
 --echo Expected error "Server is in secure auth mode"
 

@@ -1,5 +1,4 @@
 --source include/have_innodb.inc
---source include/have_debug_sync.inc
 --source include/have_debug.inc
 
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
@@ -230,8 +229,7 @@ DROP TABLE child;
 
 DROP TABLE parent;
 
-# Add test for add FK on changing columns, currently, such action is disallowed
-# Look for Bug 14105491 for more details
+# Test ADD FOREIGN KEY together with renaming columns.
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
 
 INSERT INTO parent VALUES(1,2),(2,3);
@@ -252,18 +250,8 @@ ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
-# It will not be able to find the index on changing column, this is being
-# followed by Bug 14105491
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE child CHANGE a2 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
-ON DELETE SET NULL ON UPDATE CASCADE,
-ALGORITHM = INPLACE;
-
-# So appropriate way would be do it in two steps
-ALTER TABLE child CHANGE a2 a3 int;
-
-ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
@@ -288,8 +276,7 @@ SET foreign_key_checks = 0;
 # Let's rebuild the table and add the FK, make the add FK failed.
 
 SET DEBUG = '+d,innodb_test_cannot_add_fk_system';
-#--error ER_FK_FAIL_ADD_SYSTEM
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--error ER_FK_FAIL_ADD_SYSTEM
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
@@ -304,17 +291,10 @@ SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 # This should be successful. It will also check any left over
 # from previous failed operation (if dictionary entries not cleaned,
 # it will have dup key error.
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-
-# Split the ADD FOREIGN KEY for now.
-ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
-ALGORITHM = INPLACE;
-ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
-ON DELETE SET NULL ON UPDATE CASCADE, ALGORITHM = INPLACE;
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
@@ -344,17 +324,10 @@ DROP TABLE child;
 
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE child CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-
-# Split the ADD FOREIGN KEY for now.
-ALTER TABLE child CHANGE a1 a3 INT,
-ALGORITHM = INPLACE;
-ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
-ON DELETE SET NULL ON UPDATE CASCADE, ALGORITHM=INPLACE;
 
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
@@ -367,7 +340,7 @@ DROP TABLE child;
 
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 # Now try all three
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--error ER_FK_INCORRECT_OPTION
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,

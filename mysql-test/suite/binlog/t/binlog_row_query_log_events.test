@@ -15,7 +15,15 @@ CREATE TABLE t1 (a VARCHAR(256));
 --let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
 --let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
 --eval $query
---let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, 2)
+
+--let $row_number= 2
+if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+{
+    # if GTID_MODE=ON, there is the extra event entry the binary log: Gtid_log_event
+    --let $row_number=`SELECT $row_number + 1`
+}
+
+--let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, $row_number)
 --let $assert_cond= `SELECT "$logged_query" LIKE "%$query"`
 --source include/assert.inc
 

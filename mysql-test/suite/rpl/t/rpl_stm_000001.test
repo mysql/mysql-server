@@ -69,7 +69,7 @@ enable_query_log;
 
 --let $assert_text= We should have generated greater than 16 KB relay log
 --let $assert_cond= [SHOW MASTER STATUS, Position, 1] - $pos > 16384
---source include/rpl_assert.inc
+--source include/assert.inc
 
 # Try to cause a large relay log lag on the slave by locking t1
 connection slave;
