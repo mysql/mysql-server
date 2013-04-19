@@ -2656,7 +2656,8 @@ row_table_add_foreign_constraints(
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, NULL, false, true);
+		err = dict_load_foreigns(name, NULL, false, true,
+					 DICT_ERR_IGNORE_NONE);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -3862,6 +3863,12 @@ funct_exit:
 
 	trx->op_info = "";
 
+	/* For temporary tables or if there is an error we need to reset
+	the dict operation flags */
+	trx->ddl = false;
+	trx->dict_operation = TRX_DICT_OP_NONE;
+	ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+
 	srv_wake_master_thread();
 
 	return(err);
@@ -3889,7 +3896,7 @@ row_drop_table_for_mysql(
 	dberr_t		err;
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
-	ibool		print_msg;
+	bool		print_msg;
 	ulint		space_id;
 	char*		filepath = NULL;
 	const char*	tablename_minus_db;
@@ -4447,8 +4454,8 @@ check_next_foreign:
 		    && !Tablespace::is_system_tablespace(space_id)) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(
-					space_id, tablename, FALSE,
-					print_msg, false, NULL, 0)) {
+				    space_id, tablename,
+				    print_msg, false, NULL, 0)) {
 				/* This might happen if we are dropping a
 				discarded tablespace */
 				err = DB_SUCCESS;
@@ -5240,7 +5247,8 @@ end:
 
 		err = dict_load_foreigns(
 			new_name, NULL,
-			false, !old_is_tmp || trx->check_foreigns);
+			false, !old_is_tmp || trx->check_foreigns,
+			DICT_ERR_IGNORE_NONE);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);
@@ -5296,17 +5304,21 @@ funct_exit:
 }
 
 /*********************************************************************//**
-Checks that the index contains entries in an ascending order, unique
-constraint is not broken, and calculates the number of index entries
+Scans an index for either COOUNT(*) or CHECK TABLE.
+If CHECK TABLE; Checks that the index contains entries in an ascending order,
+unique constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.
-@return	true if ok */
+@return DB_SUCCESS or other error */
 UNIV_INTERN
-bool
-row_check_index_for_mysql(
-/*======================*/
+dberr_t
+row_scan_index_for_mysql(
+/*=====================*/
 	row_prebuilt_t*		prebuilt,	/*!< in: prebuilt struct
 						in MySQL handle */
 	const dict_index_t*	index,		/*!< in: index */
+	bool			check_keys,	/*!< in: true=check for mis-
+						ordered or duplicate records,
+						false=count the rows only */
 	ulint*			n_rows)		/*!< out: number of entries
 						seen in the consistent read */
 {
@@ -5314,9 +5326,8 @@ row_check_index_for_mysql(
 	ulint		matched_fields;
 	ulint		matched_bytes;
 	byte*		buf;
-	ulint		ret;
+	dberr_t		ret;
 	rec_t*		rec;
-	bool		is_ok		= true;
 	int		cmp;
 	ibool		contains_null;
 	ulint		i;
@@ -5342,7 +5353,7 @@ row_check_index_for_mysql(
 		/* Full Text index are implemented by auxiliary tables,
 		not the B-tree. We also skip secondary indexes that are
 		being created online. */
-		return(true);
+		return(DB_SUCCESS);
 	}
 
 	buf = static_cast<byte*>(mem_alloc(UNIV_PAGE_SIZE));
@@ -5355,6 +5366,7 @@ loop:
 	/* Check thd->killed every 1,000 scanned rows */
 	if (--cnt == 0) {
 		if (trx_is_interrupted(prebuilt->trx)) {
+			ret = DB_INTERRUPTED;
 			goto func_exit;
 		}
 		cnt = 1000;
@@ -5363,21 +5375,28 @@ loop:
 	switch (ret) {
 	case DB_SUCCESS:
 		break;
+	case DB_LOCK_WAIT_TIMEOUT:
+		goto func_exit;
 	default:
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Warning: CHECK TABLE on ", stderr);
-		dict_index_name_print(stderr, prebuilt->trx, index);
-		fprintf(stderr, " returned %lu\n", ret);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"CHECK TABLE on index %s of table %s returned %d\n",
+			index->name, index->table_name, ret);
 		/* fall through (this error is ignored by CHECK TABLE) */
 	case DB_END_OF_INDEX:
+		ret = DB_SUCCESS;
 func_exit:
 		mem_free(buf);
 		mem_heap_free(heap);
 
-		return(is_ok);
+		return(ret);
 	}
 
 	*n_rows = *n_rows + 1;
+
+	if (!check_keys) {
+		goto next_rec;
+	}
+	/* else this code is doing handler::check() for CHECK TABLE */
 
 	/* row_search... returns the index record in buf, record origin offset
 	within buf stored in the first 4 bytes, because we have built a dummy
@@ -5411,6 +5430,7 @@ func_exit:
 		}
 
 		if (cmp > 0) {
+			ret = DB_INDEX_CORRUPT;
 			fputs("InnoDB: index records in a wrong order in ",
 			      stderr);
 not_ok:
@@ -5423,7 +5443,7 @@ not_ok:
 			      "InnoDB: record ", stderr);
 			rec_print_new(stderr, rec, offsets);
 			putc('\n', stderr);
-			is_ok = false;
+			/* Continue reading */
 		} else if (dict_index_is_unique(index)
 			   && !contains_null
 			   && matched_fields
@@ -5431,6 +5451,7 @@ not_ok:
 				   index)) {
 
 			fputs("InnoDB: duplicate key in ", stderr);
+			ret = DB_DUPLICATE_KEY;
 			goto not_ok;
 		}
 	}
@@ -5461,6 +5482,7 @@ not_ok:
 		}
 	}
 
+next_rec:
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
 
 	goto loop;

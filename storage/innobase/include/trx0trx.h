@@ -842,7 +842,7 @@ struct trx_t{
 					calls from MySQL; this is intended
 					to reduce contention on the search
 					latch */
-	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op */
+	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
 
 	/* Fields protected by the srv_conc_mutex. */
 	ulint		declared_to_be_inside_innodb;
@@ -941,18 +941,9 @@ struct trx_t{
 					survive over a transaction commit, if
 					it is a stored procedure with a COMMIT
 					WORK statement, for instance */
-	mem_heap_t*	global_read_view_heap;
-					/*!< memory heap for the global read
-					view */
-	read_view_t*	global_read_view;
-					/*!< consistent read view associated
-					to a transaction or NULL */
+	mem_heap_t*	read_view_heap;	/*!< memory heap for the read view */
 	read_view_t*	read_view;	/*!< consistent read view used in the
-					transaction or NULL, this read view
-					if defined can be normal read view
-					associated to a transaction (i.e.
-					same as global_read_view) or read view
-					associated to a cursor */
+					transaction, or NULL if not yet set */
 	/*------------------------------*/
 	UT_LIST_BASE_NODE_T(trx_named_savept_t)
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,
@@ -991,9 +982,6 @@ struct trx_t{
 #endif /* UNIV_DEBUG */
 	ulint		pages_undone;	/*!< number of undo log pages undone
 					since the last undo log truncation */
-	trx_undo_arr_t*	undo_no_arr;	/*!< array of undo numbers of undo log
-					records which are currently processed
-					by a rollback operation */
 	/*------------------------------*/
 	ulint		n_autoinc_rows;	/*!< no. of AUTO-INC rows required for
 					an SQL statement. This is useful for

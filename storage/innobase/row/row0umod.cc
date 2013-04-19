@@ -337,8 +337,6 @@ row_undo_mod_clust(
 
 	node->state = UNDO_NODE_FETCH_NEXT;
 
-	trx_undo_rec_release(node->trx, node->undo_no);
-
 	if (offsets_heap) {
 		mem_heap_free(offsets_heap);
 	}
@@ -1079,6 +1077,7 @@ row_undo_mod(
 	ut_ad(node && thr);
 	ut_ad(node->state == UNDO_NODE_MODIFY);
 	ut_ad(node->trx->in_rollback);
+	ut_ad(!trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
 	dict_locked = thr_get_trx(thr)->dict_operation_lock_mode == RW_X_LATCH;
 
@@ -1090,7 +1089,6 @@ row_undo_mod(
 		/* It is already undone, or will be undone by another query
 		thread, or table was dropped */
 
-		trx_undo_rec_release(node->trx, node->undo_no);
 		node->state = UNDO_NODE_FETCH_NEXT;
 
 		return(DB_SUCCESS);

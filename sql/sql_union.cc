@@ -981,7 +981,7 @@ bool st_select_lex::cleanup()
 
   if (join)
   {
-    DBUG_ASSERT((st_select_lex*)join->select_lex == this);
+    DBUG_ASSERT(join->select_lex == this);
     error= join->destroy();
     delete join;
     join= 0;

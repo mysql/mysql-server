@@ -81,10 +81,6 @@ struct trx_sig_t;
 struct trx_rseg_t;
 /** Transaction undo log */
 struct trx_undo_t;
-/** Array of undo numbers of undo records being rolled back or purged */
-struct trx_undo_arr_t;
-/** A cell of trx_undo_arr_t */
-struct trx_undo_inf_t;
 /** The control structure used in the purge operation */
 struct trx_purge_t;
 /** Rollback command node in a query graph */

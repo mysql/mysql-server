@@ -27,6 +27,7 @@ flush logs;
 flush logs;
 *** must be a warning master-bin.000001 was not found ***
 Warnings:
+Warning	1876	file master-bin.000004 was not purged because it is the active log file.
 Warning	1612	Being purged log master-bin.000001 was not found
 *** must show one record, of the active binlog, left in the index file after PURGE ***
 show binary logs;

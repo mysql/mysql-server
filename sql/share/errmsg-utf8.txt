@@ -7023,6 +7023,15 @@ ER_INNODB_NO_FT_USES_PARSER
 ER_BINLOG_LOGICAL_CORRUPTION
   eng "The binary log file '%s' is logically corrupted: %s"
 
+ER_WARN_PURGE_LOG_IN_USE
+  eng "file %s was not purged because it was being read by %d thread(s), purged only %d out of %d files."
+
+ER_WARN_PURGE_LOG_IS_ACTIVE
+  eng "file %s was not purged because it is the active log file."
+
+ER_AUTO_INCREMENT_CONFLICT
+  eng "Auto-increment value in UPDATE conflicts with internally generated values"
+
 #
 #  End of 5.7 error messages.
 #

@@ -5,8 +5,8 @@ eval LOAD DATA INFILE '$MYSQL_TMP_DIR/osfileslimit.txt' INTO TABLE t_o_f_l;
 let $f_l=`SELECT c1 FROM t_o_f_l`;
 --remove_file $MYSQL_TMP_DIR/osfileslimit.txt
 DROP TABLE t_o_f_l;
-if ($f_l < 8500)
+if ($f_l < $mysql_needed_max_files)
 {
-  skip Need open_files_limit >= 8500 (see ulimit -n);
+  skip Need open_files_limit >= 24576 for myisam or 8192 for innodb (see ulimit -n) ;
 }
 --enable_query_log

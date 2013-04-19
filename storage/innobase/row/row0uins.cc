@@ -105,6 +105,9 @@ row_undo_ins_remove_clust_rec(
 
 	ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur), btr_cur->index)
 	      == node->trx->id);
+	ut_ad(!rec_get_deleted_flag(
+		      btr_cur_get_rec(btr_cur),
+		      dict_table_is_comp(btr_cur->index->table)));
 
 	if (online && dict_index_is_online_ddl(index)) {
 		const rec_t*	rec	= btr_cur_get_rec(btr_cur);
@@ -172,7 +175,6 @@ retry:
 
 func_exit:
 	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
-	trx_undo_rec_release(node->trx, node->undo_no);
 
 	return(err);
 }
@@ -427,14 +429,13 @@ row_undo_ins(
 
 	ut_ad(node->state == UNDO_NODE_INSERT);
 	ut_ad(node->trx->in_rollback);
+	ut_ad(trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
 	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
 
 	row_undo_ins_parse_undo_rec(node, dict_locked);
 
 	if (node->table == NULL) {
-		trx_undo_rec_release(node->trx, node->undo_no);
-
 		return(DB_SUCCESS);
 	}
 

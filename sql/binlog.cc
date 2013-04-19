@@ -1752,10 +1752,10 @@ static void adjust_linfo_offsets(my_off_t purge_offset)
 }
 
 
-static bool log_in_use(const char* log_name)
+static int log_in_use(const char* log_name)
 {
   size_t log_name_len = strlen(log_name) + 1;
-  bool result = 0;
+  int thread_count=0;
 
   mysql_mutex_lock(&LOCK_thread_count);
 
@@ -1767,15 +1767,19 @@ static bool log_in_use(const char* log_name)
     if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      result = !memcmp(log_name, linfo->log_file_name, log_name_len);
+      if(!memcmp(log_name, linfo->log_file_name, log_name_len))
+      {
+        thread_count++;
+        sql_print_warning("file %s was not purged because it was being read"
+                          "by thread number %llu", log_name,
+                          (ulonglong)(*it)->thread_id);
+      }
       mysql_mutex_unlock(&linfo->lock);
-      if (result)
-	break;
     }
   }
 
   mysql_mutex_unlock(&LOCK_thread_count);
-  return result;
+  return thread_count;
 }
 
 static bool purge_error_message(THD* thd, int res)
@@ -1970,7 +1974,7 @@ bool purge_master_logs(THD* thd, const char* to_log)
                              mysql_bin_log.purge_logs(search_file_name, false,
                                                       true/*need_lock_index=true*/,
                                                       true/*need_update_threads=true*/,
-                                                      NULL));
+                                                      NULL, false));
 }
 
 
@@ -1993,7 +1997,8 @@ bool purge_master_logs_before_date(THD* thd, time_t purge_time)
     return 0;
   }
   return purge_error_message(thd,
-                             mysql_bin_log.purge_logs_before_date(purge_time));
+                             mysql_bin_log.purge_logs_before_date(purge_time,
+                                                                  false));
 }
 #endif /* EMBEDDED_LIBRARY */
 
@@ -2144,7 +2149,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
   if (binary_log->is_open())
   {
     LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
-    SELECT_LEX_UNIT *unit= &thd->lex->unit;
+    SELECT_LEX_UNIT *unit= thd->lex->unit;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos = max<my_off_t>(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
@@ -2181,6 +2186,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
       to account binlog event header size
     */
     thd->variables.max_allowed_packet += MAX_LOG_EVENT_HEADER;
+
+    DEBUG_SYNC(thd, "after_show_binlog_event_found_file");
 
     mysql_mutex_lock(log_lock);
 
@@ -3709,6 +3716,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
       linfo->index_file_offset = my_b_tell(&index_file);
       break;
     }
+    linfo->entry_index++;
   }
 
 end:  
@@ -4131,7 +4139,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   rli->relay_log.purge_logs(to_purge_if_included, included,
                             false/*need_lock_index=false*/,
                             false/*need_update_threads=false*/,
-                            &rli->log_space_total);
+                            &rli->log_space_total, true);
   // Tell the I/O thread to take the relay_log_space_limit into account
   rli->ignore_log_space_limit= 0;
   mysql_mutex_unlock(&rli->log_space_lock);
@@ -4241,6 +4249,7 @@ err:
                              all threads. False for relay logs, true otherwise.
   @param freed_log_space     If not null, decrement this variable of
                              the amount of log space freed
+  @param auto_purge          True if this is an automatic purge.
 
   @note
     If any of the logs before the deleted one is in use,
@@ -4255,13 +4264,15 @@ err:
                                 mysql_file_stat() or mysql_file_delete()
 */
 
-int MYSQL_BIN_LOG::purge_logs(const char *to_log, 
+int MYSQL_BIN_LOG::purge_logs(const char *to_log,
                               bool included,
                               bool need_lock_index,
-                              bool need_update_threads, 
-                              ulonglong *decrease_log_space)
+                              bool need_update_threads,
+                              ulonglong *decrease_log_space,
+                              bool auto_purge)
 {
-  int error= 0;
+  int error= 0, no_of_log_files_to_purge= 0, no_of_log_files_purged= 0;
+  int no_of_threads_locking_log= 0;
   bool exit_loop= 0;
   LOG_INFO log_info;
   THD *thd= current_thd;
@@ -4279,6 +4290,8 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     goto err;
   }
 
+  no_of_log_files_to_purge= log_info.entry_index;
+
   if ((error= open_purge_index_file(TRUE)))
   {
     sql_print_error("MYSQL_BIN_LOG::purge_logs failed to sync the index file.");
@@ -4291,10 +4304,31 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   */
   if ((error=find_log_pos(&log_info, NullS, false/*need_lock_index=false*/)))
     goto err;
-  while ((strcmp(to_log,log_info.log_file_name) || (exit_loop=included)) &&
-         !is_active(log_info.log_file_name) &&
-         !log_in_use(log_info.log_file_name))
+
+  while ((strcmp(to_log,log_info.log_file_name) || (exit_loop=included)))
   {
+    if(is_active(log_info.log_file_name))
+    {
+      if(!auto_purge)
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_PURGE_LOG_IS_ACTIVE,
+                            ER(ER_WARN_PURGE_LOG_IS_ACTIVE),
+                            log_info.log_file_name);
+      break;
+    }
+
+    if ((no_of_threads_locking_log= log_in_use(log_info.log_file_name)))
+    {
+      if(!auto_purge)
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_PURGE_LOG_IN_USE,
+                            ER(ER_WARN_PURGE_LOG_IN_USE),
+                            log_info.log_file_name,  no_of_threads_locking_log,
+                            no_of_log_files_purged, no_of_log_files_to_purge);
+      break;
+    }
+    no_of_log_files_purged++;
+
     if ((error= register_purge_index_entry(log_info.log_file_name)))
     {
       sql_print_error("MYSQL_BIN_LOG::purge_logs failed to copy %s to register file.",
@@ -4644,6 +4678,7 @@ err:
 
   @param thd		Thread pointer
   @param purge_time	Delete all log files before given date.
+  @param auto_purge     True if this is an automatic purge.
 
   @note
     If any of the logs before the deleted one is in use,
@@ -4657,14 +4692,16 @@ err:
                                 mysql_file_stat() or mysql_file_delete()
 */
 
-int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
+int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
 {
   int error;
-  char to_log[FN_REFLEN];
+  int no_of_threads_locking_log= 0, no_of_log_files_purged= 0;
+  bool log_is_active= false, log_is_in_use= false;
+  char to_log[FN_REFLEN], copy_log_in_use[FN_REFLEN];
   LOG_INFO log_info;
   MY_STAT stat_area;
   THD *thd= current_thd;
-  
+
   DBUG_ENTER("purge_logs_before_date");
 
   mysql_mutex_lock(&LOCK_index);
@@ -4673,14 +4710,23 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
   if ((error=find_log_pos(&log_info, NullS, false/*need_lock_index=false*/)))
     goto err;
 
-  while (strcmp(log_file_name, log_info.log_file_name) &&
-	 !is_active(log_info.log_file_name) &&
-         !log_in_use(log_info.log_file_name))
+  while (!(log_is_active= is_active(log_info.log_file_name)))
   {
+    if ((no_of_threads_locking_log= log_in_use(log_info.log_file_name)))
+    {
+      if (!auto_purge)
+      {
+        log_is_in_use= true;
+        strcpy(copy_log_in_use, log_info.log_file_name);
+      }
+      break;
+    }
+    no_of_log_files_purged++;
+
     if (!mysql_file_stat(m_key_file_log,
                          log_info.log_file_name, &stat_area, MYF(0)))
     {
-      if (my_errno == ENOENT) 
+      if (my_errno == ENOENT)
       {
         /*
           It's not fatal if we can't stat a log file that does not exist.
@@ -4724,10 +4770,47 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
       break;
   }
 
+  if (log_is_active)
+  {
+    if(!auto_purge)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_PURGE_LOG_IS_ACTIVE,
+                          ER(ER_WARN_PURGE_LOG_IS_ACTIVE),
+                          log_info.log_file_name);
+
+  }
+
+  if (log_is_in_use)
+  {
+    int no_of_log_files_to_purge= no_of_log_files_purged+1;
+    while (strcmp(log_file_name, log_info.log_file_name))
+    {
+      if (mysql_file_stat(m_key_file_log, log_info.log_file_name,
+                          &stat_area, MYF(0)))
+      {
+        if (stat_area.st_mtime < purge_time)
+          no_of_log_files_to_purge++;
+        else
+          break;
+      }
+      if (find_next_log(&log_info, false/*need_lock_index=false*/))
+      {
+        no_of_log_files_to_purge++;
+        break;
+      }
+    }
+
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_PURGE_LOG_IN_USE,
+                        ER(ER_WARN_PURGE_LOG_IN_USE),
+                        copy_log_in_use, no_of_threads_locking_log,
+                        no_of_log_files_purged, no_of_log_files_to_purge);
+  }
+
   error= (to_log[0] ? purge_logs(to_log, true,
                                  false/*need_lock_index=false*/,
                                  true/*need_update_threads=true*/,
-                                 (ulonglong *) 0) : 0);
+                                 (ulonglong *) 0, auto_purge) : 0);
 
 err:
   mysql_mutex_unlock(&LOCK_index);
@@ -5392,7 +5475,7 @@ void MYSQL_BIN_LOG::purge()
                     { purge_time= my_time(0);});
     if (purge_time >= 0)
     {
-      purge_logs_before_date(purge_time);
+      purge_logs_before_date(purge_time, true);
     }
   }
 #endif
@@ -8059,7 +8142,7 @@ bool THD::is_ddl_gtid_compatible() const
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-      lex->select_lex.item_list.elements)
+      lex->select_lex->item_list.elements)
   {
     /*
       CREATE ... SELECT (without TEMPORARY) is unsafe because if
