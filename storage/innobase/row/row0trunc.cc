@@ -34,11 +34,6 @@ Created 2013-04-12 Sunny Bains
 #include "fts0fts.h"
 #include "srv0space.h"
 
-#ifdef UNIV_DEBUG
-/** The index number of the second secondary */
-static const ulint DEBUG_CRASH_COUNT = 3;
-#endif /* UNIV_DEBUG */
-
 /**
 Iterator over the the raw records in an index, doesn't support MVCC. */
 struct IndexIterator {
@@ -299,7 +294,7 @@ struct DropIndex : public Callback {
 		:
 		Callback(table, flags)
 	{
-		ut_d(m_count = 0);
+		/* No op */
 	}
 
 	/**
@@ -307,11 +302,6 @@ struct DropIndex : public Callback {
 	@param pcur	persistent cursor used for reading
 	@return DB_SUCCESS or error code */
 	dberr_t operator()(mtr_t* mtr, btr_pcur_t* pcur) const;
-
-private:
-#ifdef UNIV_DEBUG
-	mutable ulint		m_count;
-#endif /* UNIV_DEBUG */
 };
 
 /** Callback to create the indexes during TRUNCATE */
@@ -326,7 +316,7 @@ struct CreateIndex : public Callback {
 		:
 		Callback(table, flags)
 	{
-		ut_d(m_count = 0);
+		/* No op */
 	}
 
 	/**
@@ -337,11 +327,6 @@ struct CreateIndex : public Callback {
 	@param pcur	persistent cursor used for reading
 	@return DB_SUCCESS or error code */
 	dberr_t operator()(mtr_t* mtr, btr_pcur_t* pcur) const;
-
-private:
-#ifdef UNIV_DEBUG
-	mutable ulint		m_count;
-#endif /* UNIV_DEBUG */
 };
 
 /**
@@ -405,16 +390,37 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 	root_page_no = dict_drop_index_tree(rec, pcur, false, mtr);
 
 #ifdef UNIV_DEBUG
-	/* Crash during the drop of the second secondary */
-	if (++m_count == DEBUG_CRASH_COUNT) {
+	{
+		ulint		len;
+		const byte*	field;
+		ulint		index_type;
 
-		/* Write and flush the MLOG_FILE_TRUNCATE record
-		to the redo log before the crash. */
-		DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
-				log_buffer_flush_to_disk(););
+		field = rec_get_nth_field_old(
+			btr_pcur_get_rec(pcur), DICT_FLD__SYS_INDEXES__TYPE,
+			&len);
+		ut_ad(len == 4);
 
-		DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
-				DBUG_SUICIDE(););
+		index_type = mach_read_from_4(field);
+
+		if (index_type & DICT_CLUSTERED) {
+			/* Clustered index */
+			DBUG_EXECUTE_IF("ib_crash_on_drop_of_clust_index",
+					log_buffer_flush_to_disk();
+					os_thread_sleep(2000000);
+					DBUG_SUICIDE(););
+		} else if (index_type & DICT_UNIQUE) {
+			/* Unique index */
+			DBUG_EXECUTE_IF("ib_crash_on_drop_of_uniq_index",
+					log_buffer_flush_to_disk();
+					os_thread_sleep(2000000);
+					DBUG_SUICIDE(););
+		} else if (index_type == 0) {
+			/* Secondary index */
+			DBUG_EXECUTE_IF("ib_crash_on_drop_of_sec_index",
+					log_buffer_flush_to_disk();
+					os_thread_sleep(2000000);
+					DBUG_SUICIDE(););
+		}
 	}
 #endif /* UNIV_DEBUG */
 
@@ -465,16 +471,31 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 	root_page_no = dict_recreate_index_tree(m_table, pcur, mtr);
 
 #ifdef UNIV_DEBUG
-	/* Crash during the creation of the second secondary */
-	if (++m_count == DEBUG_CRASH_COUNT) {
+	for (dict_index_t* index = UT_LIST_GET_FIRST(m_table->indexes);
+	     index != NULL;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-		/* Waiting for MLOG_FILE_TRUNCATE record is written
-		into redo log before the crash. */
-		DBUG_EXECUTE_IF("crash_during_create_second_secondary",
-			log_buffer_flush_to_disk(););
+		ulint index_type = index->type;
 
-		DBUG_EXECUTE_IF("crash_during_create_second_secondary",
-				DBUG_SUICIDE(););
+		if (index_type & DICT_CLUSTERED) {
+			/* Clustered index */
+			DBUG_EXECUTE_IF("ib_crash_on_create_of_clust_index",
+					log_buffer_flush_to_disk();
+					os_thread_sleep(2000000);
+					DBUG_SUICIDE(););
+		} else if (index_type & DICT_UNIQUE) {
+			/* Unique index */
+			DBUG_EXECUTE_IF("ib_crash_on_create_of_uniq_index",
+					log_buffer_flush_to_disk();
+					os_thread_sleep(2000000);
+					DBUG_SUICIDE(););
+		} else if (index_type == 0) {
+			/* Secondary index */
+			DBUG_EXECUTE_IF("ib_crash_on_create_of_sec_index",
+					log_buffer_flush_to_disk();
+					os_thread_sleep(2000000);
+					DBUG_SUICIDE(););
+		}
 	}
 #endif /* UNIV_DEBUG */
 
@@ -1092,13 +1113,17 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	/* This is the event horizon, if an error occurs after this point then
 	the table will be tagged as corrupt in memory. On restart we will
 	recreate the table as per REDO semantics from the REDO log record
-	that we wrote above. */
-	DBUG_EXECUTE_IF("crash_after_drop_tablespace",
-			log_buffer_flush_to_disk(););
-	DBUG_EXECUTE_IF("crash_after_drop_tablespace",
-			ut_ad(fil_discard_tablespace(table->space)
-			      == DB_SUCCESS););
-	DBUG_EXECUTE_IF("crash_after_drop_tablespace", DBUG_SUICIDE(););
+	that we wrote above provided REDO log is flushed to disk. If REDO logged
+	is not yet flushed to disk and crash occur then we restore the table
+	in old state with rows. */
+
+	DBUG_EXECUTE_IF("ib_crash_after_redo_log_write_complete1",
+			DBUG_SUICIDE(););
+
+	DBUG_EXECUTE_IF("ib_crash_after_redo_log_write_complete2",
+			log_buffer_flush_to_disk();
+			os_thread_sleep(3000000);
+			DBUG_SUICIDE(););
 
 	/* Step-8: Drop all indexes (this include freeing of the pages
 	associated with them). (FIXME: freeing of pages should be conditional
