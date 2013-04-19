@@ -192,6 +192,7 @@ public:
     if (!is_parsing_sp_body())
       return;
 
+    thd->free_items();
     thd->mem_root= m_saved_memroot;
     thd->free_list= m_saved_free_list;
 

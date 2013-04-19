@@ -53,15 +53,6 @@ srv_parse_data_file_paths_and_sizes(
 /*================================*/
 	char*	str);	/*!< in/out: the data file path string */
 /*********************************************************************//**
-Reads log group home directories from a character string given in
-the .cnf file.
-@return	TRUE if ok, FALSE on parse error */
-UNIV_INTERN
-ibool
-srv_parse_log_group_home_dirs(
-/*==========================*/
-	char*	str);	/*!< in/out: character string */
-/*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
 UNIV_INTERN

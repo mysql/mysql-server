@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1149,7 +1149,7 @@ static Sys_var_ulong Sys_connect_timeout(
 static Sys_var_charptr Sys_datadir(
        "datadir", "Path to the database root directory",
        READ_ONLY GLOBAL_VAR(mysql_real_data_home_ptr),
-       CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(0));
+       CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(mysql_real_data_home));
 
 #ifndef DBUG_OFF
 static Sys_var_dbug Sys_dbug(
@@ -1524,6 +1524,19 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
        "Log queries that are executed without benefit of any index to the "
        "slow log if it is open",
        GLOBAL_VAR(opt_log_queries_not_using_indexes),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_log_slow_admin_statements(
+       "log_slow_admin_statements",
+       "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
+       "the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_admin_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_log_slow_slave_statements(
+       "log_slow_slave_statements",
+       "Log slow statements executed by slave thread to the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_slave_statements),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static bool update_log_throttle_queries_not_using_indexes(sys_var *self,
@@ -2608,13 +2621,13 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
 static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var *var)
 {
   String str, *res;
-
-  if(!var->value)
-    return false;
+  /* null value is not allowed */
+  if (check_not_null(self, thd, var))
+    return true;
 
   /** empty value ('') is not allowed */
-  res= var->value->val_str(&str);
-  if (res->is_empty())
+  res= var->value? var->value->val_str(&str) : NULL;
+  if (res && res->is_empty())
     return true;
 
   return false;
@@ -4423,7 +4436,7 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_purged");
 
-  if (check_top_level_stmt(self, thd, var) ||
+  if (!var->value || check_top_level_stmt(self, thd, var) ||
       check_outside_transaction(self, thd, var) ||
       check_outside_sp(self, thd, var))
     DBUG_RETURN(true);
@@ -4548,3 +4561,14 @@ static Sys_var_mybool Sys_disconnect_on_expired_password(
        "Give clients that don't signal password expiration support execution time error(s) instead of connection error",
        READ_ONLY GLOBAL_VAR(disconnect_on_expired_password),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS 
+static Sys_var_mybool Sys_validate_user_plugins(
+       "validate_user_plugins",
+       "Turns on additional validation of authentication plugins assigned "
+       "to user accounts. ",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(validate_user_plugins),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+#endif
+

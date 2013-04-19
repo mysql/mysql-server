@@ -593,7 +593,8 @@ public:
   */
   Semijoin_mat_exec *sj_mat_exec;          
   double	worst_seeks;
-  key_map	const_keys;			/**< Keys with constant part */
+  /** Keys with constant part. Subset of keys. */
+  key_map	const_keys;
   key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
   key_map       keys;                           /**< all keys with can be used */
@@ -641,6 +642,7 @@ private:
   */
   table_map     added_tables_map;
 public:
+  /// ID of index used for index scan or semijoin LooseScan
   uint		index;
   uint		used_fields,used_fieldlength,used_blobs;
   uint          used_null_fields;

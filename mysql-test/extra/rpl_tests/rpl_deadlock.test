@@ -25,7 +25,8 @@ sync_slave_with_master;
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 SHOW CREATE TABLE t3;
-SHOW VARIABLES LIKE 'slave_transaction_retries';
+SELECT @@GLOBAL.slave_transaction_retries;
+SELECT @@GLOBAL.innodb_lock_wait_timeout;
 --source include/stop_slave.inc
 
 connection master;
@@ -50,7 +51,7 @@ SELECT * FROM t1 FOR UPDATE;
 # Save variable 'Slave_retried_transactions' before deadlock
 let $slave_retried_transactions= query_get_value(SHOW GLOBAL STATUS LIKE 'Slave_retried_transactions', Value, 1);
 --connection slave2
-START SLAVE;
+--source include/start_slave.inc
 --connection slave
 # Wait until SQL thread blocked: variable 'Slave_retried_transactions' will incremented
 let $status_var= Slave_retried_transactions;
@@ -60,13 +61,12 @@ let $status_var_comparsion= >;
 --source include/wait_for_status_var.inc
 SELECT COUNT(*) FROM t2;
 COMMIT;
+source include/check_slave_is_running.inc;
 sync_with_master;
 
 # Check the data
 SELECT * FROM t1;
 SELECT * FROM t3;
-# Check that no error is reported
-source include/check_slave_is_running.inc;
 --echo
 
 # 2) Test lock wait timeout
@@ -181,7 +181,9 @@ START SLAVE;
 
 let $slave_sql_errno= 1205; # ER_LOCK_TIMEOUT
 let $show_slave_sql_error= 0;
+let $rpl_debug= 1;
 source include/wait_for_slave_sql_error.inc;
+let $rpl_debug= 0;
 
 rollback;
 

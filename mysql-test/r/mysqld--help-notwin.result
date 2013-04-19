@@ -966,6 +966,10 @@ The following options may be given as the first argument:
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
  -u, --user=name     Run mysqld daemon as user.
+ --validate-user-plugins 
+ Turns on additional validation of authentication plugins
+ assigned to user accounts. 
+ (Defaults to on; use --skip-validate-user-plugins to disable.)
  -v, --verbose       Used with --help option for detailed help.
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
@@ -1172,7 +1176,7 @@ performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size 100
 performance-schema-setup-objects-size 100
 performance-schema-users-size -1
-port 3306
+port ####
 port-open-timeout 0
 preload-buffer-size 32768
 profiling-history-size 15
@@ -1250,6 +1254,7 @@ transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 transaction-read-only FALSE
 updatable-views-with-limit YES
+validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800
 

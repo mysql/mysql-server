@@ -667,6 +667,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
         key_map possible_keys= field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);
         stat[0].const_keys.merge(possible_keys);
+        stat[0].keys.merge(possible_keys);
 
         /*
           For each field in the multiple equality (for which we know that it 
@@ -723,7 +724,13 @@ return_zero_rows(JOIN *join, List<Item> &fields)
         mark_as_null_row(table->table);
 
       // Calculate aggregate functions for no rows
-      List_iterator_fast<Item> it(fields);
+
+      /*
+        Must notify all fields that there are no rows (not only those
+        that will be returned) because join->having may refer to
+        fields that are not part of the result columns.
+       */
+      List_iterator_fast<Item> it(join->all_fields);
       Item *item;
       while ((item= it++))
         item->no_rows_in_result();
@@ -926,7 +933,15 @@ do_select(JOIN *join)
   }
 
   join->thd->limit_found_rows= join->send_records;
-  /* Use info provided by filesort. */
+  /*
+    Use info provided by filesort for "order by with limit":
+
+    When using a Priority Queue, we cannot rely on send_records, but need
+    to use the rowcount read originally into the join_tab applying the
+    filesort. There cannot be any post-filtering conditions, nor any
+    following join_tabs in this case, so this rowcount properly represents
+    the correct number of qualifying rows.
+  */
   if (join->order)
   {
     // Save # of found records prior to cleanup
@@ -943,7 +958,7 @@ do_select(JOIN *join)
       sort_tab= join_tab + const_tables;
     }
     if (sort_tab->filesort &&
-        sort_tab->filesort->sortorder)
+        sort_tab->filesort->using_pq)
     {
       join->thd->limit_found_rows= sort_tab->records;
     }
@@ -2217,9 +2232,9 @@ join_read_last_key(JOIN_TAB *tab)
   }
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
-  if ((error=table->file->index_read_last_map(table->record[0],
-                                              tab->ref.key_buff,
-                                              make_prev_keypart_map(tab->ref.key_parts))))
+  if ((error=table->file->ha_index_read_last_map(table->record[0],
+                                                 tab->ref.key_buff,
+                                                 make_prev_keypart_map(tab->ref.key_parts))))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_handler_error(table, error);
@@ -2766,16 +2781,15 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
         !join->do_send_rows)
     {
       /*
-        If filesort is used for sorting, stop after select_limit_cnt+1
-        records are read. Because of optimization in some cases it can
-        provide only select_limit_cnt+1 records.
+        If we have used Priority Queue for optimizing order by with limit,
+        then stop here, there are no more records to consume.
         When this optimization is used, end_send is called on the next
         join_tab.
       */
       if (join->order &&
           join->select_options & OPTION_FOUND_ROWS &&
           join_tab > join->join_tab &&
-          (join_tab - 1)->filesort && (join_tab - 1)->filesort->sortorder)
+          (join_tab - 1)->filesort && (join_tab - 1)->filesort->using_pq)
       {
         DBUG_PRINT("info", ("filesort NESTED_LOOP_QUERY_LIMIT"));
         DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
@@ -3473,7 +3487,7 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     }
     if (copy_blobs(first_field))
     {
-      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(0));
+      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(ME_FATALERROR));
       error=0;
       goto err;
     }

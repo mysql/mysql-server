@@ -3321,12 +3321,12 @@ insert into t1 select A.a, B.a, 'filler' from t0 A, t0 B;
 create table t2 as select * from t1;
 explain select * from t2 where a in (select b from t1 where a=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	8	Using where; Using index; LooseScan
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	SIMPLE	t1	ref	a	a	10	const,test.t2.a	1	Using index; End temporary
 explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	8	Using where; Using index; LooseScan
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary
+1	SIMPLE	t1	ref	a	a	10	const,test.t2.a	1	Using index; End temporary
 drop table t1,t2;
 create table t1 (a int, b int);
 insert into t1 select a,a from t0;

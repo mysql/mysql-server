@@ -617,8 +617,10 @@ public:
   SEL_ARG *find_range(SEL_ARG *key);
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
+#ifndef DBUG_OFF
   friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
   void test_use_count(SEL_ARG *root);
+#endif
   SEL_ARG *first();
   SEL_ARG *last();
   void make_root();
@@ -732,6 +734,23 @@ public:
   }
   SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param);
   /*
+    Possible ways to read rows using a single index because the
+    conditions of the query consists of single-index conjunctions:
+
+       (ranges_for_idx_1) AND (ranges_for_idx_2) AND ...
+
+    The SEL_ARG graph for each non-NULL element in keys[] may consist
+    of many single-index ranges (disjunctions), so ranges_for_idx_1
+    may e.g. be:
+
+       "idx_field1 = 1 OR (idx_field1 > 5 AND idx_field2 = 10)"
+
+    assuming that index1 is a composite index covering
+    (idx_field1,...,idx_field2,..)
+
+    Index merge intersection intersects ranges on SEL_ARGs from two or
+    more indexes.
+
     Note: there may exist SEL_TREE objects with sel_tree->type=KEY and
     keys[i]=0 for all i. (SergeyP: it is not clear whether there is any
     merit in range analyzer functions (e.g. get_mm_parts) returning a
@@ -741,8 +760,14 @@ public:
   key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
   /*
-    Possible ways to read rows using index_merge. The list is non-empty only
-    if type==KEY. Currently can be non empty only if keys_map.is_clear_all().
+    Possible ways to read rows using Index merge (sort) union.
+
+    Each element in 'merges' consists of multi-index disjunctions,
+    which means that Index merge (sort) union must be applied to read
+    rows. The nodes in the 'merges' list forms a conjunction of such
+    multi-index disjunctions.
+
+    The list is non-empty only if type==KEY.
   */
   List<SEL_IMERGE> merges;
 
@@ -856,9 +881,10 @@ class TABLE_READ_PLAN;
 
 struct st_ror_scan_info;
 
-static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
-			       Item_func::Functype type,Item *value,
-			       Item_result cmp_type);
+static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,
+                               Item_func *cond_func,Field *field,
+                               Item_func::Functype type,Item *value,
+                               Item_result cmp_type);
 static SEL_ARG *get_mm_leaf(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
 			    KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
@@ -1082,7 +1108,10 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
   for (uint idx= 0; idx < MAX_KEY; idx++)
   {
     if ((keys[idx]= arg->keys[idx]))
+    {
+      keys[idx]->use_count++;
       keys[idx]->increment_use_count(1);
+    }
   }
 
   List_iterator<SEL_IMERGE> it(arg->merges);
@@ -1179,35 +1208,45 @@ int imerge_list_or_list(RANGE_OPT_PARAM *param,
   Perform OR operation on index_merge list and key tree.
 
   RETURN
-    0     OK, result is stored in *im1.
-    other Error
+    false     OK, result is stored in *im1.
+    true      Error
 */
 
-int imerge_list_or_tree(RANGE_OPT_PARAM *param,
-                        List<SEL_IMERGE> *im1,
-                        SEL_TREE *tree)
+static bool imerge_list_or_tree(RANGE_OPT_PARAM *param,
+                                List<SEL_IMERGE> *im1,
+                                SEL_TREE *tree)
 {
+  DBUG_ENTER("imerge_list_or_tree");
   SEL_IMERGE *imerge;
   List_iterator<SEL_IMERGE> it(*im1);
-  bool tree_used= FALSE;
+  
+  uint remaining_trees= im1->elements;
   while ((imerge= it++))
   {
     SEL_TREE *or_tree;
-    if (tree_used)
+    /*
+      Need to make a copy of 'tree' for all but the last OR operation
+      because or_sel_tree_with_checks() may change it.
+    */
+    if (--remaining_trees == 0)
+      or_tree= tree;
+    else
     {
       or_tree= new SEL_TREE (tree, param);
-      if (!or_tree ||
-          (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty()))
-        return FALSE;
+      if (!or_tree)
+        DBUG_RETURN(true);
+      if (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty())
+        DBUG_RETURN(false);
     }
-    else
-      or_tree= tree;
 
-    if (imerge->or_sel_tree_with_checks(param, or_tree))
+    int result_or= imerge->or_sel_tree_with_checks(param, or_tree);
+    if (result_or == 1)
       it.remove();
-    tree_used= TRUE;
+    else if (result_or == -1)
+      DBUG_RETURN(true);
   }
-  return im1->is_empty();
+  DBUG_ASSERT(remaining_trees == 0);
+  DBUG_RETURN(im1->is_empty());
 }
 
 
@@ -5966,7 +6005,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
   {
     /* 
        Here the function for the following predicates are processed:
-       <, <=, =, >=, >, LIKE, IS NULL, IS NOT NULL.
+       <, <=, =, >=, >, LIKE, IS NULL, IS NOT NULL and GIS functions.
        If the predicate is of the form (value op field) it is handled
        as the equivalent predicate (field rev_op value), e.g.
        2 <= a is handled as a >= 2.
@@ -6095,8 +6134,39 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
   DBUG_RETURN(ftree);
 }
 
-	/* make a select tree of all keys in condition */
+/**
+  The Range Analysis Module, which finds range access alternatives
+  applicable to single or multi-index (UNION) access. The function
+  does not calculate or care about the cost of the different
+  alternatives.
 
+  get_mm_tree() employs a relaxed boolean algebra where the solution
+  may be bigger than what the rules of boolean algebra accept. In
+  other words, get_mm_tree() may return range access plans that will
+  read more rows than the input conditions dictate. In it's simplest
+  form, consider a condition on two fields indexed by two different
+  indexes:
+
+     "WHERE fld1 > 'x' AND fld2 > 'y'"
+
+  In this case, there are two single-index range access alternatives.
+  No matter which access path is chosen, rows that are not in the
+  result set may be read.
+
+  In the case above, get_mm_tree() will create range access
+  alternatives for both indexes, so boolean algebra is still correct.
+  In other cases, however, the conditions are too complex to be used
+  without relaxing the rules. This typically happens when ORing a
+  conjunction to a multi-index disjunctions (@see e.g.
+  imerge_list_or_tree()). When this happens, the range optimizer may
+  choose to ignore conjunctions (any condition connected with AND). The
+  effect of this is that the result includes a "bigger" solution than
+  neccessary. This is OK since all conditions will be used as filters
+  after row retrieval.
+
+  @see SEL_TREE::keys and SEL_TREE::merges for details of how single
+  and multi-index range access alternatives are stored.
+*/
 static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 {
   SEL_TREE *tree=0;
@@ -6263,7 +6333,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
       Item_result cmp_type= field->cmp_type();
       if (!((ref_tables | field->table->map) & param_comp))
       {
-        tree= get_mm_parts(param, cond, field, Item_func::EQ_FUNC,
+        tree= get_mm_parts(param, item_equal, field, Item_func::EQ_FUNC,
 		           value,cmp_type);
         ftree= !ftree ? tree : tree_and(param, ftree, tree);
       }
@@ -6310,9 +6380,43 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   DBUG_RETURN(ftree);
 }
 
+/**
+  Test whether a comparison operator is a spatial comparison
+  operator, i.e. Item_func::SP_*.
+
+  Used to check if range access using operator 'op_type' is applicable
+  for a non-spatial index.
+
+  @param   op_type  The comparison operator.
+  @return  true if 'op_type' is a spatial comparison operator, false otherwise.
+
+*/
+bool is_spatial_operator(Item_func::Functype op_type)
+{
+  switch (op_type)
+  {
+  case Item_func::SP_EQUALS_FUNC:
+  case Item_func::SP_DISJOINT_FUNC:
+  case Item_func::SP_INTERSECTS_FUNC:
+  case Item_func::SP_TOUCHES_FUNC:
+  case Item_func::SP_CROSSES_FUNC:
+  case Item_func::SP_WITHIN_FUNC:
+  case Item_func::SP_CONTAINS_FUNC:
+  case Item_func::SP_OVERLAPS_FUNC:
+  case Item_func::SP_STARTPOINT:
+  case Item_func::SP_ENDPOINT:
+  case Item_func::SP_EXTERIORRING:
+  case Item_func::SP_POINTN:
+  case Item_func::SP_GEOMETRYN:
+  case Item_func::SP_INTERIORRINGN:
+    return true;
+  default:
+    return false;
+  }
+}
 
 static SEL_TREE *
-get_mm_parts(RANGE_OPT_PARAM *param, Item *cond_func, Field *field,
+get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
 	     Item_func::Functype type,
 	     Item *value, Item_result cmp_type)
 {
@@ -6330,6 +6434,14 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item *cond_func, Field *field,
   {
     if (field->eq(key_part->field))
     {
+      /*
+        Cannot do range access for spatial operators when a
+        non-spatial index is used.
+      */
+      if (key_part->image_type != Field::itMBR &&
+          is_spatial_operator(cond_func->functype()))
+        continue;
+
       SEL_ARG *sel_arg=0;
       if (!tree && !(tree=new SEL_TREE()))
 	DBUG_RETURN(0);				// OOM
@@ -6464,9 +6576,10 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
     }
 
     // If the field is numeric, we can interpret the out of range value.
-    if (field->result_type() == REAL_RESULT ||
-        field->result_type() == INT_RESULT ||
-        field->result_type() == DECIMAL_RESULT)
+    if ((field->type() != FIELD_TYPE_BIT) &&
+        (field->result_type() == REAL_RESULT ||
+         field->result_type() == INT_RESULT ||
+         field->result_type() == DECIMAL_RESULT))
     {
       /*
         value to store was higher than field::max_value if
@@ -7614,7 +7727,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
       Ambiguity: *** 
         The range starts or stops somewhere in the "***" range.
-        Example: a starts before b and may end before/the same plase/after b
+        Example: a starts before b and may end before/the same place/after b
         a: [----***]
         b:   [---]
 
@@ -7649,7 +7762,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         -1: key_value_a is smaller than key_value_b (not adjacent)
          0: the key values are equal
          1: key_value_a is bigger than key_value_b (not adjacent)
-        -2: key_value_a is bigger than key_value_b, and they are adjacent
+         2: key_value_a is bigger than key_value_b, and they are adjacent
 
       Example: "cmp= cur_key1->cmp_max_to_min(cur_key2)"
 
@@ -8342,8 +8455,9 @@ SEL_ARG::tree_delete(SEL_ARG *key)
     DBUG_RETURN(0);				// Maybe root later
   if (remove_color == BLACK)
     root=rb_delete_fixup(root,nod,fix_par);
+#ifndef DBUG_OFF
   test_rb_tree(root,root->parent);
-
+#endif
   root->use_count=this->use_count;		// Fix root counters
   root->elements=this->elements-1;
   root->maybe_flag=this->maybe_flag;
@@ -8439,7 +8553,9 @@ SEL_ARG::rb_insert(SEL_ARG *leaf)
     }
   }
   root->color=BLACK;
+#ifndef DBUG_OFF
   test_rb_tree(root,root->parent);
+#endif
   return root;
 }
 
@@ -8523,6 +8639,7 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 }
 
 
+#ifndef DBUG_OFF
 	/* Test that the properties for a red-black tree hold */
 
 int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
@@ -8559,6 +8676,7 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
   }
   return -1;					// Error, no more warnings
 }
+#endif
 
 
 /**
@@ -8620,6 +8738,7 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
 }
 
 
+#ifndef DBUG_OFF
 /*
   Check if SEL_ARG::use_count value is correct
 
@@ -8669,7 +8788,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
     // DBUG_ASSERT(false); // Todo - enable and clean up mess
   }
 }
-
+#endif
 
 /****************************************************************************
   MRR Range Sequence Interface implementation that walks a SEL_ARG* tree.
@@ -9286,6 +9405,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
       param->table->quick_condition_rows=
         min(param->table->quick_condition_rows, rows);
     }
+    param->table->possible_quick_keys.set_bit(keynr);
   }
   /* Figure out if the key scan is ROR (returns rows in ROWID order) or not */
   enum ha_key_alg key_alg= param->table->key_info[seq.real_keyno].algorithm;
@@ -10057,9 +10177,13 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
 
       do
       {
+        DBUG_EXECUTE_IF("innodb_quick_report_deadlock",
+                        DBUG_SET("+d,innodb_report_deadlock"););
         if ((error= quick->get_next()))
         {
-          quick_with_last_rowid->file->unlock_row();
+          /* On certain errors like deadlock, trx might be rolled back.*/
+          if (!current_thd->transaction_rollback_request)
+            quick_with_last_rowid->file->unlock_row();
           DBUG_RETURN(error);
         }
         quick->file->position(quick->record);
@@ -10082,7 +10206,9 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
             quick->file->unlock_row(); /* row not in range; unlock */
             if ((error= quick->get_next()))
             {
-              quick_with_last_rowid->file->unlock_row();
+              /* On certain errors like deadlock, trx might be rolled back.*/
+              if (!current_thd->transaction_rollback_request)
+                quick_with_last_rowid->file->unlock_row();
               DBUG_RETURN(error);
             }
           }
@@ -11088,13 +11214,15 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
     NGA1.If in the index I there is a gap between the last GROUP attribute G_k,
          and the MIN/MAX attribute C, then NGA must consist of exactly the
          index attributes that constitute the gap. As a result there is a
-         permutation of NGA that coincides with the gap in the index
-         <B_1, ..., B_m>.
+         permutation of NGA, BA=<B_1,...,B_m>, that coincides with the gap
+         in the index.
     NGA2.If BA <> {}, then the WHERE clause must contain a conjunction EQ of
          equality conditions for all NG_i of the form (NG_i = const) or
          (const = NG_i), such that each NG_i is referenced in exactly one
          conjunct. Informally, the predicates provide constants to fill the
          gap in the index.
+    NGA3.If BA <> {}, there can only be one range. TODO: This is a code
+         limitation and is not strictly needed. See BUG#15947433
     WA1. There are no other attributes in the WHERE clause except the ones
          referenced in predicates RNG, PA, PC, EQ defined above. Therefore
          WA is subset of (GA union NGA union C) for GA,NGA,C that pass the
@@ -11446,7 +11574,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         cur_parts have bits set for only used keyparts.
       */
       ulonglong all_parts, cur_parts;
-      all_parts= (1<<max_key_part) - 1;
+      all_parts= (1ULL << max_key_part) - 1;
       cur_parts= used_key_parts_map.to_ulonglong() >> 1;
       if (all_parts != cur_parts)
         goto next_index;
@@ -11839,6 +11967,84 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
 
 /*
+  Get SEL_ARG tree, if any, for the keypart covering non grouping
+  attribute (NGA) field 'nga_field'.
+
+  This function enforces the NGA3 test: If 'keypart_tree' contains a
+  condition for 'nga_field', there can only be one range. In the
+  opposite case, this function returns with error and 'cur_range'
+  should not be used.
+
+  Note that the NGA1 and NGA2 requirements, like whether or not the
+  range predicate for 'nga_field' is equality, is not tested by this
+  function.
+
+  @param[in]   nga_field      The NGA field we want the SEL_ARG tree for
+  @param[in]   keypart_tree   Root node of the SEL_ARG* tree for the index
+  @param[out]  cur_range      The SEL_ARG tree, if any, for the keypart
+                              covering field 'keypart_field'
+  @retval true   'keypart_tree' contained a predicate for 'nga_field' but
+                  multiple ranges exists. 'cur_range' should not be used.
+  @retval false  otherwise
+*/
+
+static bool
+get_sel_arg_for_keypart(Field *nga_field,
+                        SEL_ARG *keypart_tree,
+                        SEL_ARG **cur_range)
+{
+  if(keypart_tree == NULL)
+    return false;
+  if(keypart_tree->type != SEL_ARG::KEY_RANGE)
+  {
+    /*
+      A range predicate not usable by Loose Index Scan is found.
+      Predicates for keypart 'keypart_tree->part' and later keyparts
+      cannot be used.
+    */
+    *cur_range= keypart_tree;
+    return false;
+  }
+  if(keypart_tree->field->eq(nga_field))
+  {
+    /*
+      Enforce NGA3: If a condition for nga_field has been found, only
+      a single range is allowed.
+    */
+    if (keypart_tree->prev || keypart_tree->next)
+      return true; // There are multiple ranges
+
+    *cur_range= keypart_tree;
+    return false;
+  }
+
+  SEL_ARG *found_tree= NULL;
+  SEL_ARG *first_kp=  keypart_tree->first();
+
+  for (SEL_ARG *cur_kp= first_kp; cur_kp && !found_tree;
+       cur_kp= cur_kp->next)
+  {
+    if (cur_kp->next_key_part)
+    {
+      if (get_sel_arg_for_keypart(nga_field,
+                                  cur_kp->next_key_part,
+                                  &found_tree))
+        return true;
+
+    }
+    /*
+       Enforce NGA3: If a condition for nga_field has been found,only
+       a single range is allowed.
+    */
+    if (found_tree && found_tree->type == SEL_ARG::KEY_RANGE && first_kp->next)
+      return true; // There are multiple ranges
+  }
+  *cur_range= found_tree;
+  return false;
+}
+
+
+/*
   Extract a sequence of constants from a conjunction of equality predicates.
 
   SYNOPSIS
@@ -11852,7 +12058,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     key_infix              [out] Infix of constants to be used for index lookup
     key_infix_len          [out] Lenghth of the infix
     first_non_infix_part   [out] The first keypart after the infix (if any)
-    
+
   DESCRIPTION
     Test conditions (NGA1, NGA2) from get_best_group_min_max(). Namely,
     for each keypart field NGF_i not in GROUP-BY, check that there is a
@@ -11886,17 +12092,14 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
   uchar *key_ptr= key_infix;
   for (cur_part= first_non_group_part; cur_part != end_part; cur_part++)
   {
+    cur_range= NULL;
     /*
       Find the range tree for the current keypart. We assume that
       index_range_tree points to the leftmost keypart in the index.
     */
-    for (cur_range= index_range_tree;
-         cur_range && cur_range->type == SEL_ARG::KEY_RANGE;
-         cur_range= cur_range->next_key_part)
-    {
-      if (cur_range->field->eq(cur_part->field))
-        break;
-    }
+    if(get_sel_arg_for_keypart(cur_part->field, index_range_tree, &cur_range))
+      return false;
+
     if (!cur_range || cur_range->type != SEL_ARG::KEY_RANGE)
     {
       if (min_max_arg_part)
@@ -11908,9 +12111,6 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       }
     }
 
-    /* Check that the current range tree is a single point interval. */
-    if (cur_range->prev || cur_range->next)
-      return FALSE; /* This is not the only range predicate for the field. */
     if ((cur_range->min_flag & NO_MIN_RANGE) ||
         (cur_range->max_flag & NO_MAX_RANGE) ||
         (cur_range->min_flag & NEAR_MIN) || (cur_range->max_flag & NEAR_MAX))

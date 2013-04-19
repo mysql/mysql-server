@@ -1481,6 +1481,21 @@ fil_space_get_space(
 	if (space->size == 0 && space->purpose == FIL_TABLESPACE) {
 		ut_a(id != 0);
 
+		mutex_exit(&fil_system->mutex);
+
+		/* It is possible that the space gets evicted at this point
+		before the fil_mutex_enter_and_prepare_for_io() acquires
+		the fil_system->mutex. Check for this after completing the
+		call to fil_mutex_enter_and_prepare_for_io(). */
+		fil_mutex_enter_and_prepare_for_io(id);
+
+		/* We are still holding the fil_system->mutex. Check if
+		the space is still in memory cache. */
+		space = fil_space_get_by_id(id);
+		if (space == NULL) {
+			return(NULL);
+		}
+
 		/* The following code must change when InnoDB supports
 		multiple datafiles per tablespace. */
 		ut_a(1 == UT_LIST_GET_LEN(space->chain));
@@ -1552,8 +1567,7 @@ fil_space_get_size(
 	ulint		size;
 
 	ut_ad(fil_system);
-
-	fil_mutex_enter_and_prepare_for_io(id);
+	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_space(id);
 
@@ -1583,7 +1597,7 @@ fil_space_get_flags(
 		return(0);
 	}
 
-	fil_mutex_enter_and_prepare_for_io(id);
+	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_space(id);
 
@@ -2567,7 +2581,7 @@ fil_close_tablespace(
 
 	char*	cfg_name = fil_make_cfg_name(path);
 
-	os_file_delete_if_exists(cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
 
 	mem_free(path);
 	mem_free(cfg_name);
@@ -2650,7 +2664,7 @@ fil_delete_tablespace(
 	when we drop the database the remove directory will fail. */
 	{
 		char*	cfg_name = fil_make_cfg_name(path);
-		os_file_delete_if_exists(cfg_name);
+		os_file_delete_if_exists(innodb_file_data_key, cfg_name);
 		mem_free(cfg_name);
 	}
 
@@ -2678,7 +2692,8 @@ fil_delete_tablespace(
 
 	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);
-	} else if (!os_file_delete(path) && !os_file_delete_if_exists(path)) {
+	} else if (!os_file_delete(innodb_file_data_key, path)
+		   && !os_file_delete_if_exists(innodb_file_data_key, path)) {
 
 		/* Note: This is because we have removed the
 		tablespace instance from the cache. */
@@ -3147,7 +3162,7 @@ fil_delete_link_file(
 {
 	char* link_filepath = fil_make_isl_name(tablename);
 
-	os_file_delete_if_exists(link_filepath);
+	os_file_delete_if_exists(innodb_file_data_key, link_filepath);
 
 	mem_free(link_filepath);
 }
@@ -3458,7 +3473,7 @@ error_exit_1:
 error_exit_2:
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
-		os_file_delete(path);
+		os_file_delete(innodb_file_data_key, path);
 	}
 error_exit_3:
 	mem_free(path);
@@ -6109,11 +6124,11 @@ fil_delete_file(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Deleting %s", ibd_name);
 
-	os_file_delete_if_exists(ibd_name);
+	os_file_delete_if_exists(innodb_file_data_key, ibd_name);
 
 	char*	cfg_name = fil_make_cfg_name(ibd_name);
 
-	os_file_delete_if_exists(cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
 
 	mem_free(cfg_name);
 }
@@ -6176,15 +6191,17 @@ fil_mtr_rename_log(
 	ulint		new_space_id,	/*!< in: tablespace id of the new
 					table */
 	const char*	new_name,	/*!< in: new table name */
-	const char*	tmp_name)	/*!< in: temp table name used while
+	const char*	tmp_name,	/*!< in: temp table name used while
 					swapping */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	mtr_t           mtr;
-	mtr_start(&mtr);
-	fil_op_write_log(MLOG_FILE_RENAME, old_space_id,
-			 0, 0, old_name, tmp_name, &mtr);
-	fil_op_write_log(MLOG_FILE_RENAME, new_space_id,
-			 0, 0, new_name, old_name, &mtr);
-	mtr_commit(&mtr);
-}
+	if (old_space_id != TRX_SYS_SPACE) {
+		fil_op_write_log(MLOG_FILE_RENAME, old_space_id,
+				 0, 0, old_name, tmp_name, mtr);
+	}
 
+	if (new_space_id != TRX_SYS_SPACE) {
+		fil_op_write_log(MLOG_FILE_RENAME, new_space_id,
+				 0, 0, new_name, old_name, mtr);
+	}
+}

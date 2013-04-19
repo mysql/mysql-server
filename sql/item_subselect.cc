@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -433,6 +433,36 @@ err:
   return res;
 }
 
+
+/**
+  Apply walk() processor to join conditions.
+
+  JOINs may be nested. Walk nested joins recursively to apply the
+  processor.
+*/
+bool Item_subselect::walk_join_condition(List<TABLE_LIST> *tables,
+                                         Item_processor processor,
+                                         bool walk_subquery,
+                                         uchar *argument)
+{
+  TABLE_LIST *table;
+  List_iterator<TABLE_LIST> li(*tables);
+
+  while ((table= li++))
+  {
+    if (table->join_cond() &&
+        table->join_cond()->walk(processor, walk_subquery, argument))
+      return true;
+
+    if (table->nested_join != NULL &&
+        walk_join_condition(&table->nested_join->join_list, processor,
+                            walk_subquery, argument))
+      return true;
+  }
+  return false;
+}
+
+
 /**
   Workaround for bug in gcc 4.1. @See Item_in_subselect::walk()
 */
@@ -447,26 +477,33 @@ bool Item_subselect::walk_body(Item_processor processor, bool walk_subquery,
       Item *item;
       ORDER *order;
 
-      if (lex->where && (lex->where)->walk(processor, walk_subquery, argument))
-        return 1;
-      if (lex->having && (lex->having)->walk(processor, walk_subquery,
-                                             argument))
-        return 1;
-
       while ((item=li++))
       {
         if (item->walk(processor, walk_subquery, argument))
-          return 1;
+          return true;
       }
-      for (order= lex->order_list.first ; order; order= order->next)
-      {
-        if ((*order->item)->walk(processor, walk_subquery, argument))
-          return 1;
-      }
+
+      if (lex->join_list != NULL &&
+          walk_join_condition(lex->join_list, processor, walk_subquery, argument))
+        return true;
+
+      if (lex->where && (lex->where)->walk(processor, walk_subquery, argument))
+        return true;
+
       for (order= lex->group_list.first ; order; order= order->next)
       {
         if ((*order->item)->walk(processor, walk_subquery, argument))
-          return 1;
+          return true;
+      }
+
+      if (lex->having && (lex->having)->walk(processor, walk_subquery,
+                                             argument))
+        return true;
+
+      for (order= lex->order_list.first ; order; order= order->next)
+      {
+        if ((*order->item)->walk(processor, walk_subquery, argument))
+          return true;
       }
     }
   }
@@ -980,7 +1017,13 @@ void Item_singlerow_subselect::fix_length_and_dec()
 
 void Item_singlerow_subselect::no_rows_in_result()
 {
-  no_rows= true;
+  /*
+    This is only possible if we have a dependent subquery in the SELECT list
+    and an aggregated outer query based on zero rows, which is an illegal query
+    according to the SQL standard. ONLY_FULL_GROUP_BY rejects such queries.
+  */
+  if (unit->uncacheable & UNCACHEABLE_DEPENDENT)
+    no_rows= true;
 }
 
 uint Item_singlerow_subselect::cols()
@@ -1528,7 +1571,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       }
 
       save_allow_sum_func= thd->lex->allow_sum_func;
-      thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
+      thd->lex->allow_sum_func|=
+        (nesting_map)1 << thd->lex->current_select->nest_level;
       /*
 	Item_sum_(max|min) can't substitute other item => we can use 0 as
         reference, also Item_sum_(max|min) can't be fixed after creation, so
@@ -2398,6 +2442,20 @@ bool Item_in_subselect::init_left_expr_cache()
 bool Item_subselect::inform_item_in_cond_of_tab(uchar *join_tab_index)
 {
   in_cond_of_tab= *reinterpret_cast<int *>(join_tab_index);
+  return false;
+}
+
+
+/**
+   Clean up after removing the subquery from the item tree.
+
+   Call st_select_lex_unit::exclude_tree() to unlink it from its
+   master and to unlink direct st_select_lex children from
+   all_selects_list.
+ */
+bool Item_subselect::clean_up_after_removal(uchar *arg)
+{
+  unit->exclude_tree();
   return false;
 }
 

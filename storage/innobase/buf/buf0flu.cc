@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -535,9 +535,9 @@ buf_flush_remove(
 	buf_flush_list_mutex_enter(buf_pool);
 
 	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_PAGE:
 		/* Clean compressed pages should not be on the flush list */
-	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_MEMORY:
@@ -903,7 +903,7 @@ buf_flush_write_block_low(
 	log_write_up_to(bpage->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
 #endif
 	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_PAGE: /* The page should be dirty. */
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
@@ -1396,7 +1396,7 @@ buf_free_from_unzip_LRU_list_batch(
 	       && lru_len > UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
 
 		++scanned;
-		if (buf_LRU_free_block(&block->page, FALSE)) {
+		if (buf_LRU_free_page(&block->page, false)) {
 			/* Block was freed. buf_pool->mutex potentially
 			released and reacquired */
 			++count;
@@ -1473,7 +1473,7 @@ buf_flush_LRU_list_batch(
 		of the flushed pages then the scan becomes
 		O(n*n). */
 		if (evict) {
-			if (buf_LRU_free_block(bpage, TRUE)) {
+			if (buf_LRU_free_page(bpage, true)) {
 				/* buf_pool->mutex was potentially
 				released and reacquired. */
 				bpage = UT_LIST_GET_LAST(buf_pool->LRU);
@@ -1967,7 +1967,7 @@ buf_flush_single_page_from_LRU(
 	buf_page_t*	bpage;
 	ib_mutex_t*	block_mutex;
 	ibool		freed;
-	ibool		evict_zip;
+	bool		evict_zip;
 
 	buf_pool_mutex_enter(buf_pool);
 
@@ -2037,7 +2037,7 @@ buf_flush_single_page_from_LRU(
 
 	evict_zip = !buf_LRU_evict_from_unzip_LRU(buf_pool);;
 
-	freed = buf_LRU_free_block(bpage, evict_zip);
+	freed = buf_LRU_free_page(bpage, evict_zip);
 	buf_pool_mutex_exit(buf_pool);
 
 	return(freed);

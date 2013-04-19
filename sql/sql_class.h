@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2416,7 +2416,7 @@ public:
 #ifndef __WIN__
   sigset_t signals;
 #endif
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   Vio* active_vio;
 #endif
   /*
@@ -3036,7 +3036,7 @@ public:
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   inline void set_active_vio(Vio* vio)
   {
     mysql_mutex_lock(&LOCK_thd_data);
@@ -3049,7 +3049,7 @@ public:
     active_vio = 0;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
-  void close_active_vio();
+  void shutdown_active_vio();
 #endif
   void awake(THD::killed_state state_to_set);
 
@@ -4244,16 +4244,8 @@ public:
 
      @param table_list_par   The table reference for the destination table.
      @param table_par        The destination table. May be NULL.
-     @param target_columns   The columns of the table which is the target for
-                             insertion. May be NULL, but if not, the same
-                             value must be used for target_or_source_columns.
-     @param target_or_source_columns The columns of the source table providing
-                             data, or columns of the target table. If the
-                             target table is known, the columns of that table
-                             should be used. If the target table is not known
-                             (it may not yet exist), the columns of the source
-                             table should be used, and target_columns should
-                             be NULL.
+     @param target_columns   See details.
+     @param target_or_source_columns See details.
      @param update_fields    The columns to be updated in case of duplicate
                              keys. May be NULL.
      @param update_values    The values to be assigned in case of duplicate
@@ -4268,25 +4260,31 @@ public:
      select_insert members initialized here are totally redundant, as they are
      found inside the COPY_INFO.
 
-     Here is the explanation of how we set the manage_defaults parameter of
-     info's constructor below.
-     @li if target_columns==NULL, the statement is
+     The target_columns and target_or_source_columns arguments are set by
+     callers as follows:
+     @li if CREATE SELECT:
+      - target_columns == NULL,
+      - target_or_source_columns == expressions listed after SELECT, as in
+          CREATE ... SELECT expressions
+     @li if INSERT SELECT:
+      target_columns
+      == target_or_source_columns
+      == columns listed between INSERT and SELECT, as in
+          INSERT INTO t (columns) SELECT ...
+
+     We set the manage_defaults argument of info's constructor as follows
+     ([...] denotes something optional):
+     @li If target_columns==NULL, the statement is
 @verbatim
-     CREATE TABLE a_table (possibly some columns1) SELECT columns2
+     CREATE TABLE a_table [(columns1)] SELECT expressions2
 @endverbatim
-     which sets all of a_table's columns2 to values returned by SELECT (no
-     default needs to be set); a_table's columns1 get set from defaults
-     prepared by make_empty_rec() when table is created, not by COPY_INFO. So
-     manage_defaults is "false".
-     @li otherwise, target_columns!=NULL and so it is INSERT SELECT. If there
-     are explicitely listed columns like
+     so 'info' must manage defaults of columns1.
+     @li Otherwise it is:
 @verbatim
-     INSERT INTO a_table (columns1) SELECT ...
+     INSERT INTO a_table [(columns1)] SELECT ...
 @verbatim
-     then non-listed columns (columns of a_table which are not columns1) may
-     need a default set by COPY_INFO so manage_defaults is "true". If no
-     column is explicitely listed, all columns will be set to values returned
-     by SELECT, so "manage_defaults" is false.
+     target_columns is columns1, if not empty then 'info' must manage defaults
+     of other columns than columns1.
   */
   select_insert(TABLE_LIST *table_list_par,
                 TABLE *table_par,
@@ -4303,7 +4301,7 @@ public:
      info(COPY_INFO::INSERT_OPERATION,
           target_columns,
           // manage_defaults
-          target_columns != NULL && target_columns->elements != 0,
+          (target_columns == NULL || target_columns->elements != 0),
           duplic,
           ignore),
      update(COPY_INFO::UPDATE_OPERATION,

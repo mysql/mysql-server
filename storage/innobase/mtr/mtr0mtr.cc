@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,78 +58,81 @@ mtr_block_dirtied(
 
 /*****************************************************************//**
 Releases the item in the slot given. */
-static
+static __attribute__((nonnull))
 void
-mtr_memo_slot_release(
-/*==================*/
-	mtr_t*			mtr,	/*!< in: mtr */
+mtr_memo_slot_release_func(
+/*=======================*/
+#ifdef UNIV_DEBUG
+ 	mtr_t*			mtr,	/*!< in/out: mini-transaction */
+#endif /* UNIV_DEBUG */
 	mtr_memo_slot_t*	slot)	/*!< in: memo slot */
 {
-	void*	object;
-	ulint	type;
-
-	ut_ad(mtr);
-	ut_ad(slot);
+	void*	object = slot->object;
+	slot->object = NULL;
 
 	/* slot release is a local operation for the current mtr.
 	We must not be holding the flush_order mutex while
 	doing this. */
 	ut_ad(!log_flush_order_mutex_own());
-#ifndef UNIV_DEBUG
-	UT_NOT_USED(mtr);
-#endif /* UNIV_DEBUG */
 
-	object = slot->object;
-	type = slot->type;
-
-	if (UNIV_LIKELY(object != NULL)) {
-		if (type <= MTR_MEMO_BUF_FIX) {
-			buf_page_release((buf_block_t*) object, type);
-		} else if (type == MTR_MEMO_S_LOCK) {
-			rw_lock_s_unlock((rw_lock_t*) object);
+	switch (slot->type) {
+	case MTR_MEMO_PAGE_S_FIX:
+	case MTR_MEMO_PAGE_X_FIX:
+	case MTR_MEMO_BUF_FIX:
+		buf_page_release((buf_block_t*) object, slot->type);
+		break;
+	case MTR_MEMO_S_LOCK:
+		rw_lock_s_unlock((rw_lock_t*) object);
+		break;
+	case MTR_MEMO_X_LOCK:
+		rw_lock_x_unlock((rw_lock_t*) object);
+		break;
 #ifdef UNIV_DEBUG
-		} else if (type != MTR_MEMO_X_LOCK) {
-			ut_ad(type == MTR_MEMO_MODIFY);
-			ut_ad(mtr_memo_contains(mtr, object,
-						MTR_MEMO_PAGE_X_FIX));
+	default:
+		ut_ad(slot->type == MTR_MEMO_MODIFY);
+		ut_ad(mtr_memo_contains(mtr, object, MTR_MEMO_PAGE_X_FIX));
 #endif /* UNIV_DEBUG */
-		} else {
-			rw_lock_x_unlock((rw_lock_t*) object);
-		}
 	}
-
-	slot->object = NULL;
 }
+
+#ifdef UNIV_DEBUG
+# define mtr_memo_slot_release(mtr, slot) mtr_memo_slot_release_func(mtr, slot)
+#else /* UNIV_DEBUG */
+# define mtr_memo_slot_release(mtr, slot) mtr_memo_slot_release_func(slot)
+#endif /* UNIV_DEBUG */
 
 /**********************************************************//**
 Releases the mlocks and other objects stored in an mtr memo.
 They are released in the order opposite to which they were pushed
 to the memo. */
-static
+static __attribute__((nonnull))
 void
 mtr_memo_pop_all(
 /*=============*/
-	mtr_t*	mtr)	/*!< in: mtr */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	ulint		offset;
-
-	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_COMMITTING); /* Currently only used in
 					     commit */
-	memo = &(mtr->memo);
 
-	offset = dyn_array_get_data_size(memo);
+	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
+	     block;
+	     block = dyn_array_get_prev_block(&mtr->memo, block)) {
+		const mtr_memo_slot_t*	start
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block));
+		mtr_memo_slot_t*	slot
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block)
+				+ dyn_block_get_used(block));
 
-	while (offset > 0) {
-		offset -= sizeof(mtr_memo_slot_t);
+		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
 
-		slot = static_cast<mtr_memo_slot_t*>(
-			dyn_array_get_element(memo, offset));
-
-		mtr_memo_slot_release(mtr, slot);
+		while (slot-- != start) {
+			if (slot->object != NULL) {
+				mtr_memo_slot_release(mtr, slot);
+			}
+		}
 	}
 }
 
@@ -344,39 +347,34 @@ UNIV_INTERN
 void
 mtr_memo_release(
 /*=============*/
-	mtr_t*	mtr,	/*!< in: mtr */
+	mtr_t*	mtr,	/*!< in/out: mini-transaction */
 	void*	object,	/*!< in: object */
 	ulint	type)	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
 {
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	ulint		offset;
-
-	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
+	/* We cannot release a page that has been written to in the
+	middle of a mini-transaction. */
+	ut_ad(!mtr->modifications || type != MTR_MEMO_PAGE_X_FIX);
 
-	memo = &(mtr->memo);
+	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
+	     block;
+	     block = dyn_array_get_prev_block(&mtr->memo, block)) {
+		const mtr_memo_slot_t*	start
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block));
+		mtr_memo_slot_t*	slot
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block)
+				+ dyn_block_get_used(block));
 
-	offset = dyn_array_get_data_size(memo);
+		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
 
-	while (offset > 0) {
-		offset -= sizeof(mtr_memo_slot_t);
-
-		slot = static_cast<mtr_memo_slot_t*>(
-			dyn_array_get_element(memo, offset));
-
-		if (object == slot->object && type == slot->type) {
-
-			/* We cannot release a page that has been written
-			to in the middle of a mini-transaction. */
-
-			ut_ad(!(mtr->modifications
-			       	&& slot->type == MTR_MEMO_PAGE_X_FIX));
-
-			mtr_memo_slot_release(mtr, slot);
-
-			break;
+		while (slot-- != start) {
+			if (object == slot->object && type == slot->type) {
+				mtr_memo_slot_release(mtr, slot);
+				return;
+			}
 		}
 	}
 }

@@ -1,10 +1,10 @@
 include/master-slave.inc
 [connection master]
-call mtr.add_suppression("Slave I/O: The slave IO thread stops because the master has GTID_MODE");
+call mtr.add_suppression("Slave I/O: The slave IO thread stops because the master has @@GLOBAL.GTID_MODE");
 call mtr.add_suppression("Error reading packet from server: Lost connection to MySQL");
 call mtr.add_suppression("Aborting");
-call mtr.add_suppression(".* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when GTID_MODE = ON.");
-call mtr.add_suppression(".* Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF.");
+call mtr.add_suppression(".* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON.");
+call mtr.add_suppression(".* Found a Gtid_log_event or Previous_gtids_log_event when @@GLOBAL.GTID_MODE = OFF.");
 call mtr.add_suppression(".* Failed to initialize the master info structure");
 include/stop_slave.inc
 ==== Master and slave have GTID_MODE = OFF ====
@@ -23,10 +23,10 @@ ERROR HY000: Variable 'gtid_mode' is a read only variable
 SET GTID_NEXT = 'AUTOMATIC';
 SET GTID_NEXT = 'ANONYMOUS';
 SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
-ERROR HY000: GTID_NEXT cannot be set to UUID:NUMBER when GTID_MODE = OFF.
+ERROR HY000: @@SESSION.GTID_NEXT cannot be set to UUID:NUMBER when @@GLOBAL.GTID_MODE = OFF.
 ---- CHANGE MASTER TO MASTER_AUTO_POSITION not supported ----
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
-ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when GTID_MODE = ON.
+ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON.
 CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
 ---- No GTIDs in binlog ----
 include/start_slave.inc
@@ -67,11 +67,11 @@ include/assert.inc [GTID_MODE should be ON now.]
 SET GTID_NEXT = 'AUTOMATIC';
 SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 SET GTID_NEXT = 'ANONYMOUS';
-ERROR HY000: GTID_NEXT cannot be set to ANONYMOUS when GTID_MODE = ON.
+ERROR HY000: @@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON.
 ROLLBACK;
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
-ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns 7805be8e-51ab-11e1-bacc-6706c20ad7ba:1. Ownership is released on COMMIT or ROLLBACK.
+ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns 7805be8e-51ab-11e1-bacc-6706c20ad7ba:1. Ownership is released on COMMIT or ROLLBACK.
 ROLLBACK;
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
@@ -99,7 +99,7 @@ include/rpl_stop_server.inc [server_number=2]
 ---- Fail to start replication with GTID_MODE = OFF and GTIDs in binlog/relay log ----
 include/rpl_start_server.inc [server_number=2]
 START SLAVE;
-ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when GTID_MODE = ON.
+ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON.
 include/rpl_restart_server.inc [server_number=2 gtids=on]
 RESET SLAVE;
 RESET MASTER;

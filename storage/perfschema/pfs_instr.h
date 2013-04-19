@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -476,14 +476,16 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   int m_command;
   /** Start time. */
   time_t m_start_time;
-  /** Lock for Processlist state, Processlist info. */
-  pfs_lock m_processlist_lock;
+  /** Lock for Processlist state. */
+  pfs_lock m_processlist_state_lock;
+  /** Lock for Processlist info. */
+  pfs_lock m_processlist_info_lock;
   /** Processlist state. */
   const char *m_processlist_state_ptr;
   /** Length of @c m_processlist_state_ptr. */
   uint m_processlist_state_length;
   /** Processlist info. */
-  const char *m_processlist_info_ptr;
+  char m_processlist_info[COL_INFO_SIZE];
   /** Length of @c m_processlist_info_length. */
   uint m_processlist_info_length;
 

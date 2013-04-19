@@ -673,11 +673,13 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+tutorial +(Мога τίποτα)" I
 id	a	b
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
 id	a	b
+7	いろはにほへど　ちりぬる	あさきゆめみじ　ゑひもせず
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("ちりぬる" WITH QUERY EXPANSION);
 id	a	b
 7	いろはにほへど　ちりぬる	あさきゆめみじ　ゑひもせず
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("+あさきゆめみじ　+ゑひもせず" IN BOOLEAN MODE);
 id	a	b
+7	いろはにほへど　ちりぬる	あさきゆめみじ　ゑひもせず
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("うゐのおく*" IN BOOLEAN MODE);
 id	a	b
 6	うゐのおくやま	けふこえて
