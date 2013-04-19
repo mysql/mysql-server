@@ -3082,8 +3082,9 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		fprintf(stderr, "InnoDB: unexpected end of temporary file"
-			" for index %s\n", index->name + 1);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"unexpected end of temporary file for index %s",
+			index->name + 1);
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;

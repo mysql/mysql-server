@@ -170,6 +170,7 @@ class ha_innobase: public handler
 	int transactional_table_lock(THD *thd, int lock_type);
 	int start_stmt(THD *thd, thr_lock_type lock_type);
 	void position(uchar *record);
+	ha_rows records();
 	ha_rows records_in_range(uint inx, key_range *min_key, key_range
 								*max_key);
 	ha_rows estimate_rows_upper_bound();

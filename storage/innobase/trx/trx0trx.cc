@@ -127,7 +127,7 @@ trx_create(void)
 
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
-	trx->global_read_view_heap = mem_heap_create(256);
+	trx->read_view_heap = mem_heap_create(256);
 
 	trx->xid.formatID = -1;
 
@@ -203,26 +203,15 @@ trx_free(
 
 	mutex_free(&trx->undo_mutex);
 
-	if (trx->undo_no_arr != NULL) {
-		trx_undo_arr_free(trx->undo_no_arr);
-	}
-
 	ut_a(trx->lock.wait_lock == NULL);
 	ut_a(trx->lock.wait_thr == NULL);
 
 	ut_a(!trx->has_search_latch);
-
 	ut_a(trx->dict_operation_lock_mode == 0);
-
-	if (trx->lock.lock_heap) {
-		mem_heap_free(trx->lock.lock_heap);
-	}
-
 	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-	if (trx->global_read_view_heap) {
-		mem_heap_free(trx->global_read_view_heap);
-	}
+	mem_heap_free(trx->lock.lock_heap);
+	mem_heap_free(trx->read_view_heap);
 
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 	/* We allocated a dedicated heap for the vector. */
@@ -234,7 +223,6 @@ trx_free(
 	}
 
 	mutex_free(&trx->mutex);
-
 	mem_free(trx);
 }
 
@@ -1090,7 +1078,7 @@ trx_commit_in_memory(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
-		read_view_remove(trx->global_read_view, false);
+		read_view_remove(trx->read_view, false);
 
 		MONITOR_INC(MONITOR_TRX_NL_RO_COMMIT);
 	} else {
@@ -1126,20 +1114,14 @@ trx_commit_in_memory(
 
 		/* We already own the trx_sys_t::mutex, by doing it here we
 		avoid a potential context switch later. */
-		read_view_remove(trx->global_read_view, true);
+		read_view_remove(trx->read_view, true);
 
 		ut_ad(trx_sys_validate_trx_list());
 
 		mutex_exit(&trx_sys->mutex);
 	}
 
-	if (trx->global_read_view != NULL) {
-
-		mem_heap_empty(trx->global_read_view_heap);
-
-		trx->global_read_view = NULL;
-	}
-
+	mem_heap_empty(trx->read_view_heap);
 	trx->read_view = NULL;
 
 	if (lsn) {
@@ -1348,7 +1330,6 @@ trx_cleanup_at_db_startup(
 
 	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
 
-	assert_trx_in_rw_list(trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
 
 	mutex_exit(&trx_sys->mutex);
@@ -1384,11 +1365,8 @@ trx_assign_read_view(
 	}
 
 	if (!trx->read_view) {
-
 		trx->read_view = read_view_open_now(
-			trx->id, trx->global_read_view_heap);
-
-		trx->global_read_view = trx->read_view;
+			trx->id, trx->read_view_heap);
 	}
 
 	return(trx->read_view);
@@ -2131,7 +2109,15 @@ trx_start_if_not_started_xa_low(
 
 	case TRX_STATE_ACTIVE:
 		if (trx->id == 0 && read_write) {
-			trx_set_rw_mode(trx);
+			/* If the transaction is tagged as read-only then
+			it can only write to temp tables and for such
+			transactions we don't want to move them to the
+			trx_sys_t::rw_trx_list. */
+			if (!trx->read_only) {
+				trx_set_rw_mode(trx);
+			} else if (trx->read_only && !srv_read_only_mode) {
+				trx_assign_rseg(trx);
+			}
 		}
 		return;
 	case TRX_STATE_PREPARED:

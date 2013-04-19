@@ -3121,11 +3121,12 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
 Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
-                       SQL_I_List<ORDER> *order_list, String *separator_arg)
+                       const SQL_I_List<ORDER> &order_list,
+                       String *separator_arg)
   :tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
    order(0), context(context_arg),
-   arg_count_order(order_list ? order_list->elements : 0),
+   arg_count_order(order_list.elements),
    arg_count_field(select_list->elements),
    row_count(0),
    distinct(distinct_arg),
@@ -3165,7 +3166,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= order_list->first;
+    for (ORDER *order_item= order_list.first;
          order_item != NULL;
          order_item= order_item->next)
     {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,19 +22,3 @@ Transaction rollback
 
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
-
-/*******************************************************************//**
-Returns pointer to nth element in an undo number array.
-@return	pointer to the nth element */
-UNIV_INLINE
-trx_undo_inf_t*
-trx_undo_arr_get_nth_info(
-/*======================*/
-	trx_undo_arr_t*	arr,	/*!< in: undo number array */
-	ulint		n)	/*!< in: position */
-{
-	ut_ad(arr);
-	ut_ad(n < arr->n_cells);
-
-	return(arr->infos + n);
-}

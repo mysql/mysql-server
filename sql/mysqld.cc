@@ -125,12 +125,6 @@ using std::vector;
 
 #define mysqld_charset &my_charset_latin1
 
-/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
-
-#if defined(HAVE_DEC_3_2_THREADS) || defined(HAVE_purify) && defined(__linux__)
-#define HAVE_CLOSE_SERVER_SOCK 1
-#endif
-
 extern "C" {          // Because of SCO 3.2V4.2
 #include <errno.h>
 #include <sys/stat.h>
@@ -186,10 +180,6 @@ extern int getpagesizes2(size_t *, int);
 extern int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #endif /* __sun__ ... */
 #endif /* HAVE_SOLARIS_LARGE_PAGES */
-
-#ifdef _AIX41
-int initgroups(const char *,unsigned int);
-#endif
 
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
 #include <ieeefp.h>
@@ -262,13 +252,6 @@ inline void setup_fpu()
 #endif /* _WIN32 && */
 #endif /* __i386__ */
 
-#if defined(__sgi) && defined(HAVE_SYS_FPU_H)
-  /* Enable denormalized DOUBLE values support for IRIX */
-  union fpc_csr n;
-  n.fc_word = get_fpc_csr();
-  n.fc_struct.flush = 0;
-  set_fpc_csr(n.fc_word);
-#endif
 }
 
 } /* cplusplus */
@@ -1485,7 +1468,8 @@ static void close_connections(void)
 
 static void close_server_sock()
 {
-#ifdef HAVE_CLOSE_SERVER_SOCK
+/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
+#if defined(HAVE_purify) && defined(__linux__)
   DBUG_ENTER("close_server_sock");
   MYSQL_SOCKET tmp_sock;
   tmp_sock=ip_sock;
@@ -2973,7 +2957,6 @@ static void start_signal_handler(void)
   DBUG_ENTER("start_signal_handler");
 
   (void) pthread_attr_init(&thr_attr);
-#if !defined(HAVE_DEC_3_2_THREADS)
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
 #if defined(__ia64__) || defined(__ia64)
@@ -2984,7 +2967,6 @@ static void start_signal_handler(void)
   pthread_attr_setstacksize(&thr_attr,my_thread_stack_size*2);
 #else
   pthread_attr_setstacksize(&thr_attr,my_thread_stack_size);
-#endif
 #endif
 
   mysql_mutex_lock(&LOCK_thread_count);
@@ -4892,7 +4874,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   {
     time_t purge_time= server_start_time - expire_logs_days*24*60*60;
     if (purge_time >= 0)
-      mysql_bin_log.purge_logs_before_date(purge_time);
+      mysql_bin_log.purge_logs_before_date(purge_time, true);
   }
 #endif
 

@@ -1464,9 +1464,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       Init TABLE_LIST members necessary when the undelrying
       table is view.
     */
-    table_list.select_lex= &(thd->lex->select_lex);
+    table_list.select_lex= thd->lex->select_lex;
     thd->lex->
-      select_lex.table_list.link_in_list(&table_list,
+      select_lex->table_list.link_in_list(&table_list,
                                          &table_list.next_local);
     thd->lex->add_to_query_tables(&table_list);
 
@@ -1502,7 +1502,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     mysqld_list_fields(thd,&table_list,fields);
 
-    thd->lex->unit.cleanup();
+    thd->lex->unit->cleanup();
     /* No need to rollback statement transaction, it's not started. */
     DBUG_ASSERT(thd->transaction.stmt.is_empty());
     close_thread_tables(thd);
@@ -1810,13 +1810,12 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     {
       LEX_STRING db;
       size_t dummy;
-      if (lex->select_lex.db == NULL &&
-          lex->copy_db_to(&lex->select_lex.db, &dummy))
-      {
+      if (lex->select_lex->db == NULL &&
+          lex->copy_db_to(&lex->select_lex->db, &dummy))
         DBUG_RETURN(1);
-      }
-      schema_select_lex= new SELECT_LEX();
-      db.str= schema_select_lex->db= lex->select_lex.db;
+      if ((schema_select_lex= lex->new_empty_query_block()) == NULL)
+        DBUG_RETURN(1);      /* purecov: inspected */
+      db.str= schema_select_lex->db= lex->select_lex->db;
       schema_select_lex->table_list.first= NULL;
       db.length= strlen(db.str);
 
@@ -1829,10 +1828,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   {
     DBUG_ASSERT(table_ident);
     TABLE_LIST **query_tables_last= lex->query_tables_last;
-    schema_select_lex= new SELECT_LEX();
-    /* 'parent_lex' is used in init_query() so it must be before it. */
-    schema_select_lex->parent_lex= lex;
-    schema_select_lex->init_query();
+    if ((schema_select_lex= lex->new_empty_query_block()) == NULL)
+      DBUG_RETURN(1);        /* purecov: inspected */
     if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
                                               MDL_SHARED_READ))
       DBUG_RETURN(1);
@@ -2128,13 +2125,13 @@ mysql_execute_command(THD *thd)
   int  up_result= 0;
   LEX  *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   /* first table of first SELECT_LEX */
   TABLE_LIST *first_table= select_lex->table_list.first;
   /* list of all tables in query */
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
-  SELECT_LEX_UNIT *unit= &lex->unit;
+  SELECT_LEX_UNIT *unit= lex->unit;
 #ifdef HAVE_REPLICATION
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
@@ -2178,9 +2175,7 @@ mysql_execute_command(THD *thd)
   /* should be assigned after making first tables same */
   all_tables= lex->query_tables;
   /* set context for commands which do not use setup_tables */
-  select_lex->
-    context.resolve_in_table_list_only(select_lex->
-                                       table_list.first);
+  select_lex->context.resolve_in_table_list_only(select_lex->get_table_list());
 
   /*
     Reset warning count for each query that uses tables
@@ -2362,6 +2357,15 @@ mysql_execute_command(THD *thd)
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+
+    /*
+      Implicit commit is not allowed with an active XA transaction.
+      In this case we should not release metadata locks as the XA transaction
+      will not be rolled back. Therefore we simply return here.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
+
     /* Commit the normal transaction if one is active. */
     if (trans_commit_implicit(thd))
       goto error;
@@ -3525,6 +3529,12 @@ end_with_restore_list:
     */
     if (thd->variables.option_bits & OPTION_TABLE_LOCK)
     {
+      /*
+        Can we commit safely? If not, return to avoid releasing
+        transactional metadata locks.
+      */
+      if (trans_check_state(thd))
+        DBUG_RETURN(-1);
       res= trans_commit_implicit(thd);
       thd->locked_tables_list.unlock_locked_tables(thd);
       thd->mdl_context.release_transactional_locks();
@@ -3537,6 +3547,12 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_LOCK_TABLES:
+    /*
+      Can we commit safely? If not, return to avoid releasing
+      transactional metadata locks.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
     /* We must end the transaction first, regardless of anything */
     res= trans_commit_implicit(thd);
     thd->locked_tables_list.unlock_locked_tables(thd);
@@ -3734,7 +3750,7 @@ end_with_restore_list:
     delete lex->sphead;
     lex->sphead= NULL;
   }
-  /* lex->unit.cleanup() is called outside, no need to call it here */
+  /* lex->unit->cleanup() is called outside, no need to call it here */
   break;
   case SQLCOM_SHOW_CREATE_EVENT:
     res= Events::show_create_event(thd, lex->spname->m_db,
@@ -4696,7 +4712,7 @@ finish:
     }
   }
 
-  lex->unit.cleanup();
+  lex->unit->cleanup();
   /* Free tables */
   THD_STAGE_INFO(thd, stage_closing_tables);
   close_thread_tables(thd);
@@ -4776,7 +4792,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
   bool res;
   /* assign global limit variable if limit is not given */
   {
-    SELECT_LEX *param= lex->unit.global_parameters;
+    SELECT_LEX *param= lex->unit->global_parameters;
     if (!param->explicit_limit)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
@@ -5285,7 +5301,7 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
       but only for the first table list element from the main select.
     */
     DBUG_ASSERT(!tables->schema_table_reformed ||
-                tables == thd->lex->select_lex.table_list.first);
+                tables == thd->lex->select_lex->table_list.first);
 
     DBUG_PRINT("info", ("derived: %d  view: %d", tables->derived != 0,
                         tables->view != 0));
@@ -5579,7 +5595,6 @@ void THD::reset_for_next_command()
   DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
   thd->free_list= 0;
-  thd->select_number= 1;
   /*
     Those two lines below are theoretically unneeded as
     THD::cleanup_after_query() should take care of this already.
@@ -5640,128 +5655,6 @@ void THD::reset_for_next_command()
 
 
 /**
-  Resets the lex->current_select object.
-  @note It is assumed that lex->current_select != NULL
-
-  This function is a wrapper around select_lex->init_select() with an added
-  check for the special situation when using INTO OUTFILE and LOAD DATA.
-*/
-
-void
-mysql_init_select(LEX *lex)
-{
-  SELECT_LEX *select_lex= lex->current_select;
-  select_lex->init_select();
-  lex->wild= 0;
-  if (select_lex == &lex->select_lex)
-  {
-    DBUG_ASSERT(lex->result == 0);
-    lex->exchange= 0;
-  }
-}
-
-
-/**
-  Used to allocate a new SELECT_LEX object on the current thd mem_root and
-  link it into the relevant lists.
-
-  This function is always followed by mysql_init_select.
-
-  @see mysql_init_select
-
-  @retval TRUE An error occurred
-  @retval FALSE The new SELECT_LEX was successfully allocated.
-*/
-
-bool
-mysql_new_select(LEX *lex, bool move_down)
-{
-  SELECT_LEX *select_lex;
-  THD *thd= lex->thd;
-  Name_resolution_context *outer_context= lex->current_context();
-  DBUG_ENTER("mysql_new_select");
-
-  if (!(select_lex= new (thd->mem_root) SELECT_LEX()))
-    DBUG_RETURN(1);
-  select_lex->select_number= ++thd->select_number;
-  select_lex->parent_lex= lex; /* Used in init_query. */
-  select_lex->init_query();
-  select_lex->init_select();
-  lex->nest_level++;
-  if (lex->nest_level > (int) MAX_SELECT_NESTING)
-  {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
-    DBUG_RETURN(1);
-  }
-  select_lex->nest_level= lex->nest_level;
-  if (move_down)
-  {
-    SELECT_LEX_UNIT *unit;
-    lex->subqueries= TRUE;
-    /* first select_lex of subselect or derived table */
-    if (!(unit= new (thd->mem_root) SELECT_LEX_UNIT()))
-      DBUG_RETURN(1);
-
-    unit->init_query();
-    unit->init_select();
-    unit->thd= thd;
-    unit->include_down(lex->current_select);
-    unit->link_next= 0;
-    unit->link_prev= 0;
-    select_lex->include_down(unit);
-    /*
-      By default we assume that it is usual subselect and we have outer name
-      resolution context, if no we will assign it to 0 later
-    */
-    if (select_lex->outer_select()->parsing_place == IN_ON)
-      /*
-        This subquery is part of an ON clause, so we need to link the
-        name resolution context for this subquery with the ON context.
-
-        @todo outer_context is not the same as
-        &select_lex->outer_select()->context in one case:
-        (SELECT 1 as a) UNION (SELECT 2) ORDER BY (SELECT a);
-        When we create the select_lex for the subquery in ORDER BY,
-        1) outer_context is the context of the second SELECT of the
-        UNION
-        2) &select_lex->outer_select() is the fake select_lex, which context
-        is the one of the first SELECT of the UNION (see
-        st_select_lex_unit::add_fake_select_lex()).
-        2) is the correct context, per the documentation. 1) is not, and using
-        it leads to a resolving error for the query above.
-        We should fix 1) and then use it unconditionally here.
-      */
-      select_lex->context.outer_context= outer_context;
-    else
-      select_lex->context.outer_context= &select_lex->outer_select()->context;
-  }
-  else
-  {
-    if (lex->current_select->order_list.first && !lex->current_select->braces)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
-      DBUG_RETURN(1);
-    }
-    select_lex->include_neighbour(lex->current_select);
-    SELECT_LEX_UNIT *unit= select_lex->master_unit();                              
-    if (!unit->fake_select_lex && unit->add_fake_select_lex(lex->thd))
-      DBUG_RETURN(1);
-    select_lex->context.outer_context= 
-                unit->first_select()->context.outer_context;
-  }
-
-  select_lex->master_unit()->global_parameters= select_lex;
-  select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
-  lex->current_select= select_lex;
-  /*
-    in subquery is SELECT query and we allow resolution of names in SELECT
-    list
-  */
-  select_lex->context.resolve_in_select_list= TRUE;
-  DBUG_RETURN(0);
-}
-
-/**
   Create a select to return the same output as 'SELECT @@var_name'.
 
   Used for SHOW COUNT(*) [ WARNINGS | ERROR].
@@ -5782,7 +5675,6 @@ void create_select_for_variable(const char *var_name)
 
   thd= current_thd;
   lex= thd->lex;
-  mysql_init_select(lex);
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
@@ -5803,15 +5695,13 @@ void create_select_for_variable(const char *var_name)
 
 void mysql_init_multi_delete(LEX *lex)
 {
-  lex->sql_command=  SQLCOM_DELETE_MULTI;
-  mysql_init_select(lex);
-  lex->select_lex.select_limit= 0;
-  lex->unit.select_limit_cnt= HA_POS_ERROR;
-  lex->select_lex.table_list.save_and_clear(&lex->auxiliary_table_list);
-  lex->query_tables= 0;
+  lex->sql_command= SQLCOM_DELETE_MULTI;
+  lex->select_lex->select_limit= 0;
+  lex->unit->select_limit_cnt= HA_POS_ERROR;
+  lex->select_lex->table_list.save_and_clear(&lex->auxiliary_table_list);
+  lex->query_tables= NULL;
   lex->query_tables_last= &lex->query_tables;
 }
-
 
 /*
   When you modify mysql_parse(), you may need to mofify
@@ -5852,8 +5742,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     is required for the cache to work properly.
     FIXME: cleanup the dependencies in the code to simplify this.
   */
-  lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
+  lex_start(thd);
 
   if (query_cache.send_result_to_client(thd, rawbuf, length) <= 0)
   {
@@ -6043,7 +5933,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
 
     thd->m_statement_psi= NULL;
     if (!parse_sql(thd, & parser_state, NULL) &&
-        all_tables_not_ok(thd, lex->select_lex.table_list.first))
+        all_tables_not_ok(thd, lex->select_lex->table_list.first))
       error= 1;                  /* Ignore question */
     thd->m_statement_psi= parent_locker;
     thd->end_statement();
@@ -6625,7 +6515,7 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
     (SELECT ... ORDER BY LIMIT n) ORDER BY ...
     @endvarbatim
   
-  @param thd_arg		   thread handle
+  @param thd_arg       thread handle
 
   @note
     The object is used to retrieve rows from the temporary table
@@ -6642,21 +6532,19 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
   SELECT_LEX *first_sl= first_select();
   DBUG_ENTER("add_fake_select_lex");
   DBUG_ASSERT(!fake_select_lex);
+  DBUG_ASSERT(thd_arg == thd);
 
-  if (!(fake_select_lex= new (thd_arg->mem_root) SELECT_LEX()))
-      DBUG_RETURN(1);
-  fake_select_lex->include_standalone(this, 
-                                      (SELECT_LEX_NODE**)&fake_select_lex);
+  if (!(fake_select_lex= thd_arg->lex->new_empty_query_block()))
+    DBUG_RETURN(true);       /* purecov: inspected */
+  fake_select_lex->include_standalone(this, &fake_select_lex);
   fake_select_lex->select_number= INT_MAX;
-  fake_select_lex->parent_lex= thd_arg->lex; /* Used in init_query. */
-  fake_select_lex->make_empty_select();
   fake_select_lex->linkage= GLOBAL_OPTIONS_TYPE;
   fake_select_lex->select_limit= 0;
 
-  fake_select_lex->context.outer_context=first_sl->context.outer_context;
+  fake_select_lex->set_context(first_sl->context.outer_context);
+
   /* allow item list resolving in fake select for ORDER BY */
   fake_select_lex->context.resolve_in_select_list= TRUE;
-  fake_select_lex->context.select_lex= fake_select_lex;
 
   if (!is_union())
   {
@@ -6670,8 +6558,8 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
     fake_select_lex->no_table_names_allowed= 1;
     thd_arg->lex->current_select= fake_select_lex;
   }
-  thd_arg->lex->pop_context();
-  DBUG_RETURN(0);
+  thd->lex->pop_context();
+  DBUG_RETURN(false);
 }
 
 
@@ -6925,7 +6813,7 @@ bool check_simple_select()
 {
   THD *thd= current_thd;
   LEX *lex= thd->lex;
-  if (lex->current_select != &lex->select_lex)
+  if (lex->current_select != lex->select_lex)
   {
     char command[80];
     Lex_input_stream *lip= & thd->m_parser_state->m_lip;
@@ -7061,7 +6949,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
   const char *msg= 0;
   TABLE_LIST *table;
   LEX *lex= thd->lex;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   DBUG_ENTER("multi_update_precheck");
 
   if (select_lex->item_list.elements != lex->value_list.elements)
@@ -7094,7 +6982,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
   /*
     Is there tables of subqueries?
   */
-  if (&lex->select_lex != lex->all_selects_list)
+  if (lex->select_lex != lex->all_selects_list)
   {
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next_global)
@@ -7137,7 +7025,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
 
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 {
-  SELECT_LEX *select_lex= &thd->lex->select_lex;
+  SELECT_LEX *select_lex= thd->lex->select_lex;
   TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
   TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
@@ -7254,7 +7142,7 @@ static TABLE_LIST *multi_delete_table_match(LEX *lex, TABLE_LIST *tbl,
 
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
 {
-  TABLE_LIST *tables= lex->select_lex.table_list.first;
+  TABLE_LIST *tables= lex->select_lex->table_list.first;
   TABLE_LIST *target_tbl;
   DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
 
@@ -7296,7 +7184,7 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
 bool update_precheck(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("update_precheck");
-  if (thd->lex->select_lex.item_list.elements != thd->lex->value_list.elements)
+  if (thd->lex->select_lex->item_list.elements != thd->lex->value_list.elements)
   {
     my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
     DBUG_RETURN(TRUE);
@@ -7379,7 +7267,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
   else
     create_table->open_type= OT_BASE_ONLY;
 
-  if (!lex->select_lex.item_list.elements)
+  if (!lex->select_lex->item_list.elements)
   {
     /*
       Avoid opening and locking target table for ordinary CREATE TABLE
@@ -7410,7 +7298,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table)
 {
   LEX *lex= thd->lex;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   ulong want_priv;
   bool error= TRUE;                                 // Error message is given
   DBUG_ENTER("create_table_precheck");

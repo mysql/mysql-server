@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1090,7 +1090,7 @@ loop:
 			fil_load_single_table_tablespaces(). */
 
 			fil_space_for_table_exists_in_mem(
-				space_id, name, TRUE, !(is_temp || discarded),
+				space_id, name, !(is_temp || discarded),
 				false, NULL, 0);
 
 		} else if (!discarded) {
@@ -2308,8 +2308,7 @@ err_exit:
 		table->ibd_file_missing = TRUE;
 
 	} else if (!fil_space_for_table_exists_in_mem(
-			table->space, name, FALSE, FALSE, true, heap,
-			table->id)) {
+			   table->space, name, false, true, heap, table->id)) {
 
 		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
 			/* Do not bother to retry opening temporary tables. */
@@ -2410,9 +2409,16 @@ err_exit:
 	if (!cached || table->ibd_file_missing) {
 		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
-		err = dict_load_foreigns(table->name, NULL, true, true);
+		err = dict_load_foreigns(table->name, NULL, true, true,
+					 ignore_err);
 
 		if (err != DB_SUCCESS) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Load table '%s' failed, the table has missing "
+				"foreign key indexes. Turn off "
+				"'foreign_key_checks' and try again.",
+				table->name);
+
 			dict_table_remove_from_cache(table);
 			table = NULL;
 		} else {
@@ -2711,18 +2717,21 @@ static __attribute__((nonnull(1), warn_unused_result))
 dberr_t
 dict_load_foreign(
 /*==============*/
-	const char*	id,	/*!< in: foreign constraint id, must be
+	const char*		id,
+				/*!< in: foreign constraint id, must be
 				'\0'-terminated */
-	const char**	col_names,
+	const char**		col_names,
 				/*!< in: column names, or NULL
 				to use foreign->foreign_table->col_names */
-	bool		check_recursive,
+	bool			check_recursive,
 				/*!< in: whether to record the foreign table
 				parent count to avoid unlimited recursive
 				load of chained foreign tables */
-	bool		check_charsets)
+	bool			check_charsets,
 				/*!< in: whether to check charset
 				compatibility */
+	dict_err_ignore_t	ignore_err)
+				/*!< in: error to be ignored */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -2891,7 +2900,8 @@ dict_load_foreign(
 	a new foreign key constraint but loading one from the data
 	dictionary. */
 
-	return(dict_foreign_add_to_cache(foreign, col_names, check_charsets));
+	return(dict_foreign_add_to_cache(foreign, col_names, check_charsets,
+					 ignore_err));
 }
 
 /***********************************************************************//**
@@ -2905,13 +2915,15 @@ UNIV_INTERN
 dberr_t
 dict_load_foreigns(
 /*===============*/
-	const char*	table_name,	/*!< in: table name */
-	const char**	col_names,	/*!< in: column names, or NULL to use
-					table->col_names */
-	bool		check_recursive,/*!< in: Whether to check recursive
-					load of tables chained by FK */
-	bool		check_charsets)	/*!< in: whether to check charset
-					compatibility */
+	const char*		table_name,	/*!< in: table name */
+	const char**		col_names,	/*!< in: column names, or NULL
+						to use table->col_names */
+	bool			check_recursive,/*!< in: Whether to check
+						recursive load of tables
+						chained by FK */
+	bool			check_charsets,	/*!< in: whether to check
+						charset compatibility */
+	dict_err_ignore_t	ignore_err)	/*!< in: error to be ignored */
 {
 	ulint		tuple_buf[(DTUPLE_EST_ALLOC(1) + sizeof(ulint) - 1)
 				/ sizeof(ulint)];
@@ -3023,7 +3035,7 @@ loop:
 	/* Load the foreign constraint definition to the dictionary cache */
 
 	err = dict_load_foreign(fk_id, col_names,
-				check_recursive, check_charsets);
+				check_recursive, check_charsets, ignore_err);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);

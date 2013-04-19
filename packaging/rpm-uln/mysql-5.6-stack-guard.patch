@@ -14,7 +14,7 @@ Joerg Bruehe, MySQL Build Team at Oracle: Third hunk adapted to code changes in 
 diff -Naur mysql-5.6.9.orig/sql/mysqld.cc mysql-5.6.9/sql/mysqld.cc
 --- mysql-5.6.9.orig/sql/mysqld.cc	2008-11-14 11:37:13.000000000 -0500
 +++ mysql-5.6.9/sql/mysqld.cc	2009-01-13 12:08:35.000000000 -0500
-@@ -2970,6 +2970,70 @@
+@@ -2955,6 +2955,70 @@
  }
  
  
@@ -85,8 +85,8 @@ diff -Naur mysql-5.6.9.orig/sql/mysqld.cc mysql-5.6.9/sql/mysqld.cc
  static void start_signal_handler(void)
  {
    int error;
-@@ -2980,15 +3044,7 @@
- #if !defined(HAVE_DEC_3_2_THREADS)
+@@ -2964,15 +3028,7 @@
+   (void) pthread_attr_init(&thr_attr);
    pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
    (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
 -#if defined(__ia64__) || defined(__ia64)
@@ -99,10 +99,10 @@ diff -Naur mysql-5.6.9.orig/sql/mysqld.cc mysql-5.6.9/sql/mysqld.cc
 -  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size);
 -#endif
 +  (void) my_setstacksize(&thr_attr,my_thread_stack_size);
- #endif
  
    mysql_mutex_lock(&LOCK_thread_count);
-@@ -5243,37 +5307,7 @@
+   if ((error= mysql_thread_create(key_thread_signal_hand,
+@@ -5220,37 +5276,7 @@
      unireg_abort(1);        // Will do exit
  
    my_init_signals();

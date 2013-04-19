@@ -192,10 +192,6 @@ struct fil_space_t {
 				an insert buffer merge request for a
 				page because it actually was for the
 				previous incarnation of the space */
-	ibool		mark;	/*!< this is set to TRUE at database startup if
-				the space corresponds to a table in the InnoDB
-				data dictionary; so we can print a warning of
-				orphaned tablespaces */
 	ibool		stop_ios;/*!< TRUE if we want to rename the
 				.ibd file of tablespace and want to
 				stop temporarily posting of new i/o
@@ -1249,7 +1245,6 @@ fil_space_create(
 
 	fil_system->tablespace_version++;
 	space->tablespace_version = fil_system->tablespace_version;
-	space->mark = FALSE;
 
 	if (purpose == FIL_TABLESPACE && !recv_recovery_on
 	    && id > fil_system->max_assigned_id) {
@@ -4450,13 +4445,7 @@ fil_space_for_table_exists_in_mem(
 					fil_space_create().  Either the
 					standard 'dbname/tablename' format
 					or table->dir_path_of_temp_table */
-	ibool		mark_space,	/*!< in: in crash recovery, at database
-					startup we mark all spaces which have
-					an associated table in the InnoDB
-					data dictionary, so that
-					we can print a warning about orphaned
-					tablespaces */
-	ibool		print_error_if_does_not_exist,
+	bool		print_error_if_does_not_exist,
 					/*!< in: print detailed error
 					information to the .err log if a
 					matching tablespace is not found from
@@ -4483,10 +4472,6 @@ fil_space_for_table_exists_in_mem(
 	fnamespace = fil_space_get_by_name(name);
 	if (space && space == fnamespace) {
 		/* Found */
-
-		if (mark_space) {
-			space->mark = TRUE;
-		}
 
 		mutex_exit(&fil_system->mutex);
 

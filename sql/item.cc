@@ -5001,9 +5001,9 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
   */
   Name_resolution_context *last_checked_context= context;
   Item **ref= (Item **) not_found_item;
-  SELECT_LEX *current_sel= (SELECT_LEX *) thd->lex->current_select;
-  Name_resolution_context *outer_context= 0;
-  SELECT_LEX *select= 0;
+  SELECT_LEX *current_sel= thd->lex->current_select;
+  Name_resolution_context *outer_context= NULL;
+  SELECT_LEX *select= NULL;
   /* Currently derived tables cannot be correlated */
   if (current_sel->master_unit()->first_select()->linkage !=
       DERIVED_TABLE_TYPE)
@@ -7381,13 +7381,6 @@ void Item_ref::set_properties()
     alias_name_used= ((Item_ident *) (*ref))->alias_name_used;
   else
     alias_name_used= TRUE; // it is not field, so it is was resolved by alias
-}
-
-
-table_map Item_ref::resolved_used_tables() const
-{
-  DBUG_ASSERT((*ref)->real_item()->type() == FIELD_ITEM);
-  return ((Item_field*)(*ref))->resolved_used_tables();
 }
 
 
