@@ -43,7 +43,7 @@ uchar *my_malloc_lock(uint size,myf MyFlags)
   if (!(ptr=memalign(pagesize,size)))
   {
     if (MyFlags & (MY_FAE+MY_WME))
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),size);
+      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG+ME_FATALERROR), size);
     DBUG_RETURN(0);
   }
   success = mlock((uchar*) ptr,size);

@@ -10,7 +10,7 @@ start slave;
 include/wait_for_slave_sql_error.inc [errno=1593]
 Last_SQL_Error = 'Failed during slave thread initialization'
 call mtr.add_suppression("Failed during slave.* thread initialization");
-# Asserted this: SHOW SLAVE STATUS should return No IO thread running status
+include/assert.inc [SHOW SLAVE STATUS should return No IO thread running status]
 SET GLOBAL debug= "";
 reset slave;
 SET GLOBAL init_slave= "garbage";

@@ -663,7 +663,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
 
 EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	NULL	i2_1	4	NULL	103	Using index for group-by
+1	SIMPLE	t2	range	i2_1,i2_2	i2_1	4	NULL	103	Using index for group-by
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -895,7 +895,7 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
 }	0	0
 EXPLAIN SELECT DISTINCT key2 FROM t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	NULL	i2_1	4	NULL	103	Using index for group-by
+1	SIMPLE	t2	range	i2_1,i2_2	i2_1	4	NULL	103	Using index for group-by
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES

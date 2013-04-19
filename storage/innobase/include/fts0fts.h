@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -844,7 +844,7 @@ fts_index_get_charset(
 	dict_index_t*		index);		/*!< in: FTS index */
 
 /*********************************************************************//**
-Get the initial Doc ID by consulting the ADDED and the CONFIG table
+Get the initial Doc ID by consulting the CONFIG table
 @return initial Doc ID */
 UNIV_INTERN
 doc_id_t
@@ -894,8 +894,8 @@ ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
 	CHARSET_INFO*	charset,		/*!< in: Character set */
-	byte*		start,			/*!< in: start of text */
-	byte*		end,			/*!< in: one character past
+	const byte*	start,			/*!< in: start of text */
+	const byte*	end,			/*!< in: one character past
 						end of text */
 	fts_string_t*	token,			/*!< out: token's text */
 	ulint*		offset);		/*!< out: offset to token,
@@ -923,9 +923,9 @@ fts_get_max_doc_id(
 /******************************************************************//**
 Check whether user supplied stopword table exists and is of
 the right format.
-@return TRUE if the table qualifies */
+@return the stopword column charset if qualifies */
 UNIV_INTERN
-ibool
+CHARSET_INFO*
 fts_valid_stopword_table(
 /*=====================*/
 	const char*	stopword_table_name);	/*!< in: Stopword table
@@ -970,9 +970,11 @@ fts_table_fetch_doc_ids(
 	fts_doc_ids_t*	doc_ids);		/*!< in: For collecting
 						doc ids */
 /****************************************************************//**
-This function loads the documents in "ADDED" table into FTS cache,
-it also loads the stopword info into the FTS cache.
-@return DB_SUCCESS if all OK */
+This function brings FTS index in sync when FTS index is first
+used. There are documents that have not yet sync-ed to auxiliary
+tables from last server abnormally shutdown, we will need to bring
+such document into FTS cache before any further operations
+@return TRUE if all OK */
 UNIV_INTERN
 ibool
 fts_init_index(

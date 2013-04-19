@@ -43,7 +43,7 @@ size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size)
                                           FALSE, timeout);
 
       /*
-        WaitForMultipleObjects can return next values:
+         WaitForMultipleObjects can return next values:
          WAIT_OBJECT_0+0 - event from vio->event_server_wrote
          WAIT_OBJECT_0+1 - event from vio->event_conn_closed.
                            We can't read anything
@@ -153,64 +153,73 @@ my_bool vio_is_connected_shared_memory(Vio *vio)
 }
 
 
-/**
- Close shared memory and DBUG_PRINT any errors that happen on closing.
- @return Zero if all closing functions succeed, and nonzero otherwise.
-*/
-int vio_close_shared_memory(Vio * vio)
+void vio_delete_shared_memory(Vio *vio)
 {
-  int error_count= 0;
-  DBUG_ENTER("vio_close_shared_memory");
-  if (vio->type != VIO_CLOSED)
+  DBUG_ENTER("vio_delete_shared_memory");
+
+  if (!vio)
+    DBUG_VOID_RETURN;
+
+  if (vio->inactive == FALSE)
+    vio->vioshutdown(vio);
+
+  /*
+    Close all handlers. UnmapViewOfFile and CloseHandle return non-zero
+    result if they are success.
+  */
+  if (UnmapViewOfFile(vio->handle_map) == 0)
+    DBUG_PRINT("vio_error", ("UnmapViewOfFile() failed"));
+  
+  if (CloseHandle(vio->event_server_wrote) == 0)
+    DBUG_PRINT("vio_error", ("CloseHandle(vio->esw) failed"));
+  
+  if (CloseHandle(vio->event_server_read) == 0)
+    DBUG_PRINT("vio_error", ("CloseHandle(vio->esr) failed"));
+  
+  if (CloseHandle(vio->event_client_wrote) == 0)
+    DBUG_PRINT("vio_error", ("CloseHandle(vio->ecw) failed"));
+  
+  if (CloseHandle(vio->event_client_read) == 0)
+    DBUG_PRINT("vio_error", ("CloseHandle(vio->ecr) failed"));
+
+  if (CloseHandle(vio->handle_file_map) == 0)
+    DBUG_PRINT("vio_error", ("CloseHandle(vio->hfm) failed"));
+
+  if (CloseHandle(vio->event_conn_closed) == 0)
+    DBUG_PRINT("vio_error", ("CloseHandle(vio->ecc) failed"));
+
+  vio_delete(vio);
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  When "kill connection xx" is executed on an arbitrary thread it calls
+  THD::shutdown_active_vio() on the THD referred to by xx. Since the
+  thread serving the connection xx might be in the middle of a vio_read
+  or vio_write, we cannot unmap the shared memory here.
+
+  Therefore we here just signal the connection_closed event and give
+  the thread servicing connection xx a chance to gracefully exit.
+  All handles are closed and the VIO is cleaned up when vio_delete() is
+  called and this completes the vio cleanup operation in its entirety.
+*/
+int vio_shutdown_shared_memory(Vio * vio)
+{
+  DBUG_ENTER("vio_shutdown_shared_memory");
+  if (vio->inactive == FALSE)
   {
     /*
       Set event_conn_closed for notification of both client and server that
       connection is closed
     */
     SetEvent(vio->event_conn_closed);
-    /*
-      Close all handlers. UnmapViewOfFile and CloseHandle return non-zero
-      result if they are success.
-    */
-    if (UnmapViewOfFile(vio->handle_map) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("UnmapViewOfFile() failed"));
-    }
-    if (CloseHandle(vio->event_server_wrote) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->esw) failed"));
-    }
-    if (CloseHandle(vio->event_server_read) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->esr) failed"));
-    }
-    if (CloseHandle(vio->event_client_wrote) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->ecw) failed"));
-    }
-    if (CloseHandle(vio->event_client_read) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->ecr) failed"));
-    }
-    if (CloseHandle(vio->handle_file_map) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->hfm) failed"));
-    }
-    if (CloseHandle(vio->event_conn_closed) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->ecc) failed"));
-    }
   }
-  vio->type= VIO_CLOSED;
+
+  vio->inactive= TRUE;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
-  DBUG_RETURN(error_count);
+
+  DBUG_RETURN(0);
 }
 
 #endif /* #if defined(_WIN32) && defined(HAVE_SMEM) */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,7 +35,7 @@ UNIV_INTERN
 dyn_block_t*
 dyn_array_add_block(
 /*================*/
-	dyn_array_t*	arr)	/*!< in: dyn array */
+	dyn_array_t*	arr)	/*!< in/out: dyn array */
 {
 	mem_heap_t*	heap;
 	dyn_block_t*	block;

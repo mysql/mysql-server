@@ -6751,46 +6751,46 @@ ER_BAD_SLAVE_AUTO_POSITION
   eng "Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active."
 
 ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
-  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when GTID_MODE = ON."
+  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON."
 
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-  eng "Cannot execute statements with implicit commit inside a transaction when GTID_NEXT != AUTOMATIC or GTID_NEXT_LIST != NULL."
+  eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC or @@SESSION.GTID_NEXT_LIST != NULL."
 
 ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
-  eng "GTID_MODE = ON or GTID_MODE = UPGRADE_STEP_2 requires ENFORCE_GTID_CONSISTENCY = 1."
+  eng "@@GLOBAL.GTID_MODE = ON or UPGRADE_STEP_2 requires @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
 
 ER_GTID_MODE_REQUIRES_BINLOG
-  eng "GTID_MODE = ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates."
+  eng "@@GLOBAL.GTID_MODE = ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates."
 
 ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
-  eng "GTID_NEXT cannot be set to UUID:NUMBER when GTID_MODE = OFF."
+  eng "@@SESSION.GTID_NEXT cannot be set to UUID:NUMBER when @@GLOBAL.GTID_MODE = OFF."
 
 ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
-  eng "GTID_NEXT cannot be set to ANONYMOUS when GTID_MODE = ON."
+  eng "@@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON."
 
 ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF
-  eng "GTID_NEXT_LIST cannot be set to a non-NULL value when GTID_MODE = OFF."
+  eng "@@SESSION.GTID_NEXT_LIST cannot be set to a non-NULL value when @@GLOBAL.GTID_MODE = OFF."
 
 ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF
-  eng "Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF."
+  eng "Found a Gtid_log_event or Previous_gtids_log_event when @@GLOBAL.GTID_MODE = OFF."
 
 ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
-  eng "When ENFORCE_GTID_CONSISTENCY = 1, updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
+  eng "When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
 
 ER_GTID_UNSAFE_CREATE_SELECT
-  eng "CREATE TABLE ... SELECT is forbidden when ENFORCE_GTID_CONSISTENCY = 1."
+  eng "CREATE TABLE ... SELECT is forbidden when @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
 
 ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
- eng "When ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1."
+ eng "When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1."
 
 ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
-  eng "The value of GTID_MODE can only change one step at a time: OFF <-> UPGRADE_STEP_1 <-> UPGRADE_STEP_2 <-> ON. Also note that this value must be stepped up or down simultaneously on all servers; see the Manual for instructions." 
+  eng "The value of @@GLOBAL.GTID_MODE can only change one step at a time: OFF <-> UPGRADE_STEP_1 <-> UPGRADE_STEP_2 <-> ON. Also note that this value must be stepped up or down simultaneously on all servers; see the Manual for instructions." 
 
 ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
   eng "The slave is connecting using CHANGE MASTER TO MASTER_AUTO_POSITION = 1, but the master has purged binary logs containing GTIDs that the slave requires."
 
 ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
-  eng "GTID_NEXT cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."
+  eng "@@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."
 
 ER_UNKNOWN_EXPLAIN_FORMAT
   eng "Unknown EXPLAIN format name: '%s'"
@@ -6938,25 +6938,25 @@ ER_READ_ONLY_MODE
         eng "Running in read-only mode"
 
 ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
-  eng "When GTID_NEXT is set to a GTID, you must explicitly set it again after a COMMIT or ROLLBACK. If you see this error message in the slave SQL thread, it means that a table in the current transaction is transactional on the master and non-transactional on the slave. In a client connection, it means that you executed SET GTID_NEXT before a transaction and forgot to set GTID_NEXT to a different identifier or to 'AUTOMATIC' after COMMIT or ROLLBACK. Current GTID_NEXT is '%s'."
+  eng "When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it again after a COMMIT or ROLLBACK. If you see this error message in the slave SQL thread, it means that a table in the current transaction is transactional on the master and non-transactional on the slave. In a client connection, it means that you executed SET @@SESSION.GTID_NEXT before a transaction and forgot to set @@SESSION.GTID_NEXT to a different identifier or to 'AUTOMATIC' after COMMIT or ROLLBACK. Current @@SESSION.GTID_NEXT is '%s'."
 
 ER_VARIABLE_NOT_SETTABLE_IN_SP
   eng "The system variable %.200s cannot be set in stored procedures."
 
 ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF
-  eng "GTID_PURGED can only be set when GTID_MODE = ON."
+  eng "@@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_MODE = ON."
 
 ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY
-  eng "GTID_PURGED can only be set when GTID_EXECUTED is empty."
+  eng "@@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_EXECUTED is empty."
 
 ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY
-  eng "GTID_PURGED can only be set when there are no ongoing transactions (not even in other clients)."
+  eng "@@GLOBAL.GTID_PURGED can only be set when there are no ongoing transactions (not even in other clients)."
 
 ER_GTID_PURGED_WAS_CHANGED
-  eng "GTID_PURGED was changed from '%s' to '%s'."
+  eng "@@GLOBAL.GTID_PURGED was changed from '%s' to '%s'."
 
 ER_GTID_EXECUTED_WAS_CHANGED
-  eng "GTID_EXECUTED was changed from '%s' to '%s'."
+  eng "@@GLOBAL.GTID_EXECUTED was changed from '%s' to '%s'."
 
 ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
   eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT, and both replicated and non replicated tables are written to."
@@ -7001,7 +7001,7 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS
   eng "Fulltext index creation requires a lock"
 
 ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
-  eng "sql_slave_skip_counter can not be set when the server is running with GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction"
+  eng "sql_slave_skip_counter can not be set when the server is running with @@GLOBAL.GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction"
 
 ER_DUP_UNKNOWN_IN_INDEX 23000
   cze "Zdvojený klíč (číslo klíče '%-.192s')"
@@ -7033,6 +7033,14 @@ ER_IDENT_CAUSES_TOO_LONG_PATH
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOT_NULL
   eng "cannot silently convert NULL values, as required in this SQL_MODE"
+
+ER_MUST_CHANGE_PASSWORD_LOGIN
+  eng "Your password has expired. To log in you must change it using a client that supports expired passwords."
+  bgn "Паролата ви е изтекла. За да влезете трябва да я смените използвайки клиент който поддрържа такива пароли."
+
+ER_ROW_IN_WRONG_PARTITION
+  eng "Found a row in wrong partition %s"
+  swe "Hittade en rad i fel partition %s"
 
 #
 #  End of 5.6 error messages.

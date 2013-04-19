@@ -717,56 +717,5 @@ DROP TABLE t1;
 SET @@sql_mode= @org_mode;
 # END of Test for bug#11747847 - 34280
 #
-# WL6292 - Test cases to test new behavior with 
-#          --explicit_defaults_for_timestamp
-# Almost all the scenario's required to test this WL, is already tested
-# by most of existing test case. Adding some basic tests here.
-#
-CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP);
-ALTER TABLE t1 ADD COLUMN (f3 TIMESTAMP NOT NULL);
-ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
-ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
-ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-# Following is expected out of SHOW CREATE TABLE
-#  `f1` timestamp NULL DEFAULT NULL,
-#  `f2` timestamp NULL DEFAULT NULL,
-#  `f3` timestamp NOT NULL,
-#  `f4` timestamp NULL DEFAULT NULL,
-#  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00'
-#  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` timestamp NULL DEFAULT NULL,
-  `f2` timestamp NULL DEFAULT NULL,
-  `f3` timestamp NOT NULL,
-  `f4` timestamp NULL DEFAULT NULL,
-  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
-  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-# The new behavior affects CREATE SELECT with column definitions
-# before SELECT keyword. The columns f1,f2 in t2 do not get promoted
-# with the new behavior. Following is expected out of SHOW CREATE TABLE
-#
-# `f1` timestamp NULL DEFAULT NULL,
-# `f2` timestamp NULL DEFAULT NULL,
-# `f3` timestamp NOT NULL,
-# `f4` timestamp NULL DEFAULT NULL,
-# `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
-# `f6` timestamp NULL DEFAULT NULL
-CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `f1` timestamp NULL DEFAULT NULL,
-  `f2` timestamp NULL DEFAULT NULL,
-  `f3` timestamp NOT NULL,
-  `f4` timestamp NULL DEFAULT NULL,
-  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
-  `f6` timestamp NULL DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-DROP TABLE t1;
-DROP TABLE t2;
-#
 # End of 5.6 tests
 #

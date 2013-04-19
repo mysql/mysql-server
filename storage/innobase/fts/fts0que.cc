@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2233,8 +2233,14 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 fts_query_search_phrase(
 /*====================*/
-	fts_query_t*		query,	/*!< in: query instance */
-	ib_vector_t*		tokens)	/*!< in: tokens to search */
+	fts_query_t*		query,		/*!< in: query instance */
+	ib_vector_t*		orig_tokens,	/*!< in: tokens to search,
+						with any stopwords in the
+						original phrase */
+	ib_vector_t*		tokens)		/*!< in: tokens that does
+						not include stopwords and
+						can be used to calculate
+						ranking */
 {
 	ulint			i;
 	fts_get_doc_t		get_doc;
@@ -2275,7 +2281,7 @@ fts_query_search_phrase(
 		if (match->doc_id != 0) {
 
 			query->error = fts_query_match_document(
-				tokens, &get_doc,
+				orig_tokens, &get_doc,
 				match, query->distance, &found);
 
 			if (query->error == DB_SUCCESS && found) {
@@ -2317,6 +2323,7 @@ fts_query_phrase_search(
 	char*			src;
 	char*			state;	/* strtok_r internal state */
 	ib_vector_t*		tokens;
+	ib_vector_t*		orig_tokens;
 	mem_heap_t*		heap = mem_heap_create(sizeof(fts_string_t));
 	char*			utf8 = strdup((char*) phrase->f_str);
 	ib_alloc_t*		heap_alloc;
@@ -2325,6 +2332,7 @@ fts_query_phrase_search(
 	heap_alloc = ib_heap_allocator_create(heap);
 
 	tokens = ib_vector_create(heap_alloc, sizeof(fts_string_t), 4);
+	orig_tokens = ib_vector_create(heap_alloc, sizeof(fts_string_t), 4);
 
 	if (query->distance != ULINT_UNDEFINED && query->distance > 0) {
 		query->flags = FTS_PROXIMITY;
@@ -2334,25 +2342,45 @@ fts_query_phrase_search(
 
 	/* Split the phrase into tokens. */
 	for (src = utf8; /* No op */; src = NULL) {
+		fts_cache_t*	cache = query->index->table->fts->cache;
+		ib_rbt_bound_t	parent;
 		fts_string_t*	token = static_cast<fts_string_t*>(
 			ib_vector_push(tokens, NULL));
 
 		token->f_str = (byte*) strtok_r(
 			src, FTS_PHRASE_DELIMITER, &state);
 
-		if (token->f_str) {
+		if (!token->f_str) {
+			ib_vector_pop(tokens);
+			break;
+		}
+
+		token->f_len = ut_strlen((char*) token->f_str);
+
+		if (cache->stopword_info.cached_stopword
+		    && rbt_search(cache->stopword_info.cached_stopword,
+			       &parent, token) != 0) {
 			/* Add the word to the RB tree so that we can
 			calculate it's frequencey within a document. */
 			fts_query_add_word_freq(query, token->f_str);
-
-			token->f_len = ut_strlen((char*) token->f_str);
 		} else {
 			ib_vector_pop(tokens);
-			break;
+		}
+
+		/* we will start to store all words including stopwords
+		in the "orig_tokens" vector, but skip any leading words
+		that are stopwords */
+		if (!ib_vector_is_empty(tokens)) {
+			fts_string_t*	orig_token = static_cast<fts_string_t*>(
+				ib_vector_push(orig_tokens, NULL));
+
+			orig_token->f_str = token->f_str;
+			orig_token->f_len = token->f_len;
 		}
 	}
 
 	num_token = ib_vector_size(tokens);
+	ut_ad(ib_vector_size(orig_tokens) >= num_token);
 
 	/* Ignore empty strings. */
 	if (num_token > 0) {
@@ -2443,7 +2471,9 @@ fts_query_phrase_search(
 			}
 		}
 
-		if (num_token == 1
+		/* Just a single word, no need to fetch the original
+		documents to do phrase matching */
+		if (ib_vector_size(orig_tokens) == 1
 		    && !ib_vector_is_empty(query->match_array[0])) {
 			fts_match_t*    match;
 			ulint		n_matched;
@@ -2486,7 +2516,7 @@ fts_query_phrase_search(
 			if (matched) {
 				query->error = DB_SUCCESS;
 				query->error = fts_query_search_phrase(
-					query, tokens);
+					query, orig_tokens, tokens);
 			}
 		}
 
@@ -2602,10 +2632,14 @@ fts_query_visitor(
 		token.f_str = node->text.ptr;
 		token.f_len = ut_strlen((char*) token.f_str);
 
-		/* "first second third" is treated as first & second
-		& third. Create the rb tree that will hold the doc ids
-		of the intersection. */
-		if (!query->intersection && query->oper == FTS_EXIST) {
+		/* If the query is initiated, create the rb tree that
+		will hold the doc ids of the intersection. Please
+		note, if the first operator is FTS_EXIST operation,
+		it will be put to query->doc_id instead of
+		query->intersection since nothing to intersect */
+		if (!query->intersection
+		    && query->oper == FTS_EXIST
+		    && query->inited) {
 
 			query->intersection = rbt_create(
 				sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
@@ -3348,6 +3382,7 @@ fts_query_parse(
 
 	/* Setup the scanner to use, this depends on the mode flag. */
 	state.lexer = fts_lexer_create(mode, query_str, query_len);
+	state.charset = query->fts_index_table.charset;
 	error = fts_parse(&state);
 	fts_lexer_free(state.lexer);
 	state.lexer = NULL;

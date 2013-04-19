@@ -1,0 +1,55 @@
+let $explicit_defaults_for_timestamp=1;
+
+--source type_timestamp.test
+
+--echo #
+--echo # WL6292 - Test cases to test new behavior with 
+--echo #          --explicit_defaults_for_timestamp
+--echo # Almost all the scenario's required to test this WL, is already tested
+--echo # by most of existing test case. Adding some basic tests here.
+--echo #
+CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP);
+ALTER TABLE t1 ADD COLUMN (f3 TIMESTAMP NOT NULL);
+ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
+ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
+ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+
+--echo # Following is expected out of SHOW CREATE TABLE
+--echo #  `f1` timestamp NULL DEFAULT NULL,
+--echo #  `f2` timestamp NULL DEFAULT NULL,
+--echo #  `f3` timestamp NOT NULL,
+--echo #  `f4` timestamp NULL DEFAULT NULL,
+--echo #  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00'
+--echo #  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+SHOW CREATE TABLE t1;
+
+--echo # The new behavior affects CREATE SELECT with column definitions
+--echo # before SELECT keyword. The columns f1,f2 in t2 do not get promoted
+--echo # with the new behavior.
+
+CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo # With --explicit_defaults_for_timestamp,
+--echo # inserting NULL in TIMESTAMP NOT NULL gives error, not NOW().
+--echo # INT serves as model.
+
+CREATE TABLE t1(
+c1 TIMESTAMP NOT NULL,
+c2 TIMESTAMP NOT NULL DEFAULT '2001-01-01 01:01:01',
+c3 INT NOT NULL DEFAULT 42);
+SHOW CREATE TABLE t1;
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES (NULL, DEFAULT, DEFAULT);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES ('2005-05-05 06:06:06', NULL, DEFAULT);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES ('2005-05-05 06:06:06', DEFAULT, NULL);
+INSERT INTO t1 VALUES ('2005-05-05 06:06:06', DEFAULT, DEFAULT);
+SELECT * FROM t1;
+UPDATE t1 SET c1=NULL,c2=NULL,c3=NULL;
+SELECT * FROM t1;
+DROP TABLE t1;

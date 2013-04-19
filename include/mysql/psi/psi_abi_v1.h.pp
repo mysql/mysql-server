@@ -357,7 +357,7 @@ typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
 typedef void (*set_thread_command_v1_t)(int command);
 typedef void (*set_thread_start_time_v1_t)(time_t start_time);
 typedef void (*set_thread_state_v1_t)(const char* state);
-typedef void (*set_thread_info_v1_t)(const char* info, int info_len);
+typedef void (*set_thread_info_v1_t)(const char* info, uint info_len);
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
 typedef void (*delete_current_thread_v1_t)(void);
 typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);

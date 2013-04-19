@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -153,9 +153,10 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
       If it is there under a construct where it is not allowed 
       we report an error. 
     */ 
-    invalid= !(allow_sum_func & (1 << max_arg_level));
+    invalid= !(allow_sum_func & ((nesting_map)1 << max_arg_level));
   }
-  else if (max_arg_level >= 0 || !(allow_sum_func & (1 << nest_level)))
+  else if (max_arg_level >= 0 ||
+           !(allow_sum_func & ((nesting_map)1 << nest_level)))
   {
     /*
       The set function can be aggregated only in outer subqueries.
@@ -164,7 +165,8 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     */
     if (register_sum_func(thd, ref))
       return TRUE;
-    invalid= aggr_level < 0 && !(allow_sum_func & (1 << nest_level));
+    invalid= aggr_level < 0 &&
+             !(allow_sum_func & ((nesting_map)1 << nest_level));
     if (!invalid && thd->variables.sql_mode & MODE_ANSI)
       invalid= aggr_level < 0 && max_arg_level < nest_level;
   }
@@ -312,14 +314,15 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
        sl && sl->nest_level > max_arg_level;
        sl= sl->master_unit()->outer_select() )
   {
-    if (aggr_level < 0 && (allow_sum_func & (1 << sl->nest_level)))
+    if (aggr_level < 0 &&
+        (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
     {
       /* Found the most nested subquery where the function can be aggregated */
       aggr_level= sl->nest_level;
       aggr_sel= sl;
     }
   }
-  if (sl && (allow_sum_func & (1 << sl->nest_level)))
+  if (sl && (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
   {
     /* 
       We reached the subquery of level max_arg_level and checked
@@ -369,7 +372,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
 }
 
 
-Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements), 
+Item_sum::Item_sum(List<Item> &list) :next(NULL), arg_count(list.elements), 
   forced_const(FALSE)
 {
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
@@ -399,6 +402,7 @@ Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements),
 
 Item_sum::Item_sum(THD *thd, Item_sum *item):
   Item_result_field(thd, item),
+  next(NULL),
   aggr_sel(item->aggr_sel),
   nest_level(item->nest_level), aggr_level(item->aggr_level),
   quick_group(item->quick_group),
@@ -496,6 +500,57 @@ bool Item_sum::walk (Item_processor processor, bool walk_subquery,
 }
 
 
+/**
+  Remove the item from the list of inner aggregation functions in the
+  SELECT_LEX it was moved to by Item_sum::register_sum_func().
+
+  This is done to undo some of the effects of
+  Item_sum::register_sum_func() so that the item may be removed from
+  the query.
+
+  @note This doesn't completely undo Item_sum::register_sum_func(), as
+  with_sum_func information is left untouched. This means that if this
+  item is removed, aggr_sel and all Item_subselects between aggr_sel
+  and this item may be left with with_sum_func set to true, even if
+  there are no aggregation functions. To our knowledge, this has no
+  impact on the query result.
+
+  @see Item_sum::register_sum_func()
+  @see remove_redundant_subquery_clauses()
+ */
+bool Item_sum::clean_up_after_removal(uchar *arg)
+{
+  /*
+    Don't do anything if
+    1) this is an unresolved item (This may happen if an
+       expression occurs twice in the same query. In that case, the
+       whole item tree for the second occurence is replaced by the
+       item tree for the first occurence, without calling fix_fields()
+       on the second tree. Therefore there's nothing to clean up.), or
+    2) there is no inner_sum_func_list, or
+    3) the item is not an element in the inner_sum_func_list.
+  */
+  if (!fixed ||                                                    // 1
+      aggr_sel == NULL || aggr_sel->inner_sum_func_list == NULL || // 2
+      next == NULL)                                                // 3
+    return false;
+
+  if (next == this)
+    aggr_sel->inner_sum_func_list= NULL;
+  else
+  {
+    Item_sum *prev;
+    for (prev= this; prev->next != this; prev= prev->next)
+      ;
+    prev->next= next;
+    if (aggr_sel->inner_sum_func_list == this)
+      aggr_sel->inner_sum_func_list= prev;
+  }
+
+  return false;
+}
+
+
 Field *Item_sum::create_tmp_field(bool group, TABLE *table)
 {
   Field *field;
@@ -541,7 +596,7 @@ void Item_sum::update_used_tables ()
     used_tables_cache&= PSEUDO_TABLE_BITS;
 
     /* the aggregate function is aggregated into its local context */
-    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
+    used_tables_cache|= ((table_map)1 << aggr_sel->join->tables) - 1;
   }
 }
 
@@ -3273,8 +3328,12 @@ bool Item_func_group_concat::add()
   TREE_ELEMENT *el= 0;                          // Only for safety
   if (row_eligible && tree)
   {
+    DBUG_EXECUTE_IF("trigger_OOM_in_gconcat_add",
+                     DBUG_SET("+d,simulate_persistent_out_of_memory"););
     el= tree_insert(tree, table->record[0] + table->s->null_bytes, 0,
                     tree->custom_arg);
+    DBUG_EXECUTE_IF("trigger_OOM_in_gconcat_add",
+                    DBUG_SET("-d,simulate_persistent_out_of_memory"););
     /* check if there was enough memory to insert the row */
     if (!el)
       return 1;

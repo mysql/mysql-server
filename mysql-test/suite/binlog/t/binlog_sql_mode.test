@@ -153,6 +153,10 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 --echo "Dropping table test_table"
 DROP TABLE test_table;
+# We need to reset master (and purge GTID_EXECUTED) to avoid
+# transactions skip when we replay mysqlbinlog_bug12601974.binlog
+# with gtid-mode=ON.
+RESET MASTER;
 
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug12601974.binlog"
 

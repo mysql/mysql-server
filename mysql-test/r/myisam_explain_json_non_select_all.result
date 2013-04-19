@@ -1329,12 +1329,12 @@ INSERT INTO t1 VALUES (3, 3), (7, 7);
 #
 EXPLAIN DELETE   FROM t1 WHERE a = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a,b	a	5	NULL	1	Using where
+1	SIMPLE	t1	range	a	a	5	NULL	1	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a,b	a	5	NULL	1	100.00	Using where
+1	SIMPLE	t1	range	a	a	5	NULL	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE a = 3;;
@@ -1347,8 +1347,7 @@ EXPLAIN
       "table_name": "t1",
       "access_type": "range",
       "possible_keys": [
-        "a",
-        "b"
+        "a"
       ] /* possible_keys */,
       "key": "a",
       "used_key_parts": [
@@ -1415,12 +1414,12 @@ INSERT INTO t1 VALUES (3, 3), (7, 7);
 #
 EXPLAIN DELETE   FROM t1 WHERE a < 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a,b	a	5	NULL	1	Using where
+1	SIMPLE	t1	range	a	a	5	NULL	1	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a < 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a,b	a	5	NULL	1	100.00	Using where
+1	SIMPLE	t1	range	a	a	5	NULL	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE a < 3;;
@@ -1433,8 +1432,7 @@ EXPLAIN
       "table_name": "t1",
       "access_type": "range",
       "possible_keys": [
-        "a",
-        "b"
+        "a"
       ] /* possible_keys */,
       "key": "a",
       "used_key_parts": [
@@ -1660,12 +1658,12 @@ INSERT INTO t1 VALUES (4),(3),(1),(2);
 #
 EXPLAIN DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;;
@@ -1679,9 +1677,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t1",
         "access_type": "index",
-        "possible_keys": [
-          "PRIMARY"
-        ] /* possible_keys */,
         "key": "PRIMARY",
         "used_key_parts": [
           "a"
@@ -1747,12 +1742,12 @@ UPDATE t1 SET a = c, b = c;
 #
 EXPLAIN DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	c,b,a	NULL	NULL	NULL	10	Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	c,b,a	NULL	NULL	NULL	10	100.00	Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;;
@@ -1766,11 +1761,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t1",
         "access_type": "ALL",
-        "possible_keys": [
-          "c",
-          "b",
-          "a"
-        ] /* possible_keys */,
         "rows": 10,
         "filtered": 100
       } /* table */
@@ -2429,12 +2419,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	a	a	15	NULL	17602	Using where
+1	SIMPLE	t2	index	NULL	a	15	NULL	17602	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	a	a	15	NULL	17602	100.00	Using where
+1	SIMPLE	t2	index	NULL	a	15	NULL	17602	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -2448,9 +2438,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "index",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "key": "a",
         "used_key_parts": [
           "a",
@@ -2804,12 +2791,12 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 #
 EXPLAIN DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	i	NULL	NULL	NULL	26	Using where; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	i	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
@@ -2826,9 +2813,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t1",
         "access_type": "ALL",
-        "possible_keys": [
-          "i"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100,
         "attached_condition": "((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18))"
@@ -2901,12 +2885,12 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -2920,9 +2904,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
@@ -2986,12 +2967,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	a	a	15	NULL	17602	Using where
+1	SIMPLE	t2	index	NULL	a	15	NULL	17602	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	a	a	15	NULL	17602	100.00	Using where
+1	SIMPLE	t2	index	NULL	a	15	NULL	17602	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3005,9 +2986,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "index",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "key": "a",
         "used_key_parts": [
           "a",
@@ -3081,12 +3059,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -3102,9 +3080,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
@@ -3170,12 +3145,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -3191,9 +3166,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
@@ -3450,12 +3422,12 @@ INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;;
@@ -3469,9 +3441,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100
       } /* table */
@@ -3533,12 +3502,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	a	a	6	NULL	5	NULL
+1	SIMPLE	t2	index	NULL	a	6	NULL	5	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	a	a	6	NULL	5	100.00	NULL
+1	SIMPLE	t2	index	NULL	a	6	NULL	5	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;;
@@ -3552,9 +3521,6 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "index",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "key": "a",
         "used_key_parts": [
           "a",
@@ -3720,12 +3686,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	i	NULL	NULL	NULL	26	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	i	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
@@ -3742,9 +3708,6 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "possible_keys": [
-          "i"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100,
         "attached_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))"
@@ -3817,12 +3780,12 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3836,9 +3799,6 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
@@ -3902,12 +3862,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	a	a	15	NULL	17602	Using where; Using temporary
+1	SIMPLE	t2	index	NULL	a	15	NULL	17602	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	a	a	15	NULL	17602	100.00	Using where; Using temporary
+1	SIMPLE	t2	index	NULL	a	15	NULL	17602	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3922,9 +3882,6 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "index",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "key": "a",
         "used_key_parts": [
           "a",
@@ -3999,12 +3956,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -4020,9 +3977,6 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
@@ -4087,12 +4041,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -4108,9 +4062,6 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
@@ -4368,12 +4319,12 @@ INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;;
@@ -4387,9 +4338,6 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "rows": 26,
         "filtered": 100
       } /* table */
@@ -4451,12 +4399,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	a	a	6	NULL	5	Using temporary
+1	SIMPLE	t2	index	NULL	a	6	NULL	5	Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	a	a	6	NULL	5	100.00	Using temporary
+1	SIMPLE	t2	index	NULL	a	6	NULL	5	100.00	Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;;
@@ -4471,9 +4419,6 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "index",
-        "possible_keys": [
-          "a"
-        ] /* possible_keys */,
         "key": "a",
         "used_key_parts": [
           "a",
@@ -4546,12 +4491,12 @@ INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 #
 EXPLAIN UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,c1_idx	c1_idx	2	NULL	2	Using where; Using filesort
+1	SIMPLE	t1	range	c1_idx	c1_idx	2	NULL	2	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY,c1_idx	c1_idx	2	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	t1	range	c1_idx	c1_idx	2	NULL	2	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;;
@@ -4566,7 +4511,6 @@ EXPLAIN
         "table_name": "t1",
         "access_type": "range",
         "possible_keys": [
-          "PRIMARY",
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",
@@ -4643,12 +4587,12 @@ Sort_rows	2
 #
 EXPLAIN DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,c1_idx	c1_idx	2	NULL	2	Using where; Using filesort
+1	SIMPLE	t1	range	c1_idx	c1_idx	2	NULL	2	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY,c1_idx	c1_idx	2	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	t1	range	c1_idx	c1_idx	2	NULL	2	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;;
@@ -4663,7 +4607,6 @@ EXPLAIN
         "table_name": "t1",
         "access_type": "range",
         "possible_keys": [
-          "PRIMARY",
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",

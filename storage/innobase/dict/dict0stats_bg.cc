@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,10 @@ Created Apr 25, 2012 Vasil Dimov
 #include "srv0start.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+
+#ifdef UNIV_NONINL
+# include "dict0stats_bg.ic"
+#endif
 
 #include <vector>
 
@@ -85,8 +89,7 @@ Add a table to the recalc pool, which is processed by the
 background stats gathering thread. Only the table id is added to the
 list, so the table can be closed after being enqueued and it will be
 opened when needed. If the table does not exist later (has been DROPped),
-then it will be removed from the pool and skipped.
-dict_stats_recalc_pool_add() @{ */
+then it will be removed from the pool and skipped. */
 UNIV_INTERN
 void
 dict_stats_recalc_pool_add(
@@ -114,12 +117,10 @@ dict_stats_recalc_pool_add(
 
 	os_event_set(dict_stats_event);
 }
-/* @} */
 
 /*****************************************************************//**
 Get a table from the auto recalc pool. The returned table id is removed
 from the pool.
-dict_stats_recalc_pool_get() @{
 @return true if the pool was non-empty and "id" was set, false otherwise */
 static
 bool
@@ -145,7 +146,6 @@ dict_stats_recalc_pool_get(
 
 	return(true);
 }
-/* @} */
 
 /*****************************************************************//**
 Delete a given table from the auto recalc pool.
@@ -178,46 +178,30 @@ dict_stats_recalc_pool_del(
 }
 
 /*****************************************************************//**
-Wait until background stats thread has stopped using the specified table(s).
+Wait until background stats thread has stopped using the specified table.
 The caller must have locked the data dictionary using
 row_mysql_lock_data_dictionary() and this function may unlock it temporarily
 and restore the lock before it exits.
-The background stats thead is guaranteed not to start using the specified
-tables after this function returns and before the caller unlocks the data
+The background stats thread is guaranteed not to start using the specified
+table after this function returns and before the caller unlocks the data
 dictionary because it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag
-under dict_sys->mutex.
-dict_stats_wait_bg_to_stop_using_table() @{ */
+under dict_sys->mutex. */
 UNIV_INTERN
 void
-dict_stats_wait_bg_to_stop_using_tables(
-/*====================================*/
-	dict_table_t*	table1,	/*!< in/out: table1 */
-	dict_table_t*	table2,	/*!< in/out: table2, could be NULL */
+dict_stats_wait_bg_to_stop_using_table(
+/*===================================*/
+	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx)	/*!< in/out: transaction to use for
 				unlocking/locking the data dict */
 {
-	ut_ad(!srv_read_only_mode);
-
-	while ((table1->stats_bg_flag & BG_STAT_IN_PROGRESS)
-	       || (table2 != NULL
-		   && (table2->stats_bg_flag & BG_STAT_IN_PROGRESS))) {
-
-		table1->stats_bg_flag |= BG_STAT_SHOULD_QUIT;
-		if (table2 != NULL) {
-			table2->stats_bg_flag |= BG_STAT_SHOULD_QUIT;
-		}
-
-		row_mysql_unlock_data_dictionary(trx);
-		os_thread_sleep(250000);
-		row_mysql_lock_data_dictionary(trx);
+	while (!dict_stats_stop_bg(table)) {
+		DICT_STATS_BG_YIELD(trx);
 	}
 }
-/* @} */
 
 /*****************************************************************//**
 Initialize global variables needed for the operation of dict_stats_thread()
-Must be called before dict_stats_thread() is started.
-dict_stats_thread_init() @{ */
+Must be called before dict_stats_thread() is started. */
 UNIV_INTERN
 void
 dict_stats_thread_init()
@@ -245,12 +229,10 @@ dict_stats_thread_init()
 
 	dict_stats_recalc_pool_init();
 }
-/* @} */
 
 /*****************************************************************//**
 Free resources allocated by dict_stats_thread_init(), must be called
-after dict_stats_thread() has exited.
-dict_stats_thread_deinit() @{ */
+after dict_stats_thread() has exited. */
 UNIV_INTERN
 void
 dict_stats_thread_deinit()
@@ -267,12 +249,10 @@ dict_stats_thread_deinit()
 	os_event_free(dict_stats_event);
 	dict_stats_event = NULL;
 }
-/* @} */
 
 /*****************************************************************//**
 Get the first table that has been added for auto recalc and eventually
-update its stats.
-dict_stats_process_entry_from_recalc_pool() @{ */
+update its stats. */
 static
 void
 dict_stats_process_entry_from_recalc_pool()
@@ -341,13 +321,11 @@ dict_stats_process_entry_from_recalc_pool()
 
 	mutex_exit(&dict_sys->mutex);
 }
-/* @} */
 
 /*****************************************************************//**
 This is the thread for background stats gathering. It pops tables, from
 the auto recalc list and proceeds them, eventually recalculating their
 statistics.
-dict_stats_thread() @{
 @return this function does not return, it calls os_thread_exit() */
 extern "C" UNIV_INTERN
 os_thread_ret_t
@@ -387,6 +365,3 @@ DECLARE_THREAD(dict_stats_thread)(
 
 	OS_THREAD_DUMMY_RETURN;
 }
-/* @} */
-
-/* vim: set foldmethod=marker foldmarker=@{,@}: */

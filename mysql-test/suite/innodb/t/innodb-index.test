@@ -442,10 +442,9 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
 
-# FIXME (WL#6251 problem): this should fail, like the ALGORITHM=COPY below
+--error ER_FK_INCORRECT_OPTION
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
- FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
-ALTER TABLE t2 DROP FOREIGN KEY fk_t2_ca;
+ FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=INPLACE;
 
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/

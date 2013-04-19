@@ -74,6 +74,7 @@ SET DEBUG_SYNC = 'foreign_constraint_check_for_update WAIT_FOR altered';
 SET DEBUG_SYNC = 'now SIGNAL altered';
 /* con1 reap */ UPDATE parent SET a = 3;
 /* default reap */ ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM child;
 a	d	b	c
 1	5	khD	khD
