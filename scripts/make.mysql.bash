@@ -5,10 +5,14 @@ shopt -s compat31 2> /dev/null
 function usage() {
     echo "make.mysql.bash - build mysql with the fractal tree"
     echo "--git_tag=$git_tag --git_server=$git_server"
+    echo "--mysqlbuild=$mysqlbuild"
     echo "--mysql=$mysql"
-    echo "--build_type=$build_type --cmake_build_type=$cmake_build_type"
+    echo "--build_type=$build_type"
+    echo "--build_debug=$build_debug"
+    echo "--build_tgz=$build_tgz"
+    echo "--build_rpm=$build_rpm"
+    echo "--cmake_build_type=$cmake_build_type"
     echo "--cc=$cc --cxx=$cxx"
-    echo "--build_debug=$build_debug --build_tgz=$build_tgz --build_rpm=$build_rpm"
     echo "--do_s3=$do_s3 --do_make_check=$do_make_check"
     return 1
 }
@@ -410,8 +414,8 @@ function build_mysql_src() {
     if [ ! -d $mysqlsrc ] ; then
 
         # get the mysql repo
-        if [ ! -d $mysql_repo ] ; then
-            github_download Tokutek/$mysql_repo $git_tag $mysqlsrc
+        if [ ! -d $mysql_distro ] ; then
+            github_download Tokutek/$mysql_distro $git_tag $mysqlsrc
             if [ $? != 0 ] ; then exit 1; fi
         fi
 
@@ -518,24 +522,64 @@ function build_mysql_release() {
     fi
 }
 
+function parse_mysqlbuild() {
+    local mysqlbuild=$1
+    local exitcode
+    if [[ $mysqlbuild =~ ((mysql|mariadb)-(.*))-((tokudb)-(.*))-(linux|darwin)-(x86_64|i386) ]] ; then
+        mysql=${BASH_REMATCH[1]}
+        mysql_distro=${BASH_REMATCH[2]}
+        mysql_version=${BASH_REMATCH[3]}
+        tokudb=${BASH_REMATCH[4]}
+        tokudb_distro=${BASH_REMATCH[5]}
+        tokudb_version=${BASH_REMATCH[6]}
+        target_system=${BASH_REMATCH[7]}
+        target_arch=${BASH_REMATCH[8]}
+        if [[ $tokudb_version =~ (.*)-e$ ]] ; then
+            build_type=enterprise
+            tokudb_version=${BASH_REMATCH[1]}
+        else
+            build_type=community
+        fi
+        if [[ $tokudb_version =~ (.*)-debug$ ]] ; then
+            build_debug=1
+            tokudb_verison=${BASH_REMATCH[1]}
+        else
+            build_debug=0
+        fi
+        if [[ $tokudb_version =~ ^([0-9]+)\\.([0-9]+)\\.([0-9]+)$ ]] ; then
+            git_tag=tokudb-$tokudb_version
+        elif [[ $tokudb_version =~ ^[0-9]+$ ]] ; then
+            git_tag=HEAD
+        else
+            git_tag=$tokudb_version
+        fi
+        exitcode=0
+    else
+        exitcode=1
+    fi
+    test $exitcode = 0
+}
+
 PATH=$HOME/bin:$PATH
+
+system=$(uname -s | tr '[:upper:]' '[:lower:]')
+arch=$(uname -m | tr '[:upper:]' '[:lower:]')
+makejobs=$(get_ncpus)
 
 git_server=git@github.com
 git_tag=HEAD
+mysqlbuild=
 mysql=mysql-5.5.30
 do_s3=1
 do_make_check=1
 cc=gcc47
 cxx=g++47
-system=`uname -s | tr '[:upper:]' '[:lower:]'`
-arch=`uname -m | tr '[:upper:]' '[:lower:]'`
-makejobs=$(get_ncpus)
 build_debug=0
 build_type=community
-tokudb_patches=1
-cmake_build_type=RelWithDebInfo
 build_tgz=1
 build_rpm=0
+tokudb_patches=1
+cmake_build_type=RelWithDebInfo
 
 while [ $# -gt 0 ] ; do
     arg=$1; shift
@@ -548,14 +592,19 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-# set tokudb version
-if [ $git_tag = HEAD ] ; then
-    tokudb_version=$(date +%s)
-elif [[ $git_tag =~ tokudb-(.*) ]] ; then
-    tokudb_version=${BASH_REMATCH[1]}
+if [ ! -z $mysqlbuild ] ; then
+    parse_mysqlbuild $mysqlbuild
+    if [ $? != 0 ] ; then exit 1; fi
 else
-    tokudb_version=$git_tag
-    git_tag=HEAD
+    # set tokudb version
+    if [ $git_tag = HEAD ] ; then
+        tokudb_version=$(date +%s)
+    elif [[ $git_tag =~ tokudb-(.*) ]] ; then
+        tokudb_version=${BASH_REMATCH[1]}
+    else
+        tokudb_version=$git_tag
+        git_tag=HEAD
+    fi
 fi
 if [ $build_debug != 0 ] ; then
     if [ $cmake_build_type = RelWithDebInfo ] ; then cmake_build_type=Debug; fi
@@ -565,9 +614,9 @@ if [ $build_type = enterprise ] ; then
     tokudb_version=$tokudb_version-e
 fi
 
-# split mysql into mysql_repo and mysql_version
+# split mysql into mysql_distro and mysql_version
 if [[ $mysql =~ ^(mysql|mariadb)-(.*)$ ]] ; then
-    mysql_repo=${BASH_REMATCH[1]}
+    mysql_distro=${BASH_REMATCH[1]}
     mysql_version=${BASH_REMATCH[2]}
 else
     exit 1
