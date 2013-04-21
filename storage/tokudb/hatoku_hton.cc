@@ -2307,7 +2307,7 @@ mysql_declare_plugin(tokudb)
     tokudb_hton_name, 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2324,7 +2324,7 @@ mysql_declare_plugin(tokudb)
     "TokuDB_user_data", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_user_data_init,     /* plugin init */
     tokudb_user_data_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2341,7 +2341,7 @@ mysql_declare_plugin(tokudb)
     "TokuDB_user_data_exact", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_user_data_exact_init,     /* plugin init */
     tokudb_user_data_exact_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2358,7 +2358,7 @@ mysql_declare_plugin(tokudb)
     "TokuDB_file_map", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_dictionary_info_init,     /* plugin init */
     tokudb_dictionary_info_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2375,7 +2375,7 @@ mysql_declare_plugin(tokudb)
     "TokuDB_fractal_tree_info", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_info_init,     /* plugin init */
     tokudb_fractal_tree_info_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2392,7 +2392,7 @@ mysql_declare_plugin(tokudb)
     "TokuDB_fractal_tree_block_map", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_block_map_init,     /* plugin init */
     tokudb_fractal_tree_block_map_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2414,7 +2414,7 @@ maria_declare_plugin(tokudb)
     tokudb_hton_name, 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2429,7 +2429,7 @@ maria_declare_plugin(tokudb)
     "TokuDB_user_data", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_user_data_init,     /* plugin init */
     tokudb_user_data_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2444,7 +2444,7 @@ maria_declare_plugin(tokudb)
     "TokuDB_user_data_exact", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_user_data_exact_init,     /* plugin init */
     tokudb_user_data_exact_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2459,7 +2459,7 @@ maria_declare_plugin(tokudb)
     "TokuDB_file_map", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_dictionary_info_init,     /* plugin init */
     tokudb_dictionary_info_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2474,7 +2474,7 @@ maria_declare_plugin(tokudb)
     "TokuDB_fractal_tree_info", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_info_init,     /* plugin init */
     tokudb_fractal_tree_info_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -2489,7 +2489,7 @@ maria_declare_plugin(tokudb)
     "TokuDB_fractal_tree_block_map", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_block_map_init,     /* plugin init */
     tokudb_fractal_tree_block_map_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
