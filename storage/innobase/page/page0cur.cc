@@ -466,21 +466,15 @@ page_cur_open_on_rnd_user_rec(
 	buf_block_t*	block,	/*!< in: page */
 	page_cur_t*	cursor)	/*!< out: page cursor */
 {
-	ulint	rnd;
-	ulint	n_recs = page_get_n_recs(buf_block_get_frame(block));
+	const page_t*	page = buf_block_get_frame(block);
 
-	page_cur_set_before_first(block, cursor);
-
-	if (UNIV_UNLIKELY(n_recs == 0)) {
-
+	if (page_is_empty(page)) {
+		page_cur_set_before_first(block, cursor);
 		return;
 	}
 
-	rnd = (ulint) (page_cur_lcg_prng() % n_recs);
-
-	do {
-		page_cur_move_to_next(cursor);
-	} while (rnd--);
+	ulint 	rnd = (ulint) (page_cur_lcg_prng() % page_get_n_recs(page));
+	page_cur_position(page_rec_get_nth(page, 1 + rnd), block, cursor);
 }
 
 /***********************************************************//**
