@@ -162,6 +162,7 @@ private:
   Ndb * per_table_ndb;
   NdbDictionary::Dictionary * dict;
   NdbDictionary::Dictionary::List idx_list;
+  const NdbError * ndbError;
   
   Handle<Object> buildDBIndex_PK();
   Handle<Object> buildDBIndex(const NdbDictionary::Index *);
@@ -223,6 +224,9 @@ void GetTableCall::run() {
         idx = dict->getIndex(idx_list.elements[i].name, tableName);
       }
     }
+  }
+  else {
+    ndbError = & dict->getNdbError();
   }
 }
 
@@ -305,7 +309,7 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     cb_args[1] = table;
   }
   else {
-    cb_args[0] = NdbError_Wrapper(dict->getNdbError());
+    cb_args[0] = NdbError_Wrapper(* ndbError);
   }
   
   callback->Call(ctx, 2, cb_args);
