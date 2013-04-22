@@ -3661,9 +3661,6 @@ row_search_for_mysql(
 	/* if the returned record was locked and we did a semi-consistent
 	read (fetch the newest committed version), then this is set to
 	TRUE */
-#ifdef UNIV_SEARCH_DEBUG
-	ulint		cnt				= 0;
-#endif /* UNIV_SEARCH_DEBUG */
 	ulint		next_offs;
 	ibool		same_user_rec;
 	mtr_t		mtr;
@@ -4179,17 +4176,6 @@ rec_loop:
 	rec = btr_pcur_get_rec(pcur);
 
 	ut_ad(!!page_rec_is_comp(rec) == comp);
-#ifdef UNIV_SEARCH_DEBUG
-	/*
-	fputs("Using ", stderr);
-	dict_index_name_print(stderr, trx, index);
-	fprintf(stderr, " cnt %lu ; Page no %lu\n", cnt,
-	page_get_page_no(page_align(rec)));
-	rec_print(stderr, rec, index);
-	printf("delete-mark: %lu\n",
-	       rec_get_deleted_flag(rec, page_rec_is_comp(rec)));
-	*/
-#endif /* UNIV_SEARCH_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
 
@@ -4975,10 +4961,6 @@ next_rec:
 		if (sel_restore_position_for_mysql(&same_user_rec,
 						   BTR_SEARCH_LEAF,
 						   pcur, moves_up, &mtr)) {
-#ifdef UNIV_SEARCH_DEBUG
-			cnt++;
-#endif /* UNIV_SEARCH_DEBUG */
-
 			goto rec_loop;
 		}
 	}
@@ -5001,10 +4983,6 @@ not_moved:
 			goto not_moved;
 		}
 	}
-
-#ifdef UNIV_SEARCH_DEBUG
-	cnt++;
-#endif /* UNIV_SEARCH_DEBUG */
 
 	goto rec_loop;
 
@@ -5080,11 +5058,6 @@ lock_table_wait:
 
 	thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
-#ifdef UNIV_SEARCH_DEBUG
-	/*	fputs("Using ", stderr);
-	dict_index_name_print(stderr, index);
-	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
-#endif /* UNIV_SEARCH_DEBUG */
 	goto func_exit;
 
 normal_return:
@@ -5113,12 +5086,6 @@ normal_return:
 
 		err = DB_SUCCESS;
 	}
-
-#ifdef UNIV_SEARCH_DEBUG
-	/*	fputs("Using ", stderr);
-	dict_index_name_print(stderr, index);
-	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
-#endif /* UNIV_SEARCH_DEBUG */
 
 func_exit:
 	trx->op_info = "";
