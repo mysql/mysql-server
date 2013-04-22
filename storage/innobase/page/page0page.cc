@@ -583,8 +583,8 @@ page_copy_rec_list_end_no_locks(
 
 	btr_assert_not_corrupted(new_block, index);
 	ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
-	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
-	     (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
+	ut_ad(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
+	      (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
 	PageCur cur1(*mtr, *index, *block, rec);
 
@@ -750,17 +750,16 @@ page_copy_rec_list_start(
 {
 	page_t*		new_page	= buf_block_get_frame(new_block);
 	page_zip_des_t*	new_page_zip	= buf_block_get_page_zip(new_block);
-	page_cur_t	cur1;
-	rec_t*		cur2;
 	ulint		log_mode	= 0 /* remove warning */;
-	mem_heap_t*	heap		= NULL;
-	rec_t*		ret
-		= page_rec_get_prev(page_get_supremum_rec(new_page));
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
+	rec_t*		ret		= page_rec_get_prev(
+		page_get_supremum_rec(new_page));
 
-	/* Here, "ret" may be pointing to a user record or the
+	btr_assert_not_corrupted(new_block, index);
+	ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
+	ut_ad(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
+	      (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
+
+	/* Here, "cur2" may be pointing to a user record or the
 	predefined infimum record. */
 
 	if (page_rec_is_infimum(rec)) {
@@ -768,31 +767,19 @@ page_copy_rec_list_start(
 		return(ret);
 	}
 
+	PageCur	cur1(*mtr, *index, *block);
+
 	if (new_page_zip) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 	}
 
-	page_cur_set_before_first(block, &cur1);
-	page_cur_move_to_next(&cur1);
-
-	cur2 = ret;
-
 	/* Copy records from the original page to the new page */
-
-	while (page_cur_get_rec(&cur1) != rec) {
-		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
-		offsets = rec_get_offsets(cur1_rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		cur2 = page_cur_insert_rec_low(cur2, index,
-					       cur1_rec, offsets, mtr);
+	for (rec_t* cur2 = ret; cur1.next() && cur1.getRec() != rec; ) {
+		cur2 = cur1.insert(cur2);
 		ut_a(cur2);
-
-		page_cur_move_to_next(&cur1);
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
+	ut_ad(!cur1.isUser() == page_rec_is_supremum(rec));
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
