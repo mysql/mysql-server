@@ -233,11 +233,6 @@ page_cur_search_with_match(
 	ulint		cur_matched_fields;
 	ulint		cur_matched_bytes;
 	int		cmp;
-#ifdef UNIV_SEARCH_DEBUG
-	int		dbg_cmp;
-	ulint		dbg_matched_fields;
-	ulint		dbg_matched_bytes;
-#endif
 #ifdef UNIV_ZIP_DEBUG
 	const page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 #endif /* UNIV_ZIP_DEBUG */
@@ -397,8 +392,9 @@ up_rec_match:
 
 	/* Check that the lower and upper limit records have the
 	right alphabetical order compared to tuple. */
-	dbg_matched_fields = 0;
-	dbg_matched_bytes = 0;
+	ulint dbg_matched_fields = 0;
+	ulint dbg_matched_bytes = 0;
+	int dbg_cmp;
 
 	offsets = rec_get_offsets(low_rec, index, offsets,
 				  ULINT_UNDEFINED, &heap);
