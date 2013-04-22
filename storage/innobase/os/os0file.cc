@@ -2325,35 +2325,7 @@ os_file_flush_func(
 #else
 	int	ret;
 
-#if defined(HAVE_DARWIN_THREADS)
-# ifndef F_FULLFSYNC
-	/* The following definition is from the Mac OS X 10.3 <sys/fcntl.h> */
-#  define F_FULLFSYNC 51 /* fsync + ask the drive to flush to the media */
-# elif F_FULLFSYNC != 51
-#  error "F_FULLFSYNC != 51: ABI incompatibility with Mac OS X 10.3"
-# endif
-	/* Apple has disabled fsync() for internal disk drives in OS X. That
-	caused corruption for a user when he tested a power outage. Let us in
-	OS X use a nonstandard flush method recommended by an Apple
-	engineer. */
-
-	if (!srv_have_fullfsync) {
-		/* If we are not on an operating system that supports this,
-		then fall back to a plain fsync. */
-
-		ret = os_file_fsync(file);
-	} else {
-		ret = fcntl(file, F_FULLFSYNC, NULL);
-
-		if (ret) {
-			/* If we are not on a file system that supports this,
-			then fall back to a plain fsync. */
-			ret = os_file_fsync(file);
-		}
-	}
-#else
 	ret = os_file_fsync(file);
-#endif
 
 	if (ret == 0) {
 		return(TRUE);

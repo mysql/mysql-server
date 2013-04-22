@@ -4423,7 +4423,7 @@ longlong Item_func_last_insert_id::val_int()
 
 bool Item_func_last_insert_id::fix_fields(THD *thd, Item **ref)
 {
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   return Item_int_func::fix_fields(thd, ref);
 }
 
@@ -6134,6 +6134,13 @@ void Item_func_match::init_search(bool no_order)
 {
   DBUG_ENTER("Item_func_match::init_search");
 
+  /*
+    We will skip execution if the item is not fixed
+    with fix_field
+  */
+  if (!fixed)
+    DBUG_VOID_RETURN;
+
   /* Check if init_search() has been called before */
   if (ft_handler)
   {
@@ -6263,6 +6270,13 @@ bool Item_func_match::fix_index()
   Item_field *item;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
   uint max_cnt=0, mkeys=0, i;
+
+  /*
+    We will skip execution if the item is not fixed
+    with fix_field
+  */
+  if (!fixed)
+    return false;
 
   if (key == NO_SUCH_KEY)
     return 0;
@@ -6464,7 +6478,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
       return 0;
     }
   }
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
 
   set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
   

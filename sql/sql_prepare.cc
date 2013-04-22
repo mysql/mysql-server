@@ -1334,7 +1334,7 @@ static int mysql_test_update(Prepared_statement *stmt,
 {
   int res;
   THD *thd= stmt->thd;
-  SELECT_LEX *select= &stmt->lex->select_lex;
+  SELECT_LEX *select= stmt->lex->select_lex;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint          want_privilege;
 #endif
@@ -1375,10 +1375,10 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->table->grant.want_privilege= want_privilege;
   table_list->register_want_access(want_privilege);
 #endif
-  thd->lex->select_lex.no_wrap_view_item= TRUE;
+  thd->lex->select_lex->no_wrap_view_item= true;
   res= setup_fields(thd, Ref_ptr_array(),
                     select->item_list, MARK_COLUMNS_READ, 0, 0);
-  thd->lex->select_lex.no_wrap_view_item= FALSE;
+  thd->lex->select_lex->no_wrap_view_item= false;
   if (res)
     goto error;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1430,7 +1430,7 @@ static bool mysql_test_delete(Prepared_statement *stmt,
     goto error;
   }
 
-  DBUG_RETURN(mysql_prepare_delete(thd, table_list, &lex->select_lex.where));
+  DBUG_RETURN(mysql_prepare_delete(thd, table_list, &lex->select_lex->where));
 error:
   DBUG_RETURN(TRUE);
 }
@@ -1458,12 +1458,12 @@ static int mysql_test_select(Prepared_statement *stmt,
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
-  SELECT_LEX_UNIT *unit= &lex->unit;
+  SELECT_LEX_UNIT *unit= lex->unit;
   DBUG_ENTER("mysql_test_select");
 
-  lex->select_lex.context.resolve_in_select_list= TRUE;
+  lex->select_lex->context.resolve_in_select_list= true;
 
-  if (select_precheck(thd, lex, tables, lex->select_lex.table_list.first))
+  if (select_precheck(thd, lex, tables, lex->select_lex->table_list.first))
     goto error;
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
@@ -1488,7 +1488,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (!lex->describe && !stmt->is_sql_prepare())
   {
     /* Make copy of item list, as change_columns may change it */
-    List<Item> fields(lex->select_lex.item_list);
+    List<Item> fields(lex->select_lex->item_list);
 
     select_result *result= lex->result;
     select_result *analyse_result= NULL;
@@ -1634,7 +1634,7 @@ err:
 
   @param stmt                      prepared statement
   @param specific_prepare          function of command specific prepare
-  @param setup_tables_done_option  options to be passed to LEX::unit.prepare()
+  @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
 
   @note
     This function won't directly open tables used in select. They should
@@ -1656,7 +1656,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
 
-  lex->select_lex.context.resolve_in_select_list= TRUE;
+  lex->select_lex->context.resolve_in_select_list= true;
 
   if (specific_prepare && (*specific_prepare)(thd))
     DBUG_RETURN(TRUE);
@@ -1664,7 +1664,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /* Calls JOIN::prepare */
-  DBUG_RETURN(lex->unit.prepare(thd, 0, setup_tables_done_option));
+  DBUG_RETURN(lex->unit->prepare(thd, 0, setup_tables_done_option));
 }
 
 /**
@@ -1675,7 +1675,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   @param tables                    list of tables to be opened
                                    before calling specific_prepare function
   @param specific_prepare          function of command specific prepare
-  @param setup_tables_done_option  options to be passed to LEX::unit.prepare()
+  @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
 
   @retval
     FALSE                success
@@ -1693,7 +1693,7 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
   /*
-    We should not call LEX::unit.cleanup() after this
+    We should not call LEX::unit->cleanup() after this
     open_normal_and_derived_tables() call because we don't allow
     prepared EXPLAIN yet so derived tables will clean up after
     themself.
@@ -1723,7 +1723,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   bool res= FALSE;
   bool link_to_local;
   TABLE_LIST *create_table= lex->query_tables;
@@ -1744,7 +1744,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
                                        MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
 
-    select_lex->context.resolve_in_select_list= TRUE;
+    select_lex->context.resolve_in_select_list= true;
 
     lex->unlink_first_table(&link_to_local);
 
@@ -1868,7 +1868,7 @@ static int mysql_multi_delete_prepare_tester(THD *thd)
 static bool mysql_test_multidelete(Prepared_statement *stmt,
                                   TABLE_LIST *tables)
 {
-  stmt->thd->lex->current_select= &stmt->thd->lex->select_lex;
+  stmt->thd->lex->current_select= stmt->thd->lex->select_lex;
   if (add_item_to_list(stmt->thd, new Item_null()))
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
@@ -1906,13 +1906,13 @@ error:
 
 static int mysql_insert_select_prepare_tester(THD *thd)
 {
-  SELECT_LEX *first_select= &thd->lex->select_lex;
+  SELECT_LEX *first_select= thd->lex->select_lex;
   TABLE_LIST *second_table= first_select->table_list.first->next_local;
 
   /* Skip first table, which is the table we are inserting in */
   first_select->table_list.first= second_table;
-  thd->lex->select_lex.context.table_list=
-    thd->lex->select_lex.context.first_name_resolution_table= second_table;
+  thd->lex->select_lex->context.table_list=
+    thd->lex->select_lex->context.first_name_resolution_table= second_table;
 
   return mysql_insert_select_prepare(thd);
 }
@@ -1947,7 +1947,7 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
     return 1;
 
   /* store it, because mysql_insert_select_prepare_tester change it */
-  first_local_table= lex->select_lex.table_list.first;
+  first_local_table= lex->select_lex->table_list.first;
   DBUG_ASSERT(first_local_table != 0);
 
   res=
@@ -1955,7 +1955,7 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
                                     &mysql_insert_select_prepare_tester,
                                     OPTION_SETUP_TABLES_DONE);
   /* revert changes  made by mysql_insert_select_prepare_tester */
-  lex->select_lex.table_list.first= first_local_table;
+  lex->select_lex->table_list.first= first_local_table;
   return res;
 }
 
@@ -1981,7 +1981,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   TABLE_LIST *tables;
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
@@ -1993,8 +1993,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   tables= lex->query_tables;
 
   /* set context for commands which do not use setup_tables */
-  lex->select_lex.context.resolve_in_table_list_only(select_lex->
-                                                     get_table_list());
+  lex->select_lex->context.resolve_in_table_list_only(select_lex->
+                                                      get_table_list());
 
   /* Reset warning count for each query that uses tables */
   if (tables)
@@ -2553,11 +2553,11 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   {
     tables->reinit_before_use(thd);
   }
-  lex->current_select= &lex->select_lex;
+  lex->current_select= lex->select_lex;
 
   /* restore original list used in INSERT ... SELECT */
   if (lex->leaf_tables_insert)
-    lex->select_lex.leaf_tables= lex->leaf_tables_insert;
+    lex->select_lex->leaf_tables= lex->leaf_tables_insert;
 
   if (lex->result)
   {
@@ -3363,7 +3363,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
   DBUG_ASSERT(lex->sphead == NULL || error != 0);
   /* The order is important */
-  lex->unit.cleanup();
+  lex->unit->cleanup();
 
   /* No need to commit statement transaction, it's not started. */
   DBUG_ASSERT(thd->transaction.stmt.is_empty());
@@ -3681,8 +3681,8 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy)
   if (is_sql_prepare() || lex->describe)
     return FALSE;
 
-  if (lex->select_lex.item_list.elements !=
-      copy->lex->select_lex.item_list.elements)
+  if (lex->select_lex->item_list.elements !=
+      copy->lex->select_lex->item_list.elements)
   {
     /** Column counts mismatch, update the client */
     thd->server_status|= SERVER_STATUS_METADATA_CHANGED;
