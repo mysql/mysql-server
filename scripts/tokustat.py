@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 
 import sys
 import time
@@ -12,23 +12,34 @@ def usage():
     print "[--sleeptime=SLEEPTIME] (default: 10 seconds)"
     return 1
 
+def convert(v):
+    if type(v) == type('str'):
+        try:
+            v = int(v)
+        except:
+            v = float(v)
+    return v
+
 def printit(stats, rs, sleeptime):
     # print rs
     for t in rs:
         l = len(t) # grab the last 2 fields in t
         k = t[l-2]
         v = t[l-1]
-        # print k, v
+        # print k, v # debug
+        # try to convert v
+        try:
+            v = convert(v)
+        except:
+            pass
         if stats.has_key(k):
             oldv = stats[k]
             if v != oldv:
                 print k, "|", oldv, "|", v,
                 try:
-                    vi = int(v)
-                    oldvi = int(oldv)
-                    d = vi - oldvi
-                    if d <= 0 or d < sleeptime:
-                        raise "invalid"
+                    d = v - oldv
+                    if d == 0:
+                        d = float(v - oldv)
                     print "|", d, "|", d / sleeptime
                 except:
                     print
