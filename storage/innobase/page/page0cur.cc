@@ -190,58 +190,6 @@ exit_func:
 
 #endif
 
-#ifdef PAGE_CUR_LE_OR_EXTENDS
-/****************************************************************//**
-Checks if the nth field in a record is a character type field which extends
-the nth field in tuple, i.e., the field is longer or equal in length and has
-common first characters.
-@return	TRUE if rec field extends tuple field */
-static
-ibool
-page_cur_rec_field_extends(
-/*=======================*/
-	const dtuple_t*	tuple,	/*!< in: data tuple */
-	const rec_t*	rec,	/*!< in: record */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		n)	/*!< in: compare nth field */
-{
-	const dtype_t*	type;
-	const dfield_t*	dfield;
-	const byte*	rec_f;
-	ulint		rec_f_len;
-
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	dfield = dtuple_get_nth_field(tuple, n);
-
-	type = dfield_get_type(dfield);
-
-	rec_f = rec_get_nth_field(rec, offsets, n, &rec_f_len);
-
-	if (type->mtype == DATA_VARCHAR
-	    || type->mtype == DATA_CHAR
-	    || type->mtype == DATA_FIXBINARY
-	    || type->mtype == DATA_BINARY
-	    || type->mtype == DATA_BLOB
-	    || type->mtype == DATA_GEOMETRY
-	    || type->mtype == DATA_VARMYSQL
-	    || type->mtype == DATA_MYSQL) {
-
-		if (dfield_get_len(dfield) != UNIV_SQL_NULL
-		    && rec_f_len != UNIV_SQL_NULL
-		    && rec_f_len >= dfield_get_len(dfield)
-		    && !cmp_data_data(type->mtype, type->prtype,
-				      dfield_get_data(dfield),
-				      dfield_get_len(dfield),
-				      rec_f, dfield_get_len(dfield))) {
-
-			return(TRUE);
-		}
-	}
-
-	return(FALSE);
-}
-#endif /* PAGE_CUR_LE_OR_EXTENDS */
-
 /****************************************************************//**
 Searches the right position for a page cursor. */
 UNIV_INTERN
@@ -302,14 +250,18 @@ page_cur_search_with_match(
 	      && ilow_matched_fields && ilow_matched_bytes && cursor);
 	ut_ad(dtuple_validate(tuple));
 #ifdef UNIV_DEBUG
-# ifdef PAGE_CUR_DBG
-	if (mode != PAGE_CUR_DBG)
-# endif /* PAGE_CUR_DBG */
-# ifdef PAGE_CUR_LE_OR_EXTENDS
-		if (mode != PAGE_CUR_LE_OR_EXTENDS)
-# endif /* PAGE_CUR_LE_OR_EXTENDS */
-			ut_ad(mode == PAGE_CUR_L || mode == PAGE_CUR_LE
-			      || mode == PAGE_CUR_G || mode == PAGE_CUR_GE);
+	switch (mode) {
+# ifdef UNIV_SEARCH_DEBUG
+	case PAGE_CUR_DBG:
+# endif /* UNIV_SEARCH_DEBUG */
+	case PAGE_CUR_L:
+	case PAGE_CUR_LE:
+	case PAGE_CUR_G:
+	case PAGE_CUR_GE:
+		goto mode_ok;
+	}
+	ut_ad(0);
+mode_ok:
 #endif /* UNIV_DEBUG */
 	page = buf_block_get_frame(block);
 #ifdef UNIV_ZIP_DEBUG
@@ -339,12 +291,6 @@ page_cur_search_with_match(
 	}
 # endif
 #endif
-
-	/* The following flag does not work for non-latin1 char sets because
-	cmp_full_field does not tell how many bytes matched */
-#ifdef PAGE_CUR_LE_OR_EXTENDS
-	ut_a(mode != PAGE_CUR_LE_OR_EXTENDS);
-#endif /* PAGE_CUR_LE_OR_EXTENDS */
 
 	/* If mode PAGE_CUR_G is specified, we are trying to position the
 	cursor to answer a query of the form "tuple < X", where tuple is
@@ -390,25 +336,12 @@ low_slot_match:
 			low_matched_bytes = cur_matched_bytes;
 
 		} else if (UNIV_EXPECT(cmp, -1)) {
-#ifdef PAGE_CUR_LE_OR_EXTENDS
-			if (mode == PAGE_CUR_LE_OR_EXTENDS
-			    && page_cur_rec_field_extends(
-				    tuple, mid_rec, offsets,
-				    cur_matched_fields)) {
-
-				goto low_slot_match;
-			}
-#endif /* PAGE_CUR_LE_OR_EXTENDS */
 up_slot_match:
 			up = mid;
 			up_matched_fields = cur_matched_fields;
 			up_matched_bytes = cur_matched_bytes;
 
-		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE
-#ifdef PAGE_CUR_LE_OR_EXTENDS
-			   || mode == PAGE_CUR_LE_OR_EXTENDS
-#endif /* PAGE_CUR_LE_OR_EXTENDS */
-			   ) {
+		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE) {
 
 			goto low_slot_match;
 		} else {
@@ -447,24 +380,11 @@ low_rec_match:
 			low_matched_bytes = cur_matched_bytes;
 
 		} else if (UNIV_EXPECT(cmp, -1)) {
-#ifdef PAGE_CUR_LE_OR_EXTENDS
-			if (mode == PAGE_CUR_LE_OR_EXTENDS
-			    && page_cur_rec_field_extends(
-				    tuple, mid_rec, offsets,
-				    cur_matched_fields)) {
-
-				goto low_rec_match;
-			}
-#endif /* PAGE_CUR_LE_OR_EXTENDS */
 up_rec_match:
 			up_rec = mid_rec;
 			up_matched_fields = cur_matched_fields;
 			up_matched_bytes = cur_matched_bytes;
-		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE
-#ifdef PAGE_CUR_LE_OR_EXTENDS
-			   || mode == PAGE_CUR_LE_OR_EXTENDS
-#endif /* PAGE_CUR_LE_OR_EXTENDS */
-			   ) {
+		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE) {
 
 			goto low_rec_match;
 		} else {
