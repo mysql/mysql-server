@@ -503,9 +503,6 @@ btr_cur_search_to_nth_level(
 	    && latch_mode <= BTR_MODIFY_LEAF
 	    && info->last_hash_succ
 	    && !estimate
-# ifdef PAGE_CUR_LE_OR_EXTENDS
-	    && mode != PAGE_CUR_LE_OR_EXTENDS
-# endif /* PAGE_CUR_LE_OR_EXTENDS */
 	    /* If !has_search_latch, we do a dirty read of
 	    btr_search_enabled below, and btr_search_guess_on_hash()
 	    will have to check it again. */
@@ -582,15 +579,13 @@ btr_cur_search_to_nth_level(
 	case PAGE_CUR_G:
 		page_mode = PAGE_CUR_LE;
 		break;
-	default:
-#ifdef PAGE_CUR_LE_OR_EXTENDS
-		ut_ad(mode == PAGE_CUR_L || mode == PAGE_CUR_LE
-		      || mode == PAGE_CUR_LE_OR_EXTENDS);
-#else /* PAGE_CUR_LE_OR_EXTENDS */
+	case PAGE_CUR_L:
+	case PAGE_CUR_LE:
 		ut_ad(mode == PAGE_CUR_L || mode == PAGE_CUR_LE);
-#endif /* PAGE_CUR_LE_OR_EXTENDS */
 		page_mode = mode;
 		break;
+	default:
+		ut_error;
 	}
 
 	/* Loop and search until we arrive at the desired level */

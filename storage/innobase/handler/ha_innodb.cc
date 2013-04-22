@@ -7184,19 +7184,6 @@ convert_search_mode_to_innobase(
 		return(PAGE_CUR_LE);
 	case HA_READ_PREFIX_LAST_OR_PREV:
 		return(PAGE_CUR_LE);
-		/* In MySQL-4.0 HA_READ_PREFIX and HA_READ_PREFIX_LAST always
-		pass a complete-field prefix of a key value as the search
-		tuple. I.e., it is not allowed that the last field would
-		just contain n first bytes of the full field value.
-		MySQL uses a 'padding' trick to convert LIKE 'abc%'
-		type queries so that it can use as a search tuple
-		a complete-field-prefix of a key value. Thus, the InnoDB
-		search mode PAGE_CUR_LE_OR_EXTENDS is never used.
-		TODO: when/if MySQL starts to use also partial-field
-		prefixes, we have to deal with stripping of spaces
-		and comparison of non-latin1 char type fields in
-		innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
-		work correctly. */
 	case HA_READ_MBR_CONTAIN:
 	case HA_READ_MBR_INTERSECT:
 	case HA_READ_MBR_WITHIN:
