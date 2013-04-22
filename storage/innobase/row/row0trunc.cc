@@ -234,6 +234,7 @@ struct Logger : public Callback {
 		Callback(table, flags)
 	{
 		m_truncate.m_dir_path = m_table->data_dir_path;
+		m_truncate.m_table_id = table->id;
 	}
 
 	/**
@@ -582,7 +583,8 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 		DBUG_EXECUTE_IF("crash_after_log_checkpoint", DBUG_SUICIDE(););
 
 		err = truncate_t::truncate(
-			table->space, table->name, table->data_dir_path, flags);
+			table->space, table->name, table->data_dir_path,
+			flags, false);
 
 		DBUG_EXECUTE_IF("crash_after_truncate_tablespace",
 				DBUG_SUICIDE(););
@@ -1226,3 +1228,86 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 	return(row_truncate_complete(table, trx, flags, err));
 }
+
+/**
+Truncates a table for MySQL during server-startup.
+@param lsn	TODO: lsn
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+row_truncate_table_during_server_startup(ulint lsn)
+{
+	dberr_t	err = DB_SUCCESS;
+
+	/* Complete truncate of table that we scanned during recovery phase. */
+	for (ulint i = 0;
+	     i < srv_tables_to_truncate.size() && err == DB_SUCCESS;
+	     i++) {
+
+		truncate_t* table_to_truncate = srv_tables_to_truncate[i];
+
+		/* Check if tablespace is already made active which suggest
+		tablespace already exist. We just need to re-initialize it. */
+		if (!fil_tablespace_exists_in_mem(
+			table_to_truncate->m_space_id)) {
+
+			/* Create the database directory for name, if it does
+			not exist yet */
+
+			fil_create_directory_for_tablename(
+				table_to_truncate->m_tablename);
+
+			if (fil_create_new_single_table_tablespace(
+					table_to_truncate->m_space_id,
+					table_to_truncate->m_tablename,
+					table_to_truncate->m_dir_path,
+					table_to_truncate->m_tablespace_flags,
+					DICT_TF2_USE_TABLESPACE,
+					FIL_IBD_FILE_INITIAL_SIZE)
+					!= DB_SUCCESS) {
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Failed to create a new tablespace for "
+					"table '%s'",
+					table_to_truncate->m_tablename);
+				/* We ignore this error.
+				Here is the use-case that is valid and can lead
+				to this problem. ?
+				- create table t.... load ... truncate (crash)
+				  restart (checkpoint not done) .... drop
+				- create table t.... load ... truncate (crash)
+				  restart (this time when we read REDO log we
+				  would get 2 entries with same name but
+				  different space-id. First entry is left over
+				  from first crash but because checkpoint was
+				  not done it was left over and so there would
+				  be no tablespace with old space-id. */
+				err = DB_SUCCESS;
+				continue;
+			}
+		}
+
+		ut_ad(fil_tablespace_exists_in_mem(
+			table_to_truncate->m_space_id) == TRUE);
+
+		err = fil_recreate_tablespace(
+			table_to_truncate->m_space_id,
+			table_to_truncate->m_log_flags,
+			table_to_truncate->m_tablespace_flags,
+			table_to_truncate->m_tablename,
+			*table_to_truncate, lsn);
+	}
+
+	if (err == DB_SUCCESS) {
+
+		for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
+			delete (srv_tables_to_truncate[i]);
+		}
+
+		srv_tables_to_truncate.clear();
+	}
+
+	return(err);
+}
+
+

@@ -51,6 +51,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "srv0conc.h"
 #include "buf0checksum.h"
 #include "ut0counter.h"
+#include "fil0fil.h"
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
@@ -362,6 +363,8 @@ extern ibool	srv_priority_boost;
 
 extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
+
+extern truncate_tables_t	srv_tables_to_truncate;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;

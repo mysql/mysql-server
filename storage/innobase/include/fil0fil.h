@@ -78,7 +78,94 @@ struct fil_addr_t {
 };
 
 /** The information of MLOG_FILE_TRUNCATE redo record */
-struct truncate_t {
+class truncate_t {
+
+public:
+	truncate_t()
+		:
+		m_space_id(ULINT_UNDEFINED),
+		m_tablespace_flags(),
+		m_log_flags(),
+		m_tablename(),
+		m_table_id(),
+		m_dir_path()
+	{
+		/* Do nothing */
+	}
+
+	~truncate_t() {
+		m_space_id = ULINT_UNDEFINED;
+
+		if (m_tablename != NULL) {
+			::free(m_tablename);
+			m_tablename = 0;
+		}
+
+		m_table_id = 0;
+		m_log_flags = 0;
+		m_tablespace_flags = 0;
+
+		if (m_dir_path != NULL) {
+			::free(m_dir_path);
+			m_dir_path = 0;
+		}
+	}
+
+	/*
+	truncate_t(const truncate_t& copyfrom) {
+
+		m_space_id = copyfrom.m_space_id;
+
+		m_tablespace_flags = copyfrom.m_tablespace_flags;
+
+		m_log_flags = copyfrom.m_log_flags;
+
+		if (copyfrom.m_tablename != NULL) {
+			m_tablename = strdup(copyfrom.m_tablename);
+		} else {
+			m_tablename = 0;
+		}
+
+		m_table_id = copyfrom.m_table_id;
+
+		if (copyfrom.m_dir_path != NULL) {
+			m_dir_path = strdup(copyfrom.m_dir_path);
+		} else {
+			m_dir_path = 0;
+		}
+	}
+
+	truncate_t& operator=(const truncate_t& copyfrom) {
+
+		m_space_id = copyfrom.m_space_id;
+
+		m_tablespace_flags = copyfrom.m_tablespace_flags;
+
+		m_log_flags = copyfrom.m_log_flags;
+
+		if (m_tablename != NULL) {
+			::free(m_tablename);
+			m_tablename = 0;
+		}
+
+		if (copyfrom.m_tablename != NULL) {
+			m_tablename = strdup(copyfrom.m_tablename);
+		}
+
+		m_table_id = copyfrom.m_table_id;
+
+		if (m_dir_path != NULL) {
+			::free(m_dir_path);
+			m_dir_path = 0;
+		}
+
+		if (copyfrom.m_dir_path != NULL) {
+			m_dir_path = strdup(copyfrom.m_dir_path);
+		}
+
+		return(*this);
+	}
+	*/
 
 	/** The index information of MLOG_FILE_TRUNCATE redo record */
 	struct index_t {
@@ -178,26 +265,46 @@ struct truncate_t {
 	/**
 	Truncate a single-table tablespace. The tablespace must be cached
 	in the memory cache.
-	@param space_id		space id
-	@param tablename	the table name in the usual
-				databasename/tablename format of InnoDB
-	@param dir_path		data directory path for .ibd file
-	@param flags		tablespace flags
+	@param space_id			space id
+	@param tablename		the table name in the usual
+					databasename/tablename format of InnoDB
+	@param dir_path			data directory path for .ibd file
+	@param flags			tablespace flags
+	@param truncate_to_initial_sz	truncate to size that exist when new
+					tablespace is created.
 	@return DB_SUCCESS or error */
 	static dberr_t truncate(
-		ulint		id,
+		ulint		space_id,
 		const char*	tablename,
 		const char*	dir_path,
-		ulint		flags);
+		ulint		flags,
+		bool		truncate_to_initial_sz);
 
 	typedef std::vector<index_t> indexes_t;
 
+	/** Space-ID of tablespace to truncate. */
+	ulint			m_space_id;
+
+	/** Tablespace creation options. */
+	ulint			m_tablespace_flags;
+
+	/** Log Flags. */
+	ulint			m_log_flags;
+
+	/** Tablename. */
+	char*			m_tablename;
+
+	/** ID of table that is being truncated. */
+	table_id_t		m_table_id;
+
 	/** Data dir path of tablespace */
-	const char*		m_dir_path;
+	char*			m_dir_path;
 
 	/** Index meta-data */
 	indexes_t		m_indexes;
 };
+
+typedef std::vector<truncate_t*> truncate_tables_t;
 
 /** The null file address */
 extern fil_addr_t	fil_addr_null;
@@ -499,6 +606,29 @@ fil_decr_pending_ops(
 /*=================*/
 	ulint	id);	/*!< in: space id */
 #endif /* !UNIV_HOTBACKUP */
+/********************************************************//**
+Creates the database directory for a table if it does not exist yet. */
+UNIV_INTERN
+void
+fil_create_directory_for_tablename(
+/*===============================*/
+	const char*	name);	/*!< in: name in the standard
+				'databasename/tablename' format */
+/********************************************************//**
+Recreates the tablespace and table indexes by applying
+MLOG_FILE_TRUNCATE redo record during recovery */
+UNIV_INTERN
+dberr_t
+fil_recreate_tablespace(
+/*====================*/
+	ulint			space_id,	/*!< in: space id */
+	ulint			format_flags,	/*!< in: page format */
+	ulint			flags,		/*!< in: tablespace flags */
+	const char*		name,		/*!< in: table name */
+	const truncate_t&	truncate,	/*!< in: The information of
+						MLOG_FILE_TRUNCATE record */
+	lsn_t			recv_lsn);	/*!< in: the end LSN of
+						the log record */
 /*******************************************************************//**
 Parses the body of a log record written about an .ibd file operation. That is,
 the log record part after the standard (type, space id, page no) header of the
@@ -524,11 +654,12 @@ fil_op_log_parse_or_replay(
 	const byte*	end_ptr,	/*!< in: buffer end */
 	ulint		type,		/*!< in: the type of this log record */
 	ulint		space_id,	/*!< in: the space id of the tablespace
-					in question, or 0 if the log record
-					should only be parsed but not replayed*/
+					in question */
 	ulint		log_flags,	/*!< in: redo log flags
 					(stored in the page number parameter) */
-	lsn_t		recv_lsn);	/*!< in: the end LSN of log record */
+	lsn_t		recv_lsn,	/*!< in: the end LSN of log record */
+	bool		parse_only);	/*!< in: if true, parse the
+					log record don't replay it. */
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.

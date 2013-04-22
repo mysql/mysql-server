@@ -854,9 +854,12 @@ recv_parse_or_apply_log_rec_body(
 				record should be complete then */
 	mtr_t*		mtr,	/*!< in: mtr or NULL; should be non-NULL
 				if and only if block is non-NULL */
-	ulint		space_id)
+	ulint		space_id,
 				/*!< in: tablespace id obtained by
-				parsing initial log record */
+				parsing initial log record. */
+	ulint		page_no)
+				/*!< in: page-number obtained by
+				parsing initial log record. */
 {
 	dict_index_t*	index	= NULL;
 	page_t*		page;
@@ -1133,15 +1136,18 @@ recv_parse_or_apply_log_rec_body(
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_FILE_RENAME:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type,
-						 space_id, 0, 0);
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, space_id, page_no, 0, false);
+		break;
+	case MLOG_FILE_TRUNCATE:
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, space_id, page_no, 0, true);
 		break;
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
-	case MLOG_FILE_TRUNCATE:
 	case MLOG_FILE_CREATE2:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type,
-			ULINT_UNDEFINED, 0, 0);
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, ULINT_UNDEFINED, page_no, 0, true);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
@@ -1520,7 +1526,8 @@ recv_recover_page_func(
 					"InnoDB: Applying log rec"
 					" type %lu len %lu"
 					" to space %lu page no %lu\n",
-					(ulong) recv->type, (ulong) recv->len,
+					(ulong) recv->type,
+					(ulong) recv->len,
 					(ulong) recv_addr->space,
 					(ulong) recv_addr->page_no);
 			}
@@ -1529,7 +1536,8 @@ recv_recover_page_func(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
 							 block, &mtr,
-							 recv_addr->space);
+							 recv_addr->space,
+							 recv_addr->page_no);
 
 			end_lsn = recv->start_lsn + recv->len;
 			mach_write_to_8(FIL_PAGE_LSN + page, end_lsn);
@@ -1965,22 +1973,17 @@ recv_parse_log_rec(
 	*body = NULL;
 
 	if (ptr == end_ptr) {
-
 		return(0);
 	}
 
 	if (*ptr == MLOG_MULTI_REC_END) {
-
 		*type = *ptr;
-
 		return(1);
 	}
 
 	if (*ptr == MLOG_DUMMY_RECORD) {
 		*type = *ptr;
-
 		*space = ULINT_UNDEFINED - 1; /* For debugging */
-
 		return(1);
 	}
 
@@ -1989,7 +1992,6 @@ recv_parse_log_rec(
 	*body = new_ptr;
 
 	if (UNIV_UNLIKELY(!new_ptr)) {
-
 		return(0);
 	}
 
@@ -2004,8 +2006,9 @@ recv_parse_log_rec(
 	}
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
-						   NULL, NULL, *space);
+	new_ptr = recv_parse_or_apply_log_rec_body(
+			*type, new_ptr, end_ptr, NULL, NULL, *space, *page_no);
+
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
 		return(0);
@@ -2228,19 +2231,8 @@ loop:
 #endif/* UNIV_LOG_DEBUG */
 
 		} else if (type == MLOG_FILE_TRUNCATE) {
+			/* Do nothing */
 
-			if (NULL == fil_op_log_parse_or_replay(
-				body, end_ptr, type, space, page_no,
-				recv_sys->recovered_lsn)) {
-
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"File op log record of type "
-						"MLOG_FILE_TRUNCATE space %lu "
-						"does not complete in the "
-						"parse/replay phase.", space);
-
-				ut_error;
-			}
 		} else if (type == MLOG_FILE_CREATE
 			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME

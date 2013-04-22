@@ -505,6 +505,17 @@ row_truncate_table_for_mysql(
 	dict_table_t*	table,	/*!< in: table handle */
 	trx_t*		trx)	/*!< in: transaction handle */
 	__attribute__((nonnull, warn_unused_result));
+
+/**
+Truncates a table for MySQL during server-startup.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+row_truncate_table_during_server_startup(
+/*======================================*/
+	ulint		lsn)	/*!< in: lsn */
+	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Drops a table for MySQL.  If the name of the dropped table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
