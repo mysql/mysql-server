@@ -2130,30 +2130,30 @@ UNIV_INTERN
 void
 PageCur::init(void)
 {
-	const page_t*	page	= buf_block_get_frame(block);
+	const page_t*	page	= buf_block_get_frame(m_block);
 
-	ut_ad(dict_table_is_comp(index->table));
+	ut_ad(dict_table_is_comp(m_index->table));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(recv_recovery_on
-	      || mtr->inside_ibuf
-	      || btr_page_get_index_id(page) == index->id);
+	      || m_mtr->inside_ibuf
+	      || btr_page_get_index_id(page) == m_index->id);
 
 	const ulint	n	= page_is_leaf(page)
-		? dict_index_get_n_fields(index)
-		: dict_index_get_n_unique_in_tree(index) + 1;
+		? dict_index_get_n_fields(m_index)
+		: dict_index_get_n_unique_in_tree(m_index) + 1;
 	const ulint	size	= n + (1 + REC_OFFS_HEADER_SIZE);
 
-	offsets = new ulint[size];
-	rec_offs_set_n_alloc(offsets, size);
-	rec_offs_set_n_fields(offsets, n);
+	m_offsets = new ulint[size];
+	rec_offs_set_n_alloc(m_offsets, size);
+	rec_offs_set_n_fields(m_offsets, n);
 
-	if (!rec) {
+	if (!m_rec) {
 		/* Initialize to the page infimum. */
-		rec = page + page_get_infimum_offset(page);
+		m_rec = page + page_get_infimum_offset(page);
 	} else {
-		ut_ad(page_align(rec) == page);
+		ut_ad(page_align(m_rec) == page);
 		if (isUser()) {
-			rec_init_offsets(rec, index, offsets);
+			rec_init_offsets(m_rec, m_index, m_offsets);
 			return;
 		}
 	}
@@ -2177,29 +2177,29 @@ PageCur::insert(rec_t* current) const
 	ulint		heap_no;	/*!< heap number of the inserted
 					record */
 
-	if (offsets) {
-		ut_ad(rec_offs_validate(rec, index, offsets));
-		ut_ad(dict_table_is_comp(index->table));
+	if (m_offsets) {
+		ut_ad(rec_offs_validate(m_rec, m_index, m_offsets));
+		ut_ad(dict_table_is_comp(m_index->table));
 		ut_ad(page_is_comp(page));
 
-		extra_size = rec_offs_extra_size(offsets);
-		data_size = rec_offs_data_size(offsets);
+		extra_size = rec_offs_extra_size(m_offsets);
+		data_size = rec_offs_data_size(m_offsets);
 	} else {
-		ut_ad(!dict_table_is_comp(index->table));
+		ut_ad(!dict_table_is_comp(m_index->table));
 		ut_ad(!page_is_comp(page));
-		data_size = rec_get_size_old(rec, extra_size);
+		data_size = rec_get_size_old(m_rec, extra_size);
 	}
 
-	ut_ad(page != page_align(rec));
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(page != page_align(m_rec));
+	ut_ad(mtr_memo_contains_page(m_mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || recv_recovery_is_on() || mtr->inside_ibuf);
+	      == m_index->id || recv_recovery_is_on() || m_mtr->inside_ibuf);
 	ut_ad(!page_rec_is_supremum(current));
 
 	const ulint rec_size = data_size + extra_size;
 
-	UNIV_MEM_ASSERT_RW(rec - extra_size, rec_size);
+	UNIV_MEM_ASSERT_RW(m_rec - extra_size, rec_size);
 
 	if (rec_t* free_rec = page_header_get_ptr(page, PAGE_FREE)) {
 		/* Try to allocate from the head of the free list. */
@@ -2211,7 +2211,7 @@ PageCur::insert(rec_t* current) const
 
 		/* TODO: avoid this call */
 		foffsets = rec_get_offsets(
-			free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
+			free_rec, m_index, foffsets, ULINT_UNDEFINED, &heap);
 		if (rec_offs_size(foffsets) < rec_size) {
 			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
@@ -2239,7 +2239,7 @@ use_heap:
 		}
 	}
 
-	memcpy(insert_buf, rec - extra_size, rec_size);
+	memcpy(insert_buf, m_rec - extra_size, rec_size);
 
 	rec_t*	insert_rec = insert_buf + extra_size;
 	/* next record after current before the insertion */
@@ -2324,11 +2324,12 @@ use_heap:
 	}
 
 	page_cur_insert_rec_write_log(insert_rec, rec_size,
-				      current, index, mtr);
+				      current, m_index, m_mtr);
 
-	if (offsets) {
-		rec_offs_make_valid(insert_rec, index, offsets);
-		btr_blob_dbg_add_rec(insert_rec, index, offsets,
+	if (m_offsets) {
+		/* TODO: do not modify const m_offsets */
+		rec_offs_make_valid(insert_rec, m_index, m_offsets);
+		btr_blob_dbg_add_rec(insert_rec, m_index, m_offsets,
 				     "PageCur::insert");
 	}
 
