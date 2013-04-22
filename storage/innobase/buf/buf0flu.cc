@@ -2515,6 +2515,20 @@ thread_exit:
 	OS_THREAD_DUMMY_RETURN;
 }
 
+/*******************************************************************//**
+Synchronously flush dirty blocks from the end of the flush list of all buffer
+pool instances.
+NOTE: The calling thread is not allowed to own any latches on pages! */
+UNIV_INTERN
+void
+buf_flush_sync_all_buf_pools(void)
+/*==============================*/
+{
+	bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+	ut_a(success);
+
+	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+}
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 
 /** Functor to validate the flush list. */
