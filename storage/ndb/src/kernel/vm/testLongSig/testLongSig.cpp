@@ -18,7 +18,7 @@
 
 #include <ndb_global.h>
 #include <NdbApi.hpp>
-#include <readline/readline.h>
+#include <readline.h>
 #include <../../ndbapi/SignalSender.hpp>
 
 void

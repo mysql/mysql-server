@@ -98,12 +98,6 @@ UNIV_INTERN lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
 UNIV_INTERN lsn_t	srv_shutdown_lsn;
 
-#ifdef HAVE_DARWIN_THREADS
-# include <sys/utsname.h>
-/** TRUE if the F_FULLFSYNC option is available */
-UNIV_INTERN ibool	srv_have_fullfsync = FALSE;
-#endif
-
 /** TRUE if a raw partition is in use */
 UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
@@ -1163,32 +1157,6 @@ innobase_start_or_create_for_mysql(void)
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
 
-#ifdef HAVE_DARWIN_THREADS
-# ifdef F_FULLFSYNC
-	/* This executable has been compiled on Mac OS X 10.3 or later.
-	Assume that F_FULLFSYNC is available at run-time. */
-	srv_have_fullfsync = TRUE;
-# else /* F_FULLFSYNC */
-	/* This executable has been compiled on Mac OS X 10.2
-	or earlier.  Determine if the executable is running
-	on Mac OS X 10.3 or later. */
-	struct utsname utsname;
-	if (uname(&utsname)) {
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: cannot determine Mac OS X version!\n", stderr);
-	} else {
-		srv_have_fullfsync = strcmp(utsname.release, "7.") >= 0;
-	}
-	if (!srv_have_fullfsync) {
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: On Mac OS X, fsync() may be "
-		      "broken on internal drives,\n", stderr);
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: making transactions unsafe!\n", stderr);
-	}
-# endif /* F_FULLFSYNC */
-#endif /* HAVE_DARWIN_THREADS */
-
 	if (sizeof(ulint) != sizeof(void*)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -1700,12 +1668,10 @@ innobase_start_or_create_for_mysql(void)
 	srv_log_file_size_requested = srv_log_file_size;
 
 	if (create_new_db) {
-		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-		ut_a(success);
+
+		buf_flush_sync_all_buf_pools();
 
 		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
-
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 		err = create_log_files(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
@@ -1916,12 +1882,9 @@ files_checked:
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
-		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-		ut_a(success);
+		buf_flush_sync_all_buf_pools();
 
 		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
-
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 		/* Stamp the LSN to the data files. */
 		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
@@ -2036,9 +1999,7 @@ files_checked:
 			}
 
 			/* Clean the buffer pool. */
-			bool success = buf_flush_list(
-				ULINT_MAX, LSN_MAX, NULL);
-			ut_a(success);
+			buf_flush_sync_all_buf_pools();
 
 			RECOVERY_CRASH(1);
 
@@ -2052,10 +2013,6 @@ files_checked:
 				(unsigned) srv_n_log_files,
 				(unsigned) srv_log_file_size_requested,
 				max_flushed_lsn);
-
-			buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-
-			RECOVERY_CRASH(2);
 
 			/* Flush the old log files. */
 			log_buffer_flush_to_disk();

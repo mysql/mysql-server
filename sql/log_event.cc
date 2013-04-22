@@ -3827,7 +3827,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
                                      thd->in_multi_stmt_transaction_mode();
       break;
       case SQLCOM_CREATE_TABLE:
-        cmd_must_go_to_trx_cache= lex->select_lex.item_list.elements &&
+        cmd_must_go_to_trx_cache= lex->select_lex->item_list.elements &&
                                   thd->is_current_stmt_binlog_format_row();
         cmd_can_generate_row_events= 
           ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -6620,8 +6620,8 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
-      thd->lex->select_lex.context.resolve_in_table_list_only(&tables);
-      set_fields(tables.db, field_list, &thd->lex->select_lex.context);
+      thd->lex->select_lex->context.resolve_in_table_list_only(&tables);
+      set_fields(tables.db, field_list, &thd->lex->select_lex->context);
       thd->variables.pseudo_thread_id= thread_id;
       if (net)
       {

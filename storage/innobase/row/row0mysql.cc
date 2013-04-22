@@ -2660,7 +2660,8 @@ row_table_add_foreign_constraints(
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, NULL, false, true);
+		err = dict_load_foreigns(name, NULL, false, true,
+					 DICT_ERR_IGNORE_NONE);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -4666,7 +4667,8 @@ end:
 
 		err = dict_load_foreigns(
 			new_name, NULL,
-			false, !old_is_tmp || trx->check_foreigns);
+			false, !old_is_tmp || trx->check_foreigns,
+			DICT_ERR_IGNORE_NONE);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);
