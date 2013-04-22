@@ -8611,7 +8611,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     from subquery of VIEW, because tables of subquery belongs to VIEW
     (see condition before prepare_check_option() call)
   */
-  bool it_is_update= (select_lex == &thd->lex->select_lex) &&
+  bool it_is_update= (select_lex == thd->lex->select_lex) &&
     thd->lex->which_check_option_applicable();
   bool save_is_item_list_lookup= select_lex->is_item_list_lookup;
   select_lex->is_item_list_lookup= 0;

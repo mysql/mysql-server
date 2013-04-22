@@ -90,8 +90,7 @@ deallocate prepare s_t9;
 #### revoke the access rights to t1
 ## switch back to the first session
 connection default;
-revoke all privileges on mysqltest.t1 from second_user@localhost
-identified by 'looser' ;
+revoke all privileges on mysqltest.t1 from second_user@localhost;
 show grants for second_user@localhost ;
 
 #### check the access as new user

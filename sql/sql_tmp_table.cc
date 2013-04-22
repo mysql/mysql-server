@@ -1962,7 +1962,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
 
   if (create_myisam_tmp_table(&new_table, table->s->key_info,
                               start_recinfo, recinfo,
-			      (thd->lex->select_lex.options |
+			      (thd->lex->select_lex->options |
                                thd->variables.option_bits),
                               thd->variables.big_tables))
     goto err2;

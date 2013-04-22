@@ -193,9 +193,9 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 {
   LEX *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
+  TABLE_LIST *first_table= select_lex->get_table_list();
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -322,9 +322,9 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 bool Sql_cmd_discard_import_tablespace::execute(THD *thd)
 {
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex= &thd->lex->select_lex;
+  SELECT_LEX *select_lex= thd->lex->select_lex;
   /* first table of first SELECT_LEX */
-  TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
+  TABLE_LIST *table_list= select_lex->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db,
                    &table_list->grant.privilege,
