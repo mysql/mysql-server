@@ -2028,7 +2028,7 @@ fil_decr_pending_ops(
 
 /********************************************************//**
 Creates the database directory for a table if it does not exist yet. */
-static
+UNIV_INTERN
 void
 fil_create_directory_for_tablename(
 /*===============================*/
@@ -2127,9 +2127,9 @@ fil_op_write_log(
 
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery */
-static
-void
+MLOG_FILE_TRUNCATE redo record post recovery during server startup. */
+UNIV_INTERN
+dberr_t
 fil_recreate_tablespace(
 /*====================*/
 	ulint			space_id,	/*!< in: space id */
@@ -2150,31 +2150,25 @@ fil_recreate_tablespace(
 	to the tablespace. */
 	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
 
-	err = truncate.truncate(space_id, name, truncate.m_dir_path, flags);
+	err = truncate.truncate(
+		space_id, name, truncate.m_dir_path, flags, true);
 
 	if (err != DB_SUCCESS) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"innodb_force_recovery was set to %lu. "
-			"Continuing crash recovery even though we cannot"
-			"access the .ibd file of the tablespace %lu when"
-			"truncating the table '%s' during recovery",
-			srv_force_recovery, space_id, name);
-
-		return;
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Failed to truncate tablespace %lu when truncating "
+			"the table '%s'", space_id, name);
+		return(err);
 	}
 
 	ulint zip_size = fil_space_get_zip_size(space_id);
 
 	if (zip_size == ULINT_UNDEFINED) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"innodb_force_recovery was set to %lu. "
-			"Continuing crash recovery even though the "
-			".ibd file of the table '%s' with tablespace "
-			"%lu is missing",
-			srv_force_recovery, name, space_id);
-		return;
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Failed to truncate tablespace %lu when truncating "
+			"the table '%s'", space_id, name);
+		return(DB_ERROR);
 	}
 
 	/* Clean header */
@@ -2209,12 +2203,11 @@ fil_recreate_tablespace(
 			page_zip.data, NULL);
 
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"innodb_force_recovery was set to %lu. "
-				"Continuing crash recovery even though we "
-				"failed to clean header of table '%s' for "
-				"tablespace %lu during recovery.",
-				srv_force_recovery, name, space_id);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Failed to truncate tablespace %lu when "
+				"truncating the table '%s'", space_id, name);
+			mem_free(buf);
+			return(err);
 		}
 
 		mem_free(buf);
@@ -2238,7 +2231,7 @@ fil_recreate_tablespace(
 		name, space_id, zip_size, flags, format_flags);
 
 	if (err != DB_SUCCESS) {
-		return;
+		return(err);
 	}
 
 	mtr_start(&mtr);
@@ -2298,17 +2291,16 @@ fil_recreate_tablespace(
 		}
 
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"innodb_force_recovery was set to %lu. "
-				"Continuing crash recovery even though we "
-				"cannot write page %lu into the .ibd file "
-				"of table '%s' for tablespace %lu during "
-				"recovery.", srv_force_recovery, page_no,
-				name, space_id);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Failed to truncate tablespace %lu when "
+				"truncating the table '%s'", space_id, name);
+			return(err);
 		}
 	}
 
 	mtr_commit(&mtr);
+
+	return(err);
 }
 
 /*******************************************************************//**
@@ -2342,82 +2334,91 @@ fil_op_log_parse_or_replay(
 	const byte*	end_ptr,	/*!< in: buffer end */
 	ulint		type,		/*!< in: the type of this log record */
 	ulint		space_id,	/*!< in: the space id of the tablespace
-					in question, or ULINT_UNDEFINED if the
-					log record should only be parsed but
-					not replayed*/
+					in question */
 	ulint		log_flags,	/*!< in: redo log flags
 					(stored in the page number parameter) */
-	lsn_t		recv_lsn)	/*!< in: the end LSN of log record */
+	lsn_t		recv_lsn,	/*!< in: the end LSN of log record */
+	bool		parse_only)	/*!< in: if true, parse the
+					log record don't replay it. */
 {
 	const char*	name;
 	ulint		name_len;
-	ulint		flags = 0;
-	truncate_t	truncate;
+	ulint		tablespace_flags = 0;
 	ulint		new_name_len;
 	const char*	new_name = NULL;
 
-	/* Step-1: Parse log records. */
-	if (type == MLOG_FILE_CREATE2 || type == MLOG_FILE_TRUNCATE) {
-		if (end_ptr < ptr + 4) {
+	/* Step-1: Parse the log records. */
 
-			return(NULL);
+	/* Step-1a: Parse initial information which include
+	flags and name of table. Other field viz. type, space-id, page-no are
+	pre-parsed before invocation of this function */
+	{
+		if (type == MLOG_FILE_CREATE2 || type == MLOG_FILE_TRUNCATE) {
+			if (end_ptr < ptr + 4) {
+
+				return(NULL);
+			}
+
+			tablespace_flags = mach_read_from_4(ptr);
+			ptr += 4;
 		}
-
-		flags = mach_read_from_4(ptr);
-		ptr += 4;
-	}
-
-	if (end_ptr < ptr + 2) {
-
-		return(NULL);
-	}
-
-	name_len = mach_read_from_2(ptr);
-
-	ptr += 2;
-
-	if (end_ptr < ptr + name_len) {
-
-		return(NULL);
-	}
-
-	name = (const char*) ptr;
-
-	ptr += name_len;
-
-	if (type == MLOG_FILE_TRUNCATE
-	    && !truncate.parse(&ptr, &end_ptr, flags)) {
-
-		return(NULL);
-	}
-
-	if (type == MLOG_FILE_RENAME) {
 
 		if (end_ptr < ptr + 2) {
-
 			return(NULL);
 		}
 
-		new_name_len = mach_read_from_2(ptr);
-
+		name_len = mach_read_from_2(ptr);
 		ptr += 2;
-
-		if (end_ptr < ptr + new_name_len) {
-
+		if (end_ptr < ptr + name_len) {
 			return(NULL);
 		}
 
-		new_name = (const char*) ptr;
+		name = (const char*) ptr;
+		ptr += name_len;
+	}
 
-		ptr += new_name_len;
+
+	/* Step-1b: Parse remaining field in type specific form. */
+	{
+		if (type == MLOG_FILE_TRUNCATE) {
+
+			truncate_t* truncate = new truncate_t();
+
+			truncate->m_space_id = space_id;
+			truncate->m_tablespace_flags = tablespace_flags;
+			truncate->m_log_flags = log_flags;
+			truncate->m_tablename = strdup(name);
+
+			truncate->parse(&ptr, &end_ptr, tablespace_flags);
+
+			srv_tables_to_truncate.push_back(truncate);
+
+		} else if (type == MLOG_FILE_RENAME) {
+
+			if (end_ptr < ptr + 2) {
+				return(NULL);
+			}
+
+			new_name_len = mach_read_from_2(ptr);
+			ptr += 2;
+
+			if (end_ptr < ptr + new_name_len) {
+				return(NULL);
+			}
+
+			new_name = (const char*) ptr;
+			ptr += new_name_len;
+		}
 	}
 
 	/* Condition to check if replay of log record is demanded by caller. */
-	if (space_id == ULINT_UNDEFINED) {
+	if (parse_only) {
 		return(ptr);
 	}
 
 	/* Step-2: Replay log records. */
+
+	/* MLOG_FILE_XXXX ops are not carried out on system tablespaces. */
 	ut_ad(!Tablespace::is_system_tablespace(space_id));
 
 	/* Let us try to perform the file operation, if sensible. Note that
@@ -2435,42 +2436,6 @@ fil_op_log_parse_or_replay(
 				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 			ut_a(err == DB_SUCCESS);
 		}
-
-		break;
-
-	case MLOG_FILE_TRUNCATE:
-		if (!fil_tablespace_exists_in_mem(space_id)) {
-
-			/* Create the database directory for name, if it does
-			not exist yet */
-
-			fil_create_directory_for_tablename(name);
-
-			mutex_exit(&log_sys->mutex);
-
-			if (fil_create_new_single_table_tablespace(
-				    space_id, name, truncate.m_dir_path,
-				    flags, DICT_TF2_USE_TABLESPACE,
-				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
-
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"innodb_force_recovery was set to %lu. "
-					"Continuing crash recovery even though "
-					"we cannot create a new tablespace.",
-					srv_force_recovery);
-
-				mutex_enter(&log_sys->mutex);
-				break;
-			}
-
-			mutex_enter(&log_sys->mutex);
-		}
-
-		ut_ad(fil_tablespace_exists_in_mem(space_id) == TRUE);
-
-		fil_recreate_tablespace(
-			space_id, log_flags, flags, name,
-			truncate, recv_lsn);
 
 		break;
 
@@ -2518,7 +2483,7 @@ fil_op_log_parse_or_replay(
 			fil_create_directory_for_tablename(name);
 
 			if (fil_create_new_single_table_tablespace(
-				    space_id, name, path, flags,
+				    space_id, name, path, tablespace_flags,
 				    DICT_TF2_USE_TABLESPACE,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_error;
@@ -2528,6 +2493,8 @@ fil_op_log_parse_or_replay(
 		break;
 
 	default:
+		/* Replay of MLOG_FILE_TRUNCATE is done as separate step
+		after REDO/UNDO log are applied and recovery is done. */
 		ut_error;
 	}
 
@@ -6706,7 +6673,8 @@ truncate_t::write(
 		return;
 	}
 
-	/* Type, Space-ID, format-flag, tablespace flags */ 
+	/* Type, Space-ID, format-flag (also know as log_flag. Stored in page_no
+	field), tablespace flags */ 
 	{
 		log_ptr = mlog_write_initial_log_record_for_file_op(
 			MLOG_FILE_TRUNCATE, space_id, format_flags,
@@ -6734,12 +6702,16 @@ truncate_t::write(
 	DBUG_EXECUTE_IF("ib_truncate_crash_while_writing_redo_log",
 			DBUG_SUICIDE(););
 
-	/* Number of Indexes and Tablespace directory path-name. */
+	/* Table-ID, Number of Indexes and Tablespace directory path-name. */
 	{
 		/* Write the remote directory of the table into mtr log */
 		ulint len = m_dir_path != NULL ? strlen(m_dir_path) + 1 : 0;
 
-		log_ptr = mlog_open(&mtr, 2 + 2);
+		log_ptr = mlog_open(&mtr, 8 + 2 + 2);
+
+		/* Write out table-id. */
+		mach_write_to_8(log_ptr, m_table_id);
+		log_ptr += 8;
 
 		/* Write out the number of indexes. */
 		mach_write_to_2(log_ptr, m_indexes.size());
@@ -6824,55 +6796,69 @@ Parses MLOG_FILE_TRUNCATE redo record during recovery
 bool
 truncate_t::parse(
 /*==============*/
-	byte** ptr,
-	const byte** end_ptr,
-	ulint flags)
+	byte** 		ptr,
+	const byte** 	end_ptr,
+	ulint 		flags)
 {
-	ut_ad(m_indexes.empty());
+	ulint n_indexes;
 
-	if (*end_ptr < *ptr + 4) {
-		return(false);
-	}
+	/* Initial field are parsed by a common routine of REDO logging
+	parsing and so not available for re-parsing. */
 
-	ulint	n_index = mach_read_from_2(*ptr);
-	*ptr += 2;
-
-	/* Parse the remote directory from TRUNCATE log record */
-	ulint	len = mach_read_from_2(*ptr);
-	*ptr += 2;
-
-	if (*end_ptr < *ptr + len) {
-		return(false);
-	}
-
-	if (len > 0) {
-
-		m_dir_path = reinterpret_cast<const char*>(*ptr);
-
-		/* Should be NUL terminated. */
-		ut_ad(m_dir_path[len - 1] == 0);
-
-		*ptr += len;
-	}
-
-	/* Parse index ids and types from TRUNCATE log record */
-	for (ulint i = 0; i < n_index; ++i) {
-		index_t	index;
-
-		if (*end_ptr < *ptr + 12) {
+	/* Parse and read table-id, number of indexes */
+	{
+		if (*end_ptr < *ptr + (8 + 2 + 2)) {
 			return(false);
 		}
 
-		index.m_id = mach_read_from_8(*ptr);
+		ut_ad(m_indexes.empty());
+
+		m_table_id = mach_read_from_8(*ptr);
 		*ptr += 8;
 
-		index.m_type = mach_read_from_4(*ptr);
-		*ptr += 4;
-
-		m_indexes.push_back(index);
+		n_indexes = mach_read_from_2(*ptr);
+		*ptr += 2;
 	}
 
-	ut_ad(!m_indexes.empty());
+	/* Parse the remote directory from TRUNCATE log record */
+	{	
+		ulint n_tabledirpath_len = mach_read_from_2(*ptr);
+		*ptr += 2;
+
+		if (*end_ptr < *ptr + n_tabledirpath_len) {
+			return(false);
+		}
+
+		if (n_tabledirpath_len > 0) {
+
+			m_dir_path = strdup(reinterpret_cast<char*>(*ptr));
+
+			/* Should be NUL terminated. */
+			ut_ad(m_dir_path[n_tabledirpath_len - 1] == 0);
+
+			*ptr += n_tabledirpath_len;
+		}
+	}
+
+	/* Parse index ids and types from TRUNCATE log record */
+	{
+		for (ulint i = 0; i < n_indexes; ++i) {
+			index_t	index;
+
+			if (*end_ptr < *ptr + 12) {
+				return(false);
+			}
+
+			index.m_id = mach_read_from_8(*ptr);
+			*ptr += 8;
+
+			index.m_type = mach_read_from_4(*ptr);
+			*ptr += 4;
+
+			m_indexes.push_back(index);
+		}
+		ut_ad(!m_indexes.empty());
+	}
 
 	if (fsp_flags_is_compressed(flags)) {
 
@@ -6914,24 +6900,27 @@ truncate_t::parse(
 /**
 Truncate a single-table tablespace. The tablespace must be cached
 in the memory cache.
-@param space_id		space id
-@param tablename	the table name in the usual databasename/tablename
-			format of InnoDB
-@param path		data directory path
-@param flags		tablespace flags
+@param space_id			space id
+@param tablename		the table name in the usual
+				databasename/tablename format of InnoDB
+@param path			data directory path
+@param flags			tablespace flags
+@param truncate_to_initial_sz	truncate to size that exist when new
+				tablespace is created.
 @return DB_SUCCESS or error */
 dberr_t
 truncate_t::truncate(
 /*=================*/
-	ulint		id,
+	ulint		space_id,
 	const char*	tablename,
 	const char*	dir_path,
-	ulint		flags)
+	ulint		flags,
+	bool		truncate_to_initial_sz)
 {
 	char*		path;
 	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
 
-	ut_a(!Tablespace::is_system_tablespace(id));
+	ut_a(!Tablespace::is_system_tablespace(space_id));
 
 	if (has_data_dir) {
 		ut_ad(dir_path != NULL);
@@ -6944,7 +6933,7 @@ truncate_t::truncate(
 
 	mutex_enter(&fil_system->mutex);
 
-	fil_space_t*	space = fil_space_get_by_id(id);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
 
 	/* The following code must change when InnoDB supports
 	multiple datafiles per tablespace. */
@@ -6952,7 +6941,7 @@ truncate_t::truncate(
 
 	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
 
-	if (recv_recovery_on) {
+	if (truncate_to_initial_sz) {
 		space->size = node->size = FIL_IBD_FILE_INITIAL_SIZE;
 	}
 
@@ -6982,7 +6971,7 @@ truncate_t::truncate(
 		opened = false;
 	}
 
-	os_offset_t	trunc_size = recv_recovery_on
+	os_offset_t	trunc_size = truncate_to_initial_sz 
 		? FIL_IBD_FILE_INITIAL_SIZE
 		: space->size;
 
