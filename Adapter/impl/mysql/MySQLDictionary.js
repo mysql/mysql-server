@@ -217,7 +217,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         columnTypeAndSizeSplit = columnTypeAndSize.split('(');
         columnType = columnTypeAndSizeSplit[0];
         udebug.log_detail('parseCreateTable for: ', columnName, ': columnType: ', columnType);
-        column.columnType = columnType;
+        column.columnType = columnType.toLocaleUpperCase();
         if (columnTypeAndSizeSplit.length > 1) {
           columnSize = columnTypeAndSizeSplit[1].split(')')[0];
           udebug.log_detail('parseCreateTable for: ', columnName, ': columnSize: ', columnSize);
