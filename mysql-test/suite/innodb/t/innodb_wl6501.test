@@ -17,6 +17,7 @@
 call mtr.add_suppression("The file '.*' already exists though the corresponding table did not exist in the InnoDB data dictionary");
 call mtr.add_suppression("Cannot create file '.*'");
 call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
+call mtr.add_suppression("Failed to create a new tablespace for table");
 
 ################################################################################
 #
@@ -383,7 +384,7 @@ truncate table t;
 --disable_reconnect
 #
 select * from t;
-#insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 drop table t;
 

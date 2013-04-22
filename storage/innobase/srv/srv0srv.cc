@@ -342,6 +342,8 @@ static ulint		srv_n_rows_read_old		= 0;
 UNIV_INTERN ulint	srv_truncated_status_writes	= 0;
 UNIV_INTERN ulint	srv_available_undo_logs         = 0;
 
+UNIV_INTERN truncate_tables_t	srv_tables_to_truncate;
+
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
 UNIV_INTERN ibool	srv_print_verbose_log		= TRUE;
