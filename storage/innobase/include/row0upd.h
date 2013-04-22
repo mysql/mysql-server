@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,12 +32,22 @@ Created 12/27/1996 Heikki Tuuri
 #include "btr0types.h"
 #include "dict0types.h"
 #include "trx0types.h"
+#include <stack>
 
 #ifndef UNIV_HOTBACKUP
 # include "btr0pcur.h"
 # include "que0types.h"
 # include "pars0types.h"
 #endif /* !UNIV_HOTBACKUP */
+
+/** The std::deque to store cascade update nodes, that uses mem_heap_t
+as allocator. */
+typedef std::deque<upd_node_t*, mem_heap_allocator<upd_node_t*> >
+	deque_mem_heap_t;
+
+/** Double-ended queue of update nodes to be processed for cascade
+operations */
+typedef deque_mem_heap_t upd_cascade_t;
 
 /*********************************************************************//**
 Creates an update vector object.
@@ -444,11 +454,20 @@ struct upd_node_t{
 	dict_foreign_t*	foreign;/* NULL or pointer to a foreign key
 				constraint if this update node is used in
 				doing an ON DELETE or ON UPDATE operation */
-	upd_node_t*	cascade_node;/* NULL or an update node template which
-				is used to implement ON DELETE/UPDATE CASCADE
-				or ... SET NULL for foreign keys */
-	mem_heap_t*	cascade_heap;/* NULL or a mem heap where the cascade
-				node is created */
+
+	upd_cascade_t*	cascade_upd_nodes;
+				/*!< Queue of update nodes to handle the
+				cascade of update and delete operations in an
+				iterative manner.  Their parent/child
+				relations are properly maintained. All update
+				nodes point to this same queue.  All these
+				nodes are allocated in heap pointed to by
+				upd_node_t::cascade_heap. */
+
+	mem_heap_t*	cascade_heap;
+				/*!< NULL or a mem heap where cascade_upd_nodes
+				are created */
+
 	sel_node_t*	select;	/*!< query graph subtree implementing a base
 				table cursor: the rows returned will be
 				updated */
