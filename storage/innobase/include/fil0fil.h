@@ -111,62 +111,6 @@ public:
 		}
 	}
 
-	/*
-	truncate_t(const truncate_t& copyfrom) {
-
-		m_space_id = copyfrom.m_space_id;
-
-		m_tablespace_flags = copyfrom.m_tablespace_flags;
-
-		m_log_flags = copyfrom.m_log_flags;
-
-		if (copyfrom.m_tablename != NULL) {
-			m_tablename = strdup(copyfrom.m_tablename);
-		} else {
-			m_tablename = 0;
-		}
-
-		m_table_id = copyfrom.m_table_id;
-
-		if (copyfrom.m_dir_path != NULL) {
-			m_dir_path = strdup(copyfrom.m_dir_path);
-		} else {
-			m_dir_path = 0;
-		}
-	}
-
-	truncate_t& operator=(const truncate_t& copyfrom) {
-
-		m_space_id = copyfrom.m_space_id;
-
-		m_tablespace_flags = copyfrom.m_tablespace_flags;
-
-		m_log_flags = copyfrom.m_log_flags;
-
-		if (m_tablename != NULL) {
-			::free(m_tablename);
-			m_tablename = 0;
-		}
-
-		if (copyfrom.m_tablename != NULL) {
-			m_tablename = strdup(copyfrom.m_tablename);
-		}
-
-		m_table_id = copyfrom.m_table_id;
-
-		if (m_dir_path != NULL) {
-			::free(m_dir_path);
-			m_dir_path = 0;
-		}
-
-		if (copyfrom.m_dir_path != NULL) {
-			m_dir_path = strdup(copyfrom.m_dir_path);
-		}
-
-		return(*this);
-	}
-	*/
-
 	/** The index information of MLOG_FILE_TRUNCATE redo record */
 	struct index_t {
 
@@ -302,6 +246,11 @@ public:
 
 	/** Index meta-data */
 	indexes_t		m_indexes;
+
+private:
+	/* Disable copying */
+	truncate_t(const truncate_t&);
+	truncate_t& operator=(const truncate_t&);
 };
 
 typedef std::vector<truncate_t*> truncate_tables_t;
