@@ -359,11 +359,6 @@ void ha_partition::init_handler_variables()
   part_share= NULL;
   m_new_partitions_share_refs.empty();
   m_part_ids_sorted_by_num_of_records= NULL;
-
-#ifdef DONT_HAVE_TO_BE_INITALIZED
-  m_start_key.flag= 0;
-  m_ordered= TRUE;
-#endif
 }
 
 
