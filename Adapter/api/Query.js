@@ -352,6 +352,7 @@ AbstractQueryComparator.prototype.visit = function(visitor) {
  *****************************************************************************/
 QueryEq = function(queryField, parameter) {
   this.comparator = ' = ';
+  this.operationCode = 4;
   this.queryField = queryField;
   this.parameter = parameter;
 };
@@ -370,6 +371,7 @@ QueryEq.prototype.mark = function(candidateIndex) {
  *****************************************************************************/
 QueryLe = function(queryField, parameter) {
   this.comparator = ' <= ';
+  this.operationCode = 0;
   this.queryField = queryField;
   this.parameter = parameter;
 };
@@ -388,6 +390,7 @@ QueryLe.prototype.mark = function(candidateIndex) {
  *****************************************************************************/
 QueryGe = function(queryField, parameter) {
   this.comparator = ' >= ';
+  this.operationCode = 2;
   this.queryField = queryField;
   this.parameter = parameter;
 };
@@ -406,6 +409,7 @@ QueryGe.prototype.mark = function(candidateIndex) {
  *****************************************************************************/
 QueryLt = function(queryField, parameter) {
   this.comparator = ' < ';
+  this.operationCode = 1;
   this.queryField = queryField;
   this.parameter = parameter;
 };
@@ -424,6 +428,7 @@ QueryLt.prototype.mark = function(candidateIndex) {
  *****************************************************************************/
 QueryGt = function(queryField, parameter) {
   this.comparator = ' > ';
+  this.operationCode = 3;
   this.queryField = queryField;
   this.parameter = parameter;
 };
@@ -469,6 +474,7 @@ QueryBetween.prototype.visit = function(visitor) {
  *****************************************************************************/
 QueryNe = function(queryField, parameter) {
   this.comparator = ' != ';
+  this.operationCode = 5;
   this.queryField = queryField;
   this.parameter = parameter;
 };
@@ -529,6 +535,7 @@ QueryIsNotNull.prototype = new AbstractQueryUnaryOperator();
  *****************************************************************************/
 QueryAnd = function(left, right) {
   this.operator = ' AND ';
+  this.operationCode = 1;
   this.predicates = [left, right];
   udebug.log_detail('QueryAnd<ctor>', this);
 };
@@ -550,6 +557,7 @@ QueryAnd.prototype.and = function(predicate) {
  *****************************************************************************/
 QueryOr = function(left, right) {
   this.operator = ' OR ';
+  this.operationCode = 2;
   this.predicates = [left, right];
   udebug.log_detail('QueryOr<ctor>', this);
 };
@@ -571,6 +579,7 @@ QueryOr.prototype.or = function(predicate) {
  *****************************************************************************/
 QueryNot = function(left) {
   this.operator = ' NOT ';
+  this.operationCode = 3;
   this.predicates = [left];
   udebug.log_detail('QueryNot<ctor>', this, 'parameter', left);
 };
