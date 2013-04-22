@@ -406,6 +406,8 @@ btr_cur_search_to_nth_level(
 	btr_op_t	btr_op;
 	ulint		root_height = 0; /* remove warning */
 
+	DBUG_ENTER("btr_cur_search_to_nth_level");
+
 #ifdef BTR_CUR_ADAPT
 	btr_search_t*	info;
 #endif
@@ -524,7 +526,7 @@ btr_cur_search_to_nth_level(
 		      || mode != PAGE_CUR_LE);
 		btr_cur_n_sea++;
 
-		return;
+		DBUG_VOID_RETURN;
 	}
 # endif /* BTR_CUR_HASH_ADAPT */
 #endif /* BTR_CUR_ADAPT */
@@ -834,6 +836,8 @@ func_exit:
 
 		rw_lock_s_lock(&btr_search_latch);
 	}
+
+	DBUG_VOID_RETURN;
 }
 
 /*****************************************************************//**
@@ -2910,7 +2914,12 @@ btr_cur_del_mark_set_clust_rec(
 #endif /* UNIV_DEBUG */
 
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
+
+	if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
+		/* While cascading delete operations, this becomes possible. */
+		ut_ad(rec_get_trx_id(rec, index) == thr_get_trx(thr)->id);
+		return(DB_SUCCESS);
+	}
 
 	err = lock_clust_rec_modify_check_and_lock(BTR_NO_LOCKING_FLAG, block,
 						   rec, index, offsets, thr);
