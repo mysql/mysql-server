@@ -85,14 +85,21 @@ echo '# checkout the tokudb handlerton'
 echo cd \$builddir
 github_clone $ftengine $ftengine_branch
 
-echo "pushd $mysql/storage"
+echo pushd $mysql/storage
 echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo "ln -s ../../$ftengine/storage/tokudb tokudb"
+echo ln -s ../../$ftengine/storage/tokudb tokudb
 echo 'if [ $? != 0 ] ; then exit 1; fi'
 echo popd
-echo "pushd $mysql"
+echo pushd $mysql
 echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo "ln -s ../$backup/backup toku_backup"
+echo ln -s ../$backup/backup toku_backup
+echo 'if [ $? != 0 ] ; then exit 1; fi'
+echo popd
+echo pushd $mysql/scripts
+echo 'if [ $? != 0 ] ; then exit 1; fi'
+echo ln ../../$ftengine/scripts/tokustat.py
+echo 'if [ $? != 0 ] ; then exit 1; fi'
+echo ln ../../$ftengine/scripts/tokufilecheck.py
 echo 'if [ $? != 0 ] ; then exit 1; fi'
 echo popd
 
