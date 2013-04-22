@@ -59,6 +59,36 @@ static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_DATAFILES"
 };
 
+/********************************************************************//**
+Loads a table definition and also all its index definitions.
+
+Loads those foreign key constraints whose referenced table is already in
+dictionary cache.  If a foreign key constraint is not loaded, then the
+referenced table is pushed into the output stack (fk_tables), if it is not
+NULL.  These tables must be subsequently loaded so that all the foreign
+key constraints are loaded into memory.
+
+@return table, NULL if does not exist; if the table is stored in an
+.ibd file, but the file does not exist, then we set the
+ibd_file_missing flag TRUE in the table object we return */
+static
+dict_table_t*
+dict_load_table_one(
+/*================*/
+	const char*		name,	/*!< in: table name in the
+					databasename/tablename format */
+	ibool			cached,	/*!< in: TRUE=add to cache,
+					FALSE=do not */
+	dict_err_ignore_t	ignore_err,
+					/*!< in: error to be ignored when
+					loading table and its indexes'
+					definition */
+	dict_names_t&		fk_tables);
+					/*!< out: related table names that
+					must also be loaded to ensure that
+					all foreign key constraints are
+					loaded. */
+
 /* If this flag is TRUE, then we will load the cluster index's (and tables')
 metadata even if it is marked as "corrupted". */
 UNIV_INTERN my_bool     srv_load_corrupted = FALSE;
@@ -2197,14 +2227,9 @@ dict_get_and_save_data_dir_path(
 }
 
 /********************************************************************//**
-Loads a table definition and also all its index definitions, and also
-the cluster definition if the table is a member in a cluster. Also loads
-all foreign key constraints where the foreign key is in the table or where
-a foreign key references columns in this table. Adds all these to the data
-dictionary cache.
-@return table, NULL if does not exist; if the table is stored in an
-.ibd file, but the file does not exist, then we set the
-ibd_file_missing flag TRUE in the table object we return */
+Loads the given table and the set of tables referenced (foreign key) by the
+given table.
+@return same as dict_load_table_one() function */
 UNIV_INTERN
 dict_table_t*
 dict_load_table(
@@ -2215,6 +2240,60 @@ dict_load_table(
 	dict_err_ignore_t ignore_err)
 				/*!< in: error to be ignored when loading
 				table and its indexes' definition */
+{
+	dict_names_t	fk_tables;
+	dict_table_t*	result;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	result = dict_table_check_if_in_cache_low(name);
+
+	if (!result) {
+		result = dict_load_table_one(name, cached, ignore_err,
+					     fk_tables);
+
+		while (!fk_tables.empty()) {
+			const char* table_name = fk_tables.top();
+			fk_tables.pop();
+			if (!dict_table_check_if_in_cache_low(table_name)) {
+				dict_load_table_one(table_name, cached,
+						    ignore_err, fk_tables);
+			}
+		}
+	}
+
+	return(result);
+}
+
+/********************************************************************//**
+Loads a table definition and also all its index definitions.
+
+Loads those foreign key constraints whose referenced table is already in
+dictionary cache.  If a foreign key constraint is not loaded, then the
+referenced table is pushed into the output stack (fk_tables), if it is not
+NULL.  These tables must be subsequently loaded so that all the foreign
+key constraints are loaded into memory.
+
+@return table, NULL if does not exist; if the table is stored in an
+.ibd file, but the file does not exist, then we set the
+ibd_file_missing flag TRUE in the table object we return */
+static
+dict_table_t*
+dict_load_table_one(
+/*================*/
+	const char*		name,	/*!< in: table name in the
+					databasename/tablename format */
+	ibool			cached,	/*!< in: TRUE=add to cache,
+					FALSE=do not */
+	dict_err_ignore_t	ignore_err,
+					/*!< in: error to be ignored when
+					loading table and its indexes'
+					definition */
+	dict_names_t&		fk_tables)
+					/*!< out: related table names that
+					must also be loaded to ensure that
+					all foreign key constraints are
+					loaded. */
 {
 	dberr_t		err;
 	dict_table_t*	table;
@@ -2410,7 +2489,7 @@ err_exit:
 		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
 		err = dict_load_foreigns(table->name, NULL, true, true,
-					 ignore_err);
+					 ignore_err, fk_tables);
 
 		if (err != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_WARN,
@@ -2711,7 +2790,8 @@ dict_load_foreign_cols(
 }
 
 /***********************************************************************//**
-Loads a foreign key constraint to the dictionary cache.
+Loads a foreign key constraint to the dictionary cache. If the referenced
+table is not yet loaded, it is added in the output parameter (fk_tables).
 @return	DB_SUCCESS or error code */
 static __attribute__((nonnull(1), warn_unused_result))
 dberr_t
@@ -2730,8 +2810,15 @@ dict_load_foreign(
 	bool			check_charsets,
 				/*!< in: whether to check charset
 				compatibility */
-	dict_err_ignore_t	ignore_err)
+	dict_err_ignore_t	ignore_err,
 				/*!< in: error to be ignored */
+	dict_names_t&	fk_tables)
+				/*!< out: the foreign key constraint is added
+				to the dictionary cache only if the referenced
+				table is already in cache.  Otherwise, the
+				foreign key constraint is not added to cache,
+				and the referenced table is added to this
+				stack. */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -2745,7 +2832,6 @@ dict_load_foreign(
 	ulint		len;
 	ulint		n_fields_and_type;
 	mtr_t		mtr;
-	dict_table_t*	for_table;
 	dict_table_t*	ref_table;
 	size_t		id_len;
 
@@ -2846,50 +2932,8 @@ dict_load_foreign(
 	ref_table = dict_table_check_if_in_cache_low(
 			foreign->referenced_table_name_lookup);
 
-	/* We could possibly wind up in a deep recursive calls if
-	we call dict_table_get_low() again here if there
-	is a chain of tables concatenated together with
-	foreign constraints. In such case, each table is
-	both a parent and child of the other tables, and
-	act as a "link" in such table chains.
-	To avoid such scenario, we would need to check the
-	number of ancesters the current table has. If that
-	exceeds DICT_FK_MAX_CHAIN_LEN, we will stop loading
-	the child table.
-	Foreign constraints are loaded in a Breath First fashion,
-	that is, the index on FOR_NAME is scanned first, and then
-	index on REF_NAME. So foreign constrains in which
-	current table is a child (foreign table) are loaded first,
-	and then those constraints where current table is a
-	parent (referenced) table.
-	Thus we could check the parent (ref_table) table's
-	reference count (fk_max_recusive_level) to know how deep the
-	recursive call is. If the parent table (ref_table) is already
-	loaded, and its fk_max_recusive_level is larger than
-	DICT_FK_MAX_CHAIN_LEN, we will stop the recursive loading
-	by skipping loading the child table. It will not affect foreign
-	constraint check for DMLs since child table will be loaded
-	at that time for the constraint check. */
-	if (!ref_table
-	    || ref_table->fk_max_recusive_level < DICT_FK_MAX_RECURSIVE_LOAD) {
-
-		/* If the foreign table is not yet in the dictionary cache, we
-		have to load it so that we are able to make type comparisons
-		in the next function call. */
-
-		for_table = dict_table_get_low(foreign->foreign_table_name_lookup);
-
-		if (for_table && ref_table && check_recursive) {
-			/* This is to record the longest chain of ancesters
-			this table has, if the parent has more ancesters
-			than this table has, record it after add 1 (for this
-			parent */
-			if (ref_table->fk_max_recusive_level
-			    >= for_table->fk_max_recusive_level) {
-				for_table->fk_max_recusive_level =
-					 ref_table->fk_max_recusive_level + 1;
-			}
-		}
+	if (!ref_table) {
+		fk_tables.push(foreign->referenced_table_name_lookup);
 	}
 
 	/* Note that there may already be a foreign constraint object in
@@ -2907,9 +2951,12 @@ dict_load_foreign(
 /***********************************************************************//**
 Loads foreign key constraints where the table is either the foreign key
 holder or where the table is referenced by a foreign key. Adds these
-constraints to the data dictionary. Note that we know that the dictionary
-cache already contains all constraints where the other relevant table is
-already in the dictionary cache.
+constraints to the data dictionary.
+
+The foreign key constraint is loaded only if the referenced table is also
+in the dictionary cache.  If the referenced table is not in dictionary
+cache, then it is added to the output parameter (fk_tables).
+
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
@@ -2923,7 +2970,12 @@ dict_load_foreigns(
 						chained by FK */
 	bool			check_charsets,	/*!< in: whether to check
 						charset compatibility */
-	dict_err_ignore_t	ignore_err)	/*!< in: error to be ignored */
+	dict_err_ignore_t	ignore_err,	/*!< in: error to be ignored */
+	dict_names_t&		fk_tables)
+						/*!< out: stack of table
+						names which must be loaded
+						subsequently to load all the
+						foreign key constraints. */
 {
 	ulint		tuple_buf[(DTUPLE_EST_ALLOC(1) + sizeof(ulint) - 1)
 				/ sizeof(ulint)];
@@ -3035,7 +3087,8 @@ loop:
 	/* Load the foreign constraint definition to the dictionary cache */
 
 	err = dict_load_foreign(fk_id, col_names,
-				check_recursive, check_charsets, ignore_err);
+				check_recursive, check_charsets, ignore_err,
+				fk_tables);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);

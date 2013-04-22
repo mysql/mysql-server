@@ -7032,6 +7032,9 @@ ER_WARN_PURGE_LOG_IS_ACTIVE
 ER_AUTO_INCREMENT_CONFLICT
   eng "Auto-increment value in UPDATE conflicts with internally generated values"
 
+ER_FK_DEPTH_EXCEEDED
+  eng "Foreign key cascade delete/update exceeds max depth of %d."
+
 #
 #  End of 5.7 error messages.
 #
