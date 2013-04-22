@@ -105,7 +105,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
   
   DEBUG_PRINT("RETURN VAL: %d", return_val);
   if(return_val == -1) {
-    cb_args[0] = String::New(dict->getNdbError().message);
+    cb_args[0] = NdbError_Wrapper(dict->getNdbError());
     cb_args[1] = Null();
   }
   else {
@@ -305,7 +305,7 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     cb_args[1] = table;
   }
   else {
-    cb_args[0] = String::New(dict->getNdbError().message);
+    cb_args[0] = NdbError_Wrapper(dict->getNdbError());
   }
   
   callback->Call(ctx, 2, cb_args);
