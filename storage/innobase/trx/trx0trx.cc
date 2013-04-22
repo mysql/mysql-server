@@ -2075,13 +2075,19 @@ trx_prepare(
 	Recovered transactions cannot. */
 	ut_a(!trx->is_recovered);
 
-	if (trx->rsegs.m_redo.rseg) {
+	if (trx->rsegs.m_redo.rseg &&
+	    (trx->rsegs.m_redo.insert_undo != NULL
+	     || trx->rsegs.m_redo.update_undo != NULL)) {
+
 		lsn = trx_prepare_low(trx, &trx->rsegs.m_redo, false);
 	}
 
 	DBUG_EXECUTE_IF("ib_trx_crash_during_xa_prepare_step", DBUG_SUICIDE(););
 
-	if (trx->rsegs.m_noredo.rseg) {
+	if (trx->rsegs.m_noredo.rseg &&
+	    (trx->rsegs.m_noredo.insert_undo != NULL
+	     || trx->rsegs.m_noredo.update_undo != NULL)) {
+
 		lsn_t noredo_lsn = trx_prepare_low(
 			trx, &trx->rsegs.m_noredo, true);
 		ut_ad(lsn <= noredo_lsn);
