@@ -99,13 +99,6 @@ btr_cur_get_page_zip(
 /*=================*/
 	btr_cur_t*	cursor);/*!< in: tree cursor */
 /*********************************************************//**
-Invalidates a tree cursor by setting record pointer to NULL. */
-UNIV_INLINE
-void
-btr_cur_invalidate(
-/*===============*/
-	btr_cur_t*	cursor);/*!< in: tree cursor */
-/*********************************************************//**
 Returns the page of a tree cursor.
 @return	pointer to page */
 UNIV_INLINE
