@@ -24448,6 +24448,7 @@ Dbdict::createFK_parse(Signal* signal, bool master,
                               SchemaOpPtr op_ptr,
                               SectionHandle& handle, ErrorInfo& error)
 {
+  D("createFK_parse");
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
   getOpRec(op_ptr, createFKRecPtr);
@@ -24781,6 +24782,7 @@ void
 Dbdict::packFKIntoPages(SimpleProperties::Writer & w,
                         Ptr<ForeignKeyRec> fk_ptr)
 {
+  D("packFKIntoPages");
   DictForeignKeyInfo::ForeignKey fk; fk.init();
   ConstRope r(c_rope_pool, fk_ptr.p->m_name);
   r.copy(fk.Name);
@@ -24863,6 +24865,7 @@ Dbdict::packFKIntoPages(SimpleProperties::Writer & w,
 void
 Dbdict::createFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("createFK_abortParse");
   jam();
 
   CreateFKRecPtr createFKPtr;
@@ -24885,6 +24888,7 @@ Dbdict::createFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 bool
 Dbdict::createFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("createFK_subOps");
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
   getOpRec(op_ptr, createFKRecPtr);
@@ -24940,6 +24944,7 @@ void
 Dbdict::createFK_toCreateTrigger(Signal* signal,
                                  SchemaOpPtr op_ptr)
 {
+  D("createFK_toCreateTrigger");
   jam();
 
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
@@ -25033,6 +25038,7 @@ Dbdict::createFK_toCreateTrigger(Signal* signal,
 void
 Dbdict::createFK_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
 {
+  D("createFK_fromCreateTrigger");
   jamEntry();
 
   SchemaOpPtr op_ptr;
@@ -25079,6 +25085,7 @@ Dbdict::createFK_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
 void
 Dbdict::createFK_fromBuildFK(Signal* signal, Uint32 op_key, Uint32 ret)
 {
+  D("createFK_fromBuildFK");
   jamEntry();
 
   SchemaOpPtr op_ptr;
@@ -25112,6 +25119,7 @@ Dbdict::createFK_fromBuildFK(Signal* signal, Uint32 op_key, Uint32 ret)
 void
 Dbdict::createFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 {
+  D("createFK_reply");
   jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
@@ -25164,6 +25172,7 @@ cmp_uint(const void * _p1, const void * _p2)
 void
 Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("createFK_prepare");
   jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
@@ -25259,6 +25268,7 @@ Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::createFK_prepareFromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
 {
+  D("createFK_prepareFromLocal");
   jamEntry();
 
   SchemaOpPtr op_ptr;
@@ -25283,6 +25293,7 @@ Dbdict::createFK_prepareFromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
 void
 Dbdict::createFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("createFK_abortPrepare");
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
   getOpRec(op_ptr, createFKRecPtr);
@@ -25314,6 +25325,7 @@ void
 Dbdict::createFK_abortPrepareFromLocal(Signal* signal,
                                        Uint32 op_key, Uint32 ret)
 {
+  D("createFK_abortPrepareFromLocal");
   jamEntry();
 
   SchemaOpPtr op_ptr;
@@ -25340,6 +25352,7 @@ Dbdict::createFK_abortPrepareFromLocal(Signal* signal,
 void
 Dbdict::createFK_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("createFK_commit");
   jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
@@ -25354,6 +25367,7 @@ Dbdict::createFK_commit(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::createFK_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("createFK_complete");
   jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
@@ -25470,6 +25484,7 @@ Dbdict::buildFK_parse(Signal* signal, bool master,
                               SchemaOpPtr op_ptr,
                               SectionHandle& handle, ErrorInfo& error)
 {
+  D("buildFK_parse");
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   BuildFKRecPtr buildFKRecPtr;
   getOpRec(op_ptr, buildFKRecPtr);
@@ -25496,6 +25511,7 @@ Dbdict::buildFK_parse(Signal* signal, bool master,
 void
 Dbdict::buildFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("buildFK_abortParse");
   jam();
   sendTransConf(signal, op_ptr);
 }
@@ -25503,6 +25519,7 @@ Dbdict::buildFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 bool
 Dbdict::buildFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("buildFK_subOps");
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   BuildFKRecPtr buildFKRecPtr;
   getOpRec(op_ptr, buildFKRecPtr);
@@ -25515,6 +25532,7 @@ Dbdict::buildFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::buildFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 {
+  D("buildFK_reply");
   jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   BuildFKRecPtr buildFKRecPtr;
@@ -25552,6 +25570,7 @@ Dbdict::buildFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 void
 Dbdict::buildFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("buildFK_prepare");
   jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   BuildFKRecPtr buildFKRecPtr;
@@ -25614,6 +25633,7 @@ Dbdict::buildFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::buildFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
 {
+  D("buildFK_fromLocal");
   jam();
   SchemaOpPtr op_ptr;
   BuildFKRecPtr buildFKPtr;
@@ -25636,6 +25656,7 @@ Dbdict::buildFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
 void
 Dbdict::buildFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("buildFK_abortPrepare");
   jam();
   sendTransConf(signal, op_ptr);
 }
@@ -25645,6 +25666,7 @@ Dbdict::buildFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::buildFK_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("buildFK_commit");
   jam();
   sendTransConf(signal, op_ptr);
 }
@@ -25654,6 +25676,7 @@ Dbdict::buildFK_commit(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::buildFK_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("buildFK_complete");
   jam();
   sendTransConf(signal, op_ptr);
 }
@@ -25780,6 +25803,7 @@ Dbdict::dropFK_parse(Signal* signal, bool master,
                      SchemaOpPtr op_ptr,
                      SectionHandle& handle, ErrorInfo& error)
 {
+  D("dropFK_parse");
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKRecPtr dropFKRecPtr;
   getOpRec(op_ptr, dropFKRecPtr);
@@ -25833,6 +25857,7 @@ Dbdict::dropFK_parse(Signal* signal, bool master,
 void
 Dbdict::dropFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("dropFK_abortParse");
   jam();
   sendTransConf(signal, op_ptr);
 }
@@ -25840,6 +25865,7 @@ Dbdict::dropFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 bool
 Dbdict::dropFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("dropFK_subOps");
   DropFKRecPtr dropFKRecPtr;
   getOpRec(op_ptr, dropFKRecPtr);
 
@@ -25869,6 +25895,7 @@ Dbdict::dropFK_toDropTrigger(Signal* signal,
                              SchemaOpPtr op_ptr,
                              Uint32 no)
 {
+  D("dropFK_toDropTrigger");
   jam();
 
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
@@ -25923,6 +25950,7 @@ Dbdict::dropFK_toDropTrigger(Signal* signal,
 void
 Dbdict::dropFK_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
 {
+  D("dropFK_fromDropTrigger");
   jamEntry();
 
   SchemaOpPtr op_ptr;
@@ -25970,6 +25998,7 @@ Dbdict::dropFK_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
 void
 Dbdict::dropFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 {
+  D("dropFK_reply");
   jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKRecPtr dropFKRecPtr;
@@ -26007,6 +26036,7 @@ Dbdict::dropFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 void
 Dbdict::dropFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("dropFK_prepare");
   jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKRecPtr dropFKRecPtr;
@@ -26020,6 +26050,7 @@ Dbdict::dropFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::dropFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("dropFK_abortPrepare");
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKRecPtr dropFKRecPtr;
   getOpRec(op_ptr, dropFKRecPtr);
@@ -26034,6 +26065,7 @@ Dbdict::dropFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::dropFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
 {
+  D("dropFK_fromLocal");
   jamEntry();
 
   SchemaOpPtr op_ptr;
@@ -26061,6 +26093,7 @@ Dbdict::dropFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
 void
 Dbdict::dropFK_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("dropFK_commit");
   jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKRecPtr dropFKRecPtr;
@@ -26094,6 +26127,7 @@ Dbdict::send_drop_fk_req(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::dropFK_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
+  D("dropFK_complete");
   jam();
 
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
