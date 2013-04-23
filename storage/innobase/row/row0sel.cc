@@ -3182,12 +3182,6 @@ row_sel_get_clust_rec_for_mysql(
 		    && !row_sel_sec_rec_is_for_clust_rec(
 			    rec, sec_index, clust_rec, clust_index)) {
 			clust_rec = NULL;
-#ifdef UNIV_SEARCH_DEBUG
-		} else {
-			ut_a(clust_rec == NULL
-			     || row_sel_sec_rec_is_for_clust_rec(
-				     rec, sec_index, clust_rec, clust_index));
-#endif
 		}
 
 		err = DB_SUCCESS;
@@ -3479,19 +3473,12 @@ row_sel_try_search_shortcut_for_mysql(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!prebuilt->templ_contains_blob);
 
-#ifndef UNIV_SEARCH_DEBUG
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
 				   BTR_SEARCH_LEAF, pcur,
 				   (trx->has_search_latch)
 				    ? RW_S_LATCH
 				    : 0,
 				   mtr);
-#else /* UNIV_SEARCH_DEBUG */
-	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
-				   BTR_SEARCH_LEAF, pcur,
-				   0,
-				   mtr);
-#endif /* UNIV_SEARCH_DEBUG */
 	rec = btr_pcur_get_rec(pcur);
 
 	if (!page_rec_is_user_rec(rec)) {
@@ -3905,20 +3892,15 @@ row_search_for_mysql(
 			and if we try that, we can deadlock on the adaptive
 			hash index semaphore! */
 
-#ifndef UNIV_SEARCH_DEBUG
 			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
 				trx->has_search_latch = TRUE;
 			}
-#endif
+
 			switch (row_sel_try_search_shortcut_for_mysql(
 					&rec, prebuilt, &offsets, &heap,
 					&mtr)) {
 			case SEL_FOUND:
-#ifdef UNIV_SEARCH_DEBUG
-				ut_a(0 == cmp_dtuple_rec(search_tuple,
-							 rec, offsets));
-#endif
 				/* At this point, rec is protected by
 				a page latch that was acquired by
 				row_sel_try_search_shortcut_for_mysql().
