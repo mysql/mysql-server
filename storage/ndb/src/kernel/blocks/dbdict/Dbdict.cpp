@@ -18546,6 +18546,24 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
       jam();
       indexPtr.p->triggerId = impl_req->triggerId;
     }
+    ForeignKeyRecPtr fk_ptr;
+    if (find_object(fk_ptr, impl_req->indexId))
+    {
+      jam();
+      switch (impl_req->triggerNo) {
+      case 0:
+        fk_ptr.p->m_parentTriggerId = impl_req->triggerId;
+        D("fk: parent" << V(impl_req->triggerId));
+        break;
+      case 1:
+        fk_ptr.p->m_childTriggerId = impl_req->triggerId;
+        D("fk: child" << V(impl_req->triggerId));
+        break;
+      default:
+        ndbrequire(false);
+        break;
+      }
+    }
   }
 }
 
@@ -25184,14 +25202,17 @@ Dbdict::createFK_toCreateTrigger(Signal* signal,
 
   Uint32 tableId = RNIL;
   Uint32 indexId = RNIL;
+  Uint32 triggerNo = RNIL;
   switch(createFKPtr.p->m_sub_create_trigger) {
   case 0:
     tableId = fk_ptr.p->m_parentTableId;
     indexId = fk_ptr.p->m_parentIndexId;
+    triggerNo = 0;
     break;
   case 1:
     tableId = fk_ptr.p->m_childTableId;
     indexId = fk_ptr.p->m_childIndexId;
+    triggerNo = 1;
     break;
   default:
     ndbrequire(false);
@@ -25214,7 +25235,7 @@ Dbdict::createFK_toCreateTrigger(Signal* signal,
   req->tableVersion = tablePtr.p->tableVersion;
   req->indexId = fk_ptr.p->m_fk_id;
   req->indexVersion = fk_ptr.p->m_version;
-  req->triggerNo = 0;
+  req->triggerNo = triggerNo;
   req->forceTriggerId = RNIL;
 
   if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_ACTION_MASK) == 0)
