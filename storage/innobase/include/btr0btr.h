@@ -741,14 +741,16 @@ btr_print_index(
 /************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
-@return	TRUE if ok */
+@return	true if ok */
 UNIV_INTERN
-ibool
+bool
 btr_index_rec_validate(
 /*===================*/
 	const rec_t*		rec,		/*!< in: index record */
 	const dict_index_t*	index,		/*!< in: index */
-	ibool			dump_on_error)	/*!< in: TRUE if the function
+	const ulint*		offsets,	/*!< in: offsets, or NULL
+						if ROW_FORMAT=REDUNDANT */
+	bool			dump_on_error)	/*!< in: true if the function
 						should print hex dump of record
 						and page on error */
 	__attribute__((nonnull, warn_unused_result));
