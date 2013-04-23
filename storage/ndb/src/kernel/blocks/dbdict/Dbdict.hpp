@@ -3759,6 +3759,7 @@ private:
   void createFK_fromBuildFK(Signal* signal, Uint32 op_key, Uint32 ret);
   //
   void createFK_prepare(Signal*, SchemaOpPtr);
+  void createFK_writeTableConf(Signal* signal, Uint32 op_key, Uint32 ret);
   void createFK_prepareFromLocal(Signal* signal, Uint32 op_key, Uint32 ret);
 
   void createFK_commit(Signal*, SchemaOpPtr);

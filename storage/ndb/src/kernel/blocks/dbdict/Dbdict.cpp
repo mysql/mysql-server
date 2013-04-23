@@ -3638,31 +3638,33 @@ checkSchemaStatus(Uint32 tableType, Uint32 pass)
   case DictTabInfo::IndexTrigger:
     return false;
   case DictTabInfo::LogfileGroup:
-    return pass == 0 || pass == 11 || pass == 12;
+    return pass == 0 || pass == 13 || pass == 14;
   case DictTabInfo::Tablespace:
-    return pass == 1 || pass == 10 || pass == 13;
+    return pass == 1 || pass == 12 || pass == 15;
   case DictTabInfo::Datafile:
   case DictTabInfo::Undofile:
-    return pass == 2 || pass == 9 || pass == 14;
+    return pass == 2 || pass == 11 || pass == 16;
   case DictTabInfo::HashMap:
-    return pass == 3 || pass == 8 || pass == 15;
+    return pass == 3 || pass == 10 || pass == 17;
   case DictTabInfo::SystemTable:
   case DictTabInfo::UserTable:
-    return /* pass == 3 || pass == 7 || */ pass == 16;
+    return /* pass == 4 || pass == 9 || */ pass == 18;
   case DictTabInfo::UniqueHashIndex:
   case DictTabInfo::HashIndex:
   case DictTabInfo::UniqueOrderedIndex:
   case DictTabInfo::OrderedIndex:
-    return /* pass == 4 || pass == 6 || */ pass == 17;
+    return /* pass == 5 || pass == 8 || */ pass == 19;
+  case DictTabInfo::ForeignKey:
+    return pass == 6 || pass == 7 || pass == 20;
   }
 
   return false;
 }
 
-static const Uint32 CREATE_OLD_PASS = 5;
-static const Uint32 DROP_OLD_PASS = 11;
-static const Uint32 CREATE_NEW_PASS = 17;
-static const Uint32 LAST_PASS = 17;
+static const Uint32 CREATE_OLD_PASS = 6;
+static const Uint32 DROP_OLD_PASS = 13;
+static const Uint32 CREATE_NEW_PASS = 20;
+static const Uint32 LAST_PASS = 20;
 
 NdbOut&
 operator<<(NdbOut& out, const SchemaFile::TableEntry entry)
@@ -3709,20 +3711,23 @@ void Dbdict::initRestartRecord(Uint32 startpass, Uint32 lastpass,
  * Pass 3 Create old HashMap
  * Pass 4 Create old Table           // NOT DONE DUE TO DIH
  * Pass 5 Create old Index           // NOT DONE DUE TO DIH
+ * Pass 6 Create old ForeignKey
 
- * Pass 6 Drop old Index             // NOT DONE DUE TO DIH
- * Pass 7 Drop old Table             // NOT DONE DUE TO DIH
- * Pass 8 Drop old HashMap
- * Pass 9 Drop old Datafile/Undofile
- * Pass 10 Drop old Tablespace
- * Pass 11 Drop old Logfilegroup
+ * Pass 7 Drop old ForeignKey
+ * Pass 8 Drop old Index             // NOT DONE DUE TO DIH
+ * Pass 9 Drop old Table             // NOT DONE DUE TO DIH
+ * Pass 10 Drop old HashMap
+ * Pass 11 Drop old Datafile/Undofile
+ * Pass 12 Drop old Tablespace
+ * Pass 13 Drop old Logfilegroup
 
- * Pass 12 Create new LogfileGroup
- * Pass 13 Create new Tablespace
- * Pass 14 Create new Datafile/Undofile
- * Pass 15 Create new HashMap
- * Pass 16 Create new Table
- * Pass 17 Create new Index
+ * Pass 14 Create new LogfileGroup
+ * Pass 15 Create new Tablespace
+ * Pass 16 Create new Datafile/Undofile
+ * Pass 17 Create new HashMap
+ * Pass 18 Create new Table
+ * Pass 19 Create new Index
+ * Pass 20 Create new ForeignKey
  */
 
 void Dbdict::checkSchemaStatus(Signal* signal)
@@ -4449,6 +4454,12 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   case DictTabInfo::HashMap:
   {
     CreateHashMapRecPtr opRecPtr;
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
+    break;
+  }
+  case DictTabInfo::ForeignKey:
+  {
+    CreateFKRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
@@ -25177,6 +25188,27 @@ Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
   getOpRec(op_ptr, createFKRecPtr);
+  const CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  Callback cb;
+  cb.m_callbackData = op_ptr.p->op_key;
+  cb.m_callbackFunction = safe_cast(&Dbdict::createFK_writeTableConf);
+  const OpSection& sec = getOpSection(op_ptr, 0);
+  writeTableFile(signal, op_ptr, impl_req->fkId, sec, &cb);
+}
+
+void
+Dbdict::createFK_writeTableConf(Signal* signal,
+                                Uint32 op_key,
+                                Uint32 ret)
+{
+  D("createFK_writeTableConf");
+  jam();
+  SchemaOpPtr op_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  findSchemaOp(op_ptr, createFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
   CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
   impl_req->requestType = CreateFKImplReq::RT_PREPARE;
 
