@@ -200,11 +200,9 @@ row_upd_check_references_constraints(
 	dberr_t		err;
 	ibool		got_s_lock	= FALSE;
 
-	DBUG_ENTER("row_upd_check_references_constraints");
-
 	if (UT_LIST_GET_FIRST(table->referenced_list) == NULL) {
 
-		DBUG_RETURN(DB_SUCCESS);
+		return(DB_SUCCESS);
 	}
 
 	trx = thr_get_trx(thr);
@@ -232,11 +230,6 @@ run_again:
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
 	while (foreign) {
-
-		DBUG_PRINT("foreign_key", ("'%s': '%s' -> '%s'",
-		           foreign->id, foreign->foreign_table_name_lookup,
-		           foreign->referenced_table_name_lookup));
-
 		/* Note that we may have an update which updates the index
 		record, but does NOT update the first fields which are
 		referenced in a foreign key constraint. Then the update does
@@ -258,6 +251,12 @@ run_again:
 					FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 			}
 
+			if (foreign_table) {
+				os_inc_counter(dict_sys->mutex,
+					       foreign_table
+					       ->n_foreign_key_checks_running);
+			}
+
 			/* NOTE that if the thread ends up waiting for a lock
 			we will release dict_operation_lock temporarily!
 			But the counter on the table protects 'foreign' from
@@ -265,6 +264,12 @@ run_again:
 
 			err = row_ins_check_foreign_constraint(
 				FALSE, foreign, table, entry, thr);
+
+			if (foreign_table) {
+				os_dec_counter(dict_sys->mutex,
+					       foreign_table
+					       ->n_foreign_key_checks_running);
+			}
 
 			if (ref_table != NULL) {
 				dict_table_close(ref_table, FALSE, FALSE);
@@ -292,7 +297,7 @@ func_exit:
 
 	DEBUG_SYNC_C("foreign_constraint_check_for_update_done");
 
-	DBUG_RETURN(err);
+	return(err);
 }
 
 /*********************************************************************//**
@@ -307,12 +312,30 @@ upd_node_create(
 	upd_node_t*	node;
 
 	node = static_cast<upd_node_t*>(
-		mem_heap_zalloc(heap, sizeof(upd_node_t)));
+		mem_heap_alloc(heap, sizeof(upd_node_t)));
 
 	node->common.type = QUE_NODE_UPDATE;
+
 	node->state = UPD_NODE_UPDATE_CLUSTERED;
+	node->in_mysql_interface = FALSE;
+
+	node->row = NULL;
+	node->ext = NULL;
+	node->upd_row = NULL;
+	node->upd_ext = NULL;
+	node->index = NULL;
+	node->update = NULL;
+
+	node->foreign = NULL;
+	node->cascade_heap = NULL;
+	node->cascade_node = NULL;
+
+	node->select = NULL;
+
 	node->heap = mem_heap_create(128);
 	node->magic_n = UPD_NODE_MAGIC_N;
+
+	node->cmpl_info = 0;
 
 	return(node);
 }
@@ -2539,16 +2562,9 @@ row_upd(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t		err	= DB_SUCCESS;
-	DBUG_ENTER("row_upd");
 
 	ut_ad(node && thr);
 	ut_ad(!thr_get_trx(thr)->in_rollback);
-
-	DBUG_PRINT("row_upd", ("table: %s", node->table->name));
-	DBUG_PRINT("row_upd", ("info bits in update vector: 0x%lx",
-			       node->update ? node->update->info_bits: 0));
-	DBUG_PRINT("row_upd", ("foreign_id: %s",
-			       node->foreign ? node->foreign->id: "NULL"));
 
 	if (UNIV_LIKELY(node->in_mysql_interface)) {
 
@@ -2573,7 +2589,7 @@ row_upd(
 
 		if (err != DB_SUCCESS) {
 
-			DBUG_RETURN(err);
+			return(err);
 		}
 	}
 
@@ -2581,7 +2597,7 @@ row_upd(
 	    || (!node->is_delete
 		&& (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
 
-		DBUG_RETURN(DB_SUCCESS);
+		return(DB_SUCCESS);
 	}
 
 	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
@@ -2602,7 +2618,7 @@ row_upd(
 
 			if (err != DB_SUCCESS) {
 
-				DBUG_RETURN(err);
+				return(err);
 			}
 		}
 
@@ -2623,7 +2639,7 @@ row_upd(
 
 	node->state = UPD_NODE_UPDATE_CLUSTERED;
 
-	DBUG_RETURN(err);
+	return(err);
 }
 
 /***********************************************************//**
@@ -2641,7 +2657,6 @@ row_upd_step(
 	que_node_t*	parent;
 	dberr_t		err		= DB_SUCCESS;
 	trx_t*		trx;
-	DBUG_ENTER("row_upd_step");
 
 	ut_ad(thr);
 
@@ -2685,7 +2700,7 @@ row_upd_step(
 
 			thr->run_node = sel_node;
 
-			DBUG_RETURN(thr);
+			return(thr);
 		}
 	}
 
@@ -2711,7 +2726,7 @@ row_upd_step(
 
 		thr->run_node = parent;
 
-		DBUG_RETURN(thr);
+		return(thr);
 	}
 
 	/* DO THE CHECKS OF THE CONSISTENCY CONSTRAINTS HERE */
@@ -2722,7 +2737,7 @@ error_handling:
 	trx->error_state = err;
 
 	if (err != DB_SUCCESS) {
-		DBUG_RETURN(NULL);
+		return(NULL);
 	}
 
 	/* DO THE TRIGGER ACTIONS HERE */
@@ -2739,6 +2754,6 @@ error_handling:
 
 	node->state = UPD_NODE_UPDATE_CLUSTERED;
 
-	DBUG_RETURN(thr);
+	return(thr);
 }
 #endif /* !UNIV_HOTBACKUP */

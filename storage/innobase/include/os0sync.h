@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -644,12 +644,7 @@ for synchronization */
 	(void) os_atomic_increment_ulint(&counter, amount)
 
 #define os_decrement_counter_by_amount(mutex, counter, amount)	\
-	do {							\
-		ut_d(ulint c_ =)				\
-		os_atomic_decrement_ulint(&counter,amount);	\
-		ut_ad(c_ + amount >= amount);			\
-	} while(0)
-
+	(void) os_atomic_increment_ulint(&counter, (-((lint) amount)))
 #else
 #define os_increment_counter_by_amount(mutex, counter, amount)	\
 	do {							\
