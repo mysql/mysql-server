@@ -3387,6 +3387,7 @@ Dbdict::rebuildIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
  * Activate FKs i.e. create child and parent triggers.
  * This is done as a local trans in both NR and SR.
  * There is no AlterFK so just re-run parts of CreateFK.
+ * Existing data is not validated.
  */
 
 void
@@ -3401,6 +3402,7 @@ Dbdict::enableFKs(Signal* signal, Uint32 id)
   
   Uint32 requestFlags = 0;
   requestFlags |= DictSignal::RF_LOCAL_TRANS;
+  requestFlags |= DictSignal::RF_NO_BUILD;
 
   Ptr<ForeignKeyRec> fk_ptr;
   for (; id < c_noOfMetaTables; id++)
@@ -25890,6 +25892,16 @@ Dbdict::buildFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 
   Ptr<ForeignKeyRec> fk_ptr;
   ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+  bool noBuild = (op_ptr.p->m_requestInfo & DictSignal::RF_NO_BUILD);
+  if (noBuild)
+  {
+    jam();
+    D("FK: no build" << V(noBuild) << V(c_restart_enable_fks));
+    sendTransConf(signal, op_ptr);
+    return;
+  }
+  D("FK: do build" << V(noBuild) << V(c_restart_enable_fks));
 
   BuildFKImplReq* req = CAST_PTR(BuildFKImplReq, signal->getDataPtrSend());
   * req = * impl_req;
