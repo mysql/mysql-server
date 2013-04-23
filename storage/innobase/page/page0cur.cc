@@ -474,7 +474,8 @@ page_cur_open_on_rnd_user_rec(
 	}
 
 	ulint 	rnd = (ulint) (page_cur_lcg_prng() % page_get_n_recs(page));
-	page_cur_position(page_rec_get_nth(page, 1 + rnd), block, cursor);
+	page_cur_position(page_rec_get_nth_const(page, 1 + rnd),
+			  block, cursor);
 }
 
 /***********************************************************//**
