@@ -3619,11 +3619,6 @@ innobase_rollback_to_savepoint(
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
-	/* Temporary work around for bug#16503490 */
-	if (lock_tables_are_being_altered(trx)) {
-		DBUG_RETURN(HA_ERR_NO_SAVEPOINT);
-	}
-
 	/* TODO: use provided savepoint data area to store savepoint data */
 
 	longlong2str((ulint) savepoint, name, 36);
