@@ -40,6 +40,9 @@ Created 5/11/2006 Osku Salerma
 #include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */
 
+#include "gstream.h"
+#include "spatial.h"
+
 // Forward declarations
 class Field;
 struct fts_string_t;

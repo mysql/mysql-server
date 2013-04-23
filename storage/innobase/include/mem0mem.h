@@ -455,4 +455,118 @@ struct mem_block_info_t {
 #include "mem0mem.ic"
 #endif
 
+/** A C++ wrapper class to the mem_heap_t routines, so that it can be used
+as an STL allocator */
+template<typename T>
+class mem_heap_allocator
+{
+public:
+	typedef		T		value_type;
+	typedef		size_t		size_type;
+	typedef		ptrdiff_t	difference_type;
+	typedef		T*		pointer;
+	typedef		const T*	const_pointer;
+	typedef		T&		reference;
+	typedef		const T&	const_reference;
+
+	mem_heap_allocator(mem_heap_t* h): heap(h) {
+	}
+
+	~mem_heap_allocator() {
+		heap = 0;
+	}
+
+	mem_heap_allocator(const mem_heap_allocator& that): heap (that.heap) {
+	}
+
+	template <typename U>
+	mem_heap_allocator (const mem_heap_allocator<U> &other)
+	: heap (other.heap) {
+	}
+
+	size_type max_size() const {
+		return(ULONG_MAX / sizeof(T));
+	}
+
+	/** This function returns a pointer to the first element of a newly
+	allocated array large enough to contain n objects of type T; only the
+	memory is allocated, and the objects are not constructed. Moreover,
+	an optional pointer argument (that points to an object already
+	allocated by mem_heap_allocator) can be used as a hint to the
+	implementation about where the new memory should be allocated in
+	order to improve locality. */
+	pointer	allocate(size_type n, const_pointer hint = 0) {
+		DBUG_ENTER("mem_heap_allocator::allocate");
+
+		DBUG_PRINT("info", ("bytes: '%lu'", n*sizeof(T)));
+#ifdef UNIV_DEBUG
+		DBUG_ASSERT(mem_heap_check(heap));
+#endif /* UNIV_DEBUG */
+
+		DBUG_RETURN((pointer) mem_heap_alloc(heap, n*sizeof(T)));
+	}
+
+	void deallocate(pointer p, size_type n) {
+		DBUG_ENTER("mem_heap_allocator::deallocate");
+
+		DBUG_PRINT("info", ("pointer: '%p' size: %lu", p, n));
+
+		DBUG_VOID_RETURN;
+	}
+
+	pointer address (reference r) const {
+		return(&r);
+	}
+
+	const_pointer address (const_reference r) const {
+		return(&r);
+	}
+
+	void construct(pointer p, const_reference t) {
+		DBUG_ENTER("mem_heap_allocator::construct");
+
+		new (reinterpret_cast<void*>(p)) T(t);
+
+		DBUG_VOID_RETURN;
+	}
+
+	void destroy(pointer p) {
+		DBUG_ENTER("mem_heap_allocator::destroy");
+
+		(reinterpret_cast<T*>(p))->~T();
+
+		DBUG_VOID_RETURN;
+	}
+
+	/** Allocators are required to supply the below template class member
+	which enables the possibility of obtaining a related allocator,
+	parametrized in terms of a different type. For example, given an
+	allocator type IntAllocator for objects of type int, a related
+	allocator type for objects of type long could be obtained using
+	IntAllocator::rebind<long>::other */
+	template <typename U>
+	struct rebind
+	{
+		typedef mem_heap_allocator<U> other ;
+	};
+
+private:
+	mem_heap_t*	heap;
+	template <typename U> friend class mem_heap_allocator;
+};
+
+template <class T>
+bool operator== (const mem_heap_allocator<T>& left,
+		 const mem_heap_allocator<T>& right)
+{
+	return(left.heap == right.heap);
+}
+
+template <class T>
+bool operator!= (const mem_heap_allocator<T>& left,
+		 const mem_heap_allocator<T>& right)
+{
+	return(left.heap != right.heap);
+}
+
 #endif

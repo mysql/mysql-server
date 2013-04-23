@@ -462,9 +462,10 @@ row_ins_cascade_calc_update_vec(
 	mem_heap_t*	heap,		/*!< in: memory heap to use as
 					temporary storage */
 	trx_t*		trx,		/*!< in: update transaction */
-	ibool*		fts_col_affected)/*!< out: is FTS column affected */
+	ibool*		fts_col_affected,
+					/*!< out: is FTS column affected */
+	upd_node_t*	cascade)	/*!< in: cascade update node */
 {
-	upd_node_t*	cascade		= node->cascade_node;
 	dict_table_t*	table		= foreign->foreign_table;
 	dict_index_t*	index		= foreign->foreign_index;
 	upd_t*		update;
@@ -945,7 +946,6 @@ row_ins_foreign_check_on_constraint(
 	dict_index_t*	index;
 	dict_index_t*	clust_index;
 	dtuple_t*	ref;
-	mem_heap_t*	upd_vec_heap	= NULL;
 	const rec_t*	rec;
 	const rec_t*	clust_rec;
 	const buf_block_t* clust_block;
@@ -958,6 +958,7 @@ row_ins_foreign_check_on_constraint(
 	doc_id_t	doc_id = FTS_NULL_DOC_ID;
 	ibool		fts_col_affacted = FALSE;
 
+	DBUG_ENTER("row_ins_foreign_check_on_constraint");
 	ut_a(thr);
 	ut_a(foreign);
 	ut_a(pcur);
@@ -983,7 +984,7 @@ row_ins_foreign_check_on_constraint(
 					   thr, foreign,
 					   btr_pcur_get_rec(pcur), entry);
 
-		return(DB_ROW_IS_REFERENCED);
+		DBUG_RETURN(DB_ROW_IS_REFERENCED);
 	}
 
 	if (!node->is_delete && 0 == (foreign->type
@@ -996,26 +997,18 @@ row_ins_foreign_check_on_constraint(
 					   thr, foreign,
 					   btr_pcur_get_rec(pcur), entry);
 
-		return(DB_ROW_IS_REFERENCED);
+		DBUG_RETURN(DB_ROW_IS_REFERENCED);
 	}
 
-	if (node->cascade_node == NULL) {
-		/* Extend our query graph by creating a child to current
-		update node. The child is used in the cascade or set null
-		operation. */
+	cascade = row_create_update_node_for_mysql(table, node->cascade_heap);
+	que_node_set_parent(cascade, node);
 
-		node->cascade_heap = mem_heap_create(128);
-		node->cascade_node = row_create_update_node_for_mysql(
-			table, node->cascade_heap);
-		que_node_set_parent(node->cascade_node, node);
-	}
-
-	/* Initialize cascade_node to do the operation we want. Note that we
-	use the SAME cascade node to do all foreign key operations of the
-	SQL DELETE: the table of the cascade node may change if there are
-	several child tables to the table where the delete is done! */
-
-	cascade = node->cascade_node;
+	/* For the cascaded operation, all the update nodes are allocated in
+	the same heap.  All the update nodes will point to the same heap.
+	This heap is owned by the first update node. And it must be freed
+	only in the first update node */
+	cascade->cascade_heap = node->cascade_heap;
+	cascade->cascade_upd_nodes = node->cascade_upd_nodes;
 
 	cascade->table = table;
 
@@ -1061,8 +1054,8 @@ row_ins_foreign_check_on_constraint(
 		goto nonstandard_exit_func;
 	}
 
-	if (row_ins_cascade_n_ancestors(cascade) >= 15) {
-		err = DB_ROW_IS_REFERENCED;
+	if (row_ins_cascade_n_ancestors(cascade) >= FK_MAX_CASCADE_DEL) {
+		err = DB_FOREIGN_EXCEED_MAX_CASCADE;
 
 		row_ins_foreign_report_err(
 			"Trying a too deep cascaded delete or update\n",
@@ -1153,6 +1146,7 @@ row_ins_foreign_check_on_constraint(
 		goto nonstandard_exit_func;
 	}
 
+
 	if (table->fts) {
 		doc_id = fts_get_doc_id_from_rec(table, clust_rec, tmp_heap);
 	}
@@ -1214,10 +1208,9 @@ row_ins_foreign_check_on_constraint(
 		/* Build the appropriate update vector which sets changing
 		foreign->n_fields first fields in rec to new values */
 
-		upd_vec_heap = mem_heap_create(256);
-
 		n_to_update = row_ins_cascade_calc_update_vec(
-			node, foreign, upd_vec_heap, trx, &fts_col_affacted);
+			node, foreign, cascade->cascade_heap,
+			trx, &fts_col_affacted, cascade);
 
 		if (n_to_update == ULINT_UNDEFINED) {
 			err = DB_ROW_IS_REFERENCED;
@@ -1269,16 +1262,11 @@ row_ins_foreign_check_on_constraint(
 
 	cascade->state = UPD_NODE_UPDATE_CLUSTERED;
 
-	err = row_update_cascade_for_mysql(thr, cascade,
-					   foreign->foreign_table);
+	node->cascade_upd_nodes->push_back(cascade);
 
-	if (foreign->foreign_table->n_foreign_key_checks_running == 0) {
-		fprintf(stderr,
-			"InnoDB: error: table %s has the counter 0"
-			" though there is\n"
-			"InnoDB: a FOREIGN KEY check running on it.\n",
-			foreign->foreign_table->name);
-	}
+	os_inc_counter(dict_sys->mutex, table->n_foreign_key_checks_running);
+
+	ut_ad(foreign->foreign_table->n_foreign_key_checks_running > 0);
 
 	/* Release the data dictionary latch for a while, so that we do not
 	starve other threads from doing CREATE TABLE etc. if we have a huge
@@ -1302,29 +1290,21 @@ row_ins_foreign_check_on_constraint(
 		mem_heap_free(tmp_heap);
 	}
 
-	if (upd_vec_heap) {
-		mem_heap_free(upd_vec_heap);
-	}
-
-	return(err);
+	DBUG_RETURN(err);
 
 nonstandard_exit_func:
 	if (tmp_heap) {
 		mem_heap_free(tmp_heap);
 	}
 
-	if (upd_vec_heap) {
-		mem_heap_free(upd_vec_heap);
-	}
+        btr_pcur_store_position(pcur, mtr);
 
-	btr_pcur_store_position(pcur, mtr);
-
-	mtr_commit(mtr);
+        mtr_commit(mtr);
 	mtr_start(mtr);
 
 	btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
 
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /*********************************************************************//**
@@ -1389,6 +1369,18 @@ row_ins_set_exclusive_rec_lock(
 	return(err);
 }
 
+/* Decrement a counter in the destructor. */
+class ib_dec_in_dtor {
+public:
+	ib_dec_in_dtor(ib_mutex_t& m, ulint& c): mutex(m), counter(c) {}
+	~ib_dec_in_dtor() {
+		os_dec_counter(mutex,counter);
+	}
+private:
+	ib_mutex_t&	mutex;
+	ulint&		counter;
+};
+
 /***************************************************************//**
 Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
@@ -1422,6 +1414,9 @@ row_ins_check_foreign_constraint(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+
+	DBUG_ENTER("row_ins_check_foreign_constraint");
+
 	rec_offs_init(offsets_);
 
 run_again:
@@ -1689,20 +1684,31 @@ do_possible_lock_wait:
 	if (err == DB_LOCK_WAIT) {
 		bool		verified = false;
 
+		/* An object that will correctly decrement the FK check counter
+		when it goes out of this scope. */
+		ib_dec_in_dtor	dec(dict_sys->mutex,
+				    check_table->n_foreign_key_checks_running);
+
 		trx->error_state = err;
 
 		que_thr_stop_for_mysql(thr);
 
 		thr->lock_state = QUE_THR_LOCK_ROW;
 
+		/* To avoid check_table being dropped, increment counter */
+		os_inc_counter(dict_sys->mutex,
+			       check_table->n_foreign_key_checks_running);
+
 		lock_wait_suspend_thread(thr);
 
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
+		DBUG_PRINT("to_be_dropped", ("table: %s", check_table->name));
 		if (check_table->to_be_dropped) {
 			/* The table is being dropped. We shall timeout
 			this operation */
 			err = DB_LOCK_WAIT_TIMEOUT;
+
 			goto exit_func;
 		}
 
@@ -1740,7 +1746,7 @@ exit_func:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /***************************************************************//**
@@ -1774,7 +1780,6 @@ row_ins_check_foreign_constraints(
 	while (foreign) {
 		if (foreign->foreign_index == index) {
 			dict_table_t*	ref_table = NULL;
-			dict_table_t*	foreign_table = foreign->foreign_table;
 			dict_table_t*	referenced_table
 						= foreign->referenced_table;
 
@@ -1791,12 +1796,6 @@ row_ins_check_foreign_constraints(
 				row_mysql_freeze_data_dictionary(trx);
 			}
 
-			if (referenced_table) {
-				os_inc_counter(dict_sys->mutex,
-					       foreign_table
-					       ->n_foreign_key_checks_running);
-			}
-
 			/* NOTE that if the thread ends up waiting for a lock
 			we will release dict_operation_lock temporarily!
 			But the counter on the table protects the referenced
@@ -1807,12 +1806,6 @@ row_ins_check_foreign_constraints(
 
 			DBUG_EXECUTE_IF("row_ins_dict_change_err",
 					err = DB_DICT_CHANGED;);
-
-			if (referenced_table) {
-				os_dec_counter(dict_sys->mutex,
-					       foreign_table
-					       ->n_foreign_key_checks_running);
-			}
 
 			if (got_s_lock) {
 				row_mysql_unfreeze_data_dictionary(trx);
