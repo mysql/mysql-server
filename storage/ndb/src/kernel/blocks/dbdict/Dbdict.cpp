@@ -25203,6 +25203,18 @@ Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
   getOpRec(op_ptr, createFKRecPtr);
   const CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
 
+  /*
+   * Restart does not call subOps (for reasons such as indexes).
+   * Prepare here would create DBTC triggers with no DICT counterpart.
+   * In any case, we do not want any triggers before data copy.
+   */
+  if (op_ptr.p->m_restart)
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
+    return;
+  }
+
   Callback cb;
   cb.m_callbackData = op_ptr.p->op_key;
   cb.m_callbackFunction = safe_cast(&Dbdict::createFK_writeTableConf);
