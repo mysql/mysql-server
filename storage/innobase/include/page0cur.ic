@@ -197,9 +197,6 @@ page_cur_search(
 	const buf_block_t*	block,	/*!< in: buffer block */
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
-					PAGE_CUR_LE, PAGE_CUR_G, or
-					PAGE_CUR_GE */
 	page_cur_t*		cursor)	/*!< out: page cursor */
 {
 	ulint		low_matched_fields = 0;
@@ -209,7 +206,7 @@ page_cur_search(
 
 	ut_ad(dtuple_check_typed(tuple));
 
-	page_cur_search_with_match(block, index, tuple, mode,
+	page_cur_search_with_match(block, index, tuple, PAGE_CUR_LE,
 				   &up_matched_fields,
 				   &up_matched_bytes,
 				   &low_matched_fields,
