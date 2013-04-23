@@ -269,9 +269,6 @@ page_cur_search(
 	const buf_block_t*	block,	/*!< in: buffer block */
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
-					PAGE_CUR_LE, PAGE_CUR_G, or
-					PAGE_CUR_GE */
 	page_cur_t*		cursor);/*!< out: page cursor */
 /****************************************************************//**
 Searches the right position for a page cursor. */
