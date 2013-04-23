@@ -1915,3 +1915,11 @@ max-time : 300
 cmd: testScan
 args: -n InterpretNok6000 T1
 
+max-time : 300
+cmd: testDict
+args: -n FK_SRNR1 T1
+
+max-time : 300
+cmd: testDict
+args: -n FK_SRNR2 T1
+

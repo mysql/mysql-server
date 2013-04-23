@@ -45,5 +45,6 @@ ADD_CONVENIENCE_LIBRARY(ndbsignaldata
         ScanFrag.cpp ApiVersion.cpp
         LocalRouteOrd.cpp
 	DbinfoScan.cpp NodePing.cpp
-	IndexStatSignal.cpp GetConfig.cpp)
+	IndexStatSignal.cpp GetConfig.cpp
+        CreateFK.cpp DropFK.cpp)
 

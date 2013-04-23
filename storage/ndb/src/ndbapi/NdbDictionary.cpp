@@ -4153,6 +4153,15 @@ NdbOut& operator <<(NdbOut& ndbout, NdbDictionary::Object::Type const type)
   case NdbDictionary::Object::HashMap:
     ndbout << "HashMap";
     break;
+  case NdbDictionary::Object::ForeignKey:
+    ndbout << "ForeignKey";
+    break;
+  case NdbDictionary::Object::FKParentTrigger:
+    ndbout << "FKParentTrigger";
+    break;
+  case NdbDictionary::Object::FKChildTrigger:
+    ndbout << "FKChildTrigger";
+    break;
   default:
     ndbout << "Type " << (unsigned) type;
   }
