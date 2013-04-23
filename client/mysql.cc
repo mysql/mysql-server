@@ -5236,8 +5236,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
       else
         tee_puts("ERROR: ", file);
     }
-    else
-      (void) tee_puts(str, file);
+    (void) tee_puts(str, file);
   }
   if (unbuffered)
     fflush(file);
