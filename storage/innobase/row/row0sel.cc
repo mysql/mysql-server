@@ -4301,7 +4301,7 @@ wrong_offs:
 
 	if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
 		if (!rec_validate(rec, offsets)
-		    || !btr_index_rec_validate(rec, index, FALSE)) {
+		    || !btr_index_rec_validate(rec, index, offsets, false)) {
 			fprintf(stderr,
 				"InnoDB: Index corruption: rec offs %lu"
 				" next offs %lu, page no %lu,\n"
