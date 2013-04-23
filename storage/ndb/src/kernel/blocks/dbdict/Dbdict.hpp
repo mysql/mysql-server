@@ -3775,6 +3775,8 @@ private:
   void execCREATE_FK_REQ(Signal*);
   void execCREATE_FK_IMPL_REF(Signal*);
   void execCREATE_FK_IMPL_CONF(Signal*);
+  void execCREATE_FK_REF(Signal*);
+  void execCREATE_FK_CONF(Signal*);
 
   // MODULE: BuildFK
   struct BuildFKRec;
@@ -4129,6 +4131,12 @@ private:
   void rebuildIndex_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromBuildIndex(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  // FK re-enable (create triggers) on start up
+  void enableFKs(Signal* signal, Uint32 i);
+  void enableFK_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void enableFK_fromCreateFK(Signal*, Uint32 tx_key, Uint32 ret);
+  void enableFK_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  bool c_restart_enable_fks;
 
   // Events
   void

@@ -1992,7 +1992,8 @@ Dbdict::Dbdict(Block_context& ctx):
   c_opSubEvent(c_opRecordPool),
   c_opDropEvent(c_opRecordPool),
   c_opSignalUtil(c_opRecordPool),
-  c_opRecordSequence(0)
+  c_opRecordSequence(0),
+  c_restart_enable_fks(false)
 {
   BLOCK_CONSTRUCTOR(Dbdict);
 
@@ -2210,6 +2211,8 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_CREATE_FK_REQ, &Dbdict::execCREATE_FK_REQ);
   addRecSignal(GSN_CREATE_FK_IMPL_REF, &Dbdict::execCREATE_FK_IMPL_REF);
   addRecSignal(GSN_CREATE_FK_IMPL_CONF, &Dbdict::execCREATE_FK_IMPL_CONF);
+  addRecSignal(GSN_CREATE_FK_REF, &Dbdict::execCREATE_FK_REF);
+  addRecSignal(GSN_CREATE_FK_CONF, &Dbdict::execCREATE_FK_CONF);
 
   addRecSignal(GSN_BUILD_FK_REQ, &Dbdict::execBUILD_FK_REQ);
   addRecSignal(GSN_BUILD_FK_REF, &Dbdict::execBUILD_FK_REF);
@@ -2916,7 +2919,8 @@ void Dbdict::execNDB_STTOR(Signal* signal)
     sendNDB_STTORRY(signal);
     break;
   case 7:
-    sendNDB_STTORRY(signal);
+    jam();
+    enableFKs(signal, 0);
     break;
   default:
     jam();
@@ -3377,6 +3381,179 @@ Dbdict::rebuildIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   releaseTxHandle(tx_ptr);
 
   rebuildIndexes(signal, id + 1);
+}
+
+/*
+ * Activate FKs i.e. create child and parent triggers.
+ * This is done as a local trans in both NR and SR.
+ * There is no AlterFK so just re-run parts of CreateFK.
+ */
+
+void
+Dbdict::enableFKs(Signal* signal, Uint32 id)
+{
+  if (id == 0)
+  {
+    D("enableFKs start");
+    ndbrequire(c_restart_enable_fks == false);
+    c_restart_enable_fks = true;
+  }
+  
+  Uint32 requestFlags = 0;
+  requestFlags |= DictSignal::RF_LOCAL_TRANS;
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  for (; id < c_noOfMetaTables; id++)
+  {
+    bool ok = find_object(fk_ptr, id);
+    D(V(id) << V(ok));
+    if (!ok)
+    {
+      jam();
+      continue;
+    }
+    if (check_read_obj(id))
+    {
+      jam();
+      continue;
+    }
+
+    D("enableFKs id=" << id);
+
+    TxHandlePtr tx_ptr;
+    seizeTxHandle(tx_ptr);
+    ndbrequire(!tx_ptr.isNull());
+
+    tx_ptr.p->m_requestInfo = 0;
+    tx_ptr.p->m_requestInfo |= requestFlags;
+    tx_ptr.p->m_userData = fk_ptr.i;
+
+    Callback c = {
+      safe_cast(&Dbdict::enableFK_fromBeginTrans),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+    beginSchemaTrans(signal, tx_ptr);
+    return;
+  }
+
+  c_restart_enable_fks = false;
+  D("enableFKs done");
+  sendNDB_STTORRY(signal);
+}
+
+void
+Dbdict::enableFK_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("enableFK_fromBeginTrans" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); //wl6244_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  c_fk_pool.getPtr(fk_ptr, tx_ptr.p->m_userData);
+  ndbrequire(!fk_ptr.isNull());
+  DictObjectPtr fk_obj_ptr;
+  c_obj_pool.getPtr(fk_obj_ptr, fk_ptr.p->m_obj_ptr_i);
+
+  CreateFKReq* req = (CreateFKReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::addRequestFlagsGlobal(requestInfo, tx_ptr.p->m_requestInfo);
+
+  req->clientData =tx_ptr.p->tx_key;
+  req->clientRef = reference();
+  req->requestInfo = requestInfo;
+  req->transId = tx_ptr.p->m_transId;
+  req->transKey = tx_ptr.p->m_transKey;
+
+  Uint32* wbuffer = &c_indexPage.word[0];
+  LinearWriter w(wbuffer, sizeof(c_indexPage) >> 2);
+  packFKIntoPages(w, fk_ptr);
+  LinearSectionPtr lsPtr[3];
+  lsPtr[0].p = wbuffer;
+  lsPtr[0].sz = w.getWordsUsed();
+
+  Callback c = {
+    safe_cast(&Dbdict::enableFK_fromCreateFK),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+
+  sendSignal(reference(), GSN_CREATE_FK_REQ, signal,
+             CreateFKReq::SignalLength, JBB, lsPtr, 1);
+}
+
+void
+Dbdict::enableFK_fromCreateFK(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("enableFK_fromCreateFK");
+
+  ndbrequire(ret == 0); //wl6244_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  if (ret != 0)
+    setError(tx_ptr.p->m_error, ret, __LINE__);
+
+  Callback c = {
+    safe_cast(&Dbdict::enableFK_fromEndTrans),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+
+  Uint32 flags = 0;
+  if (hasError(tx_ptr.p->m_error))
+    flags |= SchemaTransEndReq::SchemaTransAbort;
+  endSchemaTrans(signal, tx_ptr, flags);
+}
+
+void
+Dbdict::enableFK_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("enableFK_fromEndTrans" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); //wl6244_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  c_fk_pool.getPtr(fk_ptr, tx_ptr.p->m_userData);
+  DictObjectPtr fk_obj_ptr;
+  c_obj_pool.getPtr(fk_obj_ptr, fk_ptr.p->m_obj_ptr_i);
+
+  char fk_name[MAX_TAB_NAME_SIZE];
+  {
+    LocalRope name(c_rope_pool, fk_obj_ptr.p->m_name);
+    name.copy(fk_name);
+  }
+
+  ErrorInfo error = tx_ptr.p->m_error;
+  if (!hasError(error))
+  {
+    jam();
+    infoEvent("DICT: enable FK %u done (%s)",
+             fk_obj_ptr.p->m_id, fk_name);
+  }
+  else
+  {
+    jam();
+    warningEvent("DICT: enable FK %u error: code=%u line=%u node=%u (%s)",
+                 fk_obj_ptr.p->m_id,
+		 error.errorCode, error.errorLine, error.errorNodeId,
+		 fk_name);
+  }
+
+  Uint32 id = fk_obj_ptr.p->m_id;
+  releaseTxHandle(tx_ptr);
+  enableFKs(signal, id + 1);
 }
 
 /* **************************************************************** */
@@ -19209,6 +19386,7 @@ Dbdict::dropTrigger_parse(Signal* signal, bool master,
   {
     if (impl_req->indexId != triggerPtr.p->indexId) {
       jam();  // wl3600_todo wrong error code
+      D("mismatch" << V(impl_req->indexId) << V(triggerPtr.p->indexId));
       setError(error, DropTrigRef::InvalidTable, __LINE__);
       return;
     }
@@ -24657,6 +24835,27 @@ Dbdict::createFK_parse(Signal* signal, bool master,
     break;
   }
 
+  /*
+   * Handle SR/NR activate FK in late SP. The FK object was already
+   * created without triggers in early SP.
+   */
+  if (c_restart_enable_fks)
+  {
+    jam();
+    ndbrequire(fk.ForeignKeyId != RNIL && fk.ForeignKeyVersion != RNIL);
+    impl_req->fkId = fk.ForeignKeyId;
+    impl_req->fkVersion = fk.ForeignKeyVersion;
+
+    if (!find_object(fk_ptr, impl_req->fkId))
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidFormat, __LINE__);
+      return;
+    }
+
+    saveOpSection(op_ptr, handle, 0);
+    return;
+  }
 
   Uint32 len = Uint32(strlen(fk.Name) + 1);
   Uint32 hash = LocalRope::hash(fk.Name, len);
@@ -24947,6 +25146,7 @@ Dbdict::createFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
 
     BuildFKReq* req = (BuildFKReq*)signal->getDataPtrSend();
     Uint32 requestInfo = 0;
+    DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
 
     req->clientRef = reference();
     req->clientData = op_ptr.p->op_key;
@@ -25003,6 +25203,7 @@ Dbdict::createFK_toCreateTrigger(Signal* signal,
 
   Uint32 requestInfo = 0;
   DictSignal::setRequestType(requestInfo, CreateTrigReq::CreateTriggerOnline);
+  DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
 
   req->clientRef = reference();
   req->clientData = op_ptr.p->op_key;
@@ -25207,17 +25408,33 @@ Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
    * Restart does not call subOps (for reasons such as indexes).
    * Prepare here would create DBTC triggers with no DICT counterpart.
    * In any case, we do not want any triggers before data copy.
+   *
+   * op_ptr.p->m_restart is not set when we come from enable fks.
+   * Check also c_restart_enable_fks to be more robust.
    */
-  if (op_ptr.p->m_restart)
+  if (op_ptr.p->m_restart && !c_restart_enable_fks)
   {
     jam();
+    D("no DBTC triggers" << V(op_ptr.p->m_restart) << V(c_restart_enable_fks));
     sendTransConf(signal, op_ptr);
     return;
   }
+  D("do DBTC triggers" << V(op_ptr.p->m_restart) << V(c_restart_enable_fks));
 
   Callback cb;
   cb.m_callbackData = op_ptr.p->op_key;
   cb.m_callbackFunction = safe_cast(&Dbdict::createFK_writeTableConf);
+
+  /*
+   * On SR/NR activate FK there is no need to rewrite schemafile.
+   */
+  if (c_restart_enable_fks)
+  {
+    jam();
+    execute(signal, cb, 0);
+    return;
+  }
+
   const OpSection& sec = getOpSection(op_ptr, 0);
   writeTableFile(signal, op_ptr, impl_req->fkId, sec, &cb);
 }
@@ -25432,6 +25649,22 @@ Dbdict::createFK_complete(Signal* signal, SchemaOpPtr op_ptr)
   CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
   impl_req->requestType = CreateFKImplReq::RT_COMPLETE;
   sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::execCREATE_FK_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFKRef * ref = (CreateFKRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCREATE_FK_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFKConf * conf = (CreateFKConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
 }
 
 void
