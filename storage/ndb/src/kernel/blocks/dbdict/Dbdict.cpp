@@ -24522,7 +24522,11 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       return;
     }
 
-    if (fk.ParentTableVersion != parentEntry->m_tableVersion)
+    /*
+     * See comment below about child table version.
+     */
+    if (table_version_major(fk.ParentTableVersion) !=
+        table_version_major(parentEntry->m_tableVersion))
     {
       jam();
       setError(error, CreateFKRef::InvalidParentTableVersion, __LINE__);
@@ -24539,7 +24543,16 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       return;
     }
 
-    if (fk.ChildTableVersion != childEntry->m_tableVersion)
+    /*
+     * We cannot keep table version fully synced with FKs.
+     * Even handler does create FK, alter table (in this order)
+     * so version is instantly out-of-date.  Checking major version
+     * should be good enough (or even the right thing).
+     *
+     * A test case is NR/SR create FKs.
+     */
+    if (table_version_major(fk.ChildTableVersion) !=
+        table_version_major(childEntry->m_tableVersion))
     {
       jam();
       setError(error, CreateFKRef::InvalidChildTableVersion, __LINE__);
