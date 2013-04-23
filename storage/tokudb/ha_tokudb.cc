@@ -6134,17 +6134,17 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     if (lock_type != F_UNLCK) {
         is_fast_alter_running = false;
         use_write_locks = false;
-        if (lock_type == F_WRLCK)
+        if (lock_type == F_WRLCK) {
             use_write_locks = true;
+        }
         if (!trx->tokudb_lock_count++) {
-            DBUG_ASSERT(trx->stmt == 0);
+            assert(trx->stmt == 0);
             transaction = NULL;    // Safety
             error = create_txn(thd, trx);
             if (error) {
                 goto cleanup;
             }
         }
-        assert(thd->in_sub_stmt == 0);
         transaction = trx->sub_sp_level;
     }
     else {
