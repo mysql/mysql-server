@@ -4244,14 +4244,16 @@ btr_index_rec_validate_report(
 /************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
-@return	TRUE if ok */
+@return	true if ok */
 UNIV_INTERN
-ibool
+bool
 btr_index_rec_validate(
 /*===================*/
 	const rec_t*		rec,		/*!< in: index record */
 	const dict_index_t*	index,		/*!< in: index */
-	ibool			dump_on_error)	/*!< in: TRUE if the function
+	const ulint*		offsets,	/*!< in: offsets, or NULL
+						if ROW_FORMAT=REDUNDANT */
+	bool			dump_on_error)	/*!< in: true if the function
 						should print hex dump of record
 						and page on error */
 {
@@ -4259,12 +4261,12 @@ btr_index_rec_validate(
 	ulint		n;
 	ulint		i;
 	const page_t*	page;
-	mem_heap_t*	heap	= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets	= offsets_;
-	rec_offs_init(offsets_);
+
+	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
 
 	page = page_align(rec);
+
+	ut_ad(offsets || !page_is_comp(page));
 
 	if (dict_index_is_univ(index)) {
 		/* The insert buffer index tree can contain records from any
@@ -4300,13 +4302,28 @@ btr_index_rec_validate(
 		return(FALSE);
 	}
 
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
-
 	for (i = 0; i < n; i++) {
 		ulint	fixed_size = dict_col_get_fixed_size(
 			dict_index_get_nth_col(index, i), page_is_comp(page));
 
-		rec_get_nth_field_offs(offsets, i, &len);
+		if (offsets) {
+			rec_get_nth_field_offs(offsets, i, &len);
+		} else if (rec_get_1byte_offs_flag(rec)) {
+			len = rec_1_get_prev_field_end_info(rec, i + 1);
+			if (len & REC_1BYTE_SQL_NULL_MASK) {
+				len = UNIV_SQL_NULL;
+			} else {
+				len -= rec_1_get_field_start_offs(rec, i);
+			}
+		} else {
+			len = rec_2_get_prev_field_end_info(rec, i + 1);
+			if (len & REC_2BYTE_SQL_NULL_MASK) {
+				len = UNIV_SQL_NULL;
+			} else {
+				len -= rec_2_get_field_start_offs(
+					rec, i);
+			}
+		}
 
 		/* Note that if fixed_size != 0, it equals the
 		length of a fixed-size column in the clustered index.
@@ -4336,75 +4353,49 @@ btr_index_rec_validate(
 				rec_print_new(stderr, rec, offsets);
 				putc('\n', stderr);
 			}
-			if (heap) {
-				mem_heap_free(heap);
-			}
 			return(FALSE);
 		}
 	}
 
-	if (heap) {
-		mem_heap_free(heap);
-	}
 	return(TRUE);
 }
 
 /************************************************************//**
 Checks the size and number of fields in records based on the definition of
 the index.
-@return	TRUE if ok */
+@return	true if ok */
 static
-ibool
+bool
 btr_index_page_validate(
 /*====================*/
-	buf_block_t*	block,	/*!< in: index page */
-	dict_index_t*	index)	/*!< in: index */
+	mtr_t*		mtr,	/*!< in: mini-transaction */
+	dict_index_t*	index,	/*!< in: index */
+	buf_block_t*	block)	/*!< in: index page */
 {
-	page_cur_t	cur;
-	ibool		ret	= TRUE;
 #ifndef DBUG_OFF
-	ulint		nth	= 1;
+	ulint	nth	= 1;
 #endif /* !DBUG_OFF */
+	PageCur	cur(*mtr, *index, *block);
 
-	page_cur_set_before_first(block, &cur);
+	while (cur.next()) {
+		if (!btr_index_rec_validate(
+			    cur.getRec(), index, cur.getOffsets(), true)) {
 
-	/* Directory slot 0 should only contain the infimum record. */
-	DBUG_EXECUTE_IF("check_table_rec_next",
-			ut_a(page_rec_get_nth_const(
-				     page_cur_get_page(&cur), 0)
-			     == cur.rec);
-			ut_a(page_dir_slot_get_n_owned(
-				     page_dir_get_nth_slot(
-					     page_cur_get_page(&cur), 0))
-			     == 1););
-
-	page_cur_move_to_next(&cur);
-
-	for (;;) {
-		if (page_cur_is_after_last(&cur)) {
-
-			break;
-		}
-
-		if (!btr_index_rec_validate(cur.rec, index, TRUE)) {
-
-			return(FALSE);
+			return(false);
 		}
 
 		/* Verify that page_rec_get_nth_const() is correctly
 		retrieving each record. */
 		DBUG_EXECUTE_IF("check_table_rec_next",
-				ut_a(cur.rec == page_rec_get_nth_const(
-					     page_cur_get_page(&cur),
+				ut_a(cur.getRec() == page_rec_get_nth_const(
+					     page_align(cur.getRec()),
 					     page_rec_get_n_recs_before(
-						     cur.rec)));
+						     cur.getRec())));
 				ut_a(nth++ == page_rec_get_n_recs_before(
-					     cur.rec)););
-
-		page_cur_move_to_next(&cur);
+					     cur.getRec())););
 	}
 
-	return(ret);
+	return(true);
 }
 
 /************************************************************//**
@@ -4583,7 +4574,8 @@ loop:
 		btr_validate_report1(index, level, block);
 		ret = false;
 
-	} else if (level == 0 && !btr_index_page_validate(block, index)) {
+	} else if (level == 0
+		   && !btr_index_page_validate(&mtr, index, block)) {
 
 		/* We are on level 0. Check that the records have the right
 		number of fields, and field lengths are right. */

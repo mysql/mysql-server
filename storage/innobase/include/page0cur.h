@@ -384,14 +384,22 @@ public:
 		const buf_block_t& block, const rec_t* rec = 0)
 		: m_mtr (&mtr), m_index (&index), m_block (&block), m_rec (rec),
 		  m_offsets (0) {
-		if (dict_table_is_comp(m_index->table)) {
+		const page_t* page = buf_block_get_frame(m_block);
+
+		ut_ad(!!page_is_comp(page)
+		      == dict_table_is_comp(m_index->table));
+		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+
+		if (page_is_comp(page)) {
 			init();
 		} else if (!m_rec) {
-			m_rec = buf_block_get_frame(m_block)
-				+ PAGE_OLD_INFIMUM;
+			m_rec = page + PAGE_OLD_INFIMUM;
 		}
 
-		ut_ad(page_align(m_rec) == buf_block_get_frame(m_block));
+		ut_ad(page_align(m_rec) == page);
+		/* Directory slot 0 should only contain the infimum record. */
+		ut_ad(page_dir_slot_get_n_owned(page_dir_get_nth_slot(page, 0))
+		      == 1);
 	}
 
 	/** Destructor */
@@ -411,7 +419,8 @@ public:
 
 	/** Get the offsets */
 	const ulint* getOffsets() const {
-		ut_ad(rec_offs_validate(m_rec, m_index, m_offsets));
+		ut_ad(!m_offsets
+		      || rec_offs_validate(m_rec, m_index, m_offsets));
 		return(m_offsets);
 	}
 
