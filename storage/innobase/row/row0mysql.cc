@@ -733,10 +733,6 @@ handle_new_error:
 	case DB_INTERRUPTED:
 	case DB_DICT_CHANGED:
 		if (savept) {
-			if (lock_tables_are_being_altered(trx)) {
-				err = DB_DEADLOCK;
-				goto fake_deadlock;
-			}
 
 			/* Roll back the latest, possibly incomplete insertion
 			or update */
