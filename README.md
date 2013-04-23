@@ -48,7 +48,8 @@ to that if you are planning to run benchmarks or in production.
 ### Platforms
 
 TokuKV is supported on 64-bit Centos, should work on other 64-bit linux
-distributions, and may work on OSX 10.8 and FreeBSD.
+distributions, and may work on OSX 10.8 and FreeBSD.  TokuKV is not
+supported on 32-bit systems.
 
 [Transparent hugepages][transparent-hugepages] is a feature in newer linux
 kernel versions that causes problems for the memory usage tracking
