@@ -61,7 +61,6 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0import.h"
 #include "m_string.h"
 #include "my_sys.h"
-#include <deque>
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -783,7 +782,7 @@ handle_new_error:
 			"Cannot delete/update rows with cascading foreign"
 			" key constraints that exceed max depth of %lu."
 			" Please drop excessive foreign constraints and"
-			" try again", (ulong) FK_MAX_CASCADE_DEL);
+			" try again", (ulong) DICT_FK_MAX_RECURSIVE_LOAD);
 		break;
 	default:
 		ib_logf(IB_LOG_LEVEL_FATAL,
@@ -1541,8 +1540,6 @@ row_create_update_node_for_mysql(
 {
 	upd_node_t*	node;
 
-	DBUG_ENTER("row_create_update_node_for_mysql");
-
 	node = upd_node_create(heap);
 
 	node->in_mysql_interface = TRUE;
@@ -1550,9 +1547,6 @@ row_create_update_node_for_mysql(
 	node->searched_update = FALSE;
 	node->select = NULL;
 	node->pcur = btr_pcur_create_for_mysql();
-
-	DBUG_PRINT("info", ("allocated pcur: %p", node->pcur));
-
 	node->table = table;
 
 	node->update = upd_create(dict_table_get_n_cols(table), heap);
@@ -1566,7 +1560,7 @@ row_create_update_node_for_mysql(
 	node->table_sym = NULL;
 	node->col_assign_list = NULL;
 
-	DBUG_RETURN(node);
+	return(node);
 }
 
 /*********************************************************************//**
@@ -1699,21 +1693,6 @@ init_fts_doc_id_for_ref(
 	}
 }
 
-/* A functor for decrementing counters. */
-class ib_dec_counter {
-public:
-	ib_dec_counter(ib_mutex_t& m): mutex(m) {}
-
-	void operator() (upd_node_t* node) {
-		ut_ad(node->table->n_foreign_key_checks_running > 0);
-		os_dec_counter(mutex,
-			       node->table->n_foreign_key_checks_running);
-	}
-private:
-	ib_mutex_t&	mutex;
-};
-
-
 /*********************************************************************//**
 Does an update or delete of a row for MySQL.
 @return	error code or DB_SUCCESS */
@@ -1736,10 +1715,6 @@ row_update_for_mysql(
 	dict_table_t*	table		= prebuilt->table;
 	trx_t*		trx		= prebuilt->trx;
 	ulint		fk_depth	= 0;
-	upd_cascade_t*	cascade_upd_nodes;
-	upd_cascade_t*	processed_cascades;
-
-	DBUG_ENTER("row_update_for_mysql");
 
 	ut_ad(prebuilt && trx);
 	UT_NOT_USED(mysql_rec);
@@ -1755,7 +1730,7 @@ row_update_for_mysql(
 			"innodb-troubleshooting.html to see how you can"
 			" resolve the problem.",
 			prebuilt->table->name);
-		DBUG_RETURN(DB_ERROR);
+		return(DB_ERROR);
 	}
 
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
@@ -1778,7 +1753,7 @@ row_update_for_mysql(
 			" mysqld and edit my.cnf so that newraw is replaced"
 			" with raw, and innodb_force_... is removed.");
 
-		DBUG_RETURN(DB_ERROR);
+		return(DB_ERROR);
 	}
 
 	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
@@ -1805,22 +1780,6 @@ row_update_for_mysql(
 
 	node = prebuilt->upd_node;
 
-	if (node->cascade_heap) {
-		mem_heap_empty(node->cascade_heap);
-	} else {
-		node->cascade_heap = mem_heap_create(128);
-	}
-
-	mem_heap_allocator<upd_node_t*> mem_heap_ator(node->cascade_heap);
-
-	cascade_upd_nodes = new
-		(mem_heap_ator.allocate(sizeof(upd_cascade_t)))
-		upd_cascade_t(deque_mem_heap_t(mem_heap_ator));
-
-	processed_cascades = new
-		(mem_heap_ator.allocate(sizeof(upd_cascade_t)))
-		upd_cascade_t(deque_mem_heap_t(mem_heap_ator));
-
 	clust_index = dict_table_get_first_index(table);
 
 	if (prebuilt->pcur.btr_cur.index == clust_index) {
@@ -1845,21 +1804,21 @@ row_update_for_mysql(
 
 	node->state = UPD_NODE_UPDATE_CLUSTERED;
 
-	node->cascade_upd_nodes = cascade_upd_nodes;
-
 	ut_ad(!prebuilt->sql_stat_start);
 
 	que_thr_move_to_run_state_for_mysql(thr, trx);
 
-	thr->fk_cascade_depth = 0;
-
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
+	thr->fk_cascade_depth = 0;
 
 	row_upd_step(thr);
 
 	err = trx->error_state;
+
+	/* Reset fk_cascade_depth back to 0 */
+	thr->fk_cascade_depth = 0;
 
 	if (err != DB_SUCCESS) {
 		que_thr_stop_for_mysql(thr);
@@ -1868,17 +1827,7 @@ run_again:
 			trx->error_state = DB_SUCCESS;
 			trx->op_info = "";
 
-			goto error;
-		}
-
-		/* Since reporting a plain "duplicate key" error message to
-		the user in cases where a long CASCADE operation would lead
-		to a duplicate key in some other table is very confusing,
-		map duplicate key errors resulting from FK constraints to a
-		separate error code. */
-		if (err == DB_DUPLICATE_KEY && thr->fk_cascade_depth > 0) {
-			err = DB_FOREIGN_DUPLICATE_KEY;
-			trx->error_state = err;
+			return(err);
 		}
 
 		thr->lock_state= QUE_THR_LOCK_ROW;
@@ -1895,32 +1844,9 @@ run_again:
 
 		trx->op_info = "";
 
-		goto error;
+		return(err);
 	}
 
-	if (thr->fk_cascade_depth > 0) {
-		/* Processing cascade operation */
-		ut_ad(node->table->n_foreign_key_checks_running > 0);
-		os_dec_counter(dict_sys->mutex,
-			       node->table->n_foreign_key_checks_running);
-
-		/* The node has been successfully processed */
-		processed_cascades->push_back(node);
-	}
-
-	if (!cascade_upd_nodes->empty()) {
-		DEBUG_SYNC_C("foreign_constraint_update_cascade");
-		node = cascade_upd_nodes->front();
-		node->cascade_upd_nodes = cascade_upd_nodes;
-		cascade_upd_nodes->pop_front();
-		thr->fk_cascade_depth++;
-
-		goto run_again;
-	}
-
-	/* Completed cascading operations (if any) */
-
-	thr->fk_cascade_depth = 0;
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
 	if (dict_table_has_fts_index(table)
@@ -1928,29 +1854,8 @@ run_again:
 		err = row_fts_update_or_delete(prebuilt);
 		if (err != DB_SUCCESS) {
 			trx->op_info = "";
-			DBUG_RETURN(err);
+			return(err);
 		}
-	}
-
-	/* Update the statistics only after completing all cascaded
-	operations */
-	while (!processed_cascades->empty()) {
-		node = processed_cascades->front();
-
-		if (node->is_delete) {
-			/* Not protected by dict_table_stats_lock() for
-			performance reasons, we would rather get garbage
-			in stat_n_rows (which is just an estimate anyway)
-			than protecting the following code with a latch. */
-			dict_table_n_rows_dec(node->table);
-
-			srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
-		} else {
-			srv_stats.n_rows_updated.add((size_t)trx->id, 1);
-		}
-
-		row_update_statistics_if_needed(node->table);
-		processed_cascades->pop_front();
 	}
 
 	if (node->is_delete) {
@@ -1974,26 +1879,7 @@ run_again:
 
 	trx->op_info = "";
 
-	DBUG_ASSERT(processed_cascades->empty());
-	DBUG_ASSERT(cascade_upd_nodes->empty());
-
-	DBUG_RETURN(err);
-
-error:
-	if (thr->fk_cascade_depth > 0) {
-		ut_ad(node->table->n_foreign_key_checks_running > 0);
-		os_dec_counter(dict_sys->mutex,
-			       node->table
-			       ->n_foreign_key_checks_running);
-		thr->fk_cascade_depth = 0;
-	}
-
-	/* Reset the table->n_foreign_key_checks_running counter */
-	std::for_each(cascade_upd_nodes->begin(),
-		      cascade_upd_nodes->end(),
-		      ib_dec_counter(dict_sys->mutex));
-
-	DBUG_RETURN(err);
+	return(err);
 }
 
 /*********************************************************************//**
@@ -2127,6 +2013,97 @@ no_unlock:
 	trx->op_info = "";
 }
 
+/**********************************************************************//**
+Does a cascaded delete or set null in a foreign key operation.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+row_update_cascade_for_mysql(
+/*=========================*/
+	que_thr_t*	thr,	/*!< in: query thread */
+	upd_node_t*	node,	/*!< in: update node used in the cascade
+				or set null operation */
+	dict_table_t*	table)	/*!< in: table where we do the operation */
+{
+	dberr_t	err;
+	trx_t*	trx;
+
+	trx = thr_get_trx(thr);
+
+	/* Increment fk_cascade_depth to record the recursive call depth on
+	a single update/delete that affects multiple tables chained
+	together with foreign key relations. */
+	thr->fk_cascade_depth++;
+
+	if (thr->fk_cascade_depth > FK_MAX_CASCADE_DEL) {
+		return(DB_FOREIGN_EXCEED_MAX_CASCADE);
+	}
+run_again:
+	thr->run_node = node;
+	thr->prev_node = node;
+
+	DEBUG_SYNC_C("foreign_constraint_update_cascade");
+
+	row_upd_step(thr);
+
+	/* The recursive call for cascading update/delete happens
+	in above row_upd_step(), reset the counter once we come
+	out of the recursive call, so it does not accumulate for
+	different row deletes */
+	thr->fk_cascade_depth = 0;
+
+	err = trx->error_state;
+
+	/* Note that the cascade node is a subnode of another InnoDB
+	query graph node. We do a normal lock wait in this node, but
+	all errors are handled by the parent node. */
+
+	if (err == DB_LOCK_WAIT) {
+		/* Handle lock wait here */
+
+		que_thr_stop_for_mysql(thr);
+
+		thr->lock_state = QUE_THR_LOCK_ROW;
+
+		lock_wait_suspend_thread(thr);
+
+		thr->lock_state = QUE_THR_LOCK_NOLOCK;
+
+		/* Note that a lock wait may also end in a lock wait timeout,
+		or this transaction is picked as a victim in selective
+		deadlock resolution */
+
+		if (trx->error_state != DB_SUCCESS) {
+
+			return(trx->error_state);
+		}
+
+		/* Retry operation after a normal lock wait */
+
+		goto run_again;
+	}
+
+	if (err != DB_SUCCESS) {
+
+		return(err);
+	}
+
+	if (node->is_delete) {
+		/* Not protected by dict_table_stats_lock() for performance
+		reasons, we would rather get garbage in stat_n_rows (which is
+		just an estimate anyway) than protecting the following code
+		with a latch. */
+		dict_table_n_rows_dec(table);
+
+		srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
+	} else {
+		srv_stats.n_rows_updated.add((size_t)trx->id, 1);
+	}
+
+	row_update_statistics_if_needed(table);
+
+	return(err);
+}
 
 /*********************************************************************//**
 Checks if a table is such that we automatically created a clustered
@@ -2680,16 +2657,8 @@ row_table_add_foreign_constraints(
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		dict_names_t	fk_tables;
 		err = dict_load_foreigns(name, NULL, false, true,
-					 DICT_ERR_IGNORE_NONE, fk_tables);
-
-		while (!fk_tables.empty()) {
-			const char* table_name = fk_tables.top();
-			fk_tables.pop();
-			dict_load_table(table_name, TRUE,
-					DICT_ERR_IGNORE_NONE);
-		}
+					 DICT_ERR_IGNORE_NONE);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -5275,13 +5244,12 @@ end:
 		}
 
 		/* We only want to switch off some of the type checking in
-		an ALTER TABLE...ALGORITHM=COPY, not in a RENAME. */
-		dict_names_t	fk_tables;
+		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
 			new_name, NULL,
 			false, !old_is_tmp || trx->check_foreigns,
-			DICT_ERR_IGNORE_NONE, fk_tables);
+			DICT_ERR_IGNORE_NONE);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);
@@ -5314,13 +5282,6 @@ end:
 			trx->error_state = DB_SUCCESS;
 			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
-		}
-
-		while (!fk_tables.empty()) {
-			const char* table_name = fk_tables.top();
-			fk_tables.pop();
-			dict_load_table(table_name, TRUE,
-					DICT_ERR_IGNORE_NONE);
 		}
 	}
 

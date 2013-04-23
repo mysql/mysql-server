@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -515,6 +515,8 @@ que_graph_free_recursive(
 
 			btr_pcur_free_for_mysql(upd->pcur);
 		}
+
+		que_graph_free_recursive(upd->cascade_node);
 
 		if (upd->cascade_heap) {
 			mem_heap_free(upd->cascade_heap);
