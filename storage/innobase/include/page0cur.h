@@ -44,9 +44,6 @@ Created 10/4/1994 Heikki Tuuri
 #define	PAGE_CUR_GE	2
 #define	PAGE_CUR_L	3
 #define	PAGE_CUR_LE	4
-#ifdef UNIV_SEARCH_DEBUG
-# define PAGE_CUR_DBG	6	/* As PAGE_CUR_LE, but skips search shortcut */
-#endif /* UNIV_SEARCH_DEBUG */
 
 #ifdef UNIV_DEBUG
 /*********************************************************//**

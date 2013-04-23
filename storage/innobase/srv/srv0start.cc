@@ -1184,12 +1184,6 @@ innobase_start_or_create_for_mysql(void)
 		" InnoDB: !!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!\n");
 #endif
 
-#ifdef UNIV_SEARCH_DEBUG
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: !!!!!!!! UNIV_SEARCH_DEBUG switched on !!!!!!!!!\n");
-#endif
-
 #ifdef UNIV_LOG_LSN_DEBUG
 	ut_print_timestamp(stderr);
 	fprintf(stderr,

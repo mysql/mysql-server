@@ -217,7 +217,6 @@ and the insert buffer must be empty when the database is started */
                                                 related stuff. */
 #define UNIV_SYNC_DEBUG				/* debug mutex and latch
 operations (very slow); also UNIV_DEBUG must be defined */
-#define UNIV_SEARCH_DEBUG			/* debug B-tree comparisons */
 #define UNIV_SYNC_PERF_STAT			/* operation counts for
 						rw-locks and mutexes */
 #define UNIV_SEARCH_PERF_STAT			/* statistics for the
