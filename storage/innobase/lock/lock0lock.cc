@@ -7345,3 +7345,42 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 
 	return(victim_trx);
 }
+
+/*******************************************************************//**
+Check if any of the tables locked by this transaction are being altered
+by online DDL, this is a temporary work around for bug#16503490.
+@return true if they are being altered */
+UNIV_INTERN
+bool
+lock_tables_are_being_altered(
+/*==========================*/
+	const trx_t*	trx)	/*!< in: transaction */
+{
+	if (ib_vector_is_empty(trx->lock.table_locks)) {
+		return(false);
+	}
+
+	for (lint i = ib_vector_size(trx->lock.table_locks) - 1;
+	     i >= 0; --i) {
+		const lock_t*	lock;
+
+		lock = *reinterpret_cast<lock_t**>(
+			ib_vector_get(trx->lock.table_locks, i));
+
+		if (lock == NULL) {
+			continue;
+		}
+
+		ut_ad(trx == lock->trx);
+		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+		ut_ad(lock->un_member.tab_lock.table != NULL);
+
+		if (dict_index_is_online_ddl(
+			    dict_table_get_first_index(
+				    lock->un_member.tab_lock.table))) {
+			return(true);
+		}
+	}
+
+	return(false);
+}

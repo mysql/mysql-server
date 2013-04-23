@@ -22,4 +22,3 @@ sys_vars.rpl_init_slave_func		    # Bug#12535301 2011-05-09 andrei sys_vars.rpl_
 innodb.innodb_bug13867871                   # bug#14529475
 perfschema.socket_summary_by_instance_func  # bug#16274580
 innodb.innodb_bug14676111                   # bug #16371942 innodb.innodb_bug14676111 is failing on pb2 due to timeout 
-
