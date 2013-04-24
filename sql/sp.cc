@@ -25,7 +25,7 @@
                     // mysql_change_db, check_db_dir_existence,
                     // load_db_opt_by_name
 #include "sql_table.h"                          // write_bin_log
-#include "sql_acl.h"                       // SUPER_ACL
+#include "auth_common.h"                        // SUPER_ACL
 #include "sp_head.h"
 #include "sp_cache.h"
 #include "lock.h"                               // lock_object_name

@@ -20,7 +20,7 @@
 #include "global_threads.h"
 #ifdef HAVE_REPLICATION
 
-#include "sql_acl.h"                            // SUPER_ACL
+#include "auth_common.h"                        // SUPER_ACL
 #include "log_event.h"
 #include "rpl_filter.h"
 #include <my_dir.h>

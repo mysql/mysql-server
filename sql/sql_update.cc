@@ -34,7 +34,7 @@
 #include "probes_mysql.h"
 #include "debug_sync.h"
 #include "key.h"                                // is_key_used
-#include "sql_acl.h"                            // *_ACL, check_grant
+#include "auth_common.h"                        // *_ACL, check_grant
 #include "records.h"                            // init_read_record,
                                                 // end_read_record
 #include "filesort.h"                           // filesort
