@@ -801,7 +801,11 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
     mi->rli->abort_slave= 1;
-    delete(mi->rli->current_mts_submode);
+    if (mi->rli->current_mts_submode)
+    {
+      delete(mi->rli->current_mts_submode);
+      mi->rli->current_mts_submode= NULL;
+    }
     if ((error=terminate_slave_thread(mi->rli->info_thd, sql_lock,
                                       &mi->rli->stop_cond,
                                       &mi->rli->slave_running,
@@ -5268,8 +5272,11 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     }
     // free the current submode object
     mysql_mutex_unlock(&w->jobs_lock);
-
-    delete(w->current_mts_submode);
+    if (w->current_mts_submode)
+    {
+      delete(w->current_mts_submode);
+      w->current_mts_submode= NULL;
+    }
     delete_dynamic_element(&rli->workers, i);
     delete w;
   }
