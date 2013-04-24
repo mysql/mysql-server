@@ -29,12 +29,22 @@ typedef v8::Handle<v8::Value> EncoderWriter(const NdbDictionary::Column *,
                                             v8::Handle<v8::Value>, 
                                             char *, size_t);
 
+/* requiresRecode() Returns r.
+   If r == 0, no recode is required; caller can call encoder->read()
+   If r > 0, caller should allocate a buffer of size r, and call recodeRead().
+*/   
+typedef int RequiresRecode(const NdbDictionary::Column *, char *, size_t);
+
+typedef v8::Handle<v8::Value> RecodeRead(const NdbDictionary::Column *, 
+                                         char *recode_buffer, 
+                                         char *col, size_t);
+
+
 typedef struct {
-  EncoderReader * read;
-  EncoderWriter * write;
-  unsigned int flags;
+  EncoderReader  * read;
+  EncoderWriter  * write;
+  RequiresRecode * requiresRecode;
+  RecodeRead     * recodeRead;
 } NdbTypeEncoder;
 
 const NdbTypeEncoder * getEncoderForColumn(const NdbDictionary::Column *);
-
-

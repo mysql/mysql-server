@@ -43,7 +43,7 @@ assert(typeof adapter.ndb.impl.DBDictionary.listTables === 'function');
 
 function initialize() {
   adapter.ndb.ndbapi.ndb_init();                       // ndb_init()
-  // adapter.ndb.util.CharsetMap_init();           // CharsetMap::init()
+  adapter.ndb.util.CharsetMap_init();           // CharsetMap::init()
   unified_debug.register_client(adapter.debug);
   return true;
 }

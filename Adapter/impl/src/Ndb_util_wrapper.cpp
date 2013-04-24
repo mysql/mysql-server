@@ -35,9 +35,6 @@ using namespace v8;
 
 Envelope CharsetMapEnv("CharsetMap");
 
-extern Handle<Value> CharsetMap_recode_in(const Arguments &);
-extern Handle<Value> CharsetMap_recode_out(const Arguments &);
-
 Handle<Value> CharsetMap_init_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   CharsetMap::init();
@@ -199,17 +196,11 @@ void Ndb_util_initOnLoad(Handle<Object> target) {
   DEFINE_JS_CONSTANT(target, E_DEC_OOM);
   DEFINE_JS_CONSTANT(target, E_DEC_BAD_PREC);
   DEFINE_JS_CONSTANT(target, E_DEC_BAD_SCALE);
-  DEFINE_JS_INT(target, "RECODE_OK", CharsetMap::RECODE_OK );
-  DEFINE_JS_INT(target, "RECODE_BAD_CHARSET",CharsetMap::RECODE_BAD_CHARSET);
-  DEFINE_JS_INT(target, "RECODE_BAD_SRC", CharsetMap::RECODE_BAD_SRC);
-  DEFINE_JS_INT(target, "RECODE_BUFF_TOO_SMALL", CharsetMap::RECODE_BUFF_TOO_SMALL);
 
   DEFINE_JS_FUNCTION(target, "CharsetMap_init", CharsetMap_init_wrapper);
   DEFINE_JS_FUNCTION(target, "CharsetMap_unload", CharsetMap_unload_wrapper);
 
   DEFINE_JS_CLASS(JSCharsetMap, "CharsetMap", CharsetMap_new_wrapper);
-  DEFINE_JS_METHOD(JSCharsetMap, "recodeIn", CharsetMap_recode_in);
-  DEFINE_JS_METHOD(JSCharsetMap, "recodeOut", CharsetMap_recode_out);
   DEFINE_JS_METHOD(JSCharsetMap, "getName", CharsetMap_getName);
   DEFINE_JS_METHOD(JSCharsetMap, "getMysqlName", CharsetMap_getMysqlName);
   DEFINE_JS_METHOD(JSCharsetMap, "getCharsetNumber", CharsetMap_getCharsetNumber);

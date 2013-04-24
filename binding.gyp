@@ -45,6 +45,7 @@
 
          "Adapter/impl/src/Record_wrapper.cpp",
          "Adapter/impl/src/Ndb_init_wrapper.cpp",
+         "Adapter/impl/src/Ndb_util_wrapper.cpp",
          "Adapter/impl/src/Ndb_cluster_connection_wrapper.cpp",
          "Adapter/impl/src/NdbTransaction_wrapper.cpp",
          "Adapter/impl/src/Ndb_wrapper.cpp",

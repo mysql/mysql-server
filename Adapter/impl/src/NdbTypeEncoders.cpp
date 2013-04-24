@@ -28,25 +28,43 @@
 #include "NdbTypeEncoders.h"
 #include "js_wrapper_macros.h"
 #include "JsWrapper.h"
+#include "ndb_util/CharsetMap.hpp"
 
 using namespace v8;
 
 Handle<String> 
   K_sign, K_year, K_month, K_day, K_hour, K_minute, K_second, K_microsec;
 
-#define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
+#define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0, 0 }
+
+#define STRING_ENCODER(A, B, C, D, E) NdbTypeEncoder A = { &B, &C, &D, &E }
 
 #define DECLARE_ENCODER(TYPE) \
   EncoderReader TYPE##Reader; \
   EncoderWriter TYPE##Writer; \
   ENCODER(TYPE##Encoder, TYPE##Reader, TYPE##Writer)
 
+#define DECLARE_STRING_ENCODER(TYPE) \
+  EncoderReader TYPE##Reader; \
+  EncoderWriter TYPE##Writer; \
+  RequiresRecode TYPE##RequiresRecode; \
+  RecodeRead TYPE##RecodeRead; \
+  STRING_ENCODER(TYPE##Encoder, TYPE##Reader, TYPE##Writer, \
+    TYPE##RequiresRecode, TYPE##RecodeRead)
+
 #define DECLARE_ENCODER_TEMPLATES(TYPE) \
   template <typename T> Handle<Value> TYPE##Reader(const NdbDictionary::Column *,\
     char *, size_t); \
   template <typename T> Handle<Value> TYPE##Writer(const NdbDictionary::Column *, \
     Handle<Value>, char *, size_t);
-   
+
+#define DECLARE_STRING_ENCODER_TEMPLATES(TYPE) \
+  DECLARE_ENCODER_TEMPLATES(TYPE) \
+  template <typename T> int TYPE##RequiresRecode(const NdbDictionary::Column *, \
+    char *, size_t); \
+  template <typename T> Handle<Value> TYPE##RecodeRead(const NdbDictionary::Column *,\
+    char *, char *, size_t);
+
 DECLARE_ENCODER(UnsupportedType);
 
 DECLARE_ENCODER(Int);
@@ -66,10 +84,15 @@ DECLARE_ENCODER_TEMPLATES(fp);
 ENCODER(FloatEncoder, fpReader<float>, fpWriter<float>);
 ENCODER(DoubleEncoder, fpReader<double>, fpWriter<double>);
 
-DECLARE_ENCODER(Char);
-DECLARE_ENCODER_TEMPLATES(varchar);
-ENCODER(VarcharEncoder, varcharReader<uint8_t>, varcharWriter<uint8_t>);
-ENCODER(LongVarcharEncoder, varcharReader<uint16_t>, varcharWriter<uint16_t>);
+DECLARE_STRING_ENCODER(Char);
+
+DECLARE_STRING_ENCODER_TEMPLATES(varchar);
+STRING_ENCODER(VarcharEncoder, 
+               varcharReader<uint8_t>, varcharWriter<uint8_t>,
+               varcharRequiresRecode<uint8_t>, varcharRecodeRead<uint8_t>);
+STRING_ENCODER(LongVarcharEncoder, 
+               varcharReader<uint16_t>, varcharWriter<uint16_t>,
+               varcharRequiresRecode<uint16_t>, varcharRecodeRead<uint16_t>);
 
 DECLARE_ENCODER(Year);
 DECLARE_ENCODER(Timestamp);
@@ -539,16 +562,13 @@ Handle<Value> fpWriter(const NdbDictionary::Column * col,
 
 
 /****** String types ********/
-// TODO: Provide routines to determine if a string can be externalized
-//   Resolve linker issues with charset map before attempting this
+
 
 // CHAR
 Handle<Value> CharReader(const NdbDictionary::Column *col, 
                          char *buffer, size_t offset) {
   HandleScope scope;
   const char * str = buffer+offset;
-  //TODO CHARSET CONVERSION
-  //TODO SOME STRINGS CAN BE EXTERNALIZED: strict ascii, UTF16, UTF8
   Local<String> string = String::New(str, col->getLength());
   return scope.Close(string);
 }
@@ -569,6 +589,16 @@ Handle<Value> CharWriter(const NdbDictionary::Column * col,
     }
   }
   return valid ? writerOK : outOfRange(col->getName());
+}
+
+int CharRequiresRecode(const NdbDictionary::Column *col, 
+                       char *buffer, size_t offset) {
+  return 0;
+}
+
+Handle<Value> CharRecodeRead(const NdbDictionary::Column *col, 
+                             char *recode_buffer, char *buffer, size_t offset) {
+  return CharReader(col, buffer, offset);
 }
 
 // Templated encoder for Varchar and LongVarchar
@@ -599,6 +629,18 @@ Handle<Value> varcharWriter(const NdbDictionary::Column * col,
     strval->WriteAscii(buffer+offset+sizeof(len), 0, len);
   }
   return valid ? writerOK : outOfRange(col->getName());
+}
+
+template<typename LENGTHTYPE>
+int varcharRequiresRecode(const NdbDictionary::Column *col, 
+                       char *buffer, size_t offset) {
+  return 0;
+}
+
+template<typename LENGTHTYPE>
+Handle<Value> varcharRecodeRead(const NdbDictionary::Column *col, 
+                                char *recode_buffer, char *buffer, size_t offset) {
+  return varcharReader<LENGTHTYPE>(col, buffer, offset);
 }
 
 
