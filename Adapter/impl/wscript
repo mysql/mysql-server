@@ -28,6 +28,7 @@ def build(ctx):
   "src/DBDictionaryImpl.cpp " +\
   "src/Record_wrapper.cpp " +\
   "src/Ndb_init_wrapper.cpp " +\
+  "src/Ndb_util_wrapper.cpp " +\
   "src/Ndb_cluster_connection_wrapper.cpp " + \
   "src/Ndb_wrapper.cpp " +\
   "src/NdbError_wrapper.cpp " +\
