@@ -1044,7 +1044,7 @@ let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 --echo # It will print the innochecksum usage similar to --help option.
 --error 1
 --exec $INNOCHECKSUM > $MYSQLTEST_VARDIR/tmp/usage.txt
---diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/usage.txt 
+--diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/usage.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/usage.txt
 
 perl;
