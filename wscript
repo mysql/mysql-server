@@ -7,7 +7,7 @@ VERSION = '0.35'
 
 def set_options(opt):
   opt.tool_options('compiler_cxx')
-  opt.add_option('--mysql', action='store', default='/usr/local/mysql/')
+  opt.add_option('--mysql', action='store')
 
 def configure(conf):
   import Options
