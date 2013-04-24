@@ -1697,10 +1697,6 @@ row_upd_sec_index_entry(
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
 	}
-	if (srv_tables_to_truncate.size() > 0) {
-		flags |= BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG; 
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -2395,10 +2391,6 @@ row_upd_clust_step(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
-	}
-	if (srv_tables_to_truncate.size() > 0) {
-		flags |= BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG; 
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
 
 	/* If the restoration does not succeed, then the same

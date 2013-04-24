@@ -273,6 +273,16 @@ mtr_read_ulint(
 	const byte*	ptr,	/*!< in: pointer from where to read */
 	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
+/********************************************************//**
+Reads 8 bytes from a file page buffered in the buffer pool.
+@return	value read */
+UNIV_INTERN
+ib_id_t
+mtr_read_ull(
+/*=========*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_8BYTES */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 This macro locks an rw-lock in s-mode. */
