@@ -903,28 +903,6 @@ srv_start_wait_for_purge_to_start()
 }
 
 /********************************************************************
-Complete pending operation that needs to be done post recovery.
-@return DB_SUCCESS or error code. */
-static
-dberr_t
-srv_complete_pending_recovery_steps(
-/*================================*/
-	ulint	lsn)	/*!< in: max flushed lsn. */
-{
-	dberr_t	err	= DB_SUCCESS;
-
-	/* Truncate table marked during REDO log parsing. */
-	err = row_truncate_table_during_server_startup(lsn);
-	if (err != DB_SUCCESS) {
-		return(err);
-	}
-
-	/* Other actions if any .... */
-
-	return(err);
-}
-
-/********************************************************************
 Create the temporary file tablespace.
 @return DB_SUCCESS or error code. */
 static
@@ -1958,8 +1936,8 @@ files_checked:
 
 		/* Recovery from checkpoint done.
 		Perform the steps that needs to be done post recovery.
-		For example: complete truncate action for table. */
-		err = srv_complete_pending_recovery_steps(log_get_lsn());	
+		For example: Assigning new table for truncated tables. */
+		err = row_complete_truncate_of_tables();	
 		if (err != DB_SUCCESS) {
 			return(srv_init_abort(err));
 		}

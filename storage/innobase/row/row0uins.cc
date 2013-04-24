@@ -120,15 +120,46 @@ row_undo_ins_remove_clust_rec(
 	}
 
 	if (node->table->id == DICT_INDEXES_ID) {
+
 		ut_ad(!online);
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
+		/* We skip drop index tree if table has been truncated
+		as part of redo log apply step. */
+		bool table_truncated_in_redo = false;
+
+		{
+			table_id_t	remove_idx_for_table;
+			const byte*	ptr;
+			ulint 		len;
+
+			ptr = rec_get_nth_field_old(
+				btr_pcur_get_rec(&node->pcur),
+				DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
+			ut_ad(len == 8);
+			remove_idx_for_table = mtr_read_ull(
+				ptr, MLOG_8BYTES, &mtr);
+
+			for (ulint i = 0;
+			     i < srv_tables_to_truncate.size();
+			     i++) {
+
+				if (srv_tables_to_truncate[i].m_new_table_id ==
+				    remove_idx_for_table) {
+					table_truncated_in_redo = true;
+					break;
+				}
+			}
+		}
+
+
 		/* Drop the index tree associated with the row in
 		SYS_INDEXES table: */
-
-		dict_drop_index_tree(
-			btr_pcur_get_rec(&node->pcur), &(node->pcur),
-			true, &mtr);
+		if (!table_truncated_in_redo) {
+			dict_drop_index_tree(
+				btr_pcur_get_rec(&node->pcur), &(node->pcur),
+				true, &mtr);
+		}
 
 		mtr_commit(&mtr);
 

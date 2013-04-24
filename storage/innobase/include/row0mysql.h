@@ -507,14 +507,13 @@ row_truncate_table_for_mysql(
 	__attribute__((nonnull, warn_unused_result));
 
 /**
-Truncates a table for MySQL during server-startup.
+Assign new table-id to table that got truncated as part of REDO log
+apply phase.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
-row_truncate_table_during_server_startup(
-/*======================================*/
-	ulint		lsn)	/*!< in: lsn */
-	__attribute__((nonnull, warn_unused_result));
+row_complete_truncate_of_tables();
+/*=============================*/
 
 /*********************************************************************//**
 Drops a table for MySQL.  If the name of the dropped table ends in
