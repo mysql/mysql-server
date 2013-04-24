@@ -2227,7 +2227,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     {
       Field *from_field, *default_field;
       tmp_table_field= create_tmp_field(thd, &tmp_table, item, item->type(),
-                                        (Item ***) NULL,
+                                        NULL,
                                         &from_field, &default_field,
                                         false, false, false, false);
     }
