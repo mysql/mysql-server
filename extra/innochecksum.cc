@@ -172,8 +172,8 @@ get_page_size(
 
 	if (*physical_page_size == 0) {
 		/* uncompressed page. */
-		DBUG_ASSERT(*physical_page_size >= UNIV_PAGE_SIZE_MIN);
 		*physical_page_size= *logical_page_size;
+		DBUG_ASSERT(*physical_page_size >= UNIV_PAGE_SIZE_MIN);
 		*compressed = FALSE;
 	} else {
 		*compressed = TRUE;
