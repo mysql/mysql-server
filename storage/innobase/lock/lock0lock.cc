@@ -7345,3 +7345,4 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 
 	return(victim_trx);
 }
+
