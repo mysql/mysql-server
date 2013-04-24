@@ -33,6 +33,10 @@ SET GLOBAL innodb_file_format='barracuda';
 CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
 CREATE INDEX idx1 ON tab1(c2(10));
 INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+insert into t1 values(1,"i");
+insert into t1 values(2,"am");
+insert into t1 values(3,"compressed table");
 
 --echo # Shutdown the Server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -41,7 +45,13 @@ INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 
 --echo # Server Default checksum = innodb
 
---echo [1]: check the innochecksum without --strict-check
+--echo [1a]: check the innochecksum when file doesn't exists
+--error 1
+--exec $INNOCHECKSUM  $MYSQLD_DATADIR/test/aa.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: $MYSQLD_DATADIR/test/aa.ibd cannot be found;
+--source include/search_pattern_in_file.inc
+
+--echo [1b]: check the innochecksum without --strict-check
 --exec $INNOCHECKSUM  $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo [2]: check the innochecksum with full form --strict-check=Innodb
@@ -168,9 +178,18 @@ let SEARCH_PATTERN= Error while setting value \'crc\' to \'strict-check\';
 let SEARCH_PATTERN= Error while setting value \'no\' to \'strict-check\';
 --source include/search_pattern_in_file.inc
 
---echo [14]: when server default checksum=InnoDB rewrite new checksum=crc32 with innochecksum
+--echo [14a]: when server default checksum=InnoDB rewrite new checksum=innodb with innochecksum
+--echo # Also check the long form of wite option.
+--exec $INNOCHECKSUM --strict-check=innodb --write=innodb $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --strict-check=innodb --write=innodb $MYSQLD_DATADIR/test/t1.ibd
+# Rewrite done, verify with --strict-check=innodb
+--exec $INNOCHECKSUM --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --strict-check=innodb $MYSQLD_DATADIR/test/t1.ibd
+
+--echo [14b]: when server default checksum=InnoDB rewrite new checksum=crc32 with innochecksum
 --echo # Also check the long form of wite option.
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --strict-check=innodb --write=crc32 $MYSQLD_DATADIR/test/t1.ibd
 # Rewrite done, verify with --strict-check=crc32
 --exec $INNOCHECKSUM --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd
 
@@ -191,8 +210,10 @@ SELECT c1,c2 FROM tab1 order by c1,c2;
 --echo [15]: when server default checksum=InnoDB rewrite new checksum=none with innochecksum
 --echo # Also check the short form of write option.
 --exec $INNOCHECKSUM --no-check -w none $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --no-check -w none $MYSQLD_DATADIR/test/t1.ibd
 # Rewrite done, verify with --strict-check=none
 --exec $INNOCHECKSUM --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --strict-check=none $MYSQLD_DATADIR/test/t1.ibd
 
 --echo # Start the server with checksum algorithm=none
 --exec echo "restart: --innodb_checksum_algorithm=innodb" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -202,6 +223,7 @@ SELECT c1,c2 FROM tab1 order by c1,c2;
 
 INSERT INTO tab1 VALUES(3, 'Innochecksum None');
 SELECT c1,c2 FROM tab1 order by c1,c2;
+DROP TABLE t1;
 
 --echo # Stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -686,9 +708,9 @@ SELECT * FROM tab2 ORDER BY col_7;
 --source include/wait_until_disconnected.inc
 
 --echo [26(a)]: Rewrite into new checksum=InnoDB for all *.ibd file and ibdata1
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/test/tab2.ibd
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/ibdata1
+--exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/ibdata1
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_master_info.ibd
@@ -730,9 +752,9 @@ SELECT * FROM tab2 ORDER BY col_7;
 --source include/wait_until_disconnected.inc
 
 --echo [26(b)]: Rewrite into new checksum=crc32 for all *.ibd file and ibdata1
---exec $INNOCHECKSUM --no-check --write=CRC32 $MYSQLD_DATADIR/test/tab1.ibd
---exec $INNOCHECKSUM --no-check --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
---exec $INNOCHECKSUM --no-check --write=CRC32 $MYSQLD_DATADIR/ibdata1
+--exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/ibdata1
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_master_info.ibd
@@ -777,9 +799,9 @@ SELECT * FROM tab2 ORDER BY col_7;
 --source include/wait_until_disconnected.inc
 
 --echo [26(c)]: Rewrite into new checksum=none for all *.ibd file and ibdata1
---exec $INNOCHECKSUM --no-check --write=none  $MYSQLD_DATADIR/test/tab1.ibd
---exec $INNOCHECKSUM --no-check --write=none  $MYSQLD_DATADIR/test/tab2.ibd
---exec $INNOCHECKSUM --no-check --write=none $MYSQLD_DATADIR/ibdata1
+--exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/ibdata1
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_master_info.ibd
@@ -814,8 +836,21 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
 SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 
--- disable_result_log
+--disable_result_log
 SELECT * FROM tab2 ORDER BY col_7;
+--enable_result_log
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+SELECT @@innodb_compression_level;
+SET GLOBAL innodb_compression_level=0;
+SELECT @@innodb_compression_level;
+CREATE TABLE t3 (j LONGBLOB) ENGINE = InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+INSERT INTO t3 VALUES (repeat('abcdefghijklmnopqrstuvwxyz',200));
+let $i=10;
+while ($i > 0) {
+  INSERT INTO t3 SELECT * from t3;
+  dec $i;
+}
 
 --echo # stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -861,6 +896,15 @@ EOF
 
 --echo # Print the contents stored in dump.txt
 cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+# Page_type_dump for t3
+--exec $INNOCHECKSUM -v --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/t3.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/dump.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+
+# Page type dump for ibdata1
+--exec $INNOCHECKSUM -v --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/ibdata1
+--file_exists $MYSQLTEST_VARDIR/tmp/dump.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
 
 --echo [30]: Page type dump for with shortform for tab1.ibd
@@ -991,11 +1035,18 @@ let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
---echo [35]:# check the both short and long options for "help"
+--echo [35(a)]:# check the both short and long options for "help"
 --exec $INNOCHECKSUM --help $MYSQLD_DATADIR/test/tab1.ibd > $MYSQLTEST_VARDIR/tmp/help_output_long.txt
 --exec $INNOCHECKSUM -I $MYSQLD_DATADIR/test/tab1.ibd > $MYSQLTEST_VARDIR/tmp/help_output_short.txt
-
 --diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/help_output_short.txt
+
+--echo [35(b)]:# Run the innochecksum when file isn't provided.
+--echo # It will print the innochecksum usage similar to --help option.
+--error 1
+--exec $INNOCHECKSUM > $MYSQLTEST_VARDIR/tmp/usage.txt
+--diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/usage.txt 
+--remove_file $MYSQLTEST_VARDIR/tmp/usage.txt
+
 perl;
 use strict;
 use warnings;
@@ -1022,11 +1073,44 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/tmp/help_output_long.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/help_output_short.txt
 
---echo [36]: check the both short and long options for "count"
+--echo [36]: check the both short and long options for "count" and exit
 --replace_regex /[0-9]+/#/
 --exec $INNOCHECKSUM --count $MYSQLD_DATADIR/test/tab1.ibd
 --replace_regex /[0-9]+/#/
 --exec $INNOCHECKSUM -c $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [37]:# Print the version of innochecksum and exit
+--replace_regex /.*innochecksum.*Ver.*[0-9]*.[0-9]*.[0-9]*.*/innochecksum Ver #.#.# /
+--exec $INNOCHECKSUM -V $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [38]:# Check the innochecksum for compressed table t1 with different key_block_size
+--echo # Restart the DB server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+DROP TABLE IF EXISTS t1;
+--echo # Test for KEY_BLOCK_SIZE=1
+--let $size=1
+--source ../include/innodb-wl6045.inc
+
+--echo # Test for KEY_BLOCK_SIZE=2
+--let $size=2
+--source ../include/innodb-wl6045.inc
+
+--echo # Test for for KEY_BLOCK_SIZE=4
+--let $size=4
+--source ../include/innodb-wl6045.inc
+
+--echo # Test for for KEY_BLOCK_SIZE=8
+--let $size=8
+--source ../include/innodb-wl6045.inc
+
+--echo # Test for KEY_BLOCK_SIZE=16
+--let $size=16
+--source ../include/innodb-wl6045.inc
+--echo # Test[38] completed
+
 
 --echo # Start the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -1041,6 +1125,7 @@ EOF
 
 DROP TABLE tab1;
 DROP TABLE tab2;
+DROP TABLE t3;
 
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
