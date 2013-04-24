@@ -9,7 +9,7 @@ CREATE TABLE t1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1, 'Innochecksum InnoDB');
 INSERT INTO t1 VALUES(2, 'Innochecksum CRC32');
 # Shutdown the Server
-# Test[1]: for read from standard input for innochecksum tool without rewrite of checksum with debug option.
+# Test[1(a)]: for read from standard input for innochecksum tool without rewrite of checksum with debug option.
 main: info: Filename = -
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
@@ -20,6 +20,15 @@ main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
 main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+# Test[1(b)]: for read from standard input for innochecksum tool Test checking for page: 3 to page:5
+main: info: Filename = -
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
 main: info: page::#; new style: calculated = #; crc32 = #; recorded = #

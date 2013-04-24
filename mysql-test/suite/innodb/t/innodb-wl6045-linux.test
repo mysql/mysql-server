@@ -47,7 +47,7 @@ INSERT INTO t1 VALUES(2, 'Innochecksum CRC32');
 --source include/wait_until_disconnected.inc
 
 # Test cases for read from standard input for innochecksum tool
---echo # Test[1]: for read from standard input for innochecksum tool without rewrite of checksum with debug option.
+--echo # Test[1(a)]: for read from standard input for innochecksum tool without rewrite of checksum with debug option.
 perl;
 use strict;
 use warnings;
@@ -55,6 +55,44 @@ my $innochecksum = $ENV{'INNOCHECKSUM'};
 my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
 my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
 exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' -");
+EOF
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $! ;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $! ;
+while(<IN_FILE>) {
+ # Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = -/g;
+ $_=~ s/file .+ =/file - =/g;
+ $_=~ s/find_type:.+$//g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+EOF
+
+# Print the information for debug option.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+
+--echo # Test[1(b)]: for read from standard input for innochecksum tool Test checking for page: 3 to page:5
+perl;
+use strict;
+use warnings;
+my $innochecksum = $ENV{'INNOCHECKSUM'};
+my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
+my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
+exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' -s 3 -e 5 -");
 EOF
 
 perl;
