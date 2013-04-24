@@ -41,7 +41,7 @@
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"
 #include "mysqld.h"                             // LOCK_uuid_generator
-#include "sql_acl.h"                            // SUPER_ACL
+#include "auth_common.h"                        // SUPER_ACL
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
 #include "password.h"           // my_make_scrambled_password,
                                 // my_make_scrambled_password_323

@@ -29,7 +29,7 @@
 #include "sp_head.h"
 #include "sql_view.h"         // check_key_in_view, insert_view_fields
 #include "sql_table.h"        // mysql_create_table_no_lock
-#include "sql_acl.h"          // *_ACL, check_grant_all_columns
+#include "auth_common.h"      // *_ACL, check_grant_all_columns
 #include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"
