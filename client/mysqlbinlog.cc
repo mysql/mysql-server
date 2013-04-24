@@ -2189,6 +2189,11 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             */
             continue;
           }
+          /*
+             Reset the value of '# at pos' field shown against first event of
+             next binlog file (fake rotate) picked by mysqlbinlog --to-last-log
+         */
+          old_off= start_position_mot;
           len= 1; // fake Rotate, so don't increment old_off
         }
       }
