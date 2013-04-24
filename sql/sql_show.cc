@@ -19,7 +19,6 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
-#include "sql_acl.h"                        // fill_schema_*_privileges
 #include "sql_select.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
@@ -34,8 +33,9 @@
 #include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
 #include "sql_time.h"   // interval_type_to_name
 #include "tztime.h"                             // struct Time_zone
-#include "sql_acl.h"     // TABLE_ACLS, check_grant, DB_ACLS, acl_get,
-                         // check_grant_db
+#include "auth_common.h"           // TABLE_ACLS, check_grant, DB_ACLS
+                                   // acl_get, check_grant_db
+                                   // fill_schema_*_privileges
 #include "filesort.h"    // filesort_free_buffers
 #include "sp.h"
 #include "sp_head.h"
@@ -8438,48 +8438,6 @@ exit:
   /* Release any metadata locks taken during SHOW CREATE TRIGGER. */
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   return error;
-}
-
-class IS_internal_schema_access : public ACL_internal_schema_access
-{
-public:
-  IS_internal_schema_access()
-  {}
-
-  ~IS_internal_schema_access()
-  {}
-
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const;
-
-  const ACL_internal_table_access *lookup(const char *name) const;
-};
-
-ACL_internal_access_result
-IS_internal_schema_access::check(ulong want_access,
-                                 ulong *save_priv) const
-{
-  want_access &= ~SELECT_ACL;
-
-  /*
-    We don't allow any simple privileges but SELECT_ACL on
-    the information_schema database.
-  */
-  if (unlikely(want_access & DB_ACLS))
-    return ACL_INTERNAL_ACCESS_DENIED;
-
-  /* Always grant SELECT for the information schema. */
-  *save_priv|= SELECT_ACL;
-
-  return want_access ? ACL_INTERNAL_ACCESS_CHECK_GRANT :
-                       ACL_INTERNAL_ACCESS_GRANTED;
-}
-
-const ACL_internal_table_access *
-IS_internal_schema_access::lookup(const char *name) const
-{
-  /* There are no per table rules for the information schema. */
-  return NULL;
 }
 
 static IS_internal_schema_access is_internal_schema_access;

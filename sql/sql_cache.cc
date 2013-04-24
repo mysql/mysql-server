@@ -332,7 +332,7 @@ TODO list:
 #include "sql_cache.h"
 #include "sql_parse.h"                          // check_table_access
 #include "tztime.h"                             // struct Time_zone
-#include "sql_acl.h"                            // SELECT_ACL
+#include "auth_common.h"                        // SELECT_ACL
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "opt_trace.h"
