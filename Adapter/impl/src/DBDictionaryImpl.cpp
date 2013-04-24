@@ -529,7 +529,7 @@ Handle<Value> getColumnType(const NdbDictionary::Column * col) {
     "BIGINT",         // 10 BIG UNSIGNED
     "FLOAT",          // 11
     "DOUBLE",         // 12
-    "",               // OLDDECIMAL
+    "",               // 13 OLDDECIMAL
     "CHAR",           // 14
     "VARCHAR",        // 15
     "BINARY",         // 16
@@ -548,6 +548,7 @@ Handle<Value> getColumnType(const NdbDictionary::Column * col) {
     "DECIMAL",        // 29 DECIMAL
     "DECIMAL"         // 30 DECIMAL UNSIGNED
 #if NDB_TYPE_MAX > 31
+    ,
     "TIME",          // 31 TIME2
     "DATETIME",      // 32 DATETIME2
     "TIMESTAMP",     // 33 TIMESTAMP2
