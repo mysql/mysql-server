@@ -230,16 +230,16 @@ struct Logger : public Callback {
 
 	@param table	Table to truncate
 	@param flags	tablespace falgs */
-	Logger(dict_table_t* table, ulint flags)
+	Logger(dict_table_t* table, ulint flags, table_id_t new_table_id)
 		:
 		Callback(table, flags),
 		m_truncate()
 	{
-		if (m_table->data_dir_path != NULL) {
-			m_truncate.m_dir_path = strdup(m_table->data_dir_path);
-		}
+		m_truncate.m_dir_path = m_table->data_dir_path;
 
-		m_truncate.m_table_id = table->id;
+		m_truncate.m_old_table_id = table->id;
+
+		m_truncate.m_new_table_id = new_table_id;
 	}
 
 	/**
@@ -598,8 +598,7 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 				DBUG_SUICIDE(););
 
 		err = truncate_t::truncate(
-			table->space, table->name, table->data_dir_path,
-			flags, false);
+			table->space, table->name, table->data_dir_path, flags);
 	}
 
 	dict_stats_update(table, DICT_STATS_EMPTY_TABLE);
@@ -986,24 +985,24 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	**** Based on whether table reside in system or per-table tablespace
 	follow-up steps might turn-conditional.
 
-	Step-7: (Only for per-tablespace): REDO log information about
-	tablespace which mainly include index information (id, type).
-	In event of crash post this point on recovery using REDO log
-	tablespace can be re-created with appropriate index id and type
-	information.
-
-	Step-8: Drop all indexes (this include freeing of the pages
-	associated with them). (FIXME: freeing of pages should be conditional
-	and should be applicable only when using shared tablespaces.)
-
-	Step-9: Re-create new indexes.
-
-	Step-10: Generate new table-id.
+	Step-7: Generate new table-id.
 	Why we need new table-id ?
 	Purge and rollback: we assign a new table id for the
 	table. Since purge and rollback look for the table based on
 	the table id, they see the table as 'dropped' and discard
 	their operations.
+
+	Step-8: (Only for per-tablespace): REDO log information about
+	tablespace which mainly include index information (id, type).
+	In event of crash post this point on recovery using REDO log
+	tablespace can be re-created with appropriate index id and type
+	information.
+
+	Step-9: Drop all indexes (this include freeing of the pages
+	associated with them). (FIXME: freeing of pages should be conditional
+	and should be applicable only when using shared tablespaces.)
+
+	Step-10: Re-create new indexes.
 
 	Step-11: Update new table-id to in-memory cache (dictionary),
 	on-disk (INNODB_SYS_TABLES). INNODB_SYS_INDEXES also needs to
@@ -1099,7 +1098,16 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		}
 	}
 
-	/* Step-7: (Only for per-tablespace): REDO log information about
+	/* Step-7: Generate new table-id.
+	Why we need new table-id ?
+	Purge and rollback: we assign a new table id for the
+	table. Since purge and rollback look for the table based on
+	the table id, they see the table as 'dropped' and discard
+	their operations. */
+	table_id_t	new_id;
+	dict_hdr_get_new_id(&new_id, NULL, NULL, table, false);
+
+	/* Step-8: (Only for per-tablespace): REDO log information about
 	tablespace which mainly include index information (id, type).
 	In event of crash post this point on recovery using REDO log
 	tablespace can be re-created with appropriate index id and type
@@ -1123,7 +1131,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		}
 
 		/* Write the TRUNCATE redo log. */
-		Logger logger(table, flags);
+		Logger logger(table, flags, new_id);
 
 		err = SysIndexIterator().for_each(logger);
 
@@ -1150,7 +1158,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			os_thread_sleep(3000000);
 			DBUG_SUICIDE(););
 
-	/* Step-8: Drop all indexes (this include freeing of the pages
+	/* Step-9: Drop all indexes (this include freeing of the pages
 	associated with them). (FIXME: freeing of pages should be conditional
 	and should be applicable only when using shared tablespaces.) */
 	if (!dict_table_is_temporary(table)) {
@@ -1192,7 +1200,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			os_thread_sleep(2000000);
 			DBUG_SUICIDE(););
 
-	/* Step-9: Re-create new indexes. */
+	/* Step-10: Re-create new indexes. */
 	if (!dict_table_is_temporary(table)) {
 
 		/* Recreate all the indexes. */
@@ -1209,16 +1217,6 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	/* Done with index truncation, release index tree locks,
 	subsequent work relates to table level metadata change */
 	dict_table_x_unlock_indexes(table);
-
-	/* Step-10: Generate new table-id.
-	Why we need new table-id ?
-	Purge and rollback: we assign a new table id for the
-	table. Since purge and rollback look for the table based on
-	the table id, they see the table as 'dropped' and discard
-	their operations. */
-	table_id_t	new_id;
-	dict_hdr_get_new_id(&new_id, NULL, NULL, table, false);
-
 
 	/* Create new FTS auxiliary tables with the new_id, and
 	drop the old index later, only if everything runs successful. */
@@ -1279,95 +1277,33 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 }
 
 /**
-Truncates a table for MySQL during server-startup.
-@param lsn	TODO: lsn
+Assign new table-id to table that got truncated as part of REDO log
+apply phase.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
-row_truncate_table_during_server_startup(ulint lsn)
+row_complete_truncate_of_tables()
 {
 	dberr_t	err = DB_SUCCESS;
 
-	/* Complete truncate of table that we scanned during recovery phase. */
+	/* Tables are already truncated using MLOG_FILE_TRUNCATE REDO log
+	entry. Now assign new table-id to these tables so that purge
+	action on these tables can be blocked. */
 	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
-
-		truncate_t* table_to_truncate = srv_tables_to_truncate[i];
-
-		/* Check if tablespace is already made active which suggest
-		tablespace already exist. We just need to re-initialize it. */
-		if (!fil_tablespace_exists_in_mem(
-			table_to_truncate->m_space_id)) {
-
-			/* Create the database directory for name, if it does
-			not exist yet */
-
-			fil_create_directory_for_tablename(
-				table_to_truncate->m_tablename);
-
-			if (fil_create_new_single_table_tablespace(
-					table_to_truncate->m_space_id,
-					table_to_truncate->m_tablename,
-					table_to_truncate->m_dir_path,
-					table_to_truncate->m_tablespace_flags,
-					DICT_TF2_USE_TABLESPACE,
-					FIL_IBD_FILE_INITIAL_SIZE)
-					!= DB_SUCCESS) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Failed to create a new tablespace for "
-					"table '%s'",
-					table_to_truncate->m_tablename);
-				/* We ignore this error.
-				Here is the use-case that is valid and can lead
-				to this problem. ?
-				- create table t.... load ... truncate (crash)
-				  restart (checkpoint not done) .... drop
-				- create table t.... load ... truncate (crash)
-				  restart (this time when we read REDO log we
-				  would get 2 entries with same name but
-				  different space-id. First entry is left over
-				  from first crash but because checkpoint was
-				  not done it was left over and so there would
-				  be no tablespace with old space-id. */
-				err = DB_SUCCESS;
-				continue;
-			}
-		}
-
-		ut_ad(fil_tablespace_exists_in_mem(
-			table_to_truncate->m_space_id) == TRUE);
-
-		err = fil_recreate_tablespace(
-			table_to_truncate->m_space_id,
-			table_to_truncate->m_log_flags,
-			table_to_truncate->m_tablespace_flags,
-			table_to_truncate->m_tablename,
-			*table_to_truncate, lsn);
-
-		if (err != DB_SUCCESS) {
-			return(err);
-		}
 
 		table_id_t      new_id;
 		dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);
 
 		err = row_truncate_update_sys_tables_low(
-			table_to_truncate->m_table_id, new_id, TRUE, NULL);
+			srv_tables_to_truncate[i].m_old_table_id, new_id,
+			TRUE, NULL);
 		if (err != DB_SUCCESS) {
-			return(err);
+			break;
 		}
 	}
 
-	ut_ad(err == DB_SUCCESS);
-
-	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
-		delete (srv_tables_to_truncate[i]);
-	}
 	srv_tables_to_truncate.clear();
-
-	log_make_checkpoint_at(LSN_MAX, TRUE);
 
 	return(err);
 }
-
 

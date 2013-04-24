@@ -400,6 +400,26 @@ mtr_read_ulint(
 	return(mach_read_ulint(ptr, type));
 }
 
+/********************************************************//**
+Reads 8 bytes from a file page buffered in the buffer pool.
+@return	value read */
+UNIV_INTERN
+ib_id_t
+mtr_read_ull(
+/*=========*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_8BYTES */
+	mtr_t*		mtr __attribute__((unused)))
+				/*!< in: mini-transaction handle */
+{
+	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(type == MLOG_8BYTES);
+	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_X_FIX));
+
+	return(mach_read_from_8(ptr));
+}
+
 #ifdef UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP
 /**********************************************************//**

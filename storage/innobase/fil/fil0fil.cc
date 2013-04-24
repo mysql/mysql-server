@@ -2028,7 +2028,7 @@ fil_decr_pending_ops(
 
 /********************************************************//**
 Creates the database directory for a table if it does not exist yet. */
-UNIV_INTERN
+static
 void
 fil_create_directory_for_tablename(
 /*===============================*/
@@ -2127,9 +2127,9 @@ fil_op_write_log(
 
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
-MLOG_FILE_TRUNCATE redo record post recovery during server startup. */
-UNIV_INTERN
-dberr_t
+MLOG_FILE_TRUNCATE redo record during recovery. */
+static
+void
 fil_recreate_tablespace(
 /*====================*/
 	ulint			space_id,	/*!< in: space id */
@@ -2150,25 +2150,30 @@ fil_recreate_tablespace(
 	to the tablespace. */
 	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
 
-	err = truncate.truncate(
-		space_id, name, truncate.m_dir_path, flags, true);
+	err = truncate.truncate(space_id, name, truncate.m_dir_path, flags);
 
 	if (err != DB_SUCCESS) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to truncate tablespace %lu when truncating "
-			"the table '%s'", space_id, name);
-		return(err);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"innodb_force_recovery was set to %lu. "
+			"Continuing crash recovery even though we cannot"
+			"access the .ibd file of the tablespace %lu when"
+			"truncating the table '%s' during recovery",
+			srv_force_recovery, space_id, name);
+		return;
 	}
 
 	ulint zip_size = fil_space_get_zip_size(space_id);
 
 	if (zip_size == ULINT_UNDEFINED) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to truncate tablespace %lu when truncating "
-			"the table '%s'", space_id, name);
-		return(DB_ERROR);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"innodb_force_recovery was set to %lu. "
+			"Continuing crash recovery even though the "
+			".ibd file of the table '%s' with tablespace "
+			"%lu is missing",
+			srv_force_recovery, name, space_id);
+		return;
 	}
 
 	/* Clean header */
@@ -2203,11 +2208,12 @@ fil_recreate_tablespace(
 			page_zip.data, NULL);
 
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to truncate tablespace %lu when "
-				"truncating the table '%s'", space_id, name);
-			mem_free(buf);
-			return(err);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"innodb_force_recovery was set to %lu. "
+				"Continuing crash recovery even though we "
+				"failed to clean header of table '%s' for "
+				"tablespace %lu during recovery.",
+				srv_force_recovery, name, space_id);
 		}
 
 		mem_free(buf);
@@ -2231,7 +2237,7 @@ fil_recreate_tablespace(
 		name, space_id, zip_size, flags, format_flags);
 
 	if (err != DB_SUCCESS) {
-		return(err);
+		return;
 	}
 
 	mtr_start(&mtr);
@@ -2291,16 +2297,19 @@ fil_recreate_tablespace(
 		}
 
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to truncate tablespace %lu when "
-				"truncating the table '%s'", space_id, name);
-			return(err);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"innodb_force_recovery was set to %lu. "
+				"Continuing crash recovery even though we "
+				"cannot write page %lu into the .ibd file "
+				"of table '%s' for tablespace %lu during "
+				"recovery.", srv_force_recovery, page_no,
+				name, space_id);
 		}
 	}
 
 	mtr_commit(&mtr);
 
-	return(err);
+	return;
 }
 
 /*******************************************************************//**
@@ -2346,6 +2355,8 @@ fil_op_log_parse_or_replay(
 	ulint		tablespace_flags = 0;
 	ulint		new_name_len;
 	const char*	new_name = NULL;
+	truncate_t 	truncate;
+	new (&truncate) truncate_t;
 
 	/* Step-1: Parse the log records. */
 
@@ -2382,16 +2393,7 @@ fil_op_log_parse_or_replay(
 	{
 		if (type == MLOG_FILE_TRUNCATE) {
 
-			truncate_t* truncate = new truncate_t();
-
-			truncate->m_space_id = space_id;
-			truncate->m_tablespace_flags = tablespace_flags;
-			truncate->m_log_flags = log_flags;
-			truncate->m_tablename = strdup(name);
-
-			truncate->parse(&ptr, &end_ptr, tablespace_flags);
-
-			srv_tables_to_truncate.push_back(truncate);
+			truncate.parse(&ptr, &end_ptr, tablespace_flags);
 
 		} else if (type == MLOG_FILE_RENAME) {
 
@@ -2437,6 +2439,58 @@ fil_op_log_parse_or_replay(
 			ut_a(err == DB_SUCCESS);
 		}
 
+		break;
+
+	case MLOG_FILE_TRUNCATE:
+
+		/* Cache the table-ids of table to truncate for blocking
+		undo locking. */
+		{
+			truncate_t table_to_truncate;
+			new (&table_to_truncate) truncate_t;
+
+			table_to_truncate.m_old_table_id =
+				truncate.m_old_table_id;
+			table_to_truncate.m_new_table_id =
+				truncate.m_new_table_id;
+
+			srv_tables_to_truncate.push_back(table_to_truncate);
+		}
+
+		if (!fil_tablespace_exists_in_mem(space_id)) {
+
+			/* Create the database directory for name, if it does
+			not exist yet */
+
+			fil_create_directory_for_tablename(name);
+
+			mutex_exit(&log_sys->mutex);
+
+			if (fil_create_new_single_table_tablespace(
+					space_id, name, truncate.m_dir_path,
+					tablespace_flags,
+					DICT_TF2_USE_TABLESPACE,
+					FIL_IBD_FILE_INITIAL_SIZE)
+					!= DB_SUCCESS) {
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"innodb_force_recovery was set to %lu. "
+					"Continuing crash recovery even though "
+					"we cannot create a new tablespace.",
+					srv_force_recovery);
+
+				mutex_enter(&log_sys->mutex);
+				break;
+			}
+
+			mutex_enter(&log_sys->mutex);
+		}
+
+		ut_ad(fil_tablespace_exists_in_mem(space_id) == TRUE);
+
+		fil_recreate_tablespace(
+			space_id, log_flags, tablespace_flags, name,
+			truncate, recv_lsn);
 		break;
 
 	case MLOG_FILE_RENAME:
@@ -2493,8 +2547,6 @@ fil_op_log_parse_or_replay(
 		break;
 
 	default:
-		/* Replay of MLOG_FILE_TRUNCATE is done as separate step
-		after REDO/UNDO log are applied and recovery is done. */
 		ut_error;
 	}
 
@@ -6702,15 +6754,19 @@ truncate_t::write(
 	DBUG_EXECUTE_IF("ib_truncate_crash_while_writing_redo_log",
 			DBUG_SUICIDE(););
 
-	/* Table-ID, Number of Indexes and Tablespace directory path-name. */
+	/* Old/New Table-ID, Number of Indexes and Tablespace dir-path-name. */
 	{
 		/* Write the remote directory of the table into mtr log */
 		ulint len = m_dir_path != NULL ? strlen(m_dir_path) + 1 : 0;
 
-		log_ptr = mlog_open(&mtr, 8 + 2 + 2);
+		log_ptr = mlog_open(&mtr, 8 + 8 + 2 + 2);
 
-		/* Write out table-id. */
-		mach_write_to_8(log_ptr, m_table_id);
+		/* Write out old-table-id. */
+		mach_write_to_8(log_ptr, m_old_table_id);
+		log_ptr += 8;
+
+		/* Write out new-table-id. */
+		mach_write_to_8(log_ptr, m_new_table_id);
 		log_ptr += 8;
 
 		/* Write out the number of indexes. */
@@ -6805,15 +6861,18 @@ truncate_t::parse(
 	/* Initial field are parsed by a common routine of REDO logging
 	parsing and so not available for re-parsing. */
 
-	/* Parse and read table-id, number of indexes */
+	/* Parse and read old/new table-id, number of indexes */
 	{
-		if (*end_ptr < *ptr + (8 + 2 + 2)) {
+		if (*end_ptr < *ptr + (8 + 8 + 2 + 2)) {
 			return(false);
 		}
 
 		ut_ad(m_indexes.empty());
 
-		m_table_id = mach_read_from_8(*ptr);
+		m_old_table_id = mach_read_from_8(*ptr);
+		*ptr += 8;
+
+		m_new_table_id = mach_read_from_8(*ptr);
 		*ptr += 8;
 
 		n_indexes = mach_read_from_2(*ptr);
@@ -6905,8 +6964,6 @@ in the memory cache.
 				databasename/tablename format of InnoDB
 @param path			data directory path
 @param flags			tablespace flags
-@param truncate_to_initial_sz	truncate to size that exist when new
-				tablespace is created.
 @return DB_SUCCESS or error */
 dberr_t
 truncate_t::truncate(
@@ -6914,8 +6971,7 @@ truncate_t::truncate(
 	ulint		space_id,
 	const char*	tablename,
 	const char*	dir_path,
-	ulint		flags,
-	bool		truncate_to_initial_sz)
+	ulint		flags)
 {
 	char*		path;
 	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
@@ -6941,7 +6997,7 @@ truncate_t::truncate(
 
 	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
 
-	if (truncate_to_initial_sz) {
+	if (recv_recovery_on) {
 		space->size = node->size = FIL_IBD_FILE_INITIAL_SIZE;
 	}
 
@@ -6971,7 +7027,7 @@ truncate_t::truncate(
 		opened = false;
 	}
 
-	os_offset_t	trunc_size = truncate_to_initial_sz 
+	os_offset_t	trunc_size = recv_recovery_on 
 		? FIL_IBD_FILE_INITIAL_SIZE
 		: space->size;
 
