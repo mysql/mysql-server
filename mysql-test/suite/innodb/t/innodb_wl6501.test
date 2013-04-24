@@ -30,6 +30,7 @@ call mtr.add_suppression("Failed to create a new tablespace for table");
 #    is commenced.
 # 6. Hit crash point while creating indexes.
 # 7. Hit crash point after data is updated to system-table and in-memory dict.
+# 8. Hit crash point before/after log checkpoint is done.
 #
 ################################################################################
 
@@ -375,6 +376,76 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 #
 set session debug = "+d,ib_crash_on_updating_dict_sys_info2";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+truncate table t;
+#
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+select * from t;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+drop table t;
+
+#-----------------------------------------------------------------------------
+#
+# 8. Hit crash point before/after log checkpoint is done.
+#
+--echo "8. Hit crash point before/after log checkpoint is done."
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+	i int, f float, c char,
+	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+#
+set session debug = "+d,ib_crash_before_log_checkpoint1";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+truncate table t;
+#
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+select * from t;
+drop table t;
+#
+#
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+	i int, f float, c char,
+	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+#
+set session debug = "+d,ib_crash_before_log_checkpoint2";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+truncate table t;
+#
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+select * from t;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+drop table t;
+#
+#
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+	i int, f float, c char,
+	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+#
+set session debug = "+d,ib_crash_after_log_checkpoint";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;

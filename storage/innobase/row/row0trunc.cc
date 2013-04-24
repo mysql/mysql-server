@@ -33,6 +33,7 @@ Created 2013-04-12 Sunny Bains
 #include "lock0lock.h"
 #include "fts0fts.h"
 #include "srv0space.h"
+#include "srv0start.h"
 
 /**
 Iterator over the the raw records in an index, doesn't support MVCC. */
@@ -577,21 +578,22 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 
 		/* Waiting for MLOG_FILE_TRUNCATE record is written into
 		redo log before the crash. */
-		DBUG_EXECUTE_IF("crash_before_log_checkpoint",
-				log_buffer_flush_to_disk(););
+		DBUG_EXECUTE_IF("ib_crash_before_log_checkpoint1",
+				DBUG_SUICIDE(););
 
-		DBUG_EXECUTE_IF("crash_before_log_checkpoint", DBUG_SUICIDE(););
+		DBUG_EXECUTE_IF("ib_crash_before_log_checkpoint2",
+				log_buffer_flush_to_disk();
+				os_thread_sleep(2000000);
+				DBUG_SUICIDE(););
 
 		log_make_checkpoint_at(LSN_MAX, TRUE);
 
-		DBUG_EXECUTE_IF("crash_after_log_checkpoint", DBUG_SUICIDE(););
+		DBUG_EXECUTE_IF("ib_crash_after_log_checkpoint",
+				DBUG_SUICIDE(););
 
 		err = truncate_t::truncate(
 			table->space, table->name, table->data_dir_path,
 			flags, false);
-
-		DBUG_EXECUTE_IF("crash_after_truncate_tablespace",
-				DBUG_SUICIDE(););
 	}
 
 	dict_stats_update(table, DICT_STATS_EMPTY_TABLE);
@@ -666,6 +668,61 @@ row_truncate_fts(dict_table_t* table, table_id_t new_id, trx_t* trx)
 }
 
 /**
+Update system table to reflect new table id.
+@param old_table_id		old table id
+@param new_table_id		new table id
+@param reserve_dict_mutex 	if true, acquire/release
+				dict_sys->mutex around call to pars_sql. 
+@param trx			transaction
+@return error code or DB_SUCCESS */
+static __attribute__((warn_unused_result))
+dberr_t
+row_truncate_update_sys_tables_low(
+	ulint	old_table_id,
+	ulint	new_table_id,
+	ibool	reserve_dict_mutex,
+	trx_t*	trx)
+{
+	pars_info_t*	info	= NULL;
+	dberr_t		err 	= DB_SUCCESS;
+	bool		own_trx	= false;
+
+	if (trx == NULL) {
+		trx = trx_allocate_for_background();
+		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+		own_trx = true;
+	}
+
+	/* Scan the SYS_XXXX table and update to reflect new table-id. */
+	info = pars_info_create();
+	pars_info_add_ull_literal(info, "old_id", old_table_id);
+	pars_info_add_ull_literal(info, "new_id", new_table_id);
+
+	err = que_eval_sql(
+		info,
+		"PROCEDURE RENUMBER_TABLE_ID_PROC () IS\n"
+		"BEGIN\n"
+		"UPDATE SYS_TABLES"
+		" SET ID = :new_id\n"
+		" WHERE ID = :old_id;\n"
+		"UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
+		" WHERE TABLE_ID = :old_id;\n"
+		"UPDATE SYS_INDEXES"
+		" SET TABLE_ID = :new_id\n"
+		" WHERE TABLE_ID = :old_id;\n"
+		"END;\n", reserve_dict_mutex, trx);
+
+	RECOVERY_CRASH(101);
+
+	if (own_trx) {
+		trx_commit_for_mysql(trx);
+		trx_free_for_background(trx);
+	}
+
+	return(err);
+}
+
+/**
 Truncatie also results in assignment of new table id, update the system
 SYSTEM TABLES with the new id.
 @param table,			table being truncated
@@ -682,29 +739,11 @@ row_truncate_update_system_tables(
 	bool		has_internal_doc_id,
 	trx_t*		trx)
 {
-	pars_info_t*	info	= NULL;
 	dberr_t		err	= DB_SUCCESS;
 
 	ut_a(!dict_table_is_temporary(table));
 
-	info = pars_info_create();
-	pars_info_add_ull_literal(info, "old_id", table->id);
-	pars_info_add_ull_literal(info, "new_id", new_id);
-
-	err = que_eval_sql(
-		info,
-		"PROCEDURE RENUMBER_TABLE_ID_PROC () IS\n"
-		"BEGIN\n"
-		"UPDATE SYS_TABLES"
-		" SET ID = :new_id\n"
-		" WHERE ID = :old_id;\n"
-		"UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
-		" WHERE TABLE_ID = :old_id;\n"
-		"UPDATE SYS_INDEXES"
-		" SET TABLE_ID = :new_id\n"
-		" WHERE TABLE_ID = :old_id;\n"
-		"END;\n"
-		, FALSE, trx);
+	err = row_truncate_update_sys_tables_low(table->id, new_id, FALSE, trx);
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_before_fts_truncate", err = DB_ERROR;);
 
@@ -1244,9 +1283,7 @@ row_truncate_table_during_server_startup(ulint lsn)
 	dberr_t	err = DB_SUCCESS;
 
 	/* Complete truncate of table that we scanned during recovery phase. */
-	for (ulint i = 0;
-	     i < srv_tables_to_truncate.size() && err == DB_SUCCESS;
-	     i++) {
+	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
 
 		truncate_t* table_to_truncate = srv_tables_to_truncate[i];
 
@@ -1300,16 +1337,29 @@ row_truncate_table_during_server_startup(ulint lsn)
 			table_to_truncate->m_tablespace_flags,
 			table_to_truncate->m_tablename,
 			*table_to_truncate, lsn);
-	}
 
-	if (err == DB_SUCCESS) {
-
-		for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
-			delete (srv_tables_to_truncate[i]);
+		if (err != DB_SUCCESS) {
+			return(err);
 		}
 
-		srv_tables_to_truncate.clear();
+		table_id_t      new_id;
+		dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);
+
+		err = row_truncate_update_sys_tables_low(
+			table_to_truncate->m_table_id, new_id, TRUE, NULL);
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 	}
+
+	ut_ad(err == DB_SUCCESS);
+
+	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
+		delete (srv_tables_to_truncate[i]);
+	}
+	srv_tables_to_truncate.clear();
+
+	log_make_checkpoint_at(LSN_MAX, TRUE);
 
 	return(err);
 }

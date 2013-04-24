@@ -698,5 +698,64 @@ i	f	c
 2	2.2	b
 3	3.3	c
 drop table t;
+"8. Hit crash point before/after log checkpoint is done."
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_before_log_checkpoint1";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+drop table t;
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_before_log_checkpoint2";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+drop table t;
+use test;
+set global innodb_file_per_table = 1;
+create table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+set session debug = "+d,ib_crash_after_log_checkpoint";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t;
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;

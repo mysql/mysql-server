@@ -2340,6 +2340,10 @@ row_ins_clust_index_entry_low(
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
 	}
+	if (srv_tables_to_truncate.size() > 0) {
+		flags |= BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG; 
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
@@ -2638,7 +2642,11 @@ row_ins_sec_index_entry_low(
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
 	}
-
+	if (srv_tables_to_truncate.size() > 0) {
+		flags |= BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG; 
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
+ 
 	/* Disable insert buffering for temp-table indexes */
 	if (!dict_table_is_temporary(index->table)) {
 		search_mode |= BTR_INSERT;
