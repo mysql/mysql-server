@@ -5026,11 +5026,8 @@ innobase_update_foreign_cache(
 	ha_innobase_inplace_ctx*	ctx)
 {
 	dict_table_t*	user_table;
-	dberr_t		err = DB_SUCCESS;
 
 	DBUG_ENTER("innobase_update_foreign_cache");
-
-	ut_ad(mutex_own(&dict_sys->mutex));
 
 	user_table = ctx->old_table;
 
@@ -5063,28 +5060,9 @@ innobase_update_foreign_cache(
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
-	dict_names_t	fk_tables;
-
-	err = dict_load_foreigns(user_table->name,
-				 ctx->col_names, false, true,
-				 DICT_ERR_IGNORE_NONE,
-				 fk_tables);
-
-	while (!fk_tables.empty()) {
-		dict_table_t*	table;
-		const char*	table_name = fk_tables.top();
-		fk_tables.pop();
-
-		table = dict_table_open_on_name(table_name, TRUE, FALSE,
-					DICT_ERR_IGNORE_NONE);
-
-		if (table == NULL && thr_get_trx(ctx->thr)->check_foreigns) {
-			ib_logf(IB_LOG_LEVEL_WARN, "Failed to open table '%s'",
-				table_name);
-		}
-	}
-
-	DBUG_RETURN(err);
+	DBUG_RETURN(dict_load_foreigns(user_table->name,
+				       ctx->col_names, false, true,
+				       DICT_ERR_IGNORE_NONE));
 }
 
 /** Commit the changes made during prepare_inplace_alter_table()
@@ -6019,9 +5997,6 @@ ha_innobase::commit_inplace_alter_table(
 			because WL#6049 (FK MDL) has not been
 			implemented yet. */
 			ctx->old_table->to_be_dropped = true;
-
-			DBUG_PRINT("to_be_dropped",
-				   ("table: %s", ctx->old_table->name));
 
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
