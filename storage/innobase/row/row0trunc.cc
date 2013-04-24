@@ -477,11 +477,17 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 	root_page_no = dict_recreate_index_tree(m_table, pcur, mtr);
 
 #ifdef UNIV_DEBUG
-	for (dict_index_t* index = UT_LIST_GET_FIRST(m_table->indexes);
-	     index != NULL;
-	     index = UT_LIST_GET_NEXT(indexes, index)) {
+	{
+		ulint		len;
+		const byte*	field;
+		ulint		index_type;
 
-		ulint index_type = index->type;
+		field = rec_get_nth_field_old(
+			btr_pcur_get_rec(pcur), DICT_FLD__SYS_INDEXES__TYPE,
+			&len);
+		ut_ad(len == 4);
+
+		index_type = mach_read_from_4(field);
 
 		if (index_type & DICT_CLUSTERED) {
 			/* Clustered index */

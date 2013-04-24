@@ -1034,6 +1034,10 @@ dict_recreate_index_tree(
 			index->page = root_page_no;
 
 			return(root_page_no);
+		} else if (index->id == index_id && (index->type & DICT_FTS)) {
+			/* We ignore creation of FTS index. It is created
+			separately. */
+			return(root_page_no);
 		}
 	}
 
