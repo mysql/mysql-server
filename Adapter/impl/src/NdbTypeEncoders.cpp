@@ -272,7 +272,7 @@ Handle<Value> outOfRange(const char * column) {
 }
 
 /* bigendian utilities, used with the wl#946 temporal types.
-   Derived from ndb/src/util/NdbSqlUtil.cpp
+   Derived from ndb/src/comon/util/NdbSqlUtil.cpp
 */
 static uint64_t unpack_bigendian(const char * buf, unsigned int len) {
   uint64_t val = 0;
@@ -280,7 +280,7 @@ static uint64_t unpack_bigendian(const char * buf, unsigned int len) {
   int shift = 0;
   while (i != 0) {
     i--;
-    uint64_t v = buf[i];
+    uint64_t v = (uint8_t) buf[i];
     val += (v << shift);
     shift += 8;
   }
@@ -810,7 +810,7 @@ Handle<Value> Datetime2Reader(const NdbDictionary::Column *col,
   tm.minute = (packedValue & 0x3F);       packedValue >>= 6;
   tm.hour   = (packedValue & 0x1F);       packedValue >>= 5;
   tm.day    = (packedValue & 0x1F);       packedValue >>= 5;
-  int yrMo  = (packedValue & 0x03FFFF);   /* packedValue >>= 17; */
+  int yrMo  = (packedValue & 0x01FFFF);  
   tm.year = yrMo / 13;
   tm.month = yrMo % 13;
   return scope.Close(tm.toJs());
@@ -820,14 +820,14 @@ Handle<Value> Datetime2Writer(const NdbDictionary::Column * col,
                               Handle<Value> value, 
                               char *buffer, size_t offset) {
   TimeHelper tm(value);
-  uint64_t packedValue;
+  uint64_t packedValue = 0;
   if(tm.valid) {
     packedValue = 1;                            packedValue <<= 17;
     packedValue |= (tm.year * 13 + tm.month);   packedValue <<= 5;
     packedValue |= tm.day;                      packedValue <<= 5;
-    packedValue |= tm.hour;                     packedValue <<= 5;
+    packedValue |= tm.hour;                     packedValue <<= 6;
     packedValue |= tm.minute;                   packedValue <<= 6;
-    packedValue |= tm.second;                   /* packedValue <<= 6; */
+    packedValue |= tm.second;                   
     pack_bigendian(packedValue, buffer+offset, 5);
     writeFraction(col, tm.microsec, buffer+offset+5);
   }
@@ -883,27 +883,38 @@ Handle<Value> TimeWriter(const NdbDictionary::Column * col,
 }
 
 
-// Time2.  Uses TimeHelper.
+/* Time2.  Uses TimeHelper.
+  1 bit sign   (1= non-negative, 0= negative)
+  1 bit unused  (reserved for INTERVAL type)
+ 10 bits hour   (0-838)
+  6 bits minute (0-59) 
+  6 bits second (0-59) 
+  --------------------
+  24 bits = 3 bytes
+*/
 Handle<Value> Time2Reader(const NdbDictionary::Column *col, 
                           char *buffer, size_t offset) {
   HandleScope scope;
   TimeHelper tm; 
-  int sqlTime = (int) unpack_bigendian(buffer+offset, 3);
+  int packedValue = (int) unpack_bigendian(buffer+offset, 3);
+  tm.second = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.minute = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.hour   = (packedValue & 0x03FF);     packedValue >>= 10;
+  tm.sign   = (packedValue > 0 ? 1 : -1);
   tm.microsec = readFraction(col, buffer+offset+3);
-  tm.factor_HHMMSS(sqlTime);
   return scope.Close(tm.toJs());
 }
 
 Handle<Value> Time2Writer(const NdbDictionary::Column * col,
                           Handle<Value> value, char *buffer, size_t offset) {
   TimeHelper tm(value);
-  int dtval = 0;
+  int packedValue = 0;
   if(tm.valid) {
-    dtval += tm.hour;      dtval *= 100;
-    dtval += tm.minute;    dtval *= 100;
-    dtval += tm.second;  
-    dtval *= tm.sign;
-    pack_bigendian(dtval, buffer+offset, 3);
+    packedValue = (tm.sign > 0 ? 1 : 0);         packedValue <<= 11;
+    packedValue |= tm.hour;                      packedValue <<= 6;
+    packedValue |= tm.minute;                    packedValue <<= 6;
+    packedValue |= tm.second;
+    pack_bigendian(packedValue, buffer+offset, 3);
     writeFraction(col, tm.microsec, buffer+offset+3);
   }  
   
