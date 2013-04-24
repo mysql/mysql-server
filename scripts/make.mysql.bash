@@ -4,16 +4,26 @@ shopt -s compat31 2> /dev/null
 
 function usage() {
     echo "make.mysql.bash - build mysql with the fractal tree"
-    echo "--git_tag=$git_tag --git_server=$git_server"
+    echo "--git_tag=$git_tag"
     echo "--mysqlbuild=$mysqlbuild"
+    echo "--tokudb_version=$tokudb_version"
     echo "--mysql=$mysql"
     echo "--build_type=$build_type"
     echo "--build_debug=$build_debug"
     echo "--build_tgz=$build_tgz"
     echo "--build_rpm=$build_rpm"
-    echo "--cmake_build_type=$cmake_build_type"
     echo "--cc=$cc --cxx=$cxx"
-    echo "--do_s3=$do_s3 --do_make_check=$do_make_check"
+    echo "--do_s3=$do_s3"
+    echo "--do_make_check=$do_make_check"
+    echo "example: build from the tokudb-7.0.1 git tag"
+    echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.1-linux-x86_64"
+    echo "    make.mysql.bash --mysqlbuild=mariadb-5.5.30-tokudb-7.0.1-linux-x86_64"
+    echo "    make.mysql.bash --git_tag=tokudb-7.0.1 --mysql=mysql-5.5.30"
+    echo "example: build from the HEAD of the repos"
+    echo "    make.mysql.bash --mysql=mysql-5.5.30 --tokudb_version=my_tokudb_version"
+    echo "    make.mysql.bash --mysql=mariadb-5.5.30 --tokudb_versio=my_tokudb_verison"
+    echo "example: build from a branch"
+    echo "    make.mysql.bash --mysql_tree=my_mysql_branch --ftengine_tree=my_ftengine_branch"
     return 1
 }
 
@@ -46,26 +56,37 @@ function github_download() {
             --header "Authorization:\\ token\\ $github_token" \
             --location https://api.github.com/repos/$repo/tarball/$rev \
             --output $dest.tar.gz
+        if [ $? != 0 ] ; then return; fi
         tar --extract \
             --gzip \
             --directory=$dest \
             --strip-components=1 \
             --file $dest.tar.gz
+        if [ $? != 0 ] ; then return; fi
         rm -f $dest.tar.gz
     elif [ ! -z $github_user ] ; then
         retry curl \
             --user $github_user \
             --location https://api.github.com/repos/$repo/tarball/$rev \
             --output $dest.tar.gz
+        if [ $? != 0 ] ; then return; fi
         tar --extract \
             --gzip \
             --directory=$dest \
             --strip-components=1 \
             --file $dest.tar.gz
+        if [ $? != 0 ] ; then return; fi
         rm -f $dest.tar.gz
     else
         tempdir=$(mktemp -d -p $PWD)
         retry git clone git@github.com:${repo}.git $tempdir
+        if [ $? != 0 ] ; then return; fi
+        if [ $rev != HEAD ] ; then
+            pushd $tempdir
+            git checkout $rev; exitcode=$?
+            popd
+            if [ $exitcode != 0 ] ; then return $exitcode; fi
+        fi
 
         # export the right branch or tag
         (cd $tempdir ;
@@ -74,9 +95,18 @@ function github_download() {
                 $rev) | \
             tar --extract \
                 --directory $dest
-        if [ $? != 0 ] ; then exit 1; fi
-
+        if [ $? != 0 ] ; then return; fi
         rm -rf $tempdir
+    fi
+}
+
+function git_tree() {
+    local a=$1; shift
+    local b=$1; shift
+    if [ ! -z $b ] ; then
+        echo $b
+    else
+        echo $a;
     fi
 }
 
@@ -93,7 +123,7 @@ function get_ncpus() {
 function build_jemalloc() {
     if [ ! -d jemalloc ] ; then
         # get the jemalloc repo jemalloc
-        github_download Tokutek/jemalloc $git_tag jemalloc
+        github_download Tokutek/jemalloc $(git_tree $git_tag $jemalloc_tree) jemalloc
         if [ $? != 0 ] ; then exit 1; fi
         pushd jemalloc
         if [ $? != 0 ] ; then exit 1; fi
@@ -110,7 +140,7 @@ function build_fractal_tree() {
     if [ ! -d ft-index ] ; then
 
         # get the ft-index repo
-        github_download Tokutek/ft-index $git_tag ft-index
+        github_download Tokutek/ft-index $(git_tree $git_tag $ftindex_tree) ft-index
         if [ $? != 0 ] ; then exit 1; fi
 
         # get the commit id of the ft-index repo
@@ -415,19 +445,19 @@ function build_mysql_src() {
 
         # get the mysql repo
         if [ ! -d $mysql_distro ] ; then
-            github_download Tokutek/$mysql_distro $git_tag $mysqlsrc
+            github_download Tokutek/$mysql_distro $(git_tree $git_tag $mysql_tree) $mysqlsrc
             if [ $? != 0 ] ; then exit 1; fi
         fi
 
 	# get the hot backup source
         if [ ! -d backup-$build_type ] ; then
-            github_download Tokutek/backup-$build_type $git_tag backup-$build_type
+            github_download Tokutek/backup-$build_type $(git_tree $git_tag $backup_tree) backup-$build_type
             if [ $? != 0 ] ; then exit 1; fi
         fi
 
         # get the ft-engine repo
         if [ ! -d ft-engine ] ; then
-            github_download Tokutek/ft-engine $git_tag ft-engine
+            github_download Tokutek/ft-engine $(git_tree $git_tag $ftengine_tree) ft-engine
             if [ $? != 0 ] ; then exit 1; fi
         fi
 
@@ -522,6 +552,8 @@ function build_mysql_release() {
     fi
 }
 
+# parse a mysqlbuild string and extract the mysql_distro, mysql_version, tokudb_distro, tokudb_version, target_system, and target_arch
+# compute build_type, build_debug, and git_tag
 function parse_mysqlbuild() {
     local mysqlbuild=$1
     local exitcode
@@ -542,7 +574,7 @@ function parse_mysqlbuild() {
         fi
         if [[ $tokudb_version =~ (.*)-debug$ ]] ; then
             build_debug=1
-            tokudb_verison=${BASH_REMATCH[1]}
+            tokudb_version=${BASH_REMATCH[1]}
         else
             build_debug=0
         fi
@@ -566,7 +598,6 @@ system=$(uname -s | tr '[:upper:]' '[:lower:]')
 arch=$(uname -m | tr '[:upper:]' '[:lower:]')
 makejobs=$(get_ncpus)
 
-git_server=git@github.com
 git_tag=HEAD
 mysqlbuild=
 mysql=mysql-5.5.30
@@ -578,8 +609,14 @@ build_debug=0
 build_type=community
 build_tgz=1
 build_rpm=0
+tokudb_version=
 tokudb_patches=1
 cmake_build_type=RelWithDebInfo
+mysql_tree=
+ftengine_tree=
+ftindex_tree=
+jemalloc_tree=
+backup_tree=
 
 while [ $# -gt 0 ] ; do
     arg=$1; shift
@@ -595,8 +632,7 @@ done
 if [ ! -z $mysqlbuild ] ; then
     parse_mysqlbuild $mysqlbuild
     if [ $? != 0 ] ; then exit 1; fi
-else
-    # set tokudb version
+elif [ -z $tokudb_version ] ; then
     if [ $git_tag = HEAD ] ; then
         tokudb_version=$(date +%s)
     elif [[ $git_tag =~ tokudb-(.*) ]] ; then
@@ -622,8 +658,8 @@ else
     exit 1
 fi
 
-# set build dir
 builddir=build-tokudb-$tokudb_version
+if [ -d builds ] ; then builddir=builds/$builddir; fi
 if [ ! -d $builddir ] ; then mkdir $builddir; fi
 pushd $builddir
 
