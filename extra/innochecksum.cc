@@ -172,6 +172,7 @@ get_page_size(
 
 	if (*physical_page_size == 0) {
 		/* uncompressed page. */
+		DBUG_ASSERT(*physical_page_size >= UNIV_PAGE_SIZE_MIN);
 		*physical_page_size= *logical_page_size;
 		*compressed = FALSE;
 	} else {
@@ -294,12 +295,12 @@ ulong read_file(
 {
 	ulong bytes = 0;
 
-	DBUG_ASSERT(physical_page_size >= UNIV_PAGE_SIZE_MIN);
+	DBUG_ASSERT(physical_page_size >= UNIV_ZIP_SIZE_MIN);
 
 	if (partial_page_read) {
-		buf += UNIV_PAGE_SIZE_MIN;
-		physical_page_size -= UNIV_PAGE_SIZE_MIN;
-		bytes = UNIV_PAGE_SIZE_MIN;
+		buf += UNIV_ZIP_SIZE_MIN;
+		physical_page_size -= UNIV_ZIP_SIZE_MIN;
+		bytes = UNIV_ZIP_SIZE_MIN;
 	}
 
 	return bytes + fread(buf, 1, physical_page_size, fil_in);
@@ -451,7 +452,7 @@ update_checksum(
 						  static_cast<srv_checksum_algorithm_t>(write_check));
 
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
-		DBUG_PRINT("info",("page %llu: Updated checksum = %u;\n",
+		DBUG_PRINT("info", ("page %llu: Updated checksum = %u;\n",
 			   cur_page_num, checksum));
 	} else {
 		/* page is uncompressed. */
@@ -693,7 +694,7 @@ parse_page(
 		page_type.n_fil_page_type_xdes++;
 		if (page_type_dump) {
 			fprintf(file, "#::%8llu\t\t|\t\tExtent descriptor "
-				"page\t|\t%s\n", cur_page_num, str);
+				"page\t\t|\t%s\n", cur_page_num, str);
 		}
 		break;
 
@@ -717,7 +718,7 @@ parse_page(
 		page_type.n_fil_page_type_zblob2++;
 		if (page_type_dump) {
 			fprintf(file, "#::%8llu\t\t|\t\tSubsequent Compressed "
-				"BLOB page\t\t|\t%s\n", cur_page_num, str);
+				"BLOB page\t|\t%s\n", cur_page_num, str);
 		}
 			break;
 
@@ -1051,11 +1052,6 @@ int main(
 		skip_page = FALSE;
 
 		DBUG_PRINT("info", ("Filename = %s", filename));
-		if (*filename == '\0') {
-			fprintf(stderr, "Error: File name missing\n");
-
-			DBUG_RETURN(1);
-		}
 		if (*filename == '-') {
 			/* read from stdin. */
 			fil_in = stdin;
@@ -1102,14 +1098,14 @@ int main(
 #endif
 
 		/* Read the minimum page size. */
-		bytes = fread(buf, 1, UNIV_PAGE_SIZE_MIN, fil_in);
+		bytes = fread(buf, 1, UNIV_ZIP_SIZE_MIN, fil_in);
 		partial_page_read = 1;
 
-		if (bytes != UNIV_PAGE_SIZE_MIN) {
+		if (bytes != UNIV_ZIP_SIZE_MIN) {
 			fprintf(stderr, "Error: Was not able to read the "
 				"minimum page size ");
 			fprintf(stderr, "of %d bytes.  Bytes read was %lu\n",
-				UNIV_PAGE_SIZE_MIN, bytes);
+				UNIV_ZIP_SIZE_MIN, bytes);
 
 			DBUG_RETURN(1);
 		}

@@ -7,9 +7,14 @@ SET GLOBAL innodb_file_format='barracuda';
 CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
 CREATE INDEX idx1 ON tab1(c2(10));
 INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+insert into t1 values(1,"i");
+insert into t1 values(2,"am");
+insert into t1 values(3,"compressed table");
 # Shutdown the Server
 # Server Default checksum = innodb
-[1]: check the innochecksum without --strict-check
+[1a]: check the innochecksum when file doesn't exists
+[1b]: check the innochecksum without --strict-check
 [2]: check the innochecksum with full form --strict-check=Innodb
 [3]: check the innochecksum with short form -C Innodb
 [4]: check the innochecksum with --no-check ignores algorithm check, warning is expected
@@ -26,7 +31,9 @@ INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 [12]: (negative scenario) check the innochecksum with short form -C none
 # when server Default checksum=InnoDB
 [13]: check strict-check with invalid values
-[14]: when server default checksum=InnoDB rewrite new checksum=crc32 with innochecksum
+[14a]: when server default checksum=InnoDB rewrite new checksum=innodb with innochecksum
+# Also check the long form of wite option.
+[14b]: when server default checksum=InnoDB rewrite new checksum=crc32 with innochecksum
 # Also check the long form of wite option.
 # start the server with innodb_checksum_algorithm=InnoDB
 INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
@@ -44,6 +51,7 @@ c1	c2
 1	Innochecksum InnoDB1
 2	Innochecksum CRC32
 3	Innochecksum None
+DROP TABLE t1;
 # Stop the server
 [16]: rewrite into new checksum=crc32 with innochecksum
 # Restart the DB server with  innodb_checksum_algorithm=crc32
@@ -328,6 +336,27 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,8);
 SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 SELECT * FROM tab2 ORDER BY col_7;
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+SELECT @@innodb_compression_level;
+@@innodb_compression_level
+6
+SET GLOBAL innodb_compression_level=0;
+SELECT @@innodb_compression_level;
+@@innodb_compression_level
+0
+CREATE TABLE t3 (j LONGBLOB) ENGINE = InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+INSERT INTO t3 VALUES (repeat('abcdefghijklmnopqrstuvwxyz',200));
+INSERT INTO t3 SELECT * from t3;
+INSERT INTO t3 SELECT * from t3;
+INSERT INTO t3 SELECT * from t3;
+INSERT INTO t3 SELECT * from t3;
+INSERT INTO t3 SELECT * from t3;
+INSERT INTO t3 SELECT * from t3;
+INSERT INTO t3 SELECT * from t3;
+INSERT INTO t3 SELECT * from t3;
+INSERT INTO t3 SELECT * from t3;
+INSERT INTO t3 SELECT * from t3;
 # stop the server
 [27]: Check the page type summary with shortform for tab1.ibd
 
@@ -418,7 +447,9 @@ Filename::tab#.ibd
 # seek value is larger than file size.
 [34]: check the invalid upper bound values for options, allow-mismatches, end-page, start-page and page.
 # innochecksum will fail with error code: 1
-[35]:# check the both short and long options for "help"
+[35(a)]:# check the both short and long options for "help"
+[35(b)]:# Run the innochecksum when file isn't provided.
+# It will print the innochecksum usage similar to --help option.
 innochecksum Ver #.#.#
 Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
@@ -465,12 +496,78 @@ allow-mismatches                  0
 write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
-[36]: check the both short and long options for "count"
+[36]: check the both short and long options for "count" and exit
 Number of pages:#
 Number of pages:#
+[37]:# Print the version of innochecksum and exit
+innochecksum Ver #.#.# [38]:# Check the innochecksum for compressed table t1 with different key_block_size
+# Restart the DB server
+DROP TABLE IF EXISTS t1;
+# Test for KEY_BLOCK_SIZE=1
+===> Testing  size=1
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# Shutdown the Server
+# Restart the DB server
+select * from t1;
+drop table t1;
+# Test for KEY_BLOCK_SIZE=2
+===> Testing  size=2
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# Shutdown the Server
+# Restart the DB server
+select * from t1;
+drop table t1;
+# Test for for KEY_BLOCK_SIZE=4
+===> Testing  size=4
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# Shutdown the Server
+# Restart the DB server
+select * from t1;
+drop table t1;
+# Test for for KEY_BLOCK_SIZE=8
+===> Testing  size=8
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# Shutdown the Server
+# Restart the DB server
+select * from t1;
+drop table t1;
+# Test for KEY_BLOCK_SIZE=16
+===> Testing  size=16
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+# Shutdown the Server
+# Restart the DB server
+select * from t1;
+drop table t1;
+# Test[38] completed
 # Start the server
 # Restart the server
 DROP TABLE tab1;
 DROP TABLE tab2;
+DROP TABLE t3;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
