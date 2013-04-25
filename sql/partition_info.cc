@@ -22,7 +22,7 @@
                                            // NOT_A_PARTITION_ID
 #include "partition_info.h"
 #include "sql_parse.h"                        // test_if_data_home_dir
-#include "sql_acl.h"                          // *_ACL
+#include "auth_common.h"                      // *_ACL
 #include "table.h"                            // TABLE_LIST
 #include "my_bitmap.h"                        // bitmap*
 #include "sql_base.h"                         // fill_record

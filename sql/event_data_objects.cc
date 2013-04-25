@@ -24,7 +24,7 @@
                                            // date_add_interval,
                                            // calc_time_diff
 #include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
-#include "sql_acl.h"    // EVENT_ACL, SUPER_ACL
+#include "auth_common.h"                   // EVENT_ACL, SUPER_ACL
 #include "sp.h"         // load_charset, load_collation
 #include "events.h"
 #include "event_data_objects.h"

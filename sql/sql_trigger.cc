@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 #include "sql_table.h"                        // build_table_filename,
                                               // check_n_cut_mysql50_prefix
 #include "sql_db.h"                        // get_default_db_collation
-#include "sql_acl.h"                       // *_ACL, is_acl_user
+#include "auth_common.h"                   // *_ACL, is_acl_user
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "sp_cache.h"                     // sp_invalidate_cache
 #include <mysys_err.h>
