@@ -96,7 +96,7 @@ function github_download() {
             --file $dest.tar.gz
         if [ $? != 0 ] ; then return; fi
         rm -f $dest.tar.gz
-    else
+    elif [ $github_use_ssh != 0 ] ; then
         tempdir=$(mktemp -d -p $PWD)
         retry git clone git@github.com:${repo}.git $tempdir
         if [ $? != 0 ] ; then return; fi
@@ -115,6 +115,17 @@ function github_download() {
                 --directory $dest
         if [ $? != 0 ] ; then return; fi
         rm -rf $tempdir
+    else
+        retry curl \
+            --location https://api.github.com/repos/$repo/tarball/$rev \
+            --output $dest.tar.gz
+        tar --extract \
+            --gzip \
+            --directory=$dest \
+            --strip-components=1 \
+            --file $dest.tar.gz
+        if [ $? != 0 ] ; then return; fi
+        rm -f $dest.tar.gz
     fi
 }
 
@@ -636,6 +647,7 @@ system=$(uname -s | tr '[:upper:]' '[:lower:]')
 arch=$(uname -m | tr '[:upper:]' '[:lower:]')
 makejobs=$(get_ncpus)
 
+github_use_ssh=0
 git_tag=HEAD
 mysqlbuild=
 mysql=mysql-5.5.30
