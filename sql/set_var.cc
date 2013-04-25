@@ -32,7 +32,7 @@
                         // date_time_format_make
 #include "derror.h"
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
-#include "sql_acl.h"    // SUPER_ACL
+#include "auth_common.h"  // SUPER_ACL
 #include "sql_select.h" // free_underlaid_joins
 #include "sql_show.h"   // make_default_log_name, append_identifier
 #include "sql_view.h"   // updatable_views_with_limit_typelib
@@ -574,7 +574,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
   }
 
 err:
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  free_underlaid_joins(thd, thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 

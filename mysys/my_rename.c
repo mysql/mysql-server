@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,26 +27,6 @@ int my_rename(const char *from, const char *to, myf MyFlags)
   DBUG_ENTER("my_rename");
   DBUG_PRINT("my",("from %s to %s MyFlags %d", from, to, MyFlags));
 
-#if defined(HAVE_FILE_VERSIONS)
-  {				/* Check that there isn't a old file */
-    int save_errno;
-    MY_STAT my_stat_result;
-    save_errno=my_errno;
-    if (my_stat(to,&my_stat_result,MYF(0)))
-    {
-      my_errno=EEXIST;
-      error= -1;
-      if (MyFlags & MY_FAE+MY_WME)
-      {
-        char errbuf[MYSYS_STRERROR_SIZE];
-        my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG), from, to,
-                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
-      }
-      DBUG_RETURN(error);
-    }
-    my_errno=save_errno;
-  }
-#endif
 #if defined(__WIN__)
   if(!MoveFileEx(from, to, MOVEFILE_COPY_ALLOWED|
                            MOVEFILE_REPLACE_EXISTING))

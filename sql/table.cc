@@ -20,7 +20,6 @@
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "table.h"
-#include "frm_crypt.h"           // get_crypt_for_frm
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
                                                 // primary_key_name
@@ -29,7 +28,8 @@
 #include "strfunc.h"                            // unhex_type2
 #include "sql_partition.h"       // mysql_unpack_partition,
                                  // fix_partition_func, partition_info
-#include "sql_acl.h"             // *_ACL, acl_getroot_no_password
+#include "auth_common.h"         // acl_getroot
+                                 // *_ACL, acl_getroot_no_password
 #include "sql_base.h"            // release_table_share
 #include "sql_derived.h"
 #include <m_ctype.h>
@@ -1220,13 +1220,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     share->system= 1;				/* one-record-database */
-#ifdef HAVE_CRYPTED_FRM
-  else if (*(head+26) == 2)
-  {
-    crypted= get_crypt_for_frm();
-    share->crypted= 1;
-  }
-#endif
 
   record_offset= (ulong) (uint2korr(head+6)+
                           ((uint2korr(head+14) == 0xffff ?
@@ -1475,14 +1468,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;                                   /* purecov: inspected */
 
   mysql_file_seek(file, pos+288, MY_SEEK_SET, MYF(0));
-#ifdef HAVE_CRYPTED_FRM
-  if (crypted)
-  {
-    crypted->decode((char*) forminfo+256,288-256);
-    if (sint2korr(forminfo+284) != 0)		// Should be 0
-      goto err;                                 // Wrong password
-  }
-#endif
 
   share->fields= uint2korr(forminfo+258);
   pos= uint2korr(forminfo+260);   /* Length of all screens */
@@ -1515,14 +1500,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
-#ifdef HAVE_CRYPTED_FRM
-  if (crypted)
-  {
-    crypted->decode((char*) disk_buff,read_length);
-    delete crypted;
-    crypted=0;
-  }
-#endif
+
   strpos= disk_buff+pos;
 
   share->intervals= (TYPELIB*) (field_ptr+share->fields+1);
@@ -3874,7 +3852,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
   if (!field_translation && merge_underlying_list)
   {
     Field_translator *transl;
-    SELECT_LEX *select= &view->select_lex;
+    SELECT_LEX *select= view->select_lex;
     Item *item;
     TABLE_LIST *tbl;
     List_iterator_fast<Item> it(select->item_list);
@@ -3914,12 +3892,12 @@ bool TABLE_LIST::setup_underlying(THD *thd)
     /* TODO: use hash for big number of fields */
 
     /* full text function moving to current select */
-    if (view->select_lex.ftfunc_list->elements)
+    if (view->select_lex->ftfunc_list->elements)
     {
       Item_func_match *ifm;
       SELECT_LEX *current_select= thd->lex->current_select;
       List_iterator_fast<Item_func_match>
-        li(*(view->select_lex.ftfunc_list));
+        li(*(view->select_lex->ftfunc_list));
       while ((ifm= li++))
         current_select->ftfunc_list->push_front(ifm);
     }
@@ -4801,7 +4779,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
                                Name_resolution_context *context)
 {
-  bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
+  bool save_wrapper= thd->lex->select_lex->no_wrap_view_item;
   Item *field= *field_ref;
   DBUG_ENTER("create_view_field");
 
@@ -6294,7 +6272,7 @@ bool TABLE_LIST::handle_derived(LEX *lex,
 
 st_select_lex_unit *TABLE_LIST::get_unit() const
 {
-  return (view ? &view->unit : derived);
+  return (view ? view->unit : derived);
 }
 
 

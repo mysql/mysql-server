@@ -542,11 +542,11 @@ update_sum_func(Item_sum **func_ptr)
 */
 
 bool
-copy_funcs(Item **func_ptr, const THD *thd)
+copy_funcs(Func_ptr_array *func_ptr, const THD *thd)
 {
-  Item *func;
-  for (; (func = *func_ptr) ; func_ptr++)
+  for (size_t ix= 0; ix < func_ptr->size(); ++ix)
   {
+    Item *func= func_ptr->at(ix);
     func->save_in_result_field(1);
     /*
       Need to check the THD error state because Item::val_xxx() don't
@@ -796,17 +796,12 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
     op->set_write_func(end_write);
     if (tmp_tbl->precomputed_group_by)
     {
-      /*
-        A preceding call to create_tmp_table in the case when loose
-        index scan is used guarantees that
-        TMP_TABLE_PARAM::items_to_copy has enough space for the group
-        by functions. It is OK here to use memcpy since we copy
-        Item_sum pointers into an array of Item pointers.
-      */
-      memcpy(tmp_tbl->items_to_copy + tmp_tbl->func_count,
-             join->sum_funcs,
-             sizeof(Item*)*tmp_tbl->sum_func_count);
-      tmp_tbl->items_to_copy[tmp_tbl->func_count+tmp_tbl->sum_func_count]= 0;
+      Item_sum **func_ptr= join->sum_funcs;
+      Item_sum *func;
+      while ((func= *(func_ptr++)))
+      {
+        tmp_tbl->items_to_copy->push_back(func);
+      }
     }
   }
 }

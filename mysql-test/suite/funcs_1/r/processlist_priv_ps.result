@@ -219,7 +219,7 @@ ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
 6 Revoke PROCESS privilege from ddicttestuser1
 connection default (user=root)
 ####################################################################################
-REVOKE PROCESS ON *.* FROM ddicttestuser1@'localhost' IDENTIFIED BY 'ddictpass';
+REVOKE PROCESS ON *.* FROM ddicttestuser1@'localhost';
 ####################################################################################
 6.1 New connection con102 (ddicttestuser1 has no more PROCESS privilege)
 Again (compared to state before GRANT PROCESS) only the processes of

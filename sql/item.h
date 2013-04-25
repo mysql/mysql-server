@@ -2302,7 +2302,7 @@ public:
   }
 #endif
 
-  /// Pushes the item to select_lex.non_agg_fields() and updates its marker.
+  /// Pushes the item to select_lex->non_agg_fields() and updates its marker.
   bool push_to_non_agg_fields(st_select_lex *select_lex);
 
   friend class Item_default_value;

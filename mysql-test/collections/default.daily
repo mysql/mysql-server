@@ -44,4 +44,3 @@ perl mysql-test-run.pl --timer --force --debug-server --comment=memcached-debug 
 #Run with Query Cache Enabled
 
 perl mysql-test-run.pl --debug-server --timer --force --testcase-timeout=60 --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
-
