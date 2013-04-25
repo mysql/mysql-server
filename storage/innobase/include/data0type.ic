@@ -312,7 +312,7 @@ dtype_new_store_for_order_and_null_size(
 
 	ut_ad(type);
 	ut_ad(type->mtype >= DATA_VARCHAR);
-	ut_ad(type->mtype <= DATA_MYSQL);
+	ut_ad(type->mtype <= DATA_MTYPE_MAX);
 
 	buf[0] = (byte)(type->mtype & 0xFFUL);
 

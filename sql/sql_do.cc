@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ bool mysql_do(THD *thd, List<Item> &values)
     DBUG_RETURN(TRUE);
   while ((value = li++))
     value->val_int();
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  free_underlaid_joins(thd, thd->lex->select_lex);
 
   if (thd->is_error())
   {

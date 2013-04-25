@@ -32,7 +32,7 @@
 #include "sql_parse.h"                          // command_name
 #include "sql_time.h"           // calc_time_from_sec, my_time_compare
 #include "tztime.h"             // my_tz_OFFSET0, struct Time_zone
-#include "sql_acl.h"            // SUPER_ACL
+#include "auth_common.h"        // SUPER_ACL
 #include "sql_audit.h"
 #include "mysql/service_my_plugin_log.h"
 
