@@ -40,19 +40,15 @@ public:
 private:
   const ColumnHandler *handler;
   Persistent<Value> jsValue;
+  char * recodeBuffer;
   bool isLoaded;         // value has been read from buffer
   bool isDirty;          // value should be rewritten in buffer
 };
 
 
 inline ColumnProxy::ColumnProxy() :
-  isNull(false), isLoaded(false), isDirty(false)
+  isNull(false), recodeBuffer(0), isLoaded(false), isDirty(false)
 {}
-
-inline ColumnProxy::~ColumnProxy() {
-  if(! jsValue.IsEmpty())
-    jsValue.Dispose();
-}
 
 inline void ColumnProxy::setHandler(const ColumnHandler *h) {
   handler = h;
