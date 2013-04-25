@@ -78,10 +78,6 @@
 #include <asm/msr.h>         /* for rdtscll */
 #endif
 
-#if defined(HAVE_SYS_TIMEB_H) && defined(HAVE_FTIME)
-#include <sys/timeb.h>       /* for ftime */
-#endif
-
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_TIMES)
 #include <sys/times.h>       /* for times */
 #endif
@@ -303,21 +299,32 @@ ulonglong my_timer_microseconds(void)
 }
 
 /*
-  For milliseconds, we use ftime() if it's supported
-  or time()*1000 if it's not. With modern versions of
-  Windows and with HP Itanium, resolution is 10-15
-  milliseconds.
+  For milliseconds, gettimeofday() is available on
+  almost all platforms. On Windows we use
+  GetSystemTimeAsFileTime.
 */
 
 ulonglong my_timer_milliseconds(void)
 {
-#if defined(HAVE_SYS_TIMEB_H) && defined(HAVE_FTIME)
-  /* ftime() is obsolete but maybe the platform is old */
-  struct timeb ft;
-  ftime(&ft);
-  return (ulonglong)ft.time * 1000 + (ulonglong)ft.millitm;
-#elif defined(HAVE_TIME)
-  return (ulonglong) time(NULL) * 1000;
+#if defined(HAVE_GETTIMEOFDAY)
+  {
+    static ulonglong last_ms_value= 0;
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) == 0)
+      last_ms_value= (ulonglong) tv.tv_sec * 1000 +
+                     (ulonglong) tv.tv_usec / 1000;
+    else
+    {
+      /*
+        There are reports that gettimeofday(2) can have intermittent failures
+        on some platform, see for example Bug#36819.
+        We are not trying again or looping, just returning the best value possible
+        under the circumstances ...
+      */
+      last_ms_value++;
+    }
+    return last_ms_value;
+  }
 #elif defined(_WIN32)
    FILETIME ft;
    GetSystemTimeAsFileTime( &ft );
@@ -578,12 +585,10 @@ void my_timer_init(MY_TIMER_INFO *mti)
 
   /* milliseconds */
   mti->milliseconds.frequency= 1000; /* initial assumption */
-#if defined(HAVE_SYS_TIMEB_H) && defined(HAVE_FTIME)
-  mti->milliseconds.routine= MY_TIMER_ROUTINE_FTIME;
+#if defined(HAVE_GETTIMEOFDAY)
+  mti->milliseconds.routine= MY_TIMER_ROUTINE_GETTIMEOFDAY;
 #elif defined(_WIN32)
   mti->milliseconds.routine= MY_TIMER_ROUTINE_GETSYSTEMTIMEASFILETIME;
-#elif defined(HAVE_TIME)
-  mti->milliseconds.routine= MY_TIMER_ROUTINE_TIME;
 #else
   mti->milliseconds.routine= 0;
 #endif
@@ -678,13 +683,8 @@ void my_timer_init(MY_TIMER_INFO *mti)
     mti->microseconds.resolution=
     my_timer_init_resolution(&my_timer_microseconds, 20);
   if (mti->milliseconds.routine)
-  {
-    if (mti->milliseconds.routine == MY_TIMER_ROUTINE_TIME)
-      mti->milliseconds.resolution= 1000;
-    else
-      mti->milliseconds.resolution=
-      my_timer_init_resolution(&my_timer_milliseconds, 0);
-  }
+    mti->milliseconds.resolution=
+    my_timer_init_resolution(&my_timer_milliseconds, 0);
   if (mti->ticks.routine)
     mti->ticks.resolution= 1;
 
@@ -851,11 +851,6 @@ void my_timer_init(MY_TIMER_INFO *mti)
 
    clock_gettime() -- In tests, clock_gettime often had
    resolution = 1000.
-
-   ftime() -- A "man ftime" says: "This function is obsolete.
-   Don't use it." On every platform that we tested, if ftime()
-   was available, then so was gettimeofday(), and gettimeofday()
-   overhead was always at least as good as ftime() overhead.
 
    gettimeofday() -- available on most platforms, though not
    on Windows. There is a hardware timer (sometimes a Programmable
