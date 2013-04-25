@@ -2997,7 +2997,7 @@ Create_func_benchmark Create_func_benchmark::s_singleton;
 Item*
 Create_func_benchmark::create(THD *thd, Item *arg1, Item *arg2)
 {
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_benchmark(arg1, arg2);
 }
 
@@ -3439,7 +3439,7 @@ Create_func_encrypt::create_native(THD *thd, LEX_STRING name,
   {
     Item *param_1= item_list->pop();
     func= new (thd->mem_root) Item_func_encrypt(param_1);
-    thd->lex->uncacheable(UNCACHEABLE_RAND);
+    thd->lex->set_uncacheable(UNCACHEABLE_RAND);
     break;
   }
   case 2:
@@ -3695,7 +3695,7 @@ Create_func_geometry_from_text::create_native(THD *thd, LEX_STRING name,
   {
     Item *param_1= item_list->pop();
     func= new (thd->mem_root) Item_func_geometry_from_text(param_1);
-    thd->lex->uncacheable(UNCACHEABLE_RAND);
+    thd->lex->set_uncacheable(UNCACHEABLE_RAND);
     break;
   }
   case 2:
@@ -3733,7 +3733,7 @@ Create_func_geometry_from_wkb::create_native(THD *thd, LEX_STRING name,
   {
     Item *param_1= item_list->pop();
     func= new (thd->mem_root) Item_func_geometry_from_wkb(param_1);
-    thd->lex->uncacheable(UNCACHEABLE_RAND);
+    thd->lex->set_uncacheable(UNCACHEABLE_RAND);
     break;
   }
   case 2:
@@ -3779,7 +3779,7 @@ Item*
 Create_func_get_lock::create(THD *thd, Item *arg1, Item *arg2)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_get_lock(arg1, arg2);
 }
 
@@ -4027,7 +4027,7 @@ Item*
 Create_func_is_free_lock::create(THD *thd, Item *arg1)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_is_free_lock(arg1);
 }
 
@@ -4038,7 +4038,7 @@ Item*
 Create_func_is_used_lock::create(THD *thd, Item *arg1)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_is_used_lock(arg1);
 }
 
@@ -4200,7 +4200,7 @@ Create_func_load_file::create(THD *thd, Item *arg1)
 {
   DBUG_ENTER("Create_func_load_file::create");
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   DBUG_RETURN(new (thd->mem_root) Item_load_file(arg1));
 }
 
@@ -4638,14 +4638,14 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
   case 0:
   {
     func= new (thd->mem_root) Item_func_rand();
-    thd->lex->uncacheable(UNCACHEABLE_RAND);
+    thd->lex->set_uncacheable(UNCACHEABLE_RAND);
     break;
   }
   case 1:
   {
     Item *param_1= item_list->pop();
     func= new (thd->mem_root) Item_func_rand(param_1);
-    thd->lex->uncacheable(UNCACHEABLE_RAND);
+    thd->lex->set_uncacheable(UNCACHEABLE_RAND);
     break;
   }
   default:
@@ -4665,7 +4665,7 @@ Item*
 Create_func_release_lock::create(THD *thd, Item *arg1)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_release_lock(arg1);
 }
 
@@ -4786,7 +4786,7 @@ Item*
 Create_func_sleep::create(THD *thd, Item *arg1)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_sleep(arg1);
 }
 

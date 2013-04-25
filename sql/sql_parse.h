@@ -17,7 +17,7 @@
 #define SQL_PARSE_INCLUDED
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_acl.h"                            /* GLOBAL_ACLS */
+#include "auth_common.h"                        /* GLOBAL_ACLS */
 
 class Comp_creator;
 class Item;
@@ -37,18 +37,9 @@ extern "C" int test_if_data_home_dir(const char *dir);
 
 bool stmt_causes_implicit_commit(const THD *thd, uint mask);
 
-bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table);
-bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
 int mysql_multi_update_prepare(THD *thd);
 int mysql_multi_delete_prepare(THD *thd, uint *table_count);
 bool mysql_insert_select_prepare(THD *thd);
-bool update_precheck(THD *thd, TABLE_LIST *tables);
-bool delete_precheck(THD *thd, TABLE_LIST *tables);
-bool insert_precheck(THD *thd, TABLE_LIST *tables);
-bool create_table_precheck(THD *thd, TABLE_LIST *tables,
-                           TABLE_LIST *create_table);
 
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
@@ -87,11 +78,9 @@ bool is_update_query(enum enum_sql_command command);
 bool is_explainable_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, uint packet_length);
-void mysql_init_select(LEX *lex);
 void mysql_parse(THD *thd, char *rawbuf, uint length,
                  Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
-bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
@@ -132,7 +121,6 @@ bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 
 /* Variables */
 
-extern const char* any_db;
 extern uint sql_command_flags[];
 extern uint server_command_flags[];
 extern const LEX_STRING command_name[];
@@ -149,56 +137,7 @@ inline bool check_identifier_name(LEX_STRING *str)
   return check_identifier_name(str, NAME_CHAR_LEN, 0, "");
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
-bool check_single_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables, bool no_errors);
-bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
-			  bool is_proc, bool no_errors);
-bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
-bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
-bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
-                  GRANT_INTERNAL_INFO *grant_internal_info,
-                  bool dont_check_global_grants, bool no_errors);
-bool check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
-                        bool any_combination_of_privileges_will_do,
-                        uint number,
-                        bool no_errors);
-#else
-inline bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables)
-{ return false; }
-inline bool check_single_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables, bool no_errors)
-{ return false; }
-inline bool check_routine_access(THD *thd,ulong want_access,char *db,
-                                 char *name, bool is_proc, bool no_errors)
-{ return false; }
-inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
-{
-  table->grant.privilege= want_access;
-  return false;
-}
-inline bool check_some_routine_access(THD *thd, const char *db,
-                                      const char *name, bool is_proc)
-{ return false; }
-inline bool check_access(THD *, ulong, const char *, ulong *save_priv,
-                         GRANT_INTERNAL_INFO *, bool, bool)
-{
-  if (save_priv)
-    *save_priv= GLOBAL_ACLS;
-  return false;
-}
-inline bool
-check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
-                   bool any_combination_of_privileges_will_do,
-                   uint number,
-                   bool no_errors)
-{ return false; }
-#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
-
 /* These were under the INNODB_COMPATIBILITY_HOOKS */
-
-bool check_global_access(THD *thd, ulong want_access);
 
 inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 {

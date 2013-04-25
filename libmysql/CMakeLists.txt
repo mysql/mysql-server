@@ -146,7 +146,7 @@ SET(CLIENT_SOURCES
   ../sql-common/client_authentication.cc
   ../sql/net_serv.cc
   ../sql-common/pack.c 
-  ../sql/password.c
+  ../sql/auth/password.c
 )
 
 IF (WIN32 AND OPENSSL_APPLINK_C)

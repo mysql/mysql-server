@@ -41,8 +41,9 @@
                           // date_time_format_make
 #include "tztime.h"       // my_tz_free, my_tz_init, my_tz_SYSTEM
 #include "hostname.h"     // hostname_cache_free, hostname_cache_init
-#include "sql_acl.h"      // acl_free, grant_free, acl_init,
-                          // grant_init
+#include "auth_common.h"  // init_default_auth_plugin, set_default_auth_plugin
+                          // acl_free, acl_init
+                          // grant_free, grant_init
 #include "sql_base.h"     // table_def_free, table_def_init,
                           // Table_cache,
                           // cached_table_definitions
@@ -124,12 +125,6 @@ using std::max;
 using std::vector;
 
 #define mysqld_charset &my_charset_latin1
-
-/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
-
-#if defined(HAVE_purify) && defined(__linux__)
-#define HAVE_CLOSE_SERVER_SOCK 1
-#endif
 
 extern "C" {          // Because of SCO 3.2V4.2
 #include <errno.h>
@@ -1474,7 +1469,8 @@ static void close_connections(void)
 
 static void close_server_sock()
 {
-#ifdef HAVE_CLOSE_SERVER_SOCK
+/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
+#if defined(HAVE_purify) && defined(__linux__)
   DBUG_ENTER("close_server_sock");
   MYSQL_SOCKET tmp_sock;
   tmp_sock=ip_sock;
