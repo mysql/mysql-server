@@ -1345,3 +1345,7 @@ id	title	body
 3	Optimizing MySQL	In this tutorial we will show ...
 5	MySQL vs. YourSQL	In the following database comparison ...
 DROP TABLE articles;
+CREATE TABLE t1(a TEXT CHARACTER SET LATIN1, FULLTEXT INDEX(a)) ENGINE=INNODB;
+SELECT * FROM t1 WHERE MATCH(a) AGAINST("*");
+ERROR 42000: syntax error, unexpected '*', expecting $end
+DROP TABLE t1;

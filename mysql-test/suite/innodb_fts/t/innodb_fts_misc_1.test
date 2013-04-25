@@ -471,6 +471,7 @@ SELECT * FROM t1 WHERE MATCH (a,b)
 
 # boolean mode
 select * from t1 where MATCH(a,b) AGAINST("+tutorial +VÐƷWİ" IN BOOLEAN MODE);
+--error ER_PARSE_ERROR
 select * from t1 where MATCH(a,b) AGAINST("+-VÐƷWİ" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE);
