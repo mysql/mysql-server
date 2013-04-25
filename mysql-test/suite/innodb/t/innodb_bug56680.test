@@ -77,7 +77,6 @@ BEGIN;
 SELECT b FROM bug56680 LIMIT 2;
 
 connect (con1,localhost,root,,);
-connection con1;
 BEGIN;
 DELETE FROM bug56680 WHERE a=1;
 # This should be buffered, if innodb_change_buffering_debug = 1 is in effect.
@@ -96,7 +95,32 @@ SELECT b FROM bug56680 LIMIT 2;
 CHECK TABLE bug56680;
 
 connection default;
+
+SELECT b FROM bug56680 LIMIT 2;
+
+# Test this with ROW_FORMAT=REDUNDANT.
+ALTER TABLE bug56680 ROW_FORMAT=REDUNDANT;
+
+connection con1;
+BEGIN;
+DELETE FROM bug56680 WHERE a=1;
+# This should be buffered, if innodb_change_buffering_debug = 1 is in effect.
+INSERT INTO bug56680 VALUES(1,'X',1);
+
+# This should force an insert buffer merge, and return 'X' in the first row.
+SELECT b FROM bug56680 LIMIT 3;
+
+connection default;
+SELECT b FROM bug56680 LIMIT 2;
+CHECK TABLE bug56680;
+
+connection con1;
+ROLLBACK;
+SELECT b FROM bug56680 LIMIT 2;
+CHECK TABLE bug56680;
+
 disconnect con1;
+connection default;
 
 SELECT b FROM bug56680 LIMIT 2;
 
