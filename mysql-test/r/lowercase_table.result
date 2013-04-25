@@ -91,7 +91,7 @@ show create table İ;
 Table	Create Table
 İ	CREATE TABLE `i` (
   `s1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show tables;
 Tables_in_test
 i
@@ -101,7 +101,7 @@ show create table İİ;
 Table	Create Table
 İİ	CREATE TABLE `ii` (
   `s1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show tables;
 Tables_in_test
 ii

@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
 # Test of ansi mode
@@ -32,12 +33,24 @@ SET @@SQL_MODE="";
 # Bug#14515
 
 CREATE TABLE t1 (i int auto_increment NOT NULL, PRIMARY KEY (i));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SET @@SQL_MODE="MYSQL323";
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SET @@SQL_MODE="MYSQL40";
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SET @@SQL_MODE="NO_FIELD_OPTIONS";
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 

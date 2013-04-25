@@ -41,7 +41,7 @@
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"
 #include "mysqld.h"                             // LOCK_uuid_generator
-#include "sql_acl.h"                            // SUPER_ACL
+#include "auth_common.h"                        // SUPER_ACL
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
 #include "password.h"           // my_make_scrambled_password,
                                 // my_make_scrambled_password_323
@@ -2589,7 +2589,8 @@ double Item_func_elt::val_real()
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
-  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
+  if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
+      || tmp >= arg_count)
     return 0.0;
   double result= args[tmp]->val_real();
   null_value= args[tmp]->null_value;
@@ -2602,7 +2603,8 @@ longlong Item_func_elt::val_int()
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
-  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
+  if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
+      || tmp >= arg_count)
     return 0;
 
   longlong result= args[tmp]->val_int();
@@ -2616,7 +2618,8 @@ String *Item_func_elt::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
-  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
+  if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
+      || tmp >= arg_count)
     return NULL;
 
   String *result= args[tmp]->val_str(str);

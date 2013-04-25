@@ -36,5 +36,5 @@ SELECT COUNT(*) FROM mysqltest.t1;
 COUNT(*)
 2
 DROP DATABASE mysqltest;
-DROP TABLE test.t1;
+DROP TABLE IF EXISTS test.t1;
 include/rpl_end.inc

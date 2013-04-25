@@ -763,6 +763,60 @@ static bool shall_skip_gtids(Log_event* ev)
        filtered= filtered || opt_skip_gtids;
     }
     break;
+    /* Skip previous gtids if --skip-gtids is set. */
+    case PREVIOUS_GTIDS_LOG_EVENT:
+      filtered= opt_skip_gtids;
+    break;
+
+    /*
+      Transaction boundaries reset the global filtering flag.
+
+      Since in the relay log a transaction can span multiple
+      log files, we do not reset filter_based_on_gtids flag when
+      processing control events (they can appear in the middle
+      of a transaction). But then, if:
+
+        FILE1: ... GTID BEGIN QUERY QUERY COMMIT ROTATE
+        FILE2: FD BEGIN QUERY QUERY COMMIT
+
+      Events on the second file would not be outputted, even
+      though they should.
+    */
+    case XID_EVENT:
+      filtered= filter_based_on_gtids;
+      filter_based_on_gtids= false;
+    break;
+    case QUERY_EVENT:
+      filtered= filter_based_on_gtids;
+      if (((Query_log_event *)ev)->ends_group())
+        filter_based_on_gtids= false;
+    break;
+
+    /*
+      Never skip STOP, FD, ROTATE, IGNORABLE or INCIDENT events.
+      SLAVE_EVENT and START_EVENT_V3 are there for completion.
+
+      Although in the binlog transactions do not span multiple
+      log files, in the relay-log, that can happen. As such,
+      we need to explicitly state that we do not filter these
+      events, because there is a chance that they appear in the
+      middle of a filtered transaction, e.g.:
+
+         FILE1: ... GTID BEGIN QUERY QUERY ROTATE
+         FILE2: FD QUERY QUERY COMMIT GTID BEGIN ...
+
+      In this case, ROTATE and FD events should be processed and
+      outputted.
+    */
+    case START_EVENT_V3: /* for completion */
+    case SLAVE_EVENT: /* for completion */
+    case STOP_EVENT:
+    case FORMAT_DESCRIPTION_EVENT:
+    case ROTATE_EVENT:
+    case IGNORABLE_LOG_EVENT:
+    case INCIDENT_EVENT:
+      filtered= false;
+    break;
     default:
       filtered= filter_based_on_gtids;
     break;
@@ -2192,6 +2246,11 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             */
             continue;
           }
+          /*
+             Reset the value of '# at pos' field shown against first event of
+             next binlog file (fake rotate) picked by mysqlbinlog --to-last-log
+         */
+          old_off= start_position_mot;
           len= 1; // fake Rotate, so don't increment old_off
         }
       }

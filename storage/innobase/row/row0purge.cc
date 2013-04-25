@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -112,28 +112,19 @@ row_purge_reposition_pcur(
 	return(node->found_clust);
 }
 
-/** Status of row_purge_remove_clust() */
-enum row_purge_status {
-	ROW_PURGE_DONE,	/*!< The row has been removed. */
-	ROW_PURGE_FAIL,	/*!< The purge was not successful. */
-	ROW_PURGE_SUSPEND/*!< Cannot purge now, due to online rebuild. */
-};
-
 /***********************************************************//**
 Removes a delete marked clustered index record if possible.
-@retval ROW_PURGE_DONE if the row was not found, or it was successfully removed
-@retval ROW_PURGE_FAIL if the row was modified after the delete marking
-@retval ROW_PURGE_SUSPEND if the row refers to an off-page column and
-an online ALTER TABLE (table rebuild) is in progress. */
+@retval true if the row was not found, or it was successfully removed
+@retval false if the row was modified after the delete marking */
 static __attribute__((nonnull, warn_unused_result))
-enum row_purge_status
+bool
 row_purge_remove_clust_if_poss_low(
 /*===============================*/
 	purge_node_t*	node,	/*!< in/out: row purge node */
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
 	dict_index_t*		index;
-	enum row_purge_status	status		= ROW_PURGE_DONE;
+	bool			success		= true;
 	mtr_t			mtr;
 	rec_t*			rec;
 	mem_heap_t*		heap		= NULL;
@@ -165,16 +156,11 @@ row_purge_remove_clust_if_poss_low(
 		goto func_exit;
 	}
 
-	if (dict_index_get_online_status(index) == ONLINE_INDEX_CREATION
-	    && rec_offs_any_extern(offsets)) {
-		status = ROW_PURGE_SUSPEND;
-		goto func_exit;
-	}
+	ut_ad(rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	if (mode == BTR_MODIFY_LEAF) {
-		status = btr_cur_optimistic_delete(
-			btr_pcur_get_btr_cur(&node->pcur), 0, &mtr)
-			? ROW_PURGE_DONE : ROW_PURGE_FAIL;
+		success = btr_cur_optimistic_delete(
+			btr_pcur_get_btr_cur(&node->pcur), 0, &mtr);
 	} else {
 		dberr_t	err;
 		ut_ad(mode == BTR_MODIFY_TREE);
@@ -186,7 +172,7 @@ row_purge_remove_clust_if_poss_low(
 		case DB_SUCCESS:
 			break;
 		case DB_OUT_OF_FILE_SPACE:
-			status = ROW_PURGE_FAIL;
+			success = false;
 			break;
 		default:
 			ut_error;
@@ -200,43 +186,34 @@ func_exit:
 
 	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
 
-	return(status);
+	return(success);
 }
 
 /***********************************************************//**
 Removes a clustered index record if it has not been modified after the delete
 marking.
 @retval true if the row was not found, or it was successfully removed
-@retval false the purge needs to be suspended, either because of
-running out of file space or because the row refers to an off-page
-column and an online ALTER TABLE (table rebuild) is in progress. */
+@retval false the purge needs to be suspended because of running out
+of file space. */
 static __attribute__((nonnull, warn_unused_result))
 bool
 row_purge_remove_clust_if_poss(
 /*===========================*/
 	purge_node_t*	node)	/*!< in/out: row purge node */
 {
-	switch (row_purge_remove_clust_if_poss_low(node, BTR_MODIFY_LEAF)) {
-	case ROW_PURGE_DONE:
+	if (row_purge_remove_clust_if_poss_low(node, BTR_MODIFY_LEAF)) {
 		return(true);
-	case ROW_PURGE_SUSPEND:
-		return(false);
-	case ROW_PURGE_FAIL:
-		break;
 	}
 
 	for (ulint n_tries = 0;
 	     n_tries < BTR_CUR_RETRY_DELETE_N_TIMES;
 	     n_tries++) {
-		switch (row_purge_remove_clust_if_poss_low(
-				node, BTR_MODIFY_TREE)) {
-		case ROW_PURGE_DONE:
+		if (row_purge_remove_clust_if_poss_low(
+			    node, BTR_MODIFY_TREE)) {
 			return(true);
-		case ROW_PURGE_SUSPEND:
-			return(false);
-		case ROW_PURGE_FAIL:
-			os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
 		}
+
+		os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
 	}
 
 	return(false);
@@ -540,9 +517,8 @@ retry:
 /***********************************************************//**
 Purges a delete marking of a record.
 @retval true if the row was not found, or it was successfully removed
-@retval false the purge needs to be suspended, either because of
-running out of file space or because the row refers to an off-page
-column and an online ALTER TABLE (table rebuild) is in progress. */
+@retval false the purge needs to be suspended because of
+running out of file space */
 static __attribute__((nonnull, warn_unused_result))
 bool
 row_purge_del_mark(
@@ -578,10 +554,9 @@ row_purge_del_mark(
 
 /***********************************************************//**
 Purges an update of an existing record. Also purges an update of a delete
-marked record if that record contained an externally stored field.
-@return true if purged, false if skipped */
-static __attribute__((nonnull, warn_unused_result))
-bool
+marked record if that record contained an externally stored field. */
+static
+void
 row_purge_upd_exist_or_extern_func(
 /*===============================*/
 #ifdef UNIV_DEBUG
@@ -595,20 +570,6 @@ row_purge_upd_exist_or_extern_func(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
-
-	if (dict_index_get_online_status(dict_table_get_first_index(
-						 node->table))
-	    == ONLINE_INDEX_CREATION) {
-		for (ulint i = 0; i < upd_get_n_fields(node->update); i++) {
-
-			const upd_field_t*	ufield
-				= upd_get_nth_field(node->update, i);
-
-			if (dfield_is_ext(&ufield->new_val)) {
-				return(false);
-			}
-		}
-	}
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
 	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
@@ -686,16 +647,7 @@ skip_secondaries:
 
 			index = dict_table_get_first_index(node->table);
 			mtr_x_lock(dict_index_get_lock(index), &mtr);
-#ifdef UNIV_DEBUG
-			switch (dict_index_get_online_status(index)) {
-			case ONLINE_INDEX_CREATION:
-			case ONLINE_INDEX_ABORTED_DROPPED:
-				ut_ad(0);
-			case ONLINE_INDEX_COMPLETE:
-			case ONLINE_INDEX_ABORTED:
-				break;
-			}
-#endif /* UNIV_DEBUG */
+
 			/* NOTE: we must also acquire an X-latch to the
 			root page of the tree. We will need it when we
 			free pages from the tree. If the tree is of height 1,
@@ -725,8 +677,6 @@ skip_secondaries:
 			mtr_commit(&mtr);
 		}
 	}
-
-	return(true);
 }
 
 #ifdef UNIV_DEBUG
@@ -868,6 +818,7 @@ row_purge_record_func(
 	clust_index = dict_table_get_first_index(node->table);
 
 	node->index = dict_table_get_next_index(clust_index);
+	ut_ad(!trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
 	switch (node->rec_type) {
 	case TRX_UNDO_DEL_MARK_REC:
@@ -883,10 +834,7 @@ row_purge_record_func(
 		}
 		/* fall through */
 	case TRX_UNDO_UPD_EXIST_REC:
-		purged = row_purge_upd_exist_or_extern(thr, node, undo_rec);
-		if (!purged) {
-			break;
-		}
+		row_purge_upd_exist_or_extern(thr, node, undo_rec);
 		MONITOR_INC(MONITOR_N_UPD_EXIST_EXTERN);
 		break;
 	}

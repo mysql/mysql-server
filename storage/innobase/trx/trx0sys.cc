@@ -1222,7 +1222,7 @@ trx_sys_close(void)
 
 		view = UT_LIST_GET_NEXT(view_list, prev_view);
 
-		/* Views are allocated from the trx_sys->global_read_view_heap.
+		/* Views are allocated from the trx->read_view_heap.
 		So, we simply remove the element here. */
 		UT_LIST_REMOVE(view_list, trx_sys->view_list, prev_view);
 	}

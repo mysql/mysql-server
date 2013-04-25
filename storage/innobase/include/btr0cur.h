@@ -99,13 +99,6 @@ btr_cur_get_page_zip(
 /*=================*/
 	btr_cur_t*	cursor);/*!< in: tree cursor */
 /*********************************************************//**
-Invalidates a tree cursor by setting record pointer to NULL. */
-UNIV_INLINE
-void
-btr_cur_invalidate(
-/*===============*/
-	btr_cur_t*	cursor);/*!< in: tree cursor */
-/*********************************************************//**
 Returns the page of a tree cursor.
 @return	pointer to page */
 UNIV_INLINE
@@ -402,6 +395,7 @@ UNIV_INTERN
 dberr_t
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
+	ulint		flags,  /*!< in: undo logging and locking flags */
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
 	rec_t*		rec,	/*!< in/out: record */
 	dict_index_t*	index,	/*!< in: clustered index of the record */

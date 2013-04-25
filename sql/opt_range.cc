@@ -838,6 +838,15 @@ public:
     statistics is used for these indexes.
   */
   bool use_index_statistics;
+
+  bool statement_should_be_aborted() const
+  {
+    return
+      thd->is_fatal_error ||
+      thd->is_error() ||
+      alloced_sel_args > SEL_ARG::MAX_SEL_ARGS;
+  }
+
 };
 
 class PARAM : public RANGE_OPT_PARAM
@@ -4430,7 +4439,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   /* Calculate cost(rowid_to_row_scan) */
   {
     Cost_estimate sweep_cost;
-    JOIN *join= param->thd->lex->select_lex.join;
+    JOIN *join= param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
                         &sweep_cost);
@@ -4576,7 +4585,7 @@ skip_to_ror_scan:
   double roru_total_cost;
   {
     Cost_estimate sweep_cost;
-    JOIN *join= param->thd->lex->select_lex.join;
+    JOIN *join= param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
@@ -5168,8 +5177,9 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   if (!info->is_covering)
   {
     Cost_estimate sweep_cost;
-    JOIN *join= info->param->thd->lex->select_lex.join;
+    JOIN *join= info->param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables == 1;
+
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
                         is_interrupted, &sweep_cost);
     info->total_cost += sweep_cost.total_cost();
@@ -5954,6 +5964,34 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
               {
                 new_interval->min_value= last_val->max_value;
                 new_interval->min_flag= NEAR_MIN;
+
+                /*
+                  If the interval is over a partial keypart, the
+                  interval must be "c_{i-1} <= X < c_i" instead of
+                  "c_{i-1} < X < c_i". Reason:
+
+                  Consider a table with a column "my_col VARCHAR(3)",
+                  and an index with definition
+                  "INDEX my_idx my_col(1)". If the table contains rows
+                  with my_col values "f" and "foo", the index will not
+                  distinguish the two rows.
+
+                  Note that tree_or() below will effectively merge
+                  this range with the range created for c_{i-1} and
+                  we'll eventually end up with only one range:
+                  "NULL < X".
+
+                  Partitioning indexes are never partial.
+                */
+                if (param->using_real_indexes)
+                {
+                  const KEY key=
+                    param->table->key_info[param->real_keynr[idx]];
+                  const KEY_PART_INFO *kpi= key.key_part + new_interval->part;
+
+                  if (kpi->key_part_flag & HA_PART_KEY_SEG)
+                    new_interval->min_flag= 0;
+                }
               }
             }
             /* 
@@ -6191,36 +6229,37 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
-      tree=0;
+      tree= NULL;
       Item *item;
       while ((item=li++))
       {
-	SEL_TREE *new_tree=get_mm_tree(param,item);
-	if (param->thd->is_fatal_error || 
-            param->alloced_sel_args > SEL_ARG::MAX_SEL_ARGS)
-	  DBUG_RETURN(0);	// out of memory
-	tree=tree_and(param,tree,new_tree);
+        SEL_TREE *new_tree= get_mm_tree(param,item);
+        if (param->statement_should_be_aborted())
+          DBUG_RETURN(NULL);
+        tree= tree_and(param,tree,new_tree);
         dbug_print_tree("after_and", tree, param);
-	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
-	  break;
+        if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
+          break;
       }
     }
     else
-    {						// Item OR
-      tree=get_mm_tree(param,li++);
+    {                                           // Item OR
+      tree= get_mm_tree(param,li++);
+      if (param->statement_should_be_aborted())
+        DBUG_RETURN(NULL);
       if (tree)
       {
-	Item *item;
-	while ((item=li++))
-	{
-	  SEL_TREE *new_tree=get_mm_tree(param,item);
-	  if (!new_tree)
-	    DBUG_RETURN(0);	// out of memory
-	  tree=tree_or(param,tree,new_tree);
+        Item *item;
+        while ((item=li++))
+        {
+          SEL_TREE *new_tree=get_mm_tree(param,item);
+          if (new_tree == NULL || param->statement_should_be_aborted())
+            DBUG_RETURN(NULL);
+          tree= tree_or(param,tree,new_tree);
           dbug_print_tree("after_or", tree, param);
-	  if (!tree || tree->type == SEL_TREE::ALWAYS)
-	    break;
-	}
+          if (tree == NULL || tree->type == SEL_TREE::ALWAYS)
+            break;
+        }
       }
     }
     dbug_print_tree("tree_returned", tree, param);
@@ -6798,6 +6837,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   if (key_part->image_type == Field::itMBR)
   {
+    // @todo: use is_spatial_operator() instead?
     switch (type) {
     case Item_func::SP_EQUALS_FUNC:
     case Item_func::SP_DISJOINT_FUNC:
@@ -9827,7 +9867,12 @@ FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key)
     return fts;
 }
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+
+/*
+  Check if any columns in the key value specified
+  by 'key_info' has a NULL-value.
+*/
+
 static bool
 key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
 {
@@ -9845,7 +9890,6 @@ key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
   }
   return FALSE;
 }
-#endif
 
 /*
   Create quick select from ref/ref_or_null scan.
@@ -9948,11 +9992,9 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                     (table->key_read ? HA_MRR_INDEX_ONLY : 0);
   if (thd->lex->sql_command != SQLCOM_SELECT)
     quick->mrr_flags|= HA_MRR_SORTED; // Assumed to give faster ins/upd/del
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (!ref->null_ref_key && !key_has_nulls(key_info, range->min_key,
                                            ref->key_length))
     quick->mrr_flags |= HA_MRR_NO_NULL_ENDPOINTS;
-#endif
 
   quick->mrr_buf_size= thd->variables.read_rnd_buff_size;
   if (table->file->multi_range_read_info(quick->index, 1, records,
@@ -10834,7 +10876,20 @@ int QUICK_SELECT_DESC::get_next()
     {
       int local_error;
       if ((local_error= file->ha_index_last(record)))
-	DBUG_RETURN(local_error);		// Empty table
+      {
+        /*
+          HA_ERR_END_OF_FILE is returned both when the table is empty and when
+          there are no qualifying records in the range (when using ICP).
+          Interpret this return value as "no qualifying rows in the range" to
+          avoid loss of records. If the error code truly meant "empty table"
+          the next iteration of the loop will exit.
+        */
+        if (local_error != HA_ERR_END_OF_FILE)
+          DBUG_RETURN(local_error);
+        last_range= NULL;                       // Go to next range
+        continue;
+      }
+
       if (cmp_prev(last_range) == 0)
 	DBUG_RETURN(0);
       last_range= 0;                            // No match; go to next range
@@ -12906,15 +12961,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
 {
   int min_res= 0;
   int max_res= 0;
-#ifdef HPUX11
-  /*
-    volatile is required by a bug in the HP compiler due to which the
-    last test of result fails.
-  */
-  volatile int result;
-#else
   int result;
-#endif
   int is_last_prefix= 0;
 
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::get_next");

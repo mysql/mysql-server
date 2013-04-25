@@ -27,7 +27,7 @@
 #include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
 #include "sql_table.h"                   // build_table_filename
 #include "sql_parse.h"                          // check_stack_overrun
-#include "sql_acl.h"            // SUPER_ACL
+#include "auth_common.h"        // SUPER_ACL
 #include "sql_base.h"           // free_io_cache
 #include "discover.h"           // writefrm
 #include "log_event.h"          // *_rows_log_event
@@ -1460,9 +1460,12 @@ end:
                    issued by DDL. Is not set when called
                    at the end of statement, even if
                    autocommit=1.
+  @param[in]  run_after_commit
+                   True by default, otherwise, does not execute
+                   the after_commit hook in the function.
 */
 
-int ha_commit_low(THD *thd, bool all)
+int ha_commit_low(THD *thd, bool all, bool run_after_commit)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
@@ -1496,17 +1499,19 @@ int ha_commit_low(THD *thd, bool all)
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (all)
     thd->transaction.cleanup();
-
-  /* If commit succeeded, we call the after_commit hook */
-  if (!error)
-    (void) RUN_HOOK(transaction, after_commit, (thd, all));
-
   /*
     When the transaction has been committed, we clear the commit_low
     flag. This allow other parts of the system to check if commit_low
     was called.
   */
   thd->transaction.flags.commit_low= false;
+  if (run_after_commit)
+  {
+    /* If commit succeeded, we call the after_commit hook */
+    if (!error)
+      (void) RUN_HOOK(transaction, after_commit, (thd, all));
+    thd->transaction.flags.run_hooks= false;
+  }
   DBUG_RETURN(error);
 }
 
@@ -5431,7 +5436,6 @@ static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
   return FALSE;
 }
 
-#ifdef HAVE_NDB_BINLOG
 
 int ha_reset_logs(THD *thd)
 {
@@ -5507,7 +5511,6 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
   else
     binlog_log_query_handlerton2(thd, hton, &b);
 }
-#endif
 
 int ha_binlog_end(THD* thd)
 {

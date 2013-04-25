@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -81,10 +81,6 @@ struct trx_sig_t;
 struct trx_rseg_t;
 /** Transaction undo log */
 struct trx_undo_t;
-/** Array of undo numbers of undo records being rolled back or purged */
-struct trx_undo_arr_t;
-/** A cell of trx_undo_arr_t */
-struct trx_undo_inf_t;
 /** The control structure used in the purge operation */
 struct trx_purge_t;
 /** Rollback command node in a query graph */
@@ -118,6 +114,9 @@ typedef ib_id_t	trx_id_t;
 typedef ib_id_t	roll_ptr_t;
 /** Undo number */
 typedef ib_id_t	undo_no_t;
+
+/** Maximum transaction identifier */
+#define TRX_ID_MAX	IB_ID_MAX
 
 /** Transaction savepoint */
 struct trx_savept_t{

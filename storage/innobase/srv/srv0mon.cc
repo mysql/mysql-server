@@ -325,6 +325,11 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_SET_MEMBER, MONITOR_FLUSH_BATCH_SCANNED,
 	 MONITOR_FLUSH_BATCH_SCANNED_PER_CALL},
 
+	{"buffer_flush_batch_rescan", "buffer",
+	 "Number of times rescan of flush list forced",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_FLUSH_HP_RESCAN},
+
 	/* Cumulative counter for pages flushed in flush batches */
 	{"buffer_flush_batch_total_pages", "buffer",
 	 "Total pages flushed as part of flush batch",
@@ -386,7 +391,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Number of times a wait happens due to sync flushing",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_FLUSH_SYNC_WAITS},
-
 
 	/* Cumulative counter for flush batches for adaptive flushing  */
 	{"buffer_flush_adaptive_total_pages", "buffer",

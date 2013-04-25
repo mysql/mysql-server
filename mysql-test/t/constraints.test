@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
 # Testing of constraints
@@ -28,6 +29,9 @@ create table t1 (a int null);
 alter table t1 add constraint constraint_1 unique (a);
 alter table t1 add constraint unique key_1(a);
 alter table t1 add constraint constraint_2 unique key_2(a);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 

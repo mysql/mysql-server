@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -124,13 +125,22 @@ HAVING (_latin1'Mu"ller' COLLATE latin1_german2_ci) = k;
 # Check that SHOW displays COLLATE clause
 #
 
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SHOW FIELDS FROM  t1;
 ALTER TABLE t1 CHANGE latin1_f 
 latin1_f CHAR(32) CHARACTER SET latin1 COLLATE latin1_bin;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SHOW FIELDS FROM  t1;
 ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SHOW FIELDS FROM  t1;
 
@@ -208,15 +218,19 @@ INSERT INTO t1 VALUES ('j','j');
 EXPLAIN SELECT * FROM t1 WHERE s1='a';
 EXPLAIN SELECT * FROM t1 WHERE s2='a';
 EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
+--replace_result 11 10
 EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
 
 EXPLAIN SELECT * FROM t1 WHERE s1 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+--replace_result 11 10
 EXPLAIN SELECT * FROM t1 WHERE s2 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
 
 EXPLAIN SELECT * FROM t1 WHERE s1 IN  ('a','b' COLLATE latin1_german1_ci);
+--replace_result 11 10
 EXPLAIN SELECT * FROM t1 WHERE s2 IN  ('a','b' COLLATE latin1_german1_ci);
 
 EXPLAIN SELECT * FROM t1 WHERE s1 LIKE 'a' COLLATE latin1_german1_ci;
+--replace_result 11 10
 EXPLAIN SELECT * FROM t1 WHERE s2 LIKE 'a' COLLATE latin1_german1_ci;
 
 DROP TABLE t1;
@@ -251,6 +265,9 @@ drop table t1;
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
 create table t1
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci) as f1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -291,6 +308,9 @@ END;//
 DELIMITER ;//
 SELECT getText(), CHARSET(getText()), COLLATION(getText()), COERCIBILITY(getText());
 CREATE TABLE t1 AS SELECT ' - ' AS a UNION SELECT getText();
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 DROP FUNCTION getText;
@@ -305,6 +325,9 @@ END;//
 DELIMITER ;//
 SELECT getText(), CHARSET(getText()), COLLATION(getText()), COERCIBILITY(getText());
 CREATE TABLE t1 AS SELECT ' - ' AS a UNION SELECT getText();
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 DROP FUNCTION getText;

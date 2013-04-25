@@ -66,7 +66,7 @@ def	mysql	general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL
 def	mysql	help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned	PRI			
 def	mysql	help_category	name	2	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI			
 def	mysql	help_category	parent_category_id	3	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned				
-def	mysql	help_category	url	4	NULL	NO	char	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	char(128)				
+def	mysql	help_category	url	4	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text				
 def	mysql	help_keyword	help_keyword_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI			
 def	mysql	help_keyword	name	2	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI			
 def	mysql	help_relation	help_keyword_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI			
@@ -76,7 +76,7 @@ def	mysql	help_topic	example	5	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8
 def	mysql	help_topic	help_category_id	3	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned				
 def	mysql	help_topic	help_topic_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI			
 def	mysql	help_topic	name	2	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI			
-def	mysql	help_topic	url	6	NULL	NO	char	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	char(128)				
+def	mysql	help_topic	url	6	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text				
 def	mysql	innodb_index_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI			
 def	mysql	innodb_index_stats	index_name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI			
 def	mysql	innodb_index_stats	last_update	4	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP		
@@ -405,7 +405,7 @@ NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	help_category	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
 3.0000	mysql	help_category	name	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	help_category	parent_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
-3.0000	mysql	help_category	url	char	128	384	utf8	utf8_general_ci	char(128)
+1.0000	mysql	help_category	url	text	65535	65535	utf8	utf8_general_ci	text
 NULL	mysql	help_keyword	help_keyword_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	help_keyword	name	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	help_relation	help_topic_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
@@ -415,7 +415,7 @@ NULL	mysql	help_topic	help_topic_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	help_topic	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
 1.0000	mysql	help_topic	description	text	65535	65535	utf8	utf8_general_ci	text
 1.0000	mysql	help_topic	example	text	65535	65535	utf8	utf8_general_ci	text
-3.0000	mysql	help_topic	url	char	128	384	utf8	utf8_general_ci	char(128)
+1.0000	mysql	help_topic	url	text	65535	65535	utf8	utf8_general_ci	text
 3.0000	mysql	innodb_index_stats	database_name	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	mysql	innodb_index_stats	table_name	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	mysql	innodb_index_stats	index_name	varchar	64	192	utf8	utf8_bin	varchar(64)

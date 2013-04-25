@@ -588,6 +588,17 @@ page_cur_insert_rec_write_log(
 	const byte* log_end;
 	ulint	i;
 
+	/* Avoid REDO logging to save on costly IO because
+	temporary tables are not recovered during crash recovery. */
+	if (dict_table_is_temporary(index->table)) {
+		log_ptr = mlog_open(mtr, 0);
+		if (log_ptr == NULL) {
+			return;
+		}
+		mlog_close(mtr, log_ptr);
+		log_ptr = NULL;
+	}
+
 	ut_a(rec_size < UNIV_PAGE_SIZE);
 	ut_ad(page_align(insert_rec) == page_align(cursor_rec));
 	ut_ad(!page_rec_is_comp(insert_rec)
@@ -1763,8 +1774,11 @@ page_copy_rec_list_end_to_created_page(
 	log_data_len = dyn_array_get_data_size(&(mtr->log));
 
 	/* Individual inserts are logged in a shorter form */
-
-	log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
+	if (!dict_table_is_temporary(index->table)) {
+		log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
+	} else {
+		log_mode = mtr_get_log_mode(mtr);
+	}
 
 	prev_rec = page_get_infimum_rec(new_page);
 	if (page_is_comp(new_page)) {

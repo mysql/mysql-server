@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -172,12 +172,12 @@ void CleanUp();
 #	define TAOCRYPT_MALLOC_ALIGNMENT_IS_16
 #endif
 
-#if defined(__linux__) || defined(__sun__) || defined(__CYGWIN__)
+#if defined(__linux__) || defined(__sun__)
 #	define TAOCRYPT_MEMALIGN_AVAILABLE
 #endif
 
 
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(_WIN32)
     #define TAOCRYPT_WIN32_AVAILABLE
 #endif
 

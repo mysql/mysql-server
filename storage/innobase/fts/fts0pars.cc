@@ -271,8 +271,6 @@ YYID (yyi)
 #    define YYSTACK_ALLOC __builtin_alloca
 #   elif defined __BUILTIN_VA_ARG_INCR
 #    include <alloca.h> /* INFRINGES ON USER NAME SPACE */
-#   elif defined _AIX
-#    define YYSTACK_ALLOC __alloca
 #   elif defined _MSC_VER
 #    include <malloc.h> /* INFRINGES ON USER NAME SPACE */
 #    define alloca _alloca
@@ -1823,7 +1821,7 @@ ftserror(
 /*=====*/
 	const char*	p)
 {
-	fprintf(stderr, "%s\n", p);
+	my_printf_error(ER_PARSE_ERROR, "%s", MYF(0), p);
 	return(0);
 }
 

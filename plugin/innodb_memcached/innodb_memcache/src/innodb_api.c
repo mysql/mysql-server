@@ -89,7 +89,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cursor_clear_trx,
 	(ib_cb_t*) &ib_cb_get_idx_field_name,
 	(ib_cb_t*) &ib_cb_trx_get_start_time,
-	(ib_cb_t*) &ib_cb_cfg_bk_commit_interval
+	(ib_cb_t*) &ib_cb_cfg_bk_commit_interval,
+	(ib_cb_t*) &ib_cb_ut_strerr
 };
 
 /** Set expiration time. If the exp sent by client is larger than

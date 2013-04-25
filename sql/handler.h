@@ -862,9 +862,6 @@ struct handlerton
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);
    int  (*commit_by_xid)(handlerton *hton, XID *xid);
    int  (*rollback_by_xid)(handlerton *hton, XID *xid);
-   void *(*create_cursor_read_view)(handlerton *hton, THD *thd);
-   void (*set_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
-   void (*close_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
    handler *(*create)(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root);
    void (*drop_database)(handlerton *hton, char* path);
    int (*panic)(handlerton *hton, enum ha_panic_function flag);
@@ -3478,7 +3475,7 @@ int ha_recover(HASH *commit_list);
  intended to be used by the transaction coordinators to
  commit/prepare/rollback transactions in the engines.
 */
-int ha_commit_low(THD *thd, bool all);
+int ha_commit_low(THD *thd, bool all, bool run_after_commit= true);
 int ha_prepare_low(THD *thd, bool all);
 int ha_rollback_low(THD *thd, bool all);
 
@@ -3504,7 +3501,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
 
-#ifdef HAVE_NDB_BINLOG
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
 void ha_reset_slave(THD *thd);
@@ -3513,13 +3509,6 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
 void ha_binlog_wait(THD *thd);
-#else
-#define ha_reset_logs(a) do {} while (0)
-#define ha_binlog_index_purge_file(a,b) do {} while (0)
-#define ha_reset_slave(a) do {} while (0)
-#define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
-#define ha_binlog_wait(a) do {} while (0)
-#endif
 
 /* It is required by basic binlog features on both MySQL server and libmysqld */
 int ha_binlog_end(THD *thd);

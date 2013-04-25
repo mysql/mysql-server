@@ -1,5 +1,7 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
 
 #------------------------------------------------------------------------------
 # FTS with FK and update cascade
@@ -474,6 +476,7 @@ SELECT * FROM t1 WHERE MATCH (a,b)
 
 # boolean mode
 select * from t1 where MATCH(a,b) AGAINST("+tutorial +VÐƷWİ" IN BOOLEAN MODE);
+--error ER_PARSE_ERROR
 select * from t1 where MATCH(a,b) AGAINST("+-VÐƷWİ" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE);

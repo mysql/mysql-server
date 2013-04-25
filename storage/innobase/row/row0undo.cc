@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -127,13 +127,15 @@ UNIV_INTERN
 undo_node_t*
 row_undo_node_create(
 /*=================*/
-	trx_t*		trx,	/*!< in: transaction */
+	trx_t*		trx,	/*!< in/out: transaction */
 	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
 	mem_heap_t*	heap)	/*!< in: memory heap where created */
 {
 	undo_node_t*	undo;
 
-	ut_ad(trx && parent && heap);
+	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE)
+	      || trx_state_eq(trx, TRX_STATE_PREPARED));
+	ut_ad(parent);
 
 	undo = static_cast<undo_node_t*>(
 		mem_heap_alloc(heap, sizeof(undo_node_t)));
@@ -156,50 +158,47 @@ Looks for the clustered index record when node has the row reference.
 The pcur in node is used in the search. If found, stores the row to node,
 and stores the position of pcur, and detaches it. The pcur must be closed
 by the caller in any case.
-@return TRUE if found; NOTE the node->pcur must be closed by the
+@return true if found; NOTE the node->pcur must be closed by the
 caller, regardless of the return value */
 UNIV_INTERN
-ibool
+bool
 row_undo_search_clust_to_pcur(
 /*==========================*/
-	undo_node_t*	node)	/*!< in: row undo node */
+	undo_node_t*	node)	/*!< in/out: row undo node */
 {
 	dict_index_t*	clust_index;
-	ibool		found;
+	bool		found;
 	mtr_t		mtr;
-	ibool		ret;
-	rec_t*		rec;
+	row_ext_t**	ext;
+	const rec_t*	rec;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(node->table, &mtr);
 
 	clust_index = dict_table_get_first_index(node->table);
 
-	found = row_search_on_row_ref(&(node->pcur), BTR_MODIFY_LEAF,
+	found = row_search_on_row_ref(&node->pcur, BTR_MODIFY_LEAF,
 				      node->table, node->ref, &mtr);
 
-	rec = btr_pcur_get_rec(&(node->pcur));
+	if (!found) {
+		goto func_exit;
+	}
+
+	rec = btr_pcur_get_rec(&node->pcur);
 
 	offsets = rec_get_offsets(rec, clust_index, offsets,
 				  ULINT_UNDEFINED, &heap);
 
-	if (!found || node->roll_ptr
-	    != row_get_rec_roll_ptr(rec, clust_index, offsets)) {
+	found = row_get_rec_roll_ptr(rec, clust_index, offsets)
+		== node->roll_ptr;
 
-		/* We must remove the reservation on the undo log record
-		BEFORE releasing the latch on the clustered index page: this
-		is to make sure that some thread will eventually undo the
-		modification corresponding to node->roll_ptr. */
-
-		/* fputs("--------------------undoing a previous version\n",
-		stderr); */
-
-		ret = FALSE;
-	} else {
-		row_ext_t**	ext;
+	if (found) {
+		ut_ad(row_get_rec_trx_id(rec, clust_index, offsets)
+		      == node->trx->id);
 
 		if (dict_table_get_format(node->table) >= UNIV_FORMAT_B) {
 			/* In DYNAMIC or COMPRESSED format, there is
@@ -227,17 +226,16 @@ row_undo_search_clust_to_pcur(
 			node->undo_ext = NULL;
 		}
 
-		btr_pcur_store_position(&(node->pcur), &mtr);
-
-		ret = TRUE;
+		btr_pcur_store_position(&node->pcur, &mtr);
 	}
 
-	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr);
-
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap) {
 		mem_heap_free(heap);
 	}
-	return(ret);
+
+func_exit:
+	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+	return(found);
 }
 
 /***********************************************************//**
@@ -260,6 +258,7 @@ row_undo(
 	ut_ad(node && thr);
 
 	trx = node->trx;
+	ut_ad(trx->in_rollback);
 
 	if (node->state == UNDO_NODE_FETCH_NEXT) {
 
@@ -271,6 +270,14 @@ row_undo(
 			/* Rollback completed for this query thread */
 
 			thr->run_node = que_node_get_parent(node);
+
+			/* Mark any partial rollback completed, so
+			that if the transaction object is committed
+			and reused later, the roll_limit will remain
+			at 0. trx->roll_limit will be nonzero during a
+			partial rollback only. */
+			trx->roll_limit = 0;
+			ut_d(trx->in_rollback = false);
 
 			return(DB_SUCCESS);
 		}

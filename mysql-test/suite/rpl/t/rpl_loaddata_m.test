@@ -1,5 +1,7 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
 
 # See if the master logs LOAD DATA INFILE correctly when binlog_*_db rules
 # exist.
@@ -47,7 +49,7 @@ SELECT COUNT(*) FROM mysqltest.t1;
 # Cleanup
 connection master;
 DROP DATABASE mysqltest;
-DROP TABLE test.t1;
+DROP TABLE IF EXISTS test.t1;
 sync_slave_with_master;
 
 # End of test

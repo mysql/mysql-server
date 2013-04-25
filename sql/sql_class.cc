@@ -31,7 +31,8 @@
 #include "sql_cache.h"                          // query_cache_abort
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_time.h"                         // date_time_format_copy
-#include "sql_acl.h"                          // NO_ACCESS,
+#include "auth_common.h"                      // acl_getroot
+                                              // NO_ACCESS,
                                               // acl_getroot_no_password
 #include "sql_base.h"                         // close_temporary_tables
 #include "sql_handler.h"                      // mysql_ha_cleanup
@@ -622,10 +623,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     m_current_stage_key= new_stage->m_key;
     proc_info= msg;
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_state)(msg);
     MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
-#endif
   }
   return;
 }
@@ -892,6 +890,7 @@ THD::THD(bool enable_plugins)
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
    m_trans_log_file(NULL),
+   m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -971,7 +970,7 @@ THD::THD(bool enable_plugins)
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
-  commit_error= 0;
+  commit_error= CE_NONE;
   durability_property= HA_REGULAR_DURABILITY;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -1962,6 +1961,7 @@ void THD::cleanup_after_query()
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
     binlog_accessed_db_names= NULL;
+    m_trans_fixed_log_file= NULL;
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.

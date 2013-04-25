@@ -621,13 +621,7 @@ fil_space_for_table_exists_in_mem(
 	ulint		id,		/*!< in: space id */
 	const char*	name,		/*!< in: table name in the standard
 					'databasename/tablename' format */
-	ibool		mark_space,	/*!< in: in crash recovery, at database
-					startup we mark all spaces which have
-					an associated table in the InnoDB
-					data dictionary, so that
-					we can print a warning about orphaned
-					tablespaces */
-	ibool		print_error_if_does_not_exist,
+	bool		print_error_if_does_not_exist,
 					/*!< in: print detailed error
 					information to the .err log if a
 					matching tablespace is not found from
@@ -706,7 +700,7 @@ fil_io(
 				because i/os are not actually handled until
 				all have been posted: use with great
 				caution! */
-	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
+	bool	sync,		/*!< in: true if synchronous aio is desired */
 	ulint	space_id,	/*!< in: space id */
 	ulint	zip_size,	/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */

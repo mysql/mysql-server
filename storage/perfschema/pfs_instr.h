@@ -476,14 +476,10 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   int m_command;
   /** Start time. */
   time_t m_start_time;
-  /** Lock for Processlist state. */
-  pfs_lock m_processlist_state_lock;
   /** Lock for Processlist info. */
   pfs_lock m_processlist_info_lock;
-  /** Processlist state. */
-  const char *m_processlist_state_ptr;
-  /** Length of @c m_processlist_state_ptr. */
-  uint m_processlist_state_length;
+  /** Processlist state (derived from stage). */
+  PFS_stage_key m_stage;
   /** Processlist info. */
   char m_processlist_info[COL_INFO_SIZE];
   /** Length of @c m_processlist_info_length. */

@@ -18,7 +18,7 @@
 #  http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html        #
 #                                                                             #
 ###############################################################################
---source include/have_myisam.inc
+--source include/force_myisam_default.inc
 
 --echo '#--------------------FN_DYNVARS_023_01-------------------------#'
 #######################################################################

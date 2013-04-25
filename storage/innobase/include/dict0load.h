@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -220,13 +220,15 @@ UNIV_INTERN
 dberr_t
 dict_load_foreigns(
 /*===============*/
-	const char*	table_name,	/*!< in: table name */
-	const char**	col_names,	/*!< in: column names, or NULL to use
-					table->col_names */
-	bool		check_recursive,/*!< in: Whether to check recursive
-					load of tables chained by FK */
-	bool		check_charsets)	/*!< in: whether to check charset
-					compatibility */
+	const char*		table_name,	/*!< in: table name */
+	const char**		col_names,	/*!< in: column names, or NULL
+						to use table->col_names */
+	bool			check_recursive,/*!< in: Whether to check
+						recursive load of tables
+						chained by FK */
+	bool			check_charsets,	/*!< in: whether to check
+						charset compatibility */
+	dict_err_ignore_t	ignore_err)	/*!< in: error to be ignored */
 	__attribute__((nonnull(1), warn_unused_result));
 /********************************************************************//**
 Prints to the standard output information on all tables found in the data

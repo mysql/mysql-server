@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it
@@ -98,7 +98,7 @@ enum monitor_type_t {
 
 /** Counter minimum value is initialized to be max value of
  mon_type_t (ib_int64_t) */
-#define	MIN_RESERVED		((mon_type_t) (IB_ULONGLONG_MAX >> 1))
+#define	MIN_RESERVED		((mon_type_t) (IB_UINT64_MAX >> 1))
 #define	MAX_RESERVED		(~MIN_RESERVED)
 
 /** This enumeration defines internal monitor identifier used internally
@@ -169,6 +169,7 @@ enum monitor_id_t {
 	MONITOR_FLUSH_BATCH_SCANNED,
 	MONITOR_FLUSH_BATCH_SCANNED_NUM_CALL,
 	MONITOR_FLUSH_BATCH_SCANNED_PER_CALL,
+	MONITOR_FLUSH_HP_RESCAN,
 	MONITOR_FLUSH_BATCH_TOTAL_PAGE,
 	MONITOR_FLUSH_BATCH_COUNT,
 	MONITOR_FLUSH_BATCH_PAGES,

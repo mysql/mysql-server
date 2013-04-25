@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ MACRO(MYSQL_ADD_PLUGIN)
   # Add common include directories
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
                     ${CMAKE_SOURCE_DIR}/sql
+                    ${CMAKE_SOURCE_DIR}/sql/auth
                     ${CMAKE_SOURCE_DIR}/regex
                     ${SSL_INCLUDE_DIRS}
                     ${ZLIB_INCLUDE_DIR})
@@ -174,6 +175,15 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     TARGET_LINK_LIBRARIES (${target} mysqlservices)
+
+    GET_TARGET_PROPERTY(LINK_FLAGS ${target} LINK_FLAGS)
+    IF(NOT LINK_FLAGS)
+      # Avoid LINK_FLAGS-NOTFOUND
+      SET(LINK_FLAGS)
+    ENDIF()
+    SET_TARGET_PROPERTIES(${target} PROPERTIES
+      LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${LINK_FLAGS} "
+    )
 
     # Plugin uses symbols defined in mysqld executable.
     # Some operating systems like Windows and OSX and are pretty strict about 

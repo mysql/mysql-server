@@ -699,8 +699,12 @@ lock_clust_rec_cons_read_sees(
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (srv_read_only_mode) {
-		ut_ad(view == 0);
+	/* Temp-tables are not shared across connections and multiple
+	transactions from different connections cannot simultaneously
+	operate on same temp-table and so read of temp-table is
+	always consistent read. */
+	if (srv_read_only_mode || dict_table_is_temporary(index->table)) {
+		ut_ad(view == 0 || dict_table_is_temporary(index->table));
 		return(true);
 	}
 
@@ -729,6 +733,7 @@ lock_sec_rec_cons_read_sees(
 	const rec_t*		rec,	/*!< in: user record which
 					should be read or passed over
 					by a read cursor */
+	const dict_index_t*	index,	/*!< in: index */
 	const read_view_t*	view)	/*!< in: consistent read view */
 {
 	trx_id_t	max_trx_id;
@@ -741,6 +746,14 @@ lock_sec_rec_cons_read_sees(
 	if (recv_recovery_is_on()) {
 
 		return(false);
+	}
+
+	/* Temp-tables are not shared across connections and multiple
+	transactions from different connections cannot simultaneously
+	operate on same temp-table and so read of temp-table is
+	always consistent read. */
+	if (dict_table_is_temporary(index->table)) {
+		return(true);
 	}
 
 	max_trx_id = page_get_max_trx_id(page_align(rec));
@@ -1661,6 +1674,7 @@ lock_rec_has_expl(
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
 		if (lock->trx == trx
+		    && !lock_rec_get_insert_intention(lock)
 		    && !lock_is_wait_not_by_other(lock->type_mode)
 		    && lock_mode_stronger_or_eq(
 			    lock_get_mode(lock),
@@ -1671,8 +1685,7 @@ lock_rec_has_expl(
 			|| heap_no == PAGE_HEAP_NO_SUPREMUM)
 		    && (!lock_rec_get_gap(lock)
 			|| (precise_mode & LOCK_GAP)
-			|| heap_no == PAGE_HEAP_NO_SUPREMUM)
-		    && (!lock_rec_get_insert_intention(lock))) {
+			|| heap_no == PAGE_HEAP_NO_SUPREMUM)) {
 
 			return(lock);
 		}
@@ -1690,14 +1703,10 @@ const lock_t*
 lock_rec_other_has_expl_req(
 /*========================*/
 	enum lock_mode		mode,	/*!< in: LOCK_S or LOCK_X */
-	ulint			gap,	/*!< in: LOCK_GAP if also gap
-					locks are taken into account,
-					or 0 if not */
-	ulint			wait,	/*!< in: LOCK_WAIT if also
-					waiting locks are taken into
-					account, or 0 if not */
 	const buf_block_t*	block,	/*!< in: buffer block containing
 					the record */
+	bool			wait,	/*!< in: whether also waiting locks
+					are taken into account */
 	ulint			heap_no,/*!< in: heap number of the record */
 	const trx_t*		trx)	/*!< in: transaction, or NULL if
 					requests by all transactions
@@ -1707,18 +1716,15 @@ lock_rec_other_has_expl_req(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
-	ut_ad(gap == 0 || gap == LOCK_GAP);
-	ut_ad(wait == 0 || wait == LOCK_WAIT);
 
 	for (lock = lock_rec_get_first(block, heap_no);
 	     lock != NULL;
 	     lock = lock_rec_get_next_const(heap_no, lock)) {
 
 		if (lock->trx != trx
-		    && (gap
-			|| !(lock_rec_get_gap(lock)
-			     || heap_no == PAGE_HEAP_NO_SUPREMUM))
-		    && (wait || !lock_get_wait(lock))
+		    && !(heap_no == PAGE_HEAP_NO_SUPREMUM
+			 || lock_rec_get_gap(lock))
+		    && (!wait || !lock_get_wait(lock))
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)) {
 
 			return(lock);
@@ -2169,8 +2175,8 @@ lock_rec_add_to_queue(
 			? LOCK_X
 			: LOCK_S;
 		const lock_t*	other_lock
-			= lock_rec_other_has_expl_req(mode, 0, LOCK_WAIT,
-						      block, heap_no, trx);
+			= lock_rec_other_has_expl_req(
+				mode, block, false, heap_no, trx);
 		ut_a(!other_lock);
 	}
 #endif /* UNIV_DEBUG */
@@ -3996,7 +4002,11 @@ lock_table(
 
 	ut_ad(table && thr);
 
-	if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode) {
+	/* Given limited visibility of temp-table we can avoid
+	locking overhead */
+	if ((flags & BTR_NO_LOCKING_FLAG)
+	    || srv_read_only_mode
+	    || dict_table_is_temporary(table)) {
 
 		return(DB_SUCCESS);
 	}
@@ -4258,6 +4268,7 @@ lock_release(
 {
 	lock_t*		lock;
 	ulint		count = 0;
+	trx_id_t	max_trx_id = trx_sys_get_max_trx_id();
 
 	ut_ad(lock_mutex_own());
 	ut_ad(!trx_mutex_own(trx));
@@ -4283,7 +4294,7 @@ lock_release(
 				block the use of the MySQL query cache for
 				all currently active transactions. */
 
-				table->query_cache_inv_time = ut_time();
+				table->query_cache_inv_id = max_trx_id;
 			}
 
 			lock_table_dequeue(lock);
@@ -5340,8 +5351,8 @@ lock_rec_queue_validate(
 		because lock_trx_release_locks() acquires lock_sys->mutex */
 
 		if (impl_trx != NULL
-		    && lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
-						   block, heap_no, impl_trx)) {
+		    && lock_rec_other_has_expl_req(
+			    LOCK_S, block, false, heap_no, impl_trx)) {
 
 			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 					       block, heap_no, impl_trx));
@@ -5368,7 +5379,7 @@ lock_rec_queue_validate(
 				mode = LOCK_S;
 			}
 			ut_a(!lock_rec_other_has_expl_req(
-				     mode, 0, 0, block, heap_no, lock->trx));
+				     mode, block, true, heap_no, lock->trx));
 
 		} else if (lock_get_wait(lock) && !lock_rec_get_gap(lock)) {
 
@@ -5683,6 +5694,7 @@ lock_rec_insert_check_and_lock(
 
 		return(DB_SUCCESS);
 	}
+	ut_ad(!dict_table_is_temporary(index->table));
 
 	trx = thr_get_trx(thr);
 	next_rec = page_rec_get_next_const(rec);
@@ -5894,6 +5906,7 @@ lock_clust_rec_modify_check_and_lock(
 
 		return(DB_SUCCESS);
 	}
+	ut_ad(!dict_table_is_temporary(index->table));
 
 	heap_no = rec_offs_comp(offsets)
 		? rec_get_heap_no_new(rec)
@@ -5956,6 +5969,7 @@ lock_sec_rec_modify_check_and_lock(
 
 		return(DB_SUCCESS);
 	}
+	ut_ad(!dict_table_is_temporary(index->table));
 
 	heap_no = page_rec_get_heap_no(rec);
 
@@ -6045,7 +6059,9 @@ lock_sec_rec_read_check_and_lock(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
-	if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode) {
+	if ((flags & BTR_NO_LOCKING_FLAG)
+	    || srv_read_only_mode
+	    || dict_table_is_temporary(index->table)) {
 
 		return(DB_SUCCESS);
 	}
@@ -6123,7 +6139,9 @@ lock_clust_rec_read_check_and_lock(
 	      || gap_mode == LOCK_REC_NOT_GAP);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode) {
+	if ((flags & BTR_NO_LOCKING_FLAG)
+	    || srv_read_only_mode
+	    || dict_table_is_temporary(index->table)) {
 
 		return(DB_SUCCESS);
 	}
@@ -6851,6 +6869,30 @@ lock_trx_has_sys_table_locks(
 	lock_mutex_exit();
 
 	return(strongest_lock);
+}
+
+/*******************************************************************//**
+Check if the transaction holds an exclusive lock on a record.
+@return	whether the locks are held */
+UNIV_INTERN
+bool
+lock_trx_has_rec_x_lock(
+/*====================*/
+	const trx_t*		trx,	/*!< in: transaction to check */
+	const dict_table_t*	table,	/*!< in: table to check */
+	const buf_block_t*	block,	/*!< in: buffer block of the record */
+	ulint			heap_no)/*!< in: record heap number */
+{
+	ut_ad(heap_no > PAGE_HEAP_NO_SUPREMUM);
+
+	lock_mutex_enter();
+	ut_a(lock_table_has(trx, table, LOCK_IX)
+	     || dict_table_is_temporary(table));
+	ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
+			       block, heap_no, trx)
+	     || dict_table_is_temporary(table));
+	lock_mutex_exit();
+	return(true);
 }
 #endif /* UNIV_DEBUG */
 

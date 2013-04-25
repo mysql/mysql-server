@@ -101,17 +101,11 @@ extern "C" {
 #if defined(__WIN__)
 #include <conio.h>
 #else
-#include <readline/readline.h>
+#include <readline.h>
 #define HAVE_READLINE
 #define USE_POPEN
 #endif
-  //int vidattr(long unsigned int attrs);	// Was missing in sun curses
 }
-
-#if !defined(HAVE_VIDATTR)
-#undef vidattr
-#define vidattr(A) {}			// Can't get this to work
-#endif
 
 #ifdef FN_NO_CASE_SENSE
 #define cmp_database(cs,A,B) my_strcasecmp((cs), (A), (B))
@@ -168,6 +162,7 @@ static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
 static my_bool opt_binary_mode= FALSE;
+static my_bool opt_connect_expired_password= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -1825,6 +1820,11 @@ static struct my_option my_long_options[] =
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"connect-expired-password", 0,
+   "Notify the server that this client is prepared to handle expired "
+   "password sandbox mode.",
+   &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2104,7 +2104,7 @@ static int read_and_execute(bool interactive)
   String buffer;
 #endif
 
-  char	*line;
+  char	*line= NULL;
   char	in_string=0;
   ulong line_number=0;
   bool ml_comment= 0;  
@@ -2203,6 +2203,11 @@ static int read_and_execute(bool interactive)
 #else
       if (opt_outfile)
         fputs(prompt, OUTFILE);
+      /*
+        free the previous entered line.
+      */
+      if (line)
+        my_free(line);
       line= readline(prompt);
 
       if (sigint_received)
@@ -2272,6 +2277,12 @@ static int read_and_execute(bool interactive)
 #if defined(__WIN__)
   buffer.free();
   tmpbuf.free();
+#else
+  if (interactive)
+    /*
+      free the last entered line.
+    */
+    my_free(line);
 #endif
 
   /*
@@ -3098,7 +3109,7 @@ my_bool check_histignore(const char *string)
   for (i= 0; i < histignore_patterns.elements; i++)
   {
     tmp= dynamic_element(&histignore_patterns, i, LEX_STRING *);
-    if ((rc= charset_info->coll->wildcmp(&my_charset_latin1,
+    if ((rc= charset_info->coll->wildcmp(charset_info,
                                          string, string + strlen(string),
                                          tmp->str, tmp->str + tmp->length,
                                          wild_prefix, wild_one,
@@ -4895,7 +4906,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 static void
 init_connection_options(MYSQL *mysql)
 {
-  my_bool interactive= status.batch ? FALSE : TRUE;
+  my_bool handle_expired= (opt_connect_expired_password || !status.batch) ?
+    TRUE : FALSE;
 
   if (opt_init_command)
     mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);
@@ -4967,7 +4979,7 @@ init_connection_options(MYSQL *mysql)
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysql");
 
-  mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &interactive);
+  mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 }
 
 
@@ -5048,9 +5060,7 @@ com_status(String *buffer __attribute__((unused)),
 
   if (skip_updates)
   {
-    vidattr(A_BOLD);
     tee_fprintf(stdout, "\nAll updates ignored to this database\n");
-    vidattr(A_NORMAL);
   }
 #ifdef USE_POPEN
   tee_fprintf(stdout, "Current pager:\t\t%s\n", pager);
@@ -5117,9 +5127,7 @@ com_status(String *buffer __attribute__((unused)),
   }
   if (safe_updates)
   {
-    vidattr(A_BOLD);
     tee_fprintf(stdout, "\nNote that you are running in safe_update_mode:\n");
-    vidattr(A_NORMAL);
     tee_fprintf(stdout, "\
 UPDATEs and DELETEs that don't use a key in the WHERE clause are not allowed.\n\
 (One can force an UPDATE/DELETE by adding LIMIT # at the end of the command.)\n\
@@ -5213,15 +5221,11 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
     if (!inited)
     {
       inited=1;
-#ifdef HAVE_SETUPTERM
-      (void) setupterm((char *)0, 1, (int *) 0);
-#endif
     }
     if (info_type == INFO_ERROR)
     {
       if (!opt_nobeep)
         putchar('\a');		      	/* This should make a bell */
-      vidattr(A_STANDOUT);
       if (error)
       {
 	if (sqlstate)
@@ -5232,10 +5236,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
       else
         tee_puts("ERROR: ", file);
     }
-    else
-      vidattr(A_BOLD);
     (void) tee_puts(str, file);
-    vidattr(A_NORMAL);
   }
   if (unbuffered)
     fflush(file);

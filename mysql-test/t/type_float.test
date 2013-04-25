@@ -1,5 +1,9 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+# Not supported in embedded.row count in explain varing much. Innodb default
+# not tried with embedded mode
+--source include/not_embedded.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 # Description
 # -----------
@@ -51,6 +55,9 @@ create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round
 --disable_ps_protocol
 select * from t2;
 --enable_ps_protocol
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t2;
 drop table t1,t2;
 
@@ -155,6 +162,9 @@ insert into t1 values ("100000000.0");
 insert into t2 values ("1.23456780");
 create table t3 select * from t2 union select * from t1;
 select * from t3;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t3;
 drop table t1, t2, t3;
 
@@ -195,6 +205,7 @@ insert into t1 values
 (5, 5.00), (5, -2104.80), (5, 2033.80), (5, 0.07), (5, 65.93),
 (3, -4986.24), (3, 5.00), (3, 4857.34), (3, 123.74), (3,  0.16),
 (6, -1695.31), (6, 1003.77), (6, 499.72), (6, 191.82);
+--replace_result 27 26 25 26
 explain select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a having s <> 0;
@@ -202,6 +213,7 @@ select sum(b) s from t1 group by a having s <> 0 order by s;
 select sum(b) s from t1 group by a having s <=> 0;
 select sum(b) s from t1 group by a having s <=> 0 order by s;
 alter table t1 add key (a, b);
+--replace_result 27 26 25 26
 explain select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a having s <> 0;

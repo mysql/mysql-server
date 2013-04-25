@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-/* USE_MY_STREAM isn't set because we can't thrust my_fclose! */
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
@@ -98,16 +96,11 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
 {
   size_t writtenbytes =0;
   my_off_t seekptr;
-#if !defined(NO_BACKGROUND) && defined(USE_MY_STREAM)
-  uint errors;
-#endif
+
   DBUG_ENTER("my_fwrite");
   DBUG_PRINT("my",("stream: 0x%lx  Buffer: 0x%lx  Count: %u  MyFlags: %d",
 		   (long) stream, (long) Buffer, (uint) Count, MyFlags));
 
-#if !defined(NO_BACKGROUND) && defined(USE_MY_STREAM)
-  errors=0;
-#endif
   seekptr= ftell(stream);
   for (;;)
   {
@@ -124,26 +117,11 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
 	writtenbytes+=written;
 	Count-=written;
       }
-#ifdef EINTR
       if (errno == EINTR)
       {
 	(void) my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0));
 	continue;
       }
-#endif
-#if !defined(NO_BACKGROUND) && defined(USE_MY_STREAM)
-      if (my_thread_var->abort)
-	MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
-
-      if ((errno == ENOSPC || errno == EDQUOT) &&
-          (MyFlags & MY_WAIT_IF_FULL))
-      {
-        wait_for_free_space("[stream]", errors);
-        errors++;
-        (void) my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0));
-        continue;
-      }
-#endif
       if (ferror(stream) || (MyFlags & (MY_NABP | MY_FNABP)))
       {
         if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))

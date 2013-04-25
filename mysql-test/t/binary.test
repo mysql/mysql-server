@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
 # test sort,min and max on binary fields
@@ -88,6 +89,9 @@ drop table t1;
 # Bug #6552 CHAR column w/o length is legal, BINARY w/o length is not
 #
 create table t1 (a binary);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -119,6 +123,7 @@ INSERT INTO t1 SET a=unhex('1F9480179366F2BF567E1C4B964C1EF029082020');
 INSERT INTO t1 SET a=unhex('1F9480179366F2BF567E1C4B964C1EF029080707');
 
 SELECT hex(a) FROM t1 order by a;
+--replace_result 4 3
 EXPLAIN SELECT hex(a) FROM t1 order by a;
 
 SELECT hex(a) from t1 WHERE a=unhex('1F9480179366F2BF567E1C4B964C1EF029082020');
