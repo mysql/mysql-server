@@ -122,11 +122,6 @@ extern	lsn_t	srv_shutdown_lsn;
 /** Log sequence number immediately after startup */
 extern	lsn_t	srv_start_lsn;
 
-#ifdef HAVE_DARWIN_THREADS
-/** TRUE if the F_FULLFSYNC option is available */
-extern	ibool	srv_have_fullfsync;
-#endif
-
 /** TRUE if the server is being started */
 extern	ibool	srv_is_being_started;
 /** TRUE if the server was successfully started */

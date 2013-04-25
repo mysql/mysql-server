@@ -18,7 +18,7 @@
 #  server-system-variables.html#option_mysqld_auto-increment-offset            #
 #                                                                              #
 ################################################################################
---source include/have_myisam.inc
+--source include/force_myisam_default.inc
 # save vars
 SET @global_auto_increment_increment = @@global.auto_increment_increment;
 SET @session_auto_increment_increment = @@session.auto_increment_increment;

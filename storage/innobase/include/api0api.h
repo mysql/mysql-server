@@ -1279,4 +1279,14 @@ ib_trx_get_start_time(
 /*==================*/
 	ib_trx_t	ib_trx);	/*!< in: transaction */
 
+/*****************************************************************//**
+Wrapper of ut_strerr() which converts an InnoDB error number to a
+human readable text message.
+@return string, describing the error */
+
+const char*
+ib_ut_strerr(
+/*=========*/
+	ib_err_t	num);		/*!< in: error number */
+
 #endif /* api0api_h */

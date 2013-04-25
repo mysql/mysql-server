@@ -12,6 +12,11 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
+# In the test scenario, there can be orphaned .frm files.
+# These are expected.  So suppressing the associated warnings.
+call mtr.add_suppression("InnoDB: Error: table .* does not exist "
+                         "in the InnoDB internal");
+
 ################################################################################
 #
 # Will test following scenarios:
@@ -45,7 +50,11 @@ let crash = $args --innodb-force-recovery-crash;
 --echo "testing creation of tablepsace by enabling error path"
 --echo # files in MYSQL_DATA_DIR
 --list_files $MYSQL_DATA_DIR/ ibtmp*
---source include/shutdown_mysqld.inc
+#
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 40
+--source include/wait_until_disconnected.inc
+#
 --echo "Temp-tablespace removed on shutdown"
 --echo # files in MYSQL_DATA_DIR
 --list_files $MYSQL_DATA_DIR/ ibtmp*
@@ -57,7 +66,11 @@ let SEARCH_PATTERN = InnoDB: Creating shared tablespace for temporary tables;
 --source include/search_pattern_in_file.inc
 #
 --echo "restarting server in normal mode"
---source include/start_mysqld.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
 --echo # files in MYSQL_DATA_DIR
 --list_files $MYSQL_DATA_DIR/ ibtmp*
 use test;

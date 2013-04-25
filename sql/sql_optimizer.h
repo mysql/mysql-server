@@ -570,11 +570,6 @@ public:
             select_lex->having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
-  bool is_top_level_join() const
-  {
-    return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
-                                        select_lex == unit->fake_select_lex));
-  }
   bool cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();
@@ -686,23 +681,21 @@ private:
   bool make_tmp_tables_info();
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
-
-  /// RAII class to ease the call of LEX::mark_broken() if error
-  class Prepare_error_tracker
-  {
-public:
-    Prepare_error_tracker(THD *thd_arg) : thd(thd_arg) {}
-    ~Prepare_error_tracker()
-    {
-      if (unlikely(thd->is_error()))
-        thd->lex->mark_broken();
-    }
-private:
-    THD *const thd;
-  };
-
 };
 
+/// RAII class to ease the call of LEX::mark_broken() if error.
+class Prepare_error_tracker
+{
+public:
+  Prepare_error_tracker(THD *thd_arg) : thd(thd_arg) {}
+  ~Prepare_error_tracker()
+  {
+    if (unlikely(thd->is_error()))
+      thd->lex->mark_broken();
+  }
+private:
+  THD *const thd;
+};
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok);

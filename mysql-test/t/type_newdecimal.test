@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 --disable_warnings
 drop table if exists t1;
@@ -37,6 +38,9 @@ drop table t1;
 #
 create table t1 select if(1, 1.1, 1.2), if(0, 1.1, 1.2), if(0.1, 1.1, 1.2), if(0, 1, 1.1), if(0, NULL, 1.2), if(1, 0.22e1, 1.1), if(1E0, 1.1, 1.2);
 select * from t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -45,6 +49,9 @@ drop table t1;
 #
 create table t1 select nullif(1.1, 1.1), nullif(1.1, 1.2), nullif(1.1, 0.11e1), nullif(1.0, 1), nullif(1, 1.0), nullif(1, 1.1);
 select * from t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -90,6 +97,9 @@ drop table t1;
 # test that functions create decimal fields
 #
 create table t1 select round(15.4,-1), truncate(-5678.123451,-3), abs(-1.1), -(-1.1);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -661,6 +671,9 @@ select truncate(99999999999999999999999999999999999999,-31);
 #
 #create table t1 (col1 decimal(0,38));
 #
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 #show create table t1;
 #-- should return:
 #+-------+--------------------------------+
@@ -682,6 +695,9 @@ select truncate(99999999999999999999999999999999999999,-31);
 #
 create table t1 as select 0.5;
 #
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 #-- should return:
 #+-------+-----------------------------------+
@@ -758,6 +774,9 @@ select 1 / 0;
 #create table t2 as select avg(col1),avg(col2) from t1;
 #
 #
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 #show create table t2;
 #-- should return:
 #+-------+---------------------------------+
@@ -793,6 +812,9 @@ select 1 / 0;
 #
 #create table t1 (col1 numeric(4,2));
 #
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 #show create table t1;
 #
 #drop table t1;
@@ -968,10 +990,16 @@ create table t1 (sl decimal(0,38));
 --error 1427
 create table t1 (sl decimal(0,30));
 create table t1 (sl decimal(5, 5));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 # Test limits
 create table t1 (sl decimal(65, 30));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -992,11 +1020,17 @@ select * from t1;
 drop table t1;
 
 #
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 # Bug 12173 (show create table fails)
 #
 create table t1 (
         f0 decimal (30,30) zerofill not null DEFAULT 0,
         f1 decimal (0,0) zerofill not null default 0);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -1045,6 +1079,9 @@ CREATE TABLE t1 (
    my_varchar VARCHAR(50),
    my_decimal DECIMAL(65,30)
 );
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 let $max_power= 32;
@@ -1243,6 +1280,9 @@ select (1.20396873 * 0.89550000 * 0.68000000 * 1.08721696 * 0.99500000 *
 
 create table t1 as select 5.05 / 0.014;
 show warnings;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 select * from t1;
 DROP TABLE t1;

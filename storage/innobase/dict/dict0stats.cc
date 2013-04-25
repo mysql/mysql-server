@@ -34,7 +34,6 @@ Created Jan 06, 2010 Vasil Dimov
 #include "dict0stats.h"
 #include "data0type.h" /* dtype_t */
 #include "db0err.h" /* dberr_t */
-#include "dyn0dyn.h" /* dyn_array* */
 #include "page0page.h" /* page_align() */
 #include "pars0pars.h" /* pars_info_create() */
 #include "pars0types.h" /* pars_info_t */
@@ -46,6 +45,8 @@ Created Jan 06, 2010 Vasil Dimov
 #include "trx0roll.h" /* trx_rollback_to_savepoint() */
 #include "ut0rnd.h" /* ut_rnd_interval() */
 #include "ut0ut.h" /* ut_format_name(), ut_time() */
+
+#include <vector>
 
 /* Sampling algorithm description @{
 
@@ -134,6 +135,13 @@ where n=1..n_uniq.
 descending to lower levels and fetch N_SAMPLE_PAGES(index) records
 from that level */
 #define N_DIFF_REQUIRED(index)	(N_SAMPLE_PAGES(index) * 10)
+
+/* A dynamic array where we store the boundaries of each distinct group
+of keys. For example if a btree level is:
+index: 0,1,2,3,4,5,6,7,8,9,10,11,12
+data:  b,b,b,b,b,b,g,g,j,j,j, x, y
+then we would store 5,7,10,11,12 in the array. */
+typedef std::vector<ib_uint64_t>	boundaries_t;
 
 /*********************************************************************//**
 Checks whether an index should be ignored in stats manipulations:
@@ -777,7 +785,10 @@ dict_stats_update_transient_for_index(
 		 && dict_index_is_clust(index))) {
 		mtr_t	mtr;
 		ulint	size;
+
 		mtr_start(&mtr);
+		dict_disable_redo_if_temporary(index->table, &mtr);
+
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 
 		size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
@@ -922,7 +933,7 @@ dict_stats_analyze_index_level(
 					distinct keys for all prefixes */
 	ib_uint64_t*	total_recs,	/*!< out: total number of records */
 	ib_uint64_t*	total_pages,	/*!< out: total number of pages */
-	dyn_array_t*	n_diff_boundaries,/*!< out: boundaries of the groups
+	boundaries_t*	n_diff_boundaries,/*!< out: boundaries of the groups
 					of distinct keys */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
@@ -967,9 +978,9 @@ dict_stats_analyze_index_level(
 	/* reset the dynamic arrays n_diff_boundaries[0..n_uniq-1] */
 	if (n_diff_boundaries != NULL) {
 		for (i = 0; i < n_uniq; i++) {
-			dyn_array_free(&n_diff_boundaries[i]);
-
-			dyn_array_create(&n_diff_boundaries[i]);
+			n_diff_boundaries[i].erase(
+				n_diff_boundaries[i].begin(),
+				n_diff_boundaries[i].end());
 		}
 	}
 
@@ -1097,7 +1108,6 @@ dict_stats_analyze_index_level(
 					record, that is - the last one from
 					a group of equal keys */
 
-					void*		p;
 					ib_uint64_t	idx;
 
 					/* the index of the current record
@@ -1110,11 +1120,7 @@ dict_stats_analyze_index_level(
 					total_recs >= 2 */
 					idx = *total_recs - 2;
 
-					p = dyn_array_push(
-						&n_diff_boundaries[i],
-						sizeof(ib_uint64_t));
-
-					memcpy(p, &idx, sizeof(ib_uint64_t));
+					n_diff_boundaries[i].push_back(idx);
 				}
 
 				/* increment the number of different keys
@@ -1175,15 +1181,11 @@ dict_stats_analyze_index_level(
 		last one from the last group of equal keys; this holds for
 		all possible prefixes */
 		for (i = 0; i < n_uniq; i++) {
-			void*		p;
 			ib_uint64_t	idx;
 
 			idx = *total_recs - 1;
 
-			p = dyn_array_push(&n_diff_boundaries[i],
-					   sizeof(ib_uint64_t));
-
-			memcpy(p, &idx, sizeof(ib_uint64_t));
+			n_diff_boundaries[i].push_back(idx);
 		}
 	}
 
@@ -1210,9 +1212,7 @@ dict_stats_analyze_index_level(
 			for (j = 0; j < n_diff[i]; j++) {
 				ib_uint64_t	idx;
 
-				idx = *(ib_uint64_t*) dyn_array_get_element(
-					&n_diff_boundaries[i],
-					j * sizeof(ib_uint64_t));
+				idx = n_diff_boundaries[i][j];
 
 				DEBUG_PRINTF(UINT64PF "=" UINT64PF ", ",
 					     j, idx);
@@ -1516,7 +1516,7 @@ dict_stats_analyze_index_for_n_prefix(
 					records on the given level,
 					when looking at the first
 					n_prefix columns */
-	dyn_array_t*	boundaries,	/*!< in: array that contains
+	boundaries_t*	boundaries,	/*!< in: array that contains
 					n_diff_for_this_prefix
 					integers each of which
 					represents the index (on the
@@ -1582,8 +1582,7 @@ dict_stats_analyze_index_for_n_prefix(
 	     == !(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
 			  btr_pcur_get_rec(&pcur), page_is_comp(page))));
 
-	last_idx_on_level = *(ib_uint64_t*) dyn_array_get_element(boundaries,
-		(ulint) ((n_diff_for_this_prefix - 1) * sizeof(ib_uint64_t)));
+	last_idx_on_level = boundaries->at(n_diff_for_this_prefix - 1);
 
 	rec_idx = 0;
 
@@ -1599,7 +1598,7 @@ dict_stats_analyze_index_for_n_prefix(
 		ib_uint64_t	dive_below_idx;
 
 		/* there are n_diff_for_this_prefix elements
-		in the array boundaries[] and we divide those elements
+		in 'boundaries' and we divide those elements
 		into n_recs_to_dive_below segments, for example:
 
 		let n_diff_for_this_prefix=100, n_recs_to_dive_below=4, then:
@@ -1638,9 +1637,7 @@ dict_stats_analyze_index_for_n_prefix(
 		ib_uint64_t could be bigger than ulint */
 		rnd = ut_rnd_interval(0, (ulint) (right - left));
 
-		dive_below_idx = *(ib_uint64_t*) dyn_array_get_element(
-			boundaries, (ulint) ((left + rnd)
-					     * sizeof(ib_uint64_t)));
+		dive_below_idx = boundaries->at(left + rnd);
 
 #if 0
 		DEBUG_PRINTF("    %s(): dive below record with index="
@@ -1749,7 +1746,7 @@ dict_stats_analyze_index(
 	ib_uint64_t*	n_diff_on_level;
 	ib_uint64_t	total_recs;
 	ib_uint64_t	total_pages;
-	dyn_array_t*	n_diff_boundaries;
+	boundaries_t*	n_diff_boundaries;
 	mtr_t		mtr;
 	ulint		size;
 
@@ -1835,13 +1832,7 @@ dict_stats_analyze_index(
 	n_diff_on_level = reinterpret_cast<ib_uint64_t*>
 		(mem_zalloc(n_uniq * sizeof(ib_uint64_t)));
 
-	n_diff_boundaries = reinterpret_cast<dyn_array_t*>
-		(mem_alloc(n_uniq * sizeof(dyn_array_t)));
-
-	for (ulint i = 0; i < n_uniq; i++) {
-		/* initialize the dynamic arrays */
-		dyn_array_create(&n_diff_boundaries[i]);
-	}
+	n_diff_boundaries = new boundaries_t[n_uniq];
 
 	/* total_recs is also used to estimate the number of pages on one
 	level below, so at the start we have 1 page (the root) */
@@ -1991,11 +1982,7 @@ found_level:
 
 	mtr_commit(&mtr);
 
-	for (ulint i = 0; i < n_uniq; i++) {
-		dyn_array_free(&n_diff_boundaries[i]);
-	}
-
-	mem_free(n_diff_boundaries);
+	delete[] n_diff_boundaries;
 
 	mem_free(n_diff_on_level);
 

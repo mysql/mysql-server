@@ -24,13 +24,13 @@ insert into t1 values(1),(2);
 drop table t1;
 
 connection slave;
-call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: 1866");
+--let $err1= convert_error(ER_MTS_INCONSISTENT_DATA)
+--let $err2= convert_error(ER_INCONSISTENT_ERROR)
+--eval call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: $err2")
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo (expect different error codes on master and slave)
-# 1756 = ER_MTS_INCONSISTENT_DATA
-# 1866 = ER_INCONSISTENT_ERROR
---let $slave_sql_errno= 1866,1756
+--let $slave_sql_errno= $err1,$err2
 # can't print error text. MTS reports a separate error in this case.
 # Todo: to fix single-threaded-slave BUG#57287.
 --let $show_slave_sql_error= 0

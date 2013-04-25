@@ -1,5 +1,7 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
 
 #------------------------------------------------------------------------------
 # Test With alter/create/drop index
@@ -1261,3 +1263,10 @@ SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('stands\'] | * | show[@database' IN NATURAL LANGUAGE MODE);
 
 DROP TABLE articles;
+
+CREATE TABLE t1(a TEXT CHARACTER SET LATIN1, FULLTEXT INDEX(a)) ENGINE=INNODB;
+
+--error ER_PARSE_ERROR
+SELECT * FROM t1 WHERE MATCH(a) AGAINST("*");
+
+DROP TABLE t1;

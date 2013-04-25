@@ -24,6 +24,9 @@ Compressed page interface
 Created June 2005 by Marko Makela
 *******************************************************/
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
 #include <map>
 #include <algorithm>
 
@@ -651,8 +654,8 @@ page_zip_dir_encode(
 #if PAGE_ZIP_DIR_SLOT_MASK & (PAGE_ZIP_DIR_SLOT_MASK + 1)
 # error "PAGE_ZIP_DIR_SLOT_MASK is not 1 less than a power of 2"
 #endif
-#if PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE - 1
-# error "PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE - 1"
+#if PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE_MAX - 1
+# error "PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE_MAX - 1"
 #endif
 		if (UNIV_UNLIKELY(rec_get_n_owned_new(rec))) {
 			offs |= PAGE_ZIP_DIR_SLOT_OWNED;
@@ -2297,13 +2300,12 @@ zlib_done:
 
 	if (UNIV_UNLIKELY
 	    (page_zip_get_trailer_len(page_zip,
-				      dict_index_is_clust(index), NULL)
+				      dict_index_is_clust(index))
 	     + page_zip->m_end >= page_zip_get_size(page_zip))) {
 		page_zip_fail(("page_zip_decompress_node_ptrs:"
 			       " %lu + %lu >= %lu, %lu\n",
 			       (ulong) page_zip_get_trailer_len(
-				       page_zip, dict_index_is_clust(index),
-				       NULL),
+				       page_zip, dict_index_is_clust(index)),
 			       (ulong) page_zip->m_end,
 			       (ulong) page_zip_get_size(page_zip),
 			       (ulong) dict_index_is_clust(index)));
@@ -2454,12 +2456,12 @@ zlib_done:
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
 	}
 
-	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, FALSE, NULL)
+	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, FALSE)
 			  + page_zip->m_end >= page_zip_get_size(page_zip))) {
 
 		page_zip_fail(("page_zip_decompress_sec: %lu + %lu >= %lu\n",
 			       (ulong) page_zip_get_trailer_len(
-				       page_zip, FALSE, NULL),
+				       page_zip, FALSE),
 			       (ulong) page_zip->m_end,
 			       (ulong) page_zip_get_size(page_zip)));
 		return(FALSE);
@@ -2785,12 +2787,12 @@ zlib_done:
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
 	}
 
-	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, TRUE, NULL)
+	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, TRUE)
 			  + page_zip->m_end >= page_zip_get_size(page_zip))) {
 
 		page_zip_fail(("page_zip_decompress_clust: %lu + %lu >= %lu\n",
 			       (ulong) page_zip_get_trailer_len(
-				       page_zip, TRUE, NULL),
+				       page_zip, TRUE),
 			       (ulong) page_zip->m_end,
 			       (ulong) page_zip_get_size(page_zip)));
 		return(FALSE);
@@ -4586,7 +4588,14 @@ page_zip_reorganize(
 					page_get_infimum_rec(temp_page),
 					index, mtr);
 
-	if (!dict_index_is_clust(index) && page_is_leaf(temp_page)) {
+	/* Temp-Tables are not shared across connection and so we avoid
+	locking of temp-tables as there would be no 2 trx trying to
+	operate on same temp-table in parallel.
+	max_trx_id is use to track which all trxs wrote to the page
+	in parallel but in case of temp-table this can is not needed. */
+	if (!dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)
+	    && page_is_leaf(temp_page)) {
 		/* Copy max trx id to recreated page */
 		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
 		page_set_max_trx_id(block, NULL, max_trx_id, NULL);
@@ -4649,7 +4658,9 @@ page_zip_copy_recs(
 
 	/* The PAGE_MAX_TRX_ID must be set on leaf pages of secondary
 	indexes.  It does not matter on other pages. */
-	ut_a(dict_index_is_clust(index) || !page_is_leaf(src)
+	ut_a(dict_index_is_clust(index)
+	     || dict_table_is_temporary(index->table)
+	     || !page_is_leaf(src)
 	     || page_get_max_trx_id(src));
 
 	UNIV_MEM_ASSERT_W(page, UNIV_PAGE_SIZE);
@@ -4680,8 +4691,7 @@ page_zip_copy_recs(
 		memcpy(page_zip, src_zip, sizeof *page_zip);
 		page_zip->data = data;
 	}
-	ut_ad(page_zip_get_trailer_len(page_zip,
-				       dict_index_is_clust(index), NULL)
+	ut_ad(page_zip_get_trailer_len(page_zip, dict_index_is_clust(index))
 	      + page_zip->m_end < page_zip_get_size(page_zip));
 
 	if (!page_is_leaf(src)

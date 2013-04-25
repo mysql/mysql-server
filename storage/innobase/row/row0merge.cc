@@ -326,18 +326,12 @@ row_merge_buf_add(
 				fts_doc_item_t*	doc_item;
 				byte*		value;
 
-				if (dfield_is_null(field)) {
-					n_row_added = 1;
-					continue;
-				}
-
-				doc_item = static_cast<fts_doc_item_t*>(
-					mem_heap_alloc(
-						buf->heap,
-						sizeof(fts_doc_item_t)));
-
 				/* fetch Doc ID if it already exists
-				in the row, and not supplied by the caller */
+				in the row, and not supplied by the
+				caller. Even if the value column is
+				NULL, we still need to get the Doc
+				ID so to maintain the correct max
+				Doc ID */
 				if (*doc_id == 0) {
 					const dfield_t*	doc_field;
 					doc_field = dtuple_get_nth_field(
@@ -348,13 +342,22 @@ row_merge_buf_add(
 						dfield_get_data(doc_field)));
 
 					if (*doc_id == 0) {
-						fprintf(stderr, "InnoDB FTS: "
-							"User supplied Doc ID "
-							"is zero. Record "
-							"Skipped\n");
+						ib_logf(IB_LOG_LEVEL_WARN,
+							"FTS Doc ID is zero. "
+							"Record Skipped");
 						return(0);
 					}
 				}
+
+				if (dfield_is_null(field)) {
+					n_row_added = 1;
+					continue;
+				}
+
+				doc_item = static_cast<fts_doc_item_t*>(
+					mem_heap_alloc(
+						buf->heap,
+						sizeof(*doc_item)));
 
 				value = static_cast<byte*>(
 					ut_malloc(field->len));
@@ -1403,7 +1406,8 @@ end_of_index:
 			will not see a newer state of the table when
 			applying the log.  This is mainly to prevent
 			false duplicate key errors, because the log
-			will identify records by the PRIMARY KEY. */
+			will identify records by the PRIMARY KEY,
+			and also to prevent unsafe BLOB access. */
 			ut_ad(trx->read_view);
 
 			if (!read_view_sees_trx_id(
@@ -2162,23 +2166,6 @@ row_merge_sort(
 }
 
 /*************************************************************//**
-Set blob fields empty */
-static __attribute__((nonnull))
-void
-row_merge_set_blob_empty(
-/*=====================*/
-	dtuple_t*	tuple)	/*!< in/out: data tuple */
-{
-	for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
-		dfield_t*	field = dtuple_get_nth_field(tuple, i);
-
-		if (dfield_is_ext(field)) {
-			dfield_set_data(field, NULL, 0);
-		}
-	}
-}
-
-/*************************************************************//**
 Copy externally stored columns to the data tuple. */
 static __attribute__((nonnull))
 void
@@ -2229,7 +2216,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_merge_insert_index_tuples(
 /*==========================*/
-	trx_id_t		trx_id,	/*!< in: transaction identifier */
+	trx_id_t		trx_id, /*!< in: transaction identifier */
 	dict_index_t*		index,	/*!< in: index */
 	const dict_table_t*	old_table,/*!< in: old table */
 	int			fd,	/*!< in: file descriptor */
@@ -2303,53 +2290,37 @@ row_merge_insert_index_tuples(
 				mrec, index, offsets, &n_ext, tuple_heap);
 
 			if (!n_ext) {
-				/* There are no externally stored columns. */
-			} else if (!dict_index_is_online_ddl(old_index)) {
+				/* There are no externally stored columns.
+				If we are creating secondary indexes only,
+				row_merge_read_clustered_index() will
+				essentially perform READ UNCOMMITTED.
+				This does not matter, because
+				row_log_apply() is idempotent. */
+			} else {
 				ut_ad(dict_index_is_clust(index));
-				/* Modifications to the table are
-				blocked while we are not rebuilding it
-				or creating indexes. Off-page columns
-				can be fetched safely. */
+				/* Off-page columns can be fetched safely
+				when concurrent modifications to the table
+				are disabled. (Purge can process delete-marked
+				records, but row_merge_read_clustered_index()
+				would have skipped them.)
+
+				When concurrent modifications are enabled,
+				row_merge_read_clustered_index() will
+				only see rows from transactions that were
+				committed before the ALTER TABLE started
+				(REPEATABLE READ).
+
+				Any modifications after the
+				row_merge_read_clustered_index() scan
+				will go through row_log_table_apply().
+				Any modifications to off-page columns
+				will be tracked by
+				row_log_table_blob_alloc() and
+				row_log_table_blob_free(). */
 				row_merge_copy_blobs(
 					mrec, offsets,
 					dict_table_zip_size(old_table),
 					dtuple, tuple_heap);
-			} else {
-				ut_ad(dict_index_is_clust(index));
-
-				ulint	offset = index->trx_id_offset;
-
-				if (!offset) {
-					offset = row_get_trx_id_offset(
-						index, offsets);
-				}
-
-				/* Copy the off-page columns while
-				holding old_index->lock, so
-				that they cannot be freed by
-				a rollback of a fresh insert. */
-				rw_lock_s_lock(&old_index->lock);
-
-				if (row_log_table_is_rollback(
-					    old_index,
-					    trx_read_trx_id(mrec + offset))) {
-					/* The row and BLOB could
-					already be freed. They
-					will be deleted by
-					row_undo_ins_remove_clust_rec
-					when rolling back a fresh
-					insert. So, no need to retrieve
-					the off-page column. */
-					row_merge_set_blob_empty(
-						dtuple);
-				} else {
-					row_merge_copy_blobs(
-						mrec, offsets,
-						dict_table_zip_size(old_table),
-						dtuple, tuple_heap);
-				}
-
-				rw_lock_s_unlock(&old_index->lock);
 			}
 
 			ut_ad(dtuple_validate(dtuple));

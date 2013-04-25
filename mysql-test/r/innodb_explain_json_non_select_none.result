@@ -4717,7 +4717,7 @@ EXPLAIN
         ] /* ref */,
         "rows": 2,
         "filtered": 100,
-        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y') and (`test`.`t1`.`c1_idx` = 'y'))"
+        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y'))"
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -4807,7 +4807,7 @@ EXPLAIN
         ] /* ref */,
         "rows": 2,
         "filtered": 100,
-        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y') and (`test`.`t1`.`c1_idx` = 'y'))"
+        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y'))"
       } /* table */
     } /* ordering_operation */
   } /* query_block */

@@ -226,7 +226,7 @@ This could result in rescursive calls and out of stack error eventually.
 DICT_FK_MAX_RECURSIVE_LOAD defines the maximum number of recursive loads,
 when exceeded, the child table will not be loaded. It will be loaded when
 the foreign constraint check needs to be run. */
-#define DICT_FK_MAX_RECURSIVE_LOAD	255
+#define DICT_FK_MAX_RECURSIVE_LOAD	20
 
 /** Similarly, when tables are chained together with foreign key constraints
 with on cascading delete/update clause, delete from parent table could
@@ -795,12 +795,13 @@ struct dict_table_t{
 				on the table: we cannot drop the table while
 				there are foreign key checks running on
 				it! */
-	time_t		query_cache_inv_time;
-				/*!< transactions whose start time is greater
-				than this number are not allowed to store to the
-				MySQL query cache or retrieve from it; when
-				a trx with undo logs commits, it sets this
-				to the value of the current time. */
+	trx_id_t	query_cache_inv_id;
+				/*!< transactions whose view low limit is
+				greater than this number are not allowed
+				to store to the MySQL query cache or
+				retrieve from it; when a trx with undo
+				logs commits, it sets this to the value
+				of the current time. */
 	trx_id_t	def_trx_id;
 				/*!< transaction id that last touched
 				the table definition, either when

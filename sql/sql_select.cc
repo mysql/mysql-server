@@ -35,7 +35,7 @@
                                  // mysql_unlock_read_tables
 #include "sql_show.h"            // append_identifier
 #include "sql_base.h"            // setup_wild, setup_fields, fill_record
-#include "sql_acl.h"             // *_ACL
+#include "auth_common.h"         // *_ACL
 #include "sql_test.h"            // misc. debug printing utilities
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
@@ -75,8 +75,9 @@ bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option)
 {
   bool res;
-  LEX *lex= thd->lex;
-  SELECT_LEX *select_lex = &lex->select_lex;
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex = lex->select_lex;
+
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 
@@ -88,10 +89,10 @@ bool handle_select(THD *thd, select_result *result,
 
   if (select_lex->master_unit()->is_union() || 
       select_lex->master_unit()->fake_select_lex)
-    res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
+    res= mysql_union(thd, lex, result, lex->unit, setup_tables_done_option);
   else
   {
-    SELECT_LEX_UNIT *unit= &lex->unit;
+    SELECT_LEX_UNIT *unit= lex->unit;
     unit->set_limit(unit->global_parameters);
     /*
       'options' of mysql_select will be set in JOIN, as far as JOIN for
@@ -3072,6 +3073,18 @@ bool JOIN_TAB::and_with_condition(Item *add_cond, uint line)
 
 
 /**
+  Check if JOIN_TAB condition was moved to Filesort condition.
+  If yes then return condition belonging to Filesort, otherwise
+  return condition belonging to JOIN_TAB.
+*/
+
+Item *JOIN_TAB::unified_condition() const
+{
+  return filesort && filesort->select ? filesort->select->cond : condition();
+}
+
+
+/**
   Partially cleanup JOIN after it has executed: close index or rnd read
   (table cursors), free quick selects.
 
@@ -3156,8 +3169,8 @@ void JOIN::join_free()
   if (can_unlock && lock && thd->lock && ! thd->locked_tables_mode &&
       !(select_options & SELECT_NO_UNLOCK) &&
       !select_lex->subquery_in_having &&
-      (select_lex == (thd->lex->unit.fake_select_lex ?
-                      thd->lex->unit.fake_select_lex : &thd->lex->select_lex)))
+      (select_lex == (thd->lex->unit->fake_select_lex ?
+                      thd->lex->unit->fake_select_lex : thd->lex->select_lex)))
   {
     /*
       TODO: unlock tables even if the join isn't top level select in the

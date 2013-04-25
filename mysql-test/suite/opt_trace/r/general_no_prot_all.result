@@ -11356,7 +11356,7 @@ drop view v1;
 create view v1 as select * from t1 where id < "c" limit 2;
 explain select * from v1 where id="b";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	16	const	0	Using where
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	16	const	0	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -11577,7 +11577,7 @@ explain select * from v1 where id="b"	{
               "attached_conditions_summary": [
                 {
                   "table": "`v1`",
-                  "attached": "(`v1`.`id` = 'b')"
+                  "attached": null
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */

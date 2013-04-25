@@ -27,7 +27,7 @@
 #include "strfunc.h"     // find_type
 #include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
 #include "sql_parse.h"   // check_table_access
-#include "sql_acl.h"     // *_ACL, check_grant_all_columns,
+#include "auth_common.h" // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
                          // get_column_grant
 #include "sql_partition.h"               // ALTER_PARTITION_PARAM_TYPE
@@ -8611,7 +8611,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     from subquery of VIEW, because tables of subquery belongs to VIEW
     (see condition before prepare_check_option() call)
   */
-  bool it_is_update= (select_lex == &thd->lex->select_lex) &&
+  bool it_is_update= (select_lex == thd->lex->select_lex) &&
     thd->lex->which_check_option_applicable();
   bool save_is_item_list_lookup= select_lex->is_item_list_lookup;
   select_lex->is_item_list_lookup= 0;

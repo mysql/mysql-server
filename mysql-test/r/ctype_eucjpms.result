@@ -9893,7 +9893,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `code` varchar(6) CHARACTER SET eucjpms NOT NULL DEFAULT '',
   `a` varchar(1) CHARACTER SET eucjpms NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 UPDATE t1 SET a=unhex(code) ORDER BY code;
 Warnings:
 Warning	1366	Incorrect string value: '\x80 ' for column 'a' at row 1

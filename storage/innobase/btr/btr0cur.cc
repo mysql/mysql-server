@@ -549,8 +549,9 @@ btr_cur_search_to_nth_level(
 		break;
 	case BTR_CONT_MODIFY_TREE:
 		/* Do nothing */
-		ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-					MTR_MEMO_X_LOCK));
+		ut_ad(srv_read_only_mode
+		      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+					   MTR_MEMO_X_LOCK));
 		break;
 	default:
 		if (!s_latch_by_caller && !srv_read_only_mode) {
@@ -2388,8 +2389,7 @@ btr_cur_pessimistic_update(
 				the values in update vector have no effect */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread, or NULL if
-				appropriate flags are set */
+	que_thr_t*	thr,	/*!< in: query thread */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; must be
 				committed before latching any further pages */
@@ -2522,6 +2522,8 @@ btr_cur_pessimistic_update(
 		update it back again. */
 
 		ut_ad(big_rec_vec == NULL);
+		ut_ad(dict_index_is_clust(index));
+		ut_ad(thr_get_trx(thr)->in_rollback);
 
 		btr_rec_free_updated_extern_fields(
 			index, rec, page_zip, *offsets, update,
@@ -2686,7 +2688,12 @@ make_external:
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 	page_cursor->rec = rec;
 
-	if (dict_index_is_sec_or_ibuf(index)) {
+	/* Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
+	if (dict_index_is_sec_or_ibuf(index)
+	    && !dict_table_is_temporary(index->table)) {
 		/* Update PAGE_MAX_TRX_ID in the index page header.
 		It was not updated by btr_cur_pessimistic_insert()
 		because of BTR_NO_LOCKING_FLAG. */
@@ -2876,6 +2883,7 @@ UNIV_INTERN
 dberr_t
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
+	ulint		flags,  /*!< in: undo logging and locking flags */
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
 	rec_t*		rec,	/*!< in/out: record */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
@@ -2912,7 +2920,7 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	err = trx_undo_report_row_operation(0, TRX_UNDO_MODIFY_OP, thr,
+	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,
 					    index, NULL, NULL, 0, rec, offsets,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
@@ -2930,10 +2938,14 @@ btr_cur_del_mark_set_clust_rec(
 	btr_rec_set_deleted_flag(rec, page_zip, TRUE);
 
 	trx = thr_get_trx(thr);
+	/* This function must not be invoked during rollback
+	(of a TRX_STATE_PREPARE transaction or otherwise). */
+	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+	ut_ad(!trx->in_rollback);
 
 	if (dict_index_is_online_ddl(index)) {
 		row_log_table_delete(
-			rec, index, offsets,
+			rec, index, offsets, false,
 			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
 					+ rec));
 	}
@@ -3867,7 +3879,7 @@ btr_estimate_number_of_different_key_vals(
 
 	default:
 		ut_error;
-        }
+	}
 
 	/* It makes no sense to test more pages than are contained
 	in the index, thus we lower the number if it is too high */
@@ -4529,6 +4541,7 @@ btr_store_big_rec_extern_fields(
 			page_t*		page;
 
 			mtr_start(&mtr);
+			dict_disable_redo_if_temporary(index->table, &mtr);
 
 			if (prev_page_no == FIL_NULL) {
 				hint_page_no = 1 + rec_page_no;
@@ -4585,6 +4598,8 @@ alloc_another:
 						page_no, MLOG_4BYTES, &mtr);
 				}
 
+			} else if (dict_index_is_online_ddl(index)) {
+				row_log_table_blob_alloc(index, page_no);
 			}
 
 			if (page_zip) {
@@ -4921,13 +4936,17 @@ btr_free_externally_stored_field(
 					X-latch to the index tree */
 {
 	page_t*		page;
-	ulint		space_id;
+	const ulint	space_id	= mach_read_from_4(
+		field_ref + BTR_EXTERN_SPACE_ID);
+	const ulint	start_page	= mach_read_from_4(
+		field_ref + BTR_EXTERN_PAGE_NO);
 	ulint		rec_zip_size = dict_table_zip_size(index->table);
 	ulint		ext_zip_size;
 	ulint		page_no;
 	ulint		next_page_no;
 	mtr_t		mtr;
 
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains_page(local_mtr, field_ref,
@@ -4944,7 +4963,7 @@ btr_free_externally_stored_field(
 		return;
 	}
 
-	space_id = mach_read_from_4(field_ref + BTR_EXTERN_SPACE_ID);
+	ut_ad(space_id == index->space);
 
 	if (UNIV_UNLIKELY(space_id != dict_index_get_space(index))) {
 		ext_zip_size = fil_space_get_zip_size(space_id);
@@ -4974,8 +4993,7 @@ btr_free_externally_stored_field(
 
 		btr_blob_dbg_t	b;
 
-		b.blob_page_no = mach_read_from_4(
-			field_ref + BTR_EXTERN_PAGE_NO);
+		b.blob_page_no = start_page;
 
 		if (rec) {
 			/* Remove the reference from the record to the
@@ -5003,6 +5021,7 @@ btr_free_externally_stored_field(
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
+		dict_disable_redo_if_temporary(index->table, &mtr);
 
 #ifdef UNIV_SYNC_DEBUG
 		rec_block =
@@ -5028,6 +5047,10 @@ btr_free_externally_stored_field(
 			mtr_commit(&mtr);
 
 			return;
+		}
+
+		if (page_no == start_page && dict_index_is_online_ddl(index)) {
+			row_log_table_blob_free(index, start_page);
 		}
 
 		ext_block = buf_page_get(space_id, ext_zip_size, page_no,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2453,7 +2453,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 
   /* Allocate a buffer for the records (excluding blobs). */
   if (!(record=(uchar*) my_alloca(isam_file->s->base.reclength)))
-    return -1;
+    DBUG_RETURN(-1);
 
   end_count=huff_counts+isam_file->s->base.fields;
   min_record_length= (uint) ~0;

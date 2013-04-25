@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
 # system functions
@@ -23,12 +24,18 @@ select charset(version());
 explain extended select database(), user();
 
 create table t1 (version char(60)) select database(), user(), version() as 'version';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
 select charset(charset(_utf8'a')), charset(collation(_utf8'a'));
 select collation(charset(_utf8'a')), collation(collation(_utf8'a'));
 create table t1 select charset(_utf8'a'), collation(_utf8'a');
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 

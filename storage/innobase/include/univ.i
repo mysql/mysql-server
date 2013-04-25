@@ -340,7 +340,7 @@ typedef enum innodb_file_formats_enum innodb_file_formats_t;
 #define UNIV_PAGE_SIZE_SHIFT	srv_page_size_shift
 
 /** The universal page size of the database */
-#define UNIV_PAGE_SIZE		srv_page_size
+#define UNIV_PAGE_SIZE		((ulint) srv_page_size)
 
 /** log2 of smallest compressed page size (1<<10 == 1024 bytes)
 Note: This must never change! */
@@ -441,6 +441,7 @@ macro ULINTPF. */
 # define INT64PF	"%I64d"
 # define UINT64PF	"%I64u"
 # define UINT64PFx	"%016I64u"
+# define DBUG_LSN_PF    "%llu"
 typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
@@ -450,6 +451,7 @@ typedef unsigned __int32 ib_uint32_t;
 # define INT64PF	"%"PRId64
 # define UINT64PF	"%"PRIu64
 # define UINT64PFx	"%016"PRIx64
+# define DBUG_LSN_PF    UINT64PF
 typedef int64_t ib_int64_t;
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;
@@ -494,11 +496,11 @@ typedef unsigned long long int	ullint;
 #define ULINT_MAX		((ulint)(-2))
 
 /** Maximum value for ib_uint64_t */
-#define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
-#define IB_UINT64_MAX		IB_ULONGLONG_MAX
+#define IB_UINT64_MAX		((ib_uint64_t) (~0ULL))
 
 /** The generic InnoDB system object identifier data type */
-typedef ib_uint64_t	ib_id_t;
+typedef ib_uint64_t		ib_id_t;
+#define IB_ID_MAX		IB_UINT64_MAX
 
 /** The 'undefined' value for a ullint */
 #define ULLINT_UNDEFINED        ((ullint)(-1))

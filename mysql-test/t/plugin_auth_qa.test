@@ -1,5 +1,7 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
 
 # The numbers represent test cases of the test plan.
 
@@ -170,10 +172,12 @@ DROP USER plug_dest;
 # 
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 #--error 1700
---echo GRANTs which doesn't change the plugin are allowed
+--echo GRANT IDENTIFIED WITH for existing users is not allowed
+--error ER_GRANT_PLUGIN_USER_EXISTS
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 #--error 1700
---echo GRANTs which doesn't change the plugin are allowed
+--echo GRANT IDENTIFIED WITH for existing users is not allowed
+--error ER_GRANT_PLUGIN_USER_EXISTS
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server';
 DROP USER plug;
 #

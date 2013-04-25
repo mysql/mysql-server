@@ -49,9 +49,9 @@
 #include "mysqld.h"
 #include "lock.h"
 #include "sql_time.h"                       // known_date_time_formats
-#include "sql_acl.h" // SUPER_ACL,
-                     // mysql_user_table_is_in_short_password_format
-                     // disconnect_on_expired_password
+#include "auth_common.h" // SUPER_ACL,
+                         // mysql_user_table_is_in_short_password_format
+                         // disconnect_on_expired_password
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
 #include "debug_sync.h"                         // DEBUG_SYNC
@@ -1175,7 +1175,7 @@ static Sys_var_ulong Sys_connect_timeout(
 static Sys_var_charptr Sys_datadir(
        "datadir", "Path to the database root directory",
        READ_ONLY GLOBAL_VAR(mysql_real_data_home_ptr),
-       CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(0));
+       CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(mysql_real_data_home));
 
 #ifndef DBUG_OFF
 static Sys_var_dbug Sys_dbug(
@@ -1270,6 +1270,7 @@ static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
 }
 static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
 {
+  int err_no= 0;
   uint opt_event_scheduler_value= Events::opt_event_scheduler;
   mysql_mutex_unlock(&LOCK_global_system_variables);
   /*
@@ -1289,11 +1290,14 @@ static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
     for deadlocks. See bug#51160.
   */
   bool ret= opt_event_scheduler_value == Events::EVENTS_ON
-            ? Events::start()
+            ? Events::start(&err_no)
             : Events::stop();
   mysql_mutex_lock(&LOCK_global_system_variables);
   if (ret)
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), 0);
+  {
+    Events::opt_event_scheduler= Events::EVENTS_OFF;
+    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), err_no);
+  }
   return ret;
 }
 

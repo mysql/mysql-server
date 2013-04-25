@@ -13,7 +13,7 @@ SHOW CREATE TABLE mysqltest2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin5
+) ENGINE=ENGINE DEFAULT CHARSET=latin5
 DROP TABLE mysqltest2.t1;
 ALTER DATABASE mysqltest2 DEFAULT CHARACTER SET latin7;
 CREATE TABLE mysqltest2.t1 (a char(10));
@@ -21,7 +21,7 @@ SHOW CREATE TABLE mysqltest2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin7
+) ENGINE=ENGINE DEFAULT CHARSET=latin7
 DROP DATABASE mysqltest2;
 CREATE DATABASE mysqltest2 CHARACTER SET latin2;
 CREATE TABLE mysqltest2.t1 (a char(10));
@@ -29,7 +29,7 @@ SHOW CREATE TABLE mysqltest2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin2
+) ENGINE=ENGINE DEFAULT CHARSET=latin2
 DROP DATABASE mysqltest2;
 USE mysqltest1;
 CREATE TABLE t1 (a char(10));
@@ -37,14 +37,14 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251
+) ENGINE=ENGINE DEFAULT CHARSET=cp1251
 DROP TABLE t1;
 CREATE TABLE t1 (a char(10)) DEFAULT CHARACTER SET latin1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1 (a char(10)) 
 DEFAULT CHARACTER SET latin1 COLLATE latin1_german1_ci;
@@ -52,7 +52,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
 DROP TABLE t1;
 create table t1 (a char) character set latin1 character set latin2;
 ERROR HY000: Conflicting declarations: 'CHARACTER SET latin1' and 'CHARACTER SET latin2'

@@ -646,7 +646,7 @@ sub run_test_server ($$$) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 
-			   My::CoreDump->show($core_file, $exe_mysqld);
+			   My::CoreDump->show($core_file, $exe_mysqld, $opt_parallel);
 
 			   if ($num_saved_cores >= $opt_max_save_core) {
 			     mtr_report(" - deleting it, already saved",
@@ -2320,18 +2320,6 @@ sub environment_setup {
 				  $ENV{'DYLD_LIBRARY_PATH'} ?
 				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
-
-  # The environment variable used for shared libs on AIX
-  $ENV{'SHLIB_PATH'}= join(":", @ld_library_paths,
-                           $ENV{'SHLIB_PATH'} ?
-                           split(':', $ENV{'SHLIB_PATH'}) : ());
-  mtr_debug("SHLIB_PATH: $ENV{'SHLIB_PATH'}");
-
-  # The environment variable used for shared libs on hp-ux
-  $ENV{'LIBPATH'}= join(":", @ld_library_paths,
-                        $ENV{'LIBPATH'} ?
-                        split(':', $ENV{'LIBPATH'}) : ());
-  mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
 
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*

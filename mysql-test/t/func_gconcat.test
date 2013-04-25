@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
 # simple test of group_concat function
@@ -21,6 +22,7 @@ insert into t1 values (3,9,"D","c");
 
 # Test of MySQL simple request
 select grp,group_concat(c) from t1 group by grp;
+--replace_column 9 9
 explain extended select grp,group_concat(c) from t1 group by grp;
 select grp,group_concat(a,c) from t1 group by grp;
 select grp,group_concat("(",a,":",c,")") from t1 group by grp;
@@ -39,10 +41,12 @@ select grp,group_concat(a order by d+c-ascii(c),a) from t1 group by grp;
 select grp,group_concat(c order by 1) from t1 group by grp;
 select grp,group_concat(distinct c order by c) from t1 group by grp;
 select grp,group_concat(distinct c order by c desc) from t1 group by grp;
+--replace_column 9 9
 explain extended select grp,group_concat(distinct c order by c desc) from t1 group by grp;
 select grp,group_concat(c order by c separator ",") from t1 group by grp;
 select grp,group_concat(c order by c desc separator ",") from t1 group by grp;
 select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
+--replace_column 9 9
 explain extended select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
 select grp,group_concat(distinct c order by c desc separator ",") from t1 group by grp;
 
@@ -276,6 +280,9 @@ insert into t1 values ('xxx','yyy');
 select collation(a) from t1;
 select collation(group_concat(a)) from t1;
 create table t2 select group_concat(a) as a from t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t2;
 select collation(group_concat(a,_koi8r'test')) from t1;
 --error 1267
@@ -317,6 +324,7 @@ drop table t2;
 create table t1 (d int not null auto_increment,primary key(d), a int, b int, c int);
 insert into t1(a,b) values (1,3), (1,4), (1,2), (2,7), (1,1), (1,2), (2,3), (2,3);
 select d,a,b from t1 order by a;
+--replace_result 9 8
 explain select a, group_concat(b) from t1 group by a with rollup;
 select a, group_concat(b) from t1 group by a with rollup;
 select a, group_concat(distinct b) from t1 group by a with rollup;
@@ -820,10 +828,16 @@ SELECT SUBSTRING(GROUP_CONCAT(DISTINCT UPPER(f1) ORDER BY f1), 1, 5) FROM t1;
 SELECT LENGTH(GROUP_CONCAT(DISTINCT UPPER(f1))) FROM t1;
 
 CREATE TABLE t2 SELECT GROUP_CONCAT(f1 order by f2) FROM t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t2;
 DROP TABLE t2;
 
 CREATE TABLE t2 SELECT GROUP_CONCAT(UPPER(f1) ORDER BY f2) FROM t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t2;
 DROP TABLE t2;
 

@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
 # Test of SET with space
@@ -10,9 +11,15 @@ drop table if exists t1;
 --enable_warnings
 
 create table t1 (a set (' ','a','b') not null);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 create table t1 (a set (' ','a','b ') not null default 'b ');
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 CREATE TABLE t1 (   user varchar(64) NOT NULL default '',   path varchar(255) NOT NULL default '',   privilege   set('select','RESERVED30','RESERVED29','RESERVED28','RESERVED27','RESERVED26',   'RESERVED25','RESERVED24','data.delete','RESERVED22','RESERVED21',   'RESERVED20','data.insert.none','data.insert.approve',   'data.insert.delete','data.insert.move','data.insert.propose',   'data.insert.reject','RESERVED13','RESERVED12','RESERVED11','RESERVED10',   'RESERVED09','data.update','RESERVED07','RESERVED06','RESERVED05',   'RESERVED04','metadata.delete','metadata.put','RESERVED01','RESERVED00')   NOT NULL default '',   KEY user (user)   ) ENGINE=MyISAM CHARSET=utf8;
@@ -23,6 +30,9 @@ DROP TABLE t1;
 #
 set names latin1;
 create table t1 (s set ('a','A') character set latin1 collate latin1_bin);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 insert into t1 values ('a'),('a,A'),('A,a'),('A');
 select s from t1 order by s;
@@ -57,6 +67,9 @@ set('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17',
 '18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33',
 '34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49',
 '50','51','52','53','54','55','56','57','58','59','60','61','62','63','64','1'));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 

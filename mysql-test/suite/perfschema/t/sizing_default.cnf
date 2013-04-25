@@ -4,10 +4,14 @@
 [mysqld.1]
 
 # Default values used in the server, out of the box
-table_definition_cache=400
-table_open_cache=400
-max_connections=151
-open_files_limit=1024
+# open_files_limit can be scaled down based on the os configuration (ulimit -n),
+# so to get a stable test output, make sure ulimit -n is big enough
+#
+# What is supposed to happen here by default:
+# table_open_cache = 2000
+# table_definition_cache = 400 + 2000/2 = 1400
+# max_connections = 151
+# open_files_limit = 5000
 
 # Automated sizing for everything
 

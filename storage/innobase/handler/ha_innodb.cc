@@ -471,7 +471,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_clear_trx,
 	(ib_cb_t) ib_get_idx_field_name,
 	(ib_cb_t) ib_trx_get_start_time,
-	(ib_cb_t) ib_cfg_bk_commit_interval
+	(ib_cb_t) ib_cfg_bk_commit_interval,
+	(ib_cb_t) ib_ut_strerr
 };
 
 /*************************************************************//**
@@ -841,43 +842,6 @@ innobase_rollback_by_xid(
 	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	XID*		xid);		/*!< in: X/Open XA transaction
 					identification */
-/*******************************************************************//**
-Create a consistent view for a cursor based on current transaction
-which is created if the corresponding MySQL thread still lacks one.
-This consistent view is then used inside of MySQL when accessing records
-using a cursor.
-@return	pointer to cursor view or NULL */
-static
-void*
-innobase_create_cursor_view(
-/*========================*/
-	handlerton*	hton,		/*!< in: innobase hton */
-	THD*		thd);		/*!< in: user thread handle */
-/*******************************************************************//**
-Set the given consistent cursor view to a transaction which is created
-if the corresponding MySQL thread still lacks one. If the given
-consistent cursor view is NULL global read view of a transaction is
-restored to a transaction read view. */
-static
-void
-innobase_set_cursor_view(
-/*=====================*/
-	handlerton*	hton,		/*!< in: handlerton of InnoDB */
-	THD*		thd,		/*!< in: user thread handle */
-	void*		curview);	/*!< in: Consistent cursor view to
-					be set */
-/*******************************************************************//**
-Close the given consistent cursor view of a transaction and restore
-global read view to a transaction read view. Transaction is created if the
-corresponding MySQL thread still lacks one. */
-static
-void
-innobase_close_cursor_view(
-/*=======================*/
-	handlerton*	hton,		/*!< in: handlerton of InnoDB */
-	THD*		thd,		/*!< in: user thread handle */
-	void*		curview);	/*!< in: Consistent read view to be
-					closed */
 /*****************************************************************//**
 Removes all tables in the named database inside InnoDB. */
 static
@@ -2189,7 +2153,9 @@ ha_innobase::ha_innobase(
 		  HA_TABLE_SCAN_ON_INDEX |
 		  HA_CAN_FULLTEXT |
 		  HA_CAN_FULLTEXT_EXT |
-		  HA_CAN_EXPORT),
+		  HA_CAN_EXPORT |
+		  HA_HAS_RECORDS
+		  ),
 	start_of_scan(0),
 	num_write_row(0)
 {}
@@ -2218,6 +2184,8 @@ ha_innobase::update_thd(
 	DBUG_ASSERT(prebuilt->table->n_ref_count > 0);
 
 	trx = check_trx_exists(thd);
+	ut_ad(trx->dict_operation_lock_mode == 0);
+	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
 
 	if (prebuilt->trx != trx) {
 
@@ -2225,6 +2193,9 @@ ha_innobase::update_thd(
 	}
 
 	user_thd = thd;
+
+	DBUG_ASSERT(prebuilt->trx->magic_n == TRX_MAGIC_N);
+	DBUG_ASSERT(prebuilt->trx == thd_to_trx(user_thd));
 }
 
 /*********************************************************************//**
@@ -2795,9 +2766,6 @@ innobase_init(
 	innobase_hton->recover = innobase_xa_recover;
 	innobase_hton->commit_by_xid = innobase_commit_by_xid;
 	innobase_hton->rollback_by_xid = innobase_rollback_by_xid;
-	innobase_hton->create_cursor_read_view = innobase_create_cursor_view;
-	innobase_hton->set_cursor_read_view = innobase_set_cursor_view;
-	innobase_hton->close_cursor_read_view = innobase_close_cursor_view;
 	innobase_hton->create = innobase_create_handler;
 	innobase_hton->drop_database = innobase_drop_database;
 	innobase_hton->panic = innobase_end;
@@ -3420,6 +3388,9 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
+	ut_ad(trx->dict_operation_lock_mode == 0);
+	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
+
 	/* Since we will reserve the trx_sys->mutex, we have to release
 	the search system latch first to obey the latching order. */
 
@@ -3547,6 +3518,8 @@ innobase_rollback(
 	DBUG_PRINT("trans", ("aborting transaction"));
 
 	trx = check_trx_exists(thd);
+	ut_ad(trx->dict_operation_lock_mode == 0);
+	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys->mutex, we have to release the search system
@@ -4466,8 +4439,6 @@ ha_innobase::innobase_initialize_autoinc()
 
 		update_thd(ha_thd());
 
-		ut_a(prebuilt->trx == thd_to_trx(user_thd));
-
 		col_name = field->field_name;
 		index = innobase_get_index(table->s->next_number_index);
 
@@ -4530,17 +4501,17 @@ UNIV_INTERN
 int
 ha_innobase::open(
 /*==============*/
-	const char*	name,		/*!< in: table name */
-	int		mode,		/*!< in: not used */
-	uint		test_if_locked)	/*!< in: not used */
+	const char*		name,		/*!< in: table name */
+	int			mode,		/*!< in: not used */
+	uint			test_if_locked)	/*!< in: not used */
 {
-	dict_table_t*	ib_table;
-	char		norm_name[FN_REFLEN];
-	THD*		thd;
-	ulint		retries = 0;
-	char*		is_part = NULL;
-	ibool		par_case_name_set = FALSE;
-	char		par_case_name[FN_REFLEN];
+	dict_table_t*		ib_table;
+	char			norm_name[FN_REFLEN];
+	THD*			thd;
+	char*			is_part = NULL;
+	ibool			par_case_name_set = FALSE;
+	char			par_case_name[FN_REFLEN];
+	dict_err_ignore_t	ignore_err = DICT_ERR_IGNORE_NONE;
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -4570,20 +4541,22 @@ ha_innobase::open(
 	upd_buf_size = 0;
 
 	/* We look for pattern #P# to see if the table is partitioned
-	MySQL table. The retry logic for partitioned tables is a
-	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
-	at support issue https://support.mysql.com/view.php?id=21080
-	for more details. */
+	MySQL table. */
 #ifdef __WIN__
 	is_part = strstr(norm_name, "#p#");
 #else
 	is_part = strstr(norm_name, "#P#");
 #endif /* __WIN__ */
 
-retry:
+	/* Check whether FOREIGN_KEY_CHECKS is set to 0. If so, the table
+	can be opened even if some FK indexes are missing. If not, the table
+	can't be opened in the same situation */
+	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
+		ignore_err = DICT_ERR_IGNORE_FK_NOKEY;
+	}
+
 	/* Get pointer to a table object in InnoDB dictionary cache */
-	ib_table = dict_table_open_on_name(norm_name, FALSE, TRUE,
-					   DICT_ERR_IGNORE_NONE);
+	ib_table = dict_table_open_on_name(norm_name, FALSE, TRUE, ignore_err);
 
 	if (ib_table
 	    && ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
@@ -4609,7 +4582,7 @@ retry:
 	}
 
 	if (NULL == ib_table) {
-		if (is_part && retries < 10) {
+		if (is_part) {
 			/* MySQL partition engine hard codes the file name
 			separator as "#P#". The text case is fixed even if
 			lower_case_table_names is set to 1 or 2. This is true
@@ -4649,14 +4622,10 @@ retry:
 
 				ib_table = dict_table_open_on_name(
 					par_case_name, FALSE, TRUE,
-					DICT_ERR_IGNORE_NONE);
+					ignore_err);
 			}
 
-			if (!ib_table) {
-				++retries;
-				os_thread_sleep(100000);
-				goto retry;
-			} else {
+			if (ib_table) {
 #ifndef __WIN__
 				sql_print_warning("Partition table %s opened "
 						  "after converting to lower "
@@ -4682,9 +4651,8 @@ retry:
 		}
 
 		if (is_part) {
-			sql_print_error("Failed to open table %s after "
-					"%lu attempts.\n", norm_name,
-					retries);
+			sql_print_error("Failed to open table %s.\n",
+					norm_name);
 		}
 
 		ib_logf(IB_LOG_LEVEL_WARN,
@@ -7391,6 +7359,8 @@ ha_innobase::index_read(
 		ret = DB_UNSUPPORTED;
 	}
 
+	DBUG_EXECUTE_IF("ib_select_query_failure", ret = DB_ERROR;);
+
 	switch (ret) {
 	case DB_SUCCESS:
 		error = 0;
@@ -9169,6 +9139,11 @@ innobase_table_flags(
 				DBUG_RETURN(false);
 			}
 
+			if (key->flags & HA_USES_PARSER) {
+				my_error(ER_INNODB_NO_FT_USES_PARSER, MYF(0));
+                                DBUG_RETURN(false);
+			}
+
 			if (fts_doc_id_index_bad) {
 				goto index_bad;
 			}
@@ -10153,6 +10128,7 @@ innobase_rename_table(
 				normalize_table_name_low(
 					par_case_name, from, FALSE);
 #endif
+				trx_start_if_not_started(trx, true);
 				error = row_rename_table_for_mysql(
 					par_case_name, norm_to, trx, TRUE);
 			}
@@ -10289,6 +10265,97 @@ ha_innobase::rename_table(
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+}
+
+/*********************************************************************//**
+Returns the exact number of records that this client can see using this
+handler object
+@return	Number of rows. HA_POS_ERROR on error */
+UNIV_INTERN
+ha_rows
+ha_innobase::records()
+/*==================*/
+{
+	DBUG_ENTER("ha_innobase::records()");
+
+	dberr_t		ret;
+	dict_index_t*	index;		/* The clustered index. */
+	ulint		n_rows = 0;	/* Record count in this view */
+
+	update_thd();
+
+	if (dict_table_is_discarded(prebuilt->table)) {
+		ib_senderrf(
+			user_thd,
+			IB_LOG_LEVEL_ERROR,
+			ER_TABLESPACE_DISCARDED,
+			table->s->table_name.str);
+
+		DBUG_RETURN(HA_POS_ERROR);
+
+	} else if (prebuilt->table->ibd_file_missing) {
+		ib_senderrf(
+			user_thd, IB_LOG_LEVEL_ERROR,
+			ER_TABLESPACE_MISSING,
+			table->s->table_name.str);
+
+		DBUG_RETURN(HA_POS_ERROR);
+
+	} else if (prebuilt->table->corrupted) {
+err_table_corrupted:
+		ib_errf(user_thd, IB_LOG_LEVEL_WARN,
+			ER_INNODB_INDEX_CORRUPT,
+			"Table '%s' is corrupt.",
+			table->s->table_name.str);
+
+		DBUG_RETURN(HA_POS_ERROR);
+	}
+
+	prebuilt->trx->op_info = "counting records";
+
+	index = dict_table_get_first_index(prebuilt->table);
+	ut_ad(dict_index_is_clust(index));
+
+	prebuilt->index_usable = row_merge_is_index_usable(
+		prebuilt->trx, index);
+	if (!prebuilt->index_usable) {
+		DBUG_RETURN(HA_POS_ERROR);
+	}
+
+	/* (Re)Build the prebuilt->mysql_template if it is null to use
+	the clustered index and just the key, no off-record data. */
+	prebuilt->index = index;
+	dtuple_set_n_fields(prebuilt->search_tuple, 0);
+	prebuilt->read_just_key = 1;
+	build_template(false);
+
+	/* Count the records in the clustered index */
+	ret = row_scan_index_for_mysql(prebuilt, index, false, &n_rows);
+	reset_template();
+	switch (ret) {
+	case DB_SUCCESS:
+		break;
+	case DB_LOCK_WAIT_TIMEOUT:
+		my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+		DBUG_RETURN(HA_POS_ERROR);
+	case DB_INTERRUPTED:
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		DBUG_RETURN(HA_POS_ERROR);
+	default:
+		ut_ad(0);  /* Catch any unkown error here during debug */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown error %u from row_scan_index_for_mysql()"
+			" in handler::records()", ret);
+	case DB_CORRUPTION:
+		goto err_table_corrupted;
+	}
+
+	prebuilt->trx->op_info = "";
+	if (thd_killed(user_thd)) {
+		DBUG_RETURN(HA_POS_ERROR);
+	}
+
+	DBUG_RETURN((ha_rows) n_rows);
 }
 
 /*********************************************************************//**
@@ -11310,14 +11377,23 @@ ha_innobase::check(
 
 		prebuilt->select_lock_type = LOCK_NONE;
 
-		bool check_result = row_check_index_for_mysql(prebuilt, index, &n_rows);
+		/* Scan this index. */
+		dberr_t ret = row_scan_index_for_mysql(
+			prebuilt, index, true, &n_rows);
+
 		DBUG_EXECUTE_IF(
 			"dict_set_index_corrupted",
-			if (!(index->type & DICT_CLUSTERED)) {
-				check_result = false;
+			if (!dict_index_is_clust(index)) {
+				ret = DB_CORRUPTION;
 			});
 
-		if (!check_result) {
+		if (ret == DB_INTERRUPTED || thd_killed(user_thd)) {
+			/* Do not report error since this could happen
+			during shutdown */
+			break;
+		}
+		if (ret != DB_SUCCESS) {
+			/* Assume some kind of corruption. */
 			innobase_format_name(
 				index_name, sizeof index_name,
 				index->name, TRUE);
@@ -11330,10 +11406,6 @@ ha_innobase::check(
 			is_ok = FALSE;
 			dict_set_corrupted(
 				index, prebuilt->trx, "CHECK TABLE");
-		}
-
-		if (thd_killed(user_thd)) {
-			break;
 		}
 
 #if 0
@@ -11675,7 +11747,6 @@ ha_innobase::get_foreign_key_list(
 	FOREIGN_KEY_INFO*	pf_key_info;
 	dict_foreign_t*		foreign;
 
-	ut_a(prebuilt != NULL);
 	update_thd(ha_thd());
 
 	prebuilt->trx->op_info = "getting list of foreign keys";
@@ -11713,7 +11784,6 @@ ha_innobase::get_parent_foreign_key_list(
 	FOREIGN_KEY_INFO*	pf_key_info;
 	dict_foreign_t*		foreign;
 
-	ut_a(prebuilt != NULL);
 	update_thd(ha_thd());
 
 	prebuilt->trx->op_info = "getting list of referencing foreign keys";
@@ -12200,7 +12270,7 @@ ha_innobase::external_lock(
 			}
 
 		} else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-			   && trx->global_read_view) {
+			   && trx->read_view) {
 
 			/* At low transaction isolation levels we let
 			each consistent read set its own snapshot */
@@ -12749,7 +12819,7 @@ ha_innobase::store_lock(
 			(enum_tx_isolation) thd_tx_isolation(thd));
 
 		if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-		    && trx->global_read_view) {
+		    && trx->read_view) {
 
 			/* At low transaction isolation levels we let
 			each consistent read set its own snapshot */
@@ -13593,61 +13663,6 @@ innobase_rollback_by_xid(
 	} else {
 		return(XAER_NOTA);
 	}
-}
-
-/*******************************************************************//**
-Create a consistent view for a cursor based on current transaction
-which is created if the corresponding MySQL thread still lacks one.
-This consistent view is then used inside of MySQL when accessing records
-using a cursor.
-@return	pointer to cursor view or NULL */
-static
-void*
-innobase_create_cursor_view(
-/*========================*/
-	handlerton*	hton,	/*!< in: innobase hton */
-	THD*		thd)	/*!< in: user thread handle */
-{
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	return(read_cursor_view_create_for_mysql(check_trx_exists(thd)));
-}
-
-/*******************************************************************//**
-Close the given consistent cursor view of a transaction and restore
-global read view to a transaction read view. Transaction is created if the
-corresponding MySQL thread still lacks one. */
-static
-void
-innobase_close_cursor_view(
-/*=======================*/
-	handlerton*	hton,	/*!< in: innobase hton */
-	THD*		thd,	/*!< in: user thread handle */
-	void*		curview)/*!< in: Consistent read view to be closed */
-{
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	read_cursor_view_close_for_mysql(check_trx_exists(thd),
-					 (cursor_view_t*) curview);
-}
-
-/*******************************************************************//**
-Set the given consistent cursor view to a transaction which is created
-if the corresponding MySQL thread still lacks one. If the given
-consistent cursor view is NULL global read view of a transaction is
-restored to a transaction read view. */
-static
-void
-innobase_set_cursor_view(
-/*=====================*/
-	handlerton*	hton,	/*!< in: innobase hton */
-	THD*		thd,	/*!< in: user thread handle */
-	void*		curview)/*!< in: Consistent cursor view to be set */
-{
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	read_cursor_set_for_mysql(check_trx_exists(thd),
-				  (cursor_view_t*) curview);
 }
 
 /*******************************************************************//**
@@ -15223,6 +15238,7 @@ innobase_fts_find_ranking(
 #ifdef UNIV_DEBUG
 static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
+static my_bool	innodb_log_checkpoint_now = TRUE;
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -15267,6 +15283,33 @@ purge_stop_now_set(
 {
 	if (*(my_bool*) save && trx_purge_state() != PURGE_STATE_DISABLED) {
 		trx_purge_stop();
+	}
+}
+
+/****************************************************************//**
+Force innodb to checkpoint. */
+static
+void
+checkpoint_now_set(
+/*===============*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
+			log_make_checkpoint_at(LSN_MAX, TRUE);
+			fil_flush_file_spaces(FIL_LOG);
+		}
+		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
+		fil_flush_file_spaces(FIL_TABLESPACE);
 	}
 }
 #endif /* UNIV_DEBUG */
@@ -15493,6 +15536,11 @@ static MYSQL_SYSVAR_BOOL(purge_stop_now, innodb_purge_stop_now,
   PLUGIN_VAR_OPCMDARG,
   "Set purge state to STOP",
   NULL, purge_stop_now_set, FALSE);
+
+static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force checkpoint now",
+  NULL, checkpoint_now_set, FALSE);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
@@ -16323,6 +16371,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(purge_run_now),
   MYSQL_SYSVAR(purge_stop_now),
+  MYSQL_SYSVAR(log_checkpoint_now),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),

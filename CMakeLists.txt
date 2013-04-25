@@ -332,8 +332,8 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 # Add bundled yassl/taocrypt or system openssl.
 MYSQL_CHECK_SSL()
-# Add readline or libedit.
-MYSQL_CHECK_READLINE()
+# Add system/bundled editline.
+MYSQL_CHECK_EDITLINE()
 # Add libevent
 MYSQL_CHECK_LIBEVENT()
 
@@ -385,6 +385,10 @@ IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mytap/t)
+  # Visual Studio 11 needs this extra flag in order to compile gmock.
+  IF(WIN32)
+    ADD_DEFINITIONS( /D _VARIADIC_MAX=10 )
+  ENDIF()
   ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 

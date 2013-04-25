@@ -26,7 +26,7 @@
 #include "key.h"                                // key_copy
 #include "sql_show.h"           // remove_status_vars, add_status_vars
 #include "strfunc.h"            // find_set
-#include "sql_acl.h"                       // *_ACL
+#include "auth_common.h"        // *_ACL
 #include "records.h"          // init_read_record, end_read_record
 #include <my_pthread.h>
 #include <my_getopt.h>

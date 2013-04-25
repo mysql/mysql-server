@@ -129,8 +129,8 @@ type_conversion_status set_field_to_null(Field *field)
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
-  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 #endif
+  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 }
 
 

@@ -1,5 +1,7 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
 
 --source include/have_plugin_auth.inc
 --source include/not_embedded.inc
@@ -124,8 +126,7 @@ disconnect plug_con_grant;
 DROP USER new_grant_user;
 
 --echo # try re-create existing user via GRANT IDENTIFIED WITH
-#--error ER_GRANT_PLUGIN_USER_EXISTS
---echo GRANTS which don't affect current plugin are allowed!
+--error ER_GRANT_PLUGIN_USER_EXISTS
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 

@@ -133,7 +133,6 @@ our $path_timefile;
 our $path_snapshot;
 our $path_mysqltest_log;
 our $path_current_test_log;
-our $path_my_basedir;
 
 our $opt_vardir;                 # A path but set directly on cmd line
 our $path_vardir_trace;          # unix formatted opt_vardir for trace files
@@ -765,8 +764,6 @@ sub command_line_setup () {
   $glob_mysql_bench_dir= undef
     unless -d $glob_mysql_bench_dir;
 
-  $path_my_basedir=
-    $source_dist ? $glob_mysql_test_dir : $glob_basedir;
 
   $glob_timers= mtr_init_timers();
 
@@ -1911,18 +1908,6 @@ sub environment_setup () {
 				  $ENV{'DYLD_LIBRARY_PATH'} ?
 				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
-
-  # The environment variable used for shared libs on AIX
-  $ENV{'SHLIB_PATH'}= join(":", @ld_library_paths,
-                           $ENV{'SHLIB_PATH'} ?
-                           split(':', $ENV{'SHLIB_PATH'}) : ());
-  mtr_debug("SHLIB_PATH: $ENV{'SHLIB_PATH'}");
-
-  # The environment variable used for shared libs on hp-ux
-  $ENV{'LIBPATH'}= join(":", @ld_library_paths,
-                        $ENV{'LIBPATH'} ?
-                        split(':', $ENV{'LIBPATH'}) : ());
-  mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
@@ -3142,7 +3127,7 @@ sub install_db ($$) {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--bootstrap");
-  mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
+  mtr_add_arg($args, "--basedir=%s", $glob_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
@@ -3289,7 +3274,7 @@ log                 = $instance->{path_datadir}/mysqld$server_id.log
 log-error           = $instance->{path_datadir}/mysqld$server_id.err.log
 log-slow-queries    = $instance->{path_datadir}/mysqld$server_id.slow.log
 character-sets-dir  = $path_charsetsdir
-basedir             = $path_my_basedir
+basedir             = $glob_basedir
 server_id           = $server_id
 shutdown-delay      = 10
 skip-stack-trace
@@ -3880,7 +3865,7 @@ sub mysqld_arguments ($$$$) {
 
   mtr_add_arg($args, "%s--no-defaults", $prefix);
 
-  mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
+  mtr_add_arg($args, "%s--basedir=%s", $prefix, $glob_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
 
   if ( $mysql_version_id >= 50036)
