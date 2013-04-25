@@ -944,7 +944,7 @@ int main(
 	char	**argv)
 {
 	/* our input file. */
-	FILE*		fil_in;
+	FILE*		fil_in = NULL;
 	/* our input filename. */
 	char*		filename;
 	/* Buffer to store pages read. */

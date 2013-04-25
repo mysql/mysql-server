@@ -32,9 +32,9 @@ insert into t1 values(3,"compressed table");
 # when server Default checksum=InnoDB
 [13]: check strict-check with invalid values
 [14a]: when server default checksum=InnoDB rewrite new checksum=innodb with innochecksum
-# Also check the long form of wite option.
+# Also check the long form of write option.
 [14b]: when server default checksum=InnoDB rewrite new checksum=crc32 with innochecksum
-# Also check the long form of wite option.
+# Also check the long form of write option.
 # start the server with innodb_checksum_algorithm=InnoDB
 INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
 SELECT c1,c2 FROM tab1 order by c1,c2;
@@ -336,27 +336,6 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,8);
 SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 SELECT * FROM tab2 ORDER BY col_7;
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
-SELECT @@innodb_compression_level;
-@@innodb_compression_level
-6
-SET GLOBAL innodb_compression_level=0;
-SELECT @@innodb_compression_level;
-@@innodb_compression_level
-0
-CREATE TABLE t3 (j LONGBLOB) ENGINE = InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO t3 VALUES (repeat('abcdefghijklmnopqrstuvwxyz',200));
-INSERT INTO t3 SELECT * from t3;
-INSERT INTO t3 SELECT * from t3;
-INSERT INTO t3 SELECT * from t3;
-INSERT INTO t3 SELECT * from t3;
-INSERT INTO t3 SELECT * from t3;
-INSERT INTO t3 SELECT * from t3;
-INSERT INTO t3 SELECT * from t3;
-INSERT INTO t3 SELECT * from t3;
-INSERT INTO t3 SELECT * from t3;
-INSERT INTO t3 SELECT * from t3;
 # stop the server
 [27]: Check the page type summary with shortform for tab1.ibd
 
@@ -440,134 +419,15 @@ Filename::tab#.ibd
 [31]: check the negative values for option
 # allow-mismatches,page,start-page,end-page.
 # They will reset to zero for negative values.
-# check the invalid lower boud values
+# check the invalid lower bound values
 [32]: check the valid upper bound values for
 # both short and long options "allow-mismatches" and "end-page"
 [33]: check the both short and long options "page" and "start-page" when
 # seek value is larger than file size.
 [34]: check the invalid upper bound values for options, allow-mismatches, end-page, start-page and page.
 # innochecksum will fail with error code: 1
-[35(a)]:# check the both short and long options for "help"
-[35(b)]:# Run the innochecksum when file isn't provided.
-# It will print the innochecksum usage similar to --help option.
-innochecksum Ver #.#.#
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
-
-Oracle is a registered trademark of Oracle Corporation and/or its
-affiliates. Other names may be trademarks of their respective
-owners.
-
-InnoDB offline file checksum utility.
-Usage: innochecksum [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v]  [-a <allow mismatches>] [-n] [-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] [-d <dbug-package name>] <filename or [-]>
-See REFMAN for usage hints.
-  -?, --help          Displays this help and exits.
-  -I, --info          Synonym for --help.
-  -V, --version       Displays version information and exits.
-  -v, --verbose       Verbose (prints progress every 5 seconds).
-  -#, --debug[=name]  Output debug log. See
-                      REFMAN
-  -c, --count         Print the count of pages in the file and exits.
-  -s, --start-page=#  Start on this page number (0 based).
-  -e, --end-page=#    End at this page number (0 based).
-  -p, --page=#        Check only this page (0 based).
-  -C, --strict-check=name 
-                      Specify the strict checksum algorithm by the user.
-  -n, --no-check      Ignore the checksum verification.
-  -a, --allow-mismatches=# 
-                      Maximum checksum mismatch allowed.
-  -w, --write=name    Rewrite the checksum algorithm by the user.
-  -S, --page-type-summary 
-                      Display a count of each page type in a tablespace.
-  -D, --page-type-dump=name 
-                      Dump the page type info for each page in a tablespace.
-
-Variables (--variable-name=value)
-and boolean options {FALSE|TRUE}  Value (after reading options)
---------------------------------- ----------------------------------------
-verbose                           FALSE
-debug                             FALSE
-count                             FALSE
-start-page                        0
-end-page                          0
-page                              0
-strict-check                      crc32
-no-check                          FALSE
-allow-mismatches                  0
-write                             crc32
-page-type-summary                 FALSE
-page-type-dump                    (No default value)
-[36]: check the both short and long options for "count" and exit
-Number of pages:#
-Number of pages:#
-[37]:# Print the version of innochecksum and exit
-innochecksum Ver #.#.# [38]:# Check the innochecksum for compressed table t1 with different key_block_size
-# Restart the DB server
-DROP TABLE IF EXISTS t1;
-# Test for KEY_BLOCK_SIZE=1
-===> Testing  size=1
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
-CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-insert into t1 values(1,"I");
-insert into t1 values(2,"AM");
-insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
-select * from t1;
-drop table t1;
-# Test for KEY_BLOCK_SIZE=2
-===> Testing  size=2
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
-CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
-insert into t1 values(1,"I");
-insert into t1 values(2,"AM");
-insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
-select * from t1;
-drop table t1;
-# Test for for KEY_BLOCK_SIZE=4
-===> Testing  size=4
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
-CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-insert into t1 values(1,"I");
-insert into t1 values(2,"AM");
-insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
-select * from t1;
-drop table t1;
-# Test for for KEY_BLOCK_SIZE=8
-===> Testing  size=8
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
-CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
-insert into t1 values(1,"I");
-insert into t1 values(2,"AM");
-insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
-select * from t1;
-drop table t1;
-# Test for KEY_BLOCK_SIZE=16
-===> Testing  size=16
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
-CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-insert into t1 values(1,"I");
-insert into t1 values(2,"AM");
-insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
-select * from t1;
-drop table t1;
-# Test[38] completed
-# Start the server
 # Restart the server
 DROP TABLE tab1;
 DROP TABLE tab2;
-DROP TABLE t3;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
