@@ -49,9 +49,9 @@
 #include "mysqld.h"
 #include "lock.h"
 #include "sql_time.h"                       // known_date_time_formats
-#include "sql_acl.h" // SUPER_ACL,
-                     // mysql_user_table_is_in_short_password_format
-                     // disconnect_on_expired_password
+#include "auth_common.h" // SUPER_ACL,
+                         // mysql_user_table_is_in_short_password_format
+                         // disconnect_on_expired_password
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
 #include "debug_sync.h"                         // DEBUG_SYNC

@@ -29,7 +29,7 @@
 #include "sql_insert.h" // check_that_all_fields_are_given_values,
                         // prepare_triggers_for_insert_stmt,
                         // write_record
-#include "sql_acl.h"    // INSERT_ACL, UPDATE_ACL
+#include "auth_common.h"// INSERT_ACL, UPDATE_ACL
 #include "log_event.h"  // Delete_file_log_event,
                         // Execute_load_query_log_event,
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F

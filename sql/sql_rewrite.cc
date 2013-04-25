@@ -32,7 +32,7 @@
 */
 
 
-#include "sql_acl.h"    // append_user
+#include "auth_common.h"    // append_user
 #include "sql_parse.h"  // get_current_user
 #include "sql_show.h"   // append_identifier
 #include "sp_head.h"    // struct set_var_base

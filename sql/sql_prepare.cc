@@ -98,7 +98,7 @@ When one supplies long data for a placeholder:
 #include "sql_insert.h" // upgrade_lock_type_for_insert, mysql_prepare_insert
 #include "sql_update.h" // mysql_prepare_update
 #include "sql_db.h"     // mysql_opt_change_db, mysql_change_db
-#include "sql_acl.h"    // *_ACL
+#include "auth_common.h"                       // *_ACL
 #include "sql_cursor.h"
 #include "sp_head.h"
 #include "sp.h"
