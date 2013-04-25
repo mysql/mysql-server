@@ -105,11 +105,11 @@ Handle<Value> ColumnHandler::callConverterReader(Handle<Value> rval) const {
 }
 
 
-Handle<Value> ColumnHandler::recodeRead(char * recodeBuffer, 
+Handle<Value> ColumnHandler::recodeRead(char * recodeBuffer, size_t recodeSize,
                                         char * readBuffer) const {
   HandleScope scope;
   Handle<Value> val;
-  val = encoder->recodeRead(column, recodeBuffer, readBuffer, offset);
+  val = encoder->recodeRead(column, recodeBuffer, recodeSize, readBuffer, offset);
   if(hasConverterReader)
     val = callConverterReader(val);
   return scope.Close(val);

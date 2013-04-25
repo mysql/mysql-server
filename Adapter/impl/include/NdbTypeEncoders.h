@@ -36,8 +36,8 @@ typedef v8::Handle<v8::Value> EncoderWriter(const NdbDictionary::Column *,
 typedef int RequiresRecode(const NdbDictionary::Column *, char *, size_t offset);
 
 typedef v8::Handle<v8::Value> RecodeRead(const NdbDictionary::Column *, 
-                                         char *recode_buffer, 
-                                         char *col, size_t);
+                                         char *recode_buffer, size_t recode_sz,
+                                         char *col_buffer, size_t offset);
 
 
 typedef struct {
@@ -49,5 +49,4 @@ typedef struct {
 
 const NdbTypeEncoder * getEncoderForColumn(const NdbDictionary::Column *);
 
-#define ASCII_CHARSET_NUMBER 11
 

@@ -22,5 +22,6 @@
 bool encoderShouldRecode(const NdbDictionary::Column *col, 
                          char * buffer, size_t len);
 
-int getUnicodeBufferSize(const NdbDictionary::Column *col);
+int getUnicodeBufferSize(const NdbDictionary::Column *col, size_t strsz = 0);
 
+bool colIsUtf16(const NdbDictionary::Column *col);

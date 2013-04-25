@@ -64,7 +64,7 @@ Handle<String>
   template <typename T> int TYPE##RequiresRecode(const NdbDictionary::Column *, \
     char *, size_t); \
   template <typename T> Handle<Value> TYPE##RecodeRead(const NdbDictionary::Column *,\
-    char *, char *, size_t);
+    char *, size_t, char *, size_t);
 
 DECLARE_ENCODER(UnsupportedType);
 
@@ -328,10 +328,6 @@ void pack_bigendian(uint64_t val, char * buf, unsigned int len) {
 */
 Handle<Value> writerOK = Undefined();
 
-/* File-scope global charsetMap 
-*/
-CharsetMap charsetMap;
-
 
 /*************************************************************
    ******                                              *****
@@ -568,12 +564,50 @@ Handle<Value> fpWriter(const NdbDictionary::Column * col,
 
 /****** String types ********/
 
+class ExternalizedAsciiString : public String::ExternalAsciiStringResource {
+public:
+  char * buffer;
+  size_t len; 
+  int extType;
+  ExternalizedAsciiString(char *_buffer, size_t _len) : 
+    buffer(_buffer), len(_len), extType(0) 
+  {};
+  const char* data() const       { return buffer; }
+  size_t length() const          { return len; }
+};
+
+class ExternalizedUnicodeString : public String::ExternalStringResource { 
+public:
+  uint16_t * buffer;
+  size_t len;  /* The number of two-byte characters in the string */
+  int extType;
+  ExternalizedUnicodeString(uint16_t *_buffer, size_t _len) : 
+    buffer(_buffer), len(_len), extType(16)
+  {};
+  const uint16_t * data() const  { return buffer; }
+  size_t length() const          { return len; }
+};
+
 // CHAR
 Handle<Value> CharReader(const NdbDictionary::Column *col, 
                          char *buffer, size_t offset) {
   HandleScope scope;
-  const char * str = buffer+offset;
-  Local<String> string = String::New(str, col->getLength());
+  char * str = buffer+offset;
+  Local<String> string;
+  size_t len = col->getSize();
+
+  if(colIsUtf16(col)) {
+    uint16_t * buf = (uint16_t *) str;
+    while(buf[len] == 0x20) len--;  // value is padded with spaces 
+    ExternalizedUnicodeString * ext = new ExternalizedUnicodeString(buf, len);
+    string = String::NewExternal(ext);
+  }
+  else {
+    while(str[len] == 0x20) len--;
+    ExternalizedAsciiString *ext = new ExternalizedAsciiString(str, len);
+    string = String::NewExternal(ext);
+  }
+
   return scope.Close(string);
 }
 
@@ -604,8 +638,22 @@ int CharRequiresRecode(const NdbDictionary::Column *col,
 }
 
 Handle<Value> CharRecodeRead(const NdbDictionary::Column *col, 
-                             char *recode_buffer, char *buffer, size_t offset) {
-  return CharReader(col, buffer, offset);
+                             char *recode_buffer, size_t recode_size,
+                             char *buffer, size_t offset) {
+  HandleScope scope;  
+  ExternalizedUnicodeString * ext;
+  Local<String> string;
+  CharsetMap csmap;
+  int32_t lengths[2] = { col->getSize(), recode_size } ;
+  csmap.recode(lengths, 
+               col->getCharsetNumber(),
+               csmap.getUTF16CharsetNumber(),
+               buffer+offset, recode_buffer);
+  
+  assert(0); // leave this here until you hit it to guarantee test coverage
+  ext = new ExternalizedUnicodeString((uint16_t *) recode_buffer, lengths[1]/2);
+  string = String::NewExternal(ext);
+  return scope.Close(string);
 }
 
 // Templated encoder for Varchar and LongVarchar
@@ -614,9 +662,18 @@ Handle<Value> varcharReader(const NdbDictionary::Column *col,
                             char *buffer, size_t offset) {
   HandleScope scope;
   LOAD_ALIGNED_DATA(LENGTHTYPE, length, buffer+offset);
-  const char * str = buffer+offset+sizeof(length);
-  Local<String> string = String::New(str, length);
+  char * str = buffer+offset+sizeof(length);
+  Local<String> string;
 
+  if(colIsUtf16(col)) {
+    uint16_t * buf = (uint16_t *) str;
+    ExternalizedUnicodeString * ext = new ExternalizedUnicodeString(buf, length);
+    string = String::NewExternal(ext);
+  }
+  else {
+    ExternalizedAsciiString *ext = new ExternalizedAsciiString(str, length);
+    string = String::NewExternal(ext);
+  }
   return scope.Close(string);
 }
 
@@ -649,8 +706,23 @@ int varcharRequiresRecode(const NdbDictionary::Column *col,
 
 template<typename LENGTHTYPE>
 Handle<Value> varcharRecodeRead(const NdbDictionary::Column *col, 
-                                char *recode_buffer, char *buffer, size_t offset) {
-  return varcharReader<LENGTHTYPE>(col, buffer, offset);
+                                char *recode_buffer, size_t recode_size,
+                                char *buffer, size_t offset) {
+  HandleScope scope;  
+  ExternalizedUnicodeString * ext;
+  Local<String> string;
+  CharsetMap csmap;
+  LOAD_ALIGNED_DATA(LENGTHTYPE, length, buffer+offset);
+  int32_t lengths[2] = { length, recode_size } ;
+  csmap.recode(lengths, 
+               col->getCharsetNumber(),
+               csmap.getUTF16CharsetNumber(),
+               buffer+offset, recode_buffer);
+ 
+  assert(0); // leave this here until you hit it to guarantee test coverage
+  ext = new ExternalizedUnicodeString((uint16_t *) recode_buffer, lengths[1]/2);
+  string = String::NewExternal(ext);
+  return scope.Close(string);
 }
 
 
