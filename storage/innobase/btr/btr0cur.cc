@@ -223,6 +223,8 @@ btr_rec_set_deleted_flag(
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
 	ulint		flag)	/*!< in: nonzero if delete marked */
 {
+	ut_ad(page_rec_is_user_rec(rec));
+
 	if (page_rec_is_comp(rec)) {
 		rec_set_deleted_flag_new(rec, page_zip, flag);
 	} else {
