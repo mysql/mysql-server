@@ -969,7 +969,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       /*
         end of statement check:
         i) destroy/free ignored maps
-        ii) if skip event, flush cache now
+        ii) if skip event
+              a) since we are skipping the last event,
+                 append END-MARKER(') to body cache (if required)
+
+              b) flush cache now
        */
       if (stmt_end)
       {
@@ -991,6 +995,12 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           */
           if (skip_event)
           {
+            // append END-MARKER(') with delimiter
+            IO_CACHE *const body_cache= &print_event_info->body_cache;
+            if (my_b_tell(body_cache))
+              my_b_printf(body_cache, "'%s\n", print_event_info->delimiter);
+
+            // flush cache
             if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
                 copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
               goto err;
