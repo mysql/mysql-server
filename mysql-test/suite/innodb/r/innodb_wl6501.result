@@ -1,7 +1,6 @@
 call mtr.add_suppression("The file '.*' already exists though the corresponding table did not exist in the InnoDB data dictionary");
 call mtr.add_suppression("Cannot create file '.*'");
 call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
-call mtr.add_suppression("Failed to create a new tablespace for table");
 set global innodb_file_per_table = on;
 "1. Test some basic dml action involving truncate of table."
 create table t1
