@@ -801,18 +801,24 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
     mi->rli->abort_slave= 1;
-    if (mi->rli->current_mts_submode)
-    {
-      delete(mi->rli->current_mts_submode);
-      mi->rli->current_mts_submode= NULL;
-    }
     if ((error=terminate_slave_thread(mi->rli->info_thd, sql_lock,
                                       &mi->rli->stop_cond,
                                       &mi->rli->slave_running,
                                       need_lock_term)) &&
         !force_all)
+    {
+      if (mi->rli->current_mts_submode)
+      {
+        delete mi->rli->current_mts_submode;
+        mi->rli->current_mts_submode= NULL;
+      }
       DBUG_RETURN(error);
-
+    }
+    else if (mi->rli->current_mts_submode)
+    {
+      delete mi->rli->current_mts_submode;
+      mi->rli->current_mts_submode= NULL;
+    }
     mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay-log info file."));
