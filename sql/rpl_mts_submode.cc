@@ -24,7 +24,7 @@
           FALSE if no error
 */
 bool
-Mts_submode_database::schedule_next_event(Relay_log_info *rli)
+Mts_submode_database::schedule_next_event(Relay_log_info *rli, Log_event *ev)
 {
   /*nothing to do here*/
   return false;
@@ -213,6 +213,7 @@ Mts_submode_master::Mts_submode_master()
   mts_last_known_commit_parent= SEQ_UNINIT;
   mts_last_known_parent_group_id= -1;
   force_new_group= false;
+  defer_new_group= false;
 }
 
 /*
@@ -222,9 +223,11 @@ Mts_submode_master::Mts_submode_master()
           FALSE if no error
  */
 bool
-Mts_submode_master::schedule_next_event(Relay_log_info* rli)
+Mts_submode_master::schedule_next_event(Relay_log_info* rli, Log_event *ev)
 {
   DBUG_ENTER("Mts_submode_master::schedule_next_event");
+  if (ev->get_type_code() == GTID_LOG_EVENT)
+    DBUG_RETURN (false);
   /*
     The coordinator waits till the last group was completely applied before
     the events from the next group is scheduled for the workers.
@@ -458,12 +461,13 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
     commit_seq_no= SEQ_UNINIT;
     break;
   }
-  if (first_event && commit_seq_no == SEQ_UNINIT)
+  if (first_event && commit_seq_no == SEQ_UNINIT && !force_new_group)
   {
     // This is the first event and the master has not sent us the commit
-    // sequence number. The possible reasom may be that the mster is old and
-    // doesnot support BGC based parallelization.
-    return true;
+    // sequence number. The possible reason may be that the master is old and
+    // doesnot support BGC based parallelization, or someone tried to start
+    // replication from within a transaction.
+    return true;  
   }
 
   if (force_new_group
@@ -478,14 +482,23 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
       gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
       rli->mts_groups_assigned-1;
     worker_seq= 0;
-    rli->is_new_group= true;
+    if (ev->get_type_code() == GTID_LOG_EVENT)
+      defer_new_group= true;
+    else
+      rli->is_new_group= true;
     force_new_group= false;
   }
   else
   {
     gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
       mts_last_known_parent_group_id;
-    rli->is_new_group= false;
+    if (defer_new_group)
+    {
+      rli->is_new_group= true;
+      defer_new_group= false;
+    }
+    else
+      rli->is_new_group= false;
   }
   DBUG_PRINT("info", ("MTS::slave c=%lld, pid= %lld", commit_seq_no,
                       mts_last_known_parent_group_id));

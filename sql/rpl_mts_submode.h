@@ -35,19 +35,25 @@ public:
   Mts_submode(){}
   inline enum_mts_parallel_type get_type(){return type;}
   // pure virtual methods. Should be extended in the derieved class
+
   /* Logic to schedule the next event. called at the B event for each
      transaction */
-  virtual bool schedule_next_event(Relay_log_info* rli)= 0;
+  virtual bool schedule_next_event(Relay_log_info* rli,
+                                   Log_event *ev)= 0;
+
   /* logic to attach temp tables Should be extended in the derieved class */
   virtual void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                   Query_log_event *ev)= 0;
+
   /* logic to detach temp tables. Should be extended in the derieved class  */
   virtual void detach_temp_tables(THD *thd, const Relay_log_info* rli,
                                   Query_log_event *ev)= 0;
+
   /* returns the least occupied worker. Should be extended in the derieved class  */
   virtual Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                                   DYNAMIC_ARRAY *ws,
                                                   Log_event *ev)= 0;
+
   /* assigns the parent id to the group. Should be extended in the derieved class  */
   virtual bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev)= 0;
 };
@@ -63,7 +69,7 @@ public:
   {
     type= MTS_PARALLEL_TYPE_DB_NAME;
   }
-  bool schedule_next_event(Relay_log_info* rli);
+  bool schedule_next_event(Relay_log_info* rli, Log_event *ev);
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   void detach_temp_tables(THD *thd, const Relay_log_info* rli,
@@ -81,7 +87,7 @@ class Mts_submode_master: public Mts_submode
 {
 private:
   uint worker_seq;
-  bool first_event, force_new_group;
+  bool first_event, force_new_group, defer_new_group;
   int64 mts_last_known_commit_parent;
   int64 mts_last_known_parent_group_id;
 protected:
@@ -89,7 +95,7 @@ protected:
   Slave_worker* get_free_worker(Relay_log_info *rli);
 public:
   Mts_submode_master();
-  bool schedule_next_event(Relay_log_info* rli);
+  bool schedule_next_event(Relay_log_info* rli, Log_event *ev);
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   void detach_temp_tables(THD *thd, const Relay_log_info* rli,
