@@ -3094,7 +3094,7 @@ err_exit:
 	page_zip_stat[page_zip->ssize - 1].decompressed++;
 	page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
 
-	index_id_t	index_id = btr_page_get_index_id(page);
+	index_id_t	index_id = page_get_index_id(page);
 
 	if (srv_cmp_per_index_enabled) {
 		mutex_enter(&page_zip_stat_per_index_mutex);

@@ -825,7 +825,7 @@ buf_page_print(
 	switch (fil_page_get_type(read_buf)) {
 		index_id_t	index_id;
 	case FIL_PAGE_INDEX:
-		index_id = btr_page_get_index_id(read_buf);
+		index_id = page_get_index_id(read_buf);
 		fprintf(stderr,
 			"InnoDB: Page may be an index page where"
 			" index id is %llu\n",
@@ -3787,7 +3787,7 @@ buf_page_monitor(
 		level = btr_page_get_level_low(frame);
 
 		/* Check if it is an index page for insert buffer */
-		if (btr_page_get_index_id(frame)
+		if (page_get_index_id(frame)
 		    == (index_id_t)(DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
 			if (level == 0) {
 				counter = MONITOR_RW_COUNTER(
@@ -4596,7 +4596,7 @@ buf_print_instance(
 
 			if (fil_page_get_type(frame) == FIL_PAGE_INDEX) {
 
-				id = btr_page_get_index_id(frame);
+				id = page_get_index_id(frame);
 
 				/* Look for the id in the index_ids array */
 				j = 0;

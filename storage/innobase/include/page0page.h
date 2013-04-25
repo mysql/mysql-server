@@ -165,7 +165,7 @@ page_t*
 page_align(
 /*=======*/
 	const void*	ptr)	/*!< in: pointer to page frame */
-		__attribute__((const));
+	__attribute__((const));
 /************************************************************//**
 Gets the offset within a page.
 @return	offset from the start of the page */
@@ -174,7 +174,16 @@ ulint
 page_offset(
 /*========*/
 	const void*	ptr)	/*!< in: pointer to page frame */
-		__attribute__((const));
+	__attribute__((const));
+/**************************************************************//**
+Gets the index id field of a page.
+@return	index id */
+UNIV_INLINE
+index_id_t
+page_get_index_id(
+/*==============*/
+	const page_t*	page)	/*!< in: index page */
+	__attribute__((pure, nonnull, warn_unused_result));
 /*************************************************************//**
 Returns the max trx id field value. */
 UNIV_INLINE

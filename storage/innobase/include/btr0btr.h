@@ -297,17 +297,6 @@ btr_block_get_func(
 @return the uncompressed page frame */
 # define btr_page_get(space,zip_size,page_no,mode,idx,mtr)		\
 	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,idx,mtr))
-#endif /* !UNIV_HOTBACKUP */
-/**************************************************************//**
-Gets the index id field of a page.
-@return	index id */
-UNIV_INLINE
-index_id_t
-btr_page_get_index_id(
-/*==================*/
-	const page_t*	page)	/*!< in: index page */
-	__attribute__((nonnull, pure, warn_unused_result));
-#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Gets the node level field in an index page.
 @return	level, leaf level == 0 */

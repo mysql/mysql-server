@@ -4215,13 +4215,13 @@ ibuf_set_del_mark(
 		      "InnoDB: record ", stderr);
 		rec_print(stderr, page_cur_get_rec(&page_cur), index);
 		fprintf(stderr, "\nspace %u offset %u"
-			" (%u records, index id %llu)\n"
+			" (%u records, index id " IB_ID_FMT ")\n"
 			"InnoDB: Submit a detailed bug report"
 			" to http://bugs.mysql.com\n",
 			(unsigned) buf_block_get_space(block),
 			(unsigned) buf_block_get_page_no(block),
 			(unsigned) page_get_n_recs(page),
-			(ulonglong) btr_page_get_index_id(page));
+			page_get_index_id(page));
 		ut_ad(0);
 	}
 }
@@ -4278,13 +4278,13 @@ ibuf_delete(
 			      "InnoDB: record ", stderr);
 			rec_print_new(stderr, rec, offsets);
 			fprintf(stderr, "\nspace %u offset %u"
-				" (%u records, index id %llu)\n"
+				" (%u records, index id " IB_ID_FMT ")\n"
 				"InnoDB: Submit a detailed bug report"
 				" to http://bugs.mysql.com\n",
 				(unsigned) buf_block_get_space(block),
 				(unsigned) buf_block_get_page_no(block),
 				(unsigned) page_get_n_recs(page),
-				(ulonglong) btr_page_get_index_id(page));
+				page_get_index_id(page));
 
 			ut_ad(0);
 			return;
