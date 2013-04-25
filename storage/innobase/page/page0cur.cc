@@ -1964,18 +1964,11 @@ UNIV_INTERN
 void
 PageCur::init(void)
 {
-	const page_t*	page	= buf_block_get_frame(m_block);
-
 	ut_ad(dict_table_is_comp(m_index->table));
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
-	ut_ad(recv_recovery_on
-	      || m_mtr->inside_ibuf
-	      || page_get_index_id(page) == m_index->id);
 
-	const ulint	n	= page_is_leaf(page)
-		? dict_index_get_n_fields(m_index)
-		: dict_index_get_n_unique_in_tree(m_index) + 1;
+	const ulint	n	= getNumFields();
 	const ulint	size	= n + (1 + REC_OFFS_HEADER_SIZE);
+	const page_t*	page	= buf_block_get_frame(m_block);
 
 	m_offsets = new ulint[size];
 	rec_offs_set_n_alloc(m_offsets, size);
