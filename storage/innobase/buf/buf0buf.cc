@@ -5040,7 +5040,7 @@ buf_print_io_instance(
 		"Old database pages %lu\n"
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
-		"Pending writes: LRU %lu, flush list %lu single page %lu\n",
+		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
 		pool_info->pool_size,
 		pool_info->free_list_len,
 		pool_info->lru_len,
