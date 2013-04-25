@@ -489,6 +489,11 @@ public:
 		return(rec_get_deleted_flag(m_rec, isComp()));
 	}
 
+	/** Search for an entry in the index page.
+	@param tuple data tuple to search for
+	@return true if a full match was found */
+	bool search(const dtuple_t* tuple);
+
 	/** Insert the record that the page cursor is pointing to,
 	to another page.
 	@param[in/out] rec	record after which to insert
@@ -519,6 +524,22 @@ private:
 	/** Initialize a page cursor, either to rec or the page infimum.
 	Allocates and initializes offsets[]. */
 	void init(void);
+
+#ifdef PAGE_CUR_ADAPT
+	/** Try a search shortcut based on the last insert.
+	@param[in]	tuple		entry to search for
+	@param[in/out]	up_fields	matched fields in upper limit record
+	@param[in/out]	up_bytes	matched bytes in upper limit record
+	@param[in/out]	low_fields	matched fields in lower limit record
+	@param[in/out]	low_bytes	matched bytes in lower limit record
+	@return	whether tuple matches the current record */
+	inline bool searchShortcut(
+		const dtuple_t*	tuple,
+		ulint&		up_match_fields,
+		ulint&		up_match_bytes,
+		ulint&		low_match_fields,
+		ulint&		low_match_bytes);
+#endif /* PAGE_CUR_ADAPT */
 
 	/** Adjust rec_get_offsets() after moving the cursor. */
 	void adjustOffsets(bool wasSentinel) {

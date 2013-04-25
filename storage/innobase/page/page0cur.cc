@@ -2154,6 +2154,208 @@ use_heap:
 	return(insert_rec);
 }
 
+#ifdef PAGE_CUR_ADAPT
+/** Try a search shortcut.
+@param[in]	tuple		entry to search for
+@param[in/out]	up_fields	matched fields in upper limit record
+@param[in/out]	up_bytes	matched bytes in upper limit record
+@param[in/out]	low_fields	matched fields in lower limit record
+@param[in/out]	low_bytes	matched bytes in lower limit record
+@return	whether tuple matches the current record */
+inline
+bool
+PageCur::searchShortcut(
+	const dtuple_t*	tuple,
+	ulint&		up_fields,
+	ulint&		up_bytes,
+	ulint&		low_fields,
+	ulint&		low_bytes)
+{
+	ulint		low_match_f;
+	ulint		low_match_b;
+	ulint		up_match_f;
+	ulint		up_match_b;
+
+	ut_ad(dtuple_check_typed(tuple));
+	ut_ad(dtuple_get_n_fields(tuple) <= getNumFields());
+	ut_ad(isUser());
+
+	ut_pair_min(&low_match_f, &low_match_b,
+		    low_fields, low_bytes, up_fields, up_bytes);
+
+	up_match_f = low_match_f;
+	up_match_b = low_match_b;
+
+	if (page_cmp_dtuple_rec_with_match(tuple, getRec(), getOffsets(),
+					   &low_match_f, &low_match_b) < 0) {
+		return(false);
+	}
+
+	const rec_t*	rec = getRec();
+	if (next()) {
+		bool match = page_cmp_dtuple_rec_with_match(
+			tuple, getRec(), getOffsets(),
+			&up_match_f, &up_match_b) >= 0;
+		setRec(rec);
+		if (match) {
+			return(false);
+		} else {
+			up_fields = up_match_f;
+			up_bytes = up_match_b;
+		}
+	} else {
+		setRec(rec);
+		low_fields = low_match_f;
+		low_bytes = low_match_b;
+	}
+
+# ifdef UNIV_SEARCH_PERF_STAT
+	page_cur_short_succ++;
+# endif
+	return(true);
+}
+#endif /* PAGE_CUR_ADAPT */
+
+/** Search for an entry in the index page.
+@param entry data tuple to search for
+@return true if a full match was found */
+UNIV_INTERN
+bool
+PageCur::search(const dtuple_t* tuple)
+{
+	const ulint	mode	= PAGE_CUR_LE;//TODO: take as parameter
+	const page_t*	page	= buf_block_get_frame(m_block);
+	/* TODO: if mode PAGE_CUR_G is specified, we are trying to position the
+	cursor to answer a query of the form "tuple < X", where tuple is
+	the input parameter, and X denotes an arbitrary physical record on
+	the page. We want to position the cursor on the first X which
+	satisfies the condition. */
+	ulint		up_match_f	= 0;
+	ulint		up_match_b	= 0;
+	ulint		low_match_f	= 0;
+	ulint		low_match_b	= 0;
+
+	ut_ad(dtuple_validate(tuple));
+	ut_ad(dtuple_check_typed(tuple));
+	ut_ad(dtuple_get_n_fields(tuple) <= getNumFields());
+	ut_ad(mtr_memo_contains_page(m_mtr, page, MTR_MEMO_PAGE_X_FIX)
+	      || mtr_memo_contains_page(m_mtr, page, MTR_MEMO_PAGE_S_FIX));
+
+	page = buf_block_get_frame(m_block);
+#ifdef UNIV_ZIP_DEBUG
+	if (const page_zip_des_t* page_zip = buf_block_get_page_zip(block)) {
+		ut_a(page_zip_validate(page_zip, page, m_index));
+	}
+#endif /* UNIV_ZIP_DEBUG */
+
+	page_check_dir(page);
+
+#ifdef PAGE_CUR_ADAPT
+	if (page_is_leaf(page)
+	    && mode == PAGE_CUR_LE
+	    && page_header_get_field(page, PAGE_N_DIRECTION) > 3
+	    && page_header_get_field(page, PAGE_DIRECTION) == PAGE_RIGHT) {
+		if (const rec_t* rec
+		    = page_header_get_ptr(page, PAGE_LAST_INSERT)) {
+			setRec(rec);
+
+			if (searchShortcut(tuple,
+					   up_match_f, up_match_b,
+					   low_match_f, low_match_b)) {
+				return(low_match_f
+				       == dtuple_get_n_fields(tuple));
+			}
+		}
+	}
+#endif
+
+	/* Perform binary search until the lower and upper limit directory
+	slots come to the distance 1 of each other */
+	ulint	low	= 0;
+	ulint	up	= page_dir_get_n_slots(page) - 1;
+
+	while (up - low > 1) {
+		ulint			mid	= (low + up) / 2;
+		const page_dir_slot_t*	slot	= page_dir_get_nth_slot(
+			page, mid);
+		ulint			cur_match_f;
+		ulint			cur_match_b;
+
+		ut_pair_min(&cur_match_f, &cur_match_b,
+			    low_match_f, low_match_b,
+			    up_match_f, up_match_b);
+
+		setRec(page_dir_slot_get_rec(slot));
+		int cmp = cmp_dtuple_rec_with_match(
+			tuple, getRec(), getOffsets(),
+			&cur_match_f, &cur_match_b);
+		if (cmp > 0) {
+low_slot_match:
+			low = mid;
+			low_match_f = cur_match_f;
+			low_match_b = cur_match_b;
+		} else if (cmp) {
+up_slot_match:
+			up = mid;
+			up_match_f = cur_match_f;
+			up_match_b = cur_match_b;
+		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE) {
+			goto low_slot_match;
+		} else {
+			goto up_slot_match;
+		}
+	}
+
+	/* Perform linear search until the upper and lower records come to
+	distance 1 of each other. */
+
+	const rec_t*	low_rec	= page_dir_slot_get_rec(
+		page_dir_get_nth_slot(page, low));
+	const rec_t*	up_rec	= page_dir_slot_get_rec(
+		page_dir_get_nth_slot(page, up));
+
+	setRec(low_rec);
+
+	for (;;) {
+		ulint	cur_match_f;
+		ulint	cur_match_b;
+
+		if (!next() || getRec() == up_rec) {
+			ut_ad(getRec() == up_rec);
+			setRec(low_rec);
+			break;
+		}
+
+		ut_pair_min(&cur_match_f, &cur_match_b,
+			    low_match_f, low_match_b,
+			    up_match_f, up_match_b);
+
+		int cmp = cmp_dtuple_rec_with_match(
+			tuple, getRec(), getOffsets(),
+			&cur_match_f, &cur_match_b);
+		if (cmp > 0) {
+low_rec_match:
+			low_rec = getRec();
+			low_match_f = cur_match_f;
+			low_match_b = cur_match_b;
+		} else if (cmp) {
+up_rec_match:
+			up_match_f = cur_match_f;
+			up_match_b = cur_match_b;
+			if (mode > PAGE_CUR_GE) {
+				setRec(low_rec);
+			}
+			break;
+		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE) {
+			goto low_rec_match;
+		} else {
+			goto up_rec_match;
+		}
+	}
+
+	return(low_match_f == dtuple_get_n_fields(tuple));
+}
+
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
 /*******************************************************************//**
