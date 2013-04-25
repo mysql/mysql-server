@@ -32,20 +32,18 @@
 #include "EncoderCharset.h"
 
 /** 
- * V8 can work with three kinds of external strings: Strict ASCII, UTF-8, 
- * and UTF-16.
+ * V8 can work with two kinds of external strings: Strict ASCII and UTF-16.
  * 
- * (A) For any UTF-8 string, we present it to V8 as UTF-8.
- * (B) For any strict ASCII string, even if its character set is latin1, (i.e.
- *     it could have non-ascii characters, but it doesn't), we present it to V8
- *     as ASCII.
- * (C) All other strings we present to V8 as UTF-16.  These are in two groups:
- *   (C.1) those already encoded as UTF-16
- *   (C.2) those that must be recoded, such as latin1 or big5 strings
+ * (A) For any strict ASCII string, even if its character set is latin1 or
+ *     UTF-8 (i.e. it could have non-ascii characters, but it doesn't), we 
+ *     present it to V8 as ASCII.
+ * (B) All other strings we present to V8 as UTF-16.  These are in two groups:
+ *   (B.1) those already encoded as UTF-16
+ *   (B.2) those that must be recoded, such as latin1 or big5 strings
  *
- * Strings in groups (A), (B), and (C.1) are presented directly to JavaScript.
+ * Strings in groups (A) and (B.1) are presented directly to JavaScript.
  *
- * For a string in group (C.2), which requires recoding, we have to calculate 
+ * For a string in group (B.2), which requires recoding, we have to calculate 
  * the buffer requirement of that string recoded into UTF-16. 
  *
  * Suppose the user creates a VARCHAR(20) size with character set Y.
@@ -63,11 +61,19 @@
  */
 
 
-int getUnicodeBufferSize(const NdbDictionary::Column *col) {
+/* strsz = 0 for char; actual size in bytes for varchar.
+*/
+int getUnicodeBufferSize(const NdbDictionary::Column *col, size_t strsz) {
   const int & sz = col->getSize();
   const int & mbmaxlen = col->getCharset()->mbmaxlen;
-  return mbmaxlen >= 4 ? sz : 2 * sz / mbmaxlen;
+  size_t bufsz = (mbmaxlen >= 4 ? sz : 2 * sz / mbmaxlen);
+  /* Alternate length for VARCHAR: 2x length in bytes */
+  strsz *= 2;
+  if(strsz > 0 && strsz < bufsz) bufsz = strsz;
+
+  return bufsz;
 }
+
 
 inline bool stringIsAscii(const unsigned char *str, size_t len) {
   for(unsigned int i = 0 ; i < len ; i++) 
@@ -76,26 +82,19 @@ inline bool stringIsAscii(const unsigned char *str, size_t len) {
   return true;
 }
 
+
 /* It may be a good optimization to do these lookups once per 
    charset and store them somewhere.
 */
-inline bool colIsUtf8(const NdbDictionary::Column *col) {
-  return (strncmp("utf8", col->getCharset()->csname, 4) == 0);
-}
-
 inline bool colIsUtf16(const NdbDictionary::Column *col) {
   return ( (strncmp("utf16", col->getCharset()->csname, 5) == 0) ||
            (strncmp("ucs2",  col->getCharset()->csname, 4) == 0));
 }
 
-inline bool colIsUnicode(const NdbDictionary::Column *col) {
-  return (colIsUtf8(col) || colIsUtf16(col));
-}
 
 bool encoderShouldRecode(const NdbDictionary::Column *col, 
                          char * buffer, size_t len) 
 {
-  return ! (colIsUnicode(col) || 
+  return ! (colIsUtf16(col) || 
             stringIsAscii((const unsigned char *) buffer, len));
 }
-

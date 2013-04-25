@@ -41,7 +41,7 @@ Handle<Value> ColumnProxy::get(char *buffer) {
     bufsz = handler->shouldRecode(buffer);
     if(bufsz > 0) {
       recodeBuffer = new char[bufsz];
-      val = handler->recodeRead(recodeBuffer, buffer);
+      val = handler->recodeRead(recodeBuffer, bufsz, buffer);
     }
     else {
       val = handler->read(buffer);
