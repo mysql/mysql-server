@@ -148,7 +148,8 @@ cmp_dtuple_rec_with_match_low(
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets();
+				may be NULL for ROW_FORMAT=REDUNDANT */
 	ulint		n_cmp,	/*!< in: number of fields to compare */
 	ulint*		matched_fields,
 				/*!< in/out: number of already completely
@@ -159,7 +160,7 @@ cmp_dtuple_rec_with_match_low(
 				bytes within the first field not completely
 				matched; when function returns, contains the
 				value for current comparison */
-	__attribute__((nonnull));
+	__attribute__((nonnull(1,2,5,6)));
 #define cmp_dtuple_rec_with_match(tuple,rec,offsets,fields,bytes)	\
 	cmp_dtuple_rec_with_match_low(					\
 		tuple,rec,offsets,dtuple_get_n_fields_cmp(tuple),fields,bytes)

@@ -1427,6 +1427,57 @@ rec_get_data_size_old(
 	return(rec_get_field_start_offs(rec, rec_get_n_fields_old(rec)));
 }
 
+/** Get an offset to the nth data field in a record.
+@param[in]	rec	the record
+@param[in]	offsets	rec_get_offsets(rec), or NULL if ROW_FORMAT=REDUNDANT
+@param[in]	n	index of the field
+@param[out]	field	the field
+@param[out]	len	the length of the field in bytes, or UNIV_SQL_NULL
+@return		nonzero if the field is stored externally */
+UNIV_INLINE
+ulint
+rec_get_nth_field_ext(
+	const rec_t*	rec,
+	const ulint*	offsets,
+	ulint		n,
+	const byte*&	field,
+	ulint&		len)
+{
+	ulint	start;
+	ulint	end;
+
+	if (offsets) {
+		field = rec_get_nth_field(rec, offsets, n, &len);
+		return(rec_offs_nth_extern(offsets, n));
+	}
+
+	if (rec_get_1byte_offs_flag(rec)) {
+		start = rec_1_get_field_start_offs(rec, n);
+		end = rec_1_get_prev_field_end_info(rec, n + 1);
+
+		field = rec + start;
+
+		len = (end & REC_1BYTE_SQL_NULL_MASK)
+			? UNIV_SQL_NULL
+			: end - start;
+		return(0);
+	} else {
+		start = rec_2_get_field_start_offs(rec, n);
+		end = rec_2_get_prev_field_end_info(rec, n + 1);
+
+		field = rec + start;
+		len = (end & REC_2BYTE_SQL_NULL_MASK)
+			? UNIV_SQL_NULL
+			: (end - start)
+			& ~(REC_2BYTE_EXTERN_MASK
+			    | REC_2BYTE_SQL_NULL_MASK);
+
+		return(end & REC_2BYTE_EXTERN_MASK);
+	}
+
+	return(0);
+}
+
 /**********************************************************//**
 The following function sets the number of fields in offsets. */
 UNIV_INLINE
