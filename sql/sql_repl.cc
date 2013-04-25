@@ -1026,7 +1026,8 @@ impossible position";
           mysql_mutex_unlock(log_lock);
 	  read_packet = 1;
           p_coord->pos= uint4korr(packet->ptr() + ev_offset + LOG_POS_OFFSET);
-          event_type= (Log_event_type)((*packet)[LOG_EVENT_OFFSET+ev_offset]);
+          event_type=
+            (Log_event_type)((uchar)(*packet)[LOG_EVENT_OFFSET+ev_offset]);
 	  break;
 
 	case LOG_READ_EOF:
