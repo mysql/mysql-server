@@ -402,12 +402,12 @@ static
 void
 page_cur_insert_rec_write_log(
 /*==========================*/
-	rec_t*		insert_rec,	/*!< in: inserted physical record */
-	ulint		rec_size,	/*!< in: insert_rec size */
-	rec_t*		cursor_rec,	/*!< in: record the
-					cursor is pointing to */
-	dict_index_t*	index,		/*!< in: record descriptor */
-	mtr_t*		mtr)		/*!< in: mini-transaction handle */
+	const rec_t*		insert_rec,	/*!< in: inserted record */
+	ulint			rec_size,	/*!< in: insert_rec size */
+	const rec_t*		cursor_rec,	/*!< in: record the
+						cursor is pointing to */
+	const dict_index_t*	index,		/*!< in: record descriptor */
+	mtr_t*			mtr)		/*!< in/out: mini-transaction */
 {
 	ulint	cur_rec_size;
 	ulint	extra_size;
