@@ -6697,6 +6697,9 @@ truncate_t::create_indexes(
 			break;
 		}
 
+		/* Note: new root_page_no is updated to SYS_XXXX table
+		post recovery when it is allowed to modification dictionary
+		tables. Cache the info so that it can be used later. */
 		redo_cache_entry->register_new_page_no(it->m_id, root_page_no);
 	}
 
