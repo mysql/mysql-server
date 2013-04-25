@@ -22,6 +22,10 @@
 #define __attribute__(A)
 #endif
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
+
 static volatile int ncalls; /* for SHOW STATUS, see below */
 static volatile int ncalls_general_log;
 static volatile int ncalls_general_error;
