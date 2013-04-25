@@ -49,7 +49,7 @@
 #include <stdlib.h>
 #endif
 #include <errno.h>
-#if defined WIN32 && !defined(HAVE_GETTIMEOFDAY_H)
+#if defined WIN32
 #include <sys/timeb.h>
 #endif
 #include <stdio.h>

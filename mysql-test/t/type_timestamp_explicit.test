@@ -1,3 +1,6 @@
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 let $explicit_defaults_for_timestamp=1;
 
 --source type_timestamp.test
@@ -14,6 +17,9 @@ ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
 ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
 ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 --echo # Following is expected out of SHOW CREATE TABLE
 --echo #  `f1` timestamp NULL DEFAULT NULL,
 --echo #  `f2` timestamp NULL DEFAULT NULL,
@@ -21,6 +27,9 @@ ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 --echo #  `f4` timestamp NULL DEFAULT NULL,
 --echo #  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00'
 --echo #  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 --echo # The new behavior affects CREATE SELECT with column definitions
@@ -28,6 +37,9 @@ SHOW CREATE TABLE t1;
 --echo # with the new behavior.
 
 CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t2;
 
 DROP TABLE t1;
@@ -41,6 +53,9 @@ CREATE TABLE t1(
 c1 TIMESTAMP NOT NULL,
 c2 TIMESTAMP NOT NULL DEFAULT '2001-01-01 01:01:01',
 c3 INT NOT NULL DEFAULT 42);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 --error ER_BAD_NULL_ERROR
 INSERT INTO t1 VALUES (NULL, DEFAULT, DEFAULT);

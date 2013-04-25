@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 # check 0x00 padding
 create table t1 (s1 binary(3));
@@ -18,6 +19,9 @@ drop table t1;
 
 # check that trailing 0x00 and 0x20 do matter on comparison
 create table t1 (s1 varbinary(20), s2 varbinary(20));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 insert into t1 values (0x41,0x4100),(0x41,0x4120),(0x4100,0x4120);
 select hex(s1), hex(s2) from t1;

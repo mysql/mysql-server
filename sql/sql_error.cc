@@ -743,6 +743,15 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 
   /* Push new Diagnostics Area, execute statement and pop. */
   thd->push_diagnostics_area(&new_stmt_da);
+  /*
+    Reset the condition counter.
+    This statement has just started and has not generated any conditions
+    on its own. However the condition counter will have been updated by
+    push_diagnostics_area() to match the number of conditions present in
+    first_da. It is therefore necessary to reset so we don't inherit the
+    old counter value.
+  */
+  new_stmt_da.reset_statement_cond_count();
 
   field_list.push_back(new Item_empty_string("Level", 7));
   field_list.push_back(new Item_return_int("Code",4, MYSQL_TYPE_LONG));
@@ -753,8 +762,8 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     rc= true;
 
   const Sql_condition *err;
-  SELECT_LEX *sel= &thd->lex->select_lex;
-  SELECT_LEX_UNIT *unit= &thd->lex->unit;
+  SELECT_LEX *sel= thd->lex->select_lex;
+  SELECT_LEX_UNIT *unit= thd->lex->unit;
   ulonglong idx= 0;
   Protocol *protocol=thd->protocol;
 

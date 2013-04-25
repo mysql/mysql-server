@@ -20,7 +20,7 @@
 ################################################################################
 
 --source include/not_embedded.inc
---source include/have_myisam.inc
+--source include/force_myisam_default.inc
 ################################################################
 # sql_low_priority_updates was renamed to low_priority_updates #
 ################################################################

@@ -1,6 +1,3 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
- --source include/have_myisam.inc
-
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
@@ -8,9 +5,13 @@
 --source include/not_valgrind.inc
 --source ../include/have_aligned_memory.inc
 
---source ../include/sizing_auto.inc
+# For this test to work,
+# open_files_limit should not be scaled down by OS limitations.
+let $max_open_files_limit= `SELECT @@open_files_limit != 5000`;
+if ($max_open_files_limit)
+{
+  skip Need open_files_limit to be exactly 5000;
+}
 
-# This test produces different result when run against a server built with
-# MAX_INDEXES value other than default (64U).
---source include/have_max_indexes_64.inc
+--source ../include/sizing_auto.inc
 

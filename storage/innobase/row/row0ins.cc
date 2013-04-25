@@ -2009,6 +2009,19 @@ row_ins_scan_sec_index_for_duplicate(
 
 				thr_get_trx(thr)->error_info = index;
 
+				/* If the duplicate is on hidden FTS_DOC_ID,
+				state so in the error log */
+				if (DICT_TF2_FLAG_IS_SET(
+					index->table,
+					DICT_TF2_FTS_HAS_DOC_ID)
+				    && strcmp(index->name,
+					      FTS_DOC_ID_INDEX_NAME) == 0) {
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Duplicate FTS_DOC_ID value"
+						" on table %s",
+						index->table->name);
+				}
+
 				goto end_scan;
 			}
 		} else {
@@ -2164,7 +2177,10 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			if (trx->duplicates) {
+			if (flags & BTR_NO_LOCKING_FLAG) {
+				/* Do nothing if no-locking is set */
+				err = DB_SUCCESS;
+			} else if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -2319,8 +2335,18 @@ row_ins_clust_index_entry_low(
 	ut_ad(!dict_index_is_unique(index)
 	      || n_uniq == dict_index_get_n_unique(index));
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
+	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	mtr_start(&mtr);
+
+	/* Disable REDO logging as lifetime of temp-tables is limited to
+	server or connection lifetime and so REDO information is not needed
+	on restart for recovery.
+	Disable locking as temp-tables are not shared across connection. */
+	dict_disable_redo_if_temporary(index->table, &mtr);
+	if (dict_table_is_temporary(index->table)) {
+		flags |= BTR_NO_LOCKING_FLAG;
+	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
@@ -2503,7 +2529,7 @@ err_exit:
 			DBUG_EXECUTE_IF(
 				"row_ins_extern_checkpoint",
 				log_make_checkpoint_at(
-					IB_ULONGLONG_MAX, TRUE););
+					LSN_MAX, TRUE););
 			err = row_ins_index_entry_big_rec(
 				entry, big_rec, offsets, &offsets_heap, index,
 				thr_get_trx(thr)->mysql_thd,
@@ -2544,6 +2570,7 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	ut_ad(!dict_index_is_clust(index));
 
 	mtr_start(mtr);
+	dict_disable_redo_if_temporary(index->table, mtr);
 
 	if (!check) {
 		return(false);
@@ -2607,7 +2634,17 @@ row_ins_sec_index_entry_low(
 
 	cursor.thr = thr;
 	ut_ad(thr_get_trx(thr)->id);
+
 	mtr_start(&mtr);
+
+	/* Disable REDO logging as lifetime of temp-tables is limited to
+	server or connection lifetime and so REDO information is not needed
+	on restart for recovery.
+	Disable locking as temp-tables are not shared across connection. */
+	dict_disable_redo_if_temporary(index->table, &mtr);
+	if (dict_table_is_temporary(index->table)) {
+		flags |= BTR_NO_LOCKING_FLAG;
+	}
 
 	/* Disable insert buffering for temp-table indexes */
 	if (!dict_table_is_temporary(index->table)) {
@@ -2797,7 +2834,7 @@ row_ins_index_entry_big_rec_func(
 	dict_index_t*		index,	/*!< in: index */
 	const char*		file,	/*!< in: file name of caller */
 #ifndef DBUG_OFF
-	const void*		thd,	/*!< in: connection, or NULL */
+	const void*		thd,    /*!< in: connection, or NULL */
 #endif /* DBUG_OFF */
 	ulint			line)	/*!< in: line number of caller */
 {
@@ -2811,6 +2848,8 @@ row_ins_index_entry_big_rec_func(
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
+
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 				    BTR_MODIFY_TREE, &cursor, 0,
 				    file, line, &mtr);

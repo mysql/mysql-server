@@ -1268,7 +1268,8 @@ row_sel_try_search_shortcut(
 			goto func_exit;
 		}
 	} else if (!srv_read_only_mode
-		   && !lock_sec_rec_cons_read_sees(rec, node->read_view)) {
+		   && !lock_sec_rec_cons_read_sees(
+			rec, index, node->read_view)) {
 
 		ret = SEL_RETRY;
 		goto func_exit;
@@ -1713,7 +1714,7 @@ skip_lock:
 			}
 		} else if (!srv_read_only_mode
 			   && !lock_sec_rec_cons_read_sees(
-				   rec, node->read_view)) {
+				   rec, index, node->read_view)) {
 
 			cons_read_requires_clust_rec = TRUE;
 		}
@@ -4596,7 +4597,7 @@ no_gap_lock:
 
 			if (!srv_read_only_mode
 			    && !lock_sec_rec_cons_read_sees(
-				    rec, trx->read_view)) {
+					rec, index, trx->read_view)) {
 				/* We should look at the clustered index.
 				However, as this is a non-locking read,
 				we can skip the clustered index lookup if
@@ -5193,10 +5194,15 @@ row_search_check_if_query_cache_permitted(
 	cache before this transaction started then this transaction cannot
 	read/write from/to the cache.
 
-	FIXME: Time is too coarse a check, need to find a better mechanism. */
+	If a read view has not been created for the transaction then it doesn't
+	really matter what this transactin sees. If a read view was created
+	then the view low_limit_id is the max trx id that this transaction
+	saw at the time of the read view creation.  */
 
 	if (lock_table_get_n_locks(table) == 0
-	    && trx->start_time >= table->query_cache_inv_time) {
+	    && ((trx->id > 0 && trx->id >= table->query_cache_inv_id)
+		|| trx->read_view == NULL
+		|| trx->read_view->low_limit_id >= table->query_cache_inv_id)) {
 
 		ret = TRUE;
 
@@ -5204,13 +5210,11 @@ row_search_check_if_query_cache_permitted(
 		transaction if it does not yet have one */
 
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !trx->read_view
+		    && trx->read_view == NULL
 		    && !srv_read_only_mode) {
 
 			trx->read_view = read_view_open_now(
-				trx->id, trx->global_read_view_heap);
-
-			trx->global_read_view = trx->read_view;
+				trx->id, trx->read_view_heap);
 		}
 	}
 

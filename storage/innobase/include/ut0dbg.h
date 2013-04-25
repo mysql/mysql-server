@@ -51,6 +51,13 @@ extern ulint	ut_dbg_zero;
 #endif
 
 /*************************************************************//**
+Flush stderr and stdout, then abort execution. */
+UNIV_INTERN
+void
+ut_abort(void)
+	UNIV_COLD __attribute__((noreturn));
+
+/*************************************************************//**
 Report a failed assertion. */
 UNIV_INTERN
 void
@@ -61,26 +68,20 @@ ut_dbg_assertion_failed(
 	ulint		line)	/*!< in: line number of the assertion */
 	UNIV_COLD __attribute__((nonnull(2)));
 
-/** Abort the execution. */
-# define UT_DBG_PANIC do {					\
-	fflush(stderr);						\
-	abort();						\
-} while (0)
-
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR	assertion expression that should hold */
 #define ut_a(EXPR) do {						\
 	if (UT_DBG_FAIL(EXPR)) {				\
 		ut_dbg_assertion_failed(#EXPR,			\
 				__FILE__, (ulint) __LINE__);	\
-		UT_DBG_PANIC;					\
+		ut_abort();					\
 	}							\
 } while (0)
 
 /** Abort execution. */
 #define ut_error do {						\
 	ut_dbg_assertion_failed(0, __FILE__, (ulint) __LINE__);	\
-	UT_DBG_PANIC;						\
+	ut_abort();						\
 } while (0)
 
 #ifdef UNIV_DEBUG

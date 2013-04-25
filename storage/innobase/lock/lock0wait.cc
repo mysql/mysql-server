@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -262,14 +262,18 @@ lock_wait_suspend_thread(
 
 	os_event_set(lock_sys->timeout_event);
 
-        ulint lock_type = ULINT_UNDEFINED;
-
-        if (trx->lock.wait_lock != 0) {
-          lock_type = lock_get_type_low(trx->lock.wait_lock);
-        }
-
 	lock_wait_mutex_exit();
 	trx_mutex_exit(trx);
+
+	ulint	lock_type = ULINT_UNDEFINED;
+
+	lock_mutex_enter();
+
+	if (const lock_t* wait_lock = trx->lock.wait_lock) {
+		lock_type = lock_get_type_low(wait_lock);
+	}
+
+	lock_mutex_exit();
 
 	had_dict_lock = trx->dict_operation_lock_mode;
 
@@ -306,17 +310,17 @@ lock_wait_suspend_thread(
 		srv_conc_force_exit_innodb(trx);
 	}
 
-        /* Unknown is also treated like a record lock */
-        if ( lock_type == ULINT_UNDEFINED || lock_type == LOCK_REC) {
-          thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_LOCK);
-        } else {
-          ut_ad(lock_type == LOCK_TABLE);
-          thd_wait_begin(trx->mysql_thd, THD_WAIT_TABLE_LOCK);
-        }
+	/* Unknown is also treated like a record lock */
+	if (lock_type == ULINT_UNDEFINED || lock_type == LOCK_REC) {
+		thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_LOCK);
+	} else {
+		ut_ad(lock_type == LOCK_TABLE);
+		thd_wait_begin(trx->mysql_thd, THD_WAIT_TABLE_LOCK);
+	}
 
-        os_event_wait(slot->event);
+	os_event_wait(slot->event);
 
-        thd_wait_end(trx->mysql_thd);
+	thd_wait_end(trx->mysql_thd);
 
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
@@ -348,7 +352,8 @@ lock_wait_suspend_thread(
 			finish_time = (ib_int64_t) sec * 1000000 + ms;
 		}
 
-		diff_time = (ulint) (finish_time - start_time);
+		diff_time = (finish_time > start_time) ?
+			    (ulint) (finish_time - start_time) : 0;
 
 		srv_stats.n_lock_wait_current_count.dec();
 		srv_stats.n_lock_wait_time.add(diff_time);

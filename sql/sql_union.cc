@@ -570,8 +570,14 @@ bool st_select_lex_unit::optimize()
         sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
 
       saved_error= sl->join->optimize();
-      /* Save estimated number of rows. */
-      result->estimated_rowcount+= sl->join->best_rowcount;
+      /*
+        Accumulate estimated number of rows. Notice that an implicitly grouped
+        query has one row (with HAVING it has zero or one rows).
+      */
+      result->estimated_rowcount+=
+        sl->with_sum_func && sl->group_list.elements == 0 ?
+          1 : sl->join->best_rowcount;
+
       thd->lex->current_select= lex_select_save;
     }
     if (saved_error)
@@ -975,7 +981,7 @@ bool st_select_lex::cleanup()
 
   if (join)
   {
-    DBUG_ASSERT((st_select_lex*)join->select_lex == this);
+    DBUG_ASSERT(join->select_lex == this);
     error= join->destroy();
     delete join;
     join= 0;

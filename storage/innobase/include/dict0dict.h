@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -408,11 +408,16 @@ UNIV_INTERN
 dberr_t
 dict_foreign_add_to_cache(
 /*======================*/
-	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
-	const char**	col_names,	/*!< in: column names, or NULL to use
-					foreign->foreign_table->col_names */
-	bool		check_charsets)	/*!< in: whether to check charset
-					compatibility */
+	dict_foreign_t*		foreign,
+				/*!< in, own: foreign key constraint */
+	const char**		col_names,
+				/*!< in: column names, or NULL to use
+				foreign->foreign_table->col_names */
+	bool			check_charsets,
+				/*!< in: whether to check charset
+				compatibility */
+	dict_err_ignore_t	ignore_err)
+				/*!< in: error to be ignored */
 	__attribute__((nonnull(1), warn_unused_result));
 /*********************************************************************//**
 Check if the index is referenced by a foreign key, if TRUE return the
@@ -1756,8 +1761,8 @@ UNIV_INLINE
 void
 dict_disable_redo_if_temporary(
 /*===========================*/
-	const dict_table_t*	table,  /*!< in: table to check */
-	mtr_t*			mtr)    /*!< out: mini-transaction */
+	const dict_table_t*	table,	/*!< in: table to check */
+	mtr_t*			mtr)	/*!< out: mini-transaction */
 	__attribute__((nonnull));
 
 #ifndef UNIV_HOTBACKUP

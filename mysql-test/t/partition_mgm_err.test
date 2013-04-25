@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
 # Simple test for the erroneos create statements using the 
@@ -204,8 +205,14 @@ DROP TABLE t1;
 #BUG 15523 ALTER TABLE ... PARTITION BY does not work
 #
 CREATE TABLE t1 (a INT);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 PARTITION BY KEY(a) PARTITIONS 2;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 

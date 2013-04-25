@@ -1,5 +1,7 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
 
 -- source include/mysql_upgrade_preparation.inc
 
@@ -51,7 +53,9 @@ DROP USER mysqltest1@'%';
 --replace_result $MYSQLTEST_VARDIR var
 --replace_regex /.*mysqlcheck.*: Got/mysqlcheck: Got/ /\([0-9]*\)/(errno)/
 --error 1
---exec $MYSQL_UPGRADE --skip-verbose --force --host=not_existing_host 2>&1
+# NC: Added --skip-version-check, as the version check would fail when
+# mysql_upgrade tries to get the server version.
+--exec $MYSQL_UPGRADE --skip-verbose --force --host=not_existing_host --skip-version-check 2>&1
 
 #
 # Bug #28401 mysql_upgrade Failed with STRICT_ALL_TABLES, ANSI_QUOTES and NO_ZERO_DATE

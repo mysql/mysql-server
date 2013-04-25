@@ -1,7 +1,7 @@
 #
 # WL#6469: Optimizing CREATE/DROP performance for temporary tables
 #
-
+--source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
 
 #########################################################################
@@ -14,7 +14,6 @@
 # 5. Renaming of temp-table						#
 # 6. Creating temp-table with large prefix enabled.			#
 # 7. Check Temp table info not stored in I_S datafile and tables	#
-# 8. Vary innodb_change_buffering value for temp-table			#
 #########################################################################
 
 
@@ -79,7 +78,7 @@ delimiter |;
 create procedure populate_t1()
 begin
 	declare i int default 1;
-	while (i <= 20000) DO
+	while (i <= 200) DO
 		insert into t1 values (i, 'a', 'b');
 		set i = i + 1;
 	end while;
@@ -87,7 +86,7 @@ end|
 delimiter ;|
 set autocommit=0;
 select count(*) from t1;
-CALL populate_t1();
+call populate_t1();
 select count(*) from t1;
 select * from t1 limit 10;
 set autocommit=1;
@@ -281,86 +280,6 @@ SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test
 DROP TABLE t1,t2,t3;
 SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
 SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
-
-
-#-------------------------------------------------------------
-#
-# 8. Vary innodb_change_buffering value
-#
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
-select @@global.innodb_change_buffering;
-create temporary table t1
-	(keyc int, c1 char(100), c2 char(100),
-	 primary key(keyc)) engine = innodb;
-create index idx on t1(keyc, c1(20));
-delimiter |;
-create procedure populate_t1(IN rows INT)
-begin
-	declare i int default 1;
-	while (i <= rows) DO
-		insert into t1 values (i, 'a', 'b');
-		set i = i + 1;
-	end while;
-end|
-delimiter ;|
-set autocommit=0;
-select count(*) from t1;
-CALL populate_t1(20000);
-select count(*) from t1;
-select * from t1 limit 10;
-commit;
-update t1 set keyc = -1 * keyc where keyc%50 = 0 ;
-select count(*) from t1 where keyc < 0;
-drop table t1;
-# check with non temp table
-create table t1
-	(keyc int, c1 char(100), c2 char(100),
-	 primary key(keyc)) engine = innodb;
-create index idx on t1(keyc, c1(20));
-set autocommit=0;
-select count(*) from t1;
-CALL populate_t1(100);
-select count(*) from t1;
-select * from t1 limit 10;
-commit;
-update t1 set keyc = -1 * keyc where keyc%50 = 0 ;
-select count(*) from t1 where keyc < 0;
-drop table t1;
-
-# change innodb_change_buffering value to none
-set @@global.innodb_change_buffering = none ;
-select @@global.innodb_change_buffering;
-
-create temporary table t1
-	(keyc int, c1 char(100), c2 char(100),
-	 primary key(keyc)) engine = innodb;
-create index idx on t1(keyc, c1(20));
-set autocommit=0;
-select count(*) from t1;
-CALL populate_t1(20000);
-select count(*) from t1;
-select * from t1 limit 10;
-commit;
-update t1 set keyc = -1 * keyc where keyc%50 = 0 ;
-select count(*) from t1 where keyc < 0;
-drop table t1;
-# check with non temp table
-create table t1
-	(keyc int, c1 char(100), c2 char(100),
-	 primary key(keyc)) engine = innodb;
-create index idx on t1(keyc, c1(20));
-set autocommit=0;
-select count(*) from t1;
-CALL populate_t1(100);
-select count(*) from t1;
-select * from t1 limit 10;
-commit;
-update t1 set keyc = -1 * keyc where keyc%50 = 0 ;
-select count(*) from t1 where keyc < 0;
-drop table t1;
-drop procedure if exists populate_t1;
 
 #-------------------------------------------------------------
 #

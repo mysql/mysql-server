@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,9 +34,14 @@
 
 #if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE)
 
+/*
+  This value is certainly wrong on all 64bit platforms,
+  and also wrong on many 32bit platforms.
+  It is better to get a compile error, than to use a wrong value.
 #ifndef RLIM_INFINITY
 #define RLIM_INFINITY ((uint) 0xffffffff)
 #endif
+*/
 
 static uint set_max_open_files(uint max_file_limit)
 {
@@ -51,7 +56,7 @@ static uint set_max_open_files(uint max_file_limit)
     DBUG_PRINT("info", ("rlim_cur: %u  rlim_max: %u",
 			(uint) rlimit.rlim_cur,
 			(uint) rlimit.rlim_max));
-    if (rlimit.rlim_cur == RLIM_INFINITY)
+    if (rlimit.rlim_cur == (rlim_t) RLIM_INFINITY)
       rlimit.rlim_cur = max_file_limit;
     if (rlimit.rlim_cur >= max_file_limit)
       DBUG_RETURN(rlimit.rlim_cur);		/* purecov: inspected */

@@ -1,0 +1,45 @@
+--source include/have_simple_parser.inc
+
+# Install fts parser plugin
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
+
+# Create a myisam table and alter it to innodb table
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title) WITH PARSER simple_parser
+        ) ENGINE=MyISAM;
+--error ER_INNODB_NO_FT_USES_PARSER
+ALTER TABLE articles ENGINE=InnoDB;
+
+DROP TABLE articles;
+
+# Create a table having a full text index with parser
+--error ER_INNODB_NO_FT_USES_PARSER
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title) WITH PARSER simple_parser
+        ) ENGINE=InnoDB;
+
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title)
+        ) ENGINE=InnoDB;
+
+# Alter table to add a full text index with parser
+--error ER_INNODB_NO_FT_USES_PARSER
+ALTER TABLE articles ADD FULLTEXT INDEX (body) WITH PARSER simple_parser;
+
+# Create a full text index with parser
+--error ER_INNODB_NO_FT_USES_PARSER
+CREATE FULLTEXT INDEX ft_index ON articles(body) WITH PARSER simple_parser;
+
+DROP TABLE articles;
+# Uninstall plugin
+UNINSTALL PLUGIN simple_parser;

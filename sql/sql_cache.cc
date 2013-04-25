@@ -332,7 +332,7 @@ TODO list:
 #include "sql_cache.h"
 #include "sql_parse.h"                          // check_table_access
 #include "tztime.h"                             // struct Time_zone
-#include "sql_acl.h"                            // SELECT_ACL
+#include "auth_common.h"                        // SELECT_ACL
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "opt_trace.h"
@@ -1531,6 +1531,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err;
     }
     
+    DBUG_EXECUTE_IF("test_sql_no_cache",
+                    DBUG_ASSERT(has_no_cache_directive(sql, i+6,
+                                                       query_length)););
     if (has_no_cache_directive(sql, i+6, query_length))
     {
       /*
@@ -1708,7 +1711,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       {
         DBUG_PRINT("qcache",
                    ("Temporary table detected: '%s.%s'",
-                    table_list.db, table_list.alias));
+                    tmptable->s->db.str, tmptable->s->table_name.str));
         unlock();
         /*
           We should not store result of this query because it contain
@@ -3735,12 +3738,12 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
       lex->safe_to_cache_query &&
       !lex->describe &&
       (thd->variables.query_cache_type == 1 ||
-       (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
+       (thd->variables.query_cache_type == 2 && (lex->select_lex->options &
 						 OPTION_TO_QUERY_CACHE))))
   {
     DBUG_PRINT("qcache", ("options: %lx  %lx  type: %u",
                           (long) OPTION_TO_QUERY_CACHE,
-                          (long) lex->select_lex.options,
+                          (long) lex->select_lex->options,
                           (int) thd->variables.query_cache_type));
 
     if (!(table_count= process_and_count_tables(thd, tables_used,
@@ -3761,7 +3764,7 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
 	     ("not interesting query: %d or not cacheable, options %lx %lx  type: %u",
 	      (int) lex->sql_command,
 	      (long) OPTION_TO_QUERY_CACHE,
-	      (long) lex->select_lex.options,
+	      (long) lex->select_lex->options,
 	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);
 }

@@ -1,9 +1,10 @@
+--source include/no_valgrind_without_big.inc
 --source include/have_max_indexes_64.inc
 
-# Temporarily disabled for embedded server, to be re-enabled after
-# Bug#16029012
-# is fixed.
---source include/not_embedded.inc
+# The include statement below is a temp one for tests that are yet to be
+# ported to run with InnoDB, but needs to be kept for tests that would need
+# MyISAM in future.
+--source include/force_myisam_default.inc
 
 #
 # Bug #26642: create index corrupts table definition in .frm

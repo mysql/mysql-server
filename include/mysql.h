@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,18 +25,6 @@
 
 #ifndef _mysql_h
 #define _mysql_h
-
-#ifdef _AIX           /* large-file support will break without this */
-#include <standards.h>
-#endif
-
-#ifdef __CYGWIN__     /* CYGWIN implements a UNIX API */
-#undef WIN
-#undef _WIN
-#undef _WIN32
-#undef _WIN64
-#undef __WIN__
-#endif
 
 #ifdef	__cplusplus
 extern "C" {

@@ -468,7 +468,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(400) CHARACTER SET cp1250 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 select collation(group_concat(a,_koi8r'test')) from t1;
 collation(group_concat(a,_koi8r'test'))
 cp1250_general_ci
@@ -1122,14 +1122,14 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `GROUP_CONCAT(f1 order by f2)` mediumtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 SELECT GROUP_CONCAT(UPPER(f1) ORDER BY f2) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `GROUP_CONCAT(UPPER(f1) ORDER BY f2)` mediumtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t2;
 SET group_concat_max_len= DEFAULT;
 SELECT LENGTH(GROUP_CONCAT(f1 ORDER BY f2)) FROM t1;

@@ -43,10 +43,10 @@ Created 11/26/1995 Heikki Tuuri
 #define	MTR_LOG_NONE			22	/* log no operations and dirty
 						pages are not added to the
 						flush list */
-#define	MTR_LOG_NO_REDO			23	/* Don't generate REDO log
+#define MTR_LOG_NO_REDO			23	/* Don't generate REDO log
 						but add dirty pages to
 						flush list */
-#define	MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
+#define MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
 						a shorter form */
 
 /* Types for the mlock objects to store in the mtr memo; NOTE that the

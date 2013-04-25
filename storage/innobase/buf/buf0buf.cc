@@ -4211,7 +4211,7 @@ buf_pool_invalidate_instance(
 		pool invalidation to proceed we must ensure there is NO
 		write activity happening. */
 		if (buf_pool->n_flush[i] > 0) {
-			enum buf_flush	type = static_cast<enum buf_flush>(i);
+			buf_flush_t	type = static_cast<buf_flush_t>(i);
 
 			buf_pool_mutex_exit(buf_pool);
 			buf_flush_wait_batch_end(buf_pool, type);

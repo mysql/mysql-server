@@ -1,8 +1,13 @@
-# Default suites in modes  normal(which includes binlog format stmt/mixed/row, parts), embedded and ps-protocol
-# Adding "--big-test" option to the default suite, normal(which includes binlog format stmt/mixed/row, parts), embedded and ps-protocol
+# Run all default suites without specifying any replication mode. This will  run rpl tests in all 3 modes row, stmt and mixed
+# Run with --big-test option so that longer tests are also run
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=embedded-debug-big  --vardir=var-embedded-debug-big  --embedded
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-daily.list 
+
+# Run all default suites with embedded server
+perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=embedded  --vardir=var-embedded  --embedded
+
+# Run default suites with ps protocol
+perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-daily.list 
+
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug-big  --vardir=var-funcs2-debug-big --suite=funcs_2
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=stress-debug --vardir=var-stress-debug  --suite=stress
@@ -36,7 +41,6 @@ perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=
 #Memcached tests
 perl mysql-test-run.pl --timer --force --debug-server --comment=memcached-debug --vardir=var-debug-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached --mysqld=--innodb-page-size=4k --skip-test-list=collections/disabled-daily.list
 
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=audit_log --vardir=var-audit_log --suite=audit_log --experimental=collections/default.experimental --skip-ndb --force-restart
+#Run with Query Cache Enabled
 
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool --experimental=collections/default.experimental --skip-ndb --max-test-fail=0
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=windows-authentication-plugin --vardir=var-windows-authentication-plugin --suite=windows-authentication-plugin --experimental=collections/default.experimental --skip-ndb --max-test-fail=0
+perl mysql-test-run.pl --debug-server --timer --force --testcase-timeout=60 --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M

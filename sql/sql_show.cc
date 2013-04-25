@@ -19,7 +19,6 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
-#include "sql_acl.h"                        // fill_schema_*_privileges
 #include "sql_select.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
@@ -34,8 +33,9 @@
 #include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
 #include "sql_time.h"   // interval_type_to_name
 #include "tztime.h"                             // struct Time_zone
-#include "sql_acl.h"     // TABLE_ACLS, check_grant, DB_ACLS, acl_get,
-                         // check_grant_db
+#include "auth_common.h"           // TABLE_ACLS, check_grant, DB_ACLS
+                                   // acl_get, check_grant_db
+                                   // fill_schema_*_privileges
 #include "filesort.h"    // filesort_free_buffers
 #include "sp.h"
 #include "sp_head.h"
@@ -1972,10 +1972,10 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     We can't just use table->query, because our SQL_MODE may trigger
     a different syntax, like when ANSI_QUOTES is defined.
   */
-  table->view->unit.print(buff, 
-                          enum_query_type(QT_TO_ARGUMENT_CHARSET | 
-                                          (compact_view_format ?
-                                           QT_COMPACT_FORMAT : 0)));
+  table->view->unit->print(buff, 
+                           enum_query_type(QT_TO_ARGUMENT_CHARSET | 
+                                           (compact_view_format ?
+                                            QT_COMPACT_FORMAT : 0)));
 
   if (table->with_check != VIEW_CHECK_NONE)
   {
@@ -2578,6 +2578,14 @@ static bool show_status_array(THD *thd, const char *wild,
         {
           if (!(pos= *(char**) value))
             pos= "";
+
+          DBUG_EXECUTE_IF("alter_server_version_str",
+                          if (!my_strcasecmp(system_charset_info,
+                                             variables->name,
+                                             "version")) {
+                            pos= "some-other-version";
+                          });
+
           end= strend(pos);
           break;
         }
@@ -2984,7 +2992,7 @@ bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_EVENTS:
     thd->make_lex_string(&lookup_field_values->db_value, 
-                         lex->select_lex.db, strlen(lex->select_lex.db), 0);
+                         lex->select_lex->db, strlen(lex->select_lex->db), 0);
     if (wild)
     {
       thd->make_lex_string(&lookup_field_values->table_value, 
@@ -3362,10 +3370,10 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
     temporary LEX. The latter is required to correctly open views and
     produce table describing their structure.
   */
-  if (make_table_list(thd, &lex->select_lex, &db_name, &table_name))
+  if (make_table_list(thd, lex->select_lex, &db_name, &table_name))
     goto end;
 
-  table_list= lex->select_lex.table_list.first;
+  table_list= lex->select_lex->table_list.first;
 
   if (is_show_fields_or_keys)
   {
@@ -3405,7 +3413,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
                                             MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
                                             (can_deadlock ?
                                              MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
-    lex->select_lex.handle_derived(lex, &mysql_derived_create);
+    lex->select_lex->handle_derived(lex, &mysql_derived_create);
   }
   /*
     Restore old value of sql_command back as it is being looked at in
@@ -3447,7 +3455,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
 
 
 end:
-  lex->unit.cleanup();
+  lex->unit->cleanup();
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);
@@ -3919,6 +3927,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 #endif
   uint table_open_method;
   bool can_deadlock;
+
   DBUG_ENTER("get_all_tables");
 
   /*
@@ -5486,14 +5495,14 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
       if (tables->algorithm != VIEW_ALGORITHM_TMPTABLE)
       {
         /*
-          We should use tables->view->select_lex.item_list here
+          We should use tables->view->select_lex->item_list here
           and can not use Field_iterator_view because the view
           always uses temporary algorithm during opening for I_S
           and TABLE_LIST fields 'field_translation'
           & 'field_translation_end' are uninitialized is this
           case.
         */
-        List<Item> *fields= &tables->view->select_lex.item_list;
+        List<Item> *fields= &tables->view->select_lex->item_list;
         List_iterator<Item> it(*fields);
         Item *item;
         Item_field *field;
@@ -6459,7 +6468,7 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   OPEN_TABLE_LIST *open_list;
-  if (!(open_list=list_open_tables(thd,thd->lex->select_lex.db, wild))
+  if (!(open_list=list_open_tables(thd,thd->lex->select_lex->db, wild))
             && thd->is_fatal_error)
     DBUG_RETURN(1);
 
@@ -6853,7 +6862,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
 int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   ST_FIELD_INFO *field_info= schema_table->fields_info;
-  Name_resolution_context *context= &thd->lex->select_lex.context;
+  Name_resolution_context *context= &thd->lex->select_lex->context;
   for (; field_info->field_name; field_info++)
   {
     if (field_info->old_name)
@@ -6906,12 +6915,12 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   char tmp[128];
   String buffer(tmp,sizeof(tmp), thd->charset());
   LEX *lex= thd->lex;
-  Name_resolution_context *context= &lex->select_lex.context;
+  Name_resolution_context *context= &lex->select_lex->context;
 
   ST_FIELD_INFO *field_info= &schema_table->fields_info[2];
   buffer.length(0);
   buffer.append(field_info->old_name);
-  buffer.append(lex->select_lex.db);
+  buffer.append(lex->select_lex->db);
   if (lex->wild && lex->wild->ptr())
   {
     buffer.append(STRING_WITH_LEN(" ("));
@@ -6950,7 +6959,7 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
                      -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
-  Name_resolution_context *context= &thd->lex->select_lex.context;
+  Name_resolution_context *context= &thd->lex->select_lex->context;
 
   for (; *field_num >= 0; field_num++)
   {
@@ -6977,7 +6986,7 @@ int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   int fields_arr[]= {0, 2, 1, 3, -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
-  Name_resolution_context *context= &thd->lex->select_lex.context;
+  Name_resolution_context *context= &thd->lex->select_lex->context;
 
   for (; *field_num >= 0; field_num++)
   {
@@ -7011,7 +7020,7 @@ int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
                      -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
-  Name_resolution_context *context= &thd->lex->select_lex.context;
+  Name_resolution_context *context= &thd->lex->select_lex->context;
 
   for (; *field_num >= 0; field_num++)
   {
@@ -7206,7 +7215,7 @@ static bool do_fill_table(THD *thd,
   tmp_da.reset_condition_info(thd->query_id);
 
   bool res= table_list->schema_table->fill_table(
-    thd, table_list, join_table->condition());
+    thd, table_list, join_table->unified_condition());
 
   thd->pop_diagnostics_area();
 
@@ -7250,7 +7259,6 @@ bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place)
 {
   THD *thd= join->thd;
-  LEX *lex= thd->lex;
   bool result= 0;
   DBUG_ENTER("get_schema_tables_result");
 
@@ -7267,8 +7275,8 @@ bool get_schema_tables_result(JOIN *join,
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_information_schema_tables())
     {
-      bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
-                          lex->current_select->master_unit()->item);
+      bool is_subselect= join->select_lex->master_unit() &&
+                         join->select_lex->master_unit()->item;
 
       /* A value of 0 indicates a dummy implementation */
       if (table_list->schema_table->fill_table == 0)
@@ -8430,48 +8438,6 @@ exit:
   /* Release any metadata locks taken during SHOW CREATE TRIGGER. */
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   return error;
-}
-
-class IS_internal_schema_access : public ACL_internal_schema_access
-{
-public:
-  IS_internal_schema_access()
-  {}
-
-  ~IS_internal_schema_access()
-  {}
-
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const;
-
-  const ACL_internal_table_access *lookup(const char *name) const;
-};
-
-ACL_internal_access_result
-IS_internal_schema_access::check(ulong want_access,
-                                 ulong *save_priv) const
-{
-  want_access &= ~SELECT_ACL;
-
-  /*
-    We don't allow any simple privileges but SELECT_ACL on
-    the information_schema database.
-  */
-  if (unlikely(want_access & DB_ACLS))
-    return ACL_INTERNAL_ACCESS_DENIED;
-
-  /* Always grant SELECT for the information schema. */
-  *save_priv|= SELECT_ACL;
-
-  return want_access ? ACL_INTERNAL_ACCESS_CHECK_GRANT :
-                       ACL_INTERNAL_ACCESS_GRANTED;
-}
-
-const ACL_internal_table_access *
-IS_internal_schema_access::lookup(const char *name) const
-{
-  /* There are no per table rules for the information schema. */
-  return NULL;
 }
 
 static IS_internal_schema_access is_internal_schema_access;
