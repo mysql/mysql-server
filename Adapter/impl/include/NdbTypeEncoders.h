@@ -33,7 +33,7 @@ typedef v8::Handle<v8::Value> EncoderWriter(const NdbDictionary::Column *,
    If r == 0, no recode is required; caller can call encoder->read()
    If r > 0, caller should allocate a buffer of size r, and call recodeRead().
 */   
-typedef int RequiresRecode(const NdbDictionary::Column *, char *, size_t);
+typedef int RequiresRecode(const NdbDictionary::Column *, char *, size_t offset);
 
 typedef v8::Handle<v8::Value> RecodeRead(const NdbDictionary::Column *, 
                                          char *recode_buffer, 
@@ -48,3 +48,6 @@ typedef struct {
 } NdbTypeEncoder;
 
 const NdbTypeEncoder * getEncoderForColumn(const NdbDictionary::Column *);
+
+#define ASCII_CHARSET_NUMBER 11
+

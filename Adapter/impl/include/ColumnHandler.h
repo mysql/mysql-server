@@ -32,6 +32,7 @@ public:
   ColumnHandler();
   ~ColumnHandler();
   void init(const NdbDictionary::Column *, size_t, Handle<Value>);
+  int shouldRecode(char *) const;
   Handle<Value> read(char *) const;
   Handle<Value> write(Handle<Value>, char *) const;
     
