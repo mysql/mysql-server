@@ -4173,38 +4173,26 @@ ibuf_set_del_mark(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*			mtr)	/*!< in: mtr */
 {
-	page_cur_t	page_cur;
-	ulint		low_match;
-
 	ut_ad(ibuf_inside(mtr));
-	ut_ad(dtuple_check_typed(entry));
 
-	low_match = page_cur_search(block, index, entry, &page_cur);
+	PageCur cur(*mtr, *index, *block);
 
-	if (low_match == dtuple_get_n_fields(entry)) {
-		rec_t*		rec;
-		page_zip_des_t*	page_zip;
-
-		rec = page_cur_get_rec(&page_cur);
-		page_zip = page_cur_get_page_zip(&page_cur);
-
+	if (cur.search(entry)) {
 		/* Delete mark the old index record. According to a
 		comment in row_upd_sec_index_entry(), it can already
 		have been delete marked if a lock wait occurred in
 		row_ins_sec_index_entry() in a previous invocation of
 		row_upd_sec_index_entry(). */
 
-		if (UNIV_LIKELY
-		    (!rec_get_deleted_flag(
-			    rec, dict_table_is_comp(index->table)))) {
-			btr_cur_set_deleted_flag_for_ibuf(rec, page_zip,
-							  TRUE, mtr);
+		if (!cur.isDeleted()) {
+			btr_cur_set_deleted_flag_for_ibuf(
+				const_cast<rec_t*>(cur.getRec()),
+				buf_block_get_page_zip(block),
+				TRUE, mtr);
 		}
 	} else {
 		const page_t*		page
-			= page_cur_get_page(&page_cur);
-		const buf_block_t*	block
-			= page_cur_get_block(&page_cur);
+			= buf_block_get_frame(block);
 
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: unable to find a record to delete-mark\n",
@@ -4213,7 +4201,7 @@ ibuf_set_del_mark(
 		dtuple_print(stderr, entry);
 		fputs("\n"
 		      "InnoDB: record ", stderr);
-		rec_print(stderr, page_cur_get_rec(&page_cur), index);
+		rec_print(stderr, cur.getRec(), index);
 		fprintf(stderr, "\nspace %u offset %u"
 			" (%u records, index id " IB_ID_FMT ")\n"
 			"InnoDB: Submit a detailed bug report"
