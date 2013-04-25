@@ -128,7 +128,7 @@ row_undo_ins_remove_clust_rec(
 		as part of redo log apply step. */
 		bool table_truncated_in_redo = false;
 
-		{
+		if (srv_tables_to_truncate.size() > 0) {
 			table_id_t	remove_idx_for_table;
 			const byte*	ptr;
 			ulint 		len;
