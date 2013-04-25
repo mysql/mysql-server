@@ -405,10 +405,25 @@ public:
 	/** Get the record */
 	const rec_t* getRec() const {
 		ut_ad(m_rec);
-		ut_ad(!m_offsets == !dict_table_is_comp(m_index->table));
-		ut_ad(!m_offsets
+		ut_ad(!isComp()
 		      || rec_offs_validate(m_rec, m_index, m_offsets));
 		return(m_rec);
+	}
+
+	/** Set the current record. */
+	void setRec(const rec_t* rec) {
+		ut_ad(page_align(rec) == buf_block_get_frame(m_block));
+
+		if (!isComp()) {
+			m_rec = rec;
+		} else if (page_rec_is_user_rec(rec)) {
+			bool wasSentinel = !isUser();
+			m_rec = rec;
+			adjustOffsets(wasSentinel);
+		} else {
+			m_rec = rec;
+			adjustSentinelOffsets();
+		}
 	}
 
 	/** Get the offsets */
@@ -430,7 +445,6 @@ public:
 	bool next() {
 		bool wasSentinel = isBeforeFirst();
 		ut_ad(!isAfterLast());
-		ut_ad(!m_offsets == !dict_table_is_comp(m_index->table));
 		m_rec = page_rec_get_next_const(m_rec);
 
 		if (!m_offsets) {
@@ -451,7 +465,7 @@ public:
 		ut_ad(!isBeforeFirst());
 		m_rec = page_rec_get_prev_const(m_rec);
 
-		if (!m_offsets) {
+		if (!isComp()) {
 			return(!isBeforeFirst());
 		} else if (isBeforeFirst()) {
 			adjustSentinelOffsets();
@@ -462,11 +476,24 @@ public:
 		}
 	}
 
+	/** Determine if the page is in compact format. */
+	bool isComp() const {
+		ut_ad(!!m_offsets == dict_table_is_comp(m_index->table));
+		ut_ad(!m_offsets == !page_rec_is_comp(m_rec));
+		return(m_offsets != 0);
+	}
+
+	/** Determine if the cursor is pointing to a delete-marked record. */
+	bool isDeleted() const {
+		ut_ad(isUser());
+		return(rec_get_deleted_flag(m_rec, isComp()));
+	}
+
 	/** Insert the record that the page cursor is pointing to,
 	to another page.
 	@param[in/out] rec	record after which to insert
 	@return	pointer to record if enough space available, NULL otherwise */
-	rec_t* insert (rec_t* current) const;
+	rec_t* insert(rec_t* current) const;
 
 	/** Get the number of fields in the page. */
 	ulint getNumFields() const {

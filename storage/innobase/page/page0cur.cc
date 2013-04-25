@@ -1999,13 +1999,9 @@ PageCur::insert(rec_t* current) const
 	ulint		heap_no;	/*!< heap number of the inserted
 					record */
 
-	if (m_offsets) {
-		ut_ad(rec_offs_validate(m_rec, m_index, m_offsets));
-		ut_ad(dict_table_is_comp(m_index->table));
-		ut_ad(page_is_comp(page));
-
-		extra_size = rec_offs_extra_size(m_offsets);
-		data_size = rec_offs_data_size(m_offsets);
+	if (const ulint* offsets = getOffsets()) {
+		extra_size = rec_offs_extra_size(offsets);
+		data_size = rec_offs_data_size(offsets);
 	} else {
 		ut_ad(!dict_table_is_comp(m_index->table));
 		ut_ad(!page_is_comp(page));
