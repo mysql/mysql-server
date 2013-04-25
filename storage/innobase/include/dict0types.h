@@ -69,4 +69,8 @@ enum ib_quiesce_t {
 	QUIESCE_COMPLETE		/*!< All done */
 };
 
+/** Prefix for tmp tables, adopted from sql/table.h */
+#define TEMP_FILE_PREFIX		"#sql"
+#define TEMP_FILE_PREFIX_INNODB		"#sql-ib"
+
 #endif
