@@ -374,7 +374,7 @@ public:
 	@param[in]	index	B-tree index
 	@param[in/out]	block	B-tree page
 	@param[in]	rec	B-tree record in block, NULL=page infimum */
-	PageCur(mtr_t& mtr, dict_index_t& index,
+	PageCur(mtr_t& mtr, const dict_index_t& index,
 		const buf_block_t& block, const rec_t* rec = 0)
 		: m_mtr (&mtr), m_index (&index), m_block (&block), m_rec (rec),
 		  m_offsets (0) {
@@ -531,15 +531,15 @@ recalc:
 	}
 
 	/** The mini-transaction */
-	mtr_t*			m_mtr;
+	mtr_t*				m_mtr;
 	/** The index B-tree */
-	dict_index_t*const	m_index;
+	const dict_index_t*const	m_index;
 	/** The page the cursor is positioned on */
-	const buf_block_t*	m_block;
+	const buf_block_t*		m_block;
 	/** Cursor position (current record) */
-	const rec_t*		m_rec;
+	const rec_t*			m_rec;
 	/** Offsets to the record fields. NULL for ROW_FORMAT=REDUNDANT. */
-	ulint*			m_offsets;
+	ulint*				m_offsets;
 };
 
 #ifndef UNIV_NONINL
