@@ -4275,6 +4275,8 @@ public:
 
 #include <myisam.h>
 
+typedef Mem_root_array<Item*, true> Func_ptr_array;
+
 /* 
   Param to create temporary tables when doing SELECT:s 
   NOTE
@@ -4287,7 +4289,7 @@ public:
   List<Item> copy_funcs;
   Copy_field *copy_field, *copy_field_end;
   uchar	    *group_buff;
-  Item	    **items_to_copy;			/* Fields in tmp table */
+  Func_ptr_array *items_to_copy;             /* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
   KEY *keyinfo;
   ha_rows end_write_records;

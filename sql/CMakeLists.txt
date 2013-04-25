@@ -16,6 +16,7 @@
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql 
+  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/regex 
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
@@ -38,6 +39,12 @@ ENDIF()
 
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
+  auth/sql_authentication.cc
+  auth/sql_auth_cache.cc
+  auth/sql_authorization.cc
+  auth/sql_user_table.cc
+  auth/sql_user.cc
+  auth/password.c
   datadict.cc
   debug_sync.cc
   derror.cc
@@ -83,7 +90,6 @@ SET(SQL_SHARED_SOURCES
   opt_trace2server.cc
   parse_file.cc
   partition_info.cc
-  password.c
   procedure.cc 
   protocol.cc
   records.cc
@@ -99,7 +105,6 @@ SET(SQL_SHARED_SOURCES
   sp_rcontext.cc
   spatial.cc
   string_service.cc
-  sql_acl.cc
   sql_admin.cc
   sql_alloc_error_handler.cc
   sql_alter.cc
