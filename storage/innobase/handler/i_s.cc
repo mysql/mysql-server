@@ -5173,7 +5173,7 @@ i_s_innodb_set_page_type(
 		(1) */
 		page_info->page_type = I_S_PAGE_TYPE_INDEX;
 
-		page_info->index_id = btr_page_get_index_id(page);
+		page_info->index_id = page_get_index_id(page);
 
 		page_info->data_size = (ulint)(page_header_get_field(
 			page, PAGE_HEAP_TOP) - (page_is_comp(page)

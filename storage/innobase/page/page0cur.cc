@@ -1970,7 +1970,7 @@ PageCur::init(void)
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(recv_recovery_on
 	      || m_mtr->inside_ibuf
-	      || btr_page_get_index_id(page) == m_index->id);
+	      || page_get_index_id(page) == m_index->id);
 
 	const ulint	n	= page_is_leaf(page)
 		? dict_index_get_n_fields(m_index)

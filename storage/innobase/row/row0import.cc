@@ -744,7 +744,7 @@ FetchIndexRootPages::operator() (
 		   && !is_free(block->page.offset)
 		   && is_root_page(page)) {
 
-		index_id_t	id = btr_page_get_index_id(page);
+		index_id_t	id = page_get_index_id(page);
 		ulint		page_no = buf_block_get_page_no(block);
 
 		m_indexes.push_back(Index(id, page_no));
@@ -1913,7 +1913,7 @@ PageConverter::update_index_page(
 
 	if (is_free(buf_block_get_page_no(block))) {
 		return(DB_SUCCESS);
-	} else if ((id = btr_page_get_index_id(page)) != m_index->m_id) {
+	} else if ((id = page_get_index_id(page)) != m_index->m_id) {
 
 		row_index_t*	index = find_index(id);
 
