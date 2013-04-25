@@ -6602,7 +6602,8 @@ Create an index for a table.
 @param table_name	table name, for which to create the index
 @param space_id		space id where we have to create the index
 @param zip_size		page size of the .ibd file
-@param index		truncate redo log index meta-data
+@param index_type	type of index to truncate
+@param index_id		id of index to truncate
 @param btr_create_info	control info for ::btr_create()
 @param mtr		mini-transaction covering the create index
 @return root page no or FIL_NULL on failure */
@@ -6612,12 +6613,13 @@ truncate_t::create_index(
 	const char*	table_name,
 	ulint		space_id,
 	ulint		zip_size,
-	const index_t&	index,
+	ulint		index_type,
+	index_id_t	index_id,
 	btr_create_t&	btr_create_info,
 	mtr_t*		mtr) const
 {
 	ulint	root_page_no = btr_create(
-		index.m_type, space_id, zip_size, index.m_id,
+		index_type, space_id, zip_size, index_id,
 		NULL, &btr_create_info, mtr);
 
 	if (root_page_no == FIL_NULL) {
@@ -6629,7 +6631,7 @@ truncate_t::create_index(
 			"compressed table '%s' with tablespace "
 			"%lu during recovery",
 			srv_force_recovery,
-			index.m_id, table_name, space_id);
+			index_id, table_name, space_id);
 	}
 
 	return(root_page_no);
@@ -6652,7 +6654,7 @@ truncate_t::create_indexes(
 	ulint		flags,
 	ulint		format_flags) const
 {
-	mtr_t		mtr;
+	mtr_t           mtr;
 
 	mtr_start(&mtr);
 
@@ -6663,15 +6665,15 @@ truncate_t::create_indexes(
 	types, number of index fields and index field information taken
 	out from the TRUNCATE log record. */
 
-	indexes_t::const_iterator 	end = m_indexes.end();
+	indexes_t::const_iterator       end = m_indexes.end();
 
-	ulint	root_page_no = FIL_NULL;
+	ulint   root_page_no = FIL_NULL;
 
 	for (indexes_t::const_iterator it = m_indexes.begin();
 	     it != end;
 	     ++it) {
 
-		btr_create_t	btr_create_info(&it->m_fields[0]);
+		btr_create_t    btr_create_info(&it->m_fields[0]);
 
 		btr_create_info.format_flags = format_flags;
 
@@ -6682,7 +6684,7 @@ truncate_t::create_indexes(
 		}
 
 		root_page_no = create_index(
-			table_name, space_id, zip_size, *it,
+			table_name, space_id, zip_size, it->m_type, it->m_id,
 			btr_create_info, &mtr);
 
 		if (root_page_no == FIL_NULL) {
