@@ -36,8 +36,8 @@ typedef v8::Handle<v8::Value> EncoderWriter(const NdbDictionary::Column *,
 typedef int RequiresRecode(const NdbDictionary::Column *, char *, size_t offset);
 
 typedef v8::Handle<v8::Value> RecodeRead(const NdbDictionary::Column *, 
-                                         char *recode_buffer, size_t recode_sz,
-                                         char *col_buffer, size_t offset);
+                                         uint16_t * buffer, size_t recode_sz,
+                                         char *column_buffer, size_t offset);
 
 
 typedef struct {
