@@ -3,33 +3,11 @@
 #
 
 --source include/have_innodb.inc
---source include/have_debug.inc
---source include/big_test.inc
-
-# Valgrind would complain about memory leaks when we crash on purpose.
---source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
-# Avoid CrashReporter popup on Mac
---source include/not_crashrep.inc
-
-# supress expected warnings.
-call mtr.add_suppression("The file '.*' already exists though the corresponding table did not exist in the InnoDB data dictionary");
-call mtr.add_suppression("Cannot create file '.*'");
-call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
 
 ################################################################################
 #
 # Will test following scenarios:
 # 1. Test some basic dml action involving truncate of table.
-# 2. Hit crash point while writing redo log.
-# 3. Hit crash point on completion of redo log write.
-# 4. Hit crash point while dropping indexes.
-# 5. Hit crash point on completing drop of all indexes before creation of index
-#    is commenced.
-# 6. Hit crash point while creating indexes.
-# 7. Hit crash point after data is updated to system-table and in-memory dict.
-# 8. Hit crash point before/after log checkpoint is done.
 #
 ################################################################################
 
@@ -50,6 +28,7 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 # 1. Test some basic dml action involving truncate of table.
 #
 --echo "1. Test some basic dml action involving truncate of table."
+set global innodb_file_per_table = 0;
 create table t1
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc), index sec_index(c1)
@@ -73,391 +52,31 @@ create temporary table t2
 --source suite/innodb/include/innodb_dml_ops.inc
 drop table t1;
 drop table t2;
-
-#-----------------------------------------------------------------------------
 #
-# 2. Hit crash point while writing redo log.
-#
---echo "2. Hit crash point while writing redo log."
-use test;
 set global innodb_file_per_table = 1;
-create table t (i int) engine=innodb;
-insert into t values (1), (2), (3);
-select * from t;
-#
-set session debug = "+d,ib_truncate_crash_while_writing_redo_log";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-drop table t;
-
-#-----------------------------------------------------------------------------
-#
-# 3. Hit crash point on completion of redo log write.
-#
---echo "3. Hit crash point on completion of redo log write."
-use test;
-set global innodb_file_per_table = 1;
-create table t (i int) engine=innodb;
-insert into t values (1), (2), (3);
-select * from t;
-#
-set session debug = "+d,ib_crash_after_redo_log_write_complete1";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1), (2), (3);
-select * from t;
-drop table t;
-#
-#
-use test;
-set global innodb_file_per_table = 1;
-create table t (i int) engine=innodb;
-insert into t values (1), (2), (3);
-select * from t;
-#
-set session debug = "+d,ib_crash_after_redo_log_write_complete2";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1), (2), (3);
-select * from t;
-drop table t;
-
-#-----------------------------------------------------------------------------
-#
-# 4. Hit crash point while dropping indexes.
-#
---echo "4. Hit crash point while dropping indexes."
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_on_drop_of_clust_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-drop table t;
-#
-#
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_on_drop_of_uniq_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-drop table t;
-#
-#
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_on_drop_of_sec_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-drop table t;
-
-#-----------------------------------------------------------------------------
-#
-# 5. Hit crash point on completing drop of all indexes before creation of index
-#    is commenced.
-#
---echo "5. Hit crash point on completing drop of all indexes before creation"
---echo "   of index is commenced."
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_drop_reinit_done_create_to_start1";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-drop table t;
-#
-#
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_drop_reinit_done_create_to_start2";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-drop table t;
-
-#-----------------------------------------------------------------------------
-#
-# 6. Hit crash point while creating indexes.
-#
---echo "6. Hit crash point while creating indexes."
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_on_create_of_clust_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-drop table t;
-#
-#
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_on_create_of_uniq_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-drop table t;
-#
-#
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_on_create_of_sec_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-drop table t;
-
-#-----------------------------------------------------------------------------
-#
-# 7. Hit crash point after data is updated to system-table and in-memory dict.
-#
---echo "7. Hit crash point after data is updated to system-table and"
---echo "   in-memory dict."
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_on_updating_dict_sys_info1";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-drop table t;
-#
-#
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_on_updating_dict_sys_info2";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-drop table t;
-
-#-----------------------------------------------------------------------------
-#
-# 8. Hit crash point before/after log checkpoint is done.
-#
---echo "8. Hit crash point before/after log checkpoint is done."
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_before_log_checkpoint1";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-drop table t;
-#
-#
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_before_log_checkpoint2";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-drop table t;
-#
-#
-use test;
-set global innodb_file_per_table = 1;
-create table t (
-	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-#
-set session debug = "+d,ib_crash_after_log_checkpoint";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-select * from t;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-drop table t;
-
+create table t1
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+        ) engine = innodb;
+create table t2
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+        ) engine = innodb;
+--source suite/innodb/include/innodb_dml_ops.inc
+drop table t1;
+drop table t2;
+#
+create temporary table t1
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+        ) engine = innodb;
+create temporary table t2
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+        ) engine = innodb;
+--source suite/innodb/include/innodb_dml_ops.inc
+drop table t1;
+drop table t2;
 
 #-----------------------------------------------------------------------------
 #
