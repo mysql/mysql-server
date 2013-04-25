@@ -19,9 +19,18 @@
  */
 
 
-bool encoderShouldRecode(const NdbDictionary::Column *col, 
+bool encoderShouldRecode(const NdbDictionary::Column *, 
                          char * buffer, size_t len);
 
-int getUnicodeBufferSize(const NdbDictionary::Column *col, size_t strsz = 0);
+/* Returns size in characters 
+*/
+size_t getUtf16BufferSize(const NdbDictionary::Column *, size_t strsz = 0);
 
-bool colIsUtf16(const NdbDictionary::Column *col);
+bool colIsUtf16(const NdbDictionary::Column *);
+
+bool colIsUtf8(const NdbDictionary::Column *);
+
+bool colIsAscii(const NdbDictionary::Column *);
+
+bool colIsLatin1(const NdbDictionary::Column *);
+

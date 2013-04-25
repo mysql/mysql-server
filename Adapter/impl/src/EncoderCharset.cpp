@@ -47,11 +47,11 @@
  * the buffer requirement of that string recoded into UTF-16. 
  *
  * Suppose the user creates a VARCHAR(20) size with character set Y.
- * col->getSize() will be 20 * charset_info[Y]->mbmaxlen
+ * col->getLength() will be 20 * charset_info[Y]->mbmaxlen
  *
- * If mbmaxlen is 4, we will return a buffer requirement of col->getSize().
+ * If mbmaxlen is 4, we will return a buffer requirement of col->getLength().
  * But if mbmaxlen is less than 4, we will return:
- *  2 * (col->getSize() / mbmaxlen)
+ *  2 * (col->getLength() / mbmaxlen)
  * 
  * So, we assert that there are no 2- or 3-byte character sets that encode
  * characters outside the BMP (particularly, that ujis does not).
@@ -62,13 +62,19 @@
 
 
 /* strsz = 0 for char; actual size in bytes for varchar.
+   Returns needed size in characters
 */
-int getUnicodeBufferSize(const NdbDictionary::Column *col, size_t strsz) {
-  const int & sz = col->getSize();
-  const int & mbmaxlen = col->getCharset()->mbmaxlen;
-  size_t bufsz = (mbmaxlen >= 4 ? sz : 2 * sz / mbmaxlen);
-  /* Alternate length for VARCHAR: 2x length in bytes */
-  strsz *= 2;
+size_t getUtf16BufferSize(const NdbDictionary::Column *col, size_t strsz) {
+  const int & sz = col->getLength();
+  const int & minlen = col->getCharset()->mbminlen;
+  const int & maxlen = col->getCharset()->mbmaxlen;
+  size_t bufsz;
+  
+  /* see note above re. group (B.2) */
+  bufsz = (maxlen == 4 ? sz : sz / maxlen);
+
+  /* Alternate length for VARCHAR: max plausible length of string */
+  strsz /= minlen;
   if(strsz > 0 && strsz < bufsz) bufsz = strsz;
 
   return bufsz;
@@ -86,9 +92,22 @@ inline bool stringIsAscii(const unsigned char *str, size_t len) {
 /* It may be a good optimization to do these lookups once per 
    charset and store them somewhere.
 */
-inline bool colIsUtf16(const NdbDictionary::Column *col) {
+bool colIsUtf16(const NdbDictionary::Column *col) {
+// we let "utf16le" pass as "utf16"
   return ( (strncmp("utf16", col->getCharset()->csname, 5) == 0) ||
            (strncmp("ucs2",  col->getCharset()->csname, 4) == 0));
+}
+
+bool colIsUtf8(const NdbDictionary::Column *col) {
+  return (strncmp("utf8", col->getCharset()->csname, 4) == 0);
+}
+
+bool colIsLatin1(const NdbDictionary::Column *col) {
+  return (strncmp("latin1", col->getCharset()->csname, 6) == 0);
+}
+
+bool colIsAscii(const NdbDictionary::Column *col) {
+  return (strncmp("ascii", col->getCharset()->csname, 5) == 0);
 }
 
 

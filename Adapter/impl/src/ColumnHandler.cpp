@@ -105,7 +105,8 @@ Handle<Value> ColumnHandler::callConverterReader(Handle<Value> rval) const {
 }
 
 
-Handle<Value> ColumnHandler::recodeRead(char * recodeBuffer, size_t recodeSize,
+Handle<Value> ColumnHandler::recodeRead(uint16_t * recodeBuffer, 
+                                        size_t recodeSize,
                                         char * readBuffer) const {
   HandleScope scope;
   Handle<Value> val;
