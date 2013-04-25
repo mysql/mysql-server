@@ -661,6 +661,24 @@ rec_get_data_size_old(
 /*==================*/
 	const rec_t*	rec)	/*!< in: physical record */
 	__attribute__((nonnull, pure, warn_unused_result));
+
+/** Get an offset to the nth data field in a record.
+@param[in]	rec	the record
+@param[in]	offsets	rec_get_offsets(rec), or NULL if ROW_FORMAT=REDUNDANT
+@param[in]	n	index of the field
+@param[out]	field	the field
+@param[out]	len	the length of the field in bytes, or UNIV_SQL_NULL
+@return		nonzero if the field is stored externally */
+UNIV_INLINE
+ulint
+rec_get_nth_field_ext(
+	const rec_t*	rec,
+	const ulint*	offsets,
+	ulint		n,
+	const byte*&	field,
+	ulint&		len)
+	__attribute__((pure, warn_unused_result));
+
 /**********************************************************//**
 The following function returns the number of allocated elements
 for an array of offsets.
