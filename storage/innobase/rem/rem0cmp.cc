@@ -69,7 +69,8 @@ cmp_debug_dtuple_rec_with_match(
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets();
+				may be NULL for ROW_FORMAT=REDUNDANT */
 	ulint		n_cmp,	/*!< in: number of fields to compare */
 	ulint*		matched_fields)/*!< in/out: number of already
 				completely  matched fields; when function
@@ -631,7 +632,8 @@ cmp_dtuple_rec_with_match_low(
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets();
+				may be NULL for ROW_FORMAT=REDUNDANT */
 	ulint		n_cmp,	/*!< in: number of fields to compare */
 	ulint*		matched_fields, /*!< in/out: number of already completely
 				matched fields; when function returns,
@@ -660,7 +662,7 @@ cmp_dtuple_rec_with_match_low(
 
 	ut_ad(dtuple && rec && matched_fields && matched_bytes);
 	ut_ad(dtuple_check_typed(dtuple));
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!offsets || rec_offs_validate(rec, NULL, offsets));
 
 	cur_field = *matched_fields;
 	cur_bytes = *matched_bytes;
@@ -668,11 +670,13 @@ cmp_dtuple_rec_with_match_low(
 	ut_ad(n_cmp > 0);
 	ut_ad(n_cmp <= dtuple_get_n_fields(dtuple));
 	ut_ad(cur_field <= n_cmp);
-	ut_ad(cur_field <= rec_offs_n_fields(offsets));
+	ut_ad(cur_field <= (offsets
+			    ? rec_offs_n_fields(offsets)
+			    : rec_get_n_fields_old(rec)));
 
 	if (cur_bytes == 0 && cur_field == 0) {
-		ulint	rec_info = rec_get_info_bits(rec,
-						     rec_offs_comp(offsets));
+		ulint	rec_info = rec_get_info_bits(
+			rec, offsets && rec_offs_comp(offsets));
 		ulint	tup_info = dtuple_get_info_bits(dtuple);
 
 		if (UNIV_UNLIKELY(rec_info & REC_INFO_MIN_REC_FLAG)) {
@@ -703,8 +707,8 @@ cmp_dtuple_rec_with_match_low(
 
 		dtuple_f_len = dfield_get_len(dtuple_field);
 
-		rec_b_ptr = rec_get_nth_field(rec, offsets,
-					      cur_field, &rec_f_len);
+		ulint	ext = rec_get_nth_field_ext(rec, offsets, cur_field,
+						    rec_b_ptr, rec_f_len);
 
 		/* If we have matched yet 0 bytes, it may be that one or
 		both the fields are SQL null, or the record or dtuple may be
@@ -712,7 +716,7 @@ cmp_dtuple_rec_with_match_low(
 		stored */
 
 		if (UNIV_LIKELY(cur_bytes == 0)) {
-			if (rec_offs_nth_extern(offsets, cur_field)) {
+			if (ext) {
 				/* We do not compare to an externally
 				stored field */
 
@@ -737,6 +741,10 @@ cmp_dtuple_rec_with_match_low(
 				ret = 1;
 				goto order_resolved;
 			}
+		} else {
+			/* We should not have any partial match against
+			an externally stored field. */
+			ut_ad(!ext);
 		}
 
 		if (mtype >= DATA_FLOAT
@@ -764,8 +772,8 @@ cmp_dtuple_rec_with_match_low(
 		/* Set the pointers at the current byte */
 
 		rec_b_ptr = rec_b_ptr + cur_bytes;
-		dtuple_b_ptr = (byte*) dfield_get_data(dtuple_field)
-			+ cur_bytes;
+		dtuple_b_ptr = static_cast<const byte*>(
+			dfield_get_data(dtuple_field)) + cur_bytes;
 		/* Compare then the fields */
 
 		for (;;) {
@@ -1354,7 +1362,8 @@ cmp_debug_dtuple_rec_with_match(
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets();
+				may be NULL for ROW_FORMAT=REDUNDANT */
 	ulint		n_cmp,	/*!< in: number of fields to compare */
 	ulint*		matched_fields) /*!< in/out: number of already
 				completely matched fields; when function
@@ -1373,18 +1382,20 @@ cmp_debug_dtuple_rec_with_match(
 
 	ut_ad(dtuple && rec && matched_fields);
 	ut_ad(dtuple_check_typed(dtuple));
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!offsets || rec_offs_validate(rec, NULL, offsets));
 
 	ut_ad(n_cmp > 0);
 	ut_ad(n_cmp <= dtuple_get_n_fields(dtuple));
 	ut_ad(*matched_fields <= n_cmp);
-	ut_ad(*matched_fields <= rec_offs_n_fields(offsets));
+	ut_ad(*matched_fields <= (offsets
+				  ? rec_offs_n_fields(offsets)
+				  : rec_get_n_fields_old(rec)));
 
 	cur_field = *matched_fields;
 
 	if (cur_field == 0) {
 		if (UNIV_UNLIKELY
-		    (rec_get_info_bits(rec, rec_offs_comp(offsets))
+		    (rec_get_info_bits(rec, offsets && rec_offs_comp(offsets))
 		     & REC_INFO_MIN_REC_FLAG)) {
 
 			ret = !(dtuple_get_info_bits(dtuple)
@@ -1422,14 +1433,10 @@ cmp_debug_dtuple_rec_with_match(
 
 		dtuple_f_len = dfield_get_len(dtuple_field);
 
-		rec_f_data = rec_get_nth_field(rec, offsets,
-					       cur_field, &rec_f_len);
-
-		if (rec_offs_nth_extern(offsets, cur_field)) {
+		if (rec_get_nth_field_ext(rec, offsets, cur_field,
+					  rec_f_data, rec_f_len)) {
 			/* We do not compare to an externally stored field */
-
 			ret = 0;
-
 			goto order_resolved;
 		}
 
