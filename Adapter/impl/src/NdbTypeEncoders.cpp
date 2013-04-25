@@ -29,6 +29,7 @@
 #include "js_wrapper_macros.h"
 #include "JsWrapper.h"
 #include "ndb_util/CharsetMap.hpp"
+#include "EncoderCharset.h"
 
 using namespace v8;
 
@@ -327,6 +328,10 @@ void pack_bigendian(uint64_t val, char * buf, unsigned int len) {
 */
 Handle<Value> writerOK = Undefined();
 
+/* File-scope global charsetMap 
+*/
+CharsetMap charsetMap;
+
 
 /*************************************************************
    ******                                              *****
@@ -563,7 +568,6 @@ Handle<Value> fpWriter(const NdbDictionary::Column * col,
 
 /****** String types ********/
 
-
 // CHAR
 Handle<Value> CharReader(const NdbDictionary::Column *col, 
                          char *buffer, size_t offset) {
@@ -593,6 +597,9 @@ Handle<Value> CharWriter(const NdbDictionary::Column * col,
 
 int CharRequiresRecode(const NdbDictionary::Column *col, 
                        char *buffer, size_t offset) {
+  if(encoderShouldRecode(col, buffer + offset, col->getSize())) { 
+    return getUnicodeBufferSize(col);
+  }
   return 0;
 }
 
@@ -608,8 +615,6 @@ Handle<Value> varcharReader(const NdbDictionary::Column *col,
   HandleScope scope;
   LOAD_ALIGNED_DATA(LENGTHTYPE, length, buffer+offset);
   const char * str = buffer+offset+sizeof(length);
-  //TODO CHARSET CONVERSION
-  //TODO SOME STRINGS CAN BE EXTERNALIZED: strict ascii, UTF16, UTF8
   Local<String> string = String::New(str, length);
 
   return scope.Close(string);
@@ -633,7 +638,12 @@ Handle<Value> varcharWriter(const NdbDictionary::Column * col,
 
 template<typename LENGTHTYPE>
 int varcharRequiresRecode(const NdbDictionary::Column *col, 
-                       char *buffer, size_t offset) {
+                          char *buffer, size_t offset) {
+  LOAD_ALIGNED_DATA(LENGTHTYPE, length, buffer+offset);
+
+  if(encoderShouldRecode(col, buffer+offset+sizeof(length), length)) {
+    return getUnicodeBufferSize(col);
+  }  
   return 0;
 }
 

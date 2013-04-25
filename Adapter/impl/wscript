@@ -44,6 +44,7 @@ def build(ctx):
   "src/ColumnHandler.cpp " +\
   "src/ValueObject.cpp " +\
   "src/ScanImpl.cpp " +\
+  "src/EncoderCharset.cpp " +\
   \
   "src/mysqlclient_wrapper.cpp " +\
   ""

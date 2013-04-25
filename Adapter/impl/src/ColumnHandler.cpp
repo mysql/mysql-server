@@ -83,6 +83,14 @@ void ColumnHandler::init(const NdbDictionary::Column *_column,
 }
 
 
+int ColumnHandler::shouldRecode(char * buffer) const {
+  if(encoder->requiresRecode != NULL) {
+    return encoder->requiresRecode(column, buffer, offset);
+  }
+  return 0;
+}
+
+
 Handle<Value> ColumnHandler::read(char * buffer) const {
   HandleScope scope;
   Handle<Value> val = encoder->read(column, buffer, offset);
