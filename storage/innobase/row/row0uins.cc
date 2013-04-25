@@ -144,7 +144,7 @@ row_undo_ins_remove_clust_rec(
 			     i < srv_tables_to_truncate.size();
 			     i++) {
 
-				if (srv_tables_to_truncate[i].m_new_table_id ==
+				if (srv_tables_to_truncate[i]->m_new_table_id ==
 				    remove_idx_for_table) {
 					table_truncated_in_redo = true;
 					break;
