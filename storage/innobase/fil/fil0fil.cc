@@ -2138,8 +2138,12 @@ fil_recreate_tablespace(
 	const char*		name,		/*!< in: table name */
 	const truncate_t&	truncate,	/*!< in: The information of
 						MLOG_FILE_TRUNCATE record */
-	lsn_t			recv_lsn)	/*!< in: the end LSN of
+	lsn_t			recv_lsn,	/*!< in: the end LSN of
 						the log record */
+	truncate_redo_cache_t*	redo_cache_entry)
+						/*!< out: cache to store
+						information needed for
+						completion of truncate. */
 {
 	dberr_t			err;
 	mtr_t			mtr;
@@ -2234,7 +2238,8 @@ fil_recreate_tablespace(
 	mtr_commit(&mtr);
 
 	err = truncate.create_indexes(
-		name, space_id, zip_size, flags, format_flags);
+		name, space_id, zip_size, flags, format_flags,
+		redo_cache_entry);
 
 	if (err != DB_SUCCESS) {
 		return;
@@ -2350,12 +2355,14 @@ fil_op_log_parse_or_replay(
 	bool		parse_only)	/*!< in: if true, parse the
 					log record don't replay it. */
 {
-	const char*	name;
-	ulint		name_len;
-	ulint		tablespace_flags = 0;
-	ulint		new_name_len;
-	const char*	new_name = NULL;
-	truncate_t 	truncate;
+	const char*		name;
+	ulint			name_len;
+	ulint			tablespace_flags = 0;
+	ulint			new_name_len;
+	const char*		new_name = NULL;
+	truncate_redo_cache_t* 	redo_cache_entry = NULL;
+	truncate_t 		truncate;
+
 	new (&truncate) truncate_t;
 
 	/* Step-1: Parse the log records. */
@@ -2443,19 +2450,11 @@ fil_op_log_parse_or_replay(
 
 	case MLOG_FILE_TRUNCATE:
 
-		/* Cache the table-ids of table to truncate for blocking
-		undo locking. */
-		{
-			truncate_t table_to_truncate;
-			new (&table_to_truncate) truncate_t;
-
-			table_to_truncate.m_old_table_id =
-				truncate.m_old_table_id;
-			table_to_truncate.m_new_table_id =
-				truncate.m_new_table_id;
-
-			srv_tables_to_truncate.push_back(table_to_truncate);
-		}
+		/* Cache the info that is needed to complete the truncate
+		action. Importantly: any updates to dictionary is done
+		post recovery. */
+		redo_cache_entry = new truncate_redo_cache_t(
+			truncate.m_old_table_id, truncate.m_new_table_id);
 
 		if (!fil_tablespace_exists_in_mem(space_id)) {
 
@@ -2490,7 +2489,11 @@ fil_op_log_parse_or_replay(
 
 		fil_recreate_tablespace(
 			space_id, log_flags, tablespace_flags, name,
-			truncate, recv_lsn);
+			truncate, recv_lsn, redo_cache_entry);
+
+		/* Note: we are handing over ownership to vector. */
+		srv_tables_to_truncate.push_back(redo_cache_entry);
+
 		break;
 
 	case MLOG_FILE_RENAME:
@@ -6644,15 +6647,18 @@ truncate_t::create_index(
 @param zip_size		page size of the .ibd file
 @param flags		tablespace flags
 @param format_flags	page format flags
+@param redo_cache_entry	cache to store info about new page no so as
+			to update them in dictionary post recovery
 @return DB_SUCCESS or error code. */
 dberr_t
 truncate_t::create_indexes(
 /*=======================*/
-	const char*	table_name,
-	ulint		space_id,
-	ulint		zip_size,
-	ulint		flags,
-	ulint		format_flags) const
+	const char*		table_name,
+	ulint			space_id,
+	ulint			zip_size,
+	ulint			flags,
+	ulint			format_flags,
+	truncate_redo_cache_t* 	redo_cache_entry) const 
 {
 	mtr_t           mtr;
 
@@ -6690,6 +6696,8 @@ truncate_t::create_indexes(
 		if (root_page_no == FIL_NULL) {
 			break;
 		}
+
+		redo_cache_entry->register_new_page_no(it->m_id, root_page_no);
 	}
 
 	mtr_commit(&mtr);

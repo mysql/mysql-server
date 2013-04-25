@@ -382,7 +382,7 @@ Update system table to reflect new table id.
 @return error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
-row_truncate_update_sys_tables_low(
+row_truncate_update_table_id(
 	ulint	old_table_id,
 	ulint	new_table_id,
 	ibool	reserve_dict_mutex,
@@ -390,13 +390,6 @@ row_truncate_update_sys_tables_low(
 {
 	pars_info_t*	info	= NULL;
 	dberr_t		err 	= DB_SUCCESS;
-	bool		own_trx	= false;
-
-	if (trx == NULL) {
-		trx = trx_allocate_for_background();
-		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
-		own_trx = true;
-	}
 
 	/* Scan the SYS_XXXX table and update to reflect new table-id. */
 	info = pars_info_create();
@@ -417,12 +410,72 @@ row_truncate_update_sys_tables_low(
 		" WHERE TABLE_ID = :old_id;\n"
 		"END;\n", reserve_dict_mutex, trx);
 
-	RECOVERY_CRASH(101);
+	return(err);
+}
 
-	if (own_trx) {
-		trx_commit_for_mysql(trx);
-		trx_free_for_background(trx);
+/**
+Update system table to reflect new table id/new root page number.
+@param redo_cache		contains info like old table id
+				and updated root_page_no of indexes.
+@param new_table_id		new table id
+@param reserve_dict_mutex 	if true, acquire/release
+				dict_sys->mutex around call to pars_sql. 
+@return error code or DB_SUCCESS */
+static __attribute__((warn_unused_result))
+dberr_t
+row_truncate_update_sys_tables_post_redo(
+	truncate_redo_cache_t*	redo_cache,
+	ulint			new_table_id,
+	ibool			reserve_dict_mutex)
+{
+	dberr_t	err 	= DB_SUCCESS;
+	trx_t*	trx;
+
+	trx = trx_allocate_for_background();
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
+	/* Step-1: Update the root-page-no */
+	truncate_redo_cache_t::index_page_cache_t::const_iterator end =
+		redo_cache->m_new_page_no.end();
+
+	for (truncate_redo_cache_t::index_page_cache_t::const_iterator it =
+		redo_cache->m_new_page_no.begin();
+	     it != end;
+	     ++it) {
+
+		pars_info_t*	info	= NULL;
+		info = pars_info_create();
+		pars_info_add_int4_literal(info, "page_no", it->second);
+		pars_info_add_ull_literal(info, "table_id",
+			redo_cache->m_old_table_id);
+		pars_info_add_ull_literal(info, "index_id", it->first);
+
+		err = que_eval_sql(
+			info,
+			"PROCEDURE RENUMBER_IDX_PAGE_NO_PROC () IS\n"
+			"BEGIN\n"
+			"UPDATE SYS_INDEXES"
+			" SET PAGE_NO = :page_no\n"
+			" WHERE TABLE_ID = :table_id"
+			" AND ID = :index_id;\n"
+			"END;\n", reserve_dict_mutex, trx);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 	}
+		
+	/* Step-2: Update table-id. */
+	err = row_truncate_update_table_id(
+		redo_cache->m_old_table_id, new_table_id,
+		reserve_dict_mutex, trx);
+
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	trx_commit_for_mysql(trx);
+	trx_free_for_background(trx);
 
 	return(err);
 }
@@ -448,7 +501,7 @@ row_truncate_update_system_tables(
 
 	ut_a(!dict_table_is_temporary(table));
 
-	err = row_truncate_update_sys_tables_low(table->id, new_id, FALSE, trx);
+	err = row_truncate_update_table_id(table->id, new_id, FALSE, trx);
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_before_fts_truncate", err = DB_ERROR;);
 
@@ -994,12 +1047,15 @@ row_complete_truncate_of_tables()
 		table_id_t      new_id;
 		dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);
 
-		err = row_truncate_update_sys_tables_low(
-			srv_tables_to_truncate[i].m_old_table_id, new_id,
-			TRUE, NULL);
+		err = row_truncate_update_sys_tables_post_redo(
+			srv_tables_to_truncate[i], new_id, TRUE);
 		if (err != DB_SUCCESS) {
 			break;
 		}
+	}
+
+	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
+		delete(srv_tables_to_truncate[i]);
 	}
 
 	srv_tables_to_truncate.clear();
