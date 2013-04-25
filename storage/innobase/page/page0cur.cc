@@ -256,11 +256,6 @@ mode_ok:
 			return;
 		}
 	}
-# ifdef PAGE_CUR_DBG
-	if (mode == PAGE_CUR_DBG) {
-		mode = PAGE_CUR_LE;
-	}
-# endif
 #endif
 
 	/* If mode PAGE_CUR_G is specified, we are trying to position the
