@@ -2810,7 +2810,7 @@ bool mts_assign_parent_group_id(Log_event* ev, Relay_log_info* rli)
     return true;
   }
   // Check if we can schedule this event
-  if (rli->current_mts_submode->schedule_next_event(rli))
+  if (rli->current_mts_submode->schedule_next_event(rli, ev))
     /* The previous group of events encountered an error and the slave
       cannot continue. */
     return true;
