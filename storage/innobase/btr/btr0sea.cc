@@ -959,7 +959,7 @@ btr_search_guess_on_hash(
 	is positioned on. We cannot look at the next of the previous
 	record to determine if our guess for the cursor position is
 	right. */
-	if (UNIV_UNLIKELY(index_id != btr_page_get_index_id(block->frame))
+	if (UNIV_UNLIKELY(index_id != page_get_index_id(block->frame))
 	    || !btr_search_check_guess(cursor,
 				       has_search_latch,
 				       tuple, mode, mtr)) {
@@ -1156,7 +1156,7 @@ retry:
 	rec = page_get_infimum_rec(page);
 	rec = page_rec_get_next_low(rec, page_is_comp(page));
 
-	index_id = btr_page_get_index_id(page);
+	index_id = page_get_index_id(page);
 
 	ut_a(index_id == index->id);
 
@@ -1379,7 +1379,7 @@ btr_search_build_page_hash_index(
 
 	n_cached = 0;
 
-	ut_a(index->id == btr_page_get_index_id(page));
+	ut_a(index->id == page_get_index_id(page));
 
 	rec = page_rec_get_next(page_get_infimum_rec(page));
 
@@ -1937,7 +1937,7 @@ btr_search_validate(void)
 
 			ut_a(!dict_index_is_ibuf(block->index));
 
-			page_index_id = btr_page_get_index_id(block->frame);
+			page_index_id = page_get_index_id(block->frame);
 
 			offsets = rec_get_offsets(node->data,
 						  block->index, offsets,

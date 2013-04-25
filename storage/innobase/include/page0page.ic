@@ -60,6 +60,19 @@ page_offset(
 {
 	return(ut_align_offset(ptr, UNIV_PAGE_SIZE));
 }
+
+/**************************************************************//**
+Gets the index id field of a page.
+@return	index id */
+UNIV_INLINE
+index_id_t
+page_get_index_id(
+/*==============*/
+	const page_t*	page)	/*!< in: index page */
+{
+	return(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID));
+}
+
 /*************************************************************//**
 Returns the max trx id field value. */
 UNIV_INLINE
