@@ -1,13 +1,27 @@
 #!/usr/bin/env bash
 
+# build mysql with the tokudb storage engine and the fractal tree
+#
+# parse arguments
+# checkout jemalloc
+# build jemalloc
+# checkout the fractal tree
+# build the fractal tree
+# checkout the mysql source
+# checkout the tokudb storage engine
+# checkout the tokudb backup source
+# generate a mysql build script
+# generate a mysql source tarball
+# execute the build script
+
 shopt -s compat31 2> /dev/null
 
 function usage() {
-    echo "make.mysql.bash - build mysql with the fractal tree"
+    echo "make.mysql.bash - build mysql with the tokudb storage engine and the fractal tree"
     echo "--git_tag=$git_tag"
     echo "--mysqlbuild=$mysqlbuild"
     echo "--tokudb_version=$tokudb_version"
-    echo "--mysql=$mysql"
+    echo "--mysql=$mysql --mysql_distro=$mysql_distro --mysql_version=$mysql_version"
     echo "--build_type=$build_type"
     echo "--build_debug=$build_debug"
     echo "--build_tgz=$build_tgz"
@@ -15,15 +29,20 @@ function usage() {
     echo "--cc=$cc --cxx=$cxx"
     echo "--do_s3=$do_s3"
     echo "--do_make_check=$do_make_check"
-    echo "example: build from the tokudb-7.0.1 git tag"
+    echo 
+    echo "community release builds using the tokudb-7.0.1 git tag"
     echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.1-linux-x86_64"
     echo "    make.mysql.bash --mysqlbuild=mariadb-5.5.30-tokudb-7.0.1-linux-x86_64"
     echo "    make.mysql.bash --git_tag=tokudb-7.0.1 --mysql=mysql-5.5.30"
-    echo "example: build from the HEAD of the repos"
-    echo "    make.mysql.bash --mysql=mysql-5.5.30 --tokudb_version=my_tokudb_version"
-    echo "    make.mysql.bash --mysql=mariadb-5.5.30 --tokudb_versio=my_tokudb_verison"
-    echo "example: build from a branch"
-    echo "    make.mysql.bash --mysql_tree=my_mysql_branch --ftengine_tree=my_ftengine_branch"
+    echo
+    echo "community debug builds using the tokudb-7.0.1 git tag"
+    echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.1-debug-linux-x86_64"
+    echo
+    echo "enterprise release builds at the HEAD of the repos"
+    echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-test-e-linux-x86_64"
+    echo 
+    echo "community release builds of a branch"
+    echo "    make.mysql.bash --mysql=mysql-5.5.30 --mysql_tree=<your mysql tree name> --ftengine_tree=<your ft-engine tree name> --tokudb_version=<your test string>>"
     return 1
 }
 
@@ -81,12 +100,11 @@ function github_download() {
         tempdir=$(mktemp -d -p $PWD)
         retry git clone git@github.com:${repo}.git $tempdir
         if [ $? != 0 ] ; then return; fi
-        if [ $rev != HEAD ] ; then
-            pushd $tempdir
-            git checkout $rev; exitcode=$?
-            popd
-            if [ $exitcode != 0 ] ; then return $exitcode; fi
-        fi
+        pushd $tempdir
+        if [ $? != 0 ] ; then return; fi
+        git checkout $rev
+        if [ $? != 0 ] ; then return; fi
+        popd
 
         # export the right branch or tag
         (cd $tempdir ;
@@ -100,6 +118,7 @@ function github_download() {
     fi
 }
 
+# returns b if b is defined else returns a
 function git_tree() {
     local a=$1; shift
     local b=$1; shift
@@ -110,6 +129,7 @@ function git_tree() {
     fi
 }
 
+# compute the number of cpus in this system.  used to parallelize the build.
 function get_ncpus() {
     if [ -f /proc/cpuinfo ]; then
         grep bogomips /proc/cpuinfo | wc -l
@@ -218,14 +238,6 @@ function build_fractal_tree() {
         make clean
         popd
         
-        # add jemalloc.so
-        if [ $system = linux ] ; then
-            cp jemalloc/lib/libjemalloc.so.1 $tokufractaltreedir/lib
-        elif [ $system = darwin ] ; then
-            cp jemalloc/lib/libjemalloc.1.dylib $tokufractaltreedir/lib
-        fi
-        cp jemalloc/lib/libjemalloc.a $tokufractaltreedir/lib/libjemalloc.a
-
         # make tarballs
         tar czf $tokufractaltreedir.tar.gz $tokufractaltreedir
         md5sum $tokufractaltreedir.tar.gz >$tokufractaltreedir.tar.gz.md5
@@ -552,12 +564,27 @@ function build_mysql_release() {
     fi
 }
 
+# split mysql into mysql_distro and mysql_version
+function parse_mysql() {
+    local mysql=$1
+    if [[ $mysql =~ ^(mysql|mariadb)-(.*)$ ]] ; then
+        mysql_distro=${BASH_REMATCH[1]}
+        mysql_version=${BASH_REMATCH[2]}
+        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_distro=mysql56; fi
+        exitcode=0
+    else
+        exitcode=1
+    fi
+    test $exitcode = 0
+}
+
 # parse a mysqlbuild string and extract the mysql_distro, mysql_version, tokudb_distro, tokudb_version, target_system, and target_arch
 # compute build_type, build_debug, and git_tag
 function parse_mysqlbuild() {
     local mysqlbuild=$1
-    local exitcode
-    if [[ $mysqlbuild =~ ((mysql|mariadb)-(.*))-((tokudb)-(.*))-(linux|darwin)-(x86_64|i386) ]] ; then
+    local exitcode=0
+    if [[ $mysqlbuild =~ ((mysql|mariadb|percona\-server)-(.*))-((tokudb)-(.*))-(linux|darwin)-(x86_64|i386) ]] ; then
+        # extract distros and versions from the components
         mysql=${BASH_REMATCH[1]}
         mysql_distro=${BASH_REMATCH[2]}
         mysql_version=${BASH_REMATCH[3]}
@@ -566,26 +593,37 @@ function parse_mysqlbuild() {
         tokudb_version=${BASH_REMATCH[6]}
         target_system=${BASH_REMATCH[7]}
         target_arch=${BASH_REMATCH[8]}
-        if [[ $tokudb_version =~ (.*)-e$ ]] ; then
+        # verify targets
+        if [ $target_system != $system ] ; then exitcode=1; fi
+        if [ $target_arch != $arch ] ; then exitcode=1; fi
+
+        local temp_tokudb_version=$tokudb_version
+        # decode enterprise
+        if [[ $temp_tokudb_version =~ (.*)-e$ ]] ; then
             build_type=enterprise
-            tokudb_version=${BASH_REMATCH[1]}
+            temp_tokudb_version=${BASH_REMATCH[1]}
         else
             build_type=community
         fi
-        if [[ $tokudb_version =~ (.*)-debug$ ]] ; then
+        # decode debug
+        if [[ $temp_tokudb_version =~ (.*)-debug$ ]] ; then
             build_debug=1
-            tokudb_version=${BASH_REMATCH[1]}
+            temp_tokudb_version=${BASH_REMATCH[1]}
+            cmake_build_type=Debug
         else
             build_debug=0
         fi
-        if [[ $tokudb_version =~ ^([0-9]+)\\.([0-9]+)\\.([0-9]+)$ ]] ; then
-            git_tag=tokudb-$tokudb_version
-        elif [[ $tokudb_version =~ ^[0-9]+$ ]] ; then
-            git_tag=HEAD
+        # set tag or HEAD
+        if [[ $temp_tokudb_version =~ ^([0-9]+)\\.([0-9]+)\\.([0-9]+)$ ]] ; then
+            git_tag=tokudb-$temp_tokudb_version
         else
-            git_tag=$tokudb_version
+            git_tag=HEAD
+            # setup _tree defaults
+            if [ -z $mysql_tree ] ; then mysql_tree=$mysql_version; fi
+            if [ -z $jemalloc_tree ] ; then jemalloc_tree=$jemalloc_version; fi
         fi
-        exitcode=0
+        # 5.6 is temp in  another repo
+        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_distro=mysql56; fi
     else
         exitcode=1
     fi
@@ -615,47 +653,47 @@ cmake_build_type=RelWithDebInfo
 mysql_tree=
 ftengine_tree=
 ftindex_tree=
+jemalloc_version=3.3.0
 jemalloc_tree=
 backup_tree=
 
 while [ $# -gt 0 ] ; do
     arg=$1; shift
-    if [ $arg = "--gcc44" ] ; then
-        cc=gcc44; cxx=g++44
-    elif [[ $arg =~ --(.*)=(.*) ]] ; then
-        eval ${BASH_REMATCH[1]}=${BASH_REMATCH[2]}
+    if [[ $arg =~ --(.*)=(.*) ]] ; then
+        k=${BASH_REMATCH[1]}; v=${BASH_REMATCH[2]}
+        eval $k=$v
+        case $k in
+        mysqlbuild)
+            parse_mysqlbuild $mysqlbuild
+            if [ $? != 0 ] ; then exit 1; fi
+            ;;
+        mysql)
+            parse_mysql $mysql
+            if [ $? != 0 ] ; then exit 1; fi
+        esac
     else
         usage; exit 1;
     fi
 done
 
-if [ ! -z $mysqlbuild ] ; then
-    parse_mysqlbuild $mysqlbuild
-    if [ $? != 0 ] ; then exit 1; fi
-elif [ -z $tokudb_version ] ; then
-    if [ $git_tag = HEAD ] ; then
-        tokudb_version=$(date +%s)
-    elif [[ $git_tag =~ tokudb-(.*) ]] ; then
-        tokudb_version=${BASH_REMATCH[1]}
-    else
-        tokudb_version=$git_tag
-        git_tag=HEAD
+if [ -z $mysqlbuild ] ; then
+    if [ -z $tokudb_version ] ; then
+        if [ $git_tag = HEAD ] ; then
+            tokudb_version=$(date +%s)
+        elif [[ $git_tag =~ tokudb-(.*) ]] ; then
+            tokudb_version=${BASH_REMATCH[1]}
+        else
+            tokudb_version=$git_tag
+            git_tag=HEAD
+        fi
     fi
-fi
-if [ $build_debug != 0 ] ; then
-    if [ $cmake_build_type = RelWithDebInfo ] ; then cmake_build_type=Debug; fi
-    tokudb_version=$tokudb_version-debug
-fi
-if [ $build_type = enterprise ] ; then
-    tokudb_version=$tokudb_version-e
-fi
-
-# split mysql into mysql_distro and mysql_version
-if [[ $mysql =~ ^(mysql|mariadb)-(.*)$ ]] ; then
-    mysql_distro=${BASH_REMATCH[1]}
-    mysql_version=${BASH_REMATCH[2]}
-else
-    exit 1
+    if [ $build_debug != 0 ] ; then
+        if [ $cmake_build_type = RelWithDebInfo ] ; then cmake_build_type=Debug; fi
+        tokudb_version=$tokudb_version-debug
+    fi
+    if [ $build_type = enterprise ] ; then
+        tokudb_version=$tokudb_version-e
+    fi
 fi
 
 builddir=build-tokudb-$tokudb_version
