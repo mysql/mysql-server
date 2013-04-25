@@ -468,6 +468,22 @@ public:
 	@return	pointer to record if enough space available, NULL otherwise */
 	rec_t* insert (rec_t* current) const;
 
+	/** Get the number of fields in the page. */
+	ulint getNumFields() const {
+		const page_t* page = buf_block_get_frame(m_block);
+
+		ut_ad(!!page_is_comp(page)
+		      == dict_table_is_comp(m_index->table));
+		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+		ut_ad(recv_recovery_on
+		      || m_mtr->inside_ibuf
+		      || page_get_index_id(page) == m_index->id);
+
+		return(page_is_leaf(page)
+		       ? dict_index_get_n_fields(m_index)
+		       : dict_index_get_n_unique_in_tree(m_index) + 1);
+	}
+
 private:
 	/** Copy constructor */
 	PageCur(const PageCur&);
@@ -484,22 +500,14 @@ private:
 		ut_ad(dict_table_is_comp(m_index->table));
 
 		if (wasSentinel) {
-			rec_offs_set_n_fields(
-				m_offsets,
-				page_is_leaf(page_align(m_rec))
-				? dict_index_get_n_fields(m_index)
-				: dict_index_get_n_unique_in_tree(m_index)
-				+ 1);
+			rec_offs_set_n_fields(m_offsets, getNumFields());
 recalc:
 			ut_ad(rec_offs_n_fields(m_offsets)
 			      + (1 + REC_OFFS_HEADER_SIZE)
 			      == rec_offs_get_n_alloc(m_offsets));
 			rec_init_offsets(m_rec, m_index, m_offsets);
 		} else {
-			ut_ad(rec_offs_n_fields(m_offsets)
-			      == page_is_leaf(page_align(m_rec))
-			      ? dict_index_get_n_fields(m_index)
-			      : dict_index_get_n_unique_in_tree(m_index) + 1);
+			ut_ad(rec_offs_n_fields(m_offsets) == getNumFields());
 			/* TODO: optimize.
 			(remove index->trx_id_offset,
 			add ifield->fixed_offset) */
@@ -516,14 +524,10 @@ recalc:
 
 		rec_offs_set_n_fields(m_offsets, 1);
 
-		if (page_rec_is_comp(m_rec)) {
-			rec_offs_base(m_offsets)[0]
-				= REC_N_NEW_EXTRA_BYTES | REC_OFFS_COMPACT;
-			rec_offs_base(m_offsets)[1] = 8;
-			rec_offs_make_valid(m_rec, m_index, m_offsets);
-		} else {
-			rec_init_offsets(m_rec, m_index, m_offsets);
-		}
+		rec_offs_base(m_offsets)[0]
+			= REC_N_NEW_EXTRA_BYTES | REC_OFFS_COMPACT;
+		rec_offs_base(m_offsets)[1] = 8;
+		rec_offs_make_valid(m_rec, m_index, m_offsets);
 	}
 
 	/** The mini-transaction */
