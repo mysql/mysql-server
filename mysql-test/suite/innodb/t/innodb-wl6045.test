@@ -179,7 +179,7 @@ let SEARCH_PATTERN= Error while setting value \'no\' to \'strict-check\';
 --source include/search_pattern_in_file.inc
 
 --echo [14a]: when server default checksum=InnoDB rewrite new checksum=innodb with innochecksum
---echo # Also check the long form of wite option.
+--echo # Also check the long form of write option.
 --exec $INNOCHECKSUM --strict-check=innodb --write=innodb $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM --strict-check=innodb --write=innodb $MYSQLD_DATADIR/test/t1.ibd
 # Rewrite done, verify with --strict-check=innodb
@@ -187,7 +187,7 @@ let SEARCH_PATTERN= Error while setting value \'no\' to \'strict-check\';
 --exec $INNOCHECKSUM --strict-check=innodb $MYSQLD_DATADIR/test/t1.ibd
 
 --echo [14b]: when server default checksum=InnoDB rewrite new checksum=crc32 with innochecksum
---echo # Also check the long form of wite option.
+--echo # Also check the long form of write option.
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM --strict-check=innodb --write=crc32 $MYSQLD_DATADIR/test/t1.ibd
 # Rewrite done, verify with --strict-check=crc32
@@ -839,18 +839,6 @@ FROM tab1 ORDER BY pk;
 --disable_result_log
 SELECT * FROM tab2 ORDER BY col_7;
 --enable_result_log
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
-SELECT @@innodb_compression_level;
-SET GLOBAL innodb_compression_level=0;
-SELECT @@innodb_compression_level;
-CREATE TABLE t3 (j LONGBLOB) ENGINE = InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO t3 VALUES (repeat('abcdefghijklmnopqrstuvwxyz',200));
-let $i=10;
-while ($i > 0) {
-  INSERT INTO t3 SELECT * from t3;
-  dec $i;
-}
 
 --echo # stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -896,10 +884,6 @@ EOF
 
 --echo # Print the contents stored in dump.txt
 cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
---remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
-# Page_type_dump for t3
---exec $INNOCHECKSUM -v --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/t3.ibd
---file_exists $MYSQLTEST_VARDIR/tmp/dump.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
 
 # Page type dump for ibdata1
@@ -952,7 +936,7 @@ cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
 --echo [31]: check the negative values for option
 --echo # allow-mismatches,page,start-page,end-page.
 --echo # They will reset to zero for negative values.
---echo # check the invalid lower boud values
+--echo # check the invalid lower bound values
 --exec $INNOCHECKSUM  --allow-mismatches=-1 $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM  -a -1 $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM  --page=-1 $MYSQLD_DATADIR/test/tab1.ibd
@@ -1035,88 +1019,6 @@ let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
---echo [35(a)]:# check the both short and long options for "help"
---exec $INNOCHECKSUM --help $MYSQLD_DATADIR/test/tab1.ibd > $MYSQLTEST_VARDIR/tmp/help_output_long.txt
---exec $INNOCHECKSUM -I $MYSQLD_DATADIR/test/tab1.ibd > $MYSQLTEST_VARDIR/tmp/help_output_short.txt
---diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/help_output_short.txt
-
---echo [35(b)]:# Run the innochecksum when file isn't provided.
---echo # It will print the innochecksum usage similar to --help option.
---error 1
---exec $INNOCHECKSUM > $MYSQLTEST_VARDIR/tmp/usage.txt
---diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/usage.txt
---remove_file $MYSQLTEST_VARDIR/tmp/usage.txt
-
-perl;
-use strict;
-use warnings;
-use File::Copy;
-my $dir = $ENV{'MYSQLTEST_VARDIR'};
-my $file= 'help_output_long.txt';
-# open file in write mode
-open IN_FILE,"<", "$dir/tmp/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
-while(<IN_FILE>) {
-  $_=~ s/^\S*innochecksum.+Ver.+[0-9]*\.[0-9]*\.[0-9]*.+$/innochecksum Ver #.#.#/g;
-  $_=~ s/http:.*html/REFMAN/g;
-  $_=~ s/Usage:.*\[-c/Usage: innochecksum [-c/g;
-  $_=~ s/d:.*trace/d:o,mtrchecksum.trace/g;
-  print OUT_FILE $_;
-}
-close(IN_FILE);
-close(OUT_FILE);
-# move the new content from tmp file to the orginal file.
-move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
-EOF
-
---cat_file $MYSQLTEST_VARDIR/tmp/help_output_long.txt
---remove_file $MYSQLTEST_VARDIR/tmp/help_output_long.txt
---remove_file $MYSQLTEST_VARDIR/tmp/help_output_short.txt
-
---echo [36]: check the both short and long options for "count" and exit
---replace_regex /[0-9]+/#/
---exec $INNOCHECKSUM --count $MYSQLD_DATADIR/test/tab1.ibd
---replace_regex /[0-9]+/#/
---exec $INNOCHECKSUM -c $MYSQLD_DATADIR/test/tab1.ibd
-
---echo [37]:# Print the version of innochecksum and exit
---replace_regex /.*innochecksum.*Ver.*[0-9]*.[0-9]*.[0-9]*.*/innochecksum Ver #.#.# /
---exec $INNOCHECKSUM -V $MYSQLD_DATADIR/test/tab1.ibd
-
---echo [38]:# Check the innochecksum for compressed table t1 with different key_block_size
---echo # Restart the DB server
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-DROP TABLE IF EXISTS t1;
---echo # Test for KEY_BLOCK_SIZE=1
---let $size=1
---source ../include/innodb-wl6045.inc
-
---echo # Test for KEY_BLOCK_SIZE=2
---let $size=2
---source ../include/innodb-wl6045.inc
-
---echo # Test for for KEY_BLOCK_SIZE=4
---let $size=4
---source ../include/innodb-wl6045.inc
-
---echo # Test for for KEY_BLOCK_SIZE=8
---let $size=8
---source ../include/innodb-wl6045.inc
-
---echo # Test for KEY_BLOCK_SIZE=16
---let $size=16
---source ../include/innodb-wl6045.inc
---echo # Test[38] completed
-
-
---echo # Start the server
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
-
 # Cleanup
 --echo # Restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -1125,7 +1027,6 @@ DROP TABLE IF EXISTS t1;
 
 DROP TABLE tab1;
 DROP TABLE tab2;
-DROP TABLE t3;
 
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
