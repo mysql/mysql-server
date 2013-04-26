@@ -17,12 +17,17 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+ 
+var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
-bool colIsUtf16le(const NdbDictionary::Column *);
+test.run = function() {
+  var t = this;
 
-bool colIsUtf8(const NdbDictionary::Column *);
+  function onDrop() {
+    t.pass();
+  }
 
-bool colIsAscii(const NdbDictionary::Column *);
+  harness.SQL.drop(this.suite, onDrop);
+};
 
-bool colIsLatin1(const NdbDictionary::Column *);
-
+module.exports.tests = [test];
