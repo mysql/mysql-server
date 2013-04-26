@@ -2021,29 +2021,16 @@ PageCur::insert(rec_t* current) const
 
 	if (rec_t* free_rec = page_header_get_ptr(page, PAGE_FREE)) {
 		/* Try to allocate from the head of the free list. */
-		ulint		foffsets_[REC_OFFS_NORMAL_SIZE];
-		ulint*		foffsets	= foffsets_;
-		mem_heap_t*	heap		= NULL;
+		ulint	free_extra_size;
+		ulint	free_data_size = getOffsets()
+			? rec_get_size_comp(free_rec, m_index, free_extra_size)
+			: rec_get_size_old(free_rec, free_extra_size);
 
-		rec_offs_init(foffsets_);
-
-		/* TODO: avoid this call */
-		foffsets = rec_get_offsets(
-			free_rec, m_index, foffsets, ULINT_UNDEFINED, &heap);
-		if (rec_offs_size(foffsets) < rec_size) {
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
-
+		if (free_data_size + free_extra_size < rec_size) {
 			goto use_heap;
 		}
 
-		insert_buf = free_rec - rec_offs_extra_size(foffsets);
-
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
-
+		insert_buf = free_rec - free_extra_size;
 		heap_no = page_rec_get_heap_no(free_rec);
 		page_mem_alloc_free(page, NULL, page_rec_get_next(free_rec),
 				    rec_size);
