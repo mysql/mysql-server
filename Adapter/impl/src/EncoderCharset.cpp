@@ -56,6 +56,9 @@
  * 
  */
 
+// move the comment back into type enocders?
+// reimagine this as a file that takes a charsetinfo * and returns
+// a usable struct
 
 /* It may be a good optimization to do these lookups once per 
    charset and store them somewhere.
@@ -74,5 +77,13 @@ bool colIsLatin1(const NdbDictionary::Column *col) {
 
 bool colIsAscii(const NdbDictionary::Column *col) {
   return (strncmp("ascii", col->getCharset()->csname, 5) == 0);
+}
+
+bool colIsMultibyte(const NdbDictionary::Column *col) { 
+  return (col->getCharset()->mbminlen > 1);
+}
+
+unsigned int colSizeInCharacters(const NdbDictionary::Column *col) {
+  return col->getLength() / col->getCharset()->mbmaxlen;
 }
 
