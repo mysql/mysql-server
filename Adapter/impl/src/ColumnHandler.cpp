@@ -83,45 +83,16 @@ void ColumnHandler::init(const NdbDictionary::Column *_column,
 }
 
 
-int ColumnHandler::shouldRecode(char * buffer) const {
-  if(encoder->requiresRecode != NULL) {
-    return encoder->requiresRecode(column, buffer, offset);
-  }
-  return 0;
-}
-
-
-Handle<Value> ColumnHandler::callConverterReader(Handle<Value> rval) const {
-  HandleScope scope;
-  TryCatch tc;
-  Handle<Value> cval;
-  Handle<Value> arguments[1];
-
-  arguments[0] = rval;
-  cval = converterReader->CallAsFunction(converterClass, 1, arguments);
-  if(tc.HasCaught()) tc.ReThrow();
-
-  return scope.Close(cval);
-}
-
-
-Handle<Value> ColumnHandler::recodeRead(uint16_t * recodeBuffer, 
-                                        size_t recodeSize,
-                                        char * readBuffer) const {
-  HandleScope scope;
-  Handle<Value> val;
-  val = encoder->recodeRead(column, recodeBuffer, recodeSize, readBuffer, offset);
-  if(hasConverterReader)
-    val = callConverterReader(val);
-  return scope.Close(val);
-}
-
-
 Handle<Value> ColumnHandler::read(char * buffer) const {
   HandleScope scope;
   Handle<Value> val = encoder->read(column, buffer, offset);
-  if(hasConverterReader)
-    val = callConverterReader(val);
+  if(hasConverterReader) {
+    TryCatch tc;
+    Handle<Value> arguments[1];
+    arguments[0] = val;
+    val = converterReader->CallAsFunction(converterClass, 1, arguments);
+    if(tc.HasCaught()) tc.ReThrow();
+  }
   return scope.Close(val);
 }
 

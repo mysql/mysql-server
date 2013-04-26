@@ -36,35 +36,18 @@ using namespace v8;
 Handle<String> 
   K_sign, K_year, K_month, K_day, K_hour, K_minute, K_second, K_microsec;
 
-#define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0, 0 }
-
-#define STRING_ENCODER(A, B, C, D, E) NdbTypeEncoder A = { &B, &C, &D, &E }
+#define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
 
 #define DECLARE_ENCODER(TYPE) \
   EncoderReader TYPE##Reader; \
   EncoderWriter TYPE##Writer; \
   ENCODER(TYPE##Encoder, TYPE##Reader, TYPE##Writer)
 
-#define DECLARE_STRING_ENCODER(TYPE) \
-  EncoderReader TYPE##Reader; \
-  EncoderWriter TYPE##Writer; \
-  RequiresRecode TYPE##RequiresRecode; \
-  RecodeRead TYPE##RecodeRead; \
-  STRING_ENCODER(TYPE##Encoder, TYPE##Reader, TYPE##Writer, \
-    TYPE##RequiresRecode, TYPE##RecodeRead)
-
 #define DECLARE_ENCODER_TEMPLATES(TYPE) \
   template <typename T> Handle<Value> TYPE##Reader(const NdbDictionary::Column *,\
     char *, size_t); \
   template <typename T> Handle<Value> TYPE##Writer(const NdbDictionary::Column *, \
     Handle<Value>, char *, size_t);
-
-#define DECLARE_STRING_ENCODER_TEMPLATES(TYPE) \
-  DECLARE_ENCODER_TEMPLATES(TYPE) \
-  template <typename T> int TYPE##RequiresRecode(const NdbDictionary::Column *, \
-    char *, size_t); \
-  template <typename T> Handle<Value> TYPE##RecodeRead(const NdbDictionary::Column *,\
-    uint16_t *, size_t, char *, size_t);
 
 DECLARE_ENCODER(UnsupportedType);
 
@@ -85,15 +68,10 @@ DECLARE_ENCODER_TEMPLATES(fp);
 ENCODER(FloatEncoder, fpReader<float>, fpWriter<float>);
 ENCODER(DoubleEncoder, fpReader<double>, fpWriter<double>);
 
-DECLARE_STRING_ENCODER(Char);
-
-DECLARE_STRING_ENCODER_TEMPLATES(varchar);
-STRING_ENCODER(VarcharEncoder, 
-               varcharReader<uint8_t>, varcharWriter<uint8_t>,
-               varcharRequiresRecode<uint8_t>, varcharRecodeRead<uint8_t>);
-STRING_ENCODER(LongVarcharEncoder, 
-               varcharReader<uint16_t>, varcharWriter<uint16_t>,
-               varcharRequiresRecode<uint16_t>, varcharRecodeRead<uint16_t>);
+DECLARE_ENCODER(Char);
+DECLARE_ENCODER_TEMPLATES(varchar);
+ENCODER(VarcharEncoder, varcharReader<uint8_t>, varcharWriter<uint8_t>);
+ENCODER(LongVarcharEncoder, varcharReader<uint16_t>, varcharWriter<uint16_t>);
 
 DECLARE_ENCODER(Year);
 DECLARE_ENCODER(Timestamp);
@@ -565,13 +543,19 @@ Handle<Value> fpWriter(const NdbDictionary::Column * col,
 /****** String types ********/
 
 struct encoder_stats_t {
-  unsigned ascii_reads;
-  unsigned utf16_reads;
-  unsigned recode_reads;
+  unsigned read_strings_externalized;
+  unsigned read_strings_created;
+  unsigned read_strings_recoded;
   unsigned direct_writes;
   unsigned recode_writes;
-  unsigned latin1_ascii_writes;
 } stats;
+
+inline bool stringIsAscii(const unsigned char *str, size_t len) {
+  for(unsigned int i = 0 ; i < len ; i++) 
+    if(str[i] & 128) 
+      return false;
+  return true;
+}
 
 class ExternalizedAsciiString : public String::ExternalAsciiStringResource {
 public:
@@ -600,17 +584,19 @@ public:
 typedef int CharsetWriter(const NdbDictionary::Column *, 
                           Handle<String>, char *, bool);
 
-int writeUtf16(const NdbDictionary::Column *, Handle<String>, char *, bool);
+int writeUtf16le(const NdbDictionary::Column *, Handle<String>, char *, bool);
 int writeAscii(const NdbDictionary::Column *, Handle<String>, char *, bool);
 int writeUtf8(const NdbDictionary::Column *, Handle<String>, char *, bool);
-int writeLatin1(const NdbDictionary::Column *, Handle<String>, char *, bool);
-int writeRecode(const NdbDictionary::Column *, Handle<String>, char *, bool);
+int writeGeneric(const NdbDictionary::Column *, Handle<String>, char *, bool);
 
-CharsetWriter * getWriterForColumn(const NdbDictionary::Column *col) {
-  CharsetWriter * writer = & writeRecode;
-  if(colIsLatin1(col)) writer = & writeLatin1;
-  else if(colIsUtf8(col)) writer = & writeUtf8;
-  else if(colIsUtf16(col)) writer = & writeUtf16;
+int writeRecode(const NdbDictionary::Column *, size_t,
+                Handle<String>, char *, bool);
+
+
+inline CharsetWriter * getWriterForColumn(const NdbDictionary::Column *col) {
+  CharsetWriter * writer = & writeGeneric;
+  if(colIsUtf8(col)) writer = & writeUtf8;
+  else if(colIsUtf16le(col)) writer = & writeUtf16le;
   else if(colIsAscii(col)) writer = & writeAscii;
   return writer;
 }
@@ -618,8 +604,9 @@ CharsetWriter * getWriterForColumn(const NdbDictionary::Column *col) {
 /* String writers.
    For CHAR, bufsz will be bigger than string size, so value will be padded.
 */
-int writeUtf16(const NdbDictionary::Column * column,
-               Handle<String> strval, char * buffer, bool pad) {
+int writeUtf16le(const NdbDictionary::Column * column,
+                 Handle<String> strval, char * buffer, bool pad) {
+  DEBUG_ENTER();
   stats.direct_writes++;
   size_t bufsz = column->getLength() / 2;  /* Work in 16-byte characters */
   uint16_t * str = (uint16_t *) buffer;
@@ -631,6 +618,7 @@ int writeUtf16(const NdbDictionary::Column * column,
 
 int writeUtf8(const NdbDictionary::Column * column,
                Handle<String> strval, char * buffer, bool pad) {
+  DEBUG_ENTER();
   stats.direct_writes++;
   const size_t & bufsz = column->getLength();
   size_t sz = strval->WriteUtf8(buffer, bufsz);
@@ -641,6 +629,7 @@ int writeUtf8(const NdbDictionary::Column * column,
 
 int writeAscii(const NdbDictionary::Column * column,
                Handle<String> strval, char * buffer, bool pad) {
+  DEBUG_ENTER();
   stats.direct_writes++;
   const size_t & bufsz = column->getLength();
   size_t sz = strval->WriteAscii(buffer, 0, bufsz);
@@ -649,52 +638,45 @@ int writeAscii(const NdbDictionary::Column * column,
   return sz;
 }
 
-int writeRecode(const NdbDictionary::Column *col, 
+int writeGeneric(const NdbDictionary::Column *col, 
                 Handle<String> strval, char * buffer, bool pad) {
-  CharsetMap csmap;
-  const size_t & bufsz = col->getLength();
-  int optimal_len = pad ? 0 : strval->Length() * 2;
-  size_t recode_sz = getUtf16BufferSize(col, optimal_len);
-  uint16_t recode_buffer[recode_sz];
-  int32_t lengths[2];
-  lengths[0] = recode_sz * 2;
-  lengths[1] = bufsz;
-
-  stats.recode_writes++;
-  size_t sz = strval->Write(recode_buffer, 0, recode_sz);
-  if(pad) {
-    while(sz < recode_sz) recode_buffer[sz++] = ' ';
-  }
-  csmap.recode(lengths, csmap.getUTF16CharsetNumber(), 
-               col->getCharsetNumber(), recode_buffer, 
-               buffer);
-  return lengths[1]; 
-}
-
-int writeLatin1(const NdbDictionary::Column *col, 
-                Handle<String> strval, char * buffer, bool pad) {
-  /* Many strings bound for latin1 columns are in fact strict ascii.
-     In UTF-8 encoding, only characters less than 0x7F are encoded with
+  /* In UTF-8 encoding, only characters less than 0x7F are encoded with
      one byte.  Length() returns the string length in characters.
      So: Length() == Utf8Length() implies a strict ASCII string.
   */
-  size_t r;
-  const size_t & bufsz = col->getLength();
-  if(strval->Length() == strval->Utf8Length()) {
-    stats.latin1_ascii_writes++;
-    r = strval->WriteAscii(buffer, 0, bufsz);
-DEBUG_PRINT("WriteAscii SZ: %d %d", bufsz, r);
-    if(pad) while(r < bufsz) buffer[r++] = ' ';
+  int utf8Len = strval->Utf8Length();
+  if(utf8Len == strval->Length()) {
+    return writeAscii(col, strval, buffer, pad);
   }
   else {
-    r = writeRecode(col, strval, buffer, pad);
-DEBUG_PRINT("writeRecode SZ: %d", r);
+    return writeRecode(col, utf8Len, strval, buffer, pad);
   }
-  return r;
+}
+
+int writeRecode(const NdbDictionary::Column *col, size_t recode_len,
+                Handle<String> strval, char * buffer, bool pad) {
+  DEBUG_ENTER();
+  CharsetMap csmap;
+  char recode_stack[recode_len];
+  int32_t lengths[2];
+  /* Write the JavaScript string onto the stack as UTF-8 */
+  int sz = strval->WriteUtf8(recode_stack, recode_len);
+  if(pad) {
+    while(sz < col->getLength()) recode_stack[sz++] = ' ';
+  }
+  lengths[0] = sz;
+  lengths[1] = recode_len;
+  /* Recode from UTF-8 on stack to column's charset in record buffer */
+  csmap.recode(lengths, csmap.getUTF8CharsetNumber(),
+               col->getCharsetNumber(), recode_stack, buffer);
+  stats.recode_writes++;
+  return lengths[1]; 
 }
 
 
+
 // CHAR
+
 Handle<Value> CharReader(const NdbDictionary::Column *col, 
                          char *buffer, size_t offset) {
   HandleScope scope;
@@ -702,18 +684,42 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
   Local<String> string;
   size_t len = col->getLength();
 
-  if(colIsUtf16(col)) {
-    stats.utf16_reads++;
+  if(colIsAscii(col) || stringIsAscii((const unsigned char *) str, len)) {
+    stats.read_strings_externalized++;
+    while(str[--len] == ' ');  // skip past space padding
+    len++;  // undo 1 place
+    ExternalizedAsciiString *ext = new ExternalizedAsciiString(str, len);
+    string = String::NewExternal(ext);   
+    DEBUG_PRINT("(A): External ASCII [size %d]", len);
+  }
+  else if(colIsUtf16le(col)) {
+    stats.read_strings_externalized++;
     uint16_t * buf = (uint16_t *) str;
-    while(buf[len] == ' ') len--;  // value is padded with spaces 
+    while(buf[--len] == ' '); len++;  // skip padding, then undo 1
     ExternalizedUnicodeString * ext = new ExternalizedUnicodeString(buf, len);
     string = String::NewExternal(ext);
+    DEBUG_PRINT("(B): External UTF-16-LE [size %d]", len);
+  }
+  else if(colIsUtf8(col)) {
+    stats.read_strings_created++;
+    while(str[--len] == ' '); len++; // skip padding, then undo 1
+    string = String::New(str, len);
+    DEBUG_PRINT("(C): New From UTF-8 [size %d]", len);
   }
   else {
-    stats.ascii_reads++;
-    while(str[len] == ' ') len--;  // value is padded with spaces 
-    ExternalizedAsciiString *ext = new ExternalizedAsciiString(str, len);
-    string = String::NewExternal(ext);
+    stats.read_strings_created++;
+    stats.read_strings_recoded++;
+    while(str[--len] == ' '); len++; // skip padding, then undo 1
+    CharsetMap csmap;
+    size_t recode_size = 2 * col->getLength();
+    char recode_buffer[recode_size];
+    int32_t lengths[2] = { len, recode_size } ;
+    csmap.recode(lengths, 
+                 col->getCharsetNumber(),
+                 csmap.getUTF8CharsetNumber(),
+                 str, recode_buffer);
+    string = String::New(recode_buffer, lengths[1]);
+    DEBUG_PRINT("(D.2): Recode to UTF-8 and create new [size %d]", len);
   }
 
   return scope.Close(string);
@@ -731,34 +737,6 @@ Handle<Value> CharWriter(const NdbDictionary::Column * col,
   return valid ? writerOK : outOfRange(col->getName());
 }
 
-int CharRequiresRecode(const NdbDictionary::Column *col, 
-                       char *buffer, size_t offset) {
-  if(encoderShouldRecode(col, buffer + offset, col->getLength())) { 
-    return getUtf16BufferSize(col);
-  }
-  return 0;
-}
-
-Handle<Value> CharRecodeRead(const NdbDictionary::Column *col, 
-                             uint16_t *recode_buffer, size_t recode_size,
-                             char *buffer, size_t offset) {
-  HandleScope scope;  
-  ExternalizedUnicodeString * ext;
-  Local<String> string;
-  CharsetMap csmap;
-  int32_t lengths[2] = { col->getLength(), recode_size } ;
-  csmap.recode(lengths, 
-               col->getCharsetNumber(),
-               csmap.getUTF16CharsetNumber(),
-               buffer+offset, recode_buffer);
-
-  stats.recode_reads++;
-  assert(0); // leave this here until you hit it to guarantee test coverage
-  ext = new ExternalizedUnicodeString((uint16_t *) recode_buffer, lengths[1]/2);
-  string = String::NewExternal(ext);
-  return scope.Close(string);
-}
-
 
 // Templated encoder for Varchar and LongVarchar
 template<typename LENGTHTYPE>
@@ -769,14 +747,36 @@ Handle<Value> varcharReader(const NdbDictionary::Column *col,
   char * str = buffer+offset+sizeof(length);
   Local<String> string;
 
-  if(colIsUtf16(col)) {
+  if(colIsAscii(col) || stringIsAscii((const unsigned char *) str, length)) {
+    stats.read_strings_externalized++;
+    ExternalizedAsciiString *ext = new ExternalizedAsciiString(str, length);
+    string = String::NewExternal(ext);   
+    DEBUG_PRINT("(A): External ASCII [size %d]", length);
+  }
+  else if(colIsUtf16le(col)) {
+    stats.read_strings_externalized++;
     uint16_t * buf = (uint16_t *) str;
     ExternalizedUnicodeString * ext = new ExternalizedUnicodeString(buf, length);
     string = String::NewExternal(ext);
+    DEBUG_PRINT("(B): External UTF-16-LE [size %d]", length);
+  }
+  else if(colIsUtf8(col)) {
+    stats.read_strings_created++;
+    string = String::New(str, length);
+    DEBUG_PRINT("(C): New From UTF-8 [size %d]", length);
   }
   else {
-    ExternalizedAsciiString *ext = new ExternalizedAsciiString(str, length);
-    string = String::NewExternal(ext);
+    stats.read_strings_created++;
+    stats.read_strings_recoded++;
+    CharsetMap csmap;
+    size_t recode_size = 2 * length;
+    char recode_buffer[recode_size];
+    int32_t lengths[2] = { length, recode_size } ;
+    csmap.recode(lengths, 
+                 col->getCharsetNumber(), csmap.getUTF8CharsetNumber(),
+                 str, recode_buffer);
+    string = String::New(recode_buffer, lengths[1]);
+    DEBUG_PRINT("(D.2): Recode to UTF-8 and create new [size %d]", length);
   }
   return scope.Close(string);
 }
@@ -792,40 +792,7 @@ Handle<Value> varcharWriter(const NdbDictionary::Column * col,
 
   LENGTHTYPE len = writer(col, strval, buffer+offset+sizeof(len), false);
   STORE_ALIGNED_DATA(LENGTHTYPE, len, buffer+offset);
-
   return valid ? writerOK : outOfRange(col->getName());
-}
-
-template<typename LENGTHTYPE>
-int varcharRequiresRecode(const NdbDictionary::Column *col, 
-                          char *buffer, size_t offset) {
-  LOAD_ALIGNED_DATA(LENGTHTYPE, length, buffer+offset);
-
-  if(encoderShouldRecode(col, buffer+offset+sizeof(length), length)) {
-    return getUtf16BufferSize(col);
-  }  
-  return 0;
-}
-
-template<typename LENGTHTYPE>
-Handle<Value> varcharRecodeRead(const NdbDictionary::Column *col, 
-                                uint16_t *recode_buffer, size_t recode_size,
-                                char *buffer, size_t offset) {
-  HandleScope scope;  
-  ExternalizedUnicodeString * ext;
-  Local<String> string;
-  CharsetMap csmap;
-  LOAD_ALIGNED_DATA(LENGTHTYPE, length, buffer+offset);
-  int32_t lengths[2] = { length, recode_size } ;
-  csmap.recode(lengths, 
-               col->getCharsetNumber(),
-               csmap.getUTF16CharsetNumber(),
-               buffer+offset, recode_buffer);
- 
-  assert(0); // leave this here until you hit it to guarantee test coverage
-  ext = new ExternalizedUnicodeString((uint16_t *) recode_buffer, lengths[1]/2);
-  string = String::NewExternal(ext);
-  return scope.Close(string);
 }
 
 

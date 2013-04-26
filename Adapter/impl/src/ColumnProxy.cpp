@@ -27,25 +27,14 @@ using namespace v8;
 ColumnProxy::~ColumnProxy() {
   if(! jsValue.IsEmpty())
     jsValue.Dispose();
-  if(recodeBuffer) 
-    delete[] recodeBuffer;
 }
-
 
 Handle<Value> ColumnProxy::get(char *buffer) {
   HandleScope scope;
   Handle<Value> val;
-  int bufsz;
   
-  if(! isLoaded) {
-    bufsz = handler->shouldRecode(buffer);
-    if(bufsz > 0) {
-      recodeBuffer = new char[bufsz];
-      val = handler->recodeRead(recodeBuffer, bufsz, buffer);
-    }
-    else {
-      val = handler->read(buffer);
-    }
+  if(! isLoaded) {    
+    val = handler->read(buffer);
     jsValue = Persistent<Value>::New(val);
     isLoaded = true;
   }
