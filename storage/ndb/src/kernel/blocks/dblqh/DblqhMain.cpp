@@ -1733,7 +1733,7 @@ void Dblqh::execTUP_ADD_ATTRREF(Signal* signal)
   jamEntry();
   addfragptr.i = signal->theData[0];
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
-  Uint32 errorCode = terrorCode = signal->theData[1];
+  const Uint32 errorCode = terrorCode = signal->theData[1];
 
   abortAddFragOps(signal);
 
