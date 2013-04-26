@@ -5821,7 +5821,7 @@ fts_check_and_drop_orphaned_tables(
 			ib_vector_get(tables, i));
 
 		table = dict_table_open_on_id(
-			aux_table->parent_id, TRUE, FALSE);
+			aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
 
 		if (table == NULL || table->fts == NULL) {
 

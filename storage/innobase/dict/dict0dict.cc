@@ -413,7 +413,8 @@ dict_table_try_drop_aborted(
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	if (table == NULL) {
-		table = dict_table_open_on_id_low(table_id);
+		table = dict_table_open_on_id_low(
+			table_id, DICT_ERR_IGNORE_NONE);
 	} else {
 		ut_ad(table->id == table_id);
 	}
@@ -786,9 +787,7 @@ dict_table_open_on_id(
 /*==================*/
 	table_id_t	table_id,	/*!< in: table id */
 	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
-	ibool		try_drop)	/*!< in: TRUE=try to drop any orphan
-					indexes after an aborted online
-					index creation */
+	dict_table_op_t	table_op)	/*!< in: operation to perform */
 {
 	dict_table_t*	table;
 
@@ -798,7 +797,11 @@ dict_table_open_on_id(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	table = dict_table_open_on_id_low(table_id);
+	table = dict_table_open_on_id_low(
+		table_id,
+		table_op == DICT_TABLE_OP_LOAD_TABLESPACE
+		? DICT_ERR_IGNORE_LOAD
+		: DICT_ERR_IGNORE_NONE);
 
 	if (table != NULL) {
 
@@ -812,7 +815,8 @@ dict_table_open_on_id(
 	}
 
 	if (!dict_locked) {
-		dict_table_try_drop_aborted_and_mutex_exit(table, try_drop);
+		dict_table_try_drop_aborted_and_mutex_exit(
+			table, table_op == DICT_TABLE_OP_DROP_ORPHAN);
 	}
 
 	return(table);
