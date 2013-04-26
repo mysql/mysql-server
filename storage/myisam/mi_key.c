@@ -420,7 +420,7 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr,
       if (unpack_blobs)
       {
         memcpy(record+keyseg->start+keyseg->bit_start,
-               (char*) &blob_ptr,sizeof(char*));
+               &blob_ptr, sizeof(char*));
         memcpy(blob_ptr,key,length);
         blob_ptr+=length;
         /* The above changed info->lastkey2. Inform mi_rnext_same(). */
