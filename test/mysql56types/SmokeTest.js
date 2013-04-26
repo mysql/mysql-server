@@ -18,14 +18,20 @@
  02110-1301  USA
  */
 
-bool colIsUtf16le(const NdbDictionary::Column *);
+var test = new harness.SmokeTest("SmokeTest");
 
-bool colIsUtf8(const NdbDictionary::Column *);
+test.run = function() {
+  var t = this;
+  function onCreate(error) {
+    if (error) {
+      t.fail('createSQL failed: ' + error);
+    } 
+    else {
+      t.pass();
+    }
+  }
 
-bool colIsAscii(const NdbDictionary::Column *);
-
-bool colIsLatin1(const NdbDictionary::Column *);
-
-bool colIsMultibyte(const NdbDictionary::Column *);
-
-unsigned int colSizeInCharacters(const NdbDictionary::Column *);
+  harness.SQL.create(this.suite, onCreate);
+};
+  
+module.exports.tests = [test];
