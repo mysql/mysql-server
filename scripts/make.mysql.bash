@@ -3,9 +3,8 @@
 # build mysql with the tokudb storage engine and the fractal tree
 #
 # parse arguments
-# checkout jemalloc
-# build jemalloc
 # checkout the fractal tree
+# checkout jemalloc
 # build the fractal tree
 # checkout the mysql source
 # checkout the tokudb storage engine
@@ -13,6 +12,7 @@
 # generate a mysql build script
 # generate a mysql source tarball
 # execute the build script
+# copy build files to an amazon s3 bucket
 
 shopt -s compat31 2> /dev/null
 
@@ -27,8 +27,8 @@ function usage() {
     echo "--build_tgz=$build_tgz"
     echo "--build_rpm=$build_rpm"
     echo "--cc=$cc --cxx=$cxx"
-    echo "--do_s3=$do_s3"
     echo "--do_make_check=$do_make_check"
+    echo "--do_s3=$do_s3 --s3_build_bucket=$s3_build_bucket --s3_release_bucket=$s3_release_bucket"
     echo 
     echo "community release builds using the tokudb-7.0.1 git tag"
     echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.1-linux-x86_64"
@@ -151,27 +151,16 @@ function get_ncpus() {
     fi
 }
 
-function build_jemalloc() {
-    if [ ! -d jemalloc ] ; then
-        # get the jemalloc repo jemalloc
-        github_download Tokutek/jemalloc $(git_tree $git_tag $jemalloc_tree) jemalloc
-        if [ $? != 0 ] ; then exit 1; fi
-        pushd jemalloc
-        if [ $? != 0 ] ; then exit 1; fi
-        CC=$cc ./configure --with-private-namespace=jemalloc_
-        if [ $? != 0 ] ; then exit 1; fi
-        make
-        if [ $? != 0 ] ; then exit 1; fi
-        popd
-    fi
-}
-
 # check out the fractal tree source from subversion, build it, and make the fractal tree tarballs
 function build_fractal_tree() {
     if [ ! -d ft-index ] ; then
 
         # get the ft-index repo
         github_download Tokutek/ft-index $(git_tree $git_tag $ftindex_tree) ft-index
+        if [ $? != 0 ] ; then exit 1; fi
+
+        # get jemalloc
+        github_download Tokutek/jemalloc $(git_tree $git_tag $jemalloc_tree) ft-index/third_party/jemalloc
         if [ $? != 0 ] ; then exit 1; fi
 
         # get the commit id of the ft-index repo
@@ -205,12 +194,12 @@ function build_fractal_tree() {
         pushd build
         if [ $? != 0 ] ; then exit 1; fi
         
+        #-D JEMALLOC_SOURCE_DIR=../../jemalloc \
         CC=$cc CXX=$cxx cmake \
             -D LIBTOKUDB=$tokufractaltree \
             -D LIBTOKUPORTABILITY=$tokuportability \
             -D CMAKE_TOKUDB_REVISION=$ft_revision \
             -D CMAKE_BUILD_TYPE=$ft_build_type \
-            -D JEMALLOC_SOURCE_DIR=../../jemalloc \
             -D CMAKE_INSTALL_PREFIX=../../$tokufractaltreedir \
             -D BUILD_TESTING=OFF \
             -D USE_GTAGS=OFF \
@@ -641,6 +630,35 @@ function parse_mysqlbuild() {
     test $exitcode = 0
 }
 
+# copy build files to amazon s3
+function copy_to_s3() {
+    local $s3_build_bucket=$1; local $s3_release_bucket=$2
+    files=$(ls $tokufractaltreedir.tar.gz* $mysqldir.tar.gz* $mysqlsrc.tar.gz* *.rpm*)
+    for f in $files; do
+        echo `date` s3put $s3_build_bucket $f
+        s3put $s3_build_bucket $f $f
+        exitcode=$?
+        # index the file by date
+        echo `date` s3put $s3_build_bucket $f $exitcode
+        d=$(date +%Y%m%d)
+        s3put $s3_build_bucket-date $d/$f /dev/null
+        exitcode=$?
+        echo `date` s3put $s3_build_bucket-date $d/$f $exitcode
+    done
+    if [[ $git_tag =~ tokudb-.* ]] ; then
+        s3mkbucket $s3_release_bucket-$git_tag
+        if [ $? = 0 ] ; then
+            files=$(ls $tokufractaltreedir.tar.gz* $mysqldir.tar.gz* $mysqlsrc.tar.gz* *.rpm*)
+            for f in $files; do
+                echo `date` s3copykey $s3_release_bucket-$git_tag $f
+                s3copykey $s3_release_bucket-$git_tag $f tokutek-mysql-build $f
+                exitcode=$?
+                echo `date` s3copykey $s3_release_bucket-$git_tag $f $exitcode
+            done
+        fi
+    fi
+}
+
 PATH=$HOME/bin:$PATH
 
 system=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -652,6 +670,8 @@ git_tag=HEAD
 mysqlbuild=
 mysql=mysql-5.5.30
 do_s3=0
+s3_build_bucket=tokutek-mysql-build
+s3_release_bucket=tokutek-mysql
 do_make_check=0
 cc=gcc47
 cxx=g++47
@@ -674,15 +694,13 @@ while [ $# -gt 0 ] ; do
     if [[ $arg =~ --(.*)=(.*) ]] ; then
         k=${BASH_REMATCH[1]}; v=${BASH_REMATCH[2]}
         eval $k=$v
-        case $k in
-        mysqlbuild)
+        if [ $k = mysqlbuild ] ; then
             parse_mysqlbuild $mysqlbuild
             if [ $? != 0 ] ; then exit 1; fi
-            ;;
-        mysql)
+        elif [ $k = mysql ] ; then
             parse_mysql $mysql
             if [ $? != 0 ] ; then exit 1; fi
-        esac
+        fi
     else
         usage; exit 1;
     fi
@@ -715,9 +733,6 @@ pushd $builddir
 
 basedir=$PWD
 
-# build the jemalloc library
-build_jemalloc
-
 # build the fractal tree tarball
 tokufractaltree=tokufractaltreeindex-$tokudb_version
 tokuportability=tokuportability-$tokudb_version
@@ -735,31 +750,7 @@ build_mysql_release
 
 # copy to s3
 if [ $do_s3 != 0 ] ; then
-    files=$(ls $tokufractaltreedir.tar.gz* $mysqldir.tar.gz* $mysqlsrc.tar.gz* *.rpm*)
-    for f in $files; do
-        # add the file to the tokutek-mysql-build bucket
-        echo `date` s3put $f
-        s3put tokutek-mysql-build $f $f
-        exitcode=$?
-        # index the file by date
-        echo `date` s3put tokutek-mysql-build $f $exitcode
-        d=$(date +%Y%m%d)
-        s3put tokutek-mysql-build-date $d/$f /dev/null
-        exitcode=$?
-        echo `date` s3put tokutek-mysql-build-date $d/$f $exitcode
-    done
-    if [[ $git_tag =~ tokudb-.* ]] ; then
-        s3mkbucket tokutek-mysql-$git_tag
-        if [ $? = 0 ] ; then
-            files=$(ls $tokufractaltreedir.tar.gz* $mysqldir.tar.gz* $mysqlsrc.tar.gz* *.rpm*)
-            for f in $files; do
-                echo `date` s3copykey $git_tag $f
-                s3copykey tokutek-mysql-$git_tag $f tokutek-mysql-build $f
-                exitcode=$?
-                echo `date` s3copykey $git_tag $f $exitcode
-            done
-        fi
-    fi
+    copy_to_s3 $s3_build_bucket $s3_release_bucket
 fi
 
 popd
