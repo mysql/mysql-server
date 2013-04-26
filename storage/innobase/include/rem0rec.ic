@@ -103,10 +103,6 @@ and the shift needed to obtain each bit-field of the record. */
 
 #define REC_OLD_HEAP_NO		5
 #define REC_HEAP_NO_MASK	0xFFF8UL
-#if 0 /* defined in rem0rec.h for use of page0zip.cc */
-#define REC_NEW_HEAP_NO		4
-#define	REC_HEAP_NO_SHIFT	3
-#endif
 
 #define REC_OLD_N_OWNED		6	/* This is single byte bit-field */
 #define REC_NEW_N_OWNED		5	/* This is single byte bit-field */
@@ -1663,41 +1659,6 @@ rec_get_converted_size(
 	extra_size = rec_get_converted_extra_size(
 		data_size, dtuple_get_n_fields(dtuple), n_ext);
 
-#if 0
-	/* This code is inactive since it may be the wrong place to add
-	in the size of node pointers used in parent pages AND it is not
-	currently needed since ha_innobase::max_supported_key_length()
-	ensures that the key size limit for each page size is well below
-	the actual limit ((free space on page / 4) - record overhead).
-	But those limits will need to be raised when InnoDB can
-	support multiple page sizes.  At that time, we will need
-	to consider the node pointer on these universal btrees. */
-
-	if (dict_index_is_univ(index)) {
-		/* This is for the insert buffer B-tree.
-		All fields in the leaf tuple ascend to the
-		parent node plus the child page pointer. */
-
-		/* ibuf cannot contain externally stored fields */
-		ut_ad(n_ext == 0);
-
-		/* Add the data pointer and recompute extra_size
-		based on one more field. */
-		data_size += REC_NODE_PTR_SIZE;
-		extra_size = rec_get_converted_extra_size(
-			data_size,
-			dtuple_get_n_fields(dtuple) + 1,
-			0);
-
-		/* Be sure dtuple->n_fields has this node ptr
-		accounted for.  This function should correspond to
-		what rec_convert_dtuple_to_rec() needs in storage.
-		In optimistic insert or update-not-in-place, we will
-		have to ensure that if the record is converted to a
-		node pointer, it will not become too large.*/
-	}
-#endif
-
 	return(data_size + extra_size);
 }
 
@@ -1708,7 +1669,6 @@ rec_get_converted_size(
 UNIV_INLINE
 ulint
 rec_get_size_old(
-/*=============*/
 	const rec_t*	rec,
 	ulint&		extra)
 {

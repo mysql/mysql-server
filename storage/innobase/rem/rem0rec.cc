@@ -775,6 +775,90 @@ rec_get_nth_field_offs_old(
 	return(os);
 }
 
+/** Get the size of a user record that is not in ROW_FORMAT=REDUNDANT.
+@param[in]	rec	physical user record in a B-tree page
+@param[in]	index	the B-tree
+@param[out]	extra	length of the record header, in bytes
+@return	data size, in bytes */
+UNIV_INTERN
+ulint
+rec_get_size_comp(
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	ulint&			extra)
+{
+	ulint		data_size;
+	const byte*	nulls		= rec - (REC_N_NEW_EXTRA_BYTES + 1);
+	const byte*	lens		= nulls
+		- UT_BITS_IN_BYTES(index->n_nullable);
+	ulint		null_mask	= 1;
+	ulint		n_fields;
+
+	ut_ad(dict_table_is_comp(index->table));
+	ut_ad(page_rec_is_user_rec(rec));
+
+	if (page_is_leaf(page_align(rec))) {
+		ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
+		data_size = 0;
+		n_fields = dict_index_get_n_fields(index);
+	} else {
+		ut_ad(rec_get_status(rec) == REC_STATUS_NODE_PTR);
+		data_size = REC_NODE_PTR_SIZE;
+		n_fields = dict_index_get_n_unique_in_tree(index);
+	}
+
+	for (ulint i = 0; i < n_fields; i++) {
+		const dict_field_t*	field	=
+			dict_index_get_nth_field(index, i);
+		const dict_col_t*	col	=
+			dict_field_get_col(field);
+
+		if (!(col->prtype & DATA_NOT_NULL)) {
+			/* nullable field => read the null flag */
+
+			if (!(byte) null_mask) {
+				nulls--;
+				null_mask = 1;
+			}
+
+			if (*nulls & null_mask) {
+				null_mask <<= 1;
+				/* No length is stored for NULL fields. */
+				continue;
+			}
+
+			null_mask <<= 1;
+		}
+
+		if (!field->fixed_len) {
+			/* Variable-length field: read the length */
+			ulint	len = *lens--;
+			/* If the maximum length of the field
+			is up to 255 bytes, the actual length
+			is always stored in one byte. If the
+			maximum length is more than 255 bytes,
+			the actual length is stored in one
+			byte for 0..127.  The length will be
+			encoded in two bytes when it is 128 or
+			more, or when the field is stored
+			externally. */
+			if ((len & 0x80) && DATA_BIG_COL(col)) {
+				/* 1exxxxxxx xxxxxxxx */
+				len <<= 8;
+				len |= *lens--;
+				len &= 0x3fff;
+			}
+
+			data_size += len;
+		} else {
+			data_size += field->fixed_len;
+		}
+	}
+
+	extra = rec - lens - 1;
+	return(data_size);
+}
+
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return	total size */
