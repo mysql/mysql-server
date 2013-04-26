@@ -526,6 +526,36 @@ dict_table_close(
 }
 #endif /* !UNIV_HOTBACKUP */
 
+/********************************************************************//**
+Closes the only open handle to a table and drops a table while assuring
+that dict_sys->mutex is held the whole time.  This assures that the table
+is not evicted after the close when the count of open handles goes to zero.
+Because dict_sys->mutex is held, we do not need to call
+dict_table_prevent_eviction().  */
+UNIV_INTERN
+void
+dict_table_close_and_drop(
+/*======================*/
+	trx_t*		trx,		/*!< in: data dictionary transaction */
+	dict_table_t*	table)		/*!< in/out: table */
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
+	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+
+	dict_table_close(table, TRUE, FALSE);
+
+#if defined UNIV_DEBUG || defined UNIV_DDL_DEBUG
+	/* Nobody should have initialized the stats of the newly created
+	table when this is called. So we know that it has not been added
+	for background stats gathering. */
+	ut_a(!table->stat_initialized);
+#endif /* UNIV_DEBUG || UNIV_DDL_DEBUG */
+
+	row_merge_drop_table(trx, table);
+}
+
 /**********************************************************************//**
 Returns a column's name.
 @return column name. NOTE: not guaranteed to stay valid if table is
@@ -970,9 +1000,7 @@ dict_table_open_on_name(
 		    && table->corrupted) {
 
 			/* Make life easy for drop table. */
-			if (table->can_be_evicted) {
-				dict_table_move_from_lru_to_non_lru(table);
-			}
+			dict_table_prevent_eviction(table);
 
 			if (!dict_locked) {
 				mutex_exit(&dict_sys->mutex);
@@ -1298,26 +1326,6 @@ dict_table_move_from_lru_to_non_lru(
 	UT_LIST_ADD_LAST(table_LRU, dict_sys->table_non_LRU, table);
 
 	table->can_be_evicted = FALSE;
-}
-
-/**********************************************************************//**
-Move a table to the LRU list from the non-LRU list. */
-UNIV_INTERN
-void
-dict_table_move_from_non_lru_to_lru(
-/*================================*/
-	dict_table_t*	table)	/*!< in: table to move from non-LRU to LRU */
-{
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(dict_non_lru_find_table(table));
-
-	ut_a(!table->can_be_evicted);
-
-	UT_LIST_REMOVE(table_LRU, dict_sys->table_non_LRU, table);
-
-	UT_LIST_ADD_LAST(table_LRU, dict_sys->table_LRU, table);
-
-	table->can_be_evicted = TRUE;
 }
 
 /**********************************************************************//**
@@ -3347,12 +3355,12 @@ dict_foreign_add_to_cache(
 	/* We need to move the table to the non-LRU end of the table LRU
 	list. Otherwise it will be evicted from the cache. */
 
-	if (ref_table != NULL && ref_table->can_be_evicted) {
-		dict_table_move_from_lru_to_non_lru(ref_table);
+	if (ref_table != NULL) {
+		dict_table_prevent_eviction(ref_table);
 	}
 
-	if (for_table != NULL && for_table->can_be_evicted) {
-		dict_table_move_from_lru_to_non_lru(for_table);
+	if (for_table != NULL) {
+		dict_table_prevent_eviction(for_table);
 	}
 
 	ut_ad(dict_lru_validate());

@@ -133,6 +133,18 @@ dict_table_close(
 					indexes after an aborted online
 					index creation */
 	__attribute__((nonnull));
+/*********************************************************************//**
+Closes the only open handle to a table and drops a table while assuring
+that dict_sys->mutex is held the whole time.  This assures that the table
+is not evicted after the close when the count of open handles goes to zero.
+Because dict_sys->mutex is held, we do not need to call
+dict_table_prevent_eviction().  */
+UNIV_INTERN
+void
+dict_table_close_and_drop(
+/*======================*/
+	trx_t*		trx,		/*!< in: data dictionary transaction */
+	dict_table_t*	table);		/*!< in/out: table */
 /**********************************************************************//**
 Inits the data dictionary module. */
 UNIV_INTERN
@@ -1501,20 +1513,21 @@ dict_table_is_fts_column(
 	ulint		col_no)	/* in: col number to search for */
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
+Prevent table eviction by moving a table to the non-LRU list from the
+LRU list if it is not already there. */
+UNIV_INLINE
+void
+dict_table_prevent_eviction(
+/*========================*/
+	dict_table_t*	table)	/*!< in: table to prevent eviction */
+	__attribute__((nonnull));
+/**********************************************************************//**
 Move a table to the non LRU end of the LRU list. */
 UNIV_INTERN
 void
 dict_table_move_from_lru_to_non_lru(
 /*================================*/
 	dict_table_t*	table)	/*!< in: table to move from LRU to non-LRU */
-	__attribute__((nonnull));
-/**********************************************************************//**
-Move a table to the LRU list from the non-LRU list. */
-UNIV_INTERN
-void
-dict_table_move_from_non_lru_to_lru(
-/*================================*/
-	dict_table_t*	table)	/*!< in: table to move from non-LRU to LRU */
 	__attribute__((nonnull));
 /**********************************************************************//**
 Move to the most recently used segment of the LRU list. */
@@ -1542,7 +1555,7 @@ extern rw_lock_t	dict_operation_lock;
 
 /* Dictionary system struct */
 struct dict_sys_t{
-	ib_mutex_t		mutex;		/*!< mutex protecting the data
+	ib_mutex_t	mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
 					this mutex serializes CREATE TABLE
