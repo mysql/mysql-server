@@ -396,11 +396,25 @@ public:
 		      == 1);
 	}
 
+	/** Copy constructor */
+	PageCur(const PageCur& other)
+		: m_mtr (other.m_mtr), m_index (other.m_index),
+		  m_block (other.m_block), m_rec (other.m_rec),
+		  m_offsets (0) {
+		if (other.m_offsets) {
+			init();
+		}
+	}
+
 	/** Destructor */
 	~PageCur() { delete[] m_offsets; }
 
 	/** Get the mini-transaction */
 	mtr_t* getMtr() const { return(m_mtr); }
+	/** Get the B-tree page. */
+	const buf_block_t* getBlock() const { return(m_block); }
+	/** Get the index. */
+	const dict_index_t* getIndex() const { return(m_index); }
 
 	/** Get the record */
 	const rec_t* getRec() const {
@@ -517,10 +531,8 @@ public:
 	}
 
 private:
-	/** Copy constructor */
-	PageCur(const PageCur&);
 	/** Assignment operator */
-	PageCur& operator== (const PageCur&);
+	PageCur& operator=(const PageCur&);
 	/** Initialize a page cursor, either to rec or the page infimum.
 	Allocates and initializes offsets[]. */
 	void init(void);
