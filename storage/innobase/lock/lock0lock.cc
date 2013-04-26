@@ -4434,6 +4434,35 @@ lock_table(
 }
 
 /*********************************************************************//**
+Creates a table IX lock object for a resurrected transaction. */
+UNIV_INTERN
+void
+lock_table_ix_resurrect(
+/*====================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	trx_t*		trx)	/*!< in/out: transaction */
+{
+	ut_ad(trx->is_recovered);
+
+	if (lock_table_has(trx, table, LOCK_IX)) {
+		return;
+	}
+
+	lock_mutex_enter();
+
+	/* We have to check if the new lock is compatible with any locks
+	other transactions have in the table lock queue. */
+
+	ut_ad(!lock_table_other_has_incompatible(
+		      trx, LOCK_WAIT, table, LOCK_IX));
+
+	trx_mutex_enter(trx);
+	lock_table_create(table, LOCK_IX, trx);
+	lock_mutex_exit();
+	trx_mutex_exit(trx);
+}
+
+/*********************************************************************//**
 Checks if a waiting table lock request still has to wait in a queue.
 @return	TRUE if still has to wait */
 static
@@ -4826,15 +4855,21 @@ lock_remove_recovered_trx_record_locks(
 
 			ut_a(!lock_get_wait(lock));
 
-			/* Recovered transactions don't have any
-			table level locks. */
-
-			ut_a(lock_get_type_low(lock) == LOCK_REC);
-
 			next_lock = UT_LIST_GET_NEXT(trx_locks, lock);
 
-			if (lock->index->table == table) {
-				lock_rec_discard(lock);
+			switch (lock_get_type_low(lock)) {
+			default:
+				ut_error;
+			case LOCK_TABLE:
+				if (lock->un_member.tab_lock.table == table) {
+					lock_trx_table_locks_remove(lock);
+					lock_table_remove_low(lock);
+				}
+				break;
+			case LOCK_REC:
+				if (lock->index->table == table) {
+					lock_rec_discard(lock);
+				}
 			}
 		}
 

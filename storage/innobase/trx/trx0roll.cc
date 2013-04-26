@@ -628,7 +628,8 @@ trx_rollback_active(
 		as DISCARDED. If it still exists. */
 
 		table = dict_table_open_on_id(
-			trx->table_id, dictionary_locked, FALSE);
+			trx->table_id, dictionary_locked,
+			DICT_TABLE_OP_NORMAL);
 
 		if (table && !dict_table_is_discarded(table)) {
 
@@ -1049,7 +1050,8 @@ trx_roll_pop_top_rec(
 	os_thread_get_curr_id(), trx->id, undo->top_undo_no); */
 
 	prev_rec = trx_undo_get_prev_rec(
-		undo_page + offset, undo->hdr_page_no, undo->hdr_offset, mtr);
+		undo_page + offset, undo->hdr_page_no, undo->hdr_offset,
+		true, mtr);
 
 	if (prev_rec == NULL) {
 
