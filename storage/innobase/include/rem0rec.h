@@ -927,9 +927,10 @@ UNIV_INLINE
 ulint
 rec_get_converted_size(
 /*===================*/
-	dict_index_t*	index,	/*!< in: record descriptor */
-	const dtuple_t*	dtuple,	/*!< in: data tuple */
-	ulint		n_ext)	/*!< in: number of externally stored columns */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	const dtuple_t*		dtuple,	/*!< in: data tuple */
+	ulint			n_ext)	/*!< in: number of externally stored
+					columns */
 	__attribute__((warn_unused_result, nonnull));
 #ifndef UNIV_HOTBACKUP
 /**************************************************************//**
