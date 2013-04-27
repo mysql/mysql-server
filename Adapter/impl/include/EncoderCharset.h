@@ -18,14 +18,15 @@
  02110-1301  USA
  */
 
-bool colIsUtf16le(const NdbDictionary::Column *);
+class EncoderCharset {
+public:
+  short minlen;
+  short maxlen;
+  bool isUtf16le;
+  bool isUtf8;
+  bool isAscii;
+  bool isMultibyte;
+};
 
-bool colIsUtf8(const NdbDictionary::Column *);
+const EncoderCharset * getEncoderCharsetForColumn(const NdbDictionary::Column *);
 
-bool colIsAscii(const NdbDictionary::Column *);
-
-bool colIsLatin1(const NdbDictionary::Column *);
-
-bool colIsMultibyte(const NdbDictionary::Column *);
-
-unsigned int colSizeInCharacters(const NdbDictionary::Column *);

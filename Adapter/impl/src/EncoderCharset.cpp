@@ -31,59 +31,52 @@
 
 #include "EncoderCharset.h"
 
-/** 
- * V8 can work with two kinds of external strings: Strict ASCII and UTF-16.
- * But working with external UTF-16 depends on MySQL's UTF-16-LE charset, 
- * which is available only in MySQL 5.6 and higher. 
- * 
- * (A) For any strict ASCII string, even if its character set is latin1 or
- *     UTF-8 (i.e. it could have non-ascii characters, but it doesn't), we 
- *     present it to V8 as external ASCII.
- * (B) If a string is UTF16LE, we present it as external UTF-16.
- * (C) If a string is UTF-8, we create a new JS string (one copy operation)
- * (D) All others must be recoded.  There are two possibilities:
- *   (D.1) Recode to UTF16LE and present as external string (one copy operation)
- *   (D.2) Recode to UTF8 and create a new JS string (two copy operations)
- *
- * For a string in group (D.1), which requires recoding, we have to calculate 
- * the buffer requirement of that string recoded into UTF-16. 
- * If mbmaxlen is 4, this should be col->getLength().
- * But if mbmaxlen is less than 4, it should be:
- *  2 * (col->getLength() / mbmaxlen)
- *
- * Some support for D.1 was implemented (around bzr revno 440) and then
- * rolled back.  
- * 
- */
-
-// move the comment back into type enocders?
-// reimagine this as a file that takes a charsetinfo * and returns
-// a usable struct
-
-/* It may be a good optimization to do these lookups once per 
-   charset and store them somewhere.
+/* C++ initializes this to zeros:
 */
-bool colIsUtf16le(const NdbDictionary::Column *col) {
+EncoderCharset * csinfo_table[MY_CS_CTYPE_TABLE_SIZE];
+
+
+inline bool colIsUtf16le(const NdbDictionary::Column *col) {
   return (strncmp("utf16le", col->getCharset()->csname, 7) == 0);
 }
 
-bool colIsUtf8(const NdbDictionary::Column *col) {
+inline bool colIsUtf8(const NdbDictionary::Column *col) {
   return (strncmp("utf8", col->getCharset()->csname, 4) == 0);
 }
 
-bool colIsLatin1(const NdbDictionary::Column *col) {
+inline bool colIsLatin1(const NdbDictionary::Column *col) {
   return (strncmp("latin1", col->getCharset()->csname, 6) == 0);
 }
 
-bool colIsAscii(const NdbDictionary::Column *col) {
+inline bool colIsAscii(const NdbDictionary::Column *col) {
   return (strncmp("ascii", col->getCharset()->csname, 5) == 0);
 }
 
-bool colIsMultibyte(const NdbDictionary::Column *col) { 
+inline bool colIsMultibyte(const NdbDictionary::Column *col) { 
   return (col->getCharset()->mbminlen > 1);
 }
 
-unsigned int colSizeInCharacters(const NdbDictionary::Column *col) {
-  return col->getLength() / col->getCharset()->mbmaxlen;
+
+EncoderCharset * createEncoderCharset(const NdbDictionary::Column *col) {
+  EncoderCharset * csinfo = new EncoderCharset;
+  
+  csinfo->minlen = col->getCharset()->mbminlen;
+  csinfo->maxlen = col->getCharset()->mbmaxlen;
+  csinfo->isMultibyte = colIsMultibyte(col);
+  csinfo->isAscii = colIsAscii(col);
+  csinfo->isUtf8 = colIsUtf8(col);
+  csinfo->isUtf16le = colIsUtf16le(col);
+
+  return csinfo;
 }
 
+
+const EncoderCharset * getEncoderCharsetForColumn(const NdbDictionary::Column *col) {
+  int csnum = col->getCharsetNumber();
+  EncoderCharset *csinfo = csinfo_table[csnum];
+  if(csinfo == 0) {
+    csinfo = createEncoderCharset(col);
+    csinfo_table[csnum] = csinfo;
+  }
+  return csinfo;
+}
