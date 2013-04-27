@@ -31,17 +31,40 @@ const uint POINT_DATA_SIZE= (SIZEOF_STORED_DOUBLE * 2);
 const uint WKB_HEADER_SIZE= 1+4;
 const uint32 GET_SIZE_ERROR= ((uint32) -1);
 
-struct st_point_2d
+   
+/**
+  Point with coordinates X and Y.
+*/ 
+class point_xy
 {
+public:
   double x;
   double y;
+  point_xy() { }
+  point_xy(double x_arg, double y_arg): x(x_arg), y(y_arg) { } 
+  /**
+    Distance to another point.
+  */
+  double distance(point_xy p)
+  {
+    return sqrt(pow(x - p.x, 2) + pow(y - p.y, 2));
+  }
+  /**
+    Compare to another point.
+    Return true if equal, false if not equal.
+  */
+  bool eq(point_xy p)
+  {  
+    return (x == p.x) && (y == p.y);
+  }
 };
 
-struct st_linear_ring
+typedef struct wkb_header_st
 {
-  uint32 n_points;
-  st_point_2d points;
-};
+  uchar byte_order;
+  uint32 wkb_type;
+} wkb_header;
+
 
 /***************************** MBR *******************************/
 
@@ -66,7 +89,7 @@ struct MBR
     :xmin(xmin_arg), ymin(ymin_arg), xmax(xmax_arg), ymax(ymax_arg)
   {}
 
-  MBR(const st_point_2d &min, const st_point_2d &max)
+  MBR(const point_xy &min, const point_xy &max)
     :xmin(min.x), ymin(min.y), xmax(max.x), ymax(max.y)
   {}
  
@@ -81,6 +104,10 @@ struct MBR
       ymin= y;
     if (y > ymax)
       ymax= y;
+  }
+  void add_xy(point_xy p)
+  {
+    add_xy(p.x, p.y);
   }
   void add_xy(const char *px, const char *py)
   {
@@ -236,6 +263,176 @@ public:
     wkb_ndr= 1     /* Little Endian */
   };
 
+  /**
+    Constant storage for WKB.
+    Encapsulation and the available methods make it impossible
+    to update the members of wkb_container once it is initialized.
+    The only allowed modification method is set(),
+    which fully replaces the previous buffer.  
+  */ 
+  class wkb_container
+  {  
+  protected:
+    const char *m_data;
+    const char *m_data_end;
+  public:
+    wkb_container() { }
+    wkb_container(const char *data, const char *data_end)
+    {
+      set(data, data_end);
+    }
+    void set(const char *data, const char *data_end)
+    {
+      m_data= data;
+      m_data_end= data_end;
+    }
+    const char *data() const
+    {
+      return m_data;
+    }
+    const char *data_end() const
+    {
+      return m_data_end;
+    }
+    uint32 length() const
+    {
+      return (uint32) (m_data_end - m_data);   
+    }
+    /**
+      Check if there's enough data remaining as requested.
+
+      @arg data_amount  data requested
+
+      @return           true if not enough data
+    */
+    inline bool no_data(size_t data_amount) const
+    {
+      return (m_data + data_amount > m_data_end);
+    }
+
+    /**
+      Check if there're enough points remaining as requested.
+
+      Need to perform the calculation in logical units, since multiplication
+      can overflow the size data type.
+
+      @arg expected_points   number of points expected
+      @arg extra_point_space extra space for each point element in the array
+
+      @return               true if there are not enough points
+    */
+    inline bool not_enough_points(uint32 expected_points,
+                                  uint32 extra_point_space= 0) const
+    {
+      return (m_data_end < m_data ||
+              expected_points > ((m_data_end - m_data) /
+                                 (POINT_DATA_SIZE + extra_point_space)));
+    }
+  };
+
+  /**
+    WKB parser, designed to traverse through WKB data from
+    beginning of the buffer towards the end using a set   
+    of scan_xxx(), get_xxx() and skip_xxx() routines,
+    with safety tests to avoid going beyond the buffer end.
+  */
+  class wkb_parser: public wkb_container
+  {
+    /* Low level routines to get data of various types */
+    void get_uint4(uint32 *number)
+    {
+      *number= uint4korr(m_data); //GIS-TODO: byte order
+    }
+    void get_float8(double *x)
+    {
+      float8get(*x, m_data);      //GIS-TODO: byte order
+    }
+  public:
+    wkb_parser(const char *data, const char *data_end):
+      wkb_container(data, data_end) { }
+    wkb_parser(const wkb_container *container):
+      wkb_container(*container) { }
+
+    /* Routines to skip non-interesting data */
+    void skip_unsafe(size_t nbytes)
+    {
+      DBUG_ASSERT(!no_data(nbytes));
+      m_data+= nbytes;
+    }
+    bool skip(size_t nbytes)
+    {
+      if (no_data(nbytes))
+        return true;
+      m_data+= nbytes;
+      return false;   
+    }
+    bool skip_wkb_header()
+    {
+      return skip(WKB_HEADER_SIZE);
+    }
+    bool skip_coord()
+    {
+      return skip(SIZEOF_STORED_DOUBLE);
+    }
+
+    /* Routines to scan wkb header information */
+    bool scan_wkb_header(wkb_header *header)
+    {
+      if (no_data(WKB_HEADER_SIZE))
+        return true;
+      header->byte_order= (uchar) (*m_data);
+      m_data++;
+      get_uint4(&header->wkb_type);
+      m_data+= 4;
+      return false;
+    }
+
+    /* Routines to scan uint4 information */
+    bool scan_uint4(uint32 *number)
+    {
+      if (no_data(4))
+        return true; 
+      get_uint4(number);
+      m_data+= 4;
+      return false;
+    }
+    bool scan_non_zero_uint4(uint32 *number)
+    {
+      return (scan_uint4(number) || 0 == *number);
+    }
+    bool scan_n_points_and_check_data(uint32 *n_points,
+                                      uint32 extra_point_space= 0)
+    {
+      return scan_non_zero_uint4(n_points) ||
+             not_enough_points(*n_points, extra_point_space);
+    }
+
+    /* Routines to scan coordinate information */
+    void scan_xy_unsafe(point_xy *p)
+    {
+      DBUG_ASSERT(!no_data(POINT_DATA_SIZE));
+      get_float8(&p->x);
+      m_data+= SIZEOF_STORED_DOUBLE;
+      get_float8(&p->y);
+      m_data+= SIZEOF_STORED_DOUBLE;
+    }
+    bool scan_xy(point_xy *p)
+    {
+     if (no_data(SIZEOF_STORED_DOUBLE * 2))
+        return true;
+      scan_xy_unsafe(p);
+      return false;
+    }
+    bool scan_coord(double *x)
+    {
+      if (no_data(SIZEOF_STORED_DOUBLE))
+        return true;
+      get_float8(x);
+      m_data+= SIZEOF_STORED_DOUBLE;
+      return false;
+    }
+  }; 
+
   /** Callback which creates Geometry objects on top of a given placement. */
   typedef Geometry *(*create_geom_t)(char *);
 
@@ -258,9 +455,28 @@ public:
                                   const char *opres, uint opres_length)
   { return init_from_wkb(opres + 4, UINT_MAX32, wkb_ndr, bin) + 4; }
 
-  virtual bool get_data_as_wkt(String *txt, const char **end) const=0;
-  virtual bool get_mbr(MBR *mbr, const char **end) const=0;
-  virtual bool dimension(uint32 *dim, const char **end) const=0;
+  virtual bool get_data_as_wkt(String *txt, wkb_parser *wkb) const=0;
+  virtual bool get_mbr(MBR *mbr, wkb_parser *wkb) const=0;
+  bool get_mbr(MBR *mbr)
+  {
+    wkb_parser wkb(&m_wkb_data);
+    return get_mbr(mbr, &wkb);
+  }
+  virtual bool dimension(uint32 *dim, wkb_parser *wkb) const
+  {
+    *dim= feature_dimension();
+    uint32 length;
+    if ((length= get_data_size()) == GET_SIZE_ERROR)
+      return true;
+    wkb->skip(length);
+    return false;   
+  }
+  bool dimension(uint32 *dim)
+  {  
+    wkb_parser wkb(&m_wkb_data);
+    return dimension(dim, &wkb);
+  }
+  virtual uint32 feature_dimension() const= 0;
   virtual int get_x(double *x) const { return -1; }
   virtual int get_y(double *y) const { return -1; }
   virtual int geom_length(double *len) const  { return -1; }
@@ -271,14 +487,19 @@ public:
     The over geometry types (Polygon, MultiPolygon, GeometryCollection)
     override the default method.
   */
-  virtual int area(double *ar, const char **end_of_data) const
+  virtual bool area(double *ar, wkb_parser *wkb) const
   {
     uint32 data_size= get_data_size();
-    if (data_size == GET_SIZE_ERROR || no_data(m_data, data_size))
-      return 1;
-    *end_of_data= m_data + data_size;
+    if (data_size == GET_SIZE_ERROR || wkb->no_data(data_size))
+      return true;
+    wkb->skip_unsafe(data_size);
     *ar= 0;
-    return 0;     
+    return false;
+  }
+  bool area(double *ar) const
+  {
+    wkb_parser wkb(&m_wkb_data);
+    return area(ar, &wkb);
   }
   virtual int is_closed(int *closed) const { return -1; }
   virtual int num_interior_ring(uint32 *n_int_rings) const { return -1; }
@@ -301,9 +522,24 @@ public:
 
 public:
   static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
+  static Geometry *scan_header_and_create(wkb_parser *wkb, Geometry_buffer *buffer)
+  {
+    Geometry *geom;
+    wkb_header header;
+    
+    if (wkb->scan_wkb_header(&header) ||
+        !(geom= create_by_typeid(buffer, header.wkb_type)))
+      return NULL;
+    geom->set_data_ptr(wkb);
+    return geom;
+  }
 
   static Geometry *construct(Geometry_buffer *buffer,
                              const char *data, uint32 data_len);
+  static Geometry *construct(Geometry_buffer *buffer, const String *str)
+  {
+    return construct(buffer, str->ptr(), str->length());
+  }
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
 				   Gis_read_stream *trs, String *wkt,
 				   bool init_stream=1);
@@ -311,28 +547,32 @@ public:
                                    const char *wkb, uint32 len, String *res);
   static int create_from_opresult(Geometry_buffer *g_buf,
                                   String *res, Gcalc_result_receiver &rr);
-  int as_wkt(String *wkt, const char **end)
+  bool as_wkt(String *wkt, wkb_parser *wkb)
   {
     uint32 len= (uint) get_class_info()->m_name.length;
     if (wkt->reserve(len + 2, 512))
-      return 1;
+      return true;
     wkt->qs_append(get_class_info()->m_name.str, len);
     wkt->qs_append('(');
-    if (get_data_as_wkt(wkt, end))
-      return 1;
+    if (get_data_as_wkt(wkt, wkb))
+      return true;
     wkt->qs_append(')');
-    return 0;
+    return false;
+  }
+  bool as_wkt(String *wkt)
+  {
+    wkb_parser wkb(&m_wkb_data);
+    return as_wkt(wkt, &wkb);   
   }
 
   inline void set_data_ptr(const char *data, uint32 data_len)
   {
-    m_data= data;
-    m_data_end= data + data_len;
+    m_wkb_data.set(data, data + data_len);
   }
 
-  inline void shift_wkb_header()
+  inline void set_data_ptr(const wkb_container *wkb)
   {
-    m_data+= WKB_HEADER_SIZE;
+    m_wkb_data= *wkb;
   }
 
   bool envelope(String *result) const;
@@ -345,45 +585,12 @@ protected:
       NULL : ci_collection[type_id];
   }  
   static Class_info *find_class(const char *name, uint32 len);
-  const char *append_points(String *txt, uint32 n_points,
-			    const char *data, uint32 offset) const;
-  bool create_point(String *result, const char *data) const;
-  bool create_point(String *result, double x, double y) const;
-  const char *get_mbr_for_points(MBR *mbr, const char *data, uint offset)
-    const;
-
-  /**
-     Check if there're enough data remaining as requested
-
-     @arg cur_data     pointer to the position in the binary form
-     @arg data_amount  number of points expected
-     @return           true if not enough data
-  */
-  inline bool no_data(const char *cur_data, size_t data_amount) const
-  {
-    return (cur_data + data_amount > m_data_end);
-  }
-
-  /**
-     Check if there're enough points remaining as requested
-
-     Need to perform the calculation in logical units, since multiplication
-     can overflow the size data type.
-
-     @arg data              pointer to the begining of the points array
-     @arg expected_points   number of points expected
-     @arg extra_point_space extra space for each point element in the array
-     @return               true if there are not enough points
-  */
-  inline bool not_enough_points(const char *data, uint32 expected_points,
-                                uint32 extra_point_space = 0) const
-  {
-    return (m_data_end < data ||
-            (expected_points > ((m_data_end - data) /
-                                (POINT_DATA_SIZE + extra_point_space))));
-  }
-  const char *m_data;
-  const char *m_data_end;
+  void append_points(String *txt, uint32 n_points,
+                     wkb_parser *wkb, uint32 offset) const;
+  bool create_point(String *result, wkb_parser *wkb) const; 
+  bool create_point(String *result, point_xy p) const;
+  bool get_mbr_for_points(MBR *mbr, wkb_parser *wkb, uint offset) const;
+  wkb_container m_wkb_data;
   /**
     Store shapes of a collection:
     GeometryCollection, MultiPoint, MultiLineString or MultiPolygon.
@@ -407,7 +614,7 @@ protected:
     The meaning of the "collection_item" is the same to
     the similar argument in collection_store_shapes().
   */
-  int collection_area(double *ar, const char **end_of_data, Geometry *it) const;
+  bool collection_area(double *ar, wkb_parser *wkb, Geometry *it) const;
 
   /**
     Initialize a collection from an operation result.
@@ -432,41 +639,25 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, const char **end) const;
-  bool get_mbr(MBR *mbr, const char **end) const;
-  
-  int get_xy(double *x, double *y) const
-  {
-    const char *data= m_data;
-    if (no_data(data, SIZEOF_STORED_DOUBLE * 2))
-      return 1;
-    float8get(*x, data);
-    float8get(*y, data + SIZEOF_STORED_DOUBLE);
-    return 0;
-  }
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const; 
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
 
+  int get_xy(point_xy *p) const
+  {
+    wkb_parser wkb(&m_wkb_data);
+    return wkb.scan_xy(p);
+  }
   int get_x(double *x) const
   {
-    if (no_data(m_data, SIZEOF_STORED_DOUBLE))
-      return 1;
-    float8get(*x, m_data);
-    return 0;
+    wkb_parser wkb(&m_wkb_data);
+    return wkb.scan_coord(x);
   }
-
   int get_y(double *y) const
   {
-    const char *data= m_data;
-    if (no_data(data, SIZEOF_STORED_DOUBLE * 2)) return 1;
-    float8get(*y, data + SIZEOF_STORED_DOUBLE);
-    return 0;
+    wkb_parser wkb(&m_wkb_data);
+    return wkb.skip_coord() || wkb.scan_coord(y);
   }
-
-  bool dimension(uint32 *dim, const char **end) const
-  {
-    *dim= 0;
-    *end= 0;					/* No default end */
-    return 0;
-  }
+  uint32 feature_dimension() const { return 0; }
   int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 };
@@ -486,20 +677,15 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, const char **end) const;
-  bool get_mbr(MBR *mbr, const char **end) const;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
   int geom_length(double *len) const;
   int is_closed(int *closed) const;
   int num_points(uint32 *n_points) const;
   int start_point(String *point) const;
   int end_point(String *point) const;
   int point_n(uint32 n, String *result) const;
-  bool dimension(uint32 *dim, const char **end) const
-  {
-    *dim= 1;
-    *end= 0;					/* No default end */
-    return 0;
-  }
+  uint32 feature_dimension() const { return 1; }
   int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 };
@@ -516,20 +702,15 @@ public:
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
   uint init_from_opresult(String *bin, const char *opres, uint opres_length);
-  bool get_data_as_wkt(String *txt, const char **end) const;
-  bool get_mbr(MBR *mbr, const char **end) const;
-  int area(double *ar, const char **end) const;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
+  bool area(double *ar, wkb_parser *wkb) const;
   int exterior_ring(String *result) const;
   int num_interior_ring(uint32 *n_int_rings) const;
   int interior_ring_n(uint32 num, String *result) const;
-  int centroid_xy(double *x, double *y) const;
+  bool centroid_xy(point_xy *p) const;
   int centroid(String *result) const;
-  bool dimension(uint32 *dim, const char **end) const
-  {
-    *dim= 2;
-    *end= 0;					/* No default end */
-    return 0;
-  }
+  uint32 feature_dimension() const { return 2; }
   int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 };
@@ -550,16 +731,11 @@ public:
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
   uint init_from_opresult(String *bin, const char *opres, uint opres_length);
-  bool get_data_as_wkt(String *txt, const char **end) const;
-  bool get_mbr(MBR *mbr, const char **end) const;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
-  bool dimension(uint32 *dim, const char **end) const
-  {
-    *dim= 0;
-    *end= 0;					/* No default end */
-    return 0;
-  }
+  uint32 feature_dimension() const { return 0; }
   int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 };
@@ -576,18 +752,13 @@ public:
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
   uint init_from_opresult(String *bin, const char *opres, uint opres_length);
-  bool get_data_as_wkt(String *txt, const char **end) const;
-  bool get_mbr(MBR *mbr, const char **end) const;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
   int geom_length(double *len) const;
   int is_closed(int *closed) const;
-  bool dimension(uint32 *dim, const char **end) const
-  {
-    *dim= 1;
-    *end= 0;					/* No default end */
-    return 0;
-  }
+  uint32 feature_dimension() const { return 1; }
   int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 };
@@ -603,18 +774,13 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, const char **end) const;
-  bool get_mbr(MBR *mbr, const char **end) const;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
-  int area(double *ar, const char **end) const;
+  bool area(double *ar, wkb_parser *wkb) const;
   int centroid(String *result) const;
-  bool dimension(uint32 *dim, const char **end) const
-  {
-    *dim= 2;
-    *end= 0;					/* No default end */
-    return 0;
-  }
+  uint32 feature_dimension() const { return 2; }
   int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
   uint init_from_opresult(String *bin, const char *opres, uint opres_length);
@@ -632,12 +798,17 @@ public:
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
   uint init_from_opresult(String *bin, const char *opres, uint opres_length);
-  bool get_data_as_wkt(String *txt, const char **end) const;
-  bool get_mbr(MBR *mbr, const char **end) const;
-  int area(double *ar, const char **end) const;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
+  bool area(double *ar, wkb_parser *wkb) const; 
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
-  bool dimension(uint32 *dim, const char **end) const;
+  bool dimension(uint32 *dim, wkb_parser *wkb) const; 
+  uint32 feature_dimension() const
+  {
+    DBUG_ASSERT(0);
+    return 0;
+  }
   int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 };
