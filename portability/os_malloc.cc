@@ -88,7 +88,7 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-#include <config.h>
+#include "toku_config.h"
 
 #include <toku_portability.h>
 #include <stdlib.h>

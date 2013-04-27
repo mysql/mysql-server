@@ -88,7 +88,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #define _GNU_SOURCE 1
-#include <config.h>
+#include "toku_config.h"
 #include <toku_pthread.h>
 
 int toku_pthread_yield(void) {
