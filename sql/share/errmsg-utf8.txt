@@ -6506,6 +6506,8 @@ ER_UNSUPPORTED_ENGINE
 ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST
   eng "INSERT into autoincrement field which is not the first part in the composed primary key is unsafe."
 
+WARN_ON_BLOCKHOLE_IN_RBR
+  eng "Row events are not logged for %s statements that modify BLACKHOLE tables in row format. Table(s): '%-.192s'"
 #
 #  End of 5.5 error messages.
 #
