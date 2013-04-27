@@ -1,7 +1,7 @@
 # Merge static libraries into a big static lib. The resulting library 
 # should not not have dependencies on other static libraries.
 # We use it in MySQL to merge mysys,dbug,vio etc into mysqlclient
-FUNCTION(GET_DEPENDEND_OS_LIBS target result)
+FUNCTION(TOKU_GET_DEPENDEND_OS_LIBS target result)
   SET(deps ${${target}_LIB_DEPENDS})
   IF(deps)
    FOREACH(lib ${deps})
@@ -15,9 +15,9 @@ FUNCTION(GET_DEPENDEND_OS_LIBS target result)
    ENDFOREACH()
   ENDIF()
   SET(${result} ${ret} PARENT_SCOPE)
-ENDFUNCTION(GET_DEPENDEND_OS_LIBS)
+ENDFUNCTION(TOKU_GET_DEPENDEND_OS_LIBS)
 
-MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
+MACRO(TOKU_MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
   # To produce a library we need at least one source file.
   # It is created by ADD_CUSTOM_COMMAND below and will helps 
   # also help to track dependencies.
@@ -40,7 +40,7 @@ MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
         SET(STATIC_LIBS ${STATIC_LIBS} ${LIB_LOCATION})
         ADD_DEPENDENCIES(${TARGET} ${LIB})
         # Extract dependend OS libraries
-        GET_DEPENDEND_OS_LIBS(${LIB} LIB_OSLIBS)
+        TOKU_GET_DEPENDEND_OS_LIBS(${LIB} LIB_OSLIBS)
         LIST(APPEND OSLIBS ${LIB_OSLIBS})
       ELSE()
         # This is a shared library our static lib depends on.
@@ -97,4 +97,4 @@ MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
       )
     ENDIF()
   ENDIF()
-ENDMACRO(MERGE_STATIC_LIBS)
+ENDMACRO(TOKU_MERGE_STATIC_LIBS)
