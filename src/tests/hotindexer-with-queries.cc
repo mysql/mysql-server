@@ -87,7 +87,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
-#include <config.h>
+#include "toku_config.h"
 #include "test.h"
 #include "toku_pthread.h"
 #include <db.h>
