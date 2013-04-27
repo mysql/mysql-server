@@ -26,7 +26,7 @@ add_library(tokudb_static_conv STATIC ${tokudb_srcs})
 add_dependencies(tokudb_static_conv install_tdb_h generate_log_code)
 set_target_properties(tokudb_static_conv PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set(tokudb_source_libs tokudb_static_conv locktree_static ft_static util_static lzma)
-merge_static_libs(${LIBTOKUDB}_static ${LIBTOKUDB}_static "${tokudb_source_libs}")
+toku_merge_static_libs(${LIBTOKUDB}_static ${LIBTOKUDB}_static "${tokudb_source_libs}")
 
 ## add gcov and define _GNU_SOURCE
 maybe_add_gcov_to_libraries(${LIBTOKUDB} tokudb_static_conv)
