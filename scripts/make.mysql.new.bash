@@ -15,17 +15,17 @@ if [[ ! -d mysql ]]; then
 
     git clone $repos/ft-engine
     pushd ft-engine
-    git checkout simplify-build
+        git checkout simplify-build
     popd
     cp -r ft-engine/* .
     pushd storage/tokudb
-    git clone $repos/ft-index
-    pushd ft-index
-    git checkout simplify-build
-    pushd third_party
-    git clone $repos/jemalloc
-    popd
-    popd
+        git clone $repos/ft-index
+        pushd ft-index
+            git checkout simplify-build
+            pushd third_party
+                git clone $repos/jemalloc
+            popd
+        popd
     popd
 else
     cd mysql
