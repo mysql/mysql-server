@@ -17,11 +17,11 @@ ExternalProject_Add(build_jemalloc
       "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/jemalloc"
   )
 
-add_library(jemalloc STATIC IMPORTED)
+add_library(jemalloc STATIC IMPORTED GLOBAL)
 set_target_properties(jemalloc PROPERTIES IMPORTED_LOCATION
   "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/jemalloc/lib/libjemalloc_pic.a")
 add_dependencies(jemalloc build_jemalloc)
-add_library(jemalloc_nopic STATIC IMPORTED)
+add_library(jemalloc_nopic STATIC IMPORTED GLOBAL)
 set_target_properties(jemalloc_nopic PROPERTIES IMPORTED_LOCATION
   "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/jemalloc/lib/libjemalloc.a")
 add_dependencies(jemalloc_nopic build_jemalloc)
