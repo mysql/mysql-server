@@ -3811,6 +3811,13 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   const char* save_name;
   DBUG_ENTER("reset_logs");
 
+  /*
+    Flush logs for storage engines, so that the last transaction
+    is fsynced inside storage engines.
+  */
+  if (ha_flush_logs(NULL))
+    DBUG_RETURN(1);
+
   ha_reset_logs(thd);
 
   /*
@@ -4919,7 +4926,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 
   mysql_mutex_lock(&LOCK_index);
 
-  if ((error= ha_flush_logs(0)))
+  if (DBUG_EVALUATE_IF("expire_logs_always", 0, 1)
+      && (error= ha_flush_logs(NULL)))
     goto end;
 
   mysql_mutex_assert_owner(&LOCK_log);
@@ -5475,6 +5483,11 @@ void MYSQL_BIN_LOG::purge()
                     { purge_time= my_time(0);});
     if (purge_time >= 0)
     {
+      /*
+        Flush logs for storage engines, so that the last transaction
+        is fsynced inside storage engines.
+      */
+      ha_flush_logs(NULL);
       purge_logs_before_date(purge_time, true);
     }
   }
