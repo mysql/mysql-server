@@ -18,13 +18,23 @@
  02110-1301  USA
  */
 
+/* 
+CREATE TABLE if not exists `towns` (
+  `town` varchar(50) NOT NULL,
+  `county` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`town`)
+);
+*/
+
 var nosql = require('../..');
 
 var t1 = new harness.ConcurrentTest("readTownByPK");
 
 var Town = function(name, county) {
-  this.town = name;
-  this.county = county;
+//  if(name) {
+    this.town = name;
+    this.county = county;
+//  }
 };
 
 // create basic object<->table mappings                                                                                                  
@@ -35,8 +45,8 @@ var onFind = function(err, result) {
   if (err) {
     t1.appendErrorMessage(err);
   } else {
-    t1.errorIfNotEqual(result.town, "Maidenhead");
-    t1.errorIfNotEqual(result.county, "Berkshire");
+    t1.errorIfNotEqual("town",  "Maidenhead", result.town);
+    t1.errorIfNotEqual("county", "Berkshire", result.county);
   }
   t1.failOnError();
 };
