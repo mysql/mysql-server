@@ -3523,9 +3523,16 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
               !table->fulltext_searched && 
               (!embedding || (embedding->sj_on_expr && !embedding->embedding)))
 	  {
+            key_map base_part, base_const_ref, base_eq_part;
+            base_part.set_prefix(keyinfo->key_parts); 
+            base_const_ref= const_ref;
+            base_const_ref.intersect(base_part);
+            base_eq_part= eq_part;
+            base_eq_part.intersect(base_part);
             if (table->actual_key_flags(keyinfo) & HA_NOSAME)
             {
-	      if (const_ref == eq_part &&
+              
+	      if (base_const_ref == base_eq_part &&
                   !has_expensive_keyparts &&
                   !((outer_join & table->map) &&
                     (*s->on_expr_ref)->is_expensive()))
@@ -3551,7 +3558,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
 	      else
 	        found_ref|= refs;      // Table is const if all refs are const
 	    }
-            else if (const_ref == eq_part)
+            else if (base_const_ref == base_eq_part)
               s->const_keys.set_bit(key);
           }
 	}

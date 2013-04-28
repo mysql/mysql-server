@@ -865,6 +865,128 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where
 1	SIMPLE	t3	ref	PRIMARY,col1	col1	12	test.t1.a,test.t1.a,test.t1.a	#	Using index
 drop table t1,t2,t3;
+#
+# Bug mdev-4340: performance regression with extended_keys=on   
+#
+set @save_optimizer_switch=@@optimizer_switch;
+CREATE TABLE t1 (
+page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
+page_namespace int(11) NOT NULL DEFAULT '0',
+page_title varbinary(255) NOT NULL DEFAULT '',
+page_restrictions tinyblob NOT NULL,
+page_counter bigint(20) unsigned NOT NULL DEFAULT '0',
+page_is_redirect tinyint(1) unsigned NOT NULL DEFAULT '0',
+page_is_new tinyint(1) unsigned NOT NULL DEFAULT '0',
+page_random double unsigned NOT NULL DEFAULT '0',
+page_touched varbinary(14) NOT NULL DEFAULT '',
+page_latest int(8) unsigned NOT NULL DEFAULT '0',
+page_len int(8) unsigned NOT NULL DEFAULT '0',
+PRIMARY KEY (page_id),
+UNIQUE KEY name_title (page_namespace,page_title),
+KEY page_random (page_random),
+KEY page_len (page_len),
+KEY page_redirect_namespace_len (page_is_redirect,page_namespace,page_len)
+) ENGINE=InnoDB AUTO_INCREMENT=38929100 DEFAULT CHARSET=binary;
+INSERT INTO t1 VALUES
+(38928077,0,'Sandbox','',0,0,0,0,'',0,0),(38928078,1,'Sandbox','',0,0,0,1,'',0,0),
+(38928079,2,'Sandbox','',0,0,0,2,'',0,0),(38928080,3,'Sandbox','',0,0,0,3,'',0,0),
+(38928081,4,'Sandbox','',0,0,0,4,'',0,0),(38928082,5,'Sandbox','',0,0,0,5,'',0,0);
+CREATE TABLE t2 (
+rev_id int(8) unsigned NOT NULL AUTO_INCREMENT,
+rev_page int(8) unsigned NOT NULL DEFAULT '0',
+rev_text_id int(8) unsigned NOT NULL DEFAULT '0',
+rev_comment varbinary(255) DEFAULT NULL,
+rev_user int(5) unsigned NOT NULL DEFAULT '0',
+rev_user_text varbinary(255) NOT NULL DEFAULT '',
+rev_timestamp varbinary(14) NOT NULL DEFAULT '',
+rev_minor_edit tinyint(1) unsigned NOT NULL DEFAULT '0',
+rev_deleted tinyint(1) unsigned NOT NULL DEFAULT '0',
+rev_len int(8) unsigned DEFAULT NULL,
+rev_parent_id int(8) unsigned DEFAULT NULL,
+rev_sha1 varbinary(32) NOT NULL DEFAULT '',
+PRIMARY KEY (rev_page,rev_id),
+UNIQUE KEY rev_id (rev_id),
+KEY rev_timestamp (rev_timestamp),
+KEY page_timestamp (rev_page,rev_timestamp),
+KEY user_timestamp (rev_user,rev_timestamp),
+KEY usertext_timestamp (rev_user_text,rev_timestamp,rev_user,rev_deleted,rev_minor_edit,rev_text_id,rev_comment)
+) ENGINE=InnoDB DEFAULT CHARSET=binary;
+INSERT INTO t2 VALUES
+(547116222,20,0,NULL,3,'','',0,0,NULL,NULL,''),(547117245,20,0,NULL,4,'','',0,0,NULL,NULL,''),
+(547118268,20,0,NULL,5,'','',0,0,NULL,NULL,''),(547114177,21,0,NULL,1,'','',0,0,NULL,NULL,''),
+(547115200,21,0,NULL,2,'','',0,0,NULL,NULL,''),(547116223,21,0,NULL,3,'','',0,0,NULL,NULL,''),
+(547117246,21,0,NULL,4,'','',0,0,NULL,NULL,''),(547118269,21,0,NULL,5,'','',0,0,NULL,NULL,''),
+(547114178,22,0,NULL,1,'','',0,0,NULL,NULL,''),(547115201,22,0,NULL,2,'','',0,0,NULL,NULL,''),
+(547116224,22,0,NULL,3,'','',0,0,NULL,NULL,''),(547117247,22,0,NULL,4,'','',0,0,NULL,NULL,''),
+(547116226,24,0,NULL,3,'','',0,0,NULL,NULL,''),(547117249,24,0,NULL,4,'','',0,0,NULL,NULL,''),
+(547118272,24,0,NULL,5,'','',0,0,NULL,NULL,''),(547114181,25,0,NULL,1,'','',0,0,NULL,NULL,''),
+(547115204,25,0,NULL,2,'','',0,0,NULL,NULL,''),(547116227,25,0,NULL,3,'','',0,0,NULL,NULL,''),
+(547116157,978,0,NULL,2,'','',0,0,NULL,NULL,''),(547117180,978,0,NULL,3,'','',0,0,NULL,NULL,''),
+(547118203,978,0,NULL,4,'','',0,0,NULL,NULL,''),(547119226,978,0,NULL,5,'','',0,0,NULL,NULL,''),
+(547115135,979,0,NULL,1,'','',0,0,NULL,NULL,''),(547116158,979,0,NULL,2,'','',0,0,NULL,NULL,''),
+(547116173,994,0,NULL,2,'','',0,0,NULL,NULL,''),(547117196,994,0,NULL,3,'','',0,0,NULL,NULL,''),
+(547118219,994,0,NULL,4,'','',0,0,NULL,NULL,''),(547119242,994,0,NULL,5,'','',0,0,NULL,NULL,''),
+(547115151,995,0,NULL,1,'','',0,0,NULL,NULL,''),(547116174,995,0,NULL,2,'','',0,0,NULL,NULL,''),
+(547117197,995,0,NULL,3,'','',0,0,NULL,NULL,''),(547118220,995,0,NULL,4,'','',0,0,NULL,NULL,''),
+(547118223,998,0,NULL,4,'','',0,0,NULL,NULL,''),(547119246,998,0,NULL,5,'','',0,0,NULL,NULL,''),
+(547115155,999,0,NULL,1,'','',0,0,NULL,NULL,''),(547116178,999,0,NULL,2,'','',0,0,NULL,NULL,''),
+(547117201,999,0,NULL,3,'','',0,0,NULL,NULL,''),(547118224,999,0,NULL,4,'','',0,0,NULL,NULL,''),
+(547119271,38928081,0,NULL,10,'','',0,0,NULL,NULL,''),(547119272,38928081,0,NULL,11,'','',0,0,NULL,NULL,''),
+(547119273,38928081,0,NULL,12,'','',0,0,NULL,NULL,''),(547119274,38928081,0,NULL,13,'','',0,0,NULL,NULL,''),
+(547119275,38928081,0,NULL,14,'','',0,0,NULL,NULL,''),(547119276,38928081,0,NULL,15,'','',0,0,NULL,NULL,''),
+(547119277,38928081,0,NULL,16,'','',0,0,NULL,NULL,''),(547119278,38928081,0,NULL,17,'','',0,0,NULL,NULL,''),
+(547119279,38928081,0,NULL,18,'','',0,0,NULL,NULL,''),(547119280,38928081,0,NULL,19,'','',0,0,NULL,NULL,'');
+CREATE TABLE t3 (
+old_id int(10) unsigned NOT NULL AUTO_INCREMENT,
+old_text mediumblob NOT NULL,
+old_flags tinyblob NOT NULL,
+PRIMARY KEY (old_id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES
+(1,'text-0',''),(2,'text-1000',''),(3,'text-2000',''),(4,'text-3000',''),
+(5,'text-4000',''),(6,'text-5000',''),(7,'text-6000',''),(8,'text-7000',''),
+(9,'text-8000',''),(10,'text-9000',''),(11,'text-1',''),(12,'text-1001',''),
+(13,'text-2001',''),(14,'text-3001',''),(15,'text-4001',''),(16,'text-5001',''),
+(17,'text-6001',''),(18,'text-7001',''),(19,'text-8001',''),(20,'text-9001',''),
+(21,'text-2',''),(22,'text-1002',''),(23,'text-2002',''),(24,'text-3002',''),
+(25,'text-4002',''),(26,'text-5002',''),(27,'text-6002',''),(28,'text-7002',''),
+(29,'text-8002',''),(30,'text-9002',''),(31,'text-3',''),(32,'text-1003',''),
+(33,'text-2003',''),(34,'text-3003',''),(35,'text-4003',''),(36,'text-5003',''),
+(37,'text-6003',''),(38,'text-7003',''),(39,'text-8003',''),(40,'text-9003',''),
+(41,'text-4',''),(42,'text-1004',''),(43,'text-2004',''),(44,'text-3004',''),
+(45,'text-4004',''),(46,'text-5004',''),(47,'text-6004',''),(48,'text-7004',''),
+(49,'text-8004',''),(50,'text-9004',''),(51,'text-5',''),(52,'text-1005',''),
+(53,'text-2005',''),(54,'text-3005',''),(55,'text-4005',''),(56,'text-5005',''),
+(57,'text-6005',''),(58,'text-7005',''),(59,'text-8005',''),(60,'text-9005',''),
+(61,'text-6',''),(62,'text-1006',''),(63,'text-2006',''),(64,'text-3006',''),
+(65,'text-4006',''),(66,'text-5006',''),(67,'text-6006',''),(68,'text-7006',''),
+(69,'text-8006',''),(70,'text-9006',''),(71,'text-7',''),(72,'text-1007',''),
+(73,'text-2007',''),(74,'text-3007',''),(75,'text-4007',''),(76,'text-5007',''),
+(77,'text-6007',''),(78,'text-7007',''),(79,'text-8007',''),(80,'text-9007',''),
+(81,'text-8',''),(82,'text-1008',''),(83,'text-2008',''),(84,'text-3008',''),
+(85,'text-4008',''),(86,'text-5008',''),(87,'text-6008',''),(88,'text-7008',''),
+(89,'text-8008',''),(90,'text-9008',''),(91,'text-9',''),(92,'text-1009',''),
+(93,'text-2009',''),(94,'text-3009',''),(95,'text-4009',''),(96,'text-5009',''),
+(97,'text-6009',''),(98,'text-7009',''),(99,'text-8009',''),(100,'text-9009','');
+set optimizer_switch='extended_keys=off';
+EXPLAIN 
+SELECT *  FROM t1, t2 IGNORE INDEX (PRIMARY), t3 
+WHERE page_id=rev_page AND  rev_text_id=old_id  AND page_namespace=4 AND page_title='Sandbox'
+ORDER BY rev_timestamp ASC LIMIT 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY,name_title	name_title	261	const,const	1	
+1	SIMPLE	t2	ref	page_timestamp	page_timestamp	4	const	10	Using where
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.rev_text_id	1	
+set optimizer_switch='extended_keys=on';
+EXPLAIN 
+SELECT *  FROM t1, t2 IGNORE INDEX (PRIMARY), t3 
+WHERE page_id=rev_page AND  rev_text_id=old_id  AND page_namespace=4 AND page_title='Sandbox'
+ORDER BY rev_timestamp ASC LIMIT 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY,name_title	name_title	261	const,const	1	
+1	SIMPLE	t2	ref	page_timestamp	page_timestamp	4	const	10	Using where
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.rev_text_id	1	
+DROP TABLE t1,t2,t3;
 set optimizer_switch=@save_optimizer_switch;
 set optimizer_switch=@save_ext_key_optimizer_switch;
 SET SESSION STORAGE_ENGINE=DEFAULT;
