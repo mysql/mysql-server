@@ -51,5 +51,4 @@ else
     cd build
 fi
 
-make build_jemalloc
 make -j5 package
