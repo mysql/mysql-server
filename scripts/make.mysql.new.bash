@@ -9,23 +9,16 @@ repos=https://github.com/Tokutek
 if [[ ! -d mysql ]]; then
     git clone $repos/mysql
     cd mysql
-    git checkout simplify-build
 
     git clone $repos/backup-community
     ln -s backup-community/backup toku_backup
 
     git clone $repos/ft-engine
-    pushd ft-engine
-        git checkout simplify-build
-    popd
     cp -r ft-engine/* .
     pushd storage/tokudb
         git clone $repos/ft-index
-        pushd ft-index
-            git checkout simplify-build
-            pushd third_party
-                git clone $repos/jemalloc
-            popd
+        pushd ft-index/third_party
+            git clone $repos/jemalloc
         popd
     popd
 else
