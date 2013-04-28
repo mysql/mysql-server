@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 #ifndef TOKU_RANDOM_H
 #define TOKU_RANDOM_H
 
-#include <config.h>
+#include "toku_config.h"
 #include <toku_portability.h>
 #include <toku_assert.h>
 #include <stdlib.h>

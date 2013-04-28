@@ -104,7 +104,7 @@ PATENT RIGHTS GRANT:
 #ifndef _THREADED_STRESS_TEST_HELPERS_H_
 #define _THREADED_STRESS_TEST_HELPERS_H_
 
-#include <config.h>
+#include "toku_config.h"
 #include "test.h"
 
 #include <stdio.h>

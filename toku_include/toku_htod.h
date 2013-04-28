@@ -108,7 +108,7 @@ PATENT RIGHTS GRANT:
 #ifndef _TOKU_HTOD_H
 #define _TOKU_HTOD_H
 
-#include <config.h>
+#include "toku_config.h"
 
 #if defined(HAVE_ENDIAN_H)
 # include <endian.h>

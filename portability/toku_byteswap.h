@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 #ifndef TOKU_BYTESWAP_H
 #define TOKU_BYTESWAP_H
 
-#include <config.h>
+#include "toku_config.h"
 
 #if defined(HAVE_BYTESWAP_H)
 # include <byteswap.h>

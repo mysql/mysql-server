@@ -21,7 +21,7 @@ add_library(tokuportability_static_conv STATIC ${tokuportability_srcs})
 set_target_properties(tokuportability_static_conv PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_dependencies(tokuportability_static_conv build_jemalloc)
 set(tokuportability_source_libs tokuportability_static_conv jemalloc ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
-merge_static_libs(${LIBTOKUPORTABILITY}_static ${LIBTOKUPORTABILITY}_static "${tokuportability_source_libs}")
+toku_merge_static_libs(${LIBTOKUPORTABILITY}_static ${LIBTOKUPORTABILITY}_static "${tokuportability_source_libs}")
 
 maybe_add_gcov_to_libraries(${LIBTOKUPORTABILITY} tokuportability_static_conv)
 set_property(TARGET ${LIBTOKUPORTABILITY} tokuportability_static_conv APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)

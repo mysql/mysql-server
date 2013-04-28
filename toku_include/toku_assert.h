@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 /* This version will complain if NDEBUG is set. */
 /* It evaluates the argument and then calls a function  toku_do_assert() which takes all the hits for the branches not taken. */
 
-#include "config.h"
+#include "toku_config.h"
 
 #include <stdint.h>
 #include <errno.h>
