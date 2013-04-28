@@ -347,6 +347,8 @@ function buildValueObject(op) {
     /* Turn the buffer into a Value Object */
     op.result.value = new VOC(op.buffers.row);
 
+    /* TODO: Apply type converters here, rather than in Column Handler??? */
+
     /* DBT may have some fieldConverters for this object */
     op.tableHandler.applyFieldConverters(op.result.value);
 
