@@ -17,7 +17,7 @@ include(TokuMergeLibs)
 
 ## need a way to change the name of libs we build
 set(LIBTOKUPORTABILITY "tokuportability" CACHE STRING "Name of libtokuportability.so")
-set(LIBTOKUDB "tokudb" CACHE STRING "Name of libtokudb.so")
+set(LIBTOKUDB "tokufractaltree" CACHE STRING "Name of libtokufractaltree.so")
 
 include_directories(
   ${VALGRIND_INCLUDE_DIR}
