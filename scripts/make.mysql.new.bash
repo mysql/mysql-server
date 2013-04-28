@@ -9,6 +9,7 @@ repos=https://github.com/Tokutek
 if [[ ! -d mysql ]]; then
     git clone $repos/mysql
     cd mysql
+    git checkout simplify-build
 
     git clone $repos/backup-community
     ln -s backup-community/backup toku_backup
