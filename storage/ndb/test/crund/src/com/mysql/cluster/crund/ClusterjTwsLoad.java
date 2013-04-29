@@ -171,7 +171,7 @@ class ClusterjTwsLoad extends TwsLoad {
 
     protected void runClusterjInsert(TwsDriver.XMode mode) {
         final String name = "insert_" + mode.toString().toLowerCase();
-        driver.begin(name);
+        driver.beginOp(name);
 
         if (mode != TwsDriver.XMode.INDY)
             session.currentTransaction().begin();
@@ -183,7 +183,7 @@ class ClusterjTwsLoad extends TwsLoad {
         if (mode != TwsDriver.XMode.INDY)
             session.currentTransaction().commit();
 
-        driver.finish(name);
+        driver.finishOp(name, driver.nRows);
     }
 
     protected void clusterjInsert(int c0) {
@@ -215,7 +215,7 @@ class ClusterjTwsLoad extends TwsLoad {
         assert(mode != TwsDriver.XMode.BULK);
 
         final String name = "lookup_" + mode.toString().toLowerCase();
-        driver.begin(name);
+        driver.beginOp(name);
 
         if (mode != TwsDriver.XMode.INDY)
             session.currentTransaction().begin();
@@ -225,7 +225,7 @@ class ClusterjTwsLoad extends TwsLoad {
         if (mode != TwsDriver.XMode.INDY)
             session.currentTransaction().commit();
 
-        driver.finish(name);
+        driver.finishOp(name, driver.nRows);
     }
 
     protected void clusterjLookup(int c0) {
@@ -255,7 +255,7 @@ class ClusterjTwsLoad extends TwsLoad {
 
     protected void runClusterjUpdate(TwsDriver.XMode mode) {
         final String name = "update_" + mode.toString().toLowerCase();
-        driver.begin(name);
+        driver.beginOp(name);
 
         if (mode != TwsDriver.XMode.INDY)
             session.currentTransaction().begin();
@@ -267,7 +267,7 @@ class ClusterjTwsLoad extends TwsLoad {
         if (mode != TwsDriver.XMode.INDY)
             session.currentTransaction().commit();
 
-        driver.finish(name);
+        driver.finishOp(name, driver.nRows);
     }
 
     protected void clusterjUpdate(int c0) {
@@ -301,7 +301,7 @@ class ClusterjTwsLoad extends TwsLoad {
 
     protected void runClusterjDelete(TwsDriver.XMode mode) {
         final String name = "delete_" + mode.toString().toLowerCase();
-        driver.begin(name);
+        driver.beginOp(name);
 
         if (mode != TwsDriver.XMode.INDY)
             session.currentTransaction().begin();
@@ -313,7 +313,7 @@ class ClusterjTwsLoad extends TwsLoad {
         if (mode != TwsDriver.XMode.INDY)
             session.currentTransaction().commit();
 
-        driver.finish(name);
+        driver.finishOp(name, driver.nRows);
     }
 
     protected void clusterjDelete(int c0) {

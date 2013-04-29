@@ -56,9 +56,9 @@ protected:
     // NDB API operations
     template< bool feat > void initOperationsFeat();
     template< bool > struct ADelAllOp;
-    template< bool > struct B0DelAllOp;
+    template< bool > struct BDelAllOp;
     template< bool, bool > struct AInsOp;
-    template< bool, bool > struct B0InsOp;
+    template< bool, bool > struct BInsOp;
     template< const char**,
               void (CrundNdbapiOperations::*)(NdbTable,int,int,bool),
               bool >
@@ -66,7 +66,7 @@ protected:
     template< const char**,
               void (CrundNdbapiOperations::*)(NdbTable,int,int,bool),
               bool >
-    struct B0ByPKOp;
+    struct BByPKOp;
     template< const char**,
               void (CrundNdbapiOperations::*)(NdbTable,int,int,bool,int),
               bool >

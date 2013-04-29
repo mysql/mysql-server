@@ -22,7 +22,7 @@ import com.mysql.clusterj.annotation.PersistenceCapable;
 /**
  * An Entity test interface for use with ClusterJ.
  */
-@PersistenceCapable(table="a")
+@PersistenceCapable(table="A")
 public interface IA {
     public int getId();
     public void setId(int id);
