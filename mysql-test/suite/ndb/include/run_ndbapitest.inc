@@ -9,9 +9,11 @@ use IO::File;
 my $name = $ENV{NDBAPITEST_NAME} or die "Need NDBAPITEST_NAME";
 my $args = $ENV{NDBAPITEST_ARGS};
 my $max_lines = $ENV{NDBAPITEST_MAXLINES} || 200;
+
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
-my $test_bin = my_find_bin($basedir,
+my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
+my $test_bin = my_find_bin($bindir,
 		           ["storage/ndb/test/ndbapi", "bin"],
                            $name, NOT_REQUIRED);
 

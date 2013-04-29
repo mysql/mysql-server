@@ -33,6 +33,7 @@ kernel_types.h : .*'struct Local_key' only defines private constructors and has 
 lgman.hpp : .*'struct Lgman::Buffer_idx' only defines private constructors and has no friends.*
 SchemaFile.hpp : .*'struct SchemaFile::TableEntry' only defines private constructors and has no friends.*
 sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
+pwdbased.hpp : .*comparison of unsigned expression < 0 is always false.*
 
 tests/mysql_client_fw.c : .* defined but not used.*
 
