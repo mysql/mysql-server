@@ -15,7 +15,7 @@
 
 #------------------------------------------------------------------------------
 
-  SRC		= ./src
+  SRC	= ./src/cpp
 
 .PHONY:	all help dep dbg opt prf clean mostlclean clobber distclean check
 all:	dbg
@@ -33,26 +33,26 @@ help:
 
 dep dbg opt prf clean mostlyclean clobber check:
 	ant $@
-	@cd $(SRC)/crundndb && $(MAKE) $(MFLAGS) $@
+	@cd $(SRC) && $(MAKE) $(MFLAGS) $@
 
 distclean:
 	rm -rf scripts/ndblog
 	rm -f *~
 	ant $@
 	rm -f ./.ant-targets-build.xml
-	@cd $(SRC)/crundndb && $(MAKE) $(MFLAGS) $@
+	@cd $(SRC) && $(MAKE) $(MFLAGS) $@
 
 #------------------------------------------------------------------------------
 
 # read the generic settings
 include	env.properties
 
-run.driver:	$(SRC)/crundndb/NdbapiDriver
-	$(SRC)/crundndb/NdbapiDriver \
+run.ndbapi:	$(SRC)/NdbapiDriver
+	$(SRC)/NdbapiDriver \
 	-p crundRun.properties -p crundNdbapi.properties
 
-run.tws:	$(SRC)/crundndb/tws
-	$(SRC)/crundndb/tws \
+run.tws:	$(SRC)/tws
+	$(SRC)/tws \
 	-p twsRun.properties -p crundNdbapi.properties
 
 #------------------------------------------------------------------------------
