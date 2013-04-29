@@ -1017,8 +1017,6 @@ typedef char		my_bool; /* Small bool */
 #define reg16 register
 #endif
 
-#include <my_dbug.h>
-
 /* Some helper macros */
 #define YESNO(X) ((X) ? "yes" : "no")
 
@@ -1185,6 +1183,8 @@ static inline double rint(double x)
 #define MYSQL_PLUGIN_IMPORT
 #endif
 #endif
+
+#include <my_dbug.h>
 
 /* Defines that are unique to the embedded version of MySQL */
 
