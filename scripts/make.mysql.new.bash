@@ -3,6 +3,12 @@
 set -e
 set -u
 
+function usage() {
+    echo "--mysqlbuild=$mysqlbuild"
+    echo "--mysql=$mysql"
+    return 1
+}
+
 pushd $(dirname $0)
     source ./common.sh
 popd
@@ -15,11 +21,7 @@ makejobs=$(get_ncpus)
 
 git_tag=HEAD
 mysqlbuild=
-mysql=mysql-5.5.30
-do_s3=0
-s3_build_bucket=tokutek-mysql-build
-s3_release_bucket=tokutek-mysql
-do_make_check=0
+mysql=
 cc=gcc47
 cxx=g++47
 build_debug=0

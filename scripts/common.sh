@@ -162,3 +162,17 @@ function parse_mysqlbuild() {
     fi
     test $exitcode = 0
 }
+
+# split mysql into mysql_distro and mysql_version
+function parse_mysql() {
+    local mysql=$1
+    if [[ $mysql =~ ^(mysql|mariadb)-(.*)$ ]] ; then
+        mysql_distro=${BASH_REMATCH[1]}
+        mysql_version=${BASH_REMATCH[2]}
+        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_distro=mysql56; fi
+        exitcode=0
+    else
+        exitcode=1
+    fi
+    test $exitcode = 0
+}
