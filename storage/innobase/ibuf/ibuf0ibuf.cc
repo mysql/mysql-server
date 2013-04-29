@@ -4185,33 +4185,24 @@ ibuf_set_del_mark(
 		row_upd_sec_index_entry(). */
 
 		if (!cur.isDeleted()) {
-			btr_cur_set_deleted_flag_for_ibuf(
-				const_cast<rec_t*>(cur.getRec()),
-				buf_block_get_page_zip(block),
-				TRUE, mtr);
+			cur.flagDeleted(true);
+			btr_cur_del_mark_set_sec_rec_log(
+				cur.getRec(), true, mtr);
 		}
-	} else {
-		const page_t*		page
-			= buf_block_get_frame(block);
-
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: unable to find a record to delete-mark\n",
-		      stderr);
-		fputs("InnoDB: tuple ", stderr);
-		dtuple_print(stderr, entry);
-		fputs("\n"
-		      "InnoDB: record ", stderr);
-		rec_print(stderr, cur.getRec(), index);
-		fprintf(stderr, "\nspace %u offset %u"
-			" (%u records, index id " IB_ID_FMT ")\n"
-			"InnoDB: Submit a detailed bug report"
-			" to http://bugs.mysql.com\n",
-			(unsigned) buf_block_get_space(block),
-			(unsigned) buf_block_get_page_no(block),
-			(unsigned) page_get_n_recs(page),
-			page_get_index_id(page));
-		ut_ad(0);
+		return;
 	}
+
+	const page_t*	page	= buf_block_get_frame(block);
+
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"unable to delete-mark a record"
+		" in page %u:%u index " IB_ID_FMT,
+		block->page.space, block->page.offset,
+		page_get_index_id(page));
+	dtuple_print(stderr, entry);
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"Submit a detailed bug report to http://bugs.mysql.com");
+	ut_ad(0);
 }
 
 /****************************************************************//**
@@ -4250,7 +4241,6 @@ ibuf_delete(
 			block->page.space, block->page.offset,
 			page_get_index_id(page));
 		dtuple_print(stderr, entry);
-		rec_print_new(stderr, cur.getRec(), cur.getOffsets());
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Submit a detailed bug report"
 			" to http://bugs.mysql.com");

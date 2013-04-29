@@ -403,6 +403,16 @@ btr_cur_del_mark_set_clust_rec(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull, warn_unused_result));
+/** Writes a redo log record for delete-marking a secondary index record.
+@param[in]	rec	user record
+@param[in]	val	delete-mark flag value
+@param[in/out]	mtr	mini-transaction */
+UNIV_INTERN
+void
+btr_cur_del_mark_set_sec_rec_log(
+	const rec_t*	rec,
+	bool		val,
+	mtr_t*		mtr);
 /***********************************************************//**
 Sets a secondary index record delete mark to TRUE or FALSE.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */

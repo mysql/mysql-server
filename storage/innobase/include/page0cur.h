@@ -499,6 +499,25 @@ public:
 		return(m_offsets != 0);
 	}
 
+	/** Set the delete-mark flag on the current record.
+	NOTE: This is not redo-logged. The caller must take care of
+	writing a redo log record.
+	@param[in]	deleted	true=deleted, false=not deleted */
+	void flagDeleted(bool deleted) {
+		ut_ad(isUser());
+		page_zip_des_t*	page_zip	= buf_block_get_page_zip(
+			const_cast<buf_block_t*>(m_block));
+
+		if (getOffsets()) {
+			rec_set_deleted_flag_new(
+				const_cast<rec_t*>(m_rec), page_zip, deleted);
+		} else {
+			ut_ad(!page_zip);
+			rec_set_deleted_flag_old(
+				const_cast<rec_t*>(m_rec), deleted);
+		}
+	}
+
 	/** Determine if the cursor is pointing to a delete-marked record. */
 	bool isDeleted() const {
 		ut_ad(isUser());
