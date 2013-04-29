@@ -13,7 +13,6 @@ system=$(uname -s | tr '[:upper:]' '[:lower:]')
 arch=$(uname -m | tr '[:upper:]' '[:lower:]')
 makejobs=$(get_ncpus)
 
-github_use_ssh=0
 git_tag=HEAD
 mysqlbuild=
 mysql=mysql-5.5.30
@@ -110,9 +109,9 @@ if [ ! -d storage/tokudb/ft-index/third_party/jemalloc ] ; then
 fi
 
 # append tokudb-specific version
-if grep -qv tokudb VERSION ; then
+if [ $(fgrep tokudb VERSION | wc -l) = 0 ] ; then
     # append the tokudb version to the MYSQL_VERSION_EXTRA variable in the VERSION file
-    sed -i "" -e"s/^MYSQL_VERSION_EXTRA=.*/&-tokudb-${tokudb_version}/" VERSION
+    sed --in-place="" -e "s/^MYSQL_VERSION_EXTRA=.*/&-tokudb-${tokudb_version}/" VERSION
 fi
 
 # prints a cmake command to eval
@@ -159,10 +158,10 @@ function generate_cmake_cmd () {
         linux_distro=linux
         if [ -f /etc/issue ] ; then
             if [[ "$(head -1 /etc/issue)" =~ "Red Hat Enterprise Linux Server release ([56])" ]] ; then
-                linux_distro=rhel${BASH_REMATCH[1])
+                linux_distro=rhel${BASH_REMATCH[1]}
             fi
             if [[ "$(head -1 /etc/issue)" =~ "CentOS release ([56])" ]] ; then
-                linux_distro=centos${BASH_REMATCH[1])
+                linux_distro=centos${BASH_REMATCH[1]}
             fi
         fi
         echo -n " " -D RPM=$linux_distro

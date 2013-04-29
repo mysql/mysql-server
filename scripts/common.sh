@@ -1,3 +1,27 @@
+function retry() {
+    set +e
+    local cmd
+    local retries
+    local exitcode
+    cmd=$*
+    let retries=0
+    while [ $retries -le 10 ] ; do
+        echo `date` $cmd
+        bash -c "$cmd"
+        exitcode=$?
+        echo `date` $cmd $exitcode $retries
+        let retries=retries+1
+        if [ $exitcode -eq 0 ] ; then break; fi
+        sleep 10
+    done
+    set -e
+    test $exitcode = 0
+}
+
+github_use_ssh=0
+github_token=
+github_user=
+
 function github_download() {
     repo=$1; shift
     rev=$1; shift
@@ -61,6 +85,19 @@ function github_download() {
         if [ $? != 0 ] ; then return; fi
         rm -f $dest.tar.gz
     fi
+}
+
+# returns b if b is defined else returns a
+function git_tree() {
+    set +u
+    local a=$1; shift
+    local b=$1; shift
+    if [ ! -z $b ] ; then
+        echo $b
+    else
+        echo $a;
+    fi
+    set -u
 }
 
 # compute the number of cpus in this system.  used to parallelize the build.
