@@ -4045,97 +4045,6 @@ page_zip_write_trx_id_and_roll_ptr(
 }
 
 /**********************************************************************//**
-Clear an area on the uncompressed and compressed page.
-Do not clear the data payload, as that would grow the modification log. */
-static
-void
-page_zip_clear_rec(
-/*===============*/
-	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
-	byte*		rec,		/*!< in: record to clear */
-	const dict_index_t*	index,	/*!< in: index of rec */
-	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
-{
-	ulint	heap_no;
-	page_t*	page	= page_align(rec);
-	byte*	storage;
-	byte*	field;
-	ulint	len;
-	/* page_zip_validate() would fail here if a record
-	containing externally stored columns is being deleted. */
-	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_ad(!page_zip_dir_find(page_zip, page_offset(rec)));
-	ut_ad(page_zip_dir_find_free(page_zip, page_offset(rec)));
-	ut_ad(page_zip_header_cmp(page_zip, page));
-
-	heap_no = rec_get_heap_no_new(rec);
-	ut_ad(heap_no >= PAGE_HEAP_NO_USER_LOW);
-
-	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
-	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
-	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
-			   rec_offs_extra_size(offsets));
-
-	if (!page_is_leaf(page)) {
-		/* Clear node_ptr. On the compressed page,
-		there is an array of node_ptr immediately before the
-		dense page directory, at the very end of the page. */
-		storage	= page_zip_dir_start(page_zip);
-		ut_ad(dict_index_get_n_unique_in_tree(index) ==
-		      rec_offs_n_fields(offsets) - 1);
-		field	= rec_get_nth_field(rec, offsets,
-					    rec_offs_n_fields(offsets) - 1,
-					    &len);
-		ut_ad(len == REC_NODE_PTR_SIZE);
-
-		ut_ad(!rec_offs_any_extern(offsets));
-		memset(field, 0, REC_NODE_PTR_SIZE);
-		memset(storage - (heap_no - 1) * REC_NODE_PTR_SIZE,
-		       0, REC_NODE_PTR_SIZE);
-	} else if (dict_index_is_clust(index)) {
-		/* Clear trx_id and roll_ptr. On the compressed page,
-		there is an array of these fields immediately before the
-		dense page directory, at the very end of the page. */
-		const ulint	trx_id_pos
-			= dict_col_get_clust_pos(
-			dict_table_get_sys_col(
-				index->table, DATA_TRX_ID), index);
-		storage	= page_zip_dir_start(page_zip);
-		field	= rec_get_nth_field(rec, offsets, trx_id_pos, &len);
-		ut_ad(len == DATA_TRX_ID_LEN);
-
-		memset(field, 0, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-		memset(storage - (heap_no - 1)
-		       * (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
-		       0, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-
-		if (rec_offs_any_extern(offsets)) {
-			ulint	i;
-
-			for (i = rec_offs_n_fields(offsets); i--; ) {
-				/* Clear all BLOB pointers in order to make
-				page_zip_validate() pass. */
-				if (rec_offs_nth_extern(offsets, i)) {
-					field = rec_get_nth_field(
-						rec, offsets, i, &len);
-					ut_ad(len
-					      == BTR_EXTERN_FIELD_REF_SIZE);
-					memset(field + len
-					       - BTR_EXTERN_FIELD_REF_SIZE,
-					       0, BTR_EXTERN_FIELD_REF_SIZE);
-				}
-			}
-		}
-	} else {
-		ut_ad(!rec_offs_any_extern(offsets));
-	}
-
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
-}
-
-/**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
 UNIV_INTERN
@@ -4351,10 +4260,8 @@ page_zip_dir_delete(
 
 skip_blobs:
 	/* The compression algorithm expects info_bits and n_owned
-	to be 0 for deleted records. */
+	to be 0 for freed records. */
 	rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
-
-	page_zip_clear_rec(page_zip, rec, index, offsets);
 }
 
 /**********************************************************************//**
