@@ -800,6 +800,8 @@ trx_assign_rseg_low(
 					tablespaces */
 	trx_rseg_type_t	rseg_type)	/*!< in: type of rseg to assign. */
 {
+	ut_ad(mutex_own(&trx_sys->mutex));
+
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
@@ -852,16 +854,16 @@ trx_assign_rseg(
 	ut_a(trx->rsegs.m_noredo.rseg == 0);
 	ut_a(!trx_is_autocommit_non_locking(trx));
 
+	mutex_enter(&trx_sys->mutex);
+
 	trx->rsegs.m_noredo.rseg = trx_assign_rseg_low(
 		srv_undo_logs, srv_undo_tablespaces, TRX_RSEG_TYPE_NOREDO);
 
 	if (trx->id == 0) {
-		mutex_enter(&trx_sys->mutex);
-
 		trx->id = trx_sys_get_new_trx_id();
-
-		mutex_exit(&trx_sys->mutex);
 	}
+
+	mutex_exit(&trx_sys->mutex);
 }
 
 /****************************************************************//**
@@ -929,14 +931,14 @@ trx_start_low(
 	if (!trx->read_only
 	    && (trx->mysql_thd == 0 || read_write || trx->ddl)) {
 
+		mutex_enter(&trx_sys->mutex);
+
 		trx->rsegs.m_redo.rseg = trx_assign_rseg_low(
 			srv_undo_logs, srv_undo_tablespaces,
 			TRX_RSEG_TYPE_REDO);
 
 		/* Temporary rseg is assigned only if the transaction
 		updates a temporary table */
-
-		mutex_enter(&trx_sys->mutex);
 
 		trx->id = trx_sys_get_new_trx_id();
 
