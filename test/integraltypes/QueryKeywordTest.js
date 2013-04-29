@@ -25,8 +25,10 @@
 
 var udebug = unified_debug.getLogger("QueryKeywordTest.js");
 var IntegraltypesKeywordId = function(id) {
-  // name the id field 'where'
-  this.where = id;
+  if(id !== undefined) {
+    // name the id field 'where'
+    this.where = id;
+  }
   this.getId = function() {
     return this.where;
   };
