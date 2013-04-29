@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Date;
 import java.text.SimpleDateFormat;
+import java.text.DecimalFormat;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -60,6 +61,7 @@ public abstract class Driver {
     protected final Properties props = new Properties();
     protected boolean logRealTime;
     protected boolean logMemUsage;
+    protected boolean logSumOfOps;
     protected boolean includeFullGC;
     protected int nRuns;
 
@@ -264,6 +266,7 @@ public abstract class Driver {
 
         logRealTime = parseBoolean("logRealTime", true);
         logMemUsage = parseBoolean("logMemUsage", false);
+        logSumOfOps = parseBoolean("logSumOfOps", true);
         includeFullGC = parseBoolean("includeFullGC", false);
 
         nRuns = parseInt("nRuns", 1);
@@ -286,6 +289,7 @@ public abstract class Driver {
         out.println("driver settings ...");
         out.println("logRealTime:                    " + logRealTime);
         out.println("logMemUsage:                    " + logMemUsage);
+        out.println("logSumOfOps:                    " + logSumOfOps);
         out.println("includeFullGC:                  " + includeFullGC);
         out.println("nRuns:                          " + nRuns);
     }
@@ -356,7 +360,52 @@ public abstract class Driver {
         }
     }
 
-    protected void begin(String name) {
+    protected void beginOpSeq(int nOps) {
+        if (logRealTime) {
+            rtimes.append(nOps);
+            ta = 0;
+        }
+        if (logMemUsage) {
+            musage.append(nOps);
+            ma = 0;
+        }
+    }
+
+    protected void finishOpSeq(int nOps) {
+        if (logSumOfOps) {
+            out.println();
+            out.println("total");
+            if (logRealTime) {
+                out.println("tx real time                    "
+                            + String.format("%,9d", ta) + " ms ");
+            }
+            if (logMemUsage) {
+                out.println("net mem usage                   "
+                            + String.format("%,9d", ma) + " KiB");
+            }
+        }
+
+        if (logHeader) {
+            if (logSumOfOps) {
+                header.append("\ttotal");
+            }
+            logHeader = false;
+        }
+        if (logRealTime) {
+            if (logSumOfOps) {
+                rtimes.append("\t" + ta);
+            }
+            rtimes.append(endl);
+        }
+        if (logMemUsage) {
+            if (logSumOfOps) {
+                musage.append("\t" + ma);
+            }
+            musage.append(endl);
+        }
+    }
+
+    protected void beginOp(String name) {
         out.println();
         out.println(name);
 
@@ -373,7 +422,7 @@ public abstract class Driver {
         }
     }
 
-    protected void finish(String name) {
+    protected void finishOp(String name, int nOps) {
         // attempt one full GC, before timing tx end
         if (includeFullGC) {
             rt.gc();
@@ -383,8 +432,11 @@ public abstract class Driver {
             //t1 = System.currentTimeMillis();
             t1 = System.nanoTime() / 1000000;
             final long t = t1 - t0;
-            out.println("tx real time                    " + t
-                        + "\tms");
+            final long ops = (t > 0 ? (nOps * 1000) / t : 0);
+            final String df = "%,9d";
+            out.println("tx real time                    "
+                        + String.format(df, t) + " ms "
+                        + String.format(df, ops) + " ops/s");
             //rtimes.append("\t" + (Math.round(t / 100.0) / 10.0));
             rtimes.append("\t" + t);
             ta += t;
@@ -398,8 +450,8 @@ public abstract class Driver {
             final long m1K = (m1 / 1024);
             final long mK = m1K - m0K;
             out.println("net mem usage                   "
-                        + (mK >= 0 ? "+" : "") + mK
-                        + "\tKiB [" + m0K + "K->" + m1K + "K]");
+                        + String.format("%,9d", mK) + " KiB "
+                        + String.format("%14s", "["+ m0K + "->" + m1K + "]"));
             musage.append("\t" + mK);
             ma += mK;
         }

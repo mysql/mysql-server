@@ -291,7 +291,7 @@ class JdbcTwsLoad extends TwsLoad {
 
     protected void runJdbcInsert(TwsDriver.XMode mode) throws SQLException {
         final String name = "insert_" + mode.toString().toLowerCase();
-        driver.begin(name);
+        driver.beginOp(name);
 
         connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
         for(int i = 0; i < driver.nRows; i++) {
@@ -302,7 +302,7 @@ class JdbcTwsLoad extends TwsLoad {
         if (mode != TwsDriver.XMode.INDY)
             connection.commit();
 
-        driver.finish(name);
+        driver.finishOp(name, driver.nRows);
     }
 
     protected void jdbcInsert(int c0, TwsDriver.XMode mode) {
@@ -335,7 +335,7 @@ class JdbcTwsLoad extends TwsLoad {
         assert(mode != TwsDriver.XMode.BULK);
 
         final String name = "lookup_" + mode.toString().toLowerCase();
-        driver.begin(name);
+        driver.beginOp(name);
 
         connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
         for(int i = 0; i < driver.nRows; i++) {
@@ -344,7 +344,7 @@ class JdbcTwsLoad extends TwsLoad {
         if (mode != TwsDriver.XMode.INDY)
             connection.commit();
 
-        driver.finish(name);
+        driver.finishOp(name, driver.nRows);
     }
 
     protected void jdbcLookup(int c0) {
@@ -383,7 +383,7 @@ class JdbcTwsLoad extends TwsLoad {
 
     protected void runJdbcUpdate(TwsDriver.XMode mode) throws SQLException {
         final String name = "update_" + mode.toString().toLowerCase();
-        driver.begin(name);
+        driver.beginOp(name);
 
         connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
         for(int i = 0; i < driver.nRows; i++) {
@@ -394,7 +394,7 @@ class JdbcTwsLoad extends TwsLoad {
         if (mode != TwsDriver.XMode.INDY)
             connection.commit();
 
-        driver.finish(name);
+        driver.finishOp(name, driver.nRows);
     }
 
     protected void jdbcUpdate(int c0, TwsDriver.XMode mode) {
@@ -427,7 +427,7 @@ class JdbcTwsLoad extends TwsLoad {
 
     protected void runJdbcDelete(TwsDriver.XMode mode) throws SQLException {
         final String name = "delete_" + mode.toString().toLowerCase();
-        driver.begin(name);
+        driver.beginOp(name);
 
         connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
         for(int i = 0; i < driver.nRows; i++) {
@@ -438,7 +438,7 @@ class JdbcTwsLoad extends TwsLoad {
         if (mode != TwsDriver.XMode.INDY)
             connection.commit();
 
-        driver.finish(name);
+        driver.finishOp(name, driver.nRows);
     }
 
     protected void jdbcDelete(int c0, TwsDriver.XMode mode) {

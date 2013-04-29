@@ -26,8 +26,8 @@ import java.io.IOException;
  * An Entity test class.
  */
 @javax.persistence.Entity
-@javax.persistence.Table(name="b0")
-public class B0 implements Serializable {
+@javax.persistence.Table(name="b")
+public class B implements Serializable {
     // @javax.persistence.Basic  default for primitive types, wrappers, String
     //   Defaults:
     //   fetch=EAGER
@@ -54,11 +54,8 @@ public class B0 implements Serializable {
     private int id;
 
     private int cint;
-
     private long clong;
-
     private float cfloat;
-
     private double cdouble;
 
     @javax.persistence.Basic(fetch=javax.persistence.FetchType.LAZY)
@@ -69,16 +66,15 @@ public class B0 implements Serializable {
 
     @javax.persistence.ManyToOne(fetch=javax.persistence.FetchType.LAZY)
     @javax.persistence.Column(name="a_id")
-    @org.apache.openjpa.persistence.jdbc.Index(name="I_B0_FK")
+    @org.apache.openjpa.persistence.jdbc.Index(name="I_B_FK")
     private A a;
 
-    public B0() {
+    public B() {
     }
 
     public int getId() {
         return id;
     }
-
     public void setId(int id) {
         this.id = id;
     }
@@ -86,7 +82,6 @@ public class B0 implements Serializable {
     public int getCint() {
         return cint;
     }
-
     public void setCint(int cint) {
         this.cint = cint;
     }
@@ -94,7 +89,6 @@ public class B0 implements Serializable {
     public long getClong() {
         return clong;
     }
-
     public void setClong(long clong) {
         this.clong = clong;
     }
@@ -102,7 +96,6 @@ public class B0 implements Serializable {
     public float getCfloat() {
         return cfloat;
     }
-
     public void setCfloat(float cfloat) {
         this.cfloat = cfloat;
     }
@@ -110,7 +103,6 @@ public class B0 implements Serializable {
     public double getCdouble() {
         return cdouble;
     }
-
     public void setCdouble(double cdouble) {
         this.cdouble = cdouble;
     }
@@ -118,7 +110,6 @@ public class B0 implements Serializable {
     public byte[] getCvarbinary_def() {
         return cvarbinary_def;
     }
-
     public void setCvarbinary_def(byte[] cvarbinary_def) {
         this.cvarbinary_def = cvarbinary_def;
     }
@@ -126,7 +117,6 @@ public class B0 implements Serializable {
     public String getCvarchar_def() {
         return cvarchar_def;
     }
-
     public void setCvarchar_def(String cvarchar_def) {
         this.cvarchar_def = cvarchar_def;
     }
@@ -134,7 +124,6 @@ public class B0 implements Serializable {
     public A getA() {
         return a;
     }
-
     public void setA(A a) {
         this.a = a;
     }
@@ -151,25 +140,4 @@ public class B0 implements Serializable {
     private void writeObject(ObjectOutputStream out) throws IOException {
         out.defaultWriteObject();
     }
-
-/*
-    static public class Oid implements Serializable {
-
-        public int id;
-
-        public Oid() {
-        }
-
-        public boolean equals(Object obj) {
-            if (obj == null || !this.getClass().equals(obj.getClass()))
-                return false;
-            Oid o = (Oid)obj;
-            return (this.id == o.id);
-        }
-
-        public int hashCode() {
-            return id;
-        }
-    }
-*/
 }
