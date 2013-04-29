@@ -821,9 +821,18 @@ page_create_empty(
 	dict_index_t*	index,	/*!< in: the index of the page */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull(1,2)));
-/*************************************************************//**
-Differs from page_copy_rec_list_end, because this function does not
+/** Copies records from block to new_block, from rec onwards, including rec.
+The infimum and supremum records are not copied. The records are
+copied to the start of the record list on new_page.
+
+Differs from page_copy_rec_list_end(), because this function does not
 touch the lock table and max trx id on page or compress the page.
+
+@param[in/out]	new_block	index page to copy to
+@param[in]	block		index page of rec
+@param[in]	rec		first record to copy
+@param[in]	index		B-tree index
+@param[in/out]	mtr		mini-transaction
 
 IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if new_block is a compressed leaf page in a secondary index.
@@ -832,12 +841,11 @@ or by invoking ibuf_reset_free_bits() before mtr_commit(). */
 UNIV_INTERN
 void
 page_copy_rec_list_end_no_locks(
-/*============================*/
-	buf_block_t*	new_block,	/*!< in: index page to copy to */
-	buf_block_t*	block,		/*!< in: index page of rec */
-	rec_t*		rec,		/*!< in: record on page */
-	dict_index_t*	index,		/*!< in: record descriptor */
-	mtr_t*		mtr);		/*!< in: mtr */
+	buf_block_t*		new_block,
+	const buf_block_t*	block,
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	mtr_t*			mtr);
 /*************************************************************//**
 Copies records from page to new_page, from the given record onward,
 including that record. Infimum and supremum records are not copied.
