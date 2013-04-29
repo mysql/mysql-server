@@ -7032,6 +7032,9 @@ ER_WARN_PURGE_LOG_IS_ACTIVE
 ER_AUTO_INCREMENT_CONFLICT
   eng "Auto-increment value in UPDATE conflicts with internally generated values"
 
+WARN_ON_BLOCKHOLE_IN_RBR
+  eng "Row events are not logged for %s statements that modify BLACKHOLE tables in row format. Table(s): '%-.192s'"
+
 #
 #  End of 5.7 error messages.
 #
