@@ -23,8 +23,8 @@ import com.mysql.clusterj.annotation.PersistenceCapable;
 /**
  * An Entity test interface for ClusterJ.
  */
-@PersistenceCapable(table="b0")
-public interface IB0 {
+@PersistenceCapable(table="B")
+public interface IB {
 
     public int getId();
     public void setId(int id);
@@ -45,9 +45,9 @@ public interface IB0 {
    // XXX NPE despite allowsNull="true" annotation, must set to non-null
    o.setCvarbinary_def(new byte[0]);
 
-     [java] SEVERE: Error executing getInsertOperation on table b0.
-     [java] caught com.mysql.clusterj.ClusterJException: Error executing getInsertOperation on table b0. Caused by java.lang.NullPointerException:null
-     [java] com.mysql.clusterj.ClusterJException: Error executing getInsertOperation on table b0. Caused by java.lang.NullPointerException:null
+     [java] SEVERE: Error executing getInsertOperation on table b.
+     [java] caught com.mysql.clusterj.ClusterJException: Error executing getInsertOperation on table b. Caused by java.lang.NullPointerException:null
+     [java] com.mysql.clusterj.ClusterJException: Error executing getInsertOperation on table b. Caused by java.lang.NullPointerException:null
      [java] at com.mysql.clusterj.core.SessionImpl.insert(SessionImpl.java:283)
 */
     // XXX @javax.persistence.Basic(fetch=javax.persistence.FetchType.LAZY)

@@ -121,7 +121,6 @@
   <!-- local directory settings for this build -->
   <!--<property environment="env"/>-->
   <property name="src.java" value="src"/>
-  <property name="src.crundndb" value="src/crundndb"/>
   <property name="build" value="build"/>
   <property name="lib" value="lib"/>
   <property name="doc" value="javadoc"/>
@@ -170,14 +169,12 @@
     <echo message="  run"/>
     <echo message=""/>
     <echo message="benchmark compile targets:"/>
-    <echo message="  compile.ndbapi"/>
     <echo message="  compile.ndbjtie"/>
     <echo message="  compile.clusterj"/>
     <echo message="  compile.jdbc"/>
     <echo message="  compile.jpa"/>
     <echo message=""/>
     <echo message="benchmark execution targets:"/>
-    <echo message="  run.ndbapi"/>
     <echo message="  run.ndbjtie"/>
     <echo message="  run.clusterj"/>
     <echo message="  run.clusterjdbc"/>
@@ -195,9 +192,7 @@
   </target>
 
   <!-- targets as called by make -->
-  <!-- for dependencies, javah-generate the .h file(s) and clean afterwards
-       the build directory in case we've compiled with the wrong flags -->
-  <target name="dep" depends="javah,clean"/>
+  <target name="dep" depends="clean"/>
   <target name="dbg" depends="build"/>
   <target name="opt" depends="build.opt"/>
   <target name="prf" depends="build"/>
@@ -206,9 +201,6 @@
   <target name="clean">
     <delete dir="${build}"/>
     <delete dir="${doc}"/>
-    <!-- this file is deleted by the local Makefile; otherwise, "javah"
-	 followed by "clean" will have no effect
-    <delete file="${src.crundndb}/com_mysql_cluster_crund_NdbapiLoad.h"/> -->
   </target>
 
   <!-- deletes also log files -->
@@ -235,16 +227,13 @@
     </javac>
   </target>
 
-  <!-- generates all JNI headers -->
-  <target name="javah" depends="com_mysql_cluster_crund_NdbapiLoad.h"/>
-
   <!-- forces to compile all code,
        fails if any module cannot be build due to unset properties -->
-  <target name="compile.all" depends="set.compile.all,javac,javah"/>
+  <target name="compile.all" depends="set.compile.all,javac"/>
 
   <!-- attempts to compile all code,
        skips modules that cannot be build due to unset properties -->
-  <target name="compile" depends="compile.driver,compile.ndbapi,compile.ndbjtie,compile.clusterj,compile.jdbc,compile.jpa,javah"/>
+  <target name="compile" depends="compile.driver,compile.ndbjtie,compile.clusterj,compile.jdbc,compile.jpa"/>
   <target name="compile.opt" depends="set.compile.opt,compile"/>
 
   <!-- sets to compile for debugging -->
@@ -322,95 +311,6 @@
   <target name="compile.driver.opt" depends="set.compile.opt,compile.driver"/>
 
   <!-- #################################################################
-       # NDBAPI
-       ################################################################# -->
-
-  <!-- sets the paths for compiling against NDBAPI -->
-  <target name="set.compile.ndbapi" depends="set.compile.base">
-    <path id="classpath.ndbapi.compile">
-      <path refid="classpath.base.compile"/>
-    </path>
-    <property name="compile.ndbapi.set" value="true"/>
-  </target>
-  <target name="check.compile.ndbapi" depends="set.compile.ndbapi"
-	  unless="compile.ndbapi.set">
-    <echo message="will skip target compile.ndbapi due to missing prerequisites"/>
-  </target>
-
-  <!-- compiles the benchmark against NDBAPI -->
-  <target name="compile.ndbapi" depends="set.compile,check.compile.ndbapi"
-	  if="compile.ndbapi.set">
-    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
-	   classpathref="classpath.ndbapi.compile"
-	   includes="com/mysql/cluster/crund/NdbapiLoad.java"/>
-  </target>
-  <target name="compile.ndbapi.opt" depends="set.compile.opt,compile.ndbapi"/>
-
-  <!-- checks the path to the NDBAPI dynamic library -->
-  <target name="check.NDB_LIBDIR" unless="NDB_LIBDIR">
-    <echo message="property not set: NDB_LIBDIR"/>
-  </target>
-  <target name="set.ndb.libdir" depends="check.NDB_LIBDIR"
-	  if="NDB_LIBDIR">
-    <available property="ndb.libdir" file="${NDB_LIBDIR}"
-	       value="${NDB_LIBDIR}"/>
-  </target>
-  <target name="check.ndb.libdir" depends="set.ndb.libdir"
-	  unless="ndb.libdir">
-    <echo message="file not found: ${NDB_LIBDIR}"/>
-  </target>
-
-  <!-- sets the paths for running on NDBAPI -->
-  <target name="set.run.ndbapi"
-	  depends="check.ndb.libdir,check.compile.ndbapi">
-    <path id="classpath.ndbapi.run">
-      <path refid="classpath.ndbapi.compile"/>
-    </path>
-    <condition property="run.ndbapi.set">
-      <and>
-	<isset property="ndb.libdir"/>
-	<isset property="compile.ndbapi.set"/>
-      </and>
-    </condition>
-  </target>
-  <target name="check.run.ndbapi" depends="set.run.ndbapi"
-	  unless="run.ndbapi.set">
-    <echo message="will skip target run.ndbapi due to missing prerequisites"/>
-  </target>
-
-  <!-- generates the JNI header -->
-  <target name="com_mysql_cluster_crund_NdbapiLoad.h"
-	  depends="compile.ndbapi">
-    <exec executable="javah" dir="." failonerror="yes">
-      <!--<arg line="-verbose"/>-->
-      <arg line="-classpath"/>
-      <arg path="${build}"/>
-      <arg line="-d ${src.crundndb}"/>
-      <arg line="-jni"/>
-      <arg line="com.mysql.cluster.crund.NdbapiLoad"/>
-    </exec>
-  </target>
-
-  <!-- runs the benchmark on NDBAPI -->
-  <target name="run.ndbapi" depends="set.run,check.run.ndbapi"
-	  if="run.ndbapi.set">
-    <echo message="using:"/>
-    <echo message="  ndb.libdir: ${ndb.libdir}:./src/crundndb"/>
-    <echo message="  classpath.ndbapi.run: ${toString:classpath.ndbapi.run}"/>
-    <echo message=""/>
-
-    <java classname="com.mysql.cluster.crund.NdbapiLoad"
-     fork="true" failonerror="true" classpathref="classpath.ndbapi.run">
-      <jvmarg line="${jvmflags}"/>
-      <!-- path to NDB client lib, native benchmark backend -->
-      <jvmarg line="-Djava.library.path='${ndb.libdir}:./src/crundndb'"/>
-      <arg line="-p crundRun.properties"/>
-      <arg line="-p crundNdbapi.properties"/>
-    </java>
-  </target>
-  <target name="run.ndbapi.opt" depends="set.run.opt,run.ndbapi"/>
-
-  <!-- #################################################################
        # NDBJTIE
        ################################################################# -->
 
@@ -449,13 +349,27 @@
 	  if="compile.ndbjtie.set">
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
 	   classpathref="classpath.ndbjtie.compile"
-	   includes="com/mysql/cluster/crund/NdbJTieLoad.java">
+	   includes="com/mysql/cluster/crund/NdbjtieLoad.java">
       <include name="com/mysql/cluster/crund/NdbjtieTwsLoad.java"/>
       <compilerarg value="-Xlint"/>
     </javac>
   </target>
   <target name="compile.ndbjtie.opt"
 	  depends="set.compile.opt,compile.ndbjtie"/>
+
+  <!-- checks the path to the NDBAPI dynamic library -->
+  <target name="check.NDB_LIBDIR" unless="NDB_LIBDIR">
+    <echo message="property not set: NDB_LIBDIR"/>
+  </target>
+  <target name="set.ndb.libdir" depends="check.NDB_LIBDIR"
+	  if="NDB_LIBDIR">
+    <available property="ndb.libdir" file="${NDB_LIBDIR}"
+	       value="${NDB_LIBDIR}"/>
+  </target>
+  <target name="check.ndb.libdir" depends="set.ndb.libdir"
+	  unless="ndb.libdir">
+    <echo message="file not found: ${NDB_LIBDIR}"/>
+  </target>
 
   <!-- sets the paths for running on NDBJTIE -->
   <target name="set.run.ndbjtie"
@@ -483,7 +397,7 @@
     <echo message="  classpath.ndbjtie.run: ${toString:classpath.ndbjtie.run}"/>
     <echo message=""/>
 
-    <java classname="com.mysql.cluster.crund.NdbJTieLoad"
+    <java classname="com.mysql.cluster.crund.NdbjtieLoad"
      fork="true" failonerror="true" classpathref="classpath.ndbjtie.run">
       <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndb.libdir}'"/>
@@ -834,7 +748,7 @@
   <target name="run.clusterjdbc" depends="set.run,check.run.clusterjdbc"
 	  if="run.clusterjdbc.set">
     <echo message="using:"/>
-    <echo message="  ndb.libdir: ${ndb.libdir}:./src/crundndb"/>
+    <echo message="  ndb.libdir: ${ndb.libdir}"/>
     <echo message="  classpath.clusterjdbc.run: ${toString:classpath.clusterjdbc.run}"/>
     <echo message=""/>
 
@@ -1198,7 +1112,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
 	  depends="set.run,check.run.openjpa.clusterj"
 	  if="run.openjpa.clusterj.set">
     <echo message="using:"/>
-    <echo message="  ndb.libdir: ${ndb.libdir}:./src/crundndb"/>
+    <echo message="  ndb.libdir: ${ndb.libdir}"/>
     <echo message="  javaagent.openjpa: ${javaagent.openjpa}"/>
     <echo message="  classpath.openjpa.clusterj.run: ${toString:classpath.openjpa.clusterj.run}"/>
     <echo message=""/>

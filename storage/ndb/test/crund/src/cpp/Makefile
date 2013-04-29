@@ -10,11 +10,9 @@ include	../../env.properties
 
   DDEFINES 	=
 
-  DELIVERABLES	= libcrundndb.a libcrundndb.$(DLL_SUFFIX) NdbapiDriver tws
+  DELIVERABLES	= NdbapiDriver tws
 
-  GENERATED_H	= com_mysql_cluster_crund_NdbapiLoad.h
-
-  CLEAN		= core *.o $(GENERATED_H)
+  CLEAN		= core *.o
 
   MOSTLYCLEAN	= $(DELIVERABLES) *.dSYM *% log_*
 
@@ -38,63 +36,25 @@ include	../../env.properties
 
 #------------------------------------------------------------------------------
 
-.PHONY:	all depend dep run.driver grind.driver run.tws grind.tws
+.PHONY:	all depend dep run.ndbapi grind.ndbapi run.tws grind.tws
 
 all:	$(DELIVERABLES)
 
-dep depend:	$(GENERATED_H)
+dep depend:
 
-com_mysql_cluster_crund_NdbapiLoad.h:
-	cd ../.. && ant dep
-
-#com_mysql_cluster_NdbapiLoad.h:	$(API_PKG_PATH)/NdbapiLoad.class
-#	$(COMPILE.javah) com.mysql.cluster.NdbapiLoad
-#
-#$(API_PKG_PATH)/NdbapiLoad.class:	\
-#		$(API_PKG_PATH)/NdbapiLoad.java
-#	$(COMPILE.java) $<
-
-# not sure if needed:
-#	LD_LIBRARY_PATH=$(NDB_LIBDIR):./Driver
-run.driver:	NdbapiDriver
+run.ndbapi:	NdbapiDriver
 	./NdbapiDriver \
 	-p ../../crundRun.properties -p ../../crundNdbapi.properties
 
 # for JVM processes, try running valgrind with
 # --smc-check=all --trace-children=yes --leak-check=full --show-reachable=yes
-# not sure if needed:
-#	LD_LIBRARY_PATH=$(NDB_LIBDIR):./Driver
-grind.driver:	NdbapiDriver
+grind.ndbapi:	NdbapiDriver
 	valgrind \
 	--leak-check=full --show-reachable=yes --trace-children=yes \
 	./NdbapiDriver \
 	-p ../../crundRun.properties -p ../../crundNdbapi.properties
 
-NdbapiDriver:	Driver.o CrundDriver.o libcrundndb.a
-
-# can list multiple archive members: lib.a(a.o b.o ...) lib.a(c.o)...
-libcrundndb.a:	libcrundndb.a(CrundNdbapiOperations.o)	\
-		libcrundndb.a(com_mysql_cluster_crund_NdbapiLoad.o)
-
-# XXX cleanup & refactorize this rule!
-# LINK.o
-#libcrundndb.so:	CrundNdbapiOperations.o com_mysql_cluster_crund_NdbapiLoad.o
-#libcrundndb.so:	libcrundndb.a
-libcrundndb.so:	CrundNdbapiOperations.cpp
-	$(LINK.cpp) \
-	-fPIC -shared \
-	-L$(NDB_LIBDIR) \
-	-lndbclient \
-	-o libcrundndb.so \
-	CrundNdbapiOperations.cpp com_mysql_cluster_crund_NdbapiLoad.cpp
-
-libcrundndb.dylib:	CrundNdbapiOperations.cpp
-	$(LINK.cpp) \
-	-fPIC -shared -dynamiclib \
-	-L$(NDB_LIBDIR) \
-	-lndbclient \
-	-o libcrundndb.dylib \
-	CrundNdbapiOperations.cpp com_mysql_cluster_crund_NdbapiLoad.cpp
+NdbapiDriver:	Driver.o CrundDriver.o CrundNdbapiOperations.o
 
 run.tws:	tws
 	./tws \
@@ -109,7 +69,6 @@ grind.tws:	tws
 	-p ../../twsRun.properties -p ../../crundNdbapi.properties
 
 tws:	Driver.o TwsDriver.o NdbapiTwsDriver.o
-	$(LINK.cpp) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 #------------------------------------------------------------------------------
 
