@@ -6389,7 +6389,7 @@ int ha_ndbcluster::index_read(uchar *buf,
                               const uchar *key, uint key_len, 
                               enum ha_rkey_function find_flag)
 {
-  key_range start_key;
+  key_range start_key, end_key, *end_key_p=NULL;
   bool descending= FALSE;
   DBUG_ENTER("ha_ndbcluster::index_read");
   DBUG_PRINT("enter", ("active_index: %u, key_len: %u, find_flag: %d", 
@@ -6398,8 +6398,18 @@ int ha_ndbcluster::index_read(uchar *buf,
   start_key.key= key;
   start_key.length= key_len;
   start_key.flag= find_flag;
-  descending= FALSE;
   switch (find_flag) {
+  case HA_READ_KEY_EXACT:
+    /**
+     * Specify as a closed EQ_RANGE.
+     * Setting HA_READ_AFTER_KEY seems odd, but this is according
+     * to MySQL convention, see opt_range.cc.
+     */
+    end_key.key= key;
+    end_key.length= key_len;
+    end_key.flag= HA_READ_AFTER_KEY;
+    end_key_p= &end_key;
+    break;
   case HA_READ_KEY_OR_PREV:
   case HA_READ_BEFORE_KEY:
   case HA_READ_PREFIX_LAST:
@@ -6409,7 +6419,8 @@ int ha_ndbcluster::index_read(uchar *buf,
   default:
     break;
   }
-  const int error= read_range_first_to_buf(&start_key, 0, descending,
+  const int error= read_range_first_to_buf(&start_key, end_key_p,
+                                           descending,
                                            m_sorted, buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
