@@ -1201,8 +1201,8 @@ fil_space_create(
 		if (space != 0) {
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Tablespace '%s' exists in the cache "
-				"with id " IB_ID_FMT " != " IB_ID_FMT,
-				name, space->id, id);
+				"with id %lu != %lu",
+				name, (ulong) space->id, (ulong) id);
 
 			if (Tablespace::is_system_tablespace(id)
 			    || purpose != FIL_TABLESPACE) {
@@ -1214,8 +1214,8 @@ fil_space_create(
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Freeing existing tablespace '%s' entry "
-				"from the cache with id " IB_ID_FMT,
-				name, id);
+				"from the cache with id %lu",
+				name, (ulong) id);
 
 			ibool	success = fil_space_free(space->id, FALSE);
 			ut_a(success);
