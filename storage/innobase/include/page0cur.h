@@ -415,6 +415,10 @@ public:
 	const buf_block_t* getBlock() const { return(m_block); }
 	/** Get the B-tree page frame. */
 	const page_t* getPage() const { return(buf_block_get_frame(m_block)); }
+	/** Get the compressed page frame, or NULL if uncompressed table */
+	const page_zip_des_t* getPageZip() const {
+		return(buf_block_get_page_zip(m_block));
+	}
 	/** Get the index. */
 	const dict_index_t* getIndex() const { return(m_index); }
 

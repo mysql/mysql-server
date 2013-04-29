@@ -2205,7 +2205,7 @@ bool
 PageCur::search(const dtuple_t* tuple)
 {
 	const ulint	mode	= PAGE_CUR_LE;//TODO: take as parameter
-	const page_t*	page	= buf_block_get_frame(m_block);
+	const page_t*	page	= getPage();
 	/* TODO: if mode PAGE_CUR_G is specified, we are trying to position the
 	cursor to answer a query of the form "tuple < X", where tuple is
 	the input parameter, and X denotes an arbitrary physical record on
@@ -2222,10 +2222,7 @@ PageCur::search(const dtuple_t* tuple)
 	ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_S_FIX));
 
-	page = buf_block_get_frame(m_block);
-
-	page_zip_validate_if_zip(
-		buf_block_get_page_zip(m_block), page, m_index);
+	page_zip_validate_if_zip(getPageZip(), page, m_index);
 
 	page_check_dir(page);
 
