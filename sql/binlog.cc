@@ -8981,6 +8981,12 @@ void THD::issue_unsafe_warnings()
   DBUG_VOID_RETURN;
 }
 
+Logical_clock_state::Logical_clock_state()
+{
+  mysql_mutex_init(key_state_lock, &state_LOCK, NULL);
+  init();
+}
+
 /**
 SYNOPSIS:
   Atomically steps state clock.
@@ -8992,11 +8998,11 @@ Logical_clock_state::step()
 {
   int64 retval;
   DBUG_ENTER("Logical_clock_state::step_clock");
-  my_atomic_rwlock_wrlock(&state_LOCK);
-  retval= my_atomic_add64(&state, clock_step);
+  mysql_mutex_lock(&state_LOCK);
+  retval= (state+= clock_step);
   if (retval == (INT_MAX64 - 1))
     init();
-  my_atomic_rwlock_wrunlock(&state_LOCK);
+  mysql_mutex_unlock(&state_LOCK);
   DBUG_RETURN(retval);
 }
 
@@ -9009,23 +9015,10 @@ Logical_clock_state::get_timestamp()
 {
   int64 retval= 0;
   DBUG_ENTER("Logical_clock_state::step_clock");
-  my_atomic_rwlock_rdlock(&state_LOCK);
-  retval= my_atomic_load64(&state);
-  my_atomic_rwlock_rdunlock(&state_LOCK);
+  mysql_mutex_lock(&state_LOCK);
+  retval= state;
+  mysql_mutex_unlock(&state_LOCK);
   DBUG_RETURN(retval);
-}
-/**
-SYNOPSIS:
-  reset the clock to Tzero.
- */
-void
-Logical_clock_state::reset()
-{
-  DBUG_ENTER("Logical_clock_state::reset");
-  my_atomic_rwlock_wrlock(&state_LOCK);
-  (void) my_atomic_store64(&state, 0);
-  my_atomic_rwlock_wrunlock(&state_LOCK);
-  DBUG_VOID_RETURN;
 }
 
 /**
