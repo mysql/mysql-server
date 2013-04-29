@@ -23,7 +23,7 @@
 #include "sql_db.h"                          // check_db_dir_existence
 #include "sql_table.h"                       // write_bin_log
 #include "tztime.h"                             // struct Time_zone
-#include "sql_acl.h"                            // EVENT_ACL
+#include "auth_common.h"                        // EVENT_ACL
 #include "records.h"          // init_read_record, end_read_record
 #include "event_data_objects.h"
 #include "event_db_repository.h"

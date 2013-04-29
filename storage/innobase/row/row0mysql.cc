@@ -328,7 +328,6 @@ row_mysql_store_geometry(
 		String  res;
 		Geometry_buffer buffer;
 		String  wkt;
-		const char* end;
 
 		/** Show the meaning of geometry data. */
 		Geometry* g = Geometry::construct(&buffer,
@@ -337,7 +336,7 @@ row_mysql_store_geometry(
 
 		if (g)
 		{
-			if (g->as_wkt(&wkt, &end) == 0)
+			if (g->as_wkt(&wkt) == 0)
 			{
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Write geometry data to"
@@ -370,7 +369,6 @@ row_mysql_read_geometry(
 		String  res;
 		Geometry_buffer buffer;
 		String  wkt;
-		const char* end;
 
 		/** Show the meaning of geometry data. */
 		Geometry* g = Geometry::construct(&buffer,
@@ -379,7 +377,7 @@ row_mysql_read_geometry(
 
 		if (g)
 		{
-			if (g->as_wkt(&wkt, &end) == 0)
+			if (g->as_wkt(&wkt) == 0)
 			{
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Read geometry data in"
@@ -2384,15 +2382,7 @@ err_exit:
 		if (dict_table_open_on_name(table->name, TRUE, FALSE,
 					    DICT_ERR_IGNORE_NONE)) {
 
-			/* Make things easy for the drop table code. */
-
-			if (table->can_be_evicted) {
-				dict_table_move_from_lru_to_non_lru(table);
-			}
-
-			dict_table_close(table, TRUE, FALSE);
-
-			row_drop_table_for_mysql(table->name, trx, FALSE);
+			dict_table_close_and_drop(trx, table);
 
 			if (commit) {
 				trx_commit_for_mysql(trx);
@@ -4065,12 +4055,7 @@ row_drop_table_for_mysql(
 		}
 	}
 
-	/* Move the table the the non-LRU list so that it isn't
-	considered for eviction. */
-
-	if (table->can_be_evicted) {
-		dict_table_move_from_lru_to_non_lru(table);
-	}
+	dict_table_prevent_eviction(table);
 
 	dict_table_close(table, TRUE, FALSE);
 
@@ -4218,8 +4203,9 @@ check_next_foreign:
 	case TRX_DICT_OP_INDEX:
 		/* If the transaction was previously flagged as
 		TRX_DICT_OP_INDEX, we should be dropping auxiliary
-		tables for full-text indexes. */
-		ut_ad(strstr(table->name, "/FTS_") != NULL);
+		tables for full-text indexes or temp tables. */
+		ut_ad(strstr(table->name, "/FTS_") != NULL
+		      || strstr(table->name, TEMP_FILE_PREFIX_INNODB) != NULL);
 	}
 
 	/* Mark all indexes unavailable in the data dictionary cache
@@ -4864,7 +4850,7 @@ row_is_mysql_tmp_table_name(
 	const char*	name)	/*!< in: table name in the form
 				'database/tablename' */
 {
-	return(strstr(name, "/#sql") != NULL);
+	return(strstr(name, "/" TEMP_FILE_PREFIX) != NULL);
 	/* return(strstr(name, "/@0023sql") != NULL); */
 }
 

@@ -17,7 +17,7 @@
 #include "sql_priv.h"
 #include "mysqld.h"      // select_errors
 #include "sql_class.h"   // THD
-#include "sql_acl.h"     // acl_reload
+#include "auth_common.h" // acl_reload, grant_reload
 #include "sql_servers.h" // servers_reload
 #include "sql_connect.h" // reset_mqh
 #include "sql_base.h"    // close_cached_tables

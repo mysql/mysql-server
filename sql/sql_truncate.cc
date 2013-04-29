@@ -20,7 +20,7 @@
 #include "sql_table.h"   // write_bin_log
 #include "datadict.h"    // dd_recreate_table()
 #include "lock.h"        // MYSQL_OPEN_* flags
-#include "sql_acl.h"     // DROP_ACL
+#include "auth_common.h" // DROP_ACL
 #include "sql_parse.h"   // check_one_table_access()
 #include "sql_truncate.h"
 #include "sql_show.h"    //append_identifier()
