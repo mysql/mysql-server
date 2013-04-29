@@ -29,13 +29,16 @@ set_property(TARGET ${LIBTOKUPORTABILITY} tokuportability_static_conv APPEND PRO
 set_property(SOURCE file memory os_malloc portability toku_assert toku_rwlock APPEND PROPERTY
   COMPILE_DEFINITIONS TOKU_ALLOW_DEPRECATED=1)
 
-install(
-  FILES toku_os_types.h toku_time.h
-  DESTINATION include
-  )
-install(
-  TARGETS ${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static
-  DESTINATION lib
-  )
+# detect when we are being built as a subproject
+if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
+  install(
+    FILES toku_os_types.h toku_time.h
+    DESTINATION include
+    )
+  install(
+    TARGETS ${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static
+    DESTINATION lib
+    )
+endif ()
 
 add_subdirectory(tests)

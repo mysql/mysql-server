@@ -27,10 +27,13 @@ set_target_properties(jemalloc_nopic PROPERTIES IMPORTED_LOCATION
   "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/jemalloc/lib/libjemalloc.a")
 add_dependencies(jemalloc_nopic build_jemalloc)
 
-install(
-  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/jemalloc/lib"
-  DESTINATION .
-  )
+# detect when we are being built as a subproject
+if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
+  install(
+    DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/jemalloc/lib"
+    DESTINATION .
+    )
+endif ()
 
 ## add lzma with an external project
 set(xz_configure_opts --with-pic --enable-static)

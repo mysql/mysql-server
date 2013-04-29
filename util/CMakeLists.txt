@@ -14,9 +14,12 @@ target_link_libraries(util LINK_PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_
 add_dependencies(util install_tdb_h)
 add_dependencies(util_static install_tdb_h)
 
-install(
-  FILES partitioned_counter.h
-  DESTINATION include
-  )
+# detect when we are being built as a subproject
+if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
+  install(
+    FILES partitioned_counter.h
+    DESTINATION include
+    )
+endif ()
 
 add_subdirectory(tests)
