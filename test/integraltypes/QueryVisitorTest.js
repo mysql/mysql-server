@@ -18,6 +18,7 @@
  02110-1301  USA
  */
 
+"use strict";
 var udebug = unified_debug.getLogger("integraltypes/QueryVisitorTest.js");
 
 var t0 = new harness.ConcurrentTest('test');

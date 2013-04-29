@@ -51,17 +51,17 @@ var userContext    = require('../impl/common/UserContext.js');
 
 function Idle() {
   this.name = 'Idle';
-};
+}
 var idle = new Idle();
 
 function Active() {
   this.name = 'Active';
-};
+}
 var active = new Active();
 
 function RollbackOnly() {
   this.name = 'RollbackOnly';
-};
+}
 var rollbackOnly = new RollbackOnly();
 
 /** An error occurred. If there is a callback defined, signal the error via the callback,

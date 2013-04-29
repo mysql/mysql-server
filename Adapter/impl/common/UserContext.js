@@ -1057,7 +1057,7 @@ exports.UserContext.prototype.remove = function() {
     } else {
       dbIndexHandler = dbTableHandler.getIndexHandler(userContext.keys, true);
       if (dbIndexHandler === null) {
-        err = new Error('UserContext.remove unable to get an index to use for ' + JSON.stringify(keys));
+        err = new Error('UserContext.remove unable to get an index to use for ' + JSON.stringify(userContext.keys));
         userContext.applyCallback(err);
       } else {
         transactionHandler = dbSession.getTransactionHandler();

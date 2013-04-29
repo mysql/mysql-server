@@ -17,12 +17,15 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
+/*jslint newcap: true */
+/*global t_basic, verify_t_basic, fail_verify_t_basic */
 
 var ndbimpl;
 try {
   ndbimpl = require(path.join(build_dir, "ndb_adapter.node")).ndb.impl; 
 }
-catch(e) {};
+catch(e) {}
 
 function assertVO(testCase, object, expected) {
   if(global.adapter == "ndb") {
@@ -74,7 +77,7 @@ function makeFindAndCompare(testCase, session, refObject) {
   return function findAndCompare(err) {
     testCase.errorIfError(err);
     session.find(t_basic, refObject.id, onFindThenCompare);
-  }
+  };
 }
 
 
@@ -134,7 +137,7 @@ t3.run = function() {
   function onFindThenDelete(err, object, session) {
     t3.errorIfError(err);
     assertVO(t3, object, true);
-    session.remove(object, onDeleteThenFindAgain, session)
+    session.remove(object, onDeleteThenFindAgain, session);
   }
   
   persistAndFind(this, row, onFindThenDelete);

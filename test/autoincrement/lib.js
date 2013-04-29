@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global udebug_module */
+"use strict";
 
 var udebug = unified_debug.getLogger("autoincrement/lib.js");
 

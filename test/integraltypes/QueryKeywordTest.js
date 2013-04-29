@@ -18,14 +18,18 @@
  02110-1301  USA
  */
 
-var     udebug     = unified_debug.getLogger("QueryKeywordTest.js");
+/*global unified_debug, mynode, verify_integraltypes_keyword, harness,
+  fail_openSession, fail_verify_integraltypes_keyword_array 
+ */
+"use strict";
 
+var udebug = unified_debug.getLogger("QueryKeywordTest.js");
 var IntegraltypesKeywordId = function(id) {
   // name the id field 'where'
   this.where = id;
   this.getId = function() {
-    return where;
-  }
+    return this.where;
+  };
 };
 
 var mapIntegraltypesKeyword = function() {
@@ -68,6 +72,7 @@ global.verify_integraltypes_keyword = function(err, instance, id, testCase, doma
 };
 
 global.fail_verify_integraltypes_keyword_array = function(err, instances, ids, testCase, domainObject) {
+  var i;
   if (err) {
     testCase.appendErrorMessage(err);
   } else if (instances.length !== ids.length) {

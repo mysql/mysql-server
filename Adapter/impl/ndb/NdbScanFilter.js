@@ -55,7 +55,7 @@ function FilterSpec(predicate) {
   this.constFilter = {          /* If no params are needed for filter, */
     ndbInterpretedCode : null,  /* isConst=true, and the filter is built */
     ndbScanFilter      : null   /* just once and stored here. */
-  }
+  };
   this.constBuffer     = null;  /* Buffer for encoded literal constants; */
   this.constBufferSize = 0;     /* encoded just once in advance, */
   this.constLayout     = null;  /* according to this layout. */
@@ -112,14 +112,15 @@ function OperandVisitor() {
 
 /** Handle nodes QueryAnd, QueryOr */
 OperandVisitor.prototype.visitQueryNaryPredicate = function(node) {
+  var i;
   udebug.log(node.operator);
   markNode(node);
   node.ndb.operator = getOpcode(node.operator);
 
-  for(var i = 0 ; i < node.predicates.length ; i++) {
+  for(i = 0 ; i < node.predicates.length ; i++) {
     node.predicates[i].visit(this);
   }
-}
+};
 
 /** Handle nodes QueryEq, QueryNe, QueryLt, QueryLe, QueryGt, QueryGe */
 OperandVisitor.prototype.visitQueryComparator = function(node) {
@@ -128,7 +129,7 @@ OperandVisitor.prototype.visitQueryComparator = function(node) {
   this.size++;
   markNode(node);
   node.ndb.comparator = getOpcode(node.comparator);
-}
+};
 
 /** Handle node QueryNot */
 OperandVisitor.prototype.visitQueryUnaryPredicate = function(node) {
@@ -136,13 +137,13 @@ OperandVisitor.prototype.visitQueryUnaryPredicate = function(node) {
   markNode(node);
   node.ndb.operator = NdbScanFilter.NAND;
   node.predicates[0].visit(this);
-}
+};
 
 /** Handle node QueryBetween */
 OperandVisitor.prototype.visitQueryBetweenOperator = function(node) {
   markNode(node);
   blah("visitQueryUnaryOperator", node);
-}
+};
 
 /** Handle nodes QueryIsNull, QueryIsNotNull */
 OperandVisitor.prototype.visitQueryUnaryOperator = function(node) {
@@ -165,10 +166,11 @@ function BufferManagerVisitor(dbTable) {
 
 /** Handle nodes QueryAnd, QueryOr */
 BufferManagerVisitor.prototype.visitQueryNaryPredicate = function(node) {
-  for(var i = 0 ; i < node.predicates.length ; i++) {
+  var i;
+  for(i = 0 ; i < node.predicates.length ; i++) {
     node.predicates[i].visit(this);
   }
-}
+};
 
 /** Handle nodes QueryEq, QueryNe, QueryLt, QueryLe, QueryGt, QueryGe */
 BufferManagerVisitor.prototype.visitQueryComparator = function(node) {
@@ -181,17 +183,17 @@ BufferManagerVisitor.prototype.visitQueryComparator = function(node) {
     this.paramLayout.push(spec);
   // else if constant
   node.ndb.layout = spec;   // store the layout in the query node
-}
+};
 
 /** Handle node QueryNot */
 BufferManagerVisitor.prototype.visitQueryUnaryPredicate = function(node) {
   node.predicates[0].visit(this);
-}
+};
 
 /** Handle node QueryBetween */
 BufferManagerVisitor.prototype.visitQueryBetweenOperator = function(node) {
   blah("visitQueryBetweenOperator", node);
-}
+};
 
 /** Handle nodes QueryIsNull, QueryIsNotNull */
 BufferManagerVisitor.prototype.visitQueryUnaryOperator = function(node) {
@@ -225,24 +227,24 @@ FilterBuildingVisitor.prototype.visitQueryComparator = function(node) {
                          this.paramBuffer, layout.offset, 
                          layout.column.columnSpace);
   // TODO: constants
-}
+};
 
 /** Handle nodes QueryNot */
 FilterBuildingVisitor.prototype.visitQueryUnaryPredicate = function(node) {
   this.ndbScanFilter.begin(node.ndb.operator);  // A 1-member NAND group
   node.predicates[0].visit(this);
   this.ndbScanFilter.end();
-}
+};
 
 /** Handle nodes QueryIsNull, QueryIsNotNull */
 FilterBuildingVisitor.prototype.visitQueryUnaryOperator = function(node) {
   blah("visitQueryUnaryOperator", node);
-}
+};
 
 /** Handle node QueryBetween */
 FilterBuildingVisitor.prototype.visitQueryBetweenOperator = function(node) {
   blah("visitQueryBetweenOperator", node);
-}
+};
 
 /*************************************************/
 
@@ -275,10 +277,10 @@ function prepareFilterSpec(queryHandler) {
 
     /* Assembly */
     if(bufferManager.paramBufferSize === 0) {
-      var filterBuildingVisitor = new FilterBuildingVisitor(this, null);
-      this.predicate.visit(filterBuildingVisitor);
-      this.constFilter.ndbScanFilter = filterBuildingVisitor.ndbScanFilter;
-      this.constFilter.ndbInterpretedCode = filterBuildingVisitor.ndbInterpretedCode;
+      var filterBuildingVisitor = new FilterBuildingVisitor(spec, null);
+      spec.predicate.visit(filterBuildingVisitor);
+      spec.constFilter.ndbScanFilter = filterBuildingVisitor.ndbScanFilter;
+      spec.constFilter.ndbInterpretedCode = filterBuildingVisitor.ndbInterpretedCode;
     }
     else {
       spec.isConst         = false;
@@ -317,7 +319,7 @@ FilterSpec.prototype.getScanFilterCode = function(params) {
   this.predicate.visit(filterBuildingVisitor);
   
   return filterBuildingVisitor.ndbInterpretedCode;
-} 
+};
 
 
 exports.prepareFilterSpec = prepareFilterSpec;

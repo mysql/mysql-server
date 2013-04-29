@@ -43,6 +43,7 @@ var Connection = function(connectionKey) {
   this.waitingForConnection = [];
 };
 
+/*jslint forin: true */
 exports.ConnectionProperties = function(nameOrProperties) {
   var serviceProvider, newProperties, key, value;
   if(typeof nameOrProperties === 'string') {

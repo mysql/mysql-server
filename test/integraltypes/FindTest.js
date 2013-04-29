@@ -18,6 +18,9 @@
  02110-1301  USA
  */
 
+"use strict";
+/*global fail_verify_integraltypes*/
+
 /***** Find with id ***/
 var t1 = new harness.ConcurrentTest("testFindById");
 t1.run = function() {

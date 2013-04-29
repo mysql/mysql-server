@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
 
 /** Dummy test */
 var t0 = new harness.SerialTest('dummy');
@@ -24,23 +25,25 @@ t0.run = function() {
   this.pass();
 };
 
-udebug      = unified_debug.getLogger("BatchTest.js");
+var udebug = unified_debug.getLogger("BatchTest.js");
+var verifyInsert;
 
 function createBatch(session, start_value, number, testCase) {
   udebug.log("createBatch");
   var batch = session.createBatch();
   var i;
   var object;
+  function onBatchPersist(err, callback_session, callback_i, callback_testCase) {
+    if (err && !testCase.expectError) {
+      callback_testCase.appendErrorMessage('Error inserting ' + callback_i + JSON.stringify(err));
+    }
+  }
   for (i = start_value; i < start_value + number; ++i) {
     object = new global.t_basic(i, 'Employee ' + i, i, i);
-    batch.persist(object, function(err, callback_session, callback_i, callback_testCase) {
-      if (err && !testCase.expectError) {
-        callback_testCase.appendErrorMessage('Error inserting ' + callback_i + JSON.stringify(err));
-      }
-    }, session, i, testCase);
+    batch.persist(object, onBatchPersist, session, i, testCase);
   }
   return batch;
-};
+}
 
 function onExecuteBatch(err, session, start_value, number, testCase) {
   udebug.log("onExecuteBatch");
@@ -52,16 +55,17 @@ function onExecuteBatch(err, session, start_value, number, testCase) {
   if (tx.isActive()) {
     tx.commit(verifyInsert, session, start_value, number, testCase);
   }
-};
+}
 
-function verifyInsert(err, session, start_value, number, testCase) {
+
+verifyInsert = function(err, session, start_value, number, testCase) {
   udebug.log('verifyInsert');
   if (err) {
     testCase.fail(err);
     return;
   }
   // after the batch insert, verify that the insert occurred
-  var j;
+  var j, found_j;
   var completed = 0;
   for (j = start_value; j < start_value + number; ++j) {
     session.find(global.t_basic, j, function(err, found, testCase, callback_j, session) {

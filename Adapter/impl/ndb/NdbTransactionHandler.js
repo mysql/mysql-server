@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-/*global assert, unified_debug, path, build_dir, api_dir, spi_doc_dir  */
-
 "use strict";
 
 var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,

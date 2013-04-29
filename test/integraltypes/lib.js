@@ -18,7 +18,8 @@
  02110-1301  USA
  */
 
-/*global udebug_module */
+"use strict";
+/*global integraltypes,verify_integraltypes,fail_verify_integraltypes*/
 
 var udebug = unified_debug.getLogger("integraltypes/lib.js");
 
@@ -26,7 +27,7 @@ var udebug = unified_debug.getLogger("integraltypes/lib.js");
 global.integraltypes = function(id, ttinyint, tsmallint, tmediumint, tint, tbigint) {
   if (typeof(id) !== 'undefined') this.id = id;
   if (typeof(ttinyint) !== 'undefined') this.ttinyint = ttinyint;
-  if (typeof(tsmallint) !== 'undefined') this.tsmallint = idtsmallint;
+  if (typeof(tsmallint) !== 'undefined') this.tsmallint = tsmallint;
   if (typeof(tmediumint) !== 'undefined') this.tmediumint = tmediumint;
   if (typeof(tint) !== 'undefined') this.tint = tint;
   if (typeof(tbigint) !== 'undefined') this.tbigint = tbigint;
@@ -78,6 +79,7 @@ global.verify_integraltypes = function(err, instance, id, testCase, domainObject
 };
 
 global.fail_verify_integraltypes_array = function(err, instances, ids, testCase, domainObject) {
+  var i;
   if (err) {
     testCase.appendErrorMessage(err);
   } else if (instances.length !== ids.length) {
