@@ -381,38 +381,42 @@ page_zip_write_header(
 	}
 }
 
-/**********************************************************************//**
-Write a log record of compressing an index page without the data on the page. */
+/** Write a redo log record of compressing an index page
+without the data on the page.
+@param[in]	level		compression level
+@param[in]	page		uncompressed page that was compressed
+@param[in]	index		B-tree index
+@param[in/out]	mtr		mini-transaction */
 UNIV_INLINE
 void
 page_zip_compress_write_log_no_data(
-/*================================*/
-	ulint		level,	/*!< in: compression level */
-	const page_t*	page,	/*!< in: page that is compressed */
-	dict_index_t*	index,	/*!< in: index */
-	mtr_t*		mtr)	/*!< in: mtr */
+	ulint			level,
+	const page_t*		page,
+	const dict_index_t*	index,
+	mtr_t*			mtr)
 {
-	byte* log_ptr = mlog_open_and_write_index(
-		mtr, page, index, MLOG_ZIP_PAGE_COMPRESS_NO_DATA, 1);
-
-	if (log_ptr) {
+	if (byte* log_ptr = mlog_open_and_write_index(
+		    mtr, page, index, MLOG_ZIP_PAGE_COMPRESS_NO_DATA, 1)) {
 		mach_write_to_1(log_ptr, level);
 		mlog_close(mtr, log_ptr + 1);
 	}
 }
 
-/**********************************************************************//**
-Parses a log record of compressing an index page without the data.
+/** Parses a log record of compressing an index page without the data.
+@param[in]	ptr		redo log record
+@param[in]	end_ptr		end of redo log record area
+@param[in]	page		uncompressed page that was compressed
+@param[in/out]	page_zip	compressed page
+@param[in]	index		B-tree index
 @return	end of log record or NULL */
 UNIV_INLINE
 byte*
 page_zip_parse_compress_no_data(
-/*============================*/
-	byte*		ptr,		/*!< in: buffer */
-	byte*		end_ptr,	/*!< in: buffer end */
-	page_t*		page,		/*!< in: uncompressed page */
-	page_zip_des_t*	page_zip,	/*!< out: compressed page */
-	dict_index_t*	index)		/*!< in: index */
+	byte*			ptr,		/*!< in: buffer */
+	byte*			end_ptr,	/*!< in: buffer end */
+	page_t*			page,		/*!< in: uncompressed page */
+	page_zip_des_t*		page_zip,	/*!< out: compressed page */
+	const dict_index_t*	index)		/*!< in: index */
 {
 	ulint	level;
 	if (end_ptr == ptr) {
