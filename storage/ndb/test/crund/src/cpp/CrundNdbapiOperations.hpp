@@ -27,31 +27,31 @@
 struct CrundModel
 {
     const NdbDictionary::Table* table_A;
-    const NdbDictionary::Table* table_B0;
+    const NdbDictionary::Table* table_B;
     const NdbDictionary::Column* column_A_id;
     const NdbDictionary::Column* column_A_cint;
     const NdbDictionary::Column* column_A_clong;
     const NdbDictionary::Column* column_A_cfloat;
     const NdbDictionary::Column* column_A_cdouble;
-    const NdbDictionary::Column* column_B0_id;
-    const NdbDictionary::Column* column_B0_cint;
-    const NdbDictionary::Column* column_B0_clong;
-    const NdbDictionary::Column* column_B0_cfloat;
-    const NdbDictionary::Column* column_B0_cdouble;
-    const NdbDictionary::Column* column_B0_a_id;
-    const NdbDictionary::Column* column_B0_cvarbinary_def;
-    const NdbDictionary::Column* column_B0_cvarchar_def;
-    const NdbDictionary::Index* idx_B0_a_id;
+    const NdbDictionary::Column* column_B_id;
+    const NdbDictionary::Column* column_B_cint;
+    const NdbDictionary::Column* column_B_clong;
+    const NdbDictionary::Column* column_B_cfloat;
+    const NdbDictionary::Column* column_B_cdouble;
+    const NdbDictionary::Column* column_B_a_id;
+    const NdbDictionary::Column* column_B_cvarbinary_def;
+    const NdbDictionary::Column* column_B_cvarchar_def;
+    const NdbDictionary::Index* idx_B_a_id;
 
     int attr_id;
     int attr_cint;
     int attr_clong;
     int attr_cfloat;
     int attr_cdouble;
-    int attr_B0_a_id;
-    int attr_B0_cvarbinary_def;
-    int attr_B0_cvarchar_def;
-    int attr_idx_B0_a_id;
+    int attr_B_a_id;
+    int attr_B_cvarbinary_def;
+    int attr_B_cvarchar_def;
+    int attr_idx_B_a_id;
 
     // initialize this instance from the dictionary
     void init(Ndb* ndb);
@@ -131,7 +131,7 @@ public:
     void getByPK_bb(const NdbDictionary::Table* table, int from, int to,
                     bool bulk);
 
-    void getByPK_ar(const NdbDictionary::Table* table, int from, int to,
+    void getByPK_ah(const NdbDictionary::Table* table, int from, int to,
                     bool bulk);
 
     void setVarbinary(const NdbDictionary::Table* table,
@@ -146,17 +146,17 @@ public:
     void getVarchar(const NdbDictionary::Table* table,
                     int from, int to, bool bulk, int length);
 
-    void setB0ToA(int nOps, bool bulk);
+    void setBToA(int nOps, bool bulk);
 
-    void navB0ToA(int nOps, bool bulk);
+    void navBToA(int nOps, bool bulk);
 
-    void navB0ToAalt(int nOps, bool bulk);
+    void navBToAalt(int nOps, bool bulk);
 
-    void navAToB0(int nOps, bool forceSend);
+    void navAToB(int nOps, bool forceSend);
 
-    void navAToB0alt(int nOps, bool forceSend);
+    void navAToBalt(int nOps, bool forceSend);
 
-    void nullB0ToA(int nOps, bool bulk);
+    void clearBToA(int nOps, bool bulk);
 
 protected:
 
