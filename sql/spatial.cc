@@ -1120,7 +1120,7 @@ bool Gis_polygon::centroid_xy(point_xy *p) const
 {
   uint32 n_linear_rings;
   double UNINIT_VAR(res_area);
-  point_xy res;
+  point_xy res(0, 0);              // Initialized only to make compiler happy
   wkb_parser wkb(&m_wkb_data);
   bool first_loop= 1;
 
@@ -1849,7 +1849,7 @@ int Gis_multi_polygon::centroid(String *result) const
   bool first_loop= 1;
   Gis_polygon p;
   double UNINIT_VAR(res_area);
-  point_xy res;
+  point_xy res(0, 0);              // Initialized only to make compiler happy
   wkb_parser wkb(&m_wkb_data);
 
   if (wkb.scan_non_zero_uint4(&n_polygons))
