@@ -1,24 +1,22 @@
-/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
- *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
- *
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- */
+/*
+  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
-#ifndef CrundNdbApiOperations_hpp
-#define CrundNdbApiOperations_hpp
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+#ifndef CrundNdbapiOperations_hpp
+#define CrundNdbapiOperations_hpp
 
 #include <NdbApi.hpp>
 #include <NdbError.hpp>
@@ -62,7 +60,7 @@ struct CrundModel
 /**
  * Implements the benchmark's basic database operations.
  */
-class CrundNdbApiOperations
+class CrundNdbapiOperations
 {
 // For a better locality of information, consider refactorizing this
 // class into separate classes: Cluster, Db, Tx, and Operations by
@@ -73,11 +71,11 @@ class CrundNdbApiOperations
 
 public:
 
-    CrundNdbApiOperations()
+    CrundNdbapiOperations()
         : model(NULL), mgmd(NULL), ndb(NULL), tx(NULL) {
     }
 
-    ~CrundNdbApiOperations() {
+    ~CrundNdbapiOperations() {
         assert(model == NULL);
         assert(mgmd == NULL); assert(ndb == NULL); assert(tx == NULL);
     }
@@ -102,8 +100,8 @@ protected:
 
 private:
 
-    CrundNdbApiOperations(const CrundNdbApiOperations&);
-    CrundNdbApiOperations& operator=(const CrundNdbApiOperations&);
+    CrundNdbapiOperations(const CrundNdbapiOperations&);
+    CrundNdbapiOperations& operator=(const CrundNdbapiOperations&);
 
 public:
 
@@ -119,46 +117,46 @@ public:
     void clearData();
 
     void delByScan(const NdbDictionary::Table* table, int& count,
-                   bool batch);
+                   bool bulk);
 
     void ins(const NdbDictionary::Table* table, int from, int to,
-             bool setAttrs, bool batch);
+             bool setAttrs, bool bulk);
 
     void delByPK(const NdbDictionary::Table* table, int from, int to,
-                 bool batch);
+                 bool bulk);
 
     void setByPK(const NdbDictionary::Table* table, int from, int to,
-                 bool batch);
+                 bool bulk);
 
     void getByPK_bb(const NdbDictionary::Table* table, int from, int to,
-                    bool batch);
+                    bool bulk);
 
     void getByPK_ar(const NdbDictionary::Table* table, int from, int to,
-                    bool batch);
+                    bool bulk);
 
     void setVarbinary(const NdbDictionary::Table* table,
-                      int from, int to, bool batch, int length);
+                      int from, int to, bool bulk, int length);
 
     void getVarbinary(const NdbDictionary::Table* table,
-                      int from, int to, bool batch, int length);
+                      int from, int to, bool bulk, int length);
 
     void setVarchar(const NdbDictionary::Table* table,
-                    int from, int to, bool batch, int length);
+                    int from, int to, bool bulk, int length);
 
     void getVarchar(const NdbDictionary::Table* table,
-                    int from, int to, bool batch, int length);
+                    int from, int to, bool bulk, int length);
 
-    void setB0ToA(int nOps, bool batch);
+    void setB0ToA(int nOps, bool bulk);
 
-    void navB0ToA(int nOps, bool batch);
+    void navB0ToA(int nOps, bool bulk);
 
-    void navB0ToAalt(int nOps, bool batch);
+    void navB0ToAalt(int nOps, bool bulk);
 
     void navAToB0(int nOps, bool forceSend);
 
     void navAToB0alt(int nOps, bool forceSend);
 
-    void nullB0ToA(int nOps, bool batch);
+    void nullB0ToA(int nOps, bool bulk);
 
 protected:
 
@@ -173,14 +171,14 @@ protected:
     void closeTransaction();
 
     void setVar(const NdbDictionary::Table* table, int attr_cvar,
-                int from, int to, bool batch, const char* str);
+                int from, int to, bool bulk, const char* str);
 
     void getVar(const NdbDictionary::Table* table, int attr_cvar,
-                int from, int to, bool batch, const char* str);
+                int from, int to, bool bulk, const char* str);
 
     // XXX not used yet, see TwsDriver
     //static void ndbapiToBuffer1blp(void* to, const char* from, size_t width);
     //static void ndbapiToString1blp(char* to, const void* from, size_t width);
 };
 
-#endif // CrundNdbApiOperations_hpp
+#endif // CrundNdbapiOperations_hpp

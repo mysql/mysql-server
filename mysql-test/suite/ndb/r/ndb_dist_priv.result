@@ -148,6 +148,18 @@ flush privileges;
 === test truncate ===
 truncate mysql.proxies_priv;
 flush privileges;
+=== test mysql_upgrade ===
+mysql_upgrade first mysqld...
+mysql_upgrade second mysqld...
+show that tables still are in NDB
+table_name
+columns_priv
+db
+host
+procs_priv
+proxies_priv
+tables_priv
+user
 call mysql.mysql_cluster_backup_privileges();
 call mysql.mysql_cluster_backup_privileges();
 call mysql.mysql_cluster_restore_local_privileges();

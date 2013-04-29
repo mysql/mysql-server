@@ -1733,7 +1733,7 @@ void Dblqh::execTUP_ADD_ATTRREF(Signal* signal)
   jamEntry();
   addfragptr.i = signal->theData[0];
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
-  Uint32 errorCode = terrorCode = signal->theData[1];
+  const Uint32 errorCode = terrorCode = signal->theData[1];
 
   abortAddFragOps(signal);
 
@@ -23271,6 +23271,15 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   if(arg == 2304 || arg == 2305)
   {
     jam();
+
+    // logPartRecord is initialised in start phase 1
+    if ((getNodeState().startLevel < NodeState::SL_STARTING) ||
+        ((getNodeState().startLevel == NodeState::SL_STARTING) && (getNodeState().starting.startPhase < 2)))
+    {
+      jam();
+      return ;
+    }
+
     Uint32 i;
     void * logPartPtr = 0;
     (void)logPartPtr;

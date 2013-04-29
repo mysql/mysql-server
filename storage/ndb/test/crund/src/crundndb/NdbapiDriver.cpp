@@ -1,32 +1,29 @@
-/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
- *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
- *
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- */
+/*
+  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+#include "NdbapiDriver.hpp"
+#include "CrundNdbapiOperations.hpp"
 
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <cassert>
 
 #include "helpers.hpp"
 #include "string_helpers.hpp"
-
-#include "NdbApiDriver.hpp"
-#include "CrundNdbApiOperations.hpp"
 
 using std::cout;
 using std::flush;
@@ -34,13 +31,12 @@ using std::endl;
 using std::ios_base;
 using std::ostringstream;
 using std::string;
-using std::wstring;
 
 using utils::toString;
 
 // ----------------------------------------------------------------------
 
-CrundNdbApiOperations* NdbApiDriver::ops = NULL;
+CrundNdbapiOperations* NdbapiDriver::ops = NULL;
 
 // ISO C++ 98 does not allow for a string literal as a template argument
 // for a non-type template parameter, because string literals are objects
@@ -74,17 +70,17 @@ const char* nullB0ToA_s = "nullB0->A";
 //---------------------------------------------------------------------------
 
 void
-NdbApiDriver::init() {
+NdbapiDriver::init() {
     CrundDriver::init();
 
     // initialize the benchmark's resources
-    ops = new CrundNdbApiOperations();
+    ops = new CrundNdbapiOperations();
     assert(!mgmdConnect.empty());
     ops->init(mgmdConnect.c_str());
 }
 
 void
-NdbApiDriver::close() {
+NdbapiDriver::close() {
     // release the benchmark's resources
     assert(ops);
     ops->close();
@@ -95,7 +91,7 @@ NdbApiDriver::close() {
 }
 
 void
-NdbApiDriver::initProperties() {
+NdbapiDriver::initProperties() {
     CrundDriver::initProperties();
 
     cout << "setting ndb properties ..." << flush;
@@ -128,7 +124,7 @@ NdbApiDriver::initProperties() {
 }
 
 void
-NdbApiDriver::printProperties() {
+NdbapiDriver::printProperties() {
     CrundDriver::printProperties();
 
     const ios_base::fmtflags f = cout.flags();
@@ -147,7 +143,7 @@ NdbApiDriver::printProperties() {
 //---------------------------------------------------------------------------
 
 void
-NdbApiDriver::initOperations() {
+NdbapiDriver::initOperations() {
     cout << "initializing operations ..." << flush;
 
     const bool feat = true;
@@ -161,9 +157,9 @@ NdbApiDriver::initOperations() {
 // a lot to factorize code over the operations' parameter signatures
 
 template< bool OB >
-struct NdbApiDriver::ADelAllOp : Op {
+struct NdbapiDriver::ADelAllOp : Op {
     ADelAllOp() : Op(string("delAllA")
-                     + (OB ? "_batch" : "")) {
+                     + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -174,9 +170,9 @@ struct NdbApiDriver::ADelAllOp : Op {
 };
 
 template< bool OB >
-struct NdbApiDriver::B0DelAllOp : Op {
+struct NdbapiDriver::B0DelAllOp : Op {
     B0DelAllOp() : Op(string("delAllB0")
-                      + (OB ? "_batch" : "")) {
+                      + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -187,10 +183,10 @@ struct NdbApiDriver::B0DelAllOp : Op {
 };
 
 template< bool OSA, bool OB >
-struct NdbApiDriver::AInsOp : Op {
+struct NdbapiDriver::AInsOp : Op {
     AInsOp() : Op(string("insA")
                   + (OSA ? "_attr" : "")
-                  + (OB ? "_batch" : "")) {
+                  + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -199,10 +195,10 @@ struct NdbApiDriver::AInsOp : Op {
 };
 
 template< bool OSA, bool OB >
-struct NdbApiDriver::B0InsOp : Op {
+struct NdbapiDriver::B0InsOp : Op {
     B0InsOp() : Op(string("insB0")
                    + (OSA ? "_attr" : "")
-                   + (OB ? "_batch" : "")) {
+                   + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -211,11 +207,11 @@ struct NdbApiDriver::B0InsOp : Op {
 };
 
 template< const char** ON,
-          void (CrundNdbApiOperations::*OF)(NdbTable,int,int,bool),
+          void (CrundNdbapiOperations::*OF)(NdbTable,int,int,bool),
           bool OB >
-struct NdbApiDriver::AByPKOp : Op {
+struct NdbapiDriver::AByPKOp : Op {
     AByPKOp() : Op(string(*ON)
-                   + (OB ? "_batch" : "")) {
+                   + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -224,11 +220,11 @@ struct NdbApiDriver::AByPKOp : Op {
 };
 
 template< const char** ON,
-          void (CrundNdbApiOperations::*OF)(NdbTable,int,int,bool),
+          void (CrundNdbapiOperations::*OF)(NdbTable,int,int,bool),
           bool OB >
-struct NdbApiDriver::B0ByPKOp : Op {
+struct NdbapiDriver::B0ByPKOp : Op {
     B0ByPKOp() : Op(string(*ON)
-                    + (OB ? "_batch" : "")) {
+                    + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -237,14 +233,14 @@ struct NdbApiDriver::B0ByPKOp : Op {
 };
 
 template< const char** ON,
-          void (CrundNdbApiOperations::*OF)(NdbTable,int,int,bool,int),
+          void (CrundNdbapiOperations::*OF)(NdbTable,int,int,bool,int),
           bool OB >
-struct NdbApiDriver::LengthOp : Op {
+struct NdbapiDriver::LengthOp : Op {
     const int length;
 
     LengthOp(int length) : Op(string(*ON)
                               + toString(length)
-                              + (OB ? "_batch" : "")),
+                              + (OB ? "_bulk" : "")),
                            length(length) {
     }
 
@@ -254,9 +250,9 @@ struct NdbApiDriver::LengthOp : Op {
 };
 
 template< const char** ON,
-          void (CrundNdbApiOperations::*OF)(NdbTable,int,int,bool,int),
+          void (CrundNdbapiOperations::*OF)(NdbTable,int,int,bool,int),
           bool OB >
-struct NdbApiDriver::ZeroLengthOp : LengthOp< ON, OF, OB > {
+struct NdbapiDriver::ZeroLengthOp : LengthOp< ON, OF, OB > {
     ZeroLengthOp(int length) : LengthOp< ON, OF, OB >(length) {
     }
 
@@ -266,9 +262,9 @@ struct NdbApiDriver::ZeroLengthOp : LengthOp< ON, OF, OB > {
 };
 
 template< const char** ON,
-          void (CrundNdbApiOperations::*OF)(int,bool),
+          void (CrundNdbapiOperations::*OF)(int,bool),
           bool OFS >
-struct NdbApiDriver::RelOp : Op {
+struct NdbapiDriver::RelOp : Op {
     RelOp() : Op(string(*ON)
                  + (OFS ? "_forceSend" : "")) {
     }
@@ -279,7 +275,7 @@ struct NdbApiDriver::RelOp : Op {
 };
 
 template< bool feat > void
-NdbApiDriver::initOperationsFeat() {
+NdbapiDriver::initOperationsFeat() {
 
     const bool setAttr = true;
     operations.push_back(
@@ -289,72 +285,72 @@ NdbApiDriver::initOperationsFeat() {
         new B0InsOp< !setAttr, feat >());
 
     operations.push_back(
-        new AByPKOp< &setAByPK_s, &CrundNdbApiOperations::setByPK, feat >());
+        new AByPKOp< &setAByPK_s, &CrundNdbapiOperations::setByPK, feat >());
 
     operations.push_back(
-        new B0ByPKOp< &setB0ByPK_s, &CrundNdbApiOperations::setByPK, feat >());
+        new B0ByPKOp< &setB0ByPK_s, &CrundNdbapiOperations::setByPK, feat >());
 
     operations.push_back(
-        new AByPKOp< &getAByPK_bb_s, &CrundNdbApiOperations::getByPK_bb, feat >());
+        new AByPKOp< &getAByPK_bb_s, &CrundNdbapiOperations::getByPK_bb, feat >());
 
     operations.push_back(
-        new AByPKOp< &getAByPK_ar_s, &CrundNdbApiOperations::getByPK_ar, feat >());
+        new AByPKOp< &getAByPK_ar_s, &CrundNdbapiOperations::getByPK_ar, feat >());
 
     operations.push_back(
-        new B0ByPKOp< &getB0ByPK_bb_s, &CrundNdbApiOperations::getByPK_bb, feat >());
+        new B0ByPKOp< &getB0ByPK_bb_s, &CrundNdbapiOperations::getByPK_bb, feat >());
 
     operations.push_back(
-        new B0ByPKOp< &getB0ByPK_ar_s, &CrundNdbApiOperations::getByPK_ar, feat >());
+        new B0ByPKOp< &getB0ByPK_ar_s, &CrundNdbapiOperations::getByPK_ar, feat >());
 
     for (int i = 1; i <= maxVarbinaryBytes; i *= 10) {
         const int length = i;
 
         operations.push_back(
-            new LengthOp< &setVarbinary_s, &CrundNdbApiOperations::setVarbinary, feat >(length));
+            new LengthOp< &setVarbinary_s, &CrundNdbapiOperations::setVarbinary, feat >(length));
 
         operations.push_back(
-            new LengthOp< &getVarbinary_s, &CrundNdbApiOperations::getVarbinary, feat >(length));
+            new LengthOp< &getVarbinary_s, &CrundNdbapiOperations::getVarbinary, feat >(length));
 
         operations.push_back(
-            new ZeroLengthOp< &clearVarbinary_s, &CrundNdbApiOperations::setVarbinary, feat >(length));
+            new ZeroLengthOp< &clearVarbinary_s, &CrundNdbapiOperations::setVarbinary, feat >(length));
     }
 
     for (int i = 1; i <= maxVarcharChars; i *= 10) {
         const int length = i;
 
         operations.push_back(
-            new LengthOp< &setVarchar_s, &CrundNdbApiOperations::setVarchar, feat >(length));
+            new LengthOp< &setVarchar_s, &CrundNdbapiOperations::setVarchar, feat >(length));
 
         operations.push_back(
-            new LengthOp< &getVarchar_s, &CrundNdbApiOperations::getVarchar, feat >(length));
+            new LengthOp< &getVarchar_s, &CrundNdbapiOperations::getVarchar, feat >(length));
 
         operations.push_back(
-            new ZeroLengthOp< &clearVarchar_s, &CrundNdbApiOperations::setVarchar, feat >(length));
+            new ZeroLengthOp< &clearVarchar_s, &CrundNdbapiOperations::setVarchar, feat >(length));
     }
 
     operations.push_back(
-        new RelOp< &setB0ToA_s, &CrundNdbApiOperations::setB0ToA, feat >());
+        new RelOp< &setB0ToA_s, &CrundNdbapiOperations::setB0ToA, feat >());
 
     operations.push_back(
-        new RelOp< &navB0ToA_s, &CrundNdbApiOperations::navB0ToA, feat >());
+        new RelOp< &navB0ToA_s, &CrundNdbapiOperations::navB0ToA, feat >());
 
     operations.push_back(
-        new RelOp< &navB0ToAalt_s, &CrundNdbApiOperations::navB0ToAalt, feat >());
+        new RelOp< &navB0ToAalt_s, &CrundNdbapiOperations::navB0ToAalt, feat >());
 
     operations.push_back(
-        new RelOp< &navAToB0_s, &CrundNdbApiOperations::navAToB0, feat >());
+        new RelOp< &navAToB0_s, &CrundNdbapiOperations::navAToB0, feat >());
 
     operations.push_back(
-        new RelOp< &navAToB0alt_s, &CrundNdbApiOperations::navAToB0alt, feat >());
+        new RelOp< &navAToB0alt_s, &CrundNdbapiOperations::navAToB0alt, feat >());
 
     operations.push_back(
-        new RelOp< &nullB0ToA_s, &CrundNdbApiOperations::nullB0ToA, feat >());
+        new RelOp< &nullB0ToA_s, &CrundNdbapiOperations::nullB0ToA, feat >());
 
     operations.push_back(
-        new B0ByPKOp< &delAByPK_s, &CrundNdbApiOperations::delByPK, feat >());
+        new B0ByPKOp< &delAByPK_s, &CrundNdbapiOperations::delByPK, feat >());
 
     operations.push_back(
-        new AByPKOp< &delB0ByPK_s, &CrundNdbApiOperations::delByPK, feat >());
+        new AByPKOp< &delB0ByPK_s, &CrundNdbapiOperations::delByPK, feat >());
 
     operations.push_back(
         new AInsOp< setAttr, feat >());
@@ -370,7 +366,7 @@ NdbApiDriver::initOperationsFeat() {
 }
 
 void
-NdbApiDriver::closeOperations() {
+NdbapiDriver::closeOperations() {
     cout << "closing operations ..." << flush;
     for (Operations::const_iterator i = operations.begin();
          i != operations.end(); ++i) {
@@ -383,7 +379,7 @@ NdbApiDriver::closeOperations() {
 //---------------------------------------------------------------------------
 
 void
-NdbApiDriver::initConnection() {
+NdbapiDriver::initConnection() {
     NdbOperation::LockMode ndbOpLockMode;
     switch (lockMode) {
     case READ_COMMITTED:
@@ -404,17 +400,12 @@ NdbApiDriver::initConnection() {
 }
 
 void
-NdbApiDriver::closeConnection() {
+NdbapiDriver::closeConnection() {
     ops->closeConnection();
 }
 
 void
-NdbApiDriver::clearPersistenceContext() {
-    assert(false); // XXX not implemented yet
-}
-
-void
-NdbApiDriver::clearData()
+NdbapiDriver::clearData()
 {
     ops->clearData();
 }
@@ -426,8 +417,8 @@ main(int argc, const char* argv[])
 {
     TRACE("main()");
 
-    NdbApiDriver::parseArguments(argc, argv);
-    NdbApiDriver d;
+    NdbapiDriver::parseArguments(argc, argv);
+    NdbapiDriver d;
     d.run();
 
     return 0;

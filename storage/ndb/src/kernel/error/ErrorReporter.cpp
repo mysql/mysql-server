@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -249,6 +249,12 @@ ErrorReporter::handleError(int messageID,
   }
   
   WriteMessage(messageID, ndb_basename(problemData), objRef, nst);
+
+  if (problemData == NULL)
+  {
+    ndbd_exit_classification cl;
+    problemData = ndbd_exit_message(messageID, &cl);
+  }
 
   g_eventLogger->info("%s", problemData);
   g_eventLogger->info("%s", objRef);

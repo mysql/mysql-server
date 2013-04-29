@@ -1,21 +1,21 @@
-/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
- *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
- *
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- */
+/*
+  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+#include "CrundDriver.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -24,8 +24,6 @@
 
 #include "helpers.hpp"
 #include "string_helpers.hpp"
-
-#include "CrundDriver.hpp"
 
 using std::cout;
 using std::flush;
@@ -42,27 +40,16 @@ using utils::toString;
 // ----------------------------------------------------------------------
 
 void
-CrundDriver::init() {
-    Driver::init();
-    // do work here
-}
-
-void
-CrundDriver::close() {
-    // do work here
-    Driver::close();
-}
-
-void
 CrundDriver::initProperties() {
     Driver::initProperties();
 
-    cout << "setting crund properties ..." << flush;
+    cout << "setting ndb properties ..." << flush;
 
     ostringstream msg;
 
     renewConnection = toBool(props[L"renewConnection"], false);
     renewOperations = toBool(props[L"renewOperations"], false);
+    logSumOfOps = toBool(props[L"logSumOfOps"], true);
 
     string lm = toString(props[L"lockMode"]);
     if (lm.empty()) {
@@ -77,9 +64,6 @@ CrundDriver::initProperties() {
         msg << "[ignored] lockMode:         '" << lm << "'" << endl;
         lockMode = READ_COMMITTED;
     }
-
-    logSumOfOps = toBool(props[L"logSumOfOps"], true);
-    //allowExtendedPC = toBool(props[L"allowExtendedPC"], false); // not used
 
     nOpsStart = toInt(props[L"nOpsStart"], 256, 0);
     if (nOpsStart < 1) {
@@ -166,9 +150,8 @@ CrundDriver::printProperties() {
     cout << endl << "crund settings ..." << endl;
     cout << "renewConnection:                " << renewConnection << endl;
     cout << "renewOperations:                " << renewOperations << endl;
-    cout << "lockMode:                       " << toStr(lockMode) << endl;
     cout << "logSumOfOps:                    " << logSumOfOps << endl;
-    //cout << "allowExtendedPC:                " << allowExtendedPC << endl;
+    cout << "lockMode:                       " << toStr(lockMode) << endl;
     cout << "nOpsStart:                      " << nOpsStart << endl;
     cout << "nOpsEnd:                        " << nOpsEnd << endl;
     cout << "nOpsScale:                      " << nOpsScale << endl;
@@ -273,10 +256,6 @@ CrundDriver::runOperations(int nOps) {
     for (Operations::const_iterator i = operations.begin();
          i != operations.end(); ++i) {
         // no need for pre-tx cleanup with NDBAPI-based loads
-        //if (!allowExtendedPC) {
-        //    // effectively prevent caching beyond Tx scope by clearing
-        //    // any data/result caches before the next transaction
-        //    clearPersistenceContext();
         //}
         runOp(**i, nOps);
     }
@@ -288,19 +267,19 @@ CrundDriver::runOp(const Op& op, int nOps) {
     if (exclude.find(name) == exclude.end()) {
         begin(name);
         op.run(nOps);
-        commit(name);
+        finish(name);
     }
 }
 
 const char*
 CrundDriver::toStr(XMode mode) {
     switch (mode) {
-    case SINGLE:
-        return "single";
     case BULK:
         return "bulk";
-    case BATCH:
-        return "batch";
+    case EACH:
+        return "each";
+    case INDY:
+        return "indy";
     default:
         assert(false);
         return "<invalid value>";
@@ -310,7 +289,7 @@ CrundDriver::toStr(XMode mode) {
 const char*
 CrundDriver::toStr(LockMode mode) {
     switch (mode) {
-    case SINGLE:
+    case READ_COMMITTED:
         return "read_committed";
     case SHARED:
         return "shared";
