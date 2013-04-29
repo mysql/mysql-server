@@ -96,54 +96,54 @@ CrundModel::init(Ndb* ndb)
     if ((column_A_cdouble = table_A->getColumn("cdouble")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
 
-    // get columns of table B0
-    if ((table_B0 = dict->getTable("b0")) == NULL)
+    // get columns of table B
+    if ((table_B = dict->getTable("b")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
-    if ((column_B0_id = table_B0->getColumn("id")) == NULL)
+    if ((column_B_id = table_B->getColumn("id")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
-    if ((column_B0_cint = table_B0->getColumn("cint")) == NULL)
+    if ((column_B_cint = table_B->getColumn("cint")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
-    if ((column_B0_clong = table_B0->getColumn("clong")) == NULL)
+    if ((column_B_clong = table_B->getColumn("clong")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
-    if ((column_B0_cfloat = table_B0->getColumn("cfloat")) == NULL)
+    if ((column_B_cfloat = table_B->getColumn("cfloat")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
-    if ((column_B0_cdouble = table_B0->getColumn("cdouble")) == NULL)
+    if ((column_B_cdouble = table_B->getColumn("cdouble")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
-    if ((column_B0_a_id = table_B0->getColumn("a_id")) == NULL)
+    if ((column_B_a_id = table_B->getColumn("a_id")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
-    if ((column_B0_cvarbinary_def = table_B0->getColumn("cvarbinary_def")) == NULL)
+    if ((column_B_cvarbinary_def = table_B->getColumn("cvarbinary_def")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
-    if ((column_B0_cvarchar_def = table_B0->getColumn("cvarchar_def")) == NULL)
-        ABORT_NDB_ERROR(dict->getNdbError());
-
-    // get indexes of table B0
-    if ((idx_B0_a_id = dict->getIndex("I_B0_FK", "b0")) == NULL)
+    if ((column_B_cvarchar_def = table_B->getColumn("cvarchar_def")) == NULL)
         ABORT_NDB_ERROR(dict->getNdbError());
 
-    // get common attribute ids for tables A, B0
+    // get indexes of table B
+    if ((idx_B_a_id = dict->getIndex("I_B_FK", "b")) == NULL)
+        ABORT_NDB_ERROR(dict->getNdbError());
+
+    // get common attribute ids for tables A, B
     attr_id = column_A_id->getAttrId();
-    if (attr_id != column_B0_id->getAttrId())
+    if (attr_id != column_B_id->getAttrId())
         ABORT_ERROR("attribute id mismatch");
     attr_cint = column_A_cint->getAttrId();
-    if (attr_cint != column_B0_cint->getAttrId())
+    if (attr_cint != column_B_cint->getAttrId())
         ABORT_ERROR("attribute id mismatch");
     attr_clong = column_A_clong->getAttrId();
-    if (attr_clong != column_B0_clong->getAttrId())
+    if (attr_clong != column_B_clong->getAttrId())
         ABORT_ERROR("attribute id mismatch");
     attr_cfloat = column_A_cfloat->getAttrId();
-    if (attr_cfloat != column_B0_cfloat->getAttrId())
+    if (attr_cfloat != column_B_cfloat->getAttrId())
         ABORT_ERROR("attribute id mismatch");
     attr_cdouble = column_A_cdouble->getAttrId();
-    if (attr_cdouble != column_B0_cdouble->getAttrId())
+    if (attr_cdouble != column_B_cdouble->getAttrId())
         ABORT_ERROR("attribute id mismatch");
 
-    // get attribute ids for table B0
-    attr_B0_a_id = column_B0_a_id->getAttrId();
-    attr_B0_cvarbinary_def = column_B0_cvarbinary_def->getAttrId();
-    attr_B0_cvarchar_def = column_B0_cvarchar_def->getAttrId();
+    // get attribute ids for table B
+    attr_B_a_id = column_B_a_id->getAttrId();
+    attr_B_cvarbinary_def = column_B_cvarbinary_def->getAttrId();
+    attr_B_cvarchar_def = column_B_cvarchar_def->getAttrId();
 
-    // get attribute ids for columns in index B0_a_id
-    attr_idx_B0_a_id = idx_B0_a_id->getColumn(0)->getAttrId();
+    // get attribute ids for columns in index B_a_id
+    attr_idx_B_a_id = idx_B_a_id->getColumn(0)->getAttrId();
 }
 
 /************************************************************
@@ -343,9 +343,9 @@ CrundNdbapiOperations::clearData()
 {
     cout << "deleting all rows ..." << flush;
     const bool bulk = true;
-    int delB0 = -1;
-    delByScan(model->table_B0, delB0, bulk);
-    cout << "           [B0: " << toString(delB0) << flush;
+    int delB = -1;
+    delByScan(model->table_B, delB, bulk);
+    cout << "           [B: " << toString(delB) << flush;
     int delA = -1;
     delByScan(model->table_A, delA, bulk);
     cout << ", A: " << toString(delA) << "]" << endl;
@@ -619,7 +619,7 @@ CrundNdbapiOperations::getByPK_bb(const NdbDictionary::Table* table,
     delete[] ab;
 }
 
-struct CommonAB_AR {
+struct CommonAB_AH {
     NdbRecAttr* id;
     NdbRecAttr* cint;
     NdbRecAttr* clong;
@@ -628,7 +628,7 @@ struct CommonAB_AR {
 };
 
 static inline Int32
-getCommonAB(const CommonAB_AR* const ab)
+getCommonAB(const CommonAB_AH* const ab)
 {
     Int32 cint = ab->cint->int32_value();
     Int64 clong = ab->clong->int64_value();
@@ -641,17 +641,17 @@ getCommonAB(const CommonAB_AR* const ab)
 }
 
 void
-CrundNdbapiOperations::getByPK_ar(const NdbDictionary::Table* table,
+CrundNdbapiOperations::getByPK_ah(const NdbDictionary::Table* table,
                        int from, int to,
                        bool bulk)
 {
     // allocate attributes holder
     const int count = (to - from) + 1;
-    CommonAB_AR* const ab = new CommonAB_AR[count];
+    CommonAB_AH* const ab = new CommonAB_AH[count];
 
     // fetch attributes by key
     beginTransaction();
-    CommonAB_AR* pab = ab;
+    CommonAB_AH* pab = ab;
     for (int i = from; i <= to; i++, pab++) {
         // get a read operation for the table
         NdbOperation* op = tx->getNdbOperation(table);
@@ -703,7 +703,7 @@ void
 CrundNdbapiOperations::setVarbinary(const NdbDictionary::Table* table,
                          int from, int to, bool bulk, int length)
 {
-    setVar(table, model->attr_B0_cvarbinary_def,
+    setVar(table, model->attr_B_cvarbinary_def,
            from, to, bulk, selectString(length));
 }
 
@@ -711,7 +711,7 @@ void
 CrundNdbapiOperations::setVarchar(const NdbDictionary::Table* table,
                        int from, int to, bool bulk, int length)
 {
-    setVar(table, model->attr_B0_cvarchar_def,
+    setVar(table, model->attr_B_cvarchar_def,
            from, to, bulk, selectString(length));
 }
 
@@ -719,7 +719,7 @@ void
 CrundNdbapiOperations::getVarbinary(const NdbDictionary::Table* table,
                          int from, int to, bool bulk, int length)
 {
-    getVar(table, model->attr_B0_cvarbinary_def,
+    getVar(table, model->attr_B_cvarbinary_def,
            from, to, bulk, selectString(length));
 }
 
@@ -727,7 +727,7 @@ void
 CrundNdbapiOperations::getVarchar(const NdbDictionary::Table* table,
                        int from, int to, bool bulk, int length)
 {
-    getVar(table, model->attr_B0_cvarchar_def,
+    getVar(table, model->attr_B_cvarchar_def,
            from, to, bulk, selectString(length));
 }
 
@@ -851,12 +851,12 @@ CrundNdbapiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
 }
 
 void
-CrundNdbapiOperations::setB0ToA(int nOps, bool bulk)
+CrundNdbapiOperations::setBToA(int nOps, bool bulk)
 {
     beginTransaction();
     for (int i = 1; i <= nOps; i++) {
         // get an update operation for the table
-        NdbOperation* op = tx->getNdbOperation(model->table_B0);
+        NdbOperation* op = tx->getNdbOperation(model->table_B);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
         if (op->updateTuple() != 0)
@@ -868,7 +868,7 @@ CrundNdbapiOperations::setB0ToA(int nOps, bool bulk)
 
         // set a_id attribute
         int a_id = ((i - 1) % nOps) + 1;
-        if (op->setValue(model->attr_B0_a_id, (Int32)a_id) != 0)
+        if (op->setValue(model->attr_B_a_id, (Int32)a_id) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-bulking mode
@@ -880,12 +880,12 @@ CrundNdbapiOperations::setB0ToA(int nOps, bool bulk)
 }
 
 void
-CrundNdbapiOperations::nullB0ToA(int nOps, bool bulk)
+CrundNdbapiOperations::clearBToA(int nOps, bool bulk)
 {
     beginTransaction();
     for (int i = 1; i <= nOps; i++) {
         // get an update operation for the table
-        NdbOperation* op = tx->getNdbOperation(model->table_B0);
+        NdbOperation* op = tx->getNdbOperation(model->table_B);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
         if (op->updateTuple() != 0)
@@ -896,7 +896,7 @@ CrundNdbapiOperations::nullB0ToA(int nOps, bool bulk)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // clear a_id attribute
-        if (op->setValue(model->attr_B0_a_id, (char*)NULL) != 0)
+        if (op->setValue(model->attr_B_a_id, (char*)NULL) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-bulking mode
@@ -908,20 +908,20 @@ CrundNdbapiOperations::nullB0ToA(int nOps, bool bulk)
 }
 
 void
-CrundNdbapiOperations::navB0ToA(int nOps, bool bulk)
+CrundNdbapiOperations::navBToA(int nOps, bool bulk)
 {
     // allocate attributes holder
     CommonAB* const ab = new CommonAB[nOps];
 
-    // fetch the foreign keys from B0 and read attributes from A
+    // fetch the foreign keys from B and read attributes from A
     beginTransaction();
     CommonAB* pab = ab;
     for (int i = 1; i <= nOps; i++, pab++) {
-        // fetch the foreign key value from B0
+        // fetch the foreign key value from B
         Int32 a_id;
         {
             // get a read operation for the table
-            NdbOperation* op = tx->getNdbOperation(model->table_B0);
+            NdbOperation* op = tx->getNdbOperation(model->table_B);
             if (op == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
             if (op->readTuple(ndbOpLockMode) != 0)
@@ -932,7 +932,7 @@ CrundNdbapiOperations::navB0ToA(int nOps, bool bulk)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // get attribute (not readable until after commit)
-            if (op->getValue(model->attr_B0_a_id, (char*)&a_id) == NULL)
+            if (op->getValue(model->attr_B_a_id, (char*)&a_id) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
         }
         executeOperations(); // execute the operation; don't commit yet
@@ -988,17 +988,17 @@ CrundNdbapiOperations::navB0ToA(int nOps, bool bulk)
 }
 
 void
-CrundNdbapiOperations::navB0ToAalt(int nOps, bool bulk)
+CrundNdbapiOperations::navBToAalt(int nOps, bool bulk)
 {
     // allocate foreign key values holder
     Int32* const a_id = new Int32[nOps];
 
-    // fetch the foreign key values from B0
+    // fetch the foreign key values from B
     beginTransaction();
     Int32* pa_id = a_id;
     for (int i = 1; i <= nOps; i++) {
         // get a read operation for the table
-        NdbOperation* op = tx->getNdbOperation(model->table_B0);
+        NdbOperation* op = tx->getNdbOperation(model->table_B);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
         if (op->readTuple(ndbOpLockMode) != 0)
@@ -1009,7 +1009,7 @@ CrundNdbapiOperations::navB0ToAalt(int nOps, bool bulk)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // get attribute (not readable until after commit)
-        if (op->getValue(model->attr_B0_a_id, (char*)pa_id++) == NULL)
+        if (op->getValue(model->attr_B_a_id, (char*)pa_id++) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // execute the operation now if in non-bulking mode
@@ -1076,7 +1076,7 @@ CrundNdbapiOperations::navB0ToAalt(int nOps, bool bulk)
 }
 
 void
-CrundNdbapiOperations::navAToB0(int nOps, bool forceSend)
+CrundNdbapiOperations::navAToB(int nOps, bool forceSend)
 {
     // attributes holder
     CommonAB h;
@@ -1084,13 +1084,13 @@ CrundNdbapiOperations::navAToB0(int nOps, bool forceSend)
     // allocate attributes holder
     CommonAB* const ab = new CommonAB[nOps];
 
-    // fetch attributes from B0 by foreign key scan
+    // fetch attributes from B by foreign key scan
     beginTransaction();
     CommonAB* pab = ab;
     for (int i = 1; i <= nOps; i++) {
         // get an index scan operation for the table
         NdbIndexScanOperation* op
-            = tx->getNdbIndexScanOperation(model->idx_B0_a_id);
+            = tx->getNdbIndexScanOperation(model->idx_B_a_id);
         if (op == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
@@ -1099,13 +1099,13 @@ CrundNdbapiOperations::navAToB0(int nOps, bool forceSend)
 
         // define the scan's bounds (more efficient than using a scan filter)
         // the argument to setBound() is not the column's attribute id
-        //    if (op->setBound(model->attr_B0_a_id, ...
+        //    if (op->setBound(model->attr_B_a_id, ...
         // or column name
         //    if (op->setBound("a_id", ...
         // but the attribute id of the column *in the index*.
-        //    if (op->setBound(idx_B0_a_id->getColumn(0)->getAttrId()...
+        //    if (op->setBound(idx_B_a_id->getColumn(0)->getAttrId()...
         // for which we introduced a shortcut.
-        if (op->setBound(model->attr_idx_B0_a_id,
+        if (op->setBound(model->attr_idx_B_a_id,
                          NdbIndexScanOperation::BoundEQ, &i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
@@ -1157,7 +1157,7 @@ CrundNdbapiOperations::navAToB0(int nOps, bool forceSend)
 }
 
 void
-CrundNdbapiOperations::navAToB0alt(int nOps, bool forceSend)
+CrundNdbapiOperations::navAToBalt(int nOps, bool forceSend)
 {
     // number of operations in a multi-scan bulk
     const int nmscans = (nOps < 256 ? nOps : 256);
@@ -1169,7 +1169,7 @@ CrundNdbapiOperations::navAToB0alt(int nOps, bool forceSend)
     CommonAB* const ab = new CommonAB[nOps];
     CommonAB* pab = ab;
 
-    // fetch attributes from B0 by foreign key scan
+    // fetch attributes from B by foreign key scan
     beginTransaction();
     int a_id = 1;
     while (a_id <= nOps) {
@@ -1178,7 +1178,7 @@ CrundNdbapiOperations::navAToB0alt(int nOps, bool forceSend)
 
         for (int i = 0; i < nmscans; i++) {
             // get an index scan operation for the table
-            op[i] = tx->getNdbIndexScanOperation(model->idx_B0_a_id);
+            op[i] = tx->getNdbIndexScanOperation(model->idx_B_a_id);
             if (op[i] == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
@@ -1188,13 +1188,13 @@ CrundNdbapiOperations::navAToB0alt(int nOps, bool forceSend)
 
             // define the scan's bounds (more efficient than using a scan filter)
             // the argument to setBound() is not the column's attribute id
-            //    if (op[i]->setBound(model->attr_B0_a_id, ...
+            //    if (op[i]->setBound(model->attr_B_a_id, ...
             // or column name
             //    if (op[i]->setBound("a_id", ...
             // but the attribute id of the column *in the index*.
-            //    if (op[i]->setBound(idx_B0_a_id->getColumn(0)->getAttrId()...
+            //    if (op[i]->setBound(idx_B_a_id->getColumn(0)->getAttrId()...
             // for which we introduced a shortcut.
-            if (op[i]->setBound(model->attr_idx_B0_a_id,
+            if (op[i]->setBound(model->attr_idx_B_a_id,
                                 NdbIndexScanOperation::BoundEQ, &a_id) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
@@ -1215,7 +1215,7 @@ CrundNdbapiOperations::navAToB0alt(int nOps, bool forceSend)
         }
         executeOperations(); // start the scans; don't commit yet
 
-        // fetch attributes from B0 by foreign key scan
+        // fetch attributes from B by foreign key scan
         for (int i = 0; i < nmscans; i++) {
             // read the result set executing the defined read operations
             int stat;
