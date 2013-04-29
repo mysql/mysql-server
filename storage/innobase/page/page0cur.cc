@@ -212,9 +212,6 @@ page_cur_search_with_match(
 	ulint		cur_matched_fields;
 	ulint		cur_matched_bytes;
 	int		cmp;
-#ifdef UNIV_ZIP_DEBUG
-	const page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
-#endif /* UNIV_ZIP_DEBUG */
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -235,9 +232,7 @@ page_cur_search_with_match(
 mode_ok:
 #endif /* UNIV_DEBUG */
 	page = buf_block_get_frame(block);
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(buf_block_get_page_zip(block), page, index);
 
 	page_check_dir(page);
 
@@ -1047,9 +1042,7 @@ page_cur_insert_rec_zip(
 	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
 
 	ut_ad(!page_cur_is_after_last(cursor));
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(page_zip, page, index);
 
 	/* 1. Get the size of the physical record in the page */
 	rec_size = rec_offs_size(offsets);
@@ -1948,9 +1941,7 @@ page_cur_delete_rec(
 		page_dir_balance_slot(page, page_zip, cur_slot_no);
 	}
 
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(page_zip, page, index);
 }
 
 /** Initialize a page cursor, either to rec or the page infimum.
@@ -2229,11 +2220,9 @@ PageCur::search(const dtuple_t* tuple)
 	      || mtr_memo_contains_page(m_mtr, page, MTR_MEMO_PAGE_S_FIX));
 
 	page = buf_block_get_frame(m_block);
-#ifdef UNIV_ZIP_DEBUG
-	if (const page_zip_des_t* page_zip = buf_block_get_page_zip(block)) {
-		ut_a(page_zip_validate(page_zip, page, m_index));
-	}
-#endif /* UNIV_ZIP_DEBUG */
+
+	page_zip_validate_if_zip(
+		buf_block_get_page_zip(m_block), page, m_index);
 
 	page_check_dir(page);
 

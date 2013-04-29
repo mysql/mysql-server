@@ -1548,7 +1548,7 @@ recv_recover_page_func(
 		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 
 		ut_a(!page_zip
-		     || page_zip_validate_low(page_zip, page, NULL, FALSE));
+		     || page_zip_validate_low(page_zip, page, NULL, false));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
