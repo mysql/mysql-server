@@ -768,20 +768,24 @@ page_mem_alloc_heap(
 	ulint*		heap_no);/*!< out: this contains the heap number
 				of the allocated record
 				if allocation succeeds */
-/************************************************************//**
-Puts a record to free list. */
+/** Puts a record to the PAGE_FREE list.
+@param[in/out]	page		index B-tree page frame
+@param[in/out]	page_zip	compressed page, or NULL
+@param[in/out]	rec		record being freed (in the page)
+@param[in]	index		index B-tree
+@param[in]	data_size	user data size of rec, in bytes
+@param[in]	extra_size	header size of rec, in bytes
+@param[in]	n_ext		number of externally stored fields */
 UNIV_INLINE
 void
 page_mem_free(
-/*==========*/
-	page_t*			page,	/*!< in/out: index page */
-	page_zip_des_t*		page_zip,/*!< in/out: compressed page,
-					 or NULL */
-	rec_t*			rec,	/*!< in: pointer to the (origin of)
-					record */
-	const dict_index_t*	index,	/*!< in: index of rec */
-	const ulint*		offsets);/*!< in: array returned by
-					 rec_get_offsets() */
+	page_t*			page,
+	page_zip_des_t*		page_zip,
+	rec_t*			rec,
+	const dict_index_t*	index,
+	ulint			data_size,
+	ulint			extra_size,
+	ulint			n_ext);
 /**********************************************************//**
 Create an uncompressed B-tree index page.
 @return	pointer to the page */

@@ -1140,25 +1140,35 @@ page_get_max_insert_size_after_reorganize(
 	return(free_space - occupied);
 }
 
-/************************************************************//**
-Puts a record to free list. */
+/** Puts a record to the PAGE_FREE list.
+@param[in/out]	page		index B-tree page frame
+@param[in/out]	page_zip	compressed page, or NULL
+@param[in/out]	rec		record being freed (in the page)
+@param[in]	index		index B-tree
+@param[in]	data_size	user data size of rec, in bytes
+@param[in]	extra_size	header size of rec, in bytes
+@param[in]	n_ext		number of externally stored fields */
 UNIV_INLINE
 void
 page_mem_free(
-/*==========*/
-	page_t*			page,		/*!< in/out: index page */
-	page_zip_des_t*		page_zip,	/*!< in/out: compressed page,
-						or NULL */
-	rec_t*			rec,		/*!< in: pointer to the
-						(origin of) record */
-	const dict_index_t*	index,		/*!< in: index of rec */
-	const ulint*		offsets)	/*!< in: array returned by
-						rec_get_offsets() */
+	page_t*			page,
+	page_zip_des_t*		page_zip,
+	rec_t*			rec,
+	const dict_index_t*	index,
+	ulint			data_size,
+	ulint			extra_size,
+	ulint			n_ext)
 {
-	rec_t*		free;
-	ulint		garbage;
+	rec_t*	free;
+	ulint	garbage;
 
-	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(!n_ext || page_is_leaf(page));
+	ut_ad(!n_ext || dict_index_is_clust(index));
+	ut_ad(n_ext < dict_index_get_n_fields(index));
+
+	UNIV_MEM_ASSERT_RW(rec, data_size);
+	UNIV_MEM_ASSERT_RW(rec - extra_size, extra_size);
+
 	free = page_header_get_ptr(page, PAGE_FREE);
 
 	page_rec_set_next(rec, free);
@@ -1167,10 +1177,11 @@ page_mem_free(
 	garbage = page_header_get_field(page, PAGE_GARBAGE);
 
 	page_header_set_field(page, page_zip, PAGE_GARBAGE,
-			      garbage + rec_offs_size(offsets));
+			      garbage + data_size + extra_size);
 
 	if (page_zip) {
-		page_zip_dir_delete(page_zip, rec, index, offsets, free);
+		page_zip_dir_delete(page_zip, free, rec, index,
+				    data_size, extra_size, n_ext);
 	} else {
 		page_header_set_field(page, page_zip, PAGE_N_RECS,
 				      page_get_n_recs(page) - 1);
