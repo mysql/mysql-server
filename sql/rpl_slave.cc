@@ -818,6 +818,33 @@ static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
   }
 }
 
+/*
+  SYNOPSIS:
+  Auxiliary function to destroy the current mts submode.
+  @param
+     mts_submode reference to  current Mts submode
+
+ */
+void destroy_mts_submode(Mts_submode **mts_submode)
+{
+  if (*mts_submode)
+  {
+    switch ((*mts_submode)->get_type())
+    {
+    case MTS_PARALLEL_TYPE_BGC:
+      delete static_cast<Mts_submode_master*>(*mts_submode);
+      break;
+    case MTS_PARALLEL_TYPE_DB_NAME:
+      delete static_cast<Mts_submode_database*>(*mts_submode);
+      break;
+    default:
+      DBUG_ASSERT(0);
+      break;
+    }
+    *mts_submode= NULL;
+  }
+}
+
 int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
 {
   DBUG_ENTER("terminate_slave_threads");
@@ -838,18 +865,11 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
                                       need_lock_term)) &&
         !force_all)
     {
-      if (mi->rli->current_mts_submode)
-      {
-        delete mi->rli->current_mts_submode;
-        mi->rli->current_mts_submode= NULL;
-      }
+      destroy_mts_submode(&(mi->rli->current_mts_submode));
       DBUG_RETURN(error);
     }
-    else if (mi->rli->current_mts_submode)
-    {
-      delete mi->rli->current_mts_submode;
-      mi->rli->current_mts_submode= NULL;
-    }
+    else
+      destroy_mts_submode(&(mi->rli->current_mts_submode));
     mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay-log info file."));
@@ -5300,11 +5320,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     }
     // free the current submode object
     mysql_mutex_unlock(&w->jobs_lock);
-    if (w->current_mts_submode)
-    {
-      delete(w->current_mts_submode);
-      w->current_mts_submode= NULL;
-    }
+    destroy_mts_submode(&w->current_mts_submode);
     delete_dynamic_element(&rli->workers, i);
     delete w;
   }
