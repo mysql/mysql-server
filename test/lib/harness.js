@@ -560,8 +560,13 @@ Listener.prototype.fail = function(t, e) {
   if ((this.printStackTraces) && typeof(e.stack) !== 'undefined') {
     message = e.stack;
   }
-  
-  console.log("[FAIL]", t.fullName(), "\t", message);
+
+  if(t.phase === 0) {
+    console.log("[FailSmokeTest]", t.fullName());
+  }
+  else {
+    console.log("[FAIL]", t.fullName(), "\t", message);
+  }
 };
 
 Listener.prototype.listRunningTests = function() {
@@ -612,7 +617,9 @@ Result.prototype.pass = function(t) {
 };
 
 Result.prototype.fail = function(t, e) {
-  this.failed.push(t.name);
+  if(t.phase > 0) {  // i.e. not a SmokeTest
+    this.failed.push(t.name);
+  }
   this.listener.fail(t, e);
   this.driver.testCompleted(t);
 };
@@ -632,7 +639,7 @@ var runSQL = function(sqlPath, source, callback) {
     udebug.log_detail(source + ' stdout: ' + stdout);
     udebug.log_detail(source + ' stderr: ' + stderr);
     if (error !== null) {
-      console.log(source + 'exec error: ' + error);
+      udebug.log(source + 'exec error: ' + error);
     } else {
       udebug.log_detail(source + ' exec OK');
     }
