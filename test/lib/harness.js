@@ -187,7 +187,14 @@ Test.prototype.run = function() {
 };
 
 Test.prototype.errorIfNotEqual = function(message, o1, o2) {
-	if (o1 !== o2) {
+	if (o1 != o2) {
+    message += ': expected ' + o1 + '; actual ' + o2 + '\n';
+		this.errorMessages += message;
+	}
+};
+
+Test.prototype.errorIfNotStrictEqual = function(message, o1, o2) {
+  if(o1 !== o2) {
     message += ': expected ' + o1 + '; actual ' + o2 + '\n';
 		this.errorMessages += message;
 	}
