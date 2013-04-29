@@ -88,7 +88,7 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
 
   add_ft_test_aux(ftdump-test-generate ft-test)
   add_test(NAME ft/ftdump-test
-    COMMAND $<TARGET_FILE:ftdump> "ftdump-test-generate.ctest-data"
+    COMMAND $<TARGET_FILE:tokuftdump> "ftdump-test-generate.ctest-data"
     )
   set_tests_properties(ft/ftdump-test PROPERTIES
     DEPENDS ft/ftdump-test-generate
