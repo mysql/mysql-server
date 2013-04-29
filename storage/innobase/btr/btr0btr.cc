@@ -1782,9 +1782,7 @@ btr_page_reorganize_low(
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	btr_assert_not_corrupted(block, index);
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(page_zip, page, index);
 	data_size1 = page_get_data_size(page);
 	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
 
@@ -1917,9 +1915,7 @@ btr_page_reorganize_low(
 	}
 
 func_exit:
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(page_zip, page, index);
 #ifndef UNIV_HOTBACKUP
 	buf_block_free(temp_block);
 #endif /* !UNIV_HOTBACKUP */
@@ -2074,9 +2070,7 @@ btr_page_empty(
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_zip == buf_block_get_page_zip(block));
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(page_zip, page, index);
 
 	btr_search_drop_page_hash_index(block);
 	btr_blob_dbg_remove(page, index, "btr_page_empty");
@@ -2135,9 +2129,7 @@ btr_root_raise_and_insert(
 	root_page_zip = buf_block_get_page_zip(root_block);
 	ut_ad(!page_is_empty(root));
 	index = btr_cur_get_index(cursor);
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!root_page_zip || page_zip_validate(root_page_zip, root, index));
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(root_page_zip, root, index);
 #ifdef UNIV_BTR_DEBUG
 	if (!dict_index_is_ibuf(index)) {
 		ulint	space = dict_index_get_space(index);
@@ -3511,9 +3503,7 @@ btr_lift_page_up(
 		ut_ad(btr_page_get_level(page, mtr) == page_level + 1);
 
 		btr_page_set_level(page, page_zip, page_level, mtr);
-#ifdef UNIV_ZIP_DEBUG
-		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
+		page_zip_validate_if_zip(page_zip, page, index);
 	}
 
 	/* Free the file page */
@@ -3695,12 +3685,12 @@ err_exit:
 	}
 
 	merge_page_zip = buf_block_get_page_zip(merge_block);
+	page_zip_validate_if_zip(merge_page_zip, merge_page, index);
 #ifdef UNIV_ZIP_DEBUG
 	if (merge_page_zip) {
 		const page_zip_des_t*	page_zip
 			= buf_block_get_page_zip(block);
 		ut_a(page_zip);
-		ut_a(page_zip_validate(merge_page_zip, merge_page, index));
 		ut_a(page_zip_validate(page_zip, page, index));
 	}
 #endif /* UNIV_ZIP_DEBUG */
@@ -3835,10 +3825,7 @@ err_exit:
 	}
 
 	ut_ad(page_validate(merge_page, index));
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!merge_page_zip || page_zip_validate(merge_page_zip, merge_page,
-						  index));
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(merge_page_zip, merge_page, index);
 
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
@@ -4015,14 +4002,8 @@ btr_discard_page(
 
 	/* Remove the page from the level list */
 	btr_level_list_remove(space, zip_size, page, index, mtr);
-#ifdef UNIV_ZIP_DEBUG
-	{
-		page_zip_des_t*	merge_page_zip
-			= buf_block_get_page_zip(merge_block);
-		ut_a(!merge_page_zip
-		     || page_zip_validate(merge_page_zip, merge_page, index));
-	}
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(buf_block_get_page_zip(merge_block),
+				 merge_page, index);
 
 	if (left_page_no != FIL_NULL) {
 		lock_update_discard(merge_block, PAGE_HEAP_NO_SUPREMUM,
@@ -4468,9 +4449,6 @@ btr_validate_level(
 	fseg_header_t*	seg;
 	ulint*		offsets	= NULL;
 	ulint*		offsets2= NULL;
-#ifdef UNIV_ZIP_DEBUG
-	page_zip_des_t*	page_zip;
-#endif /* UNIV_ZIP_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -4513,10 +4491,8 @@ btr_validate_level(
 
 		ut_a(space == buf_block_get_space(block));
 		ut_a(space == page_get_space_id(page));
-#ifdef UNIV_ZIP_DEBUG
-		page_zip = buf_block_get_page_zip(block);
-		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
+		page_zip_validate_if_zip(buf_block_get_page_zip(block),
+					 page, index);
 		ut_a(!page_is_leaf(page));
 
 		page_cur_set_before_first(block, &cursor);
@@ -4544,10 +4520,7 @@ loop:
 		mtr_x_lock(dict_index_get_lock(index), &mtr);
 	}
 
-#ifdef UNIV_ZIP_DEBUG
-	page_zip = buf_block_get_page_zip(block);
-	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
+	page_zip_validate_if_zip(buf_block_get_page_zip(block), page, index);
 
 	ut_a(block->page.space == space);
 

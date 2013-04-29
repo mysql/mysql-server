@@ -162,28 +162,37 @@ page_zip_simple_validate(
 #ifdef UNIV_ZIP_DEBUG
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
-@return	TRUE if valid, FALSE if not */
+@param[in] page_zip	compressed page
+@param[in] page		uncompressed page
+@param[in] index	index of the page, or NULL if not known
+@param[in] sloppy	false=strict, true=ignore REC_INFO_MIN_REC_FLAG
+@return	true if valid, false if not */
 UNIV_INTERN
-ibool
+bool
 page_zip_validate_low(
 /*==================*/
-	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	const page_t*		page,	/*!< in: uncompressed page */
-	const dict_index_t*	index,	/*!< in: index of the page, if known */
-	ibool			sloppy)	/*!< in: FALSE=strict,
-					TRUE=ignore the MIN_REC_FLAG */
-	__attribute__((nonnull(1,2)));
-/**********************************************************************//**
-Check that the compressed and decompressed pages match. */
-UNIV_INTERN
-ibool
-page_zip_validate(
-/*==============*/
-	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	const page_t*		page,	/*!< in: uncompressed page */
-	const dict_index_t*	index)	/*!< in: index of the page, if known */
-	__attribute__((nonnull(1,2)));
+	const page_zip_des_t*	page_zip,
+	const page_t*		page,
+	const dict_index_t*	index,
+	bool			sloppy);
+# define page_zip_validate_if_zip(page_zip, page, index)		\
+	ut_a(!(page_zip) || page_zip_validate(page_zip, page, index))
+# define page_zip_validate_sloppy_if_zip(page_zip, page, index)		\
+	ut_a(!(page_zip) || page_zip_validate_low(page_zip, page, index, true))
+#else
+# define page_zip_validate_low(page_zip, page, index, sloppy) /* empty */
+# define page_zip_validate_if_zip(page_zip, page, index) /* empty */
+# define page_zip_validate_sloppy_if_zip(page_zip, page, index) /* empty */
 #endif /* UNIV_ZIP_DEBUG */
+
+/**********************************************************************//**
+Check that the compressed and decompressed pages match.
+@param[in] page_zip	compressed page
+@param[in] page		uncompressed page
+@param[in] index	index of the page, or NULL if not known
+@return	true if valid, false if not */
+#define page_zip_validate(page_zip, page, index)			\
+	page_zip_validate_low(page_zip, page, index, recv_recovery_is_on())
 
 /**********************************************************************//**
 Determine how big record can be inserted without recompressing the page.
