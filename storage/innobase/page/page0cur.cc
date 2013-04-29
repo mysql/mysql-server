@@ -2335,6 +2335,144 @@ up_rec_match:
 	return(low_match_f == dtuple_get_n_fields(tuple));
 }
 
+/** Delete the current record.
+The cursor is moved to the next record after the deleted one.
+@return true if the next record is a user record */
+UNIV_INTERN
+bool
+PageCur::purge()
+{
+	buf_block_t*	block	= const_cast<buf_block_t*>(m_block);
+	page_t*		page	= buf_block_get_frame(block);
+	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
+
+	ut_ad(isUser());
+	ut_ad(rec_offs_validate(m_rec, m_index, m_offsets));
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(m_index->table));
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
+	      == m_index->id || m_mtr->inside_ibuf || recv_recovery_is_on());
+
+	/* page_zip_validate() will fail here when
+	btr_cur_pessimistic_delete() invokes btr_set_min_rec_mark().
+	Then, both "page_zip" and "page" would have the min-rec-mark
+	set on the smallest user record, but "page" would additionally
+	have it set on the smallest-but-one record.  Because sloppy
+	page_zip_validate_low() only ignores min-rec-flag differences
+	in the smallest user record, it cannot be used here either. */
+
+	if (page_get_n_recs(page) == 1) {
+		/* Empty the page. */
+		ut_ad(page_is_leaf(page));
+		/* Usually, this should be the root page,
+		and the whole index tree should become empty.
+		However, this could also be a call in
+		btr_cur_pessimistic_update() to delete the only
+		record in the page and to insert another one. */
+		ut_ad(!next());
+		setRec(page_get_supremum_rec(page));
+		page_create_empty(block,
+				  const_cast<dict_index_t*>(m_index), m_mtr);
+		return(false);
+	}
+
+	ulint		slot_no	= page_dir_find_owner_slot(m_rec);
+	page_dir_slot_t*slot	= page_dir_get_nth_slot(page, slot_no);
+	page_dir_slot_t*prev_sl	= page_dir_get_nth_slot(page, slot_no - 1);
+	ulint		n_owned	= page_dir_slot_get_n_owned(slot);
+
+	ut_ad(n_owned > 1);
+	ut_ad(slot_no > 0);
+
+	/* 0. Write the log record */
+	if (m_mtr) {
+		page_cur_delete_rec_write_log(m_rec, m_index, m_mtr);
+	}
+
+	/* 1. Reset the last insert info in the page header and increment
+	the modify clock for the frame */
+
+	page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, NULL);
+
+	/* The page gets invalid for optimistic searches: increment the
+	frame modify clock only if there is an mini-transaction covering
+	the change. During IMPORT we allocate local blocks that are not
+	part of the buffer pool. */
+
+	if (m_mtr) {
+		buf_block_modify_clock_inc(const_cast<buf_block_t*>(m_block));
+	}
+
+	/* 2. Find the next and the previous record. Note that the cursor is
+	left at the next record. */
+
+	const rec_t*	prev_rec	= NULL;
+	const rec_t*	rec;
+
+	/* Find the immediate predecessor of m_rec. */
+	for (rec = page_dir_slot_get_rec(prev_sl); rec != m_rec;
+	     rec = page_rec_get_next_const(rec)) {
+		prev_rec = rec;
+	}
+
+	rec_t*	del_rec	= const_cast<rec_t*>(m_rec);
+	ulint	data_size;
+	ulint	extra_size;
+	ulint	n_ext;
+
+	if (isComp()) {
+		data_size = rec_offs_data_size(m_offsets);
+		extra_size = rec_offs_extra_size(m_offsets);
+		n_ext = rec_offs_n_extern(m_offsets);
+	} else {
+		data_size = rec_get_size_old(m_rec, extra_size);
+		/* This is only needed for page_zip. */
+		n_ext = 0;
+		ut_ad(!page_zip);
+	}
+
+	btr_blob_dbg_remove_rec(del_rec, const_cast<dict_index_t*>(m_index),
+				m_offsets, "PageCur::purge");
+
+	next();
+
+	/* 3. Remove the record from the linked list of records */
+
+	page_rec_set_next(const_cast<rec_t*>(prev_rec), m_rec);
+
+	/* 4. If the deleted record is pointed to by a dir slot, update the
+	record pointer in slot. In the following if-clause we assume that
+	prev_rec is owned by the same slot, i.e., PAGE_DIR_SLOT_MIN_N_OWNED
+	>= 2. */
+
+#if PAGE_DIR_SLOT_MIN_N_OWNED < 2
+# error "PAGE_DIR_SLOT_MIN_N_OWNED < 2"
+#endif
+	if (del_rec == page_dir_slot_get_rec(slot)) {
+		page_dir_slot_set_rec(slot, prev_rec);
+	}
+
+	/* 5. Update the number of owned records of the slot */
+
+	page_dir_slot_set_n_owned(slot, page_zip, n_owned - 1);
+
+	/* 6. Free the memory occupied by the record */
+	page_mem_free(page, page_zip, del_rec, m_index,
+		      data_size, extra_size, n_ext);
+
+	/* 7. Now we have decremented the number of owned records of the slot.
+	If the number drops below PAGE_DIR_SLOT_MIN_N_OWNED, we balance the
+	slots. */
+
+	if (n_owned <= PAGE_DIR_SLOT_MIN_N_OWNED) {
+		page_dir_balance_slot(page, page_zip, slot_no);
+	}
+
+	page_zip_validate_if_zip(page_zip, page, index);
+
+	return(!isAfterLast());
+}
+
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
 /*******************************************************************//**
