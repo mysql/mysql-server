@@ -151,6 +151,9 @@
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Next">
           <Publish Event="Remove" Value="DBInstance">CreateOrUpgradeChoice = "Upgrade" </Publish>
           <Publish Event="AddLocal" Value="DBInstance">CreateOrUpgradeChoice = "Create"</Publish>
+          <Publish Property="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="[NonExistentProperty]">CreateOrUpgradeChoice = "Create"</Publish>
+          <Publish Property="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="[NonExistentProperty]">CreateOrUpgradeChoice = "Create"</Publish>
+          <Publish Property="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1">CreateOrUpgradeChoice = "Upgrade"</Publish>
           <Publish Event="NewDialog" Value="CustomizeDlg">1</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
@@ -823,7 +826,7 @@
     <Property 
       Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" 
       Value="Launch wizard to upgrade existing MariaDB or MySQL services." />
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="0"/>
     <Property Id="WixShellExecTarget" Value="[#F.bin.mysql_upgrade_wizard.exe]" />
     <CustomAction Id="LaunchApplication"
         BinaryKey="WixCA"
@@ -835,16 +838,16 @@
       Execute="immediate" />
     <InstallUISequence>
       <Custom Action="CheckServiceUpgrades" After="CostFinalize">
-        $C.bin.mysql_upgrade_wizard.exe = 3 AND NOT Installed
+        $C.bin.mysql_upgrade_wizard.exe = 3 AND NOT Installed AND NOT OLDERVERSIONBEINGUPGRADED
       </Custom>
     </InstallUISequence>
     <SetProperty Before="ExecuteAction" Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" 
        Sequence="ui"  Value="[NonExistentProperty]">
-      <![CDATA[($C.bin.mysql_upgrade_wizard.exe <> 3) AND NOT Installed]]>
+      <![CDATA[($C.bin.mysql_upgrade_wizard.exe <> 3) AND NOT Installed OR OLDERVERSIONBEINGUPGRADED]]>
     </SetProperty>
     <SetProperty Before="ExecuteAction" Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" 
        Sequence="ui"  Value="[NonExistentProperty]">
-      <![CDATA[($C.bin.mysql_upgrade_wizard.exe <> 3) AND NOT Installed]]>
+      <![CDATA[($C.bin.mysql_upgrade_wizard.exe <> 3) AND NOT Installed OR OLDERVERSIONBEINGUPGRADED]]>
     </SetProperty>
     
     <?endif ?> <!-- HaveUpgradeWizard -->

@@ -895,7 +895,7 @@ extern "C" UINT __stdcall CheckServiceUpgrades(MSIHANDLE hInstall)
           Only look for services that have mysqld.exe outside of the current
           installation directory.
         */
-       if(strstr(props.mysqld_exe,installDir) == 0)
+       if(installDir[0] == 0 || strstr(props.mysqld_exe,installDir) == 0)
         {
            WcaLog(LOGMSG_STANDARD, "found service %S, major=%d, minor=%d",
             info[i].lpServiceName, props.version_major, props.version_minor);

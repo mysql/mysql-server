@@ -329,8 +329,8 @@ INCLUDE(cmake/abi_check.cmake)
 INCLUDE(cmake/tags.cmake)
 
 IF(WIN32)
-  ADD_SUBDIRECTORY(win/packaging)
   ADD_SUBDIRECTORY(win/upgrade_wizard)
+  ADD_SUBDIRECTORY(win/packaging)
 ENDIF()
 
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/my_config.h)
