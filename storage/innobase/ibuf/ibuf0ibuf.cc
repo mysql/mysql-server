@@ -4226,81 +4226,50 @@ ibuf_delete(
 	mtr_t*		mtr)	/*!< in/out: mtr; must be committed
 				before latching any further pages */
 {
-	page_cur_t	page_cur;
-	ulint		low_match;
-
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 
-	low_match = page_cur_search(block, index, entry, &page_cur);
-
-	if (low_match == dtuple_get_n_fields(entry)) {
-		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
-		page_t*		page	= buf_block_get_frame(block);
-		rec_t*		rec	= page_cur_get_rec(&page_cur);
-
-		/* TODO: the below should probably be a separate function,
-		it's a bastardized version of btr_cur_optimistic_delete. */
-
-		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		ulint*		offsets	= offsets_;
-		mem_heap_t*	heap = NULL;
-		ulint		max_ins_size = 0;
-
-		rec_offs_init(offsets_);
-
-		offsets = rec_get_offsets(
-			rec, index, offsets, ULINT_UNDEFINED, &heap);
-
-		if (page_get_n_recs(page) <= 1
-		    || !(REC_INFO_DELETED_FLAG
-			 & rec_get_info_bits(rec, page_is_comp(page)))) {
-			/* Refuse to purge the last record or a
-			record that has not been marked for deletion. */
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: unable to purge a record\n",
-			      stderr);
-			fputs("InnoDB: tuple ", stderr);
-			dtuple_print(stderr, entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print_new(stderr, rec, offsets);
-			fprintf(stderr, "\nspace %u offset %u"
-				" (%u records, index id " IB_ID_FMT ")\n"
-				"InnoDB: Submit a detailed bug report"
-				" to http://bugs.mysql.com\n",
-				(unsigned) buf_block_get_space(block),
-				(unsigned) buf_block_get_page_no(block),
-				(unsigned) page_get_n_recs(page),
-				page_get_index_id(page));
-
-			ut_ad(0);
-			return;
-		}
-
-		lock_update_delete(block, rec);
-
-		if (!page_zip) {
-			max_ins_size
-				= page_get_max_insert_size_after_reorganize(
-					page, 1);
-		}
-
-		page_zip_validate_if_zip(page_zip, page, index);
-		page_cur_delete_rec(&page_cur, index, offsets, mtr);
-		page_zip_validate_if_zip(page_zip, page, index);
-
-		if (page_zip) {
-			ibuf_update_free_bits_zip(block, mtr);
-		} else {
-			ibuf_update_free_bits_low(block, max_ins_size, mtr);
-		}
-
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
-	} else {
+	PageCur		cur(*mtr, *index, *block);
+	if (!cur.search(entry)) {
 		/* The record must have been purged already. */
+		return;
+	}
+
+	const page_t*	page	= buf_block_get_frame(block);
+	page_zip_validate_if_zip(buf_block_get_page_zip(block), page, index);
+
+	/* TODO: the below should probably be a separate function,
+	it's a bastardized version of btr_cur_optimistic_delete. */
+
+	if (page_get_n_recs(cur.getPage()) <= 1 || !cur.isDeleted()) {
+		/* Refuse to purge the last record or a
+		record that has not been marked for deletion. */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"unable to purge a record"
+			" in page %u:%u index " IB_ID_FMT,
+			block->page.space, block->page.offset,
+			page_get_index_id(page));
+		dtuple_print(stderr, entry);
+		rec_print_new(stderr, cur.getRec(), cur.getOffsets());
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Submit a detailed bug report"
+			" to http://bugs.mysql.com");
+		ut_ad(0);
+		return;
+	}
+
+	lock_update_delete(block, cur.getRec());
+
+	if (buf_block_get_page_zip(block)) {
+		cur.purge();
+		page_zip_validate_if_zip(buf_block_get_page_zip(block),
+					 page, index);
+		ibuf_update_free_bits_zip(block, mtr);
+	} else {
+		const ulint	max_ins_size
+			= page_get_max_insert_size_after_reorganize(page, 1);
+		cur.purge();
+		ibuf_update_free_bits_low(block, max_ins_size, mtr);
 	}
 }
 

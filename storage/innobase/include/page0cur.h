@@ -413,6 +413,8 @@ public:
 	mtr_t* getMtr() const { return(m_mtr); }
 	/** Get the B-tree page. */
 	const buf_block_t* getBlock() const { return(m_block); }
+	/** Get the B-tree page frame. */
+	const page_t* getPage() const { return(buf_block_get_frame(m_block)); }
 	/** Get the index. */
 	const dict_index_t* getIndex() const { return(m_index); }
 
@@ -503,16 +505,21 @@ public:
 		return(rec_get_deleted_flag(m_rec, isComp()));
 	}
 
-	/** Search for an entry in the index page.
-	@param tuple data tuple to search for
-	@return true if a full match was found */
-	bool search(const dtuple_t* tuple);
-
 	/** Insert the record that the page cursor is pointing to,
 	to another page.
 	@param[in/out] rec	record after which to insert
 	@return	pointer to record if enough space available, NULL otherwise */
 	rec_t* insert(rec_t* current) const;
+
+	/** Search for an entry in the index page.
+	@param tuple data tuple to search for
+	@return true if a full match was found */
+	bool search(const dtuple_t* tuple);
+
+	/** Delete the current record.
+	The cursor is moved to the next record after the deleted one.
+	@return true if the next record is a user record */
+	bool purge();
 
 	/** Get the number of fields in the page. */
 	ulint getNumFields() const {
