@@ -1981,10 +1981,7 @@ btr_page_reorganize_block(
 	dict_index_t*	index,	/*!< in: the index tree of the page */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	page_cur_t	cur;
-	page_cur_set_before_first(block, &cur);
-
-	return(btr_page_reorganize_low(recovery, z_level, &cur, index, mtr));
+	return(PageCur(*mtr, *index, *block).reorganize(recovery, z_level));
 }
 
 #ifndef UNIV_HOTBACKUP
