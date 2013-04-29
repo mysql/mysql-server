@@ -505,8 +505,7 @@ public:
 	@param[in]	deleted	true=deleted, false=not deleted */
 	void flagDeleted(bool deleted) {
 		ut_ad(isUser());
-		ut_ad(mtr_memo_contains_page(m_mtr, page_align(m_rec),
-					     MTR_MEMO_PAGE_X_FIX));
+		ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
 
 		page_zip_des_t*	page_zip	= buf_block_get_page_zip(
 			const_cast<buf_block_t*>(m_block));
