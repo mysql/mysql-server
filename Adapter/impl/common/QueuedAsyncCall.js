@@ -54,7 +54,7 @@ function QueuedAsyncCall(queue, callback) {
       }
       /* Run the user's callback function */
       if(typeof callback === 'function') {  callback(err, obj);  }
-    }
+    };
   }
   
   this.callback = wrapCallback(queue, callback);

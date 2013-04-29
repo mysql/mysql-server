@@ -18,10 +18,6 @@
  02110-1301  USA
  */
 
-/*global mynode, unified_debug, path, fs, assert, spi_module, harness, 
-         adapter_dir, spi_dir 
-*/
-
 "use strict";
 
 try {

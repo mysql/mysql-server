@@ -59,7 +59,7 @@ function ReadFunction(testCase, session) {
   return function onPersist(err) {
     testCase.errorIfError(err);
     session.find(TestData, testCase.data.id, testCase.verifier.run);
-  }
+  };
 }
 
 function InsertFunction(data) {
@@ -82,7 +82,7 @@ t1.run = function() {
   data.str_fix_latin1 = value;
   this.verifier = new ValueVerifier(this, "str_fix_latin1", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t2 = new harness.ConcurrentTest("2:str_var_latin1_ASCII");
 t2.run = function() {
@@ -91,7 +91,7 @@ t2.run = function() {
   data.str_var_latin1 = value;
   this.verifier = new ValueVerifier(this, "str_var_latin1", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t3 = new harness.ConcurrentTest("3:str_var_latin1");
 t3.run = function() {
@@ -100,7 +100,7 @@ t3.run = function() {
   data.str_var_latin1 = value;
   this.verifier = new ValueVerifier(this, "str_var_latin1", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t4 = new harness.ConcurrentTest("4:str_fix_latin1");
 t4.run = function() {
@@ -109,7 +109,7 @@ t4.run = function() {
   data.str_fix_latin1 = value;
   this.verifier = new ValueVerifier(this, "str_fix_latin1", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t5 = new harness.ConcurrentTest("5:str_fix_latin2");
 t5.run = function() {
@@ -118,7 +118,7 @@ t5.run = function() {
   data.str_fix_latin2 = value;
   this.verifier = new ValueVerifier(this, "str_fix_latin2", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t6 = new harness.ConcurrentTest("6:str_var_latin2");
 t6.run = function() {
@@ -127,7 +127,7 @@ t6.run = function() {
   data.str_var_latin2 = value;
   this.verifier = new ValueVerifier(this, "str_var_latin2", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t7 = new harness.ConcurrentTest("7:str_fix_utf8");
 t7.run = function() {
@@ -136,7 +136,7 @@ t7.run = function() {
   data.str_fix_utf8 = value;
   this.verifier = new ValueVerifier(this, "str_fix_utf8", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t8 = new harness.ConcurrentTest("8:str_var_utf8");
 t8.run = function() {
@@ -145,7 +145,7 @@ t8.run = function() {
   data.str_var_utf8 = value;
   this.verifier = new ValueVerifier(this, "str_var_utf8", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t9 = new harness.ConcurrentTest("9:str_fix_utf16");
 t9.run = function() {
@@ -154,7 +154,7 @@ t9.run = function() {
   data.str_fix_utf16 = value;
   this.verifier = new ValueVerifier(this, "str_fix_utf16", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t10 = new harness.ConcurrentTest("10:str_var_utf16");
 t10.run = function() {
@@ -163,7 +163,7 @@ t10.run = function() {
   data.str_var_utf16 = value;
   this.verifier = new ValueVerifier(this, "str_var_utf16", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t11 = new harness.ConcurrentTest("11:str_fix_ascii");
 t11.run = function() {
@@ -172,7 +172,7 @@ t11.run = function() {
   data.str_fix_ascii = value;
   this.verifier = new ValueVerifier(this, "str_fix_ascii", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t12 = new harness.ConcurrentTest("12:str_var_ascii");
 t12.run = function() {
@@ -181,7 +181,7 @@ t12.run = function() {
   data.str_var_ascii = value;
   this.verifier = new ValueVerifier(this, "str_var_ascii", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t13 = new harness.ConcurrentTest("13:str_fix_utf32");
 t13.run = function() {
@@ -190,7 +190,7 @@ t13.run = function() {
   data.str_fix_utf32 = value;
   this.verifier = new ValueVerifier(this, "str_fix_utf32", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 var t14 = new harness.ConcurrentTest("14:str_var_utf32");
 t14.run = function() {
@@ -199,7 +199,7 @@ t14.run = function() {
   data.str_var_utf32 = value;
   this.verifier = new ValueVerifier(this, "str_var_utf32", value);
   fail_openSession(this, InsertFunction(data));
-}
+};
 
 
 

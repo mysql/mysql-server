@@ -18,8 +18,6 @@
  02110-1301  USA
 */
 
-/*global fs, spi_doc_dir, path, build_dir, converters_dir, unified_debug */
-
 "use strict";
 
 var DatetimeConverter = require(path.join(converters_dir, "NdbDatetimeConverter"));

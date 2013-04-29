@@ -21,6 +21,9 @@
 /** This is the smoke test for the integraltypes suite.
  */
 
+/*global harness, mynode */
+"use strict";
+
 require("./lib.js");
 
 var test = new harness.SmokeTest("SmokeTest");

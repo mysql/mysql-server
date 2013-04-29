@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
 
 global.util            = require("util");
 
@@ -118,7 +119,7 @@ t5.testGetMapping = function(session, testCase) {
   try {
     session.getMapping(1, function(err, result) {
       if (!err) {
-        testCase2.fail('t5 getMapping for 1 should fail');
+        testCase.fail('t5 getMapping for 1 should fail');
       } else {
         testCase.pass();
       }

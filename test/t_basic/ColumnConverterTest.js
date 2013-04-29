@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
 
 /** The t_basic domain object */
 global.converter = function(id, name, status, magic) {
@@ -35,10 +36,10 @@ var STATUS = {
          DIVORCED: {value: 2, code: 'D', name: 'DIVORCED'},
     lookup: function(value) {
       switch (value) {
-      case 0: return this.NEVER_MARRIED; break;
-      case 1: return this.MARRIED; break;
-      case 2: return this.DIVORCED; break;
-      default: return null; break;
+      case 0: return this.NEVER_MARRIED; 
+      case 1: return this.MARRIED; 
+      case 2: return this.DIVORCED; 
+      default: return null;
       }
     }
 };
@@ -129,28 +130,25 @@ t2.convert1 = function(value) {
 /** Only use convert function if it is defined */
 t2.convert2 = function(value) {
   if (t2.converter999) {
-    converter999.toDB(value);
-  } else {
-    return value;
+    return t2.converter999.toDB(value);
   }
+  return value;
 };
 
 /** Only use convert function if it is not undefined */
 t2.convert3 = function(value) {
   if (typeof t2.converter999 !== 'undefined') {
-    converter999.toDB(value);
-  } else {
-    return value;
+    return t2.converter999.toDB(value);
   }
+  return value;
 };
 
 /** Only use convert function if it is a function */
 t2.convert4 = function(value) {
   if (typeof t2.converter999 === 'function') {
-    converter999.toDB(value);
-  } else {
-    return value;
+    return t2.converter999.toDB(value);
   }
+  return value;
 };
 
 t2.Timer = function(name, iterations) {
@@ -170,7 +168,7 @@ t2.Timer.prototype.stop = function() {
 t2.run = function() {
   var testCase = this;
   var i, numberOfIterations = 100000000;
-  var r; numberOfRuns = 5;
+  var r, numberOfRuns = 5;
   var value;
   // test performance of empty converter
   for (r = 0; r < numberOfRuns; ++r) {

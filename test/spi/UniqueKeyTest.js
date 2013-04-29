@@ -19,7 +19,7 @@
  */
 
 /*global mynode, unified_debug, path, fs, assert, spi_module, harness, 
-         adapter_dir, spi_dir 
+         adapter_dir, spi_dir, api_dir, util
 */
 
 "use strict";
@@ -166,7 +166,7 @@ function checkSuccess(testCase) {
     }
     testCase.failOnError();
   };
-};
+}
 
 
 var 
