@@ -1109,14 +1109,11 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
 
   if (!mi->inited || !mi->rli->inited)
   {
-    error= ER_SLAVE_FATAL_ERROR;
+    error= !mi->inited ? ER_SLAVE_MI_INIT_REPOSITORY :
+                         ER_SLAVE_RLI_INIT_REPOSITORY;
     Rpl_info *info= (!mi->inited ?  mi : static_cast<Rpl_info *>(mi->rli));
     const char* prefix= current_thd ? ER(error) : ER_DEFAULT(error);
-    const char* message= !mi->inited ?
-                         "Failed to initialize the master-info structure":
-                         "Failed to initialize the relay-log-info structure";
-
-    info->report(ERROR_LEVEL, error, prefix, message);
+    info->report(ERROR_LEVEL, error, prefix, NULL);
 
     DBUG_RETURN(error);
   }
