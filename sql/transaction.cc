@@ -18,7 +18,7 @@
 #include "transaction.h"
 #include "rpl_handler.h"
 #include "debug_sync.h"         // DEBUG_SYNC
-#include "sql_acl.h"            // SUPER_ACL
+#include "auth_common.h"            // SUPER_ACL
 
 /**
   Check if we have a condition where the transaction state must
