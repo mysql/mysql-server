@@ -31,16 +31,16 @@ class Format_description_log_event;
 class Logical_clock_state
 {
 private:
-  my_atomic_rwlock_t state_LOCK;
-  volatile int64 state;
+  mysql_mutex_t state_LOCK;
+  int64 state;
   int64 clock_step;
+  PSI_mutex_key key_state_lock;
 protected:
   inline void init(){state= 0; clock_step= 1;}
 public:
-  Logical_clock_state(){init();}
+  Logical_clock_state();
   int64 step();
   int64 get_timestamp();
-  void reset();
 };
 
 /**
