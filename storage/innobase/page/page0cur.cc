@@ -1725,7 +1725,7 @@ UNIV_INLINE
 void
 page_cur_delete_rec_write_log(
 /*==========================*/
-	rec_t*			rec,	/*!< in: record to be deleted */
+	const rec_t*		rec,	/*!< in: record to be deleted */
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
