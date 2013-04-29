@@ -2941,16 +2941,16 @@ btr_cur_del_mark_set_clust_rec(
 	return(err);
 }
 
-/****************************************************************//**
-Writes the redo log record for a delete mark setting of a secondary
-index record. */
-UNIV_INLINE
+/** Writes a redo log record for delete-marking a secondary index record.
+@param[in]	rec	user record
+@param[in]	val	delete-mark flag value
+@param[in/out]	mtr	mini-transaction */
+UNIV_INTERN
 void
 btr_cur_del_mark_set_sec_rec_log(
-/*=============================*/
-	rec_t*		rec,	/*!< in: record */
-	ibool		val,	/*!< in: value to set */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const rec_t*	rec,
+	bool		val,
+	mtr_t*		mtr)
 {
 	byte*	log_ptr;
 	ut_ad(val <= 1);
