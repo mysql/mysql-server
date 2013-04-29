@@ -62,8 +62,7 @@ As build tools, plain make' and 'ant' are used for the Java, C++ sources
         ./crundOpenjpaMysql.properties
 
 --> Run the benchmark's C++ or Java driver for specific loads:
-        $ make run.driver
-        $ ant run.ndbapi
+        $ make run.ndbapi
         $ ant run.ndbjtie
         $ ant run.clusterj
         $ ant run.mysql
@@ -99,7 +98,6 @@ As build tools, plain make' and 'ant' are used for the Java, C++ sources
         src/crundndb/
 
 --> The load-specific Java classes can be build separatly:
-        $ ant compile.ndbapi
         $ ant compile.ndbjtie
         $ ant compile.clusterj
         $ ant compile.jdbc

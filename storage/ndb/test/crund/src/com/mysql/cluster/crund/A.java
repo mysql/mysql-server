@@ -29,21 +29,18 @@ import java.util.Collection;
 @javax.persistence.Entity
 @javax.persistence.Table(name="a")
 public class A implements Serializable {
-    // see B0.java for persistence annotations
+    // see B.java for persistence annotations
 
     @javax.persistence.Id
     private int id;
 
     private int cint;
-
     private long clong;
-
     private float cfloat;
-
     private double cdouble;
 
     @javax.persistence.OneToMany(mappedBy="a")
-    private Collection<B0> b0s;
+    private Collection<B> bs;
 
     public A() {
     }
@@ -51,7 +48,6 @@ public class A implements Serializable {
     public int getId() {
         return id;
     }
-
     public void setId(int id) {
         this.id = id;
     }
@@ -59,7 +55,6 @@ public class A implements Serializable {
     public int getCint() {
         return cint;
     }
-
     public void setCint(int cint) {
         this.cint = cint;
     }
@@ -67,7 +62,6 @@ public class A implements Serializable {
     public long getClong() {
         return clong;
     }
-
     public void setClong(long clong) {
         this.clong = clong;
     }
@@ -75,7 +69,6 @@ public class A implements Serializable {
     public float getCfloat() {
         return cfloat;
     }
-
     public void setCfloat(float cfloat) {
         this.cfloat = cfloat;
     }
@@ -83,17 +76,15 @@ public class A implements Serializable {
     public double getCdouble() {
         return cdouble;
     }
-
     public void setCdouble(double cdouble) {
         this.cdouble = cdouble;
     }
 
-    public Collection<B0> getB0s() {
-        return b0s;
+    public Collection<B> getBs() {
+        return bs;
     }
-
-    public void setB0s(Collection<B0> b0s) {
-        this.b0s = b0s;
+    public void setBs(Collection<B> bs) {
+        this.bs = bs;
     }
 
     // while implementing Serializable...
@@ -108,26 +99,5 @@ public class A implements Serializable {
     private void writeObject(ObjectOutputStream out) throws IOException {
         out.defaultWriteObject();
     }
-
-/*
-    static public class Oid implements Serializable {
-
-        public int id;
-
-        public Oid() {
-        }
-
-        public boolean equals(Object obj) {
-            if (obj == null || !this.getClass().equals(obj.getClass()))
-                return false;
-            Oid o = (Oid)obj;
-            return (this.id == o.id);
-        }
-
-        public int hashCode() {
-            return id;
-        }
-    }
-*/
 }
 

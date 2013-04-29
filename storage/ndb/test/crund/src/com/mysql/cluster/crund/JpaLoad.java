@@ -20,17 +20,19 @@ package com.mysql.cluster.crund;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Arrays;
+import java.util.List;
 import java.util.ArrayList;
 
 import javax.persistence.Persistence;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
+//import javax.persistence.TypedQuery; // XXX JPA2.0, requires OpenJPA >=2.0
+import javax.persistence.FlushModeType;
 import javax.persistence.PersistenceContextType;
 
-
 /**
- * A benchmark implementation against a JPA-mapped database.
+ * The JPA benchmark implementation.
  */
 public class JpaLoad extends CrundDriver {
 
@@ -48,7 +50,7 @@ public class JpaLoad extends CrundDriver {
     protected EntityManagerFactory emf;
     protected EntityManager em;
     protected Query delAllA;
-    protected Query delAllB0;
+    protected Query delAllB;
 
     // ----------------------------------------------------------------------
     // JPA intializers/finalizers
@@ -164,9 +166,13 @@ public class JpaLoad extends CrundDriver {
     // JPA operations
     // ----------------------------------------------------------------------
 
+    // assumes PKs: 0..nOps, relationships: identity 1:1
     protected abstract class JpaOp extends Op {
-        public JpaOp(String name) {
-            super(name);
+        protected XMode xMode;
+
+        public JpaOp(String name, XMode m) {
+            super(name + (m == null ? "" : toStr(m)));
+            this.xMode = m;
         }
 
         public void init() {}
@@ -174,421 +180,595 @@ public class JpaLoad extends CrundDriver {
         public void close() {}
     };
 
-    protected void setCommonFields(A o, int i) {
-        assert o != null;
-        o.setCint(i);
-        o.setClong((long)i);
-        o.setCfloat((float)i);
-        o.setCdouble((double)i);
+    protected abstract class WriteOp extends JpaOp {
+        public WriteOp(String name, XMode m) {
+            super(name, m);
+        }
+
+        public void run(int nOps) {
+            switch (xMode) {
+            case INDY :
+                for (int i = 0; i < nOps; i++) {
+                    beginTransaction();
+                    write(i);
+                    commitTransaction();
+                }
+                break;
+            case EACH :
+            case BULK :
+                // Approach: control when persistent context is flushed,
+                // i.e., at commit for 1 database roundtrip only.
+                //
+                // JPA's mechanisms for bulk updates are numerous but not all
+                // are generically applicable here:
+                // - JPA 1.0 FlushModeType.COMMIT with DML queries
+                //   [this is approach is used for QReadOps below]
+                // - JPA 1.0 queries with in-clause or broad where conditions
+                // - JPA 1.0 relationship annotation parameters (CascadeType)
+                // - vendor-specific batch writing properties
+                // - vendor-specific persistent-context flush-mode properties
+                beginTransaction();
+                for (int i = 0; i < nOps; i++) {
+                    write(i);
+                    if (xMode == XMode.EACH)
+                        em.flush();
+                }
+                commitTransaction();
+                break;
+            }
+        }
+
+        protected abstract void write(int i);
+    }
+    
+    protected abstract class ReadOp extends JpaOp {
+        final Query preload;
+
+        public ReadOp(String name, XMode m, String entity) {
+            super(name, m);
+            preload = em.createQuery("SELECT o FROM " + entity + " o");
+        }
+
+        public void init() {
+            super.init();
+            // simulating generic bulk reads by preloading extent
+            if (xMode == XMode.BULK)
+                name = "[" + name + "]";
+        }
+        
+        public void run(int nOps) {
+            switch (xMode) {
+            case INDY :
+                for (int i = 0; i < nOps; i++) {
+                    beginTransaction();
+                    read(i);
+                    commitTransaction();
+                }
+                break;
+            case EACH :
+                beginTransaction();
+                for (int i = 0; i < nOps; i++)
+                    read(i);
+                commitTransaction();
+                break;
+            case BULK :
+                // Approach: simulate generic bulk reads by preloading extent
+                // into persistent context; subsequent reads/queries will then
+                // execute without database roundtrips.
+                //
+                // JPA's mechanisms for bulk reads are numerous yet many
+                // are not generically applicable here:
+                // - JPA 1.0 where-in clause with list argument in queries
+                //   [this is implemented as a separate operation below]
+                // - JPA 1.0 join-fetch, where-exist clauses in JPQL queries
+                // - JPA 1.0 relationship annotation (FetchType, CascadeType)
+                // - JPA 2.0 caching annotation (@Cacheable)
+                // - vendor-specific query, entity hints/annotations/properties
+                // - vendor-specific caching, persistent-context properties
+                beginTransaction();
+                preload.getResultList();
+                for (int i = 0; i < nOps; i++)
+                    read(i);
+                commitTransaction();
+                break;
+            }
+        }
+
+        protected abstract void read(int i);
     }
 
-    protected void setCommonFields(B0 o, int i) {
-        assert o != null;
-        o.setCint(i);
-        o.setClong((long)i);
-        o.setCfloat((float)i);
-        o.setCdouble((double)i);
+    protected abstract class QueryOp<E> extends JpaOp {
+        protected String jpql;
+        protected Query q;  // XXX use TypedQuery from JPA2.0
+
+        public QueryOp(String name, XMode m, String jpql) {
+            super(name, m);
+            this.jpql = jpql;
+        }
+
+        public void init() {
+            super.init();
+            q = em.createQuery(jpql);
+        }
+
+        public void close() {
+            q = null;
+        }
     }
 
-    protected void verifyCommonFields(A o, int i) {
-        assert o != null;
-        final int id = o.getId();
-        verify(id == i);
-        final int cint = o.getCint();
-        verify(cint == i);
-        final long clong = o.getClong();
-        verify(clong == i);
-        final float cfloat = o.getCfloat();
-        verify(cfloat == i);
-        final double cdouble = o.getCdouble();
-        verify(cdouble == i);
+    protected abstract class QWriteOp<E> extends QueryOp<E> {
+        public QWriteOp(String name, XMode m, String jpql) {
+            super(name, m, jpql);
+        }
+
+        @SuppressWarnings("fallthrough")
+        public void run(int nOps) {
+            switch (xMode) {
+            case INDY :
+                q.setFlushMode(FlushModeType.COMMIT);
+                for (int i = 0; i < nOps; i++) {
+                    beginTransaction();
+                    setParams(i);
+                    final int u = q.executeUpdate();
+                    verify(1, u);
+                    commitTransaction();
+                }
+                break;
+            case EACH :
+                q.setFlushMode(FlushModeType.AUTO);
+            case BULK :
+                q.setFlushMode(FlushModeType.COMMIT);
+                beginTransaction();
+                for (int i = 0; i < nOps; i++) {
+                    setParams(i);
+                    final int u = q.executeUpdate();
+                    verify(1, u);
+                }
+                commitTransaction();
+                break;
+            }
+        }
+
+        protected abstract void setParams(int i);
     }
 
-    protected void verifyCommonFields(B0 o, int i) {
-        assert o != null;
-        final int id = o.getId();
-        verify(id == i);
-        final int cint = o.getCint();
-        verify(cint == i);
-        final long clong = o.getClong();
-        verify(clong == i);
-        final float cfloat = o.getCfloat();
-        verify(cfloat == i);
-        final double cdouble = o.getCdouble();
-        verify(cdouble == i);
-    }
+    // assumes query with parametrized where-in clause for bulk reads
+    protected abstract class QReadOp<E> extends QueryOp<E> {
+        public QReadOp(String name, XMode m, String jpql) {
+            super(name, m, jpql);
+        }
 
+        public void init() {
+            super.init();
+            assert jpql.contains("IN (?1)");
+        }
+        
+        @SuppressWarnings("unchecked") // XXX warning -> TypedQuery
+        public void run(int nOps) {
+            q.setFlushMode(FlushModeType.COMMIT);
+            switch (xMode) {
+            case INDY :
+                for (int i = 0; i < nOps; i++) {
+                    beginTransaction();
+                    setParams(i);
+                    E e = (E)q.getSingleResult(); // XXX cast -> TypedQuery
+                    assert e != null;
+                    getValues(i, e);
+                    commitTransaction();
+                }
+                break;
+            case EACH :
+                beginTransaction();
+                for (int i = 0; i < nOps; i++) {
+                    setParams(i);
+                    E e = (E)q.getSingleResult(); // XXX cast -> TypedQuery
+                    assert e != null;
+                    getValues(i, e);
+                }
+                commitTransaction();
+                break;
+            case BULK :
+                beginTransaction();
+                List<Integer> l = new ArrayList<Integer>();
+                for (int i = 0; i < nOps; i++)
+                    l.add(i);
+                setParams(l);
+
+                List<E> es = q.getResultList();
+                assert es != null;
+                verify(nOps, es.size());
+                for (int i = 0; i < nOps; i++)
+                    getValues(i, es.get(i));
+                commitTransaction();
+                break;
+            }
+        }
+
+        protected void setParams(Object o) {}
+
+        protected void getValues(int i, E e) {}
+    }
+    
     protected void initOperations() {
         out.print("initializing operations ...");
         out.flush();
 
-        ops.add(
-            new JpaOp("insA") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final A o = new A();
-                        o.setId(i);
-                        em.persist(o);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("insB0") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final B0 o = new B0();
-                        o.setId(i);
-                        em.persist(o);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("setAByPK_bulk") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    // OpenJPA 1.2.1 fails to parse a unary '-' operator
-                    final int upd = em.createQuery("UPDATE A o SET o.cint = 0-(o.id), o.clong = 0-(o.id), o.cfloat = 0-(o.id), o.cdouble = 0-(o.id)").executeUpdate();
-                    assert upd == nOps;
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("setB0ByPK_bulk") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    // OpenJPA 1.2.1 fails to parse a unary '-' operator
-                    final int upd = em.createQuery("UPDATE B0 o SET o.cint = 0-(o.id), o.clong = 0-(o.id), o.cfloat = 0-(o.id), o.cdouble = 0-(o.id)").executeUpdate();
-                    assert upd == nOps;
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("setAByPK") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final A o = em.find(A.class, i);
-                        setCommonFields(o, i);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("setB0ByPK") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final B0 o = em.find(B0.class, i);
-                        setCommonFields(o, i);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("getAByPK") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final A o = em.find(A.class, i);
-                        verifyCommonFields(o, i);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("getB0ByPK") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final B0 o = em.find(B0.class, i);
-                        verifyCommonFields(o, i);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        for (int i = 0, l = 1; l <= maxVarbinaryBytes; l *= 10, i++) {
-            final byte[] b = bytes[i];
-            assert l == b.length;
+        for (XMode m : xMode) {
+            // inner classes can only refer to a constant
+            final XMode xMode = m;
+            final boolean setAttrs = true;
 
             ops.add(
-                new JpaOp("setVarbinary" + l) {
-                    public void run(int nOps) {
-                        beginTransaction();
-                        for (int i = 0; i < nOps; i++) {
-                            final B0 o = em.find(B0.class, i);
+                new WriteOp("A_insAttr_", xMode) {
+                    protected void write(int i) {
+                        final A o = new A();
+                        o.setId(i);
+                        setAttr(o, -i);
+                        em.persist(o);
+                    }
+                });
+
+            ops.add(
+                new WriteOp("B_insAttr_", xMode) {
+                    protected void write(int i) {
+                        final B o = new B();
+                        o.setId(i);
+                        setAttr(o, -i);
+                        em.persist(o);
+                    }
+                });
+
+            ops.add(
+                new WriteOp("A_setAttr_", xMode) {
+                    protected void write(int i) {
+                        // blind update
+                        final A o = em.getReference(A.class, i);
+                        assert o != null;
+                        setAttr(o, i);
+                    }
+                });
+
+            ops.add(
+                new WriteOp("B_setAttr_", xMode) {
+                    protected void write(int i) {
+                        // blind update
+                        final B o = em.getReference(B.class, i);
+                        assert o != null;
+                        setAttr(o, i);
+                    }
+                });
+
+            ops.add(
+                new ReadOp("A_getAttr_", xMode, "A") {
+                    protected void read(int i) {
+                        final A o = em.find(A.class, i); // eager load
+                        verify(i, o.getId());
+                        verifyAttr(i, o);
+                    }
+                });
+
+            ops.add(
+                new ReadOp("B_getAttr_", xMode, "B") {
+                    protected void read(int i) {
+                        final B o = em.find(B.class, i); // eager load
+                        verify(i, o.getId());
+                        verifyAttr(i, o);
+                    }
+                });
+
+            ops.add(
+                new QReadOp<A>("A_getAttr_wherein_", xMode,
+                               "SELECT a FROM A a WHERE a.id IN (?1) ORDER BY a.id") {
+                    protected void setParams(Object o) {
+                        q.setParameter(1, o);
+                    }
+                    
+                    protected void getValues(int i, A a) {
+                        assert a != null;
+                        verify(i, a.getId());
+                        verifyAttr(i, a);
+                    }
+                });
+
+            ops.add(
+                new QReadOp<B>("B_getAttr_wherein_", xMode,
+                               "SELECT b FROM B b WHERE b.id IN (?1) ORDER BY b.id") {
+                    protected void setParams(Object o) {
+                        q.setParameter(1, o);
+                    }
+                    
+                    protected void getValues(int i, B b) {
+                        assert b != null;
+                        verify(i, b.getId());
+                        verifyAttr(i, b);
+                    }
+                });
+
+            for (int i = 0; i < bytes.length; i++) {
+                // inner classes can only refer to a constant
+                final byte[] b = bytes[i];
+                final int l = b.length;
+                if (l > maxVarbinaryBytes)
+                    break;
+
+                ops.add(
+                    new WriteOp("B_setVarbin_" + l + "_", xMode) {
+                        protected void write(int i) {
+                            // blind update
+                            final B o = em.getReference(B.class, i);
                             assert o != null;
-                            //o.cvarbinary_def = b; // not detected by OpenJPA
                             o.setCvarbinary_def(b);
                         }
-                        commitTransaction();
-                    }
-                });
+                    });
 
-            ops.add(
-                new JpaOp("getVarbinary" + l) {
-                    public void run(int nOps) {
-                        beginTransaction();
-                        for (int i = 0; i < nOps; i++) {
-                            final B0 o = em.find(B0.class, i);
+                ops.add(
+                    new ReadOp("B_getVarbin_" + l + "_", xMode, "B") {
+                        protected void read(int i) {
+                            // lazy load
+                            final B o = em.getReference(B.class, i);
                             assert o != null;
-                            verify(Arrays.equals(b, o.getCvarbinary_def()));
+                            verify(b, o.getCvarbinary_def());
                         }
-                        commitTransaction();
-                    }
-                });
+                    });
 
-            ops.add(
-                new JpaOp("clearVarbinary" + l) {
-                    public void run(int nOps) {
-                        beginTransaction();
-                        for (int i = 0; i < nOps; i++) {
-                            final B0 o = em.find(B0.class, i);
+                ops.add(
+                    new WriteOp("B_clearVarbin_" + l + "_", xMode) {
+                        protected void write(int i) {
+                            // blind update
+                            final B o = em.getReference(B.class, i);
                             assert o != null;
-                            //o.cvarbinary_def = null; // not detected by OpenJPA
                             o.setCvarbinary_def(null);
                         }
-                        commitTransaction();
-                    }
-                });
-        }
+                    });
+            }
 
-        for (int i = 0, l = 1; l <= maxVarcharChars; l *= 10, i++) {
-            final String s = strings[i];
-            assert l == s.length();
+            for (int i = 0; i < strings.length; i++) {
+                // inner classes can only refer to a constant
+                final String s = strings[i];
+                final int l = s.length();
+                if (l > maxVarcharChars)
+                    break;
 
-            ops.add(
-                new JpaOp("setVarchar" + l) {
-                    public void run(int nOps) {
-                        beginTransaction();
-                        for (int i = 0; i < nOps; i++) {
-                            final B0 o = em.find(B0.class, i);
+                ops.add(
+                    new WriteOp("B_setVarchar_" + l + "_", xMode) {
+                        protected void write(int i) {
+                            // blind update
+                            final B o = em.getReference(B.class, i);
                             assert o != null;
-                            //o.cvarchar_def = s; // not detected by OpenJPA
                             o.setCvarchar_def(s);
                         }
-                        commitTransaction();
-                    }
-                });
+                    });
 
-            ops.add(
-                new JpaOp("getVarchar" + l) {
-                    public void run(int nOps) {
-                        beginTransaction();
-                        for (int i = 0; i < nOps; i++) {
-                            final B0 o = em.find(B0.class, i);
+                ops.add(
+                    new ReadOp("B_getVarchar_" + l + "_", xMode, "B") {
+                        protected void read(int i) {
+                            // lazy load
+                            final B o = em.getReference(B.class, i);
                             assert o != null;
-                            verify(s.equals(o.getCvarchar_def()));
+                            verify(s, o.getCvarchar_def());
                         }
-                        commitTransaction();
-                    }
-                });
+                    });
 
-            ops.add(
-                new JpaOp("clearVarchar" + l) {
-                    public void run(int nOps) {
-                        beginTransaction();
-                        for (int i = 0; i < nOps; i++) {
-                            final B0 o = em.find(B0.class, i);
+                ops.add(
+                    new WriteOp("B_clearVarchar_" + l + "_", xMode) {
+                        protected void write(int i) {
+                            // blind update
+                            final B o = em.getReference(B.class, i);
                             assert o != null;
-                            //o.cvarchar_def = null; // not detected by OpenJPA
                             o.setCvarchar_def(null);
                         }
+                    });
+            }
+
+            ops.add(
+                new WriteOp("B_setA_", xMode) {
+                    protected void write(int i) {
+                        // blind update
+                        final int aId = i;
+                        final B b = em.getReference(B.class, i);
+                        assert b != null;
+                        // lazy load
+                        final A a = em.getReference(A.class, aId);
+                        assert a != null;
+                        b.setA(a);
+                    }
+                });
+
+            ops.add(
+                new ReadOp("B_getA_", xMode, "B") {
+                    protected void read(int i) {
+                        // lazy load
+                        final B b = em.getReference(B.class, i);
+                        assert b != null;
+                        final A a = b.getA();
+                        verify(i, a.getId());
+                        verifyAttr(i, a);
+                    }
+                });
+
+            ops.add(
+                new ReadOp("A_getBs_", xMode, "B") {
+                    protected void read(int i) {
+                        // lazy load
+                        final A a = em.getReference(A.class, i);
+                        assert a != null;
+                        final Collection<B> bs = a.getBs();
+                        verify(1, bs.size());
+                        for (B b : bs) {
+                            verify(i, b.getId());
+                            verifyAttr(i, b);
+                        }
+                    }
+                });
+
+            ops.add(
+                new WriteOp("B_clearA_", xMode) {
+                    protected void write(int i) {
+                        // blind update
+                        final B b = em.getReference(B.class, i);
+                        assert b != null;
+                        b.setA(null);
+                    }
+                });
+
+            ops.add(
+                new QWriteOp<B>("B_setA_where_", xMode,
+                                "UPDATE B o SET o.a = ?2 WHERE o.id = ?1") {
+                    protected void setParams(int i) {
+                        final int aId = i;
+                        q.setParameter(1, i);
+                        // lazy load
+                        final A a = em.getReference(A.class, aId);
+                        assert a != null;
+                        q.setParameter(2, a);
+                    }
+                });
+
+            ops.add(
+                new QReadOp<A>("B_getAs_wherein_", xMode,
+                               "SELECT b.a FROM B b WHERE b.id IN (?1) ORDER BY b.a.id") {
+                    protected void setParams(Object o) {
+                        q.setParameter(1, o);
+                    }
+                    
+                    protected void getValues(int i, A a) {
+                        assert a != null;
+                        verify(i, a.getId());
+                        verifyAttr(i, a);
+                    }
+                });
+
+            ops.add(
+                new QReadOp<B>("A_getBs_wherein_", xMode,
+                               "SELECT b FROM B b WHERE b.a.id IN (?1)") {
+                    protected void setParams(Object o) {
+                        q.setParameter(1, o);
+                    }
+                    
+                    protected void getValues(int i, B b) {
+                        assert b != null;
+                        verify(i, b.getId());
+                        verifyAttr(i, b);
+                    }
+                });
+
+            ops.add(
+                new QWriteOp<B>("B_clearA_where_", xMode,
+                                "UPDATE B o SET o.a = NULL WHERE o.id = ?1") {
+                    protected void setParams(int i) {
+                        q.setParameter(1, i);
+                    }
+                });
+
+            ops.add(
+                new WriteOp("B_del_", xMode) {
+                    protected void write(int i) {
+                        // blind delete
+                        final B o = em.getReference(B.class, i);
+                        assert o != null;
+                        em.remove(o);
+                    }
+                });
+
+            ops.add(
+                new WriteOp("A_del_", xMode) {
+                    protected void write(int i) {
+                        // blind delete
+                        final A o = em.getReference(A.class, i);
+                        assert o != null;
+                        em.remove(o);
+                    }
+                });
+
+            ops.add(
+                new WriteOp("A_ins_", xMode) {
+                    protected void write(int i) {
+                        final A o = new A();
+                        o.setId(i);
+                        em.persist(o);
+                    }
+                });
+            
+            ops.add(
+                new WriteOp("B_ins_", xMode) {
+                    protected void write(int i) {
+                        final B o = new B();
+                        o.setId(i);
+                        em.persist(o);
+                    }
+                });            
+
+            ops.add(
+                new QueryOp("B_delAll", null,
+                            "DELETE FROM B") {
+                    public void run(int nOps) {
+                        beginTransaction();
+                        final int d = q.executeUpdate();
+                        verify(nOps, d);
+                        commitTransaction();
+                    }
+                });
+
+            ops.add(
+                new QueryOp("A_delAll", null,
+                            "DELETE FROM A") {
+                    public void run(int nOps) {
+                        beginTransaction();
+                        final int d = q.executeUpdate();
+                        verify(nOps, d);
                         commitTransaction();
                     }
                 });
         }
 
-        ops.add(
-            new JpaOp("setB0->A") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final B0 b0 = em.find(B0.class, i);
-                        assert b0 != null;
-                        int aId = i % nOps;
-                        final A a = em.find(A.class, aId);
-                        assert a != null;
-                        b0.setA(a);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("navB0->A") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final B0 b0 = em.find(B0.class, i);
-                        assert b0 != null;
-                        final A a = b0.getA();
-                        verifyCommonFields(a, i % nOps);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("navA->B0") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final A a = em.find(A.class, i);
-                        assert a != null;
-                        final Collection<B0> b0s = a.getB0s();
-                        assert b0s != null;
-                        verify(b0s.size() > 0);
-                        for (B0 b0 : b0s) {
-                            verifyCommonFields(b0, i % nOps);
-                        }
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("nullB0->A") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final B0 b0 = em.find(B0.class, i);
-                        assert b0 != null;
-                        b0.setA(null);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        // JPQL: cannot form a simple_entity_expression from an Id value
-        //ops.add(
-        //    new JpaOp("setB0->A_bulk") {
-        //        public void run(int nOps) {
-        //            // these queries are OK but don't do what we need to:
-        //            final int upd = em.createQuery("UPDATE B0 o SET o.cint = MOD(o.id, :p)").setParameter("p", nOps).executeUpdate();
-        //            final int upd = em.createQuery("UPDATE B0 o SET o.a = o WHERE o.id = :id").setParameter("id", 1).executeUpdate();
-        //        }
-        //    });
-        final JpaOp setB0ToA = (JpaOp)ops.get(ops.size() - 4);
-        assert setB0ToA.getName().equals("setB0->A");
-        ops.add(setB0ToA
-            );
-
-        ops.add(
-            new JpaOp("nullB0->A_bulk") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    // OpenJPA 1.2.1 fails to parse a unary '-' operator
-                    final int upd = em.createQuery("UPDATE B0 o SET o.a = NULL").executeUpdate();
-                    assert upd == nOps;
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("delB0ByPK") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final B0 o = em.find(B0.class, i);
-                        assert o != null;
-                        em.remove(o);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("delAByPK") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final A o = em.find(A.class, i);
-                        assert o != null;
-                        em.remove(o);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("insA_attr") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final A o = new A();
-                        o.setId(i);
-                        setCommonFields(o, -i);
-                        em.persist(o);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("insB0_attr") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final B0 o = new B0();
-                        o.setId(i);
-                        setCommonFields(o, -i);
-                        em.persist(o);
-                    }
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("delAllB0") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    int del = em.createQuery("DELETE FROM B0").executeUpdate();
-                    assert del == nOps;
-                    commitTransaction();
-                }
-            });
-
-        ops.add(
-            new JpaOp("delAllA") {
-                public void run(int nOps) {
-                    beginTransaction();
-                    int del = em.createQuery("DELETE FROM A").executeUpdate();
-                    assert del == nOps;
-                    commitTransaction();
-                }
-            });
-
         // prepare queries
-        for (Iterator<CrundDriver.Op> i = ops.iterator(); i.hasNext();) {
-            ((JpaOp)i.next()).init();
-        }
+        for (Op o : ops)
+            ((JpaOp)o).init();
         out.println("     [JpaOp: " + ops.size() + "]");
     }
 
     protected void closeOperations() {
         out.print("closing operations ...");
         out.flush();
-
-        // close all queries
-        for (Iterator<CrundDriver.Op> i = ops.iterator(); i.hasNext();) {
-            ((JpaOp)i.next()).close();
-        }
+        for (Op o : ops)
+            ((JpaOp)o).close();
         ops.clear();
-
         out.println("          [ok]");
     }
+
+    // ----------------------------------------------------------------------
+
+    protected void setAttr(A o, int i) {
+        o.setCint(i);
+        o.setClong((long)i);
+        o.setCfloat((float)i);
+        o.setCdouble((double)i);
+    }
+
+    protected void setAttr(B o, int i) {
+        o.setCint(i);
+        o.setClong((long)i);
+        o.setCfloat((float)i);
+        o.setCdouble((double)i);
+    }
+
+    protected void verifyAttr(int i, A o) {
+        assert o != null;
+        verify(i, o.getCint());
+        verify(i, o.getClong());
+        verify(i, o.getCfloat());
+        verify(i, o.getCdouble());
+    }
+
+    protected void verifyAttr(int i, B o) {
+        assert o != null;
+        verify(i, o.getCint());
+        verify(i, o.getClong());
+        verify(i, o.getCfloat());
+        verify(i, o.getCdouble());
+    }
+
+    // ----------------------------------------------------------------------
 
     protected void beginTransaction() {
         em.getTransaction().begin();
@@ -606,10 +786,11 @@ public class JpaLoad extends CrundDriver {
         out.println();
         out.print("creating JPA EntityManager ...");
         out.flush();
-        // See: clearPersistenceContext() for !allowExtendedPC
+        // see: clearPersistenceContext()
         // Tx-scope EM supported by JPA only by container injection:
-        //   em = emf.createEntityManager(PersistenceContextType.TRANSACTION);
+        // em = emf.createEntityManager(PersistenceContextType.TRANSACTION);
         em = emf.createEntityManager();
+
         // XXX check query.setHint(...) for standardized optimizations, e.g.:
         //import org.eclipse.persistence.config.QueryHints;
         //import org.eclipse.persistence.config.QueryType;
@@ -619,8 +800,9 @@ public class JpaLoad extends CrundDriver {
         //query.setHint(QueryHints.PESSIMISTIC_LOCK, PessimisticLock.LockNoWait);
         //query.setHint("eclipselink.bulk", "e.address");
         //query.setHint("eclipselink.join-fetch", "e.address");
+
         delAllA = em.createQuery("DELETE FROM A");
-        delAllB0 = em.createQuery("DELETE FROM B0");
+        delAllB = em.createQuery("DELETE FROM B");
         out.println("  [EM: 1]");
     }
 
@@ -628,7 +810,7 @@ public class JpaLoad extends CrundDriver {
         out.println();
         out.print("closing JPA EntityManager ...");
         out.flush();
-        delAllB0 = null;
+        delAllB = null;
         delAllA = null;
         if (em != null)
             em.close();
@@ -650,8 +832,8 @@ public class JpaLoad extends CrundDriver {
         out.flush();
 
         em.getTransaction().begin();
-        int delB0 = delAllB0.executeUpdate();
-        out.print("        [B0: " + delB0);
+        int delB = delAllB.executeUpdate();
+        out.print("        [B: " + delB);
         out.flush();
         int delA = delAllA.executeUpdate();
         out.print(", A: " + delA);
@@ -664,7 +846,6 @@ public class JpaLoad extends CrundDriver {
 
     // ----------------------------------------------------------------------
 
-    @SuppressWarnings("unchecked")
     static public void main(String[] args) {
         System.out.println("JpaLoad.main()");
         parseArguments(args);
