@@ -31,7 +31,9 @@ Created 10/4/1994 Heikki Tuuri
 
 #include "page0zip.h"
 #include "btr0btr.h"
+#include "btr0sea.h"
 #include "mtr0log.h"
+#include "lock0lock.h"
 #include "log0recv.h"
 #include "ut0ut.h"
 #ifndef UNIV_HOTBACKUP
@@ -2468,6 +2470,215 @@ PageCur::purge()
 	page_zip_validate_if_zip(page_zip, page, index);
 
 	return(!isAfterLast());
+}
+
+/** Reorganizes the page.
+The cursor position will be adjusted.
+
+IMPORTANT: On success, the caller will have to update
+IBUF_BITMAP_FREE if this is a compressed leaf page in a
+secondary index. This has to be done either within m_mtr, or
+by invoking ibuf_reset_free_bits() before
+mtr_commit(m_mtr). On uncompressed pages, IBUF_BITMAP_FREE is
+unaffected by reorganization.
+
+@param[in] recovery true if called in recovery:
+locks and adaptive hash index will not be updated on recovery
+@param[in] z_level	compression level, for compressed pages
+@retval true if the operation was successful
+@retval false if it is a compressed page, and recompression failed */
+UNIV_INTERN
+bool
+PageCur::reorganize(bool recovery, ulint z_level)
+{
+	buf_block_t*	block		= const_cast<buf_block_t*>(m_block);
+#ifndef UNIV_HOTBACKUP
+	buf_pool_t*	buf_pool	= buf_pool_from_bpage(&block->page);
+#endif /* !UNIV_HOTBACKUP */
+	page_t*		page		= buf_block_get_frame(block);
+	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
+	buf_block_t*	temp_block;
+	page_t*		temp_page;
+	ulint		log_mode;
+	ulint		data_size1;
+	ulint		data_size2;
+	ulint		max_ins_size1;
+	ulint		max_ins_size2;
+	bool		success		= false;
+	ulint		pos;
+	bool		log_compressed;
+
+	ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
+	page_zip_validate_if_zip(page_zip, page, m_index);
+	data_size1 = page_get_data_size(page);
+	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
+
+	/* Turn logging off */
+	log_mode = mtr_set_log_mode(m_mtr, MTR_LOG_NONE);
+
+#ifndef UNIV_HOTBACKUP
+	temp_block = buf_block_alloc(buf_pool);
+#else /* !UNIV_HOTBACKUP */
+	ut_ad(block == back_block1);
+	temp_block = back_block2;
+#endif /* !UNIV_HOTBACKUP */
+	temp_page = temp_block->frame;
+
+	/* Copy the old page to temporary space */
+	buf_frame_copy(temp_page, page);
+
+#ifndef UNIV_HOTBACKUP
+	if (!recovery) {
+		btr_search_drop_page_hash_index(block);
+	}
+
+	block->check_index_page_at_flush = TRUE;
+#endif /* !UNIV_HOTBACKUP */
+	btr_blob_dbg_remove(page, const_cast<dict_index_t*>(m_index),
+			    "PageCur::reorganize");
+
+	/* Save the cursor position. */
+	pos = page_rec_get_n_recs_before(m_rec);
+
+	/* Recreate the page: note that global data on page (possible
+	segment headers, next page-field, etc.) is preserved intact */
+
+	page_create(block, m_mtr, isComp());
+
+	/* Copy the records from the temporary space to the recreated page;
+	do not copy the lock bits yet */
+
+	page_copy_rec_list_end_no_locks(block, temp_block,
+					page_get_infimum_rec(temp_page),
+					m_index, m_mtr);
+
+	/* Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
+	if (dict_index_is_sec_or_ibuf(m_index)
+	    && page_is_leaf(page)
+	    && !dict_table_is_temporary(m_index->table)) {
+		/* Copy max trx id to recreated page */
+		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
+		page_set_max_trx_id(block, NULL, max_trx_id, m_mtr);
+		/* In crash recovery, dict_index_is_sec_or_ibuf() always
+		holds, even for clustered indexes.  max_trx_id is
+		unused in clustered index pages. */
+		ut_ad(max_trx_id != 0 || recovery);
+	}
+
+	/* If innodb_log_compressed_pages is ON, page reorganize should log the
+	compressed page image.*/
+	log_compressed = page_zip && page_zip_log_pages;
+
+	if (log_compressed) {
+		mtr_set_log_mode(m_mtr, log_mode);
+	}
+
+	if (page_zip
+	    && !page_zip_compress(page_zip, page, m_index, z_level, m_mtr)) {
+
+		/* Restore the old page and exit. */
+		btr_blob_dbg_restore(page, temp_page,
+				     const_cast<dict_index_t*>(m_index),
+				     "PageCur::reorganize fail");
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		/* Check that the bytes that we skip are identical. */
+		ut_a(!memcmp(page, temp_page, PAGE_HEADER));
+		ut_a(!memcmp(PAGE_HEADER + PAGE_N_RECS + page,
+			     PAGE_HEADER + PAGE_N_RECS + temp_page,
+			     PAGE_DATA - (PAGE_HEADER + PAGE_N_RECS)));
+		ut_a(!memcmp(UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + page,
+			     UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + temp_page,
+			     FIL_PAGE_DATA_END));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
+		memcpy(PAGE_HEADER + page, PAGE_HEADER + temp_page,
+		       PAGE_N_RECS - PAGE_N_DIR_SLOTS);
+		memcpy(PAGE_DATA + page, PAGE_DATA + temp_page,
+		       UNIV_PAGE_SIZE - PAGE_DATA - FIL_PAGE_DATA_END);
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		ut_a(!memcmp(page, temp_page, UNIV_PAGE_SIZE));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
+		goto func_exit;
+	}
+
+#ifndef UNIV_HOTBACKUP
+	if (!recovery) {
+		/* Update the record lock bitmaps */
+		lock_move_reorganize_page(block, temp_block);
+	}
+#endif /* !UNIV_HOTBACKUP */
+
+	data_size2 = page_get_data_size(page);
+	max_ins_size2 = page_get_max_insert_size_after_reorganize(page, 1);
+
+	if (data_size1 != data_size2 || max_ins_size1 != max_ins_size2) {
+		buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
+		buf_page_print(temp_page, 0, BUF_PAGE_PRINT_NO_CRASH);
+
+		fprintf(stderr,
+			"InnoDB: Error: page old data size %lu"
+			" new data size %lu\n"
+			"InnoDB: Error: page old max ins size %lu"
+			" new max ins size %lu\n"
+			"InnoDB: Submit a detailed bug report"
+			" to http://bugs.mysql.com\n",
+			(unsigned long) data_size1, (unsigned long) data_size2,
+			(unsigned long) max_ins_size1,
+			(unsigned long) max_ins_size2);
+		ut_ad(0);
+	} else {
+		success = true;
+	}
+
+	/* Restore the cursor position. */
+	if (pos > 0) {
+		setRec(page_rec_get_nth(page, pos));
+	} else {
+		ut_ad(isBeforeFirst());
+	}
+
+func_exit:
+	page_zip_validate_if_zip(getPageZip(), getPage(), m_index);
+	mtr_set_log_mode(m_mtr, log_mode);
+
+#ifndef UNIV_HOTBACKUP
+	buf_block_free(temp_block);
+
+	if (success) {
+		byte	type;
+		byte*	log_ptr;
+
+		/* Write the log record */
+		if (page_zip) {
+			ut_ad(page_is_comp(page));
+			type = MLOG_ZIP_PAGE_REORGANIZE;
+		} else if (page_is_comp(page)) {
+			type = MLOG_COMP_PAGE_REORGANIZE;
+		} else {
+			type = MLOG_PAGE_REORGANIZE;
+		}
+
+		log_ptr = log_compressed
+			? NULL
+			: mlog_open_and_write_index(
+				m_mtr, page, m_index, type,
+				page_zip ? 1 : 0);
+
+		/* For compressed pages write the compression level. */
+		if (log_ptr && page_zip) {
+			mach_write_to_1(log_ptr, z_level);
+			mlog_close(m_mtr, log_ptr + 1);
+		}
+	}
+#endif /* !UNIV_HOTBACKUP */
+
+	return(success);
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS

@@ -546,6 +546,23 @@ public:
 	@return true if the next record is a user record */
 	bool purge();
 
+	/** Reorganizes the page.
+	The cursor position will be adjusted.
+
+	IMPORTANT: On success, the caller will have to update
+	IBUF_BITMAP_FREE if this is a compressed leaf page in a
+	secondary index. This has to be done either within m_mtr, or
+	by invoking ibuf_reset_free_bits() before
+	mtr_commit(m_mtr). On uncompressed pages, IBUF_BITMAP_FREE is
+	unaffected by reorganization.
+
+	@param[in] recovery true if called in recovery:
+	locks and adaptive hash index will not be updated on recovery
+	@param[in] z_level	compression level, for compressed pages
+	@retval true if the operation was successful
+	@retval false if it is a compressed page, and recompression failed */
+	bool reorganize(bool recovery, ulint z_level);
+
 	/** Get the number of fields in the page. */
 	ulint getNumFields() const {
 		const page_t* page = buf_block_get_frame(m_block);
