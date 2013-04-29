@@ -1931,7 +1931,10 @@ page_cur_delete_rec(
 	/* 6. Free the memory occupied by the record */
 	btr_blob_dbg_remove_rec(current_rec, const_cast<dict_index_t*>(index),
 				offsets, "delete");
-	page_mem_free(page, page_zip, current_rec, index, offsets);
+	page_mem_free(page, page_zip, current_rec, index,
+		      rec_offs_data_size(offsets),
+		      rec_offs_extra_size(offsets),
+		      rec_offs_n_extern(offsets));
 
 	/* 7. Now we have decremented the number of owned records of the slot.
 	If the number drops below PAGE_DIR_SLOT_MIN_N_OWNED, we balance the
