@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,27 +13,39 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-source ../env.properties
-echo MYSQL_HOME=$MYSQL_HOME
+if [ "$MYSQL_HOME" = "" ] ; then
+  source ../env.properties
+  echo MYSQL_HOME=$MYSQL_HOME
+fi
+
+#set -x
+
+cwd="$(pwd)"
+mylogdir="$cwd/ndblog"
+mkdir -p "$mylogdir"
+user="$(whoami)"
+mycnf="$cwd/../my.cnf"
+myerr="$mylogdir/mysqld.log.err"
+mysock="$mylogdir/mysql.sock"
 
 echo
 echo start mysqld...
-
-mylogdir="ndblog"
-mkdir -p "$mylogdir"
-
-user="`whoami`"
-cwd="`pwd`"
-mycnf="$cwd/../my.cnf"
-myerr="$cwd/$mylogdir/mysqld.log.err"
-echo defaults-file=$mycnf
-( cd $MYSQL_HOME ; "$MYSQL_BIN/mysqld_safe" --defaults-file="$mycnf" --user="$user" --log-error="$myerr" & )
+#( cd $MYSQL_HOME ; "$MYSQL_BIN/mysqld_safe" --defaults-file="$mycnf" --user="$user" --log-error="$myerr" & )
+( cd $MYSQL_HOME ; "$MYSQL_BIN/mysqld_safe" --defaults-file="$mycnf" --user="$user" --log-error="$myerr" --socket="$mysock" & )
+#
+# debug:
+#( cd $MYSQL_HOME ; "$MYSQL_BIN/mysqld_safe" --defaults-file="$mycnf" --user="$user" --log-error="$myerr" -#d & )
+# crashes when --debug/-# at beginning:
+#( cd $MYSQL_HOME ; "$MYSQL_LIBEXEC/mysqld" --debug --defaults-file="$mycnf" --user="$user" --log-error="$myerr" & )
 
 # need some extra time
-for ((i=0; i<3; i++)) ; do echo "." ; sleep 1; done
+for ((i=0; i<10; i++)) ; do printf "." ; sleep 1 ; done ; echo
 
-echo
-echo show cluster...
-"$MYSQL_BIN/ndb_mgm" -e show
+#echo
+#ps -efa | grep mysqld
+
+./show_cluster.sh
+
+#set +x

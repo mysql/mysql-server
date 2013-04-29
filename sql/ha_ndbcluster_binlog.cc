@@ -611,42 +611,43 @@ ndb_create_thd(char * stackptr)
 */
 
 static int
-ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
+ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
 {
+  int stack_base = 0;
   int error = 0;
-  THD * save_thd= thd;
   DBUG_ENTER("ndbcluster_binlog_index_purge_file");
   DBUG_PRINT("enter", ("file: %s", file));
 
-  if (!ndb_binlog_running || (thd && thd->slave_thread))
+  if (!ndb_binlog_running || (passed_thd && passed_thd->slave_thread))
     DBUG_RETURN(0);
 
   /**
-   * This function really really needs a THD object,
-   *   new/delete one if not available...yuck!
+   * This function cannot safely reuse the passed thd object
+   * due to the variety of places from which it is called.
+   *   new/delete one...yuck!
    */
-  if (thd == 0)
+  THD* my_thd;
+  if ((my_thd = ndb_create_thd((char*)&stack_base) /* stack ptr */) == 0)
   {
-    if ((thd = ndb_create_thd((char*)&save_thd)) == 0)
-    {
-      /**
-       * TODO return proper error code here,
-       * BUT! return code is not (currently) checked in
-       *      log.cc : purge_index_entry() so we settle for warning printout
-       */
-      sql_print_warning("NDB: Unable to purge "
-                        NDB_REP_DB "." NDB_REP_TABLE
-                        " File=%s (failed to setup thd)", file);
-      DBUG_RETURN(0);
-    }
+    /**
+     * TODO return proper error code here,
+     * BUT! return code is not (currently) checked in
+     *      log.cc : purge_index_entry() so we settle for warning printout
+     * Will sql_print_warning fail with no thd?
+     */
+    sql_print_warning("NDB: Unable to purge "
+                      NDB_REP_DB "." NDB_REP_TABLE
+                      " File=%s (failed to setup thd)", file);
+    DBUG_RETURN(0);
   }
+
 
   /*
     delete rows from mysql.ndb_binlog_index table for the given
     filename, if table does not exist ignore the error as it
     is a "consistent" behavior
   */
-  Ndb_local_connection mysqld(thd);
+  Ndb_local_connection mysqld(my_thd);
   const bool ignore_no_such_table = true;
   if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
                         STRING_WITH_LEN("ndb_binlog_index"),
@@ -657,9 +658,14 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
     error = 1;
   }
 
-  if (save_thd == 0)
+  /* Cleanup links between thread and my_thd, then delete it */ 
+  my_thd->restore_globals();
+  delete my_thd;
+  
+  if (passed_thd)
   {
-    delete thd;
+    /* Relink passed THD with this thread */
+    passed_thd->store_globals();
   }
 
   DBUG_RETURN(error);

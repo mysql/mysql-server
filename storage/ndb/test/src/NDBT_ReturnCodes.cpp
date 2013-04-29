@@ -24,6 +24,7 @@
 /* Ndb include files */
 #include <NdbOut.hpp>
 
+static
 const char* rcodeToChar(int rcode){
   switch (rcode){
   case NDBT_OK:

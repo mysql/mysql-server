@@ -3147,7 +3147,7 @@ Dbtup::updateDiskVarAsFixedSizeNotNULL(Uint32* inBuffer,
 {
   Uint32 attrDescriptor= req_struct->attr_descriptor;
   Uint32 indexBuf= req_struct->in_buf_index;
-  Uint32 inBufLen= req_struct->in_buf_len;
+  //Uint32 inBufLen= req_struct->in_buf_len;
   Uint32 updateOffset= AttributeOffset::getOffset(attrDes2);
   Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attrDes2);
   

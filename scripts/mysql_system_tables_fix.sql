@@ -26,6 +26,52 @@
 set sql_mode='';
 set storage_engine=MyISAM;
 
+# MCP_BUG16226274 >
+# Handle distributed grant tables before upgrade
+# - move any dist priv tables from engine=NDB into default engine
+# - remember which tables was moved so they can be moved back after upgrade
+CREATE TEMPORARY TABLE was_distributed (table_name VARCHAR(255));
+DROP PROCEDURE IF EXISTS mysql.dist_priv_before_upgrade;
+DELIMITER //
+CREATE PROCEDURE mysql.dist_priv_before_upgrade()
+BEGIN
+  DECLARE tbl_name varchar(255);
+  DECLARE done int DEFAULT 0;
+  DECLARE tables CURSOR FOR
+    SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'mysql' AND
+            table_type = 'BASE TABLE' AND
+            engine = 'NDBCLUSTER' AND
+            table_name IN ('user', 'db', 'tables_priv', 'columns_priv',
+                           'procs_priv', 'proxies_priv', 'host');
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+
+  OPEN tables;
+  REPEAT
+    FETCH tables INTO tbl_name;
+    IF NOT done THEN
+      # Alter table to default engine
+      SET @str =
+        CONCAT("ALTER TABLE mysql.", tbl_name, " ENGINE=", @@storage_engine );
+      SELECT @str;
+      PREPARE stmt FROM @str;
+      EXECUTE stmt;
+
+      # Remember that this table need to be restored back into NDB
+      INSERT INTO  was_distributed VALUES(tbl_name);
+
+      # From 5.6 the mysql.host table is deprecated, do not alter
+      # it back into NDB
+      # DELETE FROM was_distributed WHERE table_name = 'host';
+    END IF;
+  UNTIL DONE END REPEAT;
+  CLOSE tables;
+END //
+DELIMITER ;
+CALL mysql.dist_priv_before_upgrade();
+DROP PROCEDURE mysql.dist_priv_before_upgrade;
+# MCP_BUG16226274 <
+
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
 # Detect whether or not we had the Grant_priv column
@@ -714,3 +760,35 @@ CALL mysql.warn_host_table_nonempty();
 -- Get warnings (if any)
 SHOW WARNINGS;
 DROP PROCEDURE mysql.warn_host_table_nonempty;
+
+# MCP_BUG16226274 >
+# Handle distributed grant tables after upgrade
+# - move any tables which was in engine=NDB back into NDB
+DROP PROCEDURE IF EXISTS mysql.dist_priv_after_upgrade;
+DELIMITER //
+CREATE PROCEDURE mysql.dist_priv_after_upgrade()
+BEGIN
+  DECLARE tbl_name varchar(255);
+  DECLARE done int DEFAULT 0;
+  DECLARE tables CURSOR FOR SELECT table_name FROM was_distributed;
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+
+  OPEN tables;
+  REPEAT
+    FETCH tables INTO tbl_name;
+    IF NOT done THEN
+      # Alter table back into NDB
+      SET @str =
+        CONCAT("ALTER TABLE mysql.", tbl_name, " ENGINE=NDB");
+      SELECT @str;
+      PREPARE stmt FROM @str;
+      EXECUTE stmt;
+    END IF;
+  UNTIL DONE END REPEAT;
+  CLOSE tables;
+END //
+DELIMITER ;
+CALL mysql.dist_priv_after_upgrade();
+DROP PROCEDURE mysql.dist_priv_after_upgrade;
+DROP TEMPORARY TABLE was_distributed;
+# MCP_BUG16226274 <
