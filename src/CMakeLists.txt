@@ -39,9 +39,12 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
   add_space_separated_property(TARGET ${LIBTOKUDB} LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/export.map")
 endif ()
 
-install(
-  TARGETS ${LIBTOKUDB} ${LIBTOKUDB}_static
-  DESTINATION lib
-  )
+# detect when we are being built as a subproject
+if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
+  install(
+    TARGETS ${LIBTOKUDB} ${LIBTOKUDB}_static
+    DESTINATION lib
+    )
+endif ()
 
 add_subdirectory(tests)

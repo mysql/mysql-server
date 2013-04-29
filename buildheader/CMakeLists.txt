@@ -13,12 +13,15 @@ add_custom_command(
 add_custom_target(install_tdb_h DEPENDS
   "${CMAKE_CURRENT_BINARY_DIR}/db.h")
 
-install(
-  FILES "${CMAKE_CURRENT_BINARY_DIR}/db.h"
-  DESTINATION include
-  RENAME tokudb.h
-  )
-install(
-  FILES "${CMAKE_CURRENT_BINARY_DIR}/db.h"
-  DESTINATION include
-  )
+# detect when we are being built as a subproject
+if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
+  install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/db.h"
+    DESTINATION include
+    RENAME tokudb.h
+    )
+  install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/db.h"
+    DESTINATION include
+    )
+endif ()
