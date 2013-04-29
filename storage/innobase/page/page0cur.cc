@@ -2219,8 +2219,8 @@ PageCur::search(const dtuple_t* tuple)
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_check_typed(tuple));
 	ut_ad(dtuple_get_n_fields(tuple) <= getNumFields());
-	ut_ad(mtr_memo_contains_page(m_mtr, page, MTR_MEMO_PAGE_X_FIX)
-	      || mtr_memo_contains_page(m_mtr, page, MTR_MEMO_PAGE_S_FIX));
+	ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX)
+	      || mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_S_FIX));
 
 	page = buf_block_get_frame(m_block);
 
