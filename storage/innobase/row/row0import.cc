@@ -1932,10 +1932,8 @@ PageConverter::update_index_page(
 		return(DB_SUCCESS);
 	}
 
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!is_compressed_table()
-	     || page_zip_validate(m_page_zip_ptr, page, m_index->m_srv_index));
-#endif /* UNIV_ZIP_DEBUG */
+	ut_ad(!is_compressed_table() == !m_page_zip_ptr);
+	page_zip_validate_if_zip(m_page_zip_ptr, page, m_index->m_srv_index);
 
 	/* This has to be written to uncompressed index header. Set it to
 	the current index id. */

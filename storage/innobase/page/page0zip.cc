@@ -3154,21 +3154,24 @@ UNIV_INTERN ibool	page_zip_validate_header_only = FALSE;
 
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
-@return	TRUE if valid, FALSE if not */
+@param[in] page_zip	compressed page
+@param[in] page		uncompressed page
+@param[in] index	index of the page, or NULL if not known
+@param[in] sloppy	false=strict, true=ignore REC_INFO_MIN_REC_FLAG
+@return	true if valid, false if not */
 UNIV_INTERN
-ibool
+bool
 page_zip_validate_low(
 /*==================*/
-	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	const page_t*		page,	/*!< in: uncompressed page */
-	const dict_index_t*	index,	/*!< in: index of the page, if known */
-	ibool			sloppy)	/*!< in: FALSE=strict,
-					TRUE=ignore the MIN_REC_FLAG */
+	const page_zip_des_t*	page_zip,
+	const page_t*		page,
+	const dict_index_t*	index,
+	bool			sloppy)
 {
 	page_zip_des_t	temp_page_zip;
 	byte*		temp_page_buf;
 	page_t*		temp_page;
-	ibool		valid;
+	bool		valid;
 
 	if (memcmp(page_zip->data + FIL_PAGE_PREV, page + FIL_PAGE_PREV,
 		   FIL_PAGE_LSN - FIL_PAGE_PREV)
@@ -3179,13 +3182,13 @@ page_zip_validate_low(
 		page_zip_hexdump(page_zip, sizeof *page_zip);
 		page_zip_hexdump(page_zip->data, page_zip_get_size(page_zip));
 		page_zip_hexdump(page, UNIV_PAGE_SIZE);
-		return(FALSE);
+		return(false);
 	}
 
 	ut_a(page_is_comp(page));
 
 	if (page_zip_validate_header_only) {
-		return(TRUE);
+		return(true);
 	}
 
 	/* page_zip_decompress() expects the uncompressed page to be
@@ -3221,25 +3224,25 @@ page_zip_validate_low(
 	if (page_zip->n_blobs != temp_page_zip.n_blobs) {
 		page_zip_fail(("page_zip_validate: n_blobs: %u!=%u\n",
 			       page_zip->n_blobs, temp_page_zip.n_blobs));
-		valid = FALSE;
+		valid = false;
 	}
 #ifdef UNIV_DEBUG
 	if (page_zip->m_start != temp_page_zip.m_start) {
 		page_zip_fail(("page_zip_validate: m_start: %u!=%u\n",
 			       page_zip->m_start, temp_page_zip.m_start));
-		valid = FALSE;
+		valid = false;
 	}
 #endif /* UNIV_DEBUG */
 	if (page_zip->m_end != temp_page_zip.m_end) {
 		page_zip_fail(("page_zip_validate: m_end: %u!=%u\n",
 			       page_zip->m_end, temp_page_zip.m_end));
-		valid = FALSE;
+		valid = false;
 	}
 	if (page_zip->m_nonempty != temp_page_zip.m_nonempty) {
 		page_zip_fail(("page_zip_validate(): m_nonempty: %u!=%u\n",
 			       page_zip->m_nonempty,
 			       temp_page_zip.m_nonempty));
-		valid = FALSE;
+		valid = false;
 	}
 	if (memcmp(page + PAGE_HEADER, temp_page + PAGE_HEADER,
 		   UNIV_PAGE_SIZE - PAGE_HEADER - FIL_PAGE_DATA_END)) {
@@ -3294,7 +3297,7 @@ page_zip_validate_low(
 					       "PAGE_FREE list: %u!=%u\n",
 					       (unsigned) page_offset(rec),
 					       (unsigned) page_offset(trec)));
-				valid = FALSE;
+				valid = false;
 				goto func_exit;
 			}
 
@@ -3316,7 +3319,7 @@ page_zip_validate_low(
 					       "record list: 0x%02x!=0x%02x\n",
 					       (unsigned) page_offset(rec),
 					       (unsigned) page_offset(trec)));
-				valid = FALSE;
+				valid = false;
 				break;
 			}
 
@@ -3333,7 +3336,7 @@ page_zip_validate_low(
 						("page_zip_validate: "
 						 "record content: 0x%02x",
 						 (unsigned) page_offset(rec)));
-					valid = FALSE;
+					valid = false;
 					break;
 				}
 			}
@@ -3356,21 +3359,6 @@ func_exit:
 	}
 	ut_free(temp_page_buf);
 	return(valid);
-}
-
-/**********************************************************************//**
-Check that the compressed and decompressed pages match.
-@return	TRUE if valid, FALSE if not */
-UNIV_INTERN
-ibool
-page_zip_validate(
-/*==============*/
-	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	const page_t*		page,	/*!< in: uncompressed page */
-	const dict_index_t*	index)	/*!< in: index of the page, if known */
-{
-	return(page_zip_validate_low(page_zip, page, index,
-				     recv_recovery_is_on()));
 }
 #endif /* UNIV_ZIP_DEBUG */
 

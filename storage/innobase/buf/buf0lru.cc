@@ -2217,11 +2217,9 @@ buf_LRU_block_remove_hashed(
 			case FIL_PAGE_TYPE_ZBLOB2:
 				break;
 			case FIL_PAGE_INDEX:
-#ifdef UNIV_ZIP_DEBUG
-				ut_a(page_zip_validate(
-					     &bpage->zip, page,
-					     ((buf_block_t*) bpage)->index));
-#endif /* UNIV_ZIP_DEBUG */
+				page_zip_validate_if_zip(
+					&bpage->zip, page,
+					((buf_block_t*) bpage)->index);
 				break;
 			default:
 				ut_print_timestamp(stderr);
