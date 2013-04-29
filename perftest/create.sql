@@ -18,9 +18,7 @@ SET storage_engine=ndbcluster;
 CREATE DATABASE IF NOT EXISTS jscrund;
 USE jscrund;
 
-DROP TABLE IF EXISTS a;
-
-CREATE TABLE a (
+CREATE TABLE IF NOT EXISTS a (
         id              INT             NOT NULL,
         cint            INT,
         clong           BIGINT,
