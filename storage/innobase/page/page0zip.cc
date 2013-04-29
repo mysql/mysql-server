@@ -4167,32 +4167,34 @@ page_zip_dir_insert(
 	mach_write_to_2(slot_rec - PAGE_ZIP_DIR_SLOT_SIZE, page_offset(rec));
 }
 
-/**********************************************************************//**
-Shift the dense page directory and the array of BLOB pointers
-when a record is deleted. */
+/** Shift the dense page directory when a record is deleted.
+@param[in/out]	page_zip	compressed page
+@param[in]	free		previous start of the PAGE_FREE list
+@param[in/out]	rec		deleted record (new head of PAGE_FREE)
+@param[in]	index		index B-tree
+@param[in]	data_size	user data size of rec, in bytes
+@param[in]	extra_size	header size of rec, in bytes
+@param[in]	n_ext		number of externally stored fields */
 UNIV_INTERN
 void
 page_zip_dir_delete(
-/*================*/
-	page_zip_des_t*		page_zip,	/*!< in/out: compressed page */
-	byte*			rec,		/*!< in: deleted record */
-	const dict_index_t*	index,		/*!< in: index of rec */
-	const ulint*		offsets,	/*!< in: rec_get_offsets(rec) */
-	const byte*		free)		/*!< in: previous start of
-						the free list */
+	page_zip_des_t*		page_zip,
+	const byte*		free,
+	byte*			rec,
+	const dict_index_t*	index,
+	ulint			data_size,
+	ulint			extra_size,
+	ulint			n_ext)
 {
 	byte*	slot_rec;
 	byte*	slot_free;
-	ulint	n_ext;
 	page_t*	page	= page_align(rec);
 
-	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_ad(rec_offs_comp(offsets));
+	ut_ad(page_is_comp(page));
 
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
-	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
-	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
-			   rec_offs_extra_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec, data_size);
+	UNIV_MEM_ASSERT_RW(rec - extra_size, extra_size);
 
 	slot_rec = page_zip_dir_find(page_zip, page_offset(rec));
 
@@ -4227,11 +4229,10 @@ page_zip_dir_delete(
 	mach_write_to_2(slot_free, page_offset(rec));
 
 	if (!page_is_leaf(page) || !dict_index_is_clust(index)) {
-		ut_ad(!rec_offs_any_extern(offsets));
+		ut_ad(!n_ext);
 		goto skip_blobs;
 	}
 
-	n_ext = rec_offs_n_extern(offsets);
 	if (UNIV_UNLIKELY(n_ext)) {
 		/* Shift and zero fill the array of BLOB pointers. */
 		ulint	blob_no;

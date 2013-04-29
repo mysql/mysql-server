@@ -351,20 +351,24 @@ page_zip_dir_insert(
 				allocated, or NULL */
 	byte*		rec);	/*!< in: record to insert */
 
-/**********************************************************************//**
-Shift the dense page directory and the array of BLOB pointers
-when a record is deleted. */
+/** Shift the dense page directory when a record is deleted.
+@param[in/out]	page_zip	compressed page
+@param[in]	free		previous start of the PAGE_FREE list
+@param[in/out]	rec		deleted record (new head of PAGE_FREE)
+@param[in]	index		index B-tree
+@param[in]	data_size	user data size of rec, in bytes
+@param[in]	extra_size	header size of rec, in bytes
+@param[in]	n_ext		number of externally stored fields */
 UNIV_INTERN
 void
 page_zip_dir_delete(
-/*================*/
-	page_zip_des_t*		page_zip,	/*!< in/out: compressed page */
-	byte*			rec,		/*!< in: deleted record */
-	const dict_index_t*	index,		/*!< in: index of rec */
-	const ulint*		offsets,	/*!< in: rec_get_offsets(rec) */
-	const byte*		free)		/*!< in: previous start of
-						the free list */
-	__attribute__((nonnull(1,2,3,4)));
+	page_zip_des_t*		page_zip,
+	const byte*		free,
+	byte*			rec,
+	const dict_index_t*	index,
+	ulint			data_size,
+	ulint			extra_size,
+	ulint			n_ext);
 
 /**********************************************************************//**
 Add a slot to the dense page directory. */
