@@ -514,7 +514,7 @@ ib_logf(
 	ib_log_level_t	level,		/*!< in: warning level */
 	const char*	format,		/*!< printf format */
 	...)				/*!< Args */
-	__attribute__((format(printf, 2, 3)));
+	UNIV_COLD __attribute__((format(printf, 2, 3)));
 
 /******************************************************************//**
 Returns the NUL terminated value of glob_hostname.
