@@ -16,6 +16,7 @@
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
+INCLUDE(ndb_add_target_property)
 
 MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
 
@@ -137,6 +138,11 @@ IF (NOT WITH_NDBCLUSTER)
   MESSAGE(STATUS "Not building NDB")
   RETURN()
 ENDIF()
+
+# Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
+# the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
+# is compiled without this define)
+NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
   MESSAGE(STATUS "Building NDB 32-bit")

@@ -13613,6 +13613,138 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 	      ap.p->nextApiConnect);
   }
 
+  if (dumpState->args[0] == DumpStateOrd::TcDumpApiConnectRecSummary)
+  {
+    Uint32 apiNode = 1;
+    Uint32 pos = 0;
+
+    Uint32 seized_count = 0;      /* Number seized by an Api */
+    Uint32 stateless_count = 0;   /* Number 'started' with no ops */
+    Uint32 stateful_count = 0;    /* Number running */
+    Uint32 scan_count = 0;        /* Number used for scans */
+    const Uint32 userVisibleConnectFilesize = capiConnectFilesize / 3;
+    
+    if (signal->getLength() == 1)
+    {
+      ndbout_c("Start of ApiConnectRec summary (%u total allocated)",
+               userVisibleConnectFilesize);
+      /*
+       * total allocated = MaxNoOfConcurrentTransactions
+       * total allocated = unseized + SUM_over_Api_nodes(seized)
+       *   unseized can be seized by any Api node
+       *   seized are 'owned' by a particular api node, can't be used
+       *     by others until they are manually released.
+       * seized = seized_unused + stateless + stateful + scan
+       *   seized_unused are 'idle' connection objects owned by an
+       *     api node.
+       *   stateless are potentially idle connection objects, last
+       *     used in a TC-stateless operation (e.g. read committed)
+       *   stateful are in use, handling some transaction
+       *   scan are in use, handling a table or index scan
+       */
+    }
+    else if (signal->getLength() == 7)
+    {
+      apiNode = dumpState->args[1];
+      pos = dumpState->args[2];
+      seized_count = dumpState->args[3];
+      stateless_count = dumpState->args[4];
+      stateful_count = dumpState->args[5];
+      scan_count = dumpState->args[6];
+    }
+    else
+    {
+      return;
+    }
+
+    if (apiNode == 0)
+      return;
+
+    while (apiNode < MAX_NODES)
+    {
+      if (getNodeInfo(apiNode).getType() == NODE_TYPE_API &&
+          getNodeInfo(apiNode).m_version != 0)
+      {
+        break;
+      }
+      apiNode ++;
+    }
+    
+    if (apiNode >= MAX_NODES)
+    {
+      ndbout_c("End of ApiConnectRec summary");
+      return;
+    }
+
+    Uint32 limit = MIN(pos + 16, userVisibleConnectFilesize);
+
+    while(pos < limit)
+    {
+      apiConnectptr.i = pos;
+      ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+      /* Following code mostly similar to that for NdbInfo transactions table */
+      Uint32 conState = apiConnectptr.p->apiConnectstate;
+
+      if (conState == CS_ABORTING && apiConnectptr.p->abortState == AS_IDLE)
+      {
+        /**
+         * These is for all practical purposes equal
+         */
+        conState = CS_CONNECTED;
+      }
+
+      if ((refToNode(apiConnectptr.p->ndbapiBlockref) == apiNode) &&
+          (conState != CS_DISCONNECTED))
+      {
+        seized_count++;
+        
+        if (conState == CS_STARTED && 
+            apiConnectptr.p->lqhkeyreqrec == 0)
+        {
+          stateless_count++;
+        }
+        else if (conState == CS_START_SCAN)
+        {
+          scan_count++;
+        }
+        else if (conState != CS_CONNECTED)
+        {
+          stateful_count++;
+        }
+      }
+      
+      pos++;
+    }
+
+    if (pos >= userVisibleConnectFilesize)
+    {
+      /* Finished with this apiNode, output info, if any */
+//      if (seized_count > 0)
+      {
+        ndbout_c("  Api node %u connect records seized : %u stateless : %u stateful : %u scan : %u",
+                 apiNode, seized_count, stateless_count, stateful_count, scan_count);
+        seized_count = 0;
+        stateless_count = 0;
+        stateful_count = 0;
+        scan_count = 0;
+      }
+      
+      apiNode++;
+      pos = 0;
+    }
+    
+    signal->theData[0] = DumpStateOrd::TcDumpApiConnectRecSummary;
+    signal->theData[1] = apiNode;
+    signal->theData[2] = pos;
+    signal->theData[3] = seized_count;
+    signal->theData[4] = stateless_count;
+    signal->theData[5] = stateful_count;
+    signal->theData[6] = scan_count;
+
+    sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 7, JBB);
+    return;
+  };
+
   if (dumpState->args[0] == DumpStateOrd::TcSetTransactionTimeout){
     jam();
     if(signal->getLength() > 1){

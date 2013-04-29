@@ -1,21 +1,19 @@
-/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
- *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
- *
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- */
+/*
+  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <iostream>
 #include <vector>
@@ -30,7 +28,7 @@
 #include "helpers.hpp"
 #include "string_helpers.hpp"
 
-#include "CrundNdbApiOperations.hpp"
+#include "CrundNdbapiOperations.hpp"
 
 //using namespace std;
 using std::cout;
@@ -171,7 +169,7 @@ CrundModel::init(Ndb* ndb)
 */
 
 void
-CrundNdbApiOperations::init(const char* mgmd_conn_str)
+CrundNdbapiOperations::init(const char* mgmd_conn_str)
 {
     assert(mgmd == NULL);
     assert(mgmd_conn_str);
@@ -203,7 +201,7 @@ CrundNdbApiOperations::init(const char* mgmd_conn_str)
 }
 
 void
-CrundNdbApiOperations::close()
+CrundNdbapiOperations::close()
 {
     assert(mgmd != NULL);
 
@@ -219,7 +217,7 @@ CrundNdbApiOperations::close()
 }
 
 void
-CrundNdbApiOperations::initConnection(const char* catalog, const char* schema,
+CrundNdbapiOperations::initConnection(const char* catalog, const char* schema,
                                       NdbOperation::LockMode defaultLockMode)
 {
     assert(mgmd != NULL);
@@ -275,7 +273,7 @@ CrundNdbApiOperations::initConnection(const char* catalog, const char* schema,
 }
 
 void
-CrundNdbApiOperations::closeConnection()
+CrundNdbapiOperations::closeConnection()
 {
     assert(mgmd != NULL);
     assert(ndb != NULL);
@@ -295,7 +293,7 @@ CrundNdbApiOperations::closeConnection()
 }
 
 void
-CrundNdbApiOperations::beginTransaction()
+CrundNdbapiOperations::beginTransaction()
 {
     assert(tx == NULL);
 
@@ -306,7 +304,7 @@ CrundNdbApiOperations::beginTransaction()
 }
 
 void
-CrundNdbApiOperations::executeOperations()
+CrundNdbapiOperations::executeOperations()
 {
     assert(tx != NULL);
 
@@ -317,7 +315,7 @@ CrundNdbApiOperations::executeOperations()
 }
 
 void
-CrundNdbApiOperations::commitTransaction()
+CrundNdbapiOperations::commitTransaction()
 {
     assert(tx != NULL);
 
@@ -328,7 +326,7 @@ CrundNdbApiOperations::commitTransaction()
 }
 
 void
-CrundNdbApiOperations::closeTransaction()
+CrundNdbapiOperations::closeTransaction()
 {
     assert(tx != NULL);
 
@@ -341,15 +339,15 @@ CrundNdbApiOperations::closeTransaction()
 // ----------------------------------------------------------------------
 
 void
-CrundNdbApiOperations::clearData()
+CrundNdbapiOperations::clearData()
 {
     cout << "deleting all rows ..." << flush;
-    const bool batch = true;
+    const bool bulk = true;
     int delB0 = -1;
-    delByScan(model->table_B0, delB0, batch);
+    delByScan(model->table_B0, delB0, bulk);
     cout << "           [B0: " << toString(delB0) << flush;
     int delA = -1;
-    delByScan(model->table_A, delA, batch);
+    delByScan(model->table_A, delA, bulk);
     cout << ", A: " << toString(delA) << "]" << endl;
 }
 
@@ -402,9 +400,9 @@ selectString(int length)
 }
 
 void
-CrundNdbApiOperations::ins(const NdbDictionary::Table* table,
+CrundNdbapiOperations::ins(const NdbDictionary::Table* table,
                            int from, int to,
-                           bool setAttrs, bool batch)
+                           bool setAttrs, bool bulk)
 {
     beginTransaction();
     for (int i = from; i <= to; i++) {
@@ -429,8 +427,8 @@ CrundNdbApiOperations::ins(const NdbDictionary::Table* table,
                 ABORT_NDB_ERROR(tx->getNdbError());
         }
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -438,8 +436,8 @@ CrundNdbApiOperations::ins(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::delByScan(const NdbDictionary::Table* table, int& count,
-                                 bool batch)
+CrundNdbapiOperations::delByScan(const NdbDictionary::Table* table, int& count,
+                                 bool bulk)
 {
     beginTransaction();
 
@@ -452,8 +450,8 @@ CrundNdbApiOperations::delByScan(const NdbDictionary::Table* table, int& count,
     const NdbOperation::LockMode lock_mode = NdbOperation::LM_Exclusive;
     const int scan_flags = 0;
     const int parallel = 0;
-    const int batch_ = 0;
-    if (op->readTuples(lock_mode, scan_flags, parallel, batch_) != 0)
+    const int bulk_ = 0;
+    if (op->readTuples(lock_mode, scan_flags, parallel, bulk_) != 0)
         ABORT_NDB_ERROR(tx->getNdbError());
 
     // start the scan; don't commit yet
@@ -465,14 +463,14 @@ CrundNdbApiOperations::delByScan(const NdbDictionary::Table* table, int& count,
     const bool allowFetch = true; // request new batches when exhausted
     const bool forceSend = false; // send may be delayed
     while ((stat = op->nextResult(allowFetch, forceSend)) == 0) {
-        // delete all tuples within a batch
+        // delete all tuples within a bulk
         do {
             if (op->deleteCurrentTuple() != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
             count++;
 
-            // execute the operation now if in non-batching mode
-            if (!batch)
+            // execute the operation now if in non-bulking mode
+            if (!bulk)
                 executeOperations();
         } while ((stat = op->nextResult(!allowFetch, forceSend)) == 0);
 
@@ -481,7 +479,7 @@ CrundNdbApiOperations::delByScan(const NdbDictionary::Table* table, int& count,
             break;
         }
         if (stat == 2) {
-            // end of current batch, fetch next
+            // end of current bulk, fetch next
             if (tx->execute(NdbTransaction::NoCommit) != 0
                 || tx->getNdbError().status != NdbError::Success)
                 ABORT_NDB_ERROR(tx->getNdbError());
@@ -503,9 +501,9 @@ CrundNdbApiOperations::delByScan(const NdbDictionary::Table* table, int& count,
 }
 
 void
-CrundNdbApiOperations::delByPK(const NdbDictionary::Table* table,
+CrundNdbapiOperations::delByPK(const NdbDictionary::Table* table,
                                int from, int to,
-                               bool batch)
+                               bool bulk)
 {
     beginTransaction();
     for (int i = from; i <= to; i++) {
@@ -520,8 +518,8 @@ CrundNdbApiOperations::delByPK(const NdbDictionary::Table* table,
         if (op->equal(model->attr_id, (Int32)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -529,9 +527,9 @@ CrundNdbApiOperations::delByPK(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::setByPK(const NdbDictionary::Table* table,
+CrundNdbapiOperations::setByPK(const NdbDictionary::Table* table,
                     int from, int to,
-                    bool batch)
+                    bool bulk)
 {
     beginTransaction();
     for (int i = from; i <= to; i++) {
@@ -554,8 +552,8 @@ CrundNdbApiOperations::setByPK(const NdbDictionary::Table* table,
         if (op->setValue(model->attr_cdouble, (double)i) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -563,9 +561,9 @@ CrundNdbApiOperations::setByPK(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::getByPK_bb(const NdbDictionary::Table* table,
+CrundNdbapiOperations::getByPK_bb(const NdbDictionary::Table* table,
                        int from, int to,
-                       bool batch)
+                       bool bulk)
 {
     // allocate attributes holder
     const int count = (to - from) + 1;
@@ -598,8 +596,8 @@ CrundNdbApiOperations::getByPK_bb(const NdbDictionary::Table* table,
         if (op->getValue(model->attr_cdouble, (char*)&pab->cdouble) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -643,9 +641,9 @@ getCommonAB(const CommonAB_AR* const ab)
 }
 
 void
-CrundNdbApiOperations::getByPK_ar(const NdbDictionary::Table* table,
+CrundNdbapiOperations::getByPK_ar(const NdbDictionary::Table* table,
                        int from, int to,
-                       bool batch)
+                       bool bulk)
 {
     // allocate attributes holder
     const int count = (to - from) + 1;
@@ -678,8 +676,8 @@ CrundNdbApiOperations::getByPK_ar(const NdbDictionary::Table* table,
         if ((pab->cdouble = op->getValue(model->attr_cdouble, NULL)) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -702,41 +700,41 @@ CrundNdbApiOperations::getByPK_ar(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::setVarbinary(const NdbDictionary::Table* table,
-                         int from, int to, bool batch, int length)
+CrundNdbapiOperations::setVarbinary(const NdbDictionary::Table* table,
+                         int from, int to, bool bulk, int length)
 {
     setVar(table, model->attr_B0_cvarbinary_def,
-           from, to, batch, selectString(length));
+           from, to, bulk, selectString(length));
 }
 
 void
-CrundNdbApiOperations::setVarchar(const NdbDictionary::Table* table,
-                       int from, int to, bool batch, int length)
+CrundNdbapiOperations::setVarchar(const NdbDictionary::Table* table,
+                       int from, int to, bool bulk, int length)
 {
     setVar(table, model->attr_B0_cvarchar_def,
-           from, to, batch, selectString(length));
+           from, to, bulk, selectString(length));
 }
 
 void
-CrundNdbApiOperations::getVarbinary(const NdbDictionary::Table* table,
-                         int from, int to, bool batch, int length)
+CrundNdbapiOperations::getVarbinary(const NdbDictionary::Table* table,
+                         int from, int to, bool bulk, int length)
 {
     getVar(table, model->attr_B0_cvarbinary_def,
-           from, to, batch, selectString(length));
+           from, to, bulk, selectString(length));
 }
 
 void
-CrundNdbApiOperations::getVarchar(const NdbDictionary::Table* table,
-                       int from, int to, bool batch, int length)
+CrundNdbapiOperations::getVarchar(const NdbDictionary::Table* table,
+                       int from, int to, bool bulk, int length)
 {
     getVar(table, model->attr_B0_cvarchar_def,
-           from, to, batch, selectString(length));
+           from, to, bulk, selectString(length));
 }
 
 void
-CrundNdbApiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
+CrundNdbapiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
                    int from, int to,
-                   bool batch, const char* str)
+                   bool bulk, const char* str)
 {
     char* buf = NULL;
     if (str != NULL) {
@@ -769,8 +767,8 @@ CrundNdbApiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
         if (op->setValue(attr_cvar, buf) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -783,9 +781,9 @@ CrundNdbApiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
 }
 
 void
-CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
+CrundNdbapiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
                    int from, int to,
-                   bool batch, const char* str)
+                   bool bulk, const char* str)
 {
     assert(str);
 
@@ -820,8 +818,8 @@ CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
         if (op->getValue(attr_cvar, (char*)s) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -853,7 +851,7 @@ CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
 }
 
 void
-CrundNdbApiOperations::setB0ToA(int nOps, bool batch)
+CrundNdbapiOperations::setB0ToA(int nOps, bool bulk)
 {
     beginTransaction();
     for (int i = 1; i <= nOps; i++) {
@@ -873,8 +871,8 @@ CrundNdbApiOperations::setB0ToA(int nOps, bool batch)
         if (op->setValue(model->attr_B0_a_id, (Int32)a_id) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -882,7 +880,7 @@ CrundNdbApiOperations::setB0ToA(int nOps, bool batch)
 }
 
 void
-CrundNdbApiOperations::nullB0ToA(int nOps, bool batch)
+CrundNdbapiOperations::nullB0ToA(int nOps, bool bulk)
 {
     beginTransaction();
     for (int i = 1; i <= nOps; i++) {
@@ -901,8 +899,8 @@ CrundNdbApiOperations::nullB0ToA(int nOps, bool batch)
         if (op->setValue(model->attr_B0_a_id, (char*)NULL) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -910,7 +908,7 @@ CrundNdbApiOperations::nullB0ToA(int nOps, bool batch)
 }
 
 void
-CrundNdbApiOperations::navB0ToA(int nOps, bool batch)
+CrundNdbapiOperations::navB0ToA(int nOps, bool bulk)
 {
     // allocate attributes holder
     CommonAB* const ab = new CommonAB[nOps];
@@ -966,8 +964,8 @@ CrundNdbApiOperations::navB0ToA(int nOps, bool batch)
                 ABORT_NDB_ERROR(tx->getNdbError());
         }
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -990,7 +988,7 @@ CrundNdbApiOperations::navB0ToA(int nOps, bool batch)
 }
 
 void
-CrundNdbApiOperations::navB0ToAalt(int nOps, bool batch)
+CrundNdbapiOperations::navB0ToAalt(int nOps, bool bulk)
 {
     // allocate foreign key values holder
     Int32* const a_id = new Int32[nOps];
@@ -1014,8 +1012,8 @@ CrundNdbApiOperations::navB0ToAalt(int nOps, bool batch)
         if (op->getValue(model->attr_B0_a_id, (char*)pa_id++) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     executeOperations(); // execute the operation; don't commit yet
@@ -1051,8 +1049,8 @@ CrundNdbApiOperations::navB0ToAalt(int nOps, bool batch)
         if (op->getValue(model->attr_cdouble, (char*)&pab->cdouble) == NULL)
             ABORT_NDB_ERROR(tx->getNdbError());
 
-        // execute the operation now if in non-batching mode
-        if (!batch)
+        // execute the operation now if in non-bulking mode
+        if (!bulk)
             executeOperations();
     }
     commitTransaction();
@@ -1078,7 +1076,7 @@ CrundNdbApiOperations::navB0ToAalt(int nOps, bool batch)
 }
 
 void
-CrundNdbApiOperations::navAToB0(int nOps, bool forceSend)
+CrundNdbapiOperations::navAToB0(int nOps, bool forceSend)
 {
     // attributes holder
     CommonAB h;
@@ -1159,9 +1157,9 @@ CrundNdbApiOperations::navAToB0(int nOps, bool forceSend)
 }
 
 void
-CrundNdbApiOperations::navAToB0alt(int nOps, bool forceSend)
+CrundNdbapiOperations::navAToB0alt(int nOps, bool forceSend)
 {
-    // number of operations in a multi-scan batch
+    // number of operations in a multi-scan bulk
     const int nmscans = (nOps < 256 ? nOps : 256);
 
     // attributes holder

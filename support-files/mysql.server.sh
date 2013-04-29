@@ -360,6 +360,15 @@ case "$mode" in
     else
       # Try to find appropriate mysqld process
       mysqld_pid=`pidof $libexecdir/mysqld`
+
+      # > MCP_BUG15852074
+      # test if multiple pids exist
+      pid_count=`echo $mysqld_pid | wc -w`
+      if test $pid_count -gt 1 ; then
+        log_failure_msg "Multiple MySQL running but PID file could not be found ($mysqld_pid)"
+        exit 5
+      fi
+      # < MCP_BUG15852074
       if test -z $mysqld_pid ; then 
         if test -f "$lock_file_path" ; then 
           log_failure_msg "MySQL is not running, but lock file ($lock_file_path) exists"

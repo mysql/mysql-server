@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18250,6 +18250,10 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     ndbout_c("LCP Tab def write ops inUse %u queued %u",
              c_lcpTabDefWritesControl.inUse,
              c_lcpTabDefWritesControl.queuedRequests);
+
+    if (getNodeState().startLevel < NodeState::SL_STARTING)
+      return ;
+
     Uint32 freeCount = 0;
     PageRecordPtr tmp;
     tmp.i = cfirstfreepage;
