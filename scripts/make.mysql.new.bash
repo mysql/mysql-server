@@ -4,8 +4,25 @@ set -e
 set -u
 
 function usage() {
+    echo "make mysql with the tokudb storage engine from github repo's"
+    echo "--git_tag=$git_tag"
     echo "--mysqlbuild=$mysqlbuild"
     echo "--mysql=$mysql"
+    echo "--tokudb_version=$tokudb_version"
+    echo 
+    echo "community release builds using the tokudb-7.0.1 git tag"
+    echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.1-linux-x86_64"
+    echo "    make.mysql.bash --mysqlbuild=mariadb-5.5.30-tokudb-7.0.1-linux-x86_64"
+    echo "    make.mysql.bash --git_tag=tokudb-7.0.1 --mysql=mysql-5.5.30"
+    echo
+    echo "community debug builds using the tokudb-7.0.1 git tag"
+    echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.1-debug-linux-x86_64"
+    echo
+    echo "enterprise release builds at the HEAD of the repos"
+    echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-test-e-linux-x86_64"
+    echo 
+    echo "community release builds of a branch"
+    echo "    make.mysql.bash --mysql=mysql-5.5.30 --mysql_tree=<your mysql tree name> --ftengine_tree=<your ft-engine tree name> --tokudb_version=<your test string>>"
     return 1
 }
 
@@ -77,13 +94,14 @@ if [ -z $mysqlbuild ] ; then
     fi
 fi
 
-# download all the source
+# download all the mysql source
 if [ ! -d $mysql_distro ] ; then
     github_download Tokutek/$mysql_distro $(git_tree $git_tag $mysql_tree) $mysql_distro
 fi
 
 cd $mysql_distro
 
+# install the backup source
 if [ ! -d toku_backup ] ; then
     github_download Tokutek/backup-$build_type $(git_tree $git_tag $backup_tree) backup-$build_type
     cp -r backup-$build_type/backup toku_backup
@@ -92,13 +110,16 @@ fi
 if [ ! -d ft-engine ] ; then
     github_download Tokutek/ft-engine $(git_tree $git_tag $ftengine_tree) ft-engine
 
+    # install the tokudb storage engine source
     cp -r ft-engine/storage/tokudb storage/
 
+    # merge the mysql tests
     mv mysql-test mysql-test-save
     cp -r ft-engine/mysql-test .
     cp -r mysql-test-save/* mysql-test
     rm -rf mysql-test-save
 
+    # install the tokudb scripts
     cp -r ft-engine/scripts/* scripts/
 fi
 
