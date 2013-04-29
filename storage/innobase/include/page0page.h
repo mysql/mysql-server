@@ -463,8 +463,8 @@ UNIV_INLINE
 void
 page_dir_slot_set_rec(
 /*==================*/
-	page_dir_slot_t* slot,	/*!< in: directory slot */
-	rec_t*		 rec);	/*!< in: record on the page */
+	page_dir_slot_t*slot,	/*!< in/out: directory slot */
+	const rec_t*	rec);	/*!< in: record on the page */
 /***************************************************************//**
 Gets the number of records owned by a directory slot.
 @return	number of records */
