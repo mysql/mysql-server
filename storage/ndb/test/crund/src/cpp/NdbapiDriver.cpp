@@ -38,34 +38,30 @@ using utils::toString;
 
 CrundNdbapiOperations* NdbapiDriver::ops = NULL;
 
-// ISO C++ 98 does not allow for a string literal as a template argument
-// for a non-type template parameter, because string literals are objects
-// with internal linkage.  This restriction maybe lifted in C++0x.
-//
-// Until then, we have to allocate the operation names as variables
-// (which are external at file scope by default).
-const char* delAByPK_s = "delAByPK";
-const char* delB0ByPK_s = "delB0ByPK";
-const char* setAByPK_s = "setAByPK";
-const char* setB0ByPK_s = "setB0ByPK";
-const char* getAByPK_bb_s = "getAByPK_bb";
-const char* getB0ByPK_bb_s = "getB0ByPK_bb";
-const char* getAByPK_ar_s = "getAByPK_ar";
-const char* getB0ByPK_ar_s = "getB0ByPK_ar";
+// Operation names as variables with external linkage.
+// (ISO C++ 98 does not allow for string literals as template arguments.)
+const char* delAByPK_s = "A_del";
+const char* delBByPK_s = "B_del";
+const char* setAByPK_s = "A_set_attr";
+const char* setBByPK_s = "B_set_attr";
+const char* getAByPK_bb_s = "A_get_attr_bb";
+const char* getBByPK_bb_s = "B_get_attr_bb";
+const char* getAByPK_ah_s = "A_get_attr_ah";
+const char* getBByPK_ah_s = "B_get_attr_ah";
 
-const char* setVarbinary_s = "setVarbinary";
-const char* getVarbinary_s = "getVarbinary";
-const char* clearVarbinary_s = "clearVarbinary";
-const char* setVarchar_s = "setVarchar";
-const char* getVarchar_s = "getVarchar";
-const char* clearVarchar_s = "clearVarchar";
+const char* setVarbinary_s = "B_set_varbinary";
+const char* getVarbinary_s = "B_get_varbinary";
+const char* clearVarbinary_s = "B_clear_varbinary";
+const char* setVarchar_s = "B_set_varchar";
+const char* getVarchar_s = "B_get_varchar";
+const char* clearVarchar_s = "B_clear_varchar";
 
-const char* setB0ToA_s = "setB0->A";
-const char* navB0ToA_s = "navB0->A";
-const char* navB0ToAalt_s = "navB0->A_alt";
-const char* navAToB0_s = "navA->B0";
-const char* navAToB0alt_s = "navA->B0_alt";
-const char* nullB0ToA_s = "nullB0->A";
+const char* setBToA_s = "B_set_A";
+const char* navBToA_s = "B_get_A";
+const char* navBToAalt_s = "B_get_A_alt";
+const char* navAToB_s = "A_get_Bs";
+const char* navAToBalt_s = "A_get_B_alt";
+const char* clearBToA_s = "B_clear_A";
 
 //---------------------------------------------------------------------------
 
@@ -170,14 +166,14 @@ struct NdbapiDriver::ADelAllOp : Op {
 };
 
 template< bool OB >
-struct NdbapiDriver::B0DelAllOp : Op {
-    B0DelAllOp() : Op(string("delAllB0")
+struct NdbapiDriver::BDelAllOp : Op {
+    BDelAllOp() : Op(string("delAllB")
                       + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
         int count;
-        ops->delByScan(ops->model->table_B0, count, OB);
+        ops->delByScan(ops->model->table_B, count, OB);
         assert(count == nOps);
     }
 };
@@ -195,14 +191,14 @@ struct NdbapiDriver::AInsOp : Op {
 };
 
 template< bool OSA, bool OB >
-struct NdbapiDriver::B0InsOp : Op {
-    B0InsOp() : Op(string("insB0")
+struct NdbapiDriver::BInsOp : Op {
+    BInsOp() : Op(string("insB")
                    + (OSA ? "_attr" : "")
                    + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
-        ops->ins(ops->model->table_B0, 1, nOps, OSA, OB);
+        ops->ins(ops->model->table_B, 1, nOps, OSA, OB);
     }
 };
 
@@ -222,13 +218,13 @@ struct NdbapiDriver::AByPKOp : Op {
 template< const char** ON,
           void (CrundNdbapiOperations::*OF)(NdbTable,int,int,bool),
           bool OB >
-struct NdbapiDriver::B0ByPKOp : Op {
-    B0ByPKOp() : Op(string(*ON)
+struct NdbapiDriver::BByPKOp : Op {
+    BByPKOp() : Op(string(*ON)
                     + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
-        (ops->*OF)(ops->model->table_B0, 1, nOps, OB);
+        (ops->*OF)(ops->model->table_B, 1, nOps, OB);
     }
 };
 
@@ -245,7 +241,7 @@ struct NdbapiDriver::LengthOp : Op {
     }
 
     virtual void run(int nOps) const {
-        (ops->*OF)(ops->model->table_B0, 1, nOps, OB, length);
+        (ops->*OF)(ops->model->table_B, 1, nOps, OB, length);
     }
 };
 
@@ -257,7 +253,7 @@ struct NdbapiDriver::ZeroLengthOp : LengthOp< ON, OF, OB > {
     }
 
     virtual void run(int nOps) const {
-        (ops->*OF)(ops->model->table_B0, 1, nOps, OB, 0);
+        (ops->*OF)(ops->model->table_B, 1, nOps, OB, 0);
     }
 };
 
@@ -282,25 +278,25 @@ NdbapiDriver::initOperationsFeat() {
         new AInsOp< !setAttr, feat >());
 
     operations.push_back(
-        new B0InsOp< !setAttr, feat >());
+        new BInsOp< !setAttr, feat >());
 
     operations.push_back(
         new AByPKOp< &setAByPK_s, &CrundNdbapiOperations::setByPK, feat >());
 
     operations.push_back(
-        new B0ByPKOp< &setB0ByPK_s, &CrundNdbapiOperations::setByPK, feat >());
+        new BByPKOp< &setBByPK_s, &CrundNdbapiOperations::setByPK, feat >());
 
     operations.push_back(
         new AByPKOp< &getAByPK_bb_s, &CrundNdbapiOperations::getByPK_bb, feat >());
 
     operations.push_back(
-        new AByPKOp< &getAByPK_ar_s, &CrundNdbapiOperations::getByPK_ar, feat >());
+        new AByPKOp< &getAByPK_ah_s, &CrundNdbapiOperations::getByPK_ah, feat >());
 
     operations.push_back(
-        new B0ByPKOp< &getB0ByPK_bb_s, &CrundNdbapiOperations::getByPK_bb, feat >());
+        new BByPKOp< &getBByPK_bb_s, &CrundNdbapiOperations::getByPK_bb, feat >());
 
     operations.push_back(
-        new B0ByPKOp< &getB0ByPK_ar_s, &CrundNdbapiOperations::getByPK_ar, feat >());
+        new BByPKOp< &getBByPK_ah_s, &CrundNdbapiOperations::getByPK_ah, feat >());
 
     for (int i = 1; i <= maxVarbinaryBytes; i *= 10) {
         const int length = i;
@@ -329,40 +325,40 @@ NdbapiDriver::initOperationsFeat() {
     }
 
     operations.push_back(
-        new RelOp< &setB0ToA_s, &CrundNdbapiOperations::setB0ToA, feat >());
+        new RelOp< &setBToA_s, &CrundNdbapiOperations::setBToA, feat >());
 
     operations.push_back(
-        new RelOp< &navB0ToA_s, &CrundNdbapiOperations::navB0ToA, feat >());
+        new RelOp< &navBToA_s, &CrundNdbapiOperations::navBToA, feat >());
 
     operations.push_back(
-        new RelOp< &navB0ToAalt_s, &CrundNdbapiOperations::navB0ToAalt, feat >());
+        new RelOp< &navBToAalt_s, &CrundNdbapiOperations::navBToAalt, feat >());
 
     operations.push_back(
-        new RelOp< &navAToB0_s, &CrundNdbapiOperations::navAToB0, feat >());
+        new RelOp< &navAToB_s, &CrundNdbapiOperations::navAToB, feat >());
 
     operations.push_back(
-        new RelOp< &navAToB0alt_s, &CrundNdbapiOperations::navAToB0alt, feat >());
+        new RelOp< &navAToBalt_s, &CrundNdbapiOperations::navAToBalt, feat >());
 
     operations.push_back(
-        new RelOp< &nullB0ToA_s, &CrundNdbapiOperations::nullB0ToA, feat >());
+        new RelOp< &clearBToA_s, &CrundNdbapiOperations::clearBToA, feat >());
 
     operations.push_back(
-        new B0ByPKOp< &delAByPK_s, &CrundNdbapiOperations::delByPK, feat >());
+        new BByPKOp< &delAByPK_s, &CrundNdbapiOperations::delByPK, feat >());
 
     operations.push_back(
-        new AByPKOp< &delB0ByPK_s, &CrundNdbapiOperations::delByPK, feat >());
+        new AByPKOp< &delBByPK_s, &CrundNdbapiOperations::delByPK, feat >());
 
     operations.push_back(
         new AInsOp< setAttr, feat >());
 
     operations.push_back(
-        new B0InsOp< setAttr, feat >());
+        new BInsOp< setAttr, feat >());
 
     operations.push_back(
         new ADelAllOp< feat >());
 
     operations.push_back(
-        new B0DelAllOp< feat >());
+        new BDelAllOp< feat >());
 }
 
 void
