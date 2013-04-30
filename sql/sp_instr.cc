@@ -22,7 +22,7 @@
 #include "sp_head.h"      // sp_head
 #include "sp.h"           // sp_get_item_value
 #include "sp_rcontext.h"  // sp_rcontext
-#include "sql_acl.h"      // SELECT_ACL
+#include "auth_common.h"  // SELECT_ACL
 #include "sql_base.h"     // open_temporary_tables
 #include "sql_parse.h"    // check_table_access
 #include "sql_prepare.h"  // reinit_stmt_before_use
@@ -358,7 +358,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
       key read.
     */
 
-    m_lex->unit.cleanup();
+    m_lex->unit->cleanup();
 
     /* Here we also commit or rollback the current statement. */
 
@@ -964,9 +964,9 @@ void sp_instr_set_trigger_field::print(String *str)
 
 bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
 {
-  DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+  DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
 
-  m_value_item= thd->lex->select_lex.item_list.head();
+  m_value_item= thd->lex->select_lex->item_list.head();
 
   DBUG_ASSERT(!m_trigger_field);
 
@@ -1197,9 +1197,9 @@ bool sp_instr_jump_case_when::build_expr_items(THD *thd)
 
   if (!m_expr_item)
   {
-    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
 
-    m_expr_item= thd->lex->select_lex.item_list.head();
+    m_expr_item= thd->lex->select_lex->item_list.head();
   }
 
   // Setup main expression item (m_expr_item).

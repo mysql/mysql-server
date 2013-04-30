@@ -4439,7 +4439,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   /* Calculate cost(rowid_to_row_scan) */
   {
     Cost_estimate sweep_cost;
-    JOIN *join= param->thd->lex->select_lex.join;
+    JOIN *join= param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
                         &sweep_cost);
@@ -4585,7 +4585,7 @@ skip_to_ror_scan:
   double roru_total_cost;
   {
     Cost_estimate sweep_cost;
-    JOIN *join= param->thd->lex->select_lex.join;
+    JOIN *join= param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
@@ -5177,8 +5177,9 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   if (!info->is_covering)
   {
     Cost_estimate sweep_cost;
-    JOIN *join= info->param->thd->lex->select_lex.join;
+    JOIN *join= info->param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables == 1;
+
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
                         is_interrupted, &sweep_cost);
     info->total_cost += sweep_cost.total_cost();
