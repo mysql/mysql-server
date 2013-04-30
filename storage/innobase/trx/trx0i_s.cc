@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -697,13 +697,33 @@ fill_lock_data(
 	trx_i_s_cache_t*	cache)	/*!< in/out: cache where to store
 					volatile data */
 {
+	ut_a(lock_get_type(lock) == LOCK_REC);
+
+	switch (heap_no) {
+	case PAGE_HEAP_NO_INFIMUM:
+	case PAGE_HEAP_NO_SUPREMUM:
+		*lock_data = ha_storage_put_str_memlim(
+			cache->storage,
+			heap_no == PAGE_HEAP_NO_INFIMUM
+			? "infimum pseudo-record"
+			: "supremum pseudo-record",
+			MAX_ALLOWED_FOR_STORAGE(cache));
+		return(*lock_data != NULL);
+	}
+
 	mtr_t			mtr;
 
 	const buf_block_t*	block;
 	const page_t*		page;
 	const rec_t*		rec;
-
-	ut_a(lock_get_type(lock) == LOCK_REC);
+	const dict_index_t*	index;
+	ulint			n_fields;
+	mem_heap_t*		heap;
+	ulint			offsets_onstack[REC_OFFS_NORMAL_SIZE];
+	ulint*			offsets;
+	char			buf[TRX_I_S_LOCK_DATA_MAX_LEN];
+	ulint			buf_used;
+	ulint			i;
 
 	mtr_start(&mtr);
 
@@ -720,66 +740,45 @@ fill_lock_data(
 		return(TRUE);
 	}
 
-	page = (const page_t*) buf_block_get_frame(block);
+	page = reinterpret_cast<const page_t*>(buf_block_get_frame(block));
+
+
+	rec_offs_init(offsets_onstack);
+	offsets = offsets_onstack;
 
 	rec = page_find_rec_with_heap_no(page, heap_no);
 
-	if (page_rec_is_infimum(rec)) {
+	index = lock_rec_get_index(lock);
 
-		*lock_data = ha_storage_put_str_memlim(
-			cache->storage, "infimum pseudo-record",
-			MAX_ALLOWED_FOR_STORAGE(cache));
-	} else if (page_rec_is_supremum(rec)) {
+	n_fields = dict_index_get_n_unique(index);
 
-		*lock_data = ha_storage_put_str_memlim(
-			cache->storage, "supremum pseudo-record",
-			MAX_ALLOWED_FOR_STORAGE(cache));
-	} else {
+	ut_a(n_fields > 0);
 
-		const dict_index_t*	index;
-		ulint			n_fields;
-		mem_heap_t*		heap;
-		ulint			offsets_onstack[REC_OFFS_NORMAL_SIZE];
-		ulint*			offsets;
-		char			buf[TRX_I_S_LOCK_DATA_MAX_LEN];
-		ulint			buf_used;
-		ulint			i;
+	heap = NULL;
+	offsets = rec_get_offsets(rec, index, offsets, n_fields,
+				  &heap);
 
-		rec_offs_init(offsets_onstack);
-		offsets = offsets_onstack;
+	/* format and store the data */
 
-		index = lock_rec_get_index(lock);
+	buf_used = 0;
+	for (i = 0; i < n_fields; i++) {
 
-		n_fields = dict_index_get_n_unique(index);
+		buf_used += put_nth_field(
+			buf + buf_used, sizeof(buf) - buf_used,
+			i, index, rec, offsets) - 1;
+	}
 
-		ut_a(n_fields > 0);
+	*lock_data = (const char*) ha_storage_put_memlim(
+		cache->storage, buf, buf_used + 1,
+		MAX_ALLOWED_FOR_STORAGE(cache));
 
-		heap = NULL;
-		offsets = rec_get_offsets(rec, index, offsets, n_fields,
-					  &heap);
+	if (UNIV_UNLIKELY(heap != NULL)) {
 
-		/* format and store the data */
-
-		buf_used = 0;
-		for (i = 0; i < n_fields; i++) {
-
-			buf_used += put_nth_field(
-				buf + buf_used, sizeof(buf) - buf_used,
-				i, index, rec, offsets) - 1;
-		}
-
-		*lock_data = (const char*) ha_storage_put_memlim(
-			cache->storage, buf, buf_used + 1,
-			MAX_ALLOWED_FOR_STORAGE(cache));
-
-		if (UNIV_UNLIKELY(heap != NULL)) {
-
-			/* this means that rec_get_offsets() has created a new
-			heap and has stored offsets in it; check that this is
-			really the case and free the heap */
-			ut_a(offsets != offsets_onstack);
-			mem_heap_free(heap);
-		}
+		/* this means that rec_get_offsets() has created a new
+		heap and has stored offsets in it; check that this is
+		really the case and free the heap */
+		ut_a(offsets != offsets_onstack);
+		mem_heap_free(heap);
 	}
 
 	mtr_commit(&mtr);

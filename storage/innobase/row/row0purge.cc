@@ -732,7 +732,8 @@ row_purge_parse_undo_rec(
 
 	rw_lock_s_lock_inline(&dict_operation_lock, 0, __FILE__, __LINE__);
 
-	node->table = dict_table_open_on_id(table_id, FALSE, FALSE);
+	node->table = dict_table_open_on_id(
+		table_id, FALSE, DICT_TABLE_OP_NORMAL);
 
 	if (node->table == NULL) {
 		/* The table has been dropped: no need to do purge */

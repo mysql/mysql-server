@@ -416,28 +416,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       pack_fields(file, create_fields, data_offset))
     goto err;
 
-#ifdef HAVE_CRYPTED_FRM
-  if (create_info->password)
-  {
-    char tmp=2,*disk_buff=0;
-    SQL_CRYPT *crypted=new SQL_CRYPT(create_info->password);
-    if (!crypted || mysql_file_pwrite(file, &tmp, 1, 26, MYF_RW))// Mark crypted
-      goto err;
-    uint read_length=uint2korr(forminfo)-256;
-    mysql_file_seek(file, filepos+256, MY_SEEK_SET, MYF(0));
-    if (read_string(file,(uchar**) &disk_buff,read_length))
-      goto err;
-    crypted->encode(disk_buff,read_length);
-    delete crypted;
-    if (mysql_file_pwrite(file, disk_buff, read_length, filepos+256, MYF_RW))
-    {
-      my_free(disk_buff);
-      goto err;
-    }
-    my_free(disk_buff);
-  }
-#endif
-
   my_free(screen_buff);
   my_free(keybuff);
 

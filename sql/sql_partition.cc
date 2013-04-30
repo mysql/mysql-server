@@ -910,21 +910,15 @@ int check_signed_flag(partition_info *part_info)
 /**
   Initialize lex object for use in fix_fields and parsing.
 
-  SYNOPSIS
-    init_lex_with_single_table()
-    @param thd                 The thread object
-    @param table               The table object
-  @return Operation status
-    @retval TRUE                An error occurred, memory allocation error
-    @retval FALSE               Ok
+  @param thd      The thread object
+  @param table    The table object
+  @param lex      The LEX object, must be initialized and contain select_lex.
 
-  DESCRIPTION
-    This function is used to initialize a lex object on the
-    stack for use by fix_fields and for parsing. In order to
-    work properly it also needs to initialize the
-    Name_resolution_context object of the lexer.
-    Finally it needs to set a couple of variables to ensure
-    proper functioning of fix_fields.
+  @returns  FALSE if success, TRUE if error
+
+  @details
+    This function is used to set up a lex object on the
+    stack for resolving of fields from a single table.
 */
 
 static int
@@ -932,7 +926,7 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
 {
   TABLE_LIST *table_list;
   Table_ident *table_ident;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   Name_resolution_context *context= &select_lex->context;
   /*
     We will call the parser to create a part_info struct based on the
@@ -943,8 +937,6 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     we're working with to the Name_resolution_context.
   */
   thd->lex= lex;
-  lex_start(thd);
-  context->init();
   if ((!(table_ident= new Table_ident(thd,
                                       table->s->table_name,
                                       table->s->db, TRUE))) ||
@@ -1031,13 +1023,17 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   int error;
   LEX *old_lex= thd->lex;
   LEX lex;
+  st_select_lex_unit unit;
+  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
+  lex.new_static_query(&unit, &select);
+
   DBUG_ENTER("fix_fields_part_func");
 
   if (init_lex_with_single_table(thd, table, &lex))
     goto end;
 
   func_expr->walk(&Item::change_context_processor, 0,
-                  (uchar*) &lex.select_lex.context);
+                  (uchar*) &lex.select_lex->context);
   thd->where= "partition function";
   /*
     In execution we must avoid the use of thd->change_item_tree since
@@ -4359,6 +4355,10 @@ bool mysql_unpack_partition(THD *thd,
     thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
+  st_select_lex_unit unit;
+  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
+  lex.new_static_query(&unit, &select);
+
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_unpack_partition");
 

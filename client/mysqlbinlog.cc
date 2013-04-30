@@ -1185,9 +1185,13 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       bool skip_event= (ignored_map != NULL);
       /*
         end of statement check:
-           i) destroy/free ignored maps
-          ii) if skip event, flush cache now
-      */
+        i) destroy/free ignored maps
+        ii) if skip event
+              a) set the unflushed_events flag to false
+              b) since we are skipping the last event,
+                 append END-MARKER(') to body cache (if required)
+              c) flush cache now
+       */
       if (stmt_end)
       {
         /*
@@ -1206,6 +1210,16 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
            event was not skipped).
         */
         if (skip_event)
+        {
+          // set the unflushed_events flag to false
+          print_event_info->have_unflushed_events= FALSE;
+
+          // append END-MARKER(') with delimiter
+          IO_CACHE *const body_cache= &print_event_info->body_cache;
+          if (my_b_tell(body_cache))
+            my_b_printf(body_cache, "'%s\n", print_event_info->delimiter);
+
+          // flush cache
           if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
                                                    result_file, stop_never /* flush result_file */) ||
               copy_event_cache_to_file_and_reinit(&print_event_info->body_cache,
@@ -1213,6 +1227,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
               copy_event_cache_to_file_and_reinit(&print_event_info->footer_cache,
                                                   result_file, stop_never /* flush result_file */)))
             goto err;
+        }
       }
 
       /* skip the event check */
@@ -2246,6 +2261,11 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             */
             continue;
           }
+          /*
+             Reset the value of '# at pos' field shown against first event of
+             next binlog file (fake rotate) picked by mysqlbinlog --to-last-log
+         */
+          old_off= start_position_mot;
           len= 1; // fake Rotate, so don't increment old_off
         }
       }

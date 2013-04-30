@@ -749,9 +749,10 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         {
           if (trace_level_ & kTraceGeneral)
           {
-            sql_print_error("Replication semi-sync getWaitTime fail at "
-                            "wait position (%s, %lu)",
-                            trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos);
+            sql_print_information("Assessment of waiting time for commitTrx "
+                                  "failed at wait position (%s, %lu)",
+                                  trx_wait_binlog_name,
+                                  (unsigned long)trx_wait_binlog_pos);
           }
           rpl_semi_sync_master_timefunc_fails++;
         }
@@ -1136,8 +1137,8 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
     int wait_time = getWaitTime(start_ts);
     if (wait_time < 0)
     {
-      sql_print_error("Semi-sync master wait for reply "
-                      "fail to get wait time.");
+      sql_print_information("Assessment of waiting time for "
+                            "readSlaveReply failed.");
       rpl_semi_sync_master_timefunc_fails++;
     }
     else

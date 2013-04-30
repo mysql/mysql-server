@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2559,9 +2559,7 @@ fts_optimize_add_table(
 	}
 
 	/* Make sure table with FTS index cannot be evicted */
-	if (table->can_be_evicted) {
-		dict_table_move_from_lru_to_non_lru(table);
-	}
+	dict_table_prevent_eviction(table);
 
 	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, table);
 

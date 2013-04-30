@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -59,6 +59,11 @@ enum dict_err_ignore_t {
 	DICT_ERR_IGNORE_INDEX_ROOT = 1,	/*!< ignore error if index root
 					page is FIL_NULL or incorrect value */
 	DICT_ERR_IGNORE_CORRUPT = 2,	/*!< skip corrupted indexes */
+	DICT_ERR_IGNORE_FK_NOKEY = 4,	/*!< ignore error if any foreign
+					key is missing */
+	DICT_ERR_IGNORE_LOAD = 8,	/*!< silently load a missing
+					tablespace, and do not load
+					incomplete index definitions */
 	DICT_ERR_IGNORE_ALL = 0xFFFF	/*!< ignore all errors */
 };
 
@@ -70,5 +75,9 @@ enum ib_quiesce_t {
 };
 
 typedef ib_mutex_t DictSysMutex;
+
+/** Prefix for tmp tables, adopted from sql/table.h */
+#define TEMP_FILE_PREFIX		"#sql"
+#define TEMP_FILE_PREFIX_INNODB		"#sql-ib"
 
 #endif

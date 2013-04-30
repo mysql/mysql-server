@@ -1356,6 +1356,38 @@ void _db_pargs_(uint _line_, const char *keyword)
 /*
  *  FUNCTION
  *
+ *    _db_enabled_    check if debug is enabled for the keyword used in
+ *    DBUG_PRINT
+ *
+ *  SYNOPSIS
+ *
+ *    int _db_enabled_();
+ *
+ *  DESCRIPTION
+ *
+ *    The function checks if the debug output is to be enabled for the keyword
+ *    specified in DBUG_PRINT macro. _db_doprnt_ will be called only if this
+ *    function evaluates to 1.
+ */
+
+int _db_enabled_()
+{
+  CODE_STATE *cs;
+
+  get_code_state_or_return 0;
+
+  if (! DEBUGGING)
+    return 0;
+
+  if (_db_keyword_(cs, cs->u_keyword, 0))
+    return 1;
+
+  return 0;
+}
+
+/*
+ *  FUNCTION
+ *
  *      _db_doprnt_    handle print of debug lines
  *
  *  SYNOPSIS
@@ -1366,11 +1398,9 @@ void _db_pargs_(uint _line_, const char *keyword)
  *
  *  DESCRIPTION
  *
- *      When invoked via one of the DBUG macros, tests the current keyword
- *      set by calling _db_pargs_() to see if that macro has been selected
- *      for processing via the debugger control string, and if so, handles
- *      printing of the arguments via the format string.  The line number
- *      of the DBUG macro in the source is found in u_line.
+ *      This function handles the printing of the arguments via the format
+ *      string.  The line number of the DBUG macro in the source is found in
+ *      u_line.
  *
  *      Note that the format string SHOULD NOT include a terminating
  *      newline, this is supplied automatically.
@@ -1383,6 +1413,8 @@ void _db_doprnt_(const char *format,...)
 {
   va_list args;
   CODE_STATE *cs;
+  int save_errno;
+
   get_code_state_or_return;
 
   /* Dirty read, for DBUG_PRINT() performance. */
@@ -1392,21 +1424,19 @@ void _db_doprnt_(const char *format,...)
   va_start(args,format);
   read_lock_stack(cs);
 
-  if (_db_keyword_(cs, cs->u_keyword, 0))
-  {
-    int save_errno=errno;
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
-    DoPrefix(cs, cs->u_line);
-    if (TRACING)
-      Indent(cs, cs->level + 1);
-    else
-      (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
-    (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
-    DbugVfprintf(cs->stack->out_file, format, args);
-    DbugFlush(cs);
-    errno=save_errno;
-  }
+  save_errno=errno;
+  if (!cs->locked)
+    pthread_mutex_lock(&THR_LOCK_dbug);
+  DoPrefix(cs, cs->u_line);
+  if (TRACING)
+    Indent(cs, cs->level + 1);
+  else
+    (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
+  (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
+  DbugVfprintf(cs->stack->out_file, format, args);
+  DbugFlush(cs);
+  errno=save_errno;
+
   unlock_stack(cs);
   va_end(args);
 }
