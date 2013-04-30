@@ -2629,7 +2629,8 @@ ibuf_get_table(
 {
 	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
 
-	dict_table_t*	table = dict_table_open_on_id(table_id, FALSE, FALSE);
+	dict_table_t*	table = dict_table_open_on_id(
+		table_id, FALSE, DICT_TABLE_OP_NORMAL);
 
 	rw_lock_s_unlock_gen(&dict_operation_lock, 0);
 

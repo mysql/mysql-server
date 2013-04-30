@@ -31,7 +31,8 @@
 #include "sql_cache.h"                          // query_cache_abort
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_time.h"                         // date_time_format_copy
-#include "sql_acl.h"                          // NO_ACCESS,
+#include "auth_common.h"                      // acl_getroot
+                                              // NO_ACCESS,
                                               // acl_getroot_no_password
 #include "sql_base.h"                         // close_temporary_tables
 #include "sql_handler.h"                      // mysql_ha_cleanup

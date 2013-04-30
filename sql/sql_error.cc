@@ -762,8 +762,8 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     rc= true;
 
   const Sql_condition *err;
-  SELECT_LEX *sel= &thd->lex->select_lex;
-  SELECT_LEX_UNIT *unit= &thd->lex->unit;
+  SELECT_LEX *sel= thd->lex->select_lex;
+  SELECT_LEX_UNIT *unit= thd->lex->unit;
   ulonglong idx= 0;
   Protocol *protocol=thd->protocol;
 

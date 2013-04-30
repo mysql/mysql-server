@@ -570,11 +570,6 @@ public:
             select_lex->having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
-  bool is_top_level_join() const
-  {
-    return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
-                                        select_lex == unit->fake_select_lex));
-  }
   bool cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();
