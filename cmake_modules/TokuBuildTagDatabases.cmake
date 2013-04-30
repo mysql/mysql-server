@@ -30,7 +30,7 @@ file(GLOB_RECURSE all_hdrs
   db-benchmark-test/*.h
   )
 list(APPEND all_hdrs
-  ${CMAKE_CURRENT_BINARY_DIR}/toku_include/config.h
+  ${CMAKE_CURRENT_BINARY_DIR}/toku_include/toku_config.h
   ${CMAKE_CURRENT_BINARY_DIR}/buildheader/db.h
   ${CMAKE_CURRENT_BINARY_DIR}/ft/log_header.h
   )
