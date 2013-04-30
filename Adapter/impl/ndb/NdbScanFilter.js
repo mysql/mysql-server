@@ -65,96 +65,30 @@ function FilterSpec(predicate) {
 }
 
 
-function getOpcode(s) {
-  switch(s) {
-    case ' AND ':
-      return NdbScanFilter.AND;
-    case ' OR ':
-      return NdbScanFilter.OR;
-    case ' <= ':
-      return NdbScanFilter.COND_LE;
-    case ' < ':
-      return NdbScanFilter.COND_LT;
-    case ' >= ':
-      return NdbScanFilter.COND_GE;
-    case ' > ':
-      return NdbScanFilter.COND_GT;
-    case ' = ':
-      return NdbScanFilter.COND_EQ;
-    case ' != ':
-      return NdbScanFilter.COND_NE;      
-  }
-  blah(s);
-}
-
-
 /* Make a note in a node of the predicate tree.
    The note will be used to store all NDB-related analysis.
-   This should be called in the first-pass (Operand) visitor for every node.
+   Copy the nodes operator or comparator code into the ndb section.
+   This should be called in the first-pass visitor.
 */
 function markNode(node) {
+  var opcode = null;
+  if(typeof node.operationCode !== 'undefined') {
+    opcode = node.operationCode;
+  }
   node.ndb = {
-    "operator"   : null,
-    "comparator" : null,
+    "opcode"     : opcode,
     "layout"     : null,
     "intervals"  : {}
   };
 }
 
 
-/******************************************** OperandVisitor ************
- *
- * Visit nodes, filling in the proper operator for NdbScanFilter.
- */
-function OperandVisitor() {
-  this.size = 0;
-}
-
-/** Handle nodes QueryAnd, QueryOr */
-OperandVisitor.prototype.visitQueryNaryPredicate = function(node) {
-  var i;
-  udebug.log(node.operator);
-  markNode(node);
-  node.ndb.operator = getOpcode(node.operator);
-
-  for(i = 0 ; i < node.predicates.length ; i++) {
-    node.predicates[i].visit(this);
-  }
-};
-
-/** Handle nodes QueryEq, QueryNe, QueryLt, QueryLe, QueryGt, QueryGe */
-OperandVisitor.prototype.visitQueryComparator = function(node) {
-  udebug.log("  ", node.queryField.field.columnName, 
-                   node.comparator, node.parameter.name);
-  this.size++;
-  markNode(node);
-  node.ndb.comparator = getOpcode(node.comparator);
-};
-
-/** Handle node QueryNot */
-OperandVisitor.prototype.visitQueryUnaryPredicate = function(node) {
-  udebug.log("NOT");
-  markNode(node);
-  node.ndb.operator = NdbScanFilter.NAND;
-  node.predicates[0].visit(this);
-};
-
-/** Handle node QueryBetween */
-OperandVisitor.prototype.visitQueryBetweenOperator = function(node) {
-  markNode(node);
-  blah("visitQueryUnaryOperator", node);
-};
-
-/** Handle nodes QueryIsNull, QueryIsNotNull */
-OperandVisitor.prototype.visitQueryUnaryOperator = function(node) {
-  markNode(node);
-  blah("visitQueryBetweenOperator", node);
-};
-
-
 /*************************************** BufferManagerVisitor ************
  *
- * Calculate buffer layout and needed space
+ * This is the first pass, run when the operation is declared.
+ * 
+ * Visit nodes, marking them for NdbScanFilter.  Calculate buffer layout 
+ * and needed space.  End product will be used to define FilterSpec.
  */ 
 function BufferManagerVisitor(dbTable) {
   this.dbTable         = dbTable;
@@ -167,6 +101,7 @@ function BufferManagerVisitor(dbTable) {
 /** Handle nodes QueryAnd, QueryOr */
 BufferManagerVisitor.prototype.visitQueryNaryPredicate = function(node) {
   var i;
+  markNode(node);
   for(i = 0 ; i < node.predicates.length ; i++) {
     node.predicates[i].visit(this);
   }
@@ -174,6 +109,7 @@ BufferManagerVisitor.prototype.visitQueryNaryPredicate = function(node) {
 
 /** Handle nodes QueryEq, QueryNe, QueryLt, QueryLe, QueryGt, QueryGe */
 BufferManagerVisitor.prototype.visitQueryComparator = function(node) {
+  markNode(node);
   var colId = node.queryField.field.columnNumber;
   var col = this.dbTable.columns[colId];
   var spec;
@@ -187,21 +123,29 @@ BufferManagerVisitor.prototype.visitQueryComparator = function(node) {
 
 /** Handle node QueryNot */
 BufferManagerVisitor.prototype.visitQueryUnaryPredicate = function(node) {
+  markNode(node);
   node.predicates[0].visit(this);
 };
 
 /** Handle node QueryBetween */
 BufferManagerVisitor.prototype.visitQueryBetweenOperator = function(node) {
+  markNode(node);
   blah("visitQueryBetweenOperator", node);
 };
 
 /** Handle nodes QueryIsNull, QueryIsNotNull */
 BufferManagerVisitor.prototype.visitQueryUnaryOperator = function(node) {
+  markNode(node);
   blah("visitQueryUnaryOperator", node);
 };
 
 
-/************************************** FilterBuildingVisitor ************/
+/************************************** FilterBuildingVisitor ************
+ *
+ * This is the second pass, run each time the operation is executed.
+ * 
+ * Visit nodes and build NdbScanFilter using actual parameters.
+ */ 
 function FilterBuildingVisitor(filterSpec, paramBuffer) {
   this.filterSpec         = filterSpec;
   this.paramBuffer        = paramBuffer;
@@ -212,7 +156,7 @@ function FilterBuildingVisitor(filterSpec, paramBuffer) {
 /** Handle nodes QueryAnd, QueryOr */
 FilterBuildingVisitor.prototype.visitQueryNaryPredicate = function(node) {
   var i = 0;
-  this.ndbScanFilter.begin(node.ndb.operator);
+  this.ndbScanFilter.begin(node.ndb.opcode);
   for(i = 0 ; i < node.predicates.length ; i++) {
     node.predicates[i].visit(this);
   }
@@ -221,7 +165,7 @@ FilterBuildingVisitor.prototype.visitQueryNaryPredicate = function(node) {
 
 /** Handle nodes QueryEq, QueryNe, QueryLt, QueryLe, QueryGt, QueryGe */
 FilterBuildingVisitor.prototype.visitQueryComparator = function(node) {
-  var opcode = node.ndb.comparator;
+  var opcode = node.ndb.opcode;
   var layout = node.ndb.layout;
   this.ndbScanFilter.cmp(opcode, layout.column.columnNumber, 
                          this.paramBuffer, layout.offset, 
@@ -231,7 +175,7 @@ FilterBuildingVisitor.prototype.visitQueryComparator = function(node) {
 
 /** Handle nodes QueryNot */
 FilterBuildingVisitor.prototype.visitQueryUnaryPredicate = function(node) {
-  this.ndbScanFilter.begin(node.ndb.operator);  // A 1-member NAND group
+  this.ndbScanFilter.begin(node.ndb.opcode);  // A 1-member NAND group
   node.predicates[0].visit(this);
   this.ndbScanFilter.end();
 };
@@ -246,6 +190,7 @@ FilterBuildingVisitor.prototype.visitQueryBetweenOperator = function(node) {
   blah("visitQueryBetweenOperator", node);
 };
 
+
 /*************************************************/
 
 function prepareFilterSpec(queryHandler) {
@@ -254,39 +199,33 @@ function prepareFilterSpec(queryHandler) {
   var i, v;
   var spec = new FilterSpec(queryHandler.predicate);
   
-  /* 1st pass: operands */
-  var opVisitor = new OperandVisitor();
-  spec.predicate.visit(opVisitor);
+  /* 1st pass.  Mark table and calculate buffer sizes. */
+  spec.dbTable = queryHandler.dbTableHandler.dbTable;
+  var bufferManager = new BufferManagerVisitor(spec.dbTable);
+  spec.predicate.visit(bufferManager);
 
-  if(opVisitor.size > 0) {
-    /* 2nd pass: buffer manager */
-    spec.dbTable = queryHandler.dbTableHandler.dbTable;
-    var bufferManager = new BufferManagerVisitor(spec.dbTable);
-    spec.predicate.visit(bufferManager);
+  /* Encode buffer for constant parameters */
+  if(bufferManager.constBufferSize > 0) {
+    spec.constBufferSize = bufferManager.constBufferSize;
+    spec.constLayout     = bufferManager.constLayout;
+    spec.constBuffer     = new Buffer(spec.constBufferSize);
+    for(i = 0 ; i < spec.constLayout.length ; i++) {
+      v = spec.constLayout[i];
+      adapter.ndb.impl.encoderWrite(v.column, v.value, spec.constBuffer, v.offset);
+    }
+  }
 
-    /* Encode buffer for constant parameters */
-    if(bufferManager.constBufferSize > 0) {
-      spec.constBufferSize = bufferManager.constBufferSize;
-      spec.constLayout     = bufferManager.constLayout;
-      spec.constBuffer     = new Buffer(spec.constBufferSize);
-      for(i = 0 ; i < spec.constLayout.length ; i++) {
-        v = spec.constLayout[i];
-        adapter.ndb.impl.encoderWrite(v.column, v.value, spec.constBuffer, v.offset);
-      }
-    }
-
-    /* Assembly */
-    if(bufferManager.paramBufferSize === 0) {
-      var filterBuildingVisitor = new FilterBuildingVisitor(spec, null);
-      spec.predicate.visit(filterBuildingVisitor);
-      spec.constFilter.ndbScanFilter = filterBuildingVisitor.ndbScanFilter;
-      spec.constFilter.ndbInterpretedCode = filterBuildingVisitor.ndbInterpretedCode;
-    }
-    else {
-      spec.isConst         = false;
-      spec.paramBufferSize = bufferManager.paramBufferSize;
-      spec.paramLayout     = bufferManager.paramLayout;
-    }
+  /* Assembly */
+  if(bufferManager.paramBufferSize === 0) {
+    var filterBuildingVisitor = new FilterBuildingVisitor(this, null);
+    this.predicate.visit(filterBuildingVisitor);
+    this.constFilter.ndbScanFilter = filterBuildingVisitor.ndbScanFilter;
+    this.constFilter.ndbInterpretedCode = filterBuildingVisitor.ndbInterpretedCode;
+  }
+  else {
+    spec.isConst         = false;
+    spec.paramBufferSize = bufferManager.paramBufferSize;
+    spec.paramLayout     = bufferManager.paramLayout;
   }
 
   /* Attach the FilterSpec to the QueryHandler */
