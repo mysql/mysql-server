@@ -97,7 +97,7 @@ PATENT RIGHTS GRANT:
 // a is auto increment
 // b, c and d are random
 
-#include "../include/config.h"
+#include "../include/toku_config.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
