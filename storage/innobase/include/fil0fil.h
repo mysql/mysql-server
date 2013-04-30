@@ -360,9 +360,11 @@ fil_write_flushed_lsn_to_data_files(
 	ulint	arch_log_no);	/*!< in: latest archived log file number */
 /*******************************************************************//**
 Reads the flushed lsn, arch no, and tablespace flag fields from a data
-file at database startup. */
+file at database startup.
+@retval NULL on success, or if innodb_force_recovery is set
+@return pointer to an error message string */
 UNIV_INTERN
-void
+const char*
 fil_read_first_page(
 /*================*/
 	os_file_t	data_file,		/*!< in: open data file */
@@ -379,8 +381,9 @@ fil_read_first_page(
 #endif /* UNIV_LOG_ARCHIVE */
 	lsn_t*		min_flushed_lsn,	/*!< out: min of flushed
 						lsn values in data files */
-	lsn_t*		max_flushed_lsn);	/*!< out: max of flushed
+	lsn_t*		max_flushed_lsn)	/*!< out: max of flushed
 						lsn values in data files */
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Increments the count of pending operation, if space is not being deleted.
 @return	TRUE if being deleted, and operation should be skipped */
