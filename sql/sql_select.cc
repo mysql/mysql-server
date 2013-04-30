@@ -13195,7 +13195,24 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
             if (new_item_and_list->is_empty())
               li.remove();
             else
-              li.replace(*new_item_and_list);
+	    {
+              Item *list_item;
+              Item *new_list_item;      
+              List_iterator<Item> it(*new_item_and_list);
+              while ((list_item= it++))
+	      {
+                uchar* is_subst_valid= (uchar *) Item::ANY_SUBST;
+                new_list_item= 
+                  list_item->compile(&Item::subst_argument_checker,
+                                         &is_subst_valid, 
+                                         &Item::equal_fields_propagator,
+                                         (uchar *) &cond_and->cond_equal);
+                if (new_list_item != list_item)
+                  it.replace(new_list_item);
+                new_list_item->update_used_tables();
+              }              
+              li.replace(*new_item_and_list);  
+            }
             cond_and_list->concat((List<Item>*) cond_equal_items); 
           }
           else if (new_item->type() == Item::FUNC_ITEM && 
