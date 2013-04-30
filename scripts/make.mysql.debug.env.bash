@@ -54,37 +54,37 @@ echo installdir=\$PWD/mysql
 echo mkdir \$builddir \$installdir
 echo 'if [ $? != 0 ] ; then exit 1; fi'
 
-echo export TOKUFRACTALTREE=\$builddir/$ftindex/install.debug
-echo export TOKUFRACTALTREE_LIBNAME=tokudb
-echo export TOKUPORTABILITY_LIBNAME=tokuportability
-echo export TOKUDB_VERSION=0
+# echo export TOKUFRACTALTREE=\$builddir/$ftindex/install.debug
+# echo export TOKUFRACTALTREE_LIBNAME=tokudb
+# echo export TOKUPORTABILITY_LIBNAME=tokuportability
+# echo export TOKUDB_VERSION=0
+
+echo cd \$builddir
 
 echo '# checkout the fractal tree'
-echo cd \$builddir
-github_clone $jemalloc $jemalloc_branch
 github_clone $ftindex $ftindex_branch
-
-echo '# build the fractal tree'
-echo cd \$builddir/ft-index
-echo mkdir build.debug
-echo cd build.debug
-echo CC=gcc47 CXX=g++47 cmake -DCMAKE_INSTALL_PREFIX=\$TOKUFRACTALTREE -D BUILD_TESTING=OFF -D CMAKE_BUILD_TYPE=Debug -D JEMALLOC_SOURCE_DIR=\$builddir/$jemalloc ..
+github_clone $jemalloc $jemalloc_branch
+echo pushd $ftindex/third_party
 echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo make install
+echo ln -s ../../$jemalloc $jemalloc
 echo 'if [ $? != 0 ] ; then exit 1; fi'
+echo popd
 
 echo '# checkout mysql'
-echo cd \$builddir
 github_clone $mysql $mysql_branch
 
 echo '# checkout the community backup'
-echo cd \$builddir
 github_clone $backup $backup_branch
 
 echo '# checkout the tokudb handlerton'
-echo cd \$builddir
 github_clone $ftengine $ftengine_branch
 
+echo '# setup links'
+echo pushd $ftengine/storage/tokudb
+echo 'if [ $? != 0 ] ; then exit 1; fi'
+echo ln -s ../../../$ftindex ft-index
+echo 'if [ $? != 0 ] ; then exit 1; fi'
+echo popd
 echo pushd $mysql/storage
 echo 'if [ $? != 0 ] ; then exit 1; fi'
 echo ln -s ../../$ftengine/storage/tokudb tokudb
@@ -104,12 +104,13 @@ echo 'if [ $? != 0 ] ; then exit 1; fi'
 echo popd
 
 echo '# build in the mysql directory'
-echo cd \$builddir/$mysql
-echo export TOKUFRACTALTREE_LIBNAME=\${TOKUFRACTALTREE_LIBNAME}_static
-echo export TOKUPORTABILITY_LIBNAME=\${TOKUPORTABILITY_LIBNAME}_static
+echo cd $mysql
+# echo export TOKUFRACTALTREE_LIBNAME=\${TOKUFRACTALTREE_LIBNAME}_static
+# echo export TOKUPORTABILITY_LIBNAME=\${TOKUPORTABILITY_LIBNAME}_static
 echo mkdir build.debug
+echo 'if [ $? != 0 ] ; then exit 1; fi'
 echo cd build.debug
-echo CC=gcc47 CXX=g++47 cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=\$installdir ..
+echo CC=gcc47 CXX=g++47 cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=\$installdir -DBUILD_TESTING=OFF
 echo 'if [ $? != 0 ] ; then exit 1; fi'
 
 echo '# install'
