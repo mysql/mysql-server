@@ -155,7 +155,6 @@ show that tables still are in NDB
 table_name
 columns_priv
 db
-host
 procs_priv
 proxies_priv
 tables_priv
