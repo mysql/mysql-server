@@ -2256,7 +2256,8 @@ ROLLBACK/*!*/;
 # [empty]
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -2360,7 +2361,8 @@ crn INT -- row number
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.time_zone='SYSTEM'/*!*/;
@@ -2456,7 +2458,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -2551,7 +2554,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -2727,7 +2731,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -2902,7 +2907,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3077,7 +3083,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3252,7 +3259,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3427,7 +3435,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3522,7 +3531,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3617,7 +3627,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3712,7 +3723,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3805,6 +3817,7 @@ BEGIN
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
@@ -3905,7 +3918,8 @@ ROLLBACK/*!*/;
 # [empty]
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -3925,7 +3939,8 @@ crn INT -- row number
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3984,7 +3999,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4061,7 +4077,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4108,6 +4125,7 @@ BEGIN
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
@@ -4296,7 +4314,8 @@ ROLLBACK/*!*/;
 # [empty]
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -4316,7 +4335,8 @@ c_1_n INT -- row number
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t2 (
@@ -4327,7 +4347,8 @@ c_2_n INT -- row number
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t3 (
@@ -4338,7 +4359,8 @@ c_3_n INT -- row number
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4397,7 +4419,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4456,7 +4479,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4515,28 +4539,32 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 ANALYZE TABLE t1
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 ANALYZE TABLE t2
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 ANALYZE TABLE t3
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4720,7 +4748,8 @@ BEGIN
 COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';# at #
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
+# at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4830,6 +4859,7 @@ BEGIN
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
@@ -4898,7 +4928,7 @@ ROLLBACK/*!*/;
 # [empty]
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 use `test`/*!*/;
@@ -4919,7 +4949,7 @@ c3 VARCHAR(60)
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -4947,6 +4977,7 @@ BEGIN
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
