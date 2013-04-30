@@ -145,15 +145,14 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
   Geometry *geom= NULL;
-  const char *dummy;
 
   if ((null_value=
        (args[0]->null_value ||
-	!(geom= Geometry::construct(&buffer, swkb->ptr(), swkb->length())))))
+	!(geom= Geometry::construct(&buffer, swkb)))))
     return 0;
 
   str->length(0);
-  if ((null_value= geom->as_wkt(str, &dummy)))
+  if ((null_value= geom->as_wkt(str)))
     return 0;
 
   return str;
@@ -177,7 +176,7 @@ String *Item_func_as_wkb::val_str(String *str)
 
   if ((null_value=
        (args[0]->null_value ||
-	!(Geometry::construct(&buffer, swkb->ptr(), swkb->length())))))
+	!(Geometry::construct(&buffer, swkb)))))
     return 0;
 
   str->copy(swkb->ptr() + SRID_SIZE, swkb->length() - SRID_SIZE,
@@ -195,7 +194,7 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
 
   if ((null_value=
        (args[0]->null_value ||
-	!(geom= Geometry::construct(&buffer, swkb->ptr(), swkb->length())))))
+	!(geom= Geometry::construct(&buffer, swkb)))))
     return 0;
   /* String will not move */
   str->copy(geom->get_class_info()->m_name.str,
@@ -222,7 +221,7 @@ String *Item_func_envelope::val_str(String *str)
   
   if ((null_value=
        args[0]->null_value ||
-       !(geom= Geometry::construct(&buffer, swkb->ptr(), swkb->length()))))
+       !(geom= Geometry::construct(&buffer, swkb))))
     return 0;
   
   srid= uint4korr(swkb->ptr());
@@ -251,7 +250,7 @@ String *Item_func_centroid::val_str(String *str)
   uint32 srid;
 
   if ((null_value= args[0]->null_value ||
-       !(geom= Geometry::construct(&buffer, swkb->ptr(), swkb->length()))))
+       !(geom= Geometry::construct(&buffer, swkb))))
     return 0;
 
   str->set_charset(&my_charset_bin);
@@ -280,7 +279,7 @@ String *Item_func_spatial_decomp::val_str(String *str)
 
   if ((null_value=
        (args[0]->null_value ||
-	!(geom= Geometry::construct(&buffer, swkb->ptr(), swkb->length())))))
+	!(geom= Geometry::construct(&buffer, swkb)))))
     return 0;
 
   srid= uint4korr(swkb->ptr());
@@ -328,7 +327,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
 
   if ((null_value=
        (args[0]->null_value || args[1]->null_value ||
-	!(geom= Geometry::construct(&buffer, swkb->ptr(), swkb->length())))))
+	!(geom= Geometry::construct(&buffer, swkb)))))
     return 0;
 
   str->set_charset(&my_charset_bin);
@@ -571,15 +570,14 @@ longlong Item_func_spatial_mbr_rel::val_int()
   Geometry_buffer buffer1, buffer2;
   Geometry *g1, *g2;
   MBR mbr1, mbr2;
-  const char *dummy;
 
   if ((null_value=
        (args[0]->null_value ||
 	args[1]->null_value ||
-	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
-	g1->get_mbr(&mbr1, &dummy) ||
-	g2->get_mbr(&mbr2, &dummy))))
+	!(g1= Geometry::construct(&buffer1, res1)) ||
+	!(g2= Geometry::construct(&buffer2, res2)) ||
+	g1->get_mbr(&mbr1) ||
+	g2->get_mbr(&mbr2))))
    return 0;
 
   switch (spatial_rel) {
@@ -804,7 +802,6 @@ mem_error:
 
 int Item_func_spatial_rel::func_touches()
 {
-  double x1, x2, y1, y2, ex, ey;
   double distance= GIS_ZERO;
   int result= 0;
   int cur_func= 0;
@@ -821,19 +818,20 @@ int Item_func_spatial_rel::func_touches()
   DBUG_ASSERT(fixed == 1);
 
   if ((null_value= (args[0]->null_value || args[1]->null_value ||
-          !(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-          !(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
+          !(g1= Geometry::construct(&buffer1, res1)) ||
+          !(g2= Geometry::construct(&buffer2, res2)))))
     goto mem_error;
 
   if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
       (g2->get_class_info()->m_type_id == Geometry::wkb_point))
   {
-    if (((Gis_point *) g1)->get_xy(&x1, &y1) ||
-        ((Gis_point *) g2)->get_xy(&x2, &y2))
+    point_xy p1, p2, e;
+    if (((Gis_point *) g1)->get_xy(&p1) ||
+        ((Gis_point *) g2)->get_xy(&p2))  
       goto mem_error;
-    ex= x2 - x1;
-    ey= y2 - y1;
-    DBUG_RETURN((ex * ex + ey * ey) < GIS_ZERO);
+    e.x= p2.x - p1.x;
+    e.y= p2.y - p1.y;
+    DBUG_RETURN((e.x * e.x + e.y * e.y) < GIS_ZERO);
   }
 
   if (func.reserve_op_buffer(1))
@@ -985,8 +983,8 @@ longlong Item_func_spatial_rel::val_int()
 
   if ((null_value=
        (args[0]->null_value || args[1]->null_value ||
-	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
+	!(g1= Geometry::construct(&buffer1, res1)) ||
+	!(g2= Geometry::construct(&buffer2, res2)) ||
 	g1->store_shapes(&trn) || g2->store_shapes(&trn))))
     goto exit;
 
@@ -1043,8 +1041,8 @@ String *Item_func_spatial_operation::val_str(String *str_value)
 
   null_value= true;
   if (args[0]->null_value || args[1]->null_value ||
-      !(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-      !(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
+      !(g1= Geometry::construct(&buffer1, res1)) ||
+      !(g2= Geometry::construct(&buffer2, res2)) ||
       g1->store_shapes(&trn) || g2->store_shapes(&trn))
     goto exit;
 
@@ -1510,7 +1508,7 @@ String *Item_func_buffer::val_str(String *str_value)
 
   null_value= 1;
   if (args[0]->null_value || args[1]->null_value ||
-      !(g= Geometry::construct(&buffer, obj->ptr(), obj->length())))
+      !(g= Geometry::construct(&buffer, obj)))
     goto mem_error;
 
   /*
@@ -1580,7 +1578,7 @@ longlong Item_func_isempty::val_int()
   Geometry_buffer buffer;
   
   null_value= args[0]->null_value ||
-              !(Geometry::construct(&buffer, swkb->ptr(), swkb->length()));
+              !(Geometry::construct(&buffer, swkb));
   return null_value ? 1 : 0;
 }
 
@@ -1597,7 +1595,7 @@ longlong Item_func_issimple::val_int()
   DBUG_ASSERT(fixed == 1);
   
   if ((null_value= args[0]->null_value) ||
-      !(g= Geometry::construct(&buffer, swkb->ptr(), swkb->length())))
+      !(g= Geometry::construct(&buffer, swkb)))
     DBUG_RETURN(0);
 
 
@@ -1649,7 +1647,7 @@ longlong Item_func_isclosed::val_int()
   null_value= (!swkb || 
 	       args[0]->null_value ||
 	       !(geom=
-		 Geometry::construct(&buffer, swkb->ptr(), swkb->length())) ||
+		 Geometry::construct(&buffer, swkb)) ||
 	       geom->is_closed(&isclosed));
 
   return (longlong) isclosed;
@@ -1667,12 +1665,11 @@ longlong Item_func_dimension::val_int()
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
   Geometry *geom;
-  const char *dummy;
 
   null_value= (!swkb || 
-	       args[0]->null_value ||
-	       !(geom= Geometry::construct(&buffer, swkb->ptr(), swkb->length())) ||
-	       geom->dimension(&dim, &dummy));
+               args[0]->null_value ||
+               !(geom= Geometry::construct(&buffer, swkb)) ||
+               geom->dimension(&dim));
   return (longlong) dim;
 }
 
@@ -1686,8 +1683,7 @@ longlong Item_func_numinteriorring::val_int()
   Geometry *geom;
 
   null_value= (!swkb || 
-	       !(geom= Geometry::construct(&buffer,
-                                           swkb->ptr(), swkb->length())) ||
+	       !(geom= Geometry::construct(&buffer, swkb)) ||
 	       geom->num_interior_ring(&num));
   return (longlong) num;
 }
@@ -1702,8 +1698,7 @@ longlong Item_func_numgeometries::val_int()
   Geometry *geom;
 
   null_value= (!swkb ||
-	       !(geom= Geometry::construct(&buffer,
-                                           swkb->ptr(), swkb->length())) ||
+	       !(geom= Geometry::construct(&buffer, swkb)) ||
 	       geom->num_geometries(&num));
   return (longlong) num;
 }
@@ -1719,8 +1714,7 @@ longlong Item_func_numpoints::val_int()
 
   null_value= (!swkb ||
 	       args[0]->null_value ||
-	       !(geom= Geometry::construct(&buffer,
-                                           swkb->ptr(), swkb->length())) ||
+	       !(geom= Geometry::construct(&buffer, swkb)) ||
 	       geom->num_points(&num));
   return (longlong) num;
 }
@@ -1735,8 +1729,7 @@ double Item_func_x::val_real()
   Geometry *geom;
 
   null_value= (!swkb ||
-	       !(geom= Geometry::construct(&buffer,
-                                           swkb->ptr(), swkb->length())) ||
+	       !(geom= Geometry::construct(&buffer, swkb)) ||
 	       geom->get_x(&res));
   return res;
 }
@@ -1765,12 +1758,10 @@ double Item_func_area::val_real()
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
   Geometry *geom;
-  const char *dummy;
 
   null_value= (!swkb ||
-	       !(geom= Geometry::construct(&buffer,
-                                           swkb->ptr(), swkb->length())) ||
-	       geom->area(&res, &dummy));
+	       !(geom= Geometry::construct(&buffer, swkb)) ||
+	       geom->area(&res));
   return res;
 }
 
@@ -1783,9 +1774,7 @@ double Item_func_glength::val_real()
   Geometry *geom;
 
   null_value= (!swkb || 
-	       !(geom= Geometry::construct(&buffer,
-                                           swkb->ptr(),
-                                           swkb->length())) ||
+	       !(geom= Geometry::construct(&buffer, swkb)) ||
 	       geom->geom_length(&res));
   return res;
 }
@@ -1797,8 +1786,7 @@ longlong Item_func_srid::val_int()
   Geometry_buffer buffer;
   
   null_value= (!swkb || 
-	       !Geometry::construct(&buffer,
-                                    swkb->ptr(), swkb->length()));
+	       !Geometry::construct(&buffer, swkb));
   if (null_value)
     return 0;
 
@@ -1813,7 +1801,6 @@ double Item_func_distance::val_real()
   const Gcalc_heap::Info *cur_point, *dist_point;
   Gcalc_scan_events ev;
   double t, distance, cur_distance;
-  double x1, x2, y1, y2;
   double ex, ey, vx, vy, e_sqrlen;
   uint obj2_si;
   Gcalc_operation_transporter trn(&func, &collector);
@@ -1825,20 +1812,20 @@ double Item_func_distance::val_real()
   Geometry_buffer buffer1, buffer2;
   Geometry *g1, *g2;
 
-
   if ((null_value= (args[0]->null_value || args[1]->null_value ||
-          !(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-          !(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
+          !(g1= Geometry::construct(&buffer1, res1)) ||
+          !(g2= Geometry::construct(&buffer2, res2)))))
     goto mem_error;
 
   if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
       (g2->get_class_info()->m_type_id == Geometry::wkb_point))
   {
-    if (((Gis_point *) g1)->get_xy(&x1, &y1) ||
-        ((Gis_point *) g2)->get_xy(&x2, &y2))
+    point_xy p1, p2;
+    if (((Gis_point *) g1)->get_xy(&p1) ||
+        ((Gis_point *) g2)->get_xy(&p2))  
       goto mem_error;
-    ex= x2 - x1;
-    ey= y2 - y1;
+    ex= p2.x - p1.x;
+    ey= p2.y - p1.y;
     DBUG_RETURN(sqrt(ex * ex + ey * ey));
   }
 
