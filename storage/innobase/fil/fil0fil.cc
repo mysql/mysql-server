@@ -2153,11 +2153,8 @@ fil_recreate_table(
 	if (zip_size == ULINT_UNDEFINED) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"innodb_force_recovery was set to %lu. "
-			"Continuing crash recovery even though the "
-			".ibd file of the table '%s' with tablespace "
-			"%lu is missing",
-			srv_force_recovery, name, space_id);
+			"Missing .ibd file for table '%s' with"
+			" tablespace %lu" name, space_id);
 		return;
 	}
 
@@ -2210,11 +2207,8 @@ fil_recreate_tablespace(
 	if (err != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"innodb_force_recovery was set to %lu. "
-			"Continuing crash recovery even though we cannot"
-			"access the .ibd file of the tablespace %lu when"
-			"truncating the table '%s' during recovery",
-			srv_force_recovery, space_id, name);
+			"Cannot access .ibd file for table '%s' with"
+			" tablespace %lu while truncating" name, space_id);
 		return;
 	}
 
@@ -2223,11 +2217,8 @@ fil_recreate_tablespace(
 	if (zip_size == ULINT_UNDEFINED) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"innodb_force_recovery was set to %lu. "
-			"Continuing crash recovery even though the "
-			".ibd file of the table '%s' with tablespace "
-			"%lu is missing",
-			srv_force_recovery, name, space_id);
+			"Missing .ibd file for table '%s' with"
+			" tablespace %lu" name, space_id);
 		return;
 	}
 
@@ -2264,11 +2255,8 @@ fil_recreate_tablespace(
 
 		if (err != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"innodb_force_recovery was set to %lu. "
-				"Continuing crash recovery even though we "
-				"failed to clean header of table '%s' for "
-				"tablespace %lu during recovery.",
-				srv_force_recovery, name, space_id);
+				"Failed to clean header of the table '%s' with"
+				" tablespace %lu" name, space_id);
 		}
 
 		mem_free(buf);
@@ -2354,12 +2342,9 @@ fil_recreate_tablespace(
 
 		if (err != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"innodb_force_recovery was set to %lu. "
-				"Continuing crash recovery even though we "
-				"cannot write page %lu into the .ibd file "
-				"of table '%s' for tablespace %lu during "
-				"recovery.", srv_force_recovery, page_no,
-				name, space_id);
+				"Cannot write page %lu into a .ibd file for"
+				" table '%s' with tablespace %lu",
+				page_no, name, space_id);
 		}
 	}
 
