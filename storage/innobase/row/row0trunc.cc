@@ -300,7 +300,7 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 		if (!Tablespace::is_system_tablespace(table->space)) {
 			err = truncate_t::truncate(
 				table->space, table->name,
-				table->data_dir_path, flags);
+				table->data_dir_path, flags, false);
 		}
 	}
 

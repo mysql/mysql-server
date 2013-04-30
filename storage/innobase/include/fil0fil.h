@@ -265,14 +265,15 @@ struct truncate_t {
 					databasename/tablename format of InnoDB
 	@param dir_path			data directory path for .ibd file
 	@param flags			tablespace flags
-	@param truncate_to_initial_sz	truncate to size that exist when new
-					tablespace is created.
+	@param trunc_to_default		truncate to default size if tablespace
+					is being newly re-initialized.
 	@return DB_SUCCESS or error */
 	static dberr_t truncate(
 		ulint		space_id,
 		const char*	tablename,
 		const char*	dir_path,
-		ulint		flags);
+		ulint		flags,
+		bool		trunc_to_default);
 
 	typedef std::vector<index_t> indexes_t;
 
