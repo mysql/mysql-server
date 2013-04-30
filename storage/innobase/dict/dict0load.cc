@@ -1827,7 +1827,7 @@ dict_load_indexes(
 
 		rec = btr_pcur_get_rec(&pcur);
 
-		if ((ignore_err & DICT_ERR_IGNORE_LOAD)
+		if ((ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)
 		    && rec_get_n_fields_old(rec)
 		    == DICT_NUM_FIELDS__SYS_INDEXES) {
 			const byte*	field;
@@ -2353,7 +2353,7 @@ err_exit:
 			table->ibd_file_missing = TRUE;
 
 		} else {
-			if (!(ignore_err & DICT_ERR_IGNORE_LOAD)) {
+			if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Failed to find tablespace for "
 					"table '%s' in the cache. "
@@ -2407,8 +2407,11 @@ err_exit:
 
 	/* If there is no tablespace for the table then we only need to
 	load the index definitions. So that we can IMPORT the tablespace
-	later. */
-	dict_err_ignore_t index_load_err = !(ignore_err & DICT_ERR_IGNORE_LOAD)
+	later. When recovering table locks for resurrected incomplete
+	transactions, the tablespace should exist, because DDL operations
+	were not allowed while the table is being locked by a transaction. */
+	dict_err_ignore_t index_load_err =
+		!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)
 		&& table->ibd_file_missing
 		? DICT_ERR_IGNORE_ALL
 		: ignore_err;

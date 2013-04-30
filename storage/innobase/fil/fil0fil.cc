@@ -1950,10 +1950,66 @@ fil_write_flushed_lsn_to_data_files(
 }
 
 /*******************************************************************//**
+Checks the consistency of the first data page of a data file
+at database startup.
+@retval NULL on success, or if innodb_force_recovery is set
+@return pointer to an error message string */
+static __attribute__((warn_unused_result))
+const char*
+fil_check_first_page(
+/*=================*/
+	const page_t*	page,		/*!< in: data page */
+	ibool		first_page)	/*!< in: TRUE if this is the
+					first page of the tablespace */
+{
+	ulint	space_id;
+	ulint	flags;
+
+	if (srv_force_recovery >= SRV_FORCE_IGNORE_CORRUPT) {
+		return(NULL);
+	}
+
+	space_id = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page);
+	flags = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
+
+	if (first_page && UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
+		return("innodb-page-size mismatch");
+	}
+
+	if (first_page && !space_id && !flags) {
+		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
+		const byte*	b		= page;
+
+		while (!*b && --nonzero_bytes) {
+			b++;
+		}
+
+		if (!nonzero_bytes) {
+			return("space header page consists of zero bytes");
+		}
+	}
+
+	if (buf_page_is_corrupted(
+		    false, page, fsp_flags_get_zip_size(flags))) {
+		return("checksum mismatch");
+	}
+
+	if (!first_page
+	    || (page_get_space_id(page) == space_id
+		&& page_get_page_no(page) == 0)) {
+		return(NULL);
+	}
+
+	return("inconsistent data in space header");
+}
+
+/*******************************************************************//**
 Reads the flushed lsn, arch no, and tablespace flag fields from a data
-file at database startup. */
+file at database startup.
+@retval NULL on success, or if innodb_force_recovery is set
+@return pointer to an error message string */
 UNIV_INTERN
-void
+const char*
 fil_read_first_page(
 /*================*/
 	os_file_t	data_file,		/*!< in: open data file */
@@ -1973,9 +2029,10 @@ fil_read_first_page(
 	lsn_t*		max_flushed_lsn)	/*!< out: max of flushed
 						lsn values in data files */
 {
-	byte*	buf;
-	byte*	page;
-	lsn_t	flushed_lsn;
+	byte*		buf;
+	byte*		page;
+	lsn_t		flushed_lsn;
+	const char*	check_msg;
 
 	buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 
@@ -1991,7 +2048,13 @@ fil_read_first_page(
 
 	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
+	check_msg = fil_check_first_page(page, !one_read_already);
+
 	ut_free(buf);
+
+	if (check_msg) {
+		return(check_msg);
+	}
 
 	if (!one_read_already) {
 		*min_flushed_lsn = flushed_lsn;
@@ -2000,7 +2063,7 @@ fil_read_first_page(
 		*min_arch_log_no = arch_log_no;
 		*max_arch_log_no = arch_log_no;
 #endif /* UNIV_LOG_ARCHIVE */
-		return;
+		return(NULL);
 	}
 
 	if (*min_flushed_lsn > flushed_lsn) {
@@ -2017,6 +2080,8 @@ fil_read_first_page(
 		*max_arch_log_no = arch_log_no;
 	}
 #endif /* UNIV_LOG_ARCHIVE */
+
+	return(NULL);
 }
 
 /*================ SINGLE-TABLE TABLESPACES ==========================*/
@@ -3494,12 +3559,25 @@ static
 void
 fil_report_bad_tablespace(
 /*======================*/
-	char*		filepath,	/*!< in: filepath */
+	const char*	filepath,	/*!< in: filepath */
+	const char*	check_msg,	/*!< in: fil_check_first_page() */
 	ulint		found_id,	/*!< in: found space ID */
 	ulint		found_flags,	/*!< in: found flags */
 	ulint		expected_id,	/*!< in: expected space id */
 	ulint		expected_flags)	/*!< in: expected flags */
 {
+	if (check_msg) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Error %s in file '%s',"
+			"tablespace id=%lu, flags=%lu. "
+			"Please refer to "
+			REFMAN "innodb-troubleshooting-datadict.html "
+			"for how to resolve the issue.",
+			check_msg, filepath,
+			(ulong) expected_id, (ulong) expected_flags);
+		return;
+	}
+
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"In file '%s', tablespace id and flags are %lu and %lu, "
 		"but in the InnoDB data dictionary they are %lu and %lu. "
@@ -3514,6 +3592,7 @@ fil_report_bad_tablespace(
 
 struct fsp_open_info {
 	ibool		success;	/*!< Has the tablespace been opened? */
+	const char*	check_msg;	/*!< fil_check_first_page() message */
 	ibool		valid;		/*!< Is the tablespace valid? */
 	os_file_t	file;		/*!< File handle */
 	char*		filepath;	/*!< File path to open */
@@ -3656,48 +3735,50 @@ fil_open_single_table_tablespace(
 
 	/* Read the first page of the datadir tablespace, if found. */
 	if (def.success) {
-		fil_read_first_page(
+		def.check_msg = fil_read_first_page(
 			def.file, FALSE, &def.flags, &def.id,
 #ifdef UNIV_LOG_ARCHIVE
 			&space_arch_log_no, &space_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 			&def.lsn, &def.lsn);
+		def.valid = !def.check_msg;
 
 		/* Validate this single-table-tablespace with SYS_TABLES,
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
-		ulint mod_def_flags = def.flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (def.id == id && mod_def_flags == mod_flags) {
+		if (def.valid && def.id == id
+		    && (def.flags & ~FSP_FLAGS_MASK_DATA_DIR) == mod_flags) {
 			valid_tablespaces_found++;
-			def.valid = TRUE;
 		} else {
+			def.valid = false;
 			/* Do not use this tablespace. */
 			fil_report_bad_tablespace(
-				def.filepath, def.id,
+				def.filepath, def.check_msg, def.id,
 				def.flags, id, flags);
 		}
 	}
 
 	/* Read the first page of the remote tablespace */
 	if (remote.success) {
-		fil_read_first_page(
+		remote.check_msg = fil_read_first_page(
 			remote.file, FALSE, &remote.flags, &remote.id,
 #ifdef UNIV_LOG_ARCHIVE
 			&remote.arch_log_no, &remote.arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 			&remote.lsn, &remote.lsn);
+		remote.valid = !remote.check_msg;
 
 		/* Validate this single-table-tablespace with SYS_TABLES,
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
-		ulint mod_remote_flags = remote.flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (remote.id == id && mod_remote_flags == mod_flags) {
+		if (remote.valid && remote.id == id
+		    && (remote.flags & ~FSP_FLAGS_MASK_DATA_DIR) == mod_flags) {
 			valid_tablespaces_found++;
-			remote.valid = TRUE;
 		} else {
+			remote.valid = false;
 			/* Do not use this linked tablespace. */
 			fil_report_bad_tablespace(
-				remote.filepath, remote.id,
+				remote.filepath, remote.check_msg, remote.id,
 				remote.flags, id, flags);
 			link_file_is_bad = true;
 		}
@@ -3705,24 +3786,25 @@ fil_open_single_table_tablespace(
 
 	/* Read the first page of the datadir tablespace, if found. */
 	if (dict.success) {
-		fil_read_first_page(
+		dict.check_msg = fil_read_first_page(
 			dict.file, FALSE, &dict.flags, &dict.id,
 #ifdef UNIV_LOG_ARCHIVE
 			&dict.arch_log_no, &dict.arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 			&dict.lsn, &dict.lsn);
+		dict.valid = !dict.check_msg;
 
 		/* Validate this single-table-tablespace with SYS_TABLES,
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
-		ulint mod_dict_flags = dict.flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (dict.id == id && mod_dict_flags == mod_flags) {
+		if (dict.valid && dict.id == id
+		    && (dict.flags & ~FSP_FLAGS_MASK_DATA_DIR) == mod_flags) {
 			valid_tablespaces_found++;
-			dict.valid = TRUE;
 		} else {
+			dict.valid = false;
 			/* Do not use this tablespace. */
 			fil_report_bad_tablespace(
-				dict.filepath, dict.id,
+				dict.filepath, dict.check_msg, dict.id,
 				dict.flags, id, flags);
 		}
 	}
@@ -3935,17 +4017,23 @@ fil_validate_single_table_tablespace(
 	const char*	tablename,	/*!< in: database/tablename */
 	fsp_open_info*	fsp)		/*!< in/out: tablespace info */
 {
-	fil_read_first_page(
-		fsp->file, FALSE, &fsp->flags, &fsp->id,
+	if (const char* check_msg = fil_read_first_page(
+		    fsp->file, FALSE, &fsp->flags, &fsp->id,
 #ifdef UNIV_LOG_ARCHIVE
-		&fsp->arch_log_no, &fsp->arch_log_no,
+		    &fsp->arch_log_no, &fsp->arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
-		&fsp->lsn, &fsp->lsn);
+		    &fsp->lsn, &fsp->lsn)) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"%s in tablespace %s (table %s)",
+			check_msg, fsp->filepath, tablename);
+		fsp->success = FALSE;
+		return;
+	}
 
 	if (fsp->id == ULINT_UNDEFINED || fsp->id == 0) {
-		fprintf(stderr,
-		" InnoDB: Error: Tablespace is not sensible;"
-		" Table: %s  Space ID: %lu  Filepath: %s\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Tablespace is not sensible;"
+			" Table: %s  Space ID: %lu  Filepath: %s\n",
 		tablename, (ulong) fsp->id, fsp->filepath);
 		fsp->success = FALSE;
 		return;
@@ -4072,6 +4160,19 @@ fil_load_single_table_tablespace(
 		fprintf(stderr,
 			"InnoDB: Error: could not open single-table"
 			" tablespace file %s\n", def.filepath);
+
+		if (!strncmp(filename,
+			     tmp_file_prefix, tmp_file_prefix_length)) {
+			/* Ignore errors for #sql tablespaces. */
+			mem_free(tablename);
+			if (remote.filepath) {
+				mem_free(remote.filepath);
+			}
+			if (def.filepath) {
+				mem_free(def.filepath);
+			}
+			return;
+		}
 no_good_file:
 		fprintf(stderr,
 			"InnoDB: We do not continue the crash recovery,"
@@ -4096,10 +4197,12 @@ no_good_file:
 			" recovery here.\n");
 will_not_choose:
 		mem_free(tablename);
-		if (remote.success) {
+		if (remote.filepath) {
 			mem_free(remote.filepath);
 		}
-		mem_free(def.filepath);
+		if (def.filepath) {
+			mem_free(def.filepath);
+		}
 
 		if (srv_force_recovery > 0) {
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -4110,9 +4213,6 @@ will_not_choose:
 			return;
 		}
 
-		/* If debug code, cause a core dump and call stack. For
-		release builds just exit and rely on the messages above. */
-		ut_ad(0);
 		exit(1);
 	}
 
@@ -4188,7 +4288,7 @@ will_not_choose:
 		new_path = fil_make_ibbackup_old_name(fsp->filepath);
 
 		bool	success = os_file_rename(
-			innodb_file_data_key, fsp->filepath, new_path));
+			innodb_file_data_key, fsp->filepath, new_path);
 
 		ut_a(success);
 
