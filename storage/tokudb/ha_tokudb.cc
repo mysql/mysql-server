@@ -4452,6 +4452,7 @@ cleanup:
 void ha_tokudb::invalidate_bulk_fetch() {
     bytes_used_in_range_query_buff= 0;
     curr_range_query_buff_offset = 0;
+    icp_went_out_of_range = false;    
 }
 
 void ha_tokudb::invalidate_icp() {
