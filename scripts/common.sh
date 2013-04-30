@@ -55,7 +55,7 @@ function github_download() {
         if [ $? != 0 ] ; then return; fi
         rm -f $dest.tar.gz
     elif [ $github_use_ssh != 0 ] ; then
-        tempdir=$(mktemp -d -p $PWD)
+        tempdir=$(TMPDIR=$PWD mktemp -d)
         retry git clone git@github.com:${repo}.git $tempdir
         if [ $? != 0 ] ; then return; fi
         pushd $tempdir
