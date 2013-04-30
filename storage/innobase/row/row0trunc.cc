@@ -278,7 +278,7 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 {
 	row_mysql_unlock_data_dictionary(trx);
 
-	if (!Tablespace::is_system_tablespace(table->space)
+	if (!dict_table_is_temporary(table)
 	    && flags != ULINT_UNDEFINED
 	    && err == DB_SUCCESS) {
 
@@ -297,8 +297,11 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 		DBUG_EXECUTE_IF("ib_crash_after_log_checkpoint",
 				DBUG_SUICIDE(););
 
-		err = truncate_t::truncate(
-			table->space, table->name, table->data_dir_path, flags);
+		if (!Tablespace::is_system_tablespace(table->space)) {
+			err = truncate_t::truncate(
+				table->space, table->name,
+				table->data_dir_path, flags);
+		}
 	}
 
 	dict_stats_update(table, DICT_STATS_EMPTY_TABLE);
@@ -795,6 +798,8 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 	}
 
+	log_make_checkpoint_at(LSN_MAX, TRUE);
+
 	/* Step-2: Start transaction (only for non-temp table as temp-table
 	don't modify any data on disk doesn't need transaction object). */
 	if (!dict_table_is_temporary(table)) {
@@ -874,8 +879,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	we need to use index locks to sync up */
 	dict_table_x_lock_indexes(table);
 
-	if (!Tablespace::is_system_tablespace(table->space)
-	    && !dict_table_is_temporary(table)) {
+	if (!dict_table_is_temporary(table)) {
 
 		if (!Tablespace::is_system_tablespace(table->space)) {
 
@@ -1044,16 +1048,88 @@ row_complete_truncate_of_tables()
 {
 	dberr_t	err = DB_SUCCESS;
 
+	std::vector<truncate_redo_cache_t*> redo_cache;
+
+	/* Apply truncate REDO log action. */
+	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
+		truncate_t* tbl = srv_tables_to_truncate[i];
+
+		truncate_redo_cache_t* redo_cache_entry =
+			new truncate_redo_cache_t(
+				tbl->m_old_table_id, tbl->m_new_table_id);
+
+		if (!Tablespace::is_system_tablespace(tbl->m_space_id)) {
+
+			if (!fil_tablespace_exists_in_mem(tbl->m_space_id)) {
+
+				/* Create the database directory for name,
+				if it does not exist yet */
+				fil_create_directory_for_tablename(
+					tbl->m_tablename);
+
+				if (fil_create_new_single_table_tablespace(
+						tbl->m_space_id,
+						tbl->m_tablename,
+						tbl->m_dir_path,
+						tbl->m_tablespace_flags,
+						DICT_TF2_USE_TABLESPACE,
+						FIL_IBD_FILE_INITIAL_SIZE)
+					!= DB_SUCCESS) {
+
+					/* If checkpoint is not yet done
+					and table is dropped and then we might
+					still have REDO entries for this table
+					which are INVALID. Ignore them. */
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"Failed to create tablespace"
+						" for %lu space-id\n",
+						tbl->m_space_id);
+					err = DB_ERROR;
+					break;
+				}
+			}
+
+			ut_ad(fil_tablespace_exists_in_mem(tbl->m_space_id)
+				== TRUE);
+
+			fil_recreate_tablespace(
+				tbl->m_space_id,
+				tbl->m_format_flags,
+				tbl->m_tablespace_flags,
+				tbl->m_tablename,
+				*tbl, log_get_lsn(), redo_cache_entry);
+
+		} else if (Tablespace::is_system_tablespace(tbl->m_space_id)) {
+
+			/* Only tables residing in ibdata1 are truncated.
+			Temp-tables in temp-tablespace are never restored.*/
+			ut_ad(tbl->m_space_id == srv_sys_space.space_id());
+
+			/* System table is always loaded. */
+			ut_ad(fil_tablespace_exists_in_mem(tbl->m_space_id)
+				== TRUE);
+
+			fil_recreate_table(
+				tbl->m_space_id,
+				tbl->m_format_flags,
+				tbl->m_tablespace_flags,
+				tbl->m_tablename,
+				*tbl, log_get_lsn(), redo_cache_entry);
+		}
+
+		redo_cache.push_back(redo_cache_entry);
+	}
+
 	/* Tables are already truncated using MLOG_FILE_TRUNCATE REDO log
 	entry. Now assign new table-id to these tables so that purge
 	action on these tables can be blocked. */
-	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
+	for (ulint i = 0; i < redo_cache.size() && err != DB_ERROR; i++) {
 
 		table_id_t      new_id;
 		dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);
 
 		err = row_truncate_update_sys_tables_post_redo(
-			srv_tables_to_truncate[i], new_id, TRUE);
+			redo_cache[i], new_id, TRUE);
 		if (err != DB_SUCCESS) {
 			break;
 		}
@@ -1062,8 +1138,12 @@ row_complete_truncate_of_tables()
 	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
 		delete(srv_tables_to_truncate[i]);
 	}
-
 	srv_tables_to_truncate.clear();
+
+	for (ulint i = 0; i < redo_cache.size(); i++) {
+		delete(redo_cache[i]);
+	}
+	redo_cache.clear();
 
 	return(err);
 }

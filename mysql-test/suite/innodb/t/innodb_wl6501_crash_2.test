@@ -54,6 +54,7 @@ create table t (
 	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_on_drop_of_clust_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -64,6 +65,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 #
@@ -75,6 +77,7 @@ create table t (
 	primary key pk(i), unique findex(f)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_on_drop_of_uniq_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -85,6 +88,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 #
@@ -96,6 +100,7 @@ create table t (
 	primary key pk(i), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_on_drop_of_sec_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -106,6 +111,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 
@@ -123,6 +129,7 @@ create table t (
 	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_drop_reinit_done_create_to_start1";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -133,6 +140,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 #
@@ -144,6 +152,7 @@ create table t (
 	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_drop_reinit_done_create_to_start2";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -154,6 +163,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 
@@ -169,6 +179,7 @@ create table t (
 	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_on_create_of_clust_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -179,6 +190,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 #
@@ -190,6 +202,7 @@ create table t (
 	primary key pk(i), unique findex(f)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_on_create_of_uniq_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -200,6 +213,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 #
@@ -211,6 +225,7 @@ create table t (
 	primary key pk(i), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_on_create_of_sec_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -221,6 +236,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 
@@ -237,6 +253,7 @@ create table t (
 	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_on_updating_dict_sys_info1";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -247,6 +264,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 #
@@ -258,6 +276,7 @@ create table t (
 	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_on_updating_dict_sys_info2";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -268,6 +287,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
@@ -285,6 +305,7 @@ create table t (
 	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_before_log_checkpoint1";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -295,6 +316,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 drop table t;
 #
@@ -306,6 +328,7 @@ create table t (
 	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_before_log_checkpoint2";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -316,6 +339,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 drop table t;
@@ -328,6 +352,7 @@ create table t (
 	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+check table t;
 #
 set session debug = "+d,ib_crash_after_log_checkpoint";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -338,6 +363,7 @@ truncate table t;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
