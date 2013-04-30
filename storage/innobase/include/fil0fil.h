@@ -115,9 +115,14 @@ struct truncate_t {
 
 	truncate_t()
 		:
+		m_space_id(),
 		m_old_table_id(),
 		m_new_table_id(),
-		m_dir_path()
+		m_dir_path(),
+		m_tablename(),
+		m_tablespace_flags(),
+		m_format_flags(),
+		m_indexes()
 	{
 		/* Do nothing */
 	}
@@ -125,7 +130,21 @@ struct truncate_t {
 	~truncate_t() {
 		m_old_table_id = 0;
 		m_new_table_id = 0;
-		m_dir_path = 0;
+
+		if (m_dir_path != NULL) {
+			::free(m_dir_path);
+			m_dir_path = 0;
+		}
+
+		if (m_tablename != NULL) {
+			::free(m_tablename);
+			m_tablename = 0;
+		}
+
+		m_tablespace_flags = 0;
+		m_format_flags = 0;
+
+		m_indexes.clear();
 	}
 
 	/** The index information of MLOG_FILE_TRUNCATE redo record */
@@ -257,6 +276,9 @@ struct truncate_t {
 
 	typedef std::vector<index_t> indexes_t;
 
+	/** Space ID of tablespace */
+	table_id_t		m_space_id;
+
 	/** ID of table that is being truncated. */
 	table_id_t		m_old_table_id;
 
@@ -264,13 +286,22 @@ struct truncate_t {
 	table_id_t		m_new_table_id;
 
 	/** Data dir path of tablespace */
-	const char*		m_dir_path;
+	char*			m_dir_path;
+
+	/** Table name */
+	char*			m_tablename;
+
+	/** Tablespace Flags */
+	ulint			m_tablespace_flags;
+
+	/** Format flags (log flags; stored in page-no field of redo header) */
+	ulint			m_format_flags;
 
 	/** Index meta-data */
 	indexes_t		m_indexes;
 };
 
-typedef std::vector<truncate_redo_cache_t*> truncate_tables_t;
+typedef std::vector<truncate_t*> truncate_tables_t;
 
 /** The null file address */
 extern fil_addr_t	fil_addr_null;
@@ -572,6 +603,52 @@ fil_decr_pending_ops(
 /*=================*/
 	ulint	id);	/*!< in: space id */
 #endif /* !UNIV_HOTBACKUP */
+/********************************************************//**
+Creates the database directory for a table if it does not exist yet. */
+UNIV_INTERN
+void
+fil_create_directory_for_tablename(
+/*===============================*/
+	const char*	name);	/*!< in: name in the standard
+				'databasename/tablename' format */
+/********************************************************//**
+Recreates table indexes by applying
+MLOG_FILE_TRUNCATE redo record during recovery. */
+UNIV_INTERN
+void
+fil_recreate_table(
+/*===============*/
+	ulint			space_id,	/*!< in: space id */
+	ulint			format_flags,	/*!< in: page format */
+	ulint			flags,		/*!< in: tablespace flags */
+	const char*		name,		/*!< in: table name */
+	const truncate_t&	truncate,	/*!< in: The information of
+						MLOG_FILE_TRUNCATE record */
+	lsn_t			recv_lsn,	/*!< in: the end LSN of
+						the log record */
+	truncate_redo_cache_t*	redo_cache_entry);
+						/*!< out: cache to store
+						information needed for
+						completion of truncate. */
+/********************************************************//**
+Recreates the tablespace and table indexes by applying
+MLOG_FILE_TRUNCATE redo record during recovery. */
+UNIV_INTERN
+void
+fil_recreate_tablespace(
+/*====================*/
+	ulint			space_id,	/*!< in: space id */
+	ulint			format_flags,	/*!< in: page format */
+	ulint			flags,		/*!< in: tablespace flags */
+	const char*		name,		/*!< in: table name */
+	const truncate_t&	truncate,	/*!< in: The information of
+						MLOG_FILE_TRUNCATE record */
+	lsn_t			recv_lsn,	/*!< in: the end LSN of
+						the log record */
+	truncate_redo_cache_t*	redo_cache_entry);
+						/*!< out: cache to store
+						information needed for
+						completion of truncate. */
 /*******************************************************************//**
 Parses the body of a log record written about an .ibd file operation. That is,
 the log record part after the standard (type, space id, page no) header of the

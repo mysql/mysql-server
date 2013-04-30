@@ -2029,7 +2029,7 @@ fil_decr_pending_ops(
 
 /********************************************************//**
 Creates the database directory for a table if it does not exist yet. */
-static
+UNIV_INTERN
 void
 fil_create_directory_for_tablename(
 /*===============================*/
@@ -2129,7 +2129,7 @@ fil_op_write_log(
 /********************************************************//**
 Recreates table indexes by applying
 MLOG_FILE_TRUNCATE redo record during recovery. */
-static
+UNIV_INTERN
 void
 fil_recreate_table(
 /*===============*/
@@ -2167,15 +2167,16 @@ fil_recreate_table(
 	truncate.drop_indexes(space_id);
 
 	/* Step-2: Scan for active indexes and re-create them. */
-	fil_space_truncated.insert(space_id);
 	err = truncate.create_indexes(
 		name, space_id, zip_size, flags, format_flags,
 		redo_cache_entry);
 	if (err != DB_SUCCESS) {
 		return;
 	}
-	fil_space_truncated.erase(space_id);
 
+	log_buffer_flush_to_disk();
+
+#if 0
 	// TODO: KRUNAL: What are repcurssion of temporarily inserting
 	// system tablespace id in fil_space_truncated.
 
@@ -2257,12 +2258,13 @@ fil_recreate_table(
 	}
 
 	mtr_commit(&mtr);
+#endif
 }
 
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
 MLOG_FILE_TRUNCATE redo record during recovery. */
-static
+UNIV_INTERN
 void
 fil_recreate_tablespace(
 /*====================*/
@@ -2494,10 +2496,7 @@ fil_op_log_parse_or_replay(
 	ulint			tablespace_flags = 0;
 	ulint			new_name_len;
 	const char*		new_name = NULL;
-	truncate_redo_cache_t* 	redo_cache_entry = NULL;
-	truncate_t 		truncate;
-
-	new (&truncate) truncate_t;
+	truncate_t* 		truncate = NULL;
 
 	/* Step-1: Parse the log records. */
 
@@ -2534,7 +2533,17 @@ fil_op_log_parse_or_replay(
 	{
 		if (type == MLOG_FILE_TRUNCATE) {
 
-			truncate.parse(&ptr, &end_ptr, tablespace_flags);
+			truncate = new truncate_t();
+			truncate->m_space_id = space_id;
+			truncate->m_tablename = strdup(name);
+			truncate->m_tablespace_flags = tablespace_flags;
+			truncate->m_format_flags = log_flags;
+
+			/* old/new table-id, dir-path, indexes array is
+			populated by parse */
+			truncate->parse(&ptr, &end_ptr, tablespace_flags);
+
+			srv_tables_to_truncate.push_back(truncate);
 
 		} else if (type == MLOG_FILE_RENAME) {
 
@@ -2585,6 +2594,7 @@ fil_op_log_parse_or_replay(
 		break;
 
 	case MLOG_FILE_TRUNCATE:
+#if 0
 
 		/* Cache the info that is needed to complete the truncate
 		action. Importantly: any updates to dictionary is done
@@ -2648,6 +2658,7 @@ fil_op_log_parse_or_replay(
 
 		/* Note: we are handing over ownership to vector. */
 		srv_tables_to_truncate.push_back(redo_cache_entry);
+#endif
 
 		break;
 
