@@ -1778,6 +1778,7 @@ btr_page_reorganize_low(
 	ulint		max_ins_size2;
 	bool		success		= false;
 	ulint		pos;
+	bool		log_compressed;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	btr_assert_not_corrupted(block, index);
@@ -1841,8 +1842,16 @@ btr_page_reorganize_low(
 		ut_ad(max_trx_id != 0 || recovery);
 	}
 
+	/* If innodb_log_compressed_pages is ON, page reorganize should log the
+	compressed page image.*/
+	log_compressed = page_zip && page_zip_log_pages;
+
+	if (log_compressed) {
+		mtr_set_log_mode(mtr, log_mode);
+	}
+
 	if (page_zip
-	    && !page_zip_compress(page_zip, page, index, z_level, NULL)) {
+	    && !page_zip_compress(page_zip, page, index, z_level, mtr)) {
 
 		/* Restore the old page and exit. */
 		btr_blob_dbg_restore(page, temp_page, index,
@@ -1933,8 +1942,11 @@ func_exit:
 			type = MLOG_PAGE_REORGANIZE;
 		}
 
-		log_ptr = mlog_open_and_write_index(
-			mtr, page, index, type, page_zip ? 1 : 0);
+		log_ptr = log_compressed
+			? NULL
+			: mlog_open_and_write_index(
+				mtr, page, index, type,
+				page_zip ? 1 : 0);
 
 		/* For compressed pages write the compression level. */
 		if (log_ptr && page_zip) {

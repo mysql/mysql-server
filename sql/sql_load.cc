@@ -29,7 +29,7 @@
 #include "sql_insert.h" // check_that_all_fields_are_given_values,
                         // prepare_triggers_for_insert_stmt,
                         // write_record
-#include "sql_acl.h"    // INSERT_ACL, UPDATE_ACL
+#include "auth_common.h"// INSERT_ACL, UPDATE_ACL
 #include "log_event.h"  // Delete_file_log_event,
                         // Execute_load_query_log_event,
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
@@ -230,10 +230,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (open_and_lock_tables(thd, table_list, TRUE, 0))
     DBUG_RETURN(TRUE);
-  if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
-                                    &thd->lex->select_lex.top_join_list,
+  if (setup_tables_and_check_access(thd, &thd->lex->select_lex->context,
+                                    &thd->lex->select_lex->top_join_list,
                                     table_list,
-                                    &thd->lex->select_lex.leaf_tables, FALSE,
+                                    &thd->lex->select_lex->leaf_tables, FALSE,
                                     INSERT_ACL | UPDATE_ACL,
                                     INSERT_ACL | UPDATE_ACL))
      DBUG_RETURN(-1);

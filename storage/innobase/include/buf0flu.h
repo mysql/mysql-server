@@ -277,6 +277,14 @@ buf_flush_get_dirty_pages_count(
 	ulint		id);		/*!< in: space id to check */
 #endif /* UNIV_DEBUG */
 
+/*******************************************************************//**
+Synchronously flush dirty blocks from the end of the flush list of all buffer
+pool instances.
+NOTE: The calling thread is not allowed to own any latches on pages! */
+UNIV_INTERN
+void
+buf_flush_sync_all_buf_pools(void);
+/*==============================*/
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

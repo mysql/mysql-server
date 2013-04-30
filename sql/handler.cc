@@ -27,7 +27,7 @@
 #include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
 #include "sql_table.h"                   // build_table_filename
 #include "sql_parse.h"                          // check_stack_overrun
-#include "sql_acl.h"            // SUPER_ACL
+#include "auth_common.h"        // SUPER_ACL
 #include "sql_base.h"           // free_io_cache
 #include "discover.h"           // writefrm
 #include "log_event.h"          // *_rows_log_event
@@ -6262,7 +6262,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     rowid= rowids_buf_cur;
 
     if (is_mrr_assoc)
-      memcpy(&cur_range_info, rowids_buf_cur + h->ref_length, sizeof(uchar**));
+      memcpy(&cur_range_info, rowids_buf_cur + h->ref_length, sizeof(uchar*));
 
     rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
     if (h2->mrr_funcs.skip_record &&

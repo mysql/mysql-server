@@ -245,7 +245,7 @@ ib_open_table_by_id(
 		dict_mutex_enter_for_mysql();
 	}
 
-	table = dict_table_open_on_id(table_id, FALSE, FALSE);
+	table = dict_table_open_on_id(table_id, FALSE, DICT_TABLE_OP_NORMAL);
 
 	if (table != NULL && table->ibd_file_missing) {
 		table = NULL;
@@ -1185,7 +1185,7 @@ ib_cursor_open_index_using_name(
 
 	/* We want to increment the ref count, so we do a redundant search. */
 	table = dict_table_open_on_id(cursor->prebuilt->table->id,
-				      FALSE, FALSE);
+				      FALSE, DICT_TABLE_OP_NORMAL);
 	ut_a(table != NULL);
 
 	/* The first index is always the cluster index. */

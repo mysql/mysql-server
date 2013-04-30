@@ -378,8 +378,14 @@ dict_mem_referenced_table_name_lookup_set(
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
 /*******************************************************************//**
-Create a temporary tablename.
-@return temporary tablename suitable for InnoDB use */
+Create a temporary tablename like "#sql-ibnnnn-mmmm" where
+  nnnn = the table ID
+  mmmm = the current LSN
+Both of these numbers are 64 bit integers and can use up to 20 digits.
+Note that both numbers are needed to achieve a unique name since it is
+possible for two threads to call this while the LSN is the same.
+But these two threads will not be working on the same table.
+@return A unique temporary tablename suitable for InnoDB use */
 UNIV_INTERN __attribute__((nonnull, warn_unused_result))
 char*
 dict_mem_create_temporary_tablename(

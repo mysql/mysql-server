@@ -263,9 +263,6 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_SYS_TIMEB_H
-#include <sys/timeb.h>				/* Avoid warnings on SCO */
-#endif
 #if TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
@@ -297,10 +294,10 @@
 #include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
-#define compile_time_assert(X)                                  \
-  do                                                            \
-  {                                                             \
-    typedef char compile_time_assert[(X) ? 1 : -1];             \
+#define compile_time_assert(X)                                              \
+  do                                                                        \
+  {                                                                         \
+    typedef char compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
 
 /* Declare madvise where it is not declared for C++, like Solaris */
@@ -883,7 +880,6 @@ typedef char		my_bool; /* Small bool */
 #endif
 #endif
 
-#include <my_dbug.h>
 
 /* Some helper macros */
 #define YESNO(X) ((X) ? "yes" : "no")
@@ -899,7 +895,7 @@ typedef char		my_bool; /* Small bool */
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
 #endif
 
-#if defined(EMBEDDED_LIBRARY) && !defined(HAVE_EMBEDDED_PRIVILEGE_CONTROL)
+#if defined(EMBEDDED_LIBRARY)
 #define NO_EMBEDDED_ACCESS_CHECKS
 #endif
 
@@ -1042,6 +1038,8 @@ static inline double rint(double x)
 #define MYSQL_PLUGIN_IMPORT
 #endif
 #endif
+
+#include <my_dbug.h>
 
 /* Defines that are unique to the embedded version of MySQL */
 
