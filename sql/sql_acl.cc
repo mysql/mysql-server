@@ -2277,6 +2277,48 @@ int check_change_password(THD *thd, const char *host, const char *user,
 
 
 /**
+  Update the security context when updating the user
+
+  Helper function.
+  Update only if the security context is pointing to the same user.
+  And return true if the update happens (i.e. we're operating on the
+  user account of the current user).
+  Normalize the names for a safe compare.
+
+  @param sctx           The security context to update
+  @param acl_user_ptr   User account being updated
+  @param expired        new value of the expiration flag
+  @return               did the update happen ?
+ */
+static bool
+update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr, bool expired)
+{
+  const char *acl_host= acl_user_ptr->host.get_host();
+  const char *acl_user= acl_user_ptr->user;
+  const char *sctx_user= sctx->priv_user;
+  const char *sctx_host= sctx->priv_host;
+
+  if (!acl_host)
+    acl_host= "";
+  if(!acl_user)
+    acl_user= "";
+  if (!sctx_host)
+    sctx_host= "";
+  if (!sctx_user)
+    sctx_user= "";
+
+  if (!strcmp(acl_user, sctx_user) && !strcmp(acl_host, sctx_host))
+  {
+    sctx->password_expired= expired;
+    return true;
+  }
+
+  return false;
+}
+
+
+
+/**
   Change a password hash for a user.
 
   @param thd Thread handle
@@ -2421,17 +2463,26 @@ bool change_password(THD *thd, const char *host, const char *user,
       password_field= MYSQL_USER_FIELD_AUTHENTICATION_STRING;
       if (new_password_len < CRYPT_MAX_PASSWORD_SIZE + 1)
       {
+        /*
+          Since we're changing the password for the user we need to reset the
+          expiration flag.
+        */
+        if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
+            thd->security_ctx->password_expired)
+        {
+          /* the current user is not the same as the user we operate on */
+          my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+          result= 1;
+          mysql_mutex_unlock(&acl_cache->lock);
+          goto end;
+        }
+
+        acl_user->password_expired= false;
         /* copy string including \0 */
         acl_user->auth_string.str= (char *) memdup_root(&global_acl_memory,
                                                        new_password,
                                                        new_password_len + 1);
         acl_user->auth_string.length= new_password_len;
-        /*
-          Since we're changing the password for the user we need to reset the
-          expiration flag.
-        */
-        acl_user->password_expired= false;
-        thd->security_ctx->password_expired= false;
       }
     } else
     {
@@ -2511,9 +2562,16 @@ bool change_password(THD *thd, const char *host, const char *user,
       my_error(ER_PASSWORD_FORMAT, MYF(0));
       result= 1;
       mysql_mutex_unlock(&acl_cache->lock);
-      goto end;  
+      goto end;
     }
-    thd->security_ctx->password_expired= false;
+    if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
+        thd->security_ctx->password_expired)
+    {
+      my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+      result= 1;
+      mysql_mutex_unlock(&acl_cache->lock);
+      goto end;
+    }
   }
   else
   {
