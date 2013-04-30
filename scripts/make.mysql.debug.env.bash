@@ -4,10 +4,11 @@ function usage() {
     echo "generate a script that builds a debug mysql from github repo's"
     echo "--git_tag=$git_tag"
     echo "--mysql=$mysql --mysql_branch=$mysql_branch"
-    echo "--jemalloc=$jemalloc --jemalloc_branch=$jemalloc_branch"
     echo "--ftengine=$ftengine --ftengine_branch=$ftengine_branch"
     echo "--ftindex=$ftindex --ftindex_branch=$ftindex_branch"
+    echo "--jemalloc=$jemalloc --jemalloc_branch=$jemalloc_branch"
     echo "--backup=$backup --backup_branch=$backup_branch"
+    echo "--install_dir=$install_dir"
 }
 
 function github_clone() {
@@ -38,6 +39,7 @@ ftindex=ft-index
 ftindex_branch=master
 backup=backup-community
 backup_branch=master
+install_dir=mysql
 
 while [ $# -ne 0 ] ; do
     arg=$1; shift
@@ -49,17 +51,10 @@ while [ $# -ne 0 ] ; do
 done
 
 echo '# setup environment variables'
-echo builddir=\$PWD/mysql-build
-echo installdir=\$PWD/mysql
-echo mkdir \$builddir \$installdir
+echo install_dir=\$PWD/$install_dir
+echo mkdir \$install_dir-build \$install_dir
 echo 'if [ $? != 0 ] ; then exit 1; fi'
-
-# echo export TOKUFRACTALTREE=\$builddir/$ftindex/install.debug
-# echo export TOKUFRACTALTREE_LIBNAME=tokudb
-# echo export TOKUPORTABILITY_LIBNAME=tokuportability
-# echo export TOKUDB_VERSION=0
-
-echo cd \$builddir
+echo cd \$install_dir-build
 
 echo '# checkout the fractal tree'
 github_clone $ftindex $ftindex_branch
@@ -105,12 +100,10 @@ echo popd
 
 echo '# build in the mysql directory'
 echo cd $mysql
-# echo export TOKUFRACTALTREE_LIBNAME=\${TOKUFRACTALTREE_LIBNAME}_static
-# echo export TOKUPORTABILITY_LIBNAME=\${TOKUPORTABILITY_LIBNAME}_static
 echo mkdir build.debug
 echo 'if [ $? != 0 ] ; then exit 1; fi'
 echo cd build.debug
-echo CC=gcc47 CXX=g++47 cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=\$installdir -DBUILD_TESTING=OFF
+echo CC=gcc47 CXX=g++47 cmake .. -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=\$install_dir -DBUILD_TESTING=OFF
 echo 'if [ $? != 0 ] ; then exit 1; fi'
 
 echo '# install'
