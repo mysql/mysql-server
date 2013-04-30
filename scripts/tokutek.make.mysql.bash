@@ -80,7 +80,7 @@ if [ $? != 0 ] ; then exit 1; fi
 pushd $build_dir
 
 # make mysql
-bash -x $HOME/github/ft-engine/scripts/make.mysql.new.bash $make_args
+bash -x $HOME/github/ft-engine/scripts/make.mysql.bash $make_args
 if [ $? != 0 ] ; then exit 1; fi
 
 # generate md5 sums
