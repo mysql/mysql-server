@@ -137,6 +137,7 @@ struct truncate_t {
 			:
 			m_id(),
 			m_type(),
+			m_root_page_no(),
 			m_n_fields(),
 			m_trx_id_pos(ULINT_UNDEFINED),
 			m_fields()
@@ -153,6 +154,9 @@ struct truncate_t {
 
 		/** Index type */
 		ulint		m_type;
+
+		/** Root Page Number */
+		ulint		m_root_page_no;
 
 		/** Number of index fields */
 		ulint		m_n_fields;
@@ -203,6 +207,12 @@ struct truncate_t {
 		ulint			flags,
 		ulint			format_flags,
 		truncate_redo_cache_t* 	redo_cache_entry) const; 
+
+	/** Drop indexes for a table.
+	@param space_id		space_id where table/indexes resides.
+	@return DB_SUCCESS or error code. */
+	void drop_indexes(
+		ulint			space_id) const;
 
 	/**
 	Parses MLOG_FILE_TRUNCATE redo record during recovery

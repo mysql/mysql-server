@@ -42,24 +42,24 @@ Created 2013-04-12 Sunny Bains
 dberr_t
 Logger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 {
-	ulint		len;
-	const byte*	field;
-	rec_t*		rec = btr_pcur_get_rec(pcur);
+	ulint			len;
+	const byte*		field;
+	rec_t*			rec = btr_pcur_get_rec(pcur);
+	truncate_t::index_t	index;
 
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
-
 	ut_ad(len == 4);
-
-	truncate_t::index_t	index;
-
 	index.m_type = mach_read_from_4(field);
 
 	field = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__ID, &len);
-
 	ut_ad(len == 8);
-
 	index.m_id = mach_read_from_8(field);
+
+	field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__PAGE_NO, &len);
+	ut_ad(len == 4);
+	index.m_root_page_no = mach_read_from_4(field);
 
 	/* For compressed tables we need to store extra meta-data
 	required during btr_create(). */
@@ -877,10 +877,15 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	if (!Tablespace::is_system_tablespace(table->space)
 	    && !dict_table_is_temporary(table)) {
 
-		err = row_truncate_prepare(table, &flags);
+		if (!Tablespace::is_system_tablespace(table->space)) {
 
-		if (err != DB_SUCCESS) {
-			return(row_truncate_complete(table, trx, flags, err));
+			err = row_truncate_prepare(table, &flags);
+			if (err != DB_SUCCESS) {
+				return(row_truncate_complete(
+					table, trx, flags, err));
+			}
+		} else {
+			flags = fil_space_get_flags(table->space);
 		}
 
 		/* Write the TRUNCATE redo log. */
