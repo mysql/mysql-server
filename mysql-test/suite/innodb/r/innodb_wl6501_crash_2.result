@@ -2,9 +2,95 @@ call mtr.add_suppression("The file '.*' already exists though the corresponding 
 call mtr.add_suppression("Cannot create file '.*'");
 call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
 set global innodb_file_per_table = on;
-"1. Hit crash point while dropping indexes."
+"1. Hit crash point while writing redo log."
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
+create table t (i int) engine=innodb;
+insert into t values (1), (2), (3);
+select * from t;
+i
+1
+2
+3
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+set session debug = "+d,ib_truncate_crash_while_writing_redo_log";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+select * from t;
+i
+1
+2
+3
+drop table t;
+"2. Hit crash point on completion of redo log write."
+use test;
+set global innodb_file_per_table = 0;
+create table t (i int) engine=innodb;
+insert into t values (1), (2), (3);
+select * from t;
+i
+1
+2
+3
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+set session debug = "+d,ib_crash_after_redo_log_write_complete1";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+select * from t;
+i
+1
+2
+3
+insert into t values (1), (2), (3);
+select * from t;
+i
+1
+2
+3
+1
+2
+3
+drop table t;
+use test;
+set global innodb_file_per_table = 0;
+create table t (i int) engine=innodb;
+insert into t values (1), (2), (3);
+select * from t;
+i
+1
+2
+3
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+set session debug = "+d,ib_crash_after_redo_log_write_complete2";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+select * from t;
+i
+insert into t values (1), (2), (3);
+select * from t;
+i
+1
+2
+3
+drop table t;
+"3. Hit crash point while dropping indexes."
+use test;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
@@ -25,9 +111,15 @@ Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 select * from t;
 i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f)) engine=innodb;
@@ -48,9 +140,15 @@ Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 select * from t;
 i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), index ck(c)) engine=innodb;
@@ -71,11 +169,17 @@ Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 select * from t;
 i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
-"2. Hit crash point on completing drop of all indexes before creation"
+"4. Hit crash point on completing drop of all indexes before creation"
 "   of index is commenced."
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
@@ -101,7 +205,7 @@ i	f	c
 3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
@@ -122,10 +226,16 @@ Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 select * from t;
 i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
-"3. Hit crash point while creating indexes."
+"5. Hit crash point while creating indexes."
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
@@ -146,9 +256,15 @@ Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 select * from t;
 i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f)) engine=innodb;
@@ -169,9 +285,15 @@ Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 select * from t;
 i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), index ck(c)) engine=innodb;
@@ -192,11 +314,17 @@ Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 select * from t;
 i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
-"4. Hit crash point after data is updated to system-table and"
+"6. Hit crash point after data is updated to system-table and"
 "   in-memory dict."
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
@@ -222,7 +350,7 @@ i	f	c
 3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
@@ -250,9 +378,9 @@ i	f	c
 2	2.2	b
 3	3.3	c
 drop table t;
-"5. Hit crash point before/after log checkpoint is done."
+"7. Hit crash point before/after log checkpoint is done."
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
@@ -275,7 +403,7 @@ select * from t;
 i	f	c
 drop table t;
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
@@ -299,7 +427,7 @@ i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 drop table t;
 use test;
-set global innodb_file_per_table= 0;
+set global innodb_file_per_table = 0;
 create table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
