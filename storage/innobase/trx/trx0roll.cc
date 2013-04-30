@@ -631,7 +631,7 @@ trx_rollback_active(
 		as DISCARDED. If it still exists. */
 
 		table = dict_table_open_on_id(
-			trx->table_id, TRUE, FALSE);
+			trx->table_id, TRUE, DICT_TABLE_OP_NORMAL);
 
 		if (table && !dict_table_is_discarded(table)) {
 			ib_logf(IB_LOG_LEVEL_WARN,
@@ -854,7 +854,8 @@ trx_roll_pop_top_rec(
 	ulint	offset = undo->top_offset;
 
 	trx_undo_rec_t*	prev_rec = trx_undo_get_prev_rec(
-		undo_page + offset, undo->hdr_page_no, undo->hdr_offset, mtr);
+		undo_page + offset, undo->hdr_page_no, undo->hdr_offset,
+		true, mtr);
 
 	if (prev_rec == NULL) {
 
