@@ -550,9 +550,8 @@ exports.UserContext.prototype.find = function() {
     udebug.log('find.findOnResult');
     var result, values;
     var error = checkOperation(err, dbOperation);
-    if (error) {
-      // do not set rollback only on failure to find non-existent row
-      if (dbOperation.result.error.sqlstate !== '02000' && userContext.session.tx.isActive()) {
+    if (error && dbOperation.result.error.sqlstate !== '02000') {
+      if (userContext.session.tx.isActive()) {
         userContext.session.tx.setRollbackOnly();
       }
       userContext.applyCallback(err, null);
