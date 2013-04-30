@@ -1301,6 +1301,19 @@ recv_recover_page(
 		recv = UT_LIST_GET_NEXT(rec_list, recv);
 	}
 
+	if (!recover_backup && modification_to_page) {
+		ut_a(block);
+
+		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
+	}
+
+	/* Make sure that committing mtr does not change the modification
+	lsn values of page */
+
+	mtr.modifications = FALSE;
+
+	mtr_commit(&mtr);
+
 	mutex_enter(&(recv_sys->mutex));
 
 	if (ut_dulint_cmp(recv_max_page_lsn, page_lsn) < 0) {
@@ -1314,18 +1327,6 @@ recv_recover_page(
 
 	mutex_exit(&(recv_sys->mutex));
 
-	if (!recover_backup && modification_to_page) {
-		ut_a(block);
-
-		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
-	}
-
-	/* Make sure that committing mtr does not change the modification
-	lsn values of page */
-
-	mtr.modifications = FALSE;
-
-	mtr_commit(&mtr);
 }
 
 /***********************************************************************
