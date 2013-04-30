@@ -895,12 +895,13 @@ dict_drop_index_tree(
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
-	btr_free_but_not_root(space, zip_size, root_page_no, false);
+	btr_free_but_not_root(
+		space, zip_size, root_page_no, mtr_get_log_mode(mtr));
 
 	/* Then we free the root page in the same mini-transaction where
 	we write FIL_NULL to the appropriate field in the SYS_INDEXES
 	record: this mini-transaction marks the B-tree totally freed */
-
+	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, mtr);
 	/* printf("Dropping index tree in space %lu root page %lu\n", space,
 	root_page_no); */
 	btr_free_root(space, zip_size, root_page_no, mtr);
@@ -946,7 +947,8 @@ dict_drop_index_tree_in_mem(
 		may span several mini-transactions */
 		btr_free_but_not_root(
 			space, zip_size, root_page_no,
-			dict_table_is_temporary(index->table));
+			(dict_table_is_temporary(index->table)
+			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
 
 		/* Then we free the root page. */
 		btr_free_root(space, zip_size, root_page_no, &mtr);
@@ -1104,7 +1106,8 @@ dict_truncate_index_tree_in_mem(
 
 		btr_free_but_not_root(
 			space, zip_size, root_page_no,
-			dict_table_is_temporary(index->table));
+			(dict_table_is_temporary(index->table)
+			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
 
 		/* Then we free the root page in the same mini-transaction where
 		we create the b-tree and write its new root page number to the
