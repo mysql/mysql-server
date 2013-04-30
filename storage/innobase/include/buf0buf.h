@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -663,9 +663,12 @@ UNIV_INTERN
 ibool
 buf_page_is_corrupted(
 /*==================*/
+	ibool		check_lsn,	/*!< in: TRUE if we need to check
+					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size);	/*!< in: size of compressed page;
+	ulint		zip_size)	/*!< in: size of compressed page;
 					0 for uncompressed pages */
+	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Gets the space id, page offset, and byte offset within page of a
