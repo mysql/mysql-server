@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -52,10 +52,6 @@ Created 1/8/1996 Heikki Tuuri
 /* Key to register autoinc_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	autoinc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
-
-/** Prefix for tmp tables, adopted from sql/table.h */
-#define tmp_file_prefix		"#sql"
-#define tmp_file_prefix_length	4
 
 /**********************************************************************//**
 Creates a table memory object.
@@ -597,8 +593,14 @@ dict_mem_index_free(
 }
 
 /*******************************************************************//**
-Create a temporary tablename.
-@return temporary tablename suitable for InnoDB use */
+Create a temporary tablename like "#sql-ibnnnn-mmmm" where
+  nnnn = the table ID
+  mmmm = the current LSN
+Both of these numbers are 64 bit integers and can use up to 20 digits.
+Note that both numbers are needed to achieve a unique name since it is
+possible for two threads to call this while the LSN is the same.
+But these two threads will not be working on the same table.
+@return A unique temporary tablename suitable for InnoDB use */
 UNIV_INTERN
 char*
 dict_mem_create_temporary_tablename(
@@ -610,12 +612,17 @@ dict_mem_create_temporary_tablename(
 	const char*	dbend   = strchr(dbtab, '/');
 	ut_ad(dbend);
 	size_t		dblen   = dbend - dbtab + 1;
-	size_t		size = tmp_file_prefix_length + 4 + 9 + 9 + dblen;
+	size_t		size =
+		dblen + (sizeof(TEMP_FILE_PREFIX) + 3 + 20 + 1 + 20);
+
+	lsn_t		cur_lsn;
+	while (!log_peek_lsn(&cur_lsn)) {}
 
 	char*	name = static_cast<char*>(mem_heap_alloc(heap, size));
 	memcpy(name, dbtab, dblen);
 	ut_snprintf(name + dblen, size - dblen,
-		    tmp_file_prefix "-ib" UINT64PF, id);
+		    TEMP_FILE_PREFIX_INNODB UINT64PF "-" UINT64PF,
+		    id, cur_lsn);
+
 	return(name);
 }
-
