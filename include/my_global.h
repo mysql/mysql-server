@@ -294,10 +294,10 @@
 #include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
-#define compile_time_assert(X)                                  \
-  do                                                            \
-  {                                                             \
-    typedef char compile_time_assert[(X) ? 1 : -1];             \
+#define compile_time_assert(X)                                              \
+  do                                                                        \
+  {                                                                         \
+    typedef char compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
 
 /* Declare madvise where it is not declared for C++, like Solaris */
@@ -880,7 +880,6 @@ typedef char		my_bool; /* Small bool */
 #endif
 #endif
 
-#include <my_dbug.h>
 
 /* Some helper macros */
 #define YESNO(X) ((X) ? "yes" : "no")
@@ -1039,6 +1038,8 @@ static inline double rint(double x)
 #define MYSQL_PLUGIN_IMPORT
 #endif
 #endif
+
+#include <my_dbug.h>
 
 /* Defines that are unique to the embedded version of MySQL */
 
