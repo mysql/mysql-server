@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -108,6 +108,18 @@ dict_remove_db_name(
 	const char*	name)	/*!< in: table name in the form
 				dbname '/' tablename */
 	__attribute__((nonnull, warn_unused_result));
+
+/** Operation to perform when opening a table */
+enum dict_table_op_t {
+	/** Expect the tablespace to exist. */
+	DICT_TABLE_OP_NORMAL = 0,
+	/** Drop any orphan indexes after an aborted online index creation */
+	DICT_TABLE_OP_DROP_ORPHAN,
+	/** Silently load the tablespace if it does not exist,
+	and do not load the definitions of incomplete indexes. */
+	DICT_TABLE_OP_LOAD_TABLESPACE
+};
+
 /**********************************************************************//**
 Returns a table object based on table id.
 @return	table, NULL if does not exist */
@@ -117,9 +129,7 @@ dict_table_open_on_id(
 /*==================*/
 	table_id_t	table_id,	/*!< in: table id */
 	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
-	ibool		try_drop)	/*!< in: TRUE=try to drop any orphan
-					indexes after an aborted online
-					index creation */
+	dict_table_op_t	table_op)	/*!< in: operation to perform */
 	__attribute__((warn_unused_result));
 /********************************************************************//**
 Decrements the count of open handles to a table. */
@@ -133,6 +143,18 @@ dict_table_close(
 					indexes after an aborted online
 					index creation */
 	__attribute__((nonnull));
+/*********************************************************************//**
+Closes the only open handle to a table and drops a table while assuring
+that dict_sys->mutex is held the whole time.  This assures that the table
+is not evicted after the close when the count of open handles goes to zero.
+Because dict_sys->mutex is held, we do not need to call
+dict_table_prevent_eviction().  */
+UNIV_INTERN
+void
+dict_table_close_and_drop(
+/*======================*/
+	trx_t*		trx,		/*!< in: data dictionary transaction */
+	dict_table_t*	table);		/*!< in/out: table */
 /**********************************************************************//**
 Inits the data dictionary module. */
 UNIV_INTERN
@@ -408,11 +430,16 @@ UNIV_INTERN
 dberr_t
 dict_foreign_add_to_cache(
 /*======================*/
-	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
-	const char**	col_names,	/*!< in: column names, or NULL to use
-					foreign->foreign_table->col_names */
-	bool		check_charsets)	/*!< in: whether to check charset
-					compatibility */
+	dict_foreign_t*		foreign,
+				/*!< in, own: foreign key constraint */
+	const char**		col_names,
+				/*!< in: column names, or NULL to use
+				foreign->foreign_table->col_names */
+	bool			check_charsets,
+				/*!< in: whether to check charset
+				compatibility */
+	dict_err_ignore_t	ignore_err)
+				/*!< in: error to be ignored */
 	__attribute__((nonnull(1), warn_unused_result));
 /*********************************************************************//**
 Check if the index is referenced by a foreign key, if TRUE return the
@@ -1496,20 +1523,21 @@ dict_table_is_fts_column(
 	ulint		col_no)	/* in: col number to search for */
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
+Prevent table eviction by moving a table to the non-LRU list from the
+LRU list if it is not already there. */
+UNIV_INLINE
+void
+dict_table_prevent_eviction(
+/*========================*/
+	dict_table_t*	table)	/*!< in: table to prevent eviction */
+	__attribute__((nonnull));
+/**********************************************************************//**
 Move a table to the non LRU end of the LRU list. */
 UNIV_INTERN
 void
 dict_table_move_from_lru_to_non_lru(
 /*================================*/
 	dict_table_t*	table)	/*!< in: table to move from LRU to non-LRU */
-	__attribute__((nonnull));
-/**********************************************************************//**
-Move a table to the LRU list from the non-LRU list. */
-UNIV_INTERN
-void
-dict_table_move_from_non_lru_to_lru(
-/*================================*/
-	dict_table_t*	table)	/*!< in: table to move from non-LRU to LRU */
 	__attribute__((nonnull));
 /**********************************************************************//**
 Move to the most recently used segment of the LRU list. */

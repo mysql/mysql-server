@@ -20,7 +20,6 @@ SET DEBUG='+d,crash_commit_before';
 DELETE FROM t1;
 ERROR HY000: Lost connection to MySQL server during query
 --innodb-force-recovery-crash=1
---innodb-force-recovery-crash=2
 --innodb-force-recovery-crash=3
 --innodb-force-recovery-crash=4
 --innodb-force-recovery-crash=5

@@ -113,9 +113,9 @@ C_MODE_END
 #define MY_TIMER_ROUTINE_GETTIMEOFDAY            13
 #define MY_TIMER_ROUTINE_QUERYPERFORMANCECOUNTER 14
 #define MY_TIMER_ROUTINE_GETTICKCOUNT            15
-#define MY_TIMER_ROUTINE_TIME                    16
+/* #define MY_TIMER_ROUTINE_TIME                    16  - No longer used */
 #define MY_TIMER_ROUTINE_TIMES                   17
-#define MY_TIMER_ROUTINE_FTIME                   18
+/* #define MY_TIMER_ROUTINE_FTIME                   18  - No longer used */
 #define MY_TIMER_ROUTINE_ASM_PPC64               19
 #define MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64      20
 #define MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC32      21

@@ -3121,17 +3121,7 @@ error_handled:
 					ctx->new_table, ctx->trx);
 			}
 
-			dict_table_close(ctx->new_table, TRUE, FALSE);
-
-#if defined UNIV_DEBUG || defined UNIV_DDL_DEBUG
-			/* Nobody should have initialized the stats of the
-			newly created table yet. When this is the case, we
-			know that it has not been added for background stats
-			gathering. */
-			ut_a(!ctx->new_table->stat_initialized);
-#endif /* UNIV_DEBUG || UNIV_DDL_DEBUG */
-
-			row_merge_drop_table(ctx->trx, ctx->new_table);
+			dict_table_close_and_drop(ctx->trx, ctx->new_table);
 
 			/* Free the log for online table rebuild, if
 			one was allocated. */
@@ -4308,10 +4298,11 @@ rollback_inplace_alter_table(
 		goto func_exit;
 	}
 
+	trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 	row_mysql_lock_data_dictionary(ctx->trx);
 
 	if (ctx->need_rebuild()) {
-		dberr_t	err;
+		dberr_t	err = DB_SUCCESS;
 		ulint	flags	= ctx->new_table->flags;
 
 		/* DML threads can access ctx->new_table via the
@@ -4334,18 +4325,7 @@ rollback_inplace_alter_table(
 			}
 		}
 
-		/* Drop the table. */
-		dict_table_close(ctx->new_table, TRUE, FALSE);
-
-#if defined UNIV_DEBUG || defined UNIV_DDL_DEBUG
-		/* Nobody should have initialized the stats of the
-		newly created table yet. When this is the case, we
-		know that it has not been added for background stats
-		gathering. */
-		ut_a(!ctx->new_table->stat_initialized);
-#endif /* UNIV_DEBUG || UNIV_DDL_DEBUG */
-
-		err = row_merge_drop_table(ctx->trx, ctx->new_table);
+		dict_table_close_and_drop(ctx->trx, ctx->new_table);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -4359,8 +4339,6 @@ rollback_inplace_alter_table(
 		DBUG_ASSERT(!(ha_alter_info->handler_flags
 			      & Alter_inplace_info::ADD_PK_INDEX));
 		DBUG_ASSERT(ctx->new_table == prebuilt->table);
-
-		trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 
 		innobase_rollback_sec_index(
 			prebuilt->table, table, FALSE, ctx->trx);
@@ -5061,7 +5039,8 @@ innobase_update_foreign_cache(
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
 	DBUG_RETURN(dict_load_foreigns(user_table->name,
-				       ctx->col_names, false, true));
+				       ctx->col_names, false, true,
+				       DICT_ERR_IGNORE_NONE));
 }
 
 /** Commit the changes made during prepare_inplace_alter_table()
@@ -5949,20 +5928,10 @@ ha_innobase::commit_inplace_alter_table(
 
 		if (fail) {
 			if (new_clustered) {
-				dict_table_close(ctx->new_table,
-						 TRUE, FALSE);
-
-#if defined UNIV_DEBUG || defined UNIV_DDL_DEBUG
-				/* Nobody should have initialized the
-				stats of the newly created table
-				yet. When this is the case, we know
-				that it has not been added for
-				background stats gathering. */
-				ut_a(!ctx->new_table->stat_initialized);
-#endif /* UNIV_DEBUG || UNIV_DDL_DEBUG */
-
 				trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
-				row_merge_drop_table(trx, ctx->new_table);
+
+				dict_table_close_and_drop(trx, ctx->new_table);
+
 				trx_commit_for_mysql(trx);
 				ctx->new_table = NULL;
 			} else {

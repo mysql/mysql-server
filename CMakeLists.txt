@@ -329,8 +329,8 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 # Add bundled yassl/taocrypt or system openssl.
 MYSQL_CHECK_SSL()
-# Add readline or libedit.
-MYSQL_CHECK_READLINE()
+# Add system/bundled editline.
+MYSQL_CHECK_EDITLINE()
 # Add libevent
 MYSQL_CHECK_LIBEVENT()
 

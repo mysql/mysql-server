@@ -277,7 +277,7 @@ dict_stats_process_entry_from_recalc_pool()
 
 	mutex_enter(&dict_sys->mutex);
 
-	table = dict_table_open_on_id(table_id, TRUE, FALSE);
+	table = dict_table_open_on_id(table_id, TRUE, DICT_TABLE_OP_NORMAL);
 
 	if (table == NULL) {
 		/* table does not exist, must have been DROPped

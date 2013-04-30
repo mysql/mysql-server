@@ -467,6 +467,14 @@ lock_table(
 	enum lock_mode	mode,	/*!< in: lock mode */
 	que_thr_t*	thr)	/*!< in: query thread */
 	__attribute__((nonnull, warn_unused_result));
+/*********************************************************************//**
+Creates a table IX lock object for a resurrected transaction. */
+UNIV_INTERN
+void
+lock_table_ix_resurrect(
+/*====================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	trx_t*		trx);	/*!< in/out: transaction */
 /*************************************************************//**
 Removes a granted record lock of a transaction from the queue and grants
 locks to other transactions waiting in the queue if they now are entitled
