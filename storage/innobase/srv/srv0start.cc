@@ -866,6 +866,7 @@ open_or_create_data_files(
 		}
 
 		if (ret == FALSE) {
+			const char* check_msg;
 			/* We open the data file */
 
 			if (one_created) {
@@ -961,12 +962,19 @@ size_check:
 				return(DB_ERROR);
 			}
 skip_size_check:
-			fil_read_first_page(
+			check_msg = fil_read_first_page(
 				files[i], one_opened, &flags, &space,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
+
+			if (check_msg) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"%s in data file %s",
+					check_msg, name);
+				return(DB_ERROR);
+			}
 
 			/* The first file of the system tablespace must
 			have space ID = TRX_SYS_SPACE.  The FSP_SPACE_ID

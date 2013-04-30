@@ -800,7 +800,7 @@ dict_table_open_on_id(
 	table = dict_table_open_on_id_low(
 		table_id,
 		table_op == DICT_TABLE_OP_LOAD_TABLESPACE
-		? DICT_ERR_IGNORE_LOAD
+		? DICT_ERR_IGNORE_RECOVER_LOCK
 		: DICT_ERR_IGNORE_NONE);
 
 	if (table != NULL) {
