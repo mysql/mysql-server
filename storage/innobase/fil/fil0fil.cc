@@ -2154,7 +2154,7 @@ fil_recreate_table(
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Missing .ibd file for table '%s' with"
-			" tablespace %lu" name, space_id);
+			" tablespace %lu", name, space_id);
 		return;
 	}
 
@@ -2208,7 +2208,7 @@ fil_recreate_tablespace(
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Cannot access .ibd file for table '%s' with"
-			" tablespace %lu while truncating" name, space_id);
+			" tablespace %lu while truncating", name, space_id);
 		return;
 	}
 
@@ -2218,7 +2218,7 @@ fil_recreate_tablespace(
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Missing .ibd file for table '%s' with"
-			" tablespace %lu" name, space_id);
+			" tablespace %lu", name, space_id);
 		return;
 	}
 
@@ -2256,7 +2256,7 @@ fil_recreate_tablespace(
 		if (err != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Failed to clean header of the table '%s' with"
-				" tablespace %lu" name, space_id);
+				" tablespace %lu", name, space_id);
 		}
 
 		mem_free(buf);
