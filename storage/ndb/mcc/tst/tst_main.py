@@ -427,5 +427,7 @@ if __name__ == '__main__':
         assert(False) 
         utmod.main(argv=sys.argv)
     else:
-        #utmod.main(argv=sys.argv, testRunner=xmlrunner2.XMLTestRunner)
-        utmod.main(argv=sys.argv)
+        if os.environ.has_key('XMLRUNNER'):
+            utmod.main(argv=sys.argv, testRunner=xmlrunner2.XMLTestRunner)
+        else:
+            utmod.main(argv=sys.argv)
