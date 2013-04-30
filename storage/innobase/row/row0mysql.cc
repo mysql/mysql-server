@@ -329,7 +329,6 @@ row_mysql_store_geometry(
 		String  res;
 		Geometry_buffer buffer;
 		String  wkt;
-		const char* end;
 
 		/** Show the meaning of geometry data. */
 		Geometry* g = Geometry::construct(&buffer,
@@ -338,7 +337,7 @@ row_mysql_store_geometry(
 
 		if (g)
 		{
-			if (g->as_wkt(&wkt, &end) == 0)
+			if (g->as_wkt(&wkt) == 0)
 			{
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Write geometry data to"
@@ -372,7 +371,6 @@ row_mysql_read_geometry(
 		String  res;
 		Geometry_buffer buffer;
 		String  wkt;
-		const char* end;
 
 		/** Show the meaning of geometry data. */
 		Geometry* g = Geometry::construct(&buffer,
@@ -381,7 +379,7 @@ row_mysql_read_geometry(
 
 		if (g)
 		{
-			if (g->as_wkt(&wkt, &end) == 0)
+			if (g->as_wkt(&wkt) == 0)
 			{
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Read geometry data in"

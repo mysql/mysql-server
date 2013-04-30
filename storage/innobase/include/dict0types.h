@@ -59,6 +59,9 @@ enum dict_err_ignore_t {
 	DICT_ERR_IGNORE_CORRUPT = 2,	/*!< skip corrupted indexes */
 	DICT_ERR_IGNORE_FK_NOKEY = 4,	/*!< ignore error if any foreign
 					key is missing */
+	DICT_ERR_IGNORE_LOAD = 8,	/*!< silently load a missing
+					tablespace, and do not load
+					incomplete index definitions */
 	DICT_ERR_IGNORE_ALL = 0xFFFF	/*!< ignore all errors */
 };
 
