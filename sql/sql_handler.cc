@@ -168,7 +168,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   TABLE_LIST    *hash_tables = NULL;
   char          *db, *name, *alias;
   uint          dblen, namelen, aliaslen;
-  TABLE_LIST    *tables= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
+  TABLE_LIST    *tables= thd->lex->select_lex->get_table_list();
   DBUG_ENTER("Sql_cmd_handler_open::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
@@ -392,7 +392,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
 
 bool Sql_cmd_handler_close::execute(THD *thd)
 {
-  TABLE_LIST    *tables= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
+  TABLE_LIST    *tables= thd->lex->select_lex->get_table_list();
   TABLE_LIST    *hash_tables;
   DBUG_ENTER("Sql_cmd_handler_close::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
@@ -507,9 +507,9 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   uint		UNINIT_VAR(key_len);
   Sql_handler_lock_error_handler sql_handler_lock_error;
   LEX           *lex= thd->lex;
-  SELECT_LEX    *select_lex= &lex->select_lex;
-  SELECT_LEX_UNIT *unit= &lex->unit;
-  TABLE_LIST    *tables= select_lex->table_list.first;
+  SELECT_LEX    *select_lex= lex->select_lex;
+  SELECT_LEX_UNIT *unit= lex->unit;
+  TABLE_LIST    *tables= select_lex->get_table_list();
   enum enum_ha_read_modes mode= m_read_mode;
   Item          *cond= select_lex->where;
   ha_rows select_limit_cnt, offset_limit_cnt;

@@ -168,7 +168,7 @@ INCLUDE_DIRECTORIES(
 
   # Util library includes
   ${ZLIB_INCLUDE_DIR}
-  ${READLINE_INCLUDE_DIR})
+  ${EDITLINE_INCLUDE_DIR})
 
 # The root of storage/ndb/
 SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})

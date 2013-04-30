@@ -20,14 +20,6 @@
 
 C_MODE_START
 
-#ifdef HAVE_AIOWAIT
-#include <sys/asynch.h>			/* Used by record-cache */
-typedef struct my_aio_result {
-  aio_result_t result;
-  int	       pending;
-} my_aio_result;
-#endif
-
 #ifdef HAVE_VALGRIND
 # include <valgrind/memcheck.h>
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
@@ -303,10 +295,6 @@ typedef struct st_record_cache	/* Used when cacheing records */
   uint	rc_length,read_length,reclength;
   my_off_t rc_record_pos,end_of_file;
   uchar *rc_buff,*rc_buff2,*rc_pos,*rc_end,*rc_request_pos;
-#ifdef HAVE_AIOWAIT
-  int	use_async_io;
-  my_aio_result aio_result;
-#endif
   enum cache_type type;
 } RECORD_CACHE;
 
@@ -486,15 +474,6 @@ typedef struct st_io_cache		/* Used when cacheing files */
     somewhere else
   */
   my_bool alloced_buffer;
-#ifdef HAVE_AIOWAIT
-  /*
-    As inidicated by ifdef, this is for async I/O, which is not currently
-    used (because it's not reliable on all systems)
-  */
-  uint inited;
-  my_off_t aio_read_pos;
-  my_aio_result aio_result;
-#endif
 } IO_CACHE;
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -759,7 +738,6 @@ extern void remove_io_thread(IO_CACHE *info);
 extern int _my_b_seq_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_net_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_get(IO_CACHE *info);
-extern int _my_b_async_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_write(IO_CACHE *info,const uchar *Buffer,size_t Count);
 extern int my_b_append(IO_CACHE *info,const uchar *Buffer,size_t Count);
 extern int my_b_safe_write(IO_CACHE *info,const uchar *Buffer,size_t Count);

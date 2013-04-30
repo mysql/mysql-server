@@ -1,4 +1,7 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+#ifndef SQL_ACL_INCLUDED
+#define SQL_ACL_INCLUDED
+
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,14 +13,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef FRM_CRYPT_INCLUDED
-#define FRM_CRYPT_INCLUDED
+#include "auth_common.h"
 
-class SQL_CRYPT;
-
-SQL_CRYPT *get_crypt_for_frm(void);
-
-#endif /* FRM_CRYPT_INCLUDED */
+#endif /* SQL_ACL_INCLUDED */
