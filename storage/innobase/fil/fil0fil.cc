@@ -2173,92 +2173,6 @@ fil_recreate_table(
 	if (err != DB_SUCCESS) {
 		return;
 	}
-
-	log_buffer_flush_to_disk();
-
-#if 0
-	// TODO: KRUNAL: What are repcurssion of temporarily inserting
-	// system tablespace id in fil_space_truncated.
-
-
-	/* Flush all the pages for the given space-id.
-	Ideally we should flush only touched pages but we don't have
-	list of such pages and mtr is off so it will not take care
-	of flushing them.*/
-	mtr_t	mtr;
-	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
-
-	mutex_enter(&fil_system->mutex);
-
-	fil_space_t*	space = fil_space_get_by_id(space_id);
-
-	mutex_exit(&fil_system->mutex);
-
-	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
-
-	/* Write new created pages into ibd file handle and
-	flush it to disk for the tablespace, in case i/o-handler
-	thread deletes the bitmap page from buffer after
-	recovery. */
-
-	for (ulint page_no = 0; page_no < node->size; ++page_no) {
-
-		if (buf_dblwr_page_inside(page_no)) {
-			continue;
-		}
-
-		buf_block_t*	block = buf_page_get(
-			space_id, zip_size, page_no, RW_X_LATCH, &mtr);
-
-		byte*	page = buf_block_get_frame(block);
-
-		if (!fsp_flags_is_compressed(flags)) {
-
-			buf_flush_init_for_writing(page, NULL, recv_lsn);
-
-			err = fil_write(
-				TRUE, space_id, 0, page_no, 0,
-				UNIV_PAGE_SIZE, page, NULL);
-		} else {
-
-			/* We don't want to rewrite empty pages. */
-
-			if (fil_page_get_type(page) != 0) {
-				page_zip_des_t*  page_zip =
-					buf_block_get_page_zip(block);
-
-				buf_flush_init_for_writing(
-					page, page_zip, recv_lsn);
-
-				err = fil_write(
-					TRUE, space_id, zip_size, page_no, 0,
-					zip_size, page_zip->data, NULL);
-			} else {
-#ifdef UNIV_DEBUG
-				const byte*	data = block->page.zip.data;
-
-				/* Make sure that the page is really empty */
-				for (ulint i = 0; i < zip_size; ++i) {
-		     			ut_a(data[i] == 0);
-				}
-#endif /* UNIV_DEBUG */
-			}
-		}
-
-		if (err != DB_SUCCESS && space_id != srv_sys_space.space_id()) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"innodb_force_recovery was set to %lu. "
-				"Continuing crash recovery even though we "
-				"cannot write page %lu into the .ibd file "
-				"of table '%s' for tablespace %lu during "
-				"recovery.", srv_force_recovery, page_no,
-				name, space_id);
-		}
-	}
-
-	mtr_commit(&mtr);
-#endif
 }
 
 /********************************************************//**
@@ -2290,7 +2204,8 @@ fil_recreate_tablespace(
 	to the tablespace. */
 	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
 
-	err = truncate.truncate(space_id, name, truncate.m_dir_path, flags);
+	err = truncate.truncate(
+		space_id, name, truncate.m_dir_path, flags, true);
 
 	if (err != DB_SUCCESS) {
 
@@ -7196,6 +7111,8 @@ in the memory cache.
 				databasename/tablename format of InnoDB
 @param path			data directory path
 @param flags			tablespace flags
+@param trunc_to_default		truncate to default size if tablespace
+				is being newly re-initialized.
 @return DB_SUCCESS or error */
 dberr_t
 truncate_t::truncate(
@@ -7203,7 +7120,8 @@ truncate_t::truncate(
 	ulint		space_id,
 	const char*	tablename,
 	const char*	dir_path,
-	ulint		flags)
+	ulint		flags,
+	bool		trunc_to_default)
 {
 	char*		path;
 	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
@@ -7229,7 +7147,7 @@ truncate_t::truncate(
 
 	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
 
-	if (recv_recovery_on) {
+	if (trunc_to_default) {
 		space->size = node->size = FIL_IBD_FILE_INITIAL_SIZE;
 	}
 
@@ -7259,7 +7177,7 @@ truncate_t::truncate(
 		opened = false;
 	}
 
-	os_offset_t	trunc_size = recv_recovery_on 
+	os_offset_t	trunc_size = trunc_to_default 
 		? FIL_IBD_FILE_INITIAL_SIZE
 		: space->size;
 
