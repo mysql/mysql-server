@@ -69,6 +69,9 @@ function FilterSpec(predicate) {
    The note will be used to store all NDB-related analysis.
    Copy the nodes operator or comparator code into the ndb section.
    This should be called in the first-pass visitor.
+   TODO: Determine index bounds before scan filter
+         Add flags to node.ndb: isIndexBound, isScanFilter
+         Do not create scan filter for nodes used in index bounds
 */
 function markNode(node) {
   var opcode = null;
