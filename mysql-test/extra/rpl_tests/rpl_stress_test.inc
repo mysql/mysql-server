@@ -5,7 +5,6 @@
 # ################################################################################
 --connection master
 call mtr.add_suppression("Out of memory while attaching to session thread during the group commit phase");
-call mtr.add_suppression("Semi-sync master wait for reply fail to get wait time");
 --disable_query_log
 --disable_result_log
 --let $n= $connections
