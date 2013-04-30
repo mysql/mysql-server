@@ -1688,7 +1688,7 @@ btr_free_but_not_root(
 						in bytes or 0 for uncompressed
 						pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	bool			is_temp_table)	/*!< in: true if temp-table */
+	ulint			logging_mode)	/*!< in: mtr logging mode */ 
 {
 	ibool	finished;
 	page_t*	root;
@@ -1696,12 +1696,11 @@ btr_free_but_not_root(
 
 leaf_loop:
 	mtr_start(&mtr);
-	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	mtr_set_log_mode(&mtr, logging_mode);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
+
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
 				    + root, space));
@@ -1722,9 +1721,7 @@ leaf_loop:
 	}
 top_loop:
 	mtr_start(&mtr);
-	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	mtr_set_log_mode(&mtr, logging_mode);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);

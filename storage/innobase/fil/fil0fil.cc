@@ -2126,6 +2126,139 @@ fil_op_write_log(
 #endif
 
 /********************************************************//**
+Recreates table indexes by applying
+MLOG_FILE_TRUNCATE redo record during recovery. */
+static
+void
+fil_recreate_table(
+/*===============*/
+	ulint			space_id,	/*!< in: space id */
+	ulint			format_flags,	/*!< in: page format */
+	ulint			flags,		/*!< in: tablespace flags */
+	const char*		name,		/*!< in: table name */
+	const truncate_t&	truncate,	/*!< in: The information of
+						MLOG_FILE_TRUNCATE record */
+	lsn_t			recv_lsn,	/*!< in: the end LSN of
+						the log record */
+	truncate_redo_cache_t*	redo_cache_entry)
+						/*!< out: cache to store
+						information needed for
+						completion of truncate. */
+{
+	dberr_t		err;
+	ulint		zip_size;
+
+	zip_size = fil_space_get_zip_size(space_id);
+	if (zip_size == ULINT_UNDEFINED) {
+
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"innodb_force_recovery was set to %lu. "
+			"Continuing crash recovery even though the "
+			".ibd file of the table '%s' with tablespace "
+			"%lu is missing",
+			srv_force_recovery, name, space_id);
+		return;
+	}
+
+	/* Step-1: Scan for active indexes from REDO logs and drop
+	all the indexes using low level function that take root_page_no
+	and space-id. */
+	truncate.drop_indexes(space_id);
+
+	/* Step-2: Scan for active indexes and re-create them. */
+	fil_space_truncated.insert(space_id);
+	err = truncate.create_indexes(
+		name, space_id, zip_size, flags, format_flags,
+		redo_cache_entry);
+	if (err != DB_SUCCESS) {
+		return;
+	}
+	fil_space_truncated.erase(space_id);
+
+	// TODO: KRUNAL: What are repcurssion of temporarily inserting
+	// system tablespace id in fil_space_truncated.
+
+
+	/* Flush all the pages for the given space-id.
+	Ideally we should flush only touched pages but we don't have
+	list of such pages and mtr is off so it will not take care
+	of flushing them.*/
+	mtr_t	mtr;
+	mtr_start(&mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*	space = fil_space_get_by_id(space_id);
+
+	mutex_exit(&fil_system->mutex);
+
+	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+
+	/* Write new created pages into ibd file handle and
+	flush it to disk for the tablespace, in case i/o-handler
+	thread deletes the bitmap page from buffer after
+	recovery. */
+
+	for (ulint page_no = 0; page_no < node->size; ++page_no) {
+
+		if (buf_dblwr_page_inside(page_no)) {
+			continue;
+		}
+
+		buf_block_t*	block = buf_page_get(
+			space_id, zip_size, page_no, RW_X_LATCH, &mtr);
+
+		byte*	page = buf_block_get_frame(block);
+
+		if (!fsp_flags_is_compressed(flags)) {
+
+			buf_flush_init_for_writing(page, NULL, recv_lsn);
+
+			err = fil_write(
+				TRUE, space_id, 0, page_no, 0,
+				UNIV_PAGE_SIZE, page, NULL);
+		} else {
+
+			/* We don't want to rewrite empty pages. */
+
+			if (fil_page_get_type(page) != 0) {
+				page_zip_des_t*  page_zip =
+					buf_block_get_page_zip(block);
+
+				buf_flush_init_for_writing(
+					page, page_zip, recv_lsn);
+
+				err = fil_write(
+					TRUE, space_id, zip_size, page_no, 0,
+					zip_size, page_zip->data, NULL);
+			} else {
+#ifdef UNIV_DEBUG
+				const byte*	data = block->page.zip.data;
+
+				/* Make sure that the page is really empty */
+				for (ulint i = 0; i < zip_size; ++i) {
+		     			ut_a(data[i] == 0);
+				}
+#endif /* UNIV_DEBUG */
+			}
+		}
+
+		if (err != DB_SUCCESS && space_id != srv_sys_space.space_id()) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"innodb_force_recovery was set to %lu. "
+				"Continuing crash recovery even though we "
+				"cannot write page %lu into the .ibd file "
+				"of table '%s' for tablespace %lu during "
+				"recovery.", srv_force_recovery, page_no,
+				name, space_id);
+		}
+	}
+
+	mtr_commit(&mtr);
+}
+
+/********************************************************//**
 Recreates the tablespace and table indexes by applying
 MLOG_FILE_TRUNCATE redo record during recovery. */
 static
@@ -2427,8 +2560,10 @@ fil_op_log_parse_or_replay(
 
 	/* Step-2: Replay log records. */
 
-	/* MLOG_FILE_XXXX ops are not carried out on system tablespaces. */
-	ut_ad(!Tablespace::is_system_tablespace(space_id));
+	/* MLOG_FILE_XXXX ops are not carried out on system tablespaces
+	except for MLOG_FILE_TRUNCATE. */
+	ut_ad(!Tablespace::is_system_tablespace(space_id)
+	      || type == MLOG_FILE_TRUNCATE);
 
 	/* Let us try to perform the file operation, if sensible. Note that
 	ibbackup has at this stage already read in all space id info to the
@@ -2456,40 +2591,59 @@ fil_op_log_parse_or_replay(
 		redo_cache_entry = new truncate_redo_cache_t(
 			truncate.m_old_table_id, truncate.m_new_table_id);
 
-		if (!fil_tablespace_exists_in_mem(space_id)) {
+		if (!Tablespace::is_system_tablespace(space_id)) {
 
-			/* Create the database directory for name, if it does
-			not exist yet */
+			if (!fil_tablespace_exists_in_mem(space_id)) {
 
-			fil_create_directory_for_tablename(name);
+				/* Create the database directory for name,
+				if it does not exist yet */
 
-			mutex_exit(&log_sys->mutex);
+				fil_create_directory_for_tablename(name);
 
-			if (fil_create_new_single_table_tablespace(
-					space_id, name, truncate.m_dir_path,
-					tablespace_flags,
-					DICT_TF2_USE_TABLESPACE,
-					FIL_IBD_FILE_INITIAL_SIZE)
+				mutex_exit(&log_sys->mutex);
+
+				if (fil_create_new_single_table_tablespace(
+						space_id, name,
+						truncate.m_dir_path,
+						tablespace_flags,
+						DICT_TF2_USE_TABLESPACE,
+						FIL_IBD_FILE_INITIAL_SIZE)
 					!= DB_SUCCESS) {
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"innodb_force_recovery was set to %lu. "
-					"Continuing crash recovery even though "
-					"we cannot create a new tablespace.",
-					srv_force_recovery);
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"innodb_force_recovery was set"
+						" to %lu. Continuing crash"
+						" recovery even though we"
+						" cannot create a new"
+						" tablespace.",
+						srv_force_recovery);
+
+					mutex_enter(&log_sys->mutex);
+					break;
+				}
 
 				mutex_enter(&log_sys->mutex);
-				break;
 			}
 
-			mutex_enter(&log_sys->mutex);
+			ut_ad(fil_tablespace_exists_in_mem(space_id) == TRUE);
+
+			fil_recreate_tablespace(
+				space_id, log_flags, tablespace_flags, name,
+				truncate, recv_lsn, redo_cache_entry);
+
+		} else if (Tablespace::is_system_tablespace(space_id)) {
+
+			/* Only tables residing in ibdata1 are truncated.
+			Temp-tables in temp-tablespace are never restored.*/
+			ut_ad(space_id == srv_sys_space.space_id());
+
+			/* System table is always loaded. */
+			ut_ad(fil_tablespace_exists_in_mem(space_id) == TRUE);
+
+			fil_recreate_table(
+				space_id, log_flags, tablespace_flags, name,
+				truncate, recv_lsn, redo_cache_entry);
 		}
-
-		ut_ad(fil_tablespace_exists_in_mem(space_id) == TRUE);
-
-		fil_recreate_tablespace(
-			space_id, log_flags, tablespace_flags, name,
-			truncate, recv_lsn, redo_cache_entry);
 
 		/* Note: we are handing over ownership to vector. */
 		srv_tables_to_truncate.push_back(redo_cache_entry);
@@ -5632,7 +5786,7 @@ fil_io(
 			/* Found! */
 			break;
 		} else {
-			if (space->id != TRX_SYS_SPACE
+			if (space->id != srv_sys_space.space_id() 
 			    && UT_LIST_GET_LEN(space->chain) == 1
 			    && (fil_space_is_truncated(space->id)
 				|| space->is_being_truncated)
@@ -6640,6 +6794,53 @@ truncate_t::create_index(
 	return(root_page_no);
 }
 
+/** Drop indexes for a table.
+@param space_id		space_id where table/indexes resides. */
+void truncate_t::drop_indexes(
+/*==========================*/
+	ulint		space_id) const
+{
+	mtr_t           mtr;
+
+	ulint   root_page_no = FIL_NULL;
+
+	indexes_t::const_iterator       end = m_indexes.end();
+	for (indexes_t::const_iterator it = m_indexes.begin();
+	     it != end;
+	     ++it) {
+
+		mtr_start(&mtr);
+
+		/* Don't log changes, we are in recovery mode. */
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+
+		root_page_no = it->m_root_page_no;
+
+		ulint   zip_size = fil_space_get_zip_size(space_id);
+
+		if (fil_index_tree_is_freed(space_id, root_page_no, zip_size)) {
+			continue;
+		}
+
+		if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
+
+			/* We free all the pages but the root page first;
+			this operation may span several mini-transactions */
+			btr_free_but_not_root(
+				space_id, zip_size, root_page_no, MTR_LOG_NONE);
+
+			/* Then we free the root page. */
+			btr_free_root(space_id, zip_size, root_page_no, &mtr);
+		}
+
+		/* If tree is already freed then we might return immediately
+		in which case we need to release the lock we have acquired
+		on root_page. */
+		mtr_commit(&mtr);
+	}
+}
+
+
 /** Create the indexes for a table
 
 @param table_name	table name, for which to create the indexes
@@ -6806,15 +7007,18 @@ truncate_t::write(
 
 	/* Indexes information (id, type) */
 	{
-		/* Write index ids and types into mtr log */
+		/* Write index ids, type, root-page-no into mtr log */
 		for (ulint i = 0; i < m_indexes.size(); ++i) {
 
-			log_ptr = mlog_open(&mtr, 12);
+			log_ptr = mlog_open(&mtr, 8 + 4 + 4);
 
 			mach_write_to_8(log_ptr, m_indexes[i].m_id);
 			log_ptr += 8;
 
 			mach_write_to_4(log_ptr, m_indexes[i].m_type);
+			log_ptr += 4;
+
+			mach_write_to_4(log_ptr, m_indexes[i].m_root_page_no);
 			log_ptr += 4;
 
 			mlog_close(&mtr, log_ptr);
@@ -6917,7 +7121,7 @@ truncate_t::parse(
 		for (ulint i = 0; i < n_indexes; ++i) {
 			index_t	index;
 
-			if (*end_ptr < *ptr + 12) {
+			if (*end_ptr < *ptr + (8 + 4 + 4)) {
 				return(false);
 			}
 
@@ -6925,6 +7129,9 @@ truncate_t::parse(
 			*ptr += 8;
 
 			index.m_type = mach_read_from_4(*ptr);
+			*ptr += 4;
+
+			index.m_root_page_no = mach_read_from_4(*ptr);
 			*ptr += 4;
 
 			m_indexes.push_back(index);

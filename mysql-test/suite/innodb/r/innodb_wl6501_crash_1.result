@@ -12,9 +12,15 @@ i
 1
 2
 3
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_truncate_crash_while_writing_redo_log";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i
 1
@@ -31,9 +37,15 @@ i
 1
 2
 3
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_after_redo_log_write_complete1";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i
 1
@@ -58,9 +70,15 @@ i
 1
 2
 3
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_after_redo_log_write_complete2";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i
 insert into t values (1), (2), (3);
@@ -82,9 +100,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_on_drop_of_clust_index";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -105,9 +129,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_on_drop_of_uniq_index";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -128,9 +158,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_on_drop_of_sec_index";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -153,9 +189,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_drop_reinit_done_create_to_start1";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 1	1.1	a
@@ -173,9 +215,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_drop_reinit_done_create_to_start2";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -197,9 +245,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_on_create_of_clust_index";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -220,9 +274,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_on_create_of_uniq_index";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -243,9 +303,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_on_create_of_sec_index";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -268,9 +334,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_on_updating_dict_sys_info1";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 1	1.1	a
@@ -288,9 +360,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_on_updating_dict_sys_info2";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -312,9 +390,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_before_log_checkpoint1";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 drop table t;
@@ -329,9 +413,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_before_log_checkpoint2";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -347,9 +437,15 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 set session debug = "+d,ib_crash_after_log_checkpoint";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
