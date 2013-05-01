@@ -4,11 +4,12 @@ call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
 set global innodb_file_per_table = on;
 "1. Hit crash point while writing redo log."
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (i int)
-engine=innodb row_format=compact key_block_size=NUMBER;
+engine=innodb row_format=compact
+key_block_size=NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1), (2), (3);
@@ -34,11 +35,12 @@ i
 drop table t;
 "2. Hit crash point on completion of redo log write."
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (i int)
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1), (2), (3);
@@ -72,11 +74,12 @@ i
 3
 drop table t;
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (i int)
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1), (2), (3);
@@ -105,13 +108,14 @@ i
 drop table t;
 "3. Hit crash point while dropping indexes."
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -139,13 +143,14 @@ i	f	c
 3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -173,13 +178,14 @@ i	f	c
 3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -209,13 +215,14 @@ drop table t;
 "4. Hit crash point on completing drop of all indexes before creation"
 "   of index is commenced."
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -240,13 +247,14 @@ i	f	c
 3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -275,13 +283,14 @@ i	f	c
 drop table t;
 "5. Hit crash point while creating indexes."
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -309,13 +318,14 @@ i	f	c
 3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -343,13 +353,14 @@ i	f	c
 3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -379,13 +390,14 @@ drop table t;
 "6. Hit crash point after data is updated to system-table and"
 "   in-memory dict."
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -410,13 +422,14 @@ i	f	c
 3	3.3	c
 drop table t;
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -445,13 +458,14 @@ i	f	c
 drop table t;
 "7. Hit crash point before/after log checkpoint is done."
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -473,13 +487,14 @@ select * from t;
 i	f	c
 drop table t;
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -502,13 +517,14 @@ i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 drop table t;
 use test;
-set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact key_block_size = NUMBER;
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');

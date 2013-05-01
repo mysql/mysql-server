@@ -3,7 +3,7 @@
 #
 
 # TC tries to hit crash point during truncate of
-# non-compressed non-temp tabl residing in single tablespace.
+# compressed non-temp table residing in single tablespace.
 
 --source include/have_innodb.inc
 --source include/have_debug.inc
@@ -17,8 +17,8 @@
 --source include/not_crashrep.inc
 
 let $wl6501_file_per_table = 1;
-let $wl6501_row_fmt = compact;
-let $wl6501_kbs = 16;
-let $wl6501_file_format = 'Antelope';
+let $wl6501_row_fmt = compressed;
+let $wl6501_kbs = 8;
+let wl6501_file_format = 'Barracuda';
 --source suite/innodb/include/innodb_wl6501_crash.inc
 
