@@ -92,14 +92,15 @@ set_cflags_if_supported(
   )
 ## set_cflags_if_supported_named("-Weffc++" -Weffcpp)
 
-# must append this because mysql sets -fno-implicit-templates and we need to override it
-check_cxx_compiler_flag(-fimplicit-templates HAVE_CXX_-fimplicit-templates)
-if (HAVE_CXX_-fimplicit-templates)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fimplicit-templates")
-endif ()
-
 ## Clang has stricter POD checks.  So, only enable this warning on our other builds (Linux + GCC)
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES Clang)
+  # must append this because mysql sets -fno-implicit-templates and we need to override it
+  # also clang doesn't support it on osx but also doesn't seem to know that
+  check_cxx_compiler_flag(-fimplicit-templates HAVE_CXX_-fimplicit-templates)
+  if (HAVE_CXX_-fimplicit-templates)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fimplicit-templates")
+  endif ()
+
   set_cflags_if_supported(
     -Wpacked
     )
