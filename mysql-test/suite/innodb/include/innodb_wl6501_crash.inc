@@ -51,7 +51,9 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 --echo "1. Hit crash point while writing redo log."
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (i int) engine=innodb;
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (i int)
+	 engine=innodb row_format=$table_row_format key_block_size=$kbs;
 insert into t values (1), (2), (3);
 select * from t;
 check table t;
@@ -76,7 +78,9 @@ drop table t;
 --echo "2. Hit crash point on completion of redo log write."
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (i int) engine=innodb;
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (i int)
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1), (2), (3);
 select * from t;
 check table t;
@@ -99,7 +103,9 @@ drop table t;
 #
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (i int) engine=innodb;
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (i int)
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1), (2), (3);
 select * from t;
 check table t;
@@ -126,9 +132,11 @@ drop table t;
 --echo "3. Hit crash point while dropping indexes."
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -151,9 +159,11 @@ drop table t;
 #
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f)) engine=innodb;
+	primary key pk(i), unique findex(f))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -176,9 +186,11 @@ drop table t;
 #
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), index ck(c)) engine=innodb;
+	primary key pk(i), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -207,9 +219,11 @@ drop table t;
 --echo "   of index is commenced."
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -230,9 +244,11 @@ drop table t;
 #
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -259,9 +275,11 @@ drop table t;
 --echo "5. Hit crash point while creating indexes."
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -284,9 +302,11 @@ drop table t;
 #
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f)) engine=innodb;
+	primary key pk(i), unique findex(f))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -309,9 +329,11 @@ drop table t;
 #
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), index ck(c)) engine=innodb;
+	primary key pk(i), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -339,9 +361,11 @@ drop table t;
 --echo "   in-memory dict."
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -362,9 +386,11 @@ drop table t;
 #
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -391,9 +417,11 @@ drop table t;
 --echo "7. Hit crash point before/after log checkpoint is done."
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -414,9 +442,11 @@ drop table t;
 #
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -438,9 +468,11 @@ drop table t;
 #
 use test;
 eval set global innodb_file_per_table = $file_per_table;
-create table t (
+--replace_regex /[0-9]+/NUMBER/
+eval create $temp table t (
 	i int, f float, c char,
-	primary key pk(i), unique findex(f), index ck(c)) engine=innodb;
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $table_row_format key_block_size = $kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
