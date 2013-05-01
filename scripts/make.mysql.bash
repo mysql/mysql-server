@@ -176,8 +176,10 @@ function generate_cmake_cmd () {
         echo -n " " \
             -D COMPILATION_COMMENT=\"TokuDB Enterprise Server \(GPL\)\"
     fi
+}
 
-    if [ $system = linux -a $build_rpm != 0 -a $mysql_distro = mariadb ] ; then
+function generate_cmake_cmd_rpm() {
+    if [ $system = linux -a $mysql_distro = mariadb ] ; then
         linux_distro=linux
         if [ -f /etc/issue ] ; then
             if [[ "$(head -1 /etc/issue)" =~ "Red Hat Enterprise Linux Server release ([56])" ]] ; then
@@ -188,17 +190,30 @@ function generate_cmake_cmd () {
             fi
         fi
         echo -n " " -D RPM=$linux_distro
+    elif [ $system = linux -a $mysql_distro != mariadb ] ; then
+        echo 1>&2 "I don't know how to build rpms for mysql yet."
+        exit 1
     fi
 }
 
-mkdir -p build.$cmake_build_type
-cd build.$cmake_build_type
+if [ $build_tgz != 0 ] ; then
 
-# actually build
-eval $(generate_cmake_cmd) ..
-make package -j$makejobs
+    mkdir -p build.$cmake_build_type
+    pushd build.$cmake_build_type
 
-if [ $system = linux -a $build_rpm != 0 -a $mysql_distro != mariadb ] ; then
-    echo 1>&2 "I don't know how to build rpms for mysql yet."
-    exit 1
+    # actually build
+    eval $(generate_cmake_cmd) ..
+    make package -j$makejobs
+    popd
+fi
+
+if [ $build_tgz != 0 ] ; then
+
+    mkdir -p build.rpm.$cmake_build_type
+    pushd build.rpm.$cmake_build_type
+
+    # actually build
+    eval $(generate_cmake_cmd; generate_cmake_cmd_rpm) ..
+    make package -j$makejobs
+    popd
 fi
