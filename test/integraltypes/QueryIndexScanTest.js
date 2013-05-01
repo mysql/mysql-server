@@ -89,27 +89,29 @@ testQueries.run = function() {
           testCase.errorIfNotEqual('Wrong query type for ' + queryTest.testName,
               queryTest.queryType, q.mynode_query_domain_type.queryType);
           q.execute(queryTest, function(err, results, queryTest) {
-            udebug.log_detail('QueryTableScanTest.testQueries ' + queryTest.testName + ' results.length: ' + results.length);
-            // check results
-            // get the result ids in an array
-            for (j = 0; j < results.length; ++j) {
-              queryTest.resultIds[j] = results[j].id;
-            }
-            if (queryTest.expected.length !== results.length) {
-              testCase.errorIfNotEqual('q' + i + ' wrong results: expected ' + 
-                  queryTest.expected + '; actual: ' + queryTest.resultIds,
-                  queryTest.expected.length, results.length);
-            } else {
-              if (!queryTest.ordered) {
-                // compare results without considering order
-                queryTest.resultIds.sort(function(a,b){return a-b;});
+            testCase.errorIfNull("NoResults:q"+i+" ", results);
+            if(results) {
+              // check results
+              // get the result ids in an array
+              for (j = 0; j < results.length; ++j) {
+                queryTest.resultIds[j] = results[j].id;
               }
-              // compare the results one by one, in order
-              for (j = 0; j < queryTest.expected.length; ++j) {
-                udebug.log_detail('QueryTableScanTest.testQueries ' + queryTest.testName + ' expected: '
-                    + queryTest.expected[j] + ' actual: ' + queryTest.resultIds[j]);
-                testCase.errorIfNotEqual(queryTest.testName + ' wrong result at position ' + j,
-                    queryTest.expected[j], queryTest.resultIds[j]);
+              if (queryTest.expected.length !== results.length) {
+                testCase.errorIfNotEqual('q' + i + ' wrong results: expected ' + 
+                    queryTest.expected + '; actual: ' + queryTest.resultIds,
+                    queryTest.expected.length, results.length);
+              } else {
+                if (!queryTest.ordered) {
+                  // compare results without considering order
+                  queryTest.resultIds.sort(function(a,b){return a-b;});
+                }
+                // compare the results one by one, in order
+                for (j = 0; j < queryTest.expected.length; ++j) {
+                  udebug.log_detail('QueryTableScanTest.testQueries ' + queryTest.testName + ' expected: '
+                      + queryTest.expected[j] + ' actual: ' + queryTest.resultIds[j]);
+                  testCase.errorIfNotEqual(queryTest.testName + ' wrong result at position ' + j,
+                      queryTest.expected[j], queryTest.resultIds[j]);
+                }
               }
             }
             if (++completedTestCount === testCount) {
