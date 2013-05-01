@@ -1108,20 +1108,6 @@ Multiple flags can be combined with bitwise OR. */
 #define TRX_DUP_REPLACE	2	/* duplicate rows are to be replaced */
 
 
-/* Types of a trx signal */
-#define TRX_SIG_NO_SIGNAL		0
-#define TRX_SIG_TOTAL_ROLLBACK		1
-#define TRX_SIG_ROLLBACK_TO_SAVEPT	2
-#define TRX_SIG_COMMIT			3
-#define TRX_SIG_BREAK_EXECUTION		5
-
-/* Sender types of a signal */
-#define TRX_SIG_SELF		0	/* sent by the session itself, or
-					by an error occurring within this
-					session */
-#define TRX_SIG_OTHER_SESS	1	/* sent by another session (which
-					must hold rights to this) */
-
 /** Commit node states */
 enum commit_node_state {
 	COMMIT_NODE_SEND = 1,	/*!< about to send a commit signal to
