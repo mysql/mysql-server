@@ -48,36 +48,73 @@ struct Pool {
 	@param size	size of the memory block */
 	Pool(size_t size)
 		:
-		m_ptr(),
-		m_size(size)
+		m_end(),
+		m_start(),
+		m_size(size),
+		m_last()
 	{
 		ut_a(size >= sizeof(Element));
 
-		create();
+		m_lock_strategy.create();
 
-		ut_ad(m_pqueue.size()
-		      == (reinterpret_cast<byte*>(m_end)
-			  - reinterpret_cast<byte*>(m_ptr))
-		         / sizeof(Element));
+		ut_a(m_start == 0);
+
+		m_start = reinterpret_cast<Element*>(mem_zalloc(m_size));
+
+		m_last = m_start;
+
+		m_end = &m_start[m_size / sizeof(*m_start)];
+
+		/* Note: Initialise only a small subset, even though we have
+		allocated all the memory. This is required only because PFS
+		(MTR) results change if we instantiate too many mutexes up
+		front. */
+
+		init(std::min(size_t(16), size_t(m_end - m_start)));
+
+		ut_ad(m_pqueue.size() <= size_t(m_last - m_start));
 	}
 
 	/** Destructor */
 	~Pool()
 	{
-		destroy();
+		m_lock_strategy.destroy();
+
+		for (Element* elem = m_start; elem != m_last; ++elem) {
+
+			ut_ad(elem->m_pool == this);
+			Factory::destroy(&elem->m_type);
+		}
+
+		mem_free(m_start);
+		m_end = m_last = m_start = 0;
+		m_size = 0;
 	}
 
 	/** Get an object from the pool.
 	@retrun a free instance or NULL if exhausted. */
 	Type*	get()
 	{
-		Element*	elem = NULL;
+		Element*	elem;
 
 		m_lock_strategy.enter();
 
 		if (!m_pqueue.empty()) {
+
 			elem = m_pqueue.top();
 			m_pqueue.pop();
+
+		} else if (m_last < m_end) {
+
+			/* Initialise the remaining elements. */
+			init(m_end - m_last);
+
+			ut_ad(!m_pqueue.empty());
+
+			elem = m_pqueue.top();
+			m_pqueue.pop();
+		} else {
+			elem = NULL;
 		}
 
 		m_lock_strategy.exit();
@@ -115,7 +152,7 @@ private:
 	{
 		m_lock_strategy.enter();
 
-		ut_ad((void*) elem >= m_ptr && elem < m_end);
+		ut_ad(elem >= m_start && elem < m_last);
 
 		ut_ad(Factory::debug(&elem->m_type));
 
@@ -125,80 +162,34 @@ private:
 	}
 
 	/**
-	Create the pool.
-	@param size	Size of the the memory block */
-	void create()
+	Initialise the elements.
+	@param n_elems	Number of elements to initialise */
+	void init(size_t n_elems)
 	{
-		m_lock_strategy.create();
+		ut_ad(size_t(m_end - m_last) >= n_elems);
 
-		ut_a(m_ptr == 0);
-		m_ptr = mem_zalloc(m_size);
+		for (size_t i = 0; i < n_elems; ++i, ++m_last) {
 
-		ut_d(m_end = reinterpret_cast<byte*>(m_ptr) + m_size);
-
-		Element*	elem = reinterpret_cast<Element*>(m_ptr);
-
-		for (size_t i = 0; i < m_size / sizeof(*elem); ++i, ++elem) {
-
-			elem->m_pool = this;
-			Factory::init(&elem->m_type);
-			m_pqueue.push(elem);
+			m_last->m_pool = this;
+			Factory::init(&m_last->m_type);
+			m_pqueue.push(m_last);
 		}
 
-		ut_ad(elem < m_end);
-	}
-
-	/** Destroy the queue */
-	void destroy()
-	{
-		m_lock_strategy.destroy();
-#if 0
-		Element*	prev = 0;
-
-		/** FIXME: This should be the correct version, but there is a
-		dangling transaction somewhere that we need to find out. Only
-		in the following tests: innodb.innodb-multiple-tablespaces and
-		i_innodb.innodb_bug14669848 */
-		ut_ad(m_pqueue.size()
-		      == (reinterpret_cast<byte*>(m_end)
-			  - reinterpret_cast<byte*>(m_ptr)) / sizeof(*prev));
-
-		while (!m_pqueue.empty()) {
-
-			Element*	elem = m_pqueue.top();
-
-			Factory::destroy(&elem->m_type);
-			m_pqueue.pop();
-
-			ut_a(prev != elem);
-			prev = elem;
-		}
-#else
-		Element*	elem = reinterpret_cast<Element*>(m_ptr);
-
-		for (size_t i = 0; i < m_size / sizeof(*elem); ++i, ++elem) {
-
-			ut_ad(elem->m_pool == this);
-			Factory::destroy(&elem->m_type);
-		}
-#endif
-
-		mem_free(m_ptr);
-		m_ptr = 0;
-		m_size = 0;
+		ut_ad(m_last <= m_end);
 	}
 
 private:
-#ifdef UNIV_DEBUG
-	/** Pointer to the end of the block */
-	void*			m_end;
-#endif /* UNIV_DEBUG */
+	/** Pointer to the last element */
+	Element*		m_end;
 
-	/** Pointer to the base of the block */
-	void*			m_ptr;
+	/** Pointer to the first element */
+	Element*		m_start;
 
 	/** Size of the block in bytes */
 	size_t			m_size;
+
+	/** Upper limit of used space */
+	Element*		m_last;
 
 	/** Priority queue ordered on the pointer addresse. */
 	pqueue_t		m_pqueue;
