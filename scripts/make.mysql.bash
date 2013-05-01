@@ -207,7 +207,7 @@ if [ $build_tgz != 0 ] ; then
     popd
 fi
 
-if [ $build_tgz != 0 ] ; then
+if [ $build_rpm != 0 ] ; then
 
     mkdir -p build.rpm.$cmake_build_type
     pushd build.rpm.$cmake_build_type
