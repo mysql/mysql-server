@@ -723,25 +723,47 @@ get_next_redo_rseg(
 {
 	trx_rseg_t*	rseg;
 	static ulint	redo_rseg_slot = 0;
+	ulint		curr_redo_rseg_slot = 0;
+
+	curr_redo_rseg_slot = redo_rseg_slot++;
+	curr_redo_rseg_slot = curr_redo_rseg_slot % max_undo_logs;
+
+	/* Skip slots alloted to non-redo also ensure even distribution
+	in selecting next redo slots.
+	For example: If we don't do even distribution then for
+	any value of curr_redo_rseg_slot between 1 - 32 ... 33rd slots
+	will be alloted creating skewed distribution. */
+	if (trx_sys_is_noredo_rseg_slot(curr_redo_rseg_slot)) {
+		if (max_undo_logs > srv_tmp_undo_logs) {
+			curr_redo_rseg_slot %=
+					(max_undo_logs - srv_tmp_undo_logs);
+
+			if (trx_sys_is_noredo_rseg_slot(curr_redo_rseg_slot)) {
+				curr_redo_rseg_slot += srv_tmp_undo_logs;
+			}
+		} else {
+			curr_redo_rseg_slot = 0;
+		}
+	}
 
 	for(;;) {
-		rseg = trx_sys->rseg_array[redo_rseg_slot];
+		rseg = trx_sys->rseg_array[curr_redo_rseg_slot];
 
-		redo_rseg_slot = (redo_rseg_slot + 1) % max_undo_logs;
+		curr_redo_rseg_slot = (curr_redo_rseg_slot + 1) % max_undo_logs;
 
 		/* Skip slots allocated for noredo rsegs */
-		while (trx_sys_is_noredo_rseg_slot(redo_rseg_slot)) {
-			redo_rseg_slot =
-				(redo_rseg_slot + 1) % max_undo_logs;
+		while (trx_sys_is_noredo_rseg_slot(curr_redo_rseg_slot)) {
+			curr_redo_rseg_slot =
+				(curr_redo_rseg_slot + 1) % max_undo_logs;
 		}
 
 		if (rseg == NULL) {
 			continue;
 		} else if (rseg->space == srv_sys_space.space_id()
 			   && n_tablespaces > 0
-			   && trx_sys->rseg_array[redo_rseg_slot]
+			   && trx_sys->rseg_array[curr_redo_rseg_slot]
 			   != NULL
-			   && trx_sys->rseg_array[redo_rseg_slot]->space
+			   && trx_sys->rseg_array[curr_redo_rseg_slot]->space
 			   != srv_sys_space.space_id()) {
 			/* If undo-tablespace is configured, skip
 			rseg from system-tablespace and try to use
@@ -752,6 +774,7 @@ get_next_redo_rseg(
 		break;
 	}
 
+	ut_ad(!trx_sys_is_noredo_rseg_slot(rseg->id));
 	return(rseg);
 }
 
@@ -766,15 +789,24 @@ get_next_noredo_rseg(
 {
 	trx_rseg_t*	rseg;
 	static ulint	noredo_rseg_slot = 1;
+	ulint		curr_noredo_rseg_slot = 0;
+
+	curr_noredo_rseg_slot = noredo_rseg_slot++;
+	curr_noredo_rseg_slot = curr_noredo_rseg_slot % max_undo_logs;
+	while (!trx_sys_is_noredo_rseg_slot(curr_noredo_rseg_slot)) {
+		curr_noredo_rseg_slot =
+			(curr_noredo_rseg_slot + 1) % max_undo_logs;
+	}
 
 	for(;;) {
-		rseg = trx_sys->rseg_array[noredo_rseg_slot];
+		rseg = trx_sys->rseg_array[curr_noredo_rseg_slot];
 
-		noredo_rseg_slot = (noredo_rseg_slot + 1) % max_undo_logs;
+		curr_noredo_rseg_slot =
+			(curr_noredo_rseg_slot + 1) % max_undo_logs;
 
-		while (!trx_sys_is_noredo_rseg_slot(noredo_rseg_slot)) {
-			noredo_rseg_slot =
-				(noredo_rseg_slot + 1) % max_undo_logs;
+		while (!trx_sys_is_noredo_rseg_slot(curr_noredo_rseg_slot)) {
+			curr_noredo_rseg_slot =
+				(curr_noredo_rseg_slot + 1) % max_undo_logs;
 		}
 
 		if (rseg != NULL) {
@@ -783,7 +815,7 @@ get_next_noredo_rseg(
 	}
 
 	ut_ad(rseg->space == srv_tmp_space.space_id());
-
+	ut_ad(trx_sys_is_noredo_rseg_slot(rseg->id));
 	return(rseg);
 }
 
@@ -800,8 +832,6 @@ trx_assign_rseg_low(
 					tablespaces */
 	trx_rseg_type_t	rseg_type)	/*!< in: type of rseg to assign. */
 {
-	ut_ad(mutex_own(&trx_sys->mutex));
-
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
@@ -835,7 +865,7 @@ trx_assign_rseg_low(
 		break;
 
 	case TRX_RSEG_TYPE_NOREDO:
-		rseg = get_next_noredo_rseg(max_undo_logs + srv_tmp_undo_logs);
+		rseg = get_next_noredo_rseg(srv_tmp_undo_logs + 1);
 		break;
 	}
 
@@ -854,16 +884,18 @@ trx_assign_rseg(
 	ut_a(trx->rsegs.m_noredo.rseg == 0);
 	ut_a(!trx_is_autocommit_non_locking(trx));
 
-	mutex_enter(&trx_sys->mutex);
 
 	trx->rsegs.m_noredo.rseg = trx_assign_rseg_low(
 		srv_undo_logs, srv_undo_tablespaces, TRX_RSEG_TYPE_NOREDO);
 
 	if (trx->id == 0) {
+		mutex_enter(&trx_sys->mutex);
+
 		trx->id = trx_sys_get_new_trx_id();
+
+		mutex_exit(&trx_sys->mutex);
 	}
 
-	mutex_exit(&trx_sys->mutex);
 }
 
 /****************************************************************//**
@@ -931,14 +963,14 @@ trx_start_low(
 	if (!trx->read_only
 	    && (trx->mysql_thd == 0 || read_write || trx->ddl)) {
 
-		mutex_enter(&trx_sys->mutex);
-
 		trx->rsegs.m_redo.rseg = trx_assign_rseg_low(
 			srv_undo_logs, srv_undo_tablespaces,
 			TRX_RSEG_TYPE_REDO);
 
 		/* Temporary rseg is assigned only if the transaction
 		updates a temporary table */
+
+		mutex_enter(&trx_sys->mutex);
 
 		trx->id = trx_sys_get_new_trx_id();
 
