@@ -100,7 +100,7 @@ struct TrxFactory {
 	Initializes a transaction object. It must be explicitly started with
 	trx_start_if_not_started() before using it. The default isolation level
 	is TRX_ISO_REPEATABLE_READ.
-	@param trx_t	Transaction instance to initialise */
+	@param trx	Transaction instance to initialise */
 	static void init(trx_t* trx)
 	{
 		trx->magic_n = TRX_MAGIC_N;
@@ -169,6 +169,10 @@ struct TrxFactory {
 		mutex_free(&trx->undo_mutex);
 	}
 
+	/**
+	Enforce any invariants here, this is called before the transaction
+	is added to the pool.
+	@return true if all OK */
 	static bool debug(const trx_t* trx)
 	{
 		ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -255,13 +259,8 @@ typedef PoolManager<trx_pool_t, TrxPoolManagerLock > trx_pools_t;
 /** The trx_t pool manager */
 static trx_pools_t* trx_pools;
 
-#ifdef UNIV_DEBUG
-/** Size of on trx_t pool in bytes. */
-static const ulint MAX_TRX_BLOCK_SIZE = 64 * 1024;
-#else
 /** Size of on trx_t pool in bytes. */
 static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
-#endif /* UNIV_DEBUG */
 
 /** Create the trx_t pool */
 UNIV_INTERN
