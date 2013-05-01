@@ -3012,6 +3012,11 @@ void JOIN_TAB::cleanup()
       (Tested in part_of_refkey)
     */
     table->reginfo.join_tab= NULL;
+    if (table->pos_in_table_list)
+    {
+      table->pos_in_table_list->derived_keys_ready= false;
+      table->pos_in_table_list->derived_key_list.empty();
+    }
   }
   end_read_record(&read_record);
 }
