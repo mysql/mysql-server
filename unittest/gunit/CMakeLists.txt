@@ -204,7 +204,7 @@ ENDIF()
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
-  gunit_test_main.cc tap_event_listener.cc thread_utils.cc)
+  gunit_test_main.cc skip_trailing.cc tap_event_listener.cc thread_utils.cc)
 ADD_LIBRARY(gunit_large STATIC
   gunit_test_main_server.cc test_utils.cc tap_event_listener.cc thread_utils.cc)
 ADD_DEPENDENCIES(gunit_small GenError)
@@ -250,6 +250,7 @@ SET(TESTS
   sql_plist
   sql_string
   stdcxx
+  strings_skip_trailing
   thread_utils
   )
   

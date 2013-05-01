@@ -444,6 +444,14 @@ trx_resurrect_table_locks(
 	     i != tables.end(); i++) {
 		if (dict_table_t* table = dict_table_open_on_id(
 			    *i, FALSE, DICT_TABLE_OP_LOAD_TABLESPACE)) {
+			if (table->ibd_file_missing) {
+				mutex_enter(&dict_sys->mutex);
+				dict_table_close(table, TRUE, FALSE);
+				dict_table_remove_from_cache(table);
+				mutex_exit(&dict_sys->mutex);
+				continue;
+			}
+
 			lock_table_ix_resurrect(table, trx);
 
 			DBUG_PRINT("ib_trx",

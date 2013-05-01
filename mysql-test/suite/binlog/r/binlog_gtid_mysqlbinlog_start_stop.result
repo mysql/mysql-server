@@ -21,7 +21,7 @@ FLUSH LOGS;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -38,7 +38,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -46,7 +46,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -54,6 +54,7 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -65,7 +66,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -82,7 +83,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -90,7 +91,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -98,6 +99,7 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -109,7 +111,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -126,7 +128,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -134,6 +136,7 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -146,7 +149,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -163,7 +166,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -182,7 +185,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -210,7 +213,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -227,7 +230,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -235,7 +238,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -243,6 +246,7 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -255,7 +259,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -283,7 +287,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -314,7 +318,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -331,7 +335,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -339,7 +343,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -347,10 +351,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -367,7 +372,7 @@ SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2051254800/*!*/;
 BEGIN
 /*!*/;
@@ -375,6 +380,7 @@ SET TIMESTAMP=2051254800/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -386,7 +392,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -403,7 +409,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -411,7 +417,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -419,10 +425,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -439,7 +446,7 @@ SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2051254800/*!*/;
 BEGIN
 /*!*/;
@@ -447,6 +454,7 @@ SET TIMESTAMP=2051254800/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -458,7 +466,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -475,7 +483,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -483,10 +491,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -503,7 +512,7 @@ SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2051254800/*!*/;
 BEGIN
 /*!*/;
@@ -511,6 +520,7 @@ SET TIMESTAMP=2051254800/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -523,7 +533,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -540,7 +550,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -548,7 +558,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -556,10 +566,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -587,7 +598,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -604,7 +615,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -612,10 +623,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -643,7 +655,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -660,7 +672,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -668,7 +680,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -676,10 +688,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -696,7 +709,7 @@ SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2051254800/*!*/;
 BEGIN
 /*!*/;
@@ -704,6 +717,7 @@ SET TIMESTAMP=2051254800/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -716,7 +730,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -733,7 +747,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -741,7 +755,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -749,10 +763,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -780,7 +795,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -797,7 +812,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -805,7 +820,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -813,10 +828,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -847,7 +863,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -864,7 +880,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -872,7 +888,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -880,6 +896,7 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -891,7 +908,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -908,7 +925,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -916,7 +933,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -924,6 +941,7 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -934,7 +952,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -951,7 +969,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -959,6 +977,7 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -971,7 +990,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -988,7 +1007,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -1006,7 +1025,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1034,7 +1053,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1051,7 +1070,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -1059,7 +1078,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1067,6 +1086,7 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1079,7 +1099,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1107,7 +1127,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1138,7 +1158,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1155,7 +1175,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -1163,7 +1183,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1171,10 +1191,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1191,7 +1212,7 @@ SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2051254800/*!*/;
 BEGIN
 /*!*/;
@@ -1199,6 +1220,7 @@ SET TIMESTAMP=2051254800/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1210,7 +1232,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1227,7 +1249,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -1235,7 +1257,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1243,10 +1265,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1263,7 +1286,7 @@ SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2051254800/*!*/;
 BEGIN
 /*!*/;
@@ -1271,6 +1294,7 @@ SET TIMESTAMP=2051254800/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1281,7 +1305,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1298,7 +1322,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1306,10 +1330,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1326,7 +1351,7 @@ SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2051254800/*!*/;
 BEGIN
 /*!*/;
@@ -1334,6 +1359,7 @@ SET TIMESTAMP=2051254800/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1346,7 +1372,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1363,7 +1389,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -1371,7 +1397,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1379,10 +1405,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1409,7 +1436,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1426,7 +1453,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1434,10 +1461,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1465,7 +1493,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1482,7 +1510,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -1490,7 +1518,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1498,10 +1526,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1518,7 +1547,7 @@ SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2051254800/*!*/;
 BEGIN
 /*!*/;
@@ -1526,6 +1555,7 @@ SET TIMESTAMP=2051254800/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1538,7 +1568,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1555,7 +1585,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -1563,7 +1593,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1571,10 +1601,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1602,7 +1633,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1619,7 +1650,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -1627,7 +1658,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1635,10 +1666,11 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1667,7 +1699,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1684,7 +1716,7 @@ SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 BEGIN
 /*!*/;
@@ -1692,7 +1724,7 @@ SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=1988182800/*!*/;
 BEGIN
 /*!*/;
@@ -1700,8 +1732,9 @@ SET TIMESTAMP=1988182800/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 # UUID:#-#
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 BEGIN
 /*!*/;
@@ -1709,7 +1742,7 @@ SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2051254800/*!*/;
 BEGIN
 /*!*/;
@@ -1717,6 +1750,7 @@ SET TIMESTAMP=2051254800/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 # UUID:#-#
 DELIMITER ;
 # End of log file
