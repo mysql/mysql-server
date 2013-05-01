@@ -61,9 +61,12 @@ enum dict_err_ignore_t {
 	DICT_ERR_IGNORE_CORRUPT = 2,	/*!< skip corrupted indexes */
 	DICT_ERR_IGNORE_FK_NOKEY = 4,	/*!< ignore error if any foreign
 					key is missing */
-	DICT_ERR_IGNORE_LOAD = 8,	/*!< silently load a missing
+	DICT_ERR_IGNORE_RECOVER_LOCK = 8,
+					/*!< Used when recovering table locks
+					for resurrected transactions.
+					Silently load a missing
 					tablespace, and do not load
-					incomplete index definitions */
+					incomplete index definitions. */
 	DICT_ERR_IGNORE_ALL = 0xFFFF	/*!< ignore all errors */
 };
 
@@ -78,6 +81,7 @@ typedef ib_mutex_t DictSysMutex;
 
 /** Prefix for tmp tables, adopted from sql/table.h */
 #define TEMP_FILE_PREFIX		"#sql"
+#define TEMP_FILE_PREFIX_LENGTH		4
 #define TEMP_FILE_PREFIX_INNODB		"#sql-ib"
 
 #endif
