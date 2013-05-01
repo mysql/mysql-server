@@ -2691,7 +2691,7 @@ row_drop_table_for_mysql_in_background(
 	foreign keys, we must set the following to be able to drop the
 	table: */
 
-	trx->check_foreigns = FALSE;
+	trx->check_foreigns = false;
 
 	/*	fputs("InnoDB: Error: Dropping table ", stderr);
 	ut_print_name(stderr, trx, TRUE, name);
