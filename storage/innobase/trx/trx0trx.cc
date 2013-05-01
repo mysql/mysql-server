@@ -473,7 +473,6 @@ trx_free_prepared(
 
 	ut_a(!trx->read_only);
 
-	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
 
 	trx->state = TRX_STATE_NOT_STARTED;
