@@ -41,9 +41,14 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
   and persists until the user calls commit or rollback (or the transaction
   auto-commits), at which point NdbSession.tx is reset to null.
 
-  It is possible for the user, in one session, to effectively open transactions
-  in a loop.  We serialize calls to start a transaction in txQueue, and don't
-  allow the next one to open until the current one is closed.
+  THREE QUEUES
+  ------------
+  1. All calls on a single Ndb object are serialized on NdbSession.execQueue
+  2. All execute calls on an NdbTransaction must wait for startTransaction() 
+     to return.  This is NdbTransactionHadnler.execAfterOpenQueue
+  3. All ndb.startTransaction() calls must wait on NdbSession.startTxQueue
+     for some ndbTransaction to close, if more than N ndbTransactions are open,
+     where N is an argument to the Ndb() constructor and defaults to 4.
 */
 
 
@@ -59,71 +64,51 @@ exports.newDBSession = function(pool, impl) {
   dbSess.parentPool = pool;
   dbSess.impl = impl;
   dbSess.execQueue = [];
-  dbSess.maxNdbTransactions = 1;  
-  dbSess.txQueue = [];
+  dbSess.startTxQueue = [];
+  dbSess.maxNdbTransactions = 3;    // related to Ndb() constructor arguments
   return dbSess;
 };
 
 
-/* txIsOpen(NdbTransactionHandler) 
-   txisClosed(NdbTransactionHandler) 
+/* Close the current transaction.
+   NdbTransactionHandler calls this immediately at 
+   execute(COMMIT) or execute(ROLLBACK).
+   The closed NdbTransactionHandler is still alive and running, 
+   but the session can now open a new one.
 */
-exports.txIsOpen = function(ndbTransactionHandler) {
-  var self = ndbTransactionHandler.dbSession;
-  self.openNdbTransactions += 1;
-  assert(self.openNdbTransactions <= self.maxNdbTransactions);
+exports.closeActiveTransaction = function(dbTransactionHandler) {
+  var self = dbTransactionHandler.dbSession;
+  assert(self.tx === dbTransactionHandler);
+  self.tx = null;  
 };
 
-exports.txIsClosed = function(ndbTransactionHandler) {
-  var self = ndbTransactionHandler.dbSession;
+
+/* Execute a StartTransaction call, or queue it if necessary
+*/
+exports.queueStartNdbTransaction = function(dbTransactionHandler, startTxCall) {
+  var self = dbTransactionHandler.dbSession;
+  if(self.openNdbTransactions < self.maxNdbTransactions) {
+    self.openNdbTransactions++;
+    startTxCall.enqueue();           // go directly to the exec queue
+  }
+  else {
+    self.startTxQueue.push(startTxCall);   // wait in the startTx queue
+  }
+};
+
+/* Close an NdbTransaction. 
+*/
+exports.closeNdbTransaction = function(dbTransactionHandler) {
+  var self, nextTx;
+  self = dbTransactionHandler.dbSession;
   assert(self.openNdbTransactions > 0);
-  self.openNdbTransactions -= 1;
-};
-
-
-/* closeActiveTransaction(NdbTransactionHandler) 
-*/
-exports.closeActiveTransaction = function(ndbTransactionHandler) {
-  var self = ndbTransactionHandler.dbSession;
-  self.tx = null;
-};
-
-
-/* txCanRunImmediately(NdbTransactionHandler)
-*/
-exports.txCanRunImmediately = function(ndbTransactionHandler) {
-  var self = ndbTransactionHandler.dbSession;
-  return (self.openNdbTransactions < self.maxNdbTransactions);
-};
-
-
-/* enqueueTransaction() 
-*/
-exports.enqueueTransaction = function(ndbTransactionHandler, 
-                                      dbOperationList, callback) {
-  udebug.log("enqueueTransaction");
-  var self = ndbTransactionHandler.dbSession;
-
-  var queueItem = {
-    tx:              ndbTransactionHandler,
-    dbOperationList: dbOperationList,
-    callback:        callback
-  };
-    
-  self.txQueue.push(queueItem);
-};
-
-
-/* runQueuedTransaction()
-*/
-exports.runQueuedTransaction = function(ndbTransactionHandler) {
-  var self = ndbTransactionHandler.dbSession;
-  var item = self.txQueue.pop();
-  if(item) {
-    udebug.log("runQueuedTransaction popped a tx from queue - remaining",
-               self.txQueue.length);
-    item.tx.execute(item.dbOperationList, item.callback);
-  }  
+  self.openNdbTransactions--;
+  while(self.startTxQueue.length > 0 && self.openNdbTransactions < self.maxNdbTransactions) {
+    /* move a waiting StartTxCall from the startTxQueue to the execQueue */
+    nextTx = self.startTxQueue.shift();
+    self.openNdbTransactions++;
+    nextTx.enqueue(); 
+  }
 };
 
 
