@@ -42,9 +42,11 @@ function DBTransactionHandler(dbsession) {
   this.dbSession          = dbsession;
   this.autocommit         = true;
   this.ndbtx              = null;
+  this.sentNdbStartTx     = false;
   this.execCount          = 0;   // number of execute calls 
   this.pendingOpsLists    = [];
   this.executedOperations = [];
+  this.execAfterOpenQueue = [];
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
   this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
   this.serial             = serial++;
@@ -94,6 +96,16 @@ function run(self, execMode, abortFlag, callback) {
   udebug.log("run()", self.moniker, "queue position:", qpos);
 }
 
+/* runExecAfterOpenQueue()
+*/
+function runExecAfterOpenQueue(dbTxHandler) {
+  var queue = dbTxHandler.execAfterOpenQueue;
+  var item = queue.shift();
+  if(item) {
+    udebug.log("runExecAfterOpenQueue - remaining", queue.length);
+    dbTxHandler.execute(item.dbOperationList, item.callback);
+  }  
+}
 
 /* Error handling after NdbTransaction.execute() 
 */
@@ -128,15 +140,14 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
      and register the DBTransactionHandler as closed with DBSession
   */
   if(execMode === COMMIT || execMode === ROLLBACK) {
-    ndbsession.txIsClosed(dbTxHandler);
+    ndbsession.closeNdbTransaction(dbTxHandler);
     if(dbTxHandler.ndbtx) {       // May not exist on "stub" commit/rollback
       dbTxHandler.ndbtx.close();
     }
   }
 
-  /* NdbSession may have queued transactions waiting to execute;
-     send the next one on its way */
-  ndbsession.runQueuedTransaction(dbTxHandler);
+  /* send the next exec call on its way */
+  runExecAfterOpenQueue(dbTxHandler);
 
   /* Attach results to their operations */
   ndboperation.completeExecutedOps(dbTxHandler, execMode, 
@@ -215,7 +226,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
   function onStartTx(err, ndbtx) {
     if(err) {
-      ndbsession.txIsClosed(self);
+      ndbsession.closeNdbTransaction(self);
       udebug.log("execute onStartTx [ERROR].", err);
       if(callback) {
         err = new ndboperation.DBOperationError(err.ndb_error);
@@ -232,34 +243,26 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   }
 
   /* execute() starts here */
-  var table = null; 
+  var startTxCall, queueItem;
 
-  /* The initial execute() call must start the NDB transaction. 
-     Up until startTransaction() returns, additional execute() calls are queued 
-     up behind it by NdbSession, and will be resent after openTransaction() 
-     returns.
-  */
-  if(self.ndbtx) {  /* startTransaction has returned */
+  if(self.ndbtx) {                   /* startTransaction has returned */
     getAutoIncrementValues();
   }
-  else {
-    /* We are allowed to run.  Call ndb.startTransaction().
-       TODO: The logic and naming here are confusing and can be improved.
-    */
-   if(ndbsession.txCanRunImmediately(self)) {
-      table = dbOperationList[0].tableHandler.dbTable;
+  else if(self.sentNdbStartTx) {     /* startTransaction has not yet returned */
+    queueItem = { dbOperationList: dbOperationList, callback: callback };
+    self.execAfterOpenQueue.push(queueItem);
+  }
+  else {                             /* call startTransaction */
+    self.sentNdbStartTx = true;
+    startTxCall = new QueuedAsyncCall(self.dbSession.execQueue, onStartTx);
+    startTxCall.table = dbOperationList[0].tableHandler.dbTable;
+    startTxCall.ndb = self.dbSession.impl;
+    startTxCall.run = function() {
       // TODO: partitionKey
-      stats.incr(["start","immediate"]);
-      ndbsession.txIsOpen(self);
-      self.dbSession.impl.startTransaction(table, 0, 0, onStartTx); 
-    }
-    else {
-      /* Queued up behind something.  NdbSession will resend the call
-         when we are able to run.
-      */
-      stats.incr(["start","queued"]);
-      ndbsession.enqueueTransaction(self, dbOperationList, callback);
-    }
+      this.ndb.startTransaction(this.table, 0, 0, this.callback);
+    };
+    
+    ndbsession.queueStartNdbTransaction(self, startTxCall);
   }
 }
 
