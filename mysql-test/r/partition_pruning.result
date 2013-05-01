@@ -3149,10 +3149,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	910	Using where
 explain extended update t2 set a = 111 where b = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	b	b	5	NULL	5	100.00	Using where; Using temporary
+1	SIMPLE	t2	range	b	b	5	const	5	100.00	Using where; Using temporary
 explain partitions update t2 set a = 111 where b = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	5	Using where; Using temporary
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	5	Using where; Using temporary
 flush status;
 update t2 set a = 111 where b = 10;
 show status like 'Handler_read_rnd_next';
@@ -3174,7 +3174,7 @@ Variable_name	Value
 Handler_read_key	0
 explain partitions update t2 set a = 222 where b = 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	4	Using where; Using temporary
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	4	Using where; Using temporary
 flush status;
 update t2 set a = 222 where b = 7;
 show status like 'Handler_read_rnd_next';
