@@ -921,8 +921,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			DBUG_SUICIDE(););
 
 	/* Step-9: Drop all indexes (this include freeing of the pages
-	associated with them). (FIXME: freeing of pages should be conditional
-	and should be applicable only when using shared tablespaces.) */
+	associated with them). */
 	if (!dict_table_is_temporary(table)) {
 
 		/* Drop all the indexes. */

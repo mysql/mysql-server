@@ -231,7 +231,9 @@ struct Logger : public Callback {
 		m_flags(flags),
 		m_truncate()
 	{
-		m_truncate.m_dir_path = m_table->data_dir_path;
+		if (m_table->data_dir_path != NULL) {
+			m_truncate.m_dir_path = strdup(m_table->data_dir_path);
+		}
 
 		m_truncate.m_old_table_id = table->id;
 
