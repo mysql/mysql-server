@@ -201,7 +201,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
       if(! op.ndbop) {
         fatalError = self.ndbtx.getNdbError();
         callback(new ndboperation.DBOperationError(fatalError), self);
-        return;
+        return;  /* is that correct? */
       }
       if(op.isScanOperation()) scans.push(op);
     }

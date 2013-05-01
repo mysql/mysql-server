@@ -388,16 +388,20 @@ function getScanResults(scanop, userCallback) {
   var recordSize = scanop.tableHandler.dbTable.record.getBufferSize();
 
   function gather(error, status) {    
-    udebug.log("Scan gather", status);
     if(status !== 0) {
       results.pop();  // remove the optimistic result 
     }
 
     if(status < 0) { // error
-      udebug.log("error", status, error);
-      scanop.result.success = false;
-      scanop.result.error = error;
-      userCallback(error, results);
+      udebug.log("scan gather() error", status, error);
+      if(error && error.ndb_error && error.ndb_error.code == 274) {
+        // fetch();
+      }
+      else {
+        scanop.result.success = false;
+        scanop.result.error = error;
+        userCallback(error, results);
+      }
       return;
     }
     
