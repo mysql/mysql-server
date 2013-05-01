@@ -32,27 +32,25 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
 
 
 /** 
-  An Ndb object is "single-threaded," meaning the NDB API does not expect
-  two uv worker threads to call into it at the same time.  To enforce this,
-  we serialize Ndb operations on the execQueue.
-
   A session has a single transaction visible to the user at any time: 
   NdbSession.tx, which is created in NdbSession.getTransactionHandler() 
-  and persists until the user calls commit or rollback (or the transaction
-  auto-commits), at which point NdbSession.tx is reset to null.
+  and persists until the user performs an execute commit or rollback, 
+  at which point NdbSession.tx is reset to null.  The previous 
+  TransactionHandler is still alive at this point, but it no longer 
+  represents the session's current transaction. 
 
   THREE QUEUES
   ------------
-  1. All calls on a single Ndb object are serialized on NdbSession.execQueue
+  1. An Ndb object is "single-threaded".  All calls on the session's single Ndb 
+     object are serialized in NdbSession.execQueue.
   2. All execute calls on an NdbTransaction must wait for startTransaction() 
-     to return.  This is NdbTransactionHadnler.execAfterOpenQueue
+     to return.  They are placed on NdbTransactionHandler.execAfterOpenQueue
+     until startTransaction() has returned.
   3. All ndb.startTransaction() calls must wait on NdbSession.startTxQueue
-     for some ndbTransaction to close, if more than N ndbTransactions are open,
-     where N is an argument to the Ndb() constructor and defaults to 4.
+     for some NdbTransaction to close, if more than N NdbTransactions are open.
+     N is an argument to the Ndb() constructor and defaults to 4, but I have
+     cowardly set maxNdbTransactions to 3 here.
 */
-
-
-/*** Methods exported by this module but not in the public DBSession SPI ***/
 
 
 /* newDBSession(sessionImpl) 
@@ -63,16 +61,32 @@ exports.newDBSession = function(pool, impl) {
   var dbSess = new NdbSession();
   dbSess.parentPool = pool;
   dbSess.impl = impl;
-  dbSess.execQueue = [];
-  dbSess.startTxQueue = [];
-  dbSess.maxNdbTransactions = 3;    // related to Ndb() constructor arguments
   return dbSess;
 };
 
+/* DBSession Simple Constructor
+*/
+NdbSession = function() { 
+  stats.incr("created");
+  this.tx                  = null;
+  this.execQueue           = [];
+  this.startTxQueue        = [];
+  this.maxNdbTransactions  = 3;    // related to Ndb() constructor arguments
+  this.openNdbTransactions = 0;
+};
 
-/* Close the current transaction.
-   NdbTransactionHandler calls this immediately at 
-   execute(COMMIT) or execute(ROLLBACK).
+/* NdbSession prototype 
+*/
+NdbSession.prototype = {
+  impl                : null,
+  parentPool          : null,
+};
+
+
+/*** Functions exported by this module but not in the public DBSession SPI ***/
+
+/* Reset the session's current transaction.
+   NdbTransactionHandler calls this immediately at execute(COMMIT | ROLLBACK).
    The closed NdbTransactionHandler is still alive and running, 
    but the session can now open a new one.
 */
@@ -89,12 +103,15 @@ exports.queueStartNdbTransaction = function(dbTransactionHandler, startTxCall) {
   var self = dbTransactionHandler.dbSession;
   if(self.openNdbTransactions < self.maxNdbTransactions) {
     self.openNdbTransactions++;
+    udebug.log("startTransaction => exec queue");
     startTxCall.enqueue();           // go directly to the exec queue
   }
   else {
     self.startTxQueue.push(startTxCall);   // wait in the startTx queue
+    udebug.log("startTransaction => start queue", self.startTxQueue.length);
   }
 };
+
 
 /* Close an NdbTransaction. 
 */
@@ -107,27 +124,14 @@ exports.closeNdbTransaction = function(dbTransactionHandler) {
     /* move a waiting StartTxCall from the startTxQueue to the execQueue */
     nextTx = self.startTxQueue.shift();
     self.openNdbTransactions++;
+    udebug.log("closeNdbTransaction: pulled 1 from startTxQueue. Length:", self.startTxQueue.length);
     nextTx.enqueue(); 
   }
 };
 
 
-/* DBSession Simple Constructor
-*/
-NdbSession = function() { 
-  udebug.log("constructor");
-  stats.incr("created");
-};
+/*** DBSession SPI Prototype Methods ***/
 
-/* NdbSession prototype 
-*/
-NdbSession.prototype = {
-  impl                : null,
-  tx                  : null,
-  parentPool          : null,
-  execQueue           : null,
-  openNdbTransactions : 0
-};
 
 /*  getConnectionPool() 
     IMMEDIATE
