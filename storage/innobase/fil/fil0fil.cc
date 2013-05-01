@@ -2230,6 +2230,9 @@ fil_recreate_table(
 		return;
 	}
 
+	fil_space_truncated.clear();
+	fil_space_truncated.insert(space_id);
+
 	/* Step-1: Scan for active indexes from REDO logs and drop
 	all the indexes using low level function that take root_page_no
 	and space-id. */
@@ -2242,6 +2245,8 @@ fil_recreate_table(
 	if (err != DB_SUCCESS) {
 		return;
 	}
+
+	fil_space_truncated.clear();
 }
 
 /********************************************************//**
@@ -2267,6 +2272,7 @@ fil_recreate_tablespace(
 	dberr_t			err;
 	mtr_t			mtr;
 
+	fil_space_truncated.clear();
 	fil_space_truncated.insert(space_id);
 
 	/* Invalidate in the buffer pool all pages belonging
@@ -2421,7 +2427,7 @@ fil_recreate_tablespace(
 	}
 
 	mtr_commit(&mtr);
-
+	fil_space_truncated.clear();
 	return;
 }
 

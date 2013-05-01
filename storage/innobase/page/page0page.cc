@@ -523,7 +523,6 @@ page_create_zip(
 	if (fil_space_is_truncated(page_get_space_id(page))) {
 		/* Compress the index page created when applying
                 MLOG_FILE_TRUNCATE log record during recovery */
-		ut_ad(recv_recovery_on == TRUE);
 		if (!page_zip_compress(page_zip, page, index, page_zip_level,
 				       page_comp_info, NULL)) {
 			/* The compression of a newly created
