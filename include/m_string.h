@@ -205,15 +205,6 @@ struct st_mysql_const_lex_string
 };
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
-/* SPACE_INT is a word that contains only spaces */
-#if SIZEOF_INT == 4
-#define SPACE_INT 0x20202020
-#elif SIZEOF_INT == 8
-#define SPACE_INT 0x2020202020202020
-#else
-#error define the appropriate constant for a word full of spaces
-#endif
-
 /**
   Skip trailing space.
 
@@ -247,9 +238,18 @@ typedef struct st_mysql_const_lex_string LEX_CSTRING;
    @param     len   the length of the string
    @return          the last non-space character
 */
-
+#if defined(__sparc) || defined(__sparcv9)
 static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
 {
+  /* SPACE_INT is a word that contains only spaces */
+#if SIZEOF_INT == 4
+  const unsigned SPACE_INT= 0x20202020U;
+#elif SIZEOF_INT == 8
+  const unsigned SPACE_INT= 0x2020202020202020ULL;
+#else
+#error define the appropriate constant for a word full of spaces
+#endif
+
   const uchar *end= ptr + len;
 
   if (len > 20)
@@ -259,20 +259,37 @@ static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
     const uchar *start_words= (const uchar *)(intptr)
        ((((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
 
-    DBUG_ASSERT(((ulonglong)(intptr)ptr) >= SIZEOF_INT);
-    if (end_words > ptr)
-    {
-      while (end > end_words && end[-1] == 0x20)
-        end--;
-      if (end[-1] == 0x20 && start_words < end_words)
-        while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
-          end -= SIZEOF_INT;
-    }
+    DBUG_ASSERT(end_words > ptr);
+    while (end > end_words && end[-1] == 0x20)
+      end--;
+    if (end[-1] == 0x20 && start_words < end_words)
+      while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
+        end -= SIZEOF_INT;
   }
   while (end > ptr && end[-1] == 0x20)
     end--;
   return (end);
 }
+#else
+/*
+  Reads 8 bytes at a time, ignoring alignment.
+  We use uint8korr, which is fast (it simply reads a *ulonglong)
+  on all platforms, except sparc.
+*/
+static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len)
+{
+  const uchar *end= ptr + len;
+  while (end - ptr >= 8)
+  {
+    if (uint8korr(end-8) != 0x2020202020202020ULL)
+      break;
+    end-= 8;
+  }
+  while (end > ptr && end[-1] == 0x20)
+    end--;
+  return (end);
+}
+#endif
 
 static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
 {
