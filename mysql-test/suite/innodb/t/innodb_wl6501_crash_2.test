@@ -2,8 +2,8 @@
 # WL#6501: make truncate table atomic
 #
 
-# TC tries to hit crash point during truncate for table
-# residing in single tablespace.
+# TC tries to hit crash point during truncate of
+# non-compressed non-temp table residing in single tablespace.
 
 --source include/have_innodb.inc
 --source include/have_debug.inc
@@ -16,8 +16,9 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-let $file_per_table = 0;
-let $table_row_format = compact;
-let $kbs = 16;
+let $wl6501_file_per_table = 1;
+let $wl6501_row_fmt = compact;
+let $wl6501_kbs = 16;
+let $wl6501_file_format = 'Antelope';
 --source suite/innodb/include/innodb_wl6501_crash.inc
 

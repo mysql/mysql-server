@@ -50,10 +50,12 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 #
 --echo "1. Hit crash point while writing redo log."
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (i int)
-	 engine=innodb row_format=$table_row_format key_block_size=$kbs;
+eval create $wl6501_temp table t (i int)
+	engine=innodb row_format=$wl6501_row_fmt
+	key_block_size=$wl6501_kbs;
 insert into t values (1), (2), (3);
 select * from t;
 check table t;
@@ -77,10 +79,12 @@ drop table t;
 #
 --echo "2. Hit crash point on completion of redo log write."
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (i int)
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+eval create $wl6501_temp table t (i int)
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1), (2), (3);
 select * from t;
 check table t;
@@ -102,10 +106,12 @@ drop table t;
 #
 #
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (i int)
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+eval create $wl6501_temp table t (i int)
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1), (2), (3);
 select * from t;
 check table t;
@@ -131,12 +137,14 @@ drop table t;
 #
 --echo "3. Hit crash point while dropping indexes."
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -158,12 +166,14 @@ drop table t;
 #
 #
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -185,12 +195,14 @@ drop table t;
 #
 #
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -218,12 +230,14 @@ drop table t;
 --echo "4. Hit crash point on completing drop of all indexes before creation"
 --echo "   of index is commenced."
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -243,12 +257,14 @@ drop table t;
 #
 #
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -274,12 +290,14 @@ drop table t;
 #
 --echo "5. Hit crash point while creating indexes."
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -301,12 +319,14 @@ drop table t;
 #
 #
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -328,12 +348,14 @@ drop table t;
 #
 #
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -360,12 +382,14 @@ drop table t;
 --echo "6. Hit crash point after data is updated to system-table and"
 --echo "   in-memory dict."
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -385,12 +409,14 @@ drop table t;
 #
 #
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -416,12 +442,14 @@ drop table t;
 #
 --echo "7. Hit crash point before/after log checkpoint is done."
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -441,12 +469,14 @@ drop table t;
 #
 #
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -467,12 +497,14 @@ drop table t;
 #
 #
 use test;
-eval set global innodb_file_per_table = $file_per_table;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
-eval create $temp table t (
+eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
-	engine = innodb row_format = $table_row_format key_block_size = $kbs;
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
