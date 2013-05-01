@@ -17,5 +17,7 @@
 --source include/not_crashrep.inc
 
 let $file_per_table = 1;
---source suite/innodb/include/innodb_wl6501_non_compr_crash.inc
+let $table_row_format = compact;
+let $kbs = 16;
+--source suite/innodb/include/innodb_wl6501_crash.inc
 
