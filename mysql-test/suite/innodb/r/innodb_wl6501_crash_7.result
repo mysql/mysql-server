@@ -7,7 +7,7 @@ use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
 create  table t (i int)
-engine=innodb row_format=compact
+engine=innodb row_format=redundant
 key_block_size=NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -39,7 +39,7 @@ use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
 create  table t (i int)
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -79,7 +79,7 @@ use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
 create  table t (i int)
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -116,7 +116,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -152,7 +152,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -188,7 +188,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -226,7 +226,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -259,7 +259,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -296,7 +296,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -332,7 +332,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -368,7 +368,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -406,7 +406,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -439,7 +439,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -476,7 +476,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -506,7 +506,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -537,7 +537,7 @@ set global innodb_file_format = 'Antelope';
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compact
+engine = innodb row_format = redundant
 key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
