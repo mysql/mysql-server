@@ -3,7 +3,8 @@
 #
 
 # TC tries to hit crash point during truncate of
-# non-compressed non-temp tabl residing in single tablespace.
+# non-compressed non-temp table residing in single tablespace.
+# with row_format=compact
 
 --source include/have_innodb.inc
 --source include/have_debug.inc

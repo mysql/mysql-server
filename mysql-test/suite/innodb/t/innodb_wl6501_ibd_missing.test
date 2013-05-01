@@ -22,7 +22,7 @@ let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 set global innodb_file_per_table=on;
 
 --disable_query_log
-set session debug="+d,crash_if_ibd_file_is_missing";
+set session debug="+d,ib_crash_ibd_file_missing";
 --enable_query_log
 --echo # Verify that the TRUNCATE TABLE statement is rollbacked
 --echo # and the table is marked as corrupt when the .ibd file
@@ -68,7 +68,7 @@ show create table t1;
 drop table t1;
 
 --disable_query_log
-set session debug="-d,crash_if_ibd_file_is_missing";
+set session debug="-d,ib_crash_ibd_file_missing";
 --enable_query_log
 
 -- disable_query_log

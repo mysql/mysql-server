@@ -3,7 +3,8 @@
 #
 
 # TC tries to hit crash point during truncate of
-# compressed non-temp table residing in temp-tablespace.
+# compressed non-temp table residing in single tablespace
+# with page-size=16k
 
 --source include/have_innodb.inc
 --source include/have_innodb_16k.inc

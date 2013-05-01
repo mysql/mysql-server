@@ -3,7 +3,8 @@
 #
 
 # TC tries to hit crash point during truncate of
-# non-compressed non-temp table residing in single tablespace.
+# non-compressed non-temp table residing in system tablespace.
+# with row_format=compact
 
 --source include/have_innodb.inc
 --source include/have_debug.inc
@@ -16,7 +17,7 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-let $wl6501_file_per_table = 1;
+let $wl6501_file_per_table = 0;
 let $wl6501_row_fmt = compact;
 let $wl6501_kbs = 16;
 let $wl6501_file_format = 'Antelope';

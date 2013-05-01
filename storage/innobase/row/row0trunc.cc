@@ -130,7 +130,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 	}
 #endif /* UNIV_DEBUG */
 
-	DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
+	DBUG_EXECUTE_IF("ib_crash_ibd_file_missing",
 			root_page_no = FIL_NULL;);
 
 	if (root_page_no != FIL_NULL) {
@@ -151,7 +151,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		/* Check if the .ibd file is missing. */
 		zip_size = fil_space_get_zip_size(m_table->space);
 
-		DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
+		DBUG_EXECUTE_IF("ib_crash_ibd_file_missing",
 				zip_size = ULINT_UNDEFINED;);
 
 		if (zip_size == ULINT_UNDEFINED) {
