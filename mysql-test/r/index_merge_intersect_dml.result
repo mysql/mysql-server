@@ -66,7 +66,7 @@ COUNT(*)	SUM(a)
 0	NULL
 EXPLAIN UPDATE t1 SET a=2 WHERE a=5 AND b=4 AND d<3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx_a,idx_b,idx_d	idx_a	4	NULL	#	Using where; Using temporary
+1	SIMPLE	t1	range	idx_a,idx_b,idx_d	idx_a	4	const	#	Using where; Using temporary
 UPDATE t1 SET a=2 WHERE a=5 AND b=4 AND d<3;
 create table t2 (
 pk MEDIUMINT NOT NULL AUTO_INCREMENT,
@@ -86,7 +86,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 EXPLAIN UPDATE t2 SET a=2 WHERE pk<2492 AND d=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY,idx_d	PRIMARY	3	NULL	#	Using where
+1	SIMPLE	t2	range	PRIMARY,idx_d	PRIMARY	3	const	#	Using where
 UPDATE t2 SET a=2 WHERE pk<2492 AND d=1;
 CREATE TABLE t3(
 a INT NOT NULL,

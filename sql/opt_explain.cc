@@ -417,6 +417,7 @@ private:
                                              bool need_sort_arg);
   virtual bool shallow_explain();
 
+  virtual bool explain_ref();
   virtual bool explain_table_name();
   virtual bool explain_join_type();
   virtual bool explain_key_and_len();
@@ -1696,6 +1697,20 @@ bool Explain_table::explain_join_type()
     jt= JT_ALL;
 
   fmt->entry()->col_join_type.set_const(join_type_str[jt]);
+  return false;
+}
+
+
+bool Explain_table::explain_ref()
+{
+  if (select && select->quick)
+  {
+    int key_parts= select->quick->used_key_parts;
+    while(key_parts--)
+    {
+      fmt->entry()->col_ref.push_back("const");
+    }
+  }
   return false;
 }
 
