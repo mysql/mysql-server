@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 function usage() {
     echo "make mysql and copy the tarballs to an amazon s3 bucket"
     return 1
@@ -10,28 +8,35 @@ function usage() {
 # copy build files to amazon s3
 function copy_to_s3() {
     local s3_build_bucket=$1; local s3_release_bucket=$2
+    local ts=$(date +%s)
+    local ymd=$(date +%Y%m%d -d @$ts)
+    local ym=$(date +%Y%m -d @$ts)
     local exitcode=0; local r=0
-    for f in $(ls *.tar.gz*); do
+    for f in $(find . -maxdepth 1 \( -name '*.tar.gz*' -o -name '*.rpm*' \) ) ; do
+        f=$(basename $f)
         echo `date` s3put $s3_build_bucket $f
         s3put $s3_build_bucket $f $f
         r=$?
         # index the file by date
         echo `date` s3put $s3_build_bucket $f $r
         if [ $r != 0 ] ; then exitcode=1; fi
-        d=$(date +%Y%m%d)
-        s3put $s3_build_bucket-date $d/$f /dev/null
+        s3put $s3_build_bucket-date $ymd/$f /dev/null
         r=$?
-        echo `date` s3put $s3_build_bucket-date $d/$f $r
+        echo `date` s3put $s3_build_bucket-date $ymd/$f $r
         if [ $r != 0 ] ; then exitcode=1; fi
+        # copy to partition by date
+        s3mkbucket $s3_build_bucket-$ym
+        s3copykey $s3_build_bucket-$ym $f $s3_build_bucket $f
     done
     if [[ $git_tag =~ tokudb-.* ]] ; then
         s3mkbucket $s3_release_bucket-$git_tag
         if [ $r != 0 ] ; then 
             exitcode=1
         else
-            for f in $(ls *.tar.gz*); do
+            for f in $(find . -maxdepth 1 \( -name '*.tar.gz*' -o -name '*.rpm*' \) ) ; do
+                f=$(basename $f)
                 echo `date` s3copykey $s3_release_bucket-$git_tag $f
-                s3copykey $s3_release_bucket-$git_tag $f tokutek-mysql-build $f
+                s3copykey $s3_release_bucket-$git_tag $f $s3_build_bucket $f
                 r=$?
                 echo `date` s3copykey $s3_release_bucket-$git_tag $f $r
                 if [ $r != 0 ] ; then exitcode=1; fi
@@ -68,24 +73,23 @@ done
 
 if [ -z $mysqlbuild ] ; then exit 1; fi
 
-# parse the mysqlbuild
+# parse the mysqlbuild string
 parse_mysqlbuild $mysqlbuild
 if [ $? != 0 ] ; then exit 1; fi
 
 # make the build dir
 build_dir=build-tokudb-$tokudb_version
 if [ -d builds ] ; then build_dir=builds/$build_dir; fi
-mkdir $build_dir
-if [ $? != 0 ] ; then exit 1; fi
+if [ ! -d $build_dir ] ; then mkdir $build_dir; fi
 pushd $build_dir
+if [ $? != 0 ] ; then exit 1; fi
 
 # make mysql
 bash -x $HOME/github/ft-engine/scripts/make.mysql.bash $make_args
-if [ $? != 0 ] ; then exit 1; fi
+if [ $? != 0 ] ; then exitcode=1; fi
 
 # generate md5 sums
-files=$(ls $mysql_distro/build.*/*.tar.gz)
-for f in $(ls $mysql_distro/build.*/*.tar.gz) ; do
+for f in $(find $mysql_distro/build.* -maxdepth 1 \( -name '*.tar.gz' -o -name '*.rpm' \) ) ; do
     newf=$(basename $f)
     ln $f $newf
     if [ $? != 0 ] ; then exitcode=1; fi
