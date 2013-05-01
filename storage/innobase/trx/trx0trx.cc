@@ -51,6 +51,8 @@ Created 3/26/1996 Heikki Tuuri
 
 #include<set>
 
+static const ulint MAX_DETAILED_ERROR_LEN = 256;
+
 /** Set of table_id */
 typedef std::set<table_id_t>	table_id_set;
 
@@ -75,7 +77,7 @@ trx_set_detailed_error(
 	trx_t*		trx,	/*!< in: transaction struct */
 	const char*	msg)	/*!< in: detailed error message */
 {
-	ut_strlcpy(trx->detailed_error, msg, sizeof(trx->detailed_error));
+	ut_strlcpy(trx->detailed_error, msg, MAX_DETAILED_ERROR_LEN);
 }
 
 /*************************************************************//**
@@ -88,8 +90,7 @@ trx_set_detailed_error_from_file(
 	trx_t*	trx,	/*!< in: transaction struct */
 	FILE*	file)	/*!< in: file to read message from */
 {
-	os_file_read_string(file, trx->detailed_error,
-			    sizeof(trx->detailed_error));
+	os_file_read_string(file, trx->detailed_error, MAX_DETAILED_ERROR_LEN);
 }
 
 /** For managing the life-cycle of the trx_t instance that we get
@@ -111,11 +112,11 @@ struct TrxFactory {
 
 		trx->no = TRX_ID_MAX;
 
-		trx->support_xa = TRUE;
+		trx->support_xa = true;
 
-		trx->check_foreigns = TRUE;
+		trx->check_foreigns = true;
 
-		trx->check_unique_secondary = TRUE;
+		trx->check_unique_secondary = true;
 
 		trx->dict_operation = TRX_DICT_OP_NONE;
 
@@ -125,7 +126,13 @@ struct TrxFactory {
 
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
-		trx->xid.formatID = -1;
+		trx->xid = reinterpret_cast<XID*>(
+			mem_zalloc(sizeof(*trx->xid)));
+
+		trx->detailed_error = reinterpret_cast<char*>(
+			mem_zalloc(MAX_DETAILED_ERROR_LEN));
+
+		trx->xid->formatID = -1;
 
 		trx->op_info = "";
 
@@ -164,6 +171,9 @@ struct TrxFactory {
 		}
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
+		mem_free(trx->xid);
+		mem_free(trx->detailed_error);
 
 		mutex_free(&trx->mutex);
 		mutex_free(&trx->undo_mutex);
@@ -299,11 +309,11 @@ trx_create_low()
 
 	trx->no = TRX_ID_MAX;
 
-	trx->support_xa = TRUE;
+	trx->support_xa = true;
 
-	trx->check_foreigns = TRUE;
+	trx->check_foreigns = true;
 
-	trx->check_unique_secondary = TRUE;
+	trx->check_unique_secondary = true;
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
 
@@ -313,7 +323,7 @@ trx_create_low()
 
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
-	trx->xid.formatID = -1;
+	trx->xid->formatID = -1;
 
 	trx->op_info = "";
 
@@ -670,10 +680,10 @@ trx_resurrect_insert(
 	ut_d(trx->start_line = __LINE__);
 
 	trx->rseg = rseg;
-	trx->xid = undo->xid;
+	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->insert_undo = undo;
-	trx->is_recovered = TRUE;
+	trx->is_recovered = true;
 
 	/* This is single-threaded startup code, we do not need the
 	protection of trx->mutex or trx_sys->mutex here. */
@@ -785,10 +795,10 @@ trx_resurrect_update(
 	trx_rseg_t*	rseg)	/*!< in/out: rollback segment */
 {
 	trx->rseg = rseg;
-	trx->xid = undo->xid;
+	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->update_undo = undo;
-	trx->is_recovered = TRUE;
+	trx->is_recovered = true;
 
 	/* This is single-threaded startup code, we do not need the
 	protection of trx->mutex or trx_sys->mutex here. */
@@ -1202,7 +1212,7 @@ trx_write_serialisation_history(
 	in trx sys header if MySQL binlogging is on or the database
 	server is a MySQL replication slave */
 
-	if (trx->mysql_log_file_name
+	if (trx->mysql_log_file_name != NULL
 	    && trx->mysql_log_file_name[0] != '\0') {
 
 		trx_sys_update_mysql_binlog_offset(
@@ -1340,7 +1350,7 @@ trx_commit_in_memory(
 			commit of trx_write_serialisation_history(), or 0
 			if the transaction did not modify anything */
 {
-	trx->must_flush_log_later = FALSE;
+	trx->must_flush_log_later = false;
 
 	if (trx_is_autocommit_non_locking(trx)) {
 		ut_ad(trx->read_only);
@@ -1449,7 +1459,7 @@ trx_commit_in_memory(
 
 		if (trx->flush_log_later) {
 			/* Do nothing yet */
-			trx->must_flush_log_later = TRUE;
+			trx->must_flush_log_later = true;
 		} else if (srv_flush_log_at_trx_commit == 0
 			   || thd_requested_durability(trx->mysql_thd)
 			   == HA_IGNORE_DURABILITY) {
@@ -1834,7 +1844,7 @@ trx_commit_complete_for_mysql(
 
 	trx_flush_log_if_needed(trx->commit_lsn, trx);
 
-	trx->must_flush_log_later = FALSE;
+	trx->must_flush_log_later = false;
 }
 
 /**********************************************************************//**
@@ -2252,7 +2262,7 @@ trx_recover_for_mysql(
 		trx_sys->mutex. It may change to PREPARED, but not if
 		trx->is_recovered. It may also change to COMMITTED. */
 		if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
-			xid_list[count] = trx->xid;
+			xid_list[count] = *trx->xid;
 
 			if (count == 0) {
 				ut_print_timestamp(stderr);
@@ -2324,15 +2334,15 @@ trx_get_trx_by_xid_low(
 
 		if (trx->is_recovered
 		    && trx_state_eq(trx, TRX_STATE_PREPARED)
-		    && xid->gtrid_length == trx->xid.gtrid_length
-		    && xid->bqual_length == trx->xid.bqual_length
-		    && memcmp(xid->data, trx->xid.data,
+		    && xid->gtrid_length == trx->xid->gtrid_length
+		    && xid->bqual_length == trx->xid->bqual_length
+		    && memcmp(xid->data, trx->xid->data,
 			      xid->gtrid_length + xid->bqual_length) == 0) {
 
 			/* Invalidate the XID, so that subsequent calls
 			will not find it. */
-			memset(&trx->xid, 0, sizeof(trx->xid));
-			trx->xid.formatID = -1;
+			memset(trx->xid, 0, sizeof(*trx->xid));
+			trx->xid->formatID = -1;
 			break;
 		}
 	}
