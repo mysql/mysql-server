@@ -131,8 +131,10 @@ static const char *f_extensions[]= { ".cnf", 0 };
 #define NEWLINE "\n"
 #endif
 
+extern "C" {
 static int handle_default_option(void *in_ctx, const char *group_name,
                                  const char *option);
+}
 
 /*
    This structure defines the context that we pass to callback
