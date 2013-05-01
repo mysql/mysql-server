@@ -255,8 +255,13 @@ typedef PoolManager<trx_pool_t, TrxPoolManagerLock > trx_pools_t;
 /** The trx_t pool manager */
 static trx_pools_t* trx_pools;
 
+#ifdef UNIV_DEBUG
+/** Size of on trx_t pool in bytes. */
+static const ulint MAX_TRX_BLOCK_SIZE = 64 * 1024;
+#else
 /** Size of on trx_t pool in bytes. */
 static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
+#endif /* UNIV_DEBUG */
 
 /** Create the trx_t pool */
 UNIV_INTERN
@@ -479,6 +484,11 @@ trx_free_prepared(
 
 	/* Undo trx_resurrect_table_locks(). */
 	UT_LIST_INIT(trx->lock.trx_locks);
+
+	/* Note: This vector is not guaranteed to be empty because the
+	transaction was never committed and therefore lock_trx_release()
+	was not called. */
+	ib_vector_reset(trx->lock.table_locks);
 
 	trx_free(trx);
 }
