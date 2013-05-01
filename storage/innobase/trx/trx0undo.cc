@@ -1777,10 +1777,10 @@ trx_undo_assign_undo(
 		goto func_exit;
 	);
 
-	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
+	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, trx->xid,
 				     &mtr);
 	if (undo == NULL) {
-		err = trx_undo_create(trx, rseg, type, trx->id, &trx->xid,
+		err = trx_undo_create(trx, rseg, type, trx->id, trx->xid,
 				      &undo, &mtr);
 		if (err != DB_SUCCESS) {
 
@@ -1887,7 +1887,7 @@ trx_undo_set_state_at_prepare(
 
 	/*------------------------------*/
 	undo->state = TRX_UNDO_PREPARED;
-	undo->xid   = trx->xid;
+	undo->xid   = *trx->xid;
 	/*------------------------------*/
 
 	mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, undo->state,
