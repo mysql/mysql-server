@@ -4,6 +4,7 @@
 
 # TC tries to hit crash point during truncate of
 # compressed non-temp table residing in single tablespace.
+# with page-size=8k
 
 --source include/have_innodb.inc
 --source include/have_innodb_8k.inc

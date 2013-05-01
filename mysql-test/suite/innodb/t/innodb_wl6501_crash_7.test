@@ -3,11 +3,10 @@
 #
 
 # TC tries to hit crash point during truncate of
-# compressed non-temp table residing in single tablespace.
-# with page-size=4k
+# non-compressed non-temp table residing in system tablespace
+# with row-format = redundant
 
 --source include/have_innodb.inc
---source include/have_innodb_4k.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 
@@ -18,9 +17,9 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-let $wl6501_file_per_table = 1;
-let $wl6501_row_fmt = compressed;
-let $wl6501_kbs = 4;
-let $wl6501_file_format = 'Barracuda';
+let $wl6501_file_per_table = 0;
+let $wl6501_row_fmt = redundant;
+let $wl6501_kbs = 16;
+let $wl6501_file_format = 'Antelope';
 --source suite/innodb/include/innodb_wl6501_crash.inc
 
