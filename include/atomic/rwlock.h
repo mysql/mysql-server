@@ -1,8 +1,7 @@
 #ifndef ATOMIC_RWLOCK_INCLUDED
 #define ATOMIC_RWLOCK_INCLUDED
 
-/* Copyright (c) 2006 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2006, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +38,7 @@ typedef char my_atomic_rwlock_t;
 #define MY_ATOMIC_MODE "dummy (non-atomic)"
 #else /* not MY_ATOMIC_MODE_DUMMY */
 
-typedef struct {pthread_mutex_t rw;} my_atomic_rwlock_t;
+typedef struct {mysql_mutex_t rw;} my_atomic_rwlock_t;
 
 #ifndef SAFE_MUTEX
 
@@ -48,12 +47,12 @@ typedef struct {pthread_mutex_t rw;} my_atomic_rwlock_t;
   faster. Still, having semantically rich API we can change the
   underlying implementation, if necessary.
 */
-#define my_atomic_rwlock_destroy(name)     pthread_mutex_destroy(& (name)->rw)
-#define my_atomic_rwlock_init(name)        pthread_mutex_init(& (name)->rw, 0)
-#define my_atomic_rwlock_rdlock(name)      pthread_mutex_lock(& (name)->rw)
-#define my_atomic_rwlock_wrlock(name)      pthread_mutex_lock(& (name)->rw)
-#define my_atomic_rwlock_rdunlock(name)    pthread_mutex_unlock(& (name)->rw)
-#define my_atomic_rwlock_wrunlock(name)    pthread_mutex_unlock(& (name)->rw)
+#define my_atomic_rwlock_destroy(name)     pthread_mutex_destroy(& (name)->rw.m_mutex)
+#define my_atomic_rwlock_init(name)        pthread_mutex_init(& (name)->rw.m_mutex, 0)
+#define my_atomic_rwlock_rdlock(name)      pthread_mutex_lock(& (name)->rw.m_mutex)
+#define my_atomic_rwlock_wrlock(name)      pthread_mutex_lock(& (name)->rw.m_mutex)
+#define my_atomic_rwlock_rdunlock(name)    pthread_mutex_unlock(& (name)->rw.m_mutex)
+#define my_atomic_rwlock_wrunlock(name)    pthread_mutex_unlock(& (name)->rw.m_mutex)
 
 #else /* SAFE_MUTEX */
 
@@ -77,12 +76,12 @@ extern void plain_pthread_mutex_lock(safe_mutex_t *);
 extern void plain_pthread_mutex_unlock(safe_mutex_t *);
 C_MODE_END
 
-#define my_atomic_rwlock_destroy(name)     plain_pthread_mutex_destroy(&(name)->rw)
-#define my_atomic_rwlock_init(name)        plain_pthread_mutex_init(&(name)->rw)
-#define my_atomic_rwlock_rdlock(name)      plain_pthread_mutex_lock(&(name)->rw)
-#define my_atomic_rwlock_wrlock(name)      plain_pthread_mutex_lock(&(name)->rw)
-#define my_atomic_rwlock_rdunlock(name)    plain_pthread_mutex_unlock(&(name)->rw)
-#define my_atomic_rwlock_wrunlock(name)    plain_pthread_mutex_unlock(&(name)->rw)
+#define my_atomic_rwlock_destroy(name)     plain_pthread_mutex_destroy(&(name)->rw.m_mutex)
+#define my_atomic_rwlock_init(name)        plain_pthread_mutex_init(&(name)->rw.m_mutex)
+#define my_atomic_rwlock_rdlock(name)      plain_pthread_mutex_lock(&(name)->rw.m_mutex)
+#define my_atomic_rwlock_wrlock(name)      plain_pthread_mutex_lock(&(name)->rw.m_mutex)
+#define my_atomic_rwlock_rdunlock(name)    plain_pthread_mutex_unlock(&(name)->rw.m_mutex)
+#define my_atomic_rwlock_wrunlock(name)    plain_pthread_mutex_unlock(&(name)->rw.m_mutex)
 
 #endif /* SAFE_MUTEX */
 
