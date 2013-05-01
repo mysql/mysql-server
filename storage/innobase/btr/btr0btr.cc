@@ -1619,7 +1619,6 @@ btr_create(
 		} else {
 			/* Create a compressed index page when applying
 			MLOG_FILE_TRUNCATE log record during recovery */
-			ut_ad(recv_recovery_on == TRUE);
 			ut_ad(btr_create_info != NULL);
 			redo_page_compress_t	page_comp_info;
 			page_comp_info.type = type;
