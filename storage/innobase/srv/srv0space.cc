@@ -661,9 +661,9 @@ Tablespace::read_lsn_and_check_flags(
 			return(DB_ERROR);
 		}
 
-		fil_read_first_page(
-			it->m_handle, &flags, &space,
-			min_flushed_lsn, max_flushed_lsn);
+		const char* check_msg = fil_read_first_page(
+			it->m_handle, !check_tablespace_attributes,
+			&flags, &space, min_flushed_lsn, max_flushed_lsn);
 
 		ibool	success = os_file_close(it->m_handle);
 		ut_a(success);
@@ -677,6 +677,16 @@ Tablespace::read_lsn_and_check_flags(
 		ut_a(!check_tablespace_attributes || space == TRX_SYS_SPACE);
 
 		/* Check the flags for the first system tablespace file only. */
+
+		if (check_tablespace_attributes && check_msg) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"%s in %sData file \"%s\"",
+				check_msg,
+				((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
+				it->m_filename);
+			return(DB_ERROR);
+		}
+
 		if (check_tablespace_attributes
 		    && UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
 
