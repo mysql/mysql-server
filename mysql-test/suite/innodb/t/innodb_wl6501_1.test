@@ -50,10 +50,10 @@ while ($cnt) {
 	create table t1(c1 int not null,
 			c2 int not null,
 			c3 char(255) not null,
-			c4 text(4000) not null,
-			c5 blob(4000) not null,
-			c6 varchar(4000) not null,
-			c7 varchar(4000) not null,
+			c4 text(500) not null,
+			c5 blob(500) not null,
+			c6 varchar(500) not null,
+			c7 varchar(500) not null,
 			c8 datetime,
 			c9 decimal(5,3),
 			primary key (c1),
@@ -65,10 +65,10 @@ while ($cnt) {
 	create table t2(c1 int not null,
 			c2 int not null,
 			c3 char(255) not null,
-			c4 text(4000) not null,
-			c5 blob(4000) not null,
-			c6 varchar(4000) not null,
-			c7 varchar(4000) not null,
+			c4 text(500) not null,
+			c5 blob(500) not null,
+			c6 varchar(500) not null,
+			c7 varchar(500) not null,
 			c8 datetime,
 			c9 decimal(5,3),
 			primary key (c1),
@@ -83,10 +83,10 @@ while ($cnt) {
 	create table t3(c1 int not null,
 			c2 int not null,
 			c3 char(255) not null,
-			c4 text(4000) not null,
-			c5 blob(4000) not null,
-			c6 varchar(4000) not null,
-			c7 varchar(4000) not null,
+			c4 text(500) not null,
+			c5 blob(500) not null,
+			c6 varchar(500) not null,
+			c7 varchar(500) not null,
 			c8 datetime,
 			c9 decimal(5,3),
 			primary key (c1),
@@ -98,10 +98,10 @@ while ($cnt) {
 	create table t4(c1 int not null,
 			c2 int not null,
 			c3 char(255) not null,
-			c4 text(4000) not null,
-			c5 blob(4000) not null,
-			c6 varchar(4000) not null,
-			c7 varchar(4000) not null,
+			c4 text(500) not null,
+			c5 blob(500) not null,
+			c6 varchar(500) not null,
+			c7 varchar(500) not null,
 			c8 datetime,
 			c9 decimal(5,3),
 			primary key (c1),
@@ -113,10 +113,10 @@ while ($cnt) {
 	create temporary table t5(c1 int not null,
 				  c2 int not null,
 				  c3 char(255) not null,
-				  c4 text(4000) not null,
-				  c5 blob(4000) not null,
-				  c6 varchar(4000) not null,
-				  c7 varchar(4000) not null,
+				  c4 text(500) not null,
+				  c5 blob(500) not null,
+				  c6 varchar(500) not null,
+				  c7 varchar(500) not null,
 				  c8 datetime,
 				  c9 decimal(5,3),
 				  primary key (c1),
@@ -127,34 +127,60 @@ while ($cnt) {
 	create table t6 ( a int ) engine = innodb;
 	insert into t6 values (50),(100),(150);
 
-	-- disable_query_log
-	-- disable_result_log
+	--disable_query_log
+	--disable_result_log
 	let $n=5;
 
 	# load created tables.
 	while ($n)
 	{
 		start transaction;
-		eval insert into t1 values($n,$n,repeat(concat(' tc3_',$n),42),
-					   repeat(concat(' tc4_',$n),800),repeat(concat(' tc_',$n),800),
-					   repeat(concat(' tc6_',$n),800),repeat(concat(' tc7_',$n),800),
-					   now(),(100.55+$n));
-		eval insert into t2 values($n,$n,repeat(concat(' tc3_',$n),42),
-					   repeat(concat(' tc4_',$n),800),repeat(concat(' tc_',$n),800),
-					   repeat(concat(' tc6_',$n),800),repeat(concat(' tc7_',$n),800),
-					   now(),(100.55+$n));
-		eval insert into t3 values($n,$n,repeat(concat(' tc3_',$n),42),
-					   repeat(concat(' tc4_',$n),800),repeat(concat(' tc_',$n),800),
-					   repeat(concat(' tc6_',$n),800),repeat(concat(' tc7_',$n),800),
-					   now(),(100.55+$n));
-		eval insert into t4 values($n,$n,repeat(concat(' tc3_',$n),42),
-					   repeat(concat(' tc4_',$n),800),repeat(concat(' tc_',$n),800),
-					   repeat(concat(' tc6_',$n),800),repeat(concat(' tc7_',$n),800),
-					   now(),(100.55+$n));
-		eval insert into t5 values($n,$n,repeat(concat(' tc3_',$n),42),
-					   repeat(concat(' tc4_',$n),800),repeat(concat(' tc_',$n),800),
-					   repeat(concat(' tc6_',$n),800),repeat(concat(' tc7_',$n),800),
-					   now(),(100.55+$n));
+
+		eval insert into t1 values(
+			$n, $n,
+			repeat(concat(' tc3_',$n), 42),
+			repeat(concat(' tc4_',$n), 300),
+			repeat(concat(' tc5_',$n), 300),
+			repeat(concat(' tc6_',$n), 300),
+			repeat(concat(' tc7_',$n), 300),
+			now(), (100.55+$n));
+
+		eval insert into t2 values(
+			$n, $n,
+			repeat(concat(' tc3_',$n), 42),
+			repeat(concat(' tc4_',$n), 300),
+			repeat(concat(' tc5_',$n), 300),
+			repeat(concat(' tc6_',$n), 300),
+			repeat(concat(' tc7_',$n), 300),
+			now(), (100.55+$n));
+
+		eval insert into t3 values(
+			$n, $n,
+			repeat(concat(' tc3_',$n), 42),
+			repeat(concat(' tc4_',$n), 300),
+			repeat(concat(' tc5_',$n), 300),
+			repeat(concat(' tc6_',$n), 300),
+			repeat(concat(' tc7_',$n), 300),
+			now(), (100.55+$n));
+
+		eval insert into t4 values(
+			$n, $n,
+			repeat(concat(' tc3_',$n), 42),
+			repeat(concat(' tc4_',$n), 300),
+			repeat(concat(' tc5_',$n), 300),
+			repeat(concat(' tc6_',$n), 300),
+			repeat(concat(' tc7_',$n), 300),
+			now(), (100.55+$n));
+
+		eval insert into t5 values(
+			$n, $n,
+			repeat(concat(' tc3_',$n), 42),
+			repeat(concat(' tc4_',$n), 300),
+			repeat(concat(' tc5_',$n), 300),
+			repeat(concat(' tc6_',$n), 300),
+			repeat(concat(' tc7_',$n), 300),
+			now(), (100.55+$n));
+
 		if ($n <= 3)
 		{
 			commit;
@@ -169,9 +195,8 @@ while ($cnt) {
 	}
 
 	# validate loading of the tables.
-	-- enable_result_log
-	-- enable_query_log
-
+	--enable_result_log
+	--enable_query_log
 	select count(*) from t1;
 	select count(*) from t2;
 	select count(*) from t3;
@@ -182,102 +207,46 @@ while ($cnt) {
 	# set the debug crash point and exercise them.
 	if ($cnt == 6)
 	{
-		set session debug="+d,crash_during_drop_second_secondary";
-		-- echo "---debug crash_during_drop_second_secondary point---"
+		set session debug="+d,ib_crash_on_drop_of_sec_index";
+		--echo "---debug ib_crash_on_drop_of_sec_index point---"
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,crash_during_create_second_secondary";
-		-- echo "---debug crash_during_create_second_secondary---"
+		set session debug="+d,ib_crash_on_create_of_sec_index";
+		--echo "---debug ib_crash_on_create_of_sec_index---"
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,crash_before_log_checkpoint";
-		-- echo "---debug crash_before_log_checkpoint point---"
+		set session debug="+d,ib_crash_before_log_checkpoint2";
+		--echo "---debug ib_crash_before_log_checkpoint2 point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,crash_after_log_checkpoint";
-		-- echo "---debug crash_after_log_checkpoint point---"
+		set session debug="+d,ib_crash_after_log_checkpoint";
+		--echo "---debug ib_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,crash_after_truncate_tablespace";
-		-- echo "---debug crash_after_truncate_tablespace point---"
+		set session debug="+d,ib_crash_after_log_checkpoint";
+		--echo "---debug ib_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,crash_after_drop_tablespace";
-		-- echo "---debug crash_after_drop_tablespace point---"
+		set session debug="+d,ib_crash_after_redo_log_write_complete2";
+		--echo "---debug ib_crash_after_redo_log_write_complete2 point---"
 	}
 
-
-	# try truncating the table that will hit debug crash point.
-	# same operation will be repeated 4 times below.
-	# TODO: reenable it once we fix crash point for temp-table
-	if (0 && $cnt > 4) {
-		-- echo # Write file to make mysql-test-run.pl expect crash and restart
-		-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-		-- echo # Run the crashing query
-		# -- error 2013
-		truncate table t5;
-		-- source include/wait_until_disconnected.inc
-		-- enable_reconnect
-		-- echo # Restart the MySQL server
-		-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-		-- source include/wait_until_connected_again.inc
-		-- disable_reconnect
-		select count(*) from t1;
-		select count(*) from t2;
-		select count(*) from t3;
-		select count(*) from t4;
-		--error ER_NO_SUCH_TABLE 
-		select count(*) from t5;
-	}
-
-	if ($cnt == 6)
-	{
-		set session debug="+d,crash_during_drop_second_secondary";
-		-- echo "---debug crash_during_drop_second_secondary point---"
-	}
-	if ($cnt == 5)
-	{
-		set session debug="+d,crash_during_create_second_secondary";
-		-- echo "---debug crash_during_create_second_secondary---"
-	}
-	if ($cnt == 4)
-	{
-		set session debug="+d,crash_before_log_checkpoint";
-		-- echo "---debug crash_before_log_checkpoint point---"
-	}
-	if ($cnt == 3)
-	{
-		set session debug="+d,crash_after_log_checkpoint";
-		-- echo "---debug crash_after_log_checkpoint point---"
-	}
-	if ($cnt == 2)
-	{
-		set session debug="+d,crash_after_truncate_tablespace";
-		-- echo "---debug crash_after_truncate_tablespace point---"
-	}
-	if ($cnt == 1)
-	{
-		set session debug="+d,crash_after_drop_tablespace";
-		-- echo "---debug crash_after_drop_tablespace point---"
-	}
-
-
-	-- echo # Write file to make mysql-test-run.pl expect crash and restart
-	-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-	-- echo # Run the crashing query
-	-- error 2013
+	--echo # Write file to make mysql-test-run.pl expect crash and restart
+	--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+	--echo # Run the crashing query
+	--error 2013
 	truncate table t1;
-	-- source include/wait_until_disconnected.inc
-	-- enable_reconnect
-	-- echo # Restart the MySQL server
-	-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-	-- source include/wait_until_connected_again.inc
-	-- disable_reconnect
+	--source include/wait_until_disconnected.inc
+	--enable_reconnect
+	--echo # Restart the MySQL server
+	--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+	--source include/wait_until_connected_again.inc
+	--disable_reconnect
 	select count(*) from t1;
 	select count(*) from t2;
 	select count(*) from t3;
@@ -286,50 +255,49 @@ while ($cnt) {
 	select count(*) from t5;
 	select count(*) from t6;
 
-
 	if ($cnt == 6)
 	{
-		set session debug="+d,crash_during_drop_second_secondary";
-		-- echo "---debug crash_during_drop_second_secondary point---"
+		set session debug="+d,ib_crash_on_drop_of_sec_index";
+		--echo "---debug ib_crash_on_drop_of_sec_index point---"
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,crash_during_create_second_secondary";
-		-- echo "---debug crash_during_create_second_secondary---"
+		set session debug="+d,ib_crash_on_create_of_sec_index";
+		--echo "---debug ib_crash_on_create_of_sec_index---"
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,crash_before_log_checkpoint";
-		-- echo "---debug crash_before_log_checkpoint point---"
+		set session debug="+d,ib_crash_before_log_checkpoint2";
+		--echo "---debug ib_crash_before_log_checkpoint2 point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,crash_after_log_checkpoint";
-		-- echo "---debug crash_after_log_checkpoint point---"
+		set session debug="+d,ib_crash_after_log_checkpoint";
+		--echo "---debug ib_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,crash_after_truncate_tablespace";
-		-- echo "---debug crash_after_truncate_tablespace point---"
+		set session debug="+d,ib_crash_after_log_checkpoint";
+		--echo "---debug ib_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,crash_after_drop_tablespace";
-		-- echo "---debug crash_after_drop_tablespace point---"
+		set session debug="+d,ib_crash_after_redo_log_write_complete2";
+		--echo "---debug ib_crash_after_redo_log_write_complete2 point---"
 	}
 
 
-	-- echo # Write file to make mysql-test-run.pl expect crash and restart
-	-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-	-- echo # Run the crashing query
-	-- error 2013
+	--echo # Write file to make mysql-test-run.pl expect crash and restart
+	--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+	--echo # Run the crashing query
+	--error 2013
 	truncate table t2;
-	-- source include/wait_until_disconnected.inc
-	-- enable_reconnect
-	-- echo # Restart the MySQL server
-	-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-	-- source include/wait_until_connected_again.inc
-	-- disable_reconnect
+	--source include/wait_until_disconnected.inc
+	--enable_reconnect
+	--echo # Restart the MySQL server
+	--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+	--source include/wait_until_connected_again.inc
+	--disable_reconnect
 	select count(*) from t1;
 	select count(*) from t2;
 	select count(*) from t3;
@@ -340,47 +308,47 @@ while ($cnt) {
 
 	if ($cnt == 6)
 	{
-		set session debug="+d,crash_during_drop_second_secondary";
-		-- echo "---debug crash_during_drop_second_secondary point---"
+		set session debug="+d,ib_crash_on_drop_of_sec_index";
+		--echo "---debug ib_crash_on_drop_of_sec_index point---"
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,crash_during_create_second_secondary";
-		-- echo "---debug crash_during_create_second_secondary---"
+		set session debug="+d,ib_crash_on_create_of_sec_index";
+		--echo "---debug ib_crash_on_create_of_sec_index---"
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,crash_before_log_checkpoint";
-		-- echo "---debug crash_before_log_checkpoint point---"
+		set session debug="+d,ib_crash_before_log_checkpoint2";
+		--echo "---debug ib_crash_before_log_checkpoint2 point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,crash_after_log_checkpoint";
-		-- echo "---debug crash_after_log_checkpoint point---"
+		set session debug="+d,ib_crash_after_log_checkpoint";
+		--echo "---debug ib_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,crash_after_truncate_tablespace";
-		-- echo "---debug crash_after_truncate_tablespace point---"
+		set session debug="+d,ib_crash_after_log_checkpoint";
+		--echo "---debug ib_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,crash_after_drop_tablespace";
-		-- echo "---debug crash_after_drop_tablespace point---"
+		set session debug="+d,ib_crash_after_redo_log_write_complete2";
+		--echo "---debug ib_crash_after_redo_log_write_complete2 point---"
 	}
 
 
-	-- echo # Write file to make mysql-test-run.pl expect crash and restart
-	-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-	-- echo # Run the crashing query
-	-- error 2013
+	--echo # Write file to make mysql-test-run.pl expect crash and restart
+	--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+	--echo # Run the crashing query
+	--error 2013
 	truncate table t3;
-	-- source include/wait_until_disconnected.inc
-	-- enable_reconnect
-	-- echo # Restart the MySQL server
-	-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-	-- source include/wait_until_connected_again.inc
-	-- disable_reconnect
+	--source include/wait_until_disconnected.inc
+	--enable_reconnect
+	--echo # Restart the MySQL server
+	--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+	--source include/wait_until_connected_again.inc
+	--disable_reconnect
 	select count(*) from t1;
 	select count(*) from t2;
 	select count(*) from t3;
@@ -392,46 +360,46 @@ while ($cnt) {
 
 	if ($cnt == 6)
 	{
-		set session debug="+d,crash_during_drop_second_secondary";
-		-- echo "---debug crash_during_drop_second_secondary point---"
+		set session debug="+d,ib_crash_on_drop_of_sec_index";
+		--echo "---debug ib_crash_on_drop_of_sec_index point---"
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,crash_during_create_second_secondary";
-		-- echo "---debug crash_during_create_second_secondary---"
+		set session debug="+d,ib_crash_on_create_of_sec_index";
+		--echo "---debug ib_crash_on_create_of_sec_index---"
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,crash_before_log_checkpoint";
-		-- echo "---debug crash_before_log_checkpoint point---"
+		set session debug="+d,ib_crash_before_log_checkpoint2";
+		--echo "---debug ib_crash_before_log_checkpoint2 point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,crash_after_log_checkpoint";
-		-- echo "---debug crash_after_log_checkpoint point---"
+		set session debug="+d,ib_crash_after_log_checkpoint";
+		--echo "---debug ib_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,crash_after_truncate_tablespace";
-		-- echo "---debug crash_after_truncate_tablespace point---"
+		set session debug="+d,ib_crash_after_log_checkpoint";
+		--echo "---debug ib_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,crash_after_drop_tablespace";
-		-- echo "---debug crash_after_drop_tablespace point---"
+		set session debug="+d,ib_crash_after_redo_log_write_complete2";
+		--echo "---debug ib_crash_after_redo_log_write_complete2 point---"
 	}
 
-	-- echo # Write file to make mysql-test-run.pl expect crash and restart
-	-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-	-- echo # Run the crashing query
-	-- error 2013
+	--echo # Write file to make mysql-test-run.pl expect crash and restart
+	--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+	--echo # Run the crashing query
+	--error 2013
 	truncate table t4;
-	-- source include/wait_until_disconnected.inc
-	-- enable_reconnect
-	-- echo # Restart the MySQL server
-	-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-	-- source include/wait_until_connected_again.inc
-	-- disable_reconnect
+	--source include/wait_until_disconnected.inc
+	--enable_reconnect
+	--echo # Restart the MySQL server
+	--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+	--source include/wait_until_connected_again.inc
+	--disable_reconnect
 	select count(*) from t1;
 	select count(*) from t2;
 	select count(*) from t3;
@@ -444,10 +412,12 @@ while ($cnt) {
 
 	dec $cnt;
 
-	-- disable_query_log
+	--disable_query_log
 		eval set global innodb_file_format=$innodb_file_format_orig;
 	eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 	eval set global innodb_file_per_table=$innodb_file_per_table_orig;
-	-- enable_query_log
-
+	--enable_query_log
 } 
+
+
+
