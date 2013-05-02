@@ -598,7 +598,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
         if (!is_shared(stack, keywords))
           FreeList(stack->keywords);
         stack->keywords=NULL;
-        stack->flags &= ~DEBUG_ON;
+        stack->flags&= ~DEBUG_ON;
         break;
       }
       if (rel && is_shared(stack, keywords))
@@ -606,11 +606,29 @@ int DbugParse(CODE_STATE *cs, const char *control)
       if (sign < 0)
       {
         if (DEBUGGING)
+        {
           stack->keywords= ListDel(stack->keywords, control, end);
-      break;
+          /* Turn off DEBUG_ON if it is last keyword to be removed. */
+          if (stack->keywords == NULL)
+            stack->flags&= ~DEBUG_ON;
+        }
+        break;
       }
-      stack->keywords= ListAdd(stack->keywords, control, end);
-      stack->flags |= DEBUG_ON;
+
+      /* Do not add keyword if debugging all is enabled. */
+      if (!(DEBUGGING && stack->keywords == NULL))
+      {
+        stack->keywords= ListAdd(stack->keywords, control, end);
+        stack->flags|= DEBUG_ON;
+      }
+
+      /* If debug all is enabled, make the keyword list empty. */
+      if (sign == 1 && control == end)
+      {
+        FreeList(stack->keywords);
+        stack->keywords= NULL;
+      }
+
       break;
     case 'D':
       stack->delay= atoi(control);
