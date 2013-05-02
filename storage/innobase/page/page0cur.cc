@@ -2005,10 +2005,12 @@ PageCur::insert(rec_t* current) const
 	}
 
 	ut_ad(page != page_align(m_rec));
-	ut_ad(mtr_memo_contains_page(m_mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(!m_mtr
+	      || mtr_memo_contains_page(m_mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == m_index->id || recv_recovery_is_on() || m_mtr->inside_ibuf);
+	      == m_index->id || recv_recovery_is_on()
+	      || (m_mtr && m_mtr->inside_ibuf));
 	ut_ad(!page_rec_is_supremum(current));
 
 	const ulint rec_size = data_size + extra_size;
@@ -2124,8 +2126,10 @@ use_heap:
 			page, NULL, page_dir_find_owner_slot(owner_rec));
 	}
 
-	page_cur_insert_rec_write_log(insert_rec, rec_size,
-				      current, m_index, m_mtr);
+	if (m_mtr) {
+		page_cur_insert_rec_write_log(insert_rec, rec_size,
+					      current, m_index, m_mtr);
+	}
 
 	if (m_offsets) {
 		/* TODO: do not modify const m_offsets */
@@ -2221,7 +2225,8 @@ PageCur::search(const dtuple_t* tuple)
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_check_typed(tuple));
 	ut_ad(dtuple_get_n_fields(tuple) <= getNumFields());
-	ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX)
+	ut_ad(!m_mtr
+	      || mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_S_FIX));
 
 	page_zip_validate_if_zip(getPageZip(), page, m_index);
@@ -2350,7 +2355,8 @@ PageCur::purge()
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(m_index->table));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == m_index->id || m_mtr->inside_ibuf || recv_recovery_is_on());
+	      == m_index->id || recv_recovery_is_on()
+	      || (m_mtr && m_mtr->inside_ibuf));
 
 	/* page_zip_validate() will fail here when
 	btr_cur_pessimistic_delete() invokes btr_set_min_rec_mark().
@@ -2363,6 +2369,7 @@ PageCur::purge()
 	if (page_get_n_recs(page) == 1) {
 		/* Empty the page. */
 		ut_ad(page_is_leaf(page));
+		ut_ad(m_mtr);
 		/* Usually, this should be the root page,
 		and the whole index tree should become empty.
 		However, this could also be a call in
@@ -2475,6 +2482,8 @@ PageCur::purge()
 /** Reorganizes the page.
 The cursor position will be adjusted.
 
+NOTE: m_mtr must not be NULL.
+
 IMPORTANT: On success, the caller will have to update
 IBUF_BITMAP_FREE if this is a compressed leaf page in a
 secondary index. This has to be done either within m_mtr, or
@@ -2508,6 +2517,7 @@ PageCur::reorganize(bool recovery, ulint z_level)
 	ulint		pos;
 	bool		log_compressed;
 
+	ut_ad(m_mtr);
 	ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
 	page_zip_validate_if_zip(page_zip, page, m_index);
 	data_size1 = page_get_data_size(page);
