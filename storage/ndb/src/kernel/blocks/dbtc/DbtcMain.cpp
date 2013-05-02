@@ -16883,7 +16883,7 @@ Dbtc::fk_constructAttrInfoUpdateCascade(const TcFKData * fkPtrP,
       if (unlikely(!appendToSection(tmp, iter.data, contigValid)))
       {
         releaseSection(tmp);
-        return tmp;
+        return RNIL;
       }
       moreData = src.next(iter, contigValid);
       dataSize -= contigValid;
@@ -17569,7 +17569,14 @@ Dbtc::execKEYINFO20(Signal* signal)
      * attrValues save in indexOp
      */
     Uint32 tmp = RNIL;
-    ndbrequire(dupSection(tmp, tcPtr.p->indexOp)); // TODO handle error
+    if (unlikely( !dupSection(tmp, tcPtr.p->indexOp)))
+    {
+      jam();
+      releaseSection(keyInfoPtrI);
+      signal->header.m_noOfSections = 0;
+      abortTransFromTrigger(signal, transPtr, ZGET_DATAREC_ERROR);
+      return;
+    }
     signal->m_sectionPtrI[ TcKeyReq::AttrInfoSectionNum ] = tmp;
     signal->header.m_noOfSections= 2;
   }
@@ -18060,9 +18067,9 @@ Dbtc::fk_readFromParentTable(Signal* signal,
   Uint32 keyIVal= RNIL;
   bool hasNull= false;
   Uint32 err = fk_buildKeyInfo(keyIVal, hasNull, afterValues, fkData, true);
+  SegmentedSectionGuard guard(this, keyIVal);
   if (unlikely(err != 0))
   {
-    releaseSection(keyIVal);
     abortTransFromTrigger(signal, *transPtr, err);
     return;
   }
@@ -18073,7 +18080,6 @@ Dbtc::fk_readFromParentTable(Signal* signal,
   if (hasNull)
   {
     jam();
-    releaseSection(keyIVal);
     trigger_op_finished(signal, *transPtr, RNIL, opRecord, 0);
     return;
   }
