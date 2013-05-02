@@ -6620,6 +6620,11 @@ void Dbtc::execLQHKEYREF(Signal* signal)
         releaseTcCon();
 
         trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
+
+        if (ERROR_INSERTED(8098))
+        {
+          abortTransFromTrigger(signal, apiConnectptr, ZGET_DATAREC_ERROR);
+        }
         return;
       }
       
@@ -7490,8 +7495,9 @@ ABORT020:
   if (tcConnectptr.p->nextTcConnect != RNIL) {
     jam();
     tcConnectptr.i = tcConnectptr.p->nextTcConnect;
-    if (TloopCount < 1024 && !
-        (ERROR_INSERTED(8089)))
+    if (TloopCount < 1024 &&
+        !ERROR_INSERTED(8089) &&
+        !ERROR_INSERTED(8098))
     {
       goto ABORT020;
     }
