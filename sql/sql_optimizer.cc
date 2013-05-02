@@ -7802,6 +7802,18 @@ static bool make_join_select(JOIN *join, Item *cond)
                   break;
                 }
 
+                /*
+                  No index can provide the necessary order if ordering
+                  on fields that do not belong to 'tab' (the first
+                  non-const table)
+                */
+                Item_field *fld_item= static_cast<Item_field*>(item);
+                if (fld_item->field->table != tab->table)
+                {
+                  recheck_reason= DONT_RECHECK;
+                  break;
+                }
+
                 if ((interesting_order != ORDER::ORDER_NOT_RELEVANT) &&
                     (interesting_order != tmp_order->direction))
                 {
@@ -7815,7 +7827,7 @@ static bool make_join_select(JOIN *join, Item *cond)
                   break;
                 }
 
-                usable_keys.intersect(((Item_field*)item)->field->part_of_sortkey);
+                usable_keys.intersect(fld_item->field->part_of_sortkey);
                 interesting_order= tmp_order->direction;
 
                 if (usable_keys.is_clear_all())
