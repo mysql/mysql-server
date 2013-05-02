@@ -1301,6 +1301,16 @@ Dbtup::getOldTriggerId(const TupTriggerData* trigPtrP,
   return RNIL;
 }
 
+static
+inline
+bool
+ndbd_long_firetrig_ord(Uint32 version)
+{
+  return true;
+}
+
+#define ZOUT_OF_LONG_SIGNAL_MEMORY_IN_TRIGGER 312
+
 void Dbtup::executeTrigger(KeyReqStruct *req_struct,
                            TupTriggerData* const trigPtr,
                            Operationrec* const regOperPtr,
@@ -1381,6 +1391,7 @@ out:
 //--------------------------------------------------------------------
   bool executeDirect;
   bool longsignal = false;
+  bool detached = false;
   Uint32 triggerId = trigPtr->triggerId;
   TrigAttrInfo* const trigAttrInfo = (TrigAttrInfo *)signal->getDataPtrSend();
   trigAttrInfo->setConnectionPtr(req_struct->TC_index);
@@ -1408,6 +1419,7 @@ out:
     jam();
     ref = req_struct->TC_ref;
     executeDirect = false;
+    longsignal = ndbd_long_firetrig_ord(getNodeInfo(refToNode(ref)).m_version);
     break;
   case (TriggerType::SUBSCRIPTION):
   case (TriggerType::SUBSCRIPTION_BEFORE):
@@ -1420,6 +1432,7 @@ out:
     // If we can do execute direct, lets do that, else do long signal (only local node)
     longsignal = !executeDirect;
     ndbassert(refToNode(ref) == 0 || refToNode(ref) == getOwnNodeId());
+    detached = true;
     break;
   case (TriggerType::READ_ONLY_CONSTRAINT):
     terrorCode = ZREAD_ONLY_CONSTRAINT_VIOLATION;
@@ -1597,6 +1610,22 @@ out:
   fireTrigOrd->setNoOfBeforeValueWords(noBeforeWords);
   fireTrigOrd->setNoOfAfterValueWords(noAfterWords);
 
+  LinearSectionPtr ptr[3];
+  ptr[0].p = keyBuffer;
+  ptr[0].sz = noPrimKey;
+  ptr[1].p = beforeBuffer;
+  ptr[1].sz = noBeforeWords;
+  ptr[2].p = afterBuffer;
+  ptr[2].sz = noAfterWords;
+
+  SectionHandle handle(this);
+  if (longsignal && !detached && !import(&handle, ptr, 3))
+  {
+    jam();
+    terrorCode = ZOUT_OF_LONG_SIGNAL_MEMORY_IN_TRIGGER;
+    return;
+  }
+
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
   case (TriggerType::REORG_TRIGGER):
@@ -1606,8 +1635,18 @@ out:
     fireTrigOrd->m_triggerType = trigPtr->triggerType;
     fireTrigOrd->m_transId1 = req_struct->trans_id1;
     fireTrigOrd->m_transId2 = req_struct->trans_id2;
-    sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD,
-               signal, FireTrigOrd::SignalLength, JBB);
+    if (longsignal)
+    {
+      jam();
+      sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD,
+                 signal, FireTrigOrd::SignalLength, JBB, &handle);
+    }
+    else
+    {
+      jam();
+      sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD,
+                 signal, FireTrigOrd::SignalLength, JBB);
+    }
     break;
   case (TriggerType::SUBSCRIPTION_BEFORE): // Only Suma
     jam();
