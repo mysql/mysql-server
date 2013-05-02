@@ -238,7 +238,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN DELETE FROM tab 
 WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	tab	range	idx2	idx2	8	NULL	#	Using where
+1	SIMPLE	tab	range	idx2	idx2	8	const	#	Using where
 #check the spatial values
 SELECT AsText(c1) FROM tab;
 AsText(c1)
@@ -736,7 +736,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN DELETE FROM tab3 
 WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	tab3	range	idx2	idx2	8	NULL	#	Using where
+1	SIMPLE	tab3	range	idx2	idx2	8	const	#	Using where
 #check the spatial values
 SELECT AsText(c1) FROM tab3;
 AsText(c1)
