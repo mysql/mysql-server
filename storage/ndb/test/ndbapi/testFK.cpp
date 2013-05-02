@@ -44,6 +44,9 @@ static int runLongSignalMemorySnapshot(NDBT_Context* ctx, NDBT_Step* step);
 #define T_UNIQ 1
 #define T_MANY 2
 
+#define T_PK_IDX 1
+#define T_UK_IDX 2
+
 #define PKNAME "$PK$"
 
 extern unsigned opt_seed;
@@ -374,6 +377,12 @@ match(const NdbDictionary::Index * parent,
   if (childCandidate->getNoOfColumns() < parent->getNoOfColumns())
     return false;
 
+  if (childCandidate->getType() == NdbDictionary::Index::UniqueHashIndex)
+  {
+    if (childCandidate->getNoOfColumns() != parent->getNoOfColumns())
+      return false;
+  }
+
   for (unsigned i = 0; i < parent->getNoOfColumns(); i++)
   {
     if (strcmp(parent->getColumn(i)->getName(),
@@ -599,9 +608,18 @@ createIDX(NdbDictionary::Dictionary * dict,
 static
 int
 createFK(NdbDictionary::Dictionary * dict,
-         const NdbDictionary::Table * pTab,
-         int type)
+         const NdbDictionary::Table * pParent,
+         int parent_type,
+         const NdbDictionary::Table * pChild,
+         int type,
+         unsigned onupdateactionmask = ~(unsigned)0,
+         unsigned ondeleteactionmask = ~(unsigned)0)
 {
+  /**
+   * Note, it's assumed that pParent and pChild has identical structure
+   *       and indexes
+   */
+
   const NdbDictionary::Index * parentIdx = 0;
   const NdbDictionary::Index * childIdx = 0;
 
@@ -616,8 +634,14 @@ createFK(NdbDictionary::Dictionary * dict,
       unsigned no = (i+p) % indexes.size();
       if (indexes[no]->getType() == NdbDictionary::Index::UniqueHashIndex)
       {
-        parentIdx = indexes[no];
-        break;
+        bool pk = strcmp(indexes[no]->getName(), PKNAME) == 0;
+        if (parent_type == T_RAND ||
+            (parent_type == T_PK_IDX && pk == true) ||
+            (parent_type == T_UK_IDX && pk == false))
+        {
+          parentIdx = indexes[no];
+          break;
+        }
       }
     }
   }
@@ -655,29 +679,46 @@ createFK(NdbDictionary::Dictionary * dict,
     return NDBT_WRONGARGS;
   }
 
+  if (strcmp(childIdx->getName(), PKNAME) != 0)
+  {
+    const NdbDictionary::Index * idx = dict->getIndex(childIdx->getName(),
+                                                      pChild->getName());
+    assert(idx != 0);
+    childIdx = idx;
+  }
+
   const NdbDictionary::Column * cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
   for (unsigned i = 0; i < parentIdx->getNoOfColumns(); i++)
   {
-    cols[i] = find(pTab, parentIdx->getColumn(i)->getName());
+    cols[i] = find(pParent, parentIdx->getColumn(i)->getName());
   }
   cols[parentIdx->getNoOfColumns()] = 0;
 
   NdbDictionary::ForeignKey ndbfk;
   BaseString name;
-  name.assfmt("FK_%s_%u", pTab->getName(), fks.size());
+  name.assfmt("FK_%s_%u", pParent->getName(), fks.size());
   ndbfk.setName(name.c_str());
-  ndbfk.setParent(* pTab,
+  ndbfk.setParent(* pParent,
                   (strcmp(parentIdx->getName(), PKNAME) == 0 ? 0 : parentIdx),
                   cols);
-  ndbfk.setChild(* pTab,
+  ndbfk.setChild(* pChild,
                  (strcmp(childIdx->getName(), PKNAME) == 0 ? 0 : childIdx),
                  cols);
 
   const unsigned alt_update =
     (strcmp(parentIdx->getName(), PKNAME) == 0) ? 2 :
-    (nullonly(pTab, childIdx, parentIdx->getNoOfColumns())) ? 4
+    (nullonly(pChild, childIdx, parentIdx->getNoOfColumns())) ? 4
     : 3;
-  switch(schema_rand() % alt_update) {
+
+  if ((((1 << alt_update) - 1) & onupdateactionmask) == 0)
+  {
+    return NDBT_WRONGARGS;
+  }
+  int val = 0;
+  do {
+    val = schema_rand() % alt_update;
+  } while (((1 << val) & onupdateactionmask) == 0);
+  switch(val) {
   case 0:
     ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::NoAction);
     break;
@@ -690,13 +731,25 @@ createFK(NdbDictionary::Dictionary * dict,
   case 3:
     ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::SetNull);
     break;
+  case 4:
+    ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::SetDefault);
+    break;
   }
 
   const unsigned alt_delete =
-    (nullonly(pTab, childIdx, parentIdx->getNoOfColumns())) ? 4
+    (nullonly(pChild, childIdx, parentIdx->getNoOfColumns())) ? 4
     : 3;
 
-  switch(schema_rand() % alt_delete) {
+  if ((((1 << alt_delete) - 1) & ondeleteactionmask) == 0)
+  {
+    return NDBT_WRONGARGS;
+  }
+  val = 0;
+  do {
+    val = schema_rand() % alt_delete;
+  } while (((1 << val) & ondeleteactionmask) == 0);
+
+  switch(val) {
   case 0:
     ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::NoAction);
     break;
@@ -709,9 +762,13 @@ createFK(NdbDictionary::Dictionary * dict,
   case 3:
     ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::SetNull);
     break;
+  case 4:
+    ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::SetDefault);
+    break;
   }
 
-  if (strcmp(parentIdx->getName(), PKNAME) != 0)
+  if (strcmp(pParent->getName(), pChild->getName()) == 0 &&
+      strcmp(parentIdx->getName(), PKNAME) != 0)
   {
     /**
      * BUG => WORK-AROUND (using another BUG!)
@@ -736,6 +793,13 @@ createFK(NdbDictionary::Dictionary * dict,
     return NDBT_OK;
   }
   ndbout << dict->getNdbError() << endl;
+
+  if (1)
+  {
+    dict->print(ndbout, * pChild);
+  }
+
+  abort();
   return NDBT_FAILED;
 }
 
@@ -771,15 +835,15 @@ runCreateRandom(NDBT_Context* ctx, NDBT_Step* step)
   }
   for (int i = 0; i < fkcount; i++)
   {
-    createFK(dict, pTab, T_RAND);
+    createFK(dict, pTab, T_RAND, pTab, T_RAND);
   }
   for (int i = 0; i < uifkcount; i++)
   {
-    createFK(dict, pTab, T_UNIQ);
+    createFK(dict, pTab, T_RAND, pTab, T_UNIQ);
   }
   for (int i = 0; i < oifkcount; i++)
   {
-    createFK(dict, pTab, T_MANY);
+    createFK(dict, pTab, T_RAND, pTab, T_MANY);
   }
 
   if (1)
@@ -976,6 +1040,260 @@ runTransError(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+int
+runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+
+  /**
+   * We want to create a ON UPDATE CASCADE ON DELETE CASCADE
+   *
+   * We need a UK parent index
+   * - we don't support ON UPDATE CASCADE for PK since we don't support
+   *   update PK
+   *
+   * We need a PK, UK or OI child index
+   */
+  const NdbDictionary::Table * pTab = dict->getTable(ctx->getTab()->getName());
+  for (int i = 0; i < 3; i++)
+  {
+    createIDX(dict, pTab, T_UNIQ);
+    createIDX(dict, pTab, T_MANY);
+  }
+
+  /**
+   * Now create a identical CHILD table
+   */
+  BaseString childname;
+  childname.assfmt("%s_CHILD", pTab->getName());
+  NdbDictionary::Table child(* pTab);
+  child.setName(childname.c_str());
+
+  (void)dict->dropTable(child.getName());
+
+  int res = dict->createTable(child);
+  if (res != 0)
+  {
+    ndbout << __LINE__ << ": " << dict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  const NdbDictionary::Table * pChild = dict->getTable(childname.c_str());
+  {
+    NdbDictionary::Dictionary::List list;
+    if (dict->listIndexes(list, *pTab) != 0)
+    {
+      ndbout << __LINE__ << ": " << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    for (unsigned i = 0; i<list.count; i++)
+    {
+      const NdbDictionary::Index* idx = dict->getIndex(list.elements[i].name,
+                                                       pTab->getName());
+      if (idx)
+      {
+        NdbDictionary::Index copy;
+        copy.setName(idx->getName());
+        copy.setType(idx->getType());
+        copy.setLogging(idx->getLogging());
+        copy.setTable(pChild->getName());
+        for (unsigned j = 0; j<idx->getNoOfColumns(); j++)
+        {
+          copy.addColumn(idx->getColumn(j)->getName());
+        }
+        if (dict->createIndex(copy) != 0)
+        {
+          ndbout << __LINE__ << ": " << dict->getNdbError() << endl;
+          return NDBT_FAILED;
+        }
+      }
+    }
+  }
+
+  /**
+   * Now create FK
+   */
+  res = createFK(dict,
+                 pTab, T_UK_IDX,
+                 pChild, T_RAND,
+                 (1 << NDB_FK_CASCADE),
+                 (1 << NDB_FK_CASCADE));
+
+
+  if (res != 0)
+  {
+    abort();
+    return res;
+  }
+
+  if (1)
+  {
+    dict->print(ndbout, * pChild);
+  }
+
+  return NDBT_OK;
+}
+
+int
+runMixedCascade(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  BaseString childname;
+  childname.assfmt("%s_CHILD", pTab->getName());
+  const NdbDictionary::Table * pChild =
+    pNdb->getDictionary()->getTable(childname.c_str());
+
+  unsigned seed = (unsigned)NdbTick_CurrentMillisecond();
+
+  const int rows = ctx->getNumRecords();
+  const int loops = 10 * ctx->getNumLoops();
+  const int until_stopped = ctx->getProperty("TransactionsUntilStopped");
+  const int deferred = ctx->getProperty("Deferred");
+  const int minbatch = ctx->getProperty("MinBatch", Uint32(10));
+  const int maxbatch = ctx->getProperty("MaxBatch", Uint32(50));
+  const int longsignalmemorysnapshot =
+    ctx->getProperty("LongSignalMemorySnapshot", Uint32(0));
+
+  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  const NdbRecord * pRowRecord1 = pChild->getDefaultRecord();
+
+  const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
+  Uint8 * pRow = new Uint8[len];
+
+  int result = 0;
+  int count_ok = 0;
+  int count_failed = 0;
+  NdbError err;
+  for (int i = 0; i < loops || (until_stopped && !ctx->isTestStopped()); i++)
+  {
+    NdbTransaction* pTrans = pNdb->startTransaction();
+    if (pTrans == 0)
+    {
+      err = pNdb->getNdbError();
+      goto start_err;
+    }
+
+    if (longsignalmemorysnapshot)
+    {
+      runLongSignalMemorySnapshot(ctx, step);
+    }
+
+    {
+      int lastrow = 0;
+      int batch = minbatch + (rand() % (maxbatch - minbatch));
+      for (int rowNo = 0; rowNo < batch; rowNo++)
+      {
+        int left = rows - lastrow;
+        int rowId = lastrow;
+        if (left)
+        {
+          rowId += ndb_rand_r(&seed) % (left / 10 + 1);
+        }
+        else
+        {
+          break;
+        }
+        lastrow = rowId;
+
+        bzero(pRow, len);
+
+        HugoCalculator calc(* pTab);
+        calc.setValues(pRow, pRowRecord, rowId, rand());
+
+        NdbOperation::OperationOptions opts;
+        bzero(&opts, sizeof(opts));
+        if (deferred)
+        {
+          opts.optionsPresent =
+            NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+        }
+
+        const NdbOperation* pOp = 0, * pOp1 = 0;
+        switch(ndb_rand_r(&seed) % 3){
+        case 0:
+          pOp = pTrans->writeTuple(pRowRecord, (char*)pRow,
+                                   pRowRecord, (char*)pRow,
+                                   0,
+                                   &opts,
+                                   sizeof(opts));
+          result = pTrans->execute(NoCommit, AO_IgnoreError);
+          if (result != 0)
+            goto found_error;
+          pOp1 = pTrans->writeTuple(pRowRecord1, (char*)pRow,
+                                    pRowRecord1, (char*)pRow,
+                                    0,
+                                    &opts,
+                                    sizeof(opts));
+          break;
+        case 1:
+          pOp = pTrans->deleteTuple(pRowRecord, (char*)pRow,
+                                    pRowRecord, (char*)pRow,
+                                    0,
+                                    &opts,
+                                    sizeof(opts));
+          break;
+        case 2:
+          pOp = pTrans->updateTuple(pRowRecord, (char*)pRow,
+                                    pRowRecord, (char*)pRow,
+                                    0,
+                                    &opts,
+                                    sizeof(opts));
+          break;
+        }
+        CHK_RET_FAILED(pOp != 0);
+        result = pTrans->execute(NoCommit, AO_IgnoreError);
+        if (result != 0)
+        {
+          goto found_error;
+        }
+      }
+    }
+    result = pTrans->execute(Commit, AO_IgnoreError);
+    if (result != 0)
+    {
+  found_error:
+      err = pTrans->getNdbError();
+  start_err:
+      count_failed++;
+      ndbout << err << endl;
+      CHK_RET_FAILED(err.code == 1235 ||
+                     err.code == 1236 ||
+                     err.code == 5066 ||
+                     err.status == NdbError::TemporaryError ||
+                     err.classification == NdbError::NoDataFound ||
+                     err.classification == NdbError::ConstraintViolation);
+    }
+    else
+    {
+      count_ok++;
+    }
+    pTrans->close();
+  }
+
+  ndbout_c("count_ok: %d count_failed: %d",
+           count_ok, count_failed);
+  delete [] pRow;
+
+  return NDBT_OK;
+}
+
+static
+int
+runDropCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  BaseString childname;
+  childname.assfmt("%s_CHILD", pTab->getName());
+
+  pNdb->getDictionary()->dropTable(childname.c_str());
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testFK);
 TESTCASE("CreateDrop",
 	 "Test random create/drop of FK")
@@ -1062,6 +1380,24 @@ TESTCASE("TransError",
   INITIALIZER(runCreateRandom);
   INITIALIZER(runTransError);
   INITIALIZER(runCleanupTable);
+}
+TESTCASE("Cascade1",
+	 "")
+{
+  INITIALIZER(runDiscoverTable);
+  INITIALIZER(runCreateCascadeChild);
+  STEPS(runMixedCascade, 1);
+  VERIFIER(runDropCascadeChild);
+  VERIFIER(runCleanupTable);
+}
+TESTCASE("Cascade10",
+	 "")
+{
+  INITIALIZER(runDiscoverTable);
+  INITIALIZER(runCreateCascadeChild);
+  STEPS(runMixedCascade, 10);
+  VERIFIER(runDropCascadeChild);
+  VERIFIER(runCleanupTable);
 }
 NDBT_TESTSUITE_END(testFK);
 
