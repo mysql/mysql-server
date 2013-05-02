@@ -61,6 +61,8 @@ public:
   void addLast(Ptr<T> &);
   void add(Ptr<T> & ptr) { addLast(ptr);}
 
+  void append(DLFifoListImpl<P,T,U>::Head& other);
+
   /**
    * Insert object <em>ptr</ptr> _before_ <em>loc</em>
    */
@@ -259,6 +261,37 @@ DLFifoListImpl<P,T,U>::addLast(Ptr<T> & p)
   else
   {
     head.firstItem = p.i;
+  }
+}
+
+template <typename P, typename T, typename U>
+inline
+void
+DLFifoListImpl<P,T,U>::append(DLFifoListImpl<P,T,U>::Head & other)
+{
+  Uint32 tl = head.lastItem;
+  Uint32 of = other.firstItem;
+  Uint32 ol = other.lastItem;
+
+  if (of != RNIL)
+  {
+    T * t = thePool.getPtr(of);
+
+    head.lastItem = ol;
+
+    if (tl != RNIL)
+    {
+      T * t2 = thePool.getPtr(tl);
+      t->U::prevList = tl;
+      t2->U::nextList = of;
+    }
+    else
+    {
+      head.firstItem = of;
+    }
+
+    other.firstItem = RNIL;
+    other.lastItem = RNIL;
   }
 }
 
