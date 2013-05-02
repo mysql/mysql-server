@@ -3281,6 +3281,65 @@ runRefreshLocking(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBugXXX_init(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return NDBT_OK;
+}
+
+int
+runBugXXX_trans(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  while (!ctx->isTestStopped())
+  {
+    runLoadTable(ctx, step);
+    ctx->getPropertyWait("CREATE_INDEX", 1);
+    ctx->setProperty("CREATE_INDEX", Uint32(0));
+    res.insertErrorInAllNodes(8098); // randomly abort trigger ops with 218
+    runClearTable2(ctx, step);
+    res.insertErrorInAllNodes(0);
+  }
+
+  return NDBT_OK;
+}
+
+int
+runBugXXX_createIndex(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  const int loops = ctx->getNumLoops();
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  BaseString name;
+  name.assfmt("%s_PK_IDX", pTab->getName());
+  NdbDictionary::Index pIdx(name.c_str());
+  pIdx.setTable(pTab->getName());
+  pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
+  for (int c = 0; c < pTab->getNoOfColumns(); c++)
+  {
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if(col->getPrimaryKey())
+    {
+      pIdx.addIndexColumn(col->getName());
+    }
+  }
+  pIdx.setStoredIndex(false);
+
+  for (int i = 0; i < loops; i++)
+  {
+    res.insertErrorInAllNodes(18000);
+    ctx->setProperty("CREATE_INDEX", 1);
+    pNdb->getDictionary()->createIndex(pIdx);
+    pNdb->getDictionary()->dropIndex(name.c_str(), pTab->getName());
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
@@ -3660,6 +3719,13 @@ TESTCASE("RefreshLocking",
          "Test Refresh locking properties")
 {
   INITIALIZER(runRefreshLocking);
+}
+TESTCASE("BugXXX",
+         "Test Refresh locking properties")
+{
+  INITIALIZER(runBugXXX_init);
+  STEP(runBugXXX_createIndex);
+  STEP(runBugXXX_trans);
 }
 NDBT_TESTSUITE_END(testBasic);
 
