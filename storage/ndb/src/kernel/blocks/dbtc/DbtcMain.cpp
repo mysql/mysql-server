@@ -17303,16 +17303,30 @@ Dbtc::execKEYINFO20(Signal* signal)
     return;
   }
 
+  /**
+   * Validate base transaction
+   */
+  Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash; // NOTE: 0x188
+  ApiConnectRecordPtr transPtr;
+  transPtr.i = orgTransPtrI;
+  ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord);
+
+  if (unlikely(! (transId[0] == transPtr.p->transid[0] &&
+                  transId[1] == transPtr.p->transid[1] &&
+                  transPtr.p->apiConnectstate != CS_ABORTING)))
+  {
+    jam();
+
+    /**
+     * The "base" transaction has been aborted...
+     *   terminate scan directly
+     */
+    fk_scanFromChildTable_abort(signal, tcPtr);
+    return;
+  }
+
   Ptr<TcDefinedTriggerData> trigPtr;
   c_theDefinedTriggers.getPtr(trigPtr, tcPtr.p->currentTriggerId);
-
-  TcConnectRecordPtr opPtr; // triggering operation
-  opPtr.i = tcPtr.p->triggeringOperation;
-  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
-
-  ApiConnectRecordPtr transPtr;
-  transPtr.i = opPtr.p->apiConnect;
-  ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord);
 
   /* Extract KeyData */
   Uint32 keyInfoPtrI = RNIL;
@@ -17350,8 +17364,8 @@ Dbtc::execKEYINFO20(Signal* signal)
 
   childTabPtr.i = fkPtr.p->childTableId;
   ptrCheckGuard(childTabPtr, ctabrecFilesize, tableRecord);
-  tcKeyReq->apiConnectPtr = opPtr.p->apiConnect;
-  tcKeyReq->senderData = opPtr.i;
+  tcKeyReq->apiConnectPtr = orgTransPtrI;
+  tcKeyReq->senderData = tcPtr.p->triggeringOperation;
 
   tcKeyReq->attrLen = 0;
   tcKeyReq->tableId = childTabPtr.i;
@@ -17385,6 +17399,10 @@ Dbtc::execKEYINFO20(Signal* signal)
     signal->m_sectionPtrI[ TcKeyReq::AttrInfoSectionNum ] = tmp;
     signal->header.m_noOfSections= 2;
   }
+
+  TcConnectRecordPtr opPtr; // triggering operation
+  opPtr.i = tcPtr.p->triggeringOperation;
+  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
 
   /**
    * Fix savepoint id -
