@@ -34,7 +34,8 @@ NdbRecordObject::NdbRecordObject(Record *_record,
   record(_record), 
   handlers(_handlers),
   ncol(record->getNoOfColumns()),
-  proxy(new ColumnProxy[record->getNoOfColumns()])
+  proxy(new ColumnProxy[record->getNoOfColumns()]),
+  nWrites(0)
 {
   DEBUG_PRINT("    ___Constructor___       [%d col, bufsz %d]", 
               ncol, record->getBufferSize());

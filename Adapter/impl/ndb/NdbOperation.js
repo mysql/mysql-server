@@ -52,10 +52,17 @@ var errorClassificationMap = {
 };
 
 function DBOperationError(ndb_error) {
-  var mappedCode = errorClassificationMap[ndb_error.classification];
-  this.message = ndb_error.message + " [" + ndb_error.code + "]";
+  var mappedCode;
+  if(ndb_error) {
+    this.ndb_error = ndb_error;
+    mappedCode = errorClassificationMap[ndb_error.classification];
+    this.message = ndb_error.message + " [" + ndb_error.code + "]";
+  }
+  else {
+    this.ndb_error = null;
+    this.message = null;
+  }
   this.sqlstate = mappedCode || "NDB00";
-  this.ndb_error = ndb_error;
   this.cause = null;
 }
 
@@ -340,6 +347,7 @@ function buildValueObject(op) {
   udebug.log("buildValueObject");
   var VOC = op.tableHandler.ValueObject; // NDB Value Object Constructor
   var DOC = op.tableHandler.newObjectConstructor;  // User's Domain Object Ctor
+  var nWritesPre, nWritesPost, err;
   
   if(VOC) {
     /* Turn the buffer into a Value Object */
@@ -352,7 +360,20 @@ function buildValueObject(op) {
 
     /* Finally the user's constructor is called on the new value: */
     if(DOC) {
+      nWritesPre = adapter.impl.getValueObjectWriteCount(op.result.value);
       DOC.call(op.result.value);
+      nWritesPost = adapter.impl.getValueObjectWriteCount(op.result.value);
+      if(nWritesPost > nWritesPre) {
+        err = new DBOperationError();
+        err.message =
+         "A Domain Object Constructor has overwritten persistent properties "+
+         "that were read from the database.  The Domain Object Constructor "+
+         "is called with no arguments and its ``this'' parameter set to the "+
+         "newly read object.";
+        err.sqlstate = "WCTOR";
+        op.result.error = err;
+        op.result.success = false;
+      }
     }
   }
   else {

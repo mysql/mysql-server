@@ -216,8 +216,20 @@ Handle<Value> isValueObject(const Arguments &args) {
   return scope.Close(Boolean::New(answer));
 }
 
+
+Handle<Value> getValueObjectWriteCount(const Arguments &args) {
+  HandleScope scope;
+  Local<Object> obj = args[0]->ToObject();
+  NdbRecordObject * nro =
+    static_cast<NdbRecordObject *>(obj->GetPointerFromInternalField(1));
+ 
+  return scope.Close(Number::New(nro->getWriteCount()));
+}
+
+
 void ValueObject_initOnLoad(Handle<Object> target) {
   HandleScope scope;
   DEFINE_JS_FUNCTION(target, "getValueObjectConstructor", getValueObjectConstructor);
   DEFINE_JS_FUNCTION(target, "isValueObject", isValueObject);
+  DEFINE_JS_FUNCTION(target, "getValueObjectWriteCount", getValueObjectWriteCount);
 }
