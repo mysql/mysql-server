@@ -39,6 +39,7 @@
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/AllocNodeId.hpp>
+#include <signaldata/CloseComReqConf.hpp>
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE
@@ -1149,6 +1150,8 @@ TransporterFacade::close_clnt(trp_client* clnt)
   signal.theVerId_signalNumber = GSN_CLOSE_COMREQ;
   signal.theTrace = 0;
   signal.theLength = 1;
+  CloseComReqConf * req = CAST_PTR(CloseComReqConf, signal.getDataPtrSend());
+  req->xxxBlockRef = numberToRef(clnt->m_blockNo, theOwnId);
 
   if (clnt)
   {
