@@ -126,6 +126,7 @@ class SimulatedBlock {
   friend struct SectionHandle;
   friend class LockQueue;
   friend class SimplePropertiesSectionWriter;
+  friend class SegmentedSectionGuard;
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
@@ -1391,6 +1392,47 @@ struct Hash2FragmentMap
 };
 
 extern ArrayPool<Hash2FragmentMap> g_hash_map;
+
+/**
+ * Guard class for auto release of segmentedsectionptr's
+ */
+class SegmentedSectionGuard
+{
+  Uint32 cnt;
+  Uint32 ptr[3];
+  SimulatedBlock * block;
+
+public:
+  SegmentedSectionGuard(SimulatedBlock* b) : cnt(0), block(b) { }
+  SegmentedSectionGuard(SimulatedBlock* b, Uint32 ptrI) : cnt(1), block(b) {
+    ptr[0] = ptrI;
+  }
+
+  void add(Uint32 ptrI) {
+    if (ptrI != RNIL)
+    {
+      assert(cnt < NDB_ARRAY_SIZE(ptr));
+      ptr[cnt] = ptrI;
+      cnt++;
+    }
+  }
+
+  void release() {
+    for (Uint32 i = 0; i < cnt; i++) {
+      if (ptr[i] != RNIL)
+        block->releaseSection(ptr[i]);
+    }
+    cnt = 0;
+  }
+
+  void clear() {
+    cnt = 0;
+  }
+
+  ~SegmentedSectionGuard() {
+    release();
+  }
+};
 
 #endif
 

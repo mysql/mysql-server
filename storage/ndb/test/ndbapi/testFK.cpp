@@ -24,6 +24,7 @@
 #include <Vector.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NodeBitmask.hpp>
+#include <NdbEnv.h>
 
 static int runLongSignalMemorySnapshot(NDBT_Context* ctx, NDBT_Step* step);
 
@@ -198,11 +199,6 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
       goto start_err;
     }
 
-    if (longsignalmemorysnapshot)
-    {
-      runLongSignalMemorySnapshot(ctx, step);
-    }
-
     {
       int lastrow = 0;
       int batch = minbatch + (rand() % (maxbatch - minbatch));
@@ -279,6 +275,11 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
                      err.status == NdbError::TemporaryError ||
                      err.classification == NdbError::NoDataFound ||
                      err.classification == NdbError::ConstraintViolation);
+
+      if (longsignalmemorysnapshot)
+      {
+        runLongSignalMemorySnapshot(ctx, step);
+      }
     }
     else
     {
@@ -557,7 +558,8 @@ createIDX(NdbDictionary::Dictionary * dict,
 
     if (possible > 0)
     {
-      unsigned add = schema_rand() % possible;
+      unsigned add = possible == 1 ? 1 :
+        (1 + (schema_rand() % (possible - 1)));
       for (unsigned i = 0; i < add; i++)
       {
         int c = schema_rand() % pTab->getNoOfColumns();
@@ -570,6 +572,8 @@ createIDX(NdbDictionary::Dictionary * dict,
             add--;
             continue;
           }
+          if (col->getPrimaryKey())
+            continue;
 
           if (find(&pIdx, col->getName()) != 0)
             continue;
@@ -1004,44 +1008,6 @@ runLongSignalMemorySnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
 
 static
 int
-terrorCodes[] =
-{
-  8099,
-  8100,
-  8101,
-  8102,
-  0
-};
-
-static
-int
-runTransError(NDBT_Context* ctx, NDBT_Step* step)
-{
-  NdbRestarter res;
-  ctx->setProperty("LongSignalMemorySnapshot", Uint32(1));
-
-  for (int i = 0; terrorCodes[i] != 0; i++)
-  {
-    printf("testing errcode: %d\n", terrorCodes[i]);
-    runLongSignalMemorySnapshotStart(ctx, step);
-    runTransSnapshot(ctx, step);
-    runRSSsnapshot(ctx, step);
-
-    res.insertErrorInAllNodes(terrorCodes[i]);
-    runMixedDML(ctx, step);
-
-    runTransSnapshotCheck(ctx, step);
-    runRSSsnapshotCheck(ctx, step);
-    runLongSignalMemorySnapshotCheck(ctx, step);
-  }
-
-  res.insertErrorInAllNodes(0);
-
-  return NDBT_OK;
-}
-
-static
-int
 runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
@@ -1133,9 +1099,23 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
     dict->print(ndbout, * pChild);
   }
 
+  const int rows = ctx->getNumRecords();
+  const int batchSize = ctx->getProperty("BatchSize", DEFAULT_BATCH_SIZE);
+
+  const NdbDictionary::Table * tables[] = { pChild, pTab, 0 };
+  for (int i = 0; tables[i] != 0; i++)
+  {
+    HugoTransactions c(* tables[i]);
+    if (c.loadTable(pNdb, rows, batchSize) != 0)
+    {
+      g_err << "Load table failed" << endl;
+    }
+  }
+
   return NDBT_OK;
 }
 
+static
 int
 runMixedCascade(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -1174,11 +1154,6 @@ runMixedCascade(NDBT_Context* ctx, NDBT_Step* step)
     {
       err = pNdb->getNdbError();
       goto start_err;
-    }
-
-    if (longsignalmemorysnapshot)
-    {
-      runLongSignalMemorySnapshot(ctx, step);
     }
 
     {
@@ -1265,6 +1240,11 @@ runMixedCascade(NDBT_Context* ctx, NDBT_Step* step)
                      err.status == NdbError::TemporaryError ||
                      err.classification == NdbError::NoDataFound ||
                      err.classification == NdbError::ConstraintViolation);
+
+      if (longsignalmemorysnapshot)
+      {
+        runLongSignalMemorySnapshot(ctx, step);
+      }
     }
     else
     {
@@ -1290,6 +1270,58 @@ runDropCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   childname.assfmt("%s_CHILD", pTab->getName());
 
   pNdb->getDictionary()->dropTable(childname.c_str());
+
+  return NDBT_OK;
+}
+
+static
+int
+terrorCodes[] =
+{
+  8099,
+  8100,
+  8101,
+  8102,
+  0
+};
+
+static
+int
+runTransError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  ctx->setProperty("LongSignalMemorySnapshot", Uint32(1));
+  int mode = ctx->getProperty("TransMode", Uint32(0));
+
+  char errbuf[256];
+  for (int i = 0; terrorCodes[i] != 0; i++)
+  {
+    if (NdbEnv_GetEnv("NDB_ERR_CODE", errbuf, sizeof(errbuf)) != 0 &&
+        atoi(errbuf) != terrorCodes[i])
+    {
+      continue;
+    }
+    printf("testing errcode: %d\n", terrorCodes[i]);
+    runLongSignalMemorySnapshotStart(ctx, step);
+    runTransSnapshot(ctx, step);
+    runRSSsnapshot(ctx, step);
+
+    res.insertErrorInAllNodes(terrorCodes[i]);
+    switch(mode) {
+    case 0:
+      runMixedDML(ctx, step);
+      break;
+    case 1:
+      runMixedCascade(ctx, step);
+      break;
+    }
+
+    runTransSnapshotCheck(ctx, step);
+    runRSSsnapshotCheck(ctx, step);
+    runLongSignalMemorySnapshotCheck(ctx, step);
+  }
+
+  res.insertErrorInAllNodes(0);
 
   return NDBT_OK;
 }
@@ -1396,6 +1428,16 @@ TESTCASE("Cascade10",
   INITIALIZER(runDiscoverTable);
   INITIALIZER(runCreateCascadeChild);
   STEPS(runMixedCascade, 10);
+  VERIFIER(runDropCascadeChild);
+  VERIFIER(runCleanupTable);
+}
+TESTCASE("CascadeError",
+	 "")
+{
+  TC_PROPERTY("TransMode", Uint32(1));
+  INITIALIZER(runDiscoverTable);
+  INITIALIZER(runCreateCascadeChild);
+  INITIALIZER(runTransError);
   VERIFIER(runDropCascadeChild);
   VERIFIER(runCleanupTable);
 }
