@@ -61,7 +61,7 @@ public:
   void addLast(Ptr<T> &);
   void add(Ptr<T> & ptr) { addLast(ptr);}
 
-  void append(DLFifoListImpl<P,T,U>::Head& other);
+  void append(Head& other);
 
   /**
    * Insert object <em>ptr</ptr> _before_ <em>loc</em>
