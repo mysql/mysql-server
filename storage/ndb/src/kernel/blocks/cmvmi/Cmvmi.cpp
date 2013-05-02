@@ -1490,9 +1490,18 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     printf("summary: #same: %u #increase: %u #decrease: %u\n",
            cnt_same, cnt_inc, cnt_dec);
 
-    if (cnt_inc == 1)
+    if (cnt_dec > 1)
     {
-      // it grow once...this is ok
+      /**
+       * If memory decreased more than once...
+       *   it must also increase atleast once
+       */
+      ndbrequire(cnt_inc > 0);
+    }
+
+    if (cnt_dec == 1)
+    {
+      // it decreased once...this is ok
       return;
     }
     if (cnt_same >= (cnt_inc + cnt_dec))

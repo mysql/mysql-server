@@ -17018,6 +17018,7 @@ Dbtc::fk_readFromChildTable(Signal* signal,
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
 
+  SegmentedSectionGuard guard(this, attrValuesPtrI);
   if (beforeValues.getSize() == 0)
   {
     jam();
@@ -17030,9 +17031,9 @@ Dbtc::fk_readFromChildTable(Signal* signal,
   Uint32 keyIVal= RNIL;
   bool hasNull= false;
   Uint32 err = fk_buildKeyInfo(keyIVal, hasNull, beforeValues, fkData, false);
+  guard.add(keyIVal);
   if (unlikely(err != 0))
   {
-    releaseSection(keyIVal);
     abortTransFromTrigger(signal, *transPtr, err);
     return;
   }
@@ -17043,7 +17044,6 @@ Dbtc::fk_readFromChildTable(Signal* signal,
   if (hasNull)
   {
     jam();
-    releaseSection(keyIVal);
     trigger_op_finished(signal, *transPtr, RNIL, opRecord, 0);
     return;
   }
@@ -17097,6 +17097,8 @@ Dbtc::fk_readFromChildTable(Signal* signal,
     signal->m_sectionPtrI[ TcKeyReq::AttrInfoSectionNum ] = attrValuesPtrI;
     signal->header.m_noOfSections = 2;
   }
+
+  guard.clear(); // now sections will be handled...
 
   /**
    * Handle savepoint id - (see above)
@@ -17279,6 +17281,8 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
 {
   ApiConnectRecord* regApiPtr = transPtr->p;
 
+  SegmentedSectionGuard guard(this, attrValuesPtrI);
+
   if (unlikely(cfirstfreeScanrec == RNIL))
   {
     jam();
@@ -17412,6 +17416,8 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
       goto oom;
     }
   }
+
+  guard.clear(); // now sections will be handled...
 
   signal->header.m_noOfSections= 3;
   signal->m_sectionPtrI[0] = ptr[0].i;
