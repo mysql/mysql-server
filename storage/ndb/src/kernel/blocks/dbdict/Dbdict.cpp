@@ -2486,6 +2486,7 @@ bool Dbdict::seizeTableRecord(TableRecordPtr& tablePtr, Uint32& schemaFileId)
     jam();
     return false;
   }
+  D("seizeTableRecord " << schemaFileId);
   initialiseTableRecord(tablePtr, schemaFileId);
   return true;
 }
@@ -3940,7 +3941,9 @@ void Dbdict::checkSchemaStatus(Signal* signal)
       continue;
     }//if
 
-    D("checkSchemaStatus" << V(*ownEntry) << V(*masterEntry));
+    D("checkSchemaStatus" << V(c_restartRecord.m_pass) << V(c_restartRecord.activeTable));
+    D("own" << *ownEntry);
+    D("mst" << *masterEntry);
 
 //#define PRINT_SCHEMA_RESTART
 #ifdef PRINT_SCHEMA_RESTART
@@ -24778,6 +24781,11 @@ Dbdict::createFK_parse(Signal* signal, bool master,
     }
   }
 
+  /*
+   * Table/index may not yet exist on restart so in the following
+   * check op_ptr.p->m_restart before find_object().
+   */
+
   if (fk.ParentIndexId != RNIL)
   {
     const SchemaFile::TableEntry * parentIndexEntry=
@@ -24806,26 +24814,33 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       bits |= CreateFKImplReq::FK_PARENT_OI;
     }
 
-    TableRecordPtr parentIndexPtr;
-    ndbrequire(find_object(parentIndexPtr, fk.ParentIndexId));
-    if (parentIndexPtr.p->noOfAttributes != colCount + 1)
+    if (!op_ptr.p->m_restart)
     {
       jam();
-      setError(error, CreateFKRef::InvalidFormat, __LINE__);
-      ndbassert(false);
-      return;
+      TableRecordPtr parentIndexPtr;
+      ndbrequire(find_object(parentIndexPtr, fk.ParentIndexId));
+      if (parentIndexPtr.p->noOfAttributes != colCount + 1)
+      {
+        jam();
+        setError(error, CreateFKRef::InvalidFormat, __LINE__);
+        ndbassert(false);
+        return;
+      }
     }
   }
   else
   {
-    jam();
-    TableRecordPtr parentTablePtr;
-    ndbrequire(find_object(parentTablePtr, fk.ParentTableId));
-    if (parentTablePtr.p->noOfPrimkey  != colCount)
+    if (!op_ptr.p->m_restart)
     {
       jam();
-      setError(error, CreateFKRef::InvalidFormat, __LINE__);
-      return;
+      TableRecordPtr parentTablePtr;
+      ndbrequire(find_object(parentTablePtr, fk.ParentTableId));
+      if (parentTablePtr.p->noOfPrimkey  != colCount)
+      {
+        jam();
+        setError(error, CreateFKRef::InvalidFormat, __LINE__);
+        return;
+      }
     }
   }
 
@@ -24859,26 +24874,34 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       bits |= CreateFKImplReq::FK_CHILD_OI;
     }
 
-    TableRecordPtr childIndexPtr;
-    ndbrequire(find_object(childIndexPtr, fk.ChildIndexId));
-    if (childIndexPtr.p->noOfAttributes != colCount + 1)
+    if (!op_ptr.p->m_restart)
     {
       jam();
-      setError(error, CreateFKRef::InvalidFormat, __LINE__);
-      return;
+      TableRecordPtr childIndexPtr;
+      ndbrequire(find_object(childIndexPtr, fk.ChildIndexId));
+      if (childIndexPtr.p->noOfAttributes != colCount + 1)
+      {
+        jam();
+        setError(error, CreateFKRef::InvalidFormat, __LINE__);
+        return;
+      }
     }
   }
   else
   {
     jam();
-    TableRecordPtr childTablePtr;
-    ndbrequire(find_object(childTablePtr, fk.ChildTableId));
-    if (childTablePtr.p->noOfPrimkey  != colCount)
+    if (!op_ptr.p->m_restart)
     {
       jam();
-      setError(error, CreateFKRef::InvalidFormat, __LINE__);
-      ndbassert(false);
-      return;
+      TableRecordPtr childTablePtr;
+      ndbrequire(find_object(childTablePtr, fk.ChildTableId));
+      if (childTablePtr.p->noOfPrimkey  != colCount)
+      {
+        jam();
+        setError(error, CreateFKRef::InvalidFormat, __LINE__);
+        ndbassert(false);
+        return;
+      }
     }
   }
 
@@ -24930,6 +24953,7 @@ Dbdict::createFK_parse(Signal* signal, bool master,
     impl_req->fkId = fk.ForeignKeyId;
     impl_req->fkVersion = fk.ForeignKeyVersion;
 
+    Ptr<ForeignKeyRec> fk_ptr; fk_ptr.setNull();
     if (!find_object(fk_ptr, impl_req->fkId))
     {
       jam();
