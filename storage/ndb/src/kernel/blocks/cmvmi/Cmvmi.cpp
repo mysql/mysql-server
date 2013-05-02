@@ -1340,6 +1340,11 @@ cmp_event_buf(const void * ptr0, const void * ptr1)
   return time0 - time1;
 }
 
+#if defined VM_TRACE || defined ERROR_INSERT
+static Uint32 f_free_segments[32];
+static Uint32 f_free_segment_pos = 0;
+#endif
+
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 {
@@ -1439,6 +1444,70 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("Cmvmi: g_sectionSegmentPool size: %d free: %d",
 	      g_sectionSegmentPool.getSize(),
 	      g_sectionSegmentPool.getNoOfFree());
+  }
+
+  if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshotStart)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    f_free_segment_pos = 0;
+    bzero(f_free_segments, sizeof(f_free_segments));
+#endif
+  }
+
+  if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshot)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    f_free_segments[f_free_segment_pos] = g_sectionSegmentPool.getNoOfFree();
+    f_free_segment_pos = (f_free_segment_pos + 1) % NDB_ARRAY_SIZE(f_free_segments);
+#endif
+  }
+
+  if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    Uint32 start = (f_free_segment_pos + 1)% NDB_ARRAY_SIZE(f_free_segments);
+    Uint32 stop = (f_free_segment_pos - 1) % NDB_ARRAY_SIZE(f_free_segments);
+    Uint32 cnt_dec = 0;
+    Uint32 cnt_inc = 0;
+    Uint32 cnt_same = 0;
+    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    {
+      Uint32 prev = (i - 1) % NDB_ARRAY_SIZE(f_free_segments);
+      if (f_free_segments[prev] == f_free_segments[i])
+        cnt_same++;
+      else if (f_free_segments[prev] > f_free_segments[i])
+        cnt_dec++;
+      else if (f_free_segments[prev] < f_free_segments[i])
+        cnt_inc++;
+    }
+
+    printf("snapshots: ");
+    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    {
+      printf("%u ", f_free_segments[i]);
+    }
+    printf("\n");
+    printf("summary: #same: %u #increase: %u #decrease: %u\n",
+           cnt_same, cnt_inc, cnt_dec);
+
+    if (cnt_inc == 1)
+    {
+      // it grow once...this is ok
+      return;
+    }
+    if (cnt_same >= (cnt_inc + cnt_dec))
+    {
+      // it was frequently the same...this is ok
+      return;
+    }
+    if (cnt_same + cnt_dec >= cnt_inc)
+    {
+      // it was frequently the same or less...this is ok
+      return;
+    }
+
+    ndbrequire(false);
+#endif
   }
 
   if (dumpState->args[0] == DumpStateOrd::DumpPageMemory)

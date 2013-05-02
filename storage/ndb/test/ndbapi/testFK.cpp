@@ -25,6 +25,8 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NodeBitmask.hpp>
 
+static int runLongSignalMemorySnapshot(NDBT_Context* ctx, NDBT_Step* step);
+
 /**
  * Choose a low batch size to avoid trigger out of buffer problems...
  */
@@ -172,6 +174,8 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
   const int deferred = ctx->getProperty("Deferred");
   const int minbatch = ctx->getProperty("MinBatch", Uint32(10));
   const int maxbatch = ctx->getProperty("MaxBatch", Uint32(50));
+  const int longsignalmemorysnapshot =
+    ctx->getProperty("LongSignalMemorySnapshot", Uint32(0));
 
   const NdbRecord * pRowRecord = pTab->getDefaultRecord();
 
@@ -189,6 +193,11 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
     {
       err = pNdb->getNdbError();
       goto start_err;
+    }
+
+    if (longsignalmemorysnapshot)
+    {
+      runLongSignalMemorySnapshot(ctx, step);
     }
 
     {
@@ -896,6 +905,77 @@ runTransSnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+int
+runLongSignalMemorySnapshotStart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  g_info << "save all resource usage" << endl;
+  int dump1[] = { DumpStateOrd::CmvmiLongSignalMemorySnapshotStart };
+  restarter.dumpStateAllNodes(dump1, 1);
+  return NDBT_OK;
+}
+
+static
+int
+runLongSignalMemorySnapshot(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  g_info << "save all resource usage" << endl;
+  int dump1[] = { DumpStateOrd::CmvmiLongSignalMemorySnapshot };
+  restarter.dumpStateAllNodes(dump1, 1);
+  return NDBT_OK;
+}
+
+static
+int
+runLongSignalMemorySnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  g_info << "save all resource usage" << endl;
+  int dump1[] = { DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck };
+  restarter.dumpStateAllNodes(dump1, 1);
+  return NDBT_OK;
+}
+
+static
+int
+terrorCodes[] =
+{
+  8099,
+  8100,
+  8101,
+  8102,
+  0
+};
+
+static
+int
+runTransError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  ctx->setProperty("LongSignalMemorySnapshot", Uint32(1));
+
+  for (int i = 0; terrorCodes[i] != 0; i++)
+  {
+    printf("testing errcode: %d\n", terrorCodes[i]);
+    runLongSignalMemorySnapshotStart(ctx, step);
+    runTransSnapshot(ctx, step);
+    runRSSsnapshot(ctx, step);
+
+    res.insertErrorInAllNodes(terrorCodes[i]);
+    runMixedDML(ctx, step);
+
+    runTransSnapshotCheck(ctx, step);
+    runRSSsnapshotCheck(ctx, step);
+    runLongSignalMemorySnapshotCheck(ctx, step);
+  }
+
+  res.insertErrorInAllNodes(0);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testFK);
 TESTCASE("CreateDrop",
 	 "Test random create/drop of FK")
@@ -974,6 +1054,14 @@ TESTCASE("Basic55",
   VERIFIER(runCleanupTable);
   VERIFIER(runRSSsnapshotCheck);
   VERIFIER(runTransSnapshotCheck);
+}
+TESTCASE("TransError",
+	 "")
+{
+  INITIALIZER(runDiscoverTable);
+  INITIALIZER(runCreateRandom);
+  INITIALIZER(runTransError);
+  INITIALIZER(runCleanupTable);
 }
 NDBT_TESTSUITE_END(testFK);
 
