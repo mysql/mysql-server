@@ -20,11 +20,10 @@ DROP DATABASE IF EXISTS crunddb;
 CREATE DATABASE crunddb;
 USE crunddb;
 
--- DROP TABLE IF EXISTS b1;
--- DROP TABLE IF EXISTS b0;
--- DROP TABLE IF EXISTS a;
+-- DROP TABLE IF EXISTS B;
+-- DROP TABLE IF EXISTS A;
 
-CREATE TABLE a (
+CREATE TABLE A (
         id              INT             NOT NULL,
         cint            INT,
         clong           BIGINT,
@@ -33,20 +32,20 @@ CREATE TABLE a (
         CONSTRAINT PK_A_0 PRIMARY KEY (id)
 );
 
-CREATE TABLE b0 (
+CREATE TABLE B (
         id              INT             NOT NULL,
         cint            INT,
         clong           BIGINT,
         cfloat          FLOAT,
         cdouble         DOUBLE,
         a_id            INT,
- 	-- crund code currently does not support VARBINARY/CHAR > 202
-        cvarbinary_def  VARBINARY(202),
+ 	-- XXX crund c++ code currently does not support VARBINARY/CHAR > 255
+	cvarbinary_def  VARBINARY(202),
         cvarchar_def    VARCHAR(202),
         cblob_def       BLOB(1000004),
         ctext_def       TEXT(1000004),
-        CONSTRAINT PK_B0_0 PRIMARY KEY (id),
-        CONSTRAINT FK_B0_1 FOREIGN KEY (a_id) REFERENCES a (id)
+        CONSTRAINT PK_B_0 PRIMARY KEY (id),
+        CONSTRAINT FK_B_1 FOREIGN KEY (a_id) REFERENCES a (id)
 );
 --        cvarchar_ascii  VARCHAR(202) CHARACTER SET ASCII,
 --        ctext_ascii     TEXT(202) CHARACTER SET ASCII,
@@ -55,11 +54,6 @@ CREATE TABLE b0 (
 --        cvarchar_utf8   VARCHAR(202) CHARACTER SET UTF8,
 --        ctext_utf8      TEXT(202) CHARACTER SET UTF8,
 
-CREATE TABLE b1 (
-        id              INT NOT NULL,
-        CONSTRAINT PK_B1_0 PRIMARY KEY (id)
-);
-
-CREATE INDEX I_B0_FK ON b0 (
+CREATE INDEX I_B_FK ON B (
         a_id
 );

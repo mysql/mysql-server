@@ -220,21 +220,13 @@ public class TwsDriver extends Driver {
         clearLogBuffers();
     }
     
-    enum XMode { BULK, EACH, INDY }
+    enum XMode { INDY, EACH, BULK }
 
     protected void runOperations(TwsLoad load) throws Exception {
         //out.println("running operations ..."
         //            + "          [nRows=" + nRows + "]");
 
-        // log buffers
-        if (logRealTime) {
-            rtimes.append("nRows=" + nRows);
-            ta = 0;
-        }
-        if (logMemUsage) {
-            musage.append("nRows=" + nRows);
-            ma = 0;
-        }
+        beginOpSeq(nRows);
 
         // pre-run cleanup
         if (renewConnection) {
@@ -245,31 +237,7 @@ public class TwsDriver extends Driver {
 
         load.runOperations();
 
-        out.println();
-        out.println("total");
-        if (logRealTime) {
-            out.println("tx real time                    " + ta
-                        + "\tms");
-        }
-        if (logMemUsage) {
-            out.println("net mem usage                   "
-                        + (ma >= 0 ? "+" : "") + ma
-                        + "\tKiB");
-        }
-
-        // log buffers
-        if (logHeader) {
-            header.append("\ttotal");
-            logHeader = false;
-        }
-        if (logRealTime) {
-            rtimes.append("\t" + ta);
-            rtimes.append(endl);
-        }
-        if (logMemUsage) {
-            musage.append("\t" + ma);
-            musage.append(endl);
-        }
+        finishOpSeq(nRows);
     }
 
     // ----------------------------------------------------------------------

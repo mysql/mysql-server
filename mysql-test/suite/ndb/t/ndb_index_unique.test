@@ -550,4 +550,66 @@ SELECT STRAIGHT_JOIN count(*) FROM
 
 drop table t1,t2;
 
+#
+# Bug #16678033 IN-SUBQUERY WITH TRUE/FALSE/UNKNOWN TEST 
+#               MAY RETURN INCORRECT RESULT OR ASSERT
+#
+CREATE TABLE t1 (
+  i int
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (
+  col_int_unique int,
+  UNIQUE KEY ix1 (col_int_unique) USING HASH
+) ENGINE=ndbcluster;
+
+INSERT INTO t2 VALUES (42);
+
+EXPLAIN SELECT * FROM t1 WHERE i IN
+ (SELECT t2.col_int_unique FROM t2) IS TRUE;
+
+# Remember 'row' conter when test started.
+create temporary table row_counts_at_startup 
+       select * 
+       from information_schema.session_status
+       WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
+
+SELECT * FROM t1 WHERE i IN
+ (SELECT t2.col_int_unique FROM t2) IS TRUE;
+
+SELECT * FROM t1 WHERE i IN
+ (SELECT t2.col_int_unique FROM t2) IS FALSE;
+
+SELECT * FROM t1 WHERE i IN
+ (SELECT t2.col_int_unique FROM t2) IS UNKNOWN;
+
+SELECT * FROM t1 WHERE i IN
+ (SELECT t2.col_int_unique FROM t2) IS NOT TRUE;
+
+SELECT * FROM t1 WHERE i IN
+ (SELECT t2.col_int_unique FROM t2) IS NOT FALSE;
+
+SELECT * FROM t1 WHERE i IN
+ (SELECT t2.col_int_unique FROM t2) IS NOT UNKNOWN;
+
+# Verify row counter at end:
+# Used to verify that correct hi/low limits was set for
+# the EQ_RANGE checking for col_int_unique NULL values
+create temporary table row_counts_at_end
+       select * 
+       from information_schema.session_status
+       WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
+
+select row_counts_at_end.VARIABLE_NAME,
+       row_counts_at_end.VARIABLE_VALUE - row_counts_at_startup.VARIABLE_VALUE 
+       from row_counts_at_end, row_counts_at_startup 
+       where row_counts_at_end.VARIABLE_NAME = row_counts_at_startup.VARIABLE_NAME;
+
+drop table row_counts_at_end;
+drop table row_counts_at_startup;
+
+drop table t1,t2;
+
 # end of tests
