@@ -13219,7 +13219,10 @@ Dbdict::alterIndex_prepare(Signal* signal, SchemaOpPtr op_ptr)
         alterIndex_toCreateLocal(signal, op_ptr);
         break;
       case AlterIndxImplReq::AlterIndexOffline:
-        alterIndex_toDropLocal(signal, op_ptr);
+        /**
+         * Defer to complete (e.g after triggers has been dropped)
+         */
+        sendTransConf(signal, op_ptr);
         break;
       default:
         ndbrequire(false);
@@ -13440,6 +13443,24 @@ void
 Dbdict::alterIndex_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
+  AlterIndexRecPtr alterIndexPtr;
+  getOpRec(op_ptr, alterIndexPtr);
+  const AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
+
+  if (impl_req->requestType == AlterIndxImplReq::AlterIndexOffline)
+  {
+    jam();
+    TableRecordPtr indexPtr;
+    bool ok = find_object(indexPtr, impl_req->indexId);
+    ndbrequire(ok);
+    if (indexPtr.p->tableType == DictTabInfo::UniqueHashIndex)
+    {
+      jam();
+      alterIndex_toDropLocal(signal, op_ptr);
+      return;
+    }
+  }
+
   sendTransConf(signal, op_ptr);
 }
 
