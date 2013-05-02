@@ -960,10 +960,6 @@ page_delete_rec_list_end(
 	ulint		n_owned;
 	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
 	page_t*		page		= page_align(rec);
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
 	ut_ad(size == ULINT_UNDEFINED || size < UNIV_PAGE_SIZE);
 	ut_ad(!page_zip || page_rec_is_comp(rec));
@@ -1012,31 +1008,10 @@ delete_all:
 				       : MLOG_LIST_END_DELETE, mtr);
 
 	if (page_zip) {
-		ulint		log_mode;
-
 		ut_a(page_is_comp(page));
 		/* Individual deletes are not logged */
-
-		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
-
-		do {
-			page_cur_t	cur;
-			page_cur_position(rec, block, &cur);
-
-			offsets = rec_get_offsets(rec, index, offsets,
-						  ULINT_UNDEFINED, &heap);
-			rec = rec_get_next_ptr(rec, TRUE);
-			page_zip_validate_if_zip(page_zip, page, index);
-			page_cur_delete_rec(&cur, index, offsets, mtr);
-		} while (page_offset(rec) != PAGE_NEW_SUPREMUM);
-
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
-
-		/* Restore log mode */
-
-		mtr_set_log_mode(mtr, log_mode);
+		PageCur cur(NULL, index, block, rec);
+		while (cur.purge());
 		return;
 	}
 
@@ -1044,45 +1019,36 @@ delete_all:
 
 	last_rec = page_rec_get_prev(page_get_supremum_rec(page));
 
-	if ((size == ULINT_UNDEFINED) || (n_recs == ULINT_UNDEFINED)) {
-		rec_t*		rec2		= rec;
-		/* Calculate the sum of sizes and the number of records */
-		size = 0;
-		n_recs = 0;
-
-		do {
-			ulint	s;
-			offsets = rec_get_offsets(rec2, index, offsets,
-						  ULINT_UNDEFINED, &heap);
-			s = rec_offs_size(offsets);
-			ut_ad(rec2 - page + s - rec_offs_extra_size(offsets)
-			      < UNIV_PAGE_SIZE);
-			ut_ad(size + s < UNIV_PAGE_SIZE);
-			size += s;
-			n_recs++;
-
-			rec2 = page_rec_get_next(rec2);
-		} while (!page_rec_is_supremum(rec2));
-
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
-	}
-
-	ut_ad(size < UNIV_PAGE_SIZE);
-
 	/* Update the page directory; there is no need to balance the number
 	of the records owned by the supremum record, as it is allowed to be
 	less than PAGE_DIR_SLOT_MIN_N_OWNED */
 
+	const rec_t*	rec2;
+	ulint		count	= 0;
+
 	if (page_is_comp(page)) {
-		rec_t*	rec2	= rec;
-		ulint	count	= 0;
+		if ((size == ULINT_UNDEFINED) || (n_recs == ULINT_UNDEFINED)) {
+			/* Calculate the total number and size of records. */
+			size = 0;
+			n_recs = 0;
 
-		while (rec_get_n_owned_new(rec2) == 0) {
+			for (rec2 = rec; !page_rec_is_supremum(rec2);
+			     rec2 = rec_get_next_ptr_const(rec2, TRUE)) {
+				ulint	s;
+				ulint	extra;
+				s = rec_get_size_comp(rec2, index, extra);
+				ut_ad(rec2 - page + s < UNIV_PAGE_SIZE);
+				ut_ad(size + s + extra < UNIV_PAGE_SIZE);
+				size += s + extra;
+				n_recs++;
+			}
+		}
+
+		ut_ad(size < UNIV_PAGE_SIZE);
+
+		for (rec2 = rec; rec_get_n_owned_new(rec2) == 0;
+		     rec2 = rec_get_next_ptr_const(rec2, TRUE)) {
 			count++;
-
-			rec2 = rec_get_next_ptr(rec2, TRUE);
 		}
 
 		ut_ad(rec_get_n_owned_new(rec2) > count);
@@ -1092,13 +1058,28 @@ delete_all:
 		ut_ad(slot_index > 0);
 		slot = page_dir_get_nth_slot(page, slot_index);
 	} else {
-		rec_t*	rec2	= rec;
-		ulint	count	= 0;
+		if ((size == ULINT_UNDEFINED) || (n_recs == ULINT_UNDEFINED)) {
+			/* Calculate the total number and size of records. */
+			size = 0;
+			n_recs = 0;
 
-		while (rec_get_n_owned_old(rec2) == 0) {
+			for (rec2 = rec; !page_rec_is_supremum(rec2);
+			     rec2 = rec_get_next_ptr_const(rec2, FALSE)) {
+				ulint	s;
+				ulint	extra;
+				s = rec_get_size_old(rec2, extra);
+				ut_ad(rec2 - page + s < UNIV_PAGE_SIZE);
+				ut_ad(size + s + extra < UNIV_PAGE_SIZE);
+				size += s + extra;
+				n_recs++;
+			}
+		}
+
+		ut_ad(size < UNIV_PAGE_SIZE);
+
+		for (rec2 = rec; rec_get_n_owned_old(rec2) == 0;
+		     rec2 = rec_get_next_ptr_const(rec2, FALSE)) {
 			count++;
-
-			rec2 = rec_get_next_ptr(rec2, FALSE);
 		}
 
 		ut_ad(rec_get_n_owned_old(rec2) > count);
