@@ -49,7 +49,6 @@ add_subdirectory(ft)
 add_subdirectory(locktree)
 add_subdirectory(src)
 add_subdirectory(utils)
-add_subdirectory(db-benchmark-test)
 
 ## subdirectories that just install things
 add_subdirectory(include)
