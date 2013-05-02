@@ -1,0 +1,27 @@
+set global innodb_file_per_table = on;
+use test;
+set global innodb_file_per_table = 1;
+create table t1 (i int, f float)
+engine = innodb data directory = 'NEW_DATA_DIR';
+insert into t1 values (1, 1.1), (2, 2.2), (3, 3.3);
+t1.ibd
+select * from t1;
+i	f
+1	1.1
+2	2.2
+3	3.3
+set session debug = "+d,ib_crash_drop_reinit_done_create_to_start2";
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+select * from t1;
+i	f
+t1.ibd
+insert into t1 values (1, 1.1), (2, 2.2), (3, 3.3);
+select * from t1;
+i	f
+1	1.1
+2	2.2
+3	3.3
+drop table t1;
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 1;
