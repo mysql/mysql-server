@@ -29,24 +29,33 @@ printCLOSECOMREQCONF(FILE * output,
 
   CloseComReqConf * cc = (CloseComReqConf*)theData;
 
-  fprintf(output, " xxxBlockRef = (%d, %d) failNo = %d noOfNodes = %d\n",
-	  refToBlock(cc->xxxBlockRef), refToNode(cc->xxxBlockRef),
-	  cc->failNo, cc->noOfNodes);
-  
-  int hits = 0;
-  fprintf(output, " Nodes: ");
-  for(int i = 0; i<MAX_NODES; i++){
-    if(NodeBitmask::get(cc->theNodes, i)){
-      hits++;
-      fprintf(output, " %d", i);
-    }
-    if(hits == 16){
-      fprintf(output, "\n Nodes: ");
-      hits = 0;
-    }
+  if (len == 1)
+  {
+    fprintf(output, " xxxBlockRef = (%d, %d)\n",
+            refToBlock(cc->xxxBlockRef),
+            refToNode(cc->xxxBlockRef));
   }
-  if(hits != 0)
-    fprintf(output, "\n");
+  else
+  {
+    fprintf(output, " xxxBlockRef = (%d, %d) failNo = %d noOfNodes = %d\n",
+            refToBlock(cc->xxxBlockRef), refToNode(cc->xxxBlockRef),
+            cc->failNo, cc->noOfNodes);
+
+    int hits = 0;
+    fprintf(output, " Nodes: ");
+    for(int i = 0; i<MAX_NODES; i++){
+      if(NodeBitmask::get(cc->theNodes, i)){
+        hits++;
+        fprintf(output, " %d", i);
+      }
+      if(hits == 16){
+        fprintf(output, "\n Nodes: ");
+        hits = 0;
+      }
+    }
+    if(hits != 0)
+      fprintf(output, "\n");
+  }
 
   return true;
 }

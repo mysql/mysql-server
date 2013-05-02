@@ -28,7 +28,7 @@
  *
  * NOTE that the signals are identical
  */
-class CloseComReqConf {
+struct CloseComReqConf {
 
   /**
    * Sender(s) / Reciver(s)
@@ -41,11 +41,9 @@ class CloseComReqConf {
    * For printing
    */
   friend bool printCLOSECOMREQCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
-  
-public:
+
   STATIC_CONST( SignalLength = 4 + NodeBitmask::Size );
-private:
-  
+
   enum RequestType {
     RT_API_FAILURE   = 0,
     RT_NODE_FAILURE  = 1,
