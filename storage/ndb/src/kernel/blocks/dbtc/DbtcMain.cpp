@@ -18106,6 +18106,8 @@ Dbtc::fk_readFromParentTable(Signal* signal,
   tcKeyReq->transId2 = regApiPtr->transid[1];
   tcKeyReq->requestInfo = tcKeyRequestInfo;
 
+  guard.clear(); // now sections will be handled...
+
   /* Attach KeyInfo section to signal */
   ndbrequire(signal->header.m_noOfSections == 0);
   signal->m_sectionPtrI[ TcKeyReq::KeyInfoSectionNum ] = keyIVal;
