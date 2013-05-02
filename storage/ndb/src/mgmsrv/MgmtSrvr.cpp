@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3748,8 +3748,8 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
   if (!log_event)
     return false;
 
-  g_eventLogger->warning("Failed to allocate nodeid for %s at %s. "     \
-                         "Returned eror: '%s'",
+  g_eventLogger->warning("Failed to allocate nodeid for %s at %s. "
+                         "Returned error: '%s'",
                          type_str, addr_str, error_string.c_str());
 
   return false;
