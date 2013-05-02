@@ -970,7 +970,7 @@ TESTCASE("Basic55",
   INITIALIZER(runDiscoverTable);
   INITIALIZER(runCreateRandom);
   STEPS(runTransactions, 5);
-  STEPS(runMixedDML, 5);
+  STEPS(runMixedDML, 10);
   VERIFIER(runCleanupTable);
   VERIFIER(runRSSsnapshotCheck);
   VERIFIER(runTransSnapshotCheck);
