@@ -4833,7 +4833,14 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
   case CS_SEND_FIRE_TRIG_REQ:
     return;
   case CS_WAIT_FIRE_TRIG_REQ:
-    if (TnoOfOutStanding == 0 && regApiPtr.p->pendingTriggers == 0)
+    if (tc_testbit(regApiPtr.p->m_flags,
+                   ApiConnectRecord::TF_INDEX_OP_RETURN))
+    {
+      jam();
+      sendtckeyconf(signal, 0);
+      return;
+    }
+    else if (TnoOfOutStanding == 0 && regApiPtr.p->pendingTriggers == 0)
     {
       jam();
       regApiPtr.p->apiConnectstate = CS_START_COMMITTING;
@@ -5070,12 +5077,20 @@ void Dbtc::sendPackedTCKEYCONF(Signal* signal,
 void
 Dbtc::startSendFireTrigReq(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
 {
+  const Uint32 pass = regApiPtr.p->m_pre_commit_pass;
+  const Uint32 step = pass & Uint32(TriggerPreCommitPass::TPCP_PASS_MAX);
   regApiPtr.p->pendingTriggers = 0;
   if (tc_testbit(regApiPtr.p->m_flags,
                  ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS))
   {
-    tc_clearbit(regApiPtr.p->m_flags,
-                ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS);
+    jam();
+    if (step == TriggerPreCommitPass::UK_PASS_1)
+    {
+      jam();
+      // clear on second pass...
+      tc_clearbit(regApiPtr.p->m_flags,
+                  ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS);
+    }
   }
   else
   {
@@ -5083,10 +5098,11 @@ Dbtc::startSendFireTrigReq(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
                          ApiConnectRecord::TF_DEFERRED_FK_TRIGGERS));
     tc_clearbit(regApiPtr.p->m_flags,
                 ApiConnectRecord::TF_DEFERRED_FK_TRIGGERS);
-    Uint32 pass = regApiPtr.p->m_pre_commit_pass;
-    pass = (pass & ~Uint32(TriggerPreCommitPass::TPCP_PASS_MAX));
-    pass = pass + TriggerPreCommitPass::FK_PASS_0;
-    regApiPtr.p->m_pre_commit_pass = pass;
+
+    Uint32 newpass = pass;
+    newpass = newpass & ~Uint32(TriggerPreCommitPass::TPCP_PASS_MAX);
+    newpass = newpass + TriggerPreCommitPass::FK_PASS_0;
+    regApiPtr.p->m_pre_commit_pass = newpass;
   }
   sendFireTrigReq(signal, regApiPtr, regApiPtr.p->firstTcConnect);
 }
