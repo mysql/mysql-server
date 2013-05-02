@@ -479,3 +479,18 @@ key (b),
 foreign key fk1 (b) references t1 (a)
 ) engine=ndb;
 drop table t1;
+# BugXXZ - multi part unique index parent
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a),
+unique key using hash (a,b)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (a,b),
+foreign key fk1 (a,b) references t1 (a,b)
+) engine ndb;
+drop table t2, t1;

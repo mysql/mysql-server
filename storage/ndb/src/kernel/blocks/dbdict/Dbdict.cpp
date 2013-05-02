@@ -24696,9 +24696,6 @@ Dbdict::createFK_parse(Signal* signal, bool master,
   }
   SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
 
-  Ptr<DictObject> obj_ptr; obj_ptr.setNull();
-  Ptr<ForeignKeyRec> fk_ptr; fk_ptr.setNull();
-
   DictForeignKeyInfo::ForeignKey fk; fk.init();
   SimpleProperties::UnpackStatus status =
     SimpleProperties::unpack(it, &fk,
@@ -24729,6 +24726,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
     setError(error, CreateFKRef::InvalidFormat, __LINE__);
     return;
   }
+
+  const Uint32 colCount = (fk.ParentColumnsLength / 4);
 
   Uint32 bits = 0;
 
@@ -24806,6 +24805,28 @@ Dbdict::createFK_parse(Signal* signal, bool master,
     {
       bits |= CreateFKImplReq::FK_PARENT_OI;
     }
+
+    TableRecordPtr parentIndexPtr;
+    ndbrequire(find_object(parentIndexPtr, fk.ParentIndexId));
+    if (parentIndexPtr.p->noOfAttributes != colCount + 1)
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidFormat, __LINE__);
+      ndbassert(false);
+      return;
+    }
+  }
+  else
+  {
+    jam();
+    TableRecordPtr parentTablePtr;
+    ndbrequire(find_object(parentTablePtr, fk.ParentTableId));
+    if (parentTablePtr.p->noOfPrimkey  != colCount)
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidFormat, __LINE__);
+      return;
+    }
   }
 
   if (fk.ChildIndexId != RNIL)
@@ -24836,6 +24857,28 @@ Dbdict::createFK_parse(Signal* signal, bool master,
     {
       jam();
       bits |= CreateFKImplReq::FK_CHILD_OI;
+    }
+
+    TableRecordPtr childIndexPtr;
+    ndbrequire(find_object(childIndexPtr, fk.ChildIndexId));
+    if (childIndexPtr.p->noOfAttributes != colCount + 1)
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidFormat, __LINE__);
+      return;
+    }
+  }
+  else
+  {
+    jam();
+    TableRecordPtr childTablePtr;
+    ndbrequire(find_object(childTablePtr, fk.ChildTableId));
+    if (childTablePtr.p->noOfPrimkey  != colCount)
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidFormat, __LINE__);
+      ndbassert(false);
+      return;
     }
   }
 
@@ -24907,6 +24950,7 @@ Dbdict::createFK_parse(Signal* signal, bool master,
     return;
   }
 
+  Ptr<DictObject> obj_ptr; obj_ptr.setNull();
   if(!c_obj_pool.seize(obj_ptr))
   {
     jam();
@@ -24915,6 +24959,7 @@ Dbdict::createFK_parse(Signal* signal, bool master,
   }
   new (obj_ptr.p) DictObject;
 
+  Ptr<ForeignKeyRec> fk_ptr; fk_ptr.setNull();
   if(!c_fk_pool.seize(fk_ptr))
   {
     jam();

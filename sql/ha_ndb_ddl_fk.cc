@@ -78,15 +78,17 @@ find_matching_index(NDBDICT* dict,
   {
     matches_primary_key= FALSE;
 
-    uint cnt= 0;
+    uint cnt_pk= 0, cnt_col= 0;
     for (unsigned i = 0; columns[i] != 0; i++)
     {
+      cnt_col++;
       if (columns[i]->getPrimaryKey())
-        cnt++;
+        cnt_pk++;
     }
 
     // check if all columns was part of full primary key
-    if (cnt == (uint)tab->getNoOfPrimaryKeys())
+    if (cnt_col == (uint)tab->getNoOfPrimaryKeys() &&
+        cnt_col == cnt_pk)
     {
       matches_primary_key= TRUE;
       return 0;
