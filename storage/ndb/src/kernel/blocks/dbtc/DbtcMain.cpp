@@ -17153,7 +17153,8 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   tcPtr.p->currentTriggerId = firedTriggerData->triggerId;
   tcPtr.p->triggerErrorCode = ZNOT_FOUND;
   tcPtr.p->operation = op;
-  tcPtr.p->indexOp = attrValuesPtrI;
+  tcPtr.p->indexOp = attrValuesPtrI;     // NOTE! 0x187
+  tcPtr.p->nextTcFailHash = transPtr->i; // NOTE! 0x188
 
   {
     Ptr<TcDefinedTriggerData> trigPtr;
@@ -17272,13 +17273,33 @@ Dbtc::execKEYINFO20(Signal* signal)
   jamEntry();
   const KeyInfo20 * conf = CAST_CONSTPTR(KeyInfo20, signal->getDataPtr());
 
-  // TODO verify transid
+  Uint32 transId[] = {
+    conf->transId1,
+    conf->transId2
+  };
+
   Uint32 keyLen = conf->keyLen;
   Uint32 scanInfo = conf->scanInfo_Node;
 
   TcConnectRecordPtr tcPtr;
   tcPtr.i = conf->clientOpPtr;
   ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+
+  ApiConnectRecordPtr scanApiConnectPtr;
+  scanApiConnectPtr.i = tcPtr.p->apiConnect;
+  ptrCheckGuard(scanApiConnectPtr, capiConnectFilesize, apiConnectRecord);
+
+  if (! (transId[0] == scanApiConnectPtr.p->transid[0] &&
+         transId[1] == scanApiConnectPtr.p->transid[1]))
+  {
+    jam();
+
+    /**
+     * incorrect transid...no known scenario where this can happen
+     */
+    ndbassert(false);
+    return;
+  }
 
   Ptr<TcDefinedTriggerData> trigPtr;
   c_theDefinedTriggers.getPtr(trigPtr, tcPtr.p->currentTriggerId);
@@ -17395,11 +17416,61 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
   jamEntry();
   const ScanTabConf * conf = CAST_CONSTPTR(ScanTabConf, signal->getDataPtr());
 
-  // TODO validate transid
+  Uint32 transId[] = {
+    conf->transId1,
+    conf->transId2
+  };
 
   TcConnectRecordPtr tcPtr;
   tcPtr.i = conf->apiConnectPtr;
   ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+
+  ApiConnectRecordPtr scanApiConnectPtr;
+  scanApiConnectPtr.i = tcPtr.p->apiConnect;
+  ptrCheckGuard(scanApiConnectPtr, capiConnectFilesize, apiConnectRecord);
+
+  if (! (transId[0] == scanApiConnectPtr.p->transid[0] &&
+         transId[1] == scanApiConnectPtr.p->transid[1]))
+  {
+    jam();
+
+    /**
+     * incorrect transid...no known scenario where this can happen
+     */
+    ndbassert(false);
+    return;
+  }
+
+  /**
+   * Validate base transaction
+   */
+  Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash; // NOTE: 0x188
+  ApiConnectRecordPtr orgApiConnectPtr;
+  orgApiConnectPtr.i = orgTransPtrI;
+  ptrCheckGuard(orgApiConnectPtr, capiConnectFilesize, apiConnectRecord);
+
+  if (unlikely(! (transId[0] == orgApiConnectPtr.p->transid[0] &&
+                  transId[1] == orgApiConnectPtr.p->transid[1] &&
+                  orgApiConnectPtr.p->apiConnectstate != CS_ABORTING)))
+  {
+    jam();
+
+    /**
+     * The "base" transaction has been aborted...
+     *   terminate scan directly
+     */
+    if (conf->requestInfo & ScanTabConf::EndOfData)
+    {
+      jam();
+      fk_scanFromChildTable_done(signal, tcPtr);
+    }
+    else
+    {
+      jam();
+      fk_scanFromChildTable_abort(signal, tcPtr);
+    }
+    return;
+  }
 
   Ptr<TcDefinedTriggerData> trigPtr;
   c_theDefinedTriggers.getPtr(trigPtr, tcPtr.p->currentTriggerId);
@@ -17471,10 +17542,6 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
     /**
      * Continue scanning...
      */
-    ApiConnectRecordPtr scanApiConnectPtr;
-    scanApiConnectPtr.i = tcPtr.p->apiConnect;
-    ptrCheckGuard(scanApiConnectPtr, capiConnectFilesize, apiConnectRecord);
-
     const Uint32 parallelism = SCAN_FROM_CHILD_PARALLELISM;
     Uint32 cnt = 0;
     Uint32 operations[parallelism];
@@ -17562,15 +17629,15 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
 
   Uint32 errCode = tcPtr.p->triggerErrorCode;
   Uint32 triggerId = tcPtr.p->currentTriggerId;
+  Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash; // NOTE: 0x188
 
   TcConnectRecordPtr opPtr; // triggering operation
   opPtr.i = tcPtr.p->triggeringOperation;
-  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
 
   /**
    * release extra allocated resources
    */
-  if (tcPtr.p->indexOp != RNIL)
+  if (tcPtr.p->indexOp != RNIL) // NOTE: 0x187
   {
     releaseSection(tcPtr.p->indexOp);
   }
@@ -17579,8 +17646,38 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   releaseApiCon(signal, scanApiConnectPtr.i);
 
   ApiConnectRecordPtr orgApiConnectPtr;
-  orgApiConnectPtr.i = opPtr.p->apiConnect;
+  orgApiConnectPtr.i = orgTransPtrI;
   ptrCheckGuard(orgApiConnectPtr, capiConnectFilesize, apiConnectRecord);
+
+  if (! (transId[0] == orgApiConnectPtr.p->transid[0] &&
+         transId[1] == orgApiConnectPtr.p->transid[1] &&
+         orgApiConnectPtr.p->apiConnectstate != CS_ABORTING))
+  {
+    jam();
+    /**
+     * The "base" transaction has been aborted...
+     *   we need just throw away our scan...
+     *   any DML caused by it...is anyway put onto "real" transaction
+     */
+    return;
+  }
+
+  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+  if (opPtr.p->apiConnect != orgApiConnectPtr.i)
+  {
+    jam();
+    ndbassert(false);
+    /**
+     * this should not happen :-)
+     *
+     * triggering operation has been moved to different transaction...
+     * this should not happen since then the original trans should be aborted
+     *   (or aborted and restarted) this is checked above...
+     *
+     */
+    return;
+  }
+
   ndbrequire(orgApiConnectPtr.p->lqhkeyreqrec > 0);
   ndbrequire(orgApiConnectPtr.p->lqhkeyreqrec > orgApiConnectPtr.p->lqhkeyconfrec);
   orgApiConnectPtr.p->lqhkeyreqrec--;
@@ -17595,11 +17692,30 @@ Dbtc::execSCAN_TABREF(Signal* signal)
 
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, signal->getDataPtr());
 
-  // TODO validate transid
+  Uint32 transId[] = {
+    ref->transId1,
+    ref->transId2
+  };
 
   TcConnectRecordPtr tcPtr;
   tcPtr.i = ref->apiConnectPtr;
   ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+
+  ApiConnectRecordPtr scanApiConnectPtr;
+  scanApiConnectPtr.i = tcPtr.p->apiConnect;
+  ptrCheckGuard(scanApiConnectPtr, capiConnectFilesize, apiConnectRecord);
+
+  if (! (transId[0] == scanApiConnectPtr.p->transid[0] &&
+         transId[1] == scanApiConnectPtr.p->transid[1]))
+  {
+    jam();
+
+    /**
+     * incorrect transid...no known scenario where this can happen
+     */
+    ndbassert(false);
+    return;
+  }
 
   tcPtr.p->triggerErrorCode = ref->errorCode;
   if (ref->closeNeeded)
