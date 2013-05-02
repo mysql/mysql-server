@@ -592,7 +592,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
   TablerecPtr regTabPtr;
   KeyReqStruct req_struct(this,
                           (When)(KRS_PRE_COMMIT_BASE +
-                                 (pass % TriggerPreCommitPass::TPCP_PASS_MAX)));
+                                 (pass & TriggerPreCommitPass::TPCP_PASS_MAX)));
 
   regOperPtr.i = opPtrI;
 
