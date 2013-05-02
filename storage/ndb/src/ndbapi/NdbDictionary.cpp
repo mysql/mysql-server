@@ -4268,7 +4268,7 @@ print_fk_tab_ref(NdbOut& ndbout, const char * fqn)
   int cnt_slash = 0;
   {
     const char * ptr = fqn;
-    while ((ptr = index(ptr, '/')) != 0)
+    while ((ptr = strchr(ptr, '/')) != 0)
     {
       ptr++;
       cnt_slash++;
@@ -4308,7 +4308,7 @@ print_fk_idx_ref(NdbOut& ndbout, const char * fqn)
   }
   else
   {
-    const char * ptr = rindex(fqn, '/');
+    const char * ptr = strrchr(fqn, '/');
     if (ptr)
     {
       ndbout << (ptr + 1);
