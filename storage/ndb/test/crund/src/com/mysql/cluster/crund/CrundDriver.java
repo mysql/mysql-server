@@ -17,11 +17,14 @@
 
 package com.mysql.cluster.crund;
 
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import java.nio.CharBuffer;
 
 /**
  * This class benchmarks standard database operations over a series
@@ -44,15 +47,14 @@ import java.util.Set;
  */
 abstract public class CrundDriver extends Driver {
 
-    enum XMode { BULK, EACH, INDY }
+    enum XMode { INDY, EACH, BULK }
     enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
 
     // benchmark settings
     protected final EnumSet< XMode > xMode = EnumSet.noneOf(XMode.class);
+    protected LockMode lockMode;
     protected boolean renewConnection;
     protected boolean renewOperations;
-    protected boolean logSumOfOps;
-    protected boolean allowExtendedPC;
     protected int nOpsStart;
     protected int nOpsEnd;
     protected int nOpsScale;
@@ -150,26 +152,33 @@ abstract public class CrundDriver extends Driver {
                 xMode.add(XMode.valueOf(XMode.class, xm[i]));
         }
 
+        final String lm = props.getProperty("lockMode");
+        try {
+            lockMode = (lm == null
+                        ? LockMode.READ_COMMITTED : LockMode.valueOf(lm));
+        } catch (IllegalArgumentException e) {
+            msg.append("[ignored] lockMode:             " + lm + eol);
+            lockMode = LockMode.READ_COMMITTED;
+        }
+
         renewConnection = parseBoolean("renewConnection", false);
         renewOperations = parseBoolean("renewOperations", false);
-        logSumOfOps = parseBoolean("logSumOfOps", true);
-        allowExtendedPC = parseBoolean("allowExtendedPC", false);
         failOnError = parseBoolean("failOnError", false);
 
-        nOpsStart = parseInt("nOpsStart", 256);
+        nOpsStart = parseInt("nOpsStart", 1000);
         if (nOpsStart < 1) {
             msg.append("[ignored] nOpsStart:            " + nOpsStart + eol);
-            nOpsStart = 256;
+            nOpsStart = 1000;
         }
         nOpsEnd = parseInt("nOpsEnd", nOpsStart);
         if (nOpsEnd < nOpsStart) {
             msg.append("[ignored] nOpsEnd:              "+ nOpsEnd + eol);
             nOpsEnd = nOpsStart;
         }
-        nOpsScale = parseInt("nOpsScale", 2);
+        nOpsScale = parseInt("nOpsScale", 10);
         if (nOpsScale < 2) {
             msg.append("[ignored] nOpsScale:            " + nOpsScale + eol);
-            nOpsScale = 2;
+            nOpsScale = 10;
         }
 
         maxVarbinaryBytes = parseInt("maxVarbinaryBytes", 100);
@@ -231,10 +240,9 @@ abstract public class CrundDriver extends Driver {
         out.println();
         out.println("crund settings ...");
         out.println("xMode:                          " + xMode);
+        out.println("lockMode:                       " + lockMode);
         out.println("renewConnection:                " + renewConnection);
         out.println("renewOperations:                " + renewOperations);
-        out.println("logSumOfOps:                    " + logSumOfOps);
-        out.println("allowExtendedPC:                " + allowExtendedPC);
         out.println("nOpsStart:                      " + nOpsStart);
         out.println("nOpsEnd:                        " + nOpsEnd);
         out.println("nOpsScale:                      " + nOpsScale);
@@ -253,7 +261,7 @@ abstract public class CrundDriver extends Driver {
     // XXX move to generic load class
     // a database operation to be benchmarked
     protected abstract class Op {
-        final protected String name;
+        protected String name;
 
         public Op(String name) { this.name = name; }
 
@@ -328,15 +336,7 @@ abstract public class CrundDriver extends Driver {
     }
 
     protected void runLoad(int nOps) throws Exception {
-        // log buffers
-        if (logRealTime) {
-            rtimes.append(nOps);
-            ta = 0;
-        }
-        if (logMemUsage) {
-            musage.append(nOps);
-            ma = 0;
-        }
+        beginOpSeq(nOps);
 
         // pre-run cleanup
         if (renewConnection) {
@@ -353,50 +353,16 @@ abstract public class CrundDriver extends Driver {
 
         runSequence(nOps);
 
-        if (logSumOfOps) {
-            out.println();
-            out.println("total");
-            if (logRealTime) {
-                out.println("tx real time                    " + ta
-                            + "\tms");
-            }
-            if (logMemUsage) {
-                out.println("net mem usage                   "
-                            + (ma >= 0 ? "+" : "") + ma
-                            + "\tKiB");
-            }
-        }
-
-        // log buffers
-        if (logHeader) {
-            if (logSumOfOps) {
-                header.append("\ttotal");
-            }
-            logHeader = false;
-        }
-        if (logRealTime) {
-            if (logSumOfOps) {
-                rtimes.append("\t" + ta);
-            }
-            rtimes.append(endl);
-        }
-        if (logMemUsage) {
-            if (logSumOfOps) {
-                musage.append("\t" + ma);
-            }
-            musage.append(endl);
-        }
+        finishOpSeq(nOps);
     }
 
     // XXX move to generic load class
     protected void runSequence(int nOps) throws Exception {
         for (Op op : ops) {
             // pre-tx cleanup
-            if (!allowExtendedPC) {
-                // effectively prevent caching beyond Tx scope by clearing
-                // any data/result caches before the next transaction
-                clearPersistenceContext();
-            }
+            // clear any data/result caches before the next transaction
+            clearPersistenceContext();
+
             runOperation(op, nOps);
             reportErrors();
         }
@@ -405,13 +371,16 @@ abstract public class CrundDriver extends Driver {
     // XXX move to generic load class
     protected void runOperation(Op op, int nOps) throws Exception {
         operationName = op.getName();
+        if (operationName == null)
+            return;
+
         // if there is an include list and this test is included, or
         // there is not an include list and this test is not excluded
         if ((include.size() != 0 && include.contains(operationName))
-                || (include.size() == 0 && !exclude.contains(operationName))) {
-            begin(operationName);
+            || (include.size() == 0 && !exclude.contains(operationName))) {
+            beginOp(operationName);
             op.run(nOps);
-            finish(operationName);
+            finishOp(operationName, nOps);
         }
     }
 
@@ -437,42 +406,76 @@ abstract public class CrundDriver extends Driver {
             errorBuffer = null;
         }
     }
+
     // XXX move to generic load class
     // reports an error if a condition is not met
     static protected final void verify(boolean cond) {
-        //assert (cond);
         if (!cond)
             throw new RuntimeException("data verification failed.");
     }
 
     // XXX move to generic load class
-    static protected final void verify(int exp, int act) {
-        if (exp != act)
-            throw new RuntimeException("data verification failed:"
-                                       + " expected = " + exp
-                                       + ", actual = " + act);
-    }
-
-    // XXX move to generic load class
-    protected final void verify(String where, int exp, int act) {
-        if (exp != act)
-            appendError(" data verification failed:"
-                    + " expected = " + exp
-                    + ", actual = " + act);
-    }
-
-    // XXX move to generic load class
-    static protected final void verify(String exp, String act) {
-        if ((exp == null && act != null)
-            || (exp != null && !exp.equals(act)))
+    static protected final void verify(int exp, long act) {
+        if (act != exp)
             throw new RuntimeException("data verification failed:"
                                        + " expected = '" + exp + "'"
                                        + ", actual = '" + act + "'");
     }
 
+    // XXX move to generic load class
+    static protected final void verify(int exp, double act) {
+        if (act != exp)
+            throw new RuntimeException("data verification failed:"
+                                       + " expected = '" + exp + "'"
+                                       + ", actual = '" + act + "'");
+    }
+
+    // XXX move to generic load class
+    static protected final void verify(byte[] exp, byte[] act) {
+        if (!Arrays.equals(exp, act))
+            throw new RuntimeException("data verification failed:"
+                                       + " expected = " + Arrays.toString(exp)
+                                       + ""
+                                       + ", actual = " + Arrays.toString(act));
+    }
+
+    // XXX move to generic load class
+    static protected final void verify(String exp, String act) {
+        if (exp == null ? act != null : !exp.equals(act))
+            throw new RuntimeException("data verification failed:"
+                                       + " expected = '" + exp + "'"
+                                       + ", actual = '" + act + "'");
+    }
+
+    // XXX move to generic load class
+    static protected final void verify(CharBuffer exp, CharBuffer act) {
+        if (exp == null ? act != null : !exp.equals(act)) {
+            out.println("*** exp = '" + exp + "'");
+            out.println("*** act = '" + act + "'");
+            throw new RuntimeException("data verification failed:"
+                                       + " expected = '" + exp + "'"
+                                       + ", actual = '" + act + "'");
+        }
+    }
+
+/*
+    // XXX move to generic load class
+    static protected final <T> void verify(T exp, T act) {
+        if (exp == null ? act != null : !exp.equals(act))
+            throw new RuntimeException("data verification failed:"
+                                       + " expected = '" + exp + "'"
+                                       + ", actual = '" + act + "'");
+    }
+*/
+  
     // ----------------------------------------------------------------------
     // helpers
     // ----------------------------------------------------------------------
+
+    // XXX move to generic load class
+    static protected String toStr(XMode m) {
+        return (m == null ? "" : m.toString().toLowerCase());
+    }
 
     // XXX move to generic load class
     static final protected String myString(int n) {
@@ -482,7 +485,8 @@ abstract public class CrundDriver extends Driver {
             s.append('i');
             break;
         case 2:
-            for (int i = 0; i < 10; i++) s.append('x');
+            //for (int i = 0; i < 10; i++) s.append('x');
+            s.append("0123456789");
             break;
         case 3:
             for (int i = 0; i < 100; i++) s.append('c');
