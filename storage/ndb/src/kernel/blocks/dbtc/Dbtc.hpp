@@ -972,6 +972,10 @@ public:
     UintR noReceivedTriggers;   // FIRE_TRIG_ORD
     UintR triggerExecutionCount;// No of outstanding op due to triggers
     UintR savedState[LqhKeyConf::SignalLength];
+    /**
+     * The list of pending fired triggers
+     */
+    DLFifoList<TcFiredTriggerData>::Head thePendingTriggers;
 
     UintR triggeringOperation;  // Which operation was "cause" of this op
     
@@ -1766,6 +1770,7 @@ private:
                                            DataBuffer<11>::Head&);
 
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
+  void releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>* triggers);
   void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
                              Uint32 error);
   // Generated statement blocks
@@ -2269,6 +2274,11 @@ private:
 #endif
   Uint32 m_deferred_enabled;
   Uint32 m_max_writes_per_trans;
+#endif
+
+#ifndef DBTC_STATE_EXTRACT
+  void dump_trans(ApiConnectRecordPtr transPtr);
+  bool hasOp(ApiConnectRecordPtr transPtr, Uint32 op);
 #endif
 };
 
