@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,14 +44,14 @@ void NdbTick_Init(int need_monotonic)
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
 #ifdef CLOCK_MONOTONIC
-  fprintf(stderr, "Failed to use CLOCK_MONOTONIC for clock_realtime,"
+  fprintf(stderr, "Failed to use CLOCK_MONOTONIC for clock_gettime,"
           " errno= %u\n", errno);
   fflush(stderr);
   NdbTick_clk_id = CLOCK_REALTIME;
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
 #endif
-  fprintf(stderr, "Failed to use CLOCK_REALTIME for clock_realtime,"
+  fprintf(stderr, "Failed to use CLOCK_REALTIME for clock_gettime,"
           " errno=%u.  Aborting\n", errno);
   fflush(stderr);
   abort();
