@@ -2416,6 +2416,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->singleUserMode = 0;
   regApiPtr->m_pre_commit_pass = 0;
   // Trigger data
+  ndbassert(regApiPtr->theFiredTriggers.isEmpty());
   releaseFiredTriggerData(&regApiPtr->theFiredTriggers);
   // Index data
   tc_clearbit(regApiPtr->m_flags,
@@ -13177,6 +13178,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
   apiConnectptr.p->apiConnectstate = CS_ABORTING;
   apiConnectptr.p->abortState = AS_IDLE;
   releaseAllSeizedIndexOperations(apiConnectptr.p);
+  releaseFiredTriggerData(&apiConnectptr.p->theFiredTriggers);
 
   if (tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG) ||
       apiConnectptr.p->apiFailState == ZTRUE)
