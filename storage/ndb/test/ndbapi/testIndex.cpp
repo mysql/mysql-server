@@ -177,6 +177,13 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
       }
     }
 
+    if (attr->numAttribs + pTab->getNoOfPrimaryKeys() >
+        NDB_MAX_ATTRIBUTES_IN_INDEX)
+    {
+      delete attr;
+      goto skip;
+    }
+
     tmp.push_back(attr);
 skip:
     (void)1;
@@ -1885,16 +1892,19 @@ runBuildDuring(NDBT_Context* ctx, NDBT_Step* step){
     if(ctx->isTestStopped())
       break;
 
-    ctx->setProperty("pause", 1);
-    int count = 0;
-    for(int j = 0; count < Threads && !ctx->isTestStopped(); 
-	j = (j+1) % Threads){
-      char buf[255];
-      sprintf(buf, "Thread%d_paused", j);
-      int tmp = ctx->getProperty(buf, (Uint32)0);
-      count += tmp;
+    if (Threads)
+    {
+      ctx->setProperty("pause", 1);
+      int count = 0;
+      for(int j = 0; count < Threads && !ctx->isTestStopped();
+          j = (j+1) % Threads){
+        char buf[255];
+        sprintf(buf, "Thread%d_paused", j);
+        int tmp = ctx->getProperty(buf, (Uint32)0);
+        count += tmp;
+      }
     }
-    
+
     if(ctx->isTestStopped())
       break;
 
@@ -1915,8 +1925,11 @@ runBuildDuring(NDBT_Context* ctx, NDBT_Step* step){
     }
 #endif
 
-    ctx->setProperty("pause", (Uint32)0);
-    NdbSleep_SecSleep(2);
+    if (Threads)
+    {
+      ctx->setProperty("pause", (Uint32)0);
+      NdbSleep_SecSleep(2);
+    }
   }
 
   ctx->stopTest();
@@ -3544,6 +3557,17 @@ TESTCASE("BuildDuring",
   STEP(runBuildDuring);
   STEP(runTransactions4);
   //STEP(runTransactions4);
+  FINALIZER(runClearTable);
+}
+TESTCASE("BuildDuring2",
+	 "Test that index build when running transactions work"){
+  TC_PROPERTY("OrderedIndex", (unsigned)0);
+  TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  TC_PROPERTY("BatchSize", 1);
+  TC_PROPERTY("UntilStopped", Uint32(1));
+  INITIALIZER(runClearTable);
+  STEP(runBuildDuring);
+  STEPS(runMixedDML, 3);
   FINALIZER(runClearTable);
 }
 TESTCASE("BuildDuring_O", 
