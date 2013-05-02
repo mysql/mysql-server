@@ -3634,6 +3634,16 @@ void Dbtc::packLqhkeyreq(Signal* signal,
                      regCachePtr->keyInfoSectionI);
   }//if
 
+  if (tcConnectptr.p->triggeringOperation != RNIL &&
+      tcConnectptr.p->currentTriggerId != RNIL)
+  {
+    jam();
+    //NOTE: before packLqhkeyreq040Lab which might release operation...
+    Ptr<TcDefinedTriggerData> trigPtr;
+    c_theDefinedTriggers.getPtr(trigPtr, tcConnectptr.p->currentTriggerId);
+    trigPtr.p->refCount++;
+  }
+
   /* Release key storage */ 
   releaseKeys();
   packLqhkeyreq040Lab(signal,
@@ -4084,6 +4094,19 @@ void Dbtc::releaseTcCon()
   regTcPtr->indexOp = RNIL;
   cfirstfreeTcConnect = TtcConnectptrIndex;
   c_counters.cconcurrentOp--;
+
+  if (regTcPtr->triggeringOperation != RNIL &&
+      regTcPtr->currentTriggerId != RNIL)
+  {
+    jam();
+    Ptr<TcDefinedTriggerData> trigPtr;
+    c_theDefinedTriggers.getPtr(trigPtr, regTcPtr->currentTriggerId);
+    ndbassert(trigPtr.p->refCount);
+    if (trigPtr.p->refCount)
+    {
+      trigPtr.p->refCount--;
+    }
+  }
 }//Dbtc::releaseTcCon()
 
 void Dbtc::execPACKED_SIGNAL(Signal* signal) 
@@ -14535,6 +14558,7 @@ ref:
   triggerData->triggerEvent = TriggerInfo::getTriggerEvent(req->triggerInfo);
   triggerData->oldTriggerIds[0] = RNIL;
   triggerData->oldTriggerIds[1] = RNIL;
+  triggerData->refCount = 0;
 
   switch(triggerData->triggerType){
   case TriggerType::SECONDARY_INDEX:
@@ -14589,6 +14613,7 @@ ref:
     updatePtr.p->oldTriggerIds[0] = RNIL;
     updatePtr.p->oldTriggerIds[1] = RNIL;
     updatePtr.p->indexId = req->indexId;
+    updatePtr.p->refCount = 0;
 
     deletePtr.p->triggerId = req->upgradeExtra[2];
     deletePtr.p->triggerType = TriggerType::SECONDARY_INDEX;
@@ -14596,6 +14621,7 @@ ref:
     deletePtr.p->oldTriggerIds[0] = RNIL;
     deletePtr.p->oldTriggerIds[1] = RNIL;
     deletePtr.p->indexId = req->indexId;
+    deletePtr.p->refCount = 0;
   }
 
   CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
@@ -14632,9 +14658,28 @@ void Dbtc::execDROP_TRIG_IMPL_REQ(Signal* signal)
     return;
   }
 
+  if (triggerPtr.p->refCount > 0)
+  {
+    jam();
+    sendSignalWithDelay(reference(), GSN_DROP_TRIG_IMPL_REQ,
+                        signal, 100, signal->getLength());
+    return;
+  }
+
   if (unlikely(triggerPtr.p->oldTriggerIds[0] != RNIL))
   {
     jam();
+
+    const Uint32 * oldId = triggerPtr.p->oldTriggerIds;
+    if (c_theDefinedTriggers.getPtr(oldId[0])->refCount > 0 ||
+        c_theDefinedTriggers.getPtr(oldId[1])->refCount > 0)
+    {
+      jam();
+      sendSignalWithDelay(reference(), GSN_DROP_TRIG_IMPL_REQ,
+                          signal, 100, signal->getLength());
+      return;
+    }
+
     c_theDefinedTriggers.release(triggerPtr.p->oldTriggerIds[0]);
     c_theDefinedTriggers.release(triggerPtr.p->oldTriggerIds[1]);
   }
@@ -17049,6 +17094,12 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   tcPtr.p->triggerErrorCode = ZNOT_FOUND;
   tcPtr.p->operation = op;
   tcPtr.p->indexOp = attrValuesPtrI;
+
+  {
+    Ptr<TcDefinedTriggerData> trigPtr;
+    c_theDefinedTriggers.getPtr(trigPtr, tcPtr.p->currentTriggerId);
+    trigPtr.p->refCount++;
+  }
 
   TableRecordPtr childIndexPtr;
   childIndexPtr.i = fkData->childIndexId;

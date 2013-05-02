@@ -346,7 +346,9 @@ public:
      * Trigger id, used to identify the trigger
      */
     UintR triggerId;
-    
+
+    Uint32 refCount;
+
     /**
      * Trigger type, defines what the trigger is used for
      */
