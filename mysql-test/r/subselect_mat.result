@@ -1999,6 +1999,20 @@ b	b	v	v
 b	b	s	s
 b	b	y	y
 DROP TABLE t1,t2;
+#
+# MDEV-4465: Reproducible crash (mysqld got signal 11) in multi_delete::initialize_tables with semijoin+materialization
+#
+CREATE TABLE t1 (
+id int(11) NOT NULL
+);
+CREATE TABLE t2 (
+id   int(11) NOT NULL,
+a_id int(11) DEFAULT NULL
+);
+insert into t1 values (1), (2), (3);
+insert into t2 values (1, 1), (2, 1), (3, 1), (4, 2), (5, 3), (6, 3), (7, 3);
+delete t2 from t2 where a_id in (select * from (select t1.id from t1 limit 2) as x);
+drop table t1,t2;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;
