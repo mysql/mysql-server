@@ -6494,6 +6494,14 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       }//if
 
       const Uint32 triggeringOp = regTcPtr->triggeringOperation;
+      ConnectionState TapiConnectstate = regApiPtr->apiConnectstate;
+
+      if (unlikely(TapiConnectstate == CS_ABORTING))
+      {
+        jam();
+        goto do_abort;
+      }
+
       if (triggeringOp != RNIL) {
         jam();
 	// This operation was created by a trigger execting operation
@@ -7514,12 +7522,14 @@ ABORT020:
       signal->theData[0] = TcContinueB::ZABORT_BREAK;
       signal->theData[1] = tcConnectptr.i;
       signal->theData[2] = apiConnectptr.i;
+      signal->theData[3] = apiConnectptr.p->transid[0];
+      signal->theData[4] = apiConnectptr.p->transid[1];
       if (ERROR_INSERTED(8089))
       {
         sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
         return;
       }
-      sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
+      sendSignal(cownref, GSN_CONTINUEB, signal, 5, JBB);
       return;
     }//if
   }//if
