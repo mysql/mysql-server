@@ -16828,6 +16828,11 @@ Dbtc::fk_constructAttrInfoSetNull(const TcFKData * fkPtrP)
   }
 
   Uint32 tmp = RNIL;
+  if (ERROR_INSERTED(8099))
+  {
+    return tmp;
+  }
+
   appendToSection(tmp, attrInfo, fkPtrP->childTableColumns.sz);
   return tmp;
 }
@@ -16837,6 +16842,11 @@ Dbtc::fk_constructAttrInfoUpdateCascade(const TcFKData * fkPtrP,
                                         DataBuffer<11>::Head & srchead)
 {
   Uint32 tmp = RNIL;
+  if (ERROR_INSERTED(8100))
+  {
+    return tmp;
+  }
+
   /**
    * Construct an update based on the src-data
    *
@@ -17194,6 +17204,11 @@ Dbtc::fk_buildKeyInfo(Uint32& keyIVal, bool& hasNull,
                       TcFKData * fkPtrP,
                       bool parent)
 {
+  if (ERROR_INSERTED(8101))
+  {
+    return ZGET_DATAREC_ERROR;
+  }
+
   IndexAttributeList * list = 0;
   if (parent == true)
   {
@@ -17356,6 +17371,8 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   req->first_batch_size = 0;
 
   SegmentedSectionPtr ptr[3];
+  ptr[0].i = ptr[1].i = ptr[2].i = RNIL;
+
   Uint32 optrs[parallelism];
   for (Uint32 i = 0; i<parallelism; i++)
     optrs[i] = tcPtr.i;
@@ -17370,6 +17387,10 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   }
 
   Uint32 errorCode = ZGET_DATAREC_ERROR;
+  if (ERROR_INSERTED(8102))
+  {
+    goto oom;
+  }
   if (unlikely( !import(ptr[0], optrs, NDB_ARRAY_SIZE(optrs))))
   {
     jam();
@@ -17409,6 +17430,8 @@ oom:
       release(ptr[i]);
     }
   }
+  tcConnectptr = tcPtr;
+  releaseTcCon();
   releaseApiCon(signal, scanApiConnectPtr.i);
   abortTransFromTrigger(signal, *transPtr, errorCode);
   return;
