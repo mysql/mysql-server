@@ -1042,6 +1042,8 @@ Dbtc::handleFailedApiNode(Signal* signal,
       case CS_REC_COMMITTING:
       case CS_RECEIVING:
       case CS_STARTED:
+      case CS_SEND_FIRE_TRIG_REQ:
+      case CS_WAIT_FIRE_TRIG_REQ:
         /*********************************************************************/
         // The api record was in the process of performing a transaction but 
         // had not yet sent all information. 
@@ -1078,6 +1080,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
         /*********************************************************************/
       default:
         jam();
+        jamLine(apiConnectptr.p->apiConnectstate);
         systemErrorLab(signal, __LINE__);
         break;
       }//switch
