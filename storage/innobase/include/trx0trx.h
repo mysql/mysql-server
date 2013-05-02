@@ -1040,7 +1040,7 @@ struct trx_t{
 					identification to identify a
 					transaction branch */
 	/*------------------------------*/
-	char* 		detailed_error;	/*!< detailed error message for last
+	char*		detailed_error;	/*!< detailed error message for last
 					error, or empty. */
 
 	ulint		magic_n;
