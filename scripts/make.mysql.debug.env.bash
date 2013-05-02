@@ -111,9 +111,7 @@ echo make -j4 install
 echo 'if [ $? != 0 ] ; then exit 1; fi'
 
 echo '# create a var directory so mysql does not complain'
-echo 'cd $installdir'
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo mkdir var
+echo 'cd $install_dir'
 echo 'if [ $? != 0 ] ; then exit 1; fi'
 
 echo '# install the databases in msyql'
