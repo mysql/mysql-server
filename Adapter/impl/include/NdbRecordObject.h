@@ -35,6 +35,7 @@ public:
   Record * getRecord() const;
   char * getBuffer() const;
   uint32_t getMaskValue() const;
+  unsigned short getWriteCount() const;
 
 private:
   Record * record;
@@ -47,6 +48,8 @@ private:
     uint8_t row_mask[4];
     uint32_t maskvalue;
   } u;
+  unsigned short nWrites;
+  
   void maskIn(unsigned int nField);
   bool isMaskedIn(unsigned int nField);
 };
@@ -65,7 +68,8 @@ inline bool NdbRecordObject::isMaskedIn(unsigned int nField) {
 
 
 inline void NdbRecordObject::setField(int nField, Handle<Value> value) {
-  maskIn(nField); 
+  nWrites++;
+  maskIn(nField);
   proxy[nField].set(value);
 }
 
@@ -87,5 +91,9 @@ inline uint32_t NdbRecordObject::getMaskValue() const {
 
 inline void NdbRecordObject::resetMask() {
   u.maskvalue = 0;
+}
+
+inline unsigned short NdbRecordObject::getWriteCount() const {
+  return nWrites;
 }
 
