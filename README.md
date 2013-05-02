@@ -35,9 +35,10 @@ scripts/make.mysql.bash --git_tag=tokudb-7.0.1 --mysql=mariadb-5.5.30
 ```
 
 Before you start, make sure you have a C++11-compatible compiler (GCC >=
-4.7 is recommended) and the libraries and header files for valgrind,
-zlib, and Berkeley DB.  On Centos, `yum install valgrind-devel zlib-devel
-libdb-devel`, on Ubuntu, `apt-get install valgrind zlib1g-dev libdb-dev`.
+4.7 is recommended), as well as CMake >=2.8.8, and the libraries and
+header files for valgrind,zlib, and Berkeley DB.  On Centos, `yum install
+valgrind-devel zlib-devel libdb-devel`, on Ubuntu, `apt-get install
+valgrind zlib1g-dev libdb-dev`.
 
 You can set the compiler by passing `--cc` and `--cxx` to the script, to
 select one that's new enough.  The default is `scripts/make.mysql.bash
