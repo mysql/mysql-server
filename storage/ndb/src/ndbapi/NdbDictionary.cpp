@@ -4262,6 +4262,61 @@ NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
   return ndbout;
 }
 
+NdbOut&
+print_fk_tab_ref(NdbOut& ndbout, const char * fqn)
+{
+  int cnt_slash = 0;
+  {
+    const char * ptr = fqn;
+    while ((ptr = index(ptr, '/')) != 0)
+    {
+      ptr++;
+      cnt_slash++;
+    }
+  }
+
+  if (cnt_slash == 2) // expected...
+  {
+    for (; * fqn != '/' ; fqn++)
+      ndbout.print("%c", (* fqn));
+    ndbout << ".";
+
+    for (fqn++ ; * fqn != '/' ; fqn++)
+    {
+      /**
+       * catalog...
+       */
+    }
+    for (fqn++ ; * fqn != 0; fqn++)
+    {
+      ndbout.print("%c", (* fqn));
+    }
+  }
+  else
+  {
+    ndbout << fqn;
+  }
+  return ndbout;
+}
+
+NdbOut&
+print_fk_idx_ref(NdbOut& ndbout, const char * fqn)
+{
+  if (fqn == 0)
+  {
+    ndbout << "PRIMARY KEY";
+  }
+  else
+  {
+    const char * ptr = rindex(fqn, '/');
+    if (ptr)
+    {
+      ndbout << (ptr + 1);
+    }
+  }
+  return ndbout;
+}
+
 void NdbDictionary::Dictionary::print(NdbOut& ndbout, NdbDictionary::Table const& tab)
 {
   ndbout << tab;
@@ -4291,10 +4346,14 @@ void NdbDictionary::Dictionary::print(NdbOut& ndbout, NdbDictionary::Table const
   ndbout << ") - UniqueHashIndex" << endl;
 
   List list;
-  if (listIndexes(list, tab) == 0)
+  if (listDependentObjects(list, tab) == 0)
   {
     for (j= 0; j < list.count; j++) {
       List::Element& elt = list.elements[j];
+      if (elt.type != NdbDictionary::Object::UniqueHashIndex &&
+          elt.type != NdbDictionary::Object::OrderedIndex)
+        continue;
+
       const Index *pIdx = getIndex(elt.name, tab);
       if (!pIdx)
       {
@@ -4322,4 +4381,85 @@ void NdbDictionary::Dictionary::print(NdbOut& ndbout, NdbDictionary::Table const
 #ifdef VM_TRACE
   else assert(false);
 #endif
+
+  bool first = true;
+  for (j= 0; j < list.count; j++)
+  {
+    List::Element& elt = list.elements[j];
+    if (elt.type != NdbDictionary::Object::ForeignKey)
+      continue;
+
+    NdbDictionary::ForeignKey fk;
+    if (getForeignKey(fk, elt.name) == 0)
+    {
+      if (strcmp(fk.getChildTable(),
+                 NdbTableImpl::getImpl(tab).m_internalName.c_str()) == 0)
+      {
+        if (first)
+        {
+          first = false;
+          ndbout << "-- ForeignKeys --" << endl;
+        }
+
+        ndbout << fk.getName() << " ";
+        print_fk_idx_ref(ndbout, fk.getChildIndex());
+        ndbout << " (";
+        for (unsigned i = 0; i < fk.getChildColumnCount(); i++)
+        {
+          ndbout << tab.getColumn(fk.getChildColumnNo(i))->getName();
+          if (i + 1 != fk.getChildColumnCount())
+            ndbout << ", ";
+        }
+        ndbout << ") REFERENCES ";
+        print_fk_tab_ref(ndbout, fk.getParentTable());
+        ndbout << "/";
+        print_fk_idx_ref(ndbout, fk.getParentIndex());
+        ndbout << " (";
+        /**
+         * TODO...
+         */
+        ndbout << ") ";
+
+        ndbout << "on update ";
+        switch(fk.getOnUpdateAction()) {
+        case NdbDictionary::ForeignKey::NoAction:
+          ndbout << "noaction";
+          break;
+        case NdbDictionary::ForeignKey::Restrict:
+          ndbout << "restrict";
+          break;
+        case NdbDictionary::ForeignKey::Cascade:
+          ndbout << "cascade";
+          break;
+        case NdbDictionary::ForeignKey::SetNull:
+          ndbout << "set null";
+          break;
+        case NdbDictionary::ForeignKey::SetDefault:
+          ndbout << "set default";
+          break;
+        }
+
+        ndbout << " on delete ";
+        switch(fk.getOnDeleteAction()) {
+        case NdbDictionary::ForeignKey::NoAction:
+          ndbout << "noaction";
+          break;
+        case NdbDictionary::ForeignKey::Restrict:
+          ndbout << "restrict";
+          break;
+        case NdbDictionary::ForeignKey::Cascade:
+          ndbout << "cascade";
+          break;
+        case NdbDictionary::ForeignKey::SetNull:
+          ndbout << "set null";
+          break;
+        case NdbDictionary::ForeignKey::SetDefault:
+          ndbout << "set default";
+          break;
+        }
+
+        ndbout << endl;
+      }
+    }
+  }
 }
