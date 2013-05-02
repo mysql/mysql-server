@@ -196,6 +196,7 @@ function generate_cmake_cmd_rpm() {
     fi
 }
 
+package_source_done=0
 if [ $build_tgz != 0 ] ; then
 
     mkdir -p build.$cmake_build_type
@@ -203,6 +204,10 @@ if [ $build_tgz != 0 ] ; then
 
     # actually build
     eval $(generate_cmake_cmd) ..
+    if [ $package_source_done = 0 ] ; then
+        make package_source
+        package_source_done=1
+    fi
     make package -j$makejobs
     popd
 fi
@@ -214,6 +219,10 @@ if [ $build_rpm != 0 ] ; then
 
     # actually build
     eval $(generate_cmake_cmd; generate_cmake_cmd_rpm) ..
+    if [ $package_source_done = 0 ] ; then
+        make package_source
+        package_source_done=1
+    fi
     make package -j$makejobs
     popd
 fi
