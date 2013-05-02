@@ -70,6 +70,7 @@ ADD_EXECUTABLE(testIndexStat testIndexStat.cpp)
 ADD_EXECUTABLE(testRedo testRedo.cpp)
 ADD_EXECUTABLE(testUpgrade testUpgrade.cpp)
 ADD_EXECUTABLE(testAsynchMultiwait testAsynchMultiwait.cpp)
+ADD_EXECUTABLE(testFK testFK.cpp)
 
 SET(BINS create_all_tabs create_tab
   drop_all_tabs flexAsynch flexBench
@@ -86,7 +87,8 @@ SET(BINS create_all_tabs create_tab
   testSingleUserMode
   testIndexStat testRedo
   testUpgrade
-  testAsynchMultiwait)
+  testAsynchMultiwait
+  testFK)
 
 IF(MSVC)
   
