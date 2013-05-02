@@ -357,8 +357,12 @@ void Dbtc::execCONTINUEB(Signal* signal)
       warningReport(signal, 29);
       return;
     }
+    ndbrequire(apiConnectptr.p->lqhkeyreqrec > 0);
+    apiConnectptr.p->lqhkeyreqrec--; // UNDO: prevent early completion
+
     sendFireTrigReq(signal, apiConnectptr,
-                    signal->theData[4]);
+                    signal->theData[4],
+                    signal->theData[5]);
     return;
   case TcContinueB::ZSTART_FRAG_SCANS:
   {
@@ -5181,7 +5185,8 @@ Dbtc::startSendFireTrigReq(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
     regApiPtr.p->m_pre_commit_pass = newpass;
   }
   sendFireTrigReq(signal, regApiPtr,
-                  regApiPtr.p->firstTcConnect);
+                  regApiPtr.p->firstTcConnect,
+                  regApiPtr.p->lastTcConnect);
 }
 
 /*
@@ -6038,7 +6043,8 @@ getNextDeferredPass(Uint32 pass)
 void
 Dbtc::sendFireTrigReq(Signal* signal,
                       Ptr<ApiConnectRecord> regApiPtr,
-                      Uint32 TopPtrI)
+                      Uint32 TopPtrI,
+                      Uint32 TlastOpPtrI)
 {
   UintR TtcConnectFilesize = ctcConnectFilesize;
   TcConnectRecord *localTcConnectRecord = tcConnectRecord;
@@ -6052,7 +6058,13 @@ Dbtc::sendFireTrigReq(Signal* signal,
   Uint32 Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
   const Uint32 pass = regApiPtr.p->m_pre_commit_pass;
   const Uint32 passflag = getTcConnectRecordDeferredFlag(pass);
-  for (Uint32 i = 0; localTcConnectptr.i != RNIL && i < 16; i++)
+  Uint32 prevOpPtrI = RNIL;
+#if defined VM_TRACE || defined ERROR_INSERT
+  const Uint32 LIMIT = 1 + rand() % 15;
+#else
+  const Uint32 LIMIT = 16;
+#endif
+  for (Uint32 i = 0; prevOpPtrI != TlastOpPtrI && i < LIMIT; i++)
   {
     ptrCheckGuard(localTcConnectptr,
                   TtcConnectFilesize, localTcConnectRecord);
@@ -6081,11 +6093,12 @@ Dbtc::sendFireTrigReq(Signal* signal,
       Tlqhkeyreqrec++;
     }
 
+    prevOpPtrI = localTcConnectptr.i;
     localTcConnectptr.i = nextTcConnect;
   }
 
   regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec;
-  if (localTcConnectptr.i == RNIL)
+  if (prevOpPtrI == TlastOpPtrI)
   {
     /**
      * Now wait for FIRE_TRIG_CONF
@@ -6109,18 +6122,20 @@ Dbtc::sendFireTrigReq(Signal* signal,
   else
   {
     jam();
+    regApiPtr.p->lqhkeyreqrec++; // prevent early completion
     signal->theData[0] = TcContinueB::ZSEND_FIRE_TRIG_REQ;
     signal->theData[1] = regApiPtr.i;
     signal->theData[2] = regApiPtr.p->transid[0];
     signal->theData[3] = regApiPtr.p->transid[1];
     signal->theData[4] = localTcConnectptr.i;
+    signal->theData[5] = TlastOpPtrI;
     if (ERROR_INSERTED_CLEAR(8090))
     {
-      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 5);
+      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 6);
     }
     else
     {
-      sendSignal(cownref, GSN_CONTINUEB, signal, 5, JBB);
+      sendSignal(cownref, GSN_CONTINUEB, signal, 6, JBB);
     }
   }
 }

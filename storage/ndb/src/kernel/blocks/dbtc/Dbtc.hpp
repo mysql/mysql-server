@@ -1530,7 +1530,8 @@ private:
                          TcConnectRecord * const regTcPtr);
 
   void startSendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
-  void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>, Uint32 firstTcConnect);
+  void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>,
+                       Uint32 firstTcConnect, Uint32 lastTcConnect);
   Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass);
 
   void sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord *);
