@@ -69,55 +69,55 @@ static
 const
 NDBT_Attribute T3Attribs[] = {
   NDBT_Attribute("KOL1", NdbDictionary::Column::Varbinary, 100, true), 
-  NDBT_Attribute("KOL00", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL00", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL01", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL02", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL02", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL03", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL04", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL04", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL05", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL06", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL06", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL07", NdbDictionary::Column::Varbinary, 25),
-  NDBT_Attribute("KOL08", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL08", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL09", NdbDictionary::Column::Varbinary, 25),
-  NDBT_Attribute("KOL10", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL10", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL11", NdbDictionary::Column::Varbinary, 25),
-  NDBT_Attribute("KOL12", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL12", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL13", NdbDictionary::Column::Varbinary, 25),
-  NDBT_Attribute("KOL14", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL14", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL15", NdbDictionary::Column::Longvarbinary, 537),
-  NDBT_Attribute("KOL16", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL16", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL17", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL18", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL18", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL19", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL20", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL20", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL21", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL22", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL22", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL23", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL24", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL24", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL25", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL26", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL26", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL27", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL28", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL28", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL29", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL30", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL30", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL31", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL32", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL32", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL33", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL34", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL34", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL35", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL36", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL36", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL37", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL38", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL38", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL39", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL40", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL40", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL41", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL42", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL42", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL43", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL44", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL44", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL45", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL46", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL46", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL47", NdbDictionary::Column::Varbinary, 100),
-  NDBT_Attribute("KOL48", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL48", NdbDictionary::Column::Binary, 100),
   NDBT_Attribute("KOL49", NdbDictionary::Column::Varbinary, 100),
 
   NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned),
@@ -153,27 +153,27 @@ NDBT_Attribute T6Attribs[] = {
   NDBT_Attribute("ATTR1", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR2", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR3", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR4", NdbDictionary::Column::Char, 
+  NDBT_Attribute("ATTR4", NdbDictionary::Column::Binary,
 		 47, false, true),// Nullable
   NDBT_Attribute("ATTR5", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR6", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR7", NdbDictionary::Column::Char, 
+  NDBT_Attribute("ATTR7", NdbDictionary::Column::Binary,
 		 48, false, true),// Nullable
-  NDBT_Attribute("ATTR8", NdbDictionary::Column::Char, 
+  NDBT_Attribute("ATTR8", NdbDictionary::Column::Binary,
 		 50, false, true), // Nullable
   NDBT_Attribute("ATTR9", NdbDictionary::Column::Int),
   NDBT_Attribute("ATTR10", NdbDictionary::Column::Float),
   NDBT_Attribute("ATTR11", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR12", NdbDictionary::Column::Char, 49),
+  NDBT_Attribute("ATTR12", NdbDictionary::Column::Binary, 49),
   NDBT_Attribute("ATTR13", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR14", NdbDictionary::Column::Varbinary, 50),
   NDBT_Attribute("ATTR15", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR16", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR17", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR18", NdbDictionary::Column::Char, 257),
+  NDBT_Attribute("ATTR18", NdbDictionary::Column::Binary, 257),
   NDBT_Attribute("ATTR19", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR20", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR21", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("ATTR21", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
   NDBT_Attribute("ATTR22", NdbDictionary::Column::Varbinary, 255, false, false, 0, MM, true),
   NDBT_Attribute("BIT000", NdbDictionary::Column::Bit, 1, false, false, 0, MM, true),
   NDBT_Attribute("BIT001", NdbDictionary::Column::Bit, 1, false, false, 0, MM, true),
@@ -485,9 +485,9 @@ NDBT_Table T6("T6", sizeof(T6Attribs)/sizeof(NDBT_Attribute), T6Attribs);
 static
 const
 NDBT_Attribute T13Attribs[] = {
-  NDBT_Attribute("KOL1", NdbDictionary::Column::Char, 257, true), 
-  NDBT_Attribute("KOL2", NdbDictionary::Column::Char, 259, true),
-  NDBT_Attribute("KOL3", NdbDictionary::Column::Char, 113, true),
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Binary, 257, true),
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Binary, 259, true),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Binary, 113, true),
   NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned, 1, true),
   NDBT_Attribute("KOL6", NdbDictionary::Column::Unsigned),
@@ -503,13 +503,13 @@ const
 NDBT_Attribute T14Attribs[] = {
   NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true), 
   NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL3", NdbDictionary::Column::Char, 4, true), 
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Binary, 4, true),
   NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned, 1, true), 
   NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned, 1, true), 
   NDBT_Attribute("KOL20", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("KOL30", NdbDictionary::Column::Int),
   NDBT_Attribute("KOL40", NdbDictionary::Column::Float),
-  NDBT_Attribute("KOL50", NdbDictionary::Column::Char, 200, false, false, 0, MM, true)
+  NDBT_Attribute("KOL50", NdbDictionary::Column::Binary, 200, false, false, 0, MM, true)
 };
 
 
@@ -530,53 +530,53 @@ NDBT_Attribute T15Attribs[] = {
   NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned, 1, false, true, 0, MM, true),
   NDBT_Attribute("KOL4", NdbDictionary::Column::Int, 1, false, false, 0, MM, true),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Float, 1, false, true, 0, MM, true),
-  NDBT_Attribute("KOL6", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL6", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
   NDBT_Attribute("KOL7", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
-  NDBT_Attribute("KOL8", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL8", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
   NDBT_Attribute("KOL9", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
-  NDBT_Attribute("KOL10", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL10", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
   NDBT_Attribute("KOL11", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
-  NDBT_Attribute("KOL12", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL12", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
   NDBT_Attribute("KOL13", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
-  NDBT_Attribute("KOL14", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL14", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
   NDBT_Attribute("KOL15", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
-  NDBT_Attribute("KOL16", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL16", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
   NDBT_Attribute("KOL17", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
-  NDBT_Attribute("KOL18", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL18", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
   NDBT_Attribute("KOL19", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
-  NDBT_Attribute("KOL20", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL20", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
   NDBT_Attribute("KOL21", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
-  NDBT_Attribute("KOL22", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL22", NdbDictionary::Column::Binary, 4, false, false, 0, MM, true),
   NDBT_Attribute("KOL23", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
-  NDBT_Attribute("KOL24", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL24", NdbDictionary::Column::Binary, 4, false, false, 0, MM, true),
   NDBT_Attribute("KOL25", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
-  NDBT_Attribute("KOL26", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL26", NdbDictionary::Column::Binary, 4, false, false, 0, MM, true),
   NDBT_Attribute("KOL27", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
-  NDBT_Attribute("KOL28", NdbDictionary::Column::Char, 4, false, false),
+  NDBT_Attribute("KOL28", NdbDictionary::Column::Binary, 4, false, false),
   NDBT_Attribute("KOL29", NdbDictionary::Column::Varbinary, 4, false, false),
-  NDBT_Attribute("KOL30", NdbDictionary::Column::Char, 4, false, true, 0, DD),
-  NDBT_Attribute("KOL31", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL30", NdbDictionary::Column::Binary, 4, false, true, 0, DD),
+  NDBT_Attribute("KOL31", NdbDictionary::Column::Binary, 4, false, false, 0, MM, true),
   NDBT_Attribute("KOL32", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
   NDBT_Attribute("BIT1", NdbDictionary::Column::Bit, 27, false, true, 0, MM, true),
   NDBT_Attribute("BIT2", NdbDictionary::Column::Bit, 1, false, false, 0, MM, true),
   NDBT_Attribute("BIT3", NdbDictionary::Column::Bit, 1, false, true, 0, MM, true),
   NDBT_Attribute("BIT4", NdbDictionary::Column::Bit, 8, false, false, 0, MM, true),
-  NDBT_Attribute("KOL33", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL33", NdbDictionary::Column::Binary, 4, false, false, 0, MM, true),
   NDBT_Attribute("KOL34", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
-  NDBT_Attribute("KOL35", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL35", NdbDictionary::Column::Binary, 4, false, false, 0, MM, true),
   NDBT_Attribute("KOL36", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
-  NDBT_Attribute("KOL37", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL37", NdbDictionary::Column::Binary, 4, false, false, 0, MM, true),
   NDBT_Attribute("KOL38", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
-  NDBT_Attribute("KOL39", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL39", NdbDictionary::Column::Binary, 4, false, false, 0, MM, true),
   NDBT_Attribute("KOL40", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
-  NDBT_Attribute("KOL41", NdbDictionary::Column::Char, 64, false, true, 0, MM, true),
-  NDBT_Attribute("KOL42", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
-  NDBT_Attribute("KOL43", NdbDictionary::Column::Char, 8, false, true, 0, MM, true),
-  NDBT_Attribute("KOL44", NdbDictionary::Column::Char, 27, false, true, 0, MM, true),
-  NDBT_Attribute("KOL45", NdbDictionary::Column::Char, 64, false, false, 0, MM, true),
-  NDBT_Attribute("KOL46", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
-  NDBT_Attribute("KOL47", NdbDictionary::Column::Char, 8, false, false, 0, MM, true),
-  NDBT_Attribute("KOL48", NdbDictionary::Column::Char, 27, false, false, 0, MM, true),
+  NDBT_Attribute("KOL41", NdbDictionary::Column::Binary, 64, false, true, 0, MM, true),
+  NDBT_Attribute("KOL42", NdbDictionary::Column::Binary, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL43", NdbDictionary::Column::Binary, 8, false, true, 0, MM, true),
+  NDBT_Attribute("KOL44", NdbDictionary::Column::Binary, 27, false, true, 0, MM, true),
+  NDBT_Attribute("KOL45", NdbDictionary::Column::Binary, 64, false, false, 0, MM, true),
+  NDBT_Attribute("KOL46", NdbDictionary::Column::Binary, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL47", NdbDictionary::Column::Binary, 8, false, false, 0, MM, true),
+  NDBT_Attribute("KOL48", NdbDictionary::Column::Binary, 27, false, false, 0, MM, true),
   NDBT_Attribute("KOL49", NdbDictionary::Column::Varbinary, 255, false, false, 0, MM, true),
   /* This one is for update count, needed by hugoScanUpdate. */
   NDBT_Attribute("KOL99", NdbDictionary::Column::Unsigned, 1, false, false, 0, MM, true),
@@ -606,11 +606,11 @@ static
 const
 NDBT_Attribute I1_Cols[] = {
   NDBT_Attribute("ID", NdbDictionary::Column::Unsigned, true),
-  NDBT_Attribute("PORT", NdbDictionary::Column::Char, 16, true),
-  NDBT_Attribute("ACCESSNODE", NdbDictionary::Column::Char, 16, true),
-  NDBT_Attribute("POP", NdbDictionary::Column::Char, 64, true),
-  NDBT_Attribute("VLAN", NdbDictionary::Column::Char, 16),
-  NDBT_Attribute("COMMENT", NdbDictionary::Column::Char, 128),
+  NDBT_Attribute("PORT", NdbDictionary::Column::Binary, 16, true),
+  NDBT_Attribute("ACCESSNODE", NdbDictionary::Column::Binary, 16, true),
+  NDBT_Attribute("POP", NdbDictionary::Column::Binary, 64, true),
+  NDBT_Attribute("VLAN", NdbDictionary::Column::Binary, 16),
+  NDBT_Attribute("COMMENT", NdbDictionary::Column::Binary, 128),
   NDBT_Attribute("SNMPINDEX", NdbDictionary::Column::Int),
   NDBT_Attribute("PORTSTATE", NdbDictionary::Column::Int),
   NDBT_Attribute("UPDATES", NdbDictionary::Column::Unsigned)
@@ -631,9 +631,9 @@ static
 const
 NDBT_Attribute I2_Cols[] = {
   NDBT_Attribute("ID", NdbDictionary::Column::Unsigned, true),
-  NDBT_Attribute("PORT", NdbDictionary::Column::Char, 16, true),
-  NDBT_Attribute("ACCESSNODE", NdbDictionary::Column::Char, 16, true),
-  NDBT_Attribute("POP", NdbDictionary::Column::Char, 64, true),
+  NDBT_Attribute("PORT", NdbDictionary::Column::Binary, 16, true),
+  NDBT_Attribute("ACCESSNODE", NdbDictionary::Column::Binary, 16, true),
+  NDBT_Attribute("POP", NdbDictionary::Column::Binary, 64, true),
   NDBT_Attribute("ACCESSTYPE", NdbDictionary::Column::Int, true),
   NDBT_Attribute("CUSTOMER_ID", NdbDictionary::Column::Int),
   NDBT_Attribute("PROVIDER", NdbDictionary::Column::Int),
@@ -661,14 +661,14 @@ static
 const
 NDBT_Attribute I3_Cols[] = {
   NDBT_Attribute("ID", NdbDictionary::Column::Unsigned, true),
-  NDBT_Attribute("PORT", NdbDictionary::Column::Char, 16), // SI2
-  NDBT_Attribute("ACCESSNODE", NdbDictionary::Column::Char, 16), // SI2
-  NDBT_Attribute("POP", NdbDictionary::Column::Char, 64), // SI2
-  NDBT_Attribute("MAC", NdbDictionary::Column::Char, 12, true), 
+  NDBT_Attribute("PORT", NdbDictionary::Column::Binary, 16), // SI2
+  NDBT_Attribute("ACCESSNODE", NdbDictionary::Column::Binary, 16), // SI2
+  NDBT_Attribute("POP", NdbDictionary::Column::Binary, 64), // SI2
+  NDBT_Attribute("MAC", NdbDictionary::Column::Binary, 12, true),
   NDBT_Attribute("MAC_EXPIRE", NdbDictionary::Column::Int, 1),
   NDBT_Attribute("IIP", NdbDictionary::Column::Int), // SI1
   NDBT_Attribute("P_EXPIRE", NdbDictionary::Column::Int),
-  NDBT_Attribute("HOSTNAME", NdbDictionary::Column::Char, 32),
+  NDBT_Attribute("HOSTNAME", NdbDictionary::Column::Binary, 32),
   NDBT_Attribute("DETECTED", NdbDictionary::Column::Int),
   NDBT_Attribute("STATUS", NdbDictionary::Column::Int),
   NDBT_Attribute("NUM_REQUESTS", NdbDictionary::Column::Int),
@@ -697,7 +697,7 @@ NDBT_Attribute D1Attribs[] = {
   NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true), 
   NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL4", NdbDictionary::Column::Char, 233, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Binary, 233, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("KOL6", NdbDictionary::Column::Varbinary, 233, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
 };
@@ -736,7 +736,7 @@ NDBT_Attribute D2Attribs[] = {
   NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133, false, true, 0, MM, true, 
                  "\x1E" "A default value for KOL4 in D2", 31),
-  NDBT_Attribute("KOL5", NdbDictionary::Column::Char, 199, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL5", NdbDictionary::Column::Binary, 199, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL6", NdbDictionary::Column::Bit, 21, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL7", NdbDictionary::Column::Longvarbinary, 384, false, true, 0, NdbDictionary::Column::StorageTypeDisk, false, 
                  BigVarDefault, 386),
@@ -906,8 +906,8 @@ NDBT_Table F5("F5", sizeof(F5Attribs)/sizeof(NDBT_Attribute), F5Attribs);
 static
 const
 NDBT_Attribute F6Attribs[] = {
-  NDBT_Attribute("KOL1", NdbDictionary::Column::Char, 0, true, false), 
-  NDBT_Attribute("KOL2", NdbDictionary::Column::Char, 256),
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Binary, 0, true, false),
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Binary, 256),
 };
 
 static
@@ -947,7 +947,7 @@ NDBT_Table F8("F8", sizeof(F8Attribs)/sizeof(NDBT_Attribute), F8Attribs);
 static
 const
 NDBT_Attribute F15Attribs[] = {
-  NDBT_Attribute("KOL1", NdbDictionary::Column::Char, 40, true)
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Binary, 40, true)
 };
 static
 const
@@ -1051,7 +1051,7 @@ static
 const
 NDBT_Attribute ACCOUNT_TYPES_Attribs[] = {
   NDBT_Attribute("ACCOUNT_TYPE_ID", NdbDictionary::Column::Unsigned, 1, true),
-  NDBT_Attribute("DESCRIPTION", NdbDictionary::Column::Char, 64, false, false, &my_charset_latin1_bin)
+  NDBT_Attribute("DESCRIPTION", NdbDictionary::Column::Binary, 64, false, false, &my_charset_latin1_bin)
 };
 
 static
@@ -1200,7 +1200,7 @@ NDBT_Table* createMaxKeyMaxColsHugoTabDef(const char* name)
     /* Last key uses remaining key space */
     BaseString::snprintf(namebuff, buffsize, "K%d", attrNum);
     attrs[attrNum]= new NDBT_Attribute(namebuff,
-                                       NdbDictionary::Column::Char,
+                                       NdbDictionary::Column::Binary,
                                        (NDB_MAX_KEYSIZE_IN_WORDS -
                                         (NDB_MAX_ATTRIBUTES_IN_INDEX -1)) * 4,
                                        true);
@@ -1223,7 +1223,7 @@ NDBT_Table* createMaxKeyMaxColsHugoTabDef(const char* name)
     sz32 -= NDB_MAX_ATTRIBUTES_IN_INDEX;
     sz32 -= 2 * NDB_MAX_ATTRIBUTES_IN_TABLE;
     attrs[attrNum]= new NDBT_Attribute(namebuff,
-                                       NdbDictionary::Column::Char, 4 * sz32,
+                                       NdbDictionary::Column::Binary, 4 * sz32,
                                        false);
 
     WIDE_MAXKEYMAXCOLS_HUGO= new NDBT_Table(name, NDB_MAX_ATTRIBUTES_IN_TABLE,
@@ -1269,7 +1269,7 @@ NDBT_Table* createMinKeyMaxColsHugoTabDef(const char* name)
     /* Last attr uses remaining attr space */
     BaseString::snprintf(namebuff, buffsize, "A%d", attrNum);
     attrs[attrNum]= new NDBT_Attribute(namebuff,
-                                       NdbDictionary::Column::Char,
+                                       NdbDictionary::Column::Binary,
                                        (NDB_MAX_TUPLE_SIZE_IN_WORDS -
                                         (NDB_MAX_ATTRIBUTES_IN_TABLE - 1)) * 4,
                                        false);
@@ -1375,17 +1375,17 @@ NDBT_Tables::tableWithPkSize(const char* _nam, Uint32 pkSize){
 
   // Add one PK of the desired length
   tab->addColumn(NDBT_Attribute("PK1",
-				NdbDictionary::Column::Char,
+				NdbDictionary::Column::Binary,
 				pkSize,
 				true));
   
   // Add 4 attributes
   tab->addColumn(NDBT_Attribute("ATTR1",
-				NdbDictionary::Column::Char,
+				NdbDictionary::Column::Binary,
 				21));
   
   tab->addColumn(NDBT_Attribute("ATTR2",
-				NdbDictionary::Column::Char,
+				NdbDictionary::Column::Binary,
 				124));
   
   tab->addColumn(NDBT_Attribute("ATTR3",
