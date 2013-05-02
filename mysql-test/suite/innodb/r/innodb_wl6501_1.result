@@ -17,10 +17,10 @@ Note	1051	Unknown table 'test.t6'
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -30,10 +30,10 @@ engine=innodb row_format=redundant;
 create table t2(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -44,10 +44,10 @@ set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -57,10 +57,10 @@ engine=innodb row_format=compressed key_block_size=4;
 create table t4(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -70,10 +70,10 @@ engine=innodb row_format=dynamic;
 create temporary table t5(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -100,10 +100,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_during_drop_second_secondary";
-"---debug crash_during_drop_second_secondary point---"
-set session debug="+d,crash_during_drop_second_secondary";
-"---debug crash_during_drop_second_secondary point---"
+set session debug="+d,ib_crash_on_drop_of_sec_index";
+"---debug ib_crash_on_drop_of_sec_index point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -126,8 +124,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_during_drop_second_secondary";
-"---debug crash_during_drop_second_secondary point---"
+set session debug="+d,ib_crash_on_drop_of_sec_index";
+"---debug ib_crash_on_drop_of_sec_index point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -150,8 +148,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_during_drop_second_secondary";
-"---debug crash_during_drop_second_secondary point---"
+set session debug="+d,ib_crash_on_drop_of_sec_index";
+"---debug ib_crash_on_drop_of_sec_index point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -174,8 +172,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_during_drop_second_secondary";
-"---debug crash_during_drop_second_secondary point---"
+set session debug="+d,ib_crash_on_drop_of_sec_index";
+"---debug ib_crash_on_drop_of_sec_index point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -202,10 +200,10 @@ drop table t1 ,t2 ,t3,t4,t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -215,10 +213,10 @@ engine=innodb row_format=redundant;
 create table t2(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -229,10 +227,10 @@ set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -242,10 +240,10 @@ engine=innodb row_format=compressed key_block_size=4;
 create table t4(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -255,10 +253,10 @@ engine=innodb row_format=dynamic;
 create temporary table t5(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -285,10 +283,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_during_create_second_secondary";
-"---debug crash_during_create_second_secondary---"
-set session debug="+d,crash_during_create_second_secondary";
-"---debug crash_during_create_second_secondary---"
+set session debug="+d,ib_crash_on_create_of_sec_index";
+"---debug ib_crash_on_create_of_sec_index---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -311,8 +307,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_during_create_second_secondary";
-"---debug crash_during_create_second_secondary---"
+set session debug="+d,ib_crash_on_create_of_sec_index";
+"---debug ib_crash_on_create_of_sec_index---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -335,8 +331,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_during_create_second_secondary";
-"---debug crash_during_create_second_secondary---"
+set session debug="+d,ib_crash_on_create_of_sec_index";
+"---debug ib_crash_on_create_of_sec_index---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -359,8 +355,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_during_create_second_secondary";
-"---debug crash_during_create_second_secondary---"
+set session debug="+d,ib_crash_on_create_of_sec_index";
+"---debug ib_crash_on_create_of_sec_index---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -387,10 +383,10 @@ drop table t1 ,t2 ,t3,t4,t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -400,10 +396,10 @@ engine=innodb row_format=redundant;
 create table t2(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -414,10 +410,10 @@ set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -427,10 +423,10 @@ engine=innodb row_format=compressed key_block_size=4;
 create table t4(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -440,10 +436,10 @@ engine=innodb row_format=dynamic;
 create temporary table t5(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -470,10 +466,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_before_log_checkpoint";
-"---debug crash_before_log_checkpoint point---"
-set session debug="+d,crash_before_log_checkpoint";
-"---debug crash_before_log_checkpoint point---"
+set session debug="+d,ib_crash_before_log_checkpoint2";
+"---debug ib_crash_before_log_checkpoint2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -496,8 +490,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_before_log_checkpoint";
-"---debug crash_before_log_checkpoint point---"
+set session debug="+d,ib_crash_before_log_checkpoint2";
+"---debug ib_crash_before_log_checkpoint2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -520,8 +514,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_before_log_checkpoint";
-"---debug crash_before_log_checkpoint point---"
+set session debug="+d,ib_crash_before_log_checkpoint2";
+"---debug ib_crash_before_log_checkpoint2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -544,8 +538,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_before_log_checkpoint";
-"---debug crash_before_log_checkpoint point---"
+set session debug="+d,ib_crash_before_log_checkpoint2";
+"---debug ib_crash_before_log_checkpoint2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -572,10 +566,10 @@ drop table t1 ,t2 ,t3,t4,t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -585,10 +579,10 @@ engine=innodb row_format=redundant;
 create table t2(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -599,10 +593,10 @@ set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -612,10 +606,10 @@ engine=innodb row_format=compressed key_block_size=4;
 create table t4(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -625,10 +619,10 @@ engine=innodb row_format=dynamic;
 create temporary table t5(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -655,10 +649,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_log_checkpoint";
-"---debug crash_after_log_checkpoint point---"
-set session debug="+d,crash_after_log_checkpoint";
-"---debug crash_after_log_checkpoint point---"
+set session debug="+d,ib_crash_after_log_checkpoint";
+"---debug ib_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -681,8 +673,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_log_checkpoint";
-"---debug crash_after_log_checkpoint point---"
+set session debug="+d,ib_crash_after_log_checkpoint";
+"---debug ib_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -705,8 +697,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_log_checkpoint";
-"---debug crash_after_log_checkpoint point---"
+set session debug="+d,ib_crash_after_log_checkpoint";
+"---debug ib_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -729,8 +721,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_log_checkpoint";
-"---debug crash_after_log_checkpoint point---"
+set session debug="+d,ib_crash_after_log_checkpoint";
+"---debug ib_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -757,10 +749,10 @@ drop table t1 ,t2 ,t3,t4,t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -770,10 +762,10 @@ engine=innodb row_format=redundant;
 create table t2(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -784,10 +776,10 @@ set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -797,10 +789,10 @@ engine=innodb row_format=compressed key_block_size=4;
 create table t4(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -810,10 +802,10 @@ engine=innodb row_format=dynamic;
 create temporary table t5(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -840,10 +832,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_truncate_tablespace";
-"---debug crash_after_truncate_tablespace point---"
-set session debug="+d,crash_after_truncate_tablespace";
-"---debug crash_after_truncate_tablespace point---"
+set session debug="+d,ib_crash_after_log_checkpoint";
+"---debug ib_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -866,8 +856,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_truncate_tablespace";
-"---debug crash_after_truncate_tablespace point---"
+set session debug="+d,ib_crash_after_log_checkpoint";
+"---debug ib_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -890,8 +880,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_truncate_tablespace";
-"---debug crash_after_truncate_tablespace point---"
+set session debug="+d,ib_crash_after_log_checkpoint";
+"---debug ib_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -914,8 +904,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_truncate_tablespace";
-"---debug crash_after_truncate_tablespace point---"
+set session debug="+d,ib_crash_after_log_checkpoint";
+"---debug ib_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -942,10 +932,10 @@ drop table t1 ,t2 ,t3,t4,t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -955,10 +945,10 @@ engine=innodb row_format=redundant;
 create table t2(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -969,10 +959,10 @@ set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -982,10 +972,10 @@ engine=innodb row_format=compressed key_block_size=4;
 create table t4(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -995,10 +985,10 @@ engine=innodb row_format=dynamic;
 create temporary table t5(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
-c4 text(4000) not null,
-c5 blob(4000) not null,
-c6 varchar(4000) not null,
-c7 varchar(4000) not null,
+c4 text(500) not null,
+c5 blob(500) not null,
+c6 varchar(500) not null,
+c7 varchar(500) not null,
 c8 datetime,
 c9 decimal(5,3),
 primary key (c1),
@@ -1025,10 +1015,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_drop_tablespace";
-"---debug crash_after_drop_tablespace point---"
-set session debug="+d,crash_after_drop_tablespace";
-"---debug crash_after_drop_tablespace point---"
+set session debug="+d,ib_crash_after_redo_log_write_complete2";
+"---debug ib_crash_after_redo_log_write_complete2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -1051,8 +1039,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_drop_tablespace";
-"---debug crash_after_drop_tablespace point---"
+set session debug="+d,ib_crash_after_redo_log_write_complete2";
+"---debug ib_crash_after_redo_log_write_complete2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -1075,8 +1063,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_drop_tablespace";
-"---debug crash_after_drop_tablespace point---"
+set session debug="+d,ib_crash_after_redo_log_write_complete2";
+"---debug ib_crash_after_redo_log_write_complete2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -1099,8 +1087,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,crash_after_drop_tablespace";
-"---debug crash_after_drop_tablespace point---"
+set session debug="+d,ib_crash_after_redo_log_write_complete2";
+"---debug ib_crash_after_redo_log_write_complete2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
