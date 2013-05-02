@@ -45,55 +45,23 @@ void NdbTick_Init(int need_monotonic)
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
 #ifdef CLOCK_MONOTONIC
-  fprintf(stderr, "Failed to use CLOCK_MONOTONIC for clock_gettime,"
+  fprintf(stderr, "Failed to use CLOCK_MONOTONIC for clock_realtime,"
           " errno= %u\n", errno);
   fflush(stderr);
   NdbTick_clk_id = CLOCK_REALTIME;
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
 #endif
-  fprintf(stderr, "Failed to use CLOCK_REALTIME for clock_gettime,"
+  fprintf(stderr, "Failed to use CLOCK_REALTIME for clock_realtime,"
           " errno=%u.  Aborting\n", errno);
   fflush(stderr);
   abort();
 }
 
-
-/*
-  Wrapper around clock_gettime() which retries with CLOCK_REALTIME
-  in case CLOCK_MONOTONIC fails.
-*/
-
-static inline
-int safe_clock_gettime(clockid_t clock_id, struct timespec* tp)
-{
-  int res = clock_gettime(clock_id, tp);
-  if (likely(res == 0))
-    return res;
-
-#ifndef NDEBUG
-  fprintf(stderr, "clock_gettime(%d, tp) failed, res: %d, errno: %d\n",
-          clock_id, res, errno);
-  fflush(stderr);
-#endif
-
-#ifdef CLOCK_MONOTONIC
-  if (clock_id == CLOCK_MONOTONIC)
-  {
-#ifndef NDEBUG
-    fprintf(stderr, "retrying clock_gettime with CLOCK_REALTIME...\n");
-#endif
-    // Retry with CLOCK_REALTIME
-    res = safe_clock_gettime(CLOCK_REALTIME, tp);
-  }
-#endif
-  return res;
-}
-
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
   struct timespec tick_time;
-  safe_clock_gettime(NdbTick_clk_id, &tick_time);
+  clock_gettime(NdbTick_clk_id, &tick_time);
 
   return 
     ((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)MILLISEC_PER_SEC) +
