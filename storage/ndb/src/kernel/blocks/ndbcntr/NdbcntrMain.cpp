@@ -66,7 +66,7 @@ extern EventLogger * g_eventLogger;
 
 // used during shutdown for reporting current startphase
 // accessed from Emulator.cpp, NdbShutdown()
-Uint32 g_currentStartPhase;
+Uint32 g_currentStartPhase = 0;
 
 /**
  * ALL_BLOCKS Used during start phases and while changing node state
