@@ -1981,7 +1981,7 @@ btr_page_reorganize_block(
 	dict_index_t*	index,	/*!< in: the index tree of the page */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	return(PageCur(*mtr, *index, *block).reorganize(recovery, z_level));
+	return(PageCur(mtr, index, block).reorganize(recovery, z_level));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -4351,7 +4351,7 @@ btr_index_page_validate(
 #ifndef DBUG_OFF
 	ulint	nth	= 1;
 #endif /* !DBUG_OFF */
-	PageCur	cur(*mtr, *index, *block);
+	PageCur	cur(mtr, index, block);
 
 	while (cur.next()) {
 		if (!btr_index_rec_validate(

@@ -4175,7 +4175,7 @@ ibuf_set_del_mark(
 {
 	ut_ad(ibuf_inside(mtr));
 
-	PageCur cur(*mtr, *index, *block);
+	PageCur cur(mtr, index, block);
 
 	if (cur.search(entry)) {
 		/* Delete mark the old index record. According to a
@@ -4220,7 +4220,7 @@ ibuf_delete(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 
-	PageCur		cur(*mtr, *index, *block);
+	PageCur		cur(mtr, index, block);
 	if (!cur.search(entry)) {
 		/* The record must have been purged already. */
 		return;

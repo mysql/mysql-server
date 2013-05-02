@@ -370,13 +370,13 @@ class PageCur
 {
 public:
 	/** Constructor
-	@param[in/out]	mtr	mini-transaction
+	@param[in/out]	mtr	mini-transaction, NULL=no redo logging
 	@param[in]	index	B-tree index
 	@param[in/out]	block	B-tree page
 	@param[in]	rec	B-tree record in block, NULL=page infimum */
-	PageCur(mtr_t& mtr, const dict_index_t& index,
-		const buf_block_t& block, const rec_t* rec = 0)
-		: m_mtr (&mtr), m_index (&index), m_block (&block), m_rec (rec),
+	PageCur(mtr_t* mtr, const dict_index_t* index,
+		const buf_block_t* block, const rec_t* rec = 0)
+		: m_mtr (mtr), m_index (index), m_block (block), m_rec (rec),
 		  m_offsets (0) {
 		const page_t* page = buf_block_get_frame(m_block);
 
@@ -509,7 +509,8 @@ public:
 	@param[in]	deleted	true=deleted, false=not deleted */
 	void flagDeleted(bool deleted) {
 		ut_ad(isUser());
-		ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
+		ut_ad(!m_mtr || mtr_memo_contains(m_mtr, m_block,
+						  MTR_MEMO_PAGE_X_FIX));
 
 		page_zip_des_t*	page_zip	= buf_block_get_page_zip(
 			const_cast<buf_block_t*>(m_block));
@@ -549,6 +550,8 @@ public:
 	/** Reorganizes the page.
 	The cursor position will be adjusted.
 
+	NOTE: m_mtr must not be NULL.
+
 	IMPORTANT: On success, the caller will have to update
 	IBUF_BITMAP_FREE if this is a compressed leaf page in a
 	secondary index. This has to be done either within m_mtr, or
@@ -571,7 +574,7 @@ public:
 		      == dict_table_is_comp(m_index->table));
 		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 		ut_ad(recv_recovery_on
-		      || m_mtr->inside_ibuf
+		      || (m_mtr && m_mtr->inside_ibuf)
 		      || page_get_index_id(page) == m_index->id);
 
 		return(page_is_leaf(page)
@@ -639,7 +642,7 @@ recalc:
 		rec_offs_make_valid(m_rec, m_index, m_offsets);
 	}
 
-	/** The mini-transaction */
+	/** The mini-transaction, or NULL when redo logging is not desired */
 	mtr_t*				m_mtr;
 	/** The index B-tree */
 	const dict_index_t*const	m_index;

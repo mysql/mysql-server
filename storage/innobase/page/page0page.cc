@@ -594,7 +594,7 @@ page_copy_rec_list_end_no_locks(
 	ut_ad(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
 	      (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
-	PageCur cur1(*mtr, *index, *block, rec);
+	PageCur cur1(mtr, index, block, rec);
 
 	if ((cur1.isBeforeFirst() && !cur1.next())
 	    || cur1.isAfterLast()) {
@@ -770,7 +770,7 @@ page_copy_rec_list_start(
 		return(ret);
 	}
 
-	PageCur	cur1(*mtr, *index, *block);
+	PageCur	cur1(mtr, index, block);
 
 	if (new_page_zip) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
