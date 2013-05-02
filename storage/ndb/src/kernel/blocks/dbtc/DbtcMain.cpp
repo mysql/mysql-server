@@ -14972,6 +14972,9 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
 {
   jamEntry();
   FireTrigOrd * const fireOrd =  (FireTrigOrd *)signal->getDataPtr();
+  SectionHandle handle(this, signal);
+  const bool longsignal = handle.m_cnt > 0;
+
   ApiConnectRecordPtr transPtr;
   TcConnectRecordPtr opPtr;
   bool transIdOk = true;
@@ -15009,10 +15012,33 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   key.fireingOperation = opPtr.i;
   key.nodeId = refToNode(signal->getSendersBlockRef());
   FiredTriggerPtr trigPtr;
-  if(likely(c_firedTriggerHash.find(trigPtr, key)))
+
+  if (likely(longsignal && transIdOk))
   {
     jam();
-    c_firedTriggerHash.remove(trigPtr);
+    if (likely(c_theFiredTriggerPool.seize(trigPtr)))
+    {
+      jam();
+      trigPtr.p->nodeId = key.nodeId;
+      trigPtr.p->fireingOperation = key.fireingOperation;
+      trigPtr.p->triggerId = fireOrd->m_triggerId;
+    }
+    else
+    {
+      jam();
+      transIdOk = false;
+    }
+  }
+
+  if (likely((longsignal && transIdOk) ||
+             c_firedTriggerHash.find(trigPtr, key)))
+  {
+    jam();
+    if (!longsignal)
+    {
+      jam();
+      c_firedTriggerHash.remove(trigPtr);
+    }
 
     trigPtr.p->triggerType = (TriggerType::Value)fireOrd->m_triggerType;
     trigPtr.p->triggerEvent = (TriggerEvent::Value)fireOrd->m_triggerEvent;
@@ -15028,6 +15054,22 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     }
     trigPtr.p->fragId= fireOrd->fragId;
     bool ok = transIdOk;
+    if (longsignal)
+    {
+      jam();
+      AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
+      {
+        //TODO: error insert to make e.g middle append fail
+        LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
+        LocalDataBuffer<11> tmp2(pool, trigPtr.p->beforeValues);
+        LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
+        append(tmp1, handle.m_ptr[0], getSectionSegmentPool());
+        append(tmp2, handle.m_ptr[1], getSectionSegmentPool());
+        append(tmp3, handle.m_ptr[2], getSectionSegmentPool());
+      }
+      releaseSections(handle);
+    }
+
     ok &= trigPtr.p->keyValues.getSize() == fireOrd->m_noPrimKeyWords;
     ok &= trigPtr.p->afterValues.getSize() == fireOrd->m_noAfterValueWords;
     ok &= trigPtr.p->beforeValues.getSize() == fireOrd->m_noBeforeValueWords;
@@ -15070,6 +15112,8 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     tmp3.release();
     c_theFiredTriggerPool.release(trigPtr);
   }
+
+  releaseSections(handle);
 
   /* Either no trigger entry found, or overload, or
    * bad transid

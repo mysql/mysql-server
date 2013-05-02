@@ -1574,6 +1574,34 @@ SimulatedBlock::import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len)
 }
 
 bool
+SimulatedBlock::import(SectionHandle * dst,
+                       LinearSectionPtr src[3],
+                       Uint32 cnt)
+{
+  ndbassert(dst->m_cnt == 0);
+  if (dst->m_cnt)
+  {
+    releaseSections(* dst);
+  }
+
+  for (Uint32 i = 0; i < cnt; i++)
+  {
+    if (unlikely(!import(dst->m_ptr[i], src[i].p, src[i].sz)))
+    {
+      if (i)
+      {
+        dst->m_cnt = i - 1;
+        releaseSections(* dst);
+        return false;
+      }
+    }
+  }
+  dst->m_cnt = cnt;
+  return true;
+}
+
+
+bool
 SimulatedBlock::dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal)
 {
   return ::dupSection(SB_SP_ARG copyFirstIVal, srcFirstIVal);
