@@ -267,7 +267,7 @@ DLFifoListImpl<P,T,U>::addLast(Ptr<T> & p)
 template <typename P, typename T, typename U>
 inline
 void
-DLFifoListImpl<P,T,U>::append(DLFifoListImpl<P,T,U>::Head & other)
+DLFifoListImpl<P,T,U>::append(Head & other)
 {
   Uint32 tl = head.lastItem;
   Uint32 of = other.firstItem;
