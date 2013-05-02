@@ -58,10 +58,30 @@ void NdbTick_Init(int need_monotonic)
   abort();
 }
 
+static inline
+int ndb_clock_gettime(clockid_t clk_id, struct timespec* tp)
+{
+  const int result = clock_gettime(clk_id, tp);
+#ifndef NDBUG
+  if (unlikely(result != 0))
+  {
+    fprintf(stderr, "clock_gettime(%u, tp) failed, errno=%d\n", clk_id, errno);
+#ifdef CLOCK_MONOTONIC
+    fprintf(stderr, "CLOCK_MONOTONIC=%u\n", CLOCK_MONOTONIC);
+#endif
+    fprintf(stderr, "CLOCK_REALTIME=%u\n", CLOCK_REALTIME);
+    fprintf(stderr, "NdbTick_clk_id = %u\n", NdbTick_clk_id);
+    abort();
+  }
+#endif
+  return result;
+}
+
+
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
   struct timespec tick_time;
-  clock_gettime(NdbTick_clk_id, &tick_time);
+  ndb_clock_gettime(NdbTick_clk_id, &tick_time);
 
   return 
     ((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)MILLISEC_PER_SEC) +
@@ -71,7 +91,7 @@ NDB_TICKS NdbTick_CurrentMillisecond(void)
 int 
 NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
   struct timespec t;
-  int res = clock_gettime(NdbTick_clk_id, &t);
+  int res = ndb_clock_gettime(NdbTick_clk_id, &t);
   * secs   = t.tv_sec;
   * micros = t.tv_nsec / 1000;
   return res;
@@ -80,7 +100,7 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
 NDB_TICKS NdbTick_CurrentNanosecond(void)
 {
   struct timespec tick_time;
-  clock_gettime(NdbTick_clk_id, &tick_time);
+  ndb_clock_gettime(NdbTick_clk_id, &tick_time);
 
   return
     (((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)NANOSEC_PER_SEC)) +
