@@ -8,6 +8,8 @@
 #
 # Will test following scenarios:
 # 1. Test some basic dml action involving truncate of table.
+# 2. Validate size of ibd file post truncate
+#    (applicable only for single tablespace).
 #
 ################################################################################
 
@@ -28,6 +30,7 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 # 1. Test some basic dml action involving truncate of table.
 #
 --echo "1. Test some basic dml action involving truncate of table."
+use test;
 set global innodb_file_per_table = 0;
 create table t1
         (keyc int, c1 char(100), c2 char(100),
@@ -77,6 +80,50 @@ create temporary table t2
 --source suite/innodb/include/innodb_dml_ops.inc
 drop table t1;
 drop table t2;
+
+#-----------------------------------------------------------------------------
+#
+# 2. Validate size of ibd file post truncate
+#    (applicable only for single tablespace).
+#
+--echo "Validate size of ibd file post truncate"
+--echo "(applicable only for single tablespace)".
+use test;
+set global innodb_file_per_table = 1;
+create table t1
+	(i int, f float, c char(100)) engine = innodb;
+select count(*) from t1;
+#
+--echo "Size of ibd file before loading";
+--exec ls -l $MYSQL_DATA_DIR/test/t1.ibd | cut -f 5 -d " "
+#
+delimiter |;
+create procedure populate_t1()
+begin
+        declare i int default 1;
+        while (i <= 200) do
+                insert into t1 values (i, 1.1, 'nnnnnnnnnnnnnnnnnnnnnn');
+                set i = i + 1;
+        end while;
+end|
+delimiter ;|
+#
+begin;
+call populate_t1();
+commit;
+#
+--echo "Size of ibd file after loading";
+--exec ls -l $MYSQL_DATA_DIR/test/t1.ibd | cut -f 5 -d " "
+#
+select count(*) from t1;
+truncate table t1;
+#
+--echo "Size of ibd file after truncating";
+--exec ls -l $MYSQL_DATA_DIR/test/t1.ibd | cut -f 5 -d " "
+#
+drop table t1;
+drop procedure populate_t1;
+
 
 #-----------------------------------------------------------------------------
 #
