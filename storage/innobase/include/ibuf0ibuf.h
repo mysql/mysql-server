@@ -153,9 +153,10 @@ UNIV_INTERN
 void
 ibuf_reset_free_bits(
 /*=================*/
-	buf_block_t*	block);	/*!< in: index page; free bits are set to 0
-				if the index is a non-clustered
-				non-unique, and page level is 0 */
+	const buf_block_t*	block);	/*!< in: index page; free bits
+					are set to 0 if the index is a
+					non-clustered non-unique, and
+					page level is 0 */
 /************************************************************************//**
 Updates the free bits of an uncompressed page in the ibuf bitmap if
 there is not enough free on the page any more.  This is done in a
@@ -216,7 +217,7 @@ void
 ibuf_update_free_bits_zip(
 /*======================*/
 	buf_block_t*	block,	/*!< in/out: index page */
-	mtr_t*		mtr);	/*!< in/out: mtr */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Updates the free bits for the two pages to reflect the present state.
 Does this in the mtr given, which means that the latching order rules

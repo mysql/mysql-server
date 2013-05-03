@@ -927,14 +927,16 @@ UNIV_INTERN
 void
 ibuf_set_free_bits_func(
 /*====================*/
-	buf_block_t*	block,	/*!< in: index page of a non-clustered index;
-				free bit is reset if page level is 0 */
+	const buf_block_t*	block,	/*!< in: index page of a
+					non-clustered index; free bit
+					is reset if page level is 0 */
 #ifdef UNIV_IBUF_DEBUG
-	ulint		max_val,/*!< in: ULINT_UNDEFINED or a maximum
-				value which the bits must have before
-				setting; this is for debugging */
+	ulint			max_val,/*!< in: ULINT_UNDEFINED or a
+					maximum value which the bits
+					must have before setting; this
+					is for debugging */
 #endif /* UNIV_IBUF_DEBUG */
-	ulint		val)	/*!< in: value to set: < 4 */
+	ulint			val)	/*!< in: value to set: < 4 */
 {
 	mtr_t	mtr;
 	page_t*	page;
@@ -1001,9 +1003,10 @@ UNIV_INTERN
 void
 ibuf_reset_free_bits(
 /*=================*/
-	buf_block_t*	block)	/*!< in: index page; free bits are set to 0
-				if the index is a non-clustered
-				non-unique, and page level is 0 */
+	const buf_block_t*	block)	/*!< in: index page; free bits
+					are set to 0 if the index is a
+					non-clustered non-unique, and
+					page level is 0 */
 {
 	ibuf_set_free_bits(block, 0, ULINT_UNDEFINED);
 }
@@ -1059,7 +1062,7 @@ void
 ibuf_update_free_bits_zip(
 /*======================*/
 	buf_block_t*	block,	/*!< in/out: index page */
-	mtr_t*		mtr)	/*!< in/out: mtr */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	page_t*	bitmap_page;
 	ulint	space;
