@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,8 +117,9 @@ find_plugin(const char *name, int type)
   @retval a pointer to an installed plugin or 0
 */
 static struct st_mysql_client_plugin *
-add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
-           int argc, va_list args)
+do_add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin,
+              void *dlhandle,
+              int argc, va_list args)
 {
   const char *errmsg;
   struct st_client_plugin_int plugin_int, *p;
@@ -178,6 +179,31 @@ err1:
     dlclose(dlhandle);
   return NULL;
 }
+
+
+static struct st_mysql_client_plugin *
+add_plugin_noargs(MYSQL *mysql, struct st_mysql_client_plugin *plugin,
+                  void *dlhandle,
+                  int argc, ...)
+{
+  struct st_mysql_client_plugin *retval= NULL;
+  va_list ap;
+  va_start(ap, argc);
+  retval= do_add_plugin(mysql, plugin, dlhandle, argc, ap);
+  va_end(ap);
+  return retval;
+}
+
+
+static struct st_mysql_client_plugin *
+add_plugin_withargs(MYSQL *mysql, struct st_mysql_client_plugin *plugin,
+                    void *dlhandle,
+                    int argc, va_list args)
+{
+  return do_add_plugin(mysql, plugin, dlhandle, argc, args);
+}
+
+
 
 /**
   Loads plugins which are specified in the environment variable
@@ -249,7 +275,7 @@ int mysql_client_plugin_init()
   mysql_mutex_lock(&LOCK_load_client_plugin);
 
   for (builtin= mysql_client_builtins; *builtin; builtin++)
-    add_plugin(&mysql, *builtin, 0, 0, 0);
+    add_plugin_noargs(&mysql, *builtin, 0, 0);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
 
@@ -307,7 +333,7 @@ mysql_client_register_plugin(MYSQL *mysql,
     plugin= NULL;
   }
   else
-    plugin= add_plugin(mysql, plugin, 0, 0, 0);
+    plugin= add_plugin_noargs(mysql, plugin, 0, 0);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
   return plugin;
@@ -420,7 +446,7 @@ have_plugin:
     goto err;
   }
 
-  plugin= add_plugin(mysql, plugin, dlhandle, argc, args);
+  plugin= add_plugin_withargs(mysql, plugin, dlhandle, argc, args);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
 
