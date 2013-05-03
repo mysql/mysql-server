@@ -12,14 +12,12 @@ SET GLOBAL rpl_semi_sync_master_timeout= 600000;
 # Test tables with InnoDB engine when disabling diff_table and
 # simulating flush error and session attach error
 call mtr.add_suppression("Out of memory while attaching to session thread during the group commit phase");
-call mtr.add_suppression("Semi-sync master wait for reply fail to get wait time");
 # Build connections to master server
 # Stress test that execute massive queries on every connection
 include/sync_slave_sql_with_master.inc
 # Test tables with MyISAM engine when disabling diff_table and
 # simulating flush error and session attach error
 call mtr.add_suppression("Out of memory while attaching to session thread during the group commit phase");
-call mtr.add_suppression("Semi-sync master wait for reply fail to get wait time");
 # Build connections to master server
 # Stress test that execute massive queries on every connection
 include/sync_slave_sql_with_master.inc
@@ -28,7 +26,6 @@ include/sync_slave_sql_with_master.inc
 # Test tables with InnoDB engine when enableing diff_table
 # and simulating flush error
 call mtr.add_suppression("Out of memory while attaching to session thread during the group commit phase");
-call mtr.add_suppression("Semi-sync master wait for reply fail to get wait time");
 # Build connections to master server
 # Stress test that execute massive queries on every connection
 include/sync_slave_sql_with_master.inc

@@ -343,9 +343,10 @@ mtr_commit(
 
 #ifndef UNIV_HOTBACKUP
 /***************************************************//**
-Releases an object in the memo stack. */
+Releases an object in the memo stack.
+@return true if released */
 UNIV_INTERN
-void
+bool
 mtr_memo_release(
 /*=============*/
 	mtr_t*	mtr,	/*!< in/out: mini-transaction */
@@ -374,10 +375,12 @@ mtr_memo_release(
 		while (slot-- != start) {
 			if (object == slot->object && type == slot->type) {
 				mtr_memo_slot_release(mtr, slot);
-				return;
+				return(true);
 			}
 		}
 	}
+
+	return(false);
 }
 #endif /* !UNIV_HOTBACKUP */
 
