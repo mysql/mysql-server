@@ -1173,12 +1173,6 @@ innobase_start_or_create_for_mysql(void)
 # endif
 #endif
 
-#ifdef UNIV_BLOB_DEBUG
-	fprintf(stderr,
-		"InnoDB: !!!!!!!! UNIV_BLOB_DEBUG switched on !!!!!!!!!\n"
-		"InnoDB: Server restart may fail with UNIV_BLOB_DEBUG\n");
-#endif /* UNIV_BLOB_DEBUG */
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
