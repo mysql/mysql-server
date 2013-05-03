@@ -1909,11 +1909,7 @@ btr_page_reorganize_low(
 	}
 
 	/* Restore the cursor position. */
-	if (pos > 0) {
-		cursor->rec = page_rec_get_nth(page, pos);
-	} else {
-		ut_ad(cursor->rec == page_get_infimum_rec(page));
-	}
+	cursor->rec = page_rec_get_nth(page, pos);
 
 func_exit:
 	page_zip_validate_if_zip(page_zip, page, index);
