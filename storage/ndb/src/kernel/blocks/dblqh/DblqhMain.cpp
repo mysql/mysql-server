@@ -4876,6 +4876,12 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->m_flags |= TcConnectionrec::OP_DEFERRED_CONSTRAINTS;
   }
 
+  Uint32 TdisableFk = LqhKeyReq::getDisableFkConstraints(Treqinfo);
+  if (isLongReq && TdisableFk)
+  {
+    regTcPtr->m_flags |= TcConnectionrec::OP_DISABLE_FK;
+  }
+  
   Uint32 TnormalProtocolFlag = LqhKeyReq::getNormalProtocolFlag(Treqinfo);
   if (isLongReq && TnormalProtocolFlag)
   {
@@ -6273,6 +6279,7 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   Ttupreq = Ttupreq + (regTcPtr->apiVersionNo << 11);
   Ttupreq = Ttupreq + (regTcPtr->m_use_rowid << 11);
   Ttupreq = Ttupreq + (regTcPtr->m_reorg << 12);
+  Ttupreq = Ttupreq + (regTcPtr->m_reorg << 13);
 
   /* --------------------------------------------------------------------- 
    * Clear interpreted mode bit since we do not want the next replica to
@@ -6331,6 +6338,9 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   tupKeyReq->attrInfoIVal= RNIL;
   tupKeyReq->deferred_constraints =
     (flags & TcConnectionrec::OP_DEFERRED_CONSTRAINTS) != 0;
+  tupKeyReq->disable_fk_checks =
+    (flags & TcConnectionrec::OP_DISABLE_FK) != 0;
+
 
   /* Pass AttrInfo section if available in the TupKeyReq signal
    * We are still responsible for releasing it, TUP is just

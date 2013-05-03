@@ -1,0 +1,460 @@
+create table parent (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+create table child (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+alter table child add constraint fkname foreign key (a) references parent(a) on delete restrict on update restrict;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+insert into child values (2,2,2);
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+set foreign_key_checks = 1;
+begin;
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+rollback;
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+begin;
+delete from parent;
+rollback;
+delete from child;
+delete from parent;
+set foreign_key_checks = 1;
+begin;
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+rollback;
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+begin;
+insert into child values (2,2,2);
+rollback;
+set foreign_key_checks = 1;
+delete from child;
+delete from parent;
+insert into parent values (1,1,1);
+begin;
+insert into child values (1,1,1);
+begin;
+delete from parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+delete from child;
+delete from parent;
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+insert into parent values (1,1,1);
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+begin;
+insert into child values (1,1,1);
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+begin;
+delete from parent;
+commit;
+set foreign_key_checks = 1;
+commit;
+set foreign_key_checks = 1;
+select * from parent order by 1,2,3;
+a	b	c
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+delete from child;
+delete from parent;
+set foreign_key_checks = 0;
+insert into parent values (1,1,1);
+insert into parent values (1,1,1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+insert into parent values (2,1,1);
+ERROR 23000: Duplicate entry '1' for key 'b'
+delete from child;
+delete from parent;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+set ndb_deferred_constraints = 1;
+set foreign_key_checks = 1;
+set foreign_key_checks = 0;
+begin;
+set foreign_key_checks = 1;
+insert into child values (2,2,2);
+commit;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+begin;
+insert into child values (2,2,2);
+set foreign_key_checks = 0;
+commit;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+begin;
+insert into child values (2,2,2);
+set foreign_key_checks = 1;
+commit;
+begin;
+insert into child values (3,3,3);
+insert into child values (4,4,4);
+set foreign_key_checks = 0;
+insert into parent values (3,3,3);
+commit;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+set foreign_key_checks = 1;
+begin;
+insert into child values (3,3,3);
+set foreign_key_checks = 0;
+insert into parent values (3,3,3);
+insert into child values (4,4,4);
+commit;
+set foreign_key_checks = 1;
+set ndb_deferred_constraints = 0;
+alter table child drop foreign key fkname;
+delete from child;
+delete from parent;
+alter table child add constraint fkname foreign key (a) references parent(a) on delete no action on update no action;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into parent values (2,2,2);
+insert into child values (2,2,2);
+begin;
+update parent set a = a + 2;
+commit;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+select * from parent order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+insert into child values (3,3,3);
+insert into parent values (3,3,3);
+begin;
+update parent set a = a + 3;
+commit;
+select * from parent order by 1,2,3;
+a	b	c
+4	1	1
+5	2	2
+6	3	3
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+3	3	3
+set foreign_key_checks = 1;
+alter table child drop foreign key fkname;
+delete from child;
+delete from parent;
+alter table child add constraint fkname foreign key (a) references parent (a) on delete cascade on update restrict;
+create table grandchild (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+alter table grandchild add constraint fkname foreign key (a) references child (a) on delete cascade on update restrict;
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into grandchild values (1,1,1),(2,2,2);
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+2	2	2
+commit;
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+begin;
+delete from parent where a = 2;
+select * from child order by 1,2,3;
+a	b	c
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+2	2	2
+commit;
+set foreign_key_checks = 1;
+alter table child drop foreign key fkname;
+alter table grandchild drop foreign key fkname;
+delete from grandchild;
+delete from child;
+delete from parent;
+alter table child add constraint fkname foreign key (b) references parent(b) on delete restrict on update cascade;
+alter table grandchild add constraint fkname foreign key (b) references child(b) on delete restrict on update cascade;
+insert into parent values (1,1,1), (2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into grandchild values (1,1,1),(2,2,2);
+begin;
+update parent set b = 3 where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+1	3	1
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+1	3	1
+2	2	2
+rollback;
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+begin;
+update parent set b = 3 where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+rollback;
+set foreign_key_checks = 1;
+alter table child drop foreign key fkname;
+alter table grandchild drop foreign key fkname;
+delete from grandchild;
+delete from child;
+delete from parent;
+alter table child add constraint fkname foreign key (a) references parent (a) on delete cascade on update restrict;
+alter table grandchild add constraint fkname foreign key (a) references child (a) on delete cascade on update restrict;
+set ndb_deferred_constraints = 1;
+insert into parent values (1,1,1), (2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into grandchild values (1,1,1),(2,2,2);
+begin;
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+commit;
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+delete from grandchild;
+delete from child;
+delete from parent;
+insert into parent values (1,1,1), (2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into grandchild values (1,1,1),(2,2,2);
+set foreign_key_checks = 1;
+begin;
+delete from parent where a = 1;
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+commit;
+select * from child order by 1,2,3;
+a	b	c
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+2	2	2
+set ndb_deferred_constraints = 0;
+set foreign_key_checks = 1;
+alter table child drop foreign key fkname;
+alter table grandchild drop foreign key fkname;
+delete from grandchild;
+delete from child;
+delete from parent;
+alter table child add constraint fkname foreign key (b) references parent(b) on delete restrict on update cascade;
+alter table grandchild add constraint fkname foreign key (b) references child(b) on delete restrict on update cascade;
+set ndb_deferred_constraints = 1;
+insert into parent values (1,1,1), (2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into grandchild values (1,1,1),(2,2,2);
+begin;
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+update parent set b = 3 where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+commit;
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+delete from grandchild;
+delete from child;
+delete from parent;
+insert into parent values (1,1,1), (2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into grandchild values (1,1,1),(2,2,2);
+set foreign_key_checks = 1;
+begin;
+update parent set b = 3 where a = 1;
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+select * from child order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+1	1	1
+2	2	2
+commit;
+select * from child order by 1,2,3;
+a	b	c
+1	3	1
+2	2	2
+select * from grandchild order by 1,2,3;
+a	b	c
+1	3	1
+2	2	2
+set ndb_deferred_constraints = 0;
+set foreign_key_checks = 1;
+alter table child drop foreign key fkname;
+alter table grandchild drop foreign key fkname;
+delete from grandchild;
+delete from child;
+delete from parent;
+drop table parent, child, grandchild;
+set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
+set ndb_join_pushdown = true;
+create table t1 (
+a int not null,
+b int not null,
+c int,
+d int not null,
+primary key (a),
+unique (b),
+unique (c),
+unique (d)
+) engine=ndb;
+create table t2 (
+a int not null,
+b int not null,
+c int,
+d int,
+primary key (a)
+) engine=ndb;
+alter table t2 add constraint fa foreign key (a) references t1 (a) on delete cascade on update restrict;
+alter table t2 add constraint fb foreign key (b) references t1 (b) on delete cascade on update restrict;
+alter table t2 add constraint fc foreign key (c) references t1 (c) on delete cascade on update restrict;
+alter table t2 add constraint fd foreign key (d) references t1 (d) on delete cascade on update restrict;
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5), (6,6,6,6);
+insert into t2 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5), (6,6,6,6);
+update t1 set b = 17 where c > 5;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+update t1 set c = null where c = 2;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+select *
+from t1,t2
+where t2.a = t1.b and t2.b = t1.c;
+a	b	c	d	a	b	c	d
+1	1	1	1	1	1	1	1
+2	2	2	2	2	2	2	2
+3	3	3	3	3	3	3	3
+4	4	4	4	4	4	4	4
+5	5	5	5	5	5	5	5
+6	6	6	6	6	6	6	6
+delete from t1 where d = 3;
+select * from t2 order by a;
+a	b	c	d
+1	1	1	1
+2	2	2	2
+4	4	4	4
+5	5	5	5
+6	6	6	6
+select *
+from t1,t2
+where t2.a = t1.b + 1;
+a	b	c	d	a	b	c	d
+1	1	1	1	2	2	2	2
+4	4	4	4	5	5	5	5
+5	5	5	5	6	6	6	6
+insert into t1 values (3,3,3,3);
+insert into t2 values (3,3,3,3);
+# Disabling foreign key checks
+set foreign_key_checks = 0;
+update t1 set b = 17 where c > 5;
+update t1 set c = null where c = 2;
+select *
+from t1,t2
+where t2.a = t1.b and t2.b = t1.c;
+a	b	c	d	a	b	c	d
+1	1	1	1	1	1	1	1
+3	3	3	3	3	3	3	3
+4	4	4	4	4	4	4	4
+5	5	5	5	5	5	5	5
+select * from t2 order by a;
+a	b	c	d
+1	1	1	1
+2	2	2	2
+3	3	3	3
+4	4	4	4
+5	5	5	5
+6	6	6	6
+delete from t1 where d = 3;
+select * from t2 order by a;
+a	b	c	d
+1	1	1	1
+2	2	2	2
+3	3	3	3
+4	4	4	4
+5	5	5	5
+6	6	6	6
+select *
+from t1,t2
+where t2.a = t1.b + 1;
+a	b	c	d	a	b	c	d
+1	1	1	1	2	2	2	2
+2	2	NULL	2	3	3	3	3
+4	4	4	4	5	5	5	5
+5	5	5	5	6	6	6	6
+drop table t2, t1;
+set ndb_join_pushdown = @save_ndb_join_pushdown;
+set foreign_key_checks = 1;

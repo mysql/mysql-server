@@ -2190,7 +2190,8 @@ public:
       OP_SAVEATTRINFO           = 0x2,
       OP_SCANKEYINFOPOSSAVED    = 0x4,
       OP_DEFERRED_CONSTRAINTS   = 0x8,
-      OP_NORMAL_PROTOCOL        = 0x10
+      OP_NORMAL_PROTOCOL        = 0x10,
+      OP_DISABLE_FK             = 0x20
     };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
