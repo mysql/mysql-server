@@ -1847,3 +1847,27 @@ Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` A
 DROP TABLE t1,t2,t3,t4;
 SET optimizer_switch=@save_optimizer_switch;
 End of 5.0 tests
+#
+# MDEV-621: LP:693329 - Assertion `!is_interleave_error' failed on low optimizer_search_depth
+#
+set @tmp_mdev621= @@optimizer_search_depth;
+SET SESSION optimizer_search_depth = 4;
+CREATE TABLE t1 (f1 int,f2 int,f3 int,f4 int) ;
+INSERT IGNORE INTO t1 VALUES (0,0,2,0),(NULL,0,2,0);
+CREATE TABLE t2 (f1 int) ;
+CREATE TABLE t3 (f3 int,PRIMARY KEY (f3)) ;
+CREATE TABLE t4 (f5 int) ;
+CREATE TABLE t5 (f2 int) ;
+SELECT alias2.f4  FROM t1  AS alias1
+LEFT    JOIN t1  AS alias2
+LEFT  JOIN t2  AS alias3
+LEFT  JOIN t3  AS alias4  ON alias3.f1 = alias4.f3
+ON alias2.f1
+LEFT    JOIN t4  AS alias5
+JOIN t5  ON alias5.f5
+ON alias2.f3  ON alias1.f2;
+f4
+NULL
+NULL
+DROP TABLE t1,t2,t3,t4,t5;
+set optimizer_search_depth= @tmp_mdev621;

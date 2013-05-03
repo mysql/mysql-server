@@ -13262,13 +13262,13 @@ static void restore_prev_nj_state(JOIN_TAB *last)
       
       bool was_fully_covered= nest->is_fully_covered();
       
+      join->cur_embedding_map|= nest->nj_map;
+
       if (--nest->counter == 0)
         join->cur_embedding_map&= ~nest->nj_map;
       
       if (!was_fully_covered)
         break;
-      
-      join->cur_embedding_map|= nest->nj_map;
     }
   }
 }
