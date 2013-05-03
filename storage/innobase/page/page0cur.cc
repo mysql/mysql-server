@@ -1154,10 +1154,7 @@ page_cur_insert_rec_zip(
 				}
 
 				ut_ad(cursor->rec
-				      == (pos > 1
-					  ? page_rec_get_nth(
-						  page, pos - 1)
-					  : page + PAGE_NEW_INFIMUM));
+				      == page_rec_get_nth(page, pos - 1));
 			} else {
 				/* We are writing entire page images
 				to the log. Reduce the redo log volume
@@ -1166,13 +1163,8 @@ page_cur_insert_rec_zip(
 					    cursor->block, index, mtr)) {
 					/* The page was reorganized:
 					Seek to pos. */
-					if (pos > 1) {
-						cursor->rec = page_rec_get_nth(
-							page, pos - 1);
-					} else {
-						cursor->rec = page
-							+ PAGE_NEW_INFIMUM;
-					}
+					cursor->rec = page_rec_get_nth(
+						page, pos - 1);
 
 					insert_rec = page + rec_get_next_offs(
 						cursor->rec, TRUE);
@@ -2552,11 +2544,7 @@ PageCur::reorganize(bool recovery, ulint z_level)
 	}
 
 	/* Restore the cursor position. */
-	if (pos > 0) {
-		setRec(page_rec_get_nth(page, pos));
-	} else {
-		ut_ad(isBeforeFirst());
-	}
+	setRec(page_rec_get_nth(page, pos));
 
 func_exit:
 	page_zip_validate_if_zip(getPageZip(), getPage(), m_index);
