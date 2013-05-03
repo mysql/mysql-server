@@ -680,31 +680,32 @@ trx_rollback_resurrected(
 	to accidentally clean up a non-recovered transaction here. */
 
 	trx_mutex_enter(trx);
+	bool		is_recovered	= trx->is_recovered;
+	trx_state_t	state		= trx->state;
+	trx_mutex_exit(trx);
 
-	if (!trx->is_recovered) {
-		trx_mutex_exit(trx);
+	if (!is_recovered) {
 		return(FALSE);
 	}
 
-	switch (trx->state) {
+	switch (state) {
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		mutex_exit(&trx_sys->mutex);
-		trx_mutex_exit(trx);
 		fprintf(stderr,
 			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
 			trx->id);
 		trx_cleanup_at_db_startup(trx);
+		trx_free_for_background(trx);
 		return(TRUE);
 	case TRX_STATE_ACTIVE:
-		trx_mutex_exit(trx);
 		if (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 			mutex_exit(&trx_sys->mutex);
 			trx_rollback_active(trx);
+			trx_free_for_background(trx);
 			return(TRUE);
 		}
 		return(FALSE);
 	case TRX_STATE_PREPARED:
-		trx_mutex_exit(trx);
 		return(FALSE);
 	case TRX_STATE_NOT_STARTED:
 		break;

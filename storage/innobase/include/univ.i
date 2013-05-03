@@ -444,11 +444,10 @@ macro ULINTPF. */
 
 #ifdef __WIN__
 /* Use the integer types and formatting strings defined in Visual Studio. */
-# define UINT32PF	"%I32u"
-# define INT64PF	"%I64d"
-# define UINT64PF	"%I64u"
-# define UINT64PFx	"%016I64u"
-# define DBUG_LSN_PF    "%llu"
+# define UINT32PF	"%lu"
+# define INT64PF	"%lld"
+# define UINT64PF	"%llu"
+# define UINT64PFx	"%016llu" /* TODO: fix Bug#16559254 */
 typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
@@ -458,13 +457,12 @@ typedef unsigned __int32 ib_uint32_t;
 # define INT64PF	"%"PRId64
 # define UINT64PF	"%"PRIu64
 # define UINT64PFx	"%016"PRIx64
-# define DBUG_LSN_PF    UINT64PF
 typedef int64_t ib_int64_t;
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;
-# endif /* __WIN__ */
+#endif /* __WIN__ */
 
-# define IB_ID_FMT	UINT64PF
+#define IB_ID_FMT	UINT64PF
 
 #ifdef _WIN64
 typedef unsigned __int64	ulint;
