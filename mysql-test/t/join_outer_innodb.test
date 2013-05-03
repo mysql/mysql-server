@@ -350,3 +350,26 @@ explain select * from v1;
 drop view v1;
 
 drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16;
+
+
+--echo #
+--echo # MDEV-4270: crash in fix_semijoin_strategies_for_picked_join_order
+--echo #
+drop table if exists t1,t2,t3;
+create table t2(a int,unique key (a)) engine=innodb;
+create table t3(b int) engine=innodb;
+create table t1(a int,b int)engine=innodb;
+
+set @mdev4270_opl= @@optimizer_prune_level;
+set @mdev4270_osd= @@optimizer_search_depth;
+set optimizer_prune_level=0;
+set optimizer_search_depth=2;
+
+select 1 from t1 join t2 a 
+natural left join t2 b 
+natural right outer join t3;
+
+drop table t1,t2,t3;
+set optimizer_prune_level=@mdev4270_opl;
+set optimizer_search_depth=@mdev4270_osd;
+
