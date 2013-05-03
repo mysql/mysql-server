@@ -547,8 +547,7 @@ public:
 	@return true if the next record is a user record */
 	bool purge();
 
-	/** Reorganizes the page.
-	The cursor position will be adjusted.
+	/** Reorganize the page. The cursor position will be adjusted.
 
 	NOTE: m_mtr must not be NULL.
 
