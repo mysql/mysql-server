@@ -1123,6 +1123,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		io_limit;
 	mtr_t		mtr;
 	ib_bh_t*	ib_bh;
+	ulint		n_recovered_trx;
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
@@ -1839,6 +1840,7 @@ files_checked:
 		trx_sys_create_sys_pages();
 
 		ib_bh = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -1916,6 +1918,7 @@ files_checked:
 		}
 
 		ib_bh = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -1943,9 +1946,17 @@ files_checked:
 			an .ibd file.
 
 			We also determine the maximum tablespace id used. */
+			dict_check_t	dict_check;
 
-			dict_check_tablespaces_and_store_max_id(
-				recv_needed_recovery);
+			if (recv_needed_recovery) {
+				dict_check = DICT_CHECK_ALL_LOADED;
+			} else if (n_recovered_trx) {
+				dict_check = DICT_CHECK_SOME_LOADED;
+			} else {
+				dict_check = DICT_CHECK_NONE_LOADED;
+			}
+
+			dict_check_tablespaces_and_store_max_id(dict_check);
 		}
 
 		if (!srv_force_recovery

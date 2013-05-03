@@ -7571,16 +7571,46 @@ static bool make_join_select(JOIN *join, Item *cond)
       bool use_quick_range=0;
       Item *tmp;
 
-      if (tab->type == JT_REF && tab->quick &&
-	  (uint) tab->ref.key == tab->quick->index &&
-	  tab->ref.key_length < tab->quick->max_used_key_length)
-      {
-        /*
-          Range uses longer key;  Use this instead of ref on key
+      /*
+        Heuristic: Switch from 'ref' to 'range' access if 'range'
+        access can utilize more keyparts than 'ref' access. Conditions
+        for doing switching:
 
-          Todo: This decision should rather be made in
-          best_access_path()
-        */
+        1) Current decision is to use 'ref' access
+        2) 'ref' access depends on a constant, not a value read from a
+           table earlier in the join sequence.
+
+           Rationale: if 'ref' depends on a value from another table,
+           the join condition is not used to limit the rows read by
+           'range' access (that would require dynamic range - 'Range
+           checked for each record'). In other words, if 'ref' depends
+           on a value from another table, we have a query with
+           conditions of the form
+
+            this_table.idx_col1 = other_table.col AND   <<- used by 'ref'
+            this_table.idx_col1 OP <const> AND          <<- used by 'range'
+            this_table.idx_col2 OP <const> AND ...      <<- used by 'range'
+
+           and an index on (idx_col1,idx_col2,...). But the fact that
+           'range' access uses more keyparts does not mean that it is
+           more selective than 'ref' access because these access types
+           utilize different parts of the query condition. We
+           therefore trust the cost based choice made by
+           best_access_path() instead of forcing a heuristic choice
+           here.
+        3) Range access is possible, and it is less costly than
+           table/index scan
+        4) 'ref' access and 'range' access uses the same index
+        5) 'range' access uses more keyparts than 'ref' access
+
+        @todo: This decision should rather be made in best_access_path()
+       */
+      if (tab->type == JT_REF &&                                  // 1)
+          !tab->ref.depend_map &&                                 // 2)
+          tab->quick &&                                           // 3)
+          (uint) tab->ref.key == tab->quick->index &&             // 4)
+          tab->ref.key_length < tab->quick->max_used_key_length)  // 5)
+      {
         Opt_trace_object wrapper(trace);
         Opt_trace_object (trace, "access_type_changed").
           add_utf8_table(tab->table).
@@ -7802,6 +7832,18 @@ static bool make_join_select(JOIN *join, Item *cond)
                   break;
                 }
 
+                /*
+                  No index can provide the necessary order if ordering
+                  on fields that do not belong to 'tab' (the first
+                  non-const table)
+                */
+                Item_field *fld_item= static_cast<Item_field*>(item);
+                if (fld_item->field->table != tab->table)
+                {
+                  recheck_reason= DONT_RECHECK;
+                  break;
+                }
+
                 if ((interesting_order != ORDER::ORDER_NOT_RELEVANT) &&
                     (interesting_order != tmp_order->direction))
                 {
@@ -7815,7 +7857,7 @@ static bool make_join_select(JOIN *join, Item *cond)
                   break;
                 }
 
-                usable_keys.intersect(((Item_field*)item)->field->part_of_sortkey);
+                usable_keys.intersect(fld_item->field->part_of_sortkey);
                 interesting_order= tmp_order->direction;
 
                 if (usable_keys.is_clear_all())

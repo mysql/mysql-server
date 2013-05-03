@@ -624,35 +624,24 @@ trx_rollback_active(
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE
 	    && trx->table_id != 0) {
 
+		ut_ad(dictionary_locked);
+
 		/* If the transaction was for a dictionary operation,
 		we drop the relevant table only if it is not flagged
 		as DISCARDED. If it still exists. */
 
 		table = dict_table_open_on_id(
-			trx->table_id, dictionary_locked, FALSE);
+			trx->table_id, TRUE, DICT_TABLE_OP_NORMAL);
 
 		if (table && !dict_table_is_discarded(table)) {
-
-			dberr_t	err;
-
-			/* Ensure that the table doesn't get evicted from the
-			cache, keeps things simple for drop. */
-
-			if (table->can_be_evicted) {
-				dict_table_move_from_lru_to_non_lru(table);
-			}
-
-			dict_table_close(table, dictionary_locked, FALSE);
-
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Dropping table '%s', with id " UINT64PF " "
 				"in recovery",
 				table->name, trx->table_id);
 
-			err = row_drop_table_for_mysql(table->name, trx, TRUE);
-			trx_commit_for_mysql(trx);
+			dict_table_close_and_drop(trx, table);
 
-			ut_a(err == DB_SUCCESS);
+			trx_commit_for_mysql(trx);
 		}
 	}
 
@@ -690,31 +679,32 @@ trx_rollback_resurrected(
 	to accidentally clean up a non-recovered transaction here. */
 
 	trx_mutex_enter(trx);
+	bool		is_recovered	= trx->is_recovered;
+	trx_state_t	state		= trx->state;
+	trx_mutex_exit(trx);
 
-	if (!trx->is_recovered) {
-		trx_mutex_exit(trx);
+	if (!is_recovered) {
 		return(FALSE);
 	}
 
-	switch (trx->state) {
+	switch (state) {
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		mutex_exit(&trx_sys->mutex);
-		trx_mutex_exit(trx);
 		fprintf(stderr,
 			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
 			trx->id);
 		trx_cleanup_at_db_startup(trx);
+		trx_free_for_background(trx);
 		return(TRUE);
 	case TRX_STATE_ACTIVE:
-		trx_mutex_exit(trx);
 		if (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 			mutex_exit(&trx_sys->mutex);
 			trx_rollback_active(trx);
+			trx_free_for_background(trx);
 			return(TRUE);
 		}
 		return(FALSE);
 	case TRX_STATE_PREPARED:
-		trx_mutex_exit(trx);
 		return(FALSE);
 	case TRX_STATE_NOT_STARTED:
 		break;
@@ -865,7 +855,8 @@ trx_roll_pop_top_rec(
 	ulint	offset = undo->top_offset;
 
 	trx_undo_rec_t*	prev_rec = trx_undo_get_prev_rec(
-		undo_page + offset, undo->hdr_page_no, undo->hdr_offset, mtr);
+		undo_page + offset, undo->hdr_page_no, undo->hdr_offset,
+		true, mtr);
 
 	if (prev_rec == NULL) {
 

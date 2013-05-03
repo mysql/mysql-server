@@ -42,7 +42,7 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 #include "log.h"
-#include "sql_acl.h"
+#include "auth_common.h"
 #include "sql_parse.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
