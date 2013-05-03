@@ -74,6 +74,8 @@ check_function_exists(nrand48 HAVE_NRAND48)
 check_function_exists(random_r HAVE_RANDOM_R)
 check_function_exists(mincore HAVE_MINCORE)
 
+## clear this out in case mysql modified it
+set(CMAKE_REQUIRED_LIBRARIES "")
 set(EXTRA_SYSTEM_LIBS "")
 check_function_exists(dlsym HAVE_DLSYM_WITHOUT_DL)
 if (NOT HAVE_DLSYM_WITHOUT_DL)
