@@ -353,6 +353,12 @@ struct Name_resolution_context: Sql_alloc
   {
     (*error_processor)(thd, error_processor_data);
   }
+  st_select_lex *outer_select()
+  {
+    return (outer_context ?
+            outer_context->select_lex :
+            NULL);
+  }
 };
 
 

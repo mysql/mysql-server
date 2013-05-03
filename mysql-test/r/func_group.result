@@ -2097,3 +2097,31 @@ avg(export_set( 3, 'y', sha(i)))	group_concat(d)
 0	2008-10-02
 0	2010-12-12
 drop table t1;
+#
+# MDEV-4290: crash in st_select_lex::mark_as_dependent
+#
+create table `t1`(`a` int);
+select 1 from t1 v1 right join t1 on count(*);
+ERROR HY000: Invalid use of group function
+select 1 from t1 order by
+(
+select 1 from 
+(
+select 1 from t1 v1 right join t1 on count(*)
+) v   
+);
+ERROR HY000: Invalid use of group function
+insert into t1 values (1),(1),(2),(2);
+select count(*) from t1;
+count(*)
+4
+select z from (select count(*) as z from t1) v;
+z
+4
+# next is how it implemented now (may be changed in case of dependent
+# derived tables)
+select z from (select count(*) as z from t1) v group by 1;
+z
+4
+drop table t1;
+# end of 5.3 tests

@@ -783,6 +783,9 @@ public:
   */
   List<String> *prev_join_using;
 
+  /* namp of nesting SELECT visibility (for aggregate functions check) */
+  nesting_map name_visibility_map;
+
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();
