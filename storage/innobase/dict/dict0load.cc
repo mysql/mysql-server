@@ -1039,7 +1039,7 @@ loop:
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Table '%s' in InnoDB data dictionary"
 				" has unknown type %lx", table_name, flags);
-
+			mem_free(name);
 			goto loop;
 		}
 
@@ -1155,8 +1155,8 @@ loop:
 			max_space_id = space_id;
 		}
 
-		mem_free(name);
 next_tablespace:
+		mem_free(name);
 		mtr_start(&mtr);
 
 		btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
