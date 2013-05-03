@@ -463,6 +463,24 @@ public:
 		return(rec_get_size_old(m_rec, extra_size));
 	}
 
+	/** Set the current record to the page infimum. */
+	void setBeforeFirst() {
+		m_rec = getPage()
+			+ (isComp() ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM);
+		if (m_offsets) {
+			adjustSentinelOffsets();
+		}
+	}
+
+	/** Set the current record to the page supremum. */
+	void setAfterLast() {
+		m_rec = getPage()
+			+ (isComp() ? PAGE_NEW_SUPREMUM : PAGE_OLD_SUPREMUM);
+		if (m_offsets) {
+			adjustSentinelOffsets();
+		}
+	}
+
 	/** Set the current record. */
 	void setRec(const rec_t* rec) {
 		ut_ad(page_align(rec) == buf_block_get_frame(m_block));
@@ -476,6 +494,20 @@ public:
 		} else {
 			m_rec = rec;
 			adjustSentinelOffsets();
+		}
+	}
+
+	/** Set the current record to a user record. */
+	void setUserRec(const rec_t* rec) {
+		ut_ad(page_align(rec) == buf_block_get_frame(m_block));
+		ut_ad(page_rec_is_user_rec(rec));
+
+		if (!getOffsetsIfExist()) {
+			m_rec = rec;
+		} else {
+			bool wasSentinel = !isUser();
+			m_rec = rec;
+			adjustOffsets(wasSentinel);
 		}
 	}
 
