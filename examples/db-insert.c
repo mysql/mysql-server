@@ -133,7 +133,6 @@ int keysize = sizeof (long long);
 int valsize = sizeof (long long);
 int pagesize = 0;
 long long cachesize = 1000000000; // 1GB
-int do_1514_point_query = 0;
 int dupflags = 0;
 int noserial = 0; // Don't do the serial stuff
 int norandom = 0; // Don't do the random stuff
@@ -146,7 +145,6 @@ int singlex_child = 0;  // Do a single transaction, but do all work with a child
 int singlex = 0;  // Do a single transaction
 int singlex_create = 0;  // Create the db using the single transaction (only valid if singlex)
 int insert1first = 0;  // insert 1 before doing the rest
-int check_small_rollback = 0; // verify that the rollback logs are small (only valid if singlex)
 int do_transactions = 0;
 int if_transactions_do_logging = DB_INIT_LOG; // set this to zero if we want no logging when transactions are used
 int do_abort = 0;
@@ -198,11 +196,28 @@ static void benchmark_setup (void) {
     r = db_env_create(&dbenv, 0);
     assert(r == 0);
 
+#if !defined(TOKUDB)
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
     if (dbenv->set_lk_max) {
 	r = dbenv->set_lk_max(dbenv, items_per_transaction*2);
 	assert(r==0);
     }
+#elif DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 7
+    if (dbenv->set_lk_max_locks) {
+	r = dbenv->set_lk_max_locks(dbenv, items_per_transaction*2);
+	assert(r==0);
+    }
+    if (dbenv->set_lk_max_lockers) {
+	r = dbenv->set_lk_max_lockers(dbenv, items_per_transaction*2);
+	assert(r==0);
+    }
+    if (dbenv->set_lk_max_objects) {
+	r = dbenv->set_lk_max_objects(dbenv, items_per_transaction*2);
+	assert(r==0);
+    }
+#else
+#error
+#endif
 #endif
 
     if (dbenv->set_cachesize) {
@@ -410,6 +425,10 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
     struct timeval t1,t2;
     int iteration;
     for (i=0, iteration=0; i<n_elements; i+=items_per_iteration, iteration++) {
+        if (verbose) {
+            printf("%d ", iteration);
+            fflush(stdout);
+        }
 	if (!noserial) {
 	    gettimeofday(&t1,0);
 	    serial_insert_from(i);
@@ -454,7 +473,6 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --singlex-child       (implies -x) Run the whole job as a single transaction, do all work a child of that transaction.\n");
     fprintf(stderr, "    --finish-child-first  Commit/abort child before doing so to parent (no effect if no child).\n");
     fprintf(stderr, "    --singlex-create      (implies --singlex)  Create the file using the single transaction (Default is to use a different transaction to create.)\n");
-    fprintf(stderr, "    --check_small_rollback (Only valid in --singlex mode)  Verify that very little data was saved in the rollback logs.\n");
     fprintf(stderr, "    --prelock             Prelock the database.\n");
     fprintf(stderr, "    --prelockflag         Prelock the database and send the DB_PRELOCKED_WRITE flag.\n");
     fprintf(stderr, "    --abort               Abort the singlex after the transaction is over. (Requires --singlex.)\n");
@@ -506,8 +524,6 @@ int main (int argc, const char *argv[]) {
 	    singlex = 1;
 	} else if (strcmp(arg, "--insert1first") == 0) {
 	    insert1first = 1;
-	} else if (strcmp(arg, "--check_small_rollback") == 0) {
-	    check_small_rollback = 1;
 	} else if (strcmp(arg, "--xcount") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             items_per_transaction = strtoll(argv[++i], &endptr, 10); assert(*endptr == 0);
@@ -531,10 +547,6 @@ int main (int argc, const char *argv[]) {
 	} else if (strcmp(arg, "--env") == 0) {
 	    if (i+1 >= argc) return print_usage(argv[0]);
 	    dbdir = argv[++i];
-#if defined(TOKUDB)
-        } else if (strcmp(arg, "--1514") == 0) {
-            do_1514_point_query=1;
-#endif
         } else if (strcmp(arg, "--prelock") == 0) {
             prelock=1;
         } else if (strcmp(arg, "--prelockflag") == 0) {
@@ -581,16 +593,6 @@ int main (int argc, const char *argv[]) {
 	if (!noserial && !norandom) printf("and ");
 	if (!norandom) printf("random ");
 	printf("insertions of %d per batch%s\n", items_per_iteration, do_transactions ? " (with transactions)" : "");
-    }
-#if !defined TOKUDB
-    if (check_small_rollback) {
-	fprintf(stderr, "--check_small_rollback only works on the TokuDB (not BDB)\n");
-	return print_usage(argv[0]);
-    }
-#endif
-    if (check_small_rollback && !singlex) {
-	fprintf(stderr, "--check_small_rollback requires --singlex\n");
-	return print_usage(argv[0]);
     }
     benchmark_setup();
     gettimeofday(&t1,0);
