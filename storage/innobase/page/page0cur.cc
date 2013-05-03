@@ -2474,7 +2474,7 @@ PageCur::purge()
 		page_dir_balance_slot(page, page_zip, slot_no);
 	}
 
-	page_zip_validate_if_zip(page_zip, page, index);
+	page_zip_validate_if_zip(page_zip, page, m_index);
 
 	return(!isAfterLast());
 }
