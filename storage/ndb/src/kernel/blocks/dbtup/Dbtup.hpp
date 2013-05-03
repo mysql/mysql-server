@@ -839,6 +839,10 @@ struct Operationrec {
      * which uses ZUPDATE to move varpart values physically.
      */
     unsigned int m_physical_only_op : 1;
+    /* No foreign keys should be checked for this operation.
+     * No fk triggers will be fired.  
+     */
+    unsigned int m_disable_fk_checks : 1;
   };
   union {
     OpBitFields op_struct;
@@ -1569,6 +1573,7 @@ struct KeyReqStruct {
     jamBuffer = _jamBuffer;
     m_when = when;
     m_deferred_constraints = true;
+    m_disable_fk_checks = false;
   }
   KeyReqStruct(Dbtup* tup, When when = KRS_PREPARE) {
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -1577,6 +1582,7 @@ struct KeyReqStruct {
     jamBuffer = tup->jamBuffer();
     m_when = when;
     m_deferred_constraints = true;
+    m_disable_fk_checks = false;
   }
   
 /**
@@ -1672,6 +1678,7 @@ struct KeyReqStruct {
   bool            m_use_rowid;
   Uint8           m_reorg;
   bool            m_deferred_constraints;
+  bool            m_disable_fk_checks;
 
   Signal*         signal;
   Uint32 no_fired_triggers;

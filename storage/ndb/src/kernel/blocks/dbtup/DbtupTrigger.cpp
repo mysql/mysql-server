@@ -1323,6 +1323,14 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   Uint32* const beforeBuffer = &clogMemBuffer[0];
   Uint32 triggerType = trigPtr->triggerType;
 
+  if ((triggerType == TriggerType::FK_PARENT ||
+       triggerType == TriggerType::FK_CHILD) &&
+      regOperPtr->op_struct.m_disable_fk_checks)
+  {
+    jam();
+    return;
+  }
+
   Uint32 noPrimKey, noAfterWords, noBeforeWords;
   FragrecordPtr regFragPtr;
   regFragPtr.i= regOperPtr->fragmentPtr;

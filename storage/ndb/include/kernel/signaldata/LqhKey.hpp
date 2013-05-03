@@ -170,10 +170,16 @@ private:
   static void setCorrFactorFlag(UintR & requestInfo, UintR val);
 
   /**
-   * Include corr factor
+   * Include deferred constraints
    */
   static UintR getDeferredConstraints(const UintR & requestInfo);
   static void setDeferredConstraints(UintR & requestInfo, UintR val);
+
+  /**
+   * Include disable foreign keys
+   */
+  static UintR getDisableFkConstraints(const UintR & requestInfo);
+  static void setDisableFkConstraints(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -204,6 +210,7 @@ private:
  * A = CorrFactor flag        - 1  Bit (24)
  * P = Do normal protocol even if dirty-read - 1 Bit (25)
  * D = Deferred constraints   - 1  Bit (26)
+ * F = Disable FK constraints - 1  Bit (0)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -214,7 +221,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *             llgnqpdisooorrAPDcumxz
+ *   F         llgnqpdisooorrAPDcumxz
  *
  */
 
@@ -245,6 +252,7 @@ private:
 #define RI_CORR_FACTOR_VALUE (24)
 #define RI_NORMAL_DIRTY      (25)
 #define RI_DEFERRED_CONSTAINTS (26)
+#define RI_DISABLE_FK        (0)
 
 /**
  * Scan Info
@@ -651,6 +659,19 @@ inline
 UintR
 LqhKeyReq::getDeferredConstraints(const UintR & requestInfo){
   return (requestInfo >> RI_DEFERRED_CONSTAINTS) & 1;
+}
+
+inline
+void
+LqhKeyReq::setDisableFkConstraints(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setDisableFkConstraints");
+  requestInfo |= (val << RI_DISABLE_FK);
+}
+
+inline
+UintR
+LqhKeyReq::getDisableFkConstraints(const UintR & requestInfo){
+  return (requestInfo >> RI_DISABLE_FK) & 1;
 }
 
 inline
