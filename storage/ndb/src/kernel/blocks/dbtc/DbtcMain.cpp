@@ -2436,6 +2436,8 @@ void Dbtc::initApiConnectRec(Signal* signal,
 
   tc_clearbit(regApiPtr->m_flags,
               ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
+  tc_clearbit(regApiPtr->m_flags,
+              ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS);
   c_counters.ctransCount++;
 
 #ifdef ERROR_INSERT
@@ -2918,6 +2920,11 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if (TcKeyReq::getDeferredConstraints(Treqinfo))
     {
       regApiPtr->m_flags |= ApiConnectRecord::TF_DEFERRED_CONSTRAINTS;
+    }
+
+    if (TcKeyReq::getDisableFkConstraints(Treqinfo))
+    {
+      regApiPtr->m_flags |= ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS;
     }
   }
   else
@@ -3763,6 +3770,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
 #endif
   Uint32 Tdeferred = tc_testbit(regApiPtr->m_flags,
                                 ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
+  Uint32 Tdisable_fk = tc_testbit(regApiPtr->m_flags,
+                                  ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS);
   Uint32 reorg = 0;
   Uint32 Tspecial_op = regTcPtr->m_special_op_flags;
   if (Tspecial_op == 0)
@@ -3830,6 +3839,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setNoDiskFlag(Tdata10, regCachePtr->m_no_disk_flag);
   LqhKeyReq::setQueueOnRedoProblemFlag(Tdata10, regCachePtr->m_op_queue);
   LqhKeyReq::setDeferredConstraints(Tdata10, (Tdeferred & m_deferred_enabled));
+  LqhKeyReq::setDisableFkConstraints(Tdata10, Tdisable_fk);
 
   /* ----------------------------------------------------------------------- 
    * If we are sending a short LQHKEYREQ, then there will be some AttrInfo
@@ -4807,6 +4817,20 @@ void Dbtc::setupIndexOpReturn(ApiConnectRecord* regApiPtr,
 {
   regApiPtr->m_flags |= ApiConnectRecord::TF_INDEX_OP_RETURN;
   regApiPtr->indexOp = regTcPtr->indexOp;
+  TcIndexOperationPtr indexOpPtr;
+  indexOpPtr.i = regApiPtr->indexOp;
+  TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
+  if (tc_testbit(indexOp->savedFlags,
+                 ApiConnectRecord::TF_DEFERRED_CONSTRAINTS))
+  {
+    regApiPtr->m_flags |= ApiConnectRecord::TF_DEFERRED_CONSTRAINTS;
+  }
+
+  if (tc_testbit(indexOp->savedFlags,
+                 ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS))
+  {
+    regApiPtr->m_flags |= ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS;
+  }
   regApiPtr->clientData = regTcPtr->clientData;
   regApiPtr->attrInfoLen = regTcPtr->attrInfoLen;
 }
@@ -6698,6 +6722,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
           // fall-through
           goto do_abort;
         case TriggerType::FK_CHILD:
+          jam();
           if (errCode == ZNOT_FOUND)
           {
             errCode = terrorCode = ZFK_NO_PARENT_ROW_EXISTS;
@@ -15475,6 +15500,17 @@ void Dbtc::execTCINDXREQ(Signal* signal)
                         TcKeyReq::AttrInfoSectionNum);
       indexOp->attrInfoSectionIVal= attrInfoSection.i;
     }
+
+    if (TcKeyReq::getDeferredConstraints(tcIndxRequestInfo))
+    {
+      regApiPtr->m_flags |= ApiConnectRecord::TF_DEFERRED_CONSTRAINTS;
+    }
+
+    if (TcKeyReq::getDisableFkConstraints(tcIndxRequestInfo))
+    {
+      regApiPtr->m_flags |= ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS;
+    }
+    indexOp->savedFlags = regApiPtr->m_flags;
 
     /* Detach sections from the handle
      * Success path code, or index operation cleanup is

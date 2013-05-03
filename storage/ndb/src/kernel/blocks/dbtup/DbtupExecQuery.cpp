@@ -625,6 +625,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    regOperPtr->op_struct.delete_insert_flag = false;
    regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
 
+   regOperPtr->op_struct.m_disable_fk_checks = tupKeyReq->disable_fk_checks;
+
    regOperPtr->m_copy_tuple_location.setNull();
    regOperPtr->tupVersion= ZNIL;
    regOperPtr->op_struct.m_physical_only_op = 0;
@@ -666,10 +668,12 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    sig1 = tupKeyReq->m_row_id_page_no;
    sig2 = tupKeyReq->m_row_id_page_idx;
    sig3 = tupKeyReq->deferred_constraints;
+   sig4 = tupKeyReq->disable_fk_checks;
 
    req_struct.m_row_id.m_page_no = sig1;
    req_struct.m_row_id.m_page_idx = sig2;
    req_struct.m_deferred_constraints = sig3;
+   req_struct.m_disable_fk_checks = sig4;
 
    /* Get AttrInfo section if this is a long TUPKEYREQ */
    Uint32 attrInfoIVal= tupKeyReq->attrInfoIVal;

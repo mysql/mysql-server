@@ -605,7 +605,8 @@ public:
       transIdAIState(ITAS_WAIT_HEADER),
       pendingTransIdAI(0),
       transIdAISectionIVal(RNIL),
-      indexReadTcConnect(RNIL)
+      indexReadTcConnect(RNIL),
+      savedFlags(0)
     {}
 
     ~TcIndexOperation()
@@ -628,6 +629,8 @@ public:
     UintR connectionIndex;
     UintR indexReadTcConnect; //
     
+    Uint32 savedFlags; // Saved transaction flags
+
     /**
      * Next ptr (used in pool/list)
      */
@@ -804,6 +807,8 @@ public:
       TF_DEFERRED_FK_TRIGGERS = 64, // trans has deferred FK triggers
 
       TF_DEFERRED_TRIGGERS    = (32 + 64),
+
+      TF_DISABLE_FK_CONSTRAINTS = 128,
 
       TF_END = 0
     };

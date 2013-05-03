@@ -38,7 +38,7 @@ class TupKeyReq {
   friend bool printTUPKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 20 );
+  STATIC_CONST( SignalLength = 21 );
 
 private:
 
@@ -65,6 +65,7 @@ private:
   Uint32 m_row_id_page_idx;
   Uint32 attrInfoIVal;
   Uint32 deferred_constraints;
+  Uint32 disable_fk_checks;
 };
 
 class TupKeyConf {

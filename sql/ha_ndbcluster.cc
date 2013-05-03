@@ -5026,6 +5026,13 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
   }
 
+  if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+  {
+    DBUG_PRINT("info", ("Disabling foreign keys"));
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DISABLE_FK;
+  }
+
   if (options.optionsPresent != 0)
     poptions=&options;
 
@@ -5781,6 +5788,13 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
   }
 
+  if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+  {
+    DBUG_PRINT("info", ("Disabling foreign keys"));
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DISABLE_FK;
+  }
+
   if (cursor)
   {
     /*
@@ -6067,6 +6081,13 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   {
     options.optionsPresent |=
       NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
+
+  if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+  {
+    DBUG_PRINT("info", ("Disabling foreign keys"));
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DISABLE_FK;
   }
 
   if (cursor)

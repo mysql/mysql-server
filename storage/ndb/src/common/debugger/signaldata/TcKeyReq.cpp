@@ -83,6 +83,9 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
     if(sig->getDeferredConstraints(sig->requestInfo))
       fprintf(output, "Deferred-constraints ");
 
+    if(sig->getDisableFkConstraints(sig->requestInfo))
+      fprintf(output, "Disable-FK-constraints ");
+
     fprintf(output, "\n");
   }
   
