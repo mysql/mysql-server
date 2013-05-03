@@ -259,8 +259,14 @@ page_cur_tuple_insert(
 		rec = page_cur_insert_rec_zip(
 			cursor, index, rec, *offsets, mtr);
 	} else {
-		rec = page_cur_insert_rec_low(cursor->rec,
-					      index, rec, *offsets, mtr);
+		rec = page_cur_insert_rec_low(
+			cursor->rec, index, rec,
+			rec_offs_extra_size(*offsets),
+			rec_offs_data_size(*offsets), mtr);
+		if (rec) {
+			rec_offs_make_valid(rec, index, *offsets);
+			btr_blob_dbg_add_rec(rec, index, *offsets, "insert");
+		}
 	}
 
 	ut_ad(!rec || !cmp_dtuple_rec(tuple, rec, *offsets));
@@ -294,7 +300,12 @@ page_cur_rec_insert(
 		return(page_cur_insert_rec_zip(
 			       cursor, index, rec, offsets, mtr));
 	} else {
-		return(page_cur_insert_rec_low(cursor->rec,
-					       index, rec, offsets, mtr));
+		ut_ad(rec_offs_validate(rec, index, offsets));
+		rec_t*	ret = page_cur_insert_rec_low(
+			cursor->rec, index, rec,
+			rec_offs_extra_size(offsets),
+			rec_offs_data_size(offsets), mtr);
+		ut_d(if (ret) rec_offs_make_valid(ret, index, offsets));
+		return(ret);
 	}
 }
