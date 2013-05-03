@@ -550,49 +550,14 @@ row_upd_rec_in_place(
 	n_fields = upd_get_n_fields(update);
 
 	for (i = 0; i < n_fields; i++) {
-#ifdef UNIV_BLOB_DEBUG
-		btr_blob_dbg_t	b;
-		const byte*	field_ref	= NULL;
-#endif /* UNIV_BLOB_DEBUG */
-
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
 		ut_ad(!dfield_is_ext(new_val) ==
 		      !rec_offs_nth_extern(offsets, upd_field->field_no));
-#ifdef UNIV_BLOB_DEBUG
-		if (dfield_is_ext(new_val)) {
-			ulint	len;
-			field_ref = rec_get_nth_field(rec, offsets, i, &len);
-			ut_a(len != UNIV_SQL_NULL);
-			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
-			field_ref += len - BTR_EXTERN_FIELD_REF_SIZE;
-
-			b.ref_page_no = page_get_page_no(page_align(rec));
-			b.ref_heap_no = page_rec_get_heap_no(rec);
-			b.ref_field_no = i;
-			b.blob_page_no = mach_read_from_4(
-				field_ref + BTR_EXTERN_PAGE_NO);
-			ut_a(b.ref_field_no >= index->n_uniq);
-			btr_blob_dbg_rbt_delete(index, &b, "upd_in_place");
-		}
-#endif /* UNIV_BLOB_DEBUG */
 
 		rec_set_nth_field(rec, offsets, upd_field->field_no,
 				  dfield_get_data(new_val),
 				  dfield_get_len(new_val));
-
-#ifdef UNIV_BLOB_DEBUG
-		if (dfield_is_ext(new_val)) {
-			b.blob_page_no = mach_read_from_4(
-				field_ref + BTR_EXTERN_PAGE_NO);
-			b.always_owner = b.owner = !(field_ref[BTR_EXTERN_LEN]
-						     & BTR_EXTERN_OWNER_FLAG);
-			b.del = rec_get_deleted_flag(
-				rec, rec_offs_comp(offsets));
-
-			btr_blob_dbg_rbt_insert(index, &b, "upd_in_place");
-		}
-#endif /* UNIV_BLOB_DEBUG */
 	}
 
 	if (page_zip) {

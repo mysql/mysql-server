@@ -1184,12 +1184,10 @@ page_cur_insert_rec_zip(
 			}
 
 			/* Out of space: restore the page */
-			btr_blob_dbg_remove(page, index, "insert_zip_fail");
 			if (!page_zip_decompress(page_zip, page, FALSE)) {
 				ut_error; /* Memory corrupted? */
 			}
 			ut_ad(page_validate(page, index));
-			btr_blob_dbg_add(page, index, "insert_zip_fail");
 			insert_rec = NULL;
 		}
 
@@ -1337,8 +1335,6 @@ use_heap:
 	}
 
 	page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
-
-	btr_blob_dbg_add_rec(insert_rec, index, offsets, "insert_zip_ok");
 
 	/* 9. Write log record of the insert */
 	if (UNIV_LIKELY(mtr != NULL)) {
@@ -1556,7 +1552,6 @@ page_copy_rec_list_end_to_created_page(
 		heap_top += rec_size;
 
 		rec_offs_make_valid(insert_rec, index, offsets);
-		btr_blob_dbg_add_rec(insert_rec, index, offsets, "copy_end");
 
 		page_cur_insert_rec_write_log(insert_rec, rec_size, prev_rec,
 					      index, mtr);
@@ -1811,8 +1806,6 @@ page_cur_delete_rec(
 	page_dir_slot_set_n_owned(cur_dir_slot, page_zip, cur_n_owned - 1);
 
 	/* 6. Free the memory occupied by the record */
-	btr_blob_dbg_remove_rec(current_rec, const_cast<dict_index_t*>(index),
-				offsets, "delete");
 	page_mem_free(page, page_zip, current_rec, index,
 		      rec_offs_data_size(offsets),
 		      rec_offs_extra_size(offsets),
@@ -2009,13 +2002,6 @@ use_heap:
 	if (m_mtr) {
 		page_cur_insert_rec_write_log(insert_rec, rec_size,
 					      current, m_index, m_mtr);
-	}
-
-	if (m_offsets) {
-		/* TODO: do not modify const m_offsets */
-		rec_offs_make_valid(insert_rec, m_index, m_offsets);
-		btr_blob_dbg_add_rec(insert_rec, m_index, m_offsets,
-				     "PageCur::insert");
 	}
 
 	return(insert_rec);
@@ -2315,9 +2301,6 @@ PageCur::purge()
 		ut_ad(!page_zip);
 	}
 
-	btr_blob_dbg_remove_rec(del_rec, const_cast<dict_index_t*>(m_index),
-				m_offsets, "PageCur::purge");
-
 	next();
 
 	/* 3. Remove the record from the linked list of records */
@@ -2421,8 +2404,6 @@ PageCur::reorganize(bool recovery, ulint z_level)
 
 	block->check_index_page_at_flush = TRUE;
 #endif /* !UNIV_HOTBACKUP */
-	btr_blob_dbg_remove(page, const_cast<dict_index_t*>(m_index),
-			    "PageCur::reorganize");
 
 	/* Save the cursor position. */
 	pos = page_rec_get_n_recs_before(m_rec);
@@ -2467,9 +2448,6 @@ PageCur::reorganize(bool recovery, ulint z_level)
 	    && !page_zip_compress(page_zip, page, m_index, z_level, m_mtr)) {
 
 		/* Restore the old page and exit. */
-		btr_blob_dbg_restore(page, temp_page,
-				     const_cast<dict_index_t*>(m_index),
-				     "PageCur::reorganize fail");
 
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 		/* Check that the bytes that we skip are identical. */

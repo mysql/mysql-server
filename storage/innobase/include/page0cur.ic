@@ -265,7 +265,6 @@ page_cur_tuple_insert(
 			rec_offs_data_size(*offsets), mtr);
 		if (rec) {
 			rec_offs_make_valid(rec, index, *offsets);
-			btr_blob_dbg_add_rec(rec, index, *offsets, "insert");
 		}
 	}
 

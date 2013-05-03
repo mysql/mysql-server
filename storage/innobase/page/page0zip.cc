@@ -4528,8 +4528,6 @@ page_zip_reorganize(
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
 
-	btr_blob_dbg_remove(page, index, "zip_reorg");
-
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
@@ -4666,8 +4664,6 @@ page_zip_copy_recs(
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
-	btr_blob_dbg_add(page, index, "page_zip_copy_recs");
-
 	page_zip_compress_write_log(page_zip, page, index, mtr);
 }
 #endif /* !UNIV_HOTBACKUP */

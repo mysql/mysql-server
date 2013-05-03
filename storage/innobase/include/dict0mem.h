@@ -635,13 +635,6 @@ struct dict_index_t{
 	zip_pad_info_t	zip_pad;/*!< Information about state of
 				compression failures and successes */
 #endif /* !UNIV_HOTBACKUP */
-#ifdef UNIV_BLOB_DEBUG
-	ib_mutex_t		blobs_mutex;
-				/*!< mutex protecting blobs */
-	ib_rbt_t*	blobs;	/*!< map of (page_no,heap_no,field_no)
-				to first_blob_page_no; protected by
-				blobs_mutex; @see btr_blob_dbg_t */
-#endif /* UNIV_BLOB_DEBUG */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
 /** Value of dict_index_t::magic_n */
