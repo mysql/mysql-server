@@ -26,7 +26,7 @@
 #include "sql_base.h"                           // open_temprary_table
 #include "sql_table.h"                         // build_table_filename
 #include "sql_view.h"             // check_key_in_view, mysql_frm_type
-#include "sql_acl.h"              // *_ACL
+#include "auth_common.h"                        // *_ACL
 #include "filesort.h"             // filesort
 #include "sql_select.h"
 #include "opt_trace.h"                          // Opt_trace_object

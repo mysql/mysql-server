@@ -27,7 +27,7 @@
 #include "sql_select.h"
 #include "sql_optimizer.h"                    // JOIN
 #include "sql_view.h"                         // check_duplicate_names
-#include "sql_acl.h"                          // SELECT_ACL
+#include "auth_common.h"                      // SELECT_ACL
 #include "sql_tmp_table.h"                    // Tmp tables
 
 
