@@ -75,7 +75,7 @@ function github_download() {
         rm -rf $tempdir
     else
         retry curl \
-            --location https://api.github.com/repos/$repo/tarball/$rev \
+            --location https://github.com/$repo/archive/${rev}.tar.gz \
             --output $dest.tar.gz
         tar --extract \
             --gzip \
