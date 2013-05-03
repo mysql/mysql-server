@@ -701,15 +701,11 @@ page_copy_rec_list_end(
 
 			if (!page_zip_reorganize(new_block, index, mtr)) {
 
-				btr_blob_dbg_remove(new_page, index,
-						    "copy_end_reorg_fail");
 				if (!page_zip_decompress(new_page_zip,
 							 new_page, FALSE)) {
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
-				btr_blob_dbg_add(new_page, index,
-						 "copy_end_reorg_fail");
 				return(NULL);
 			} else {
 				/* The page was reorganized:
@@ -827,16 +823,12 @@ zip_reorganize:
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
 
-				btr_blob_dbg_remove(new_page, index,
-						    "copy_start_reorg_fail");
 				if (UNIV_UNLIKELY
 				    (!page_zip_decompress(new_page_zip,
 							  new_page, FALSE))) {
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
-				btr_blob_dbg_add(new_page, index,
-						 "copy_start_reorg_fail");
 				return(NULL);
 			}
 
@@ -1100,9 +1092,6 @@ delete_all:
 
 	/* Remove the record chain segment from the record chain */
 	page_rec_set_next(prev_rec, page_get_supremum_rec(page));
-
-	btr_blob_dbg_op(page, rec, index, "delete_end",
-			btr_blob_dbg_remove_rec);
 
 	/* Catenate the deleted chain segment to the page free list */
 
