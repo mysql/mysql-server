@@ -1666,37 +1666,19 @@ page_cur_parse_delete_rec(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
-	ulint		offset;
-	page_cur_t	cursor;
-
 	if (end_ptr < ptr + 2) {
 
 		return(NULL);
 	}
 
 	/* Read the cursor rec offset as a 2-byte ulint */
-	offset = mach_read_from_2(ptr);
+	ulint	offset = mach_read_from_2(ptr);
 	ptr += 2;
 
 	ut_a(offset <= UNIV_PAGE_SIZE);
 
 	if (block) {
-		page_t*		page		= buf_block_get_frame(block);
-		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		rec_t*		rec		= page + offset;
-		rec_offs_init(offsets_);
-
-		page_cur_position(rec, block, &cursor);
-		ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
-
-		page_cur_delete_rec(&cursor, index,
-				    rec_get_offsets(rec, index, offsets_,
-						    ULINT_UNDEFINED, &heap),
-				    mtr);
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
+		PageCur(mtr, index, block, block->frame + offset).purge();
 	}
 
 	return(ptr);
@@ -2249,8 +2231,6 @@ PageCur::purge()
 	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
 	ut_ad(isUser());
-	ut_ad(rec_offs_validate(m_rec, m_index, m_offsets));
-	ut_ad(!!page_is_comp(page) == dict_table_is_comp(m_index->table));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
 	      == m_index->id || recv_recovery_is_on()
