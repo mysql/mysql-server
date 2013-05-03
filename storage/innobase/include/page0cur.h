@@ -189,22 +189,24 @@ page_cur_rec_insert(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle, or NULL */
-/***********************************************************//**
-Inserts a record next to page cursor on an uncompressed page.
-Returns pointer to inserted record if succeed, i.e., enough
-space available, NULL otherwise. The cursor stays at the same position.
+/** Inserts a record next to page cursor on an uncompressed page.
+@param[in/out]	current_rec	record after which the new record is inserted
+@param[in]	index		B-tree index
+@param[in]	rec		physical record
+@param[in]	extra		size of rec header, in bytes
+@param[in]	data		size of rec data, in bytes
+@param[in/out]	mtr		mini-transaction, NULL=no redo logging
 @return	pointer to record if succeed, NULL otherwise */
 UNIV_INTERN
 rec_t*
 page_cur_insert_rec_low(
-/*====================*/
-	rec_t*		current_rec,/*!< in: pointer to current record after
-				which the new record is inserted */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	const rec_t*	rec,	/*!< in: pointer to a physical record */
-	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
-	__attribute__((nonnull(1,2,3,4), warn_unused_result));
+	rec_t*			current_rec,
+	const dict_index_t*	index,
+	const rec_t*		rec,
+	ulint			extra,
+	ulint			data,
+	mtr_t*			mtr)
+	__attribute__((nonnull(1,2,3), warn_unused_result));
 /***********************************************************//**
 Inserts a record next to page cursor on a compressed and uncompressed
 page. Returns pointer to inserted record if succeed, i.e.,
