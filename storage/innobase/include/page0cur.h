@@ -378,35 +378,37 @@ public:
 	@param[in]	rec	B-tree record in block, NULL=page infimum */
 	PageCur(mtr_t* mtr, const dict_index_t* index,
 		const buf_block_t* block, const rec_t* rec = 0)
-		: m_mtr (mtr), m_index (index), m_block (block), m_rec (rec),
-		  m_offsets (0) {
+		: m_mtr (mtr), m_index (index),
+		  m_comp (page_is_comp(buf_block_get_frame(block))),
+		  m_block (block), m_rec (rec), m_offsets (0) {
 		const page_t* page = buf_block_get_frame(m_block);
 
-		ut_ad(!!page_is_comp(page)
-		      == dict_table_is_comp(m_index->table));
+		ut_ad(m_comp == dict_table_is_comp(m_index->table));
 		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 
-		if (page_is_comp(page)) {
-			init();
-		} else if (!m_rec) {
-			m_rec = page + PAGE_OLD_INFIMUM;
+		if (!m_rec) {
+			m_rec = page + (m_comp
+					? PAGE_NEW_INFIMUM
+					: PAGE_OLD_INFIMUM);
 		}
 
-		ut_ad(page_align(m_rec) == page);
+		ut_ad(page_align(m_rec) == getPage());
 		/* Directory slot 0 should only contain the infimum record. */
-		ut_ad(page_dir_slot_get_n_owned(page_dir_get_nth_slot(page, 0))
-		      == 1);
+		ut_ad(1 == page_dir_slot_get_n_owned(
+			      page_dir_get_nth_slot(getPage(), 0)));
 		ut_ad(!getPageZip() || isComp());
 	}
 
 	/** Copy constructor */
 	PageCur(const PageCur& other)
 		: m_mtr (other.m_mtr), m_index (other.m_index),
-		  m_block (other.m_block), m_rec (other.m_rec),
-		  m_offsets (0) {
-		if (other.m_offsets) {
-			init();
-		}
+		  m_comp (other.m_comp), m_block (other.m_block),
+		  m_rec (other.m_rec), m_offsets (0) {
+		ut_ad(m_rec);
+		ut_ad(page_align(m_rec) == getPage());
+		/* Directory slot 0 should only contain the infimum record. */
+		ut_ad(1 == page_dir_slot_get_n_owned(
+			      page_dir_get_nth_slot(getPage(), 0)));
 		ut_ad(!getPageZip() || isComp());
 	}
 
@@ -429,16 +431,43 @@ public:
 	/** Get the record */
 	const rec_t* getRec() const {
 		ut_ad(m_rec);
-		ut_ad(!isComp()
+		ut_ad(!m_offsets
 		      || rec_offs_validate(m_rec, m_index, m_offsets));
 		return(m_rec);
+	}
+
+	/** Get the size of the current record.
+	@param[out]	extra_size	record header size, in bytes
+	@param[out]	n_ext		number of externally stored columns
+	@return		the data size of the record, in bytes */
+	ulint getRecSize(ulint& extra_size, ulint* n_ext = 0) const {
+		ut_ad(isUser());
+
+		if (const ulint* offsets = getOffsetsIfExist()) {
+			if (n_ext) {
+				*n_ext = rec_offs_n_extern(offsets);
+			}
+			extra_size = rec_offs_extra_size(offsets);
+			return(rec_offs_data_size(offsets));
+		}
+
+		if (n_ext) {
+			*n_ext = 0;
+		}
+
+		if (isComp()) {
+			return(rec_get_size_comp(m_rec, m_index,
+						 extra_size, n_ext));
+		}
+
+		return(rec_get_size_old(m_rec, extra_size));
 	}
 
 	/** Set the current record. */
 	void setRec(const rec_t* rec) {
 		ut_ad(page_align(rec) == buf_block_get_frame(m_block));
 
-		if (!isComp()) {
+		if (!getOffsetsIfExist()) {
 			m_rec = rec;
 		} else if (page_rec_is_user_rec(rec)) {
 			bool wasSentinel = !isUser();
@@ -450,10 +479,21 @@ public:
 		}
 	}
 
-	/** Get the offsets */
-	const ulint* getOffsets() const {
+	/** Get the offsets if they exist */
+	const ulint* getOffsetsIfExist() const {
 		ut_ad(!m_offsets
 		      || rec_offs_validate(m_rec, m_index, m_offsets));
+		return(m_offsets);
+	}
+
+	/** Get the offsets, computing them on demand if needed */
+	const ulint* getOffsets() {
+		if (m_offsets || !isComp()) {
+			ut_ad(!m_offsets
+			      || rec_offs_validate(m_rec, m_index, m_offsets));
+			return(m_offsets);
+		}
+		init();
 		return(m_offsets);
 	}
 
@@ -489,7 +529,7 @@ public:
 		ut_ad(!isBeforeFirst());
 		m_rec = page_rec_get_prev_const(m_rec);
 
-		if (!isComp()) {
+		if (!m_offsets) {
 			return(!isBeforeFirst());
 		} else if (isBeforeFirst()) {
 			adjustSentinelOffsets();
@@ -502,9 +542,11 @@ public:
 
 	/** Determine if the page is in compact format. */
 	bool isComp() const {
-		ut_ad(!!m_offsets == dict_table_is_comp(m_index->table));
-		ut_ad(!m_offsets == !page_rec_is_comp(m_rec));
-		return(m_offsets != 0);
+		ut_ad(m_comp == dict_table_is_comp(m_index->table));
+		ut_ad(!m_comp == !page_rec_is_comp(m_rec));
+		ut_ad(!getPageZip() || m_comp);
+		ut_ad(!getOffsetsIfExist() || m_comp);
+		return(m_comp);
 	}
 
 	/** Set the delete-mark flag on the current record.
@@ -649,6 +691,8 @@ recalc:
 	mtr_t*				m_mtr;
 	/** The index B-tree */
 	const dict_index_t*const	m_index;
+	/** Flag: is the page in other format than ROW_FORMAT=COMPACT? */
+	const bool			m_comp;
 	/** The page the cursor is positioned on */
 	const buf_block_t*		m_block;
 	/** Cursor position (current record) */

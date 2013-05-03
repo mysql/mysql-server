@@ -793,14 +793,16 @@ rec_get_size_old(
 @param[in]	rec	physical user record in a B-tree page
 @param[in]	index	the B-tree
 @param[out]	extra	length of the record header, in bytes
+@param[out]	n_ext	in: 0, out: number of externally stored columns
 @return	data size, in bytes */
 UNIV_INTERN
 ulint
 rec_get_size_comp(
 	const rec_t*		rec,
 	const dict_index_t*	index,
-	ulint&			extra)
-	__attribute__((nonnull, pure, warn_unused_result));
+	ulint&			extra,
+	ulint*			n_ext = 0)
+	__attribute__((nonnull(1,2), warn_unused_result));
 
 #ifndef UNIV_HOTBACKUP
 /**********************************************************//**
