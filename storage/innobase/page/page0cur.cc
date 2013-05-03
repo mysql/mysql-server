@@ -2032,17 +2032,18 @@ PageCur::searchShortcut(
 	up_match_f = low_match_f;
 	up_match_b = low_match_b;
 
-	if (page_cmp_dtuple_rec_with_match(tuple, getRec(), getOffsets(),
+	const rec_t*	rec = getRec();
+
+	if (page_cmp_dtuple_rec_with_match(tuple, rec, getOffsets(),
 					   &low_match_f, &low_match_b) < 0) {
 		return(false);
 	}
 
-	const rec_t*	rec = getRec();
 	if (next()) {
 		bool match = page_cmp_dtuple_rec_with_match(
 			tuple, getRec(), getOffsets(),
 			&up_match_f, &up_match_b) >= 0;
-		setRec(rec);
+		setUserRec(rec);
 		if (match) {
 			return(false);
 		} else {
@@ -2050,7 +2051,7 @@ PageCur::searchShortcut(
 			up_bytes = up_match_b;
 		}
 	} else {
-		setRec(rec);
+		setUserRec(rec);
 		low_fields = low_match_f;
 		low_bytes = low_match_b;
 	}
@@ -2099,7 +2100,7 @@ PageCur::search(const dtuple_t* tuple)
 	    && page_header_get_field(page, PAGE_DIRECTION) == PAGE_RIGHT) {
 		if (const rec_t* rec
 		    = page_header_get_ptr(page, PAGE_LAST_INSERT)) {
-			setRec(rec);
+			setUserRec(rec);
 
 			if (searchShortcut(tuple,
 					   up_match_f, up_match_b,
@@ -2233,7 +2234,7 @@ PageCur::purge()
 		btr_cur_pessimistic_update() to delete the only
 		record in the page and to insert another one. */
 		ut_ad(!next());
-		setRec(page_get_supremum_rec(page));
+		setAfterLast();
 		page_create_empty(block,
 				  const_cast<dict_index_t*>(m_index), m_mtr);
 		return(false);
