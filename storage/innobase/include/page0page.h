@@ -797,20 +797,23 @@ page_create(
 					page is created */
 	mtr_t*		mtr,		/*!< in: mini-transaction handle */
 	ulint		comp);		/*!< in: nonzero=compact page format */
-/**********************************************************//**
-Create a compressed B-tree index page.
-@return	pointer to the page */
+/** Create a compressed B-tree index page.
+@param[in/out]	block		the block containing the B-tree page frame
+@param[in]	index		index B-tree
+@param[in]	level		B-tree level of the page (0=leaf)
+@param[in]	zip_level	compression level
+@param[in]	max_trx_id	PAGE_MAX_TRX_ID value
+@param[in/out]	mtr		mini-transaction, NULL=no logging
+@return	block->frame */
 UNIV_INTERN
 page_t*
 page_create_zip(
-/*============*/
-	buf_block_t*	block,		/*!< in/out: a buffer frame where the
-					page is created */
-	dict_index_t*	index,		/*!< in: the index of the page */
-	ulint		level,		/*!< in: the B-tree level of the page */
-	trx_id_t	max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	buf_block_t*		block,
+	const dict_index_t*	index,
+	ulint			level,
+	ulint			zip_level,
+	trx_id_t		max_trx_id,
+	mtr_t*			mtr);
 /**********************************************************//**
 Empty a previously created B-tree index page. */
 UNIV_INTERN

@@ -1097,7 +1097,7 @@ page_cur_insert_rec_zip(
 			get rid of the modification log. */
 			page_create_zip(page_cur_get_block(cursor), index,
 					page_header_get_field(page, PAGE_LEVEL),
-					0, mtr);
+					level, 0, mtr);
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(
@@ -2479,8 +2479,7 @@ PageCur::purge()
 	return(!isAfterLast());
 }
 
-/** Reorganizes the page.
-The cursor position will be adjusted.
+/** Reorganize the page. The cursor position will be adjusted.
 
 NOTE: m_mtr must not be NULL.
 

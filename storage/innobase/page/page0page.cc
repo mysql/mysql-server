@@ -483,19 +483,23 @@ page_create(
 	return(page_create_low(block, comp));
 }
 
-/**********************************************************//**
-Create a compressed B-tree index page.
-@return	pointer to the page */
+/** Create a compressed B-tree index page.
+@param[in/out]	block		the block containing the B-tree page frame
+@param[in]	index		index B-tree
+@param[in]	level		B-tree level of the page (0=leaf)
+@param[in]	zip_level	compression level
+@param[in]	max_trx_id	PAGE_MAX_TRX_ID value
+@param[in/out]	mtr		mini-transaction, NULL=no logging
+@return	block->frame */
 UNIV_INTERN
 page_t*
 page_create_zip(
-/*============*/
-	buf_block_t*	block,		/*!< in/out: a buffer frame where the
-					page is created */
-	dict_index_t*	index,		/*!< in: the index of the page */
-	ulint		level,		/*!< in: the B-tree level of the page */
-	trx_id_t	max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction */
+	buf_block_t*		block,
+	const dict_index_t*	index,
+	ulint			level,
+	ulint			zip_level,
+	trx_id_t		max_trx_id,
+	mtr_t*			mtr)
 {
 	page_t*		page;
 	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
@@ -509,8 +513,7 @@ page_create_zip(
 	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
 	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
-	if (!page_zip_compress(page_zip, page, index,
-			       page_zip_level, mtr)) {
+	if (!page_zip_compress(page_zip, page, index, zip_level, mtr)) {
 		/* The compression of a newly created page
 		should always succeed. */
 		ut_error;
@@ -549,7 +552,7 @@ page_create_empty(
 	if (page_zip) {
 		page_create_zip(block, index,
 				page_header_get_field(page, PAGE_LEVEL),
-				max_trx_id, mtr);
+				page_zip_level, max_trx_id, mtr);
 	} else {
 		page_create(block, mtr, page_is_comp(page));
 
