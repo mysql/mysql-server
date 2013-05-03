@@ -396,6 +396,7 @@ public:
 		/* Directory slot 0 should only contain the infimum record. */
 		ut_ad(page_dir_slot_get_n_owned(page_dir_get_nth_slot(page, 0))
 		      == 1);
+		ut_ad(!getPageZip() || isComp());
 	}
 
 	/** Copy constructor */
@@ -406,6 +407,7 @@ public:
 		if (other.m_offsets) {
 			init();
 		}
+		ut_ad(!getPageZip() || isComp());
 	}
 
 	/** Destructor */
