@@ -779,13 +779,15 @@ rec_get_nth_field_offs_old(
 @param[in]	rec	physical user record in a B-tree page
 @param[in]	index	the B-tree
 @param[out]	extra	length of the record header, in bytes
+@param[out]	n_ext	in: 0, out: number of externally stored columns
 @return	data size, in bytes */
 UNIV_INTERN
 ulint
 rec_get_size_comp(
 	const rec_t*		rec,
 	const dict_index_t*	index,
-	ulint&			extra)
+	ulint&			extra,
+	ulint*			n_ext)
 {
 	ulint		data_size;
 	const byte*	nulls		= rec - (REC_N_NEW_EXTRA_BYTES + 1);
@@ -796,6 +798,7 @@ rec_get_size_comp(
 
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(page_rec_is_user_rec(rec));
+	ut_ad(!n_ext || !*n_ext);
 
 	if (page_is_leaf(page_align(rec))) {
 		ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
@@ -844,6 +847,9 @@ rec_get_size_comp(
 			externally. */
 			if ((len & 0x80) && DATA_BIG_COL(col)) {
 				/* 1exxxxxxx xxxxxxxx */
+				if ((len & 0x40) && n_ext) {
+					(*n_ext)++;
+				}
 				len <<= 8;
 				len |= *lens--;
 				len &= 0x3fff;

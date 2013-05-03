@@ -1868,14 +1868,7 @@ PageCur::insert(rec_t* current) const
 	ulint		heap_no;	/*!< heap number of the inserted
 					record */
 
-	if (const ulint* offsets = getOffsets()) {
-		extra_size = rec_offs_extra_size(offsets);
-		data_size = rec_offs_data_size(offsets);
-	} else {
-		ut_ad(!dict_table_is_comp(m_index->table));
-		ut_ad(!page_is_comp(page));
-		data_size = rec_get_size_old(m_rec, extra_size);
-	}
+	data_size = getRecSize(extra_size);
 
 	ut_ad(page != page_align(m_rec));
 	ut_ad(!m_mtr
@@ -1893,7 +1886,7 @@ PageCur::insert(rec_t* current) const
 	if (rec_t* free_rec = page_header_get_ptr(page, PAGE_FREE)) {
 		/* Try to allocate from the head of the free list. */
 		ulint	free_extra_size;
-		ulint	free_data_size = getOffsets()
+		ulint	free_data_size = isComp()
 			? rec_get_size_comp(free_rec, m_index, free_extra_size)
 			: rec_get_size_old(free_rec, free_extra_size);
 
@@ -2286,20 +2279,9 @@ PageCur::purge()
 	}
 
 	rec_t*	del_rec	= const_cast<rec_t*>(m_rec);
-	ulint	data_size;
 	ulint	extra_size;
 	ulint	n_ext;
-
-	if (isComp()) {
-		data_size = rec_offs_data_size(m_offsets);
-		extra_size = rec_offs_extra_size(m_offsets);
-		n_ext = rec_offs_n_extern(m_offsets);
-	} else {
-		data_size = rec_get_size_old(m_rec, extra_size);
-		/* This is only needed for page_zip. */
-		n_ext = 0;
-		ut_ad(!page_zip);
-	}
+	ulint	data_size = getRecSize(extra_size, &n_ext);
 
 	next();
 
