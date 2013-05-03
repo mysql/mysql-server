@@ -780,34 +780,32 @@ page_cur_parse_insert_rec(
 	return(ptr + end_seg_len);
 }
 
-/***********************************************************//**
-Inserts a record next to page cursor on an uncompressed page.
-Returns pointer to inserted record if succeed, i.e., enough
-space available, NULL otherwise. The cursor stays at the same position.
+/** Inserts a record next to page cursor on an uncompressed page.
+@param[in/out]	current_rec	record after which the new record is inserted
+@param[in]	index		B-tree index
+@param[in]	rec		physical record
+@param[in]	extra		size of rec header, in bytes
+@param[in]	data		size of rec data, in bytes
+@param[in/out]	mtr		mini-transaction, NULL=no redo logging
 @return	pointer to record if succeed, NULL otherwise */
 UNIV_INTERN
 rec_t*
 page_cur_insert_rec_low(
-/*====================*/
-	rec_t*		current_rec,/*!< in: pointer to current record after
-				which the new record is inserted */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	const rec_t*	rec,	/*!< in: pointer to a physical record */
-	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
+	rec_t*			current_rec,
+	const dict_index_t*	index,
+	const rec_t*		rec,
+	ulint			extra,
+	ulint			data,
+	mtr_t*			mtr)
 {
 	byte*		insert_buf;
-	ulint		rec_size;
+	const ulint	rec_size	= extra + data;
 	page_t*		page;		/*!< the relevant page */
 	rec_t*		last_insert;	/*!< cursor position at previous
 					insert */
-	rec_t*		free_rec;	/*!< a free record that was reused,
-					or NULL */
 	rec_t*		insert_rec;	/*!< inserted record */
 	ulint		heap_no;	/*!< heap number of the inserted
 					record */
-
-	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	page = page_align(current_rec);
 	ut_ad(dict_table_is_comp(index->table)
@@ -818,48 +816,25 @@ page_cur_insert_rec_low(
 
 	ut_ad(!page_rec_is_supremum(current_rec));
 
-	/* 1. Get the size of the physical record in the page */
-	rec_size = rec_offs_size(offsets);
+	/* All data bytes of the record must be valid. */
+	UNIV_MEM_ASSERT_RW(rec, data);
+	/* The variable-length header must be valid. */
+	UNIV_MEM_ASSERT_RW(rec - extra,
+			   extra - (page_is_comp(page)
+				    ? REC_N_NEW_EXTRA_BYTES
+				    : REC_N_OLD_EXTRA_BYTES));
 
-#ifdef UNIV_DEBUG_VALGRIND
-	{
-		const void*	rec_start
-			= rec - rec_offs_extra_size(offsets);
-		ulint		extra_size
-			= rec_offs_extra_size(offsets)
-			- (rec_offs_comp(offsets)
-			   ? REC_N_NEW_EXTRA_BYTES
-			   : REC_N_OLD_EXTRA_BYTES);
+	if (rec_t* free_rec = page_header_get_ptr(page, PAGE_FREE)) {
+		ulint	free_extra_size;
+		ulint	free_data_size = page_is_comp(page)
+			? rec_get_size_comp(free_rec, index, free_extra_size)
+			: rec_get_size_old(free_rec, free_extra_size);
 
-		/* All data bytes of the record must be valid. */
-		UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
-		/* The variable-length header must be valid. */
-		UNIV_MEM_ASSERT_RW(rec_start, extra_size);
-	}
-#endif /* UNIV_DEBUG_VALGRIND */
-
-	/* 2. Try to find suitable space from page memory management */
-
-	free_rec = page_header_get_ptr(page, PAGE_FREE);
-	if (UNIV_LIKELY_NULL(free_rec)) {
-		/* Try to allocate from the head of the free list. */
-		ulint		foffsets_[REC_OFFS_NORMAL_SIZE];
-		ulint*		foffsets	= foffsets_;
-		mem_heap_t*	heap		= NULL;
-
-		rec_offs_init(foffsets_);
-
-		foffsets = rec_get_offsets(
-			free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
-		if (rec_offs_size(foffsets) < rec_size) {
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
-
+		if (free_extra_size + free_data_size < rec_size) {
 			goto use_heap;
 		}
 
-		insert_buf = free_rec - rec_offs_extra_size(foffsets);
+		insert_buf = free_rec - free_extra_size;
 
 		if (page_is_comp(page)) {
 			heap_no = rec_get_heap_no_new(free_rec);
@@ -872,13 +847,8 @@ page_cur_insert_rec_low(
 					rec_get_next_ptr(free_rec, FALSE),
 					rec_size);
 		}
-
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
 	} else {
 use_heap:
-		free_rec = NULL;
 		insert_buf = page_mem_alloc_heap(page, NULL,
 						 rec_size, &heap_no);
 
@@ -887,11 +857,11 @@ use_heap:
 		}
 	}
 
-	/* 3. Create the record */
-	insert_rec = rec_copy(insert_buf, rec, offsets);
-	rec_offs_make_valid(insert_rec, index, offsets);
+	/* Create the record */
+	memcpy(insert_buf, rec - extra, rec_size);
+	insert_rec = insert_buf + extra;
 
-	/* 4. Insert the record in the linked list of records */
+	/* Insert the record in the linked list of records */
 	ut_ad(current_rec != insert_rec);
 
 	{
@@ -912,7 +882,7 @@ use_heap:
 	page_header_set_field(page, NULL, PAGE_N_RECS,
 			      1 + page_get_n_recs(page));
 
-	/* 5. Set the n_owned field in the inserted record to zero,
+	/* Set the n_owned field in the inserted record to zero,
 	and set the heap_no field */
 	if (page_is_comp(page)) {
 		rec_set_n_owned_new(insert_rec, NULL, 0);
@@ -922,9 +892,8 @@ use_heap:
 		rec_set_heap_no_old(insert_rec, heap_no);
 	}
 
-	UNIV_MEM_ASSERT_RW(rec_get_start(insert_rec, offsets),
-			   rec_offs_size(offsets));
-	/* 6. Update the last insertion info in page header */
+	UNIV_MEM_ASSERT_RW(insert_buf, rec_size);
+	/* Update the last insertion info in page header */
 
 	last_insert = page_header_get_ptr(page, PAGE_LAST_INSERT);
 	ut_ad(!last_insert || !page_is_comp(page)
@@ -991,8 +960,6 @@ use_heap:
 		page_cur_insert_rec_write_log(insert_rec, rec_size,
 					      current_rec, index, mtr);
 	}
-
-	btr_blob_dbg_add_rec(insert_rec, index, offsets, "insert");
 
 	return(insert_rec);
 }
@@ -1133,7 +1100,11 @@ page_cur_insert_rec_zip(
 
 		/* Try compressing the whole page afterwards. */
 		insert_rec = page_cur_insert_rec_low(
-			cursor->rec, index, rec, offsets, NULL);
+			cursor->rec, index, rec,
+			rec_offs_extra_size(offsets),
+			rec_offs_data_size(offsets), NULL);
+		ut_d(if (insert_rec) rec_offs_make_valid(
+			     insert_rec, index, offsets));
 
 		/* If recovery is on, this implies that the compression
 		of the page was successful during runtime. Had that not
@@ -1237,103 +1208,38 @@ page_cur_insert_rec_zip(
 	if (UNIV_LIKELY_NULL(free_rec)) {
 		/* Try to allocate from the head of the free list. */
 		lint	extra_size_diff;
-		ulint		foffsets_[REC_OFFS_NORMAL_SIZE];
-		ulint*		foffsets	= foffsets_;
-		mem_heap_t*	heap		= NULL;
+		ulint	free_extra_size;
+		ulint	free_data_size = rec_get_size_comp(
+			free_rec, index, free_extra_size);
 
-		rec_offs_init(foffsets_);
-
-		foffsets = rec_get_offsets(free_rec, index, foffsets,
-					   ULINT_UNDEFINED, &heap);
-		if (rec_offs_size(foffsets) < rec_size) {
-too_small:
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
-
+		if (free_extra_size + free_data_size < rec_size) {
 			goto use_heap;
 		}
 
-		insert_buf = free_rec - rec_offs_extra_size(foffsets);
+		insert_buf = free_rec - free_extra_size;
 
 		/* On compressed pages, do not relocate records from
 		the free list.  If extra_size would grow, use the heap. */
-		extra_size_diff
-			= rec_offs_extra_size(offsets)
-			- rec_offs_extra_size(foffsets);
+		extra_size_diff = free_extra_size
+			- rec_offs_extra_size(offsets);
 
-		if (UNIV_UNLIKELY(extra_size_diff < 0)) {
+		if (extra_size_diff > 0) {
 			/* Add an offset to the extra_size. */
-			if (rec_offs_size(foffsets)
-			    < rec_size - extra_size_diff) {
-
-				goto too_small;
+			if (free_data_size + free_extra_size
+			    < rec_size + extra_size_diff) {
+				goto use_heap;
 			}
 
-			insert_buf -= extra_size_diff;
-		} else if (UNIV_UNLIKELY(extra_size_diff)) {
+			insert_buf += extra_size_diff;
+		} else if (extra_size_diff) {
 			/* Do not allow extra_size to grow */
-
-			goto too_small;
+			goto use_heap;
 		}
 
 		heap_no = rec_get_heap_no_new(free_rec);
 		page_mem_alloc_free(page, page_zip,
 				    rec_get_next_ptr(free_rec, TRUE),
 				    rec_size);
-
-		if (!page_is_leaf(page)) {
-			/* Zero out the node pointer of free_rec,
-			in case it will not be overwritten by
-			insert_rec. */
-
-			ut_ad(rec_size > REC_NODE_PTR_SIZE);
-
-			if (rec_offs_extra_size(foffsets)
-			    + rec_offs_data_size(foffsets) > rec_size) {
-
-				memset(rec_get_end(free_rec, foffsets)
-				       - REC_NODE_PTR_SIZE, 0,
-				       REC_NODE_PTR_SIZE);
-			}
-		} else if (dict_index_is_clust(index)) {
-			/* Zero out the DB_TRX_ID and DB_ROLL_PTR
-			columns of free_rec, in case it will not be
-			overwritten by insert_rec. */
-
-			ulint	trx_id_col;
-			ulint	trx_id_offs;
-			ulint	len;
-
-			trx_id_col = dict_index_get_sys_col_pos(index,
-								DATA_TRX_ID);
-			ut_ad(trx_id_col > 0);
-			ut_ad(trx_id_col != ULINT_UNDEFINED);
-
-			trx_id_offs = rec_get_nth_field_offs(foffsets,
-							     trx_id_col, &len);
-			ut_ad(len == DATA_TRX_ID_LEN);
-
-			if (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN + trx_id_offs
-			    + rec_offs_extra_size(foffsets) > rec_size) {
-				/* We will have to zero out the
-				DB_TRX_ID and DB_ROLL_PTR, because
-				they will not be fully overwritten by
-				insert_rec. */
-
-				memset(free_rec + trx_id_offs, 0,
-				       DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-			}
-
-			ut_ad(free_rec + trx_id_offs + DATA_TRX_ID_LEN
-			      == rec_get_nth_field(free_rec, foffsets,
-						   trx_id_col + 1, &len));
-			ut_ad(len == DATA_ROLL_PTR_LEN);
-		}
-
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
 	} else {
 use_heap:
 		free_rec = NULL;
