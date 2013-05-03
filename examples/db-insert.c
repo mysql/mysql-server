@@ -161,7 +161,7 @@ static void do_prelock(DB* db, DB_TXN* txn) {
         int r = db->pre_acquire_table_lock(db, txn);
         assert(r==0);
 #else
-	(void) db; (void) txn;
+        (void) db; (void) txn;
 #endif
     }
 }
@@ -182,11 +182,11 @@ static void benchmark_setup (void) {
     int r;
    
     if (!do_append) {
-	char unlink_cmd[strlen(dbdir) + strlen("rm -rf ") + 1];
-	snprintf(unlink_cmd, sizeof(unlink_cmd), "rm -rf %s", dbdir);
-	//printf("unlink_cmd=%s\n", unlink_cmd);
-	system(unlink_cmd);
-
+        char unlink_cmd[strlen(dbdir) + strlen("rm -rf ") + 1];
+        snprintf(unlink_cmd, sizeof(unlink_cmd), "rm -rf %s", dbdir);
+        //printf("unlink_cmd=%s\n", unlink_cmd);
+        system(unlink_cmd);
+        
         if (strcmp(dbdir, ".") != 0) {
             r = mkdir(dbdir,S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
             assert(r == 0);
@@ -199,21 +199,21 @@ static void benchmark_setup (void) {
 #if !defined(TOKUDB)
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
     if (dbenv->set_lk_max) {
-	r = dbenv->set_lk_max(dbenv, items_per_transaction*2);
-	assert(r==0);
+        r = dbenv->set_lk_max(dbenv, items_per_transaction*2);
+        assert(r==0);
     }
 #elif DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 7
     if (dbenv->set_lk_max_locks) {
-	r = dbenv->set_lk_max_locks(dbenv, items_per_transaction*2);
-	assert(r==0);
+        r = dbenv->set_lk_max_locks(dbenv, items_per_transaction*2);
+        assert(r==0);
     }
     if (dbenv->set_lk_max_lockers) {
-	r = dbenv->set_lk_max_lockers(dbenv, items_per_transaction*2);
-	assert(r==0);
+        r = dbenv->set_lk_max_lockers(dbenv, items_per_transaction*2);
+        assert(r==0);
     }
     if (dbenv->set_lk_max_objects) {
-	r = dbenv->set_lk_max_objects(dbenv, items_per_transaction*2);
-	assert(r==0);
+        r = dbenv->set_lk_max_objects(dbenv, items_per_transaction*2);
+        assert(r==0);
     }
 #else
 #error
@@ -226,8 +226,8 @@ static void benchmark_setup (void) {
             printf("WARNING: set_cachesize %d\n", r);
     }
     {
-	r = dbenv->open(dbenv, dbdir, env_open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-	assert(r == 0);
+        r = dbenv->open(dbenv, dbdir, env_open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+        assert(r == 0);
     }
 
 #if defined(TOKUDB)
@@ -243,7 +243,7 @@ static void benchmark_setup (void) {
     assert(r == 0);
 
     if (do_transactions) {
-	r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
+        r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
     }
     if (pagesize && db->set_pagesize) {
         r = db->set_pagesize(db, pagesize); 
@@ -278,7 +278,7 @@ static void benchmark_setup (void) {
         r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
     }
     if (do_transactions) {
-	if (singlex)
+        if (singlex)
             do_prelock(db, tid);
         else {
             r=tid->commit(tid, 0);
@@ -300,15 +300,15 @@ static void benchmark_shutdown (void) {
     if (do_transactions && singlex && !insert1first && (singlex_create || prelock)) {
 #if defined(TOKUDB)
         //There should be a single 'truncate' in the rollback instead of many 'insert' entries.
-	struct txn_stat *s;
-	r = tid->txn_stat(tid, &s);
-	assert(r==0);
+        struct txn_stat *s;
+        r = tid->txn_stat(tid, &s);
+        assert(r==0);
         //TODO: #1125 Always do the test after performance testing is done.
         if (singlex_child) fprintf(stderr, "SKIPPED 'small rollback' test for child txn\n");
         else
             assert(s->rollback_raw_count < 100);  // gross test, not worth investigating details
-	free(s);
-	//system("ls -l bench.tokudb");
+        free(s);
+        //system("ls -l bench.tokudb");
 #endif
     }
     if (do_transactions && singlex) {
@@ -337,7 +337,7 @@ static void benchmark_shutdown (void) {
 static void long_long_to_array (unsigned char *a, int array_size, unsigned long long l) {
     int i;
     for (i=0; i<8 && i<array_size; i++)
-	a[i] = (l>>(56-8*i))&0xff;
+    a[i] = (l>>(56-8*i))&0xff;
 }
 
 static DBT *fill_dbt(DBT *dbt, const void *data, int size) {
@@ -351,10 +351,10 @@ static DBT *fill_dbt(DBT *dbt, const void *data, int size) {
 static void fill_array (unsigned char *data, int size) {
     memset(data, 0, size);
     if (compressibility>0) {
-	int i;
-	for (i=0; i<size/compressibility; i++) {
-	    data[i] = (unsigned char) random();
-	}
+        int i;
+        for (i=0; i<size/compressibility; i++) {
+            data[i] = (unsigned char) random();
+        }
     }
 }
 
@@ -368,36 +368,35 @@ static void insert (long long v) {
     int r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), put_flags);
     CKERR(r);
     if (do_transactions) {
-	if (n_insertions_since_txn_began>=items_per_transaction && !singlex) {
-	    n_insertions_since_txn_began=0;
-	    r = tid->commit(tid, 0); assert(r==0);
+        if (n_insertions_since_txn_began>=items_per_transaction && !singlex) {
+            n_insertions_since_txn_began=0;
+            r = tid->commit(tid, 0); assert(r==0);
             tid = NULL;
-	    r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+            r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
             do_prelock(db, tid);
-	    n_insertions_since_txn_began=0;
-	}
-	n_insertions_since_txn_began++;
+            n_insertions_since_txn_began=0;
+        }
+        n_insertions_since_txn_began++;
     }
 }
 
 static void serial_insert_from (long long from) {
     long long i;
     if (do_transactions && !singlex) {
-	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+        int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
         do_prelock(db, tid);
-	{
-	    DBT k,v;
-	    r=db->put(db, tid, fill_dbt(&k, "a", 1), fill_dbt(&v, "b", 1), put_flags);
-	    CKERR(r);
-	}
-				      
+        {
+            DBT k,v;
+            r=db->put(db, tid, fill_dbt(&k, "a", 1), fill_dbt(&v, "b", 1), put_flags);
+            CKERR(r);
+        }
     }
     for (i=0; i<items_per_iteration; i++) {
-	insert((from+i)*SERIAL_SPACING);
+        insert((from+i)*SERIAL_SPACING);
     }
     if (do_transactions && !singlex) {
-	int  r= tid->commit(tid, 0);             assert(r==0);
-	tid=NULL;
+        int  r= tid->commit(tid, 0);             assert(r==0);
+        tid=NULL;
     }
 }
 
@@ -408,15 +407,15 @@ static long long llrandom (void) {
 static void random_insert_below (long long below) {
     long long i;
     if (do_transactions && !singlex) {
-	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+        int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
         do_prelock(db, tid);
     }
     for (i=0; i<items_per_iteration; i++) {
-	insert(llrandom()%below);
+        insert(llrandom()%below);
     }
     if (do_transactions && !singlex) {
-	int  r= tid->commit(tid, 0);             assert(r==0);
-	tid=NULL;
+        int  r= tid->commit(tid, 0);             assert(r==0);
+        tid=NULL;
     }
 }
 
@@ -429,15 +428,15 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
             printf("%d ", iteration);
             fflush(stdout);
         }
-	if (!noserial) {
-	    gettimeofday(&t1,0);
-	    serial_insert_from(i);
-	    gettimeofday(&t2,0);
-	    if (verbose) {
+        if (!noserial) {
+            gettimeofday(&t1,0);
+            serial_insert_from(i);
+            gettimeofday(&t2,0);
+            if (verbose) {
                 printf("serial %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), items_per_iteration/toku_tdiff(&t2, &t1));
                 fflush(stdout);
             }
-	}
+        }
         if (!norandom) {
             gettimeofday(&t1,0);
             random_insert_below((i+items_per_iteration)*SERIAL_SPACING);
@@ -447,7 +446,7 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
                 fflush(stdout);
             }
         }
-	if (verbose) {
+        if (verbose) {
             printf("cumulative %9.6fs %8.0f/s\n", toku_tdiff(&t2, starttime), (((float)items_per_iteration*(!noserial+!norandom))/toku_tdiff(&t2, starttime))*(iteration+1));
             fflush(stdout);
         }
@@ -497,34 +496,34 @@ int main (int argc, const char *argv[]) {
         const char *arg = argv[i];
         if (arg[0] != '-')
             break;
-	if (strcmp(arg, "-q") == 0) {
-	    verbose--; if (verbose<0) verbose=0;
-	} else if (strcmp(arg, "-x") == 0) {
+        if (strcmp(arg, "-q") == 0) {
+            verbose--; if (verbose<0) verbose=0;
+        } else if (strcmp(arg, "-x") == 0) {
             do_transactions = 1;
         } else if (strcmp(arg, "--noserial") == 0) {
-	    noserial=1;
-	} else if (strcmp(arg, "--norandom") == 0) {
-	    norandom=1;
-	} else if (strcmp(arg, "--compressibility") == 0) {
-	    compressibility = atof(argv[++i]);
-	} else if (strcmp(arg, "--nolog") == 0) {
-	    if_transactions_do_logging = 0;
-	} else if (strcmp(arg, "--singlex-create") == 0) {
-	    do_transactions = 1;
-	    singlex = 1;
-	    singlex_create = 1;
-	} else if (strcmp(arg, "--finish-child-first") == 0) {
-	    finish_child_first = 1;
-	} else if (strcmp(arg, "--singlex-child") == 0) {
-	    do_transactions = 1;
-	    singlex = 1;
-	    singlex_child = 1;
-	} else if (strcmp(arg, "--singlex") == 0) {
-	    do_transactions = 1;
-	    singlex = 1;
-	} else if (strcmp(arg, "--insert1first") == 0) {
-	    insert1first = 1;
-	} else if (strcmp(arg, "--xcount") == 0) {
+            noserial=1;
+        } else if (strcmp(arg, "--norandom") == 0) {
+            norandom=1;
+        } else if (strcmp(arg, "--compressibility") == 0) {
+            compressibility = atof(argv[++i]);
+        } else if (strcmp(arg, "--nolog") == 0) {
+            if_transactions_do_logging = 0;
+        } else if (strcmp(arg, "--singlex-create") == 0) {
+            do_transactions = 1;
+            singlex = 1;
+            singlex_create = 1;
+        } else if (strcmp(arg, "--finish-child-first") == 0) {
+            finish_child_first = 1;
+        } else if (strcmp(arg, "--singlex-child") == 0) {
+            do_transactions = 1;
+            singlex = 1;
+            singlex_child = 1;
+        } else if (strcmp(arg, "--singlex") == 0) {
+            do_transactions = 1;
+            singlex = 1;
+        } else if (strcmp(arg, "--insert1first") == 0) {
+            insert1first = 1;
+        } else if (strcmp(arg, "--xcount") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             items_per_transaction = strtoll(argv[++i], &endptr, 10); assert(*endptr == 0);
         } else if (strcmp(arg, "--abort") == 0) {
@@ -544,9 +543,9 @@ int main (int argc, const char *argv[]) {
         } else if (strcmp(arg, "--pagesize") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             pagesize = atoi(argv[++i]);
-	} else if (strcmp(arg, "--env") == 0) {
-	    if (i+1 >= argc) return print_usage(argv[0]);
-	    dbdir = argv[++i];
+        } else if (strcmp(arg, "--env") == 0) {
+            if (i+1 >= argc) return print_usage(argv[0]);
+            dbdir = argv[++i];
         } else if (strcmp(arg, "--prelock") == 0) {
             prelock=1;
         } else if (strcmp(arg, "--prelockflag") == 0) {
@@ -568,11 +567,11 @@ int main (int argc, const char *argv[]) {
             else
                 put_flags = 0;
         } else {
-	    return print_usage(argv[0]);
-	}
+            return print_usage(argv[0]);
+        }
     }
     if (do_transactions) {
-	env_open_flags |= DB_INIT_TXN | if_transactions_do_logging | DB_INIT_LOCK;
+        env_open_flags |= DB_INIT_TXN | if_transactions_do_logging | DB_INIT_LOCK;
     }
     if (do_transactions && prelockflag) {
         put_flags |= DB_PRELOCKED_WRITE;
@@ -589,10 +588,10 @@ int main (int argc, const char *argv[]) {
         total_n_items = items_per_iteration * (long long)n_iterations;
     }
     if (verbose) {
-	if (!noserial) printf("serial ");
-	if (!noserial && !norandom) printf("and ");
-	if (!norandom) printf("random ");
-	printf("insertions of %d per batch%s\n", items_per_iteration, do_transactions ? " (with transactions)" : "");
+        if (!noserial) printf("serial ");
+        if (!noserial && !norandom) printf("and ");
+        if (!norandom) printf("random ");
+        printf("insertions of %d per batch%s\n", items_per_iteration, do_transactions ? " (with transactions)" : "");
     }
     benchmark_setup();
     gettimeofday(&t1,0);
@@ -601,9 +600,9 @@ int main (int argc, const char *argv[]) {
     benchmark_shutdown();
     gettimeofday(&t3,0);
     if (verbose) {
-	printf("Shutdown %9.6fs\n", toku_tdiff(&t3, &t2));
-	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", toku_tdiff(&t3, &t1), 
-	       (!noserial+!norandom)*total_n_items, (!noserial+!norandom)*total_n_items/toku_tdiff(&t3, &t1));
+        printf("Shutdown %9.6fs\n", toku_tdiff(&t3, &t2));
+        printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", toku_tdiff(&t3, &t1), 
+               (!noserial+!norandom)*total_n_items, (!noserial+!norandom)*total_n_items/toku_tdiff(&t3, &t1));
     }
 
     return 0;

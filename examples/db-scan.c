@@ -154,34 +154,34 @@ static void parse_args (int argc, const char *argv[]) {
     argc--; argv++;
     int specified_run_mode=0;
     while (argc>0) {
-	if (strcmp(*argv,"--verify-lwc")==0) {
-	    if (specified_run_mode && run_mode!=RUN_VERIFY) { two_modes: fprintf(stderr, "You specified two run modes\n"); exit(1); }
-	    run_mode = RUN_VERIFY;
-	} else if (strcmp(*argv, "--lwc")==0)  {
-	    if (specified_run_mode && run_mode!=RUN_LWC) goto two_modes;
-	    run_mode = RUN_LWC;
-	} else if (strcmp(*argv, "--hwc")==0)  {
-	    if (specified_run_mode && run_mode!=RUN_VERIFY) goto two_modes;
-	    run_mode = RUN_HWC;
-	} else if (strcmp(*argv, "--prelock")==0) prelock=1;
+        if (strcmp(*argv,"--verify-lwc")==0) {
+            if (specified_run_mode && run_mode!=RUN_VERIFY) { two_modes: fprintf(stderr, "You specified two run modes\n"); exit(1); }
+            run_mode = RUN_VERIFY;
+        } else if (strcmp(*argv, "--lwc")==0)  {
+            if (specified_run_mode && run_mode!=RUN_LWC) goto two_modes;
+            run_mode = RUN_LWC;
+        } else if (strcmp(*argv, "--hwc")==0)  {
+            if (specified_run_mode && run_mode!=RUN_VERIFY) goto two_modes;
+            run_mode = RUN_HWC;
+        } else if (strcmp(*argv, "--prelock")==0) prelock=1;
 #ifdef TOKUDB
         else if (strcmp(*argv, "--prelockflag")==0)      { prelockflag=1; lock_flag = DB_PRELOCKED; }
         else if (strcmp(*argv, "--prelockwriteflag")==0) { prelockflag=1; lock_flag = DB_PRELOCKED_WRITE; }
 #endif
-	else if (strcmp(*argv, "--nox")==0)              { do_txns=0; }
-	else if (strcmp(*argv, "--count")==0)            {
-	    char *end;
+        else if (strcmp(*argv, "--nox")==0)              { do_txns=0; }
+        else if (strcmp(*argv, "--count")==0)            {
+            char *end;
             argc--; argv++; 
-	    errno=0; limitcount=strtol(*argv, &end, 10); assert(errno==0);
-	    printf("Limiting count to %ld\n", limitcount);
+            errno=0; limitcount=strtol(*argv, &end, 10); assert(errno==0);
+            printf("Limiting count to %ld\n", limitcount);
         } else if (strcmp(*argv, "--cachesize")==0 && argc>0) {
             char *end;
             argc--; argv++; 
             cachesize=(u_int32_t)strtol(*argv, &end, 10);
-	} else if (strcmp(*argv, "--env") == 0) {
+        } else if (strcmp(*argv, "--env") == 0) {
             argc--; argv++;
-	    if (argc==0) exit(print_usage(pname));
-	    dbdir = *argv;
+            if (argc==0) exit(print_usage(pname));
+            dbdir = *argv;
         } else if (strcmp(*argv, "--range") == 0 && argc > 2) {
             run_mode = RUN_RANGE;
             argc--; argv++;
@@ -192,15 +192,15 @@ static void parse_args (int argc, const char *argv[]) {
             argc--; argv++;
             n_experiments = strtol(*argv, NULL, 10);
         } else if (strcmp(*argv, "--srandom") == 0 && argc > 1) {
-	    argc--; argv++;
+            argc--; argv++;
             srandom(atoi(*argv));
         } else if (strcmp(*argv, "--bulk_fetch") == 0 && argc > 1) {
             argc--; argv++;
             bulk_fetch = atoi(*argv);
-	} else {
+        } else {
             exit(print_usage(pname));
-	}
-	argc--; argv++;
+    }
+    argc--; argv++;
     }
     //Prelocking is meaningless without transactions
     if (do_txns==0) {
@@ -217,13 +217,13 @@ static void scanscan_setup (void) {
     r = env->open(env, dbdir, do_txns? env_open_flags_yesx : env_open_flags_nox, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);   assert(r==0);
     r = db_create(&db, env, 0);                                                           assert(r==0);
     if (do_txns) {
-	r = env->txn_begin(env, 0, &tid, 0);                                              assert(r==0);
+        r = env->txn_begin(env, 0, &tid, 0);                                              assert(r==0);
     }
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);                           assert(r==0);
 #ifdef TOKUDB
     if (prelock) {
-	r = db->pre_acquire_table_lock(db, tid);
-	assert(r==0);
+        r = db->pre_acquire_table_lock(db, tid);
+        assert(r==0);
     }
 #endif
 }
@@ -232,7 +232,7 @@ static void scanscan_shutdown (void) {
     int r;
     r = db->close(db, 0);                                       assert(r==0);
     if (do_txns) {
-	r = tid->commit(tid, 0);                                    assert(r==0);
+        r = tid->commit(tid, 0);                                assert(r==0);
     }
     r = env->close(env, 0);                                     assert(r==0);
 }
@@ -248,31 +248,31 @@ static void scanscan_hwc (void) {
     int r;
     int counter=0;
     for (counter=0; counter<n_experiments; counter++) {
-	long long totalbytes=0;
-	int rowcounter=0;
-	double prevtime = gettime();
-	DBT k,v;
-	DBC *dbc;
-	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
-	memset(&k, 0, sizeof(k));
-	memset(&v, 0, sizeof(v));
+        long long totalbytes=0;
+        int rowcounter=0;
+        double prevtime = gettime();
+        DBT k,v;
+        DBC *dbc;
+        r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
+        memset(&k, 0, sizeof(k));
+        memset(&v, 0, sizeof(v));
         u_int32_t c_get_flags = DB_NEXT;
         if (prelockflag && (counter || prelock)) {
             c_get_flags |= lock_flag;
         }
-	while (0 == (r = dbc->c_get(dbc, &k, &v, c_get_flags))) {
-	    
-	    //printf("r=%d\n", r);
+        while (0 == (r = dbc->c_get(dbc, &k, &v, c_get_flags))) {
+        
+            //printf("r=%d\n", r);
 
-	    totalbytes += k.size + v.size;
-	    rowcounter++;
-	    if (limitcount>0 && rowcounter>=limitcount) break;
-	}
-	assert(r==DB_NOTFOUND);
-	r = dbc->c_close(dbc);                                      assert(r==0);
-	double thistime = gettime();
-	double tdiff = thistime-prevtime;
-	printf("Scan    %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
+            totalbytes += k.size + v.size;
+            rowcounter++;
+            if (limitcount>0 && rowcounter>=limitcount) break;
+        }
+        assert(r==DB_NOTFOUND);
+        r = dbc->c_close(dbc);                                      assert(r==0);
+        double thistime = gettime();
+        double tdiff = thistime-prevtime;
+        printf("Scan    %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
     }
 }
 
@@ -294,23 +294,23 @@ static void scanscan_lwc (void) {
     int r;
     int counter=0;
     for (counter=0; counter<n_experiments; counter++) {
-	struct extra_count e = {0,0};
-	double prevtime = gettime();
-	DBC *dbc;
-	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
+        struct extra_count e = {0,0};
+        double prevtime = gettime();
+        DBC *dbc;
+        r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
         u_int32_t f_flags = 0;
         if (prelockflag && (counter || prelock)) {
             f_flags |= lock_flag;
         }
-	long rowcounter=0;
-	while (0 == (r = dbc->c_getf_next(dbc, f_flags, counttotalbytes, &e))) {
-	    rowcounter++;
-	    if (limitcount>0 && rowcounter>=limitcount) break;
-	}
-	r = dbc->c_close(dbc);                                      assert(r==0);
-	double thistime = gettime();
-	double tdiff = thistime-prevtime;
-	printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
+        long rowcounter=0;
+        while (0 == (r = dbc->c_getf_next(dbc, f_flags, counttotalbytes, &e))) {
+            rowcounter++;
+            if (limitcount>0 && rowcounter>=limitcount) break;
+        }
+        r = dbc->c_close(dbc);                                      assert(r==0);
+        double thistime = gettime();
+        double tdiff = thistime-prevtime;
+        printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
     }
 }
 #endif
@@ -327,15 +327,15 @@ static void scanscan_range (void) {
     for (counter = 0; counter < n_experiments; counter++) {
 
         if (1) { //if ((counter&1) == 0) {   
-   	makekey:
-	    // generate a random key in the key range
-	    k = (start_range + (random() % (end_range - start_range))) * (1<<6);
+        makekey:
+            // generate a random key in the key range
+            k = (start_range + (random() % (end_range - start_range))) * (1<<6);
             int i;
-	    for (i = 0; i < 8; i++)
+            for (i = 0; i < 8; i++)
                 kv[i] = k >> (56-8*i);
-	}
-	memset(&key, 0, sizeof key); key.data = &kv, key.size = sizeof kv;
-	memset(&val, 0, sizeof val);
+        }
+        memset(&key, 0, sizeof key); key.data = &kv, key.size = sizeof kv;
+        memset(&val, 0, sizeof val);
 
         double tstart = gettime();
 
@@ -352,14 +352,14 @@ static void scanscan_range (void) {
 
 #ifdef TOKUDB
         // do the range scan
-	long rowcounter = 0;
-	struct extra_count e = {0,0};
+        long rowcounter = 0;
+        struct extra_count e = {0,0};
         while (limitcount > 0 && rowcounter < limitcount) {
             r = dbc->c_getf_next(dbc, prelockflag ? lock_flag : 0, counttotalbytes, &e);
             if (r != 0)
                 break;
-	    rowcounter++;
-	}
+            rowcounter++;
+        }
 #endif
 
         r = dbc->c_close(dbc);                                      
@@ -408,33 +408,33 @@ static void scanscan_verify (void) {
     int r;
     int counter=0;
     for (counter=0; counter<n_experiments; counter++) {
-	struct extra_verify v;
-	v.totalbytes=0;
-	v.rowcounter=0;
-	double prevtime = gettime();
-	DBC *dbc1, *dbc2;
-	r = db->cursor(db, tid, &dbc1, 0);                           assert(r==0);
-	r = db->cursor(db, tid, &dbc2, 0);                           assert(r==0);
-	memset(&v.k, 0, sizeof(v.k));
-	memset(&v.v, 0, sizeof(v.v));
+        struct extra_verify v;
+        v.totalbytes=0;
+        v.rowcounter=0;
+        double prevtime = gettime();
+        DBC *dbc1, *dbc2;
+        r = db->cursor(db, tid, &dbc1, 0);                           assert(r==0);
+        r = db->cursor(db, tid, &dbc2, 0);                           assert(r==0);
+        memset(&v.k, 0, sizeof(v.k));
+        memset(&v.v, 0, sizeof(v.v));
         u_int32_t f_flags = 0;
         u_int32_t c_get_flags = DB_NEXT;
         if (prelockflag && (counter || prelock)) {
             f_flags     |= lock_flag;
             c_get_flags |= lock_flag;
         }
-	while (1) {
-	    int r1,r2;
-	    r2 = dbc1->c_get(dbc1, &v.k, &v.v, c_get_flags);
-	    r1 = dbc2->c_getf_next(dbc2, f_flags, checkbytes, &v);
-	    assert(r1==r2);
-	    if (r1) break;
-	}
-	r = dbc1->c_close(dbc1);                                      assert(r==0);
-	r = dbc2->c_close(dbc2);                                      assert(r==0);
-	double thistime = gettime();
-	double tdiff = thistime-prevtime;
-	printf("verify   %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", v.totalbytes, v.rowcounter, tdiff, 1e-6*v.totalbytes/tdiff);
+        while (1) {
+            int r1,r2;
+            r2 = dbc1->c_get(dbc1, &v.k, &v.v, c_get_flags);
+            r1 = dbc2->c_getf_next(dbc2, f_flags, checkbytes, &v);
+            assert(r1==r2);
+            if (r1) break;
+        }
+        r = dbc1->c_close(dbc1);                                      assert(r==0);
+        r = dbc2->c_close(dbc2);                                      assert(r==0);
+        double thistime = gettime();
+        double tdiff = thistime-prevtime;
+        printf("verify   %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", v.totalbytes, v.rowcounter, tdiff, 1e-6*v.totalbytes/tdiff);
     }
 }
 
