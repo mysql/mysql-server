@@ -2367,7 +2367,12 @@ JOIN::exec()
   List<Item> *curr_all_fields= &all_fields;
   List<Item> *curr_fields_list= &fields_list;
   TABLE *curr_tmp_table= 0;
-  bool tmp_having_used_tables_updated= FALSE;
+  /*
+    curr_join->join_free() will call JOIN::cleanup(full=TRUE). It will not 
+    be safe to call update_used_tables() after that.
+  */
+  if (curr_join->tmp_having)
+    curr_join->tmp_having->update_used_tables();
 
   /*
     Initialize examined rows here because the values from all join parts
@@ -2618,16 +2623,6 @@ JOIN::exec()
       curr_join->select_distinct=0;		/* Each row is unique */
     
 
-    /*
-      curr_join->join_free() will call JOIN::cleanup(full=TRUE). It will not 
-      be safe to call update_used_tables() after that.
-    */
-    if (curr_join->tmp_having)
-    {
-      curr_join->tmp_having->update_used_tables();
-      tmp_having_used_tables_updated= TRUE;
-    }
-
     curr_join->join_free();			/* Free quick selects */
 
     if (curr_join->select_distinct && ! curr_join->group_list)
@@ -2708,9 +2703,6 @@ JOIN::exec()
     if (curr_join->tmp_having && ! curr_join->group_list && 
 	! curr_join->sort_and_group)
     {
-      // Some tables may have been const
-      if (!tmp_having_used_tables_updated)
-        curr_join->tmp_having->update_used_tables();
       JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables];
       table_map used_tables= (curr_join->const_table_map |
 			      curr_table->table->map);

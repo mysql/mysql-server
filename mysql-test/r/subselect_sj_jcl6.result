@@ -2884,6 +2884,20 @@ a	cnt
 1	1
 4	1
 drop table t1, t2;
+#
+# MDEV-4071: Valgrind warnings 'Invalid read' in subselect_engine::calc_const_tables with ...
+#
+CREATE TABLE t1 (b INT, c VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (7,'v'),(0,'s');
+CREATE TABLE t2 (a INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (0),(8);
+SELECT c, SUM( DISTINCT b ) AS sm FROM t1
+WHERE ( 5, 108 ) IN ( SELECT MIN(a), MAX(a) FROM t2 )
+GROUP BY b
+HAVING c <> ( SELECT MAX( c ) FROM t1 )
+ORDER BY sm;
+c	sm
+DROP TABLE t1,t2;
 set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
