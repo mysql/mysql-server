@@ -13325,20 +13325,27 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       else if (((field->type() == MYSQL_TYPE_DATE) ||
 		(field->type() == MYSQL_TYPE_DATETIME)) &&
-		(field->flags & NOT_NULL_FLAG) &&
-	       !field->table->maybe_null)
+		(field->flags & NOT_NULL_FLAG))
       {
-	COND *new_cond;
-	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
-	{
-	  cond=new_cond;
-          /*
-            Item_func_eq can't be fixed after creation so we do not check
-            cond->fixed, also it do not need tables so we use 0 as second
-            argument.
-          */
-	  cond->fix_fields(thd, &cond);
-	}
+	COND *eq_cond;
+	if (!(eq_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
+          return cond;
+	
+        if (field->table->pos_in_table_list->outer_join)
+        {
+          // outer join: transform "col IS NULL" to "col IS NULL or col=0"
+          Item *or_cond= new  Item_cond_or(eq_cond, cond);
+          if (!or_cond)
+            return cond;
+          cond= or_cond;
+        }
+        else
+        {
+          // not outer join: transform "col IS NULL" to "col=0"
+          cond= eq_cond;
+        }
+
+	cond->fix_fields(thd, &cond);
       }
     }
     if (cond->const_item() && !cond->is_expensive())

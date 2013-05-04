@@ -665,4 +665,20 @@ Warning	1292	Incorrect datetime value: '10:19:31'
 Warning	1292	Incorrect datetime value: '22:55:23'
 Warning	1292	Incorrect datetime value: '10:19:31'
 drop table t1;
+# 
+# Semantics of the condition <non-nullable datetime field> IS NULL 
+# when the field belongs to an inner table of an outer join 
+# 
+create table t1 (a int, b date not null);
+insert t1 values (1, 0), (2, '1999-01-02');
+create table t2 (c int);
+insert t2 values (1),(3);
+select * from t2 left join t1 on t1.a=t2.c where t1.a is null;
+c	a	b
+3	NULL	NULL
+select * from t2 left join t1 on t1.a=t2.c where t1.b is null;
+c	a	b
+1	1	0000-00-00
+3	NULL	NULL
+drop table t1,t2;
 End of 5.3 tests
