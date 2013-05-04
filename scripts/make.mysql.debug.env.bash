@@ -1,45 +1,49 @@
 #!/usr/bin/env bash
 
+set -e
+
 function usage() {
-    echo "generate a script that builds a debug mysql from github repo's"
+    echo "build a debug mysql in the current directory"
+    echo "with default parameters it builds a debug $mysql-$mysql_tree"
     echo "--git_tag=$git_tag"
-    echo "--mysql=$mysql --mysql_branch=$mysql_branch"
-    echo "--ftengine=$ftengine --ftengine_branch=$ftengine_branch"
-    echo "--ftindex=$ftindex --ftindex_branch=$ftindex_branch"
-    echo "--jemalloc=$jemalloc --jemalloc_branch=$jemalloc_branch"
-    echo "--backup=$backup --backup_branch=$backup_branch"
-    echo "--install_dir=$install_dir"
+    echo "--mysql=$mysql --mysql_tree=$mysql_tree"
+    echo "--ftengine=$ftengine --ftengine_tree=$ftengine_tree"
+    echo "--ftindex=$ftindex --ftindex_tree=$ftindex_tree"
+    echo "--jemalloc=$jemalloc --jemalloc_tree=$jemalloc_tree"
+    echo "--backup=$backup --backup_tree=$backup_tree"
+    echo "--cc=$cc --cxx=$cxx"
 }
 
 function github_clone() {
-    local repo=$1; local branch=$2
-    echo git clone git@github.com:Tokutek/$repo
-    echo 'if [ $? != 0 ] ; then exit 1; fi'
-    echo pushd $repo
-    echo 'if [ $? != 0 ] ; then exit 1; fi'
+    local repo=$1; local tree=$2
+    git clone git@github.com:Tokutek/$repo
+    if [ $? != 0 ] ; then exit 1; fi
+    pushd $repo
+    if [ $? != 0 ] ; then exit 1; fi
     if [ -z $git_tag ] ; then
-        echo git checkout $branch
+        git checkout $tree
     else
-        echo git checkout $git_tag
+        git checkout $git_tag
     fi
-    echo 'if [ $? != 0 ] ; then exit 1; fi'
-    echo popd
+    if [ $? != 0 ] ; then exit 1; fi
+    popd
 }
 
 shopt -s compat31 2>/dev/null
 
 git_tag=
 mysql=mysql
-mysql_branch=5.5.30
+mysql_tree=5.5.30
 jemalloc=jemalloc
-jemalloc_branch=3.3.1
+jemalloc_tree=3.3.1
 ftengine=ft-engine
-ftengine_branch=master
+ftengine_tree=master
 ftindex=ft-index
-ftindex_branch=master
+ftindex_tree=master
 backup=backup-community
-backup_branch=master
-install_dir=mysql
+backup_tree=master
+cc=gcc47
+cxx=g++47
 
 while [ $# -ne 0 ] ; do
     arg=$1; shift
@@ -50,70 +54,64 @@ while [ $# -ne 0 ] ; do
     fi
 done
 
-echo '# setup environment variables'
-echo install_dir=\$PWD/$install_dir
-echo mkdir \$install_dir-build \$install_dir
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo cd \$install_dir-build
+# setup environment variables
+install_dir=$PWD/$mysql-install
+mkdir $install_dir
+if [ $? != 0 ] ; then exit 1; fi
 
-echo '# checkout the fractal tree'
-github_clone $ftindex $ftindex_branch
-github_clone $jemalloc $jemalloc_branch
-echo pushd $ftindex/third_party
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo ln -s ../../$jemalloc $jemalloc
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo popd
+# checkout the fractal tree
+github_clone $ftindex $ftindex_tree
+github_clone $jemalloc $jemalloc_tree
+pushd $ftindex/third_party
+if [ $? != 0 ] ; then exit 1; fi
+ln -s ../../$jemalloc $jemalloc
+if [ $? != 0 ] ; then exit 1; fi
+popd
 
-echo '# checkout mysql'
-github_clone $mysql $mysql_branch
+# checkout mysql'
+github_clone $mysql $mysql_tree
 
-echo '# checkout the community backup'
-github_clone $backup $backup_branch
+# checkout the community backup
+github_clone $backup $backup_tree
 
-echo '# checkout the tokudb handlerton'
-github_clone $ftengine $ftengine_branch
+# checkout the tokudb handlerton
+github_clone $ftengine $ftengine_tree
 
-echo '# setup links'
-echo pushd $ftengine/storage/tokudb
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo ln -s ../../../$ftindex ft-index
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo popd
-echo pushd $mysql/storage
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo ln -s ../../$ftengine/storage/tokudb tokudb
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo popd
-echo pushd $mysql
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo ln -s ../$backup/backup toku_backup
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo popd
-echo pushd $mysql/scripts
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo ln ../../$ftengine/scripts/tokustat.py
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo ln ../../$ftengine/scripts/tokufilecheck.py
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo popd
+# setup links'
+pushd $ftengine/storage/tokudb
+if [ $? != 0 ] ; then exit 1; fi
+ln -s ../../../$ftindex ft-index
+if [ $? != 0 ] ; then exit 1; fi
+popd
+pushd $mysql/storage
+if [ $? != 0 ] ; then exit 1; fi
+ln -s ../../$ftengine/storage/tokudb tokudb
+if [ $? != 0 ] ; then exit 1; fi
+popd
+pushd $mysql
+if [ $? != 0 ] ; then exit 1; fi
+ln -s ../$backup/backup toku_backup
+if [ $? != 0 ] ; then exit 1; fi
+popd
+pushd $mysql/scripts
+if [ $? != 0 ] ; then exit 1; fi
+ln ../../$ftengine/scripts/tokustat.py
+if [ $? != 0 ] ; then exit 1; fi
+ln ../../$ftengine/scripts/tokufilecheck.py
+if [ $? != 0 ] ; then exit 1; fi
+popd
 
-echo '# build in the mysql directory'
-echo cd $mysql
-echo mkdir build.debug
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-echo cd build.debug
-echo CC=gcc47 CXX=g++47 cmake .. -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=\$install_dir -DBUILD_TESTING=OFF
-echo 'if [ $? != 0 ] ; then exit 1; fi'
+# build in the mysql directory
+mkdir $mysql/build.debug
+if [ $? != 0 ] ; then exit 1; fi
+pushd $mysql/build.debug
+if [ $? != 0 ] ; then exit 1; fi
+CC=$cc CXX=$cxx cmake .. -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF
+if [ $? != 0 ] ; then exit 1; fi
+make -j4 install
+if [ $? != 0 ] ; then exit 1; fi
+popd
 
-echo '# install'
-echo make -j4 install
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-
-echo '# create a var directory so mysql does not complain'
-echo 'cd $install_dir'
-echo 'if [ $? != 0 ] ; then exit 1; fi'
-
-echo '# install the databases in msyql'
-echo scripts/mysql_install_db --defaults-file=\$HOME/my.cnf
-echo 'if [ $? != 0 ] ; then exit 1; fi'
+pushd $install_dir
+scripts/mysql_install_db --defaults-file=$HOME/$(whoami).cnf
+popd
