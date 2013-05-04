@@ -2866,6 +2866,24 @@ field1
 o
 o
 DROP TABLE t1, t2;
+#
+# MDEV-389: Wrong result (missing row) with semijoin, join_cache_level>4, LEFT JOIN...
+#  (testcase only)
+#
+SET join_cache_level = 5;
+SET optimizer_switch = 'semijoin=on';
+CREATE TABLE t1 (a INT NOT NULL, b CHAR(1), KEY(a)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4,'p'),(1,'q'),(8,'e');
+CREATE TABLE t2 (c INT, d CHAR(1), KEY(c), KEY(d)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,'f'),(2,'i'),(5,'h'),(3,'q'),(1,'g');
+SELECT a, COUNT(*) AS cnt 
+FROM t1 LEFT JOIN t2 ON (d = b) 
+WHERE a IN ( SELECT c FROM t2 WHERE b > 'k' ) 
+GROUP BY a ORDER BY a, cnt LIMIT 2;
+a	cnt
+1	1
+4	1
+drop table t1, t2;
 set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
