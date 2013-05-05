@@ -1622,4 +1622,21 @@ ORDER BY t1.b;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug mdev-4336: LEFT JOIN with disjunctive 
+--echo #                <non-nullable datetime field> IS NULL in WHERE 
+--echo #                causes a hang and eventual crash   
+--echo #
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL,
+  modified datetime NOT NULL,
+  PRIMARY KEY (id)
+);
+
+SELECT a.* FROM t1 a LEFT JOIN t1 b ON a.id = b.id 
+  WHERE a.modified > b.modified or b.modified IS NULL;
+
+DROP TABLE t1;
+
 SET optimizer_switch=@save_optimizer_switch;
