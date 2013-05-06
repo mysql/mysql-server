@@ -2292,16 +2292,15 @@ func_exit:
 	return(ret);
 }
 
-/***************************************************************//**
-This function checks the consistency of an index page.
-@return	TRUE if ok */
+/** Check the consistency of an index B-tree page.
+@param[in]	uncompressed B-tree page
+@param[in]	B-tree index
+@return	true if ok */
 UNIV_INTERN
-ibool
+bool
 page_validate(
-/*==========*/
-	const page_t*	page,	/*!< in: index page */
-	dict_index_t*	index)	/*!< in: data dictionary index containing
-				the page record type definition */
+	const page_t*		page,
+	const dict_index_t*	index)
 {
 	const page_dir_slot_t*	slot;
 	mem_heap_t*		heap;
@@ -2315,7 +2314,7 @@ page_validate(
 	const rec_t*		old_rec		= NULL;
 	ulint			offs;
 	ulint			n_slots;
-	ibool			ret		= FALSE;
+	bool			ret		= false;
 	ulint			i;
 	ulint*			offsets		= NULL;
 	ulint*			old_offsets	= NULL;
@@ -2577,12 +2576,12 @@ n_owned_zero:
 		goto func_exit;
 	}
 
-	ret = TRUE;
+	ret = true;
 
 func_exit:
 	mem_heap_free(heap);
 
-	if (UNIV_UNLIKELY(ret == FALSE)) {
+	if (UNIV_UNLIKELY(!ret)) {
 func_exit2:
 		fprintf(stderr,
 			"InnoDB: Apparent corruption"

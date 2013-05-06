@@ -1107,16 +1107,16 @@ ibool
 page_simple_validate_new(
 /*=====================*/
 	const page_t*	page);	/*!< in: index page in ROW_FORMAT!=REDUNDANT */
-/***************************************************************//**
-This function checks the consistency of an index page.
-@return	TRUE if ok */
+/** Check the consistency of an index B-tree page.
+@param[in]	uncompressed B-tree page
+@param[in]	B-tree index
+@return	true if ok */
 UNIV_INTERN
-ibool
+bool
 page_validate(
-/*==========*/
-	const page_t*	page,	/*!< in: index page */
-	dict_index_t*	index);	/*!< in: data dictionary index containing
-				the page record type definition */
+	const page_t*		page,
+	const dict_index_t*	index)
+	__attribute__((nonnull, warn_unused_result));
 /***************************************************************//**
 Looks in the page record list for a record with the given heap number.
 @return	record, NULL if not found */

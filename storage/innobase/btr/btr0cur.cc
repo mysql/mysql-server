@@ -3805,7 +3805,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		matched_bytes;
 	ib_uint64_t*	n_diff;
 	ib_uint64_t*	n_not_null;
-	ibool		stats_null_not_equal;
+	bool		stats_null_not_equal;
 	ullint		n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
@@ -3842,11 +3842,11 @@ btr_estimate_number_of_different_key_vals(
 	case SRV_STATS_NULLS_UNEQUAL:
 		/* for both SRV_STATS_NULLS_IGNORED and SRV_STATS_NULLS_UNEQUAL
 		case, we will treat NULLs as unequal value */
-		stats_null_not_equal = TRUE;
+		stats_null_not_equal = true;
 		break;
 
 	case SRV_STATS_NULLS_EQUAL:
-		stats_null_not_equal = FALSE;
+		stats_null_not_equal = false;
 		break;
 
 	default:

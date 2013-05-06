@@ -143,24 +143,27 @@ cmp_dfield_dfield_like_substr(
 		(byte*) dfield_get_data(dfield2),
 		dfield_get_len(dfield2)));
 }
-/*************************************************************//**
-This function is used to compare two physical records. Only the common
-first fields are compared.
-@return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than
-rec2; only the common first fields are compared */
+
+/** Compare two B-tree records.
+Only the common first fields are compared, and externally stored field
+are treated as equal.
+@param[in]	rec1		B-tree record
+@param[in]	rec2		B-tree record
+@param[in]	offsets1	rec_get_offsets(rec1, index)
+@param[in]	offsets2	rec_get_offsets(rec2, index)
+@return 1, 0, -1 if rec1 is greater, equal, less, respectively, than rec2 */
 UNIV_INLINE
 int
 cmp_rec_rec(
-/*========*/
-	const rec_t*	rec1,	/*!< in: physical record */
-	const rec_t*	rec2,	/*!< in: physical record */
-	const ulint*	offsets1,/*!< in: rec_get_offsets(rec1, index) */
-	const ulint*	offsets2,/*!< in: rec_get_offsets(rec2, index) */
-	dict_index_t*	index)	/*!< in: data dictionary index */
+	const rec_t*		rec1,
+	const rec_t*		rec2,
+	const ulint*		offsets1,
+	const ulint*		offsets2,
+	const dict_index_t*	index)
 {
 	ulint	match_f		= 0;
 	ulint	match_b		= 0;
 
 	return(cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index,
-				      FALSE, &match_f, &match_b));
+				      false, &match_f, &match_b));
 }
