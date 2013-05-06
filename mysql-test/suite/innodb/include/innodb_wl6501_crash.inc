@@ -13,7 +13,7 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-# supress expected warnings.
+# suppress expected warnings.
 call mtr.add_suppression("The file '.*' already exists though the corresponding table did not exist in the InnoDB data dictionary");
 call mtr.add_suppression("Cannot create file '.*'");
 call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
