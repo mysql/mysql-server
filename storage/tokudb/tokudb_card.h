@@ -76,25 +76,24 @@ namespace tokudb {
         return false;
     }
 
+    // Altered table cardinality = select cardinality data from current table cardinality for keys that exist 
+    // in the altered table and the current table.
     void set_card_from_status(DB *status_db, DB_TXN *txn, TABLE_SHARE *table_share, TABLE_SHARE *altered_table_share) {
         int error;
-
         // read existing cardinality data from status
         uint64_t rec_per_key[table_share->key_parts];
         error = get_card_from_status(status_db, txn, table_share->key_parts, rec_per_key);
-
+        // set altered records per key to unknown
         uint64_t altered_rec_per_key[altered_table_share->key_parts];
         for (uint i = 0; i < altered_table_share->key_parts; i++)
             altered_rec_per_key[i] = 0;
-
-        // compute the beginning of the key offsets
+        // compute the beginning of the key offsets in the original table
         uint orig_key_offset[table_share->keys];
         uint orig_key_parts = 0;
         for (uint i = 0; i < table_share->keys; i++) {
             orig_key_offset[i] = orig_key_parts;
             orig_key_parts += table_share->key_info[i].key_parts;
         }
-
         // if orig card data exists, then use it to compute new card data
         if (error == 0) {
             uint key_parts = 0;
@@ -123,6 +122,7 @@ namespace tokudb {
         uint64_t rows = 0;
         uint64_t unique_rows[num_key_parts];
         if (is_unique && num_key_parts == 1) {
+            // dont compute for unique keys with a single part.  we already know the answer.
             rows = unique_rows[0] = 1;
         } else {
             DBC *cursor = NULL;
