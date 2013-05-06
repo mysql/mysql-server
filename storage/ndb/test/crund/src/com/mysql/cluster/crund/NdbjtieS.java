@@ -17,6 +17,19 @@
 
 package com.mysql.cluster.crund;
 
+import java.util.Properties;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.CharBuffer;
+import java.nio.IntBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CoderResult;
+import java.nio.charset.CharacterCodingException;
+
 import com.mysql.ndbjtie.ndbapi.Ndb_cluster_connection;
 import com.mysql.ndbjtie.ndbapi.Ndb;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
@@ -31,20 +44,13 @@ import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
 import com.mysql.ndbjtie.ndbapi.NdbRecAttr;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.CharBuffer;
-import java.nio.IntBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CoderResult;
-import java.nio.charset.CharacterCodingException;
+import com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode;
+import com.mysql.ndbjtie.ndbapi.NdbTransaction.ExecType;
+import com.mysql.ndbjtie.ndbapi.NdbOperationConst.AbortOption;
 
+import com.mysql.cluster.crund.CrundDriver.XMode;
 
-class NdbjtieTwsLoad extends TwsLoad {
-
+class NdbjtieS extends CrundSLoad {
     // NDB settings
     protected String mgmdConnect;
     protected String catalog;
@@ -57,7 +63,7 @@ class NdbjtieTwsLoad extends TwsLoad {
     protected int ndbOpLockMode;
 
     // NDB JTie metadata resources
-    protected TableConst table_t0;
+    protected TableConst table_s;
     protected ColumnConst column_c0;
     protected ColumnConst column_c1;
     protected ColumnConst column_c2;
@@ -119,7 +125,7 @@ class NdbjtieTwsLoad extends TwsLoad {
         csDecoder = cs.newDecoder();
         csEncoder = cs.newEncoder();
 
-        // report any unclean transcodings
+        // report unclean transcodings
         csEncoder
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT);
@@ -128,7 +134,7 @@ class NdbjtieTwsLoad extends TwsLoad {
             .onUnmappableCharacter(CodingErrorAction.REPORT);
     }
 
-    public NdbjtieTwsLoad(TwsDriver driver) {
+    public NdbjtieS(CrundDriver driver) {
         super(driver);
     }
 
@@ -142,17 +148,18 @@ class NdbjtieTwsLoad extends TwsLoad {
 
         final StringBuilder msg = new StringBuilder();
         final String eol = System.getProperty("line.separator");
+        final Properties props = driver.props;
 
         // the hostname and port number of NDB mgmd
-        mgmdConnect = driver.props.getProperty("ndb.mgmdConnect", "localhost");
+        mgmdConnect = props.getProperty("ndb.mgmdConnect", "localhost");
         assert mgmdConnect != null;
 
         // the database
-        catalog = driver.props.getProperty("ndb.catalog", "crunddb");
+        catalog = props.getProperty("ndb.catalog", "crunddb");
         assert catalog != null;
 
         // the schema
-        schema = driver.props.getProperty("ndb.schema", "def");
+        schema = props.getProperty("ndb.schema", "def");
         assert schema != null;
 
         if (msg.length() == 0) {
@@ -162,8 +169,7 @@ class NdbjtieTwsLoad extends TwsLoad {
             out.print(msg.toString());
         }
 
-        // have mgmdConnect initialized first
-        descr = "ndbjtie(" + mgmdConnect + ")";
+        name = "->ndbjtie"; // shortcut will do, "(" + mgmdConnect + ")";
     }
 
     protected void printProperties() {
@@ -252,23 +258,21 @@ class NdbjtieTwsLoad extends TwsLoad {
         }
         out.println("      [ok: " + catalog + "." + schema + "]");
 
-        initNdbjtieModel();
-
-        initNdbjtieBuffers();
+        initModel();
 
         out.print("using lock mode for reads ...");
         out.flush();
         final String lm;
         switch (driver.lockMode) {
-        case READ_COMMITTED:
+        case none:
             ndbOpLockMode = NdbOperation.LockMode.LM_CommittedRead;
             lm = "LM_CommittedRead";
             break;
-        case SHARED:
+        case shared:
             ndbOpLockMode = NdbOperation.LockMode.LM_Read;
             lm = "LM_Read";
             break;
-        case EXCLUSIVE:
+        case exclusive:
             ndbOpLockMode = NdbOperation.LockMode.LM_Exclusive;
             lm = "LM_Exclusive";
             break;
@@ -286,9 +290,7 @@ class NdbjtieTwsLoad extends TwsLoad {
         out.println();
         out.println("releasing ndbjtie resources ...");
 
-        closeNdbjtieBuffers();
-
-        closeNdbjtieModel();
+        closeModel();
 
         out.print("closing database connection ...");
         out.flush();
@@ -297,9 +299,16 @@ class NdbjtieTwsLoad extends TwsLoad {
         out.println(" [ok]");
     }
 
-    protected void initNdbjtieModel() {
+    public void clearData() {
+        out.print("deleting all rows ...");
+        out.flush();
+        final int d = delByScan(table_s);
+        out.println("           [S: " + d + "]");
+    }
+
+    protected void initModel() {
         assert (ndb != null);
-        assert (table_t0 == null);
+        assert (table_s == null);
         assert (column_c0 == null);
 
         out.print("caching metadata ...");
@@ -307,38 +316,39 @@ class NdbjtieTwsLoad extends TwsLoad {
 
         final Dictionary dict = ndb.getDictionary();
 
-        if ((table_t0 = dict.getTable("mytable")) == null)
+        // problems finding table name if upper case
+        if ((table_s = dict.getTable("s")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
 
-        if ((column_c0 = table_t0.getColumn("c0")) == null)
+        if ((column_c0 = table_s.getColumn("c0")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c1 = table_t0.getColumn("c1")) == null)
+        if ((column_c1 = table_s.getColumn("c1")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c2 = table_t0.getColumn("c2")) == null)
+        if ((column_c2 = table_s.getColumn("c2")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c3 = table_t0.getColumn("c3")) == null)
+        if ((column_c3 = table_s.getColumn("c3")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c4 = table_t0.getColumn("c4")) == null)
+        if ((column_c4 = table_s.getColumn("c4")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c5 = table_t0.getColumn("c5")) == null)
+        if ((column_c5 = table_s.getColumn("c5")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c6 = table_t0.getColumn("c6")) == null)
+        if ((column_c6 = table_s.getColumn("c6")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c7 = table_t0.getColumn("c7")) == null)
+        if ((column_c7 = table_s.getColumn("c7")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c8 = table_t0.getColumn("c8")) == null)
+        if ((column_c8 = table_s.getColumn("c8")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c9 = table_t0.getColumn("c9")) == null)
+        if ((column_c9 = table_s.getColumn("c9")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c10 = table_t0.getColumn("c10")) == null)
+        if ((column_c10 = table_s.getColumn("c10")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c11 = table_t0.getColumn("c11")) == null)
+        if ((column_c11 = table_s.getColumn("c11")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c12 = table_t0.getColumn("c12")) == null)
+        if ((column_c12 = table_s.getColumn("c12")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c13 = table_t0.getColumn("c13")) == null)
+        if ((column_c13 = table_s.getColumn("c13")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
-        if ((column_c14 = table_t0.getColumn("c14")) == null)
+        if ((column_c14 = table_s.getColumn("c14")) == null)
             throw new RuntimeException(toStr(dict.getNdbError()));
 
         attr_c0 = column_c0.getColumnNo();
@@ -357,21 +367,21 @@ class NdbjtieTwsLoad extends TwsLoad {
         attr_c13 = column_c13.getColumnNo();
         attr_c14 = column_c14.getColumnNo();
 
-        width_c0 = ndbjtieColumnWidth(column_c0);
-        width_c1 = ndbjtieColumnWidth(column_c1);
-        width_c2 = ndbjtieColumnWidth(column_c2);
-        width_c3 = ndbjtieColumnWidth(column_c3);
-        width_c4 = ndbjtieColumnWidth(column_c4);
-        width_c5 = ndbjtieColumnWidth(column_c5);
-        width_c6 = ndbjtieColumnWidth(column_c6);
-        width_c7 = ndbjtieColumnWidth(column_c7);
-        width_c8 = ndbjtieColumnWidth(column_c8);
-        width_c9 = ndbjtieColumnWidth(column_c9);
-        width_c10 = ndbjtieColumnWidth(column_c10);
-        width_c11 = ndbjtieColumnWidth(column_c11);
-        width_c12 = ndbjtieColumnWidth(column_c12);
-        width_c13 = ndbjtieColumnWidth(column_c13);
-        width_c14 = ndbjtieColumnWidth(column_c14);
+        width_c0 = columnWidth(column_c0);
+        width_c1 = columnWidth(column_c1);
+        width_c2 = columnWidth(column_c2);
+        width_c3 = columnWidth(column_c3);
+        width_c4 = columnWidth(column_c4);
+        width_c5 = columnWidth(column_c5);
+        width_c6 = columnWidth(column_c6);
+        width_c7 = columnWidth(column_c7);
+        width_c8 = columnWidth(column_c8);
+        width_c9 = columnWidth(column_c9);
+        width_c10 = columnWidth(column_c10);
+        width_c11 = columnWidth(column_c11);
+        width_c12 = columnWidth(column_c12);
+        width_c13 = columnWidth(column_c13);
+        width_c14 = columnWidth(column_c14);
 
         width_row = (
             + width_c0
@@ -393,14 +403,12 @@ class NdbjtieTwsLoad extends TwsLoad {
         out.println("            [ok]");
     }
 
-    protected void closeNdbjtieModel() {
+    protected void closeModel() {
         assert (ndb != null);
-        assert (table_t0 != null);
+        assert (table_s != null);
         assert (column_c0 != null);
-
         out.print("clearing metadata cache...");
         out.flush();
-
         column_c14 = null;
         column_c13 = null;
         column_c12 = null;
@@ -416,44 +424,28 @@ class NdbjtieTwsLoad extends TwsLoad {
         column_c2 = null;
         column_c1 = null;
         column_c0 = null;
-
-        table_t0 = null;
-
+        table_s = null;
         out.println("      [ok]");
     }
 
-    public void initNdbjtieBuffers() {
+    public void initBuffers(int nRows) {
         assert (column_c0 != null);
         assert (bb == null);
-
-        out.print("allocating buffers...");
-        out.flush();
-
-        bb = ByteBuffer.allocateDirect(width_row * driver.nRows);
-
-        // initial order of a byte buffer is always BIG_ENDIAN
-        bb.order(bo);
-
-        out.println("           [ok]");
+        bb = ByteBuffer.allocateDirect(width_row * nRows);
+        bb.order(bo); // initial order of a byte buffer is BIG_ENDIAN
     }
 
-    protected void closeNdbjtieBuffers() {
+    protected void closeBuffers() {
         assert (column_c0 != null);
         assert (bb != null);
-
-        out.print("releasing buffers...");
-        out.flush();
-
         bb = null;
-
-        out.println("            [ok]");
     }
 
     static protected String toStr(NdbErrorConst e) {
         return "NdbError[" + e.code() + "]: " + e.message();
     }
 
-    static protected int ndbjtieColumnWidth(ColumnConst c) {
+    static protected int columnWidth(ColumnConst c) {
         int s = c.getSize(); // size of type or of base type
         int al = c.getLength(); // length or max length, 1 for scalars
         int at = c.getArrayType(); // size of length prefix, practically
@@ -462,176 +454,149 @@ class NdbjtieTwsLoad extends TwsLoad {
 
     // ----------------------------------------------------------------------
 
-    public void runOperations() {
-        out.println();
-        out.println("running NDB JTie operations ..."
-                    + " [nRows=" + driver.nRows + "]");
-
-        if (driver.doBulk) {
-            if (driver.doInsert) runNdbjtieInsert(TwsDriver.XMode.BULK);
-            if (driver.doLookup) runNdbjtieLookup(TwsDriver.XMode.BULK);
-            if (driver.doUpdate) runNdbjtieUpdate(TwsDriver.XMode.BULK);
-            if (driver.doDelete) runNdbjtieDelete(TwsDriver.XMode.BULK);
-        }
-        if (driver.doEach) {
-            if (driver.doInsert) runNdbjtieInsert(TwsDriver.XMode.EACH);
-            if (driver.doLookup) runNdbjtieLookup(TwsDriver.XMode.EACH);
-            if (driver.doUpdate) runNdbjtieUpdate(TwsDriver.XMode.EACH);
-            if (driver.doDelete) runNdbjtieDelete(TwsDriver.XMode.EACH);
-        }
-        if (driver.doIndy) {
-            if (driver.doInsert) runNdbjtieInsert(TwsDriver.XMode.INDY);
-            if (driver.doLookup) runNdbjtieLookup(TwsDriver.XMode.INDY);
-            if (driver.doUpdate) runNdbjtieUpdate(TwsDriver.XMode.INDY);
-            if (driver.doDelete) runNdbjtieDelete(TwsDriver.XMode.INDY);
+    protected void runInsert(XMode mode, int[] id) throws Exception {
+        final String name = "S_insAttr_" + mode;
+        final int n = id.length;
+        try {
+            initBuffers(n);
+            driver.beginOp(name);
+            if (mode == XMode.indy) {
+                for(int i = 0; i < n; i++) {
+                    beginTransaction();
+                    insert(id[i]);
+                    commitTransaction();
+                    closeTransaction();
+                }
+            } else {
+                beginTransaction();
+                for(int i = 0; i < n; i++) {
+                    insert(id[i]);
+                    if (mode == XMode.each)
+                        executeOperations();
+                }
+                commitTransaction();
+                closeTransaction();
+            }
+            driver.finishOp(name, n);
+        } finally {
+            closeBuffers();
         }
     }
 
-    // ----------------------------------------------------------------------
-
-    protected void runNdbjtieInsert(TwsDriver.XMode mode) {
-        final String name = "insert_" + mode.toString().toLowerCase();
-        driver.beginOp(name);
-
-        if (mode == TwsDriver.XMode.INDY) {
-            for(int i = 0; i < driver.nRows; i++) {
-                ndbjtieBeginTransaction();
-                ndbjtieInsert(i);
-                ndbjtieCommitTransaction();
-                ndbjtieCloseTransaction();
-            }
-        } else {
-            ndbjtieBeginTransaction();
-            for(int i = 0; i < driver.nRows; i++) {
-                ndbjtieInsert(i);
-
-                if (mode == TwsDriver.XMode.EACH)
-                    ndbjtieExecuteTransaction();
-            }
-            ndbjtieCommitTransaction();
-            ndbjtieCloseTransaction();
-        }
-
-        driver.finishOp(name, driver.nRows);
-    }
-
-    protected void ndbjtieInsert(int c0) {
+    protected void insert(int id) throws Exception {
         // get an insert operation for the table
-        NdbOperation op = tx.getNdbOperation(table_t0);
+        NdbOperation op = tx.getNdbOperation(table_s);
         if (op == null)
             throw new RuntimeException(toStr(tx.getNdbError()));
         if (op.insertTuple() != 0)
             throw new RuntimeException(toStr(tx.getNdbError()));
 
-        // include exception handling as part of transcoding pattern
-        final int i = c0;
+        final int i = id;
         final CharBuffer str = CharBuffer.wrap(Integer.toString(i));
-        try {
-            // set values; key attribute needs to be set first
-            //str.rewind();
-            ndbjtieTranscode(bb, str);
-            if (op.equal(attr_c0, bb) != 0) // key
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c0);
+        // set values; key attribute needs to be set first
+        //str.rewind();
+        transcode(bb, str);
+        if (op.equal(attr_c0, bb) != 0) // key
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c0);
 
-            str.rewind();
-            ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c1, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c1);
+        str.rewind();
+        transcode(bb, str);
+        if (op.setValue(attr_c1, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c1);
 
-            if (op.setValue(attr_c2, i) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        if (op.setValue(attr_c2, i) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c3, i) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        if (op.setValue(attr_c3, i) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            // XXX
-            if (op.setValue(attr_c4, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        // XXX passing null
+        if (op.setValue(attr_c4, null) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            str.rewind();
-            ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c5, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c5);
+        str.rewind();
+        transcode(bb, str);
+        if (op.setValue(attr_c5, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c5);
 
-            str.rewind();
-            ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c6, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c6);
+        str.rewind();
+        transcode(bb, str);
+        if (op.setValue(attr_c6, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c6);
 
-            str.rewind();
-            ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c7, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c7);
+        str.rewind();
+        transcode(bb, str);
+        if (op.setValue(attr_c7, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c7);
 
-            str.rewind();
-            ndbjtieTranscode(bb, str);
-            if (op.setValue(attr_c8, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c8);
+        str.rewind();
+        transcode(bb, str);
+        if (op.setValue(attr_c8, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c8);
 
-            // XXX
-            if (op.setValue(attr_c9, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        // XXX passing nulls
+        if (op.setValue(attr_c9, null) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c10, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        if (op.setValue(attr_c10, null) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c11, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        if (op.setValue(attr_c11, null) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c12, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        if (op.setValue(attr_c12, null) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c13, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        if (op.setValue(attr_c13, null) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c14, null) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-        } catch (CharacterCodingException e) {
-            throw new RuntimeException(e);
-        }
+        if (op.setValue(attr_c14, null) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
     }
 
     // ----------------------------------------------------------------------
 
-    protected void runNdbjtieLookup(TwsDriver.XMode mode) {
-        final String name = "lookup_" + mode.toString().toLowerCase();
-        driver.beginOp(name);
-
-        if (mode == TwsDriver.XMode.INDY) {
-            for(int i = 0; i < driver.nRows; i++) {
-                ndbjtieBeginTransaction();
-                ndbjtieLookup(i);
-                ndbjtieCommitTransaction();
-                ndbjtieRead(i);
-                ndbjtieCloseTransaction();
+    protected void runLookup(XMode mode, int[] id) throws Exception {
+        final String name = "S_getAttr_" + mode;
+        final int n = id.length;
+        try {
+            initBuffers(n);
+            driver.beginOp(name);
+            if (mode == XMode.indy) {
+                for(int i = 0; i < n; i++) {
+                    beginTransaction();
+                    lookup(id[i]);
+                    commitTransaction();
+                    read(id[i]);
+                    closeTransaction();
+                }
+            } else {
+                beginTransaction();
+                for(int i = 0; i < n; i++) {
+                    lookup(id[i]);
+                    if (mode == XMode.each)
+                        executeOperations();
+                }
+                commitTransaction();
+                for(int i = 0; i < n; i++)
+                    read(id[i]);
+                closeTransaction();
             }
-        } else {
-            ndbjtieBeginTransaction();
-            for(int i = 0; i < driver.nRows; i++) {
-                ndbjtieLookup(i);
-
-                if (mode == TwsDriver.XMode.EACH)
-                    ndbjtieExecuteTransaction();
-            }
-            ndbjtieCommitTransaction();
-            for(int i = 0; i < driver.nRows; i++) {
-                ndbjtieRead(i);
-            }
-            ndbjtieCloseTransaction();
+            driver.finishOp(name, n);
+        } finally {
+            closeBuffers();
         }
-
-        driver.finishOp(name, driver.nRows);
     }
 
-    protected void ndbjtieLookup(int c0) {
+    protected void lookup(int id) throws Exception {
         // get a lookup operation for the table
-        NdbOperation op = tx.getNdbOperation(table_t0);
+        NdbOperation op = tx.getNdbOperation(table_s);
         if (op == null)
             throw new RuntimeException(toStr(tx.getNdbError()));
         if (op.readTuple(ndbOpLockMode) != 0)
@@ -639,18 +604,13 @@ class NdbjtieTwsLoad extends TwsLoad {
 
         int p = bb.position();
 
-        // include exception handling as part of transcoding pattern
-        final CharBuffer str = CharBuffer.wrap(Integer.toString(c0));
-        try {
-            // set values; key attribute needs to be set first
-            //str.rewind();
-            ndbjtieTranscode(bb, str);
-            if (op.equal(attr_c0, bb) != 0) // key
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(p += width_c0);
-        } catch (CharacterCodingException e) {
-            throw new RuntimeException(e);
-        }
+        final CharBuffer str = CharBuffer.wrap(Integer.toString(id));
+        // set values; key attribute needs to be set first
+        //str.rewind();
+        transcode(bb, str);
+        if (op.equal(attr_c0, bb) != 0) // key
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(p += width_c0);
 
         // get attributes (not readable until after commit)
         if (op.getValue(attr_c1, bb) == null)
@@ -697,176 +657,172 @@ class NdbjtieTwsLoad extends TwsLoad {
         bb.position(p += width_c14);
     }
 
-    protected void ndbjtieRead(int c0) {
-        // include exception handling as part of transcoding pattern
-        //final int i = c0;
+    protected void read(int id) throws Exception {
+        //final int i = id;
         //final CharBuffer str = CharBuffer.wrap(Integer.toString(i));
         //assert (str.position() == 0);
 
-        try {
-            int p = bb.position();
-            bb.position(p += width_c0);
+        int p = bb.position();
+        bb.position(p += width_c0);
 
-            // not verifying at this time
-            // (str.equals(ndbjtieTranscode(bb_c1)));
-            // (i == bb_c2.asIntBuffer().get());
-            //CharBuffer y = ndbjtieTranscode(bb);
+        // XXX not verifying at this time
+        // (str.equals(transcode(bb_c1)));
+        // (i == bb_c2.asIntBuffer().get());
+        //CharBuffer y = transcode(bb);
 
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c1);
+        transcode(bb);
+        bb.position(p += width_c1);
 
-            bb.asIntBuffer().get();
-            bb.position(p += width_c2);
-            bb.asIntBuffer().get();
-            bb.position(p += width_c3);
-            bb.asIntBuffer().get();
-            bb.position(p += width_c4);
+        bb.asIntBuffer().get();
+        bb.position(p += width_c2);
+        bb.asIntBuffer().get();
+        bb.position(p += width_c3);
+        bb.asIntBuffer().get();
+        bb.position(p += width_c4);
 
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c5);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c6);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c7);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c8);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c9);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c10);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c11);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c12);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c13);
-            ndbjtieTranscode(bb);
-            bb.position(p += width_c14);
-        } catch (CharacterCodingException e) {
-            throw new RuntimeException(e);
-        }
+        transcode(bb);
+        bb.position(p += width_c5);
+        transcode(bb);
+        bb.position(p += width_c6);
+        transcode(bb);
+        bb.position(p += width_c7);
+        transcode(bb);
+        bb.position(p += width_c8);
+        transcode(bb);
+        bb.position(p += width_c9);
+        transcode(bb);
+        bb.position(p += width_c10);
+        transcode(bb);
+        bb.position(p += width_c11);
+        transcode(bb);
+        bb.position(p += width_c12);
+        transcode(bb);
+        bb.position(p += width_c13);
+        transcode(bb);
+        bb.position(p += width_c14);
     }
 
     // ----------------------------------------------------------------------
 
-    protected void runNdbjtieUpdate(TwsDriver.XMode mode) {
-        final String name = "update_" + mode.toString().toLowerCase();
-        driver.beginOp(name);
-
-        if (mode == TwsDriver.XMode.INDY) {
-            for(int i = 0; i < driver.nRows; i++) {
-                ndbjtieBeginTransaction();
-                ndbjtieUpdate(i);
-                ndbjtieCommitTransaction();
-                ndbjtieCloseTransaction();
+    protected void runUpdate(XMode mode, int[] id) throws Exception {
+        final String name = "S_setAttr_" + mode;
+        final int n = id.length;
+        try {
+            initBuffers(n);
+            driver.beginOp(name);
+            if (mode == XMode.indy) {
+                for(int i = 0; i < n; i++) {
+                    beginTransaction();
+                    update(id[i]);
+                    commitTransaction();
+                    closeTransaction();
+                }
+            } else {
+                beginTransaction();
+                for(int i = 0; i < n; i++) {
+                    update(id[i]);
+                    if (mode == XMode.each)
+                        executeOperations();
+                }
+                commitTransaction();
+                closeTransaction();
             }
-        } else {
-            ndbjtieBeginTransaction();
-            for(int i = 0; i < driver.nRows; i++) {
-                ndbjtieUpdate(i);
-
-                if (mode == TwsDriver.XMode.EACH)
-                    ndbjtieExecuteTransaction();
-            }
-            ndbjtieCommitTransaction();
-            ndbjtieCloseTransaction();
+            driver.finishOp(name, n);
+        } finally {
+            closeBuffers();
         }
-
-        driver.finishOp(name, driver.nRows);
     }
 
-    protected void ndbjtieUpdate(int c0) {
-        final CharBuffer str0 = CharBuffer.wrap(Integer.toString(c0));
-        final int r = -c0;
+    protected void update(int id) throws Exception {
+        final CharBuffer str0 = CharBuffer.wrap(Integer.toString(id));
+        final int r = -id;
         final CharBuffer str1 = CharBuffer.wrap(Integer.toString(r));
 
         // get an update operation for the table
-        NdbOperation op = tx.getNdbOperation(table_t0);
+        NdbOperation op = tx.getNdbOperation(table_s);
         if (op == null)
             throw new RuntimeException(toStr(tx.getNdbError()));
         if (op.updateTuple() != 0)
             throw new RuntimeException(toStr(tx.getNdbError()));
 
-        // include exception handling as part of transcoding pattern
-        try {
-            // set values; key attribute needs to be set first
-            //str0.rewind();
-            ndbjtieTranscode(bb, str0);
-            if (op.equal(attr_c0, bb) != 0) // key
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c0);
+        // set values; key attribute needs to be set first
+        //str0.rewind();
+        transcode(bb, str0);
+        if (op.equal(attr_c0, bb) != 0) // key
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c0);
 
-            //str1.rewind();
-            ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c1, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c1);
+        //str1.rewind();
+        transcode(bb, str1);
+        if (op.setValue(attr_c1, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c1);
 
-            if (op.setValue(attr_c2, r) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        if (op.setValue(attr_c2, r) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            if (op.setValue(attr_c3, r) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        if (op.setValue(attr_c3, r) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
 
-            str1.rewind();
-            ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c5, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c5);
+        str1.rewind();
+        transcode(bb, str1);
+        if (op.setValue(attr_c5, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c5);
 
-            str1.rewind();
-            ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c6, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c6);
+        str1.rewind();
+        transcode(bb, str1);
+        if (op.setValue(attr_c6, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c6);
 
-            str1.rewind();
-            ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c7, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c7);
+        str1.rewind();
+        transcode(bb, str1);
+        if (op.setValue(attr_c7, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c7);
 
-            str1.rewind();
-            ndbjtieTranscode(bb, str1);
-            if (op.setValue(attr_c8, bb) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(bb.position() + width_c8);
-        } catch (CharacterCodingException e) {
-            throw new RuntimeException(e);
-        }
+        str1.rewind();
+        transcode(bb, str1);
+        if (op.setValue(attr_c8, bb) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + width_c8);
     }
 
     // ----------------------------------------------------------------------
 
-    protected void runNdbjtieDelete(TwsDriver.XMode mode) {
-        final String name = "delete_" + mode.toString().toLowerCase();
-        driver.beginOp(name);
-
-        if (mode == TwsDriver.XMode.INDY) {
-            for(int i = 0; i < driver.nRows; i++) {
-                ndbjtieBeginTransaction();
-                ndbjtieDelete(i);
-                ndbjtieCommitTransaction();
-                ndbjtieCloseTransaction();
+    protected void runDelete(XMode mode, int[] id) throws Exception {
+        final String name = "S_del_" + mode;
+        final int n = id.length;
+        try {
+            initBuffers(n);
+            driver.beginOp(name);
+            if (mode == XMode.indy) {
+                for(int i = 0; i < n; i++) {
+                    beginTransaction();
+                    delete(id[i]);
+                    commitTransaction();
+                    closeTransaction();
+                }
+            } else {
+                beginTransaction();
+                for(int i = 0; i < n; i++) {
+                    delete(id[i]);
+                    if (mode == XMode.each)
+                        executeOperations();
+                }
+                commitTransaction();
+                closeTransaction();
             }
-        } else {
-            ndbjtieBeginTransaction();
-            for(int i = 0; i < driver.nRows; i++) {
-                ndbjtieDelete(i);
-
-                if (mode == TwsDriver.XMode.EACH)
-                    ndbjtieExecuteTransaction();
-            }
-            ndbjtieCommitTransaction();
-            ndbjtieCloseTransaction();
+            driver.finishOp(name, n);
+        } finally {
+            closeBuffers();
         }
-
-        driver.finishOp(name, driver.nRows);
     }
 
-    protected void ndbjtieDelete(int c0) {
+    protected void delete(int id) throws Exception {
         // get a delete operation for the table
-        NdbOperation op = tx.getNdbOperation(table_t0);
+        NdbOperation op = tx.getNdbOperation(table_s);
         if (op == null)
             throw new RuntimeException(toStr(tx.getNdbError()));
         if (op.deleteTuple() != 0)
@@ -874,29 +830,85 @@ class NdbjtieTwsLoad extends TwsLoad {
 
         int p = bb.position();
 
-        // include exception handling as part of transcoding pattern
-        final int i = c0;
-        final CharBuffer str = CharBuffer.wrap(Integer.toString(c0));
-        try {
-            // set values; key attribute needs to be set first
-            //str.rewind();
-            ndbjtieTranscode(bb, str);
-            if (op.equal(attr_c0, bb) != 0) // key
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            bb.position(p += width_c0);
-        } catch (CharacterCodingException e) {
-            throw new RuntimeException(e);
-        }
+        final int i = id;
+        final CharBuffer str = CharBuffer.wrap(Integer.toString(id));
+        // set values; key attribute needs to be set first
+        //str.rewind();
+        transcode(bb, str);
+        if (op.equal(attr_c0, bb) != 0) // key
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(p += width_c0);
     }
 
     // ----------------------------------------------------------------------
 
-    protected void ndbjtieBeginTransaction() {
+    protected int delByScan(TableConst table) {
+        beginTransaction();
+
+        // get a full table scan operation (no scan filter defined)
+        final NdbScanOperation op = tx.getNdbScanOperation(table);
+        if (op == null)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+
+        // define a read scan with exclusive locks
+        final int lock_mode = NdbOperation.LockMode.LM_Exclusive;
+        final int scan_flags = 0;
+        final int parallel = 0;
+        final int batch_ = 0;
+        if (op.readTuples(lock_mode, scan_flags, parallel, batch_) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+
+        // start the scan; don't commit yet
+        executeOperations();
+
+        // delete all rows in a given scan
+        int count = 0;
+        int stat;
+        final boolean allowFetch = true; // fetch new batches, opt usage below
+        final boolean forceSend = true; // no send delay for 1-thread app
+        while ((stat = op.nextResult(allowFetch, forceSend)) == 0) {
+            // delete all tuples within a batch
+            do {
+                if (op.deleteCurrentTuple() != 0)
+                    throw new RuntimeException(toStr(tx.getNdbError()));
+                count++;
+            } while ((stat = op.nextResult(!allowFetch, forceSend)) == 0);
+
+            if (stat == 1) {
+                // no more batches
+                break;
+            }
+            if (stat == 2) {
+                // end of current batch, fetch next
+                final int execType = ExecType.NoCommit;
+                final int abortOption = AbortOption.AbortOnError;
+                final int force = 0;
+                if (tx.execute(execType, abortOption, force) != 0
+                    || tx.getNdbError().status() != NdbError.Status.Success)
+                    throw new RuntimeException(toStr(tx.getNdbError()));
+                continue;
+            }
+            throw new RuntimeException("stat == " + stat);
+        }
+        if (stat != 1)
+            throw new RuntimeException("stat == " + stat);
+
+        // close the scan, no harm in delaying/accumulating close()
+        final boolean releaseOp = true;
+        op.close(!forceSend, !releaseOp);
+
+        commitTransaction();
+        closeTransaction();
+        return count;
+    }
+
+    // ----------------------------------------------------------------------
+
+    protected void beginTransaction() {
         assert (tx == null);
-
         // prepare buffer for writing
-        bb.clear();
-
+        if (bb != null)
+            bb.clear();
         // start a transaction
         // must be closed with NdbTransaction.close
         final TableConst table  = null;
@@ -906,9 +918,8 @@ class NdbjtieTwsLoad extends TwsLoad {
             throw new RuntimeException(toStr(ndb.getNdbError()));
     }
 
-    protected void ndbjtieExecuteTransaction() {
+    protected void executeOperations() {
         assert (tx != null);
-
         // execute but don't commit the current transaction
         final int execType = NdbTransaction.ExecType.NoCommit;
         final int abortOption = NdbOperation.AbortOption.AbortOnError;
@@ -918,9 +929,8 @@ class NdbjtieTwsLoad extends TwsLoad {
             throw new RuntimeException(toStr(tx.getNdbError()));
     }
 
-    protected void ndbjtieCommitTransaction() {
+    protected void commitTransaction() {
         assert (tx != null);
-
         // commit the current transaction
         final int execType = NdbTransaction.ExecType.Commit;
         final int abortOption = NdbOperation.AbortOption.AbortOnError;
@@ -928,14 +938,13 @@ class NdbjtieTwsLoad extends TwsLoad {
         if (tx.execute(execType, abortOption, force) != 0
             || tx.getNdbError().status() != NdbError.Status.Success)
             throw new RuntimeException(toStr(tx.getNdbError()));
-
         // prepare buffer for reading
-        bb.rewind();
+        if (bb != null)
+            bb.rewind();
     }
 
-    protected void ndbjtieCloseTransaction() {
+    protected void closeTransaction() {
         assert (tx != null);
-
         // close the current transaction (required after commit, rollback)
         ndb.closeTransaction(tx);
         tx = null;
@@ -943,7 +952,7 @@ class NdbjtieTwsLoad extends TwsLoad {
 
     // ----------------------------------------------------------------------
 
-    protected CharBuffer ndbjtieTranscode(ByteBuffer from)
+    protected CharBuffer transcode(ByteBuffer from)
         throws CharacterCodingException {
         // mark position
         final int p = from.position();
@@ -967,7 +976,7 @@ class NdbjtieTwsLoad extends TwsLoad {
         return to;
     }
 
-    protected void ndbjtieTranscode(ByteBuffer to, CharBuffer from)
+    protected void transcode(ByteBuffer to, CharBuffer from)
         throws CharacterCodingException {
         // mark position
         final int p = to.position();
@@ -990,5 +999,9 @@ class NdbjtieTwsLoad extends TwsLoad {
 
         // reset position
         to.position(p);
+    }
+
+    protected void clearPersistenceContext() {
+        // nothing to do as we're not caching beyond Tx scope
     }
 }
