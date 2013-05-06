@@ -2158,7 +2158,7 @@ static int check_func_bool(THD *thd, struct st_mysql_sys_var *var,
       goto err;
     result= (int) tmp;
   }
-  *(my_bool *) save= -result;
+  *(my_bool *) save= result ? TRUE : FALSE;
   return 0;
 err:
   return 1;
