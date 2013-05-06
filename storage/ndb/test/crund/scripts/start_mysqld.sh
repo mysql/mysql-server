@@ -28,7 +28,8 @@ mkdir -p "$mylogdir"
 user="$(whoami)"
 mycnf="$cwd/../my.cnf"
 myerr="$mylogdir/mysqld.log.err"
-mysock="$mylogdir/mysql.sock"
+mysock="/tmp/mysql.sock"
+#mysock="$mylogdir/mysql.sock"
 
 echo
 echo start mysqld...
