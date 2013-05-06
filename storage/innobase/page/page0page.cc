@@ -705,7 +705,7 @@ page_copy_rec_list_end(
 							 new_page, FALSE)) {
 					ut_error;
 				}
-				ut_ad(page_validate(new_page, index));
+				ut_ad(page_validate(new_block, index));
 				return(NULL);
 			} else {
 				/* The page was reorganized:
@@ -828,7 +828,7 @@ zip_reorganize:
 							  new_page, FALSE))) {
 					ut_error;
 				}
-				ut_ad(page_validate(new_page, index));
+				ut_ad(page_validate(new_block, index));
 				return(NULL);
 			}
 
@@ -2293,31 +2293,31 @@ func_exit:
 }
 
 /** Check the consistency of an index B-tree page.
-@param[in]	uncompressed B-tree page
-@param[in]	B-tree index
+@param[in]	block	buffer block containing B-tree page
+@param[in]	index	B-tree index
 @return	true if ok */
 UNIV_INTERN
 bool
 page_validate(
-	const page_t*		page,
+	const buf_block_t*	block,
 	const dict_index_t*	index)
 {
 	const page_dir_slot_t*	slot;
+	const page_t*		page		= buf_block_get_frame(block);
 	mem_heap_t*		heap;
 	byte*			buf;
 	ulint			count;
 	ulint			own_count;
-	ulint			rec_own_count;
 	ulint			slot_no;
 	ulint			data_size;
 	const rec_t*		rec;
 	const rec_t*		old_rec		= NULL;
-	ulint			offs;
 	ulint			n_slots;
 	bool			ret		= false;
-	ulint			i;
 	ulint*			offsets		= NULL;
 	ulint*			old_offsets	= NULL;
+
+	ut_ad(buf_page_in_file(&block->page));
 
 	if (UNIV_UNLIKELY((ibool) !!page_is_comp(page)
 			  != dict_table_is_comp(index->table))) {
@@ -2371,9 +2371,9 @@ page_validate(
 
 		fprintf(stderr,
 			"InnoDB: Record heap and dir overlap"
-			" on space %lu page %lu index %s, %p, %p\n",
-			(ulong) page_get_space_id(page),
-			(ulong) page_get_page_no(page), index->name,
+			" on page %u:%u index " IB_ID_FMT " (%s), %p, %p\n",
+			block->page.space, block->page.offset,
+			index->id, index->name,
 			page_header_get_ptr(page, PAGE_HEAP_TOP),
 			page_dir_get_nth_slot(page, n_slots - 1));
 
@@ -2414,10 +2414,10 @@ page_validate(
 					      offsets, old_offsets, index))) {
 				fprintf(stderr,
 					"InnoDB: Records in wrong order"
-					" on space %lu page %lu index %s\n",
-					(ulong) page_get_space_id(page),
-					(ulong) page_get_page_no(page),
-					index->name);
+					" on page %u:%u index " IB_ID_FMT
+					" (%s)\n",
+					block->page.space, block->page.offset,
+					index->id, index->name);
 				fputs("\nInnoDB: previous record ", stderr);
 				rec_print_new(stderr, old_rec, old_offsets);
 				fputs("\nInnoDB: record ", stderr);
@@ -2434,15 +2434,15 @@ page_validate(
 			data_size += rec_offs_size(offsets);
 		}
 
-		offs = page_offset(rec_get_start(rec, offsets));
-		i = rec_offs_size(offsets);
+		ulint	offs	= page_offset(rec_get_start(rec, offsets));
+		ulint	i	= rec_offs_size(offsets);
 		if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
 			fputs("InnoDB: record offset out of bounds\n", stderr);
 			goto func_exit;
 		}
 
-		while (i--) {
-			if (UNIV_UNLIKELY(buf[offs + i])) {
+		for (byte* b = buf + offs; i--; ) {
+			if (UNIV_UNLIKELY(*b)) {
 				/* No other record may overlap this */
 
 				fputs("InnoDB: Record overlaps another\n",
@@ -2450,14 +2450,12 @@ page_validate(
 				goto func_exit;
 			}
 
-			buf[offs + i] = 1;
+			*b++ = 1;
 		}
 
-		if (page_is_comp(page)) {
-			rec_own_count = rec_get_n_owned_new(rec);
-		} else {
-			rec_own_count = rec_get_n_owned_old(rec);
-		}
+		ulint	rec_own_count	= page_is_comp(page)
+			? rec_get_n_owned_new(rec)
+			: rec_get_n_owned_old(rec);
 
 		if (UNIV_UNLIKELY(rec_own_count)) {
 			/* This is a record pointed to by a dir slot */
@@ -2478,14 +2476,13 @@ page_validate(
 
 			page_dir_slot_check(slot);
 
-			own_count = 0;
-			if (!page_rec_is_supremum(rec)) {
-				slot_no++;
-				slot = page_dir_get_nth_slot(page, slot_no);
+			if (page_rec_is_supremum(rec)) {
+				break;
 			}
-		}
 
-		if (page_rec_is_supremum(rec)) {
+			own_count = 0;
+			slot = page_dir_get_nth_slot(page, ++slot_no);
+		} else if (page_rec_is_supremum(rec)) {
 			break;
 		}
 
@@ -2495,11 +2492,9 @@ page_validate(
 		rec = page_rec_get_next_const(rec);
 
 		/* set old_offsets to offsets; recycle offsets */
-		{
-			ulint* offs = old_offsets;
-			old_offsets = offsets;
-			offsets = offs;
-		}
+		ulint* offsets2 = old_offsets;
+		old_offsets = offsets;
+		offsets = offsets2;
 	}
 
 	if (page_is_comp(page)) {
@@ -2548,22 +2543,21 @@ n_owned_zero:
 		}
 
 		count++;
-		offs = page_offset(rec_get_start(rec, offsets));
-		i = rec_offs_size(offsets);
+		ulint	offs	= page_offset(rec_get_start(rec, offsets));
+		ulint	i	= rec_offs_size(offsets);
 		if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
 			fputs("InnoDB: record offset out of bounds\n", stderr);
 			goto func_exit;
 		}
 
-		while (i--) {
-
-			if (UNIV_UNLIKELY(buf[offs + i])) {
+		for (byte* b = buf + offs; i--; ) {
+			if (UNIV_UNLIKELY(*b)) {
 				fputs("InnoDB: Record overlaps another"
 				      " in free list\n", stderr);
 				goto func_exit;
 			}
 
-			buf[offs + i] = 1;
+			*b++ = 1;
 		}
 
 		rec = page_rec_get_next_const(rec);
@@ -2585,10 +2579,9 @@ func_exit:
 func_exit2:
 		fprintf(stderr,
 			"InnoDB: Apparent corruption"
-			" in space %lu page %lu index %s\n",
-			(ulong) page_get_space_id(page),
-			(ulong) page_get_page_no(page),
-			index->name);
+			" in page %u:%u index " IB_ID_FMT " (%s)\n",
+			block->page.space, block->page.offset,
+			index->id, index->name);
 		buf_page_print(page, 0, 0);
 	}
 

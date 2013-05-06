@@ -2590,7 +2590,7 @@ ibuf_merge_pages(
 
 	btr_pcur_open_at_rnd_pos(ibuf->index, BTR_SEARCH_LEAF, &pcur, &mtr);
 
-	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
+	ut_ad(page_validate(btr_pcur_get_block(&pcur), ibuf->index));
 
 	if (page_is_empty(btr_pcur_get_page(&pcur))) {
 		/* If a B-tree page is empty, it must be the root page
@@ -2671,7 +2671,7 @@ ibuf_merge_space(
 
 	mem_heap_free(heap);
 
-	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
+	ut_ad(page_validate(btr_pcur_get_block(&pcur), ibuf->index));
 
 	ulint		sum_sizes = 0;
 	ulint		pages[IBUF_MAX_N_PAGES_MERGED];
@@ -3113,7 +3113,7 @@ ibuf_get_volume_buffered(
 
 	rec = btr_pcur_get_rec(pcur);
 	page = page_align(rec);
-	ut_ad(page_validate(page, ibuf->index));
+	ut_ad(page_validate(btr_pcur_get_block(pcur), ibuf->index));
 
 	if (page_rec_is_supremum(rec)) {
 		rec = page_rec_get_prev_const(rec);
@@ -3152,9 +3152,8 @@ ibuf_get_volume_buffered(
 
 		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
-
 		prev_page = buf_block_get_frame(block);
-		ut_ad(page_validate(prev_page, ibuf->index));
+		ut_ad(page_validate(block, ibuf->index));
 	}
 
 #ifdef UNIV_BTR_DEBUG
@@ -3225,9 +3224,9 @@ count_later:
 
 		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
-
 		next_page = buf_block_get_frame(block);
-		ut_ad(page_validate(next_page, ibuf->index));
+
+		ut_ad(page_validate(block, ibuf->index));
 	}
 
 #ifdef UNIV_BTR_DEBUG
@@ -3281,7 +3280,7 @@ ibuf_update_max_tablespace_id(void)
 	btr_pcur_open_at_index_side(
 		false, ibuf->index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
-	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
+	ut_ad(page_validate(btr_pcur_get_block(&pcur), ibuf->index));
 
 	btr_pcur_move_to_prev(&pcur, &mtr);
 
@@ -3412,7 +3411,7 @@ ibuf_get_entry_counter_func(
 {
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX));
-	ut_ad(page_validate(page_align(rec), ibuf->index));
+	ut_ad(page_validate(buf_block_align(rec), ibuf->index));
 
 	if (page_rec_is_supremum(rec)) {
 		/* This is just for safety. The record should be a
@@ -3556,7 +3555,7 @@ ibuf_insert_low(
 	ibuf_mtr_start(&mtr);
 
 	btr_pcur_open(ibuf->index, ibuf_entry, PAGE_CUR_LE, mode, &pcur, &mtr);
-	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
+	ut_ad(page_validate(btr_pcur_get_block(&pcur), ibuf->index));
 
 	/* Find out the volume of already buffered inserts for the same index
 	page */
@@ -4702,12 +4701,11 @@ loop:
 			page_update_max_trx_id(block, page_zip, max_trx_id,
 					       &mtr);
 
-			ut_ad(page_validate(page_align(rec), ibuf->index));
+			ut_ad(page_validate(btr_pcur_get_block(&pcur),
+					    ibuf->index));
 
 			entry = ibuf_build_entry_from_ibuf_rec(
 				&mtr, rec, heap, &dummy_index);
-
-			ut_ad(page_validate(block->frame, dummy_index));
 
 			switch (op) {
 				ibool	success;
