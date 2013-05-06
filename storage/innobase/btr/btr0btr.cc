@@ -2595,8 +2595,8 @@ func_exit:
 #endif
 	MONITOR_INC(MONITOR_INDEX_SPLIT);
 
-	ut_ad(page_validate(buf_block_get_frame(left_block), cursor->index));
-	ut_ad(page_validate(buf_block_get_frame(right_block), cursor->index));
+	ut_ad(page_validate(left_block, cursor->index));
+	ut_ad(page_validate(right_block, cursor->index));
 
 	ut_ad(!rec || rec_offs_validate(rec, cursor->index, *offsets));
 	return(rec);
@@ -2939,7 +2939,7 @@ btr_lift_page_up(
 	    && !dict_table_is_temporary(index->table)) {
 		ibuf_reset_free_bits(father_block);
 	}
-	ut_ad(page_validate(father_page, index));
+	ut_ad(page_validate(father_block, index));
 	ut_ad(btr_check_node_ptr(index, father_block, mtr));
 
 	return(lift_father_up ? block_orig : father_block);
@@ -3081,7 +3081,7 @@ err_exit:
 		goto err_exit;
 	}
 
-	ut_ad(page_validate(merge_page, index));
+	ut_ad(page_validate(merge_block, index));
 
 	max_ins_size = page_get_max_insert_size(merge_page, n_recs);
 
@@ -3097,7 +3097,7 @@ err_exit:
 
 		max_ins_size = page_get_max_insert_size(merge_page, n_recs);
 
-		ut_ad(page_validate(merge_page, index));
+		ut_ad(page_validate(merge_block, index));
 		ut_ad(max_ins_size == max_ins_size_reorg);
 
 		if (data_size > max_ins_size) {
@@ -3247,7 +3247,7 @@ err_exit:
 		}
 	}
 
-	ut_ad(page_validate(merge_page, index));
+	ut_ad(page_validate(merge_block, index));
 	page_zip_validate_if_zip(merge_page_zip, merge_page, index);
 
 	/* Free the file page */
@@ -3961,7 +3961,7 @@ loop:
 
 		ret = false;
 
-	} else if (!page_validate(page, index)) {
+	} else if (!page_validate(block, index)) {
 
 		btr_validate_report1(index, level, block);
 		ret = false;

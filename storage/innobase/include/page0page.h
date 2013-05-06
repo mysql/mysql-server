@@ -1108,13 +1108,13 @@ page_simple_validate_new(
 /*=====================*/
 	const page_t*	page);	/*!< in: index page in ROW_FORMAT!=REDUNDANT */
 /** Check the consistency of an index B-tree page.
-@param[in]	uncompressed B-tree page
-@param[in]	B-tree index
+@param[in]	block	buffer block containing B-tree page
+@param[in]	index	B-tree index
 @return	true if ok */
 UNIV_INTERN
 bool
 page_validate(
-	const page_t*		page,
+	const buf_block_t*	block,
 	const dict_index_t*	index)
 	__attribute__((nonnull, warn_unused_result));
 /***************************************************************//**
