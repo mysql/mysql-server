@@ -89,7 +89,7 @@ foreach my $node (@nodes)
       {
         print "  Copying cluster log from '$file_name' on node $node...\n";
         system 'scp -p '.$config_username.config($node,'host').
-            ':'.$file_name.". $reportdir/\n";
+            ':'.$file_name."* $reportdir/\n";
       }
     }
 }
