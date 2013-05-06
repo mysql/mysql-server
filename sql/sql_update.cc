@@ -633,7 +633,10 @@ int mysql_update(THD *thd,
         if (select && select->skip_record(thd, &skip_record))
         {
           error= 1;
-          table->file->unlock_row();
+          /*
+            Don't try unlocking the row if skip_record reported an error since
+            in this case the transaction might have been rolled back already.
+          */
           break;
         }
         if (!skip_record)
@@ -882,8 +885,17 @@ int mysql_update(THD *thd,
         }
       }
     }
-    else
+    /*
+      Don't try unlocking the row if skip_record reported an error since in
+      this case the transaction might have been rolled back already.
+    */
+    else if (!thd->is_error())
       table->file->unlock_row();
+    else
+    {
+      error= 1;
+      break;
+    }
     thd->get_stmt_da()->inc_current_row_for_warning();
     if (thd->is_error())
     {
