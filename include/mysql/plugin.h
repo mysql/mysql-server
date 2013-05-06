@@ -163,6 +163,7 @@ typedef int (*mysql_show_var_func)(MYSQL_THD, struct st_mysql_show_var*, char *)
 #define PLUGIN_VAR_STR          0x0005
 #define PLUGIN_VAR_ENUM         0x0006
 #define PLUGIN_VAR_SET          0x0007
+#define PLUGIN_VAR_DOUBLE       0x0008
 #define PLUGIN_VAR_UNSIGNED     0x0080
 #define PLUGIN_VAR_THDLOCAL     0x0100 /* Variable is per-connection */
 #define PLUGIN_VAR_READONLY     0x0200 /* Server variable is read only */
@@ -345,6 +346,11 @@ DECLARE_MYSQL_SYSVAR_TYPELIB(name, unsigned long long) = { \
   PLUGIN_VAR_SET | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, &varname, def, typelib }
 
+#define MYSQL_SYSVAR_DOUBLE(name, varname, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, double) = { \
+  PLUGIN_VAR_DOUBLE | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, min, max, blk }
+
 #define MYSQL_THDVAR_BOOL(name, opt, comment, check, update, def) \
 DECLARE_MYSQL_THDVAR_BASIC(name, char) = { \
   PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
@@ -394,6 +400,11 @@ DECLARE_MYSQL_THDVAR_TYPELIB(name, unsigned long) = { \
 DECLARE_MYSQL_THDVAR_TYPELIB(name, unsigned long long) = { \
   PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, -1, def, NULL, typelib }
+
+#define MYSQL_THDVAR_DOUBLE(name, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, double) = { \
+  PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, min, max, blk, NULL }
 
 /* accessor macros */
 
