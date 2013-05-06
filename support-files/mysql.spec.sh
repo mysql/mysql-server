@@ -300,7 +300,6 @@ Obsoletes:      mysql mysql-server mysql-advanced mysql-server-advanced
 Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
 Obsoletes:      MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 Provides:       msqlormysql MySQL MySQL-server MySQL-server-advanced
-Provides:       mysql
 %endif
 
 %description -n MySQL-server%{product_suffix}
@@ -969,35 +968,6 @@ mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
 #software, intelligent advisory services, and full production support with
 #scheduled service packs and more.  Visit www.mysql.com/enterprise for more
 #information."
-
-%preun -n MySQL-server%{product_suffix}
-
-# Which '$1' does this refer to?  Fedora docs have info:
-# " ... a count of the number of versions of the package that are installed.
-#   Action                           Count
-#   Install the first time           1
-#   Upgrade                          2 or higher (depending on the number of versions installed)
-#   Remove last version of package   0 "
-#
-#  http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch09s04s05.html
- 
-if [ $1 = 0 ] ; then
-        # Stop MySQL before uninstalling it
-        if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-                %{_sysconfdir}/init.d/mysql stop > /dev/null
-                # Remove autostart of MySQL
-                # use chkconfig on Enterprise Linux and newer SuSE releases
-                if [ -x /sbin/chkconfig ] ; then
-                        /sbin/chkconfig --del mysql
-                # For older SuSE Linux versions
-                elif [ -x /sbin/insserv ] ; then
-                        /sbin/insserv -r %{_sysconfdir}/init.d/mysql
-                fi
-        fi
-fi
-
-# We do not remove the mysql user since it may still own a lot of
-# database files.
 
 %triggerpostun -n MySQL-server%{product_suffix} --MySQL-server-community
 
