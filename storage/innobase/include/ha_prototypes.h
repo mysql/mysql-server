@@ -583,4 +583,24 @@ innobase_check_identifier_length(
 	const char*	id);	/* in: identifier to check.  it must belong
 				to charset my_charset_filename */
 
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+uint
+innobase_convert_to_system_charset(
+/*===============================*/
+	char*           to,		/* out: converted identifier */
+	const char*     from,		/* in: identifier to convert */
+	ulint           len,		/* in: length of 'to', in bytes */
+	uint*		errors);	/* out: error return */
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+uint
+innobase_convert_to_filename_charset(
+/*=================================*/
+	char*           to,     /* out: converted identifier */
+	const char*     from,   /* in: identifier to convert */
+	ulint           len);   /* in: length of 'to', in bytes */
+
+
 #endif /* HA_INNODB_PROTOTYPES_H */
