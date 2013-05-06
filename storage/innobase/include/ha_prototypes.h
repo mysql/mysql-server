@@ -92,10 +92,19 @@ Converts an identifier from my_charset_filename to UTF-8 charset. */
 uint
 innobase_convert_to_system_charset(
 /*===============================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len);	/* in: length of 'to', in bytes */
+	char*		to,		/* out: converted identifier */
+	const char*	from,		/* in: identifier to convert */
+	ulint		len,		/* in: length of 'to', in bytes */
+        uint*		errors);	/* out: error return */
 
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+uint
+innobase_convert_to_filename_charset(
+/*=================================*/
+        char*           to,     /* out: converted identifier */
+        const char*     from,   /* in: identifier to convert */
+        ulint           len);   /* in: length of 'to', in bytes */
 
 #endif
 #endif
