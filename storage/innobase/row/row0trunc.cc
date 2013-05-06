@@ -130,7 +130,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 	}
 #endif /* UNIV_DEBUG */
 
-	DBUG_EXECUTE_IF("ib_crash_ibd_file_missing",
+	DBUG_EXECUTE_IF("ib_error_trunc_ibd_file_missing",
 			root_page_no = FIL_NULL;);
 
 	if (root_page_no != FIL_NULL) {
@@ -151,7 +151,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		/* Check if the .ibd file is missing. */
 		zip_size = fil_space_get_zip_size(m_table->space);
 
-		DBUG_EXECUTE_IF("ib_crash_ibd_file_missing",
+		DBUG_EXECUTE_IF("ib_error_trunc_ibd_file_missing",
 				zip_size = ULINT_UNDEFINED;);
 
 		if (zip_size == ULINT_UNDEFINED) {
@@ -247,10 +247,11 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 Rollback the transaction and release the index locks.
 
 @param table		table to truncate
-@param trx		transaction covering the TRUNCATE */
+@param trx		transaction covering the TRUNCATE
+@param corrupted	table corrupted status */
 static
 void
-row_truncate_rollback(dict_table_t* table, trx_t* trx)
+row_truncate_rollback(dict_table_t* table, trx_t* trx, bool corrupted)
 {
 	dict_table_x_unlock_indexes(table);
 
@@ -260,7 +261,7 @@ row_truncate_rollback(dict_table_t* table, trx_t* trx)
 
 	trx->error_state = DB_SUCCESS;
 
-	table->corrupted = true;
+	table->corrupted = corrupted;
 }
 
 /**
@@ -830,6 +831,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	ulint	flags = ULINT_UNDEFINED;
 	err = row_truncate_foreign_key_checks(table, trx);
 	if (err != DB_SUCCESS) {
+		trx_rollback_to_savepoint(trx, NULL);
 		return(row_truncate_complete(table, trx, flags, err));
 	}
 
@@ -851,7 +853,10 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 		mutex_exit(&trx->undo_mutex);
 
+		DBUG_EXECUTE_IF("ib_err_trunc_assigning_undo_log",
+				err = DB_ERROR;);
 		if (err != DB_SUCCESS) {
+			trx_rollback_to_savepoint(trx, NULL);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 	}
@@ -884,7 +889,12 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		if (!Tablespace::is_system_tablespace(table->space)) {
 
 			err = row_truncate_prepare(table, &flags);
+
+			DBUG_EXECUTE_IF("ib_err_trunc_preparing_for_truncate",
+					err = DB_ERROR;);
+
 			if (err != DB_SUCCESS) {
+				row_truncate_rollback(table, trx, false);
 				return(row_truncate_complete(
 					table, trx, flags, err));
 			}
@@ -930,7 +940,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		err = SysIndexIterator().for_each(dropIndex);
 
 		if (err != DB_SUCCESS) {
-			row_truncate_rollback(table, trx);
+			row_truncate_rollback(table, trx, true);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 
@@ -975,7 +985,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		err = SysIndexIterator().for_each(createIndex);
 
 		if (err != DB_SUCCESS) {
-			row_truncate_rollback(table, trx);
+			row_truncate_rollback(table, trx, true);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 	}

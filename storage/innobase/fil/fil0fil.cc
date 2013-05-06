@@ -3141,7 +3141,7 @@ fil_prepare_for_truncate(
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(id != TRX_SYS_SPACE);
+	ut_a(!Tablespace::is_system_tablespace(id));
 
 	dberr_t	err = fil_check_pending_operations(
 		id, FIL_OPERATION_TRUNCATE, &space, &path);
