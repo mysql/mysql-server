@@ -10,6 +10,7 @@
 
 SET @debug_save= @@GLOBAL.DEBUG;
 SET GLOBAL rpl_semi_sync_master_timeout= 600000;
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
 
 --disable_query_log
 --disable_result_log
@@ -96,6 +97,7 @@ while ($i < $n)
 --enable_query_log
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
 --sync_slave_with_master
 
 --source include/uninstall_semisync.inc
