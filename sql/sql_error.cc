@@ -185,6 +185,7 @@ MYSQL_ERROR::MYSQL_ERROR()
    m_cursor_name((const char*) NULL, 0, & my_charset_utf8_bin),
    m_message_text(),
    m_sql_errno(0),
+   m_handled(0),
    m_level(MYSQL_ERROR::WARN_LEVEL_ERROR),
    m_mem_root(NULL)
 {
@@ -212,6 +213,7 @@ void MYSQL_ERROR::clear()
   m_cursor_name.length(0);
   m_message_text.length(0);
   m_sql_errno= 0;
+  m_handled= 0;
   m_level= MYSQL_ERROR::WARN_LEVEL_ERROR;
 }
 
@@ -229,6 +231,7 @@ MYSQL_ERROR::MYSQL_ERROR(MEM_ROOT *mem_root)
    m_cursor_name((const char*) NULL, 0, & my_charset_utf8_bin),
    m_message_text(),
    m_sql_errno(0),
+   m_handled(0),
    m_level(MYSQL_ERROR::WARN_LEVEL_ERROR),
    m_mem_root(mem_root)
 {
@@ -267,6 +270,7 @@ MYSQL_ERROR::copy_opt_attributes(const MYSQL_ERROR *cond)
   copy_string(m_mem_root, & m_table_name, & cond->m_table_name);
   copy_string(m_mem_root, & m_column_name, & cond->m_column_name);
   copy_string(m_mem_root, & m_cursor_name, & cond->m_cursor_name);
+  m_handled= cond->m_handled;
 }
 
 void

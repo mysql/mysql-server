@@ -1160,8 +1160,9 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
     MYSQL_ERROR *err;
     while ((err= it++))
     {
-      if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
-          err->get_level() != MYSQL_ERROR::WARN_LEVEL_NOTE)
+      if ((err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
+           err->get_level() != MYSQL_ERROR::WARN_LEVEL_NOTE) ||
+          err->handled())
         continue;
 
       if (ctx->find_handler(thd,
@@ -1170,6 +1171,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
                             err->get_level(),
                             err->get_message_text()))
       {
+        err->mark_handled();
         break;
       }
     }

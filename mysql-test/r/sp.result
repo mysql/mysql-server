@@ -7916,4 +7916,65 @@ DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
 DROP FUNCTION f4;
+
+Stored procedures and a condition handler in a nested procedure call
+doesn't suppress the condition from being passed on to the calling
+procedure
+
+drop procedure if exists p1;
+drop procedure if exists p0;
+create table t1 (id int);
+create procedure p1 () begin
+declare i int default 0;
+declare continue handler for not found begin
+select "You should see this message and the warning that generated this" as "message";
+show warnings;
+end;
+select id into i from t1;
+end$$
+create procedure p0 () begin
+declare continue handler for not found begin
+select "You should NOT see this message" as "message";
+end;
+call p1();
+end$$
+call p0();
+message
+You should see this message and the warning that generated this
+Level	Code	Message
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+drop procedure p1;
+drop procedure p0;
+drop table t1;
+
+Test if stored procedures propagates errors
+
+create table t1 (id int primary key);
+create procedure p1 () begin
+insert into t1 values(1);
+insert into t1 values(2);
+insert into t1 values(2);
+insert into t1 values(3);
+end$$
+create procedure p2 () begin
+declare x int;
+select id into x from t1 where id=5;
+end$$
+call p1();
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+show warnings;
+Level	Code	Message
+Error	1062	Duplicate entry '2' for key 'PRIMARY'
+select * from t1;
+id
+1
+2
+call p2();
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+drop procedure p1;
+drop procedure p2;
+drop table t1;
 # End of 5.5 test
