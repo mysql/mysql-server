@@ -17,6 +17,10 @@
 
 package com.mysql.cluster.crund;
 
+import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.SessionFactory;
 import com.mysql.clusterj.Session;
@@ -26,17 +30,14 @@ import com.mysql.clusterj.annotation.Index;
 import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.annotation.PrimaryKey;
 
-import java.util.Map;
-import java.util.Iterator;
+import com.mysql.cluster.crund.CrundDriver.XMode;
 
-
-class ClusterjTwsLoad extends TwsLoad {
-
+class ClusterjS extends CrundSLoad {
     // ClusterJ resources
     protected SessionFactory sessionFactory;
     protected Session session;
 
-    public ClusterjTwsLoad(TwsDriver driver) {
+    public ClusterjS(CrundDriver driver) {
         super(driver);
     }
 
@@ -62,14 +63,11 @@ class ClusterjTwsLoad extends TwsLoad {
             out.print(msg.toString());
         }
 
-        // have mgmdConnect initialized first
-        descr = "clusterj(" + mgmdConnect + ")";
+        name = "->clusterj"; // shortcut will do, "(" + mgmdConnect + ")";
     }
 
     protected void printProperties() {
-        for (Iterator<Map.Entry<Object,Object>> i
-                 = driver.props.entrySet().iterator(); i.hasNext();) {
-            Map.Entry<Object,Object> e = i.next();
+        for (Map.Entry<Object,Object> e : driver.props.entrySet()) {
             final String k = (String)e.getKey();
             if (k.startsWith("com.mysql.clusterj")) {
                 final StringBuilder s = new StringBuilder("..");
@@ -123,8 +121,24 @@ class ClusterjTwsLoad extends TwsLoad {
         out.println("   [ok]");
 
         out.print("setting session lock mode ...");
-        session.setLockMode(LockMode.valueOf(driver.lockMode.toString()));
-        out.println("   [ok: " + driver.lockMode + "]");
+        out.flush();
+        final LockMode lm;
+        switch (driver.lockMode) {
+        case none:
+            lm = LockMode.READ_COMMITTED;
+            break;
+        case shared:
+            lm = LockMode.SHARED;
+            break;
+        case exclusive:
+            lm = LockMode.EXCLUSIVE;
+            break;
+        default:
+            lm = null;
+            assert false;
+        }
+        session.setLockMode(lm);
+        out.println("   [ok: " + lm + "]");
     }
 
     public void closeConnection() {
@@ -140,55 +154,36 @@ class ClusterjTwsLoad extends TwsLoad {
         out.println("    [ok]");
     }
 
-    // ----------------------------------------------------------------------
-
-    public void runOperations() {
-        out.println();
-        out.println("running ClusterJ operations ..."
-                    + " [nRows=" + driver.nRows + "]");
-
-        if (driver.doBulk) {
-            if (driver.doInsert) runClusterjInsert(TwsDriver.XMode.BULK);
-            //if (driver.doLookup) runClusterjLookup(TwsDriver.XMode.BULK);
-            if (driver.doUpdate) runClusterjUpdate(TwsDriver.XMode.BULK);
-            if (driver.doDelete) runClusterjDelete(TwsDriver.XMode.BULK);
-        }
-        if (driver.doEach) {
-            if (driver.doInsert) runClusterjInsert(TwsDriver.XMode.EACH);
-            if (driver.doLookup) runClusterjLookup(TwsDriver.XMode.EACH);
-            if (driver.doUpdate) runClusterjUpdate(TwsDriver.XMode.EACH);
-            if (driver.doDelete) runClusterjDelete(TwsDriver.XMode.EACH);
-        }
-        if (driver.doIndy) {
-            if (driver.doInsert) runClusterjInsert(TwsDriver.XMode.INDY);
-            if (driver.doLookup) runClusterjLookup(TwsDriver.XMode.INDY);
-            if (driver.doUpdate) runClusterjUpdate(TwsDriver.XMode.INDY);
-            if (driver.doDelete) runClusterjDelete(TwsDriver.XMode.INDY);
-        }
+    public void clearData() {
+        out.print("deleting all objects ...");
+        out.flush();
+        session.currentTransaction().begin();
+        final int d = session.deletePersistentAll(IS.class);
+        session.currentTransaction().commit();
+        out.println("        [S: " + d + "]");
     }
 
     // ----------------------------------------------------------------------
 
-    protected void runClusterjInsert(TwsDriver.XMode mode) {
-        final String name = "insert_" + mode.toString().toLowerCase();
+    protected void runInsert(XMode mode, int[] id) throws Exception {
+        final String name = "S_insAttr_" + mode;
+        final int n = id.length;
         driver.beginOp(name);
-
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy) // indy uses auto-tx mode
             session.currentTransaction().begin();
-        for(int i = 0; i < driver.nRows; i++) {
-            clusterjInsert(i);
-            if (mode == TwsDriver.XMode.EACH)
+        for(int i = 0; i < n; i++) {
+            insert(id[i]);
+            if (mode == XMode.each)
                 session.flush();
         }
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy)
             session.currentTransaction().commit();
-
-        driver.finishOp(name, driver.nRows);
+        driver.finishOp(name, n);
     }
 
-    protected void clusterjInsert(int c0) {
-        final CJSubscriber o = session.newInstance(CJSubscriber.class);
-        final int i = c0;
+    protected void insert(int id) {
+        final IS o = session.newInstance(IS.class);
+        final int i = id;
         final String str = Integer.toString(i);
         //final String oneChar = Integer.toString(1);
         o.setC0(str);
@@ -211,75 +206,87 @@ class ClusterjTwsLoad extends TwsLoad {
 
     // ----------------------------------------------------------------------
 
-    protected void runClusterjLookup(TwsDriver.XMode mode) {
-        assert(mode != TwsDriver.XMode.BULK);
-
-        final String name = "lookup_" + mode.toString().toLowerCase();
+    protected void runLookup(XMode mode, int[] id) throws Exception {
+        final String name = "S_getAttr_" + mode;
+        final int n = id.length;
         driver.beginOp(name);
-
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy) // indy uses auto-tx mode
             session.currentTransaction().begin();
-        for(int i = 0; i < driver.nRows; i++) {
-            clusterjLookup(i);
+        if (mode != XMode.bulk) {
+            for(int i = 0; i < n; i++)
+                lookup(id[i]);
+        } else {
+            lookup(id);
         }
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy)
             session.currentTransaction().commit();
-
-        driver.finishOp(name, driver.nRows);
+        driver.finishOp(name, n);
     }
 
-    protected void clusterjLookup(int c0) {
-        final CJSubscriber o
-            = session.find(CJSubscriber.class, Integer.toString(c0));
-        if (o != null) {
-            // not verifying at this time
-            String ac0 = o.getC0();
-            String c1 = o.getC1();
-            int c2 = o.getC2();
-            int c3 = o.getC3();
-            int c4 = o.getC4();
-            String c5 = o.getC5();
-            String c6 = o.getC6();
-            String c7 = o.getC7();
-            String c8 = o.getC8();
-            String c9 = o.getC9();
-            String c10 = o.getC10();
-            String c11 = o.getC11();
-            String c12 = o.getC12();
-            String c13 = o.getC13();
-            String c14 = o.getC14();
+    protected void lookup(int[] id) {
+        final int n = id.length;
+        final List<IS> os = new ArrayList<IS>(n);
+        for (int i = 0; i < n; i++)
+            os.add(session.newInstance(IS.class, Integer.toString(id[i])));
+        session.load(os);
+        session.flush(); // needed
+        for (int i = 0; i < n; i++) {
+            final IS o = os.get(i);
+            assert o != null;
+            check(id[i], o);
         }
+    }
+
+    protected void lookup(int id) {
+        final IS o = session.find(IS.class, Integer.toString(id));
+        assert o != null;
+        check(id, o);
+    }
+
+    protected void check(int id, IS o) {
+        // XXX not verifying at this time
+        String ac0 = o.getC0();
+        String c1 = o.getC1();
+        int c2 = o.getC2();
+        int c3 = o.getC3();
+        int c4 = o.getC4();
+        String c5 = o.getC5();
+        String c6 = o.getC6();
+        String c7 = o.getC7();
+        String c8 = o.getC8();
+        String c9 = o.getC9();
+        String c10 = o.getC10();
+        String c11 = o.getC11();
+        String c12 = o.getC12();
+        String c13 = o.getC13();
+        String c14 = o.getC14();
     }
 
     // ----------------------------------------------------------------------
 
-    protected void runClusterjUpdate(TwsDriver.XMode mode) {
-        final String name = "update_" + mode.toString().toLowerCase();
+    protected void runUpdate(XMode mode, int[] id) throws Exception {
+        final String name = "S_setAttr_" + mode;
+        final int n = id.length;
         driver.beginOp(name);
-
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy) // indy uses auto-tx mode
             session.currentTransaction().begin();
-        for(int i = 0; i < driver.nRows; i++) {
-            clusterjUpdate(i);
-            if (mode == TwsDriver.XMode.EACH)
+        for(int i = 0; i < n; i++) {
+            update(id[i]);
+            if (mode == XMode.each)
                 session.flush();
         }
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy)
             session.currentTransaction().commit();
-
-        driver.finishOp(name, driver.nRows);
+        driver.finishOp(name, n);
     }
 
-    protected void clusterjUpdate(int c0) {
-        final String str0 = Integer.toString(c0);
-        final int r = -c0;
+    protected void update(int id) {
+        final String str0 = Integer.toString(id);
+        final int r = -id;
         final String str1 = Integer.toString(r);
-
-        // blind update
-        final CJSubscriber o = session.newInstance(CJSubscriber.class);
-        o.setC0(str0);
-        //final CJSubscriber o = session.find(CJSubscriber.class, str0);
         //String oneChar = Integer.toString(2);
+        final IS o = session.newInstance(IS.class); // blind update
+        o.setC0(str0);
         o.setC1(str1);
         o.setC2(r);
         o.setC3(r);
@@ -299,36 +306,34 @@ class ClusterjTwsLoad extends TwsLoad {
 
     // ----------------------------------------------------------------------
 
-    protected void runClusterjDelete(TwsDriver.XMode mode) {
-        final String name = "delete_" + mode.toString().toLowerCase();
+    protected void runDelete(XMode mode, int[] id) throws Exception {
+        final String name = "S_del_" + mode;
+        final int n = id.length;
         driver.beginOp(name);
-
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy) // indy uses auto-tx mode
             session.currentTransaction().begin();
-        for(int i = 0; i < driver.nRows; i++) {
-            clusterjDelete(i);
-            if (mode == TwsDriver.XMode.EACH)
+        for(int i = 0; i < n; i++) {
+            delete(id[i]);
+            if (mode == XMode.each)
                 session.flush();
         }
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy)
             session.currentTransaction().commit();
-
-        driver.finishOp(name, driver.nRows);
+        driver.finishOp(name, n);
     }
 
-    protected void clusterjDelete(int c0) {
-        // XXX use new API for blind delete
-        final CJSubscriber o = session.newInstance(CJSubscriber.class);
-        o.setC0(Integer.toString(c0));
+    protected void delete(int id) {
+        final IS o = session.newInstance(IS.class); // blind delete
+        o.setC0(Integer.toString(id));
         assert o != null;
         session.remove(o);
     }
 
     // ----------------------------------------------------------------------
 
-    @PersistenceCapable(table="mytable")
+    @PersistenceCapable(table="S")
     //@Index(name="c0_UNIQUE")
-    static public interface CJSubscriber {
+    static public interface IS {
         @PrimaryKey
         String getC0();
         void setC0(String c0);
@@ -380,4 +385,9 @@ class ClusterjTwsLoad extends TwsLoad {
         void setC14(String c14);
     }
 
+    // ----------------------------------------------------------------------
+
+    protected void clearPersistenceContext() {
+        // nothing to do as we're not caching beyond Tx scope
+    }
 }

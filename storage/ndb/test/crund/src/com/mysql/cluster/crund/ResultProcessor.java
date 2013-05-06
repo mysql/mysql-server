@@ -20,8 +20,9 @@ package com.mysql.cluster.crund;
 import java.util.Properties;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.TreeMap;
 import java.text.ParseException;
-import java.text.DecimalFormat;
 
 import java.io.FileInputStream;
 import java.io.FileReader;
@@ -32,23 +33,46 @@ import java.io.InputStream;
 
 
 /**
- * This class parses and processes the result files of the Crund benchmark.
+ * Processes the result files of the Crund benchmark.
  */
 public class ResultProcessor {
+    // console
+    static protected final PrintWriter out = new PrintWriter(System.out, true);
+    static protected final PrintWriter err = new PrintWriter(System.err, true);
+
+    // shortcuts
+    static protected final String endl = System.getProperty("line.separator");
+
+    // command-line arguments
+    static private final List<String> ilogFileNames = new ArrayList<String>();
+    static private int nWarmupRuns;
+    static private int largeRSDev;
+
+    // resources
+    protected ResultReporter reporter;
+    protected String[] header;
+    protected int nTxOps;
+    protected int nRuns;
+    protected double[] ravg;
+    protected double[] rdev;
+
+    // ----------------------------------------------------------------------
+    // Reporting
+    // ----------------------------------------------------------------------
 
     /**
-     * This class reports the results of the Crund benchmark.
+     * Reports the results of the Crund benchmark.
      */
     public interface ResultReporter {
 
         /**
          * Reports a data series.
          *
-         * @param	tag	a name for this data series
-         * @param	op	the names of the operations
-         * @param	avg	the average values
-         * @param	avg	the standard deviations
-         * @param	avg	the relative standard deviations
+         * @param       tag     a name for this data series
+         * @param       op      the names of the operations
+         * @param       avg     the average values
+         * @param       sdev    the standard deviations
+         * @param       rsdev   the relative standard deviations
          */
         void report(String tag,
                     int nRuns,
@@ -60,14 +84,9 @@ public class ResultProcessor {
     }
 
     /**
-     * This class reports the results of the Crund benchmark.
+     * Reports the results of the Crund benchmark.
      */
     static public class SimpleResultReporter implements ResultReporter {
-        static protected final DecimalFormat df = new DecimalFormat("#.##");
-
-        /**
-         * 
-         */
         public void report(String tag,
                            int nRuns,
                            int nTxOps,
@@ -76,111 +95,47 @@ public class ResultProcessor {
                            double[] sdev,
                            double[] rsdev) {
             out.println();
-            out.println("tag    = " + tag);
-            out.println("nRuns  = " + nRuns);
-            out.println("nTxOps = " + nTxOps);
-            out.println();
+            out.println("--------------------------------------------------------------------------------");
+            out.println("ops: " + nTxOps + " " + tag
+                        + " (skip " + largeRSDev + " of " + nRuns + " runs)");
+            out.println("--------------------------------------------------------------------------------");
 
             // ops with large deviations
-            final double thres = 10.0;
-            final List<String> problematic = new ArrayList<String>();
+            final Map<Double,String> ldev = new TreeMap<Double,String>();
 
+            out.println();
+            out.println(String.format("%-24s", "op")
+                        + String.format("%12s", "#op/metric")
+                        + String.format("%12s", "avg")
+                        + String.format("%12s", "sdev")
+                        + String.format("%12s", "rsdev"));
             for (int i = 0; i < op.length; i++) {
-                out.println("op     = " + op[i]);
-                out.println("avg    = " + df.format(avg[i]));
-                out.println("sdev   = " + df.format(sdev[i]));
-                out.println("rsdev  = " + df.format(rsdev[i]) + "%");
+                final double a = avg[i];
+                final double opa = (a > 0 ? nTxOps / a : -1);
+                out.println(String.format("%-24s", op[i])
+                            + String.format("%12.2f", opa)
+                            + String.format("%12.2f", avg[i])
+                            + String.format("%12.2f", sdev[i])
+                            + String.format("%11.2f%%", rsdev[i]));
+                if (rsdev[i] > largeRSDev) {
+                    ldev.put(-rsdev[i], op[i]);
+                }
+            }
+
+            if (ldev.size() > 1) {
                 out.println();
-
-                if (rsdev[i] > thres) {
-                    problematic.add(df.format(rsdev[i]) + "%\t" + op[i]);
-                }
-            }
-            
-            if (problematic.size() > 1) {
-                out.println("operations with large deviations:");
-                for (String p : problematic) {
-                    out.println("    " + p);
+                out.println("large deviations:");
+                for (Map.Entry<Double,String> e : ldev.entrySet()) {
+                    out.println(String.format("%8.2f%%\t%s",
+                                              -e.getKey(), e.getValue()));
                 }
             }
         }
     }
 
-    // console
-    static protected final PrintWriter out = new PrintWriter(System.out, true);
-    static protected final PrintWriter err = new PrintWriter(System.err, true);
-
-    // shortcuts
-    static protected final String endl = System.getProperty("line.separator");
-
-    // result processor command-line arguments
-    static private final List<String> propFileNames = new ArrayList<String>();
-    static private final List<String> ilogFileNames = new ArrayList<String>();
-
-    // result processor settings
-    protected final Properties props = new Properties();
-    protected int nWarmupRuns;
-
-    // result processor resources
-    protected ResultReporter reporter;
-    protected String[] header;
-    protected int nTxOps;
-    protected int nRuns;
-    protected double[] ravg;
-    protected double[] rdev;
-
     // ----------------------------------------------------------------------
-    // result processor usage
+    // Processing
     // ----------------------------------------------------------------------
-
-    /**
-     * Prints a command-line usage message and exits.
-     */
-    static protected void exitUsage() {
-        out.println("usage: [options] <log file>...");
-        out.println("    [-p <file name>]...    a properties file name");
-        out.println("    [-h|--help]            print usage message and exit");
-        out.println();
-        System.exit(1); // return an error code
-    }
-
-    /**
-     * Parses the result processor's command-line arguments.
-     */
-    static public void parseArguments(String[] args) {
-        for (int i = 0; i < args.length; i++) {
-            final String arg = args[i];
-            if (arg.equals("-p")) {
-                if (i >= args.length) {
-                    exitUsage();
-                }
-                propFileNames.add(args[++i]);
-            } else if (arg.equals("-h") || arg.equals("--help")) {
-                exitUsage();
-            } else if (arg.startsWith("-")) {
-                out.println("unknown option: " + arg);
-                exitUsage();
-            } else {
-                ilogFileNames.add(args[i]);
-            }
-        }
-
-        if (propFileNames.size() == 0) {
-            propFileNames.add("crundResult.properties");
-        }
-
-        if (ilogFileNames.size() == 0) {
-            out.println("missing input files");
-            exitUsage();
-        }
-    }
-
-    // ----------------------------------------------------------------------
-
-    /**
-     * Creates an instance.
-     */
-    public ResultProcessor() {}
 
     /**
      * Runs the result processor.
@@ -191,9 +146,9 @@ public class ResultProcessor {
 
             for (String fn : ilogFileNames) {
                 out.println();
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-                out.println("reading log file:        " + fn);
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+                out.println("reading log file: " + fn);
+                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
                 BufferedReader ilog = null;
                 try {
@@ -204,7 +159,7 @@ public class ResultProcessor {
                         ilog.close();
                 }
             }
-            
+
             close();
         } catch (Exception ex) {
             // end the program regardless of threads
@@ -296,10 +251,11 @@ public class ResultProcessor {
             }
 
             // parse values
+            long[] val = new long[values.length];
             for (int i = 1; i < values.length; i++) {
                 long l;
                 try {
-                    l = Long.valueOf(values[i]);
+                    val[i] = l = Long.valueOf(values[i]);
                 } catch (NumberFormatException e) {
                     String msg = ("line # " + lineNo
                                   + ": " + e);
@@ -337,92 +293,91 @@ public class ResultProcessor {
 
         reporter.report(tag, nRuns, nTxOps, op, avg, sdev, rsdev);
     }
-    
+
     // ----------------------------------------------------------------------
-    // result processor intializers/finalizers
+    // intializers/finalizers
     // ----------------------------------------------------------------------
 
     // initializes the result processor's resources.
     protected void init() throws Exception {
-        loadProperties();
-        initProperties();
-        printProperties();
         reporter = new SimpleResultReporter();
+        printProperties();
     }
 
     // releases the result processor's resources.
     protected void close() throws Exception {
         reporter = null;
-        props.clear();
-    }
-
-    // loads the result processor's properties from properties files
-    private void loadProperties() throws IOException {
-        out.println();
-        for (String fn : propFileNames) {
-            out.println("reading properties file:        " + fn);
-            InputStream is = null;
-            try {
-                is = new FileInputStream(fn);
-                props.load(is);
-            } finally {
-                if (is != null)
-                    is.close();
-            }
-        }
-    }
-
-    // retrieves a property's value and parses it as a boolean
-    protected boolean parseBoolean(String k, boolean vdefault) {
-        final String v = props.getProperty(k);
-        return (v == null ? vdefault : Boolean.parseBoolean(v));
-    }
-
-    // retrieves a property's value and parses it as a signed decimal integer
-    protected int parseInt(String k, int vdefault) {
-        final String v = props.getProperty(k);
-        try {
-            return (v == null ? vdefault : Integer.parseInt(v));
-        } catch (NumberFormatException e) {
-            final NumberFormatException nfe = new NumberFormatException(
-                "invalid value of property ('" + k + "', '"
-                + v + "').");
-            nfe.initCause(e);
-            throw nfe;
-        }
-    }
-
-    // initializes the result processor properties
-    protected void initProperties() {
-        //props.list(out);
-        out.print("setting properties ...");
-        out.flush();
-
-        final StringBuilder msg = new StringBuilder();
-        final String eol = System.getProperty("line.separator");
-
-        nWarmupRuns = parseInt("nWarmupRuns", 0);
-        if (nWarmupRuns < 0) {
-            msg.append("[ignored] nWarmupRuns:          " + nWarmupRuns + eol);
-            nWarmupRuns = 0;
-        }
-
-        if (msg.length() == 0) {
-            out.println("          [ok]");
-        } else {
-            out.println();
-            out.print(msg.toString());
-        }
     }
 
     // prints the result processor's properties
     protected void printProperties() {
-        out.println();
-        out.println("result processor settings ...");
+        out.println("settings ...");
         out.println("nWarmupRuns:                    " + nWarmupRuns);
     }
 
     // ----------------------------------------------------------------------
+    // usage
+    // ----------------------------------------------------------------------
+
+    // prints command-line usage and exits
+    static protected void exitUsage() {
+        out.println("usage: [options] <log file>...");
+        out.println("    [-w <number>]          skip warmup runs (default 0)");
+        out.println("    [-d <number>]          flag large rsdev (default 10)");
+        out.println("    [-h|--help]            print usage message and exit");
+        out.println();
+        System.exit(1); // return an error code
+    }
+
+    // parses command-line arguments
+    static public void parseArguments(String[] args) {
+        String w = "0";
+        String d = "10";
+        for (int i = 0; i < args.length; i++) {
+            final String arg = args[i];
+            if (arg.equals("-w")) {
+                if (i >= args.length)
+                    exitUsage();
+                w = args[++i];
+            } else if (arg.equals("-d")) {
+                if (i >= args.length)
+                    exitUsage();
+                d = args[++i];
+            } else if (arg.equals("-h") || arg.equals("--help")) {
+                exitUsage();
+            } else if (arg.startsWith("-")) {
+                out.println("unknown option: " + arg);
+                exitUsage();
+            } else {
+                ilogFileNames.add(args[i]);
+            }
+        }
+
+        try {
+            nWarmupRuns = Integer.valueOf(w);
+        } catch (NumberFormatException e) {
+            out.println("not a number: -w '" + w + "'");
+            exitUsage();
+        }
+        if (nWarmupRuns < 0) {
+            out.println("illegal value: -w '" + w + "'");
+            exitUsage();
+        }
+        try {
+            largeRSDev = Integer.valueOf(d);
+        } catch (NumberFormatException e) {
+            out.println("not a number: -d '" + d + "'");
+            exitUsage();
+        }
+        if (largeRSDev < 0) {
+            out.println("illegal value: -d '" + d + "'");
+            exitUsage();
+        }
+        if (ilogFileNames.size() == 0) {
+            out.println("missing input files");
+            exitUsage();
+        }
+    }
 
     static public void main(String[] args) {
         System.out.println("ResultProcessor.main()");

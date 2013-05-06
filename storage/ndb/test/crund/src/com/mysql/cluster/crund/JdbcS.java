@@ -20,11 +20,13 @@ package com.mysql.cluster.crund;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
-class JdbcTwsLoad extends TwsLoad {
+import com.mysql.cluster.crund.CrundDriver.XMode;
 
+class JdbcS extends CrundSLoad {
     // JDBC settings
     protected String jdbcDriver;
     protected String url;
@@ -34,13 +36,18 @@ class JdbcTwsLoad extends TwsLoad {
     // JDBC resources
     protected Class jdbcDriverClass;
     protected Connection connection;
+    protected String sqlIns0;
+    protected String sqlSel0;
+    protected String sqlUpd0;
+    protected String sqlDel0;
+    protected String sqlDelAll;
     protected PreparedStatement ins0;
     protected PreparedStatement sel0;
     protected PreparedStatement upd0;
     protected PreparedStatement del0;
     protected PreparedStatement delAll;
 
-    public JdbcTwsLoad(TwsDriver driver) {
+    public JdbcS(CrundDriver driver) {
         super(driver);
     }
 
@@ -84,8 +91,7 @@ class JdbcTwsLoad extends TwsLoad {
             out.print(msg.toString());
         }
 
-        // have url initialized first
-        descr = "jdbc(" + url + ")";
+        name = "->" + url.substring(0, 10); // shortcut will do
      }
 
     protected void printProperties() {
@@ -186,6 +192,15 @@ class JdbcTwsLoad extends TwsLoad {
         out.println("     [ok]");
     }
 
+    public void clearData() throws SQLException {
+        connection.setAutoCommit(false);
+        out.print("deleting all rows ...");
+        out.flush();
+        final int d = delAll.executeUpdate();
+        connection.commit();
+        out.println("           [S: " + d + "]");
+    }
+
     public void initPreparedStatements() throws SQLException {
         assert (connection != null);
         assert (ins0 == null);
@@ -197,13 +212,13 @@ class JdbcTwsLoad extends TwsLoad {
         out.flush();
         final String lm;
         switch (driver.lockMode) {
-        case READ_COMMITTED:
+        case none:
             lm = "";
             break;
-        case SHARED:
+        case shared:
             lm = " LOCK IN share mode";
             break;
-        case EXCLUSIVE:
+        case exclusive:
             lm = " FOR UPDATE";
             break;
         default:
@@ -215,19 +230,17 @@ class JdbcTwsLoad extends TwsLoad {
         out.print("compiling jdbc statements ...");
         out.flush();
 
-        final String sqlIns0 = "INSERT INTO mytable (c0, c1, c2, c3, c5, c6, c7, c8) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        sqlIns0 = "INSERT INTO S (c0, c1, c2, c3, c5, c6, c7, c8) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        sqlSel0 = "SELECT * FROM S WHERE c0=?" + lm;
+        sqlUpd0 = "UPDATE S SET c1 = ?, c2 = ?, c3 = ?, c5 = ?, c6 = ?, c7 = ?, c8 = ? WHERE c0=?";
+        sqlDel0 = "DELETE FROM S WHERE c0=?";
+        sqlDelAll = "DELETE FROM S";
+
         ins0 = connection.prepareStatement(sqlIns0);
-
-        final String sqlSel0 = ("SELECT * FROM mytable where c0=?" + lm);
         sel0 = connection.prepareStatement(sqlSel0);
-
-        final String sqlUpd0 = "UPDATE mytable SET c1 = ?, c2 = ?, c3 = ?, c5 = ?, c6 = ?, c7 = ?, c8 = ? WHERE c0=?";
         upd0 = connection.prepareStatement(sqlUpd0);
-
-        final String sqlDel0 = "DELETE FROM mytable WHERE c0=?";
         del0 = connection.prepareStatement(sqlDel0);
-
-        delAll = connection.prepareStatement("DELETE FROM mytable");
+        delAll = connection.prepareStatement(sqlDelAll);
 
         out.println("   [ok]");
     }
@@ -241,219 +254,195 @@ class JdbcTwsLoad extends TwsLoad {
 
         out.print("closing jdbc statements ...");
         out.flush();
-
         ins0.close();
         ins0 = null;
-
         sel0.close();
         sel0 = null;
-
         upd0.close();
         upd0 = null;
-
         del0.close();
         del0 = null;
-
         delAll.close();
         delAll = null;
-
         out.println("     [ok]");
     }
 
     // ----------------------------------------------------------------------
 
-    public void runOperations() throws SQLException {
-        out.println();
-        out.println("running JDBC operations ..."
-                    + "     [nRows=" + driver.nRows + "]");
-
-        if (driver.doBulk) {
-            if (driver.doInsert) runJdbcInsert(TwsDriver.XMode.BULK);
-            //if (driver.doLookup) runJdbcLookup(TwsDriver.XMode.BULK);
-            if (driver.doUpdate) runJdbcUpdate(TwsDriver.XMode.BULK);
-            if (driver.doDelete) runJdbcDelete(TwsDriver.XMode.BULK);
-        }
-        if (driver.doEach) {
-            if (driver.doInsert) runJdbcInsert(TwsDriver.XMode.EACH);
-            if (driver.doLookup) runJdbcLookup(TwsDriver.XMode.EACH);
-            if (driver.doUpdate) runJdbcUpdate(TwsDriver.XMode.EACH);
-            if (driver.doDelete) runJdbcDelete(TwsDriver.XMode.EACH);
-        }
-        if (driver.doIndy) {
-            if (driver.doInsert) runJdbcInsert(TwsDriver.XMode.INDY);
-            if (driver.doLookup) runJdbcLookup(TwsDriver.XMode.INDY);
-            if (driver.doUpdate) runJdbcUpdate(TwsDriver.XMode.INDY);
-            if (driver.doDelete) runJdbcDelete(TwsDriver.XMode.INDY);
-        }
-    }
-
-    // ----------------------------------------------------------------------
-
-    protected void runJdbcInsert(TwsDriver.XMode mode) throws SQLException {
-        final String name = "insert_" + mode.toString().toLowerCase();
+    protected void runInsert(XMode mode, int[] id) throws SQLException {
+        final String name = "S_insAttr_" + mode;
+        final int n = id.length;
         driver.beginOp(name);
-
-        connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
-        for(int i = 0; i < driver.nRows; i++) {
-            jdbcInsert(i, mode);
-        }
-        if (mode == TwsDriver.XMode.BULK)
+        connection.setAutoCommit(mode == XMode.indy);
+        for(int i = 0; i < n; i++)
+            insert(mode, id[i]);
+        if (mode == XMode.bulk)
             ins0.executeBatch();
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy)
             connection.commit();
-
-        driver.finishOp(name, driver.nRows);
+        driver.finishOp(name, n);
     }
 
-    protected void jdbcInsert(int c0, TwsDriver.XMode mode) {
-        // include exception handling as part of jdbc pattern
-        try {
-            final int i = c0;
-            final String str = Integer.toString(i);
-            ins0.setString(1, str); // key
-            ins0.setString(2, str);
-            ins0.setInt(3, i);
-            ins0.setInt(4, i);
-            ins0.setString(5, str);
-            ins0.setString(6, str);
-            ins0.setString(7, str);
-            ins0.setString(8, str);
-            if (mode == TwsDriver.XMode.BULK) {
-                ins0.addBatch();
-            } else {
-                int cnt = ins0.executeUpdate();
-                assert (cnt == 1);
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+    protected void insert(XMode mode, int id) throws SQLException {
+        final int i = id;
+        final String str = Integer.toString(i);
+        ins0.setString(1, str); // key
+        ins0.setString(2, str);
+        ins0.setInt(3, i);
+        ins0.setInt(4, i);
+        ins0.setString(5, str);
+        ins0.setString(6, str);
+        ins0.setString(7, str);
+        ins0.setString(8, str);
+        if (mode == XMode.bulk) {
+            ins0.addBatch();
+        } else {
+            int cnt = ins0.executeUpdate();
+            assert (cnt == 1);
         }
     }
 
     // ----------------------------------------------------------------------
 
-    protected void runJdbcLookup(TwsDriver.XMode mode) throws SQLException {
-        assert(mode != TwsDriver.XMode.BULK);
-
-        final String name = "lookup_" + mode.toString().toLowerCase();
+    protected void runLookup(XMode mode, int[] id) throws SQLException {
+        final String name = "S_getAttr_" + mode;
+        final int n = id.length;
         driver.beginOp(name);
-
-        connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
-        for(int i = 0; i < driver.nRows; i++) {
-            jdbcLookup(i);
-        }
-        if (mode != TwsDriver.XMode.INDY)
+        connection.setAutoCommit(mode == XMode.indy);
+        if (mode != XMode.bulk) {
+            for(int i = 0; i < n; i++)
+                lookup(id[i]);
+            if (mode != XMode.indy)
+                connection.commit();
+        } else {
+            lookup(id);
             connection.commit();
-
-        driver.finishOp(name, driver.nRows);
+        }
+        driver.finishOp(name, n);
     }
 
-    protected void jdbcLookup(int c0) {
-        // include exception handling as part of jdbc pattern
-        try {
-            sel0.setString(1, Integer.toString(c0)); // key
-            ResultSet resultSet = sel0.executeQuery();
+    protected void lookup(int[] id) throws SQLException {
+        final int n = id.length;
 
-            if (resultSet.next()) {
-                // not verifying at this time
-                String ac0 = resultSet.getString(1);
-                String c1 = resultSet.getString(2);
-                int c2 = resultSet.getInt(3);
-                int c3 = resultSet.getInt(4);
-                int c4 = resultSet.getInt(5);
-                String c5 = resultSet.getString(6);
-                String c6 = resultSet.getString(7);
-                String c7 = resultSet.getString(8);
-                String c8 = resultSet.getString(9);
-                String c9 = resultSet.getString(10);
-                String c10 = resultSet.getString(11);
-                String c11 = resultSet.getString(12);
-                String c12 = resultSet.getString(13);
-                String c13 = resultSet.getString(14);
-                String c14 = resultSet.getString(15);
-            }
-            assert (!resultSet.next());
+        // use dynamic SQL for generic bulk queries
+        // The mysql jdbc driver requires property allowMultiQueries=true
+        // passed to DriverManager.getConnection() or in URL
+        // jdbc:mysql://localhost/crunddb?allowMultiQueries=true
+        final StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < n; i++)
+            sb.append(sqlSel0.replace("?", "'" + id[i] + "'")).append(";");
+        final String q = sb.toString();
+        final Statement s = connection.createStatement();
 
-            resultSet.close();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+        // allow for multi/single result sets with single/multi rows
+        boolean hasRS = s.execute(q);
+        int i = 0;
+        while (hasRS) {
+            final ResultSet rs = s.getResultSet();
+            while (rs.next())
+                check(id[i++], rs);
+            hasRS = s.getMoreResults();
         }
+        verify(n, i);
+    }
+
+    protected void lookup(int id) throws SQLException {
+        sel0.setString(1, Integer.toString(id)); // key
+        final ResultSet rs = sel0.executeQuery();
+        int i = 0;
+        while (rs.next()) {
+            check(id, rs);
+            i++;
+        }
+        verify(1, i);
+        rs.close();
+    }
+
+    protected void check(int id, ResultSet rs) throws SQLException {
+        // XXX not verifying at this time
+        String ac0 = rs.getString(1);
+        String c1 = rs.getString(2);
+        int c2 = rs.getInt(3);
+        int c3 = rs.getInt(4);
+        int c4 = rs.getInt(5);
+        String c5 = rs.getString(6);
+        String c6 = rs.getString(7);
+        String c7 = rs.getString(8);
+        String c8 = rs.getString(9);
+        String c9 = rs.getString(10);
+        String c10 = rs.getString(11);
+        String c11 = rs.getString(12);
+        String c12 = rs.getString(13);
+        String c13 = rs.getString(14);
+        String c14 = rs.getString(15);
     }
 
     // ----------------------------------------------------------------------
 
-    protected void runJdbcUpdate(TwsDriver.XMode mode) throws SQLException {
-        final String name = "update_" + mode.toString().toLowerCase();
+    protected void runUpdate(XMode mode, int[] id) throws SQLException {
+        final String name = "S_setAttr_" + mode;
+        final int n = id.length;
         driver.beginOp(name);
-
-        connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
-        for(int i = 0; i < driver.nRows; i++) {
-            jdbcUpdate(i, mode);
-        }
-        if (mode == TwsDriver.XMode.BULK)
+        connection.setAutoCommit(mode == XMode.indy);
+        for(int i = 0; i < n; i++)
+            update(mode, id[i]);
+        if (mode == XMode.bulk)
             upd0.executeBatch();
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy)
             connection.commit();
-
-        driver.finishOp(name, driver.nRows);
+        driver.finishOp(name, n);
     }
 
-    protected void jdbcUpdate(int c0, TwsDriver.XMode mode) {
-        final String str0 = Integer.toString(c0);
-        final int r = -c0;
+    protected void update(XMode mode, int id) throws SQLException {
+        final String str0 = Integer.toString(id);
+        final int r = -id;
         final String str1 = Integer.toString(r);
-
-        // include exception handling as part of jdbc pattern
-        try {
-            upd0.setString(1, str1);
-            upd0.setInt(2, r);
-            upd0.setInt(3, r);
-            upd0.setString(4, str1);
-            upd0.setString(5, str1);
-            upd0.setString(6, str1);
-            upd0.setString(7, str1);
-            upd0.setString(8, str0); // key
-            if (mode == TwsDriver.XMode.BULK) {
-                upd0.addBatch();
-            } else {
-                int cnt = upd0.executeUpdate();
-                assert (cnt == 1);
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+        upd0.setString(1, str1);
+        upd0.setInt(2, r);
+        upd0.setInt(3, r);
+        upd0.setString(4, str1);
+        upd0.setString(5, str1);
+        upd0.setString(6, str1);
+        upd0.setString(7, str1);
+        upd0.setString(8, str0); // key
+        if (mode == XMode.bulk) {
+            upd0.addBatch();
+        } else {
+            int cnt = upd0.executeUpdate();
+            assert (cnt == 1);
         }
     }
 
     // ----------------------------------------------------------------------
 
-    protected void runJdbcDelete(TwsDriver.XMode mode) throws SQLException {
-        final String name = "delete_" + mode.toString().toLowerCase();
+    protected void runDelete(XMode mode, int[] id) throws SQLException {
+        final String name = "S_del_" + mode;
+        final int n = id.length;
         driver.beginOp(name);
-
-        connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
-        for(int i = 0; i < driver.nRows; i++) {
-            jdbcDelete(i, mode);
-        }
-        if (mode == TwsDriver.XMode.BULK)
+        connection.setAutoCommit(mode == XMode.indy);
+        for(int i = 0; i < n; i++)
+            delete(mode, id[i]);
+        if (mode == XMode.bulk)
             del0.executeBatch();
-        if (mode != TwsDriver.XMode.INDY)
+        if (mode != XMode.indy)
             connection.commit();
-
-        driver.finishOp(name, driver.nRows);
+        driver.finishOp(name, n);
     }
 
-    protected void jdbcDelete(int c0, TwsDriver.XMode mode) {
-        // include exception handling as part of jdbc pattern
-        try {
-            final String str = Integer.toString(c0);
-            del0.setString(1, str);
-            if (mode == TwsDriver.XMode.BULK) {
-                del0.addBatch();
-            } else {
-                int cnt = del0.executeUpdate();
-                assert (cnt == 1);
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+    protected void delete(XMode mode, int id) throws SQLException {
+        final String str = Integer.toString(id);
+        del0.setString(1, str);
+        if (mode == XMode.bulk) {
+            del0.addBatch();
+        } else {
+            int cnt = del0.executeUpdate();
+            assert (cnt == 1);
         }
+    }
+
+    // ----------------------------------------------------------------------
+
+    protected void clearPersistenceContext() {
+        // nothing to do as we're not caching beyond Tx scope
     }
 }
