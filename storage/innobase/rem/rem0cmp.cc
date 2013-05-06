@@ -1099,32 +1099,32 @@ cmp_rec_rec_simple(
 	return(0);
 }
 
-/*************************************************************//**
-This function is used to compare two physical records. Only the common
-first fields are compared, and if an externally stored field is
-encountered, then 0 is returned.
-@return 1, 0, -1 if rec1 is greater, equal, less, respectively */
+/** Compare two B-tree records.
+Only the common first fields are compared, and externally stored field
+are treated as equal.
+@param[in]	rec1		B-tree record
+@param[in]	rec2		B-tree record
+@param[in]	offsets1	rec_get_offsets(rec1, index)
+@param[in]	offsets2	rec_get_offsets(rec2, index)
+@param[in]	nulls_unequal	true if this is for index cardinality
+statistics estimation, and innodb_stats_method=nulls_unequal
+or innodb_stats_method=nulls_ignored
+@param[in/out]	matched_fields	number of already completely matched fields
+@param[in/out]	matched_bytes	number of already matched bytes
+within the first field not completely matched
+@return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than
+rec2; only the common first fields are compared */
 UNIV_INTERN
 int
 cmp_rec_rec_with_match(
-/*===================*/
-	const rec_t*	rec1,	/*!< in: physical record */
-	const rec_t*	rec2,	/*!< in: physical record */
-	const ulint*	offsets1,/*!< in: rec_get_offsets(rec1, index) */
-	const ulint*	offsets2,/*!< in: rec_get_offsets(rec2, index) */
-	dict_index_t*	index,	/*!< in: data dictionary index */
-	ibool		nulls_unequal,
-				/* in: TRUE if this is for index statistics
-				cardinality estimation, and innodb_stats_method
-				is "nulls_unequal" or "nulls_ignored" */
-	ulint*		matched_fields, /*!< in/out: number of already completely
-				matched fields; when the function returns,
-				contains the value the for current
-				comparison */
-	ulint*		matched_bytes) /*!< in/out: number of already matched
-				bytes within the first field not completely
-				matched; when the function returns, contains
-				the value for the current comparison */
+	const rec_t*		rec1,
+	const rec_t*		rec2,
+	const ulint*		offsets1,
+	const ulint*		offsets2,
+	const dict_index_t*	index,
+	bool			nulls_unequal,
+	ulint*			matched_fields,
+	ulint*			matched_bytes)
 {
 	ulint		rec1_n_fields;	/* the number of fields in rec */
 	ulint		rec1_f_len;	/* length of current field in rec */
