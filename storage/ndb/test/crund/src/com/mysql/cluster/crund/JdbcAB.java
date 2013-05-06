@@ -17,8 +17,7 @@
 
 package com.mysql.cluster.crund;
 
-import java.util.Iterator;
-import java.util.Arrays;
+import java.util.Properties;
 
 import java.sql.SQLException;
 import java.sql.DriverManager;
@@ -29,13 +28,15 @@ import java.sql.Statement;
 import java.sql.Array;
 import java.sql.Types;
 
+import com.mysql.cluster.crund.CrundDriver.XMode;
+
 /**
  * The JDBC benchmark implementation.
  */
-public class JdbcLoad extends CrundDriver {
+public class JdbcAB extends CrundLoad {
 
     // JDBC settings
-    protected String driver;
+    protected String jdbcDriver;
     protected String url;
     protected String user;
     protected String password;
@@ -44,38 +45,53 @@ public class JdbcLoad extends CrundDriver {
     protected Connection conn;
     protected PreparedStatement delAllA;
     protected PreparedStatement delAllB;
+    protected String lmSuffix;
+
+    public JdbcAB(CrundDriver driver) {
+        super(driver);
+    }
+
+    static public void main(String[] args) {
+        System.out.println("JdbcAB.main()");
+        CrundDriver.parseArguments(args);
+        final CrundDriver driver = new CrundDriver();
+        final CrundLoad load = new JdbcAB(driver);
+        driver.addLoad(load);
+        driver.run();
+        System.out.println();
+        System.out.println("JdbcAB.main(): done.");
+    }
 
     // ----------------------------------------------------------------------
     // JDBC intializers/finalizers
     // ----------------------------------------------------------------------
 
     protected void initProperties() {
-        super.initProperties();
-
-        out.print("setting jdbc properties ...");
+        System.out.println();
+        out.print("reading JDBC properties ...");
 
         final StringBuilder msg = new StringBuilder();
-        final String eol = System.getProperty("line.separator");
+        final Properties props = driver.props;
 
         // load the JDBC driver class
-        driver = props.getProperty("jdbc.driver");
-        if (driver == null) {
+        jdbcDriver = props.getProperty("jdbc.driver");
+        if (jdbcDriver == null) {
             throw new RuntimeException("Missing property: jdbc.driver");
         }
         try {
-            Class.forName(driver);
+            Class.forName(jdbcDriver);
         } catch (ClassNotFoundException e) {
-            out.println("Cannot load JDBC driver '" + driver
+            out.println("Cannot load JDBC driver '" + jdbcDriver
                         + "' from classpath '"
                         + System.getProperty("java.class.path") + "'");
             throw new RuntimeException(e);
         }
 
+        // have url initialized first
         url = props.getProperty("jdbc.url");
         if (url == null) {
             throw new RuntimeException("Missing property: jdbc.url");
         }
-
         user = props.getProperty("jdbc.user");
         password = props.getProperty("jdbc.password");
 
@@ -86,29 +102,16 @@ public class JdbcLoad extends CrundDriver {
             out.print(msg.toString());
         }
 
-        // have url initialized first
-        descr = "->" + url;
+        name = "->" + url.substring(0, 10); // shortcut will do
     }
 
     protected void printProperties() {
-        super.printProperties();
-
         out.println();
         out.println("jdbc settings ...");
-        out.println("jdbc.driver:                    " + driver);
+        out.println("jdbc.driver:                    " + jdbcDriver);
         out.println("jdbc.url:                       " + url);
         out.println("jdbc.user:                      \"" + user + "\"");
         out.println("jdbc.password:                  \"" + password + "\"");
-    }
-
-    protected void initLoad() throws Exception {
-        // XXX support generic load class
-        //super.init();
-    }
-
-    protected void closeLoad() throws Exception {
-        // XXX support generic load class
-        //super.close();
     }
 
     // ----------------------------------------------------------------------
@@ -122,7 +125,7 @@ public class JdbcLoad extends CrundDriver {
         protected XMode xMode;
 
         public JdbcOp(String name, XMode m, String sql) {
-            super(name + (m == null ? "" : toStr(m)));
+            super(name + (m == null ? "" : m));
             this.sql = sql;
             this.xMode = m;
         }
@@ -144,33 +147,34 @@ public class JdbcLoad extends CrundDriver {
             super(name, m, sql);
         }
 
-        public void run(int nOps) throws SQLException {
-            conn.setAutoCommit(xMode == XMode.INDY);
+        public void run(int[] id) throws SQLException {
+            final int n = id.length;
+            conn.setAutoCommit(xMode == XMode.indy);
             switch (xMode) {
-            case INDY :
-            case EACH :
-                for (int i = 0; i < nOps; i++) {
-                    setParams(i);
+            case indy :
+            case each :
+                for (int i = 0; i < n; i++) {
+                    setParams(id[i]);
                     final int cnt = ps.executeUpdate();
                     verify(1, cnt);
                 }
-                if (xMode != XMode.INDY)
+                if (xMode != XMode.indy)
                     conn.commit();
                 break;
-            case BULK :
-                for(int i = 0; i < nOps; i++) {
-                    setParams(i);
+            case bulk :
+                for(int i = 0; i < n; i++) {
+                    setParams(id[i]);
                     ps.addBatch();
                 }
                 final int[] cnt = ps.executeBatch();
-                for (int i = 0; i < nOps; i++)
+                for (int i = 0; i < n; i++)
                     verify(1, cnt[i]);
                 conn.commit();
                 break;
             }
         }
 
-        protected void setParams(int i) throws SQLException {}
+        protected void setParams(int id) throws SQLException {}
     };
 
     protected abstract class ReadOp extends JdbcOp {
@@ -178,42 +182,42 @@ public class JdbcLoad extends CrundDriver {
 
         public ReadOp(String name, XMode m, String sql) {
             super(name, m, sql);
+            sql += lmSuffix; // append lock mode suffix
         }
 
-        public void run(int nOps) throws SQLException {
-            conn.setAutoCommit(xMode == XMode.INDY);
+        public void run(int[] id) throws SQLException {
+            final int n = id.length;
+            conn.setAutoCommit(xMode == XMode.indy);
             switch (xMode) {
-            case INDY :
-            case EACH :
-                for (int i = 0; i < nOps; i++) {
-                    setParams(i);
+            case indy :
+            case each :
+                for (int i = 0; i < n; i++) {
+                    setParams(id[i]);
                     rs = ps.executeQuery();
                     rs.next();
-                    getValues(i);
+                    getValues(id[i]);
                     verify(!rs.next());
                     rs.close();
                     assert !ps.getMoreResults();
                 }
-                if (xMode != XMode.INDY)
+                if (xMode != XMode.indy)
                     conn.commit();
                 break;
-            case BULK :
+            case bulk :
                 // use dynamic SQL for generic bulk queries
                 // allow for multi/single result sets with single/multi rows
-                final String q = getQueries(nOps);
+                final String q = getQueries(id);
                 final Statement s = conn.createStatement();
                 boolean hasRS = s.execute(q);
                 int i = 0;
                 while (hasRS) {
                     rs = s.getResultSet();
                     while (rs.next())
-                        getValues(i++);
+                        getValues(id[i++]);
                     hasRS = s.getMoreResults();
                 }
-                verify(nOps, i);
-
-                if (xMode != XMode.INDY)
-                    conn.commit();
+                verify(n, i);
+                conn.commit();
                 break;
             }
         }
@@ -222,11 +226,11 @@ public class JdbcLoad extends CrundDriver {
          * Generic bulk query support: dynamic SQL query with substituted
          * Ids for params.
          */
-        protected String getQueries(int nOps) throws SQLException {
+        protected String getQueries(int[] id) throws SQLException {
             // default: multiply query substituting Id for all params
-            return multipleQueries(nOps);
+            return multipleQueries(id);
         }
-        
+
         /**
          * Bulk query support, mechanism #1: multiplied SQL queries with
          * substituted Ids for params.
@@ -235,10 +239,11 @@ public class JdbcLoad extends CrundDriver {
          * passed to DriverManager.getConnection() or in URL
          * jdbc:mysql://localhost/crunddb?allowMultiQueries=true
          */
-        protected String multipleQueries(int nOps) throws SQLException {
+        protected String multipleQueries(int[] id) throws SQLException {
+            final int n = id.length;
             final StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < nOps; i++)
-                sb.append(sql.replace("?", String.valueOf(i))).append(";");
+            for (int i = 0; i < n; i++)
+                sb.append(sql.replace("?", String.valueOf(id[i]))).append(";");
             return sb.toString();
         }
 
@@ -246,10 +251,11 @@ public class JdbcLoad extends CrundDriver {
          * Bulk query support, mechanism #2: where-in clause with
          * comma-separated List of Ids.
          */
-        protected String whereInIdList(int nOps) throws SQLException {
+        protected String whereInIdList(int[] id) throws SQLException {
+            final int n = id.length;
             final StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < nOps; i++)
-                sb.append(String.valueOf(i) + ",");
+            for (int i = 0; i < n; i++)
+                sb.append(String.valueOf(id[i]) + ",");
             sb.append("null"); // need at least one value
             return sql.replace("?", sb);
         }
@@ -260,118 +266,119 @@ public class JdbcLoad extends CrundDriver {
          *
          * JDBC 4 feature.  Not supported by mysql driver 5.1 (or Java DB).
          */
-        protected Array idArray(int nOps) throws SQLException {
-            Object[] a = new Object[nOps];
-            for (int i = 0; i < nOps; i++)
-                a[i] = new Integer(i);
+        protected Array idArray(int[] id) throws SQLException {
+            final int n = id.length;
+            final Object[] a = new Object[n];
+            for (int i = 0; i < n; i++)
+                a[i] = new Integer(id[i]);
             return conn.createArrayOf("integer", a);
         }
 
-        protected void setParams(int i) throws SQLException {}
-        protected void getValues(int i) throws SQLException {}
+        protected void setParams(int id) throws SQLException {}
+        protected void getValues(int id) throws SQLException {}
     }
 
     protected void initOperations() throws SQLException {
-        out.print("initializing statements ...");
+        out.print("initializing operations ...");
         out.flush();
 
-        for (XMode m : xMode) {
+        for (XMode m : driver.xMode) {
             // inner classes can only refer to a constant
             final XMode xMode = m;
 
             ops.add(
                 new WriteOp("A_insAttr_", xMode,
                             "INSERT INTO A (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
-                        setAttrA(ps, 2, -i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
+                        setAttrA(ps, 2, -id);
                     }
                 });
 
             ops.add(
                 new WriteOp("B_insAttr_", xMode,
                             "INSERT INTO B (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
-                        setAttrB(ps, 2, -i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
+                        setAttrB(ps, 2, -id);
                     }
                 });
 
             ops.add(
                 new WriteOp("A_setAttr_", xMode,
                             "UPDATE A a SET a.cint = ?, a.clong = ?, a.cfloat = ?, a.cdouble = ? WHERE (a.id = ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(setAttrA(ps, 1, i), i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(setAttrA(ps, 1, id), id);
                     }
                 });
 
             ops.add(
                 new WriteOp("B_setAttr_", xMode,
                             "UPDATE B b SET b.cint = ?, b.clong = ?, b.cfloat = ?, b.cdouble = ? WHERE (b.id = ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(setAttrB(ps, 1, i), i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(setAttrB(ps, 1, id), id);
                     }
                 });
 
             ops.add(
                 new ReadOp("A_getAttr_", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM A WHERE (id = ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
 
-                    protected void getValues(int i) throws SQLException {
-                        verify(i, rs.getInt(1));
-                        verifyAttrA(i, 2, rs);
+                    protected void getValues(int id) throws SQLException {
+                        verify(id, rs.getInt(1));
+                        verifyAttrA(id, 2, rs);
                     }
                 });
 
             ops.add(
                 new ReadOp("B_getAttr_", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM B WHERE (id = ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
 
-                    protected void getValues(int i) throws SQLException {
-                        verify(i, rs.getInt(1));
-                        verifyAttrB(i, 2, rs);
+                    protected void getValues(int id) throws SQLException {
+                        verify(id, rs.getInt(1));
+                        verifyAttrB(id, 2, rs);
                     }
                 });
 
             ops.add(
                 new ReadOp("A_getAttr_wherein_", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM A WHERE id in (?) ORDER BY id") {
-                    protected String getQueries(int nOps) throws SQLException {
-                        return whereInIdList(nOps);
+                    protected String getQueries(int[] id) throws SQLException {
+                        return whereInIdList(id);
                     }
 
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
 
-                    protected void getValues(int i) throws SQLException {
+                    protected void getValues(int id) throws SQLException {
                         assert rs != null;
-                        verify(i, rs.getInt(1));
-                        verifyAttrA(i, 2, rs);
+                        verify(id, rs.getInt(1));
+                        verifyAttrA(id, 2, rs);
                     }
                 });
 
             ops.add(
                 new ReadOp("B_getAttr_wherein_", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM A WHERE id in (?) ORDER BY id") {
-                    protected String getQueries(int nOps) throws SQLException {
-                        return whereInIdList(nOps);
+                    protected String getQueries(int[] id) throws SQLException {
+                        return whereInIdList(id);
                     }
 
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
 
-                    protected void getValues(int i) throws SQLException {
+                    protected void getValues(int id) throws SQLException {
                         assert rs != null;
-                        verify(i, rs.getInt(1));
-                        verifyAttrB(i, 2, rs);
+                        verify(id, rs.getInt(1));
+                        verifyAttrB(id, 2, rs);
                     }
                 });
 
@@ -379,26 +386,26 @@ public class JdbcLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final byte[] b = bytes[i];
                 final int l = b.length;
-                if (l > maxVarbinaryBytes)
+                if (l > driver.maxVarbinaryBytes)
                     break;
 
                 ops.add(
                     new WriteOp("B_setVarbin_" + l + "_", xMode,
                                 "UPDATE B b SET b.cvarbinary_def = ? WHERE (b.id = ?)") {
-                        protected void setParams(int i) throws SQLException {
+                        protected void setParams(int id) throws SQLException {
                             ps.setBytes(1, b);
-                            ps.setInt(2, i);
+                            ps.setInt(2, id);
                         }
                     });
 
                 ops.add(
                     new ReadOp("B_getVarbin_" + l + "_", xMode,
                                "SELECT cvarbinary_def FROM B WHERE (id = ?)") {
-                        protected void setParams(int i) throws SQLException {
-                            ps.setInt(1, i);
+                        protected void setParams(int id) throws SQLException {
+                            ps.setInt(1, id);
                         }
 
-                        protected void getValues(int i) throws SQLException {
+                        protected void getValues(int id) throws SQLException {
                             verify(b, rs.getBytes(1));
                         }
                     });
@@ -406,8 +413,8 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new WriteOp("B_clearVarbin_" + l + "_", xMode,
                                 "UPDATE B b SET b.cvarbinary_def = NULL WHERE (b.id = ?)") {
-                        protected void setParams(int i) throws SQLException {
-                            ps.setInt(1, i);
+                        protected void setParams(int id) throws SQLException {
+                            ps.setInt(1, id);
                         }
                     });
             }
@@ -416,35 +423,35 @@ public class JdbcLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final String s = strings[i];
                 final int l = s.length();
-                if (l > maxVarcharChars)
+                if (l > driver.maxVarcharChars)
                     break;
 
                 ops.add(
                     new WriteOp("B_setVarchar_" + l + "_", xMode,
                                 "UPDATE B b SET b.cvarchar_def = ? WHERE (b.id = ?)") {
-                        protected void setParams(int i) throws SQLException {
+                        protected void setParams(int id) throws SQLException {
                             ps.setString(1, s);
-                            ps.setInt(2, i);
+                            ps.setInt(2, id);
                         }
                     });
 
                 ops.add(
                     new ReadOp("B_getVarchar_" + l + "_", xMode,
                                "SELECT cvarchar_def FROM B WHERE (id = ?)") {
-                        protected void setParams(int i) throws SQLException {
-                            ps.setInt(1, i);
+                        protected void setParams(int id) throws SQLException {
+                            ps.setInt(1, id);
                         }
 
-                        protected void getValues(int i) throws SQLException {
+                        protected void getValues(int id) throws SQLException {
                             verify(s, rs.getString(1));
                         }
                     });
 
                 ops.add(
-                    new WriteOp("clearVarchar_" + l + "_", xMode,
+                    new WriteOp("B_clearVarchar_" + l + "_", xMode,
                                 "UPDATE B b SET b.cvarchar_def = NULL WHERE (b.id = ?)") {
-                        protected void setParams(int i) throws SQLException {
-                            ps.setInt(1, i);
+                        protected void setParams(int id) throws SQLException {
+                            ps.setInt(1, id);
                         }
                     });
             }
@@ -453,26 +460,26 @@ public class JdbcLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final byte[] b = bytes[i];
                 final int l = b.length;
-                if (l > maxBlobBytes)
+                if (l > driver.maxBlobBytes)
                     break;
 
                 ops.add(
                     new WriteOp("B_setBlob_" + l + "_", xMode,
                                 "UPDATE B b SET b.cblob_def = ? WHERE (b.id = ?)") {
-                        protected void setParams(int i) throws SQLException {
+                        protected void setParams(int id) throws SQLException {
                             ps.setBytes(1, b);
-                            ps.setInt(2, i);
+                            ps.setInt(2, id);
                         }
                     });
 
                 ops.add(
                     new ReadOp("B_getBlob_" + l + "_", xMode,
                                "SELECT cblob_def FROM B WHERE (id = ?)") {
-                        protected void setParams(int i) throws SQLException {
-                            ps.setInt(1, i);
+                        protected void setParams(int id) throws SQLException {
+                            ps.setInt(1, id);
                         }
 
-                        protected void getValues(int i) throws SQLException {
+                        protected void getValues(int id) throws SQLException {
                             verify(b, rs.getBytes(1));
                         }
                     });
@@ -480,8 +487,8 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new WriteOp("B_clearBlob_" + l + "_", xMode,
                                 "UPDATE B b SET b.cblob_def = NULL WHERE (b.id = ?)") {
-                        protected void setParams(int i) throws SQLException {
-                            ps.setInt(1, i);
+                        protected void setParams(int id) throws SQLException {
+                            ps.setInt(1, id);
                         }
                     });
             }
@@ -490,26 +497,26 @@ public class JdbcLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final String s = strings[i];
                 final int l = s.length();
-                if (l > maxTextChars)
+                if (l > driver.maxTextChars)
                     break;
 
                 ops.add(
                     new WriteOp("B_setText_" + l + "_", xMode,
                                 "UPDATE B b SET b.ctext_def = ? WHERE (b.id = ?)") {
-                        protected void setParams(int i) throws SQLException {
+                        protected void setParams(int id) throws SQLException {
                             ps.setString(1, s);
-                            ps.setInt(2, i);
+                            ps.setInt(2, id);
                         }
                     });
 
                 ops.add(
                     new ReadOp("B_getText_" + l + "_", xMode,
                                "SELECT ctext_def FROM B WHERE (id = ?)") {
-                        protected void setParams(int i) throws SQLException {
-                            ps.setInt(1, i);
+                        protected void setParams(int id) throws SQLException {
+                            ps.setInt(1, id);
                         }
 
-                        protected void getValues(int i) throws SQLException {
+                        protected void getValues(int id) throws SQLException {
                             verify(s, rs.getString(1));
                         }
                     });
@@ -517,8 +524,8 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new WriteOp("B_clearText_" + l + "_", xMode,
                                 "UPDATE B b SET b.ctext_def = NULL WHERE (b.id = ?)") {
-                        protected void setParams(int i) throws SQLException {
-                            ps.setInt(1, i);
+                        protected void setParams(int id) throws SQLException {
+                            ps.setInt(1, id);
                         }
                     });
             }
@@ -526,57 +533,57 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new WriteOp("B_setA_", xMode,
                             "UPDATE B b SET b.a_id = ? WHERE (b.id = ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        final int aId = i;
+                    protected void setParams(int id) throws SQLException {
+                        final int aId = id;
                         ps.setInt(1, aId);
-                        ps.setInt(2, i);
+                        ps.setInt(2, id);
                     }
                 });
 
             ops.add(
                 new ReadOp("B_getA_joinproj_", xMode,
                            "SELECT a.id, a.cint, a.clong, a.cfloat, a.cdouble FROM A a, b b WHERE (a.id = b.a_id AND b.id = ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
 
-                    protected void getValues(int i) throws SQLException {
-                        verify(i, rs.getInt(1));
-                        verifyAttrA(i, 2, rs);
+                    protected void getValues(int id) throws SQLException {
+                        verify(id, rs.getInt(1));
+                        verifyAttrA(id, 2, rs);
                     }
                 });
 
             ops.add(
                 new ReadOp("B_getA_subsel_", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM A WHERE id = (SELECT b.a_id FROM B b WHERE b.id = ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
 
-                    protected void getValues(int i) throws SQLException {
-                        verify(i, rs.getInt(1));
-                        verifyAttrA(i, 2, rs);
+                    protected void getValues(int id) throws SQLException {
+                        verify(id, rs.getInt(1));
+                        verifyAttrA(id, 2, rs);
                     }
                 });
 
             ops.add(
                 new ReadOp("A_getBs_", xMode,
                            "SELECT id, cint, clong, cfloat, cdouble FROM B WHERE (a_id = ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
 
-                    protected void getValues(int i) throws SQLException {
-                        verify(i, rs.getInt(1));
-                        verifyAttrB(i, 2, rs);
+                    protected void getValues(int id) throws SQLException {
+                        verify(id, rs.getInt(1));
+                        verifyAttrB(id, 2, rs);
                     }
                 });
 
             ops.add(
                 new WriteOp("B_clearA_", xMode,
                             "UPDATE B b SET b.a_id = NULL WHERE (b.id = ?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
                 });
 
@@ -584,8 +591,8 @@ public class JdbcLoad extends CrundDriver {
                 // MySQL rejects this syntax: "DELETE FROM B b WHERE b.id = ?"
                 new WriteOp("B_del_", xMode,
                             "DELETE FROM B WHERE id = ?") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
                 });
 
@@ -593,44 +600,46 @@ public class JdbcLoad extends CrundDriver {
                 // MySQL rejects this syntax: "DELETE FROM A a WHERE a.id = ?"
                 new WriteOp("A_del_", xMode,
                             "DELETE FROM A WHERE id = ?") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
                 });
 
             ops.add(
                 new WriteOp("A_ins_", xMode,
                             "INSERT INTO A (id) VALUES (?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
                 });
 
             ops.add(
                 new WriteOp("B_ins_", xMode,
                             "INSERT INTO B (id) VALUES (?)") {
-                    protected void setParams(int i) throws SQLException {
-                        ps.setInt(1, i);
+                    protected void setParams(int id) throws SQLException {
+                        ps.setInt(1, id);
                     }
                 });
 
             ops.add(
                 new WriteOp("B_delAll", null,
                             "DELETE FROM B") {
-                    public void run(int nOps) throws SQLException {
+                    public void run(int[] id) throws SQLException {
+                        final int n = id.length;
                         conn.setAutoCommit(true);
                         final int cnt = ps.executeUpdate();
-                        verify(nOps, cnt);
+                        verify(n, cnt);
                     }
                 });
 
             ops.add(
                 new WriteOp("A_delAll", null,
                             "DELETE FROM A") {
-                    public void run(int nOps) throws SQLException {
+                    public void run(int[] id) throws SQLException {
+                        final int n = id.length;
                         conn.setAutoCommit(true);
                         final int cnt = ps.executeUpdate();
-                        verify(nOps, cnt);
+                        verify(n, cnt);
                     }
                 });
         }
@@ -638,11 +647,11 @@ public class JdbcLoad extends CrundDriver {
         // prepare all statements
         for (Op o : ops)
             ((JdbcOp)o).init();
-        out.println("     [ReadOp: " + ops.size() + "]");
+        out.println("     [JdbcOp: " + ops.size() + "]");
     }
 
     protected void closeOperations() throws SQLException {
-        out.print("closing statements ...");
+        out.print("closing operations ...");
         out.flush();
         for (Op o : ops)
             ((JdbcOp)o).close();
@@ -650,53 +659,55 @@ public class JdbcLoad extends CrundDriver {
         out.println("          [ok]");
     }
 
+    protected void clearPersistenceContext() {
+        // nothing to do as long as we're not caching beyond Tx scope
+    }
+
     // ----------------------------------------------------------------------
 
-    protected int setAttrA(PreparedStatement ps, int p, int i)
+    protected int setAttrA(PreparedStatement ps, int p, int id)
         throws SQLException {
-        ps.setInt(p++, i);
-        ps.setLong(p++, (long)i);
-        ps.setFloat(p++, (float)i);
-        ps.setDouble(p++, (double)i);
+        ps.setInt(p++, id);
+        ps.setLong(p++, (long)id);
+        ps.setFloat(p++, (float)id);
+        ps.setDouble(p++, (double)id);
         return p;
     }
 
-    protected int setAttrB(PreparedStatement ps, int p, int i)
+    protected int setAttrB(PreparedStatement ps, int p, int id)
         throws SQLException {
-        return setAttrA(ps, p, i); // currently same as A
+        return setAttrA(ps, p, id); // currently same as A
     }
 
-    protected int verifyAttrA(int i, int p, ResultSet rs)
+    protected int verifyAttrA(int id, int p, ResultSet rs)
         throws SQLException {
-        verify(i, rs.getInt(p++));
-        verify(i, rs.getLong(p++));
-        verify(i, rs.getFloat(p++));
-        verify(i, rs.getDouble(p++));
+        verify(id, rs.getInt(p++));
+        verify(id, rs.getLong(p++));
+        verify(id, rs.getFloat(p++));
+        verify(id, rs.getDouble(p++));
         return p;
     }
 
-    protected int verifyAttrB(int i, int p, ResultSet rs)
+    protected int verifyAttrB(int id, int p, ResultSet rs)
         throws SQLException {
-        return verifyAttrA(i, p, rs); // currently same as A
+        return verifyAttrA(id, p, rs); // currently same as A
     }
 
     // ----------------------------------------------------------------------
     // JDBC datastore operations
     // ----------------------------------------------------------------------
 
-    protected void initConnection() throws SQLException {
-        assert (conn == null);
-
+    public void initConnection() throws SQLException {
+        assert conn == null;
         out.println();
-        out.println("initializing jdbc resources ...");
+        out.println("initializing JDBC resources ...");
 
-        out.println();
-        out.print("creating jdbc connection ...");
+        out.print("creating JDBC connection ...");
         out.flush();
         conn = DriverManager.getConnection(url, user, password);
         delAllA = conn.prepareStatement("DELETE FROM A");
         delAllB = conn.prepareStatement("DELETE FROM B");
-        out.println("    [ok: " + url + "]");
+        out.println("    [ok: 1]");
 
         out.print("setting isolation level ...");
         out.flush();
@@ -721,16 +732,36 @@ public class JdbcLoad extends CrundDriver {
             assert false;
         }
         out.println("]");
+
+        out.print("using lock mode for reads ...");
+        out.flush();
+        switch (driver.lockMode) {
+        case none:
+            lmSuffix = "";
+            break;
+        case shared:
+            lmSuffix = " LOCK IN share mode";
+            break;
+        case exclusive:
+            lmSuffix = " FOR UPDATE";
+            break;
+        default:
+            lmSuffix = "";
+            assert false;
+        }
+        out.println("   [ok: " + "SELECT" + lmSuffix + "]");
+
+        initOperations();
     }
 
-    protected void closeConnection() throws SQLException {
-        assert (conn != null);
-
+    public void closeConnection() throws SQLException {
+        assert conn != null;
         out.println();
-        out.println("releasing jdbc resources ...");
+        out.println("releasing JDBC resources ...");
 
-        out.println();
-        out.print("closing jdbc connection ...");
+        closeOperations();
+
+        out.print("closing JDBC connection ...");
         out.flush();
         if (delAllB != null)
             delAllB.close();
@@ -744,11 +775,7 @@ public class JdbcLoad extends CrundDriver {
         out.println("     [ok]");
     }
 
-    protected void clearPersistenceContext() {
-        // nothing to do as long as we're not caching beyond Tx scope
-    }
-
-    protected void clearData() throws SQLException {
+    public void clearData() throws SQLException {
         conn.setAutoCommit(false);
         out.print("deleting all rows ...");
         out.flush();
@@ -760,15 +787,5 @@ public class JdbcLoad extends CrundDriver {
         out.flush();
         conn.commit();
         out.println("]");
-    }
-
-    // ----------------------------------------------------------------------
-
-    static public void main(String[] args) {
-        System.out.println("JdbcLoad.main()");
-        parseArguments(args);
-        new JdbcLoad().run();
-        System.out.println();
-        System.out.println("JdbcLoad.main(): done.");
     }
 }

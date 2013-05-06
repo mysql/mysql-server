@@ -22,6 +22,9 @@ fi
 
 #set -x
 
+mysock="/tmp/mysql.sock"
+#mysock="$mylogdir/mysql.sock"
+
 # 4 bash parameter substitution forms: $*, "$*", $@, "$@" (use last here)
 #echo nArgs=$#
 #echo args=\'"$@"\'
@@ -30,8 +33,7 @@ fi
 #echo
 #"$MYSQL_BIN/mysql" "$@"
 # for localhost connections:
-#"$MYSQL_BIN/mysql" -S ./ndblog/mysql.sock "$@"
-"$MYSQL_BIN/mysql" --socket=./ndblog/mysql.sock "$@"
+"$MYSQL_BIN/mysql" --socket="$mysock" "$@"
 # for remote connections:
 #"$MYSQL_BIN/mysql" -h localhost -P 3307 "$@"
 #"$MYSQL_BIN/mysql" -host=localhost -port=3307 "$@"
