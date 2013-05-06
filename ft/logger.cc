@@ -1014,8 +1014,9 @@ int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, uint32_t 
 int toku_fread_TXNID_PAIR   (FILE *f, TXNID_PAIR *txnid, struct x1764 *checksum, uint32_t *len) {
     TXNID parent;
     TXNID child;
-    toku_fread_TXNID(f, &parent, checksum, len);
-    toku_fread_TXNID(f, &child, checksum, len);
+    int r;
+    r = toku_fread_TXNID(f, &parent, checksum, len); if (r != 0) { return r; }
+    r = toku_fread_TXNID(f, &child, checksum, len);  if (r != 0) { return r; }
     txnid->parent_id64 = parent;
     txnid->child_id64 = child;
     return 0;

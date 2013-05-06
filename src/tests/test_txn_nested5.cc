@@ -377,8 +377,10 @@ futz_with_stack:
                 if (min_allowed_branch_level >= nest_level) {
                     //start new subtree
                     int max = nest_level + 4;
-                    if (MAX_NEST - 1 < max) max = MAX_NEST - 1;
-                    assert(max > nest_level);
+                    if (MAX_NEST - 1 < max) {
+                        max = MAX_NEST - 1;
+                        assert(max > nest_level);
+                    }
                     int branch_level;
                     for (branch_level = nest_level + 1; branch_level <= max; branch_level++) {
                         start_txn_and_maybe_insert_or_delete(branch_level);

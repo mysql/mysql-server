@@ -4050,13 +4050,14 @@ ft_cursor_extract_key_and_val(LEAFENTRY le,
         *val = le;
         *vallen = leafentry_memsize(le);
     } else if (cursor->is_snapshot_read) {
-        le_iterate_val(
+        int r = le_iterate_val(
             le,
             does_txn_read_entry,
             val,
             vallen,
             cursor->ttxn
             );
+        lazy_assert_zero(r);
         *key = le_key_and_len(le, keylen);
     } else {
         *key = le_key_and_len(le, keylen);

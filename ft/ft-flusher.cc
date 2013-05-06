@@ -783,7 +783,8 @@ move_leafentries(
     *num_bytes_moved = 0;
     for (i = lbi; i < ube; i++) {
         OMTVALUE lev;
-        toku_omt_fetch(src_bn->buffer, i, &lev);
+        int r = toku_omt_fetch(src_bn->buffer, i, &lev);
+        assert_zero(r);
         LEAFENTRY CAST_FROM_VOIDP(curr_le, lev);
         size_t le_size = leafentry_memsize(curr_le);
         *num_bytes_moved += leafentry_disksize(curr_le);
@@ -851,7 +852,7 @@ ftleaf_split(
     }
 
 
-    FTNODE B;
+    FTNODE B = nullptr;
     uint32_t fullhash;
     BLOCKNUM name;
 
@@ -875,6 +876,9 @@ ftleaf_split(
             &fullhash,
             &B
             );
+        // GCC 4.8 seems to get confused and think B is maybe uninitialized at link time.
+        // TODO(leif): figure out why it thinks this and actually fix it.
+        invariant_notnull(B);
     }
 
 
@@ -1245,7 +1249,8 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
     // fill in pivot for what used to be max of node 'a', if it is needed
     if (a_has_tail) {
         OMTVALUE lev;
-        toku_omt_fetch(a_last_buffer, toku_omt_size(a_last_buffer) - 1, &lev);
+        int r = toku_omt_fetch(a_last_buffer, toku_omt_size(a_last_buffer) - 1, &lev);
+        assert_zero(r);
         LEAFENTRY CAST_FROM_VOIDP(le, lev);
         uint32_t keylen;
         void *key = le_key_and_len(le, &keylen);
