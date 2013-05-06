@@ -207,6 +207,39 @@ while ($cnt) {
 	# set the debug crash point and exercise them.
 	if ($cnt == 6)
 	{
+		set session debug="+d,ib_crash_during_drop_index_temp_table";
+		--echo "---debug ib_crash_during_drop_index_temp_table point---"
+	}
+	if ($cnt == 5)
+	{
+		set session debug="+d,ib_crash_drop_reinit_done_create_to_start2";
+		--echo "---debug ib_crash_drop_reinit_done_create_to_start2---"
+	}
+
+	if ($cnt >= 5) {
+		--echo # Write file to make mysql-test-run.pl expect crash and restart
+		--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+		--echo # Run the crashing query
+		--error 2013
+		truncate table t5;
+		--source include/wait_until_disconnected.inc
+		--enable_reconnect
+		--echo # Restart the MySQL server
+		--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+		--source include/wait_until_connected_again.inc
+		--disable_reconnect
+		select count(*) from t1;
+		select count(*) from t2;
+		select count(*) from t3;
+		select count(*) from t4;
+		--error ER_NO_SUCH_TABLE
+		select count(*) from t5;
+		select count(*) from t6;
+	}
+
+	# set the debug crash point and exercise them.
+	if ($cnt == 6)
+	{
 		set session debug="+d,ib_crash_on_drop_of_sec_index";
 		--echo "---debug ib_crash_on_drop_of_sec_index point---"
 	}
@@ -408,12 +441,12 @@ while ($cnt) {
 	select count(*) from t5;
 	select count(*) from t6;
 
-	drop table t1 ,t2 ,t3,t4,t6;
+	drop table t1, t2, t3, t4, t6;
 
 	dec $cnt;
 
 	--disable_query_log
-		eval set global innodb_file_format=$innodb_file_format_orig;
+	eval set global innodb_file_format=$innodb_file_format_orig;
 	eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 	eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 	--enable_query_log
