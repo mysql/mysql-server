@@ -202,7 +202,7 @@ static void benchmark_setup (void) {
         r = dbenv->set_lk_max(dbenv, items_per_transaction*2);
         assert(r==0);
     }
-#elif DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 7
+#elif (DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 7) || DB_VERSION_MAJOR >= 5
     if (dbenv->set_lk_max_locks) {
         r = dbenv->set_lk_max_locks(dbenv, items_per_transaction*2);
         assert(r==0);
