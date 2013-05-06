@@ -4474,8 +4474,7 @@ page_zip_write_header_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**********************************************************************//**
-Reorganize and compress a page.  This is a low-level operation for
+/** Reorganize and compress a page.  This is a low-level operation for
 compressed pages, to be used when page_zip_compress() fails.
 On success, a redo log entry MLOG_ZIP_PAGE_COMPRESS will be written.
 The function btr_page_reorganize() should be preferred whenever possible.
@@ -4483,18 +4482,20 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
-@return TRUE on success, FALSE on failure; page_zip will be left
-intact on failure, but page will be overwritten. */
+@param[in/out]	block	uncompressed and compressed page;
+on the compressed page, in: size;
+out: data, n_blobs, m_start, m_end,m_nonempty
+@param[in]	index	B-tree index
+@param[in/out]	mtr	mini-transaction
+@retval true on success
+@retval false on failure; page_zip will be left intact, but block->frame
+will be overwritten. */
 UNIV_INTERN
-ibool
+bool
 page_zip_reorganize(
-/*================*/
-	buf_block_t*	block,	/*!< in/out: page with compressed page;
-				on the compressed page, in: size;
-				out: data, n_blobs,
-				m_start, m_end, m_nonempty */
-	dict_index_t*	index,	/*!< in: index of the B-tree node */
-	mtr_t*		mtr)	/*!< in: mini-transaction */
+	buf_block_t*		block,
+	const dict_index_t*	index,
+	mtr_t*			mtr)
 {
 #ifndef UNIV_HOTBACKUP
 	buf_pool_t*	buf_pool	= buf_pool_from_block(block);
@@ -4562,7 +4563,7 @@ page_zip_reorganize(
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);
 #endif /* !UNIV_HOTBACKUP */
-		return(FALSE);
+		return(false);
 	}
 
 	lock_move_reorganize_page(block, temp_block);
@@ -4570,7 +4571,7 @@ page_zip_reorganize(
 #ifndef UNIV_HOTBACKUP
 	buf_block_free(temp_block);
 #endif /* !UNIV_HOTBACKUP */
-	return(TRUE);
+	return(true);
 }
 
 #ifndef UNIV_HOTBACKUP

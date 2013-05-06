@@ -1097,7 +1097,7 @@ dict_stats_analyze_index_level(
 					       rec_offsets,
 					       prev_rec_offsets,
 					       index,
-					       FALSE,
+					       false,
 					       &matched_fields,
 					       &matched_bytes);
 
@@ -1324,7 +1324,7 @@ dict_stats_scan_page(
 		the first n_prefix fields */
 		cmp_rec_rec_with_match(rec, next_rec,
 				       offsets_rec, offsets_next_rec,
-				       index, FALSE, &matched_fields,
+				       index, false, &matched_fields,
 				       &matched_bytes);
 
 		if (matched_fields < n_prefix) {
