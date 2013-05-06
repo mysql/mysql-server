@@ -40,8 +40,8 @@ let $per_table = `select @@innodb_file_per_table`;
 let $format = `select @@innodb_file_format`;
 
 eval set global innodb_file_per_table = on;
-let $MYSQL_TMP_DIR = `select @@tmpdir`;
-let $MYSQL_DATA_DIR = `select @@datadir`;
+let $WL6501_TMP_DIR = `select @@tmpdir`;
+let $WL6501_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 
 #-----------------------------------------------------------------------------
