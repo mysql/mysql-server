@@ -167,23 +167,28 @@ DROP VIEW  IF EXISTS v1;
 #    id FROM t1_values';
 #    might be a very long
 # Bug#38427 "Data too long" ... tests "<ENGINE>_func_view" fail
-CREATE TABLE t1_selects
+# CREATE TABLE t1_selects
+#   my_select VARCHAR(1000) NOT NULL,
+eval CREATE TABLE t1_selects
 (
    id BIGINT AUTO_INCREMENT,
-   my_select VARCHAR(1000) NOT NULL,
+   my_select VARCHAR(700) NOT NULL,
    disable_result ENUM('Yes','No') NOT NULL default 'No',
    PRIMARY KEY(id),
    UNIQUE (my_select)
-) ENGINE=MyISAM;
+) ENGINE=$type;
+# ) ENGINE=MyISAM;
 
 # MODES to be checked
-CREATE TABLE t1_modes
+# CREATE TABLE t1_modes
+eval CREATE TABLE t1_modes
 (
    id BIGINT AUTO_INCREMENT,
    my_mode VARCHAR(200) NOT NULL,
    PRIMARY KEY(id),
    UNIQUE (my_mode)
-) ENGINE=MyISAM;
+) ENGINE=$type;
+# ) ENGINE=MyISAM;
 --enable_query_log
 
 # The table to be used in the FROM parts of the SELECTs
