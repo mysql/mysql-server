@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Date;
 import java.text.SimpleDateFormat;
-import java.text.DecimalFormat;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,9 +29,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.io.InputStream;
+import java.io.StringWriter;
 
 
 /**
@@ -50,7 +50,7 @@ public abstract class Driver {
     static protected final PrintWriter err = new PrintWriter(System.err, true);
 
     // shortcuts
-    static protected final String endl = System.getProperty("line.separator");
+    static protected final String eol = System.getProperty("line.separator");
     static protected final Runtime rt = Runtime.getRuntime();
 
     // driver command-line arguments
@@ -59,21 +59,25 @@ public abstract class Driver {
 
     // driver settings
     protected final Properties props = new Properties();
+    protected int nRuns;
     protected boolean logRealTime;
     protected boolean logMemUsage;
     protected boolean logSumOfOps;
     protected boolean includeFullGC;
-    protected int nRuns;
+    protected boolean failOnError;
+    protected final List<String> loadClassNames = new ArrayList<String>();
 
     // driver resources
+    protected boolean hasIgnoredSettings;
     protected PrintWriter log;
-    protected String descr = "";
     protected boolean logHeader;
     protected StringBuilder header;
     protected StringBuilder rtimes;
     protected StringBuilder musage;
+    protected StringBuilder errors; // collected errors if failOnError
     protected long t0 = 0, t1 = 0, ta = 0;
     protected long m0 = 0, m1 = 0, ma = 0;
+    protected final List<Load> loads = new ArrayList<Load>();
 
     // ----------------------------------------------------------------------
     // driver usage
@@ -136,7 +140,7 @@ public abstract class Driver {
     public void run() {
         try {
             init();
-            runTests();
+            runLoads();
             close();
         } catch (Exception ex) {
             // end the program regardless of threads
@@ -171,28 +175,20 @@ public abstract class Driver {
                         + name + "'; caught exception: " + e);
             throw e;
         }
-        out.println("              [" + name + "]");
+        out.println("              [ok: " + name + "]");
     }
 
-    // attempts to run the JVM's Garbage Collector
-    static private void gc() {
-        // empirically determined limit after which no further
-        // reduction in memory usage has been observed
-        //final int nFullGCs = 5;
-        final int nFullGCs = 10;
-        for (int i = 0; i < nFullGCs; i++) {
-            //out.print("gc: ");
-            long oldfree;
-            long newfree = rt.freeMemory();
-            do {
-                oldfree = newfree;
-                rt.runFinalization();
-                rt.gc();
-                newfree = rt.freeMemory();
-                //out.print('.');
-            } while (newfree > oldfree);
-            //out.println();
-        }
+    protected void addLoad(Load load) {
+        assert load != null;
+        loads.add(load);
+    }
+
+    protected Load createLoad(String className) throws Exception {
+        Load load;
+        final Class<?> a = Class.forName(className);
+        final Class<? extends Load> c = a.asSubclass(Load.class);
+        load = c.getConstructor(CrundDriver.class).newInstance(this);
+        return load;
     }
 
     // initializes the driver's resources.
@@ -200,20 +196,57 @@ public abstract class Driver {
         loadProperties();
         initProperties();
         printProperties();
-        writeProperties("logging.properties");
-        // setting this property allows implementations under test to use java.util.logging
-        System.setProperty("java.util.logging.config.file", "logging.properties");
+        writeProperties();
         openLogFile();
         clearLogBuffers();
+        errors = new StringBuilder();
+
+        out.println();
+        if (loads.isEmpty()) {
+            for (String s : loadClassNames) {
+                final StringBuilder msg = new StringBuilder();
+                out.print("instantiating load ...");
+                try {
+                    loads.add(createLoad(s));
+                } catch (Exception e) {
+                    msg.append("caught " + e + eol);
+                    msg.append("[SKIPPING] load class:          " + s + eol);
+                    hasIgnoredSettings = true;
+                }
+                if (msg.length() == 0) {
+                    final String c = s.replaceAll(".*\\.", "");
+                    out.println("          [ok: " + c + "]");
+                } else {
+                    out.println();
+                    out.print(msg.toString());
+                }
+            }
+        } else {
+            for (Load l : loads) {
+                final String c = l.getClass().getName();
+                out.println("found instantiated load ...     [ok: "
+                            + c.replaceAll(".*\\.", "") + "]");
+            }
+        }
+
+        if (loads.isEmpty())
+            out.println("++++++++++  NOTHING TO TO, NO LOAD CLASSES GIVEN  ++++++++++");
+        for (Load l : loads)
+            l.init();
     }
 
     // releases the driver's resources.
     protected void close() throws Exception {
+        for (Load l : loads)
+            l.close();
+        loads.clear();
+
         // release log buffers
         logHeader = false;
         header = null;
         rtimes = null;
         musage = null;
+        errors = null;
 
         closeLogFile();
         props.clear();
@@ -257,26 +290,42 @@ public abstract class Driver {
 
     // initializes the benchmark properties
     protected void initProperties() {
-        //props.list(out);
-        out.print("setting driver properties ...");
+        out.println();
+        out.print("reading driver properties ...");
         out.flush();
-
         final StringBuilder msg = new StringBuilder();
-        final String eol = System.getProperty("line.separator");
+
+        // allow implementations under test to use java.util.logging
+        System.setProperty("java.util.logging.config.file",
+                           "logging.properties");
+
+        nRuns = parseInt("nRuns", 1);
+        if (nRuns < 1) {
+            msg.append("[IGNORED] nRuns:                " + nRuns + eol);
+            hasIgnoredSettings = true;
+            nRuns = 1;
+        }
 
         logRealTime = parseBoolean("logRealTime", true);
         logMemUsage = parseBoolean("logMemUsage", false);
         logSumOfOps = parseBoolean("logSumOfOps", true);
         includeFullGC = parseBoolean("includeFullGC", false);
+        failOnError = parseBoolean("failOnError", true);
 
-        nRuns = parseInt("nRuns", 1);
-        if (nRuns < 1) {
-            msg.append("[ignored] nRuns:                " + nRuns + eol);
-            nRuns = 1;
+        // initialize load classes set
+        final String[] loadsProp = props.getProperty("loads", "").split(",");
+        for (String s : loadsProp) {
+            if (s.isEmpty()) {
+                // skip
+            } else if (s.contains(".")) {
+                loadClassNames.add(s); // use qualified class name
+            } else {
+                loadClassNames.add("com.mysql.cluster.crund." + s);
+            }
         }
 
         if (msg.length() == 0) {
-            out.println("   [ok]");
+            out.println("   [ok: nRuns=" + nRuns + "]");
         } else {
             out.println();
             out.print(msg.toString());
@@ -287,23 +336,31 @@ public abstract class Driver {
     protected void printProperties() {
         out.println();
         out.println("driver settings ...");
+        out.println("nRuns:                          " + nRuns);
         out.println("logRealTime:                    " + logRealTime);
         out.println("logMemUsage:                    " + logMemUsage);
         out.println("logSumOfOps:                    " + logSumOfOps);
         out.println("includeFullGC:                  " + includeFullGC);
-        out.println("nRuns:                          " + nRuns);
+        out.println("failOnError:                    " + failOnError);
+        final List<String> lcn = new ArrayList<String>(loadClassNames);
+        out.println("loads:                          "
+                    + (lcn.isEmpty() ? "[]" : lcn.remove(0)));
+        for (String s : lcn)
+            out.println("                                " + s);
     }
 
     // writes the benchmark's properties
-    protected void writeProperties(String fileName) {
-        File logger = new File(fileName);
-        OutputStream out;
+    protected void writeProperties() {
+        final String fileName = "logging.properties";
+        final File logger = new File(fileName);
+        final OutputStream out;
         try {
-            if (!logger.exists()) {
+            if (!logger.exists())
                 logger.createNewFile();
-            }
             out = new FileOutputStream(logger);
             props.store(out, "**** WARNING: DO NOT EDIT THIS FILE; IT IS GENERATED EACH RUN.");
+            final Properties sprops = System.getProperties();
+            sprops.store(out, "**** SYSTEM PROPERTIES:");
         } catch (FileNotFoundException e) {
             throw new RuntimeException("Unexpected exception opening file logger.properties.", e);
         } catch (IOException e) {
@@ -334,7 +391,38 @@ public abstract class Driver {
     // benchmark operations
     // ----------------------------------------------------------------------
 
-    abstract protected void runTests() throws Exception;
+    abstract protected void runLoad(Load load) throws Exception;
+
+    protected void runLoads() throws Exception {
+        if (hasIgnoredSettings) {
+            out.println();
+            out.println("++++++++++++  SOME SETTINGS IGNORED, SEE ABOVE  ++++++++++++");
+        }
+
+        for (Load l : loads)
+            runLoad(l);
+    }
+
+    // attempts to run the JVM's Garbage Collector
+    static private void gc() {
+        // empirically determined limit after which no further
+        // reduction in memory usage has been observed
+        //final int nFullGCs = 5;
+        final int nFullGCs = 10;
+        for (int i = 0; i < nFullGCs; i++) {
+            //out.print("gc: ");
+            long oldfree;
+            long newfree = rt.freeMemory();
+            do {
+                oldfree = newfree;
+                rt.runFinalization();
+                rt.gc();
+                newfree = rt.freeMemory();
+                //out.print('.');
+            } while (newfree > oldfree);
+            //out.println();
+        }
+    }
 
     protected void clearLogBuffers() {
         logHeader = true;
@@ -346,21 +434,21 @@ public abstract class Driver {
             musage = new StringBuilder();
         }
     }
-    
-    protected void writeLogBuffers(String descr) {
+
+    protected void writeLogBuffers(String prefix) {
         if (logRealTime) {
-            log.println(descr + ", rtime[ms]"
-                        + header.toString() + endl
-                        + rtimes.toString() + endl);
+            log.println(prefix + ", rtime[ms]"
+                        + header.toString() + eol
+                        + rtimes.toString() + eol);
         }
         if (logMemUsage) {
-            log.println(descr + ", net musage[KiB]"
-                        + header.toString() + endl
-                        + musage.toString() + endl);
+            log.println(prefix + ", net musage[KiB]"
+                        + header.toString() + eol
+                        + musage.toString() + eol);
         }
     }
 
-    protected void beginOpSeq(int nOps) {
+    protected void beginOps(int nOps) {
         if (logRealTime) {
             rtimes.append(nOps);
             ta = 0;
@@ -371,7 +459,7 @@ public abstract class Driver {
         }
     }
 
-    protected void finishOpSeq(int nOps) {
+    protected void finishOps(int nOps) {
         if (logSumOfOps) {
             out.println();
             out.println("total");
@@ -395,13 +483,13 @@ public abstract class Driver {
             if (logSumOfOps) {
                 rtimes.append("\t" + ta);
             }
-            rtimes.append(endl);
+            rtimes.append(eol);
         }
         if (logMemUsage) {
             if (logSumOfOps) {
                 musage.append("\t" + ma);
             }
-            musage.append(endl);
+            musage.append(eol);
         }
     }
 
@@ -415,7 +503,6 @@ public abstract class Driver {
         if (logMemUsage) {
             m0 = rt.totalMemory() - rt.freeMemory();
         }
-
         if (logRealTime) {
             //t0 = System.currentTimeMillis();
             t0 = System.nanoTime() / 1000000;
@@ -424,9 +511,8 @@ public abstract class Driver {
 
     protected void finishOp(String name, int nOps) {
         // attempt one full GC, before timing tx end
-        if (includeFullGC) {
+        if (includeFullGC)
             rt.gc();
-        }
 
         if (logRealTime) {
             //t1 = System.currentTimeMillis();
@@ -441,7 +527,6 @@ public abstract class Driver {
             rtimes.append("\t" + t);
             ta += t;
         }
-
         if (logMemUsage) {
             // attempt max GC, after tx
             gc();
@@ -455,8 +540,28 @@ public abstract class Driver {
             musage.append("\t" + mK);
             ma += mK;
         }
-
         if (logHeader)
             header.append("\t" + name);
+    }
+
+    protected void abortIfErrors() {
+        if (errors.length() != 0) {
+            log.println("!!! ERRORS OCCURRED:");
+            log.println(errors.toString() + eol);
+            log.close();
+            String msg = "Errors occurred, see log file " + logFileName;
+            throw new RuntimeException(msg);
+        }
+    }
+
+    protected void logError(String load, String op, Exception e) {
+        out.println("!!! ERRORS OCCURRED, SEE LOG FILE.");
+        errors.append(eol + "****************************************" + eol);
+        errors.append("Error in load: " + load + eol);
+        errors.append("operation: " + op + eol);
+        errors.append("exception: " + e + eol + eol);
+        final StringWriter s = new StringWriter();
+        e.printStackTrace(new PrintWriter(s));
+        errors.append(s);
     }
 }
