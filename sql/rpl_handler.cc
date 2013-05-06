@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2010, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "rpl_filter.h"
 #include <my_dir.h>
 #include "rpl_handler.h"
+#include "debug_sync.h"
 
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
@@ -228,6 +229,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
 
   DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu", param.log_file, param.log_pos));
+  DEBUG_SYNC(thd, "before_call_after_commit_observer");
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_commit, thd, (&param));
@@ -258,6 +260,23 @@ int Binlog_storage_delegate::after_flush(THD *thd,
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_flush, thd, (&param, log_file, log_pos));
+  DBUG_RETURN(ret);
+}
+
+int Binlog_storage_delegate::after_sync(THD *thd,
+                                        const char *log_file,
+                                        my_off_t log_pos)
+{
+  DBUG_ENTER("Binlog_storage_delegate::after_sync");
+  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu",
+                       log_file, (ulonglong) log_pos));
+  Binlog_storage_param param;
+
+  DBUG_ASSERT(log_pos != 0);
+  int ret= 0;
+  FOREACH_OBSERVER(ret, after_sync, thd, (&param, log_file, log_pos));
+
+  DEBUG_SYNC(thd, "after_call_after_sync_observer");
   DBUG_RETURN(ret);
 }
 
