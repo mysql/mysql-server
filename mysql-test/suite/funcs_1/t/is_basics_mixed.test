@@ -1,7 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+# $engine_type must point to storage engine which is all time available.
+--source include/have_innodb.inc
+let $engine_type = InnoDB;
 
 # suite/funcs_1/t/is_basics_mixed.test
 #
@@ -31,9 +30,6 @@
 
 --source suite/funcs_1/datadict/datadict.pre
 
-# $engine_type must point to storage engine which is all time available.
-# The fastest engine should be preferred.
-let $engine_type = MEMORY;
 
 
 # The INFORMATION_SCHEMA database must exist.
