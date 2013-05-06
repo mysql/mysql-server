@@ -13,17 +13,19 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-# suppress expected warnings.
-call mtr.add_suppression("The file '.*' already exists though the corresponding table did not exist in the InnoDB data dictionary");
-call mtr.add_suppression("Cannot create file '.*'");
-call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
+# suppress expected warnings
+call mtr.add_suppression("Unable to truncate FTS index for table");
+call mtr.add_suppression("Unable to assign a new identifier to table "
+			 "\".*\"\.\".*\" after truncating it");
 
 ################################################################################
 #
 # Will test following scenarios:
 # 1. Error in assigning undo logs for truncate action.
 # 2. Error while preparing for truncate.
-# 3. Error while dropping index (stimlate ibd file missing condition).
+# 3. Error while dropping/creating indexes.
+# 4. Error while completing truncate of table involving FTS.
+# 5. Error while updating sys-tables.
 #
 ################################################################################
 
@@ -91,9 +93,9 @@ drop table t;
 
 #-----------------------------------------------------------------------------
 #
-# 3. Error while dropping index (stimlate ibd file missing condition).
+# 3. Error while dropping/creating indexes
 #
---echo "3. Error while dropping index (stimlate ibd file missing condition)."
+--echo "3. Error while dropping/creating indexes"
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
@@ -105,18 +107,96 @@ insert into t values (1), (2), (3);
 select * from t;
 #check table t;
 #
-set session debug = "+d,ib_error_trunc_ibd_file_missing";
+set session debug = "+d,ib_err_trunc_drop_index";
 --error ER_GET_ERRNO
 truncate table t;
-set session debug = "-d,ib_error_trunc_ibd_file_missing";
+set session debug = "-d,ib_err_trunc_drop_index";
+#
+#check table t;
+--error ER_INDEX_CORRUPT
+select * from t;
+drop table t;
+#
+#
+use test;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
+--replace_regex /[0-9]+/NUMBER/
+eval create $wl6501_temp table t (i int)
+	engine=innodb row_format=$wl6501_row_fmt
+	key_block_size=$wl6501_kbs;
+insert into t values (1), (2), (3);
+select * from t;
+#check table t;
+#
+set session debug = "+d,ib_err_trunc_create_index";
+--error ER_GET_ERRNO
+truncate table t;
+set session debug = "-d,ib_err_trunc_create_index";
 #
 #check table t;
 --error ER_INDEX_CORRUPT
 select * from t;
 drop table t;
 
-
-
+#-----------------------------------------------------------------------------
+#
+# 4. Error while completing truncate of table involving FTS.
+#
+--echo "4. Error while completing truncate of table involving FTS."
+use test;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
+--replace_regex /[0-9]+/NUMBER/
+eval create $wl6501_temp table t (i int, c char(100),
+	primary key pk(i), fulltext index ck(c))
+	engine=innodb row_format=$wl6501_row_fmt
+	key_block_size=$wl6501_kbs;
+insert into t values (1, 'mysql is now oracle company'),
+		     (2, 'innodb is part of mysql'),
+		     (3, 'innodb is default storage engine of mysql');
+select * from t;
+#check table t;
+#
+set session debug = "+d,ib_err_trunc_during_fts_trunc";
+--error ER_GET_ERRNO
+truncate table t;
+set session debug = "-d,ib_err_trunc_during_fts_trunc";
+#
+#check table t;
+--error ER_INDEX_CORRUPT
+select * from t;
+drop table t;
+ 
+#-----------------------------------------------------------------------------
+#
+# 5. Error while updating sys-tables.
+#
+--echo "5. Error while updating sys-tables."
+use test;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
+--replace_regex /[0-9]+/NUMBER/
+eval create $wl6501_temp table t (i int, c char(100),
+	primary key pk(i))
+	engine=innodb row_format=$wl6501_row_fmt
+	key_block_size=$wl6501_kbs;
+insert into t values (1, 'mysql is now oracle company'),
+		     (2, 'innodb is part of mysql'),
+		     (3, 'innodb is default storage engine of mysql');
+select * from t;
+#check table t;
+#
+set session debug = "+d,ib_err_trunc_during_sys_table_update";
+--error ER_GET_ERRNO
+truncate table t;
+set session debug = "-d,ib_err_trunc_during_sys_table_update";
+#
+#check table t;
+--error ER_INDEX_CORRUPT
+select * from t;
+drop table t;
+ 
 #-----------------------------------------------------------------------------
 #
 # remove test-bed
