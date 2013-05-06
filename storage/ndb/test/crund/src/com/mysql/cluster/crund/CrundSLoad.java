@@ -17,20 +17,14 @@
 
 package com.mysql.cluster.crund;
 
-import java.io.PrintWriter;
+import com.mysql.cluster.crund.CrundDriver.XMode;
 
-
-abstract class TwsLoad {
-
-    // console
-    static protected final PrintWriter out = TwsDriver.out;
-    static protected final PrintWriter err = TwsDriver.err;
-
+abstract class CrundSLoad extends Load {
     // resources
-    protected final TwsDriver driver;
-    protected String descr;
+    protected final CrundDriver driver;
+    protected String name;
 
-    public TwsLoad(TwsDriver driver) {
+    public CrundSLoad(CrundDriver driver) {
         this.driver = driver;
     }
 
@@ -41,8 +35,8 @@ abstract class TwsLoad {
     abstract protected void initProperties();
     abstract protected void printProperties();
 
-    public String getDescriptor() {
-        return descr;
+    public String getName() {
+        return name;
     }
 
     public void init() throws Exception {
@@ -50,18 +44,51 @@ abstract class TwsLoad {
         printProperties();
     }
 
-    public void close() throws Exception {
-    }
+    public void close() throws Exception {}
+
+    // ----------------------------------------------------------------------
+    // datastore operations
+    // ----------------------------------------------------------------------
+
+    abstract public void initConnection() throws Exception;
+    abstract public void closeConnection() throws Exception;
+    abstract public void clearData() throws Exception;
 
     // ----------------------------------------------------------------------
     // benchmark operations
     // ----------------------------------------------------------------------
 
-    abstract public void runOperations() throws Exception;
+    abstract protected void clearPersistenceContext();
+    abstract protected void runInsert(XMode mode, int[] id) throws Exception;
+    abstract protected void runLookup(XMode mode, int[] id) throws Exception;
+    abstract protected void runUpdate(XMode mode, int[] id) throws Exception;
+    abstract protected void runDelete(XMode mode, int[] id) throws Exception;
 
-    // reports an error if a condition is not met
+    // runs a sequence of benchmark operations
+    public void runOperations(int nOps) throws Exception {
+        final int[] id = new int[nOps];
+        for (int i = 0; i < nOps; i++)
+            id[i] = i * 2;
+
+        for (XMode m : driver.xMode) {
+            clearPersistenceContext();
+            runInsert(m, id);
+            clearPersistenceContext();
+            runLookup(m, id);
+            clearPersistenceContext();
+            runUpdate(m, id);
+            clearPersistenceContext();
+            runDelete(m, id);
+        }
+        // failing fast, not yet using driver.failOnError, driver.logError()
+        //driver.abortIfErrors();
+    }
+
+    // ----------------------------------------------------------------------
+    // helpers
+    // ----------------------------------------------------------------------
+
     static protected final void verify(boolean cond) {
-        //assert (cond);
         if (!cond)
             throw new RuntimeException("data verification failed.");
     }
@@ -74,19 +101,9 @@ abstract class TwsLoad {
     }
 
     static protected final void verify(String exp, String act) {
-        if ((exp == null && act != null)
-            || (exp != null && !exp.equals(act)))
+        if (exp == null ? act != null : !exp.equals(act))
             throw new RuntimeException("data verification failed:"
                                        + " expected = '" + exp + "'"
                                        + ", actual = '" + act + "'");
     }
-
-    // ----------------------------------------------------------------------
-    // datastore operations
-    // ----------------------------------------------------------------------
-
-    abstract public void initConnection() throws Exception;
-    abstract public void closeConnection() throws Exception;
-    //abstract public void clearPersistenceContext() throws Exception;
-    //abstract public void clearData() throws Exception;
 }

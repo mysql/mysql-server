@@ -17,11 +17,18 @@
 
 package com.mysql.cluster.crund;
 
+import java.lang.reflect.Array;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Properties;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
@@ -41,37 +48,34 @@ import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
 import com.mysql.ndbjtie.ndbapi.NdbError;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
+import com.mysql.ndbjtie.ndbapi.NdbOperationConst;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
-import com.mysql.ndbjtie.ndbapi.NdbRecAttr;
-import com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode;
-/*
-//import com.mysql.ndbjtie.ndbapi.ExecType;
-import com.mysql.ndbjtie.ndbapi.NdbTransaction.ExecType;
-import com.mysql.ndbjtie.ndbapi.NdbOperation;
-//import com.mysql.ndbjtie.ndbapi.AbortOption;
-import com.mysql.ndbjtie.ndbapi.NdbOperation.AbortOption;
+import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanFlag;
 import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation;
 import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation.BoundType;
-*/
+import com.mysql.ndbjtie.ndbapi.NdbRecAttr;
+//import com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode;
+import com.mysql.ndbjtie.ndbapi.NdbTransaction.ExecType;
+import com.mysql.ndbjtie.ndbapi.NdbOperationConst.AbortOption;
+
+import com.mysql.cluster.crund.CrundDriver.XMode;
 
 /**
  * The NDB JTie benchmark implementation.
  */
-public class NdbjtieLoad extends CrundDriver {
-
+public class NdbjtieAB extends CrundLoad {
     // NDB settings
     protected String mgmdConnect;
     protected String catalog;
     protected String schema;
+    protected int nConcScans;
 
     // NDB JTie resources
+    protected Model model;
     protected Ndb_cluster_connection mgmd;
     protected Ndb ndb;
     protected NdbTransaction tx;
     protected int ndbOpLockMode;
-
-    // NDB JTie metadata resources
-    protected Model model;
 
     // NDB JTie static resources
     static protected final ByteOrder bo = ByteOrder.nativeOrder();
@@ -93,17 +97,32 @@ public class NdbjtieLoad extends CrundDriver {
             .onUnmappableCharacter(CodingErrorAction.REPORT);
     }
 
+    public NdbjtieAB(CrundDriver driver) {
+        super(driver);
+    }
+
+    static public void main(String[] args) {
+        System.out.println("NdbjtieAB.main()");
+        CrundDriver.parseArguments(args);
+        final CrundDriver driver = new CrundDriver();
+        final CrundLoad load = new NdbjtieAB(driver);
+        driver.addLoad(load);
+        driver.run();
+        System.out.println();
+        System.out.println("NdbjtieAB.main(): done.");
+    }
+
     // ----------------------------------------------------------------------
     // NDB JTie intializers/finalizers
     // ----------------------------------------------------------------------
 
    protected void initProperties() {
-        super.initProperties();
-
-        out.print("setting ndb properties ...");
+        out.println();
+        out.print("reading NDB properties ...");
 
         final StringBuilder msg = new StringBuilder();
         final String eol = System.getProperty("line.separator");
+        final Properties props = driver.props;
 
         // the hostname and port number of NDB mgmd
         mgmdConnect = props.getProperty("ndb.mgmdConnect", "localhost");
@@ -117,6 +136,13 @@ public class NdbjtieLoad extends CrundDriver {
         schema = props.getProperty("ndb.schema", "def");
         assert schema != null;
 
+        // the number of concurrent scans
+        nConcScans = driver.parseInt("ndb.nConcScans", 255);
+        if (nConcScans < 1) {
+            msg.append("[IGNORED] ndb.nConcScans:    " + nConcScans + eol);
+            nConcScans = 255;
+        }
+
         if (msg.length() == 0) {
             out.println("      [ok]");
         } else {
@@ -124,25 +150,24 @@ public class NdbjtieLoad extends CrundDriver {
             out.print(msg.toString());
         }
 
-        descr = "->ndbjtie(" + mgmdConnect + ")";
+        name = "->ndbjtie"; // shortcut will do, "(" + mgmdConnect + ")";
     }
 
     protected void printProperties() {
-        super.printProperties();
-
         out.println();
-        out.println("ndb settings ...");
+        out.println("NDB settings ...");
         out.println("ndb.mgmdConnect:                \"" + mgmdConnect + "\"");
         out.println("ndb.catalog:                    \"" + catalog + "\"");
         out.println("ndb.schema:                     \"" + schema + "\"");
+        out.println("ndb.nConcScans:                 " + nConcScans);
     }
 
-    protected void initLoad() throws Exception {
-        // XXX support generic load class
-        //super.init();
+    public void init() throws Exception {
         assert mgmd == null;
+        super.init();
 
         // load native library (better diagnostics doing it explicitely)
+        out.println();
         Driver.loadSystemLibrary("ndbclient");
 
         // instantiate NDB cluster singleton
@@ -153,18 +178,15 @@ public class NdbjtieLoad extends CrundDriver {
         out.println(" [ok: mgmd@" + mgmdConnect + "]");
     }
 
-    protected void closeLoad() throws Exception {
+    public void close() throws Exception {
         assert mgmd != null;
-
         out.println();
         out.print("closing cluster connection ...");
         out.flush();
         Ndb_cluster_connection.delete(mgmd);
         mgmd = null;
         out.println("  [ok]");
-
-        // XXX support generic load class
-        //super.close();
+        super.close();
     }
 
     // ----------------------------------------------------------------------
@@ -210,6 +232,7 @@ public class NdbjtieLoad extends CrundDriver {
         public final int attr_B_aid;
         public final int attr_B_cvarbinary_def;
         public final int attr_B_cvarchar_def;
+        public final int attr_idx_B_aid;
         public final int width_id;
         public final int width_cint;
         public final int width_clong;
@@ -229,6 +252,7 @@ public class NdbjtieLoad extends CrundDriver {
             final Dictionary dict = ndb.getDictionary();
 
             // get columns of table A
+            // problems finding table name if upper case
             if ((table_A = dict.getTable("a")) == null)
                 throw new RuntimeException(toStr(dict.getNdbError()));
             if ((column_A_id = table_A.getColumn("id")) == null)
@@ -282,11 +306,14 @@ public class NdbjtieLoad extends CrundDriver {
             attr_cdouble = column_A_cdouble.getColumnNo();
             if (attr_cdouble != column_B_cdouble.getColumnNo())
                 throw new RuntimeException("attribute id mismatch");
- 
+
             // get attribute ids for table B
             attr_B_aid = column_B_aid.getColumnNo();
             attr_B_cvarbinary_def = column_B_cvarbinary_def.getColumnNo();
             attr_B_cvarchar_def = column_B_cvarchar_def.getColumnNo();
+
+            // get attribute ids for columns in index B_aid
+            attr_idx_B_aid = idx_B_aid.getColumn(0).getColumnNo();
 
             // get the width of common columns in tables A, B
             width_id = columnWidth(column_A_id);
@@ -343,14 +370,12 @@ public class NdbjtieLoad extends CrundDriver {
     // NDB JTie operations
     // ----------------------------------------------------------------------
 
-    // assumes PKs: 0..nOps, relationships: identity 1:1
+    // model assumptions: relationships: identity 1:1
     protected abstract class NdbjtieOp extends Op {
-        protected final TableConst table;
         protected XMode xMode;
 
-        public NdbjtieOp(String name, XMode m, TableConst table) {
-            super(name + (m == null ? "" : toStr(m)));
-            this.table = table;
+        public NdbjtieOp(String name, XMode m) {
+            super(name + (m == null ? "" : m));
             this.xMode = m;
         }
 
@@ -360,30 +385,33 @@ public class NdbjtieLoad extends CrundDriver {
     };
 
     protected abstract class WriteOp extends NdbjtieOp {
+        protected final TableConst table;
         protected NdbOperation op;
 
         public WriteOp(String name, XMode m, TableConst table) {
-            super(name, m, table);
+            super(name, m);
+            this.table = table;
         }
 
-        public void run(int nOps) {
+        public void run(int[] id) {
+            final int n = id.length;
             switch (xMode) {
-            case INDY :
-                for (int id = 0; id < nOps; id++) {
+            case indy :
+                for (int i = 0; i < n; i++) {
                     beginTransaction();
-                    write(id);
+                    write(id[i]);
                     commitTransaction();
                     closeTransaction();
                 }
                 break;
-            case EACH :
-            case BULK :
+            case each :
+            case bulk :
                 // Approach: control when persistent context is flushed,
                 // i.e., at commit for 1 database roundtrip only.
                 beginTransaction();
-                for (int id = 0; id < nOps; id++) {
-                    write(id);
-                    if (xMode == XMode.EACH)
+                for (int i = 0; i < n; i++) {
+                    write(id[i]);
+                    if (xMode == XMode.each)
                         executeOperations();
                 }
                 commitTransaction();
@@ -393,9 +421,6 @@ public class NdbjtieLoad extends CrundDriver {
         }
 
         protected void write(int id) {
-            op = tx.getNdbOperation(table);
-            if (op == null)
-                throw new RuntimeException(toStr(tx.getNdbError()));
             setOp();
             setValues(id);
         }
@@ -411,6 +436,9 @@ public class NdbjtieLoad extends CrundDriver {
         }
 
         protected final void setOp() {
+            op = tx.getNdbOperation(table);
+            if (op == null)
+                throw new RuntimeException(toStr(tx.getNdbError()));
             if (op.updateTuple() != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
         }
@@ -422,6 +450,9 @@ public class NdbjtieLoad extends CrundDriver {
         }
 
         protected final void setOp() {
+            op = tx.getNdbOperation(table);
+            if (op == null)
+                throw new RuntimeException(toStr(tx.getNdbError()));
             if (op.insertTuple() != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
         }
@@ -433,70 +464,82 @@ public class NdbjtieLoad extends CrundDriver {
         }
 
         protected final void setOp() {
+            op = tx.getNdbOperation(table);
+            if (op == null)
+                throw new RuntimeException(toStr(tx.getNdbError()));
             if (op.deleteTuple() != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
         }
     }
 
     protected abstract class ReadOp extends NdbjtieOp {
+        protected final TableConst table;
         protected NdbOperation op;
 
         public ReadOp(String name, XMode m, TableConst table) {
-            super(name, m, table);
+            super(name, m);
+            this.table = table;
         }
 
-        public void run(int nOps) {
+        public void run(int[] id) {
+            final int n = id.length;
             switch (xMode) {
-            case INDY :
-                for (int id = 0; id < nOps; id++) {
+            case indy :
+                for (int i = 0; i < n; i++) {
                     beginTransaction();
                     alloc(1);
                     rewind();
-                    read(id);
+                    read(id[i]);
                     commitTransaction();
                     rewind();
-                    check(id);
+                    check(id[i]);
+                    free();
                     closeTransaction();
                 }
                 break;
-            case EACH :
+            case each :
                 beginTransaction();
                 alloc(1);
-                for (int id = 0; id < nOps; id++) {
+                for (int i = 0; i < n; i++) {
                     rewind();
-                    read(id);
+                    read(id[i]);
                     executeOperations();
                     rewind();
-                    check(id);
+                    check(id[i]);
                 }
                 commitTransaction();
+                free();
                 closeTransaction();
                 break;
-            case BULK :
+            case bulk :
                 beginTransaction();
-                alloc(nOps);
+                alloc(n);
                 rewind();
-                for (int id = 0; id < nOps; id++)
-                    read(id);
+                read(id);
                 executeOperations();
                 rewind();
-                for (int id = 0; id < nOps; id++)
-                    check(id);
+                check(id);
                 commitTransaction();
+                free();
                 closeTransaction();
                 break;
             }
         }
 
-        protected final void read(int id) {
-            op = tx.getNdbOperation(table);
-            if (op == null)
-                throw new RuntimeException(toStr(tx.getNdbError()));
+        protected void read(int[] id) {
+            for (int i = 0; i < id.length; i++)
+                read(id[i]);
+        }
+
+        protected void read(int id) {
             setOp();
             getValues(id);
         }
 
         protected final void setOp() {
+            op = tx.getNdbOperation(table);
+            if (op == null)
+                throw new RuntimeException(toStr(tx.getNdbError()));
             if (op.readTuple(ndbOpLockMode) != 0)
                 throw new RuntimeException(toStr(tx.getNdbError()));
         }
@@ -505,7 +548,14 @@ public class NdbjtieLoad extends CrundDriver {
 
         protected abstract void rewind();
 
+        protected abstract void free();
+
         protected abstract void getValues(int id);
+
+        protected void check(int[] id) {
+            for (int i = 0; i < id.length; i++)
+                check(id[i]);
+        }
 
         protected abstract void check(int id);
     }
@@ -519,13 +569,17 @@ public class NdbjtieLoad extends CrundDriver {
             this.rowWidth = rowWidth;
         }
 
-        protected final void alloc(int n) {
+        protected void alloc(int n) {
             bb = ByteBuffer.allocateDirect(rowWidth * n);
             bb.order(bo); // initial order is BIG_ENDIAN
         }
 
-        protected final void rewind() {
+        protected void rewind() {
             bb.rewind(); // prepare buffer for reading
+        }
+
+        protected void free() {
+            bb = null;
         }
     }
 
@@ -539,7 +593,7 @@ public class NdbjtieLoad extends CrundDriver {
             this.cls = cls;
         }
 
-        protected final void alloc(int n) {
+        protected void alloc(int n) {
             try {
                 ah = new ArrayList<H>(n);
                 for (int i = 0; i < n; i++)
@@ -549,14 +603,253 @@ public class NdbjtieLoad extends CrundDriver {
             } catch (IllegalAccessException ex) {
                 throw new RuntimeException(ex);
             }
+            pos = 0;
         }
 
-        protected final void rewind() {
+        protected void rewind() {
             pos = 0;
+        }
+
+        protected void free() {
+            ah = null;
         }
     }
 
-    // ----------------------------------------------------------------------
+    protected abstract class IndexScanOp extends NdbjtieOp {
+        protected final IndexConst index;
+        protected final boolean forceSend;
+        protected NdbIndexScanOperation op[];
+
+        public IndexScanOp(String name, XMode m, IndexConst index) {
+            super(name, m);
+            this.index = index;
+            this.forceSend = true; // no send delay for 1-thread app
+        }
+
+        public void run(int[] id) {
+            final int n = id.length;
+            switch (xMode) {
+            case indy :
+                for (int i = 0; i < n; i++) {
+                    beginTransaction();
+                    op = new NdbIndexScanOperation[1];
+                    final int o = 0; // current scan
+                    alloc(1); // no need to rewind()
+                    read(o, id[i]);
+                    executeOperations();
+                    rewind();
+                    fetch(o, id[i]);
+                    commitTransaction();
+                    rewind();
+                    check(id[i]);
+                    free();
+                    closeTransaction();
+                }
+                break;
+            case each :
+                beginTransaction();
+                op = new NdbIndexScanOperation[1];
+                final int o = 0; // current scan
+                alloc(1);
+                for (int i = 0; i < n; i++) {
+                    rewind();
+                    read(o, id[i]);
+                    executeOperations();
+                    rewind();
+                    fetch(o, id[i]);
+                    rewind();
+                    check(id[i]);
+                }
+                free();
+                commitTransaction();
+                closeTransaction();
+                break;
+            case bulk :
+                beginTransaction();
+                final int bs = nConcScans; // batch size
+                op = new NdbIndexScanOperation[bs];
+                for (int b = 0; b < n; b += bs) {
+                    final int e = ((b + bs) < n ? (b + bs) : n);
+                    final int[] idb = Arrays.copyOfRange(id, b, e);
+                    assert idb.length <= bs;
+                    alloc(bs);
+                    read(idb);
+                    executeOperations();
+                    rewind();
+                    fetch(idb);
+                    rewind();
+                    check(idb);
+                    free();
+                }
+                commitTransaction();
+                closeTransaction();
+                break;
+            }
+        }
+
+        protected void read(int[] id) {
+            final int n = id.length;
+            assert n <= nConcScans;
+            for (int i = 0; i < n; i++) {
+                rewind(); // single scan result buffer
+                final int o = i % nConcScans; // current scan
+                read(o, id[i]);
+            }
+        }
+
+        protected void read(int o, int id) {
+            setOp(o);
+            setBounds(o, id);
+            getValues(o, id);
+        }
+
+        protected final void setOp(int o) {
+            final NdbIndexScanOperation iso
+                = tx.getNdbIndexScanOperation(index);
+            if (iso == null)
+                throw new RuntimeException(toStr(tx.getNdbError()));
+            op[o] = iso;
+
+            // define a read scan
+            final int lockMode = ndbOpLockMode; // LockMode.LM_CommittedRead;
+            final int scanFlags = 0 | ScanFlag.SF_OrderBy; // sort on the index
+            final int parallel = 0; // #fragments to scan in parallel (0=max)
+            final int batch = 0; // #rows to fetch in each batch
+            if (iso.readTuples(lockMode, scanFlags, parallel, batch) != 0)
+                throw new RuntimeException(toStr(tx.getNdbError()));
+        }
+
+        protected void fetch(int[] id) {
+            final int n = id.length;
+            assert n <= nConcScans;
+            for (int i = 0; i < n; i++) {
+                final int o = i % nConcScans; // current scan
+                fetch(o, id[i]);
+            }
+        }
+
+        protected void fetch(int o, int id) {
+            // read the result set executing the defined read operations
+            final NdbIndexScanOperation iso = op[o];
+            int stat;
+            final boolean allowFetch = true; // request batches when needed
+            while ((stat = iso.nextResult(allowFetch, forceSend)) == 0)
+                copy(o);
+            if (stat != 1)
+                throw new RuntimeException(toStr(tx.getNdbError()));
+
+            // close the scan, no harm in delaying/accumulating close()
+            final boolean releaseOp = true;
+            iso.close(!forceSend, !releaseOp);
+        }
+
+        protected abstract void alloc(int n);
+
+        protected abstract void rewind();
+
+        protected abstract void copy(int o);
+
+        protected abstract void free();
+
+        protected abstract void setBounds(int o, int id);
+
+        protected abstract void getValues(int o, int id);
+
+        protected void check(int[] id) {
+            final int n = id.length;
+            for (int i = 0; i < n; i++)
+                check(id[i]);
+        }
+
+        protected abstract void check(int id);
+    }
+
+    protected abstract class BBIndexScanOp extends IndexScanOp {
+        protected final int rowWidth;
+        protected ByteBuffer b; // current result row of current scan
+        protected ByteBuffer bb; // collected scan results
+
+        public BBIndexScanOp(String name, XMode m,
+                             IndexConst index, int rowWidth) {
+            super(name, m, index);
+            this.rowWidth = rowWidth;
+        }
+
+        protected void alloc(int n) {
+            b = ByteBuffer.allocateDirect(rowWidth);
+            b.order(bo); // initial order is BIG_ENDIAN
+            bb = ByteBuffer.allocateDirect(rowWidth * n);
+            bb.order(bo); // initial order is BIG_ENDIAN
+        }
+
+        protected void rewind() {
+            b.rewind(); // prepare buffer for reading
+            bb.rewind(); // prepare buffer for reading
+        }
+
+        protected void copy(int o) {
+            b.rewind(); // prepare buffer for reading
+            bb.put(b);
+        }
+
+        protected void free() {
+            b = null;
+            bb = null;
+        }
+    }
+
+    protected abstract class RAIndexScanOp<H extends RecHolder>
+        extends IndexScanOp {
+        protected final Class<H> cls;
+        protected H[] oh; // RecHolder per scan operation, managed by operation
+        protected List<H> ah; // RecHolder per scan result row, cloned & freed
+        protected int pos;
+
+        public RAIndexScanOp(String name, XMode m,
+                             IndexConst index, Class<H> cls) {
+            super(name, m, index);
+            this.cls = cls;
+        }
+
+        @SuppressWarnings("unchecked")
+        protected void alloc(int n) {
+            // 'unchecked' warning, no API to get from Class<H> cls
+            // to a Class<H[]> instance for an explicit call to cast()
+            oh = (H[])Array.newInstance(cls, n); // max: nConcScans
+            try {
+                for (int i = 0; i < n; i++)
+                    oh[i] = cls.newInstance();
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+
+            ah = new ArrayList<H>(n);
+            for (int i = 0; i < n; i++)
+                ah.add(null);
+            pos = 0;
+        }
+
+        protected void rewind() {
+            pos = 0;
+        }
+
+        protected void copy(int o) {
+            // save clone of NdbRecAttrs in RecHolder reused by scan operation
+            final H c = cls.cast(oh[o].clone());
+            //ah.add(c);
+            ah.set(pos++, c);
+        }
+
+        protected void free() {
+            for (H a : ah)
+                if (a != null)
+                    a.delete(); // cloned NdbRecAttrs lifecycle-managed by app
+            ah.clear();
+            oh = null; // getValue()-returned NdbRecAttrs managed by NDB
+        }
+    }
+
+// ----------------------------------------------------------------------
 
     protected void initOperations() {
         out.print("initializing operations ...");
@@ -565,10 +858,9 @@ public class NdbjtieLoad extends CrundDriver {
         //out.println("default charset: "
         //    + java.nio.charset.Charset.defaultCharset().displayName());
 
-        for (XMode m : xMode) {
+        for (XMode m : driver.xMode) {
             // inner classes can only refer to a constant
             final XMode xMode = m;
-            final boolean forceSend = true;
 
             ops.add(
                 new InsertOp("A_insAttr_", xMode, model.table_A) {
@@ -610,7 +902,7 @@ public class NdbjtieLoad extends CrundDriver {
                         getKeyA(op, bb);
                         getAttrA(op, bb);
                     }
-                    
+
                     protected void check(int id) {
                         checkKeyA(id, bb);
                         checkAttrA(id, bb);
@@ -626,7 +918,7 @@ public class NdbjtieLoad extends CrundDriver {
                         getKeyA(op, h);
                         getAttrA(op, h);
                     }
-                    
+
                     protected void check(int id) {
                         final RecAttrHolder h = ah.get(pos++);
                         checkKeyA(id, h);
@@ -642,7 +934,7 @@ public class NdbjtieLoad extends CrundDriver {
                         getKeyB(op, bb);
                         getAttrB(op, bb);
                     }
-                    
+
                     protected void check(int id) {
                         checkKeyB(id, bb);
                         checkAttrB(id, bb);
@@ -658,7 +950,7 @@ public class NdbjtieLoad extends CrundDriver {
                         getKeyB(op, h);
                         getAttrB(op, h);
                     }
-                    
+
                     protected void check(int id) {
                         final RecAttrHolder h = ah.get(pos++);
                         checkKeyB(id, h);
@@ -670,7 +962,7 @@ public class NdbjtieLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final byte[] b = bytes[i];
                 final int l = b.length;
-                if (l > maxVarbinaryBytes)
+                if (l > driver.maxVarbinaryBytes)
                     break;
 
                 if (l > (model.width_B_cvarbinary_def
@@ -716,7 +1008,7 @@ public class NdbjtieLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final String s = strings[i];
                 final int l = s.length();
-                if (l > maxVarcharChars)
+                if (l > driver.maxVarcharChars)
                     break;
 
                 if (l > (model.width_B_cvarchar_def
@@ -767,33 +1059,174 @@ public class NdbjtieLoad extends CrundDriver {
                     }
                 });
 
+            ops.add(new BBReadOp("B_getA_bb_", xMode,
+                                 model.table_A, model.width_AB_row) {
+                    // sub-query
+                    protected final BBReadOp getAId
+                    = new BBReadOp("B_getAId_bb_", xMode,
+                                   model.table_B, model.width_B_aid) {
+                            protected void getValues(int id) {
+                                setKeyB(op, id); // needs to be set first
+                                getAIdB(op, bb);
+                            }
+
+                            protected void check(int id) {}
+                        };
+
+                    protected void alloc(int n) {
+                        getAId.alloc(n);
+                        super.alloc(n);
+                    }
+
+                    protected void free() {
+                        getAId.free();
+                        super.free();
+                    }
+
+                    protected void read(int[] id) {
+                        // run sub-query
+                        getAId.rewind();
+                        getAId.read(id);
+                        executeOperations();
+
+                        // run this query
+                        // cannot call into super.read(int[]) -> this.read(int)
+                        getAId.rewind();
+                        final IntBuffer aid = getAId.bb.asIntBuffer();
+                        while (aid.hasRemaining())
+                            super.read(aid.get());
+                    }
+
+                    protected void read(int id) {
+                        // run sub-query
+                        getAId.rewind();
+                        getAId.read(id);
+                        executeOperations();
+
+                        // run this query
+                        getAId.rewind();
+                        final int aid = getAId.bb.getInt();
+                        super.read(aid);
+                    }
+
+                    protected void getValues(int id) {
+                        setKeyA(op, id); // needs to be set first
+                        getKeyA(op, bb);
+                        getAttrA(op, bb);
+                    }
+
+                    protected void check(int id) {
+                        checkKeyA(id, bb);
+                        checkAttrA(id, bb);
+                    }
+                });
+
+            ops.add(new RAReadOp<RecAttrHolder>("B_getA_ra_", xMode,
+                                 model.table_A, RecAttrHolder.class) {
+                    // sub-query
+                    protected final RAReadOp<RecIdHolder> getAId
+                    = new RAReadOp<RecIdHolder>("B_getAId_ra_", xMode,
+                                   model.table_B, RecIdHolder.class) {
+                            protected void getValues(int id) {
+                                setKeyB(op, id); // needs to be set first
+                                final RecIdHolder h = ah.get(pos++);
+                                getAIdB(op, h);
+                            }
+
+                            protected void check(int id) {}
+                        };
+
+                    protected void alloc(int n) {
+                        getAId.alloc(n);
+                        super.alloc(n);
+                    }
+
+                    protected void free() {
+                        getAId.free();
+                        super.free();
+                    }
+
+                    protected void read(int[] id) {
+                        // run sub-query
+                        getAId.rewind();
+                        getAId.read(id);
+                        executeOperations();
+
+                        // run this query
+                        // cannot call into super.read(int[]) -> this.read(int)
+                        getAId.rewind();
+                        for (RecIdHolder h : getAId.ah)
+                            super.read(h.id.int32_value());
+                    }
+
+                    protected void read(int id) {
+                        // run sub-query
+                        getAId.rewind();
+                        getAId.read(id);
+                        executeOperations();
+
+                        // run this query
+                        getAId.rewind();
+                        final RecIdHolder h = getAId.ah.get(getAId.pos++);
+                        super.read(h.id.int32_value());
+                    }
+
+                    protected void getValues(int id) {
+                        setKeyA(op, id); // needs to be set first
+                        final RecAttrHolder h = ah.get(pos++);
+                        getKeyA(op, h);
+                        getAttrA(op, h);
+                    }
+
+                    protected void check(int id) {
+                        final RecAttrHolder h = ah.get(pos++);
+                        checkKeyA(id, h);
+                        checkAttrA(id, h);
+                    }
+                });
+
+            ops.add(new BBIndexScanOp("A_getBs_bb_", xMode,
+                                      model.idx_B_aid, model.width_AB_row) {
+                    protected final void setBounds(int o, int id) {
+                        setBoundEqAIdB(op[o], id);
+                    }
+
+                    protected void getValues(int o, int id) {
+                        getKeyB(op[o], b);
+                        getAttrB(op[o], b);
+                    }
+
+                    protected void check(int id) {
+                        checkKeyB(id, bb);
+                        checkAttrB(id, bb);
+                    }
+                });
+
+            ops.add(new RAIndexScanOp<RecAttrHolder>("A_getBs_ra_", xMode,
+                                                     model.idx_B_aid,
+                                                     RecAttrHolder.class) {
+                    protected final void setBounds(int o, int id) {
+                        setBoundEqAIdB(op[o], id);
+                    }
+
+                    protected void getValues(int o, int id) {
+                        getKeyB(op[o], oh[o]);
+                        getAttrB(op[o], oh[o]);
+                    }
+
+                    protected void check(int id) {
+                        final RecAttrHolder h = ah.get(pos++);
+                        checkKeyB(id, h);
+                        checkAttrB(id, h);
+                    }
+                });
+
             ops.add(
                 new UpdateOp("B_clearA_", xMode, model.table_B) {
                     public void setValues(int id) {
                         setKeyB(op, id); // needs to be set first
                         final int aid = -1;
                         setAIdB(op, aid);
-                    }
-                });
-
-            ops.add(
-                new Op("B_getA_" + toStr(xMode)) {
-                    public void run(int nOps) {
-                        navBToA(nOps, xMode);
-                    }
-                });
-
-            ops.add(
-                new Op("A_getBs") {
-                    public void run(int nOps) {
-                        navAToB(nOps, !forceSend);
-                    }
-                });
-
-            ops.add(
-                new Op("A_getBs_forceSend") {
-                    public void run(int nOps) {
-                        navAToB(nOps, forceSend);
                     }
                 });
 
@@ -827,17 +1260,17 @@ public class NdbjtieLoad extends CrundDriver {
 
             ops.add(
                 new Op("B_delAll") {
-                    public void run(int nOps) {
-                        final int n = delByScan(model.table_B);
-                        verify(nOps, n);
+                    public void run(int[] id) {
+                        final int d = delByScan(model.table_B);
+                        verify(id.length, d);
                     }
                 });
 
             ops.add(
                 new Op("A_delAll") {
-                    public void run(int nOps) {
-                        final int n = delByScan(model.table_A);
-                        verify(nOps, n);
+                    public void run(int[] id) {
+                        final int d = delByScan(model.table_A);
+                        verify(id.length, d);
                     }
                 });
         }
@@ -846,22 +1279,113 @@ public class NdbjtieLoad extends CrundDriver {
     }
 
     protected void closeOperations() {
-        out.println();
         out.print("closing operations ...");
         out.flush();
         ops.clear();
         out.println("          [ok]");
     }
 
+    protected void clearPersistenceContext() throws Exception {
+        // nothing to do as we're not caching beyond Tx scope
+    }
+
     // ----------------------------------------------------------------------
 
-    static protected class RecAttrHolder {
+    static protected class RecHolder implements Cloneable {
+        public RecHolder clone() {
+            try {
+                return (RecHolder)super.clone();
+            } catch (CloneNotSupportedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public void delete() {}
+
+        // renamed, generic method measurably slower than hard-coded version
+        // generically clones this object using NdbRecAttr.cloneNative()
+        // on all public fields of this instance
+        public RecHolder cloneGenerically() {
+            final RecHolder c;
+            try {
+                c = (RecHolder)super.clone();
+                final Class<NdbRecAttr> nra = NdbRecAttr.class;
+                final Method m = nra.getMethod("cloneNative");
+                final Field[] fields = this.getClass().getFields();
+                for (Field f : fields) {
+                    final NdbRecAttr tf = (NdbRecAttr)f.get(this);
+                    final NdbRecAttr cf = (NdbRecAttr)m.invoke(tf);
+                    f.set(c, cf);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            return c;
+        }
+
+        // renamed, generic method measurably slower than hard-coded version
+        // generically clears this object calling NdbRecAttr.delete()
+        // on all public fields of this instance
+        public void deleteGenerically() {
+            try {
+                final Class<NdbRecAttr> nra = NdbRecAttr.class;
+                final Method m = nra.getMethod("delete", nra);
+                final Field[] fields = this.getClass().getFields();
+                for (Field f : fields) {
+                    final NdbRecAttr tf = (NdbRecAttr)f.get(this);
+                    m.invoke(null, tf);
+                    f.set(this, null); // nullify field
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    static protected class RecIdHolder extends RecHolder {
         public NdbRecAttr id;
+
+        public RecIdHolder clone() {
+            final RecIdHolder h = (RecIdHolder)super.clone();
+            h.id = id.cloneNative();
+            return h;
+        }
+
+        public void delete() {
+            NdbRecAttr.delete(id);
+            id = null;
+        }
+    }
+
+    static protected class RecAttrHolder extends RecIdHolder {
         public NdbRecAttr cint;
         public NdbRecAttr clong;
         public NdbRecAttr cfloat;
         public NdbRecAttr cdouble;
+
+        public RecAttrHolder clone() {
+            final RecAttrHolder h = (RecAttrHolder)super.clone();
+            h.cint = cint.cloneNative();
+            h.clong = clong.cloneNative();
+            h.cfloat = cfloat.cloneNative();
+            h.cdouble = cdouble.cloneNative();
+            return h;
+        }
+
+        public void delete() {
+            NdbRecAttr.delete(cint);
+            NdbRecAttr.delete(clong);
+            NdbRecAttr.delete(cfloat);
+            NdbRecAttr.delete(cdouble);
+            cint = null;
+            clong = null;
+            cfloat = null;
+            cdouble = null;
+            super.delete();
+        }
     };
+
+    // ----------------------------------------------------------------------
 
     protected void setKeyA(NdbOperation op, int id) {
         if (op.equal(model.attr_id, id) != 0)
@@ -871,6 +1395,47 @@ public class NdbjtieLoad extends CrundDriver {
     protected void setKeyB(NdbOperation op, int id) {
         setKeyA(op, id); // currently same as A
     }
+
+    protected void getKeyA(NdbOperation op, ByteBuffer bb) {
+        if (op.getValue(model.attr_id, bb) == null)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + model.width_id);
+    }
+
+    protected void getKeyB(NdbOperation op, ByteBuffer bb) {
+        getKeyA(op, bb); // currently same as A
+    }
+
+    protected void getKeyA(NdbOperation op, RecIdHolder ah) {
+        if ((ah.id = op.getValue(model.attr_id, null)) == null)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+    }
+
+    protected void getKeyB(NdbOperation op, RecIdHolder ah) {
+        getKeyA(op, ah); // currently same as A
+    }
+
+    protected void checkKeyA(int i, ByteBuffer bb) {
+        verify(i, bb.getInt());
+    }
+
+    protected void checkKeyB(int i, ByteBuffer bb) {
+        checkKeyA(i, bb); // currently same as A
+    }
+
+    protected void checkAttrB(int i, ByteBuffer bb) {
+        checkAttrA(i, bb); // currently same as A
+    }
+
+    protected void checkKeyA(int i, RecIdHolder ah) {
+        verify(i, ah.id.int32_value());
+    }
+
+    protected void checkKeyB(int i, RecIdHolder ah) {
+        checkKeyA(i, ah); // currently same as A
+    }
+
+    // ----------------------------------------------------------------------
 
     protected void setAttrA(NdbOperation op, int i) {
         if (op.setValue(model.attr_cint, i) != 0)
@@ -885,16 +1450,6 @@ public class NdbjtieLoad extends CrundDriver {
 
     protected void setAttrB(NdbOperation op, int id) {
         setAttrA(op, id); // currently same as A
-    }
-
-    protected void getKeyA(NdbOperation op, ByteBuffer bb) {
-        if (op.getValue(model.attr_id, bb) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-        bb.position(bb.position() + model.width_id);
-    }
-    
-    protected void getKeyB(NdbOperation op, ByteBuffer bb) {
-        getKeyA(op, bb); // currently same as A
     }
 
     protected void getAttrA(NdbOperation op, ByteBuffer bb) {
@@ -917,15 +1472,6 @@ public class NdbjtieLoad extends CrundDriver {
         getAttrA(op, bb); // currently same as A
     }
 
-    protected void getKeyA(NdbOperation op, RecAttrHolder ah) {
-        if ((ah.id = op.getValue(model.attr_id, null)) == null)
-            throw new RuntimeException(toStr(tx.getNdbError()));
-    }
-
-    protected void getKeyB(NdbOperation op, RecAttrHolder ah) {
-        getKeyA(op, ah); // currently same as A
-    }
-
     protected void getAttrA(NdbOperation op, RecAttrHolder ah) {
         if ((ah.cint = op.getValue(model.attr_cint, null)) == null)
             throw new RuntimeException(toStr(tx.getNdbError()));
@@ -941,31 +1487,11 @@ public class NdbjtieLoad extends CrundDriver {
         getAttrA(op, ah); // currently same as A
     }
 
-    protected void checkKeyA(int i, ByteBuffer bb) {
-        verify(i, bb.getInt());
-    }
-
-    protected void checkKeyB(int i, ByteBuffer bb) {
-        checkKeyA(i, bb); // currently same as A
-    }
-
     protected void checkAttrA(int i, ByteBuffer bb) {
         verify(i, bb.getInt());
         verify(i, bb.getLong());
         verify(i, bb.getFloat());
         verify(i, bb.getDouble());
-    }
-
-    protected void checkAttrB(int i, ByteBuffer bb) {
-        checkAttrA(i, bb); // currently same as A
-    }
-
-    protected void checkKeyA(int i, RecAttrHolder ah) {
-        verify(i, ah.id.int32_value());
-    }
-
-    protected void checkKeyB(int i, RecAttrHolder ah) {
-        checkKeyA(i, ah); // currently same as A
     }
 
     protected void checkAttrA(int i, RecAttrHolder ah) {
@@ -978,6 +1504,8 @@ public class NdbjtieLoad extends CrundDriver {
     protected void checkAttrB(int i, RecAttrHolder ah) {
         checkAttrA(i, ah); // currently same as A
     }
+
+    // ----------------------------------------------------------------------
 
     protected void setVarbinaryB(NdbOperation op, byte[] b) {
         ByteBuffer to = null;
@@ -1041,12 +1569,24 @@ public class NdbjtieLoad extends CrundDriver {
             throw new RuntimeException(toStr(tx.getNdbError()));
     }
 
-    protected void navBToA(int n, XMode xMode) {
-// XXX not implemented yet
+    protected void getAIdB(NdbOperation op, ByteBuffer bb) {
+        if (op.getValue(model.attr_B_aid, bb) == null)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+        bb.position(bb.position() + model.width_B_aid);
     }
 
-    protected void navAToB(int n, boolean forceSend) {
-// XXX not implemented yet
+    protected void getAIdB(NdbOperation op, RecIdHolder ah) {
+        if ((ah.id = op.getValue(model.attr_B_aid, null)) == null)
+            throw new RuntimeException(toStr(tx.getNdbError()));
+    }
+
+    protected void setBoundEqAIdB(NdbIndexScanOperation op, int id) {
+        final ByteBuffer bnd = ByteBuffer.allocateDirect(4);
+        bnd.order(bo); // initial order is BIG_ENDIAN
+        bnd.putInt(id);
+        bnd.flip();
+        if (op.setBound(model.attr_idx_B_aid, BoundType.BoundEQ, bnd) != 0)
+            throw new RuntimeException(toStr(tx.getNdbError()));
     }
 
     // ----------------------------------------------------------------------
@@ -1073,8 +1613,8 @@ public class NdbjtieLoad extends CrundDriver {
         // delete all rows in a given scan
         int count = 0;
         int stat;
-        final boolean allowFetch = true; // request new batches when exhausted
-        final boolean forceSend = false; // send may be delayed
+        final boolean allowFetch = true; // fetch new batches, opt usage below
+        final boolean forceSend = true; // no send delay for 1-thread app
         while ((stat = op.nextResult(allowFetch, forceSend)) == 0) {
             // delete all tuples within a batch
             do {
@@ -1089,8 +1629,8 @@ public class NdbjtieLoad extends CrundDriver {
             }
             if (stat == 2) {
                 // end of current batch, fetch next
-                final int execType = NdbTransaction.ExecType.NoCommit;
-                final int abortOption = NdbOperation.AbortOption.AbortOnError;
+                final int execType = ExecType.NoCommit;
+                final int abortOption = AbortOption.AbortOnError;
                 final int force = 0;
                 if (tx.execute(execType, abortOption, force) != 0
                     || tx.getNdbError().status() != NdbError.Status.Success)
@@ -1102,10 +1642,9 @@ public class NdbjtieLoad extends CrundDriver {
         if (stat != 1)
             throw new RuntimeException("stat == " + stat);
 
-        // close the scan
-        final boolean forceSend_ = false;
-        final boolean releaseOp = false;
-        op.close(forceSend_, releaseOp);
+        // close the scan, no harm in delaying/accumulating close()
+        final boolean releaseOp = true;
+        op.close(!forceSend, !releaseOp);
 
         commitTransaction();
         closeTransaction();
@@ -1114,8 +1653,8 @@ public class NdbjtieLoad extends CrundDriver {
 
     // ----------------------------------------------------------------------
 
-    protected byte[] asByteArray(ByteBuffer from,
-                                 int prefixBytes) {
+    static protected byte[] asByteArray(ByteBuffer from,
+                                        int prefixBytes) {
         final ByteBuffer bb = from.asReadOnlyBuffer();
 
         // read length prefix
@@ -1130,9 +1669,9 @@ public class NdbjtieLoad extends CrundDriver {
         return to;
     }
 
-    protected ByteBuffer asByteBuffer(ByteBuffer to,
-                                      byte[] from,
-                                      int prefixBytes) {
+    static protected ByteBuffer asByteBuffer(ByteBuffer to,
+                                             byte[] from,
+                                             int prefixBytes) {
         final int p = to.position();
 
         // write length prefix
@@ -1148,8 +1687,8 @@ public class NdbjtieLoad extends CrundDriver {
         return bb;
     }
 
-    protected CharBuffer asCharBuffer(ByteBuffer from,
-                                      int prefixBytes) {
+    static protected CharBuffer asCharBuffer(ByteBuffer from,
+                                             int prefixBytes) {
         final ByteBuffer bb = from.asReadOnlyBuffer();
 
         // read length prefix from initial position
@@ -1175,9 +1714,9 @@ public class NdbjtieLoad extends CrundDriver {
         return to;
     }
 
-    protected ByteBuffer asByteBuffer(ByteBuffer to,
-                                      CharBuffer from,
-                                      int prefixBytes) {
+    static protected ByteBuffer asByteBuffer(ByteBuffer to,
+                                             CharBuffer from,
+                                             int prefixBytes) {
         final CharBuffer cb = from.asReadOnlyBuffer();
 
         // advance length prefix
@@ -1202,12 +1741,12 @@ public class NdbjtieLoad extends CrundDriver {
         assert 0 <= l && l < 1<<(prefixBytes * 8);
         for (int i = 0; i < prefixBytes; i++)
             to.put(p + i, (byte)(l>>>(i * 8) & 0xff));
-        
+
         final ByteBuffer bb = to.duplicate();
         bb.position(p);
         return bb;
     }
-    
+
     // ----------------------------------------------------------------------
 
     protected void beginTransaction() {
@@ -1222,8 +1761,8 @@ public class NdbjtieLoad extends CrundDriver {
 
     protected void executeOperations() {
         // execute but don't commit the current transaction
-        final int execType = NdbTransaction.ExecType.NoCommit;
-        final int abortOption = NdbOperation.AbortOption.AbortOnError;
+        final int execType = ExecType.NoCommit;
+        final int abortOption = AbortOption.AbortOnError;
         final int force = 0;
         if (tx.execute(execType, abortOption, force) != 0
             || tx.getNdbError().status() != NdbError.Status.Success)
@@ -1232,8 +1771,8 @@ public class NdbjtieLoad extends CrundDriver {
 
     protected void commitTransaction() {
         // commit the current transaction
-        final int execType = NdbTransaction.ExecType.Commit;
-        final int abortOption = NdbOperation.AbortOption.AbortOnError;
+        final int execType = ExecType.Commit;
+        final int abortOption = AbortOption.AbortOnError;
         final int force = 0;
         if (tx.execute(execType, abortOption, force) != 0
             || tx.getNdbError().status() != NdbError.Status.Success)
@@ -1242,8 +1781,8 @@ public class NdbjtieLoad extends CrundDriver {
 
     protected void rollbackTransaction() {
         // abort the current transaction
-        final int execType = NdbTransaction.ExecType.Rollback;
-        final int abortOption = NdbOperation.AbortOption.DefaultAbortOption;
+        final int execType = ExecType.Rollback;
+        final int abortOption = AbortOption.DefaultAbortOption;
         final int force = 0;
         if (tx.execute(execType, abortOption, force) != 0
             || tx.getNdbError().status() != NdbError.Status.Success)
@@ -1266,9 +1805,8 @@ public class NdbjtieLoad extends CrundDriver {
         assert mgmd != null;
         assert ndb == null;
         assert model == null;
-
         out.println();
-        out.println("initializing ndbjtie resources ...");
+        out.println("initializing NDB resources ...");
 
         // connect to cluster management node (ndb_mgmd)
         out.print("connecting to cluster ...");
@@ -1319,33 +1857,36 @@ public class NdbjtieLoad extends CrundDriver {
         out.print("using lock mode for reads ...");
         out.flush();
         final String lm;
-        switch (lockMode) {
-        case READ_COMMITTED:
-            ndbOpLockMode = NdbOperation.LockMode.LM_CommittedRead;
+        switch (driver.lockMode) {
+        case none:
+            ndbOpLockMode = NdbOperationConst.LockMode.LM_CommittedRead;
             lm = "LM_CommittedRead";
             break;
-        case SHARED:
-            ndbOpLockMode = NdbOperation.LockMode.LM_Read;
+        case shared:
+            ndbOpLockMode = NdbOperationConst.LockMode.LM_Read;
             lm = "LM_Read";
             break;
-        case EXCLUSIVE:
-            ndbOpLockMode = NdbOperation.LockMode.LM_Exclusive;
+        case exclusive:
+            ndbOpLockMode = NdbOperationConst.LockMode.LM_Exclusive;
             lm = "LM_Exclusive";
             break;
         default:
-            ndbOpLockMode = NdbOperation.LockMode.LM_CommittedRead;
+            ndbOpLockMode = NdbOperationConst.LockMode.LM_CommittedRead;
             lm = "LM_CommittedRead";
             assert false;
         }
         out.println("   [ok: " + lm + "]");
+
+        initOperations();
     }
 
     public void closeConnection() {
         assert model != null;
         assert ndb != null;
-
         out.println();
-        out.println("releasing ndbjtie resources ...");
+        out.println("releasing NDB resources ...");
+
+        closeOperations();
 
         out.print("clearing metadata cache...");
         out.flush();
@@ -1359,10 +1900,7 @@ public class NdbjtieLoad extends CrundDriver {
         out.println(" [ok]");
     }
 
-    // so far, there's no NDB support for caching data beyond Tx scope
-    protected void clearPersistenceContext() throws Exception {}
-
-    protected void clearData() {
+    public void clearData() {
         out.print("deleting all rows ...");
         out.flush();
         final int delB = delByScan(model.table_B);
@@ -1372,15 +1910,5 @@ public class NdbjtieLoad extends CrundDriver {
         out.print(", A: " + delA);
         out.flush();
         out.println("]");
-    }
-
-    // ----------------------------------------------------------------------
-
-    static public void main(String[] args) {
-        System.out.println("NdbjtieLoad.main()");
-        parseArguments(args);
-        new NdbjtieLoad().run();
-        System.out.println();
-        System.out.println("NdbjtieLoad.main(): done.");
     }
 }
