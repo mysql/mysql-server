@@ -17,25 +17,28 @@
 
 package com.mysql.cluster.crund;
 
+import java.util.Collection;
+import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Properties;
+
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.Constants;
 import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
+import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.query.QueryDomainType;
 import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.Predicate;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
+import com.mysql.cluster.crund.CrundDriver.XMode;
 
 /**
  * The ClusterJ benchmark implementation.
  */
-public class ClusterjLoad extends CrundDriver {
+public class ClusterjAB extends CrundLoad {
 
     // ClusterJ settings
     protected String mgmdConnect;
@@ -44,17 +47,32 @@ public class ClusterjLoad extends CrundDriver {
     protected SessionFactory sessionFactory;
     protected Session session;
 
+    public ClusterjAB(CrundDriver driver) {
+        super(driver);
+    }
+
+    static public void main(String[] args) {
+        System.out.println("ClusterjAB.main()");
+        CrundDriver.parseArguments(args);
+        final CrundDriver driver = new CrundDriver();
+        final CrundLoad load = new ClusterjAB(driver);
+        driver.addLoad(load);
+        driver.run();
+        System.out.println();
+        System.out.println("ClusterjAB.main(): done.");
+    }
+
     // ----------------------------------------------------------------------
     // ClusterJ intializers/finalizers
     // ----------------------------------------------------------------------
 
     @Override
     protected void initProperties() {
-        super.initProperties();
-
-        out.print("setting clusterj properties ...");
+        out.println();
+        out.print("reading ClusterJ properties ...");
 
         final StringBuilder msg = new StringBuilder();
+        final Properties props = driver.props;
 
         // check required properties
         mgmdConnect
@@ -67,20 +85,15 @@ public class ClusterjLoad extends CrundDriver {
             out.print(msg.toString());
         }
 
-        // have mgmdConnect initialized first
-        descr = "->clusterj(" + mgmdConnect + ")";
+        name = "->clusterj"; // shortcut will do, "(" + mgmdConnect + ")";
     }
 
     @Override
     protected void printProperties() {
-        super.printProperties();
-
         out.println();
-        out.println("clusterj settings ...");
+        out.println("ClusterJ settings ...");
         out.println("ndb.mgmdConnect                 " + mgmdConnect);
-        for (Iterator<Map.Entry<Object,Object>> i
-                 = props.entrySet().iterator(); i.hasNext();) {
-            Map.Entry<Object,Object> e = i.next();
+        for (Map.Entry<Object,Object> e : driver.props.entrySet()) {
             final String k = (String)e.getKey();
             if (k.startsWith("com.mysql.clusterj")) {
                 final StringBuilder s = new StringBuilder("..");
@@ -92,19 +105,19 @@ public class ClusterjLoad extends CrundDriver {
     }
 
     @Override
-    protected void initLoad() throws Exception {
-        // XXX support generic load class
-        //super.init();
-
+    public void init() throws Exception {
+        assert sessionFactory == null;
+        super.init();
         out.println();
         out.print("creating SessionFactory ...");
         out.flush();
-        sessionFactory = ClusterJHelper.getSessionFactory(props);
+        sessionFactory = ClusterJHelper.getSessionFactory(driver.props);
         out.println("     [SessionFactory: 1]");
     }
 
     @Override
-    protected void closeLoad() throws Exception {
+    public void close() throws Exception {
+        assert sessionFactory != null;
         out.println();
         out.print("closing SessionFactory ...");
         out.flush();
@@ -112,63 +125,19 @@ public class ClusterjLoad extends CrundDriver {
             sessionFactory.close();
         sessionFactory = null;
         out.println("      [ok]");
-
-        // XXX support generic load class
-        //super.close();
-    }
-
-    // ----------------------------------------------------------------------
-    // ClusterJ datastore operations
-    // ----------------------------------------------------------------------
-
-    protected void initConnection() {
-        out.println();
-        out.print("creating ClusterJ Session ...");
-        out.flush();
-        session = sessionFactory.getSession();
-        out.println("   [Session: 1]");
-    }
-
-    protected void closeConnection() {
-        out.println();
-        out.print("closing ClusterJ Session ...");
-        out.flush();
-        if (session != null)
-            session.close();
-        session = null;
-        out.println("    [ok]");
-    }
-
-    protected void clearPersistenceContext() {
-        // nothing to do as long as we're not caching beyond Tx scope
-    }
-
-    protected void clearData() {
-        out.print("deleting all objects ...");
-        out.flush();
-
-        beginTransaction();
-        final int delB = session.deletePersistentAll(IB.class);
-        out.print("        [B: " + delB);
-        out.flush();
-        final int delA = session.deletePersistentAll(IA.class);
-        out.print(", A: " + delA);
-        out.flush();
-        commitTransaction();
-
-        out.println("]");
+        super.close();
     }
 
     // ----------------------------------------------------------------------
     // ClusterJ operations
     // ----------------------------------------------------------------------
 
-    // assumes PKs: 0..nOps, relationships: identity 1:1
+    // model assumptions: relationships: identity 1:1
     protected abstract class ClusterjOp extends Op {
         protected XMode xMode;
 
         public ClusterjOp(String name, XMode m) {
-            super(name + (m == null ? "" : toStr(m)));
+            super(name + (m == null ? "" : m));
             this.xMode = m;
         }
 
@@ -182,25 +151,25 @@ public class ClusterjLoad extends CrundDriver {
             super(name, m);
         }
 
-        public void run(int nOps) {
+        public void run(int[] id) {
+            final int n = id.length;
             switch (xMode) {
-            case INDY :
-                for (int id = 0; id < nOps; id++) {
+            case indy :
+                for (int i = 0; i < n; i++) {
                     beginTransaction();
-                    write(id);
+                    write(id[i]);
                     commitTransaction();
                 }
                 break;
-            case EACH :
-            case BULK :
+            case each :
+            case bulk :
                 // Approach: control when persistent context is flushed,
                 // i.e., at commit for 1 database roundtrip only.
                 beginTransaction();
-                for (int id = 0; id < nOps; id++) {
-                    write(id);
-                    if (xMode == XMode.EACH)
+                for (int i = 0; i < n; i++) {
+                    write(id[i]);
+                    if (xMode == XMode.each)
                         session.flush();
-
                 }
                 commitTransaction();
                 break;
@@ -215,26 +184,24 @@ public class ClusterjLoad extends CrundDriver {
             super(name, m);
         }
 
-        public void run(int nOps) {
+        public void run(int[] id) {
+            final int n = id.length;
             switch (xMode) {
-            case INDY :
-                for (int id = 0; id < nOps; id++) {
+            case indy :
+                for (int i = 0; i < n; i++) {
                     beginTransaction();
-                    read(id);
+                    read(id[i]);
                     commitTransaction();
                 }
                 break;
-            case EACH :
+            case each :
                 beginTransaction();
-                for (int id = 0; id < nOps; id++)
-                    read(id);
+                for (int i = 0; i < n; i++)
+                    read(id[i]);
                 commitTransaction();
                 break;
-            case BULK :
+            case bulk :
                 beginTransaction();
-                final int[] id = new int[nOps];
-                for (int i = 0; i < nOps; i++)
-                    id[i] = i;
                 read(id);
                 commitTransaction();
                 break;
@@ -333,7 +300,7 @@ public class ClusterjLoad extends CrundDriver {
         out.print("initializing operations ...");
         out.flush();
 
-        for (XMode m : xMode) {
+        for (XMode m : driver.xMode) {
             // inner classes can only refer to a constant
             final XMode xMode = m;
             final boolean setAttrs = true;
@@ -347,7 +314,7 @@ public class ClusterjLoad extends CrundDriver {
                         session.persist(o);
                     }
                 });
-            
+
             ops.add(
                 new WriteOp("B_insAttr_", xMode) {
                     protected void write(int id) {
@@ -357,7 +324,7 @@ public class ClusterjLoad extends CrundDriver {
                         session.persist(o);
                     }
                 });
-            
+
             ops.add(
                 new WriteOp("A_setAttr_", xMode) {
                     protected void write(int id) {
@@ -439,7 +406,7 @@ public class ClusterjLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final byte[] b = bytes[i];
                 final int l = b.length;
-                if (l > maxVarbinaryBytes)
+                if (l > driver.maxVarbinaryBytes)
                     break;
 
                 ops.add(
@@ -478,7 +445,7 @@ public class ClusterjLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final String s = strings[i];
                 final int l = s.length();
-                if (l > maxVarcharChars)
+                if (l > driver.maxVarcharChars)
                     break;
 
                 ops.add(
@@ -529,7 +496,7 @@ public class ClusterjLoad extends CrundDriver {
                     protected void read(int id) {
                         final IB b = session.find(IB.class, id);
                         assert b != null;
-                        
+
                         int aId = b.getAid();
                         final IA a = session.find(IA.class, aId);
                         assert a != null;
@@ -642,7 +609,7 @@ public class ClusterjLoad extends CrundDriver {
                         session.remove(o);
                     }
                 });
-            
+
             ops.add(
                 new WriteOp("A_ins_", xMode) {
                     protected void write(int id) {
@@ -651,7 +618,7 @@ public class ClusterjLoad extends CrundDriver {
                         session.persist(o);
                     }
                 });
-            
+
             ops.add(
                 new WriteOp("B_ins_", xMode) {
                     protected void write(int id) {
@@ -660,23 +627,25 @@ public class ClusterjLoad extends CrundDriver {
                         session.persist(o);
                     }
                 });
-            
+
             ops.add(
                 new ClusterjOp("B_delAll", null) {
-                    public void run(int nOps) {
+                    public void run(int[] id) {
+                        final int n = id.length;
                         beginTransaction();
                         final int d = session.deletePersistentAll(IB.class);
-                        verify(nOps, d);
+                        verify(n, d);
                         commitTransaction();
                     }
                 });
 
             ops.add(
                 new ClusterjOp("A_delAll", null) {
-                    public void run(int nOps) {
+                    public void run(int[] id) {
+                        final int n = id.length;
                         beginTransaction();
                         final int d = session.deletePersistentAll(IA.class);
-                        verify(nOps, d);
+                        verify(n, d);
                         commitTransaction();
                     }
                 });
@@ -689,13 +658,16 @@ public class ClusterjLoad extends CrundDriver {
     }
 
     protected void closeOperations() {
-        out.println();
         out.print("closing operations ...");
         out.flush();
         for (Op o : ops)
             ((ClusterjOp)o).close();
         ops.clear();
         out.println("          [ok]");
+    }
+
+    protected void clearPersistenceContext() {
+        // nothing to do as we're not caching beyond Tx scope
     }
 
     // ----------------------------------------------------------------------
@@ -714,20 +686,20 @@ public class ClusterjLoad extends CrundDriver {
         o.setCdouble((double)id);
     }
 
-    protected void verifyAttr(int i, IA o) {
+    protected void verifyAttr(int id, IA o) {
         assert o != null;
-        verify(i, o.getCint());
-        verify(i, o.getClong());
-        verify(i, o.getCfloat());
-        verify(i, o.getCdouble());
+        verify(id, o.getCint());
+        verify(id, o.getClong());
+        verify(id, o.getCfloat());
+        verify(id, o.getCdouble());
     }
 
-    protected void verifyAttr(int i, IB o) {
+    protected void verifyAttr(int id, IB o) {
         assert o != null;
-        verify(i, o.getCint());
-        verify(i, o.getClong());
-        verify(i, o.getCfloat());
-        verify(i, o.getCdouble());
+        verify(id, o.getCint());
+        verify(id, o.getClong());
+        verify(id, o.getCfloat());
+        verify(id, o.getCdouble());
     }
 
     // ----------------------------------------------------------------------
@@ -741,12 +713,71 @@ public class ClusterjLoad extends CrundDriver {
     }
 
     // ----------------------------------------------------------------------
+    // ClusterJ datastore operations
+    // ----------------------------------------------------------------------
 
-    static public void main(String[] args) {
-        System.out.println("ClusterjLoad.main()");
-        parseArguments(args);
-        new ClusterjLoad().run();
-        System.out.println();
-        System.out.println("ClusterjLoad.main(): done.");
+    @Override
+    public void initConnection() {
+        assert session == null;
+        out.println();
+        out.println("initializing ClusterJ resources ...");
+
+        out.print("creating ClusterJ Session ...");
+        out.flush();
+        session = sessionFactory.getSession();
+        out.println("   [Session: 1]");
+
+        out.print("setting session lock mode ...");
+        out.flush();
+        final LockMode lm;
+        switch (driver.lockMode) {
+        case none:
+            lm = LockMode.READ_COMMITTED;
+            break;
+        case shared:
+            lm = LockMode.SHARED;
+            break;
+        case exclusive:
+            lm = LockMode.EXCLUSIVE;
+            break;
+        default:
+            lm = null;
+            assert false;
+        }
+        session.setLockMode(lm);
+        out.println("   [ok: " + lm + "]");
+
+        initOperations();
+    }
+
+    @Override
+    public void closeConnection() {
+        assert session != null;
+        out.println();
+        out.println("releasing ClusterJ resources ...");
+
+        closeOperations();
+
+        out.print("closing ClusterJ Session ...");
+        out.flush();
+        if (session != null)
+            session.close();
+        session = null;
+        out.println("    [ok]");
+    }
+
+    @Override
+    public void clearData() {
+        out.print("deleting all objects ...");
+        out.flush();
+        beginTransaction();
+        final int delB = session.deletePersistentAll(IB.class);
+        out.print("        [B: " + delB);
+        out.flush();
+        final int delA = session.deletePersistentAll(IA.class);
+        out.print(", A: " + delA);
+        out.flush();
+        commitTransaction();
+        out.println("]");
     }
 }
