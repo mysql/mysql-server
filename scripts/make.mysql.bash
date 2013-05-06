@@ -9,6 +9,7 @@ function usage() {
     echo "--mysqlbuild=$mysqlbuild"
     echo "--mysql=$mysql"
     echo "--tokudb_version=$tokudb_version"
+    echo "--mysql_tree=$mysql_tree --ftengine_tree=$ftengine_tree --ftindex_tree=$ftindex_tree --jemalloc_tree=$jemalloc_tree --backup_tree=$backup_tree"
     echo 
     echo "community release builds using the tokudb-7.0.1 git tag"
     echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.1-linux-x86_64"
