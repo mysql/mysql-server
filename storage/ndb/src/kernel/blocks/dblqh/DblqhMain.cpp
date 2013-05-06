@@ -6279,7 +6279,6 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   Ttupreq = Ttupreq + (regTcPtr->apiVersionNo << 11);
   Ttupreq = Ttupreq + (regTcPtr->m_use_rowid << 11);
   Ttupreq = Ttupreq + (regTcPtr->m_reorg << 12);
-  Ttupreq = Ttupreq + (regTcPtr->m_reorg << 13);
 
   /* --------------------------------------------------------------------- 
    * Clear interpreted mode bit since we do not want the next replica to
