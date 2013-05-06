@@ -24,7 +24,8 @@ fi
 
 cwd="$(pwd)"
 mylogdir="$cwd/ndblog"
-mysock="$mylogdir/mysql.sock"
+mysock="/tmp/mysql.sock"
+#mysock="$mylogdir/mysql.sock"
 
 echo shut down mysqld...
 #"$MYSQL_BIN/mysqladmin" shutdown
