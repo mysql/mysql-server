@@ -19,8 +19,6 @@
 #                   create variants for embedded/non embedded server.
 #
 
-let $engine_type = MEMORY;
-
 let $is_table = KEY_COLUMN_USAGE;
 
 # The table INFORMATION_SCHEMA.KEY_COLUMN_USAGE must exist
