@@ -24,3 +24,6 @@ let $wl6501_kbs = 4;
 let $wl6501_file_format = 'Barracuda';
 --source suite/innodb/include/innodb_wl6501_crash.inc
 
+let $wl6501_temp = temporary;
+--source suite/innodb/include/innodb_wl6501_crash_temp.inc
+

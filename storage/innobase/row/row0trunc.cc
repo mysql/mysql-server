@@ -798,11 +798,11 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 	}
 
-	log_make_checkpoint_at(LSN_MAX, TRUE);
-
 	/* Step-2: Start transaction (only for non-temp table as temp-table
 	don't modify any data on disk doesn't need transaction object). */
 	if (!dict_table_is_temporary(table)) {
+
+		log_make_checkpoint_at(LSN_MAX, TRUE);
 
 		/* Avoid transaction overhead for temporary table DDL. */
 		trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
