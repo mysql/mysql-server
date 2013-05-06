@@ -151,6 +151,9 @@ test_cursor_sticky (int n, int dup_mode) {
     DBC *cursor;
     r = db->cursor(db, 0, &cursor, 0); assert(r == 0);
     for (i=0; i<n; i++) {
+        // GCC 4.8 complains about these being maybe uninitialized.
+        // TODO(leif): figure out why and fix it.
+        k = 0; v = 0;
         r = cursor_get(cursor, &k, &v, DB_NEXT); assert(r == 0);
         assert(k == htonl(i)); assert(v == htonl(i));
     }

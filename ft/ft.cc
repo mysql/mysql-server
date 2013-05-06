@@ -474,7 +474,7 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
         }
     }
     *was_open = false;
-    FT h;
+    FT h = nullptr;
     int r;
     {
         int fd = toku_cachefile_get_fd(cf);
@@ -485,6 +485,8 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
         }
     }
     if (r!=0) return r;
+    // GCC 4.8 seems to get confused by the gotos in the deserialize code and think h is maybe uninitialized.
+    invariant_notnull(h);
     h->cf = cf;
     h->compare_fun = brt->options.compare_fun;
     h->update_fun = brt->options.update_fun;
