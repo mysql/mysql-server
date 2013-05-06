@@ -15,27 +15,52 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# usage: <run.ndbapi.opt|...>
+echo "--> $0"
 
-touch out.txt
-echo "" >> out.txt 2>&1
-hwprefs -v cpu_count >> out.txt 2>&1
-echo "" >> out.txt 2>&1
-./restart_cluster.sh >> out.txt 2>&1
-echo "" >> out.txt 2>&1
-./load_shema.sh >> out.txt 2>&1
-#ant load.schema.derby >> out.txt 2>&1
-iostat 5 > iostat5.txt 2>&1 &
+outdir="logs"
+newdir="$outdir/xxx"
+findir="$outdir/$1"
+out="$newdir/out.txt"
+
+if [ $# -ne 1 ] ; then
+    echo "usage: $0 <run.crund.opt|...>"
+    exit 1
+fi
+
+if [ -d "$newdir" ] ; then
+    echo "dir already exists: $newdir"
+    exit 1
+fi
+if [ -d "$findir" ] ; then
+    echo "dir already exists: $findir"
+    exit 1
+fi
+
+mkdir -p "$newdir"
+touch "$out"
+echo "" | tee -a "$out"
+hwprefs -v cpu_count 2>&1 | tee -a "$out"
+echo "" | tee -a "$out"
+#./restart_cluster.sh 2>&1 | tee -a "$out"
+
 #vmstat 5 > vmstat5.txt 2>&1 &
+iostat 5 > iostat5.txt 2>&1 &
 pid=$!
-echo "" >> out.txt 2>&1
-( cd .. ; ant $1 ) >> out.txt 2>&1
-mkdir -p results/xxx
-mv -v [a-z]*.txt results/xxx
-mv -v ../log*.txt results/xxx
-cp -v ../*.properties results/xxx
-cp -v ../build.xml results/xxx
-cp -v ../config.ini results/xxx
-cp -v ../my.cnf results/xxx
+
+echo "" | tee -a "$out"
+./mysql.sh -v < ../src/crund_schema.sql 2>&1 | tee -a "$out"
+
+
+echo "RUNNING CRUND ..." | tee -a "$out"
+( cd .. ; ant $1 ) > "$out" 2>&1
+echo "... DONE CRUND" | tee -a "$out"
+
 sleep 6
 kill -9 $pid
+
+mv -v "$out" *stat*.txt ../log*.txt "$newdir"
+cp -v ../*.properties ../build.xml ../config.ini ../my.cnf "$newdir"
+mv -v "$newdir" "$findir"
+
+echo
+echo "<-- $0"
