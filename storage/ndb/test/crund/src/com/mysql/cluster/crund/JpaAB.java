@@ -17,9 +17,8 @@
 
 package com.mysql.cluster.crund;
 
+import java.util.Properties;
 import java.util.Collection;
-import java.util.Iterator;
-import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -29,15 +28,17 @@ import javax.persistence.EntityManager;
 import javax.persistence.Query;
 //import javax.persistence.TypedQuery; // XXX JPA2.0, requires OpenJPA >=2.0
 import javax.persistence.FlushModeType;
-import javax.persistence.PersistenceContextType;
+//import javax.persistence.PersistenceContextType; // XXX only by injection
+
+import com.mysql.cluster.crund.CrundDriver.XMode;
 
 /**
  * The JPA benchmark implementation.
  */
-public class JpaLoad extends CrundDriver {
+public class JpaAB extends CrundLoad {
 
     // JPA settings
-    protected String driver;
+    protected String jdbcDriver;
     protected String url;
     protected String user;
     protected String password;
@@ -51,29 +52,46 @@ public class JpaLoad extends CrundDriver {
     protected EntityManager em;
     protected Query delAllA;
     protected Query delAllB;
+    //protected String lmSuffix; // XXX check LockMode support in JPA
+    //query.setHint(QueryHints.QUERY_TYPE, QueryType.ReadObject);
+    //query.setHint(QueryHints.PESSIMISTIC_LOCK, PessimisticLock.LockNoWait);
+
+    public JpaAB(CrundDriver driver) {
+        super(driver);
+    }
+
+    static public void main(String[] args) {
+        System.out.println("JpaAB.main()");
+        CrundDriver.parseArguments(args);
+        final CrundDriver driver = new CrundDriver();
+        final CrundLoad load = new JpaAB(driver);
+        driver.addLoad(load);
+        driver.run();
+        System.out.println();
+        System.out.println("JpaAB.main(): done.");
+    }
 
     // ----------------------------------------------------------------------
     // JPA intializers/finalizers
     // ----------------------------------------------------------------------
 
     protected void initProperties() {
-        super.initProperties();
-
-        out.print("setting jpa properties ...");
+        out.println();
+        out.print("reading jpa properties ...");
 
         final StringBuilder msg = new StringBuilder();
-        final String eol = System.getProperty("line.separator");
+        final Properties props = driver.props;
 
         // load the JDBC driver class
-        driver = props.getProperty("openjpa.ConnectionDriverName");
-        if (driver == null) {
+        jdbcDriver = props.getProperty("openjpa.ConnectionDriverName");
+        if (jdbcDriver == null) {
             throw new RuntimeException("Missing property: "
                                        + "openjpa.ConnectionDriverName");
         }
         try {
-            Class.forName(driver);
+            Class.forName(jdbcDriver);
         } catch (ClassNotFoundException e) {
-            out.println("Cannot load JDBC driver '" + driver
+            out.println("Cannot load JDBC driver '" + jdbcDriver
                         + "' from classpath '"
                         + System.getProperty("java.class.path") + "'");
             throw new RuntimeException(e);
@@ -116,18 +134,16 @@ public class JpaLoad extends CrundDriver {
         }
 
         // have brokerFactory... initialized first
-        final String c =  ("ndb".equals(brokerFactory)
-                           ? ("clusterj(" + ndbConnectString + ")")
-                           : url);
-        descr = "->jpa->" + c;
+        final String c = ("ndb".equals(brokerFactory)
+                          ? ("clusterj(" + ndbConnectString + ")")
+                          : url);
+        name = "->jpa->" + c.substring(0, 10); // shortcut will do
     }
 
     protected void printProperties() {
-        super.printProperties();
-
         out.println();
         out.println("jpa settings ...");
-        out.println("openjpa.ConnectionDriverName:   " + driver);
+        out.println("openjpa.ConnectionDriverName:   " + jdbcDriver);
         out.println("openjpa.ConnectionURL:          " + url);
         out.println("openjpa.ConnectionUserName:     \"" + user + "\"");
         out.println("openjpa.ConnectionPassword:     \"" + password + "\"");
@@ -137,19 +153,19 @@ public class JpaLoad extends CrundDriver {
         out.println("openjpa.ndb.database:           " + ndbDatabase);
     }
 
-    protected void initLoad() throws Exception {
-        // XXX support generic load class
-        //super.init();
-
+    public void init() throws Exception {
+        assert emf == null;
+        super.init();
         out.println();
         out.print("creating JPA EMFactory ...");
         out.flush();
         // create EMF by standard API, which allows vendors to pool factories
-        emf = Persistence.createEntityManagerFactory("crundjpa", props);
+        emf = Persistence.createEntityManagerFactory("crundjpa", driver.props);
         out.println("      [EMF: 1]");
     }
 
-    protected void closeLoad() throws Exception {
+    public void close() throws Exception {
+        assert emf != null;
         out.println();
         out.print("closing JPA EMFactory ...");
         out.flush();
@@ -157,21 +173,19 @@ public class JpaLoad extends CrundDriver {
             emf.close();
         emf = null;
         out.println("       [ok]");
-
-        // XXX support generic load class
-        //super.close();
+        super.close();
     }
 
     // ----------------------------------------------------------------------
     // JPA operations
     // ----------------------------------------------------------------------
 
-    // assumes PKs: 0..nOps, relationships: identity 1:1
+    // model assumptions: relationships: identity 1:1
     protected abstract class JpaOp extends Op {
         protected XMode xMode;
 
         public JpaOp(String name, XMode m) {
-            super(name + (m == null ? "" : toStr(m)));
+            super(name + (m == null ? "" : m));
             this.xMode = m;
         }
 
@@ -185,17 +199,18 @@ public class JpaLoad extends CrundDriver {
             super(name, m);
         }
 
-        public void run(int nOps) {
+        public void run(int[] id) {
+            final int n = id.length;
             switch (xMode) {
-            case INDY :
-                for (int i = 0; i < nOps; i++) {
+            case indy :
+                for (int i = 0; i < n; i++) {
                     beginTransaction();
-                    write(i);
+                    write(id[i]);
                     commitTransaction();
                 }
                 break;
-            case EACH :
-            case BULK :
+            case each :
+            case bulk :
                 // Approach: control when persistent context is flushed,
                 // i.e., at commit for 1 database roundtrip only.
                 //
@@ -208,9 +223,9 @@ public class JpaLoad extends CrundDriver {
                 // - vendor-specific batch writing properties
                 // - vendor-specific persistent-context flush-mode properties
                 beginTransaction();
-                for (int i = 0; i < nOps; i++) {
-                    write(i);
-                    if (xMode == XMode.EACH)
+                for (int i = 0; i < n; i++) {
+                    write(id[i]);
+                    if (xMode == XMode.each)
                         em.flush();
                 }
                 commitTransaction();
@@ -218,9 +233,9 @@ public class JpaLoad extends CrundDriver {
             }
         }
 
-        protected abstract void write(int i);
+        protected abstract void write(int id);
     }
-    
+
     protected abstract class ReadOp extends JpaOp {
         final Query preload;
 
@@ -232,26 +247,27 @@ public class JpaLoad extends CrundDriver {
         public void init() {
             super.init();
             // simulating generic bulk reads by preloading extent
-            if (xMode == XMode.BULK)
+            if (xMode == XMode.bulk)
                 name = "[" + name + "]";
         }
-        
-        public void run(int nOps) {
+
+        public void run(int[] id) {
+            final int n = id.length;
             switch (xMode) {
-            case INDY :
-                for (int i = 0; i < nOps; i++) {
+            case indy :
+                for (int i = 0; i < n; i++) {
                     beginTransaction();
-                    read(i);
+                    read(id[i]);
                     commitTransaction();
                 }
                 break;
-            case EACH :
+            case each :
                 beginTransaction();
-                for (int i = 0; i < nOps; i++)
-                    read(i);
+                for (int i = 0; i < n; i++)
+                    read(id[i]);
                 commitTransaction();
                 break;
-            case BULK :
+            case bulk :
                 // Approach: simulate generic bulk reads by preloading extent
                 // into persistent context; subsequent reads/queries will then
                 // execute without database roundtrips.
@@ -267,14 +283,14 @@ public class JpaLoad extends CrundDriver {
                 // - vendor-specific caching, persistent-context properties
                 beginTransaction();
                 preload.getResultList();
-                for (int i = 0; i < nOps; i++)
-                    read(i);
+                for (int i = 0; i < n; i++)
+                    read(id[i]);
                 commitTransaction();
                 break;
             }
         }
 
-        protected abstract void read(int i);
+        protected abstract void read(int id);
     }
 
     protected abstract class QueryOp<E> extends JpaOp {
@@ -302,25 +318,26 @@ public class JpaLoad extends CrundDriver {
         }
 
         @SuppressWarnings("fallthrough")
-        public void run(int nOps) {
+        public void run(int[] id) {
+            final int n = id.length;
             switch (xMode) {
-            case INDY :
+            case indy :
                 q.setFlushMode(FlushModeType.COMMIT);
-                for (int i = 0; i < nOps; i++) {
+                for (int i = 0; i < n; i++) {
                     beginTransaction();
-                    setParams(i);
+                    setParams(id[i]);
                     final int u = q.executeUpdate();
                     verify(1, u);
                     commitTransaction();
                 }
                 break;
-            case EACH :
+            case each :
                 q.setFlushMode(FlushModeType.AUTO);
-            case BULK :
+            case bulk :
                 q.setFlushMode(FlushModeType.COMMIT);
                 beginTransaction();
-                for (int i = 0; i < nOps; i++) {
-                    setParams(i);
+                for (int i = 0; i < n; i++) {
+                    setParams(id[i]);
                     final int u = q.executeUpdate();
                     verify(1, u);
                 }
@@ -329,7 +346,7 @@ public class JpaLoad extends CrundDriver {
             }
         }
 
-        protected abstract void setParams(int i);
+        protected abstract void setParams(int id);
     }
 
     // assumes query with parametrized where-in clause for bulk reads
@@ -342,43 +359,44 @@ public class JpaLoad extends CrundDriver {
             super.init();
             assert jpql.contains("IN (?1)");
         }
-        
+
         @SuppressWarnings("unchecked") // XXX warning -> TypedQuery
-        public void run(int nOps) {
+        public void run(int[] id) {
+            final int n = id.length;
             q.setFlushMode(FlushModeType.COMMIT);
             switch (xMode) {
-            case INDY :
-                for (int i = 0; i < nOps; i++) {
+            case indy :
+                for (int i = 0; i < n; i++) {
                     beginTransaction();
-                    setParams(i);
+                    setParams(id[i]);
                     E e = (E)q.getSingleResult(); // XXX cast -> TypedQuery
                     assert e != null;
-                    getValues(i, e);
+                    getValues(id[i], e);
                     commitTransaction();
                 }
                 break;
-            case EACH :
+            case each :
                 beginTransaction();
-                for (int i = 0; i < nOps; i++) {
-                    setParams(i);
+                for (int i = 0; i < n; i++) {
+                    setParams(id[i]);
                     E e = (E)q.getSingleResult(); // XXX cast -> TypedQuery
                     assert e != null;
-                    getValues(i, e);
+                    getValues(id[i], e);
                 }
                 commitTransaction();
                 break;
-            case BULK :
+            case bulk :
                 beginTransaction();
                 List<Integer> l = new ArrayList<Integer>();
-                for (int i = 0; i < nOps; i++)
-                    l.add(i);
+                for (int i = 0; i < n; i++)
+                    l.add(id[i]);
                 setParams(l);
 
                 List<E> es = q.getResultList();
                 assert es != null;
-                verify(nOps, es.size());
-                for (int i = 0; i < nOps; i++)
-                    getValues(i, es.get(i));
+                verify(n, es.size());
+                for (int i = 0; i < n; i++)
+                    getValues(id[i], es.get(i));
                 commitTransaction();
                 break;
             }
@@ -386,73 +404,73 @@ public class JpaLoad extends CrundDriver {
 
         protected void setParams(Object o) {}
 
-        protected void getValues(int i, E e) {}
+        protected void getValues(int id, E e) {}
     }
-    
+
     protected void initOperations() {
         out.print("initializing operations ...");
         out.flush();
 
-        for (XMode m : xMode) {
+        for (XMode m : driver.xMode) {
             // inner classes can only refer to a constant
             final XMode xMode = m;
             final boolean setAttrs = true;
 
             ops.add(
                 new WriteOp("A_insAttr_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         final A o = new A();
-                        o.setId(i);
-                        setAttr(o, -i);
+                        o.setId(id);
+                        setAttr(o, -id);
                         em.persist(o);
                     }
                 });
 
             ops.add(
                 new WriteOp("B_insAttr_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         final B o = new B();
-                        o.setId(i);
-                        setAttr(o, -i);
+                        o.setId(id);
+                        setAttr(o, -id);
                         em.persist(o);
                     }
                 });
 
             ops.add(
                 new WriteOp("A_setAttr_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         // blind update
-                        final A o = em.getReference(A.class, i);
+                        final A o = em.getReference(A.class, id);
                         assert o != null;
-                        setAttr(o, i);
+                        setAttr(o, id);
                     }
                 });
 
             ops.add(
                 new WriteOp("B_setAttr_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         // blind update
-                        final B o = em.getReference(B.class, i);
+                        final B o = em.getReference(B.class, id);
                         assert o != null;
-                        setAttr(o, i);
+                        setAttr(o, id);
                     }
                 });
 
             ops.add(
                 new ReadOp("A_getAttr_", xMode, "A") {
-                    protected void read(int i) {
-                        final A o = em.find(A.class, i); // eager load
-                        verify(i, o.getId());
-                        verifyAttr(i, o);
+                    protected void read(int id) {
+                        final A o = em.find(A.class, id); // eager load
+                        verify(id, o.getId());
+                        verifyAttr(id, o);
                     }
                 });
 
             ops.add(
                 new ReadOp("B_getAttr_", xMode, "B") {
-                    protected void read(int i) {
-                        final B o = em.find(B.class, i); // eager load
-                        verify(i, o.getId());
-                        verifyAttr(i, o);
+                    protected void read(int id) {
+                        final B o = em.find(B.class, id); // eager load
+                        verify(id, o.getId());
+                        verifyAttr(id, o);
                     }
                 });
 
@@ -462,11 +480,11 @@ public class JpaLoad extends CrundDriver {
                     protected void setParams(Object o) {
                         q.setParameter(1, o);
                     }
-                    
-                    protected void getValues(int i, A a) {
+
+                    protected void getValues(int id, A a) {
                         assert a != null;
-                        verify(i, a.getId());
-                        verifyAttr(i, a);
+                        verify(id, a.getId());
+                        verifyAttr(id, a);
                     }
                 });
 
@@ -476,11 +494,11 @@ public class JpaLoad extends CrundDriver {
                     protected void setParams(Object o) {
                         q.setParameter(1, o);
                     }
-                    
-                    protected void getValues(int i, B b) {
+
+                    protected void getValues(int id, B b) {
                         assert b != null;
-                        verify(i, b.getId());
-                        verifyAttr(i, b);
+                        verify(id, b.getId());
+                        verifyAttr(id, b);
                     }
                 });
 
@@ -488,14 +506,14 @@ public class JpaLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final byte[] b = bytes[i];
                 final int l = b.length;
-                if (l > maxVarbinaryBytes)
+                if (l > driver.maxVarbinaryBytes)
                     break;
 
                 ops.add(
                     new WriteOp("B_setVarbin_" + l + "_", xMode) {
-                        protected void write(int i) {
+                        protected void write(int id) {
                             // blind update
-                            final B o = em.getReference(B.class, i);
+                            final B o = em.getReference(B.class, id);
                             assert o != null;
                             o.setCvarbinary_def(b);
                         }
@@ -503,9 +521,9 @@ public class JpaLoad extends CrundDriver {
 
                 ops.add(
                     new ReadOp("B_getVarbin_" + l + "_", xMode, "B") {
-                        protected void read(int i) {
+                        protected void read(int id) {
                             // lazy load
-                            final B o = em.getReference(B.class, i);
+                            final B o = em.getReference(B.class, id);
                             assert o != null;
                             verify(b, o.getCvarbinary_def());
                         }
@@ -513,9 +531,9 @@ public class JpaLoad extends CrundDriver {
 
                 ops.add(
                     new WriteOp("B_clearVarbin_" + l + "_", xMode) {
-                        protected void write(int i) {
+                        protected void write(int id) {
                             // blind update
-                            final B o = em.getReference(B.class, i);
+                            final B o = em.getReference(B.class, id);
                             assert o != null;
                             o.setCvarbinary_def(null);
                         }
@@ -526,14 +544,14 @@ public class JpaLoad extends CrundDriver {
                 // inner classes can only refer to a constant
                 final String s = strings[i];
                 final int l = s.length();
-                if (l > maxVarcharChars)
+                if (l > driver.maxVarcharChars)
                     break;
 
                 ops.add(
                     new WriteOp("B_setVarchar_" + l + "_", xMode) {
-                        protected void write(int i) {
+                        protected void write(int id) {
                             // blind update
-                            final B o = em.getReference(B.class, i);
+                            final B o = em.getReference(B.class, id);
                             assert o != null;
                             o.setCvarchar_def(s);
                         }
@@ -541,9 +559,9 @@ public class JpaLoad extends CrundDriver {
 
                 ops.add(
                     new ReadOp("B_getVarchar_" + l + "_", xMode, "B") {
-                        protected void read(int i) {
+                        protected void read(int id) {
                             // lazy load
-                            final B o = em.getReference(B.class, i);
+                            final B o = em.getReference(B.class, id);
                             assert o != null;
                             verify(s, o.getCvarchar_def());
                         }
@@ -551,9 +569,9 @@ public class JpaLoad extends CrundDriver {
 
                 ops.add(
                     new WriteOp("B_clearVarchar_" + l + "_", xMode) {
-                        protected void write(int i) {
+                        protected void write(int id) {
                             // blind update
-                            final B o = em.getReference(B.class, i);
+                            final B o = em.getReference(B.class, id);
                             assert o != null;
                             o.setCvarchar_def(null);
                         }
@@ -562,10 +580,10 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new WriteOp("B_setA_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         // blind update
-                        final int aId = i;
-                        final B b = em.getReference(B.class, i);
+                        final int aId = id;
+                        final B b = em.getReference(B.class, id);
                         assert b != null;
                         // lazy load
                         final A a = em.getReference(A.class, aId);
@@ -576,36 +594,36 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new ReadOp("B_getA_", xMode, "B") {
-                    protected void read(int i) {
+                    protected void read(int id) {
                         // lazy load
-                        final B b = em.getReference(B.class, i);
+                        final B b = em.getReference(B.class, id);
                         assert b != null;
                         final A a = b.getA();
-                        verify(i, a.getId());
-                        verifyAttr(i, a);
+                        verify(id, a.getId());
+                        verifyAttr(id, a);
                     }
                 });
 
             ops.add(
                 new ReadOp("A_getBs_", xMode, "B") {
-                    protected void read(int i) {
+                    protected void read(int id) {
                         // lazy load
-                        final A a = em.getReference(A.class, i);
+                        final A a = em.getReference(A.class, id);
                         assert a != null;
                         final Collection<B> bs = a.getBs();
                         verify(1, bs.size());
                         for (B b : bs) {
-                            verify(i, b.getId());
-                            verifyAttr(i, b);
+                            verify(id, b.getId());
+                            verifyAttr(id, b);
                         }
                     }
                 });
 
             ops.add(
                 new WriteOp("B_clearA_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         // blind update
-                        final B b = em.getReference(B.class, i);
+                        final B b = em.getReference(B.class, id);
                         assert b != null;
                         b.setA(null);
                     }
@@ -614,9 +632,9 @@ public class JpaLoad extends CrundDriver {
             ops.add(
                 new QWriteOp<B>("B_setA_where_", xMode,
                                 "UPDATE B o SET o.a = ?2 WHERE o.id = ?1") {
-                    protected void setParams(int i) {
-                        final int aId = i;
-                        q.setParameter(1, i);
+                    protected void setParams(int id) {
+                        final int aId = id;
+                        q.setParameter(1, id);
                         // lazy load
                         final A a = em.getReference(A.class, aId);
                         assert a != null;
@@ -630,11 +648,11 @@ public class JpaLoad extends CrundDriver {
                     protected void setParams(Object o) {
                         q.setParameter(1, o);
                     }
-                    
-                    protected void getValues(int i, A a) {
+
+                    protected void getValues(int id, A a) {
                         assert a != null;
-                        verify(i, a.getId());
-                        verifyAttr(i, a);
+                        verify(id, a.getId());
+                        verifyAttr(id, a);
                     }
                 });
 
@@ -644,27 +662,27 @@ public class JpaLoad extends CrundDriver {
                     protected void setParams(Object o) {
                         q.setParameter(1, o);
                     }
-                    
-                    protected void getValues(int i, B b) {
+
+                    protected void getValues(int id, B b) {
                         assert b != null;
-                        verify(i, b.getId());
-                        verifyAttr(i, b);
+                        verify(id, b.getId());
+                        verifyAttr(id, b);
                     }
                 });
 
             ops.add(
                 new QWriteOp<B>("B_clearA_where_", xMode,
                                 "UPDATE B o SET o.a = NULL WHERE o.id = ?1") {
-                    protected void setParams(int i) {
-                        q.setParameter(1, i);
+                    protected void setParams(int id) {
+                        q.setParameter(1, id);
                     }
                 });
 
             ops.add(
                 new WriteOp("B_del_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         // blind delete
-                        final B o = em.getReference(B.class, i);
+                        final B o = em.getReference(B.class, id);
                         assert o != null;
                         em.remove(o);
                     }
@@ -672,9 +690,9 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new WriteOp("A_del_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         // blind delete
-                        final A o = em.getReference(A.class, i);
+                        final A o = em.getReference(A.class, id);
                         assert o != null;
                         em.remove(o);
                     }
@@ -682,29 +700,30 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new WriteOp("A_ins_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         final A o = new A();
-                        o.setId(i);
+                        o.setId(id);
                         em.persist(o);
                     }
                 });
-            
+
             ops.add(
                 new WriteOp("B_ins_", xMode) {
-                    protected void write(int i) {
+                    protected void write(int id) {
                         final B o = new B();
-                        o.setId(i);
+                        o.setId(id);
                         em.persist(o);
                     }
-                });            
+                });
 
             ops.add(
                 new QueryOp("B_delAll", null,
                             "DELETE FROM B") {
-                    public void run(int nOps) {
+                    public void run(int[] id) {
+                        final int n = id.length;
                         beginTransaction();
                         final int d = q.executeUpdate();
-                        verify(nOps, d);
+                        verify(n, d);
                         commitTransaction();
                     }
                 });
@@ -712,10 +731,11 @@ public class JpaLoad extends CrundDriver {
             ops.add(
                 new QueryOp("A_delAll", null,
                             "DELETE FROM A") {
-                    public void run(int nOps) {
+                    public void run(int[] id) {
+                        final int n = id.length;
                         beginTransaction();
                         final int d = q.executeUpdate();
-                        verify(nOps, d);
+                        verify(n, d);
                         commitTransaction();
                     }
                 });
@@ -736,36 +756,45 @@ public class JpaLoad extends CrundDriver {
         out.println("          [ok]");
     }
 
+    protected void clearPersistenceContext() {
+        //out.println("clearing persistence context ...");
+        // as long as the EM was not created with a Tx PC scope, i.e.,
+        //   em = emf.createEntityManager(PersistenceContextType.TRANSACTION)
+        // caching of objects beyond Tx scope can be effectively prevented
+        // by clearing the EM's PC
+        em.clear();
+    }
+
     // ----------------------------------------------------------------------
 
-    protected void setAttr(A o, int i) {
-        o.setCint(i);
-        o.setClong((long)i);
-        o.setCfloat((float)i);
-        o.setCdouble((double)i);
+    protected void setAttr(A o, int id) {
+        o.setCint(id);
+        o.setClong((long)id);
+        o.setCfloat((float)id);
+        o.setCdouble((double)id);
     }
 
-    protected void setAttr(B o, int i) {
-        o.setCint(i);
-        o.setClong((long)i);
-        o.setCfloat((float)i);
-        o.setCdouble((double)i);
+    protected void setAttr(B o, int id) {
+        o.setCint(id);
+        o.setClong((long)id);
+        o.setCfloat((float)id);
+        o.setCdouble((double)id);
     }
 
-    protected void verifyAttr(int i, A o) {
+    protected void verifyAttr(int id, A o) {
         assert o != null;
-        verify(i, o.getCint());
-        verify(i, o.getClong());
-        verify(i, o.getCfloat());
-        verify(i, o.getCdouble());
+        verify(id, o.getCint());
+        verify(id, o.getClong());
+        verify(id, o.getCfloat());
+        verify(id, o.getCdouble());
     }
 
-    protected void verifyAttr(int i, B o) {
+    protected void verifyAttr(int id, B o) {
         assert o != null;
-        verify(i, o.getCint());
-        verify(i, o.getClong());
-        verify(i, o.getCfloat());
-        verify(i, o.getCdouble());
+        verify(id, o.getCint());
+        verify(id, o.getClong());
+        verify(id, o.getCfloat());
+        verify(id, o.getCdouble());
     }
 
     // ----------------------------------------------------------------------
@@ -782,32 +811,31 @@ public class JpaLoad extends CrundDriver {
     // JPA datastore operations
     // ----------------------------------------------------------------------
 
-    protected void initConnection() {
+    public void initConnection() {
+        assert em == null;
         out.println();
+        out.println("initializing JPA resources ...");
+
         out.print("creating JPA EntityManager ...");
         out.flush();
         // see: clearPersistenceContext()
         // Tx-scope EM supported by JPA only by container injection:
         // em = emf.createEntityManager(PersistenceContextType.TRANSACTION);
         em = emf.createEntityManager();
-
-        // XXX check query.setHint(...) for standardized optimizations, e.g.:
-        //import org.eclipse.persistence.config.QueryHints;
-        //import org.eclipse.persistence.config.QueryType;
-        //import org.eclipse.persistence.config.PessimisticLock;
-        //import org.eclipse.persistence.config.HintValues;
-        //query.setHint(QueryHints.QUERY_TYPE, QueryType.ReadObject);
-        //query.setHint(QueryHints.PESSIMISTIC_LOCK, PessimisticLock.LockNoWait);
-        //query.setHint("eclipselink.bulk", "e.address");
-        //query.setHint("eclipselink.join-fetch", "e.address");
-
         delAllA = em.createQuery("DELETE FROM A");
         delAllB = em.createQuery("DELETE FROM B");
         out.println("  [EM: 1]");
+
+        initOperations();
     }
 
-    protected void closeConnection() {
+    public void closeConnection() {
+        assert em != null;
         out.println();
+        out.println("releasing JPA resources ...");
+
+        closeOperations();
+
         out.print("closing JPA EntityManager ...");
         out.flush();
         delAllB = null;
@@ -818,16 +846,7 @@ public class JpaLoad extends CrundDriver {
         out.println("   [ok]");
     }
 
-    protected void clearPersistenceContext() {
-        //out.println("clearing persistence context ...");
-        // as long as the EM was not created with a Tx PC scope, i.e.,
-        //   em = emf.createEntityManager(PersistenceContextType.TRANSACTION)
-        // caching of objects beyond Tx scope can be effectively prevented
-        // by clearing the EM's PC
-        em.clear();
-    }
-
-    protected void clearData() {
+    public void clearData() {
         out.print("deleting all objects ...");
         out.flush();
 
@@ -842,15 +861,5 @@ public class JpaLoad extends CrundDriver {
         em.clear();
 
         out.println("]");
-    }
-
-    // ----------------------------------------------------------------------
-
-    static public void main(String[] args) {
-        System.out.println("JpaLoad.main()");
-        parseArguments(args);
-        new JpaLoad().run();
-        System.out.println();
-        System.out.println("JpaLoad.main(): done.");
     }
 }
