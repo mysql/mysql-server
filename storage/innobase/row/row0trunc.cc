@@ -130,7 +130,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 	}
 #endif /* UNIV_DEBUG */
 
-	DBUG_EXECUTE_IF("ib_error_trunc_ibd_file_missing",
+	DBUG_EXECUTE_IF("ib_err_trunc_drop_index",
 			root_page_no = FIL_NULL;);
 
 	if (root_page_no != FIL_NULL) {
@@ -151,7 +151,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		/* Check if the .ibd file is missing. */
 		zip_size = fil_space_get_zip_size(m_table->space);
 
-		DBUG_EXECUTE_IF("ib_error_trunc_ibd_file_missing",
+		DBUG_EXECUTE_IF("ib_err_trunc_drop_index",
 				zip_size = ULINT_UNDEFINED;);
 
 		if (zip_size == ULINT_UNDEFINED) {
@@ -211,6 +211,9 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 	}
 #endif /* UNIV_DEBUG */
 
+	DBUG_EXECUTE_IF("ib_err_trunc_create_index",
+			root_page_no = FIL_NULL;);
+
 	if (root_page_no != FIL_NULL) {
 
 		rec_t*	rec = btr_pcur_get_rec(pcur);
@@ -234,6 +237,9 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		ulint	zip_size;
 
 		zip_size = fil_space_get_zip_size(m_table->space);
+
+		DBUG_EXECUTE_IF("ib_err_trunc_create_index",
+				zip_size = ULINT_UNDEFINED;);
 
 		if (zip_size == ULINT_UNDEFINED) {
 			return(DB_ERROR);
@@ -305,7 +311,9 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 		}
 	}
 
-	dict_stats_update(table, DICT_STATS_EMPTY_TABLE);
+	if (err == DB_SUCCESS) {
+		dict_stats_update(table, DICT_STATS_EMPTY_TABLE);
+	}
 
 	trx->op_info = "";
 
@@ -351,6 +359,9 @@ row_truncate_fts(dict_table_t* table, table_id_t new_id, trx_t* trx)
 		err = fts_create_index_tables_low(
 			trx, fts_index, table->name, new_id);
 	}
+
+	DBUG_EXECUTE_IF("ib_err_trunc_during_fts_trunc",
+			err = DB_ERROR;);
 
 	if (err != DB_SUCCESS) {
 
@@ -507,7 +518,8 @@ row_truncate_update_system_tables(
 
 	err = row_truncate_update_table_id(table->id, new_id, FALSE, trx);
 
-	DBUG_EXECUTE_IF("ib_ddl_crash_before_fts_truncate", err = DB_ERROR;);
+	DBUG_EXECUTE_IF("ib_err_trunc_during_sys_table_update",
+			err = DB_ERROR;);
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
@@ -554,9 +566,6 @@ row_truncate_update_system_tables(
 			fts_drop_tables(trx, table);
 			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 		}
-
-		DBUG_EXECUTE_IF("ib_truncate_crash_after_fts_drop",
-				DBUG_SUICIDE(););
 
 		dict_table_change_id_in_cache(table, new_id);
 
@@ -900,6 +909,15 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			}
 		} else {
 			flags = fil_space_get_flags(table->space);
+
+			DBUG_EXECUTE_IF("ib_err_trunc_preparing_for_truncate",
+					flags = ULINT_UNDEFINED;);
+
+			if (flags == ULINT_UNDEFINED) {
+				row_truncate_rollback(table, trx, false);
+				return(row_truncate_complete(
+					table, trx, flags, DB_ERROR));
+			}
 		}
 
 		/* Write the TRUNCATE redo log. */
@@ -1005,7 +1023,6 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		err = row_truncate_fts(table, new_id, trx);
 
 		if (err != DB_SUCCESS) {
-
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 	}
@@ -1026,9 +1043,8 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		ut_ad(old_space == table->space);
 		err = row_truncate_update_system_tables(
 			table, new_id, has_internal_doc_id, trx);
-
 		if (err != DB_SUCCESS) {
-			table->corrupted = true;
+			return(row_truncate_complete(table, trx, flags, err));
 		}
 	}
 
