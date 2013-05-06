@@ -43,11 +43,10 @@ As build tools, plain make' and 'ant' are used for the Java, C++ sources
 
 3) Start the Cluster and load benchmark schema
 
-    CRUND's and TWS's schema file:
-        ./src/tables_mysql.sql
-        ./tws_benchmark/schema.sql
+    CRUND's schema file:
+        ./src/crund_schema.sql
 
-    (Convenience scripts using ./env.properties etc in ./scripts)
+    (Convenience scripts using ./env.properties in ./scripts)
 
 4) Run CRUND
 

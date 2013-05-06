@@ -73,7 +73,7 @@ MaxNoOfConcurrentOperations=65536
 
 # max number of parallel scans (scan records in each data node)
 # (used for each full-table scan and parallel range scan on ordered indexes)
-#MaxNoOfConcurrentScans=256	 				# default
+#MaxNoOfConcurrentScans=256	 			# default, 500 max
 
 # max number of local records for scans not fully parallelized
 #MaxNoOfLocalScans=(MaxNoOfConcurrentScans * data nodes)	# default < 7.2
