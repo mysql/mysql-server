@@ -99,24 +99,31 @@
     -XX:+PrintTenuringDistribution
       Prints details about the tenuring distribution to standard out.
       USeful for observing the lifetime distribution of an application.
+    -XX:+HeapDumpOnOutOfMemoryError (>= JDK6)
+      Generates a heap dump (xxx.hprof) if an OutOfMemoryError is thrown,
+      which can be opened in [j]visualvm or analyzed with jhat.
   -->
   <!--<property name="jvm-log-args" value="-verbose:gc"/>-->
   <!--<property name="jvm-log-args" value="-verbose:jni"/>-->
   <!--<property name="jvm-log-args" value="-Xloggc:loggc.txt"/>-->
+  <!--<property name="jvm-log-args" value="-XX:+HeapDumpOnOutOfMemoryError"/>-->
   <property name="jvm-log-args" value=""/>
 
   <property name="jvm-args" value="${jvm-opt-args} ${jvm-mem-args} ${jvm-log-args}"/>
 
-  <!-- compile options (overriden by antcall-targets) -->
-  <!--<property name="debug" value="on"/>-->
-  <!-- default value for <javac/javadoc>'s source attribute (since Ant 1.7)-->
+  <!-- compile options (overridable in antcall-targets) -->
+  <!-- no effect? default values for javac/javadoc since Ant 1.7-->
   <property name="ant.build.javac.source" value="1.5"/>
-  <!-- default value for <javac's> target attribute (since Ant 1.7)-->
   <property name="ant.build.javac.target" value="1.5"/>
-
-  <!-- old: property to pass as javac attribute: source="${source}" -->
-  <!--<property name="source" value="1.5"/>-->
-  <!--<property name="source" value="1.6"/>-->
+  <property name="ant.build.javac.debug" value="true"/>
+  <property name="ant.build.javac.debuglevel" value="lines,vars,source"/>
+  <!-- old: pass property as javac attribute: source="${source}" -->
+  <property name="source" value="1.5"/>
+  <property name="target" value="1.5"/>
+  <property name="debug" value="true"/>
+  <property name="debuglevel" value="lines,vars,source"/>
+  <!-- does not accept empty strings: <compilerarg value=""/> -->
+  <property name="javacarg" value="-Xlint"/>
 
   <!-- local directory settings for this build -->
   <!--<property environment="env"/>-->
@@ -131,31 +138,6 @@
   <presetdef name="javac">
     <javac includeantruntime="false"/>
   </presetdef>
-
-  <!-- sets the compile dependencies properties -->
-    <!-- feasible path elements:
-      <pathelement location="${build}"/>
-      <pathelement path="${java.class.path}/"/>
-      <path refid="classpath.base.compile"/>
-    -->
-
-  <target name="set.compile.base">
-    <path id="classpath.base.compile">
-      <pathelement location="${build}"/>
-    </path>
-  </target>
-
-  <target name="set.compile.all" depends="set.compile.base,set.compile.ndbjtie,set.compile.clusterj,set.compile.jdbc,set.compile.jpa">
-    <path id="classpath.all.compile">
-      <path refid="classpath.base.compile"/>
-      <path refid="classpath.ndbjtie.compile"/>
-      <path refid="classpath.clusterj.compile"/>
-      <path refid="classpath.jdbc.compile"/>
-      <path refid="classpath.jpa.compile"/>
-    </path>
-
-    <echo message="classpath.all.compile: ${toString:classpath.all.compile}"/>
-  </target>
 
   <!-- displays usage -->
   <target name="help">
@@ -175,6 +157,7 @@
     <echo message="  compile.jpa"/>
     <echo message=""/>
     <echo message="benchmark execution targets:"/>
+    <echo message="  run.crund (generic driver, uses property 'loads')"/>
     <echo message="  run.ndbjtie"/>
     <echo message="  run.clusterj"/>
     <echo message="  run.clusterjdbc"/>
@@ -194,7 +177,7 @@
   <!-- targets as called by make -->
   <target name="dep" depends="clean"/>
   <target name="dbg" depends="build"/>
-  <target name="opt" depends="build.opt"/>
+  <target name="opt" depends="build"/>
   <target name="prf" depends="build"/>
 
   <!-- deletes most generated files -->
@@ -218,33 +201,41 @@
     </delete>
   </target>
 
-  <!-- compiles the Java code -->
-  <target name="javac" depends="set.compile.all,init">
-    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}" >
-      <classpath refid="classpath.all.compile"/>
+  <!-- sets common compile options -->
+  <target name="set.compile">
+    <path id="classpath.base.compile">
+      <pathelement location="${build}"/>
+    </path>
+  </target>
+
+  <!-- sets the path for compiling all loads -->
+  <target name="set.compile.all" depends="set.compile,set.compile.ndbjtie,set.compile.clusterj,set.compile.jdbc,set.compile.jpa">
+    <path id="classpath.all.compile">
+      <path refid="classpath.base.compile"/>
+      <path refid="classpath.ndbjtie.compile"/>
+      <path refid="classpath.clusterj.compile"/>
+      <path refid="classpath.jdbc.compile"/>
+      <path refid="classpath.jpa.compile"/>
+    </path>
+    <echo message="classpath.all.compile: ${toString:classpath.all.compile}"/>
+  </target>
+
+  <!-- compiles all Java code,
+       fails if any module cannot be build due to unset properties -->
+  <target name="javac" depends="init,set.compile.all">
+    <javac srcdir="${src.java}" destdir="${build}"
+	   debug="${debug}" debuglevel="${debuglevel}"
+	   classpathref="classpath.all.compile"
+	   includes="com/mysql/cluster/crund/*.java">
       <!-- does not accept empty strings: <compilerarg value=""/> -->
-      <compilerarg value="-Xlint"/>
+      <compilerarg value="${javacarg}"/>
     </javac>
   </target>
+  <target name="compile.all" depends="javac"/>
 
-  <!-- forces to compile all code,
-       fails if any module cannot be build due to unset properties -->
-  <target name="compile.all" depends="set.compile.all,javac"/>
-
-  <!-- attempts to compile all code,
+  <!-- compiles all configured Java code,
        skips modules that cannot be build due to unset properties -->
   <target name="compile" depends="compile.driver,compile.ndbjtie,compile.clusterj,compile.jdbc,compile.jpa"/>
-  <target name="compile.opt" depends="set.compile.opt,compile"/>
-
-  <!-- sets to compile for debugging -->
-  <target name="set.compile" depends="init">
-    <property name="debug" value="on"/>
-  </target>
-
-  <!-- sets to compile with optimizations -->
-  <target name="set.compile.opt" depends="init">
-    <property name="debug" value="off"/>
-  </target>
 
   <!-- generates the Java documentation -->
   <target name="javadoc" depends="set.compile.all">
@@ -263,9 +254,6 @@
     <!--<jar jarfile="${jar.file}" basedir="${build}" includes="**/*.class"/>-->
   </target>
 
-  <!-- builds all code with optimization -->
-  <target name="build.opt" depends="set.compile.opt,build"/>
-
   <!-- sets to run with debugging -->
   <target name="set.run" depends="set.compile">
     <property name="jvmflags" value="-ea ${jvm-args}"/>
@@ -276,7 +264,7 @@
   </target>
 
   <!-- sets to run with optimizations -->
-  <target name="set.run.opt" depends="set.compile.opt">
+  <target name="set.run.opt" depends="set.compile">
     <property name="jvmflags" value="-da ${jvm-args}"/>
   </target>
 
@@ -299,16 +287,16 @@
   </target>
 
   <!-- compiles the benchmark drivers -->
-  <target name="compile.driver" depends="set.compile,check.compile.driver"
+  <target name="compile.driver" depends="init,check.compile.driver"
 	  if="compile.driver.set">
-    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+    <javac srcdir="${src.java}" destdir="${build}"
+	   debug="${debug}" debuglevel="${debuglevel}"
 	   includes="com/mysql/cluster/crund/*Driver.java">
-      <include name="com/mysql/cluster/crund/TwsLoad.java"/>
+      <include name="com/mysql/cluster/crund/*Load.java"/>
       <include name="com/mysql/cluster/crund/*Processor.java"/>
-      <compilerarg value="-Xlint"/>
+      <compilerarg value="${javacarg}"/>
     </javac>
   </target>
-  <target name="compile.driver.opt" depends="set.compile.opt,compile.driver"/>
 
   <!-- #################################################################
        # NDBJTIE
@@ -330,7 +318,7 @@
 
   <!-- sets the paths for compiling against NDBJTIE -->
   <target name="set.compile.ndbjtie"
-	  depends="set.compile.base,check.ndbjtie.jar">
+	  depends="set.compile,check.ndbjtie.jar">
     <path id="classpath.ndbjtie.compile">
       <path refid="classpath.base.compile"/>
       <pathelement location="${ndbjtie.jar}"/>
@@ -345,17 +333,16 @@
   </target>
 
   <!-- compiles the benchmark against NDBJTIE -->
-  <target name="compile.ndbjtie" depends="set.compile,check.compile.ndbjtie"
+  <target name="compile.ndbjtie" depends="init,check.compile.ndbjtie"
 	  if="compile.ndbjtie.set">
-    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+    <javac srcdir="${src.java}" destdir="${build}"
+	   debug="${debug}" debuglevel="${debuglevel}"
 	   classpathref="classpath.ndbjtie.compile"
-	   includes="com/mysql/cluster/crund/NdbjtieLoad.java">
-      <include name="com/mysql/cluster/crund/NdbjtieTwsLoad.java"/>
-      <compilerarg value="-Xlint"/>
+	   includes="com/mysql/cluster/crund/NdbjtieAB.java">
+      <include name="com/mysql/cluster/crund/NdbjtieS.java"/>
+      <compilerarg value="${javacarg}"/>
     </javac>
   </target>
-  <target name="compile.ndbjtie.opt"
-	  depends="set.compile.opt,compile.ndbjtie"/>
 
   <!-- checks the path to the NDBAPI dynamic library -->
   <target name="check.NDB_LIBDIR" unless="NDB_LIBDIR">
@@ -397,7 +384,7 @@
     <echo message="  classpath.ndbjtie.run: ${toString:classpath.ndbjtie.run}"/>
     <echo message=""/>
 
-    <java classname="com.mysql.cluster.crund.NdbjtieLoad"
+    <java classname="com.mysql.cluster.crund.NdbjtieAB"
      fork="true" failonerror="true" classpathref="classpath.ndbjtie.run">
       <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndb.libdir}'"/>
@@ -427,7 +414,7 @@
 
   <!-- sets the paths for compiling against Cluster/J -->
   <target name="set.compile.clusterj"
-	  depends="set.compile.base,check.clusterj.api.jar">
+	  depends="set.compile,check.clusterj.api.jar">
     <path id="classpath.clusterj.compile">
       <path refid="classpath.base.compile"/>
       <pathelement location="${clusterj.api.jar}"/>
@@ -442,17 +429,16 @@
   </target>
 
   <!-- compiles the benchmark against Cluster/J -->
-  <target name="compile.clusterj" depends="set.compile,check.compile.clusterj"
+  <target name="compile.clusterj" depends="init,check.compile.clusterj"
 	  if="compile.clusterj.set">
-    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+    <javac srcdir="${src.java}" destdir="${build}"
+	   debug="${debug}" debuglevel="${debuglevel}"
 	   classpathref="classpath.clusterj.compile"
-	   includes="com/mysql/cluster/crund/ClusterjLoad.java">
-      <include name="com/mysql/cluster/crund/ClusterjTwsLoad.java"/>
-      <compilerarg value="-Xlint"/>
+	   includes="com/mysql/cluster/crund/ClusterjAB.java">
+      <include name="com/mysql/cluster/crund/ClusterjS.java"/>
+      <compilerarg value="${javacarg}"/>
     </javac>
   </target>
-  <target name="compile.clusterj.opt"
-	  depends="set.compile.opt,compile.clusterj"/>
 
   <!-- checks the path to Cluster/J jar -->
   <target name="check.CLUSTERJ_JAR" unless="CLUSTERJ_JAR">
@@ -496,7 +482,7 @@
     <echo message="  classpath.clusterj.run: ${toString:classpath.clusterj.run}"/>
     <echo message=""/>
 
-    <java classname="com.mysql.cluster.crund.ClusterjLoad"
+    <java classname="com.mysql.cluster.crund.ClusterjAB"
      fork="true" failonerror="true" classpathref="classpath.clusterj.run">
       <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndb.libdir}'"/>
@@ -511,7 +497,7 @@
        ################################################################# -->
 
   <!-- sets the paths for compiling against JDBC -->
-  <target name="set.compile.jdbc" depends="set.compile.base">
+  <target name="set.compile.jdbc" depends="set.compile">
     <path id="classpath.jdbc.compile">
       <path refid="classpath.base.compile"/>
     </path>
@@ -523,16 +509,16 @@
   </target>
 
   <!-- compiles the benchmark against JDBC -->
-  <target name="compile.jdbc" depends="set.compile,check.compile.jdbc"
+  <target name="compile.jdbc" depends="init,check.compile.jdbc"
 	  if="compile.jdbc.set">
-    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+    <javac srcdir="${src.java}" destdir="${build}"
+	   debug="${debug}" debuglevel="${debuglevel}"
 	   classpathref="classpath.jdbc.compile"
-	   includes="com/mysql/cluster/crund/JdbcLoad.java">
-      <include name="com/mysql/cluster/crund/JdbcTwsLoad.java"/>
-      <compilerarg value="-Xlint"/>
+	   includes="com/mysql/cluster/crund/JdbcAB.java">
+      <include name="com/mysql/cluster/crund/JdbcS.java"/>
+      <compilerarg value="${javacarg}"/>
     </javac>
   </target>
-  <target name="compile.jdbc.opt" depends="set.compile.opt,compile.jdbc"/>
 
   <!-- #################################################################
        # JPA
@@ -568,7 +554,7 @@
 
   <!-- sets the paths for compiling against JPA -->
   <target name="set.compile.jpa"
-	  depends="set.compile.base,check.jpa.api.jar,check.openjpa.jar">
+	  depends="set.compile,check.jpa.api.jar,check.openjpa.jar">
     <path id="classpath.jpa.compile">
       <path refid="classpath.base.compile"/>
       <pathelement location="${jpa.api.jar}"/>
@@ -588,15 +574,15 @@
   </target>
 
   <!-- compiles the benchmark against JPA -->
-  <target name="compile.jpa" depends="set.compile,check.compile.jpa"
+  <target name="compile.jpa" depends="init,check.compile.jpa"
 	  if="compile.jpa.set">
-    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+    <javac srcdir="${src.java}" destdir="${build}"
+	   debug="${debug}" debuglevel="${debuglevel}"
 	   classpathref="classpath.jpa.compile"
-	   includes="com/mysql/cluster/crund/JpaLoad.java">
-      <compilerarg value="-Xlint"/>
+	   includes="com/mysql/cluster/crund/JpaAB.java">
+      <compilerarg value="${javacarg}"/>
     </javac>
   </target>
-  <target name="compile.jpa.opt" depends="set.compile.opt,compile.jpa"/>
 
   <!-- #################################################################
        # MySQL JDBC
@@ -663,7 +649,7 @@
     <echo message="  classpath.mysql.run: ${toString:classpath.mysql.run}"/>
     <echo message=""/>
 
-    <java classname="com.mysql.cluster.crund.JdbcLoad"
+    <java classname="com.mysql.cluster.crund.JdbcAB"
      fork="true" failonerror="true" classpathref="classpath.mysql.run">
       <jvmarg line="${jvmflags}"/>
       <arg line="-p crundRun.properties"/>
@@ -752,7 +738,7 @@
     <echo message="  classpath.clusterjdbc.run: ${toString:classpath.clusterjdbc.run}"/>
     <echo message=""/>
 
-    <java classname="com.mysql.cluster.crund.JdbcLoad"
+    <java classname="com.mysql.cluster.crund.JdbcAB"
      fork="true" failonerror="true" classpathref="classpath.clusterjdbc.run">
       <jvmarg line="${jvmflags}"/>
       <arg line="-p crundRun.properties"/>
@@ -1053,13 +1039,14 @@ Note that the enhancement process for subclasses introduces dependencies on -
     <echo message="  classpath.openjpa.mysql.run: ${toString:classpath.openjpa.mysql.run}"/>
     <echo message=""/>
 
-    <java classname="com.mysql.cluster.crund.JpaLoad"
+    <java classname="com.mysql.cluster.crund.JpaAB"
      fork="true" failonerror="true" classpathref="classpath.openjpa.mysql.run">
       <jvmarg line="${jvmflags}"/>
       <!-- javaagent argument for automatic class-enhancement -->
       <jvmarg value="-javaagent:${javaagent.openjpa}"/>
       <arg line="-p crundRun.properties"/>
-      <arg line="-p crundOpenjpaMysql.properties"/>
+      <arg line="-p crundOpenjpa.properties"/>
+      <arg line="-p crundMysql.properties"/>
     </java>
   </target>
   <target name="run.openjpa.mysql.opt"
@@ -1117,13 +1104,15 @@ Note that the enhancement process for subclasses introduces dependencies on -
     <echo message="  classpath.openjpa.clusterj.run: ${toString:classpath.openjpa.clusterj.run}"/>
     <echo message=""/>
 
-    <java classname="com.mysql.cluster.crund.JpaLoad"
+    <java classname="com.mysql.cluster.crund.JpaAB"
      fork="true" failonerror="true" classpathref="classpath.openjpa.clusterj.run">
       <jvmarg line="${jvmflags}"/>
       <!-- javaagent argument for automatic class-enhancement -->
       <jvmarg value="-javaagent:${javaagent.openjpa}"/>
       <jvmarg line="-Djava.library.path='${ndbjtie.libdir}'"/>
       <arg line="-p crundRun.properties"/>
+      <arg line="-p crundOpenjpa.properties"/>
+      <arg line="-p crundClusterj.properties"/>
       <arg line="-p crundOpenjpaClusterj.properties"/>
     </java>
   </target>
@@ -1131,49 +1120,51 @@ Note that the enhancement process for subclasses introduces dependencies on -
 	  depends="set.run.opt,run.openjpa.clusterj"/>
 
   <!-- #################################################################
-       # TWS
+       # CRUND
        ################################################################# -->
 
-  <!-- sets the paths for running TWS on NDBJTIE, Cluster/J, MySQL JDBC -->
-  <target name="set.run.tws"
-	  depends="check.run.ndbjtie,check.run.clusterj,check.run.mysql">
-    <path id="classpath.tws.run">
+  <!-- sets the paths for running CRUND on NDBJTIE, Cluster/J, MySQL JDBC, OpenJPA  -->
+  <target name="set.run.crund"
+	  depends="check.run.ndbjtie,check.run.clusterj,check.run.mysql,check.run.openjpa.mysql">
+    <path id="classpath.crund.run">
       <pathelement location="${build}"/>
       <path refid="classpath.ndbjtie.run"/>
       <path refid="classpath.clusterj.run"/>
       <path refid="classpath.mysql.run"/>
+      <path refid="classpath.openjpa.mysql.run"/>
     </path>
-    <condition property="run.tws.set">
+    <condition property="run.crund.set">
       <and>
 	<isset property="run.ndbjtie.set"/>
 	<isset property="run.clusterj.set"/>
 	<isset property="run.mysql.set"/>
+	<isset property="run.openjpa.mysql.set"/>
       </and>
     </condition>
   </target>
-  <target name="check.run.tws" depends="set.run.tws"
-	  unless="run.tws.set">
-    <echo message="will skip target run.tws due to missing prerequisites"/>
+  <target name="check.run.crund" depends="set.run.crund"
+	  unless="run.crund.set">
+    <echo message="will skip target run.crund due to missing prerequisites"/>
   </target>
 
-  <!-- runs TWS on NDBJTIE, Cluster/J, MySQL JDBC -->
-  <target name="run.tws" depends="set.run,check.run.tws"
-	  if="run.tws.set">
+  <!-- runs CRUND on NDBJTIE, Cluster/J, MySQL JDBC, OpenJPA -->
+  <target name="run.crund" depends="set.run,check.run.crund"
+	  if="run.crund.set">
     <echo message="using:"/>
     <echo message="  ndb.libdir: ${ndb.libdir}"/>
-    <echo message="  classpath.tws.run: ${toString:classpath.tws.run}"/>
+    <echo message="  classpath.crund.run: ${toString:classpath.crund.run}"/>
     <echo message=""/>
 
-    <java classname="com.mysql.cluster.crund.TwsDriver"
-     fork="true" failonerror="true" classpathref="classpath.tws.run">
+    <java classname="com.mysql.cluster.crund.CrundDriver"
+     fork="true" failonerror="true" classpathref="classpath.crund.run">
       <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndb.libdir}'"/>
-      <arg line="-p twsRun.properties"/>
+      <arg line="-p crundRun.properties"/>
       <arg line="-p crundNdbjtie.properties"/>
       <arg line="-p crundClusterj.properties"/>
       <arg line="-p crundMysql.properties"/>
+      <arg line="-p crundOpenjpa.properties"/>
     </java>
   </target>
-  <target name="run.tws.opt" depends="set.run.opt,run.tws"/>
-
+  <target name="run.crund.opt" depends="set.run.opt,run.crund"/>
 </project>
