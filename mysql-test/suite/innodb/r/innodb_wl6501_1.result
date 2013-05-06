@@ -100,6 +100,30 @@ count(*)
 select count(*) from t6;
 count(*)
 3
+set session debug="+d,ib_crash_during_drop_index_temp_table";
+"---debug ib_crash_during_drop_index_temp_table point---"
+# Write file to make mysql-test-run.pl expect crash and restart
+# Run the crashing query
+truncate table t5;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+3
+select count(*) from t3;
+count(*)
+3
+select count(*) from t4;
+count(*)
+3
+select count(*) from t5;
+ERROR 42S02: Table 'test.t5' doesn't exist
+select count(*) from t6;
+count(*)
+3
 set session debug="+d,ib_crash_on_drop_of_sec_index";
 "---debug ib_crash_on_drop_of_sec_index point---"
 # Write file to make mysql-test-run.pl expect crash and restart
@@ -196,7 +220,7 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-drop table t1 ,t2 ,t3,t4,t6;
+drop table t1, t2, t3, t4, t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -283,6 +307,30 @@ count(*)
 select count(*) from t6;
 count(*)
 3
+set session debug="+d,ib_crash_drop_reinit_done_create_to_start2";
+"---debug ib_crash_drop_reinit_done_create_to_start2---"
+# Write file to make mysql-test-run.pl expect crash and restart
+# Run the crashing query
+truncate table t5;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+3
+select count(*) from t3;
+count(*)
+3
+select count(*) from t4;
+count(*)
+3
+select count(*) from t5;
+ERROR 42S02: Table 'test.t5' doesn't exist
+select count(*) from t6;
+count(*)
+3
 set session debug="+d,ib_crash_on_create_of_sec_index";
 "---debug ib_crash_on_create_of_sec_index---"
 # Write file to make mysql-test-run.pl expect crash and restart
@@ -379,7 +427,7 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-drop table t1 ,t2 ,t3,t4,t6;
+drop table t1, t2, t3, t4, t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -562,7 +610,7 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-drop table t1 ,t2 ,t3,t4,t6;
+drop table t1, t2, t3, t4, t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -745,7 +793,7 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-drop table t1 ,t2 ,t3,t4,t6;
+drop table t1, t2, t3, t4, t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -928,7 +976,7 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-drop table t1 ,t2 ,t3,t4,t6;
+drop table t1, t2, t3, t4, t6;
 create table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -1111,4 +1159,4 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-drop table t1 ,t2 ,t3,t4,t6;
+drop table t1, t2, t3, t4, t6;
