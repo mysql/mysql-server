@@ -815,6 +815,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	relevant for TRUNCATE TABLE by TRUNCATE TABLESPACE.)
 	Ensure that the table will be dropped by
 	trx_rollback_active() in case of a crash.
+
+	Table involving FTS is not made atomic as of now and its behavior
+	is left unchanged.
 	*/
 
 	/*-----------------------------------------------------------------*/
@@ -899,6 +902,12 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	table_id_t	new_id;
 	dict_hdr_get_new_id(&new_id, NULL, NULL, table, false);
 
+	/* Create new FTS auxiliary tables with the new_id, and
+	drop the old index later, only if everything runs successful. */
+	bool	has_internal_doc_id =
+		dict_table_has_fts_index(table)
+		|| DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
+
 	/* Step-8: (Only for per-tablespace): REDO log information about
 	tablespace which mainly include index information (id, type).
 	In event of crash post this point on recovery using REDO log
@@ -913,7 +922,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	we need to use index locks to sync up */
 	dict_table_x_lock_indexes(table);
 
-	if (!dict_table_is_temporary(table)) {
+	if (!dict_table_is_temporary(table) && !has_internal_doc_id) {
 
 		if (!Tablespace::is_system_tablespace(table->space)) {
 
@@ -1032,12 +1041,6 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	/* Done with index truncation, release index tree locks,
 	subsequent work relates to table level metadata change */
 	dict_table_x_unlock_indexes(table);
-
-	/* Create new FTS auxiliary tables with the new_id, and
-	drop the old index later, only if everything runs successful. */
-	bool	has_internal_doc_id =
-		dict_table_has_fts_index(table)
-		|| DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 
 	if (has_internal_doc_id) {
 
