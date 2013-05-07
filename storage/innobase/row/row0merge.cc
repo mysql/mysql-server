@@ -41,9 +41,9 @@ Completed by Sunny Bains and Marko Makela
 #include "srv0space.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
-#if defined __WIN__
+#if defined _WIN32
 # define posix_fadvise(fd, offset, len, advice) /* nothing */
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #ifdef UNIV_DEBUG
 /** Set these in order ot enable debug printout. */
