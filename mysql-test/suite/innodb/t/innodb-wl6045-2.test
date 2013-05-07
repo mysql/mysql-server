@@ -7,7 +7,7 @@
 
 # Must have debug code to use debug option for innochecksum tool.
 --source include/have_debug.inc
-
+--source include/not_embedded.inc
 --echo # Set the environmental variables
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
