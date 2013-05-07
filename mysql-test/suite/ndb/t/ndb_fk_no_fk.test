@@ -184,3 +184,26 @@ create table t2 (
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 drop table t1, t2;
+
+--echo #
+--echo # Create child table and then the parent
+--echo # which does not match any index
+--echo #
+
+create table t1 (
+  pk int not null primary key,
+  b int,
+  foreign key (b) references t2(c)
+) engine=ndb;
+
+create table t2 (
+  pk1 int not null primary key,
+  c int
+) engine=ndb;
+
+--source ndb_show_tables_result.inc
+
+--echo # There should be 1 dummy table still
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+
+drop table t1, t2;
