@@ -2192,7 +2192,6 @@ os_file_set_eof(
 #endif /* _WIN32 */
 }
 
-<<<<<<< TREE
 /***********************************************************************//**
 Truncates a file to a specified size in bytes. Do nothing if the size
 preserved is smaller or equal than current size of file.
@@ -2216,7 +2215,7 @@ os_file_truncate(
 		return(TRUE);
 	}
 
-#ifdef __WIN__
+#ifdef _WIN32
         int fd;
 	/* Get the file descriptor from the handle */
 	fd = _open_osfhandle((long)file, _O_TEXT);
@@ -2225,20 +2224,17 @@ os_file_truncate(
 	if (res == -1) {
 		os_file_handle_error_no_exit(pathname, "chsize", FALSE);
 	}
-#else /* __WIN__ */
+#else /* _WIN32 */
 	res = ftruncate(file, size);
 	if (res == -1) {
 		os_file_handle_error_no_exit(pathname, "truncate", FALSE);
 	}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	return(res == 0);
 }
 
-#ifndef __WIN__
-=======
 #ifndef _WIN32
->>>>>>> MERGE-SOURCE
 /***********************************************************************//**
 Wrapper to fsync(2) that retries the call on some errors.
 Returns the value 0 if successful; otherwise the value -1 is returned and
