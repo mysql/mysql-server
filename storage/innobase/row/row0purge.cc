@@ -687,30 +687,26 @@ skip_secondaries:
 	row_purge_upd_exist_or_extern_func(node,undo_rec)
 #endif /* UNIV_DEBUG */
 
-/***********************************************************//**
-Parses the row reference and other info in a modify undo log record.
+/** Parse the row reference and other info in a modify undo log record.
+@param[in/out]	node		purge node
+@param[in]	undo_rec	record to purge
+@param[out]	updated_extern	true if an externally stored field was updated
 @return true if purge operation required */
 static
 bool
 row_purge_parse_undo_rec(
-/*=====================*/
-	purge_node_t*		node,		/*!< in: row undo node */
-	trx_undo_rec_t*		undo_rec,	/*!< in: record to purge */
-	bool*			updated_extern, /*!< out: true if an externally
-						stored field was updated */
-	que_thr_t*		thr)		/*!< in: query thread */
+	purge_node_t*		node,
+	trx_undo_rec_t*		undo_rec,
+	bool*			updated_extern)
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
-	trx_t*		trx;
 	undo_no_t	undo_no;
 	table_id_t	table_id;
 	trx_id_t	trx_id;
 	roll_ptr_t	roll_ptr;
 	ulint		info_bits;
 	ulint		type;
-
-	ut_ad(node && thr);
 
 	ptr = trx_undo_rec_get_pars(
 		undo_rec, &type, &node->cmpl_info,
@@ -780,11 +776,9 @@ err_exit:
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
 				       node->heap);
 
-	trx = thr_get_trx(thr);
-
 	ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
-					     roll_ptr, info_bits, trx,
-					     node->heap, &(node->update));
+					     roll_ptr, info_bits,
+					     node->heap, node->update);
 
 	/* Read to the partial row the fields that occur in indexes */
 
@@ -861,23 +855,26 @@ row_purge_record_func(
 	row_purge_record_func(node,undo_rec,updated_extern)
 #endif /* UNIV_DEBUG */
 
-/***********************************************************//**
-Fetches an undo log record and does the purge for the recorded operation.
+/** Fetches an undo log record and does the purge for the recorded operation.
 If none left, or the current purge completed, returns the control to the
-parent node, which is always a query thread node. */
+parent node, which is always a query thread node.
+@param[in/out]	node		purge node
+@param[in]	thr		query thread
+@param[in]	undo_rec	record to purge */
 static __attribute__((nonnull))
 void
-row_purge(
-/*======*/
-	purge_node_t*	node,		/*!< in: row purge node */
-	trx_undo_rec_t*	undo_rec,	/*!< in: record to purge */
-	que_thr_t*	thr)		/*!< in: query thread */
+row_purge_func(
+	purge_node_t*	node,
+#ifdef UNIV_DEBUG
+	const que_thr_t*thr,
+#endif /* UNIV_DEBUG */
+	trx_undo_rec_t*	undo_rec)
 {
 	if (undo_rec != &trx_purge_dummy_rec) {
 		bool	updated_extern;
 
 		while (row_purge_parse_undo_rec(
-			       node, undo_rec, &updated_extern, thr)) {
+			       node, undo_rec, &updated_extern)) {
 
 			bool purged = row_purge_record(
 				node, undo_rec, thr, updated_extern);
@@ -894,6 +891,12 @@ row_purge(
 		}
 	}
 }
+
+#ifdef UNIV_DEBUG
+# define row_purge(node,undo_rec,thr) row_purge_func(node,thr,undo_rec)
+#else /* UNIV_DEBUG */
+# define row_purge(node,undo_rec,thr) row_purge_func(node,undo_rec)
+#endif /* UNIV_DEBUG */
 
 /***********************************************************//**
 Reset the purge query thread. */

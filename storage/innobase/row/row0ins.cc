@@ -352,13 +352,11 @@ row_ins_clust_index_entry_by_modify(
 	ut_ad(rec_get_deleted_flag(rec,
 				   dict_table_is_comp(cursor->index->table)));
 
-	/* Build an update vector containing all the fields to be modified;
-	NOTE that this vector may NOT contain system columns trx_id or
-	roll_ptr */
-
+	*offsets = rec_get_offsets(rec, cursor->index, *offsets,
+				   ULINT_UNDEFINED, offsets_heap);
 	update = row_upd_build_difference_binary(
-		cursor->index, entry, rec, NULL, true,
-		thr_get_trx(thr), heap);
+		cursor->index, entry, rec, *offsets,
+		true/*exclude DB_TRX_ID, DB_ROLL_PTR*/, heap);
 	if (mode != BTR_MODIFY_TREE) {
 		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
 
