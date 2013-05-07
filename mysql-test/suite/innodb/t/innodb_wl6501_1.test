@@ -207,13 +207,13 @@ while ($cnt) {
 	# set the debug crash point and exercise them.
 	if ($cnt == 6)
 	{
-		set session debug="+d,ib_crash_during_drop_index_temp_table";
-		--echo "---debug ib_crash_during_drop_index_temp_table point---"
+		set session debug="+d,ib_trunc_crash_during_drop_index_temp_table";
+		--echo "---debug ib_trunc_crash_during_drop_index_temp_table point---"
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,ib_crash_drop_reinit_done_create_to_start2";
-		--echo "---debug ib_crash_drop_reinit_done_create_to_start2---"
+		set session debug="+d,ib_trunc_crash_drop_reinit_done_create_to_start2";
+		--echo "---debug ib_trunc_crash_drop_reinit_done_create_to_start2---"
 	}
 
 	if ($cnt >= 5) {
@@ -240,33 +240,33 @@ while ($cnt) {
 	# set the debug crash point and exercise them.
 	if ($cnt == 6)
 	{
-		set session debug="+d,ib_crash_on_drop_of_sec_index";
-		--echo "---debug ib_crash_on_drop_of_sec_index point---"
+		set session debug="+d,ib_trunc_crash_on_drop_of_sec_index";
+		--echo "---debug ib_trunc_crash_on_drop_of_sec_index point---"
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,ib_crash_on_create_of_sec_index";
-		--echo "---debug ib_crash_on_create_of_sec_index---"
+		set session debug="+d,ib_trunc_crash_on_create_of_sec_index";
+		--echo "---debug ib_trunc_crash_on_create_of_sec_index---"
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_crash_before_log_checkpoint2";
-		--echo "---debug ib_crash_before_log_checkpoint2 point---"
+		set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
+		--echo "---debug ib_trunc_crash_before_log_checkpoint2 point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,ib_crash_after_log_checkpoint";
-		--echo "---debug ib_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,ib_crash_after_log_checkpoint";
-		--echo "---debug ib_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,ib_crash_after_redo_log_write_complete2";
-		--echo "---debug ib_crash_after_redo_log_write_complete2 point---"
+		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
+		--echo "---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
 	}
 
 	--echo # Write file to make mysql-test-run.pl expect crash and restart
@@ -290,33 +290,33 @@ while ($cnt) {
 
 	if ($cnt == 6)
 	{
-		set session debug="+d,ib_crash_on_drop_of_sec_index";
-		--echo "---debug ib_crash_on_drop_of_sec_index point---"
+		set session debug="+d,ib_trunc_crash_on_drop_of_sec_index";
+		--echo "---debug ib_trunc_crash_on_drop_of_sec_index point---"
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,ib_crash_on_create_of_sec_index";
-		--echo "---debug ib_crash_on_create_of_sec_index---"
+		set session debug="+d,ib_trunc_crash_on_create_of_sec_index";
+		--echo "---debug ib_trunc_crash_on_create_of_sec_index---"
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_crash_before_log_checkpoint2";
-		--echo "---debug ib_crash_before_log_checkpoint2 point---"
+		set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
+		--echo "---debug ib_trunc_crash_before_log_checkpoint2 point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,ib_crash_after_log_checkpoint";
-		--echo "---debug ib_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,ib_crash_after_log_checkpoint";
-		--echo "---debug ib_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,ib_crash_after_redo_log_write_complete2";
-		--echo "---debug ib_crash_after_redo_log_write_complete2 point---"
+		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
+		--echo "---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
 	}
 
 
@@ -341,33 +341,33 @@ while ($cnt) {
 
 	if ($cnt == 6)
 	{
-		set session debug="+d,ib_crash_on_drop_of_sec_index";
-		--echo "---debug ib_crash_on_drop_of_sec_index point---"
+		set session debug="+d,ib_trunc_crash_on_drop_of_sec_index";
+		--echo "---debug ib_trunc_crash_on_drop_of_sec_index point---"
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,ib_crash_on_create_of_sec_index";
-		--echo "---debug ib_crash_on_create_of_sec_index---"
+		set session debug="+d,ib_trunc_crash_on_create_of_sec_index";
+		--echo "---debug ib_trunc_crash_on_create_of_sec_index---"
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_crash_before_log_checkpoint2";
-		--echo "---debug ib_crash_before_log_checkpoint2 point---"
+		set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
+		--echo "---debug ib_trunc_crash_before_log_checkpoint2 point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,ib_crash_after_log_checkpoint";
-		--echo "---debug ib_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,ib_crash_after_log_checkpoint";
-		--echo "---debug ib_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,ib_crash_after_redo_log_write_complete2";
-		--echo "---debug ib_crash_after_redo_log_write_complete2 point---"
+		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
+		--echo "---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
 	}
 
 
@@ -393,33 +393,33 @@ while ($cnt) {
 
 	if ($cnt == 6)
 	{
-		set session debug="+d,ib_crash_on_drop_of_sec_index";
-		--echo "---debug ib_crash_on_drop_of_sec_index point---"
+		set session debug="+d,ib_trunc_crash_on_drop_of_sec_index";
+		--echo "---debug ib_trunc_crash_on_drop_of_sec_index point---"
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,ib_crash_on_create_of_sec_index";
-		--echo "---debug ib_crash_on_create_of_sec_index---"
+		set session debug="+d,ib_trunc_crash_on_create_of_sec_index";
+		--echo "---debug ib_trunc_crash_on_create_of_sec_index---"
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_crash_before_log_checkpoint2";
-		--echo "---debug ib_crash_before_log_checkpoint2 point---"
+		set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
+		--echo "---debug ib_trunc_crash_before_log_checkpoint2 point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,ib_crash_after_log_checkpoint";
-		--echo "---debug ib_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,ib_crash_after_log_checkpoint";
-		--echo "---debug ib_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,ib_crash_after_redo_log_write_complete2";
-		--echo "---debug ib_crash_after_redo_log_write_complete2 point---"
+		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
+		--echo "---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
 	}
 
 	--echo # Write file to make mysql-test-run.pl expect crash and restart
