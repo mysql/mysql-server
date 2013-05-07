@@ -19,4 +19,7 @@ typedef struct dict_foreign_struct	dict_foreign_t;
 typedef struct ind_node_struct		ind_node_t;
 typedef struct tab_node_struct		tab_node_t;
 
+#define TEMP_TABLE_PREFIX                "#sql"
+#define TEMP_TABLE_PATH_PREFIX           "/" TEMP_TABLE_PREFIX
+
 #endif
