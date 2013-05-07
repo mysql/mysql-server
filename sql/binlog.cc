@@ -3848,6 +3848,13 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   const char* save_name;
   DBUG_ENTER("reset_logs");
 
+  /*
+    Flush logs for storage engines, so that the last transaction
+    is fsynced inside storage engines.
+  */
+  if (ha_flush_logs(NULL))
+    DBUG_RETURN(1);
+
   ha_reset_logs(thd);
 
   /*
@@ -4956,7 +4963,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 
   mysql_mutex_lock(&LOCK_index);
 
-  if ((error= ha_flush_logs(0)))
+  if (DBUG_EVALUATE_IF("expire_logs_always", 0, 1)
+      && (error= ha_flush_logs(NULL)))
     goto end;
 
   mysql_mutex_assert_owner(&LOCK_log);
@@ -5512,6 +5520,11 @@ void MYSQL_BIN_LOG::purge()
                     { purge_time= my_time(0);});
     if (purge_time >= 0)
     {
+      /*
+        Flush logs for storage engines, so that the last transaction
+        is fsynced inside storage engines.
+      */
+      ha_flush_logs(NULL);
       purge_logs_before_date(purge_time, true);
     }
   }
@@ -7000,6 +7013,31 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
   return thd->commit_error;
 }
 
+/**
+   Auxiliary function used in ordered_commit.
+*/
+static inline int call_after_sync_hook(THD *queue_head)
+{
+  const char *log_file= NULL;
+  my_off_t pos= 0;
+  THD *tail= NULL;
+
+  DBUG_ASSERT(queue_head != NULL);
+  while (queue_head)
+  {
+    tail= queue_head;
+    queue_head= queue_head->next_to_commit;
+  }
+
+  tail->get_trans_pos(&log_file, &pos);
+  if (DBUG_EVALUATE_IF("simulate_after_sync_hook_error", 1, 0) ||
+      RUN_HOOK(binlog_storage, after_sync, (tail, log_file, pos)))
+  {
+    sql_print_error("Failed to run 'after_sync' hooks");
+    return ER_ERROR_ON_WRITE;
+  }
+  return 0;
+}
 
 /**
   Flush and commit the transaction.
@@ -7178,6 +7216,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     THD *commit_queue= stage_manager.fetch_queue_for(Stage_manager::COMMIT_STAGE);
     DBUG_EXECUTE_IF("semi_sync_3-way_deadlock",
                     DEBUG_SYNC(thd, "before_process_commit_stage_queue"););
+
+    if (flush_error == 0)
+      flush_error= call_after_sync_hook(commit_queue);
+
     process_commit_stage_queue(thd, commit_queue);
     mysql_mutex_unlock(&LOCK_commit);
     /*
@@ -7188,7 +7230,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     final_queue= commit_queue;
   }
   else
+  {
     mysql_mutex_unlock(&LOCK_sync);
+    if (flush_error == 0)
+      call_after_sync_hook(final_queue);
+  }
 
   /* Commit done so signal all waiting threads */
   stage_manager.signal_done(final_queue);
@@ -8210,6 +8256,44 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     DBUG_PRINT("info", ("decision: logging in %s format",
                         is_current_stmt_binlog_format_row() ?
                         "ROW" : "STATEMENT"));
+
+    if (variables.binlog_format == BINLOG_FORMAT_ROW &&
+        (lex->sql_command == SQLCOM_UPDATE ||
+         lex->sql_command == SQLCOM_UPDATE_MULTI ||
+         lex->sql_command == SQLCOM_DELETE ||
+         lex->sql_command == SQLCOM_DELETE_MULTI))
+    {
+      String table_names;
+      /*
+        Generate a warning for UPDATE/DELETE statements that modify a
+        BLACKHOLE table, as row events are not logged in row format.
+      */
+      for (TABLE_LIST *table= tables; table; table= table->next_global)
+      {
+        if (table->placeholder())
+          continue;
+        if (table->table->file->ht->db_type == DB_TYPE_BLACKHOLE_DB &&
+            table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        {
+            table_names.append(table->table_name);
+            table_names.append(",");
+        }
+      }
+      if (!table_names.is_empty())
+      {
+        bool is_update= (lex->sql_command == SQLCOM_UPDATE ||
+                         lex->sql_command == SQLCOM_UPDATE_MULTI);
+        /*
+          Replace the last ',' with '.' for table_names
+        */
+        table_names.replace(table_names.length()-1, 1, ".", 1);
+        push_warning_printf(this, Sql_condition::SL_WARNING,
+                            WARN_ON_BLOCKHOLE_IN_RBR,
+                            ER(WARN_ON_BLOCKHOLE_IN_RBR),
+                            is_update ? "UPDATE" : "DELETE",
+                            table_names.c_ptr());
+      }
+    }
   }
 #ifndef DBUG_OFF
   else
