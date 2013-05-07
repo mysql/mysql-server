@@ -19,27 +19,9 @@
 typedef unsigned long long ulonglong;
 #include "tokudb_status.h"
 #include "tokudb_buffer.h"
-// Provide some mimimal MySQL classes just to compile the tokudb cardinality functions
-class KEY_INFO {
-public:
-    uint flags;
-    uint64_t *rec_per_key;
-};
-#define HA_NOSAME 1
-class TABLE_SHARE {
-public:
-    uint primary_key;
-    uint keys;
-};
-class TABLE {
-public:
-    TABLE_SHARE *s;
-    KEY_INFO *key_info;
-};
-uint get_key_parts(KEY_INFO *key_info) {
-    assert(key_info);
-    return 0;
-}
+
+#include "fake_mysql.h"
+
 #if __APPLE__
 typedef unsigned long ulong;
 #endif
@@ -107,6 +89,11 @@ static void test_card(DB_ENV *env, DB *db, uint64_t expect_card) {
     uint64_t rec_per_key[num_key_parts];
 
     r = tokudb::analyze_card(db, txn, false, num_key_parts, rec_per_key, analyze_key_compare, NULL, NULL);
+    assert(r == 0);
+
+    assert(rec_per_key[0] == expect_card);
+
+    r = tokudb::analyze_card(db, txn, true, num_key_parts, rec_per_key, analyze_key_compare, NULL, NULL);
     assert(r == 0);
 
     assert(rec_per_key[0] == expect_card);

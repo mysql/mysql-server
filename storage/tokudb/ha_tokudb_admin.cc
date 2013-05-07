@@ -55,7 +55,10 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
             struct analyze_progress_extra analyze_progress_extra = {
                 thd, share, table_share, i, key_name, time(0), write_status_msg
             };
-            int error = tokudb::analyze_card(share->key_file[i], txn, false, num_key_parts, &rec_per_key[next_key_part],
+            bool is_unique = false;
+            if (i == primary_key || (key_info->flags & HA_NOSAME))
+                is_unique = true;
+            int error = tokudb::analyze_card(share->key_file[i], txn, is_unique, num_key_parts, &rec_per_key[next_key_part],
                                              tokudb_cmp_dbt_key_parts, analyze_progress, &analyze_progress_extra);
             if (error != 0 && error != ETIME) {
                 result = HA_ADMIN_FAILED;

@@ -1,0 +1,29 @@
+# test that add index keeps cardinality for older indexes
+
+source include/have_tokudb.inc;
+
+disable_warnings;
+drop table if exists tt;
+enable_warnings;
+
+create table tt (a int, b int, c int, key(b), key(c), primary key(a));
+insert into tt values (1,0,0),(2,0,0),(3,0,1),(4,0,1);
+
+# compute cardinality
+show indexes from tt;
+analyze table tt;
+show indexes from tt;
+
+# drop key b
+alter table tt drop key b;
+show indexes from tt;
+
+# drop key c
+alter table tt drop key c;
+show indexes from tt;
+
+# test that cardinality is persistent
+flush tables;
+show indexes from tt;
+
+drop table tt;
