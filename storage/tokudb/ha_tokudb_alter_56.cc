@@ -22,6 +22,7 @@ public:
         alter_txn(NULL),
         add_index_changed(false),
         drop_index_changed(false),
+        reset_card(false),
         compression_changed(false),
         expand_varchar_update_needed(false),
         expand_fixed_update_needed(false),
@@ -38,6 +39,7 @@ public:
     bool add_index_changed;
     bool incremented_num_DBs, modified_DBs;
     bool drop_index_changed;
+    bool reset_card;
     bool compression_changed;
     enum toku_compression_method orig_compression_method;
     bool expand_varchar_update_needed;
@@ -366,7 +368,6 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
     }
     if (error == 0 && (ctx->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) && (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
         // Get the current compression
-        tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
         DB *db = share->key_file[0];
         error = db->get_compression_method(db, &ctx->orig_compression_method);
         assert(error == 0);
@@ -387,6 +388,9 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
 
     if (error == 0 && ctx->expand_fixed_update_needed)
         error = alter_table_expand_columns(altered_table, ha_alter_info);
+
+    if (error == 0 && ctx->reset_card)
+        tokudb::set_card_from_status(share->status_block, ctx->alter_txn, table->s, altered_table->s);
 
     bool result = false; // success
     if (error) {
@@ -422,7 +426,7 @@ int ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *h
     my_free(key_info);
     
     if (error == 0)
-        tokudb::delete_card_from_status(share->status_block, ctx->alter_txn);
+        ctx->reset_card = true;
 
     return error;
 }
@@ -469,7 +473,7 @@ int ha_tokudb::alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *
     int error = drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count, key_info, ctx->alter_txn);
 
     if (error == 0)
-        tokudb::delete_card_from_status(share->status_block, ctx->alter_txn);
+        ctx->reset_card = true;
 
     return error;
 }
