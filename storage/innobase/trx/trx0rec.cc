@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -909,39 +909,38 @@ trx_undo_update_rec_get_field_no(
 	return(ptr);
 }
 
-/*******************************************************************//**
-Builds an update vector based on a remaining part of an undo log record.
+/** Builds an update vector based on the remaining part of an undo log record.
+@param[in]	ptr	remaining part in update undo log record,
+after reading the row reference.
+NOTE that this copy of the undo log record must be preserved as long
+as the update vector is used, as we do NOT copy the data in the
+record!
+@param[in]	index		clustered index
+@param[in]	type		TRX_UNDO_UPD_EXIST_REC, TRX_UNDO_UPD_DEL_REC,
+or TRX_UNDO_DEL_MARK_REC; for TRX_UNDO_DEL_MARK_REC,
+only DB_TRX_ID, DB_ROLL_PTR will be added to the update vector
+@param[in]	trx_id		DB_TRX_ID from the undo record
+@param[in]	roll_ptr	DB_ROLL_PTR from the undo record
+@param[in]	info_bits	info_bits for the record
+@param[in/out]	heap		memory heap
+@param[out]	update		update vector, allocated from heap
 @return remaining part of the record, NULL if an error detected, which
 means that the record is corrupted */
 UNIV_INTERN
 byte*
 trx_undo_update_rec_get_update(
-/*===========================*/
-	byte*		ptr,	/*!< in: remaining part in update undo log
-				record, after reading the row reference
-				NOTE that this copy of the undo log record must
-				be preserved as long as the update vector is
-				used, as we do NOT copy the data in the
-				record! */
-	dict_index_t*	index,	/*!< in: clustered index */
-	ulint		type,	/*!< in: TRX_UNDO_UPD_EXIST_REC,
-				TRX_UNDO_UPD_DEL_REC, or
-				TRX_UNDO_DEL_MARK_REC; in the last case,
-				only trx id and roll ptr fields are added to
-				the update vector */
-	trx_id_t	trx_id,	/*!< in: transaction id from this undo record */
-	roll_ptr_t	roll_ptr,/*!< in: roll pointer from this undo record */
-	ulint		info_bits,/*!< in: info bits from this undo record */
-	trx_t*		trx,	/*!< in: transaction */
-	mem_heap_t*	heap,	/*!< in: memory heap from which the memory
-				needed is allocated */
-	upd_t**		upd)	/*!< out, own: update vector */
+	byte*			ptr,
+	const dict_index_t*	index,
+	ulint			type,
+	trx_id_t		trx_id,
+	roll_ptr_t		roll_ptr,
+	ulint			info_bits,
+	mem_heap_t*		heap,
+	upd_t*&			update)
 {
 	upd_field_t*	upd_field;
-	upd_t*		update;
 	ulint		n_fields;
 	byte*		buf;
-	ulint		i;
 
 	ut_a(dict_index_is_clust(index));
 
@@ -965,7 +964,7 @@ trx_undo_update_rec_get_update(
 
 	upd_field_set_field_no(upd_field,
 			       dict_index_get_sys_col_pos(index, DATA_TRX_ID),
-			       index, trx);
+			       index);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_TRX_ID_LEN);
 
 	upd_field = upd_get_nth_field(update, n_fields + 1);
@@ -976,12 +975,12 @@ trx_undo_update_rec_get_update(
 
 	upd_field_set_field_no(
 		upd_field, dict_index_get_sys_col_pos(index, DATA_ROLL_PTR),
-		index, trx);
-	dfield_set_data(&(upd_field->new_val), buf, DATA_ROLL_PTR_LEN);
+		index);
+	dfield_set_data(&upd_field->new_val, buf, DATA_ROLL_PTR_LEN);
 
 	/* Store then the updated ordinary columns to the update vector */
 
-	for (i = 0; i < n_fields; i++) {
+	for (ulint i = 0; i < n_fields; i++) {
 
 		byte*	field;
 		ulint	len;
@@ -990,30 +989,9 @@ trx_undo_update_rec_get_update(
 
 		ptr = trx_undo_update_rec_get_field_no(ptr, &field_no);
 
-		if (field_no >= dict_index_get_n_fields(index)) {
-			fprintf(stderr,
-				"InnoDB: Error: trying to access"
-				" update undo rec field %lu in ",
-				(ulong) field_no);
-			dict_index_name_print(stderr, trx, index);
-			fprintf(stderr, "\n"
-				"InnoDB: but index has only %lu fields\n"
-				"InnoDB: Submit a detailed bug report"
-				" to http://bugs.mysql.com\n"
-				"InnoDB: Run also CHECK TABLE ",
-				(ulong) dict_index_get_n_fields(index));
-			ut_print_name(stderr, trx, TRUE, index->table_name);
-			fprintf(stderr, "\n"
-				"InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
-				(ulong) n_fields, (ulong) i, ptr);
-			ut_ad(0);
-			*upd = NULL;
-			return(NULL);
-		}
-
 		upd_field = upd_get_nth_field(update, i);
 
-		upd_field_set_field_no(upd_field, field_no, index, trx);
+		upd_field_set_field_no(upd_field, field_no, index);
 
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
 
@@ -1030,8 +1008,6 @@ trx_undo_update_rec_get_update(
 			dfield_set_ext(&upd_field->new_val);
 		}
 	}
-
-	*upd = update;
 
 	return(ptr);
 }
@@ -1578,9 +1554,8 @@ trx_undo_prev_version_build(
 
 	ptr = trx_undo_rec_skip_row_ref(ptr, index);
 
-	ptr = trx_undo_update_rec_get_update(ptr, index, type, trx_id,
-					     roll_ptr, info_bits,
-					     NULL, heap, &update);
+	ptr = trx_undo_update_rec_get_update(
+		ptr, index, type, trx_id, roll_ptr, info_bits, heap, update);
 	ut_a(ptr);
 
 # if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG

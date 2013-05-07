@@ -151,33 +151,34 @@ trx_undo_update_rec_get_sys_cols(
 	trx_id_t*	trx_id,		/*!< out: trx id */
 	roll_ptr_t*	roll_ptr,	/*!< out: roll ptr */
 	ulint*		info_bits);	/*!< out: info bits state */
-/*******************************************************************//**
-Builds an update vector based on a remaining part of an undo log record.
+/** Builds an update vector based on the remaining part of an undo log record.
+@param[in]	ptr	remaining part in update undo log record,
+after reading the row reference.
+NOTE that this copy of the undo log record must be preserved as long
+as the update vector is used, as we do NOT copy the data in the
+record!
+@param[in]	index		clustered index
+@param[in]	type		TRX_UNDO_UPD_EXIST_REC, TRX_UNDO_UPD_DEL_REC,
+or TRX_UNDO_DEL_MARK_REC; for TRX_UNDO_DEL_MARK_REC,
+only DB_TRX_ID, DB_ROLL_PTR will be added to the update vector
+@param[in]	trx_id		DB_TRX_ID from the undo record
+@param[in]	roll_ptr	DB_ROLL_PTR from the undo record
+@param[in]	info_bits	info_bits for the record
+@param[in/out]	heap		memory heap
+@param[out]	update		update vector, allocated from heap
 @return remaining part of the record, NULL if an error detected, which
 means that the record is corrupted */
 UNIV_INTERN
 byte*
 trx_undo_update_rec_get_update(
-/*===========================*/
-	byte*		ptr,	/*!< in: remaining part in update undo log
-				record, after reading the row reference
-				NOTE that this copy of the undo log record must
-				be preserved as long as the update vector is
-				used, as we do NOT copy the data in the
-				record! */
-	dict_index_t*	index,	/*!< in: clustered index */
-	ulint		type,	/*!< in: TRX_UNDO_UPD_EXIST_REC,
-				TRX_UNDO_UPD_DEL_REC, or
-				TRX_UNDO_DEL_MARK_REC; in the last case,
-				only trx id and roll ptr fields are added to
-				the update vector */
-	trx_id_t	trx_id,	/*!< in: transaction id from this undorecord */
-	roll_ptr_t	roll_ptr,/*!< in: roll pointer from this undo record */
-	ulint		info_bits,/*!< in: info bits from this undo record */
-	trx_t*		trx,	/*!< in: transaction */
-	mem_heap_t*	heap,	/*!< in: memory heap from which the memory
-				needed is allocated */
-	upd_t**		upd);	/*!< out, own: update vector */
+	byte*			ptr,
+	const dict_index_t*	index,
+	ulint			type,
+	trx_id_t		trx_id,
+	roll_ptr_t		roll_ptr,
+	ulint			info_bits,
+	mem_heap_t*		heap,
+	upd_t*&			update);
 /*******************************************************************//**
 Builds a partial row from an update undo log record, for purge.
 It contains the columns which occur as ordering in any index of the table.

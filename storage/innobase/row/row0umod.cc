@@ -1049,8 +1049,8 @@ row_undo_mod_parse_undo_rec(
 				       node->heap);
 
 	trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
-				       roll_ptr, info_bits, node->trx,
-				       node->heap, &(node->update));
+				       roll_ptr, info_bits,
+				       node->heap, node->update);
 	node->new_trx_id = trx_id;
 	node->cmpl_info = cmpl_info;
 

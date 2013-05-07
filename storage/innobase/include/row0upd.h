@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -71,17 +71,17 @@ upd_get_nth_field(
 # define upd_get_nth_field(update, n) ((update)->fields + (n))
 #endif
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************//**
-Sets an index field number to be updated by an update vector field. */
+/** Sets an index field number to be updated by an update vector field.
+@param[out]	upd_field	update vector field
+@param[in]	field_no	field number in an index
+@param[in]	index		B-tree index */
 UNIV_INLINE
 void
 upd_field_set_field_no(
-/*===================*/
-	upd_field_t*	upd_field,	/*!< in: update vector field */
-	ulint		field_no,	/*!< in: field number in a clustered
-					index */
-	dict_index_t*	index,		/*!< in: index */
-	trx_t*		trx);		/*!< in: transaction */
+	upd_field_t*		upd_field,
+	ulint			field_no,
+	const dict_index_t*	index)
+	__attribute__((nonnull));
 /*********************************************************************//**
 Returns a field of an update vector by field_no.
 @return	update vector field, or NULL */
@@ -154,18 +154,20 @@ row_upd_index_write_log(
 				of free space; the buffer is closed
 				within this function */
 	mtr_t*		mtr);	/*!< in: mtr into whose log to write */
-/***********************************************************//**
-Returns TRUE if row update changes size of some field in index or if some
-field to be updated is stored externally in rec or update.
-@return TRUE if the update changes the size of some field in index or
+/** Determines if a row update changes the size of some fields
+or if any updated field is stored externally.
+@param[in]	index	B-tree index
+@param[in]	offsets	rec_get_offsets(rec, index)
+@param[in]	update	update vector
+@return true if the update changes the size of some field in index or
 the field is external in rec or update */
 UNIV_INTERN
-ibool
+bool
 row_upd_changes_field_size_or_external(
-/*===================================*/
-	dict_index_t*	index,	/*!< in: index */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	const upd_t*	update);/*!< in: update vector */
+	const dict_index_t*	index,
+	const ulint*		offsets,
+	const upd_t*		update)
+	__attribute__((nonnull, warn_unused_result));
 /***********************************************************//**
 Returns true if row update contains disowned external fields.
 @return true if the update contains disowned external fields. */
@@ -193,41 +195,44 @@ row_upd_rec_in_place(
 	page_zip_des_t*	page_zip);/*!< in: compressed page with enough space
 				available, or NULL */
 #ifndef UNIV_HOTBACKUP
-/***************************************************************//**
-Builds an update vector from those fields which in a secondary index entry
+/** Build an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
 the fields as binary strings!
+@param[in]	rec	secondary index record
+@param[in]	index	secondary index
+@param[in]	offsets	rec_get_offsets(rec, index), or NULL for REDUNDANT
+@param[in]	entry	entry to insert
+@param[in/out]	heap	memory heap for allocating the update vector
 @return	own: update vector of differing fields */
 UNIV_INTERN
 upd_t*
 row_upd_build_sec_rec_difference_binary(
-/*====================================*/
-	const rec_t*	rec,	/*!< in: secondary index record */
-	dict_index_t*	index,	/*!< in: index */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
-	__attribute__((warn_unused_result, nonnull));
-/***************************************************************//**
-Builds an update vector from those fields, excluding the roll ptr and
-trx id fields, which in an index entry differ from a record that has
-the equal ordering fields. NOTE: we compare the fields as binary strings!
-@return own: update vector of differing fields, excluding roll ptr and
-trx id */
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	const ulint*		offsets,
+	const dtuple_t*		entry,
+	mem_heap_t*		heap)
+	__attribute__((warn_unused_result, nonnull(1,2,4)));
+/** Builds an update vector from those fields which in an index entry
+differ from a record that has the equal ordering fields. NOTE: we
+compare the fields as binary strings!
+@param[in]	index	clustered index
+@param[in]	entry	entry to insert
+@param[in]	rec	clustered index leaf page record
+@param[in]	offsets	rec_get_offsets(rec, index), or NULL
+@param[in]	no_sys	whether to exclude DB_TRX_ID, DB_ROLL_PTR
+@param[in/out]	heap	memory heap for allocating the update vector
+@return own: update vector of differing fields */
 UNIV_INTERN
 const upd_t*
 row_upd_build_difference_binary(
-/*============================*/
-	dict_index_t*	index,	/*!< in: clustered index */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
-	const rec_t*	rec,	/*!< in: clustered index record */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index), or NULL */
-	bool		no_sys,	/*!< in: skip the system columns
-				DB_TRX_ID and DB_ROLL_PTR */
-	trx_t*		trx,	/*!< in: transaction (for diagnostics),
-				or NULL */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
-	__attribute__((nonnull(1,2,3,7), warn_unused_result));
+	const dict_index_t*	index,
+	const dtuple_t*		entry,
+	const rec_t*		rec,
+	const ulint*		offsets,
+	bool			no_sys,
+	mem_heap_t*		heap)
+	__attribute__((nonnull(1,2,3,6), warn_unused_result));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */

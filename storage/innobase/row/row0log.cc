@@ -1734,7 +1734,7 @@ err_exit:
 		row, NULL, index, heap);
 	const upd_t*	update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
-		false, NULL, heap);
+		false, heap);
 
 	error = DB_SUCCESS;
 
