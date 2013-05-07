@@ -27,14 +27,14 @@ Created June 2005 by Marko Makela
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
-#include <map>
-#include <algorithm>
-
 #include "page0zip.h"
 #ifdef UNIV_NONINL
 # include "page0zip.ic"
 #endif
+
 #ifndef UNIV_INNOCHECKSUM
+#include <map>
+#include <algorithm>
 #include "page0page.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
