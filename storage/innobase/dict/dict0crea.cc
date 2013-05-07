@@ -888,7 +888,10 @@ dict_drop_index_tree(
 	}
 
 	if (is_drop && fil_index_tree_is_freed(space, root_page_no, zip_size)) {
-		/* The tree has already been freed */
+		/* The tree has already been freed but not marked */
+		page_rec_write_field(
+			rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
+			FIL_NULL, mtr);
 		return(FIL_NULL);
 	}
 

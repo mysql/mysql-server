@@ -93,7 +93,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 	ulint	root_page_no;
 	rec_t*	rec = btr_pcur_get_rec(pcur);
 
-	root_page_no = dict_drop_index_tree(rec, pcur, false, mtr);
+	root_page_no = dict_drop_index_tree(rec, pcur, true, mtr);
 
 #ifdef UNIV_DEBUG
 	{
@@ -144,7 +144,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 
 		mtr_start(mtr);
 
-		btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
+		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 	} else {
 		ulint	zip_size;
 
@@ -254,18 +254,35 @@ Rollback the transaction and release the index locks.
 
 @param table		table to truncate
 @param trx		transaction covering the TRUNCATE
-@param corrupted	table corrupted status */
+@param corrupted	table corrupted status
+@param unlock_index	if true then unlock indexes before executing action */
 static
 void
-row_truncate_rollback(dict_table_t* table, trx_t* trx, bool corrupted)
+row_truncate_rollback(
+	dict_table_t* table,
+	trx_t* trx,
+	bool corrupted,
+	bool unlock_index)
 {
-	dict_table_x_unlock_indexes(table);
+	if (unlock_index) {
+		dict_table_x_unlock_indexes(table);
+	}
 
 	trx->error_state = DB_SUCCESS;
 
 	trx_rollback_to_savepoint(trx, NULL);
 
 	trx->error_state = DB_SUCCESS;
+
+	if (corrupted) {
+		/* Cleanup action to ensure we don't left over stale entries
+		if we are marking table as corrupted. This will ensure
+`		it can be recovered using drop/create sequence. */
+		dict_table_x_lock_indexes(table);
+		DropIndex       dropIndex(table);
+		SysIndexIterator().for_each(dropIndex);
+		dict_table_x_unlock_indexes(table);
+	}
 
 	table->corrupted = corrupted;
 }
@@ -522,20 +539,12 @@ row_truncate_update_system_tables(
 			err = DB_ERROR;);
 
 	if (err != DB_SUCCESS) {
-		trx->error_state = DB_SUCCESS;
-		trx_rollback_to_savepoint(trx, NULL);
-		trx->error_state = DB_SUCCESS;
 
-		/* Update of system table failed. Table in memory metadata
-		could be in an inconsistent state, mark the in-memory
-		table->corrupted to be true. */
-		table->corrupted = true;
+		row_truncate_rollback(table, trx, true, false);
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
-
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);
-
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to assign a new identifier to table %s "
 			"after truncating it. Marked the table as corrupted. "
@@ -903,7 +912,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 					err = DB_ERROR;);
 
 			if (err != DB_SUCCESS) {
-				row_truncate_rollback(table, trx, false);
+				row_truncate_rollback(table, trx, false, true);
 				return(row_truncate_complete(
 					table, trx, flags, err));
 			}
@@ -914,7 +923,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 					flags = ULINT_UNDEFINED;);
 
 			if (flags == ULINT_UNDEFINED) {
-				row_truncate_rollback(table, trx, false);
+				row_truncate_rollback(table, trx, false, true);
 				return(row_truncate_complete(
 					table, trx, flags, DB_ERROR));
 			}
@@ -958,7 +967,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		err = SysIndexIterator().for_each(dropIndex);
 
 		if (err != DB_SUCCESS) {
-			row_truncate_rollback(table, trx, true);
+			row_truncate_rollback(table, trx, true, true);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 
@@ -1003,7 +1012,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		err = SysIndexIterator().for_each(createIndex);
 
 		if (err != DB_SUCCESS) {
-			row_truncate_rollback(table, trx, true);
+			row_truncate_rollback(table, trx, true, true);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 	}
@@ -1023,6 +1032,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		err = row_truncate_fts(table, new_id, trx);
 
 		if (err != DB_SUCCESS) {
+			row_truncate_rollback(table, trx, true, false);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 	}

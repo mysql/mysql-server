@@ -178,13 +178,13 @@ eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
 eval create $wl6501_temp table t (i int, c char(100),
-	primary key pk(i))
+	primary key pk(i), index ck(c))
 	engine=innodb row_format=$wl6501_row_fmt
 	key_block_size=$wl6501_kbs;
 insert into t values (1, 'mysql is now oracle company'),
 		     (2, 'innodb is part of mysql'),
 		     (3, 'innodb is default storage engine of mysql');
-select * from t;
+select * from t order by i;
 #check table t;
 #
 set session debug = "+d,ib_err_trunc_during_sys_table_update";
@@ -194,7 +194,7 @@ set session debug = "-d,ib_err_trunc_during_sys_table_update";
 #
 #check table t;
 --error ER_INDEX_CORRUPT
-select * from t;
+select * from t order by i;
 drop table t;
  
 #-----------------------------------------------------------------------------
