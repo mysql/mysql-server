@@ -1587,7 +1587,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     case '\0':
       list= NULL; /* terminate the loop */
       /* fall through */
-#ifndef __WIN__
+#ifndef _WIN32
     case ':':     /* can't use this as delimiter as it may be drive letter */
 #endif
     case ';':

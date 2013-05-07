@@ -46,7 +46,7 @@
 #include <m_ctype.h>
 #include <sys/stat.h>
 #include <thr_alarm.h>
-#ifdef	__WIN__
+#ifdef	_WIN32
 #include <io.h>
 #endif
 #include <mysys_err.h>
@@ -530,21 +530,21 @@ extern "C" int mysql_tmpfile(const char *prefix)
 {
   char filename[FN_REFLEN];
   File fd = create_temp_file(filename, mysql_tmpdir, prefix,
-#ifdef __WIN__
+#ifdef _WIN32
                              O_BINARY | O_TRUNC | O_SEQUENTIAL |
                              O_SHORT_LIVED |
-#endif /* __WIN__ */
+#endif /* _WIN32 */
                              O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
                              MYF(MY_WME));
   if (fd >= 0) {
-#ifndef __WIN__
+#ifndef _WIN32
     /*
       This can be removed once the following bug is fixed:
       Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
                   (file not removed) (Unix)
     */
     unlink(filename);
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
   }
 
   return fd;
@@ -1340,7 +1340,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
   *xid = *(MYSQL_XID *) &thd->transaction.xid_state.xid;
 }
 
-#ifdef _WIN32
+#if defined(_WIN32)
 extern "C"   THD *_current_thd_noinline(void)
 {
   return my_pthread_get_THR_THD();

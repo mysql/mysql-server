@@ -826,7 +826,7 @@ innobase_get_foreign_key_info(
 		char*		tbl_namep = NULL;
 		ulint		db_name_len = 0;
 		ulint		tbl_name_len = 0;
-#ifdef __WIN__
+#ifdef _WIN32
 		char		db_name[MAX_DATABASE_NAME_LEN];
 		char		tbl_name[MAX_TABLE_NAME_LEN];
 #endif
@@ -881,7 +881,7 @@ innobase_get_foreign_key_info(
 
 		add_fk[num_fk] = dict_mem_foreign_create();
 
-#ifndef __WIN__
+#ifndef _WIN32
 		tbl_namep = fk_key->ref_table.str;
 		tbl_name_len = fk_key->ref_table.length;
 		db_namep = fk_key->ref_db.str;
