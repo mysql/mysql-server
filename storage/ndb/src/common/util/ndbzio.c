@@ -792,9 +792,6 @@ unsigned int ndbzwrite (ndbzio_stream *s, const void*  buf, unsigned int len)
 
   s->rows++;
 
-  for(i=0;i<len;i++)
-    memcmp(buf,s,1);
-
   while (s->stream.avail_in != 0)
   {
     if(write_buffer(s))
