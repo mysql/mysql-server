@@ -640,10 +640,80 @@ public:
 	@return true if a full match was found */
 	bool search(const dtuple_t* tuple);
 
+	/** Insert an entry after the current cursor position.
+	The cursor stays at the same position.
+	@param[in]	rec		record to insert
+	@param[in]	extra_size	size of record header, in bytes
+	@param[in]	data_size	size of record payload, in bytes
+	@return	pointer to record if enough space available, NULL otherwise */
+	const rec_t* insert(
+		const rec_t*	rec,
+		ulint		extra_size,
+		ulint		data_size);
+
+	/** Insert an entry after the current cursor position.
+	The cursor stays at the same position.
+	@param[in]	rec	record to insert
+	@param[in]	offsets	rec_get_offsets(rec), or NULL
+	if ROW_FORMAT=REDUNDANT
+	@return	pointer to record if enough space available, NULL otherwise */
+	const rec_t* insert(const rec_t* rec, const ulint* offsets) {
+		ulint	extra_size;
+		ulint	data_size;
+
+		if (offsets) {
+			ut_ad(rec_offs_validate(rec, NULL, offsets));
+			extra_size = rec_offs_extra_size(offsets);
+			data_size = rec_offs_data_size(offsets);
+		} else {
+			ut_ad(!isComp());
+			data_size = rec_get_size_old(rec, extra_size);
+		}
+
+		return(insert(rec, extra_size, data_size));
+	}
+
+	/** Insert an entry after the current cursor position.
+	The cursor stays at the same position.
+	@param[in] cur		cursor pointing to record to insert
+	@return	pointer to record if enough space available, NULL otherwise */
+	const rec_t* insert(PageCur& cur) {
+		return(insert(cur.getRec(), cur.getOffsets()));
+	}
+
+	/** Insert an entry after the current cursor position.
+	The cursor stays at the same position.
+	@param[in] tuple	record to insert
+	@param[in] n_ext	number of externally stored columns
+	@return	pointer to record if enough space available, NULL otherwise */
+	const rec_t* insert(const dtuple_t* tuple, ulint n_ext = 0);
+
 	/** Delete the current record.
 	The cursor is moved to the next record after the deleted one.
 	@return true if the next record is a user record */
 	bool purge();
+
+	/** @brief Check the free space in the page modification log
+	for updating or inserting the current record in a compressed page.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE if
+	this is a secondary index leaf page. This has to be done
+	either within m_mtr, or by invoking ibuf_reset_free_bits()
+	before mtr_commit(m_mtr).
+	@param[in]	create		true=delete-and-insert,
+	false=update-in-place
+	@return true if enough space is available; if not,
+	IBUF_BITMAP_FREE will be reset outside m_mtr
+	if the page was recompressed */
+	bool zipAlloc(bool create);
+
+	/** Check if the current record can be updated in place. */
+	bool canUpdate() { return(!getPageZip() || zipAlloc(false)); }
+
+	/** Update the current record in place.
+	NOTE: on compressed page, zipAlloc() must have been called first.
+	@param[in]	update		the update vector */
+	void update(const upd_t* update);
 
 	/** Reorganize the page. The cursor position will be adjusted.
 
@@ -663,6 +733,15 @@ public:
 	@retval false if it is a compressed page, and recompression failed */
 	bool reorganize(bool recovery, ulint z_level);
 
+	/** Reorganize the page. The cursor position will be adjusted.
+	@param[in] recovery true if called in recovery:
+	locks and adaptive hash index will not be updated on recovery
+	@retval true if the operation was successful
+	@retval false if it is a compressed page, and recompression failed */
+	bool reorganize(bool recovery = false) {
+		return(reorganize(recovery, page_zip_level));
+	}
+
 	/** Get the number of fields in the page. */
 	ulint getNumFields() const {
 		const page_t* page = buf_block_get_frame(m_block);
@@ -677,6 +756,13 @@ public:
 		return(page_is_leaf(page)
 		       ? dict_index_get_n_fields(m_index)
 		       : dict_index_get_n_unique_in_tree(m_index) + 1);
+	}
+
+	/** Get the size of the fixed-length record header in bytes. */
+	ulint getRecHeaderFixed() const {
+		return(isComp()
+		       ? REC_N_NEW_EXTRA_BYTES
+		       : REC_N_OLD_EXTRA_BYTES);
 	}
 
 private:
