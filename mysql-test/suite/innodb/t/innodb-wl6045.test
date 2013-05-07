@@ -1,0 +1,1032 @@
+#************************************************************
+# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+#
+# WL6045:Improve Innochecksum
+#************************************************************
+--source include/have_innodb.inc
+
+# Must have debug code to use debug option for innochecksum tool.
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Embedded server does not support crashing.
+--source include/not_embedded.inc
+
+# Avoid CrashReporter popup on Mac.
+--source include/not_crashrep.inc
+
+--echo # Set the environmental variables
+let MYSQLD_BASEDIR= `SELECT @@basedir`;
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+
+--disable_warnings
+DROP TABLE IF EXISTS tab1;
+
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+insert into t1 values(1,"i");
+insert into t1 values(2,"am");
+insert into t1 values(3,"compressed table");
+
+--echo # Shutdown the Server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Server Default checksum = innodb
+
+--echo [1a]: check the innochecksum when file doesn't exists
+--error 1
+--exec $INNOCHECKSUM  $MYSQLD_DATADIR/test/aa.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: $MYSQLD_DATADIR/test/aa.ibd cannot be found;
+--source include/search_pattern_in_file.inc
+
+--echo [1b]: check the innochecksum without --strict-check
+--exec $INNOCHECKSUM  $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [2]: check the innochecksum with full form --strict-check=Innodb
+--exec $INNOCHECKSUM  --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [3]: check the innochecksum with short form -C Innodb
+--exec $INNOCHECKSUM  -C innodb $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [4]: check the innochecksum with --no-check ignores algorithm check, warning is expected
+--error 1
+--exec $INNOCHECKSUM --no-check $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: --no-check must be associated with --write option.;
+--source include/search_pattern_in_file.inc
+
+--echo [5]: check the innochecksum with short form --no-check ignores algorithm check, warning is expected
+--error 1
+--exec $INNOCHECKSUM  -n $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: --no-check must be associated with --write option.;
+--source include/search_pattern_in_file.inc
+
+--echo [6]: check the innochecksum with full form strict-check & no-check , an error is expected
+--error 1
+--exec $INNOCHECKSUM --strict-check=innodb  --no-check $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: --strict-check option cannot be used together with --no-check option.;
+--source include/search_pattern_in_file.inc
+
+--echo [7]: check the innochecksum with short form strict-check & no-check , an error is expected
+--error 1
+--exec $INNOCHECKSUM -C innodb -n $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: --strict-check option cannot be used together with --no-check option.;
+--source include/search_pattern_in_file.inc
+
+--echo [8]: check the innochecksum with short & full form combination
+--echo # strict-check & no-check, an error is expected
+--error 1
+--exec $INNOCHECKSUM --strict-check=innodb -n $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: --strict-check option cannot be used together with --no-check option.;
+--source include/search_pattern_in_file.inc
+
+--echo [9]: (negative scenario) check the innochecksum with full form --strict-check=crc32
+# Server Default checksum = innodb
+--error 1
+--exec $INNOCHECKSUM  --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Fail: page 0 invalid;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
+--source include/search_pattern_in_file.inc
+
+--echo [10]: (negative scenario) check the innochecksum with full form --strict-check=none
+--echo # when server Default checksum=InnoDB
+--error 1
+--exec $INNOCHECKSUM  --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Fail: page 0 invalid;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
+--source include/search_pattern_in_file.inc
+
+--echo [11]: (negative scenario) check the innochecksum with short form -C crc32
+--echo # when server Default checksum=InnoDB
+--error 1
+--exec $INNOCHECKSUM  -C crc32 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Fail: page 0 invalid;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
+--source include/search_pattern_in_file.inc
+
+--echo [12]: (negative scenario) check the innochecksum with short form -C none
+--echo # when server Default checksum=InnoDB
+--error 1
+--exec $INNOCHECKSUM  -C none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Fail: page 0 invalid;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
+--source include/search_pattern_in_file.inc
+
+--echo [13]: check strict-check with invalid values
+--error 1
+--exec $INNOCHECKSUM --strict-check=strict_innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'strict_innodb\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -C strict_innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'strict_innodb\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --strict-check=strict_crc32 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'strict_crc32\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -C strict_crc32 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'strict_crc32\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --strict-check=strict_none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'strict_none\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -C strict_none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'strict_none\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --strict-check=InnoBD $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'InnoBD\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -C InnoBD $MYSQLD_DATADIR/test/tab1.ibd 2>$SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'InnoBD\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --strict-check=crc $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'crc\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --strict-check=no $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error while setting value \'no\' to \'strict-check\';
+--source include/search_pattern_in_file.inc
+
+--echo [14a]: when server default checksum=InnoDB rewrite new checksum=innodb with innochecksum
+--echo # Also check the long form of write option.
+--exec $INNOCHECKSUM --strict-check=innodb --write=innodb $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --strict-check=innodb --write=innodb $MYSQLD_DATADIR/test/t1.ibd
+# Rewrite done, verify with --strict-check=innodb
+--exec $INNOCHECKSUM --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --strict-check=innodb $MYSQLD_DATADIR/test/t1.ibd
+
+--echo [14b]: when server default checksum=InnoDB rewrite new checksum=crc32 with innochecksum
+--echo # Also check the long form of write option.
+--exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --strict-check=innodb --write=crc32 $MYSQLD_DATADIR/test/t1.ibd
+# Rewrite done, verify with --strict-check=crc32
+--exec $INNOCHECKSUM --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo # start the server with innodb_checksum_algorithm=InnoDB
+--exec echo "restart: --innodb_checksum_algorithm=crc32" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
+SELECT c1,c2 FROM tab1 order by c1,c2;
+
+--echo # Stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo [15]: when server default checksum=InnoDB rewrite new checksum=none with innochecksum
+--echo # Also check the short form of write option.
+--exec $INNOCHECKSUM --no-check -w none $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --no-check -w none $MYSQLD_DATADIR/test/t1.ibd
+# Rewrite done, verify with --strict-check=none
+--exec $INNOCHECKSUM --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --strict-check=none $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start the server with checksum algorithm=none
+--exec echo "restart: --innodb_checksum_algorithm=innodb" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+INSERT INTO tab1 VALUES(3, 'Innochecksum None');
+SELECT c1,c2 FROM tab1 order by c1,c2;
+DROP TABLE t1;
+
+--echo # Stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo [16]: rewrite into new checksum=crc32 with innochecksum
+--exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo # Restart the DB server with  innodb_checksum_algorithm=crc32
+--exec echo "restart: --innodb_checksum_algorithm=crc32 --innodb_file_per_table=on --innodb_file_format=barracuda " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SELECT * FROM tab1;
+DELETE FROM tab1 where c1=3;
+SELECT c1,c2 FROM tab1 order by c1,c2;
+
+--echo # Stop server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo [17]: rewrite into new checksum=InnoDB
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
+--exec echo "restart: --innodb_checksum_algorithm=innodb --innodb_file_per_table=on " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+DELETE FROM tab1 where c1=2;
+SELECT * FROM tab1;
+
+--echo # Stop server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo [18]:check Innochecksum with invalid write options
+--error 1
+--exec $INNOCHECKSUM --no-check --write=strict_crc32 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN=Error while setting value \'strict_crc32\' to \'write\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --no-check --write=strict_innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN=Error while setting value \'strict_innodb\' to \'write\';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --no-check --write=crc23 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN=Error while setting value \'crc23\' to \'write\';
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo # Restart the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+DROP TABLE tab1;
+
+--echo # Shutdown the server
+--exec echo "restart" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo [19]: Further Test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool
+
+--echo # Create and populate the table to be corrupted
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+INSERT INTO t1 (b) VALUES ('corrupt me');
+--disable_query_log
+--let $i = 10
+while ($i)
+{
+  INSERT INTO t1 (b) VALUES (REPEAT('abcdefghijklmnopqrstuvwxyz', 100));
+  dec $i;
+}
+--enable_query_log
+INSERT INTO t1 (b) VALUES ('corrupt me');
+
+let $MYSQLD_DATADIR=`select @@datadir`;
+let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd;
+
+--echo # Write file to make mysql-test-run.pl expect the "crash", but don't
+--echo # start it until it's told to
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # We give 30 seconds to do a clean shutdown because we do not want
+--echo # to redo apply the pages of t1.ibd at the time of recovery.
+--echo # We want SQL to initiate the first access to t1.ibd.
+shutdown_server 30;
+--source include/wait_until_disconnected.inc
+
+--echo # Corrupt the t1 table
+
+perl;
+use strict;
+use warnings;
+use Fcntl qw(:DEFAULT :seek);
+my $ibd_file = $ENV{'t1_IBD'};
+my $chunk;
+my $len;
+
+sysopen IBD_FILE, $ibd_file, O_RDWR || die "Unable to open $ibd_file";
+
+while ($len = sysread IBD_FILE, $chunk, 1024)
+{
+  if ($chunk =~ s/corrupt me/korrupt me/)
+  {
+    print "Munged a string.\n";
+    sysseek IBD_FILE, -$len, SEEK_CUR;
+    syswrite IBD_FILE, $chunk, $len;
+  }
+}
+
+close IBD_FILE;
+EOF
+
+--echo # Backup the corrupted t1.ibd for reuse for further testing.
+--copy_file $t1_IBD $MYSQLD_DATADIR/test/t1.ibd.backup1
+
+--echo # Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Write file to make mysql-test-run.pl expect the "crash", but don't
+--echo # start it until it's told to
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # The below SELECT query will crash the server because some pages
+--echo # on the disk are corrupted
+--error 2013
+SELECT * FROM t1;
+
+--echo [19(a)]: Repair the ibd file with innochecksum with --write=innodb
+--exec $INNOCHECKSUM --no-check --write=innodb  $MYSQLD_DATADIR/test/t1.ibd
+# Verify the t1.ibd for --strict-check=innodb
+--exec $INNOCHECKSUM --strict-check=innodb  $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--echo # Server Started normally
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--disable_result_log
+select count(*) from t1;
+
+--echo # Shutdown the server
+--exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Move the corrupted ibd file to t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--copy_file $MYSQLD_DATADIR/test/t1.ibd.backup1 $MYSQLD_DATADIR/test/t1.ibd
+
+--echo [19(b)]: Repair the ibd file with innochecksum with --write=crc32
+--exec $INNOCHECKSUM --no-check --write=crc32  $MYSQLD_DATADIR/test/t1.ibd
+#Verify the t1.ibd for --strict-check=crc32
+--exec $INNOCHECKSUM --strict-check=crc32  $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--echo # Server Started normally
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--disable_result_log
+select count(*) from t1;
+
+--echo # Shutdown the server
+--exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Move the corrupted ib file to t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--copy_file $MYSQLD_DATADIR/test/t1.ibd.backup1 $MYSQLD_DATADIR/test/t1.ibd
+
+--echo [19(c)]: Repair the ibd file with innochecksum with --write=none
+--exec $INNOCHECKSUM --no-check --write=none  $MYSQLD_DATADIR/test/t1.ibd
+# Verify the t1.ibd for --strict-check=none
+--exec $INNOCHECKSUM --strict-check=none  $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--echo # Server Started normally
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--disable_result_log
+select * from t1;
+
+DROP TABLE t1;
+--echo [19]: Test Completed
+
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+
+--echo # shutdown the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--remove_file $MYSQLD_DATADIR/test/t1.ibd.backup1
+--echo [20]: Test for verbose short option, output from innochecksum
+--exec $INNOCHECKSUM -v $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
+
+--echo # Print the verbose output
+cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
+--remove_file $MYSQLTEST_VARDIR/tmp/ver_output
+
+--echo [21]: Test for --debug option , generate the output in mtrchecksum.trace file
+--exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/mtrchecksum.trace" $MYSQLD_DATADIR/test/tab1.ibd
+
+--file_exists $MYSQLTEST_VARDIR/mtrchecksum.trace
+--list_files $MYSQLTEST_VARDIR *.trace
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to # and complete file path to file name.
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmpfile", "$dir/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents of trace file.
+cat_file $MYSQLTEST_VARDIR/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/mtrchecksum.trace
+
+--echo [22]: test for --debug option with --strict-check=innodb for innochecksum
+--echo : With verbose long option.
+--exec $INNOCHECKSUM --verbose --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
+
+--file_exists $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+--list_files $MYSQLTEST_VARDIR/tmp *.trace
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to # and complete file path to file name.
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+
+$file= 'ver_output';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace complete file path to filename
+ $_=~ s/d:o,.*trace/d:o,mtrchecksum.trace/g;
+  print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the verbose output
+cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
+--remove_file $MYSQLTEST_VARDIR/tmp/ver_output
+
+--echo # Print the contents of trace file
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+
+--echo [23]: Test for --allow-mismatches =99
+--exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --allow-mismatches=99 --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
+
+--echo # Expect the fails for checksum mismatches. Print the error message.
+cat_file $SEARCH_FILE;
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+  $_=~ s/find_type:.+$//g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents of trace file.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+
+--echo [24]: Test checksum check for page: 2 to page:5
+--exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to # and file path to file name.
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents of trace file.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+
+--echo [25]: Test for checksum check for only pageno.= 2
+--exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -p 2 $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents of trace file.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+
+--echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo [26]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
+
+--echo # Start the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+DROP TABLE tab1;
+
+CREATE TABLE tab1 (pk INTEGER NOT NULL PRIMARY KEY,
+linestring_key GEOMETRY NOT NULL,
+linestring_nokey GEOMETRY NOT NULL)
+ENGINE=InnoDB ;
+
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (1, GeomFromText('POINT(10 10) '), GeomFromText('POINT(10 10) '));
+
+CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
+ALTER TABLE tab1 ADD  KEY (linestring_key(5));
+
+--echo # create a compressed table
+CREATE TABLE tab2(col_1 CHAR (255) ,
+col_2 VARCHAR (255), col_3 longtext,
+col_4 longtext,col_5 longtext,
+col_6 longtext , col_7 int )
+engine = innodb row_format=compressed key_block_size=4;
+
+CREATE INDEX idx1 ON tab2(col_3(10));
+CREATE INDEX idx2 ON tab2(col_4(10));
+CREATE INDEX idx3 ON tab2(col_5(10));
+
+# load the with repeat function
+SET @col_1 = repeat('a', 5);
+SET @col_2 = repeat('b', 20);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+
+# insert 5 records
+let $i = 5;
+while ($i) {
+ eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+ dec $i;
+}
+
+--disable_result_log
+SELECT * FROM tab2 ORDER BY col_7;
+
+--echo # stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo [26(a)]: Rewrite into new checksum=InnoDB for all *.ibd file and ibdata1
+--exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/ibdata1
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_master_info.ibd
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_worker_info.ibd
+
+--echo : start the server with innodb_checksum_algorithm=strict_innodb
+--exec echo "restart: --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (2, GeomFromText('LINESTRING(10 10,20 20,30 30)'), GeomFromText('LINESTRING(10 10,20 20,30 30)'));
+
+# load the with repeat function
+SET @col_1 = repeat('a', 5);
+SET @col_2 = repeat('b', 20);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+
+# check the table status is GOOD with DML
+let $i = 6;
+eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+
+-- disable_result_log
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+
+-- disable_result_log
+SELECT * FROM tab2 ORDER BY col_7;
+
+--echo # stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo [26(b)]: Rewrite into new checksum=crc32 for all *.ibd file and ibdata1
+--exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/ibdata1
+--exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
+--exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
+--exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_master_info.ibd
+--exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
+--exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_worker_info.ibd
+
+--echo # start the server with innodb_checksum_algorithm=strict_crc32
+--exec echo "restart: --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+# check the table status is GOOD with DML
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (3, GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
+GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
+
+# load the with repeat function
+SET @col_1 = repeat('g', 5);
+SET @col_2 = repeat('h', 20);
+SET @col_3 = repeat('i', 100);
+SET @col_4 = repeat('j', 100);
+SET @col_5 = repeat('k', 100);
+SET @col_6 = repeat('l', 100);
+
+# check the table status is GOOD with DML
+let $i = 7;
+eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+
+# check the records from table
+-- disable_result_log
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+
+-- disable_result_log
+SELECT * FROM tab2 ORDER BY col_7;
+
+--echo # stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo [26(c)]: Rewrite into new checksum=none for all *.ibd file and ibdata1
+--exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/ibdata1
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_master_info.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_worker_info.ibd
+
+--echo # start the server with innodb_checksum_algorithm=strict_crc32
+--exec echo "restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+# check the table status is GOOD with DML
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (4, GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
+
+# load the with repeat function
+SET @col_1 = repeat('m', 5);
+SET @col_2 = repeat('n', 20);
+SET @col_3 = repeat('o', 100);
+SET @col_4 = repeat('p', 100);
+SET @col_5 = repeat('q', 100);
+SET @col_6 = repeat('r', 100);
+
+# check the table status is GOOD with DML
+let $i = 8;
+eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
+
+# check the records from table
+-- disable_result_log
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+
+--disable_result_log
+SELECT * FROM tab2 ORDER BY col_7;
+--enable_result_log
+
+--echo # stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo [27]: Check the page type summary with shortform for tab1.ibd
+--replace_regex /File.*.ibd/File::tab1.ibd/ /[0-9]+/#/
+--exec $INNOCHECKSUM -S $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/page_summary_short.txt
+
+--echo [28]: Check the page type summary with longform for tab1.ibd
+--replace_regex /File.*.ibd/File::tab1.ibd/ /[0-9]+/#/
+--exec $INNOCHECKSUM --page-type-summary  $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/page_summary_long.txt
+
+--remove_file $MYSQLTEST_VARDIR/tmp/page_summary_short.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/page_summary_long.txt
+--echo [29]: Page type dump for  with longform for tab1.ibd
+--exec $INNOCHECKSUM --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'dump.txt';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace the intergers to # and complete file patht to file name only.
+ $_=~ s/Filename.+/Filename::tab1.ibd/g;
+ $_=~ s/\d+/#/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents stored in dump.txt
+cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+
+# Page type dump for ibdata1
+--exec $INNOCHECKSUM -v --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/ibdata1
+--file_exists $MYSQLTEST_VARDIR/tmp/dump.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+
+--echo [30]: Page type dump for with shortform for tab1.ibd
+--exec $INNOCHECKSUM -D $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'dump.txt';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace teh intergers to # and complete file patht to file name only.
+ $_=~ s/Filename.+/Filename::tab1.ibd/g;
+ $_=~ s/\d+/#/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+# Print the contents stored in dump.txt
+cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+
+--echo [30]: check the valid lower bound values for option
+--echo # allow-mismatches,page,start-page,end-page
+--exec $INNOCHECKSUM  --allow-mismatches=0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -a 0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --page=0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -p 0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --start-page=0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -s 0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --end-page=0 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -e 0 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [31]: check the negative values for option
+--echo # allow-mismatches,page,start-page,end-page.
+--echo # They will reset to zero for negative values.
+--echo # check the invalid lower bound values
+--exec $INNOCHECKSUM  --allow-mismatches=-1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -a -1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --page=-1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -p -1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --start-page=-1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -s -1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --end-page=-1 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -e -1 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [32]: check the valid upper bound values for
+--echo # both short and long options "allow-mismatches" and "end-page"
+
+--exec $INNOCHECKSUM  --allow-mismatches=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -a 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  --end-page=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM  -e 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [33]: check the both short and long options "page" and "start-page" when
+--echo # seek value is larger than file size.
+--error 1
+--exec $INNOCHECKSUM --page=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -p 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --start-page=18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -s 18446744073709551615 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
+--source include/search_pattern_in_file.inc
+
+--echo [34]: check the invalid upper bound values for options, allow-mismatches, end-page, start-page and page.
+--echo # innochecksum will fail with error code: 1
+--error 1
+--exec $INNOCHECKSUM --allow-mismatches=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -a 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --end-page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -e 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -p 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --start-page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -s 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+# Cleanup
+--echo # Restart the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+DROP TABLE tab1;
+DROP TABLE tab2;
+
+SET GLOBAL innodb_file_per_table=default;
+SET GLOBAL innodb_file_format=default;
