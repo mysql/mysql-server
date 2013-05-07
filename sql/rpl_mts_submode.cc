@@ -437,7 +437,7 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
                                             Log_event *ev)
 {
   Slave_committed_queue *gaq= rli->gaq;
-  int64 commit_seq_no;
+  int64 commit_seq_no= SEQ_UNINIT;
   /*
     A group id updater must satisfy the following:
       - A query log event ("BEGIN" ) or a GTID EVENT
@@ -467,7 +467,7 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
     // sequence number. The possible reason may be that the master is old and
     // doesnot support BGC based parallelization, or someone tried to start
     // replication from within a transaction.
-    return true;  
+    return true;
   }
 
   if (force_new_group

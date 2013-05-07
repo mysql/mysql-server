@@ -197,10 +197,14 @@ CHECK_CXX_COMPILER_FLAG("-Wno-null-dereference" HAVE_NO_NULL)
 IF(HAVE_NO_NULL)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-null-dereference")
 ENDIF()
+CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
+ENDIF()
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
-  gunit_test_main.cc tap_event_listener.cc thread_utils.cc)
+  gunit_test_main.cc skip_trailing.cc tap_event_listener.cc thread_utils.cc)
 ADD_LIBRARY(gunit_large STATIC
   gunit_test_main_server.cc test_utils.cc tap_event_listener.cc thread_utils.cc)
 ADD_DEPENDENCIES(gunit_small GenError)
@@ -246,6 +250,7 @@ SET(TESTS
   sql_plist
   sql_string
   stdcxx
+  strings_skip_trailing
   thread_utils
   )
   
