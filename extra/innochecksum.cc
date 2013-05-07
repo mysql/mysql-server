@@ -89,10 +89,10 @@ char*				page_dump_filename = 0;
 static bool			skip_page = 0;
 const char			*dbug_setting = "FALSE";
 
-#ifndef __WIN__
+#ifndef _WIN32
 /* advisory lock for non-window system. */
 struct flock			lk;
-#endif
+#endif /* _WIN32 */
 
 /* Strict check algorithm name. */
 static ulong			strict_check;
@@ -181,7 +181,7 @@ get_page_size(
 
 }
 
-#ifdef __WIN__
+#ifdef _WIN32
 /***********************************************//*
  @param		[in] error	error no. from the getLastError().
 
@@ -199,7 +199,7 @@ error_message(
 
 	return (err_msg);
 }
-#endif
+#endif /* _WIN32 */
 
 /***********************************************//*
  @param>>_______[in] name>_____name of file.
@@ -212,7 +212,7 @@ open_file(
 {
 	int	fd;		/* file descriptor. */
 	FILE*	fil_in;
-#ifdef __WIN__
+#ifdef _WIN32
 	HANDLE		hFile;		/* handle to open file. */
 	DWORD		access;		/* define access control */
 	int		flags = 0;	/* define the mode for file
@@ -241,7 +241,7 @@ open_file(
 
 	/* get the file descriptor. */
 	fd= _open_osfhandle((intptr_t)hFile, flags);
-#else /* __WIN__ */
+#else /* _WIN32 */
 
 	int	create_flag;
 	/* define the advisory lock and open file mode. */
@@ -265,7 +265,7 @@ open_file(
 		perror("fcntl");
 		return (NULL);
 	}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	if (do_write) {
 		fil_in = fdopen(fd, "rb+");
@@ -1013,7 +1013,7 @@ int main(
 	}
 
 	if (page_type_dump) {
-#ifndef __WIN__
+#ifndef _WIN32
 		fil_page_type = fopen(page_dump_filename, "wb");
 #else
 	HANDLE		hFile;		/* handle to open file. */
@@ -1035,7 +1035,7 @@ int main(
 	/* get the file descriptor. */
 	fd= _open_osfhandle((intptr_t)hFile, _O_RDWR | _O_BINARY);
 	fil_page_type = fdopen(fd, "wb");
-#endif
+#endif /* _WIN32 */
 	}
 
 	if (verbose) {
@@ -1080,7 +1080,7 @@ int main(
 		/* Testing for lock mechanism. The innochecksum
 		acquire lock on given file. So other tools accessing the same
 		file for processsing must fail. */
-#ifdef __WIN__
+#ifdef _WIN32
 		DBUG_EXECUTE_IF("innochecksum_cause_mysqld_crash",
 			ut_ad(page_dump_filename);
 			while((_access( page_dump_filename, 0)) == 0) {
@@ -1095,7 +1095,7 @@ int main(
 				sleep(1);
 			}
 			DBUG_RETURN(0); );
-#endif
+#endif /* _WIN32 */
 
 		/* Read the minimum page size. */
 		bytes = fread(buf, 1, UNIV_ZIP_SIZE_MIN, fil_in);
@@ -1153,11 +1153,11 @@ int main(
 				partial_page_read = 0;
 
 				offset = (off_t)start_page * (off_t)physical_page_size;
-#ifdef __WIN__
+#ifdef _WIN32
 				if (_fseeki64(fil_in, offset, SEEK_SET)) {
 #else
 				if (fseeko(fil_in, offset, SEEK_SET)) {
-#endif
+#endif /* _WIN32 */
 					perror("Error: Unable to seek to "
 						"necessary offset");
 
