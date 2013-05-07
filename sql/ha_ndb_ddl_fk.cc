@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -264,6 +264,427 @@ isnull(const char * str)
   return str == 0;
 }
 
+class Dummy_table_util
+{
+  THD* m_thd;
+
+  void
+  warn(const char* fmt, ...)
+  {
+    va_list args;
+    char msg[MYSQL_ERRMSG_SIZE];
+    va_start(args,fmt);
+    my_vsnprintf(msg, sizeof(msg), fmt, args);
+    va_end(args);
+    push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_YES, msg);
+    DBUG_PRINT("warn", ("%s", msg));
+
+  }
+
+
+  void
+  ndb_error(const NdbDictionary::Dictionary* dict, const char* fmt, ...)
+  {
+    va_list args;
+    char msg[MYSQL_ERRMSG_SIZE];
+    va_start(args,fmt);
+    my_vsnprintf(msg, sizeof(msg), fmt, args);
+    va_end(args);
+    push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_YES, msg);
+    DBUG_PRINT("error", ("%s", msg));
+
+    const NdbError& error = dict->getNdbError();
+    my_snprintf(msg, sizeof(msg), "Ndb returned error: %d '%s'", error.code, error.message);
+    push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_YES, msg);
+    DBUG_PRINT("error", ("%s", msg));
+
+    // Print to log also..
+
+  }
+
+
+  void
+  remove_index_global(NdbDictionary::Dictionary* dict, const NdbDictionary::Index* index)
+  {
+    if (!index)
+      return;
+
+    dict->removeIndexGlobal(*index, 0);
+  }
+
+
+  bool
+  resolve_dummy_fk(NdbDictionary::Dictionary* dict, NdbDictionary::ForeignKey& fk,
+                   const char* new_parent_name, const char* column_names[])
+  {
+    DBUG_ENTER("resolve_dummy_fk");
+    DBUG_PRINT("info", ("new_parent_name: %s", new_parent_name));
+
+    // Load up the new parent table
+    Ndb_table_guard new_parent_tab(dict, new_parent_name);
+    if (!new_parent_tab.get_table())
+    {
+      ndb_error(dict, "Skip, failed to load the new parent");
+      DBUG_RETURN(false);
+    }
+
+    // Build new parent column list from parent column names
+    const NdbDictionary::Column* columns[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+    {
+      unsigned num_columns = 0;
+      for (unsigned i = 0; column_names[i] != 0; i++)
+      {
+        DBUG_PRINT("info", ("column: %s", column_names[i]));
+        const NdbDictionary::Column* col =
+            new_parent_tab.get_table()->getColumn(column_names[i]);
+        if (!col)
+        {
+          // Parent table didn't have any column with the given name, can happen
+          warn("Skip, parent didn't have all the referenced columns");
+          DBUG_RETURN(false);
+        }
+        columns[num_columns++]= col;
+      }
+      columns[num_columns]= 0;
+    }
+
+    NdbDictionary::ForeignKey new_fk(fk);
+
+    // Create name for the new fk by splitting the fk's name and replacing
+    // the <parent id> part in format "<parent_id>/<child_id>/<name>"
+    {
+      char name[FN_REFLEN+1];
+      unsigned parent_id, child_id;
+      if (sscanf(fk.getName(), "%u/%u/%s",
+             &parent_id, &child_id, name) != 3)
+      {
+        warn("Skip, failed to parse name of fk: %s", fk.getName());
+        DBUG_RETURN(false);
+      }
+
+      char fk_name[FN_REFLEN+1];
+      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/%s",
+                  new_parent_tab.get_table()->getObjectId(),
+                  child_id,
+                  name);
+      DBUG_PRINT("info", ("Setting new fk name: %s", fk_name));
+      new_fk.setName(fk_name);
+    }
+
+    // Find matching index
+    bool parent_primary_key= FALSE;
+    const NdbDictionary::Index* parent_index= find_matching_index(dict,
+                                                                  new_parent_tab.get_table(),
+                                                                  columns,
+                                                                  parent_primary_key);
+    DBUG_PRINT("info", ("parent_primary_key: %d", parent_primary_key));
+
+    // Check if either pk or index matched
+    if (!parent_primary_key && parent_index == 0)
+    {
+      warn("Parent table %s foreign key columns match no index", new_parent_name);
+      DBUG_RETURN(false);
+    }
+
+    if (parent_index != 0)
+    {
+      DBUG_PRINT("info", ("Setting parent with index %s", parent_index->getName()));
+      new_fk.setParent(*new_parent_tab.get_table(), parent_index, columns);
+    }
+    else
+    {
+      DBUG_PRINT("info", ("Setting parent without index"));
+      new_fk.setParent(*new_parent_tab.get_table(), 0, columns);
+    }
+
+    // Old fk is dropped by cascading when the dummy table is dropped
+
+    // Create new fk referencing the new table
+    DBUG_PRINT("info", ("Create new fk: %s", new_fk.getName()));
+    if (dict->createForeignKey(new_fk) != 0)
+    {
+      ndb_error(dict, "Failed to create foreign key");
+      remove_index_global(dict, parent_index);
+      DBUG_RETURN(false);
+    }
+
+    remove_index_global(dict, parent_index);
+    DBUG_RETURN(true);
+  }
+
+
+  void
+  resolve_dummy(NdbDictionary::Dictionary* dict,
+                const char* new_parent_name, const char* dummy_name)
+  {
+    DBUG_ENTER("resolve_dummy");
+    DBUG_PRINT("enter", ("dummy_name '%s'", dummy_name));
+
+    // Load up the dummy table
+    Ndb_table_guard dummy_tab(dict, dummy_name);
+    if (!dummy_tab.get_table())
+    {
+      ndb_error(dict, "Failed to load the listed dummy table: '%s'", dummy_name);
+      DBUG_VOID_RETURN;
+    }
+
+    // List dependent objects of dummy table
+    NdbDictionary::Dictionary::List list;
+    if (dict->listDependentObjects(list, *dummy_tab.get_table()) != 0)
+    {
+      ndb_error(dict, "Failed to list dependent objects dummy table: '%s'", dummy_name);
+      DBUG_VOID_RETURN;
+    }
+
+    for (unsigned i = 0; i < list.count; i++)
+    {
+      const NdbDictionary::Dictionary::List::Element& element = list.elements[i];
+      if (element.type != NdbDictionary::Object::ForeignKey)
+        continue;
+
+      DBUG_PRINT("info", ("fk: %s", element.name));
+
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, element.name) != 0)
+      {
+        ndb_error(dict, "Could not find the listed fk '%s'", element.name);
+        continue;
+      }
+
+      // Build column name list for parent
+      const char* col_names[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+      {
+        unsigned num_columns = 0;
+        for (unsigned j = 0; j < fk.getParentColumnCount(); j++)
+        {
+          const NdbDictionary::Column* col =
+              dummy_tab.get_table()->getColumn(fk.getParentColumnNo(j));
+          if (!col)
+            continue;
+          col_names[num_columns++]= col->getName();
+        }
+        col_names[num_columns]= 0;
+
+        if (num_columns != fk.getParentColumnCount())
+        {
+          warn("Could not find some column referenced by fk in dummy");
+          continue;
+        }
+      }
+
+      if (!resolve_dummy_fk(dict, fk, new_parent_name, col_names))
+        continue;
+
+      // New fk has been created between child and new parent, drop the dummy
+      // table and it's related fk
+      const int drop_flags= NDBDICT::DropTableCascadeConstraints;
+      if (dict->dropTableGlobal(*dummy_tab.get_table(), drop_flags) != 0)
+      {
+        ndb_error(dict, "Failed to drop dummy table '%s'", dummy_name);
+        continue;
+      }
+      sql_print_information("Dropped dummy table '%s' - resolved", dummy_name);
+    }
+    DBUG_VOID_RETURN;
+  }
+
+
+  void
+  resolve_dummies(NdbDictionary::Dictionary* dict,
+                  const char* new_parent_name)
+  {
+    DBUG_ENTER("resolve_dummies");
+    DBUG_PRINT("enter", ("new_parent_name: %s", new_parent_name));
+
+    /*
+      List all tables in NDB and look for dummies which could
+      potentially be resolved to the new table
+    */
+    NdbDictionary::Dictionary::List table_list;
+    if (dict->listObjects(table_list, NdbDictionary::Object::UserTable, true) != 0)
+    {
+      DBUG_ASSERT(false);
+      DBUG_VOID_RETURN;
+    }
+
+    for (unsigned i = 0; i < table_list.count; i++)
+    {
+      const NdbDictionary::Dictionary::List::Element& el = table_list.elements[i];
+
+      if (!Dummy_table_util::is_dummy_name(el.name))
+        continue;
+
+      // Parse parent_name from dummy table
+      char parent_name[FN_REFLEN];
+      {
+        int child_id_unused, child_index_unused;
+        if (sscanf(el.name, "NDB$DUMMY_%d_%d_%s",
+                  &child_id_unused, &child_index_unused, parent_name) != 3)
+        {
+          DBUG_PRINT("error", ("Skip, failed to split dummy table name"));
+          DBUG_ASSERT(false);
+          continue;
+        }
+        DBUG_PRINT("info", ("parent_name: '%s', child_id: %d, child_index: %d",
+                            parent_name, child_id_unused, child_index_unused));
+      }
+
+      // Check if this dummy table should reference the new table
+      if (strcmp(parent_name, new_parent_name) != 0)
+      {
+        DBUG_PRINT("info", ("Skip, parent of this dummy table is not the new table"));
+        continue;
+      }
+
+      resolve_dummy(dict, new_parent_name, el.name);
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+public:
+  Dummy_table_util(THD* thd) : m_thd(thd) {}
+
+  static
+  bool is_dummy_name(const char* name)
+  {
+    return (strncmp(name, STRING_WITH_LEN("NDB$DUMMY")) == 0);
+  }
+
+  static
+  const char* format_name(char buf[], size_t buf_size, int child_id,
+                          uint fk_index, const char* parent_name)
+  {
+    DBUG_ENTER("format_name");
+    DBUG_PRINT("enter", ("child_id: %d, fk_index: %u, parent_name: %s",
+                         child_id, fk_index, parent_name));
+    const size_t len = my_snprintf(buf, buf_size, "NDB$DUMMY_%d_%u_%s",
+                                   child_id, fk_index, parent_name);
+    DBUG_PRINT("info", ("len: %lu, buf_size: %lu", len, buf_size));
+    if (len >= buf_size - 1)
+    {
+      DBUG_PRINT("info", ("Size of buffer too small"));
+      DBUG_RETURN(NULL);
+    }
+    DBUG_PRINT("exit", ("buf: '%s', len: %lu", buf, len));
+    DBUG_RETURN(buf);
+  }
+
+  bool create(NDBDICT *dict, const char* dummy_name,
+              List<Key_part_spec> col_names, const NDBCOL * col_types[])
+  {
+    NDBTAB dummy_tab;
+
+    DBUG_ENTER("dummy_table::create");
+    DBUG_PRINT("enter", ("dummy_name: %s", dummy_name));
+    DBUG_ASSERT(is_dummy_name(dummy_name));
+
+    if (dummy_tab.setName(dummy_name))
+    {
+      DBUG_RETURN(false);
+    }
+    dummy_tab.setLogging(FALSE);
+
+    unsigned i = 0;
+    Key_part_spec* key= 0;
+    List_iterator<Key_part_spec> it1(col_names);
+    while ((key= it1++))
+    {
+      NDBCOL dummy_col;
+
+      char col_name_buf[FN_REFLEN];
+      const char* col_name = lex2str(key->field_name, col_name_buf, sizeof(col_name_buf));
+      DBUG_PRINT("info", ("name: %s", col_name));
+      if (dummy_col.setName(col_name))
+      {
+        DBUG_ASSERT(false);
+        DBUG_RETURN(false);
+      }
+
+      const NDBCOL * col= col_types[i];
+      if (!col)
+      {
+        // Internal error, the two lists should be same size
+        DBUG_ASSERT(col);
+        DBUG_RETURN(false);
+      }
+
+      // Use column spec as requested(normally built from child table)
+      dummy_col.setType(col->getType());
+      dummy_col.setPrecision(col->getPrecision());
+      dummy_col.setScale(col->getScale());
+      dummy_col.setLength(col->getLength());
+      dummy_col.setCharset(col->getCharset());
+
+      // Make column part of primary key and thus not nullable
+      dummy_col.setPrimaryKey(true);
+      dummy_col.setNullable(false);
+
+      if (dummy_tab.addColumn(dummy_col))
+      {
+        DBUG_RETURN(false);
+      }
+      i++;
+    }
+
+    // Create the table in NDB
+    if (dict->createTable(dummy_tab) != 0)
+    {
+      // Error is available to caller in dict*
+      DBUG_RETURN(false);
+    }
+
+    DBUG_RETURN(true);
+  }
+
+  static
+  void resolve_dummies(THD* thd, NdbDictionary::Dictionary* dict,
+                       const char* new_parent_name)
+  {
+    Dummy_table_util dummy_table(thd);
+    dummy_table.resolve_dummies(dict, new_parent_name);
+  }
+};
+
+
+bool
+ha_ndbcluster::build_dummy_list(THD* thd, NdbDictionary::Dictionary* dict,
+                                const NdbDictionary::Table* table, List<char> &dummy_list)
+{
+  DBUG_ENTER("build_dummy_list");
+
+  NdbDictionary::Dictionary::List list;
+  if (dict->listDependentObjects(list, *table) != 0)
+  {
+    DBUG_RETURN(false);
+  }
+
+  for (unsigned i = 0; i < list.count; i++)
+  {
+    const NdbDictionary::Dictionary::List::Element& element = list.elements[i];
+    if (element.type != NdbDictionary::Object::ForeignKey)
+      continue;
+
+    NdbDictionary::ForeignKey fk;
+    if (dict->getForeignKey(fk, element.name) != 0)
+    {
+      // Could not find the listed fk
+      DBUG_ASSERT(false);
+      continue;
+    }
+
+    char parent_db_and_name[FN_LEN + 1];
+    const char * name = fk_split_name(parent_db_and_name,fk.getParentTable());
+
+    if (!Dummy_table_util::is_dummy_name(name))
+      continue;
+
+    dummy_list.push_back(thd_strdup(thd, name));
+  }
+  DBUG_RETURN(true);
+}
+
+
 int
 ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 {
@@ -275,6 +696,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
   assert(thd->lex != 0);
   Key * key= 0;
+  uint fk_index = 0;
   List_iterator<Key> key_iterator(thd->lex->alter_info.key_list);
   while ((key=key_iterator++))
   {
@@ -368,13 +790,57 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     Ndb_table_guard parent_tab(dict, parent_name);
     if (parent_tab.get_table() == 0)
     {
-      const NdbError &error= dict->getNdbError();
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
-                          ER_CANNOT_ADD_FOREIGN,
-                          "Parent table %s not found in NDB: %d: %s",
-                          parent_name,
-                          error.code, error.message);
-      DBUG_RETURN(err_default);
+       if (!thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+       {
+         const NdbError &error= dict->getNdbError();
+         push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                             ER_CANNOT_ADD_FOREIGN,
+                             "Parent table %s not found in NDB: %d: %s",
+                             parent_name,
+                             error.code, error.message);
+         DBUG_RETURN(err_default);
+       }
+
+       DBUG_PRINT("info", ("No parent and foreign_key_checks=0"));
+
+       /* Format dummy table name */
+       char dummy_name[FN_REFLEN];
+       Dummy_table_util dummy_table(thd);
+       if (!dummy_table.format_name(dummy_name, sizeof(dummy_name),
+                                    child_tab.get_table()->getObjectId(),
+                                    fk_index, parent_name))
+       {
+         push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                             ER_CANNOT_ADD_FOREIGN,
+                             "Failed to create dummy parent table, too long dummy name");
+         DBUG_RETURN(err_default);
+       }
+       if (!dummy_table.create(dict, dummy_name,
+                               fk->ref_columns, childcols))
+       {
+         const NdbError &error= dict->getNdbError();
+         push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                             ER_CANNOT_ADD_FOREIGN,
+                             "Failed to create dummy parent table in NDB: %d: %s",
+                             error.code, error.message);
+         DBUG_RETURN(err_default);
+       }
+
+       DBUG_PRINT("info", ("Dummy table created!"));
+       parent_tab.init(dummy_name);
+       parent_tab.invalidate(); // invalidate dummy table when releasing
+       if (parent_tab.get_table() == 0)
+       {
+         push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                             ER_CANNOT_ADD_FOREIGN,
+                             "INTERNAL ERROR: Could not find created dummy table '%s'",
+                             dummy_name);
+         // Internal error, should be able to load the just created dummy table
+         DBUG_ASSERT(parent_tab.get_table());
+         DBUG_RETURN(err_default);
+       }
+       sql_print_information("Created dummy table '%s' referenced by '%s'",
+                             dummy_name, m_tabname);
     }
 
     const NDBCOL * parentcols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
@@ -525,7 +991,11 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     {
       ERR_RETURN(dict->getNdbError());
     }
+
+    fk_index++;
   }
+
+  Dummy_table_util::resolve_dummies(thd, ndb->getDictionary(), m_tabname);
 
   DBUG_RETURN(0);
 }

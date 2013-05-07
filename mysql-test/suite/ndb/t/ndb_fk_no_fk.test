@@ -1,0 +1,162 @@
+--source include/have_ndb.inc
+
+--echo # Init for ndb_show_tables result
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  name VARCHAR(255)
+);
+
+--echo #
+--echo # Create child tables before parents
+--echo # by turning off foreign_key_checks for this session
+--echo #
+set @save_foreign_key_checks = @@foreign_key_checks;
+select @@foreign_key_checks;
+set @@foreign_key_checks=0;
+
+create table t1 (
+  pk int not null primary key,
+  b int,
+  foreign key (b) references t2(pk1)
+) engine=ndb;
+
+create table t3 (
+  pk int not null primary key,
+  b int, c int,
+  d int, e int, f int,
+  g int, h int, i int, j int,
+  foreign key (b, c) references t4(pk1, pk2),
+  foreign key (d, e, f) references t5(uk1, uk2, uk3),
+  foreign key (g, h, i, j) references t6(oi1, oi2, oi3, oi4)
+) engine=ndb;
+
+--source ndb_show_tables_result.inc
+
+--echo # There should be 4 dummy tables created
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+
+let $id_t1 = `select id from ndb_show_tables_results where name = "'t1'"`;
+--echo # There should be 1 dummy table created for t1
+--replace_result $id_t1 <id>
+eval select type, name from ndb_show_tables_results
+  where name like "'NDB\$DUMMY_$id_t1%'";
+
+let $id_t3 = `select id from ndb_show_tables_results where name = "'t3'"`;
+--echo # There should be 3 dummy tables created for t3
+--replace_result $id_t3 <id>
+eval select type, name from ndb_show_tables_results
+  where name like "'NDB\$DUMMY_$id_t3%'" order by name;
+
+drop table t3;
+
+--source ndb_show_tables_result.inc
+
+--echo # There should be 1 dummy table
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+
+--echo # Only t1 should have 1 dummy table
+--replace_result $id_t1 <id>
+eval select type, name from ndb_show_tables_results
+  where name like "'NDB\$DUMMY_$id_t1%'";
+
+drop table t1;
+
+--echo # There should be 0 dummy tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+
+--echo #
+--echo # Create child table before parent
+--echo # by turning off foreign_key_checks for this session
+--echo #
+
+create table t1 (
+  pk int not null primary key,
+  b int,
+  foreign key (b) references t2(pk1)
+) engine=ndb;
+
+create table t2 (
+  pk1 int not null primary key,
+  c int
+) engine=ndb;
+
+--source ndb_show_tables_result.inc
+
+--echo # There should be 0 dummy tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+
+--echo # Verify that fk is working now when parent has been resolved
+set foreign_key_checks=1;
+--error ER_NO_REFERENCED_ROW_2
+insert into t1 values(1, 2);
+set foreign_key_checks=0;
+
+drop table t1, t2;
+
+
+--echo #
+--echo # Exceed table name when creating the dummy table by referencing
+--echo # a not yet created table with really long name
+--echo #
+
+--echo # 1) By blowing the dummy_tabname buffer(currently 512 bytes)
+let $parent_tabname = `select repeat('abcdefghijklmnopqrstuvxyz_', 20)`;
+--error ER_CANNOT_ADD_FOREIGN
+eval create table t1 (
+  pk int not null primary key,
+  b int,
+  foreign key (b) references $parent_tabname(pk1)
+) engine=ndb;
+show warnings;
+
+#
+# Disabled for now, NdbApi fails to fetch the table from NDB and
+# claims "283 table is being dropped". This looks like some problem in NdbApi
+# (search for DBUG_PRINT with text "dropped by another thread")
+#--echo # 2) By blowing the max tabname length in NDB
+#let $parent_tabname = `select repeat('abcdefghijklmnopqrstuvxyz_', 15)`;
+#--error ER_CANNOT_ADD_FOREIGN
+#eval create table t1 (
+#  pk int not null primary key,
+#  b int,
+#  foreign key (b) references $parent_tabname(pk1)
+#) engine=ndb;
+#show warnings;
+
+
+--echo #
+--echo # show create of table with dummy table references
+--echo #
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key (a),
+  unique key (b) using hash,
+  key (c),
+  constraint fk1 foreign key(a) references t2 (a),
+  constraint fk2 foreign key(b) references t3 (a),
+  constraint fk3 foreign key(c) references t4 (a),
+  constraint fk4 foreign key(a) references t2 (b),
+  constraint fk5 foreign key(b) references t3 (b),
+  constraint fk6 foreign key(c) references t4 (b)
+) engine=ndbcluster;
+
+show create table t1;
+
+create table t2 (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)
+) engine = ndb;
+
+show create table t1;
+
+drop table t1, t2;
