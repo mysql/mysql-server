@@ -1550,33 +1550,27 @@ innobase_convert_from_table_id(
 
 /**********************************************************************
 Check if the length of the identifier exceeds the maximum allowed.
-The input to this function is an identifier in charset my_charset_filename.
 return true when length of identifier is too long. */
 UNIV_INTERN
 my_bool
 innobase_check_identifier_length(
 /*=============================*/
-	const char*	id)	/* in: identifier to check.  it must belong
-				to charset my_charset_filename */
+	const char*	id)	/* in: FK identifier to check excluding the
+				database portion. */
 {
-	char		tmp[MAX_TABLE_NAME_LEN + 10];
-	uint		errors;
-	uint		len;
 	int		well_formed_error = 0;
-	CHARSET_INFO*	cs1 = &my_charset_filename;
-	CHARSET_INFO*	cs2 = thd_charset(current_thd);
+	CHARSET_INFO	*cs = system_charset_info;
+	DBUG_ENTER("innobase_check_identifier_length");
 
-	len = strconvert(cs1, id, cs2, tmp, MAX_TABLE_NAME_LEN + 10, &errors);
+	uint res = cs->cset->well_formed_len(cs, id, id + strlen(id),
+					     NAME_CHAR_LEN,
+					     &well_formed_error);
 
-	uint res = cs2->cset->well_formed_len(cs2, tmp, tmp + len,
-					      NAME_CHAR_LEN,
-					      &well_formed_error);
-
-	if (well_formed_error || res != len) {
-		my_error(ER_TOO_LONG_IDENT, MYF(0), tmp);
-		return(true);
+	if (well_formed_error || res == NAME_CHAR_LEN) {
+		my_error(ER_TOO_LONG_IDENT, MYF(0), id);
+		DBUG_RETURN(true);
 	}
-	return(false);
+	DBUG_RETURN(false);
 }
 
 /******************************************************************//**
@@ -16761,4 +16755,36 @@ ib_logf(
 	if (level == IB_LOG_LEVEL_FATAL) {
 		ut_error;
 	}
+}
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+uint
+innobase_convert_to_filename_charset(
+/*=================================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len)	/* in: length of 'to', in bytes */
+{
+	uint		errors;
+	CHARSET_INFO*	cs_to = &my_charset_filename;
+	CHARSET_INFO*	cs_from = system_charset_info;
+
+	return(strconvert(cs_from, from, cs_to, to, len, &errors));
+}
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+uint
+innobase_convert_to_system_charset(
+/*===============================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len,	/* in: length of 'to', in bytes */
+	uint*		errors)	/* out: error return */
+{
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = system_charset_info;
+
+	return(strconvert(cs1, from, cs2, to, len, errors));
 }
