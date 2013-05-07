@@ -167,6 +167,10 @@ drop table t1, t2;
 --echo # which does not match the fk
 --echo #
 
+# Suppress the warning this test case generates
+--disable_query_log ONCE
+call mtr.add_suppression("NDB FK: .* have all the referenced columns");
+
 create table t1 (
   pk int not null primary key,
   b int,
@@ -189,6 +193,10 @@ drop table t1, t2;
 --echo # Create child table and then the parent
 --echo # which does not match any index
 --echo #
+
+# Suppress the warning this test case generates
+--disable_query_log ONCE
+call mtr.add_suppression("NDB FK: .* no matching index could be found");
 
 create table t1 (
   pk int not null primary key,

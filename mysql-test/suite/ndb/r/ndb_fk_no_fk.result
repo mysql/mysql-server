@@ -189,3 +189,26 @@ select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 count(*)
 1
 drop table t1, t2;
+#
+# Create child table and then the parent
+# which does not match any index
+#
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references t2(c)
+) engine=ndb;
+create table t2 (
+pk1 int not null primary key,
+c int
+) engine=ndb;
+Warnings:
+Warning	1215	Could not resolve 't2' as fk parent for 'test/def/t1' since no matching index could be found
+
+ndb_show_tables completed.....
+
+# There should be 1 dummy table still
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+count(*)
+1
+drop table t1, t2;
