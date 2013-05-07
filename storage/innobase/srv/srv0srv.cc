@@ -142,7 +142,7 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 UNIV_INTERN my_bool	srv_use_native_aio = TRUE;
 
-#ifdef __WIN__
+#ifdef _WIN32
 /* Windows native condition variables. We use runtime loading / function
 pointers, because they are not available on Windows Server 2003 and
 Windows XP/2000.
@@ -155,7 +155,7 @@ is preallocating large number (often millions) of os_events. With kernel event
 objects it takes a big chunk out of non-paged pool, which is better suited
 for tasks like IO than for storing idle event objects. */
 UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*------------------------- LOG FILES ------------------------ */
 UNIV_INTERN char*	srv_log_group_home_dir	= NULL;
