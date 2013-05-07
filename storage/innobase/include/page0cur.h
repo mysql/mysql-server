@@ -593,7 +593,7 @@ public:
 		page_zip_des_t*	page_zip	= buf_block_get_page_zip(
 			const_cast<buf_block_t*>(m_block));
 
-		if (getOffsets()) {
+		if (isComp()) {
 			rec_set_deleted_flag_new(
 				const_cast<rec_t*>(m_rec), page_zip, deleted);
 		} else {
