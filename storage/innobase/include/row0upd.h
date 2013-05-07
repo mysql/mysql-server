@@ -168,6 +168,20 @@ row_upd_changes_field_size_or_external(
 	const ulint*		offsets,
 	const upd_t*		update)
 	__attribute__((nonnull, warn_unused_result));
+/** Determines if a row update changes the size of some fields
+or if any updated field is stored externally.
+@param[in]	rec	ROW_FORMAT=REDUNDANT B-tree leaf page record
+@param[in]	index	B-tree index
+@param[in]	update	update vector
+@return true if the update changes the size of some field in index or
+the field is external in rec or update */
+UNIV_INTERN
+bool
+row_upd_changes_field_size_or_external_old(
+	const dict_index_t*	index,
+	const rec_t*		rec,
+	const upd_t*		update)
+	__attribute__((nonnull, warn_unused_result));
 /***********************************************************//**
 Returns true if row update contains disowned external fields.
 @return true if the update contains disowned external fields. */
