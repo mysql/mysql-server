@@ -73,6 +73,8 @@ mach_write_to_2(
 	b[1] = (byte)(n);
 }
 
+#endif /* !UNIV_INNOCHECKSUM */
+
 /********************************************************//**
 The following function is used to fetch data from 2 consecutive
 bytes. The most significant byte is at the lowest address.
@@ -85,6 +87,8 @@ mach_read_from_2(
 {
 	return(((ulint)(b[0]) << 8) | (ulint)(b[1]));
 }
+
+#ifndef UNIV_INNOCHECKSUM
 
 /********************************************************//**
 The following function is used to convert a 16-bit data item
@@ -152,6 +156,8 @@ mach_read_from_3(
 		);
 }
 
+#endif /* !UNIV_INNOCHECKSUM */
+
 /*******************************************************//**
 The following function is used to store data in four consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -169,8 +175,6 @@ mach_write_to_4(
 	b[2] = (byte)(n >> 8);
 	b[3] = (byte) n;
 }
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 /********************************************************//**
 The following function is used to fetch data from 4 consecutive
@@ -295,6 +299,8 @@ mach_write_to_8(
 	mach_write_to_4(static_cast<byte*>(b) + 4, (ulint) n);
 }
 
+#endif /* !UNIV_INNOCHECKSUM */
+
 /********************************************************//**
 The following function is used to fetch data from 8 consecutive
 bytes. The most significant byte is at the lowest address.
@@ -312,6 +318,8 @@ mach_read_from_8(
 
 	return(ull);
 }
+
+#ifndef UNIV_INNOCHECKSUM
 
 /*******************************************************//**
 The following function is used to store data in 7 consecutive
