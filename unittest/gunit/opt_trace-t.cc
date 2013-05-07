@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ void do_check_json_compliance(const char *str, size_t length)
     exception is thrown by Python, uncaught, which produces a non-zero error
     code.
   */
-#ifndef __WIN__
+#ifndef _WIN32
   const char python_cmd[]=
     "python -c \""
     "import json, re, sys;"

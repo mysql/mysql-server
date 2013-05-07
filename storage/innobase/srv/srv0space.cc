@@ -347,7 +347,7 @@ Tablespace::get_sum_of_sizes() const
 
 	for (files_t::const_iterator it = m_files.begin(); it != end; ++it) {
 
-#ifndef __WIN__
+#ifndef _WIN32
 		if (sizeof(off_t) < 5
 		    && it->m_size >= (1UL << (32UL - UNIV_PAGE_SIZE_SHIFT))) {
 
@@ -361,7 +361,7 @@ Tablespace::get_sum_of_sizes() const
 
 			return(ULINT_UNDEFINED);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 		sum += it->m_size;
 	}
 

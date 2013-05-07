@@ -30,21 +30,19 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(__WIN__)
 #ifdef HAVE_SELECT_H
 #include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif /* !defined(__WIN__) */
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 #ifndef INADDR_NONE
@@ -66,13 +64,13 @@ ulong		max_allowed_packet= 1024L*1024L*1024L;
 my_bool	net_flush(NET *net);
 #endif
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 /* socket_errno is defined in my_global.h for all platforms */
 #define perror(A)
 #else
 #include <errno.h>
 #define SOCKET_ERROR -1
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*
   If allowed through some configuration, then this needs to
@@ -153,7 +151,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     if (!mysql_unix_port)
     {
       char *env;
-#ifdef __WIN__
+#ifdef _WIN32
       mysql_unix_port = (char*) MYSQL_NAMEDPIPE;
 #else
       mysql_unix_port = (char*) MYSQL_UNIX_ADDR;
@@ -162,7 +160,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(__WIN__)
+#if defined(SIGPIPE) && !defined(_WIN32)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
@@ -398,7 +396,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 
 void read_user_name(char *name)
 {

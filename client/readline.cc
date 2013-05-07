@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
   LINE_BUFFER *line_buff;
   MY_STAT input_file_stat;
 
-#ifndef __WIN__
+#ifndef _WIN32
   if (my_fstat(fileno(file), &input_file_stat, MYF(MY_WME)) ||
       MY_S_ISDIR(input_file_stat.st_mode) ||
       MY_S_ISBLK(input_file_stat.st_mode))
@@ -63,7 +63,7 @@ char *batch_readline(LINE_BUFFER *line_buff, bool binary_mode)
     return 0;
   if (out_length && pos[out_length-1] == '\n')
   {
-#if defined(__WIN__)
+#if defined(_WIN32)
     /*
       On Windows platforms we also need to remove '\r', 
       unconditionally.

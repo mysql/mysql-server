@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -297,7 +297,7 @@ struct st_myisam_info {
 
   index_cond_func_t index_cond_func;   /* Index condition function */
   void *index_cond_func_arg;           /* parameter for the func */
-#ifdef __WIN__
+#ifdef _WIN32
   my_bool owned_by_merge;                       /* This MyISAM table is part of a merge union */
 #endif
   THR_LOCK_DATA lock;
