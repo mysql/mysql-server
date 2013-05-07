@@ -277,27 +277,35 @@ class Dummy_table_util
     my_vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
     push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_CANNOT_ADD_FOREIGN, msg);
+
+    // Print warning to log
+    sql_print_warning("NDB FK: %s", msg);
   }
 
 
   void
-  ndb_error(const NdbDictionary::Dictionary* dict, const char* fmt, ...) const
+  error(const NdbDictionary::Dictionary* dict, const char* fmt, ...) const
   {
     va_list args;
     char msg[MYSQL_ERRMSG_SIZE];
     va_start(args,fmt);
     my_vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
-    push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_YES, msg);
-    DBUG_PRINT("error", ("%s", msg));
+    push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN,
+                 ER_CANNOT_ADD_FOREIGN, msg);
 
-    const NdbError& error = dict->getNdbError();
-    my_snprintf(msg, sizeof(msg), "Ndb returned error: %d '%s'", error.code, error.message);
-    push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_YES, msg);
-    DBUG_PRINT("error", ("%s", msg));
-
-    // Print to log also..
-
+    char ndb_msg[MYSQL_ERRMSG_SIZE] = {0};
+    if (dict)
+    {
+      // Extract message from Ndb
+      const NdbError& error = dict->getNdbError();
+      my_snprintf(ndb_msg, sizeof(ndb_msg),
+                  "%d '%s'", error.code, error.message);
+      push_warning_printf(m_thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_CANNOT_ADD_FOREIGN, "Ndb error: %s", ndb_msg);
+    }
+    // Print error to log
+    sql_print_error("NDB FK: %s, Ndb error: %s", msg, ndb_msg);
   }
 
 
@@ -322,7 +330,7 @@ class Dummy_table_util
     Ndb_table_guard new_parent_tab(dict, new_parent_name);
     if (!new_parent_tab.get_table())
     {
-      ndb_error(dict, "Skip, failed to load the new parent");
+      error(dict, "Failed to load potentially new parent '%s'", new_parent_name);
       DBUG_RETURN(false);
     }
 
@@ -403,7 +411,7 @@ class Dummy_table_util
     DBUG_PRINT("info", ("Create new fk: %s", new_fk.getName()));
     if (dict->createForeignKey(new_fk) != 0)
     {
-      ndb_error(dict, "Failed to create foreign key");
+      error(dict, "Failed to create foreign key '%s'", new_fk.getName());
       remove_index_global(dict, parent_index);
       DBUG_RETURN(false);
     }
@@ -419,12 +427,13 @@ class Dummy_table_util
   {
     DBUG_ENTER("resolve_dummy");
     DBUG_PRINT("enter", ("dummy_name '%s'", dummy_name));
+    DBUG_ASSERT(is_dummy_name(dummy_name));
 
     // Load up the dummy table
     Ndb_table_guard dummy_tab(dict, dummy_name);
     if (!dummy_tab.get_table())
     {
-      ndb_error(dict, "Failed to load the listed dummy table: '%s'", dummy_name);
+      error(dict, "Failed to load the listed dummy table '%s'", dummy_name);
       DBUG_VOID_RETURN;
     }
 
@@ -432,7 +441,7 @@ class Dummy_table_util
     NdbDictionary::Dictionary::List list;
     if (dict->listDependentObjects(list, *dummy_tab.get_table()) != 0)
     {
-      ndb_error(dict, "Failed to list dependent objects dummy table: '%s'", dummy_name);
+      error(dict, "Failed to list dependent objects for dummy table '%s'", dummy_name);
       DBUG_VOID_RETURN;
     }
 
@@ -447,7 +456,7 @@ class Dummy_table_util
       NdbDictionary::ForeignKey fk;
       if (dict->getForeignKey(fk, element.name) != 0)
       {
-        ndb_error(dict, "Could not find the listed fk '%s'", element.name);
+        error(dict, "Could not find the listed fk '%s'", element.name);
         continue;
       }
 
@@ -460,14 +469,19 @@ class Dummy_table_util
           const NdbDictionary::Column* col =
               dummy_tab.get_table()->getColumn(fk.getParentColumnNo(j));
           if (!col)
+          {
+            error(NULL, "Could not find column '%s' in dummy table '%s'",
+                  fk.getParentColumnNo(j), dummy_name);
             continue;
+          }
           col_names[num_columns++]= col->getName();
         }
         col_names[num_columns]= 0;
 
         if (num_columns != fk.getParentColumnCount())
         {
-          warn("Could not find some column referenced by fk in dummy");
+          error(NULL, "Could not find all columns referenced by fk in dummy table '%s'",
+                dummy_name);
           continue;
         }
       }
@@ -480,7 +494,7 @@ class Dummy_table_util
       const int drop_flags= NDBDICT::DropTableCascadeConstraints;
       if (dict->dropTableGlobal(*dummy_tab.get_table(), drop_flags) != 0)
       {
-        ndb_error(dict, "Failed to drop dummy table '%s'", dummy_name);
+        error(dict, "Failed to drop dummy table '%s'", dummy_name);
         continue;
       }
       sql_print_information("Dropped dummy table '%s' - resolved", dummy_name);
