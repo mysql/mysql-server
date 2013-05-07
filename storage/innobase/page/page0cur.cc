@@ -1832,7 +1832,6 @@ PageCur::init(void)
 
 	const ulint	n	= getNumFields();
 	const ulint	size	= n + (1 + REC_OFFS_HEADER_SIZE);
-	const page_t*	page	= buf_block_get_frame(m_block);
 
 	m_offsets = new ulint[size];
 	rec_offs_set_n_alloc(m_offsets, size);
@@ -1840,9 +1839,9 @@ PageCur::init(void)
 
 	if (!m_rec) {
 		/* Initialize to the page infimum. */
-		m_rec = page + page_get_infimum_offset(page);
+		m_rec = getPage() + page_get_infimum_offset(getPage());
 	} else {
-		ut_ad(page_align(m_rec) == page);
+		ut_ad(page_align(m_rec) == getPage());
 		if (isUser()) {
 			rec_init_offsets(m_rec, m_index, m_offsets);
 			return;
@@ -2206,10 +2205,10 @@ UNIV_INTERN
 bool
 PageCur::purge()
 {
-	buf_block_t*	block	= const_cast<buf_block_t*>(m_block);
-	page_t*		page	= buf_block_get_frame(block);
-	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
+	page_t*		page	= getPage();
+	page_zip_des_t*	page_zip= getPageZip();
 
+	ut_ad(isMutable());
 	ut_ad(isUser());
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
@@ -2235,7 +2234,7 @@ PageCur::purge()
 		record in the page and to insert another one. */
 		ut_ad(!next());
 		setAfterLast();
-		page_create_empty(block,
+		page_create_empty(m_block,
 				  const_cast<dict_index_t*>(m_index), m_mtr);
 		return(false);
 	}
@@ -2264,22 +2263,21 @@ PageCur::purge()
 	part of the buffer pool. */
 
 	if (m_mtr) {
-		buf_block_modify_clock_inc(const_cast<buf_block_t*>(m_block));
+		buf_block_modify_clock_inc(m_block);
 	}
 
 	/* 2. Find the next and the previous record. Note that the cursor is
 	left at the next record. */
 
-	const rec_t*	prev_rec	= NULL;
-	const rec_t*	rec;
+	rec_t*	prev_rec	= NULL;
 
 	/* Find the immediate predecessor of m_rec. */
-	for (rec = page_dir_slot_get_rec(prev_sl); rec != m_rec;
-	     rec = page_rec_get_next_const(rec)) {
+	for (rec_t* rec = page_dir_slot_get_rec(prev_sl); rec != m_rec;
+	     rec = page_rec_get_next(rec)) {
 		prev_rec = rec;
 	}
 
-	rec_t*	del_rec	= const_cast<rec_t*>(m_rec);
+	rec_t*	del_rec	= m_rec;
 	ulint	extra_size;
 	ulint	n_ext;
 	ulint	data_size = getRecSize(extra_size, &n_ext);
@@ -2288,7 +2286,7 @@ PageCur::purge()
 
 	/* 3. Remove the record from the linked list of records */
 
-	page_rec_set_next(const_cast<rec_t*>(prev_rec), m_rec);
+	page_rec_set_next(prev_rec, m_rec);
 
 	/* 4. If the deleted record is pointed to by a dir slot, update the
 	record pointer in slot. In the following if-clause we assume that
@@ -2343,12 +2341,11 @@ UNIV_INTERN
 bool
 PageCur::reorganize(bool recovery, ulint z_level)
 {
-	buf_block_t*	block		= const_cast<buf_block_t*>(m_block);
 #ifndef UNIV_HOTBACKUP
-	buf_pool_t*	buf_pool	= buf_pool_from_bpage(&block->page);
+	buf_pool_t*	buf_pool	= buf_pool_from_bpage(&m_block->page);
 #endif /* !UNIV_HOTBACKUP */
-	page_t*		page		= buf_block_get_frame(block);
-	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
+	page_t*		page		= getPage();
+	page_zip_des_t*	page_zip	= getPageZip();
 	buf_block_t*	temp_block;
 	page_t*		temp_page;
 	ulint		log_mode;
@@ -2361,7 +2358,7 @@ PageCur::reorganize(bool recovery, ulint z_level)
 	bool		log_compressed;
 
 	ut_ad(m_mtr);
-	ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(isMutable());
 	page_zip_validate_if_zip(page_zip, page, m_index);
 	data_size1 = page_get_data_size(page);
 	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
@@ -2382,10 +2379,10 @@ PageCur::reorganize(bool recovery, ulint z_level)
 
 #ifndef UNIV_HOTBACKUP
 	if (!recovery) {
-		btr_search_drop_page_hash_index(block);
+		btr_search_drop_page_hash_index(m_block);
 	}
 
-	block->check_index_page_at_flush = TRUE;
+	m_block->check_index_page_at_flush = TRUE;
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Save the cursor position. */
@@ -2394,12 +2391,12 @@ PageCur::reorganize(bool recovery, ulint z_level)
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, m_mtr, isComp());
+	page_create(m_block, m_mtr, isComp());
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
 
-	page_copy_rec_list_end_no_locks(block, temp_block,
+	page_copy_rec_list_end_no_locks(m_block, temp_block,
 					page_get_infimum_rec(temp_page),
 					m_index, m_mtr);
 
@@ -2412,7 +2409,7 @@ PageCur::reorganize(bool recovery, ulint z_level)
 	    && !dict_table_is_temporary(m_index->table)) {
 		/* Copy max trx id to recreated page */
 		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
-		page_set_max_trx_id(block, NULL, max_trx_id, m_mtr);
+		page_set_max_trx_id(m_block, NULL, max_trx_id, m_mtr);
 		/* In crash recovery, dict_index_is_sec_or_ibuf() always
 		holds, even for clustered indexes.  max_trx_id is
 		unused in clustered index pages. */
@@ -2458,7 +2455,7 @@ PageCur::reorganize(bool recovery, ulint z_level)
 #ifndef UNIV_HOTBACKUP
 	if (!recovery) {
 		/* Update the record lock bitmaps */
-		lock_move_reorganize_page(block, temp_block);
+		lock_move_reorganize_page(m_block, temp_block);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2488,7 +2485,7 @@ PageCur::reorganize(bool recovery, ulint z_level)
 	setRec(page_rec_get_nth(page, pos));
 
 func_exit:
-	page_zip_validate_if_zip(getPageZip(), getPage(), m_index);
+	page_zip_validate_if_zip(page_zip, page, m_index);
 	mtr_set_log_mode(m_mtr, log_mode);
 
 #ifndef UNIV_HOTBACKUP
