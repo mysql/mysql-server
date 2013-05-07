@@ -6994,7 +6994,7 @@ truncate_t::write(
 			&mtr, reinterpret_cast<const byte*>(tablename), len);
 	}
 
-	DBUG_EXECUTE_IF("ib_truncate_crash_while_writing_redo_log",
+	DBUG_EXECUTE_IF("ib_trunc_crash_while_writing_redo_log",
 			DBUG_SUICIDE(););
 
 	/* Old/New Table-ID, Number of Indexes and Tablespace dir-path-name. */

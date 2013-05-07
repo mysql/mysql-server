@@ -110,19 +110,19 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 
 		if (index_type & DICT_CLUSTERED) {
 			/* Clustered index */
-			DBUG_EXECUTE_IF("ib_crash_on_drop_of_clust_index",
+			DBUG_EXECUTE_IF("ib_trunc_crash_on_drop_of_clust_index",
 					log_buffer_flush_to_disk();
 					os_thread_sleep(2000000);
 					DBUG_SUICIDE(););
 		} else if (index_type & DICT_UNIQUE) {
 			/* Unique index */
-			DBUG_EXECUTE_IF("ib_crash_on_drop_of_uniq_index",
+			DBUG_EXECUTE_IF("ib_trunc_crash_on_drop_of_uniq_index",
 					log_buffer_flush_to_disk();
 					os_thread_sleep(2000000);
 					DBUG_SUICIDE(););
 		} else if (index_type == 0) {
 			/* Secondary index */
-			DBUG_EXECUTE_IF("ib_crash_on_drop_of_sec_index",
+			DBUG_EXECUTE_IF("ib_trunc_crash_on_drop_of_sec_index",
 					log_buffer_flush_to_disk();
 					os_thread_sleep(2000000);
 					DBUG_SUICIDE(););
@@ -191,22 +191,25 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 
 		if (index_type & DICT_CLUSTERED) {
 			/* Clustered index */
-			DBUG_EXECUTE_IF("ib_crash_on_create_of_clust_index",
-					log_buffer_flush_to_disk();
-					os_thread_sleep(2000000);
-					DBUG_SUICIDE(););
+			DBUG_EXECUTE_IF(
+				"ib_trunc_crash_on_create_of_clust_index",
+				log_buffer_flush_to_disk();
+				os_thread_sleep(2000000);
+				DBUG_SUICIDE(););
 		} else if (index_type & DICT_UNIQUE) {
 			/* Unique index */
-			DBUG_EXECUTE_IF("ib_crash_on_create_of_uniq_index",
-					log_buffer_flush_to_disk();
-					os_thread_sleep(2000000);
-					DBUG_SUICIDE(););
+			DBUG_EXECUTE_IF(
+				"ib_trunc_crash_on_create_of_uniq_index",
+				log_buffer_flush_to_disk();
+				os_thread_sleep(2000000);
+				DBUG_SUICIDE(););
 		} else if (index_type == 0) {
 			/* Secondary index */
-			DBUG_EXECUTE_IF("ib_crash_on_create_of_sec_index",
-					log_buffer_flush_to_disk();
-					os_thread_sleep(2000000);
-					DBUG_SUICIDE(););
+			DBUG_EXECUTE_IF(
+				"ib_trunc_crash_on_create_of_sec_index",
+				log_buffer_flush_to_disk();
+				os_thread_sleep(2000000);
+				DBUG_SUICIDE(););
 		}
 	}
 #endif /* UNIV_DEBUG */
@@ -308,17 +311,17 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 
 		/* Waiting for MLOG_FILE_TRUNCATE record is written into
 		redo log before the crash. */
-		DBUG_EXECUTE_IF("ib_crash_before_log_checkpoint1",
+		DBUG_EXECUTE_IF("ib_trunc_crash_before_log_checkpoint1",
 				DBUG_SUICIDE(););
 
-		DBUG_EXECUTE_IF("ib_crash_before_log_checkpoint2",
+		DBUG_EXECUTE_IF("ib_trunc_crash_before_log_checkpoint2",
 				log_buffer_flush_to_disk();
 				os_thread_sleep(2000000);
 				DBUG_SUICIDE(););
 
 		log_make_checkpoint_at(LSN_MAX, TRUE);
 
-		DBUG_EXECUTE_IF("ib_crash_after_log_checkpoint",
+		DBUG_EXECUTE_IF("ib_trunc_crash_after_log_checkpoint",
 				DBUG_SUICIDE(););
 
 		if (!Tablespace::is_system_tablespace(table->space)) {
@@ -581,7 +584,7 @@ row_truncate_update_system_tables(
 			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 		}
 
-		DBUG_EXECUTE_IF("ib_crash_after_fts_drop",
+		DBUG_EXECUTE_IF("ib_trunc_crash_after_fts_drop",
 				DBUG_SUICIDE(););
 
 		dict_table_change_id_in_cache(table, new_id);
@@ -957,10 +960,10 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	is not yet flushed to disk and crash occur then we restore the table
 	in old state with rows. */
 
-	DBUG_EXECUTE_IF("ib_crash_after_redo_log_write_complete1",
+	DBUG_EXECUTE_IF("ib_trunc_crash_after_redo_log_write_complete1",
 			DBUG_SUICIDE(););
 
-	DBUG_EXECUTE_IF("ib_crash_after_redo_log_write_complete2",
+	DBUG_EXECUTE_IF("ib_trunc_crash_after_redo_log_write_complete2",
 			log_buffer_flush_to_disk();
 			os_thread_sleep(3000000);
 			DBUG_SUICIDE(););
@@ -988,10 +991,11 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 			dict_truncate_index_tree_in_mem(index);
 
-			DBUG_EXECUTE_IF("ib_crash_during_drop_index_temp_table",
-					log_buffer_flush_to_disk();
-					os_thread_sleep(2000000);
-					DBUG_SUICIDE(););
+			DBUG_EXECUTE_IF(
+				"ib_trunc_crash_during_drop_index_temp_table",
+				log_buffer_flush_to_disk();
+				os_thread_sleep(2000000);
+				DBUG_SUICIDE(););
 		}
 	}
 
@@ -1004,9 +1008,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			table->indexes.count + FIL_IBD_FILE_INITIAL_SIZE + 1);
 	}
 
-	DBUG_EXECUTE_IF("ib_crash_drop_reinit_done_create_to_start1",
+	DBUG_EXECUTE_IF("ib_trunc_crash_drop_reinit_done_create_to_start1",
 			DBUG_SUICIDE(););
-	DBUG_EXECUTE_IF("ib_crash_drop_reinit_done_create_to_start2",
+	DBUG_EXECUTE_IF("ib_trunc_crash_drop_reinit_done_create_to_start2",
 			log_buffer_flush_to_disk();
 			os_thread_sleep(2000000);
 			DBUG_SUICIDE(););
@@ -1066,8 +1070,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		}
 	}
 
-	DBUG_EXECUTE_IF("ib_crash_on_updating_dict_sys_info1", DBUG_SUICIDE(););
-	DBUG_EXECUTE_IF("ib_crash_on_updating_dict_sys_info2",
+	DBUG_EXECUTE_IF("ib_trunc_crash_on_updating_dict_sys_info1",
+			DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_trunc_crash_on_updating_dict_sys_info2",
 			log_buffer_flush_to_disk();
 			os_thread_sleep(2000000);
 			DBUG_SUICIDE(););

@@ -100,8 +100,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_during_drop_index_temp_table";
-"---debug ib_crash_during_drop_index_temp_table point---"
+set session debug="+d,ib_trunc_crash_during_drop_index_temp_table";
+"---debug ib_trunc_crash_during_drop_index_temp_table point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t5;
@@ -124,8 +124,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_on_drop_of_sec_index";
-"---debug ib_crash_on_drop_of_sec_index point---"
+set session debug="+d,ib_trunc_crash_on_drop_of_sec_index";
+"---debug ib_trunc_crash_on_drop_of_sec_index point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -148,8 +148,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_on_drop_of_sec_index";
-"---debug ib_crash_on_drop_of_sec_index point---"
+set session debug="+d,ib_trunc_crash_on_drop_of_sec_index";
+"---debug ib_trunc_crash_on_drop_of_sec_index point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -172,8 +172,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_on_drop_of_sec_index";
-"---debug ib_crash_on_drop_of_sec_index point---"
+set session debug="+d,ib_trunc_crash_on_drop_of_sec_index";
+"---debug ib_trunc_crash_on_drop_of_sec_index point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -196,8 +196,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_on_drop_of_sec_index";
-"---debug ib_crash_on_drop_of_sec_index point---"
+set session debug="+d,ib_trunc_crash_on_drop_of_sec_index";
+"---debug ib_trunc_crash_on_drop_of_sec_index point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -307,8 +307,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_drop_reinit_done_create_to_start2";
-"---debug ib_crash_drop_reinit_done_create_to_start2---"
+set session debug="+d,ib_trunc_crash_drop_reinit_done_create_to_start2";
+"---debug ib_trunc_crash_drop_reinit_done_create_to_start2---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t5;
@@ -331,8 +331,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_on_create_of_sec_index";
-"---debug ib_crash_on_create_of_sec_index---"
+set session debug="+d,ib_trunc_crash_on_create_of_sec_index";
+"---debug ib_trunc_crash_on_create_of_sec_index---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -355,8 +355,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_on_create_of_sec_index";
-"---debug ib_crash_on_create_of_sec_index---"
+set session debug="+d,ib_trunc_crash_on_create_of_sec_index";
+"---debug ib_trunc_crash_on_create_of_sec_index---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -379,8 +379,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_on_create_of_sec_index";
-"---debug ib_crash_on_create_of_sec_index---"
+set session debug="+d,ib_trunc_crash_on_create_of_sec_index";
+"---debug ib_trunc_crash_on_create_of_sec_index---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -403,8 +403,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_on_create_of_sec_index";
-"---debug ib_crash_on_create_of_sec_index---"
+set session debug="+d,ib_trunc_crash_on_create_of_sec_index";
+"---debug ib_trunc_crash_on_create_of_sec_index---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -514,8 +514,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_before_log_checkpoint2";
-"---debug ib_crash_before_log_checkpoint2 point---"
+set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
+"---debug ib_trunc_crash_before_log_checkpoint2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -538,8 +538,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_before_log_checkpoint2";
-"---debug ib_crash_before_log_checkpoint2 point---"
+set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
+"---debug ib_trunc_crash_before_log_checkpoint2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -562,8 +562,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_before_log_checkpoint2";
-"---debug ib_crash_before_log_checkpoint2 point---"
+set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
+"---debug ib_trunc_crash_before_log_checkpoint2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -586,8 +586,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_before_log_checkpoint2";
-"---debug ib_crash_before_log_checkpoint2 point---"
+set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
+"---debug ib_trunc_crash_before_log_checkpoint2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -697,8 +697,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_log_checkpoint";
-"---debug ib_crash_after_log_checkpoint point---"
+set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+"---debug ib_trunc_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -721,8 +721,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_log_checkpoint";
-"---debug ib_crash_after_log_checkpoint point---"
+set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+"---debug ib_trunc_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -745,8 +745,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_log_checkpoint";
-"---debug ib_crash_after_log_checkpoint point---"
+set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+"---debug ib_trunc_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -769,8 +769,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_log_checkpoint";
-"---debug ib_crash_after_log_checkpoint point---"
+set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+"---debug ib_trunc_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -880,8 +880,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_log_checkpoint";
-"---debug ib_crash_after_log_checkpoint point---"
+set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+"---debug ib_trunc_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -904,8 +904,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_log_checkpoint";
-"---debug ib_crash_after_log_checkpoint point---"
+set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+"---debug ib_trunc_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -928,8 +928,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_log_checkpoint";
-"---debug ib_crash_after_log_checkpoint point---"
+set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+"---debug ib_trunc_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -952,8 +952,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_log_checkpoint";
-"---debug ib_crash_after_log_checkpoint point---"
+set session debug="+d,ib_trunc_crash_after_log_checkpoint";
+"---debug ib_trunc_crash_after_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -1063,8 +1063,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_redo_log_write_complete2";
-"---debug ib_crash_after_redo_log_write_complete2 point---"
+set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
+"---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -1087,8 +1087,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_redo_log_write_complete2";
-"---debug ib_crash_after_redo_log_write_complete2 point---"
+set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
+"---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -1111,8 +1111,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_redo_log_write_complete2";
-"---debug ib_crash_after_redo_log_write_complete2 point---"
+set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
+"---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -1135,8 +1135,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_crash_after_redo_log_write_complete2";
-"---debug ib_crash_after_redo_log_write_complete2 point---"
+set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
+"---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;

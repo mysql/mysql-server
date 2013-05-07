@@ -60,7 +60,7 @@ insert into t values (1), (2), (3);
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_truncate_crash_while_writing_redo_log";
+set session debug = "+d,ib_trunc_crash_while_writing_redo_log";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -89,7 +89,7 @@ insert into t values (1), (2), (3);
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_after_redo_log_write_complete1";
+set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete1";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -116,7 +116,7 @@ insert into t values (1), (2), (3);
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_after_redo_log_write_complete2";
+set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete2";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -149,7 +149,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_on_drop_of_clust_index";
+set session debug = "+d,ib_trunc_crash_on_drop_of_clust_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -178,7 +178,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_on_drop_of_uniq_index";
+set session debug = "+d,ib_trunc_crash_on_drop_of_uniq_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -207,7 +207,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_on_drop_of_sec_index";
+set session debug = "+d,ib_trunc_crash_on_drop_of_sec_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -242,7 +242,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_drop_reinit_done_create_to_start1";
+set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start1";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -269,7 +269,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_drop_reinit_done_create_to_start2";
+set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start2";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -302,7 +302,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_on_create_of_clust_index";
+set session debug = "+d,ib_trunc_crash_on_create_of_clust_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -331,7 +331,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_on_create_of_uniq_index";
+set session debug = "+d,ib_trunc_crash_on_create_of_uniq_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -360,7 +360,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_on_create_of_sec_index";
+set session debug = "+d,ib_trunc_crash_on_create_of_sec_index";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -394,7 +394,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_on_updating_dict_sys_info1";
+set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info1";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -421,7 +421,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_on_updating_dict_sys_info2";
+set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info2";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -454,7 +454,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_before_log_checkpoint1";
+set session debug = "+d,ib_trunc_crash_before_log_checkpoint1";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -481,7 +481,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_before_log_checkpoint2";
+set session debug = "+d,ib_trunc_crash_before_log_checkpoint2";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
@@ -509,7 +509,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
 #
-set session debug = "+d,ib_crash_after_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_after_log_checkpoint";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
