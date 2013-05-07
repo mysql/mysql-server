@@ -30,6 +30,8 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0lru.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "ut0byte.h"
 #include "ut0lst.h"
 #include "ut0rnd.h"
@@ -52,8 +54,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "srv0mon.h"
 #include "lock0lock.h"
-
-#include "ha_prototypes.h"
 
 /** The number of blocks from the LRU_old pointer onward, including
 the block pointed to, must be buf_pool->LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV

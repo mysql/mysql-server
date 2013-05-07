@@ -34,6 +34,8 @@ InnoDB Native API
 #include <unistd.h>
 #endif
 
+#include "ha_prototypes.h"
+
 #include "api0api.h"
 #include "api0misc.h"
 #include "srv0start.h"
@@ -53,7 +55,6 @@ InnoDB Native API
 #include "ut0dbg.h"
 #include "dict0priv.h"
 #include "ut0ut.h"
-#include "ha_prototypes.h"
 #include "trx0roll.h"
 
 /** configure variable for binlog option with InnoDB APIs */

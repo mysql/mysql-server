@@ -25,8 +25,7 @@ Created 10/25/1995 Heikki Tuuri
 
 #include "fil0fil.h"
 
-#include <debug_sync.h>
-#include <my_dbug.h>
+#include "ha_prototypes.h"
 
 #include "mem0mem.h"
 #include "hash0hash.h"
