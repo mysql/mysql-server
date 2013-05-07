@@ -43,6 +43,8 @@ UNIV_INTERN my_bool	srv_ibuf_disable_background_merge;
 
 #ifndef UNIV_HOTBACKUP
 
+#include "ha_prototypes.h"
+
 #include "buf0buf.h"
 #include "buf0rea.h"
 #include "fsp0fsp.h"
@@ -60,7 +62,6 @@ UNIV_INTERN my_bool	srv_ibuf_disable_background_merge;
 #include "log0recv.h"
 #include "que0que.h"
 #include "srv0start.h" /* srv_shutdown_state */
-#include "ha_prototypes.h"
 #include "srv0space.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD

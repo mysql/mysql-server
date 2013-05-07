@@ -2540,5 +2540,49 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
   mysql_mutex_unlock(&acl_cache->lock);
 }
 
+
+
+/**
+  Update the security context when updating the user
+
+  Helper function.
+  Update only if the security context is pointing to the same user.
+  And return true if the update happens (i.e. we're operating on the
+  user account of the current user).
+  Normalize the names for a safe compare.
+
+  @param sctx           The security context to update
+  @param acl_user_ptr   User account being updated
+  @param expired        new value of the expiration flag
+  @return               did the update happen ?
+ */
+bool
+update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr, bool expired)
+{
+  const char *acl_host= acl_user_ptr->host.get_host();
+  const char *acl_user= acl_user_ptr->user;
+  const char *sctx_user= sctx->priv_user;
+  const char *sctx_host= sctx->priv_host;
+
+  if (!acl_host)
+    acl_host= "";
+  if(!acl_user)
+    acl_user= "";
+  if (!sctx_host)
+    sctx_host= "";
+  if (!sctx_user)
+    sctx_user= "";
+
+  if (!strcmp(acl_user, sctx_user) && !strcmp(acl_host, sctx_host))
+  {
+    sctx->password_expired= expired;
+    return true;
+  }
+
+  return false;
+}
+
+
+
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 

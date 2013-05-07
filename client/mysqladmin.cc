@@ -165,7 +165,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -266,7 +266,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     option_silent++;
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
@@ -988,7 +988,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
       if (typed_password[0])
       {
-#ifdef __WIN__
+#ifdef _WIN32
         size_t pw_len= strlen(typed_password);
         if (pw_len > 1 && typed_password[0] == '\'' &&
             typed_password[pw_len-1] == '\'')

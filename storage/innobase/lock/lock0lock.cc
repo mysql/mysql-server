@@ -35,6 +35,7 @@ Created 5/7/1996 Heikki Tuuri
 #endif
 
 #include "ha_prototypes.h"
+
 #include "usr0sess.h"
 #include "trx0purge.h"
 #include "trx0sys.h"

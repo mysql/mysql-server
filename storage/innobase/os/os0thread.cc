@@ -28,7 +28,7 @@ Created 9/8/1995 Heikki Tuuri
 #include "os0thread.ic"
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <windows.h>
 #endif
 
@@ -36,11 +36,11 @@ Created 9/8/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "os0sync.h"
 
-#ifdef __WIN__
+#ifdef _WIN32
 /** This STL map remembers the initial handle returned by CreateThread
 so that it can be closed when the thread exits. */
 static std::map<DWORD, HANDLE>	win_thread_map;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /***************************************************************//**
 Compares two thread ids for equality.
@@ -52,7 +52,7 @@ os_thread_eq(
 	os_thread_id_t	a,	/*!< in: OS thread or thread id */
 	os_thread_id_t	b)	/*!< in: OS thread or thread id */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	if (a == b) {
 		return(TRUE);
 	}
@@ -90,7 +90,7 @@ os_thread_id_t
 os_thread_get_curr_id(void)
 /*=======================*/
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	return(GetCurrentThreadId());
 #else
 	return(pthread_self());
@@ -117,7 +117,7 @@ os_thread_create_func(
 {
 	os_thread_id_t	new_thread_id;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	HANDLE		handle;
 
 	os_mutex_enter(os_sync_mutex);
@@ -146,7 +146,7 @@ os_thread_create_func(
 
 	os_mutex_exit(os_sync_mutex);
 
-#else /* __WIN__ else */
+#else /* _WIN32 else */
 
 	int		ret;
 	pthread_attr_t	attr;
@@ -166,7 +166,7 @@ os_thread_create_func(
 
 	pthread_attr_destroy(&attr);
 
-#endif /* not __WIN__ */
+#endif /* not _WIN32 */
 
 	/* Return the thread_id if the caller requests it. */
 	if (thread_id != NULL) {
@@ -195,7 +195,7 @@ os_thread_exit(
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count--;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DWORD win_thread_id = GetCurrentThreadId();
 	HANDLE handle = win_thread_map[win_thread_id];
 	CloseHandle(handle);
@@ -219,7 +219,7 @@ void
 os_thread_yield(void)
 /*=================*/
 {
-#if defined(__WIN__)
+#if defined(_WIN32)
 	SwitchToThread();
 #elif (defined(HAVE_SCHED_YIELD) && defined(HAVE_SCHED_H))
 	sched_yield();
@@ -241,7 +241,7 @@ os_thread_sleep(
 /*============*/
 	ulint	tm)	/*!< in: time in microseconds */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	Sleep((DWORD) tm / 1000);
 #else
 	struct timeval	t;

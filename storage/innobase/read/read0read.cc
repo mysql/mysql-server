@@ -34,6 +34,8 @@ Created 2/16/1997 Heikki Tuuri
 
 #include <algorithm>
 
+using std::min;
+
 /*
 -------------------------------------------------------------------------------
 FACT A: Cursor read view on a secondary index sees only committed versions
@@ -494,7 +496,7 @@ read_view_purge_open(
 		the oldest view's creator id can be larger and that will be
 		in the tx_ids array. */
 
-		view->up_limit_id = std::min(
+		view->up_limit_id = min(
 			view->trx_ids[view->n_trx_ids - 1],
 			view->up_limit_id);
 	}

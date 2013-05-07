@@ -31,6 +31,8 @@ Created 4/24/1996 Heikki Tuuri
 #include "dict0load.ic"
 #endif
 
+#include "ha_prototypes.h" /* innobase_casedn_str() */
+
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "page0page.h"
@@ -43,7 +45,6 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "dict0crea.h"
 #include "dict0priv.h"
-#include "ha_prototypes.h" /* innobase_casedn_str() */
 #include "fts0priv.h"
 
 /** Following are the InnoDB system tables. The positions in

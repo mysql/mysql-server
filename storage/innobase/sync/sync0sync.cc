@@ -35,6 +35,8 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0sync.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "sync0rw.h"
 #include "buf0buf.h"
 #include "srv0srv.h"
@@ -43,7 +45,6 @@ Created 9/5/1995 Heikki Tuuri
 #ifdef UNIV_SYNC_DEBUG
 # include "srv0start.h" /* srv_is_being_started */
 #endif /* UNIV_SYNC_DEBUG */
-#include "ha_prototypes.h"
 
 /*
 	REASONS FOR IMPLEMENTING THE SPIN LOCK MUTEX

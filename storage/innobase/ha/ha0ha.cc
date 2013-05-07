@@ -41,7 +41,7 @@ of cells is chosen to be a prime number slightly bigger than n.
 @return	own: created table */
 UNIV_INTERN
 hash_table_t*
-ha_create_func(
+ib_create_func(
 /*===========*/
 	ulint	n,		/*!< in: number of array cells */
 #ifdef UNIV_SYNC_DEBUG
