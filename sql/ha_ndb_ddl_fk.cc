@@ -269,21 +269,19 @@ class Dummy_table_util
   THD* m_thd;
 
   void
-  warn(const char* fmt, ...)
+  warn(const char* fmt, ...) const
   {
     va_list args;
     char msg[MYSQL_ERRMSG_SIZE];
     va_start(args,fmt);
     my_vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
-    push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_YES, msg);
-    DBUG_PRINT("warn", ("%s", msg));
-
+    push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_CANNOT_ADD_FOREIGN, msg);
   }
 
 
   void
-  ndb_error(const NdbDictionary::Dictionary* dict, const char* fmt, ...)
+  ndb_error(const NdbDictionary::Dictionary* dict, const char* fmt, ...) const
   {
     va_list args;
     char msg[MYSQL_ERRMSG_SIZE];
@@ -304,7 +302,7 @@ class Dummy_table_util
 
 
   void
-  remove_index_global(NdbDictionary::Dictionary* dict, const NdbDictionary::Index* index)
+  remove_index_global(NdbDictionary::Dictionary* dict, const NdbDictionary::Index* index) const
   {
     if (!index)
       return;
@@ -315,7 +313,7 @@ class Dummy_table_util
 
   bool
   resolve_dummy_fk(NdbDictionary::Dictionary* dict, NdbDictionary::ForeignKey& fk,
-                   const char* new_parent_name, const char* column_names[])
+                   const char* new_parent_name, const char* column_names[]) const
   {
     DBUG_ENTER("resolve_dummy_fk");
     DBUG_PRINT("info", ("new_parent_name: %s", new_parent_name));
@@ -340,7 +338,8 @@ class Dummy_table_util
         if (!col)
         {
           // Parent table didn't have any column with the given name, can happen
-          warn("Skip, parent didn't have all the referenced columns");
+          warn("Could not resolve '%s' as fk parent for '%s' since it didn't have "
+               "all the referenced columns", new_parent_name, fk.getChildTable());
           DBUG_RETURN(false);
         }
         columns[num_columns++]= col;
@@ -415,7 +414,7 @@ class Dummy_table_util
 
   void
   resolve_dummy(NdbDictionary::Dictionary* dict,
-                const char* new_parent_name, const char* dummy_name)
+                const char* new_parent_name, const char* dummy_name) const
   {
     DBUG_ENTER("resolve_dummy");
     DBUG_PRINT("enter", ("dummy_name '%s'", dummy_name));
@@ -491,7 +490,7 @@ class Dummy_table_util
 
   void
   resolve_dummies(NdbDictionary::Dictionary* dict,
-                  const char* new_parent_name)
+                  const char* new_parent_name) const
   {
     DBUG_ENTER("resolve_dummies");
     DBUG_PRINT("enter", ("new_parent_name: %s", new_parent_name));
