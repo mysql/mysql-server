@@ -117,6 +117,7 @@ extern void my_cleanup_options(const struct my_option *options);
 extern void my_cleanup_options(const struct my_option *options);
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
+extern void my_print_variables_ex(const struct my_option *options, FILE* file);
 extern void my_getopt_register_get_addr(my_getopt_value);
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,

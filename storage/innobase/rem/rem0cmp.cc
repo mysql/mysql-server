@@ -30,6 +30,7 @@ Created 7/1/1994 Heikki Tuuri
 #endif
 
 #include "ha_prototypes.h"
+
 #include "handler0alter.h"
 #include "srv0srv.h"
 

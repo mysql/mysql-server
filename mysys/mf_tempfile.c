@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,13 +59,13 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 		      myf MyFlags __attribute__((unused)))
 {
   File file= -1;
-#ifdef __WIN__
+#ifdef _WIN32
   TCHAR path_buf[MAX_PATH-14];
 #endif
 
   DBUG_ENTER("create_temp_file");
   DBUG_PRINT("enter", ("dir: %s, prefix: %s", dir, prefix));
-#if defined (__WIN__)
+#if defined(_WIN32)
 
    /*
      Use GetTempPath to determine path for temporary files.

@@ -38,21 +38,18 @@ extern "C" {
 #include <winsock2.h>				/* For windows */
 #endif
 typedef char my_bool;
-#if (defined(_WIN32) || defined(_WIN64)) && !defined(__WIN__)
-#define __WIN__
-#endif
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #define STDCALL
 #else
 #define STDCALL __stdcall
 #endif
 
 #ifndef my_socket_defined
-#ifdef __WIN__
+#ifdef _WIN32
 #define my_socket SOCKET
 #else
 typedef int my_socket;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 #endif /* my_socket_defined */
 #endif /* MY_GLOBAL_INCLUDED */
 
@@ -109,7 +106,7 @@ typedef unsigned int MYSQL_FIELD_OFFSET; /* offset to current field */
 #ifndef MY_GLOBAL_INCLUDED
 #if defined(NO_CLIENT_LONG_LONG)
 typedef unsigned long my_ulonglong;
-#elif defined (__WIN__)
+#elif defined (_WIN32)
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;

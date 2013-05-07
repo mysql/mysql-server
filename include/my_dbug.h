@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef MY_DBUG_INCLUDED
 #define MY_DBUG_INCLUDED
 
-#ifndef __WIN__
+#ifndef _WIN32
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -24,7 +24,7 @@
 #include <unistd.h>
 #endif
 #include <signal.h>
-#endif  /* not __WIN__ */
+#endif  /* not _WIN32 */
 
 #ifdef  __cplusplus
 extern "C" {
@@ -109,7 +109,7 @@ extern  const char* _db_get_func_(void);
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
-#ifndef __WIN__
+#ifndef _WIN32
 #define DBUG_ABORT()                    (_db_flush_(), abort())
 #else
 /*
@@ -140,7 +140,7 @@ extern  const char* _db_get_func_(void);
   An alternative would be to use _exit(EXIT_FAILURE),
   but then valgrind would report lots of memory leaks.
  */
-#ifdef __WIN__
+#ifdef _WIN32
 #define DBUG_SUICIDE() DBUG_ABORT()
 #else
 extern void _db_suicide_();
