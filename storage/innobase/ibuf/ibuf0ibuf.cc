@@ -4235,7 +4235,7 @@ ibuf_delete(
 	/* TODO: the below should probably be a separate function,
 	it's a bastardized version of btr_cur_optimistic_delete. */
 
-	if (page_get_n_recs(cur.getPage()) <= 1 || !cur.isDeleted()) {
+	if (page_get_n_recs(page) <= 1 || !cur.isDeleted()) {
 		/* Refuse to purge the last record or a
 		record that has not been marked for deletion. */
 		ib_logf(IB_LOG_LEVEL_ERROR,

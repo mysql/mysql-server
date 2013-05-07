@@ -377,19 +377,51 @@ public:
 	@param[in/out]	block	B-tree page
 	@param[in]	rec	B-tree record in block, NULL=page infimum */
 	PageCur(mtr_t* mtr, const dict_index_t* index,
-		const buf_block_t* block, const rec_t* rec = 0)
+		buf_block_t* block, rec_t* rec = 0)
 		: m_mtr (mtr), m_index (index),
+#ifdef UNIV_DEBUG
+		  m_const (false),
+#endif /* UNIV_DEBUG */
 		  m_comp (page_is_comp(buf_block_get_frame(block))),
 		  m_block (block), m_rec (rec), m_offsets (0) {
-		const page_t* page = buf_block_get_frame(m_block);
-
 		ut_ad(m_comp == dict_table_is_comp(m_index->table));
-		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+		ut_ad(fil_page_get_type(getPage()) == FIL_PAGE_INDEX);
 
 		if (!m_rec) {
-			m_rec = page + (m_comp
-					? PAGE_NEW_INFIMUM
-					: PAGE_OLD_INFIMUM);
+			m_rec = getPage() + (m_comp
+					     ? PAGE_NEW_INFIMUM
+					     : PAGE_OLD_INFIMUM);
+		}
+
+		ut_ad(page_align(m_rec) == getPage());
+		/* Directory slot 0 should only contain the infimum record. */
+		ut_ad(1 == page_dir_slot_get_n_owned(
+			      page_dir_get_nth_slot(getPage(), 0)));
+		ut_ad(!getPageZip() || isComp());
+	}
+
+	/** Constructor of const cursor
+	@param[in]	mtr	mini-transaction (for diagnostics)
+	@param[in]	index	B-tree index
+	@param[in]	block	B-tree page
+	@param[in]	rec	B-tree record in block, NULL=page infimum */
+	PageCur(mtr_t* mtr, const dict_index_t* index,
+		const buf_block_t* block, const rec_t* rec = 0)
+		: m_mtr (mtr), m_index (index),
+#ifdef UNIV_DEBUG
+		  m_const (true),
+#endif /* UNIV_DEBUG */
+		  m_comp (page_is_comp(buf_block_get_frame(block))),
+		  m_block (const_cast<buf_block_t*>(block)),
+		  m_rec (const_cast<rec_t*>(rec)),
+		  m_offsets (0) {
+		ut_ad(m_comp == dict_table_is_comp(m_index->table));
+		ut_ad(fil_page_get_type(getPage()) == FIL_PAGE_INDEX);
+
+		if (!m_rec) {
+			m_rec = getPage() + (m_comp
+					     ? PAGE_NEW_INFIMUM
+					     : PAGE_OLD_INFIMUM);
 		}
 
 		ut_ad(page_align(m_rec) == getPage());
@@ -402,6 +434,9 @@ public:
 	/** Copy constructor */
 	PageCur(const PageCur& other)
 		: m_mtr (other.m_mtr), m_index (other.m_index),
+#ifdef UNIV_DEBUG
+		  m_const (other.m_const),
+#endif /* UNIV_DEBUG */
 		  m_comp (other.m_comp), m_block (other.m_block),
 		  m_rec (other.m_rec), m_offsets (0) {
 		ut_ad(m_rec);
@@ -415,19 +450,10 @@ public:
 	/** Destructor */
 	~PageCur() { delete[] m_offsets; }
 
-	/** Get the mini-transaction */
-	mtr_t* getMtr() const { return(m_mtr); }
 	/** Get the B-tree page. */
 	const buf_block_t* getBlock() const { return(m_block); }
-	/** Get the B-tree page frame. */
-	const page_t* getPage() const { return(buf_block_get_frame(m_block)); }
-	/** Get the compressed page frame, or NULL if uncompressed table */
-	const page_zip_des_t* getPageZip() const {
-		return(buf_block_get_page_zip(m_block));
-	}
 	/** Get the index. */
 	const dict_index_t* getIndex() const { return(m_index); }
-
 	/** Get the record */
 	const rec_t* getRec() const {
 		ut_ad(m_rec);
@@ -486,13 +512,13 @@ public:
 		ut_ad(page_align(rec) == buf_block_get_frame(m_block));
 
 		if (!getOffsetsIfExist()) {
-			m_rec = rec;
+			m_rec = const_cast<rec_t*>(rec);
 		} else if (page_rec_is_user_rec(rec)) {
 			bool wasSentinel = !isUser();
-			m_rec = rec;
+			m_rec = const_cast<rec_t*>(rec);
 			adjustOffsets(wasSentinel);
 		} else {
-			m_rec = rec;
+			m_rec = const_cast<rec_t*>(rec);
 			adjustSentinelOffsets();
 		}
 	}
@@ -503,10 +529,10 @@ public:
 		ut_ad(page_rec_is_user_rec(rec));
 
 		if (!getOffsetsIfExist()) {
-			m_rec = rec;
+			m_rec = const_cast<rec_t*>(rec);
 		} else {
 			bool wasSentinel = !isUser();
-			m_rec = rec;
+			m_rec = const_cast<rec_t*>(rec);
 			adjustOffsets(wasSentinel);
 		}
 	}
@@ -541,7 +567,7 @@ public:
 	bool next() {
 		bool wasSentinel = isBeforeFirst();
 		ut_ad(!isAfterLast());
-		m_rec = page_rec_get_next_const(m_rec);
+		m_rec = page_rec_get_next(m_rec);
 
 		if (!m_offsets) {
 			return(!isAfterLast());
@@ -559,7 +585,7 @@ public:
 	bool prev() {
 		bool wasSentinel = isAfterLast();
 		ut_ad(!isBeforeFirst());
-		m_rec = page_rec_get_prev_const(m_rec);
+		m_rec = page_rec_get_prev(m_rec);
 
 		if (!m_offsets) {
 			return(!isBeforeFirst());
@@ -587,19 +613,13 @@ public:
 	@param[in]	deleted	true=deleted, false=not deleted */
 	void flagDeleted(bool deleted) {
 		ut_ad(isUser());
-		ut_ad(!m_mtr || mtr_memo_contains(m_mtr, m_block,
-						  MTR_MEMO_PAGE_X_FIX));
-
-		page_zip_des_t*	page_zip	= buf_block_get_page_zip(
-			const_cast<buf_block_t*>(m_block));
+		ut_ad(isMutable());
 
 		if (isComp()) {
-			rec_set_deleted_flag_new(
-				const_cast<rec_t*>(m_rec), page_zip, deleted);
+			rec_set_deleted_flag_new(m_rec, getPageZip(), deleted);
 		} else {
-			ut_ad(!page_zip);
-			rec_set_deleted_flag_old(
-				const_cast<rec_t*>(m_rec), deleted);
+			ut_ad(!getPageZip());
+			rec_set_deleted_flag_old(m_rec, deleted);
 		}
 	}
 
@@ -660,11 +680,71 @@ public:
 	}
 
 private:
+#ifdef UNIV_DEBUG
+	/** Check if the cursor allows data modification. */
+	bool isMutable() const {
+		 ut_ad(!m_const || !m_mtr
+		       || mtr_memo_contains(
+			       m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
+		 return(!m_const);
+	}
+#endif /* UNIV_DEBUG */
+	/** Get the B-tree page frame. */
+	page_t* getPage() const { return(buf_block_get_frame(m_block)); }
+	/** Get the compressed page frame, or NULL if uncompressed table */
+	page_zip_des_t* getPageZip() const {
+		return(buf_block_get_page_zip(m_block));
+	}
+
 	/** Assignment operator */
 	PageCur& operator=(const PageCur&);
 	/** Initialize a page cursor, either to rec or the page infimum.
 	Allocates and initializes offsets[]. */
 	void init(void);
+
+	/** Insert an entry after the current cursor position
+	into a compressed page, recompressing the page.
+	The cursor stays at the same position.
+	@param[in]	rec		record to insert
+	@param[in]	extra_size	size of record header, in bytes
+	@param[in]	data_size	size of record payload, in bytes
+	@param[in]	reorg_first	whether to reorganize before inserting
+	@return	inserted record; NULL if out of space */
+	inline const rec_t* insertZip(
+		const rec_t*	rec,
+		ulint		extra_size,
+		ulint		data_size,
+		bool		reorg_first);
+
+	/** Insert an entry after the current cursor position
+	without reorganizing the page.
+	The cursor stays at the same position.
+	@param[in]	rec		record to insert
+	@param[in]	extra_size	size of record header, in bytes
+	@param[in]	data_size	size of record payload, in bytes
+	@return	inserted record; NULL if out of space */
+	inline const rec_t* insertNoReorganize(
+		const rec_t*	rec,
+		ulint		extra_size,
+		ulint		data_size);
+
+	/** Insert an entry after the current cursor position.
+	The cursor stays at the same position.
+	@param[out]	insert_buf	storage for the inserted record
+	@param[in]	free_rec	record from which insert_buf was
+	allocated; NULL if not from the PAGE_FREE list
+	@param[in]	heap_no		heap_no of the inserted record
+	@param[in]	rec		record to insert
+	@param[in]	extra_size	size of record header, in bytes
+	@param[in]	data_size	size of record payload, in bytes
+	@return	pointer to record if enough space available, NULL otherwise */
+	inline const rec_t* insert(
+		byte*		insert_buf,
+		const byte*	free_rec,
+		ulint		heap_no,
+		const rec_t*	rec,
+		ulint		extra_size,
+		ulint		data_size);
 
 #ifdef PAGE_CUR_ADAPT
 	/** Try a search shortcut based on the last insert.
@@ -723,12 +803,16 @@ recalc:
 	mtr_t*				m_mtr;
 	/** The index B-tree */
 	const dict_index_t*const	m_index;
+#ifdef UNIV_DEBUG
+	/** Flag: is this a read-only cursor? */
+	const bool			m_const;
+#endif /* UNIV_DEBUG */
 	/** Flag: is the page in other format than ROW_FORMAT=COMPACT? */
 	const bool			m_comp;
 	/** The page the cursor is positioned on */
-	const buf_block_t*		m_block;
+	buf_block_t*			m_block;
 	/** Cursor position (current record) */
-	const rec_t*			m_rec;
+	rec_t*				m_rec;
 	/** Offsets to the record fields. NULL for ROW_FORMAT=REDUNDANT. */
 	ulint*				m_offsets;
 };
