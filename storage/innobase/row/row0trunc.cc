@@ -565,6 +565,11 @@ row_truncate_update_system_tables(
 			table->id = id;
 
 			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+
+			/* TODO: Revist the flow. As per existing flow trx
+			that is used for dropping of fts table is committed so
+			that action of dropping FTS table is committed. */
+			trx_commit_for_mysql(trx);
 		}
 
 		err = DB_ERROR;
@@ -575,6 +580,9 @@ row_truncate_update_system_tables(
 			fts_drop_tables(trx, table);
 			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 		}
+
+		DBUG_EXECUTE_IF("ib_crash_after_fts_drop",
+				DBUG_SUICIDE(););
 
 		dict_table_change_id_in_cache(table, new_id);
 
