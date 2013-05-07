@@ -6,70 +6,76 @@ set global innodb_file_per_table = on;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
-engine=innodb row_format=compact
-key_block_size=NUMBER;
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_assigning_undo_log";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_assigning_undo_log";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "2. Error while preparing for truncate."
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
-engine=innodb row_format=compact
-key_block_size=NUMBER;
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_preparing_for_truncate";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_preparing_for_truncate";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "3. Error while dropping/creating indexes"
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
-engine=innodb row_format=compact
-key_block_size=NUMBER;
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_drop_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -80,18 +86,20 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
-engine=innodb row_format=compact
-key_block_size=NUMBER;
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_create_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -103,21 +111,21 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), fulltext index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
 key_block_size=NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_fts_trunc";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -129,21 +137,21 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
 key_block_size=NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t order by i;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_sys_table_update";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -161,73 +169,79 @@ set global innodb_file_per_table = on;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
-engine=innodb row_format=compact
-key_block_size=NUMBER;
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_assigning_undo_log";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_assigning_undo_log";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "2. Error while preparing for truncate."
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
-engine=innodb row_format=compact
-key_block_size=NUMBER;
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_preparing_for_truncate";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_preparing_for_truncate";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "3. Error while dropping/creating indexes"
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
-engine=innodb row_format=compact
-key_block_size=NUMBER;
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_drop_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -238,19 +252,21 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
-engine=innodb row_format=compact
-key_block_size=NUMBER;
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_create_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -262,22 +278,22 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), fulltext index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
 key_block_size=NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_fts_trunc";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -289,22 +305,22 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
 key_block_size=NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t order by i;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_sys_table_update";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -322,61 +338,67 @@ set global innodb_file_per_table = on;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_assigning_undo_log";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_assigning_undo_log";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "2. Error while preparing for truncate."
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_preparing_for_truncate";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_preparing_for_truncate";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "3. Error while dropping/creating indexes"
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_drop_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -387,15 +409,17 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_create_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -407,18 +431,18 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), fulltext index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
 key_block_size=NUMBER;
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_fts_trunc";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -430,18 +454,18 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
 key_block_size=NUMBER;
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t order by i;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_sys_table_update";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -459,61 +483,67 @@ set global innodb_file_per_table = on;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_assigning_undo_log";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_assigning_undo_log";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "2. Error while preparing for truncate."
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_preparing_for_truncate";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_preparing_for_truncate";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "3. Error while dropping/creating indexes"
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_drop_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -524,15 +554,17 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_create_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -544,18 +576,18 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), fulltext index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
 key_block_size=NUMBER;
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_fts_trunc";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -567,18 +599,18 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
 key_block_size=NUMBER;
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t order by i;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_sys_table_update";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -596,61 +628,67 @@ set global innodb_file_per_table = on;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_assigning_undo_log";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_assigning_undo_log";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "2. Error while preparing for truncate."
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_preparing_for_truncate";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_preparing_for_truncate";
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 drop table t;
 "3. Error while dropping/creating indexes"
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_drop_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -661,15 +699,17 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine=innodb row_format=compressed
-key_block_size=NUMBER;
-insert into t values (1), (2), (3);
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = NUMBER;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 set session debug = "+d,ib_err_trunc_create_index";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -681,18 +721,18 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), fulltext index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
 key_block_size=NUMBER;
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_fts_trunc";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
@@ -704,18 +744,18 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, c char(NUMBER),
-primary key pk(i), index ck(c))
+create  table t (i int, f float, c char(NUMBER),
+primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
 key_block_size=NUMBER;
-insert into t values (1, 'mysql is now oracle company'),
-(2, 'innodb is part of mysql'),
-(3, 'innodb is default storage engine of mysql');
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t order by i;
-i	c
-1	mysql is now oracle company
-2	innodb is part of mysql
-3	innodb is default storage engine of mysql
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
 set session debug = "+d,ib_err_trunc_during_sys_table_update";
 truncate table t;
 ERROR HY000: Got error -1 from storage engine
