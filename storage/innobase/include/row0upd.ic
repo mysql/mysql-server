@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,31 +87,19 @@ upd_get_nth_field(
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************//**
-Sets an index field number to be updated by an update vector field. */
+/** Sets an index field number to be updated by an update vector field.
+@param[out]	upd_field	update vector field
+@param[in]	field_no	field number in an index
+@param[in]	index		B-tree index */
 UNIV_INLINE
 void
 upd_field_set_field_no(
-/*===================*/
-	upd_field_t*	upd_field,	/*!< in: update vector field */
-	ulint		field_no,	/*!< in: field number in a clustered
-					index */
-	dict_index_t*	index,		/*!< in: index */
-	trx_t*		trx)		/*!< in: transaction */
+	upd_field_t*		upd_field,
+	ulint			field_no,
+	const dict_index_t*	index)
 {
 	upd_field->field_no = field_no;
 	upd_field->orig_len = 0;
-
-	if (field_no >= dict_index_get_n_fields(index)) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to access field %lu in ",
-			(ulong) field_no);
-		dict_index_name_print(stderr, trx, index);
-		fprintf(stderr, "\n"
-			"InnoDB: but index only has %lu fields\n",
-			(ulong) dict_index_get_n_fields(index));
-		ut_ad(0);
-	}
 
 	dict_col_copy_type(dict_index_get_nth_col(index, field_no),
 			   dfield_get_type(&upd_field->new_val));

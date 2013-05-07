@@ -409,48 +409,39 @@ row_upd_index_entry_sys_field(
 	}
 }
 
-/***********************************************************//**
-Returns TRUE if row update changes size of some field in index or if some
-field to be updated is stored externally in rec or update.
-@return TRUE if the update changes the size of some field in index or
+/** Determines if a row update changes the size of some fields
+or if any updated field is stored externally.
+@param[in]	index	B-tree index
+@param[in]	offsets	rec_get_offsets(rec, index)
+@param[in]	update	update vector
+@return true if the update changes the size of some field in index or
 the field is external in rec or update */
 UNIV_INTERN
-ibool
+bool
 row_upd_changes_field_size_or_external(
-/*===================================*/
-	dict_index_t*	index,	/*!< in: index */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	const upd_t*	update)	/*!< in: update vector */
+	const dict_index_t*	index,
+	const ulint*		offsets,
+	const upd_t*		update)
 {
-	const upd_field_t*	upd_field;
-	const dfield_t*		new_val;
-	ulint			old_len;
-	ulint			new_len;
-	ulint			n_fields;
-	ulint			i;
-
 	ut_ad(rec_offs_validate(NULL, index, offsets));
-	n_fields = upd_get_n_fields(update);
 
-	for (i = 0; i < n_fields; i++) {
-		upd_field = upd_get_nth_field(update, i);
+	const ulint n_fields = upd_get_n_fields(update);
 
-		new_val = &(upd_field->new_val);
-		new_len = dfield_get_len(new_val);
-
-		if (dfield_is_null(new_val) && !rec_offs_comp(offsets)) {
-			/* A bug fixed on Dec 31st, 2004: we looked at the
-			SQL NULL size from the wrong field! We may backport
-			this fix also to 4.0. The merge to 5.0 will be made
-			manually immediately after we commit this to 4.1. */
-
-			new_len = dict_col_get_sql_null_size(
+	for (ulint i = 0; i < n_fields; i++) {
+		const upd_field_t*	upd_field
+			= upd_get_nth_field(update, i);
+		const dfield_t*		new_val
+			= &upd_field->new_val;
+		const ulint		new_len
+			= dfield_is_null(new_val) && !rec_offs_comp(offsets)
+			? dict_col_get_sql_null_size(
 				dict_index_get_nth_col(index,
 						       upd_field->field_no),
-				0);
-		}
+				0)
+			: dfield_get_len(new_val);
 
-		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
+		ulint			old_len
+			= rec_offs_nth_size(offsets, upd_field->field_no);
 
 		if (rec_offs_comp(offsets)
 		    && rec_offs_nth_sql_null(offsets,
@@ -468,11 +459,11 @@ row_upd_changes_field_size_or_external(
 		if (dfield_is_ext(new_val) || old_len != new_len
 		    || rec_offs_nth_extern(offsets, upd_field->field_no)) {
 
-			return(TRUE);
+			return(true);
 		}
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /***********************************************************//**
@@ -785,44 +776,48 @@ row_upd_index_parse(
 }
 
 #ifndef UNIV_HOTBACKUP
-/***************************************************************//**
-Builds an update vector from those fields which in a secondary index entry
+/** Build an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
 the fields as binary strings!
+@param[in]	rec	secondary index record
+@param[in]	index	secondary index
+@param[in]	offsets	rec_get_offsets(rec, index), or NULL for REDUNDANT
+@param[in]	entry	entry to insert
+@param[in/out]	heap	memory heap for allocating the update vector
 @return	own: update vector of differing fields */
 UNIV_INTERN
 upd_t*
 row_upd_build_sec_rec_difference_binary(
-/*====================================*/
-	const rec_t*	rec,	/*!< in: secondary index record */
-	dict_index_t*	index,	/*!< in: index */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	const ulint*		offsets,
+	const dtuple_t*		entry,
+	mem_heap_t*		heap)
 {
-	upd_field_t*	upd_field;
-	const dfield_t*	dfield;
-	const byte*	data;
-	ulint		len;
-	upd_t*		update;
-	ulint		n_diff;
-	ulint		i;
-
 	/* This function is used only for a secondary index */
 	ut_a(!dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_ad(rec_offs_n_fields(offsets) == dtuple_get_n_fields(entry));
-	ut_ad(!rec_offs_any_extern(offsets));
+	ut_ad(page_is_leaf(page_align(rec)));
+	ut_ad(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
+	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
+	ut_ad(offsets || !page_rec_is_comp(rec));
+	ut_ad(!offsets || dtuple_get_n_fields(entry)
+	      == rec_offs_n_fields(offsets));
+	ut_ad(!offsets || !rec_offs_any_extern(offsets));
 
-	update = upd_create(dtuple_get_n_fields(entry), heap);
+	upd_t* update = upd_create(dtuple_get_n_fields(entry), heap);
+	update->n_fields = 0;
 
-	n_diff = 0;
+	for (ulint i = 0; i < dtuple_get_n_fields(entry); i++) {
+		const byte*	data;
+		ulint		len;
 
-	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
+		if (offsets) {
+			data = rec_get_nth_field(rec, offsets, i, &len);
+		} else {
+			data = rec_get_nth_field_old(rec, i, &len);
+		}
 
-		data = rec_get_nth_field(rec, offsets, i, &len);
-
-		dfield = dtuple_get_nth_field(entry, i);
+		const dfield_t* dfield = dtuple_get_nth_field(entry, i);
 
 		/* NOTE that it may be that len != dfield_get_len(dfield) if we
 		are updating in a character set and collation where strings of
@@ -836,100 +831,143 @@ row_upd_build_sec_rec_difference_binary(
 		(No collation) */
 
 		if (!dfield_data_is_binary_equal(dfield, len, data)) {
-
-			upd_field = upd_get_nth_field(update, n_diff);
-
-			dfield_copy(&(upd_field->new_val), dfield);
-
-			upd_field_set_field_no(upd_field, i, index, NULL);
-
-			n_diff++;
+			upd_field_t* upd_field = upd_get_nth_field(
+				update, update->n_fields++);
+			dfield_copy(&upd_field->new_val, dfield);
+			upd_field_set_field_no(upd_field, i, index);
 		}
 	}
 
-	update->n_fields = n_diff;
-
+	ut_ad(update->n_fields <= dtuple_get_n_fields(entry));
 	return(update);
 }
 
-/***************************************************************//**
-Builds an update vector from those fields, excluding the roll ptr and
-trx id fields, which in an index entry differ from a record that has
-the equal ordering fields. NOTE: we compare the fields as binary strings!
-@return own: update vector of differing fields, excluding roll ptr and
-trx id */
+/** Builds an update vector from those fields which in an index entry
+differ from a record that has the equal ordering fields. NOTE: we
+compare the fields as binary strings!
+@param[in]	index	clustered index
+@param[in]	entry	entry to insert
+@param[in]	rec	clustered index leaf page record
+@param[in]	offsets	rec_get_offsets(rec, index), or NULL
+@param[in]	no_sys	whether to exclude DB_TRX_ID, DB_ROLL_PTR
+@param[in/out]	heap	memory heap for allocating the update vector
+@return own: update vector of differing fields */
 UNIV_INTERN
 const upd_t*
 row_upd_build_difference_binary(
-/*============================*/
-	dict_index_t*	index,	/*!< in: clustered index */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
-	const rec_t*	rec,	/*!< in: clustered index record */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index), or NULL */
-	bool		no_sys,	/*!< in: skip the system columns
-				DB_TRX_ID and DB_ROLL_PTR */
-	trx_t*		trx,	/*!< in: transaction */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	const dict_index_t*	index,
+	const dtuple_t*		entry,
+	const rec_t*		rec,
+	const ulint*		offsets,
+	bool			no_sys,
+	mem_heap_t*		heap)
 {
-	upd_field_t*	upd_field;
-	const dfield_t*	dfield;
-	const byte*	data;
-	ulint		len;
-	upd_t*		update;
-	ulint		n_diff;
-	ulint		trx_id_pos;
-	ulint		i;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	rec_offs_init(offsets_);
-
 	/* This function is used only for a clustered index */
-	ut_a(dict_index_is_clust(index));
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
+	ut_ad(offsets || !page_rec_is_comp(rec));
+	ut_ad(page_is_leaf(page_align(rec)));
 
-	update = upd_create(dtuple_get_n_fields(entry), heap);
+	const ulint	trx_id_pos
+		= no_sys
+		? dict_index_get_sys_col_pos(index, DATA_TRX_ID)
+		: ULINT_UNDEFINED - 1;
+	upd_t*		update
+		= upd_create(dtuple_get_n_fields(entry), heap);
+	update->n_fields = 0;
 
-	n_diff = 0;
+	ut_ad(!no_sys || trx_id_pos + 1
+	      == dict_index_get_sys_col_pos(index, DATA_ROLL_PTR));
 
-	trx_id_pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-	ut_ad(dict_index_get_sys_col_pos(index, DATA_ROLL_PTR)
-	      == trx_id_pos + 1);
+	if (offsets) {
+		for (ulint i = 0; i < dtuple_get_n_fields(entry); i++) {
+			if (i - trx_id_pos <= 1) {
+				continue;
+			}
 
-	if (!offsets) {
-		offsets = rec_get_offsets(rec, index, offsets_,
-					  ULINT_UNDEFINED, &heap);
+			const dfield_t*	dfield;
+			const byte*	data;
+			ulint		len;
+
+			data = rec_get_nth_field(rec, offsets, i, &len);
+			dfield = dtuple_get_nth_field(entry, i);
+
+			/* NOTE: we compare the fields as binary strings!
+			(No collation) */
+
+			if (!dfield_is_ext(dfield)
+			    != !rec_offs_nth_extern(offsets, i)
+			    || !dfield_data_is_binary_equal(
+				    dfield, len, data)) {
+				upd_field_t*	upd_field = upd_get_nth_field(
+					update, update->n_fields++);
+				dfield_copy(&upd_field->new_val, dfield);
+				upd_field_set_field_no(upd_field, i, index);
+			}
+		}
+	} else if (rec_get_1byte_offs_flag(rec)) {
+		for (ulint i = 0; i < dtuple_get_n_fields(entry); i++) {
+			if (i - trx_id_pos <= 1) {
+				continue;
+			}
+
+			const byte*	data
+				= rec + rec_1_get_field_start_offs(rec, i);
+			const ulint	next_os
+				= rec_1_get_field_end_info(rec, i);
+			const ulint	len
+				= (next_os & REC_1BYTE_SQL_NULL_MASK)
+				? UNIV_SQL_NULL
+				: (next_os + data - rec);
+			const dfield_t*	dfield
+				= dtuple_get_nth_field(entry, i);
+
+			/* NOTE: we compare the fields as binary strings!
+			(No collation) */
+
+			if (dfield_is_ext(dfield)
+			    || !dfield_data_is_binary_equal(
+				    dfield, len, data)) {
+				upd_field_t*	upd_field = upd_get_nth_field(
+					update, update->n_fields++);
+				dfield_copy(&upd_field->new_val, dfield);
+				upd_field_set_field_no(upd_field, i, index);
+			}
+		}
 	} else {
-		ut_ad(rec_offs_validate(rec, index, offsets));
+		for (ulint i = 0; i < dtuple_get_n_fields(entry); i++) {
+			if (i - trx_id_pos <= 1) {
+				continue;
+			}
+
+			const byte*	data
+				= rec + rec_2_get_field_start_offs(rec, i);
+			const ulint	next_os
+				= rec_2_get_field_end_info(rec, i);
+			const ulint	len
+				= (next_os & REC_2BYTE_SQL_NULL_MASK)
+				? UNIV_SQL_NULL
+				: ((next_os & ~REC_2BYTE_EXTERN_MASK)
+				   + data - rec);
+			const dfield_t*	dfield
+				= dtuple_get_nth_field(entry, i);
+
+			/* NOTE: we compare the fields as binary strings!
+			(No collation) */
+
+			if (!dfield_is_ext(dfield)
+			    != !(next_os & REC_2BYTE_EXTERN_MASK)
+			    || !dfield_data_is_binary_equal(
+				    dfield, len, data)) {
+				upd_field_t*	upd_field = upd_get_nth_field(
+					update, update->n_fields++);
+				dfield_copy(&upd_field->new_val, dfield);
+				upd_field_set_field_no(upd_field, i, index);
+			}
+		}
 	}
 
-	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
-
-		data = rec_get_nth_field(rec, offsets, i, &len);
-
-		dfield = dtuple_get_nth_field(entry, i);
-
-		/* NOTE: we compare the fields as binary strings!
-		(No collation) */
-
-		if (no_sys && (i == trx_id_pos || i == trx_id_pos + 1)) {
-
-			continue;
-		}
-
-		if (!dfield_is_ext(dfield)
-		    != !rec_offs_nth_extern(offsets, i)
-		    || !dfield_data_is_binary_equal(dfield, len, data)) {
-
-			upd_field = upd_get_nth_field(update, n_diff);
-
-			dfield_copy(&(upd_field->new_val), dfield);
-
-			upd_field_set_field_no(upd_field, i, index, trx);
-
-			n_diff++;
-		}
-	}
-
-	update->n_fields = n_diff;
-
+	ut_ad(update->n_fields <= dtuple_get_n_fields(entry));
 	return(update);
 }
 
