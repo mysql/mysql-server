@@ -1462,7 +1462,6 @@ os_file_set_nocache(
 #endif
 static int os_file_set_atomic_writes(os_file_t file, const char *name) 
 {
-	static int first_time = 1;
 	int atomic_option = 1;
 
 	int ret = ioctl (file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic_option);
@@ -2138,7 +2137,7 @@ os_file_set_size(
 		 	"InnoDB: Error: preallocating data for"
 			" file %s failed at\n"
 			"InnoDB: offset 0 size %lld %lld. Operating system"
-			" error number %llu.\n"
+			" error number %d.\n"
 			"InnoDB: Check that the disk is not full"
 			" or a disk quota exceeded.\n"
 			"InnoDB: Some operating system error numbers"

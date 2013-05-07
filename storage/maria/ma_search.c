@@ -424,9 +424,9 @@ int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
     flag is the value returned by ha_key_cmp and as treated as final
   */
   int flag=0, my_flag=-1;
-  uint nod_flag, length, len, matched, cmplen, kseg_len;
-  uint page_flag, prefix_len,suffix_len;
-  int key_len_skip, seg_len_pack, key_len_left;
+  uint nod_flag, UNINIT_VAR(length), len, matched, cmplen, kseg_len;
+  uint page_flag, UNINIT_VAR(prefix_len),suffix_len;
+  int key_len_skip, UNINIT_VAR(seg_len_pack), key_len_left;
   uchar *end, *vseg, *UNINIT_VAR(saved_vseg), *UNINIT_VAR(saved_from);
   uchar *page;
   uchar tt_buff[MARIA_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
@@ -438,10 +438,6 @@ int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
   MARIA_SHARE *share= keyinfo->share;
   const uchar *sort_order= keyinfo->seg->charset->sort_order;
   DBUG_ENTER("_ma_prefix_search");
-
-  LINT_INIT(seg_len_pack);
-  LINT_INIT(prefix_len);
-  LINT_INIT(length);
 
   t_buff[0]=0;                                  /* Avoid bugs */
   page_flag=   ma_page->flag;
