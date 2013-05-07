@@ -21,7 +21,7 @@
 #include "event_queue.h"
 #include "event_db_repository.h"
 #include "sql_connect.h"         // init_new_connection_handler_thread
-#include "sql_acl.h"             // SUPER_ACL
+#include "auth_common.h"             // SUPER_ACL
 #include "global_threads.h"
 #include "log.h"
 

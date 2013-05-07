@@ -29,7 +29,7 @@
 #include "sql_optimizer.h"
 #include "opt_trace.h"
 #include "sql_base.h"
-#include "sql_acl.h"
+#include "auth_common.h"
 #include "opt_explain_format.h"
 
 static void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,

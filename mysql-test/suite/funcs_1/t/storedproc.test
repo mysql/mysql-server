@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # suite/funcs_1/t/storedproc.test
 #
 # Check general properties of stored procedures.
@@ -31,8 +26,9 @@ if(`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64")`)
 --source include/not_embedded.inc
 
 # It is assumed that the storage engine used for some tables has no impact on
-# the outcome of this test. Therefor we use simply the fastest engine.
-let $engine_type= memory;
+# the outcome of this test.
+--source include/have_innodb.inc
+let $engine_type= InnoDB;
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 

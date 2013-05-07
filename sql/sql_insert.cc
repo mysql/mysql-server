@@ -29,7 +29,7 @@
 #include "sp_head.h"
 #include "sql_view.h"         // check_key_in_view, insert_view_fields
 #include "sql_table.h"        // mysql_create_table_no_lock
-#include "sql_acl.h"          // *_ACL, check_grant_all_columns
+#include "auth_common.h"      // *_ACL, check_grant_all_columns
 #include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"
@@ -2227,7 +2227,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     {
       Field *from_field, *default_field;
       tmp_table_field= create_tmp_field(thd, &tmp_table, item, item->type(),
-                                        (Item ***) NULL,
+                                        NULL,
                                         &from_field, &default_field,
                                         false, false, false, false);
     }

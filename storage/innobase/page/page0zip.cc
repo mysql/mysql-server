@@ -2886,10 +2886,10 @@ Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
 @return	TRUE on success, FALSE on failure */
-UNIV_INTERN
+static
 ibool
-page_zip_decompress(
-/*================*/
+page_zip_decompress_low(
+/*====================*/
 	page_zip_des_t*	page_zip,/*!< in: data, ssize;
 				out: m_start, m_end, m_nonempty, n_blobs */
 	page_t*		page,	/*!< out: uncompressed page, may be trashed */
@@ -2905,9 +2905,6 @@ page_zip_decompress(
 	ulint		trx_id_col = ULINT_UNDEFINED;
 	mem_heap_t*	heap;
 	ulint*		offsets;
-#ifndef UNIV_HOTBACKUP
-	ullint		usec = ut_time_us(NULL);
-#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(page_zip_simple_validate(page_zip));
 	UNIV_MEM_ASSERT_W(page, UNIV_PAGE_SIZE);
@@ -3090,6 +3087,35 @@ err_exit:
 
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
+
+	return(TRUE);
+}
+
+/**********************************************************************//**
+Decompress a page.  This function should tolerate errors on the compressed
+page.  Instead of letting assertions fail, it will return FALSE if an
+inconsistency is detected.
+@return	TRUE on success, FALSE on failure */
+UNIV_INTERN
+ibool
+page_zip_decompress(
+/*================*/
+	page_zip_des_t*	page_zip,/*!< in: data, ssize;
+				out: m_start, m_end, m_nonempty, n_blobs */
+	page_t*		page,	/*!< out: uncompressed page, may be trashed */
+	ibool		all)	/*!< in: TRUE=decompress the whole page;
+				FALSE=verify but do not copy some
+				page header fields that should not change
+				after page creation */
+{
+#ifndef UNIV_HOTBACKUP
+	ullint		usec = ut_time_us(NULL);
+#endif /* !UNIV_HOTBACKUP */
+
+	if (!page_zip_decompress_low(page_zip, page, all)) {
+		return(FALSE);
+	}
+
 #ifndef UNIV_HOTBACKUP
 	ullint	time_diff = ut_time_us(NULL) - usec;
 	page_zip_stat[page_zip->ssize - 1].decompressed++;
@@ -3214,7 +3240,7 @@ page_zip_validate_low(
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	temp_page_zip = *page_zip;
-	valid = page_zip_decompress(&temp_page_zip, temp_page, TRUE);
+	valid = page_zip_decompress_low(&temp_page_zip, temp_page, TRUE);
 	if (!valid) {
 		fputs("page_zip_validate(): failed to decompress\n", stderr);
 		goto func_exit;
