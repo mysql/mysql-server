@@ -61,6 +61,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0import.h"
 #include "m_string.h"
 #include "my_sys.h"
+#include "ha_prototypes.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -328,7 +329,6 @@ row_mysql_store_geometry(
 		String  res;
 		Geometry_buffer buffer;
 		String  wkt;
-		const char* end;
 
 		/** Show the meaning of geometry data. */
 		Geometry* g = Geometry::construct(&buffer,
@@ -337,7 +337,7 @@ row_mysql_store_geometry(
 
 		if (g)
 		{
-			if (g->as_wkt(&wkt, &end) == 0)
+			if (g->as_wkt(&wkt) == 0)
 			{
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Write geometry data to"
@@ -370,7 +370,6 @@ row_mysql_read_geometry(
 		String  res;
 		Geometry_buffer buffer;
 		String  wkt;
-		const char* end;
 
 		/** Show the meaning of geometry data. */
 		Geometry* g = Geometry::construct(&buffer,
@@ -379,7 +378,7 @@ row_mysql_read_geometry(
 
 		if (g)
 		{
-			if (g->as_wkt(&wkt, &end) == 0)
+			if (g->as_wkt(&wkt) == 0)
 			{
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Read geometry data in"
@@ -2384,15 +2383,7 @@ err_exit:
 		if (dict_table_open_on_name(table->name, TRUE, FALSE,
 					    DICT_ERR_IGNORE_NONE)) {
 
-			/* Make things easy for the drop table code. */
-
-			if (table->can_be_evicted) {
-				dict_table_move_from_lru_to_non_lru(table);
-			}
-
-			dict_table_close(table, TRUE, FALSE);
-
-			row_drop_table_for_mysql(table->name, trx, FALSE);
+			dict_table_close_and_drop(trx, table);
 
 			if (commit) {
 				trx_commit_for_mysql(trx);
@@ -4064,12 +4055,7 @@ row_drop_table_for_mysql(
 		}
 	}
 
-	/* Move the table the the non-LRU list so that it isn't
-	considered for eviction. */
-
-	if (table->can_be_evicted) {
-		dict_table_move_from_lru_to_non_lru(table);
-	}
+	dict_table_prevent_eviction(table);
 
 	dict_table_close(table, TRUE, FALSE);
 
@@ -4217,8 +4203,9 @@ check_next_foreign:
 	case TRX_DICT_OP_INDEX:
 		/* If the transaction was previously flagged as
 		TRX_DICT_OP_INDEX, we should be dropping auxiliary
-		tables for full-text indexes. */
-		ut_ad(strstr(table->name, "/FTS_") != NULL);
+		tables for full-text indexes or temp tables. */
+		ut_ad(strstr(table->name, "/FTS_") != NULL
+		      || strstr(table->name, TEMP_FILE_PREFIX_INNODB) != NULL);
 	}
 
 	/* Mark all indexes unavailable in the data dictionary cache
@@ -4863,7 +4850,7 @@ row_is_mysql_tmp_table_name(
 	const char*	name)	/*!< in: table name in the form
 				'database/tablename' */
 {
-	return(strstr(name, "/#sql") != NULL);
+	return(strstr(name, "/" TEMP_FILE_PREFIX) != NULL);
 	/* return(strstr(name, "/@0023sql") != NULL); */
 }
 
@@ -5099,11 +5086,28 @@ row_rename_table_for_mysql(
 
 	if (!new_is_tmp) {
 		/* Rename all constraints. */
+		char	new_table_name[MAX_TABLE_NAME_LEN] = "";
+		uint	errors = 0;
 
 		info = pars_info_create();
 
 		pars_info_add_str_literal(info, "new_table_name", new_name);
 		pars_info_add_str_literal(info, "old_table_name", old_name);
+
+		strncpy(new_table_name, new_name, MAX_TABLE_NAME_LEN);
+		innobase_convert_to_system_charset(
+			strchr(new_table_name, '/') + 1,
+			strchr(new_name, '/') +1,
+			MAX_TABLE_NAME_LEN, &errors);
+
+		if (errors) {
+			/* Table name could not be converted from charset
+			my_charset_filename to UTF-8. This means that the
+			table name is already in UTF-8 (#mysql#50). */
+			strncpy(new_table_name, new_name, MAX_TABLE_NAME_LEN);
+		}
+
+		pars_info_add_str_literal(info, "new_table_utf8", new_table_name);
 
 		err = que_eval_sql(
 			info,
@@ -5116,6 +5120,7 @@ row_rename_table_for_mysql(
 			"old_t_name_len INT;\n"
 			"new_db_name_len INT;\n"
 			"id_len INT;\n"
+			"offset INT;\n"
 			"found INT;\n"
 			"BEGIN\n"
 			"found := 1;\n"
@@ -5124,8 +5129,6 @@ row_rename_table_for_mysql(
 			"new_db_name := SUBSTR(:new_table_name, 0,\n"
 			"                      new_db_name_len);\n"
 			"old_t_name_len := LENGTH(:old_table_name);\n"
-			"gen_constr_prefix := CONCAT(:old_table_name,\n"
-			"                            '_ibfk_');\n"
 			"WHILE found = 1 LOOP\n"
 			"       SELECT ID INTO foreign_id\n"
 			"        FROM SYS_FOREIGN\n"
@@ -5142,12 +5145,13 @@ row_rename_table_for_mysql(
 			"        id_len := LENGTH(foreign_id);\n"
 			"        IF (INSTR(foreign_id, '/') > 0) THEN\n"
 			"               IF (INSTR(foreign_id,\n"
-			"                         gen_constr_prefix) > 0)\n"
+			"                         '_ibfk_') > 0)\n"
 			"               THEN\n"
+                        "                offset := INSTR(foreign_id, '_ibfk_') - 1;\n"
 			"                new_foreign_id :=\n"
-			"                CONCAT(:new_table_name,\n"
-			"                SUBSTR(foreign_id, old_t_name_len,\n"
-			"                       id_len - old_t_name_len));\n"
+			"                CONCAT(:new_table_utf8,\n"
+			"                SUBSTR(foreign_id, offset,\n"
+			"                       id_len - offset));\n"
 			"               ELSE\n"
 			"                new_foreign_id :=\n"
 			"                CONCAT(new_db_name,\n"

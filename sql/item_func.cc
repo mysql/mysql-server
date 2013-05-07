@@ -33,7 +33,7 @@
 #include "sql_show.h"                           // append_identifier
 #include "strfunc.h"                            // find_type
 #include "sql_parse.h"                          // is_update_query
-#include "sql_acl.h"                            // EXECUTE_ACL
+#include "auth_common.h"                        // EXECUTE_ACL
 #include "mysqld.h"                             // LOCK_uuid_generator
 #include "rpl_mi.h"
 #include "sql_time.h"

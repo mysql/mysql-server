@@ -176,6 +176,7 @@ trx_undo_get_prev_rec(
 	trx_undo_rec_t*	rec,	/*!< in: undo record */
 	ulint		page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
+	bool		shared,	/*!< in: true=S-latch, false=X-latch */
 	mtr_t*		mtr);	/*!< in: mtr */
 /***********************************************************************//**
 Gets the next record in an undo log.

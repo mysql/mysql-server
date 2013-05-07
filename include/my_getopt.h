@@ -129,6 +129,9 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
 ulonglong max_of_int_range(int var_type);
 
+ulonglong getopt_double2ulonglong(double);
+double getopt_ulonglong2double(ulonglong);
+
 C_MODE_END
 
 #endif /* _my_getopt_h */
