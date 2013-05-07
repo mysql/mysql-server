@@ -381,7 +381,8 @@ class Dummy_table_util
     // Check if either pk or index matched
     if (!parent_primary_key && parent_index == 0)
     {
-      warn("Parent table %s foreign key columns match no index", new_parent_name);
+      warn("Could not resolve '%s' as fk parent for '%s' since no matching index "
+           "could be found", new_parent_name, fk.getChildTable());
       DBUG_RETURN(false);
     }
 
