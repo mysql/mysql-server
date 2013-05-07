@@ -46,6 +46,23 @@ DROP INDEX b ON bug59733;
 # Create the index and attempt to reuse pages for which buffered changes exist.
 CREATE INDEX b ON bug59733 (b);
 
+ALTER TABLE bug59733 ROW_FORMAT=REDUNDANT, DROP INDEX b;
+
+# Create the secondary index for which changes will be buffered.
+CREATE INDEX b ON bug59733 (b);
+
+# This should be buffered, if innodb_change_buffering_debug = 1 is in effect.
+DELETE FROM bug59733 WHERE (a%100)=1;
+
+# Drop the index in order to get free pages with orphaned buffered changes.
+DROP INDEX b ON bug59733;
+
+# Create the index and attempt to reuse pages for which buffered changes exist.
+CREATE INDEX b ON bug59733 (b);
+
+CHECK TABLE bug59733;
+SELECT COUNT(*) FROM bug59733;
+
 DROP TABLE bug59733;
 
 -- disable_query_log
