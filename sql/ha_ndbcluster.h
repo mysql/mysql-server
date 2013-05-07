@@ -427,6 +427,10 @@ private:
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
   int drop_fk_for_online_alter(THD*, NdbDictionary::Dictionary*,
                                const NdbDictionary::Table*);
+  static bool drop_table_and_related(THD*, NdbDictionary::Dictionary*,
+                                     const NdbDictionary::Table*, int drop_flags);
+  static bool build_dummy_list(THD*, NdbDictionary::Dictionary*,
+                               const NdbDictionary::Table*, List<char>& dummy_list);
 
   int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const char* path);
