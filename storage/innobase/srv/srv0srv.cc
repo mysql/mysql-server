@@ -41,6 +41,8 @@ Created 10/8/1995 Heikki Tuuri
 /* Dummy comment */
 #include "srv0srv.h"
 
+#include "ha_prototypes.h"
+
 #include "ut0mem.h"
 #include "ut0ut.h"
 #include "os0proc.h"
@@ -63,14 +65,10 @@ Created 10/8/1995 Heikki Tuuri
 #include "srv0space.h"
 #include "srv0start.h"
 #include "row0mysql.h"
-#include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 #include "srv0mon.h"
 #include "ut0crc32.h"
-
-#include "mysql/plugin.h"
-#include "mysql/service_thd_wait.h"
 
 /* The following is the maximum allowed duration of a lock wait. */
 UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
