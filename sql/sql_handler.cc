@@ -1,5 +1,5 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2011 Monty Program Ab
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1008,11 +1008,13 @@ static SQL_HANDLER *mysql_ha_find_match(THD *thd, TABLE_LIST *tables)
 
     for (tables= first; tables; tables= tables->next_local)
     {
+      if (tables->is_anonymous_derived_table())
+        continue;
       if ((! *tables->db ||
           ! my_strcasecmp(&my_charset_latin1, hash_tables->db.str,
-                          tables->db)) &&
+                          tables->get_db_name())) &&
           ! my_strcasecmp(&my_charset_latin1, hash_tables->table_name.str,
-                          tables->table_name))
+                          tables->get_table_name()))
       {
         /* Link into hash_tables list */
         hash_tables->next= head;

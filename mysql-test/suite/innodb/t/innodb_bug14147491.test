@@ -10,6 +10,8 @@ source include/not_crashrep.inc;
 source include/not_embedded.inc;
 # Require InnoDB
 source include/have_innodb.inc;
+# Require Debug for SET DEBUG
+source include/have_debug.inc;
 
 CALL mtr.add_suppression("InnoDB: Error: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
 CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
@@ -27,12 +29,25 @@ while ($i)
 --enable_query_log
 INSERT INTO t1 (b) VALUES ('corrupt me');
 
---echo # Restart server to flush buffers
-source include/restart_mysqld.inc;
-
---echo # Corrupt the table
 let $MYSQLD_DATADIR=`select @@datadir`;
 let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd;
+
+--echo # Write file to make mysql-test-run.pl expect the "crash", but don't
+--echo # start it until it's told to
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # We give 30 seconds to do a clean shutdown because we do not want
+--echo # to redo apply the pages of t1.ibd at the time of recovery.
+--echo # We want SQL to initiate the first access to t1.ibd.
+shutdown_server 30;
+
+--echo # Wait until disconnected.
+--source include/wait_until_disconnected.inc
+
+--echo # Backup the t1.ibd before corrupting
+--copy_file $t1_IBD $MYSQLD_DATADIR/test/t1.ibd.backup
+
+--echo # Corrupt the table
 
 perl;
 use strict;
@@ -59,17 +74,38 @@ while ($len = sysread IBD_FILE, $chunk, 1024)
 close IBD_FILE;
 EOF
 
---echo # Write file to make mysql-test-run.pl expect crash and restart
+--echo # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
 
+SET DEBUG_DBUG = '+d,innodb_page_corruption_retries';
+
+--echo # Write file to make mysql-test-run.pl expect the "crash", but don't
+--echo # start it until it's told to
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # The below SELECT query will crash the server because some pages
+--echo # on the disk are corrupted
 --error 2013
 SELECT * FROM t1;
 
---echo # Turn on reconnect
---enable_reconnect
+# The below mtr command --remove_file fails randomly on windows with
+# error number 13 which is permission denied on nix systems. We sleep
+# 1 second hoping that any process holding lock on t1.ibd is released.
+SLEEP 1;
 
---echo # Wait for server to fully start
+--echo # Restore the original t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--move_file $MYSQLD_DATADIR/test/t1.ibd.backup $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
 --source include/wait_until_connected_again.inc
+
+# Note SET DEBUG = '-d,innodb_page_corruption_retries' is not required
+# because the session information is lost after server restart
 
 --echo # Cleanup
 DROP TABLE t1;

@@ -66,6 +66,8 @@ static QUEUE alarm_queue;
 static uint max_used_alarms=0;
 pthread_t alarm_thread;
 
+#define MY_THR_ALARM_QUEUE_EXTENT 10
+
 #ifdef USE_ALARM_THREAD
 static void *alarm_handler(void *arg);
 #define reschedule_alarms() mysql_cond_signal(&COND_alarm)
@@ -89,7 +91,8 @@ void init_thr_alarm(uint max_alarms)
   alarm_aborted=0;
   next_alarm_expire_time= ~ (time_t) 0;
   init_queue(&alarm_queue, max_alarms+1, offsetof(ALARM,expire_time), 0,
-	     compare_ulong, NullS, offsetof(ALARM, index_in_queue)+1, 0);
+             compare_ulong, NullS, offsetof(ALARM, index_in_queue)+1,
+             MY_THR_ALARM_QUEUE_EXTENT);
   sigfillset(&full_signal_set);			/* Neaded to block signals */
   mysql_mutex_init(key_LOCK_alarm, &LOCK_alarm, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_alarm, &COND_alarm, NULL);
@@ -140,7 +143,10 @@ void resize_thr_alarm(uint max_alarms)
     than max_alarms
   */
   if (alarm_queue.elements < max_alarms)
+  {
     resize_queue(&alarm_queue,max_alarms+1);
+    max_used_alarms= alarm_queue.elements;
+  }
   mysql_mutex_unlock(&LOCK_alarm);
 }
 
@@ -209,16 +215,10 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   mysql_mutex_lock(&LOCK_alarm);        /* Lock from threads & alarms */
   if (alarm_queue.elements >= max_used_alarms)
   {
-    if (alarm_queue.elements == alarm_queue.max_elements)
-    {
-      DBUG_PRINT("info", ("alarm queue full"));
-      fprintf(stderr,"Warning: thr_alarm queue is full\n");
-      goto abort;
-    }
     max_used_alarms=alarm_queue.elements+1;
   }
   reschedule= (ulong) next_alarm_expire_time > (ulong) next;
-  queue_insert(&alarm_queue,(uchar*) alarm_data);
+  queue_insert_safe(&alarm_queue, (uchar*) alarm_data);
   assert(alarm_data->index_in_queue > 0);
 
   /* Reschedule alarm if the current one has more than sec left */
@@ -238,11 +238,6 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   (*alrm)= &alarm_data->alarmed;
   DBUG_RETURN(0);
 
-abort:
-  if (alarm_data->malloced)
-    my_free(alarm_data);
-  mysql_mutex_unlock(&LOCK_alarm);
-  one_signal_hand_sigmask(SIG_SETMASK,&old_mask,NULL);
 abort_no_unlock:
   *alrm= 0;					/* No alarm */
   DBUG_RETURN(1);

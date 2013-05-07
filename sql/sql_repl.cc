@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2008, 2012, Monty Program Ab
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2012, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -631,6 +631,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 
   uint8 current_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
+
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
@@ -878,8 +879,11 @@ impossible position";
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
       goto err;
 
-    while (!(error = Log_event::read_log_event(&log, packet, log_lock,
-                                               current_checksum_alg)))
+    bool is_active_binlog= false;
+    while (!(error= Log_event::read_log_event(&log, packet, log_lock,
+                                              current_checksum_alg,
+                                              log_file_name,
+                                              &is_active_binlog)))
     {
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
@@ -961,6 +965,13 @@ impossible position";
         goto err;
     }
 
+    DBUG_EXECUTE_IF("wait_after_binlog_EOF",
+                    {
+                      const char act[]= "now wait_for signal.rotate_finished";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -971,8 +982,11 @@ impossible position";
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       goto err;
 
-    if (!(flags & BINLOG_DUMP_NON_BLOCK) &&
-        mysql_bin_log.is_active(log_file_name))
+    /*
+      We should only move to the next binlog when the last read event
+      came from a already deactivated binlog.
+     */
+    if (!(flags & BINLOG_DUMP_NON_BLOCK) && is_active_binlog)
     {
       /*
 	Block until there is more data in the log

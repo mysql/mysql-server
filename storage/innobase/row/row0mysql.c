@@ -3840,6 +3840,7 @@ row_rename_table_for_mysql(
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
+	ut_ad(trx->conc_state == TRX_ACTIVE);
 
 	if (srv_created_new_raw || srv_force_recovery) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
@@ -3864,7 +3865,6 @@ row_rename_table_for_mysql(
 	}
 
 	trx->op_info = "renaming table";
-	trx_start_if_not_started(trx);
 
 	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
 	new_is_tmp = row_is_mysql_tmp_table_name(new_name);

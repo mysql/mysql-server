@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
    Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
@@ -225,7 +225,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
       with_field= with_field || item->with_field;
       used_tables_cache|=     item->used_tables();
       const_item_cache&=      item->const_item();
-      with_subselect|=        item->with_subselect;
+      with_subselect|=        item->has_subquery();
     }
   }
   fix_length_and_dec();
@@ -5363,7 +5363,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
-  str->append(name.str,name.length);
+  append_identifier(current_thd, str, name.str, name.length);
   str->append(')');
 }
 

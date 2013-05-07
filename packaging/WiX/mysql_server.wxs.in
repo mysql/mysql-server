@@ -34,8 +34,9 @@
        Languages='1033'
        Compressed='yes'
        SummaryCodepage='1252'
-       Platform='@Platform@'/>
-    
+       Platform='@Platform@'
+       InstallScope="perMachine"/>
+  
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
     <!-- Upgrade -->
@@ -44,11 +45,13 @@
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
         IncludeMinimum="yes"
         Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
+        IncludeMaximum="yes"
         Property="OLDERVERSIONBEINGUPGRADED"
         MigrateFeatures="yes"
         />
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
+        IncludeMinimum="no"
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />
     </Upgrade>

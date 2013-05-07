@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2011 Monty Program Ab
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4418,7 +4418,7 @@ partition:
         ;
 
 part_type_def:
-          opt_linear KEY_SYM '(' part_field_list ')'
+          opt_linear KEY_SYM opt_key_algo '(' part_field_list ')'
           {
             partition_info *part_info= Lex->part_info;
             part_info->list_of_part_fields= TRUE;
@@ -4442,6 +4442,25 @@ opt_linear:
           /* empty */ {}
         | LINEAR_SYM
           { Lex->part_info->linear_hash_ind= TRUE;}
+        ;
+
+opt_key_algo:
+          /* empty */
+          { Lex->part_info->key_algorithm= partition_info::KEY_ALGORITHM_NONE;}
+        | ALGORITHM_SYM EQ real_ulong_num
+          {
+            switch ($3) {
+            case 1:
+              Lex->part_info->key_algorithm= partition_info::KEY_ALGORITHM_51;
+              break;
+            case 2:
+              Lex->part_info->key_algorithm= partition_info::KEY_ALGORITHM_55;
+              break;
+            default:
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
         ;
 
 part_field_list:
@@ -4525,7 +4544,7 @@ opt_sub_part:
         | SUBPARTITION_SYM BY opt_linear HASH_SYM sub_part_func
           { Lex->part_info->subpart_type= HASH_PARTITION; }
           opt_num_subparts {}
-        | SUBPARTITION_SYM BY opt_linear KEY_SYM
+        | SUBPARTITION_SYM BY opt_linear KEY_SYM opt_key_algo
           '(' sub_part_field_list ')'
           {
             partition_info *part_info= Lex->part_info;

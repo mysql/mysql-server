@@ -1864,6 +1864,38 @@ WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
 GROUP BY t2.f1, t2.f2;
 f1	f1	f2
 DROP TABLE t1,t2;
+#
+# Bug#13068506 - QUERY WITH GROUP BY ON NON-AGGR COLUMN RETURNS 
+#                WRONG RESULT
+#
+CREATE TABLE t1 (i1 int);
+INSERT INTO t1 VALUES (100), (101);
+CREATE TABLE t2 (i2 int, i3 int);
+INSERT INTO t2 VALUES (20,1),(10,2);
+CREATE TABLE t3 (i4 int(11));
+INSERT INTO t3 VALUES (1),(2);
+
+SELECT (
+SELECT MAX( t2.i2 )
+FROM t3 RIGHT JOIN t2 ON ( t2.i3 = 2 )
+WHERE t2.i3 <> t1.i1
+) AS field1
+FROM t1;;
+field1
+20
+20
+
+SELECT (
+SELECT MAX( t2.i2 )
+FROM t3 RIGHT JOIN t2 ON ( t2.i3 = 2 )
+WHERE t2.i3 <> t1.i1
+) AS field1
+FROM t1 GROUP BY field1;;
+field1
+20
+
+drop table t1,t2,t3;
+# End of test for Bug#13068506
 End of 5.1 tests
 #
 # LP BUG#994392: Wrong result with RIGHT/LEFT JOIN and ALL subquery

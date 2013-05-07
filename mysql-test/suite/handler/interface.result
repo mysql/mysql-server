@@ -294,3 +294,13 @@ ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
 USE test;
 PREPARE h_r FROM 'HANDLER t1 READ `PRIMARY` LAST';
 ERROR 42S02: Unknown table 't1' in HANDLER
+create view v as select 1;
+create temporary table v as select 2;
+handler v open;
+prepare stmt from 'create table if not exists v as select 3';
+execute stmt;
+Warnings:
+Note	1050	Table 'v' already exists
+handler v read next;
+ERROR 42S02: Unknown table 'v' in HANDLER
+drop view v;

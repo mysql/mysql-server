@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1056,8 +1056,35 @@ public:
                                    const Format_description_log_event
                                    *description_event,
                                    my_bool crc_check);
+
+  /**
+    Reads an event from a binlog or relay log. Used by the dump thread
+    this method reads the event into a raw buffer without parsing it.
+
+    @Note If mutex is 0, the read will proceed without mutex.
+
+    @Note If a log name is given than the method will check if the
+    given binlog is still active.
+
+    @param[in]  file                log file to be read
+    @param[out] packet              packet to hold the event
+    @param[in]  lock                the lock to be used upon read
+    @param[in]  log_file_name_arg   the log's file name
+    @param[out] is_binlog_active    is the current log still active
+
+    @retval 0                   success
+    @retval LOG_READ_EOF        end of file, nothing was read
+    @retval LOG_READ_BOGUS      malformed event
+    @retval LOG_READ_IO         io error while reading
+    @retval LOG_READ_MEM        packet memory allocation failed
+    @retval LOG_READ_TRUNC      only a partial event could be read
+    @retval LOG_READ_TOO_LARGE  event too large
+   */
   static int read_log_event(IO_CACHE* file, String* packet,
-                            mysql_mutex_t* log_lock, uint8 checksum_alg_arg);
+                            mysql_mutex_t* log_lock,
+                            uint8 checksum_alg_arg,
+                            const char *log_file_name_arg = NULL,
+                            bool* is_binlog_active = NULL);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG

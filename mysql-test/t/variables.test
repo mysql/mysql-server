@@ -1538,4 +1538,16 @@ set session collation_connection=2048;
 --error ER_UNKNOWN_COLLATION
 set session collation_database=2048;
 
+#
+# Bug #16044655 CRASH: SETTING DEFAULT VALUE FOR SOME VARIABLES
+#
+--error ER_NO_DEFAULT
+set session rand_seed1=DEFAULT;
+
+#
+# Bug #14211565 CRASH WHEN ATTEMPTING TO SET SYSTEM VARIABLE TO RESULT OF VALUES()
+#
+--error ER_BAD_FIELD_ERROR
+set autocommit = values(v);
+
 --echo End of 5.5 tests

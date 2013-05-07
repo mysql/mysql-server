@@ -10932,7 +10932,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
-      if (order->item[0]->with_subselect)
+      if (order->item[0]->has_subquery())
       {
         /*
           Delay the evaluation of constant ORDER and/or GROUP expressions that
@@ -18854,7 +18854,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
          !(table->file->index_flags(best_key, 0, 1) & HA_CLUSTERED_INDEX)))
       goto use_filesort;
 
-    if (table->quick_keys.is_set(best_key) && best_key != ref_key)
+    if (select &&
+        table->quick_keys.is_set(best_key) && best_key != ref_key)
     {
       key_map map;
       map.clear_all();       // Force the creation of quick select
@@ -19507,7 +19508,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     }
     if (copy_blobs(first_field))
     {
-      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(0));
+      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(ME_FATALERROR));
       error=0;
       goto err;
     }

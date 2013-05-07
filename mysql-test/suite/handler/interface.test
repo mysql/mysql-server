@@ -377,3 +377,16 @@ USE test;
 #
 --error ER_UNKNOWN_TABLE
 PREPARE h_r FROM 'HANDLER t1 READ `PRIMARY` LAST';
+
+#
+# MySQL Bug#16385711: HANDLER, CREATE TABLE IF NOT EXISTS, PROBLEM AFTER MYSQL_HA_FIND
+#
+create view v as select 1;
+create temporary table v as select 2;
+handler v open;
+prepare stmt from 'create table if not exists v as select 3';
+execute stmt;
+--error ER_UNKNOWN_TABLE
+handler v read next;
+drop view v;
+

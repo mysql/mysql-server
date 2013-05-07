@@ -270,12 +270,9 @@ ADD_CUSTOM_TARGET(distclean
 
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
-# We need to create empty directories (data/test) the installation.  
-# This does not work with current CPack due to http://www.cmake.org/Bug/view.php?id=8767
-# Avoid completely empty directories and install dummy file instead.
-SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/db.opt ) 
-FILE(WRITE ${DUMMY_FILE} "")
-INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
+# Copy db.opt into data/test/
+SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
+INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
 
 # Install initial database on windows
 IF(NOT CMAKE_CROSSCOMPILING)

@@ -1,7 +1,7 @@
 #ifndef PARTITION_ELEMENT_INCLUDED
 #define PARTITION_ELEMENT_INCLUDED
 
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,9 +107,8 @@ public:
   enum partition_state part_state;
   uint16 nodegroup_id;
   bool has_null_value;
-  /* signed_flag and max_value only relevant for subpartitions */
-  bool signed_flag;
-  bool max_value;
+  bool signed_flag;                          // Range value signed
+  bool max_value;                            // MAXVALUE range
 
   partition_element()
   : part_max_rows(0), part_min_rows(0), range_value(0),

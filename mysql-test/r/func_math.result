@@ -666,13 +666,13 @@ ERROR 22003: BIGINT value is out of range in '-(9223372036854775809)'
 DROP TABLE t1;
 SET @a:=999999999999999999999999999999999999999999999999999999999999999999999999999999999;
 SELECT @a + @a;
-ERROR 22003: DECIMAL value is out of range in '((@a) + (@a))'
+ERROR 22003: DECIMAL value is out of range in '((@`a`) + (@`a`))'
 SELECT @a * @a;
-ERROR 22003: DECIMAL value is out of range in '((@a) * (@a))'
+ERROR 22003: DECIMAL value is out of range in '((@`a`) * (@`a`))'
 SELECT -@a - @a;
-ERROR 22003: DECIMAL value is out of range in '(-((@a)) - (@a))'
+ERROR 22003: DECIMAL value is out of range in '(-((@`a`)) - (@`a`))'
 SELECT @a / 0.5;
-ERROR 22003: DECIMAL value is out of range in '((@a) / 0.5)'
+ERROR 22003: DECIMAL value is out of range in '((@`a`) / 0.5)'
 SELECT COT(1/0);
 COT(1/0)
 NULL

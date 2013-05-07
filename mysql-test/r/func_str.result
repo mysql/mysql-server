@@ -2911,6 +2911,17 @@ select 1 div convert(a using utf8) from t1;
 1 div convert(a using utf8)
 NULL
 drop table t1;
+create table t1 (a int);
+create table t2 (a int);
+create procedure foo (var char(100))
+select replace(var, '00000000', table_name)
+from information_schema.tables where table_schema='test';
+call foo('(( 00000000 ++ 00000000 ))');
+replace(var, '00000000', table_name)
+(( t1 ++ t1 ))
+(( t2 ++ t2 ))
+drop procedure foo;
+drop table t1,t2;
 #
 # End of 5.5 tests
 #

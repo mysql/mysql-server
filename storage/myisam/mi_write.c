@@ -85,9 +85,10 @@ int mi_write(MI_INFO *info, uchar *record)
   /* Calculate and check all unique constraints */
   for (i=0 ; i < share->state.header.uniques ; i++)
   {
-    if (mi_check_unique(info,share->uniqueinfo+i,record,
-		     mi_unique_hash(share->uniqueinfo+i,record),
-		     HA_OFFSET_ERROR))
+    MI_UNIQUEDEF *def= share->uniqueinfo + i;
+    if (mi_is_key_active(share->state.key_map, def->key) &&
+        mi_check_unique(info, def, record, mi_unique_hash(def, record),
+                        HA_OFFSET_ERROR))
       goto err2;
   }
 

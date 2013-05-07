@@ -553,7 +553,8 @@ int init_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache, uint key_cache_block_si
       if (blocks < 8)
       {
         my_errno= ENOMEM;
-        my_error(EE_OUTOFMEMORY, MYF(0), blocks * keycache->key_cache_block_size);
+        my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
+                 blocks * keycache->key_cache_block_size);
         goto err;
       }
       blocks= blocks / 4*3;

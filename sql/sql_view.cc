@@ -1156,9 +1156,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
   */
-  if (parser->parse((uchar*)table, thd->mem_root, view_parameters,
-                    required_view_parameters, &file_parser_dummy_hook))
-    goto err;
+  if ((result= parser->parse((uchar*)table, thd->mem_root,
+                             view_parameters, required_view_parameters,
+                             &file_parser_dummy_hook)))
+    goto end;
 
   /*
     check old format view .frm
@@ -1221,6 +1222,11 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
+  if (!table->view)
+  {
+    result= true;
+    goto end;
+  }
 
   {
     char old_db_buf[SAFE_NAME_LEN+1];

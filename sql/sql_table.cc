@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2013, Monty Program Ab
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1693,7 +1693,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                          &syntax_len,
                                                          TRUE, TRUE,
                                                          lpt->create_info,
-                                                         lpt->alter_info)))
+                                                         lpt->alter_info,
+                                                         NULL)))
         {
           DBUG_RETURN(TRUE);
         }
@@ -1786,7 +1787,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                        &syntax_len,
                                                        TRUE, TRUE,
                                                        lpt->create_info,
-                                                       lpt->alter_info)))
+                                                       lpt->alter_info,
+                                                       NULL)))
       {
         error= 1;
         goto err;
@@ -4257,7 +4259,8 @@ bool mysql_create_table_no_lock(THD *thd,
                                                      &syntax_len,
                                                      TRUE, TRUE,
                                                      create_info,
-                                                     alter_info)))
+                                                     alter_info,
+                                                     NULL)))
       goto err;
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;

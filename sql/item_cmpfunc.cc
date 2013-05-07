@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
    Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
@@ -4312,7 +4312,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   
     with_sum_func=	    with_sum_func || item->with_sum_func;
     with_field=             with_field || item->with_field;
-    with_subselect|=        item->with_subselect;
+    with_subselect|=        item->has_subquery();
     if (item->maybe_null)
       maybe_null=1;
   }
@@ -4979,7 +4979,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   with_field= args[0]->with_field || args[1]->with_field;
-  with_subselect|= args[0]->with_subselect | args[1]->with_subselect;
+  with_subselect= args[0]->has_subquery() || args[1]->has_subquery();
   max_length= 1;
   decimals= 0;
 

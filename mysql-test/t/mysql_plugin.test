@@ -110,13 +110,8 @@ SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 --echo #
 --echo # Enable the plugin...
 --echo #
-let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
-# MTR will remove this file later, but this might be too late.
---error 0,1
---remove_file $expect_file
---write_file $expect_file
-wait
-EOF
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
@@ -132,9 +127,8 @@ EOF
 #
 # Restart the server
 #
---append_file $expect_file
-restart
-EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -155,12 +149,7 @@ eval INSERT INTO mysql.plugin VALUES ('wonky', '$DAEMONEXAMPLE');
 --replace_regex /\.dll/.so/
 SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 
-# MTR will remove this file later, but this might be too late.
---error 0,1
---remove_file $expect_file
---write_file $expect_file
-wait
-EOF
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
@@ -177,9 +166,7 @@ EOF
 #
 # Restart the server
 #
---append_file $expect_file
-restart
-EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -189,12 +176,7 @@ EOF
 --replace_regex /\.dll/.so/
 SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
 
-# MTR will remove this file later, but this might be too late.
---error 0,1
---remove_file $expect_file
---write_file $expect_file
-wait
-EOF
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
@@ -211,9 +193,7 @@ let $DAEMON_RELOAD = lib$DAEMONEXAMPLE;
 #
 # Restart the server
 #
---append_file $expect_file
-restart
-EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -226,12 +206,8 @@ SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
 --echo #
 --echo # Disable the plugin...
 --echo #
-# MTR will remove this file later, but this might be too late.
---error 0,1
---remove_file $expect_file
---write_file $expect_file
-wait
-EOF
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
@@ -248,9 +224,7 @@ EOF
 #
 # Restart the server
 #
---append_file $expect_file
-restart
-EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -262,13 +236,8 @@ SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
 #
 # Stop the server for error conditions
 #
-let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
-# MTR will remove this file later, but this might be too late.
---error 0,1
---remove_file $expect_file
---write_file $expect_file
-wait
-EOF
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
@@ -382,17 +351,14 @@ replace_result $MYSQL_PLUGIN mysql_plugin;
 #
 # Restart the server
 #
---append_file $expect_file
-restart
-EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
 #
 # Cleanup
-# MTR will remove this file later, but this might be too late.
---error 0,1
---remove_file $expect_file
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Cleanup the share folder in the binary path.
 --remove_file $MYSQLD_BASEDIR/share/errmsg.sys

@@ -1,8 +1,8 @@
 #ifndef SQL_ITEM_INCLUDED
 #define SQL_ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2013 Monty Program Ab
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1444,6 +1444,12 @@ public:
     Return TRUE if the item points to a column of an outer-joined table.
   */
   virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
+
+  /**
+    Checks if this item or any of its decendents contains a subquery.
+  */
+  virtual bool has_subquery() const { return with_subselect; }
+
   Item* set_expr_cache(THD *thd);
 
   virtual Item_equal *get_item_equal() { return NULL; }
@@ -2956,6 +2962,14 @@ public:
     DBUG_ASSERT(fixed);
     DBUG_ASSERT(ref);
     return (*ref)->is_outer_field();
+  }
+
+  /**
+    Checks if the item tree that ref points to contains a subquery.
+  */
+  virtual bool has_subquery() const 
+  { 
+    return (*ref)->has_subquery();
   }
 };
 

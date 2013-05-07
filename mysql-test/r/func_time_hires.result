@@ -156,12 +156,12 @@ explain extended select cast(cast(@a as datetime(4)) as time(0));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select cast(cast((@a) as datetime(4)) as time) AS `cast(cast(@a as datetime(4)) as time(0))`
+Note	1003	select cast(cast((@`a`) as datetime(4)) as time) AS `cast(cast(@a as datetime(4)) as time(0))`
 select cast(cast(@a as time(2)) as time(6));
 cast(cast(@a as time(2)) as time(6))
 12:13:14.120000
 select CAST(@a AS DATETIME(7));
-ERROR 42000: Too big precision 7 specified for '(@a)'. Maximum is 6.
+ERROR 42000: Too big precision 7 specified for '(@`a`)'. Maximum is 6.
 SELECT CONVERT_TZ('2011-01-02 12:00:00', '+00:00', '+03:00');
 CONVERT_TZ('2011-01-02 12:00:00', '+00:00', '+03:00')
 2011-01-02 15:00:00

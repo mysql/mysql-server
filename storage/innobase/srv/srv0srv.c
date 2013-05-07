@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -279,7 +279,7 @@ UNIV_INTERN ulint srv_data_read = 0;
 /* Internal setting for "innodb_stats_method". Decides how InnoDB treats
 NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
-ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
+UNIV_INTERN ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
 
 /* here we count the amount of data written in total (in bytes) */
 UNIV_INTERN ulint srv_data_written = 0;
@@ -2109,19 +2109,31 @@ srv_export_innodb_status(void)
 	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
 
 #ifdef UNIV_DEBUG
-	if (trx_sys->max_trx_id < purge_sys->done_trx_no) {
-		export_vars.innodb_purge_trx_id_age = 0;
-	} else {
-		export_vars.innodb_purge_trx_id_age =
-		  trx_sys->max_trx_id - purge_sys->done_trx_no;
-	}
+	{
+		trx_id_t	done_trx_no;
+		trx_id_t	up_limit_id;
 
-	if (!purge_sys->view
-	    || trx_sys->max_trx_id < purge_sys->view->up_limit_id) {
-		export_vars.innodb_purge_view_trx_id_age = 0;
-	} else {
-		export_vars.innodb_purge_view_trx_id_age =
-		  trx_sys->max_trx_id - purge_sys->view->up_limit_id;
+		rw_lock_s_lock(&purge_sys->latch);
+		done_trx_no	= purge_sys->done_trx_no;
+		up_limit_id	= purge_sys->view
+			? purge_sys->view->up_limit_id
+			: 0;
+		rw_lock_s_unlock(&purge_sys->latch);
+
+		if (trx_sys->max_trx_id < done_trx_no) {
+			export_vars.innodb_purge_trx_id_age = 0;
+		} else {
+			export_vars.innodb_purge_trx_id_age =
+				trx_sys->max_trx_id - done_trx_no;
+		}
+
+		if (!up_limit_id
+		    || trx_sys->max_trx_id < up_limit_id) {
+			export_vars.innodb_purge_view_trx_id_age = 0;
+		} else {
+			export_vars.innodb_purge_view_trx_id_age =
+				trx_sys->max_trx_id - up_limit_id;
+		}
 	}
 #endif /* UNIV_DEBUG */
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1466,6 +1466,10 @@ dict_index_too_big_for_tree(
 	/* maximum allowed size of a node pointer record */
 	ulint	page_ptr_max;
 
+	DBUG_EXECUTE_IF(
+		"ib_force_create_table",
+		return(FALSE););
+
 	comp = dict_table_is_comp(table);
 	zip_size = dict_table_zip_size(table);
 
@@ -1480,7 +1484,10 @@ dict_index_too_big_for_tree(
 		number in the page modification log.  The maximum
 		allowed node pointer size is half that. */
 		page_rec_max = page_zip_empty_size(new_index->n_fields,
-						   zip_size) - 1;
+						   zip_size);
+		if (page_rec_max) {
+			page_rec_max--;
+		}
 		page_ptr_max = page_rec_max / 2;
 		/* On a compressed page, there is a two-byte entry in
 		the dense page directory for every record.  But there
@@ -4672,6 +4679,7 @@ dict_print_info_on_foreign_key_in_create_format(
 	dict_foreign_t*	foreign,	/*!< in: foreign key constraint */
 	ibool		add_newline)	/*!< in: whether to add a newline */
 {
+	char		constraint_name[MAX_TABLE_NAME_LEN];
 	const char*	stripped_id;
 	ulint	i;
 
@@ -4693,7 +4701,9 @@ dict_print_info_on_foreign_key_in_create_format(
 	}
 
 	fputs(" CONSTRAINT ", file);
-	ut_print_name(file, trx, FALSE, stripped_id);
+	innobase_convert_from_id(&my_charset_filename, constraint_name,
+				 stripped_id, MAX_TABLE_NAME_LEN);
+	ut_print_name(file, trx, FALSE, constraint_name);
 	fputs(" FOREIGN KEY (", file);
 
 	for (i = 0;;) {

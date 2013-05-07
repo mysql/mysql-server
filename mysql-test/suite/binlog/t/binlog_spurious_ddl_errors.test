@@ -26,7 +26,7 @@
 --source include/have_log_bin.inc
 
 SET @old_binlog_format= @@global.binlog_format;
-INSTALL PLUGIN example SONAME 'ha_example.so';
+INSTALL PLUGIN example SONAME 'ha_example';
 
 --echo ################################################################################
 --echo # Verifies if ER_BINLOG_STMT_MODE_AND_ROW_ENGINE happens by setting the binlog
@@ -90,6 +90,7 @@ DROP TABLE t_stmt;
 --echo ################################################################################
 --echo #                                 CLEAN UP                                     #
 --echo ################################################################################
+flush tables;
 UNINSTALL PLUGIN example;
 SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;
