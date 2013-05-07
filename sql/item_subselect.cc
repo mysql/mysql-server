@@ -1054,8 +1054,15 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       if (upper_item)
         upper_item->set_sub_test(item);
     }
-    /* fix fields is already called for  left expression */
-    substitution= func->create(left_expr, subs);
+    /*
+      fix fields is already called for  left expression.
+      Note that real_item() should be used instead of
+      original left expression because left_expr can be
+      runtime created Ref item which is deleted at the end
+      of the statement. Thus one of 'substitution' arguments
+      can be broken in case of PS.
+    */ 
+    substitution= func->create(left_expr->real_item(), subs);
     DBUG_RETURN(RES_OK);
   }
 
@@ -1249,8 +1256,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
         // select and is not outer anymore.
         item->walk(&Item::remove_dependence_processor, 0,
                            (uchar *) select_lex->outer_select());
-	item= func->create(left_expr, item);
-	// fix_field of item will be done in time of substituting
+        item= func->create(left_expr->real_item(), item);
+        /*
+          fix_field of substitution item will be done in time of
+          substituting.
+          Note that real_item() should be used instead of
+          original left expression because left_expr can be
+          runtime created Ref item which is deleted at the end
+          of the statement. Thus one of 'substitution' arguments
+          can be broken in case of PS.
+        */ 
 	substitution= item;
 	have_to_be_excluded= 1;
 	if (thd->lex->describe)
