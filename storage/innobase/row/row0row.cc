@@ -29,10 +29,11 @@ Created 4/20/1996 Heikki Tuuri
 #include "row0row.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "data0type.h"
 #include "dict0dict.h"
 #include "btr0btr.h"
-#include "ha_prototypes.h"
 #include "mach0data.h"
 #include "trx0rseg.h"
 #include "trx0trx.h"

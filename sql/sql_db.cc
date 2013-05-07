@@ -39,7 +39,7 @@
 #include "log.h"
 #include "binlog.h"                             // mysql_bin_log
 #include "log_event.h"
-#ifdef __WIN__
+#ifdef _WIN32
 #include <direct.h>
 #endif
 #include "debug_sync.h"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ Created 9/6/1995 Heikki Tuuri
 #include "os0sync.ic"
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <windows.h>
 #endif
 
@@ -91,7 +91,7 @@ variable handling. Those functions are not available in prior versions,
 so we have to use them via runtime loading, as long as we support XP. */
 static void os_cond_module_init(void);
 
-#ifdef __WIN__
+#ifdef _WIN32
 /* Prototypes and function pointers for condition variable functions */
 typedef VOID (WINAPI* InitializeConditionVariableProc)
 	     (PCONDITION_VARIABLE ConditionVariable);
@@ -122,7 +122,7 @@ os_cond_init(
 {
 	ut_a(cond);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	ut_a(initialize_condition_variable != NULL);
 	initialize_condition_variable(cond);
 #else
@@ -139,16 +139,16 @@ os_cond_wait_timed(
 /*===============*/
 	os_cond_t*		cond,		/*!< in: condition variable. */
 	os_fast_mutex_t*	fast_mutex,	/*!< in: fast mutex */
-#ifndef __WIN__
+#ifndef _WIN32
 	const struct timespec*	abstime		/*!< in: timeout */
 #else
 	DWORD			time_in_ms	/*!< in: timeout in
 						milliseconds*/
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 )
 {
 	fast_mutex_t*	mutex = &fast_mutex->mutex;
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 	DWORD	err;
 
@@ -209,7 +209,7 @@ os_cond_wait(
 	ut_a(cond);
 	ut_a(mutex);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	ut_a(sleep_condition_variable != NULL);
 	ut_a(sleep_condition_variable(cond, mutex, INFINITE));
 #else
@@ -227,7 +227,7 @@ os_cond_broadcast(
 {
 	ut_a(cond);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	ut_a(wake_all_condition_variable != NULL);
 	wake_all_condition_variable(cond);
 #else
@@ -245,7 +245,7 @@ os_cond_signal(
 {
 	ut_a(cond);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	ut_a(wake_condition_variable != NULL);
 	wake_condition_variable(cond);
 #else
@@ -261,7 +261,7 @@ os_cond_destroy(
 /*============*/
 	os_cond_t*	cond)	/*!< in: condition variable. */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	/* Do nothing */
 #else
 	ut_a(pthread_cond_destroy(cond) == 0);
@@ -277,7 +277,7 @@ void
 os_cond_module_init(void)
 /*=====================*/
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	HMODULE		h_dll;
 
 	if (!srv_use_native_conditions)
@@ -371,7 +371,7 @@ os_event_create(void)
 {
 	os_event_t	event;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	if(!srv_use_native_conditions) {
 
 		event = static_cast<os_event_t>(ut_malloc(sizeof(*event)));
@@ -437,7 +437,7 @@ os_event_set(
 {
 	ut_a(event);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	if (!srv_use_native_conditions) {
 		ut_a(SetEvent(event->handle));
 		return;
@@ -475,7 +475,7 @@ os_event_reset(
 
 	ut_a(event);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	if(!srv_use_native_conditions) {
 		ut_a(ResetEvent(event->handle));
 		return(0);
@@ -503,7 +503,7 @@ os_event_free_internal(
 /*===================*/
 	os_event_t	event)	/*!< in: event to free */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	if(!srv_use_native_conditions) {
 		ut_a(event);
 		ut_a(CloseHandle(event->handle));
@@ -536,7 +536,7 @@ os_event_free(
 
 {
 	ut_a(event);
-#ifdef __WIN__
+#ifdef _WIN32
 	if(!srv_use_native_conditions){
 		ut_a(CloseHandle(event->handle));
 	} else /*Windows with condition variables */
@@ -585,7 +585,7 @@ os_event_wait_low(
 					returned by previous call of
 					os_event_reset(). */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	if(!srv_use_native_conditions) {
 		DWORD	err;
 
@@ -636,7 +636,7 @@ os_event_wait_time_low(
 {
 	ibool		timed_out = FALSE;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DWORD		time_in_ms;
 
 	if (!srv_use_native_conditions) {
@@ -700,7 +700,7 @@ os_event_wait_time_low(
 
 	ut_a(abstime.tv_nsec <= 999999999);
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	os_fast_mutex_lock(&event->os_mutex);
 
@@ -716,11 +716,11 @@ os_event_wait_time_low(
 
 		timed_out = os_cond_wait_timed(
 			&event->cond_var, &event->os_mutex,
-#ifndef __WIN__
+#ifndef _WIN32
 			&abstime
 #else
 			time_in_ms
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 		);
 
 	} while (!timed_out);
@@ -839,7 +839,7 @@ os_fast_mutex_init_func(
 /*====================*/
 	fast_mutex_t*		fast_mutex)	/*!< in: fast mutex */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	ut_a(fast_mutex);
 
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
@@ -868,7 +868,7 @@ os_fast_mutex_lock_func(
 /*====================*/
 	fast_mutex_t*		fast_mutex)	/*!< in: mutex to acquire */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	EnterCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
 	pthread_mutex_lock(fast_mutex);
@@ -883,7 +883,7 @@ os_fast_mutex_unlock_func(
 /*======================*/
 	fast_mutex_t*		fast_mutex)	/*!< in: mutex to release */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	LeaveCriticalSection(fast_mutex);
 #else
 	pthread_mutex_unlock(fast_mutex);
@@ -898,7 +898,7 @@ os_fast_mutex_free_func(
 /*====================*/
 	fast_mutex_t*		fast_mutex)	/*!< in: mutex to free */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	ut_a(fast_mutex);
 
 	DeleteCriticalSection((LPCRITICAL_SECTION) fast_mutex);

@@ -37,11 +37,11 @@ InnoDB concurrency manager
 Created 2011/04/18 Sunny Bains
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "srv0srv.h"
 #include "sync0sync.h"
 #include "trx0trx.h"
-
-#include "mysql/plugin.h"
 
 /** Number of times a thread is allowed to enter InnoDB within the same
 SQL query after it has once got the ticket. */

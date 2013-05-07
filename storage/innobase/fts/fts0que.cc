@@ -24,6 +24,8 @@ Created 2007/03/27 Sunny Bains
 Completed 2011/7/10 Sunny and Jimmy Yang
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "dict0dict.h" /* dict_table_get_n_rows() */
 #include "ut0rbt.h"
 #include "row0sel.h"
@@ -32,8 +34,6 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0ast.h"
 #include "fts0pars.h"
 #include "fts0types.h"
-#include "ha_prototypes.h"
-#include <ctype.h>
 
 #ifndef UNIV_NONINL
 #include "fts0types.ic"
