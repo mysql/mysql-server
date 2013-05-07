@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,7 @@ struct generic_indexer_t {
 };
 
 #ifdef HAVE_SCHED_GETCPU
-#include <utmpx.h>
+#include <sched.h>
 /** Use the cpu id to index into the counter array. If it fails then
 use the thread id. */
 template <typename Type, int N>
