@@ -829,7 +829,7 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
   {
     Group_cache::enum_add_group_status status= 
       group_cache.add_logged_group(thd, get_byte_position());
-    if (status == Group_cache::ERROR)
+    if (status == Group_cache::ERROR_GROUP)
       DBUG_RETURN(1);
     else if (status == Group_cache::APPEND_NEW_GROUP)
     {
@@ -899,7 +899,7 @@ static int write_one_empty_group_to_cache(THD *thd,
 #ifdef NON_ERROR_GTID
   IO_CACHE *cache= &cache_data->cache_log;
   Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
-  if (status == Group_cache::ERROR)
+  if (status == Group_cache::ERROR_GROUP)
     DBUG_RETURN(1);
   DBUG_ASSERT(status == Group_cache::APPEND_NEW_GROUP);
   Gtid_specification spec= { GTID_GROUP, gtid };

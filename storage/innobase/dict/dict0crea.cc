@@ -29,6 +29,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0crea.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "page0page.h"
@@ -45,7 +47,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0priv.h"
 #include "fts0priv.h"
 #include "srv0space.h"
-#include "ha_prototypes.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
