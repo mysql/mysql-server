@@ -40,11 +40,14 @@ Created June 2005 by Marko Makela
 #include "mach0data.h"	/* mach_read_from_4 */
 #include "zlib.h"
 #endif /* UNIV_INNOCHECKSUM */
+
 #ifndef UNIV_INNOCHECKSUM
 #include "mtr0types.h"
 #include "page0types.h"
 #endif /* !UNIV_INNOCHECKSUM */
+
 #include "buf0types.h"
+
 #ifndef UNIV_INNOCHECKSUM
 #include "dict0types.h"
 #include "srv0srv.h"
