@@ -30,3 +30,25 @@ let $wl6501_row_fmt = compact;
 let $wl6501_kbs = 16;
 let $wl6501_file_format = 'Antelope';
 --source suite/innodb/include/innodb_wl6501_error.inc
+
+# Compressed/Compressed/Single-Tablespace
+let $wl6501_file_per_table = 1;
+let $wl6501_row_fmt = compressed;
+let $wl6501_kbs = 16;
+let $wl6501_file_format = 'Barracuda';
+--source suite/innodb/include/innodb_wl6501_error.inc
+
+# Compressed/Compressed/Single-Tablespace/4K
+let $wl6501_file_per_table = 1;
+let $wl6501_row_fmt = compressed;
+let $wl6501_kbs = 4;
+let $wl6501_file_format = 'Barracuda';
+--source suite/innodb/include/innodb_wl6501_error.inc
+
+# Compressed/Compressed/Single-Tablespace/8K
+let $wl6501_file_per_table = 1;
+let $wl6501_row_fmt = compressed;
+let $wl6501_kbs = 8;
+let $wl6501_file_format = 'Barracuda';
+--source suite/innodb/include/innodb_wl6501_error.inc
+
