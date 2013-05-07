@@ -316,14 +316,14 @@ static fil_system_t*	fil_system	= NULL;
 # define fil_is_user_tablespace_id(i) ((i) > srv_undo_tablespaces_open)
 
 /** Determine if user has explicitly disabled fsync(). */
-#ifndef __WIN__
+#ifndef _WIN32
 # define fil_buffering_disabled(s)	\
 	((s)->purpose == FIL_TABLESPACE	\
 	 && srv_unix_file_flush_method	\
 	 == SRV_UNIX_O_DIRECT_NO_FSYNC)
-#else /* __WIN__ */
+#else /* _WIN32 */
 # define fil_buffering_disabled(s)	(0)
-#endif /* __WIN__ */
+#endif /* _WIN32_ */
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
@@ -4031,7 +4031,7 @@ fil_load_single_table_tablespace(
 	This must be freed independent of def.success. */
 	def.filepath = fil_make_ibd_name(tablename, false);
 
-#ifdef __WIN__
+#ifdef _WIN32
 # ifndef UNIV_HOTBACKUP
 	/* If lower_case_table_names is 0 or 2, then MySQL allows database
 	directory names with upper case letters. On Windows, all table and
@@ -5537,12 +5537,12 @@ fil_flush(
 			fil_n_pending_log_flushes++;
 			fil_n_log_flushes++;
 		}
-#ifdef __WIN__
+#ifdef _WIN32
 		if (node->is_raw_disk) {
 
 			goto skip_flush;
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 retry:
 		if (node->n_pending_flushes > 0) {
 			/* We want to avoid calling os_file_flush() on

@@ -31,7 +31,7 @@ extern "C" {
 #define EXTERNC
 #endif /* __cplusplus */ 
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 typedef CRITICAL_SECTION pthread_mutex_t;
 typedef DWORD		 pthread_t;
 typedef struct thread_attr {
@@ -295,7 +295,7 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #define HAVE_PTHREAD_KILL
 #endif
 
-#endif /* defined(__WIN__) */
+#endif /* defined(_WIN32) */
 
 #if !defined(HAVE_PTHREAD_YIELD_ONE_ARG) && !defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
 /* no pthread_yield() available */
@@ -711,7 +711,7 @@ extern int pthread_dummy(int);
 struct st_my_thread_var
 {
   int thr_errno;
-#if defined(__WIN__)
+#if defined(_WIN32)
 /*
   thr_winerr is used for returning the original OS error-code in Windows,
   my_osmaperr() returns EINVAL for all unknown Windows errors, hence we
@@ -744,7 +744,7 @@ extern uint my_thread_end_wait_time;
 #define my_thread_var (_my_thread_var())
 #define my_errno my_thread_var->thr_errno
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define my_winerr my_thread_var->thr_winerr
 #endif
 /*
