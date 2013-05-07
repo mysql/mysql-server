@@ -95,8 +95,14 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
       ../storage/innobase/buf/buf0buf.cc
       ../storage/innobase/page/page0zip.cc
      )
-  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
+
+  ADD_VERSION_INFO(innochecksum EXECUTABLE INNOBASE_SOURCES)
+  ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
   TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl)
+
+  IF(WITH_VALGRIND)
+    MYSQL_INSTALL_TARGETS(innochecksum DESTINATION ${INSTALL_BINDIR})
+  ENDIF()
   # Note that this will overwrite the non debug "innochecksum" with the
   # debug one
   INSTALL_DEBUG_TARGET(innochecksum DESTINATION ${INSTALL_BINDIR})
