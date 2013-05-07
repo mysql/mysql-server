@@ -827,5 +827,36 @@ truncate table t1;
 98304
 drop table t1;
 drop procedure populate_t1;
+use test;
+create table master
+(i int, f float, c char(100),
+primary key pk(i), index fidx(f))
+engine = innodb;
+create table slave
+(i int, j int,
+primary key pk(i),
+foreign key fk(j) references master(i))
+engine = innodb;
+insert into master values
+(1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
+(4, 4.4, 'd'), (5, 5.5, 'e');
+insert into slave values
+(101, 1), (202, 3), (303, 5);
+select * from master;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+4	4.4	d
+5	5.5	e
+select * from slave;
+i	j
+101	1
+202	3
+303	5
+truncate table master;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`slave`, CONSTRAINT `slave_ibfk_1` FOREIGN KEY (`j`) REFERENCES `test`.`master` (`i`))
+drop table slave;
+drop table master;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;

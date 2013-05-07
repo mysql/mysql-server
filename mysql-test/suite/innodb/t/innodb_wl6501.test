@@ -10,6 +10,7 @@
 # 1. Test some basic dml action involving truncate of table.
 # 2. Validate size of ibd file post truncate
 #    (applicable only for single tablespace).
+# 3. Test that truncating reference table is blocked.
 #
 ################################################################################
 
@@ -124,6 +125,38 @@ truncate table t1;
 drop table t1;
 drop procedure populate_t1;
 
+#-----------------------------------------------------------------------------
+#
+# 3. Test that truncating reference table is blocked.
+#
+use test;
+#
+create table master
+	(i int, f float, c char(100),
+	 primary key pk(i), index fidx(f))
+	engine = innodb;
+#
+create table slave
+	(i int, j int,
+	 primary key pk(i),
+	 foreign key fk(j) references master(i))
+	engine = innodb;
+#
+insert into master values
+	(1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
+	(4, 4.4, 'd'), (5, 5.5, 'e');
+#
+insert into slave values
+	(101, 1), (202, 3), (303, 5);
+#
+select * from master;
+select * from slave;
+#
+--error ER_TRUNCATE_ILLEGAL_FK
+truncate table master;
+#
+drop table slave;
+drop table master;
 
 #-----------------------------------------------------------------------------
 #
