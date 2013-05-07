@@ -374,10 +374,10 @@ C_MODE_END
 #ifdef _some_old_compiler_that_does_not_understand_the_construct_below_
 #define compile_time_assert(X)  do { } while(0)
 #else
-#define compile_time_assert(X)                                  \
-  do                                                            \
-  {                                                             \
-    typedef char compile_time_assert[(X) ? 1 : -1];             \
+#define compile_time_assert(X)                                              \
+  do                                                                        \
+  {                                                                         \
+    typedef char compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
 #endif
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -424,7 +424,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       if (unpack_blobs)
       {
         memcpy(record+keyseg->start+keyseg->bit_start,
-               (char*) &blob_ptr,sizeof(char*));
+               &blob_ptr, sizeof(char*));
         memcpy(blob_ptr,key,length);
         blob_ptr+=length;
         /* The above changed info->lastkey2. Inform mi_rnext_same(). */
