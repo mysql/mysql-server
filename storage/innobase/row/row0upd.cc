@@ -466,6 +466,95 @@ row_upd_changes_field_size_or_external(
 	return(false);
 }
 
+/** Determines if a row update changes the size of some fields
+or if any updated field is stored externally.
+@param[in]	rec	ROW_FORMAT=REDUNDANT B-tree leaf page record
+@param[in]	index	B-tree index
+@param[in]	update	update vector
+@return true if the update changes the size of some field in index or
+the field is external in rec or update */
+UNIV_INTERN
+bool
+row_upd_changes_field_size_or_external_old(
+	const dict_index_t*	index,
+	const rec_t*		rec,
+	const upd_t*		update)
+{
+	ut_ad(page_is_leaf(page_align(rec)));
+	ut_ad(!page_rec_is_comp(rec));
+	const ulint n_fields = upd_get_n_fields(update);
+
+	if (rec_get_1byte_offs_flag(rec)) {
+		for (ulint i = 0; i < n_fields; i++) {
+			const upd_field_t*	upd_field
+				= upd_get_nth_field(update, i);
+			const dfield_t*		new_val
+				= &upd_field->new_val;
+
+			if (dfield_is_ext(new_val)) {
+				return(true);
+			}
+
+			const ulint		field_no
+				= upd_field->field_no;
+
+			const ulint		new_len
+				= dfield_is_null(new_val)
+				? dict_col_get_sql_null_size(
+					dict_index_get_nth_col(
+						index, field_no), 0)
+				: dfield_get_len(new_val);
+
+			const ulint		old_len
+				= rec_1_get_field_start_offs(rec, field_no + 1)
+				- rec_1_get_field_start_offs(rec, field_no);
+
+			if (old_len != new_len) {
+				return(true);
+			}
+		}
+	} else {
+		for (ulint i = 0; i < n_fields; i++) {
+			const upd_field_t*	upd_field
+				= upd_get_nth_field(update, i);
+			const dfield_t*		new_val
+				= &upd_field->new_val;
+
+			if (dfield_is_ext(new_val)) {
+				return(true);
+			}
+
+			const ulint		field_no
+				= upd_field->field_no;
+
+			const ulint		new_len
+				= dfield_is_null(new_val)
+				? dict_col_get_sql_null_size(
+					dict_index_get_nth_col(
+						index, field_no), 0)
+				: dfield_get_len(new_val);
+
+			const ulint		next_os
+				= rec_2_get_field_end_info(rec, field_no);
+
+			if (next_os & REC_2BYTE_EXTERN_MASK) {
+				return(true);
+			}
+
+			const ulint		old_len
+				= rec_2_get_field_start_offs(rec, field_no + 1)
+				- (next_os & ~(REC_2BYTE_SQL_NULL_MASK
+					       | REC_2BYTE_EXTERN_MASK));
+
+			if (old_len != new_len) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
 /***********************************************************//**
 Returns true if row update contains disowned external fields.
 @return true if the update contains disowned external fields. */
