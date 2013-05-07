@@ -356,7 +356,7 @@ static void usage(void)
   -?, --help          Display this help and exit.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
-#if defined( __WIN__)
+#if defined(_WIN32)
    printf("semicolon (;)");
 #else
    printf("colon (:)");

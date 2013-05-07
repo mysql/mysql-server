@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -144,7 +144,7 @@ innodb_api_begin(
 	char		table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
 
 	if (!*crsr) {
-#ifdef __WIN__
+#ifdef _WIN32
 		sprintf(table_name, "%s\%s", dbname, name);
 #else
 		snprintf(table_name, sizeof(table_name),
@@ -1543,7 +1543,7 @@ innodb_api_flush(
 				   + MAX_DATABASE_NAME_LEN + 1];
 	ib_id_u64_t	new_id;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	sprintf(table_name, "%s\%s", dbname, name);
 #else
 	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);

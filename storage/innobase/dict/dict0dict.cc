@@ -3757,13 +3757,13 @@ dict_get_referenced_table(
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
 
 	} else {
-#ifndef __WIN__
+#ifndef _WIN32
 		if (innobase_get_lower_case_table_names() == 1) {
 			innobase_casedn_str(ref);
 		}
 #else
 		innobase_casedn_str(ref);
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 		*table = dict_table_get_low(ref);
 	}
 

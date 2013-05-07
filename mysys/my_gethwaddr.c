@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ err:
   return res;
 }
 
-#elif defined(__WIN__)
+#elif defined(_WIN32)
 
 /*
   Workaround for BUG#32082 (Definition of VOID in my_global.h conflicts with
@@ -195,7 +195,7 @@ my_bool my_gethwaddr(uchar *to)
   return return_val;
 }
 
-#else /* __FreeBSD__ || __linux__ || __WIN__ */
+#else /* __FreeBSD__ || __linux__ || _WIN32 */
 /* just fail */
 my_bool my_gethwaddr(uchar *to __attribute__((unused)))
 {

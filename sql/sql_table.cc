@@ -57,7 +57,7 @@
 #include "table_cache.h"
 #include <mysql/psi/mysql_table.h>
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <io.h>
 #endif
 
