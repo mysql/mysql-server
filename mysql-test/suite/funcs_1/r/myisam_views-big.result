@@ -142,6 +142,7 @@ Attention: The nesting level @max_level in Testcase 3.3.1.A6
 MyISAM(only) performance issues Bug#11948
 --------------------------------------------------------------------------------
 SET @limit1 = 20;
+SET SESSION default_storage_engine = <storage_engine>;
 
 ! Attention: The file with the expected results is not
 |            thoroughly checked.
@@ -4034,7 +4035,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 DROP TABLE IF EXISTS t1, t2 ;
 DROP VIEW  IF EXISTS v1 ;
 DROP VIEW  IF EXISTS v2 ;
-CREATE TABLE t1 ( f1 DATE, f2 BLOB, f3 DOUBLE );
+CREATE TABLE t1 ( f1 DATE, f2 VARCHAR(30), f3 DOUBLE );
 CREATE VIEW  v1 AS SELECT f1, f2, f3 FROM t1;
 ALTER  TABLE t1 ADD PRIMARY KEY(f1);
 ALTER  TABLE v1 ADD PRIMARY KEY(f1);
