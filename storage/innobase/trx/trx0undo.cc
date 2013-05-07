@@ -159,6 +159,7 @@ trx_undo_get_prev_rec_from_prev_page(
 	trx_undo_rec_t*	rec,	/*!< in: undo record */
 	ulint		page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
+	bool		shared,	/*!< in: true=S-latch, false=X-latch */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	space;
@@ -181,8 +182,12 @@ trx_undo_get_prev_rec_from_prev_page(
 	space = page_get_space_id(undo_page);
 	zip_size = fil_space_get_zip_size(space);
 
-	prev_page = trx_undo_page_get_s_latched(space, zip_size,
-						prev_page_no, mtr);
+	buf_block_t*	block = buf_page_get(space, zip_size, prev_page_no,
+					     shared ? RW_S_LATCH : RW_X_LATCH,
+					     mtr);
+	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
+
+	prev_page = buf_block_get_frame(block);
 
 	return(trx_undo_page_get_last_rec(prev_page, page_no, offset));
 }
@@ -197,6 +202,7 @@ trx_undo_get_prev_rec(
 	trx_undo_rec_t*	rec,	/*!< in: undo record */
 	ulint		page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
+	bool		shared,	/*!< in: true=S-latch, false=X-latch */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	trx_undo_rec_t*	prev_rec;
@@ -212,7 +218,7 @@ trx_undo_get_prev_rec(
 	previous record */
 
 	return(trx_undo_get_prev_rec_from_prev_page(rec, page_no, offset,
-						    mtr));
+						    shared, mtr));
 }
 
 /***********************************************************************//**

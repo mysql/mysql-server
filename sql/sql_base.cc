@@ -27,7 +27,7 @@
 #include "strfunc.h"     // find_type
 #include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
 #include "sql_parse.h"   // check_table_access
-#include "sql_acl.h"     // *_ACL, check_grant_all_columns,
+#include "auth_common.h" // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
                          // get_column_grant
 #include "sql_partition.h"               // ALTER_PARTITION_PARAM_TYPE

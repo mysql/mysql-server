@@ -30,9 +30,8 @@
 #include "sql_view.h"                           // VIEW_ANY_SQL
 #include "sql_time.h"                  // str_to_datetime_with_warn,
                                        // make_truncated_value_warning
-#include "sql_acl.h"                   // get_column_grant,
-                                       // SELECT_ACL, UPDATE_ACL,
-                                       // INSERT_ACL,
+#include "auth_common.h"               // SELECT_ACL, UPDATE_ACL, INSERT_ACL
+                                       // get_column_grant,
                                        // check_grant_column
 #include "sql_base.h"                  // enum_resolution_type,
                                        // REPORT_EXCEPT_NOT_FOUND,

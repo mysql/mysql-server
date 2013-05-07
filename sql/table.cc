@@ -28,7 +28,8 @@
 #include "strfunc.h"                            // unhex_type2
 #include "sql_partition.h"       // mysql_unpack_partition,
                                  // fix_partition_func, partition_info
-#include "sql_acl.h"             // *_ACL, acl_getroot_no_password
+#include "auth_common.h"         // acl_getroot
+                                 // *_ACL, acl_getroot_no_password
 #include "sql_base.h"            // release_table_share
 #include "sql_derived.h"
 #include <m_ctype.h>
