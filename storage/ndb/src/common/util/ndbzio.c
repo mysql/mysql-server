@@ -786,7 +786,6 @@ int write_buffer(ndbzio_stream *s)
 */
 unsigned int ndbzwrite (ndbzio_stream *s, const void*  buf, unsigned int len)
 {
-  unsigned int i;
   s->stream.next_in = (Bytef*)buf;
   s->stream.avail_in = len;
 
