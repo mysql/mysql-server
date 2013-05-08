@@ -79,7 +79,7 @@ update my_bh_table, performance_schema.setup_instruments
 set my_bh_table.a = my_bh_table.a + 1,
 performance_schema.setup_instruments.timed= 'NO';
 Warnings:
-Warning	1878	Row events are not logged for UPDATE statements that modify BLACKHOLE tables in row format. Table(s): 'my_bh_table.'
+Warning	1870	Row events are not logged for UPDATE statements that modify BLACKHOLE tables in row format. Table(s): 'my_bh_table.'
 use test;
 drop table if exists marker_multi_delete;
 Warnings:
@@ -104,7 +104,7 @@ from my_bh_table, performance_schema.setup_actors
 where my_bh_table.a != 1000
 or performance_schema.setup_actors.role='BAZ';
 Warnings:
-Warning	1878	Row events are not logged for DELETE statements that modify BLACKHOLE tables in row format. Table(s): 'my_bh_table.'
+Warning	1870	Row events are not logged for DELETE statements that modify BLACKHOLE tables in row format. Table(s): 'my_bh_table.'
 use test;
 drop table if exists marker_end;
 Warnings:
