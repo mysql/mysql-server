@@ -1621,7 +1621,6 @@ buf_do_flush_list_batch(
 	     && bpage->oldest_modification < lsn_limit;
 	     ++scanned) {
 
-		bool		flushed;
 		buf_page_t*	prev;
 
 		ut_a(bpage->oldest_modification > 0);
@@ -1632,7 +1631,10 @@ buf_do_flush_list_batch(
 
 		buf_flush_list_mutex_exit(buf_pool);
 
-		flushed = buf_flush_page_and_try_neighbors(
+#ifdef UNIV_DEBUG
+		bool flushed =
+#endif /* UNIV_DEBUG */
+		buf_flush_page_and_try_neighbors(
 			bpage, BUF_FLUSH_LIST, min_n, &count);
 
 		buf_flush_list_mutex_enter(buf_pool);
