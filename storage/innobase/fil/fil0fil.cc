@@ -3161,7 +3161,7 @@ fil_prepare_for_truncate(
 The set of the truncated tablespaces need to be initialized
 during recovery.
 @return true if the space is in the set, otherwise false */
-UNIV_INTERN inline
+UNIV_INTERN
 bool
 fil_space_is_truncated(
 /*===================*/
