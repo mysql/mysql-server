@@ -608,6 +608,9 @@ The following options may be given as the first argument:
  --performance-schema-max-mutex-instances=# 
  Maximum number of instrumented MUTEX objects. Use 0 to
  disable, -1 for automated sizing.
+ --performance-schema-max-program-instances=# 
+ Maximum number of instrumented programs. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-max-rwlock-classes=# 
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
@@ -622,6 +625,8 @@ The following options may be given as the first argument:
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
  Maximum number of statement instruments.
+ --performance-schema-max-statement-stack=# 
+ Number of rows per thread in EVENTS_STATEMENTS_CURRENT.
  --performance-schema-max-table-handles=# 
  Maximum number of opened instrumented tables. Use 0 to
  disable, -1 for automated sizing.
@@ -1162,12 +1167,14 @@ performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
+performance-schema-max-program-instances 5000
 performance-schema-max-rwlock-classes 30
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 168
+performance-schema-max-statement-classes 184
+performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50

@@ -136,6 +136,12 @@ get_table_share_noop(my_bool temporary NNN, struct TABLE_SHARE *share NNN)
   return NULL;
 }
 
+static void set_statement_parent_noop(PSI_statement_locker *locker NNN,        
+                                      const void *head NNN)                    
+{                                                                              
+  return;                                                                      
+}                                                                              
+
 static void release_table_share_noop(PSI_table_share* share NNN)
 {
   return;
@@ -645,6 +651,27 @@ set_thread_connect_attrs_noop(const char *buffer __attribute__((unused)),
   return 0;
 }
 
+static void pfs_start_sp_noop(PSI_sp_locker *locker NNN)
+{
+  return;
+}
+
+static void pfs_end_sp_noop(PSI_sp_locker *locker NNN)
+{
+  return;
+}
+
+static void pfs_drop_sp_noop(PSI_sp_locker_state *state NNN)
+{
+  return;
+}
+
+static PSI_sp_locker*
+pfs_get_thread_sp_locker_noop(PSI_sp_locker_state *state NNN)
+{
+  return NULL;
+}
+
 static PSI PSI_noop=
 {
   register_mutex_noop,
@@ -719,6 +746,7 @@ static PSI PSI_noop=
   refine_statement_noop,
   start_statement_noop,
   set_statement_text_noop,
+  set_statement_parent_noop,
   set_statement_lock_time_noop,
   set_statement_rows_sent_noop,
   set_statement_rows_examined_noop,
@@ -743,7 +771,11 @@ static PSI PSI_noop=
   set_socket_thread_owner_noop,
   digest_start_noop,
   digest_add_token_noop,
-  set_thread_connect_attrs_noop
+  set_thread_connect_attrs_noop,
+  pfs_start_sp_noop,
+  pfs_end_sp_noop,
+  pfs_get_thread_sp_locker_noop,
+  pfs_drop_sp_noop
 };
 
 /**

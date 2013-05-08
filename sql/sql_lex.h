@@ -216,7 +216,8 @@ enum enum_sp_type
 {
   SP_TYPE_FUNCTION= 1,
   SP_TYPE_PROCEDURE,
-  SP_TYPE_TRIGGER
+  SP_TYPE_TRIGGER,
+  SP_TYPE_EVENT
 };
 
 /*

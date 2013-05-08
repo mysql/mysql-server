@@ -310,6 +310,24 @@ struct PFS_stage_stat
   { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
 };
 
+/** Statistics for stored program usage. */
+struct PFS_sp_stat
+{
+  PFS_single_stat m_timer1_stat;
+
+  inline void reset(void)
+  { m_timer1_stat.reset(); }
+
+  inline void aggregate_counted()
+  { m_timer1_stat.aggregate_counted(); }
+
+  inline void aggregate_value(ulonglong value)
+  { m_timer1_stat.aggregate_value(value); }
+
+  inline void aggregate(PFS_stage_stat *stat)
+  { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
+};
+
 /** Statistics for statement usage. */
 struct PFS_statement_stat
 {

@@ -110,6 +110,7 @@
 #include "sp_rcontext.h"
 #include "sp_cache.h"
 #include "sql_reload.h"  // reload_acl_and_cache
+#include "sp_head.h"  // init_sp_psi_keys
 
 #ifdef HAVE_POLL_H
 #include <poll.h>
@@ -9655,6 +9656,8 @@ void init_server_psi_keys(void)
   init_sql_statement_info();
   count= array_elements(sql_statement_info);
   mysql_statement_register(category, sql_statement_info, count);
+
+  init_sp_psi_keys();
 
   category= "com";
   init_com_statement_info();
