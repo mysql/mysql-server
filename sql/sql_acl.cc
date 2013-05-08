@@ -7367,6 +7367,12 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio, Security_context *sctx)
     cs->coll->hash_sort(cs, (uchar*) sctx->user, strlen(sctx->user), &nr1, &nr2);
 
     pthread_mutex_lock(&acl_cache->lock);
+    if (!acl_users.elements)
+    {
+      pthread_mutex_unlock(&acl_cache->lock);
+      login_failed_error(mpvio->thd);
+      return 1;
+    }
     uint i= nr1 % acl_users.elements;
     ACL_USER *acl_user_tmp= dynamic_element(&acl_users, i, ACL_USER*);
     mpvio->acl_user= acl_user_tmp->copy(mpvio->thd->mem_root);

@@ -1,0 +1,18 @@
+#
+# MDEV-4462 mysqld gets SIGFPE when mysql.user table is empty
+#
+
+source include/not_embedded.inc;
+
+create table t1 as select * from mysql.user;
+truncate table mysql.user;
+flush privileges;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect (fail,localhost,u1);
+
+insert mysql.user select * from t1;
+drop table t1;
+flush privileges;
+
