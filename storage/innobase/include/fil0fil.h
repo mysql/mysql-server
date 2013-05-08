@@ -158,7 +158,8 @@ struct truncate_t {
 			:
 			m_id(),
 			m_type(),
-			m_root_page_no(),
+			m_root_page_no(FIL_NULL),
+			m_new_root_page_no(FIL_NULL),
 			m_n_fields(),
 			m_trx_id_pos(ULINT_UNDEFINED),
 			m_fields()
@@ -178,6 +179,11 @@ struct truncate_t {
 
 		/** Root Page Number */
 		ulint		m_root_page_no;
+
+		/** New Root Page Number.
+		Note: This field is not persisted to REDO log but used during
+		truncate table fix-up for updating SYS_XXXX tables. */
+		ulint		m_new_root_page_no;
 
 		/** Number of index fields */
 		ulint		m_n_fields;
@@ -218,16 +224,13 @@ struct truncate_t {
 	@param zip_size		page size of the .ibd file
 	@param flags		tablespace flags
 	@param format_flags	page format flags
-	@param redo_cache_entry	cache to store info about new page no so as
-	to update them in dictionary post recovery
 	@return DB_SUCCESS or error code. */
 	dberr_t create_indexes(
 		const char*		table_name,
 		ulint			space_id,
 		ulint			zip_size,
 		ulint			flags,
-		ulint			format_flags,
-		truncate_redo_cache_t* 	redo_cache_entry) const; 
+		ulint			format_flags);
 
 	/** Drop indexes for a table.
 	@param space_id		space_id where table/indexes resides.
@@ -631,14 +634,8 @@ fil_recreate_table(
 	ulint			format_flags,	/*!< in: page format */
 	ulint			flags,		/*!< in: tablespace flags */
 	const char*		name,		/*!< in: table name */
-	const truncate_t&	truncate,	/*!< in: The information of
+	truncate_t&		truncate);	/*!< in/out: The information of
 						MLOG_FILE_TRUNCATE record */
-	lsn_t			recv_lsn,	/*!< in: the end LSN of
-						the log record */
-	truncate_redo_cache_t*	redo_cache_entry);
-						/*!< out: cache to store
-						information needed for
-						completion of truncate. */
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
 MLOG_FILE_TRUNCATE redo record during recovery. */
@@ -650,14 +647,10 @@ fil_recreate_tablespace(
 	ulint			format_flags,	/*!< in: page format */
 	ulint			flags,		/*!< in: tablespace flags */
 	const char*		name,		/*!< in: table name */
-	const truncate_t&	truncate,	/*!< in: The information of
+	truncate_t&		truncate,	/*!< in/out: The information of
 						MLOG_FILE_TRUNCATE record */
-	lsn_t			recv_lsn,	/*!< in: the end LSN of
+	lsn_t			recv_lsn);	/*!< in: the end LSN of
 						the log record */
-	truncate_redo_cache_t*	redo_cache_entry);
-						/*!< out: cache to store
-						information needed for
-						completion of truncate. */
 /*******************************************************************//**
 Parses the body of a log record written about an .ibd file operation. That is,
 the log record part after the standard (type, space id, page no) header of the
