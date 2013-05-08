@@ -6934,18 +6934,17 @@ static inline int call_after_sync_hook(THD *queue_head)
 {
   const char *log_file= NULL;
   my_off_t pos= 0;
-  THD *tail= NULL;
+
+  if (NO_HOOK(binlog_storage))
+    return 0;
 
   DBUG_ASSERT(queue_head != NULL);
-  while (queue_head)
-  {
-    tail= queue_head;
-    queue_head= queue_head->next_to_commit;
-  }
+  for (THD *thd= queue_head; thd != NULL; thd= thd->next_to_commit)
+    if (likely(thd->commit_error == THD::CE_NONE))
+      thd->get_trans_pos(&log_file, &pos);
 
-  tail->get_trans_pos(&log_file, &pos);
   if (DBUG_EVALUATE_IF("simulate_after_sync_hook_error", 1, 0) ||
-      RUN_HOOK(binlog_storage, after_sync, (tail, log_file, pos)))
+      RUN_HOOK(binlog_storage, after_sync, (queue_head, log_file, pos)))
   {
     sql_print_error("Failed to run 'after_sync' hooks");
     return ER_ERROR_ON_WRITE;
