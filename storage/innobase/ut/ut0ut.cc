@@ -449,6 +449,60 @@ ut_print_buf(
 	putc(';', file);
 }
 
+#ifndef DBUG_OFF
+/*************************************************************//**
+Prints the contents of a memory buffer in hex. */
+UNIV_INTERN
+void
+ut_print_buf_hex(
+/*=============*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+{
+	const byte*		data;
+	ulint			i;
+
+	static const char	hexdigit[16] = {
+		'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
+	};
+
+	UNIV_MEM_ASSERT_RW(buf, len);
+
+	o << "(0x";
+
+	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
+		byte	b = *data++;
+		o << hexdigit[b >> 16] << hexdigit[b & 15];
+	}
+
+	o << ")";
+}
+
+/*************************************************************//**
+Prints the contents of a memory buffer in hex and ascii. */
+UNIV_INTERN
+void
+ut_print_buf(
+/*=========*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+{
+	const byte*	data;
+	ulint		i;
+
+	UNIV_MEM_ASSERT_RW(buf, len);
+
+	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
+		int	c = static_cast<int>(*data++);
+		o << (isprint(c) ? static_cast<char>(c) : ' ');
+	}
+
+	ut_print_buf_hex(o, buf, len);
+}
+#endif /* !DBUG_OFF */
+
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
 @return	first power of 2 which is >= n */

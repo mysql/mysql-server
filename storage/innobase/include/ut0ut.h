@@ -42,6 +42,7 @@ Created 1/20/1994 Heikki Tuuri
 #endif
 
 #include <stdarg.h> /* for va_list */
+#include <ostream>
 
 /** Index name prefix in fast index creation */
 #define	TEMP_INDEX_PREFIX	'\377'
@@ -333,6 +334,29 @@ ut_print_buf(
 	FILE*		file,	/*!< in: file where to print */
 	const void*	buf,	/*!< in: memory buffer */
 	ulint		len);	/*!< in: length of the buffer */
+
+#ifndef DBUG_OFF
+/*************************************************************//**
+Prints the contents of a memory buffer in hex. */
+UNIV_INTERN
+void
+ut_print_buf_hex(
+/*=============*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+	__attribute__((nonnull));
+/*************************************************************//**
+Prints the contents of a memory buffer in hex and ascii. */
+UNIV_INTERN
+void
+ut_print_buf(
+/*=========*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+	__attribute__((nonnull));
+#endif /* !DBUG_OFF */
 
 /**********************************************************************//**
 Outputs a NUL-terminated file name, quoted with apostrophes. */

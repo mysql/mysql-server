@@ -145,9 +145,6 @@ the completed IO request and calls completion routine on it.
 **********************************************************************/
 
 
-/** Flag: enable debug printout for asynchronous i/o */
-UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
-
 #ifdef UNIV_PFS_IO
 /* Keys to register InnoDB I/O with performance schema */
 UNIV_INTERN mysql_pfs_key_t  innodb_data_file_key;
@@ -5270,14 +5267,6 @@ restart:
 		if (!slot->reserved) {
 			continue;
 		} else if (slot->io_already_done) {
-
-			if (os_aio_print_debug) {
-				fprintf(stderr,
-					"InnoDB: i/o for slot %lu"
-					" already done, returning\n",
-					(ulong) i);
-			}
-
 			aio_slot = slot;
 			ret = TRUE;
 			goto slot_io_done;
