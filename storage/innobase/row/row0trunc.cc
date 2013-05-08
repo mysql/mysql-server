@@ -460,8 +460,8 @@ Update system table to reflect new table id and root page number.
 @return error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
-row_truncate_update_sys_tables_post_redo(
-	truncate_redo_cache_t*	redo_cache,
+row_truncate_update_sys_tables_during_fix_up(
+	const truncate_t&	truncate,
 	ulint			new_table_id,
 	ibool			reserve_dict_mutex)
 {
@@ -472,20 +472,23 @@ row_truncate_update_sys_tables_post_redo(
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	/* Step-1: Update the root-page-no */
-	truncate_redo_cache_t::index_page_cache_t::const_iterator end =
-		redo_cache->m_new_page_no.end();
-
-	for (truncate_redo_cache_t::index_page_cache_t::const_iterator it =
-		redo_cache->m_new_page_no.begin();
+	truncate_t::indexes_t::const_iterator end = truncate.m_indexes.end();
+	for (truncate_t::indexes_t::const_iterator it
+		= truncate.m_indexes.begin();
 	     it != end;
 	     ++it) {
 
 		pars_info_t*	info	= NULL;
 		info = pars_info_create();
-		pars_info_add_int4_literal(info, "page_no", it->second);
-		pars_info_add_ull_literal(info, "table_id",
-			redo_cache->m_old_table_id);
-		pars_info_add_ull_literal(info, "index_id", it->first);
+
+		pars_info_add_int4_literal(
+			info, "page_no", it->m_new_root_page_no);
+
+		pars_info_add_ull_literal(
+			info, "table_id", truncate.m_old_table_id);
+
+		pars_info_add_ull_literal(
+			info, "index_id", it->m_id);
 
 		err = que_eval_sql(
 			info,
@@ -504,7 +507,7 @@ row_truncate_update_sys_tables_post_redo(
 		
 	/* Step-2: Update table-id. */
 	err = row_truncate_update_table_id(
-		redo_cache->m_old_table_id, new_table_id,
+		truncate.m_old_table_id, new_table_id,
 		reserve_dict_mutex, trx);
 
 	if (err != DB_SUCCESS) {
@@ -1088,15 +1091,13 @@ row_fixup_truncate_of_tables()
 {
 	dberr_t	err = DB_SUCCESS;
 
-	std::vector<truncate_redo_cache_t*> redo_cache;
-
-	/* Apply truncate REDO log action. */
+	/* Using the info cached during REDO log scan phase fix the
+	table truncate. */
 	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
-		truncate_t* tbl = srv_tables_to_truncate[i];
 
-		truncate_redo_cache_t* redo_cache_entry =
-			new truncate_redo_cache_t(
-				tbl->m_old_table_id, tbl->m_new_table_id);
+		/* Step-1: Drop tablespace (only for single-tablespace),
+		drop indexes and re-create indexes. */
+		truncate_t* tbl = srv_tables_to_truncate[i];
 
 		if (!Tablespace::is_system_tablespace(tbl->m_space_id)) {
 
@@ -1133,11 +1134,9 @@ row_fixup_truncate_of_tables()
 				== TRUE);
 
 			fil_recreate_tablespace(
-				tbl->m_space_id,
-				tbl->m_format_flags,
-				tbl->m_tablespace_flags,
-				tbl->m_tablename,
-				*tbl, log_get_lsn(), redo_cache_entry);
+				tbl->m_space_id, tbl->m_format_flags,
+				tbl->m_tablespace_flags, tbl->m_tablename,
+				*tbl, log_get_lsn());
 
 		} else if (Tablespace::is_system_tablespace(tbl->m_space_id)) {
 
@@ -1150,26 +1149,18 @@ row_fixup_truncate_of_tables()
 				== TRUE);
 
 			fil_recreate_table(
-				tbl->m_space_id,
-				tbl->m_format_flags,
-				tbl->m_tablespace_flags,
-				tbl->m_tablename,
-				*tbl, log_get_lsn(), redo_cache_entry);
+				tbl->m_space_id, tbl->m_format_flags,
+				tbl->m_tablespace_flags, tbl->m_tablename,
+				*tbl);
 		}
 
-		redo_cache.push_back(redo_cache_entry);
-	}
-
-	/* Tables are already truncated using MLOG_FILE_TRUNCATE REDO log
-	entry. Now assign new table-id to these tables so that purge
-	action on these tables can be blocked. */
-	for (ulint i = 0; i < redo_cache.size() && err != DB_ERROR; i++) {
-
+		/* Step-2: Update the SYS_XXXX tables to reflect new table-id
+		and root_page_no. */
 		table_id_t      new_id;
 		dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);
 
-		err = row_truncate_update_sys_tables_post_redo(
-			redo_cache[i], new_id, TRUE);
+		err = row_truncate_update_sys_tables_during_fix_up(
+			*tbl, new_id, TRUE);
 		if (err != DB_SUCCESS) {
 			break;
 		}
@@ -1179,11 +1170,6 @@ row_fixup_truncate_of_tables()
 		delete(srv_tables_to_truncate[i]);
 	}
 	srv_tables_to_truncate.clear();
-
-	for (ulint i = 0; i < redo_cache.size(); i++) {
-		delete(redo_cache[i]);
-	}
-	redo_cache.clear();
 
 	return(err);
 }
