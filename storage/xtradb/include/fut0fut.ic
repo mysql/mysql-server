@@ -50,10 +50,7 @@ fut_get_ptr(
 
 	block = buf_page_get(space, zip_size, addr.page, rw_latch, mtr);
 
-	if (srv_pass_corrupt_table && !block) {
-		return(0);
-	}
-	ut_a(block);
+	SRV_CORRUPT_TABLE_CHECK(block, return(0););
 
 	ptr = buf_block_get_frame(block) + addr.boffset;
 

@@ -249,6 +249,17 @@ trx_id_t
 trx_sys_get_new_trx_id(void);
 /*========================*/
 
+/*************************************************************//**
+Find a slot for a given trx ID in a descriptors array.
+@return: slot pointer */
+UNIV_INLINE
+trx_id_t*
+trx_find_descriptor(
+/*================*/
+	const trx_id_t*	descriptors,	/*!< in: descriptors array */
+	ulint		n_descr,	/*!< in: array size */
+	trx_id_t	trx_id);	/*!< in: trx pointer */
+
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 extern uint			trx_rseg_n_slots_debug;
@@ -633,6 +644,8 @@ identifier is added to this 64-bit constant. */
 	 | TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW)
 /* @} */
 
+#define TRX_DESCR_ARRAY_INITIAL_SIZE 	1000
+
 #ifndef UNIV_HOTBACKUP
 /** Doublewrite control struct */
 struct trx_doublewrite_struct{
@@ -660,16 +673,41 @@ struct trx_sys_struct{
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
+	char		pad1[64];	/*!< Ensure max_trx_id does not share
+					cache line with other fields. */
+	trx_id_t*	descriptors;	/*!< Array of trx descriptors */
+	ulint		descr_n_max;	/*!< The current size of the descriptors
+					array. */
+	char		pad2[64];	/*!< Ensure static descriptor fields
+					do not share cache lines with
+					descr_n_used */
+	ulint		descr_n_used;	/*!< Number of used elements in the
+					descriptors array. */
+	char		pad3[64];	/*!< Ensure descriptors do not share
+					cache line with other fields */
 	UT_LIST_BASE_NODE_T(trx_t) trx_list;
 					/*!< List of active and committed in
 					memory transactions, sorted on trx id,
 					biggest first */
+	char		pad4[64];	/*!< Ensure list base nodes do not
+					share cache line with other fields */
 	UT_LIST_BASE_NODE_T(trx_t) mysql_trx_list;
 					/*!< List of transactions created
 					for MySQL */
+	char		pad5[64];	/*!< Ensure list base nodes do not
+					share cache line with other fields */
+	UT_LIST_BASE_NODE_T(trx_t) trx_serial_list;
+					/*!< trx->no ordered List of
+					transactions in either TRX_PREPARED or
+					TRX_ACTIVE which have already been
+					assigned a serialization number */
+	char		pad6[64];	/*!< Ensure trx_serial_list does not
+					share cache line with other fields */
 	UT_LIST_BASE_NODE_T(trx_rseg_t) rseg_list;
 					/*!< List of rollback segment
 					objects */
+	char		pad7[64];	/*!< Ensure list base nodes do not
+					share cache line with other fields */
 	trx_rseg_t*	latest_rseg;	/*!< Latest rollback segment in the
 					round-robin assignment of rollback
 					segments to transactions */

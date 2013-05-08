@@ -1589,7 +1589,6 @@ struct buf_page_struct{
 					0 if the block was never accessed
 					in the buffer pool. Protected by
 					block mutex */
-	ibool		space_was_being_deleted;
 	ibool		is_corrupt;
 # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ibool		file_page_was_freed;

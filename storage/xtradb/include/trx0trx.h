@@ -447,6 +447,23 @@ trx_get_que_state_str(
 /*==================*/
 	const trx_t*	trx);	/*!< in: transaction */
 
+/*************************************************************//**
+Callback function for trx_find_descriptor() to compare trx IDs. */
+UNIV_INTERN
+int
+trx_descr_cmp(
+/*==========*/
+	const void *a,	/*!< in: pointer to first comparison argument */
+	const void *b);	/*!< in: pointer to second comparison argument */
+
+/*************************************************************//**
+Release a slot for a given trx in the global descriptors array. */
+UNIV_INTERN
+void
+trx_release_descriptor(
+/*===================*/
+	trx_t* trx);	/*!< in: trx pointer */
+
 /* Signal to a transaction */
 struct trx_sig_struct{
 	unsigned	type:3;		/*!< signal type */
@@ -477,10 +494,18 @@ struct trx_struct{
 	const char*	op_info;	/*!< English text describing the
 					current operation, or an empty
 					string */
-	ulint		conc_state;	/*!< state of the trx from the point
-					of view of concurrency control:
-					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
-					... */
+	ulint		state;		/*!< state of the trx from the point of
+					view of concurrency control: TRX_ACTIVE,
+					TRX_COMMITTED_IN_MEMORY, ...  This was
+					called 'conc_state' in the upstream and
+					has been renamed in Percona Server,
+					because changing it's value to/from
+					either TRX_ACTIVE or TRX_PREPARED
+					requires calling
+					trx_reserve_descriptor() /
+					trx_release_descriptor(). Different name
+					ensures we notice any new code changing
+					the state. */
 	/*------------------------------*/
 	/* MySQL has a transaction coordinator to coordinate two phase
        	commit between multiple storage engines and the binary log. When
@@ -495,6 +520,9 @@ struct trx_struct{
 					also be set to 1. This is used in the
 					XA code */
 	unsigned	called_commit_ordered:1;/* 1 if innobase_commit_ordered has run. */
+	unsigned	is_in_trx_serial_list:1;
+					/* Set when transaction is in the
+					trx_serial_list */
 	/*------------------------------*/
 	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
 	ulint		check_foreigns;	/* normally TRUE, but if the user
@@ -628,6 +656,9 @@ struct trx_struct{
 	UT_LIST_NODE_T(trx_t)
 			mysql_trx_list;	/*!< list of transactions created for
 					MySQL */
+	UT_LIST_NODE_T(trx_t)
+			trx_serial_list;/*!< list node for
+					trx_sys->trx_serial_list */
 	/*------------------------------*/
 	ulint		error_state;	/*!< 0 if no error, otherwise error
 					number; NOTE That ONLY the thread
@@ -686,9 +717,6 @@ struct trx_struct{
 	UT_LIST_BASE_NODE_T(lock_t)
 			trx_locks;	/*!< locks reserved by the transaction */
 	/*------------------------------*/
-	mem_heap_t*	global_read_view_heap;
-					/* memory heap for the global read
-					view */
 	read_view_t*	global_read_view;
 					/* consistent read view associated
 					to a transaction or NULL */
@@ -698,6 +726,7 @@ struct trx_struct{
 					associated to a transaction (i.e.
 					same as global_read_view) or read view
 					associated to a cursor */
+	read_view_t*	prebuilt_view;	/* pre-built view array */
 	/*------------------------------*/
 	UT_LIST_BASE_NODE_T(trx_named_savept_t)
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,

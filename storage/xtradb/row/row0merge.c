@@ -1298,11 +1298,11 @@ row_merge_read_clustered_index(
 		if (UNIV_LIKELY(has_next)) {
 			rec = btr_pcur_get_rec(&pcur);
 
-			if (srv_pass_corrupt_table && !rec) {
+			SRV_CORRUPT_TABLE_CHECK(rec,
+			{
 				err = DB_CORRUPTION;
 				goto err_exit;
-			}
-			ut_a(rec);
+			});
 
 			offsets = rec_get_offsets(rec, clust_index, NULL,
 						  ULINT_UNDEFINED, &row_heap);

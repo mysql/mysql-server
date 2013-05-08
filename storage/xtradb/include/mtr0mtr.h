@@ -375,6 +375,8 @@ struct mtr_struct{
 	ibool		modifications;
 				/* TRUE if the mtr made modifications to
 				buffer pool pages */
+	ibool		made_dirty;/*!< TRUE if mtr has made at least
+				   one buffer pool page dirty */
 	ulint		n_log_recs;
 				/* count of how many page initial log records
 				have been written to the mtr log */

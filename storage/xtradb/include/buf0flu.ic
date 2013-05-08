@@ -70,7 +70,7 @@ buf_flush_note_modification(
 
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 	ut_ad(!buf_flush_list_mutex_own(buf_pool));
-	ut_ad(log_flush_order_mutex_own());
+	ut_ad(!mtr->made_dirty || log_flush_order_mutex_own());
 
 	ut_ad(mtr->start_lsn != 0);
 	ut_ad(mtr->modifications);

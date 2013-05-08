@@ -1319,6 +1319,12 @@ trx_sys_init_at_db_start(void)
 
 	trx_sys = mem_zalloc(sizeof(*trx_sys));
 
+	/* Allocate the trx descriptors array */
+	trx_sys->descriptors = ut_malloc(sizeof(trx_id_t) *
+					 TRX_DESCR_ARRAY_INITIAL_SIZE);
+	trx_sys->descr_n_max = TRX_DESCR_ARRAY_INITIAL_SIZE;
+	trx_sys->descr_n_used = 0;
+
 	sys_header = trx_sysf_get(&mtr);
 
 	trx_rseg_list_and_array_init(sys_header, ib_bh, &mtr);
@@ -1346,7 +1352,7 @@ trx_sys_init_at_db_start(void)
 
 		for (;;) {
 
-			if (trx->conc_state != TRX_PREPARED) {
+			if (trx->state != TRX_PREPARED) {
 				rows_to_undo += trx->undo_no;
 			}
 
@@ -2027,6 +2033,9 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->rseg_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
+
+	ut_ad(trx_sys->descr_n_used == 0);
+	ut_free(trx_sys->descriptors);
 
 	mem_free(trx_sys);
 

@@ -143,6 +143,7 @@ struct trx_purge_struct{
 					obtaining an s-latch here. */
 	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
+	read_view_t*	prebuilt_view;	/*!< Pre-built view array */
 	ulonglong	n_pages_handled;/*!< Approximate number of undo log
 					pages processed in purge */
 	ulonglong	handle_limit;	/*!< Target of how many pages to get

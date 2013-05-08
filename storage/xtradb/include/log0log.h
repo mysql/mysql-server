@@ -122,14 +122,22 @@ UNIV_INLINE
 void
 log_free_check(void);
 /*================*/
-/************************************************************//**
-Opens the log for log_write_low. The log must be closed with log_close and
-released with log_release.
-@return	start lsn of the log record */
-UNIV_INTERN
+/**************************************************************************//**
+Locks the log mutex and opens the log for log_write_low. The log must be closed
+with log_close and released with log_release.
+@return start lsn of the log record */
+UNIV_INLINE
 ib_uint64_t
 log_reserve_and_open(
 /*=================*/
+	ulint	len);	/*!< in: length of data to be catenated */
+/************************************************************//**
+Opens the log for log_write_low. The log must be closed with log_close.
+@return	start lsn of the log record */
+UNIV_INTERN
+ib_uint64_t
+log_open(
+/*=====*/
 	ulint	len);	/*!< in: length of data to be catenated */
 /************************************************************//**
 Writes to the log the string given. It is assumed that the caller holds the

@@ -59,7 +59,7 @@ btr_block_get_func(
 	block = buf_page_get_gen(space, zip_size, page_no, mode,
 				 NULL, BUF_GET, file, line, mtr);
 
-	ut_a(srv_pass_corrupt_table || block);
+	SRV_CORRUPT_TABLE_CHECK(block, ; /* do nothing */);
 
 	if (block && mode != RW_NO_LATCH) {
 
