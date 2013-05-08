@@ -1908,6 +1908,60 @@ rec_print(
 	}
 }
 
+# ifndef DBUG_OFF
+/***************************************************************//**
+Prints a physical record. */
+UNIV_INTERN
+void
+rec_print(
+/*======*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const rec_t*	rec,	/*!< in: physical record */
+	ulint		info,	/*!< in: rec_get_info_bits(rec) */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+{
+	const ulint	comp	= rec_offs_comp(offsets);
+	const ulint	n	= rec_offs_n_fields(offsets);
+
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
+
+	o << (comp ? "COMPACT RECORD" : "RECORD")
+	  << "(info_bits=" << info << ", " << n << " fields): {";
+
+	for (ulint i = 0; i < n; i++) {
+		const byte*	data;
+		ulint		len;
+
+		if (i) {
+			o << ',';
+		}
+
+		data = rec_get_nth_field(rec, offsets, i, &len);
+
+		if (len == UNIV_SQL_NULL) {
+			o << "NULL";
+			continue;
+		}
+
+		if (rec_offs_nth_extern(offsets, i)) {
+			ulint	local_len = len - BTR_EXTERN_FIELD_REF_SIZE;
+			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+			o << '['
+			  << local_len
+			  << '+' << BTR_EXTERN_FIELD_REF_SIZE << ']';
+			ut_print_buf(o, data, local_len);
+			ut_print_buf_hex(o, data + local_len,
+					 BTR_EXTERN_FIELD_REF_SIZE);
+		} else {
+			o << '[' << len << ']';
+			ut_print_buf(o, data, len);
+		}
+	}
+
+	o << "}";
+}
+# endif /* !DBUG_OFF */
 # ifdef UNIV_DEBUG
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.

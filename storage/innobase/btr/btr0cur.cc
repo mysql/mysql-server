@@ -79,12 +79,6 @@ enum btr_op_t {
 	BTR_DELMARK_OP			/*!< Mark a record for deletion */
 };
 
-#ifdef UNIV_DEBUG
-/** If the following is set to TRUE, this module prints a lot of
-trace information of individual record operations */
-UNIV_INTERN ibool	btr_cur_print_record_ops = FALSE;
-#endif /* UNIV_DEBUG */
-
 /** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 UNIV_INTERN ulint	btr_cur_n_non_sea	= 0;
 /** Number of successful adaptive hash index lookups in
@@ -1204,24 +1198,6 @@ btr_cur_ins_lock_and_undo(
 	return(DB_SUCCESS);
 }
 
-#ifdef UNIV_DEBUG
-/*************************************************************//**
-Report information about a transaction. */
-static
-void
-btr_cur_trx_report(
-/*===============*/
-	trx_id_t		trx_id,	/*!< in: transaction id */
-	const dict_index_t*	index,	/*!< in: index */
-	const char*		op)	/*!< in: operation */
-{
-	fprintf(stderr, "Trx with id " TRX_ID_FMT " going to ", trx_id);
-	fputs(op, stderr);
-	dict_index_name_print(stderr, NULL, index);
-	putc('\n', stderr);
-}
-#endif /* UNIV_DEBUG */
-
 /*************************************************************//**
 Tries to perform an insert to a page in an index tree, next to cursor.
 It is assumed that mtr holds an x-latch on the page. The operation does
@@ -1287,13 +1263,6 @@ btr_cur_optimistic_insert(
 		UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
-
-#ifdef UNIV_DEBUG
-	if (btr_cur_print_record_ops && thr) {
-		btr_cur_trx_report(thr_get_trx(thr)->id, index, "insert ");
-		dtuple_print(stderr, entry);
-	}
-#endif /* UNIV_DEBUG */
 
 	leaf = page_is_leaf(page);
 
@@ -1413,6 +1382,12 @@ fail_err:
 
 		goto fail_err;
 	}
+
+	DBUG_PRINT("ib_cur", ("insert %s (" IB_ID_FMT ") by " TRX_ID_FMT
+			      ": %s",
+			      index->name, index->id,
+			      thr ? thr_get_trx(thr)->id : 0,
+			      rec_printer(entry).str().c_str()));
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
@@ -1970,12 +1945,10 @@ btr_cur_update_in_place(
 	ut_ad(fil_page_get_type(btr_cur_get_page(cursor)) == FIL_PAGE_INDEX);
 	ut_ad(btr_page_get_index_id(btr_cur_get_page(cursor)) == index->id);
 
-#ifdef UNIV_DEBUG
-	if (btr_cur_print_record_ops) {
-		btr_cur_trx_report(trx_id, index, "update ");
-		rec_print_new(stderr, rec, offsets);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_cur", ("update-in-place %s (" IB_ID_FMT
+			      ") by " TRX_ID_FMT ": %s",
+			      index->name, index->id, trx_id,
+			      rec_printer(rec, offsets).str().c_str()));
 
 	block = btr_cur_get_block(cursor);
 	page_zip = buf_block_get_page_zip(block);
@@ -2141,13 +2114,6 @@ btr_cur_optimistic_update(
 	     || trx_is_recv(thr_get_trx(thr)));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
-#ifdef UNIV_DEBUG
-	if (btr_cur_print_record_ops) {
-		btr_cur_trx_report(trx_id, index, "update ");
-		rec_print_new(stderr, rec, *offsets);
-	}
-#endif /* UNIV_DEBUG */
-
 	if (!row_upd_changes_field_size_or_external(index, *offsets, update)) {
 
 		/* The simplest and the most common case: the update does not
@@ -2174,6 +2140,11 @@ any_extern:
 			goto any_extern;
 		}
 	}
+
+	DBUG_PRINT("ib_cur", ("update %s (" IB_ID_FMT ") by " TRX_ID_FMT
+			      ": %s",
+			      index->name, index->id, trx_id,
+			      rec_printer(rec, *offsets).str().c_str()));
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
@@ -2902,13 +2873,6 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(buf_block_get_frame(block) == page_align(rec));
 	ut_ad(page_is_leaf(page_align(rec)));
 
-#ifdef UNIV_DEBUG
-	if (btr_cur_print_record_ops && thr) {
-		btr_cur_trx_report(thr_get_trx(thr)->id, index, "del mark ");
-		rec_print_new(stderr, rec, offsets);
-	}
-#endif /* UNIV_DEBUG */
-
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
@@ -2942,6 +2906,11 @@ btr_cur_del_mark_set_clust_rec(
 	(of a TRX_STATE_PREPARE transaction or otherwise). */
 	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 	ut_ad(!trx->in_rollback);
+
+	DBUG_PRINT("ib_cur", ("delete-mark clust %s (" IB_ID_FMT
+			      ") by " TRX_ID_FMT ": %s",
+			      index->table_name, index->id, trx->id,
+			      rec_printer(rec, offsets).str().c_str()));
 
 	if (dict_index_is_online_ddl(index)) {
 		row_log_table_delete(
@@ -3057,14 +3026,6 @@ btr_cur_del_mark_set_sec_rec(
 	block = btr_cur_get_block(cursor);
 	rec = btr_cur_get_rec(cursor);
 
-#ifdef UNIV_DEBUG
-	if (btr_cur_print_record_ops && thr) {
-		btr_cur_trx_report(thr_get_trx(thr)->id, cursor->index,
-				   "del mark ");
-		rec_print(stderr, rec, cursor->index);
-	}
-#endif /* UNIV_DEBUG */
-
 	err = lock_sec_rec_modify_check_and_lock(flags,
 						 btr_cur_get_block(cursor),
 						 rec, cursor->index, thr, mtr);
@@ -3075,6 +3036,14 @@ btr_cur_del_mark_set_sec_rec(
 
 	ut_ad(!!page_rec_is_comp(rec)
 	      == dict_table_is_comp(cursor->index->table));
+
+	DBUG_PRINT("ib_cur", ("delete-mark=%u sec %u:%u:%u in %s("
+			      IB_ID_FMT ") by " TRX_ID_FMT,
+			      unsigned(val),
+			      block->page.space, block->page.offset,
+			      unsigned(page_rec_get_heap_no(rec)),
+			      cursor->index->name, cursor->index->id,
+			      thr_get_trx(thr)->id));
 
 	/* We do not need to reserve btr_search_latch, as the
 	delete-mark flag is being updated in place and the adaptive
