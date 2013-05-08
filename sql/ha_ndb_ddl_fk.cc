@@ -582,9 +582,48 @@ public:
   Dummy_table_util(THD* thd) : m_thd(thd) {}
 
   static
+  bool split_dummy_name(const char* name,
+                        unsigned* child_id_ptr = NULL,
+                        unsigned* child_index_ptr = NULL,
+                        const char** parent_name = NULL)
+  {
+    const struct {
+      const char* str;
+      size_t len;
+    } prefix = { STRING_WITH_LEN("NDB$DUMMY_") };
+
+    if (strncmp(name, prefix.str, prefix.len) != 0)
+      return false;
+
+    char* end;
+    const char* ptr= name + prefix.len + 1;
+
+    // Parse child id
+    long child_id = strtol(ptr, &end, 10);
+    if (ptr == end || child_id < 0 || *end == 0 || *end != '_')
+      return false;
+    ptr = end+1;
+
+    // Parse child index
+    long child_index = strtol(ptr, &end, 10);
+    if (ptr == end || child_id < 0 || *end == 0 || *end != '_')
+      return false;
+    ptr = end+1;
+
+    // Assign and return OK
+    if (child_id_ptr)
+      *child_id_ptr = child_id;
+    if (child_index_ptr)
+      *child_index_ptr = child_index;
+    if (parent_name)
+      *parent_name = ptr;
+    return true;
+  }
+
+  static
   bool is_dummy_name(const char* name)
   {
-    return (strncmp(name, STRING_WITH_LEN("NDB$DUMMY")) == 0);
+    return split_dummy_name(name);
   }
 
   static
@@ -1701,7 +1740,21 @@ ha_ndbcluster::get_foreign_key_create_info()
       fk_string.append(parent_db_and_name);
       fk_string.append("`.`");
     }
-    fk_string.append(parenttab->getName());
+
+
+    const char* real_parent_name;
+    if (ndb_show_foreign_key_dummies_enabled(thd) == false &&
+        Dummy_table_util::split_dummy_name(parenttab->getName(),
+                                           NULL, NULL, &real_parent_name))
+    {
+      DBUG_PRINT("info", ("real_parent_name: %s", real_parent_name));
+      fk_string.append(real_parent_name);
+    }
+    else
+    {
+      fk_string.append(parenttab->getName());
+    }
+
     fk_string.append("` (");
 
     {
