@@ -27,6 +27,8 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "univ.i"
 
+#include "ha_prototypes.h"
+
 #include "btr0btr.h" /* btr_get_size() */
 #include "btr0cur.h" /* btr_estimate_number_of_different_key_vals() */
 #include "dict0dict.h" /* dict_table_get_first_index(), dict_fs2utf8() */
@@ -2072,7 +2074,6 @@ dict_stats_update_persistent(
 	return(DB_SUCCESS);
 }
 
-#include "mysql_com.h"
 /*********************************************************************//**
 Save an individual index's statistic into the persistent statistics
 storage.

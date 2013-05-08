@@ -406,7 +406,7 @@ ut_copy_file(
 	FILE*	src);	/*!< in: input file to be appended to output */
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef __WIN__
+#ifdef _WIN32
 /**********************************************************************//**
 A substitute for vsnprintf(3), formatted output conversion into
 a limited buffer. Note: this function DOES NOT return the number of
@@ -450,7 +450,7 @@ of "ap" for that and VC does not provide va_copy(). */
 A wrapper for snprintf(3), formatted output conversion into
 a limited buffer. */
 # define ut_snprintf	snprintf
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*************************************************************//**
 Convert an error number to a human readable text message. The

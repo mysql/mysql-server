@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -235,7 +235,7 @@ static int run_command(char* cmd, const char *mode)
 }
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 /**
   Check to see if there are spaces in a path.
   
@@ -331,7 +331,7 @@ static int get_default_values()
     if ((error= make_tempfile(defaults_file, "txt")))
       goto exit;
 
-#ifdef __WIN__
+#ifdef _WIN32
     {
       char *format_str= 0;
   
@@ -552,7 +552,7 @@ static int search_dir(const char * base_path, const char *tool_name,
 {
   char new_path[FN_REFLEN];
   char source_path[FN_REFLEN];
-#if __WIN__
+#if _WIN32
   char win_abs_path[FN_REFLEN];
   char self_name[FN_REFLEN];
   const char *last_fn_libchar;
@@ -572,7 +572,7 @@ static int search_dir(const char * base_path, const char *tool_name,
     return 0;
   }  
 
-#if __WIN__
+#if _WIN32
   /*
     On Windows above code will not be able to find the file since
     path names are not absolute and file_exists works only with 
@@ -886,7 +886,7 @@ static int process_options(int argc, char *argv[], char *operation)
       char buff[FN_REFLEN];
       
       strncpy(buff, opt_basedir, sizeof(buff) - 1);
-#ifdef __WIN__
+#ifdef _WIN32
       strncat(buff, "/", sizeof(buff) - strlen(buff) - 1);
 #else
       strncat(buff, FN_DIRSEP, sizeof(buff) - strlen(buff) - 1);
@@ -1203,7 +1203,7 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
   char bootstrap_cmd[FN_REFLEN];
   int error= 0;
 
-#ifdef __WIN__
+#ifdef _WIN32
   char *format_str= 0;
   const char *verbose_str= NULL;
    

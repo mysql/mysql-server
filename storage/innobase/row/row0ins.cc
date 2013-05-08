@@ -30,6 +30,7 @@ Created 4/20/1996 Heikki Tuuri
 #endif
 
 #include "ha_prototypes.h"
+
 #include "dict0dict.h"
 #include "dict0boot.h"
 #include "trx0rec.h"
@@ -51,7 +52,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "buf0lru.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "m_string.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there

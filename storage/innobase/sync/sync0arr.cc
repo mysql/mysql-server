@@ -36,12 +36,12 @@ Created 9/5/1995 Heikki Tuuri
 #endif
 
 #include "sync0mutex.h"
+#include "sync0sync.h"
 #include "sync0rw.h"
 #include "os0event.h"
 #include "os0file.h"
 #include "lock0lock.h"
 #include "srv0srv.h"
-#include "ha_prototypes.h"
 
 /*
 			WAIT ARRAY

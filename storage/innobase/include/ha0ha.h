@@ -87,7 +87,7 @@ of cells is chosen to be a prime number slightly bigger than n.
 @return	own: created table */
 UNIV_INTERN
 hash_table_t*
-ha_create(
+ib_create(
 /*======*/
 	ulint		n,	/*!< in: number of array cells */
 	const char*	name,	/*!< in: mutex name */

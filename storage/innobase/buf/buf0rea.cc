@@ -23,11 +23,11 @@ The database buffer read
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
-#include "buf0rea.h"
+#include "ha_prototypes.h"
 
+#include "buf0rea.h"
 #include "fil0fil.h"
 #include "mtr0mtr.h"
-
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
@@ -38,8 +38,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "os0file.h"
 #include "srv0start.h"
 #include "srv0srv.h"
-#include "mysql/plugin.h"
-#include "mysql/service_thd_wait.h"
 
 /** There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */

@@ -446,7 +446,6 @@ void LEX::reset()
 
   wild= NULL;
   exchange= NULL;
-  is_change_password= false;
   is_set_password_sql= false;
   mark_broken(false);
 }
@@ -2970,7 +2969,7 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), option_type(OPT_DEFAULT), is_change_password(false),
+  :result(0), option_type(OPT_DEFAULT),
   is_set_password_sql(false), is_lex_started(0)
 {
 

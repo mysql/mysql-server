@@ -21,23 +21,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Full Text Search interface
 ***********************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "trx0roll.h"
 #include "row0mysql.h"
 #include "row0upd.h"
 #include "dict0types.h"
 #include "row0sel.h"
-
 #include "fts0fts.h"
 #include "fts0priv.h"
 #include "fts0types.h"
-
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "btr0pcur.h"
-
-#include "ha_prototypes.h"
 
 #define FTS_MAX_ID_LEN	32
 
