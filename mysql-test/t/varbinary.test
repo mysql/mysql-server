@@ -13,7 +13,30 @@ drop table if exists t1;
 
 select 0x41,0x41+0,0x41 | 0x7fffffffffffffff | 0,0xffffffffffffffff | 0 ;
 select 0x31+1,concat(0x31)+1,-0xf;
-select x'31',X'ffff'+0;
+select x'31',0xffff+0;
+select X'FFFF'+0;
+
+#
+# Hex string vs hex hybrid
+#
+SELECT x'31'+0, 0x31+0;
+SELECT x'31'+0.1e0, 0x31+0.1e0;
+SELECT x'312E39'+0e0, 0x312E39+0e0;
+SELECT CAST(x'31' AS SIGNED), CAST(0x31 AS SIGNED);
+SELECT CAST(x'31' AS DECIMAL(10,1)), CAST(0x31 AS DECIMAL(10,1));
+SELECT CAST(x'312E39' AS SIGNED), CAST(0x312E39 AS SIGNED);
+SELECT CAST(x'312E39' AS DECIMAL(10,1)), CAST(0x312E39 AS DECIMAL(10,1));
+EXPLAIN EXTENDED SELECT X'FFFF', 0xFFFF;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (X'31'),(0x31);
+INSERT INTO t1 VALUES (X'312E39'),(0x312E39);
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a DECIMAL(10,1));
+INSERT INTO t1 VALUES (X'31'),(0x31);
+INSERT INTO t1 VALUES (X'312E39'),(0x312E39);
+SELECT * FROM t1;
+DROP TABLE t1;
 
 #
 # Test of hex constants in WHERE:
@@ -115,7 +138,7 @@ select 0x41;
 
 select b'01000001';
 
-select x'41', 0+x'41';
+select x'41', 0+x'3635';
 
 select N'abc', length(N'abc');
 

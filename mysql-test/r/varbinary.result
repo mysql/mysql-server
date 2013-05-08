@@ -5,9 +5,62 @@ A	65	9223372036854775807	18446744073709551615
 select 0x31+1,concat(0x31)+1,-0xf;
 0x31+1	concat(0x31)+1	-0xf
 50	2	-15
-select x'31',X'ffff'+0;
-x'31'	X'ffff'+0
+select x'31',0xffff+0;
+x'31'	0xffff+0
 1	65535
+select X'FFFF'+0;
+X'FFFF'+0
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '\xFF\xFF'
+SELECT x'31'+0, 0x31+0;
+x'31'+0	0x31+0
+1	49
+SELECT x'31'+0.1e0, 0x31+0.1e0;
+x'31'+0.1e0	0x31+0.1e0
+1.1	49.1
+SELECT x'312E39'+0e0, 0x312E39+0e0;
+x'312E39'+0e0	0x312E39+0e0
+1.9	3223097
+SELECT CAST(x'31' AS SIGNED), CAST(0x31 AS SIGNED);
+CAST(x'31' AS SIGNED)	CAST(0x31 AS SIGNED)
+1	49
+SELECT CAST(x'31' AS DECIMAL(10,1)), CAST(0x31 AS DECIMAL(10,1));
+CAST(x'31' AS DECIMAL(10,1))	CAST(0x31 AS DECIMAL(10,1))
+1.0	49.0
+SELECT CAST(x'312E39' AS SIGNED), CAST(0x312E39 AS SIGNED);
+CAST(x'312E39' AS SIGNED)	CAST(0x312E39 AS SIGNED)
+1	3223097
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '1.9'
+SELECT CAST(x'312E39' AS DECIMAL(10,1)), CAST(0x312E39 AS DECIMAL(10,1));
+CAST(x'312E39' AS DECIMAL(10,1))	CAST(0x312E39 AS DECIMAL(10,1))
+1.9	3223097.0
+EXPLAIN EXTENDED SELECT X'FFFF', 0xFFFF;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select X'ffff' AS `X'FFFF'`,0xffff AS `0xFFFF`
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (X'31'),(0x31);
+INSERT INTO t1 VALUES (X'312E39'),(0x312E39);
+SELECT * FROM t1;
+a
+1
+49
+2
+3223097
+DROP TABLE t1;
+CREATE TABLE t1 (a DECIMAL(10,1));
+INSERT INTO t1 VALUES (X'31'),(0x31);
+INSERT INTO t1 VALUES (X'312E39'),(0x312E39);
+SELECT * FROM t1;
+a
+1.0
+49.0
+1.9
+3223097.0
+DROP TABLE t1;
 create table t1 (ID int(8) unsigned zerofill not null auto_increment,UNIQ bigint(21) unsigned zerofill not null,primary key (ID),unique (UNIQ) );
 insert into t1 set UNIQ=0x38afba1d73e6a18a;
 insert into t1 set UNIQ=123;
@@ -104,8 +157,8 @@ A
 select b'01000001';
 b'01000001'
 A
-select x'41', 0+x'41';
-x'41'	0+x'41'
+select x'41', 0+x'3635';
+x'41'	0+x'3635'
 A	65
 select N'abc', length(N'abc');
 abc	length(N'abc')

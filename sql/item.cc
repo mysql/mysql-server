@@ -6125,17 +6125,8 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
-Item_hex_string::Item_hex_string()
-{
-  hex_string_init("", 0);
-}
 
-Item_hex_string::Item_hex_string(const char *str, uint str_length)
-{
-  hex_string_init(str, str_length);
-}
-
-void Item_hex_string::hex_string_init(const char *str, uint str_length)
+void Item_hex_constant::hex_string_init(const char *str, uint str_length)
 {
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
@@ -6159,7 +6150,7 @@ void Item_hex_string::hex_string_init(const char *str, uint str_length)
   unsigned_flag= 1;
 }
 
-longlong Item_hex_string::val_int()
+longlong Item_hex_hybrid::val_int()
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
@@ -6173,17 +6164,7 @@ longlong Item_hex_string::val_int()
 }
 
 
-my_decimal *Item_hex_string::val_decimal(my_decimal *decimal_value)
-{
-  // following assert is redundant, because fixed=1 assigned in constructor
-  DBUG_ASSERT(fixed == 1);
-  ulonglong value= (ulonglong)val_int();
-  int2my_decimal(E_DEC_FATAL_ERROR, value, TRUE, decimal_value);
-  return (decimal_value);
-}
-
-
-int Item_hex_string::save_in_field(Field *field, bool no_conversions)
+int Item_hex_hybrid::save_in_field(Field *field, bool no_conversions)
 {
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
@@ -6216,22 +6197,27 @@ warn:
 }
 
 
-void Item_hex_string::print(String *str, enum_query_type query_type)
+void Item_hex_hybrid::print(String *str, enum_query_type query_type)
 {
-  char *end= (char*) str_value.ptr() + str_value.length(),
-       *ptr= end - min(str_value.length(), sizeof(longlong));
+  uint32 len= min(str_value.length(), sizeof(longlong));
+  const char *ptr= str_value.ptr() + str_value.length() - len;
   str->append("0x");
-  for (; ptr != end ; ptr++)
-  {
-    str->append(_dig_vec_lower[((uchar) *ptr) >> 4]);
-    str->append(_dig_vec_lower[((uchar) *ptr) & 0x0F]);
-  }
+  str->append_hex(ptr, len);
 }
 
 
-bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const
+void Item_hex_string::print(String *str, enum_query_type query_type)
 {
-  if (arg->basic_const_item() && arg->type() == type())
+  str->append("X'");
+  str->append_hex(str_value.ptr(), str_value.length());
+  str->append("'");
+}
+
+
+bool Item_hex_constant::eq(const Item *arg, bool binary_cmp) const
+{
+  if (arg->basic_const_item() && arg->type() == type() &&
+      arg->cast_to_int_type() == cast_to_int_type())
   {
     if (binary_cmp)
       return !stringcmp(&str_value, &arg->str_value);
@@ -6241,7 +6227,7 @@ bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const
 }
 
 
-Item *Item_hex_string::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_hex_constant::safe_charset_converter(CHARSET_INFO *tocs)
 {
   Item_string *conv;
   String tmp, *str= val_str(&tmp);

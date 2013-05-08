@@ -1021,6 +1021,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  HAVING                        /* SQL-2003-R */
 %token  HELP_SYM
 %token  HEX_NUM
+%token  HEX_STRING
 %token  HIGH_PRIORITY
 %token  HOST_SYM
 %token  HOSTS_SYM
@@ -1448,7 +1449,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %left  INTERVAL_SYM
 
 %type <lex_str>
-        IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
+        IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM
+        HEX_NUM HEX_STRING hex_num_or_string
         LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
         NCHAR_STRING opt_component key_cache_name
@@ -5994,6 +5996,11 @@ now_or_signed_literal:
           }
         | signed_literal
           { $$=$1; }
+        ;
+
+hex_num_or_string:
+          HEX_NUM {}
+        | HEX_STRING {}
         ;
 
 charset:
@@ -12261,13 +12268,21 @@ text_string:
           }
         | HEX_NUM
           {
-            Item *tmp= new (YYTHD->mem_root) Item_hex_string($1.str, $1.length);
+            Item *tmp= new (YYTHD->mem_root) Item_hex_hybrid($1.str, $1.length);
             if (tmp == NULL)
               MYSQL_YYABORT;
             /*
               it is OK only emulate fix_fields, because we need only
               value of constant
             */
+            tmp->quick_fix_field();
+            $$= tmp->val_str((String*) 0);
+          }
+        | HEX_STRING
+          {
+            Item *tmp= new (YYTHD->mem_root) Item_hex_string($1.str, $1.length);
+            if (tmp == NULL)
+              MYSQL_YYABORT;
             tmp->quick_fix_field();
             $$= tmp->val_str((String*) 0);
           }
@@ -12340,6 +12355,12 @@ literal:
           }
         | HEX_NUM
           {
+            $$ = new (YYTHD->mem_root) Item_hex_hybrid($1.str, $1.length);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | HEX_STRING
+          {
             $$ = new (YYTHD->mem_root) Item_hex_string($1.str, $1.length);
             if ($$ == NULL)
               MYSQL_YYABORT;
@@ -12350,7 +12371,7 @@ literal:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
-        | UNDERSCORE_CHARSET HEX_NUM
+        | UNDERSCORE_CHARSET hex_num_or_string
           {
             Item *tmp= new (YYTHD->mem_root) Item_hex_string($2.str, $2.length);
             if (tmp == NULL)

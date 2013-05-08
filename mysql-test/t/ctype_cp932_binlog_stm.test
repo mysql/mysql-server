@@ -141,6 +141,23 @@ SELECT HEX(a), HEX(CONVERT(a using cp932)) as b FROM t1 HAVING b<>'3F' ORDER BY 
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug#MDEV-4489 Replication of big5, cp932, gbk, sjis strings makes wrong values on slave
+--echo #
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+SET NAMES cp932;
+CREATE TABLE t1 (a INT);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (0x31);
+INSERT INTO t1 VALUES (X'31');
+PREPARE stmt FROM 'INSERT INTO t1 (a) VALUES (?)';
+SET @a='1';
+SELECT charset(@a);
+EXECUTE stmt USING @a; 
+DROP PREPARE stmt;
+DROP TABLE t1;
+--source include/show_binlog_events.inc
+
 
 --echo #
 --echo # End of 5.5 tests

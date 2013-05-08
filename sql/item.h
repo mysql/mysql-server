@@ -2730,36 +2730,112 @@ public:
 };
 
 
-class Item_hex_string: public Item_basic_constant
+/**
+  Item_hex_constant -- a common class for hex literals: X'HHHH' and 0xHHHH
+*/
+class Item_hex_constant: public Item_basic_constant
 {
+private:
+  void hex_string_init(const char *str, uint str_length);
 public:
-  Item_hex_string();
-  Item_hex_string(const char *str,uint str_length);
-  enum Type type() const { return VARBIN_ITEM; }
-  double val_real()
-  { 
-    DBUG_ASSERT(fixed == 1); 
-    return (double) (ulonglong) Item_hex_string::val_int();
+  Item_hex_constant()
+  {
+    hex_string_init("", 0);
   }
-  longlong val_int();
-  bool basic_const_item() const { return 1; }
-  String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
-  my_decimal *val_decimal(my_decimal *);
-  int save_in_field(Field *field, bool no_conversions);
+  Item_hex_constant(const char *str, uint str_length)
+  {
+    hex_string_init(str, str_length);
+  }
+  enum Type type() const { return VARBIN_ITEM; }
   enum Item_result result_type () const { return STRING_RESULT; }
-  enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
-  virtual void print(String *str, enum_query_type query_type);
-  bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *arg) { return FALSE;}
-private:
-  void hex_string_init(const char *str, uint str_length);
+  bool basic_const_item() const { return 1; }
+  bool eq(const Item *item, bool binary_cmp) const;
+  String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
 };
 
 
-class Item_bin_string: public Item_hex_string
+/**
+  Item_hex_hybrid -- is a class implementing 0xHHHH literals, e.g.:
+    SELECT 0x3132;
+  They can behave as numbers and as strings depending on context.
+*/
+class Item_hex_hybrid: public Item_hex_constant
+{
+public:
+  Item_hex_hybrid(): Item_hex_constant() {}
+  Item_hex_hybrid(const char *str, uint str_length):
+    Item_hex_constant(str, str_length) {}
+  double val_real()
+  { 
+    DBUG_ASSERT(fixed == 1); 
+    return (double) (ulonglong) Item_hex_hybrid::val_int();
+  }
+  longlong val_int();
+  my_decimal *val_decimal(my_decimal *decimal_value)
+  {
+    // following assert is redundant, because fixed=1 assigned in constructor
+    DBUG_ASSERT(fixed == 1);
+    ulonglong value= (ulonglong) Item_hex_hybrid::val_int();
+    int2my_decimal(E_DEC_FATAL_ERROR, value, TRUE, decimal_value);
+    return decimal_value;
+  }
+  int save_in_field(Field *field, bool no_conversions);
+  enum Item_result cast_to_int_type() const { return INT_RESULT; }
+  void print(String *str, enum_query_type query_type);
+};
+
+
+/**
+  Item_hex_string -- is a class implementing X'HHHH' literals, e.g.:
+    SELECT X'3132';
+  Unlike Item_hex_hybrid, X'HHHH' literals behave as strings in all contexts.
+  X'HHHH' are also used in replication of string constants in case of
+  "dangerous" charsets (sjis, cp932, big5, gbk) who can have backslash (0x5C)
+  as the second byte of a multi-byte character, so using '\' escaping for
+  these charsets is not desirable.
+*/
+class Item_hex_string: public Item_hex_constant
+{
+public:
+  Item_hex_string(): Item_hex_constant() {}
+  Item_hex_string(const char *str, uint str_length):
+    Item_hex_constant(str, str_length) {}
+  longlong val_int()
+  {
+    DBUG_ASSERT(fixed == 1);
+    return longlong_from_string_with_check(str_value.charset(),
+                                           str_value.ptr(),
+                                           str_value.ptr()+
+                                           str_value.length());
+  }
+  double val_real()
+  { 
+    DBUG_ASSERT(fixed == 1);
+    return double_from_string_with_check(str_value.charset(),
+                                         str_value.ptr(), 
+                                         str_value.ptr() +
+                                         str_value.length());
+  }
+  my_decimal *val_decimal(my_decimal *decimal_value)
+  {
+    return val_decimal_from_string(decimal_value);
+  }
+  int save_in_field(Field *field, bool no_conversions)
+  {
+    field->set_notnull();
+    return field->store(str_value.ptr(), str_value.length(), 
+                        collation.collation);
+  }
+  enum Item_result cast_to_int_type() const { return STRING_RESULT; }
+  void print(String *str, enum_query_type query_type);
+};
+
+
+class Item_bin_string: public Item_hex_hybrid
 {
 public:
   Item_bin_string(const char *str,uint str_length);

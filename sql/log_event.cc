@@ -622,16 +622,18 @@ static inline int read_str(const char **buf, const char *buf_end,
 
 
 /**
-  Transforms a string into "" or its expression in 0x... form.
+  Transforms a string into "" or its expression in X'HHHH' form.
 */
 
 char *str_to_hex(char *to, const char *from, uint len)
 {
   if (len)
   {
-    *to++= '0';
-    *to++= 'x';
+    *to++= 'X';
+    *to++= '\'';
     to= octet2hex(to, from, len);
+    *to++= '\'';
+    *to= '\0';
   }
   else
     to= strmov(to, "\"\"");
@@ -652,7 +654,7 @@ append_query_string(THD *thd, CHARSET_INFO *csinfo,
 {
   char *beg, *ptr;
   uint32 const orig_len= to->length();
-  if (to->reserve(orig_len + from->length()*2+3))
+  if (to->reserve(orig_len + from->length() * 2 + 4))
     return 1;
 
   beg= (char*) to->ptr() + to->length();
@@ -6295,7 +6297,7 @@ void User_var_log_event::pack_info(THD *thd, Protocol* protocol)
             buf.append(" "))
           return;
         old_len= buf.length();
-        if (buf.reserve(old_len + val_len*2 + 2 + sizeof(" COLLATE ") +
+        if (buf.reserve(old_len + val_len * 2 + 3 + sizeof(" COLLATE ") +
                         MY_CS_NAME_SIZE))
           return;
         beg= const_cast<char *>(buf.ptr()) + old_len;
@@ -6563,7 +6565,8 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       char *hex_str;
       CHARSET_INFO *cs;
 
-      hex_str= (char *)my_malloc(2*val_len+1+2,MYF(MY_WME)); // 2 hex digits / byte
+      // 2 hex digits / byte
+      hex_str= (char *) my_malloc(2 * val_len + 1 + 3, MYF(MY_WME));
       if (!hex_str)
         return;
       str_to_hex(hex_str, val, val_len);

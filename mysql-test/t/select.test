@@ -2493,7 +2493,7 @@ DROP TABLE t1,t2;
 # Bug #10650
 #
 
-select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
+select x'3136' + 0, X'3136' + 0, b'10' + 0, B'10' + 0;
 
 #
 # Bug #11398 Bug in field_conv() results in wrong result of join with index
