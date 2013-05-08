@@ -24,6 +24,8 @@ Data dictionary system
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
+#include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str() */
+
 #include "dict0dict.h"
 #include "fts0fts.h"
 #include "fil0fil.h"
@@ -58,8 +60,6 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "rem0cmp.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "m_ctype.h" /* my_isspace() */
-#include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str() */
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "lock0lock.h"
@@ -69,10 +69,6 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "row0merge.h"
 #include "row0log.h"
 #include "ut0ut.h" /* ut_format_name() */
-#include "m_string.h"
-#include "my_sys.h"
-#include "mysqld.h" /* system_charset_info */
-#include "strfunc.h" /* strconvert() */
 #include "srv0space.h"
 
 #include <ctype.h>

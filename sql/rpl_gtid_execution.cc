@@ -432,7 +432,7 @@ void gtid_post_statement_checks(THD *thd)
   if (thd->variables.gtid_next.type == GTID_GROUP &&
       (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) ||
        (thd->lex->sql_command == SQLCOM_SET_OPTION &&
-        thd->lex->is_change_password) ||
+        thd->lex->is_set_password_sql) ||
        sql_command == SQLCOM_COMMIT ||
        sql_command == SQLCOM_ROLLBACK))
     thd->variables.gtid_next.set_undefined();

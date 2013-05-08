@@ -19,7 +19,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /*******************************************************************//**
 @file include/ha_prototypes.h
 Prototypes for global functions in ha_innodb.cc that are called by
-InnoDB C code
+InnoDB C code.
+
+This also includes all necessary server level include files used in InnoDB.
 
 Created 5/11/2006 Osku Salerma
 ************************************************************************/
@@ -27,23 +29,36 @@ Created 5/11/2006 Osku Salerma
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
-#include "my_dbug.h"
-#include "mysqld_error.h"
-#include "my_compare.h"
-#include "my_sys.h"
-#include "m_string.h"
-#include "debug_sync.h"
-#include "my_dbug.h"
-#include "gstream.h"
-#include "spatial.h"
+#include <debug_sync.h>
+#include <gstream.h>
+#include <hash.h>
+#include <log.h>
+#include <my_base.h>
+#include <m_ctype.h>
+#include <m_string.h>
+#include <my_compare.h>
+#include <my_dbug.h>
+#include <my_sys.h>
+#include <myisampack.h>
+#include <mysql/innodb_priv.h>
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
+#include <mysql_com.h>
+#include <mysqld.h>
+#include <mysqld_error.h>
+#include <mysys_err.h>
+#include <spatial.h>
+#include <sql_acl.h>
+#include <sql_alter.h>
+#include <sql_class.h>
+#include <sql_plugin.h>
+#include <sql_table.h>
+#include <strfunc.h>
+#include <unireg.h>
 
 #include "trx0types.h"
-#include "m_ctype.h" /* CHARSET_INFO */
 
-#include "gstream.h"
-#include "spatial.h"
-
-// Forward declarations
+/* Forward declarations */
 class Field;
 struct fts_string_t;
 

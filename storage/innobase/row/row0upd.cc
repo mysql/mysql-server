@@ -30,6 +30,7 @@ Created 12/27/1996 Heikki Tuuri
 #endif
 
 #include "ha_prototypes.h"
+
 #include "dict0dict.h"
 #include "trx0undo.h"
 #include "rem0rec.h"

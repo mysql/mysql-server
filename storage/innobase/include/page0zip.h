@@ -32,9 +32,23 @@ Created June 2005 by Marko Makela
 # define UNIV_INLINE
 #endif
 
+#ifdef UNIV_INNOCHECKSUM
+#include "univ.i"	/* UNIV_INTERN */
+#include "buf0buf.h"
+#include "ut0crc32.h"
+#include "buf0checksum.h"
+#include "mach0data.h"	/* mach_read_from_4 */
+#include "zlib.h"
+#endif /* UNIV_INNOCHECKSUM */
+
+#ifndef UNIV_INNOCHECKSUM
 #include "mtr0types.h"
 #include "page0types.h"
+#endif /* !UNIV_INNOCHECKSUM */
+
 #include "buf0types.h"
+
+#ifndef UNIV_INNOCHECKSUM
 #include "dict0types.h"
 #include "srv0srv.h"
 #include "trx0types.h"
@@ -476,6 +490,7 @@ page_zip_parse_compress(
 	page_zip_des_t*	page_zip)/*!< out: compressed page */
 	__attribute__((nonnull(1,2)));
 
+#endif /* !UNIV_INNOCHECKSUM */
 /**********************************************************************//**
 Calculate the compressed page checksum.
 @return	page checksum */
@@ -497,7 +512,17 @@ ibool
 page_zip_verify_checksum(
 /*=====================*/
 	const void*	data,	/*!< in: compressed page */
-	ulint		size);	/*!< in: size of compressed page */
+	ulint		size	/*!< in: size of compressed page */
+#ifdef UNIV_INNOCHECKSUM
+	/* these variables are used only for innochecksum tool. */
+	,ullint		page_no,	/*!< in: page number of
+					given read_buf */
+	bool		strict_check	/*!< in: true if strict-check
+					option is enable */
+#endif /* UNIV_INNOCHECKSUM */
+);
+
+#ifndef UNIV_INNOCHECKSUM
 /**********************************************************************//**
 Write a log record of compressing an index page without the data on the page. */
 UNIV_INLINE
@@ -558,5 +583,6 @@ from outside the buffer pool.
 #ifndef UNIV_NONINL
 # include "page0zip.ic"
 #endif
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* page0zip_h */
