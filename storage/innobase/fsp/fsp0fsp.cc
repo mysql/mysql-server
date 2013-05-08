@@ -1171,10 +1171,9 @@ fsp_fill_free_list(
 			if (space != srv_tmp_space.space_id()) {
 				mtr_start(&ibuf_mtr);
 
-				/* Do not log operations when applying
-				MLOG_FILE_TRUNCATE log record during
-				recovery */
-				if (fil_space_is_truncated(space)) {
+				/* Avoid logging while fix-up up table for
+				truncate action. */
+				if (srv_trunc_table_fix_up_active) {
 					mtr_set_log_mode(
 						&ibuf_mtr, MTR_LOG_NONE);
 				}

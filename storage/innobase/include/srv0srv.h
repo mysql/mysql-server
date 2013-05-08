@@ -365,6 +365,7 @@ extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
 
 extern truncate_tables_t	srv_tables_to_truncate;
+extern bool	srv_trunc_table_fix_up_active;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;

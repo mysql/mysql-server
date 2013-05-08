@@ -1496,7 +1496,7 @@ recv_recover_page_func(
 		}
 
 		if (recv->start_lsn >= page_lsn
-		    && !fil_space_is_truncated(recv_addr->space)) {
+		    && !srv_trunc_table_fix_up_active) {
 
 			lsn_t	end_lsn;
 
@@ -2811,7 +2811,6 @@ recv_recovery_from_checkpoint_start(
 	}
 
 	recv_recovery_on = TRUE;
-	fil_space_truncated_reset();
 
 	recv_sys->limit_lsn = LSN_MAX;
 
@@ -3078,7 +3077,6 @@ recv_recovery_from_checkpoint_finish(void)
 
 	/* Free the resources of the recovery system */
 	recv_recovery_on = FALSE;
-	fil_space_truncated_reset();
 
 	/* By acquring the mutex we ensure that the recv_writer thread
 	won't trigger any more LRU batchtes. Now wait for currently
