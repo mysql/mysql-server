@@ -275,6 +275,16 @@ static MYSQL_THDVAR_UINT(
   0                                  /* block */
 );
 
+static MYSQL_THDVAR_BOOL(
+  show_foreign_key_dummies,          /* name */
+  PLUGIN_VAR_OPCMDARG,
+  "Show the dummy tables which is used to support foreign_key_checks= 0. "
+  "Extra info warnings are shown when creating and dropping the tables.",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0                                  /* default */
+);
+
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define DEFAULT_NDB_JOIN_PUSHDOWN FALSE
 #else
@@ -297,6 +307,12 @@ static MYSQL_THDVAR_BOOL(
 bool ndb_index_stat_get_enable(THD *thd)
 {
   const bool value = THDVAR(thd, index_stat_enable);
+  return value;
+}
+
+bool ndb_show_foreign_key_dummies_enabled(THD* thd)
+{
+  const bool value = THDVAR(thd, show_foreign_key_dummies);
   return value;
 }
 
@@ -10558,6 +10574,7 @@ ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
       DBUG_ASSERT(false);
       continue;
     }
+    // This printout should potentially be pushed as warning as well
     sql_print_information("Dropped dummy table '%s' - referencing table dropped", tabname);
   }
 
@@ -18239,6 +18256,7 @@ static struct st_mysql_sys_var* system_variables[]= {
 #endif
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(version_string),
+  MYSQL_SYSVAR(show_foreign_key_dummies),
   NULL
 };
 
