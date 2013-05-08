@@ -511,10 +511,7 @@ page_create_zip(
 
 	ut_ad(block);
 	ut_ad(page_zip);
-	if (index) {
-		ut_ad(index);
-		ut_ad(dict_table_is_comp(index->table));
-	}
+	ut_ad(!index || (index && dict_table_is_comp(index->table)));
 
 	page = page_create_low(block, TRUE);
 	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
