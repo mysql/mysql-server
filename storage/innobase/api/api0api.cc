@@ -56,6 +56,7 @@ InnoDB Native API
 #include "dict0priv.h"
 #include "ut0ut.h"
 #include "trx0roll.h"
+#include "row0trunc.h"
 
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;

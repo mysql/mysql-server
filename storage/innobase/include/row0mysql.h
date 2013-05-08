@@ -482,6 +482,7 @@ UNIV_INTERN
 ulint
 row_get_background_drop_list_len_low(void);
 /*======================================*/
+
 /*********************************************************************//**
 Sets an exclusive lock on a table.
 @return	error code or DB_SUCCESS */
@@ -494,26 +495,6 @@ row_mysql_lock_table(
 	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
 	const char*	op_info)	/*!< in: string for trx->op_info */
 	__attribute__((nonnull, warn_unused_result));
-
-/*********************************************************************//**
-Truncates a table for MySQL.
-@return	error code or DB_SUCCESS */
-UNIV_INTERN
-dberr_t
-row_truncate_table_for_mysql(
-/*=========================*/
-	dict_table_t*	table,	/*!< in: table handle */
-	trx_t*		trx)	/*!< in: transaction handle */
-	__attribute__((nonnull, warn_unused_result));
-
-/**
-Assign new table-id to table that got truncated as part of REDO log
-apply phase.
-@return	error code or DB_SUCCESS */
-UNIV_INTERN
-dberr_t
-row_complete_truncate_of_tables();
-/*=============================*/
 
 /*********************************************************************//**
 Drops a table for MySQL.  If the name of the dropped table ends in
