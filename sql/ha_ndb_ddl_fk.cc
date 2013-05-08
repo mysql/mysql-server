@@ -547,23 +547,9 @@ class Dummy_table_util
     {
       const NdbDictionary::Dictionary::List::Element& el = table_list.elements[i];
 
-      if (!Dummy_table_util::is_dummy_name(el.name))
+      const char* parent_name;
+      if (!Dummy_table_util::split_dummy_name(el.name, NULL, NULL, &parent_name))
         continue;
-
-      // Parse parent_name from dummy table
-      char parent_name[FN_REFLEN];
-      {
-        int child_id_unused, child_index_unused;
-        if (sscanf(el.name, "NDB$DUMMY_%d_%d_%s",
-                  &child_id_unused, &child_index_unused, parent_name) != 3)
-        {
-          DBUG_PRINT("error", ("Skip, failed to split dummy table name"));
-          DBUG_ASSERT(false);
-          continue;
-        }
-        DBUG_PRINT("info", ("parent_name: '%s', child_id: %d, child_index: %d",
-                            parent_name, child_id_unused, child_index_unused));
-      }
 
       // Check if this dummy table should reference the new table
       if (strcmp(parent_name, new_parent_name) != 0)
