@@ -6989,6 +6989,30 @@ ER_ROW_IN_WRONG_PARTITION
 ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX
   eng "Cannot schedule event %s, relay-log name %s, position %s to Worker thread because its size %lu exceeds %lu of slave_pending_jobs_size_max."
 
+ER_INNODB_NO_FT_USES_PARSER
+  eng "Cannot CREATE FULLTEXT INDEX WITH PARSER on InnoDB table"
+
+ER_BINLOG_LOGICAL_CORRUPTION
+  eng "The binary log file '%s' is logically corrupted: %s"
+
+ER_WARN_PURGE_LOG_IN_USE
+  eng "file %s was not purged because it was being read by %d thread(s), purged only %d out of %d files."
+
+ER_WARN_PURGE_LOG_IS_ACTIVE
+  eng "file %s was not purged because it is the active log file."
+
+ER_AUTO_INCREMENT_CONFLICT
+  eng "Auto-increment value in UPDATE conflicts with internally generated values"
+
+WARN_ON_BLOCKHOLE_IN_RBR
+  eng "Row events are not logged for %s statements that modify BLACKHOLE tables in row format. Table(s): '%-.192s'"
+
+ER_SLAVE_MI_INIT_REPOSITORY
+  eng "Slave failed to initialize master info structure from the repository"
+
+ER_SLAVE_RLI_INIT_REPOSITORY
+  eng "Slave failed to initialize relay log info structure from the repository"
+
 #
 #  End of 5.6 error messages.
 #
@@ -7016,30 +7040,6 @@ ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
 
 ER_CANNOT_DISCARD_TEMPORARY_TABLE
   eng "Cannot DISCARD/IMPORT tablespace associated with temporary table"
-
-ER_INNODB_NO_FT_USES_PARSER
-  eng "Cannot CREATE FULLTEXT INDEX WITH PARSER on InnoDB table"
-
-ER_BINLOG_LOGICAL_CORRUPTION
-  eng "The binary log file '%s' is logically corrupted: %s"
-
-ER_WARN_PURGE_LOG_IN_USE
-  eng "file %s was not purged because it was being read by %d thread(s), purged only %d out of %d files."
-
-ER_WARN_PURGE_LOG_IS_ACTIVE
-  eng "file %s was not purged because it is the active log file."
-
-ER_AUTO_INCREMENT_CONFLICT
-  eng "Auto-increment value in UPDATE conflicts with internally generated values"
-
-WARN_ON_BLOCKHOLE_IN_RBR
-  eng "Row events are not logged for %s statements that modify BLACKHOLE tables in row format. Table(s): '%-.192s'"
-
-ER_SLAVE_MI_INIT_REPOSITORY
-  eng "Slave failed to initialize master info structure from the repository"
-
-ER_SLAVE_RLI_INIT_REPOSITORY
-  eng "Slave failed to initialize relay log info structure from the repository"
 
 #
 #  End of 5.7 error messages.
