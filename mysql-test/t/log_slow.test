@@ -42,7 +42,18 @@ show fields from mysql.slow_log;
 
 flush slow logs;
 
-# Reset used variables
+# MDEV-4206 (empty filter should be no filter)
+set long_query_time=0.1;
+set log_slow_filter='';
+set global slow_query_log=1;
+set global log_output='TABLE';
+select sleep(0.5);
+select count(*) FROM mysql.slow_log;
+truncate mysql.slow_log;
 
+
+# Reset used variables
+set @@long_query_time=default;
+set global slow_query_log=default;
 set @@log_slow_filter=default;
 set @@log_slow_verbosity=default;
