@@ -92,17 +92,18 @@ namespace tokudb {
         uint orig_key_parts = 0;
         for (uint i = 0; i < table_share->keys; i++) {
             orig_key_offset[i] = orig_key_parts;
-            orig_key_parts += table_share->key_info[i].key_parts;
+            orig_key_parts += get_key_parts(&table_share->key_info[i]);
         }
         // if orig card data exists, then use it to compute new card data
         if (error == 0) {
-            uint key_parts = 0;
+            uint next_key_parts = 0;
             for (uint i = 0; error == 0 && i < altered_table_share->keys; i++) {
+                uint ith_key_parts = get_key_parts(&altered_table_share->key_info[i]);
                 uint orig_key_index;
                 if (find_index_of_key(altered_table_share->key_info[i].name, table_share, &orig_key_index)) {
-                    memcpy(&altered_rec_per_key[key_parts], &rec_per_key[orig_key_offset[orig_key_index]], altered_table_share->key_info[i].key_parts);
+                    memcpy(&altered_rec_per_key[next_key_parts], &rec_per_key[orig_key_offset[orig_key_index]], ith_key_parts);
                 }
-                key_parts += altered_table_share->key_info[i].key_parts;
+                next_key_parts += ith_key_parts;
             }
         }
         if (error == 0)
