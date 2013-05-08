@@ -1247,10 +1247,10 @@ page_zip_compress(
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
-	if (index) {
-		ut_ad(dict_table_is_comp(index->table));
-		ut_ad(!dict_index_is_ibuf(index));
-	}
+	ut_ad(!index
+	      || (index
+		  && dict_table_is_comp(index->table)
+		  && !dict_index_is_ibuf(index)));
 
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 

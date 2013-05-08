@@ -1964,17 +1964,22 @@ recv_parse_log_rec(
 	*body = NULL;
 
 	if (ptr == end_ptr) {
+
 		return(0);
 	}
 
 	if (*ptr == MLOG_MULTI_REC_END) {
+
 		*type = *ptr;
+
 		return(1);
 	}
 
 	if (*ptr == MLOG_DUMMY_RECORD) {
 		*type = *ptr;
+
 		*space = ULINT_UNDEFINED - 1; /* For debugging */
+
 		return(1);
 	}
 
@@ -1983,6 +1988,7 @@ recv_parse_log_rec(
 	*body = new_ptr;
 
 	if (UNIV_UNLIKELY(!new_ptr)) {
+
 		return(0);
 	}
 
@@ -2218,22 +2224,7 @@ loop:
 #endif/* UNIV_LOG_DEBUG */
 
 		} else if (type == MLOG_FILE_TRUNCATE) {
-			/*
-
-			if (NULL == fil_op_log_parse_or_replay(
-					body, end_ptr, type, space, page_no,
-					recv_sys->recovered_lsn, false)) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"File op log record of type "
-					"MLOG_FILE_TRUNCATE space %lu "
-					"does not complete in the "
-					"parse/replay phase.", space);
-
-				ut_error;
-			}
-			*/
-
+			/* Do Nothing */
 		} else if (type == MLOG_FILE_CREATE
 			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME
@@ -2249,7 +2240,7 @@ loop:
 
 				if (NULL == fil_op_log_parse_or_replay(
 					    body, end_ptr, type,
-					    space, page_no, 0)) {
+					    space, page_no, 0, false)) {
 
 					ib_logf(IB_LOG_LEVEL_FATAL,
 						"File op log record of type"

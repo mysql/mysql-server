@@ -2645,7 +2645,7 @@ row_ins_sec_index_entry_low(
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
 	}
- 
+
 	/* Disable insert buffering for temp-table indexes */
 	if (!dict_table_is_temporary(index->table)) {
 		search_mode |= BTR_INSERT;
