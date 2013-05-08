@@ -52,6 +52,9 @@ ADD_CUSTOM_TARGET(GenError
                   ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys 
                   ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
 
+# Set InnoDB mutex type
+ADD_DEFINITIONS(-DMUTEX_EVENT)
+
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 ## For 'comp_err' we need it to be available during build.
 COPY_OPENSSL_DLLS(copy_openssl_extra)
@@ -92,9 +95,20 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
       ../storage/innobase/buf/buf0checksum.cc
       ../storage/innobase/ut/ut0crc32.cc
       ../storage/innobase/ut/ut0ut.cc
+      ../storage/innobase/buf/buf0buf.cc
+      ../storage/innobase/page/page0zip.cc
      )
-  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
+
+  ADD_VERSION_INFO(innochecksum EXECUTABLE INNOBASE_SOURCES)
+  ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
   TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl)
+
+  IF(WITH_VALGRIND)
+    MYSQL_INSTALL_TARGETS(innochecksum DESTINATION ${INSTALL_BINDIR})
+  ENDIF()
+  # Note that this will overwrite the non debug "innochecksum" with the
+  # debug one
+  INSTALL_DEBUG_TARGET(innochecksum DESTINATION ${INSTALL_BINDIR})
 ENDIF()
 
 IF(UNIX)

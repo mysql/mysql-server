@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -55,7 +55,7 @@ ulint
 os_proc_get_number(void)
 /*====================*/
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	return((ulint)GetCurrentProcessId());
 #else
 	return((ulint) getpid());
@@ -120,7 +120,7 @@ os_mem_alloc_large(
 skip:
 #endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
 
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEM_INFO	system_info;
 	GetSystemInfo(&system_info);
 
@@ -196,7 +196,7 @@ os_mem_free_large(
 		return;
 	}
 #endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
-#ifdef __WIN__
+#ifdef _WIN32
 	/* When RELEASE memory, the size parameter must be 0.
 	Do not use MEM_RELEASE with MEM_DECOMMIT. */
 	if (!VirtualFree(ptr, 0, MEM_RELEASE)) {

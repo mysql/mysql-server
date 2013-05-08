@@ -41,7 +41,7 @@ of cells is chosen to be a prime number slightly bigger than n.
 @return	own: created table */
 UNIV_INTERN
 hash_table_t*
-ha_create(
+ib_create(
 /*======*/
 	ulint		n,	/*!< in: number of array cells */
 	const char*	name,	/*!< in: mutex name */
@@ -49,8 +49,6 @@ ha_create(
 				/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
 	ulint		type)	/*!< in: type of datastructure for which
-				the memory heap is going to be used e.g.:
-				MEM_HEAP_FOR_BTR_SEARCH or
 				MEM_HEAP_FOR_PAGE_HASH */
 {
 	hash_table_t*	table;

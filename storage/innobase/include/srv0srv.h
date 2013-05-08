@@ -214,6 +214,9 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
+#ifdef _WIN32
+extern ibool	srv_use_native_conditions;
+#endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server undo tablespaces directory, can be absolute path. */

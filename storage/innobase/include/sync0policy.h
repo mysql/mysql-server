@@ -28,6 +28,7 @@ Created 2012-08-21 Sunny Bains.
 
 #include "univ.i"
 #include "ut0rnd.h"
+#include "os0thread.h"
 #include "sync0types.h"
 
 /* Do nothing */

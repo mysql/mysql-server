@@ -90,6 +90,8 @@ void acl_update_db(const char *user, const char *host, const char *db,
                    ulong privileges);
 void acl_insert_db(const char *user, const char *host, const char *db,
                    ulong privileges);
+bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
+                       bool expired);
 
 /* sql_user_table */
 ulong get_access(TABLE *form,uint fieldnr, uint *next_field);
