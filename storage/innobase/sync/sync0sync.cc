@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1326,12 +1326,7 @@ sync_thread_add_level(
 						 SYNC_IBUF_PESS_INSERT_MUTEX));
 		break;
 	case SYNC_DICT:
-#ifdef UNIV_DEBUG
-		ut_a(buf_debug_prints
-		     || sync_thread_levels_g(array, SYNC_DICT, TRUE));
-#else /* UNIV_DEBUG */
 		ut_a(sync_thread_levels_g(array, SYNC_DICT, TRUE));
-#endif /* UNIV_DEBUG */
 		break;
 	default:
 		ut_error;
