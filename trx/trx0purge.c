@@ -263,8 +263,9 @@ trx_purge_sys_create(
 
 	purge_sys->query = trx_purge_graph_build();
 
-	purge_sys->view = read_view_oldest_copy_or_open_new(0,
-							    purge_sys->heap);
+	purge_sys->prebuilt_view =
+		read_view_oldest_copy_or_open_new(0, NULL);
+	purge_sys->view = purge_sys->prebuilt_view;
 }
 
 /************************************************************************
@@ -279,7 +280,12 @@ trx_purge_sys_close(void)
 	que_graph_free(purge_sys->query);
 
 	ut_a(purge_sys->sess->trx->is_purge);
-	purge_sys->sess->trx->conc_state = TRX_NOT_STARTED;
+	purge_sys->sess->trx->state = TRX_NOT_STARTED;
+
+	mutex_enter(&kernel_mutex);
+	trx_release_descriptor(purge_sys->sess->trx);
+	mutex_exit(&kernel_mutex);
+
 	sess_close(purge_sys->sess);
 	purge_sys->sess = NULL;
 
@@ -289,6 +295,8 @@ trx_purge_sys_close(void)
 		mutex_enter(&kernel_mutex);
 
 		read_view_close(purge_sys->view);
+		read_view_free(purge_sys->prebuilt_view);
+		purge_sys->prebuilt_view = NULL;
 		purge_sys->view = NULL;
 
 		mutex_exit(&kernel_mutex);
@@ -1177,7 +1185,7 @@ trx_purge(
 	}
 
 	purge_sys->view = read_view_oldest_copy_or_open_new(
-		0, purge_sys->heap);
+		0, purge_sys->prebuilt_view);
 
 	mutex_exit(&kernel_mutex);
 

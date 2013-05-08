@@ -263,13 +263,12 @@ log_check_tracking_margin(
 }
 
 /************************************************************//**
-Opens the log for log_write_low. The log must be closed with log_close and
-released with log_release.
+Opens the log for log_write_low. The log must be closed with log_close.
 @return	start lsn of the log record */
 UNIV_INTERN
 ib_uint64_t
-log_reserve_and_open(
-/*=================*/
+log_open(
+/*=====*/
 	ulint	len)	/*!< in: length of data to be catenated */
 {
 	log_t*	log			= log_sys;
@@ -282,7 +281,6 @@ log_reserve_and_open(
 
 	ut_a(len < log->buf_size / 2);
 loop:
-	mutex_enter(&(log->mutex));
 	ut_ad(!recv_no_log_write);
 
 	/* Calculate an upper limit for the space the string may take in the
@@ -303,6 +301,8 @@ loop:
 
 		ut_ad(++count < 50);
 
+		mutex_enter(&(log->mutex));
+
 		goto loop;
 	}
 
@@ -315,6 +315,8 @@ loop:
 		mutex_exit(&(log->mutex));
 
 		os_thread_sleep(10000);
+
+		mutex_enter(&(log->mutex));
 
 		goto loop;
 	}
@@ -335,6 +337,8 @@ loop:
 			log_archive_do(TRUE, &dummy);
 
 			ut_ad(++count < 50);
+
+			mutex_enter(&(log->mutex));
 
 			goto loop;
 		}
@@ -492,9 +496,12 @@ log_close(void)
 
 		if (tracked_lsn_age >= log->log_group_capacity) {
 
-			fprintf(stderr, " InnoDB: Error: the age of the "
+			fprintf(stderr, "InnoDB: Error: the age of the "
 				"oldest untracked record exceeds the log "
 				"group capacity!\n");
+			fprintf(stderr, "InnoDB: Error: stopping the log "
+				"tracking thread at LSN %llu\n", tracked_lsn);
+			srv_track_changed_pages = FALSE;
 		}
 	}
 

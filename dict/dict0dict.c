@@ -4419,7 +4419,7 @@ dict_reload_statistics(
 	while (index) {
 		mtr_t mtr;
 
-		if (table->is_corrupt) {
+		if (UNIV_UNLIKELY(table->is_corrupt)) {
 			ut_a(srv_pass_corrupt_table);
 			mem_heap_free(heap);
 			return(FALSE);
@@ -4577,7 +4577,7 @@ dict_store_statistics(
 	heap = mem_heap_create(1000);
 
 	while (index) {
-		if (table->is_corrupt) {
+		if (UNIV_UNLIKELY(table->is_corrupt)) {
 			ut_a(srv_pass_corrupt_table);
 			mem_heap_free(heap);
 			return;
@@ -4771,7 +4771,7 @@ dict_update_statistics(
 			mtr_t	mtr;
 			ulint	size;
 
-			if (table->is_corrupt) {
+			if (UNIV_UNLIKELY(table->is_corrupt)) {
 				ut_a(srv_pass_corrupt_table);
 				dict_table_stats_unlock(table, RW_X_LATCH);
 				return;

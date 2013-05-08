@@ -4652,7 +4652,7 @@ lock_print_info_all_transactions(
 	trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
 
 	while (trx) {
-		if (trx->conc_state == TRX_NOT_STARTED) {
+		if (trx->state == TRX_NOT_STARTED) {
 			fputs("---", file);
 			trx_print(file, trx, 600);
 		}
@@ -4820,9 +4820,9 @@ lock_table_queue_validate(
 	lock = UT_LIST_GET_FIRST(table->locks);
 
 	while (lock) {
-		ut_a(((lock->trx)->conc_state == TRX_ACTIVE)
-		     || ((lock->trx)->conc_state == TRX_PREPARED)
-		     || ((lock->trx)->conc_state == TRX_COMMITTED_IN_MEMORY));
+		ut_a(((lock->trx)->state == TRX_ACTIVE)
+		     || ((lock->trx)->state == TRX_PREPARED)
+		     || ((lock->trx)->state == TRX_COMMITTED_IN_MEMORY));
 
 		if (!lock_get_wait(lock)) {
 
@@ -4870,7 +4870,7 @@ lock_rec_queue_validate(
 		lock = lock_rec_get_first(block, heap_no);
 
 		while (lock) {
-			switch(lock->trx->conc_state) {
+			switch(lock->trx->state) {
 			case TRX_ACTIVE:
 			case TRX_PREPARED:
 			case TRX_COMMITTED_IN_MEMORY:
@@ -4957,9 +4957,9 @@ lock_rec_queue_validate(
 	lock = lock_rec_get_first(block, heap_no);
 
 	while (lock) {
-		ut_a(lock->trx->conc_state == TRX_ACTIVE
-		     || lock->trx->conc_state == TRX_PREPARED
-		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
+		ut_a(lock->trx->state == TRX_ACTIVE
+		     || lock->trx->state == TRX_PREPARED
+		     || lock->trx->state == TRX_COMMITTED_IN_MEMORY);
 		ut_a(trx_in_trx_list(lock->trx));
 
 		if (index) {
@@ -5036,9 +5036,9 @@ loop:
 	}
 
 	ut_a(trx_in_trx_list(lock->trx));
-	ut_a(lock->trx->conc_state == TRX_ACTIVE
-	     || lock->trx->conc_state == TRX_PREPARED
-	     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
+	ut_a(lock->trx->state == TRX_ACTIVE
+	     || lock->trx->state == TRX_PREPARED
+	     || lock->trx->state == TRX_COMMITTED_IN_MEMORY);
 
 # ifdef UNIV_SYNC_DEBUG
 	/* Only validate the record queues when this thread is not

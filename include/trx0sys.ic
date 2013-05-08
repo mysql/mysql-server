@@ -367,28 +367,11 @@ trx_is_active(
 /*==========*/
 	trx_id_t	trx_id)	/*!< in: trx id of the transaction */
 {
-	trx_t*	trx;
-
 	ut_ad(mutex_own(&(kernel_mutex)));
 
-	if (trx_id < trx_list_get_min_trx_id()) {
-
-		return(FALSE);
-	}
-
-	if (UNIV_UNLIKELY(trx_id >= trx_sys->max_trx_id)) {
-
-		/* There must be corruption: we return TRUE because this
-		function is only called by lock_clust_rec_some_has_impl()
-		and row_vers_impl_x_locked_off_kernel() and they have
-		diagnostic prints in this case */
-
-		return(TRUE);
-	}
-
-	trx = trx_get_on_id(trx_id);
-	if (trx && (trx->conc_state == TRX_ACTIVE
-		    || trx->conc_state == TRX_PREPARED)) {
+	if (trx_find_descriptor(trx_sys->descriptors,
+				trx_sys->descr_n_used,
+				trx_id)) {
 
 		return(TRUE);
 	}
@@ -425,4 +408,27 @@ trx_sys_get_new_trx_id(void)
 	return(id);
 }
 
+
+/*************************************************************//**
+Find a slot for a given trx ID in a descriptors array.
+@return: slot pointer */
+UNIV_INLINE
+trx_id_t*
+trx_find_descriptor(
+/*================*/
+	const trx_id_t*	descriptors,	/*!< in: descriptors array */
+	ulint		n_descr,	/*!< in: array size */
+	trx_id_t	trx_id)		/*!< in: trx pointer */
+{
+	ut_ad(descriptors != trx_sys->descriptors ||
+	      mutex_own(&kernel_mutex));
+
+	if (UNIV_UNLIKELY(n_descr == 0)) {
+
+		return(NULL);
+	}
+
+	return((trx_id_t *) bsearch(&trx_id, descriptors, n_descr,
+				    sizeof(trx_id_t), trx_descr_cmp));
+}
 #endif /* !UNIV_HOTBACKUP */

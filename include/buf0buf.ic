@@ -430,7 +430,6 @@ buf_block_set_file_page(
 	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
 	block->page.space = space;
 	block->page.offset = page_no;
-	block->page.space_was_being_deleted = FALSE;
 }
 
 /*********************************************************************//**
@@ -712,13 +711,7 @@ buf_block_get_frame(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 {
-	ut_a(srv_pass_corrupt_table || block);
-
-	if (srv_pass_corrupt_table && !block) {
-		return(0);
-	}
-
-	ut_ad(block);
+	SRV_CORRUPT_TABLE_CHECK(block, return(0););
 
 	switch (buf_block_get_state(block)) {
 	case BUF_BLOCK_ZIP_FREE:

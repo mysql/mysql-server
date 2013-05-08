@@ -332,10 +332,10 @@ log_reserve_and_write_fast(
 
 	if (data_len >= OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) {
 
-		/* The string does not fit within the current log block
-		or the log block would become full */
-
-		mutex_exit(&log_sys->mutex);
+		/* The string does not fit within the current log block or the
+		log block would become full. Do not release the log mutex,
+		because it has to be reacquired immediately for the "slow" write
+		procedure via log_write_low(). */
 
 		return(0);
 	}
@@ -380,6 +380,21 @@ log_reserve_and_write_fast(
 			   log_sys->old_lsn);
 #endif
 	return(log_sys->lsn);
+}
+
+/**************************************************************************//**
+Locks the log mutex and opens the log for log_write_low. The log must be closed
+with log_close and released with log_release.
+@return start lsn of the log record */
+UNIV_INLINE
+ib_uint64_t
+log_reserve_and_open(
+/*=================*/
+	ulint	len)	/*!< in: length of data to be catenated */
+{
+	mutex_enter(&(log_sys->mutex));
+
+	return log_open(len);
 }
 
 /***********************************************************************//**

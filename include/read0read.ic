@@ -25,6 +25,11 @@ Created 2/16/1997 Heikki Tuuri
 
 /*********************************************************************//**
 Gets the nth trx id in a read view.
+
+Upstream code stores array of trx_ids in the descending order. Percona Server
+keeps it in the ascending order for performance reasons. Let us keep the
+semantics.
+
 @return	trx id */
 UNIV_INLINE
 trx_id_t
@@ -33,13 +38,17 @@ read_view_get_nth_trx_id(
 	const read_view_t*	view,	/*!< in: read view */
 	ulint			n)	/*!< in: position */
 {
-	ut_ad(n < view->n_trx_ids);
+	ut_ad(n < view->n_descr);
 
-	return(*(view->trx_ids + n));
+	return(view->descriptors[view->n_descr - 1 - n]);
 }
 
 /*********************************************************************//**
-Sets the nth trx id in a read view. */
+Sets the nth trx id in a read view.
+
+Upstream code stores array of trx_ids in the descending order. Percona Server
+keeps it in the ascending order for performance reasons. Let us keep the
+semantics. */
 UNIV_INLINE
 void
 read_view_set_nth_trx_id(
@@ -48,9 +57,9 @@ read_view_set_nth_trx_id(
 	ulint		n,	/*!< in: position */
 	trx_id_t	trx_id)	/*!< in: trx id to set */
 {
-	ut_ad(n < view->n_trx_ids);
+	ut_ad(n < view->n_descr);
 
-	*(view->trx_ids + n) = trx_id;
+	view->descriptors[view->n_descr - 1 - n] = trx_id;
 }
 
 /*********************************************************************//**
@@ -63,9 +72,6 @@ read_view_sees_trx_id(
 	const read_view_t*	view,	/*!< in: read view */
 	trx_id_t		trx_id)	/*!< in: trx id */
 {
-	ulint	n_ids;
-	ulint	i;
-
 	if (trx_id < view->up_limit_id) {
 
 		return(TRUE);
@@ -76,21 +82,8 @@ read_view_sees_trx_id(
 		return(FALSE);
 	}
 
-	/* We go through the trx ids in the array smallest first: this order
-	may save CPU time, because if there was a very long running
-	transaction in the trx id array, its trx id is looked at first, and
-	the first two comparisons may well decide the visibility of trx_id. */
+	/* Do a binary search over this view's descriptors array */
 
-	n_ids = view->n_trx_ids;
-
-	for (i = 0; i < n_ids; i++) {
-		trx_id_t	view_trx_id
-			= read_view_get_nth_trx_id(view, n_ids - i - 1);
-
-		if (trx_id <= view_trx_id) {
-			return(trx_id != view_trx_id);
-		}
-	}
-
-	return(TRUE);
+	return(trx_find_descriptor(view->descriptors, view->n_descr,
+				   trx_id) == NULL);
 }

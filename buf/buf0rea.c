@@ -245,13 +245,7 @@ not_to_recover:
 		return(0);
 	}
 
-	if (srv_pass_corrupt_table) {
-		if (*err != DB_SUCCESS) {
-			bpage->is_corrupt = TRUE;
-		}
-	} else {
-	ut_a(*err == DB_SUCCESS);
-	}
+	SRV_CORRUPT_TABLE_CHECK(*err == DB_SUCCESS, bpage->is_corrupt = TRUE;);
 
 	if (sync) {
 		/* The i/o is already completed when we arrive from

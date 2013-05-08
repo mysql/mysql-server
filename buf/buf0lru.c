@@ -884,42 +884,6 @@ buf_LRU_flush_or_remove_pages(
 	}
 }
 
-/******************************************************************//**
-*/
-UNIV_INTERN
-void
-buf_LRU_mark_space_was_deleted(
-/*===========================*/
-	ulint	id)	/*!< in: space id */
-{
-	ulint	i;
-
-	for (i = 0; i < srv_buf_pool_instances; i++) {
-		buf_pool_t*	buf_pool;
-		buf_page_t*	bpage;
-
-		buf_pool = buf_pool_from_array(i);
-
-		mutex_enter(&buf_pool->LRU_list_mutex);
-
-		bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-
-		while (bpage != NULL) {
-			if (buf_page_get_space(bpage) == id) {
-				bpage->space_was_being_deleted = TRUE;
-			}
-			bpage = UT_LIST_GET_NEXT(LRU, bpage);
-		}
-
-		mutex_exit(&buf_pool->LRU_list_mutex);
-
-		/* The AHI entries for the tablespace being deleted should be
-		removed by now.  */
-		ut_ad(buf_LRU_drop_page_hash_for_tablespace(buf_pool, id)
-		      == 0);
-	}
-}
-
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
@@ -1889,10 +1853,6 @@ buf_LRU_free_block(
 
 		/* Do not free buffer-fixed or I/O-fixed blocks. */
 		return(FALSE);
-	}
-
-	if (bpage->space_was_being_deleted && bpage->oldest_modification != 0) {
-		buf_flush_remove(bpage);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG

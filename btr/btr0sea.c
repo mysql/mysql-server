@@ -649,10 +649,7 @@ btr_search_info_update_slow(
 
 	block = btr_cur_get_block(cursor);
 
-	if (srv_pass_corrupt_table && !block) {
-		return;
-	}
-	ut_a(block);
+	SRV_CORRUPT_TABLE_CHECK(block, return;);
 
 	/* NOTE that the following two function calls do NOT protect
 	info or block->n_fields etc. with any semaphore, to save CPU time!
