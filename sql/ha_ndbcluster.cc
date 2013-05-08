@@ -10532,6 +10532,11 @@ do_drop:
 }
 
 
+// Declare adapter functions for Dummy_table_util function
+extern bool ndb_dummy_build_list(THD*, NdbDictionary::Dictionary*,
+                                 const NdbDictionary::Table*, List<char>&);
+extern void ndb_dummy_drop_list(THD*, NdbDictionary::Dictionary*, List<char>&);
+
 bool
 ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
                                       const NdbDictionary::Table* table,
@@ -10541,7 +10546,7 @@ ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
 
   // Build list of objects which should be dropped after the table
   List<char> drop_list;
-  if (!build_dummy_list(thd, dict, table, drop_list))
+  if (!ndb_dummy_build_list(thd, dict, table, drop_list))
   {
     DBUG_RETURN(false);
   }
@@ -10553,32 +10558,9 @@ ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
   }
 
   // Drop objects which should be dropped after table
-  const char* tabname;
-  List_iterator_fast<char> it(drop_list);
-  while ((tabname=it++))
-  {
-    DBUG_PRINT("info", ("drop table: %s", tabname));
-    Ndb_table_guard dummytab_g(dict, tabname);
-    if (!dummytab_g.get_table())
-    {
-     // Could not open the dummy table
-     DBUG_PRINT("error", ("Could not open the listed dummy table, ignore it"));
-     DBUG_ASSERT(false);
-     continue;
-    }
+  ndb_dummy_drop_list(thd, dict, drop_list);
 
-    if (dict->dropTableGlobal(*dummytab_g.get_table()) != 0)
-    {
-      DBUG_PRINT("error", ("Failed to drop the dummy table '%s'",
-                            dummytab_g.get_table()->getName()));
-      DBUG_ASSERT(false);
-      continue;
-    }
-    // This printout should potentially be pushed as warning as well
-    sql_print_information("Dropped dummy table '%s' - referencing table dropped", tabname);
-  }
-
- DBUG_RETURN(true);
+  DBUG_RETURN(true);
 }
 
 
