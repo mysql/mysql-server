@@ -279,7 +279,8 @@ static MYSQL_THDVAR_BOOL(
   show_foreign_key_dummies,          /* name */
   PLUGIN_VAR_OPCMDARG,
   "Show the dummy tables which is used to support foreign_key_checks= 0. "
-  "Extra info warnings are shown when creating and dropping the tables.",
+  "Extra info warnings are shown when creating and dropping the tables. "
+  "The real table name is show in SHOW CREATE TABLE",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   0                                  /* default */
