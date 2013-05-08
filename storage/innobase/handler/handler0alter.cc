@@ -21,13 +21,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
-#include <unireg.h>
-#include <mysqld_error.h>
-#include <log.h>
-#include <debug_sync.h>
-#include <mysql/innodb_priv.h>
-#include <sql_alter.h>
-#include <sql_class.h>
+#include "ha_prototypes.h"
 
 #include "dict0crea.h"
 #include "dict0dict.h"
@@ -41,12 +35,10 @@ Smart ALTER TABLE
 #include "srv0space.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
-#include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "srv0mon.h"
 #include "fts0priv.h"
 #include "pars0pars.h"
-
 #include "ha_innodb.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */

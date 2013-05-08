@@ -32,16 +32,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include <sql_table.h>	// explain_filename, nz2, EXPLAIN_PARTITIONS_AS_COMMENT,
-			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
-#include <log.h>
-#include <sql_acl.h>	// PROCESS_ACL
-#include <debug_sync.h> // DEBUG_SYNC
-#include <my_base.h>	// HA_OPTION_*
-#include <mysys_err.h>
-#include <mysql/innodb_priv.h>
-
 /** @file ha_innodb.cc */
+
+#include "ha_prototypes.h"
 
 /* Include necessary InnoDB headers */
 #include "univ.i"
@@ -57,7 +50,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0space.h"
 #include "trx0roll.h"
 #include "trx0trx.h"
-
 #include "trx0sys.h"
 #include "mtr0mtr.h"
 #include "rem0types.h"
@@ -78,7 +70,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0boot.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
-#include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"

@@ -29,6 +29,8 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0trx.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "trx0undo.h"
 #include "trx0rseg.h"
 #include "log0log.h"
@@ -44,11 +46,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0xa.h"
 #include "trx0rec.h"
 #include "trx0purge.h"
-#include "ha_prototypes.h"
 #include "srv0mon.h"
 #include "ut0vec.h"
 
-#include<set>
+#include <set>
 
 /** Set of table_id */
 typedef std::set<table_id_t>	table_id_set;

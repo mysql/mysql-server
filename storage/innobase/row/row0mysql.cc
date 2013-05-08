@@ -30,8 +30,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0mysql.ic"
 #endif
 
-#include <debug_sync.h>
-#include <my_dbug.h>
+#include "ha_prototypes.h"
+
 #include "row0ins.h"
 #include "row0merge.h"
 #include "row0sel.h"
@@ -59,10 +59,6 @@ Created 9/17/2000 Heikki Tuuri
 #include "fts0types.h"
 #include "srv0space.h"
 #include "row0import.h"
-#include "ha_prototypes.h"
-#include "m_string.h"
-#include "my_sys.h"
-#include "ha_prototypes.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
