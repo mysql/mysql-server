@@ -681,44 +681,88 @@ public:
     Dummy_table_util dummy_table(thd);
     dummy_table.resolve_dummies(dict, new_parent_name);
   }
-};
 
 
-bool
-ha_ndbcluster::build_dummy_list(THD* thd, NdbDictionary::Dictionary* dict,
-                                const NdbDictionary::Table* table, List<char> &dummy_list)
-{
-  DBUG_ENTER("build_dummy_list");
-
-  NdbDictionary::Dictionary::List list;
-  if (dict->listDependentObjects(list, *table) != 0)
+  bool
+  build_dummy_list(NdbDictionary::Dictionary* dict,
+                   const NdbDictionary::Table* table, List<char> &dummy_list)
   {
-    DBUG_RETURN(false);
-  }
+    DBUG_ENTER("build_dummy_list");
 
-  for (unsigned i = 0; i < list.count; i++)
-  {
-    const NdbDictionary::Dictionary::List::Element& element = list.elements[i];
-    if (element.type != NdbDictionary::Object::ForeignKey)
-      continue;
-
-    NdbDictionary::ForeignKey fk;
-    if (dict->getForeignKey(fk, element.name) != 0)
+    NdbDictionary::Dictionary::List list;
+    if (dict->listDependentObjects(list, *table) != 0)
     {
-      // Could not find the listed fk
-      DBUG_ASSERT(false);
-      continue;
+      DBUG_RETURN(false);
     }
 
-    char parent_db_and_name[FN_LEN + 1];
-    const char * name = fk_split_name(parent_db_and_name,fk.getParentTable());
+    for (unsigned i = 0; i < list.count; i++)
+    {
+      const NdbDictionary::Dictionary::List::Element& element = list.elements[i];
+      if (element.type != NdbDictionary::Object::ForeignKey)
+        continue;
 
-    if (!Dummy_table_util::is_dummy_name(name))
-      continue;
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, element.name) != 0)
+      {
+        // Could not find the listed fk
+        DBUG_ASSERT(false);
+        continue;
+      }
 
-    dummy_list.push_back(thd_strdup(thd, name));
+      char parent_db_and_name[FN_LEN + 1];
+      const char * name = fk_split_name(parent_db_and_name,fk.getParentTable());
+
+      if (!Dummy_table_util::is_dummy_name(name))
+        continue;
+
+      dummy_list.push_back(thd_strdup(m_thd, name));
+    }
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(true);
+
+
+  void
+  drop_dummy_list(NdbDictionary::Dictionary* dict, List<char> &drop_list)
+  {
+    const char* tabname;
+    List_iterator_fast<char> it(drop_list);
+    while ((tabname=it++))
+    {
+      DBUG_PRINT("info", ("drop table: %s", tabname));
+      Ndb_table_guard dummytab_g(dict, tabname);
+      if (!dummytab_g.get_table())
+      {
+       // Could not open the dummy table
+       DBUG_PRINT("error", ("Could not open the listed dummy table, ignore it"));
+       DBUG_ASSERT(false);
+       continue;
+      }
+
+      if (dict->dropTableGlobal(*dummytab_g.get_table()) != 0)
+      {
+        DBUG_PRINT("error", ("Failed to drop the dummy table '%s'",
+                              dummytab_g.get_table()->getName()));
+        DBUG_ASSERT(false);
+        continue;
+      }
+      info("Dropped dummy table '%s' - referencing table dropped", tabname);
+    }
+  }
+
+};
+
+bool ndb_dummy_build_list(THD* thd, NdbDictionary::Dictionary* dict,
+                          const NdbDictionary::Table* table, List<char> &dummy_list)
+{
+  Dummy_table_util dummy_util(thd);
+  return dummy_util.build_dummy_list(dict, table, dummy_list);
+}
+
+
+void ndb_dummy_drop_list(THD* thd, NdbDictionary::Dictionary* dict, List<char> &drop_list)
+{
+  Dummy_table_util dummy_util(thd);
+  dummy_util.drop_dummy_list(dict, drop_list);
 }
 
 
