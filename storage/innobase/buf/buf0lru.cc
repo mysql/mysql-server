@@ -757,14 +757,10 @@ scan_again:
 
 		ut_ad(mutex_own(block_mutex));
 
-#ifdef UNIV_DEBUG
-		if (buf_debug_prints) {
-			fprintf(stderr,
-				"Dropping space %lu page %lu\n",
-				(ulong) buf_page_get_space(bpage),
-				(ulong) buf_page_get_page_no(bpage));
-		}
-#endif
+		DBUG_PRINT("ib_buf", ("evict page %u:%u state %u",
+				      bpage->space, bpage->offset,
+				      bpage->state));
+
 		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
 			/* Do nothing, because the adaptive hash index
 			covers uncompressed pages only. */
@@ -1868,13 +1864,8 @@ func_exit:
 	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
 #endif
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints) {
-		fprintf(stderr, "Putting space %lu page %lu to free list\n",
-			(ulong) buf_page_get_space(bpage),
-			(ulong) buf_page_get_page_no(bpage));
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_buf", ("free page %u:%u",
+			      bpage->space, bpage->offset));
 
 #ifdef UNIV_SYNC_DEBUG
         ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX));

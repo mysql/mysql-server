@@ -324,14 +324,6 @@ UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
 UNIV_INTERN ulong	srv_spin_wait_delay	= 6;
 UNIV_INTERN ibool	srv_priority_boost	= TRUE;
 
-#ifdef UNIV_DEBUG
-UNIV_INTERN ibool	srv_print_thread_releases	= FALSE;
-UNIV_INTERN ibool	srv_print_lock_waits		= FALSE;
-UNIV_INTERN ibool	srv_print_buf_io		= FALSE;
-UNIV_INTERN ibool	srv_print_log_io		= FALSE;
-UNIV_INTERN ibool	srv_print_latch_waits		= FALSE;
-#endif /* UNIV_DEBUG */
-
 static ulint		srv_n_rows_inserted_old		= 0;
 static ulint		srv_n_rows_updated_old		= 0;
 static ulint		srv_n_rows_deleted_old		= 0;
