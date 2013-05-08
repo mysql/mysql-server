@@ -2209,14 +2209,8 @@ fil_recreate_table(
 	ulint			format_flags,	/*!< in: page format */
 	ulint			flags,		/*!< in: tablespace flags */
 	const char*		name,		/*!< in: table name */
-	const truncate_t&	truncate,	/*!< in: The information of
+	truncate_t&		truncate)	/*!< in: The information of
 						MLOG_FILE_TRUNCATE record */
-	lsn_t			recv_lsn,	/*!< in: the end LSN of
-						the log record */
-	truncate_redo_cache_t*	redo_cache_entry)
-						/*!< out: cache to store
-						information needed for
-						completion of truncate. */
 {
 	dberr_t		err;
 	ulint		zip_size;
@@ -2240,8 +2234,7 @@ fil_recreate_table(
 
 	/* Step-2: Scan for active indexes and re-create them. */
 	err = truncate.create_indexes(
-		name, space_id, zip_size, flags, format_flags,
-		redo_cache_entry);
+		name, space_id, zip_size, flags, format_flags);
 	if (err != DB_SUCCESS) {
 		return;
 	}
@@ -2260,14 +2253,10 @@ fil_recreate_tablespace(
 	ulint			format_flags,	/*!< in: page format */
 	ulint			flags,		/*!< in: tablespace flags */
 	const char*		name,		/*!< in: table name */
-	const truncate_t&	truncate,	/*!< in: The information of
+	truncate_t&		truncate,	/*!< in: The information of
 						MLOG_FILE_TRUNCATE record */
-	lsn_t			recv_lsn,	/*!< in: the end LSN of
+	lsn_t			recv_lsn)	/*!< in: the end LSN of
 						the log record */
-	truncate_redo_cache_t*	redo_cache_entry)
-						/*!< out: cache to store
-						information needed for
-						completion of truncate. */
 {
 	dberr_t			err;
 	mtr_t			mtr;
@@ -2355,8 +2344,7 @@ fil_recreate_tablespace(
 	This operation will restore tablespace back to what it was
 	when it was created during CREATE TABLE. */
 	err = truncate.create_indexes(
-		name, space_id, zip_size, flags, format_flags,
-		redo_cache_entry);
+		name, space_id, zip_size, flags, format_flags);
 	if (err != DB_SUCCESS) {
 		return;
 	}
@@ -6812,8 +6800,6 @@ void truncate_t::drop_indexes(
 @param zip_size		page size of the .ibd file
 @param flags		tablespace flags
 @param format_flags	page format flags
-@param redo_cache_entry	cache to store info about new page no so as
-			to update them in dictionary post recovery
 @return DB_SUCCESS or error code. */
 dberr_t
 truncate_t::create_indexes(
@@ -6822,8 +6808,7 @@ truncate_t::create_indexes(
 	ulint			space_id,
 	ulint			zip_size,
 	ulint			flags,
-	ulint			format_flags,
-	truncate_redo_cache_t* 	redo_cache_entry) const 
+	ulint			format_flags)
 {
 	mtr_t           mtr;
 
@@ -6836,11 +6821,9 @@ truncate_t::create_indexes(
 	types, number of index fields and index field information taken
 	out from the TRUNCATE log record. */
 
-	indexes_t::const_iterator       end = m_indexes.end();
-
 	ulint   root_page_no = FIL_NULL;
-
-	for (indexes_t::const_iterator it = m_indexes.begin();
+	indexes_t::iterator       end = m_indexes.end();
+	for (indexes_t::iterator it = m_indexes.begin();
 	     it != end;
 	     ++it) {
 
@@ -6862,10 +6845,7 @@ truncate_t::create_indexes(
 			break;
 		}
 
-		/* Note: new root_page_no is updated to SYS_XXXX table
-		post recovery when it is allowed to modification dictionary
-		tables. Cache the info so that it can be used later. */
-		redo_cache_entry->register_new_page_no(it->m_id, root_page_no);
+		it->m_new_root_page_no = root_page_no;
 	}
 
 	mtr_commit(&mtr);
