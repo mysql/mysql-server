@@ -120,7 +120,9 @@ private:
             if (new_limit < m_size + s)
                 new_limit = m_size + s;
             assert(!m_is_static);
-            m_data = realloc(m_data, new_limit);
+            void *new_data = realloc(m_data, new_limit);
+            assert(new_data != NULL);
+            m_data = new_data;
             m_limit = new_limit;
         }
     }   
