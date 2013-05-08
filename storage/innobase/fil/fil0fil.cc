@@ -130,11 +130,9 @@ UNIV_INTERN ulint	fil_n_pending_tablespace_flushes	= 0;
 /** Number of files currently open */
 UNIV_INTERN ulint	fil_n_file_opened			= 0;
 
-/** Capture spaces that are being truncated.
-We don't need to protect this global variable as it is used post recovery
-for fixing up truncation of table when server is still running in
-single threaded mode. */
-static std::set<ulint>	fil_space_truncated;
+/* If true, indicate that table is being fixed for left over
+truncate action on serve restart post crash. */
+bool			fil_trunc_table_fix_up_active		= false;
 
 /** The null file address */
 UNIV_INTERN fil_addr_t	fil_addr_null = {FIL_NULL, 0};
@@ -2224,8 +2222,8 @@ fil_recreate_table(
 		return;
 	}
 
-	fil_space_truncated.clear();
-	fil_space_truncated.insert(space_id);
+	ut_ad(!srv_trunc_table_fix_up_active);
+	srv_trunc_table_fix_up_active = true;
 
 	/* Step-1: Scan for active indexes from REDO logs and drop
 	all the indexes using low level function that take root_page_no
@@ -2239,7 +2237,7 @@ fil_recreate_table(
 		return;
 	}
 
-	fil_space_truncated.clear();
+	srv_trunc_table_fix_up_active = false;
 }
 
 /********************************************************//**
@@ -2261,8 +2259,8 @@ fil_recreate_tablespace(
 	dberr_t			err;
 	mtr_t			mtr;
 
-	fil_space_truncated.clear();
-	fil_space_truncated.insert(space_id);
+	ut_ad(!srv_trunc_table_fix_up_active);
+	srv_trunc_table_fix_up_active = true;
 
 	/* Step-1: Invalidate buffer pool pages belonging to the tablespace
 	to re-create. */
@@ -2413,7 +2411,7 @@ fil_recreate_tablespace(
 	}
 
 	mtr_commit(&mtr);
-	fil_space_truncated.clear();
+	srv_trunc_table_fix_up_active = false;
 	return;
 }
 
@@ -3079,29 +3077,6 @@ fil_prepare_for_truncate(
 	}
 
 	return(err);
-}
-
-/*******************************************************************//**
-The set of the truncated tablespaces need to be initialized
-during recovery.
-@return true if the space is in the set, otherwise false */
-UNIV_INTERN
-bool
-fil_space_is_truncated(
-/*===================*/
-	ulint		id)	/* !< in: space id */
-{
-	return(fil_space_truncated.count(id) == 1);
-}
-
-/*******************************************************************//**
-Reset truncated space id */
-UNIV_INTERN
-void
-fil_space_truncated_reset()
-/*=======================*/
-{
-	fil_space_truncated.clear();
 }
 
 /**********************************************************************//**
@@ -5740,7 +5715,7 @@ fil_io(
 		} else {
 			if (space->id != srv_sys_space.space_id() 
 			    && UT_LIST_GET_LEN(space->chain) == 1
-			    && (fil_space_is_truncated(space->id)
+			    && (srv_trunc_table_fix_up_active
 				|| space->is_being_truncated)
 			    && type == OS_FILE_READ) {
 				/* Handle page which is outside the truncated
