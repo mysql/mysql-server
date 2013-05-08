@@ -470,13 +470,14 @@ buf_dblwr_init_or_restore_pages(
 							   page_no)) {
 			/* Do not report the warning if the tablespace is
 			truncated as it's reasonable */
-			if (!fil_space_is_truncated(space_id)) {
+			if (!srv_trunc_table_fix_up_active) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"A page in the doublewrite buffer is "
 					"not within space bounds; space id %lu "
 					"page number %lu, page %lu in "
 					"doublewrite buf.",
-					(ulong) space_id, (ulong) page_no, (ulong) i);
+					(ulong) space_id, (ulong) page_no,
+					(ulong) i);
 			}
 
 		} else if (space_id == TRX_SYS_SPACE

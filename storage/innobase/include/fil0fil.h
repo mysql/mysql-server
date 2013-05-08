@@ -79,39 +79,6 @@ struct fil_addr_t {
 	ulint	boffset;	/*!< byte offset within the page */
 };
 
-/** Cache all info needed for completing truncate of table
-especially updating dictionary as it is not allowed during REDO. */
-struct truncate_redo_cache_t
-{
-	typedef std::map<index_id_t, ulint>	index_page_cache_t;
-
-	truncate_redo_cache_t(table_id_t old_id, table_id_t new_id)
-		:
-		m_old_table_id(old_id),
-		m_new_table_id(new_id),
-		m_new_page_no()
-	{
-		/* Do nothing */
-	}
-
-	/* Register new page no for given index id.
-	@param index_id		index id
-	@param root_page_no	new root page no */
-	void register_new_page_no(index_id_t index_id, ulint root_page_no)
-	{
-		m_new_page_no[index_id] = root_page_no; 
-	}
-
-	/** ID of table that is being truncated. */
-	table_id_t		m_old_table_id;
-
-	/** New ID that will be assigned to table on truncation. */
-	table_id_t		m_new_table_id;
-
-	/** map of index-id to new root page no. */
-	index_page_cache_t	m_new_page_no;
-};
-
 /** The information of MLOG_FILE_TRUNCATE redo record */
 struct truncate_t {
 
@@ -715,20 +682,6 @@ dberr_t
 fil_prepare_for_truncate(
 /*=====================*/
 	ulint	id);			/*!< in: space id */
-/*******************************************************************//**
-The set of the truncated tablespaces need to be initialized during recovery.
-@return true if the space is in the set, otherwise false */
-UNIV_INTERN
-bool
-fil_space_is_truncated(
-/*===================*/
-	ulint		id);		/* !< in: space id */
-/*******************************************************************//**
-Reset truncated space id */
-UNIV_INTERN
-void
-fil_space_truncated_reset();
-/*========================*/
 /**********************************************************************//**
 Reinitialize the original tablespace header with the same space id
 for single tablespace */

@@ -953,9 +953,8 @@ ibuf_set_free_bits_func(
 
 	mtr_start(&mtr);
 
-	/* Do not log operations when applying MLOG_FILE_TRUNCATE log
-	record during recovery */
-	if (fil_space_is_truncated(page_get_space_id(page))) {
+	/* Avoid logging while fixing up truncate of table. */
+	if (srv_trunc_table_fix_up_active) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 	}
 

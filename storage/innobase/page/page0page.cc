@@ -517,7 +517,7 @@ page_create_zip(
 	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
 	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
-	if (fil_space_is_truncated(page_get_space_id(page))) {
+	if (srv_trunc_table_fix_up_active) {
 		/* Compress the index page created when applying
                 MLOG_FILE_TRUNCATE log record during recovery */
 		if (!page_zip_compress(page_zip, page, index, page_zip_level,
