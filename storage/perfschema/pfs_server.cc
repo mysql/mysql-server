@@ -37,6 +37,7 @@
 #include "pfs_account.h"
 #include "pfs_defaults.h"
 #include "pfs_digest.h"
+#include "pfs_program.h"
 
 PFS_global_param pfs_param;
 
@@ -113,7 +114,9 @@ initialize_performance_schema(PFS_global_param *param)
       init_account(param) ||
       init_account_hash() ||
       init_digest(param) ||
-      init_digest_hash())
+      init_digest_hash() ||
+      init_program(param) ||
+      init_program_hash())
   {
     /*
       The performance schema initialization failed.

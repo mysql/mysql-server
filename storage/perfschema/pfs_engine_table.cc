@@ -62,6 +62,7 @@
 #include "table_esms_by_account_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
 #include "table_esms_by_digest.h"
+#include "table_esms_by_program.h"
 
 #include "table_users.h"
 #include "table_accounts.h"
@@ -139,6 +140,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_esms_by_host_by_event_name::m_share,
   &table_esms_global_by_event_name::m_share,
   &table_esms_by_digest::m_share,
+  &table_esms_by_program::m_share,
 
   &table_users::m_share,
   &table_accounts::m_share,
@@ -1327,84 +1329,105 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 134:
+      name= "events_statements_summary_by_program.size";
+      size= sizeof(PFS_program_stat);
+      break;
+    case 135:
+      name= "events_statements_summary_by_program.count";
+      size= program_max;
+      break;
+    case 136:
+      name= "events_statements_summary_by_program.memory";
+      size= program_max * sizeof(PFS_program_stat);
+      total_memory+= size;
+      break;
+    case 137:
       name= "session_connect_attrs.size";
       size= thread_max;
       break;
-    case 135:
+    case 138:
       name= "session_connect_attrs.count";
       size= session_connect_attrs_size_per_thread;
       break;
-    case 136:
+    case 139:
       name= "session_connect_attrs.memory";
       size= thread_max * session_connect_attrs_size_per_thread;
       total_memory+= size;
       break;
 
-    case 137:
+    case 140:
       name= "(account_hash).count";
       size= account_hash.count;
       break;
-    case 138:
+    case 141:
       name= "(account_hash).size";
       size= account_hash.size;
       break;
-    case 139:
+    case 142:
       name= "(digest_hash).count";
       size= digest_hash.count;
       break;
-    case 140:
+    case 143:
       name= "(digest_hash).size";
       size= digest_hash.size;
       break;
-    case 141:
+    case 144:
       name= "(filename_hash).count";
       size= filename_hash.count;
       break;
-    case 142:
+    case 145:
       name= "(filename_hash).size";
       size= filename_hash.size;
       break;
-    case 143:
+    case 146:
       name= "(host_hash).count";
       size= host_hash.count;
       break;
-    case 144:
+    case 147:
       name= "(host_hash).size";
       size= host_hash.size;
       break;
-    case 145:
+    case 148:
       name= "(setup_actor_hash).count";
       size= setup_actor_hash.count;
       break;
-    case 146:
+    case 149:
       name= "(setup_actor_hash).size";
       size= setup_actor_hash.size;
       break;
-    case 147:
+    case 150:
       name= "(setup_object_hash).count";
       size= setup_object_hash.count;
       break;
-    case 148:
+    case 151:
       name= "(setup_object_hash).size";
       size= setup_object_hash.size;
       break;
-    case 149:
+    case 152:
       name= "(table_share_hash).count";
       size= table_share_hash.count;
       break;
-    case 150:
+    case 153:
       name= "(table_share_hash).size";
       size= table_share_hash.size;
       break;
-    case 151:
+    case 154:
       name= "(user_hash).count";
       size= user_hash.count;
       break;
-    case 152:
+    case 155:
       name= "(user_hash).size";
       size= user_hash.size;
       break;
-    case 153:
+    case 156:
+      name= "(program_hash).count";
+      size= program_hash.count;
+      break;
+    case 157:
+      name= "(program_hash).size";
+      size= program_hash.size;
+      break;
+    case 158:
       /*
         This is not a performance_schema buffer,
         the data is maintained in the server,
@@ -1421,7 +1444,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       This case must be last,
       for aggregation in total_memory.
     */
-    case 154:
+    case 159:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

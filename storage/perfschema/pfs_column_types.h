@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -187,7 +187,11 @@ enum enum_operation_type
 enum enum_object_type
 {
   OBJECT_TYPE_TABLE= 1,
-  OBJECT_TYPE_TEMPORARY_TABLE= 2
+  OBJECT_TYPE_EVENT= 2,
+  OBJECT_TYPE_FUNCTION= 3,
+  OBJECT_TYPE_PROCEDURE= 4,
+  OBJECT_TYPE_TRIGGER= 5,
+  OBJECT_TYPE_TEMPORARY_TABLE= 6
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_TABLE))

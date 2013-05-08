@@ -44,21 +44,22 @@ ERROR 1050 (42S01) at line 823: Table 'events_stages_summary_by_host_by_event_na
 ERROR 1050 (42S01) at line 836: Table 'events_stages_summary_by_user_by_event_name' already exists
 ERROR 1050 (42S01) at line 850: Table 'events_stages_summary_by_account_by_event_name' already exists
 ERROR 1050 (42S01) at line 862: Table 'events_stages_summary_global_by_event_name' already exists
-ERROR 1050 (42S01) at line 908: Table 'events_statements_current' already exists
-ERROR 1050 (42S01) at line 954: Table 'events_statements_history' already exists
-ERROR 1050 (42S01) at line 1000: Table 'events_statements_history_long' already exists
-ERROR 1050 (42S01) at line 1032: Table 'events_statements_summary_by_thread_by_event_name' already exists
-ERROR 1050 (42S01) at line 1064: Table 'events_statements_summary_by_host_by_event_name' already exists
-ERROR 1050 (42S01) at line 1096: Table 'events_statements_summary_by_user_by_event_name' already exists
-ERROR 1050 (42S01) at line 1129: Table 'events_statements_summary_by_account_by_event_name' already exists
-ERROR 1050 (42S01) at line 1160: Table 'events_statements_summary_global_by_event_name' already exists
-ERROR 1050 (42S01) at line 1169: Table 'hosts' already exists
-ERROR 1050 (42S01) at line 1178: Table 'users' already exists
-ERROR 1050 (42S01) at line 1188: Table 'accounts' already exists
-ERROR 1050 (42S01) at line 1223: Table 'events_statements_summary_by_digest' already exists
-ERROR 1050 (42S01) at line 1233: Table 'session_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1239: Table 'session_account_connect_attrs' already exists
-ERROR 1644 (HY000) at line 1976: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 909: Table 'events_statements_current' already exists
+ERROR 1050 (42S01) at line 956: Table 'events_statements_history' already exists
+ERROR 1050 (42S01) at line 1003: Table 'events_statements_history_long' already exists
+ERROR 1050 (42S01) at line 1035: Table 'events_statements_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 1067: Table 'events_statements_summary_by_host_by_event_name' already exists
+ERROR 1050 (42S01) at line 1099: Table 'events_statements_summary_by_user_by_event_name' already exists
+ERROR 1050 (42S01) at line 1132: Table 'events_statements_summary_by_account_by_event_name' already exists
+ERROR 1050 (42S01) at line 1163: Table 'events_statements_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 1172: Table 'hosts' already exists
+ERROR 1050 (42S01) at line 1181: Table 'users' already exists
+ERROR 1050 (42S01) at line 1191: Table 'accounts' already exists
+ERROR 1050 (42S01) at line 1226: Table 'events_statements_summary_by_digest' already exists
+ERROR 1050 (42S01) at line 1264: Table 'events_statements_summary_by_program' already exists
+ERROR 1050 (42S01) at line 1274: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1280: Table 'session_account_connect_attrs' already exists
+ERROR 1644 (HY000) at line 2017: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.event where db='performance_schema';
 name

@@ -1,0 +1,182 @@
+show databases;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+test
+select count(*) from performance_schema.performance_timers;
+count(*)
+5
+select count(*) from performance_schema.setup_consumers;
+count(*)
+12
+select count(*) > 3 from performance_schema.setup_instruments;
+count(*) > 3
+1
+select count(*) from performance_schema.setup_timers;
+count(*)
+4
+select * from performance_schema.accounts;
+select * from performance_schema.cond_instances;
+select * from performance_schema.events_stages_current;
+select * from performance_schema.events_stages_history;
+select * from performance_schema.events_stages_history_long;
+select * from performance_schema.events_stages_summary_by_account_by_event_name;
+select * from performance_schema.events_stages_summary_by_host_by_event_name;
+select * from performance_schema.events_stages_summary_by_thread_by_event_name;
+select * from performance_schema.events_stages_summary_by_user_by_event_name;
+select * from performance_schema.events_stages_summary_global_by_event_name;
+select * from performance_schema.events_statements_current;
+select * from performance_schema.events_statements_history;
+select * from performance_schema.events_statements_history_long;
+select * from performance_schema.events_statements_summary_by_account_by_event_name;
+select * from performance_schema.events_statements_summary_by_digest;
+select * from performance_schema.events_statements_summary_by_host_by_event_name;
+select * from performance_schema.events_statements_summary_by_thread_by_event_name;
+select * from performance_schema.events_statements_summary_by_user_by_event_name;
+select * from performance_schema.events_statements_summary_global_by_event_name;
+select * from performance_schema.events_waits_current;
+select * from performance_schema.events_waits_history;
+select * from performance_schema.events_waits_history_long;
+select * from performance_schema.events_waits_summary_by_account_by_event_name;
+select * from performance_schema.events_waits_summary_by_host_by_event_name;
+select * from performance_schema.events_waits_summary_by_instance;
+select * from performance_schema.events_waits_summary_by_thread_by_event_name;
+select * from performance_schema.events_waits_summary_by_user_by_event_name;
+select * from performance_schema.events_waits_summary_global_by_event_name;
+select * from performance_schema.file_instances;
+select * from performance_schema.file_summary_by_event_name;
+select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.host_cache;
+select * from performance_schema.hosts;
+select * from performance_schema.mutex_instances;
+select * from performance_schema.objects_summary_global_by_type;
+select * from performance_schema.performance_timers;
+select * from performance_schema.rwlock_instances;
+select * from performance_schema.session_account_connect_attrs;
+select * from performance_schema.session_connect_attrs;
+select * from performance_schema.setup_actors;
+select * from performance_schema.setup_consumers;
+select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_objects;
+select * from performance_schema.setup_timers;
+select * from performance_schema.socket_instances;
+select * from performance_schema.socket_summary_by_instance;
+select * from performance_schema.socket_summary_by_event_name;
+select * from performance_schema.table_io_waits_summary_by_index_usage;
+select * from performance_schema.table_io_waits_summary_by_table;
+select * from performance_schema.table_lock_waits_summary_by_table;
+select * from performance_schema.threads;
+select * from performance_schema.users;
+show variables like "performance_schema%";
+Variable_name	Value
+performance_schema	ON
+performance_schema_accounts_size	100
+performance_schema_digests_size	200
+performance_schema_events_stages_history_long_size	1000
+performance_schema_events_stages_history_size	10
+performance_schema_events_statements_history_long_size	1000
+performance_schema_events_statements_history_size	10
+performance_schema_events_waits_history_long_size	10000
+performance_schema_events_waits_history_size	10
+performance_schema_hosts_size	100
+performance_schema_max_cond_classes	80
+performance_schema_max_cond_instances	1000
+performance_schema_max_file_classes	50
+performance_schema_max_file_handles	32768
+performance_schema_max_file_instances	10000
+performance_schema_max_mutex_classes	200
+performance_schema_max_mutex_instances	5000
+performance_schema_max_program_instances	4
+performance_schema_max_rwlock_classes	30
+performance_schema_max_rwlock_instances	5000
+performance_schema_max_socket_classes	10
+performance_schema_max_socket_instances	1000
+performance_schema_max_stage_classes	150
+performance_schema_max_statement_classes	184
+performance_schema_max_statement_stack	3
+performance_schema_max_table_handles	1000
+performance_schema_max_table_instances	500
+performance_schema_max_thread_classes	50
+performance_schema_max_thread_instances	200
+performance_schema_session_connect_attrs_size	2048
+performance_schema_setup_actors_size	100
+performance_schema_setup_objects_size	100
+performance_schema_users_size	100
+show engine PERFORMANCE_SCHEMA status;
+show status like "performance_schema%";
+show variables like "performance_schema_max_program_instances";
+Variable_name	Value
+performance_schema_max_program_instances	4
+show variables like "performance_schema_max_statement_stack";
+Variable_name	Value
+performance_schema_max_statement_stack	3
+##################### 
+# Setup
+##################### 
+create database sub_programs;
+use sub_programs;
+create table t1 (c1 int);
+create table t2 (c1 int);
+create table t3 (c1 int);
+create trigger simple_trigger1 before insert on t1 for each row insert into t2 values('2');
+create trigger simple_trigger2 before insert on t2 for each row insert into t3 values('3');
+CREATE PROCEDURE simple_procedure1 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+CREATE PROCEDURE simple_procedure2 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+CREATE PROCEDURE simple_procedure3 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+CREATE PROCEDURE simple_procedure4 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+CREATE PROCEDURE simple_procedure5 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+truncate performance_schema.events_statements_summary_by_program;
+select OBJECT_TYPE, OBJECT_NAME	from performance_schema.events_statements_summary_by_program;
+OBJECT_TYPE	OBJECT_NAME
+Flush status;
+show status like "%performance_schema_program_lost%";
+Variable_name	Value
+Performance_schema_program_lost	0
+show status like "%performance_schema_nested_statement_lost%";
+Variable_name	Value
+Performance_schema_nested_statement_lost	0
+##################### 
+# Executing Queries
+##################### 
+call simple_procedure1(@a);
+call simple_procedure2(@a);
+call simple_procedure3(@a);
+call simple_procedure4(@a);
+call simple_procedure5(@a);
+SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
+OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL from
+performance_schema.events_statements_history WHERE
+CURRENT_SCHEMA='sub_programs';
+EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
+statement/sql/call_procedure	call simple_procedure5(@a)	sub_programs	NULL	NULL	NULL	NULL	0
+statement/sp/sp_instr_stmt	INSERT INTO t1 values('1')	sub_programs	PROCEDURE	sub_programs	simple_procedure3	STATEMENT	1
+statement/sql/call_procedure	call simple_procedure3(@a)	sub_programs	NULL	NULL	NULL	NULL	0
+statement/sp/sp_instr_stmt	SELECT COUNT(*) INTO PARAM1 FROM t1	sub_programs	PROCEDURE	sub_programs	simple_procedure4	STATEMENT	1
+statement/sp/sp_instr_stmt	insert into t2 values('2')	sub_programs	TRIGGER	sub_programs	simple_trigger1	STATEMENT	2
+statement/sp/sp_instr_stmt	INSERT INTO t1 values('1')	sub_programs	PROCEDURE	sub_programs	simple_procedure4	STATEMENT	1
+statement/sql/call_procedure	call simple_procedure4(@a)	sub_programs	NULL	NULL	NULL	NULL	0
+statement/sp/sp_instr_stmt	SELECT COUNT(*) INTO PARAM1 FROM t1	sub_programs	PROCEDURE	sub_programs	simple_procedure5	STATEMENT	1
+statement/sp/sp_instr_stmt	insert into t2 values('2')	sub_programs	TRIGGER	sub_programs	simple_trigger1	STATEMENT	2
+statement/sp/sp_instr_stmt	INSERT INTO t1 values('1')	sub_programs	PROCEDURE	sub_programs	simple_procedure5	STATEMENT	1
+show status like "%performance_schema_program_lost%";
+Variable_name	Value
+Performance_schema_program_lost	4
+show status like "%performance_schema_nested_statement_lost%";
+Variable_name	Value
+Performance_schema_nested_statement_lost	5
+##################### 
+# Cleanup
+##################### 
+drop trigger simple_trigger1;
+drop trigger simple_trigger2;
+drop procedure simple_procedure1;
+drop procedure simple_procedure2;
+drop procedure simple_procedure3;
+drop procedure simple_procedure4;
+drop procedure simple_procedure5;
+drop table t1;
+drop table t2;
+drop table t3;
+drop database sub_programs;

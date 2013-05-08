@@ -91,6 +91,14 @@
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
+  #define MYSQL_SET_STATEMENT_PARENT(LOCKER, P1) \
+    inline_mysql_set_statement_parent(LOCKER, P1)
+#else
+  #define MYSQL_SET_STATEMENT_PARENT(LOCKER, P1) \
+    do {} while (0)
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_SET_STATEMENT_LOCK_TIME(LOCKER, P1) \
     inline_mysql_set_statement_lock_time(LOCKER, P1)
 #else
@@ -185,6 +193,16 @@ inline_mysql_set_statement_text(PSI_statement_locker *locker,
   if (likely(locker != NULL))
   {
     PSI_STATEMENT_CALL(set_statement_text)(locker, text, text_len);
+  }
+}
+
+static inline void
+inline_mysql_set_statement_parent(PSI_statement_locker *locker,
+                                  const void *head)
+{
+  if (likely(PSI_server && locker))
+  {
+    PSI_server->set_statement_parent(locker, head);
   }
 }
 

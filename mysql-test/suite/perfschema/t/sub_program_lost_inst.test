@@ -1,0 +1,74 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--source ../include/start_server_common.inc
+
+# Values of variables server variables
+show variables like "performance_schema_max_program_instances";
+show variables like "performance_schema_max_statement_stack";
+
+--echo ##################### 
+--echo # Setup
+--echo ##################### 
+create database sub_programs;
+use sub_programs;
+create table t1 (c1 int);
+create table t2 (c1 int);
+create table t3 (c1 int);
+
+create trigger simple_trigger1 before insert on t1 for each row insert into t2 values('2');
+create trigger simple_trigger2 before insert on t2 for each row insert into t3 values('3');
+
+delimiter //;
+CREATE PROCEDURE simple_procedure1 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+CREATE PROCEDURE simple_procedure2 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+CREATE PROCEDURE simple_procedure3 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+CREATE PROCEDURE simple_procedure4 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+CREATE PROCEDURE simple_procedure5 (OUT param1 INT) BEGIN SELECT COUNT(*) INTO PARAM1 FROM t1; INSERT INTO t1 values('1'); END//
+delimiter ;//
+
+# Truncate summary table
+truncate performance_schema.events_statements_summary_by_program;
+select OBJECT_TYPE, OBJECT_NAME	from performance_schema.events_statements_summary_by_program;
+# Flush status now
+Flush status;
+show status like "%performance_schema_program_lost%";
+show status like "%performance_schema_nested_statement_lost%";
+
+--echo ##################### 
+--echo # Executing Queries
+--echo ##################### 
+# Call stored procedures
+call simple_procedure1(@a);
+call simple_procedure2(@a);
+call simple_procedure3(@a);
+call simple_procedure4(@a);
+call simple_procedure5(@a);
+
+SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
+       OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL from
+       performance_schema.events_statements_history WHERE
+       CURRENT_SCHEMA='sub_programs';
+
+# Now check the lost status
+show status like "%performance_schema_program_lost%";
+show status like "%performance_schema_nested_statement_lost%";
+
+--echo ##################### 
+--echo # Cleanup
+--echo ##################### 
+drop trigger simple_trigger1;
+drop trigger simple_trigger2;
+
+drop procedure simple_procedure1;
+drop procedure simple_procedure2;
+drop procedure simple_procedure3;
+drop procedure simple_procedure4;
+drop procedure simple_procedure5;
+
+drop table t1;
+drop table t2;
+drop table t3;
+drop database sub_programs;

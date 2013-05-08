@@ -446,6 +446,21 @@ struct PFS_statement_stat_row
   void set_field(uint index, Field *f);
 };
 
+/** Row fragment for stored program statistics. */
+struct PFS_sp_stat_row
+{
+  PFS_stat_row m_timer1_row;
+
+  /** Build a row from a memory buffer. */
+  inline void set(time_normalizer *normalizer, const PFS_sp_stat *stat)
+  {
+    m_timer1_row.set(normalizer, & stat->m_timer1_stat);
+  }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
 /** Row fragment for connection statistics. */
 struct PFS_connection_stat_row
 {

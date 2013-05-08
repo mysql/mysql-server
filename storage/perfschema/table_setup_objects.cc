@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'TABLE\')") },
+    { C_STRING_WITH_LEN("enum(\'TABLE\',\'EVENT\',\'FUNCTION\',\'PROCEDURE\',\'TRIGGER\'") },
     { NULL, 0}
   },
   {
@@ -138,7 +138,9 @@ int table_setup_objects::write_row(TABLE *table, unsigned char *buf,
   }
 
   /* Reject illegal enum values in OBJECT_TYPE */
-  if (object_type != OBJECT_TYPE_TABLE)
+  if (object_type < FIRST_OBJECT_TYPE ||
+      object_type > LAST_OBJECT_TYPE  ||
+      object_type == OBJECT_TYPE_TEMPORARY_TABLE)
     return HA_ERR_NO_REFERENCED_ROW;
 
   /* Reject illegal enum values in ENABLED */

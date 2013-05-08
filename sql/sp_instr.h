@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,6 +86,7 @@ public:
     @return Error status.
   */
   virtual bool execute(THD *thd, uint *nextp) = 0;
+  virtual PSI_statement_info* get_psi_info() = 0;
 
   uint get_ip() const
   { return m_ip; }
@@ -428,6 +429,14 @@ private:
 
   /// Specify if the stored LEX-object is up-to-date.
   bool m_valid;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -489,6 +498,13 @@ private:
 
   /// SQL-query corresponding to the value expression.
   LEX_STRING m_value_query;
+
+public:
+  static PSI_statement_info psi_info;
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -550,6 +566,14 @@ private:
 
   /// SQL-query corresponding to the value expression.
   LEX_STRING m_value_query;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -623,6 +647,14 @@ private:
 
   /// RETURN-field type code.
   enum enum_field_types m_return_field_type;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -698,6 +730,14 @@ protected:
 
   // The following attribute is used by SP-optimizer.
   sp_instr *m_optdest;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -845,6 +885,14 @@ public:
 
     return false;
   }
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -926,6 +974,14 @@ public:
 private:
   /// Identifier (index) of the CASE-expression in the runtime context.
   uint m_case_expr_id;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1009,6 +1065,14 @@ private:
     expression.
   */
   Item *m_eq_item;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1082,6 +1146,14 @@ private:
   // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
   // debug version only). It's used in print().
   uint m_frame;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1105,6 +1177,14 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual bool execute(THD *thd, uint *nextp);
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1139,6 +1219,14 @@ private:
   // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
   // debug version only). It's used in print().
   uint m_frame;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1236,6 +1324,14 @@ private:
 
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1266,6 +1362,14 @@ public:
 
 private:
   uint m_count;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1297,6 +1401,14 @@ public:
 private:
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1329,6 +1441,14 @@ public:
 private:
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1367,6 +1487,14 @@ private:
 
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1411,6 +1539,14 @@ public:
 private:
   /// The error code, which should be raised by this instruction.
   int m_errcode;
+
+public:
+  virtual PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
 };
 
 ///////////////////////////////////////////////////////////////////////////
