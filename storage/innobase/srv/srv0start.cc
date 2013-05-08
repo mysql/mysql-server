@@ -88,6 +88,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0upd.h"
 # include "row0row.h"
 # include "row0mysql.h"
+# include "row0trunc.h"
 # include "btr0pcur.h"
 # include "os0sync.h"
 # include "zlib.h"
@@ -1937,10 +1938,9 @@ files_checked:
 
 		recv_recovery_from_checkpoint_finish();
 
-		/* Recovery from checkpoint done.
-		Perform the steps that needs to be done post recovery.
-		For example: Assigning new table for truncated tables. */
-		err = row_complete_truncate_of_tables();	
+		/* Fix-up truncate of table if server crashed while truncate
+		was active. */
+		err = row_fixup_truncate_of_tables();	
 		if (err != DB_SUCCESS) {
 			return(srv_init_abort(err));
 		}

@@ -254,6 +254,8 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 
 /**
 Rollback the transaction and release the index locks.
+Drop indexes if marking table as corrupted so that drop/create
+sequence works as expected.
 
 @param table		table to truncate
 @param trx		transaction covering the TRUNCATE
@@ -449,7 +451,7 @@ row_truncate_update_table_id(
 }
 
 /**
-Update system table to reflect new table id/new root page number.
+Update system table to reflect new table id and root page number.
 @param redo_cache		contains info like old table id
 				and updated root_page_no of indexes.
 @param new_table_id		new table id
@@ -516,7 +518,7 @@ row_truncate_update_sys_tables_post_redo(
 }
 
 /**
-Truncatie also results in assignment of new table id, update the system
+Truncate also results in assignment of new table id, update the system
 SYSTEM TABLES with the new id.
 @param table,			table being truncated
 @param new_id,			new table id
@@ -768,25 +770,18 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	Step-6: Truncate operation can be rolled back in case of error
 	till some point. Associate rollback segment to record undo log.
 
-	**** Based on whether table reside in system or per-table tablespace
-	follow-up steps might turn-conditional.
-
 	Step-7: Generate new table-id.
 	Why we need new table-id ?
-	Purge and rollback: we assign a new table id for the
-	table. Since purge and rollback look for the table based on
-	the table id, they see the table as 'dropped' and discard
-	their operations.
+	Purge and rollback case: we assign a new table id for the table.
+	Since purge and rollback look for the table based on the table id,
+	they see the table as 'dropped' and discard their operations.
 
-	Step-8: (Only for per-tablespace): REDO log information about
-	tablespace which mainly include index information (id, type).
-	In event of crash post this point on recovery using REDO log
-	tablespace can be re-created with appropriate index id and type
-	information.
+	Step-8: REDO log information about tablespace which mainly includes
+	table and index information. In event of crash post REDO log will
+	be parsed and then used for fixup post recovery.
 
 	Step-9: Drop all indexes (this include freeing of the pages
-	associated with them). (FIXME: freeing of pages should be conditional
-	and should be applicable only when using shared tablespaces.)
+	associated with them).
 
 	Step-10: Re-create new indexes.
 
@@ -799,25 +794,31 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	Release all the locks.
 	Commit the transaction. Update trx operation state.
 
-	FIXME:
-	3) Insert buffer: TRUNCATE TABLE is analogous to DROP TABLE,
+	Notes:
+	- On error, log checkpoint is done which nullifies effect of REDO
+	log and so even if server crashes post truncate, REDO log is not read.
+
+	- log checkpoint is done before starting truncate table to ensure
+	that previous REDO log entries are not applied if current truncate
+	crashes. Take a case of system-tablespace where-in initial truncate
+	REDO log entry is written and next truncate statement result in crash.
+	On recovery both REDO log entries will be loaded w/o knowledge of which
+	REDO log entry to apply assuming default log check point didn't
+	kicked in between 2 truncates.
+	
+	- Insert buffer: TRUNCATE TABLE is analogous to DROP TABLE,
 	so we do not have to remove insert buffer records, as the
 	insert buffer works at a low level. If a freed page is later
 	reallocated, the allocator will remove the ibuf entries for
-	it.
-
-	When we prepare to truncate *.ibd files, we remove all entries
+	it. When we prepare to truncate *.ibd files, we remove all entries
 	for the table in the insert buffer tree. This is not strictly
 	necessary, but we can free up some space in the system tablespace.
 
-	4) Linear readahead and random readahead: we use the same
+	- Linear readahead and random readahead: we use the same
 	method as in 3) to discard ongoing operations. (This is only
 	relevant for TRUNCATE TABLE by TRUNCATE TABLESPACE.)
-	Ensure that the table will be dropped by
-	trx_rollback_active() in case of a crash.
-
-	Table involving FTS is not made atomic as of now and its behavior
-	is left unchanged.
+	Ensure that the table will be dropped by trx_rollback_active() in
+	case of a crash.
 	*/
 
 	/*-----------------------------------------------------------------*/
@@ -836,7 +837,6 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	/* Step-2: Start transaction (only for non-temp table as temp-table
 	don't modify any data on disk doesn't need transaction object). */
 	if (!dict_table_is_temporary(table)) {
-
 		/* Avoid transaction overhead for temporary table DDL. */
 		trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
 	}
@@ -846,9 +846,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	SELECT, .....*/
 	trx->op_info = "truncating table";
 	ut_a(trx->dict_operation_lock_mode == 0);
-
 	row_mysql_lock_data_dictionary(trx);
-
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -902,17 +900,14 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	table_id_t	new_id;
 	dict_hdr_get_new_id(&new_id, NULL, NULL, table, false);
 
-	/* Create new FTS auxiliary tables with the new_id, and
-	drop the old index later, only if everything runs successful. */
+	/* Check if table involves FTS index. */
 	bool	has_internal_doc_id =
 		dict_table_has_fts_index(table)
 		|| DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 
-	/* Step-8: (Only for per-tablespace): REDO log information about
-	tablespace which mainly include index information (id, type).
-	In event of crash post this point on recovery using REDO log
-	tablespace can be re-created with appropriate index id and type
-	information. */
+	/* Step-8: REDO log information about tablespace which mainly includes
+	table and index information. In event of crash post REDO log will
+	be parsed and then used for fixup post recovery. */
 
 	/* Lock all index trees for this table, as we will truncate
 	the table/index and possibly change their metadata. All
@@ -949,7 +944,6 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			}
 		}
 
-		/* Write the TRUNCATE redo log. */
 		Logger logger(table, flags, new_id);
 
 		err = SysIndexIterator().for_each(logger);
@@ -958,16 +952,8 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 		ut_ad(logger.debug());
 
-		/* Write the TRUNCATE log record into redo log */
 		logger.log();
 	}
-
-	/* This is the event horizon, if an error occurs after this point then
-	the table will be tagged as corrupt in memory. On restart we will
-	recreate the table as per REDO semantics from the REDO log record
-	that we wrote above provided REDO log is flushed to disk. If REDO logged
-	is not yet flushed to disk and crash occur then we restore the table
-	in old state with rows. */
 
 	DBUG_EXECUTE_IF("ib_trunc_crash_after_redo_log_write_complete1",
 			DBUG_SUICIDE(););
@@ -981,7 +967,6 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	associated with them). */
 	if (!dict_table_is_temporary(table)) {
 
-		/* Drop all the indexes. */
 		DropIndex	dropIndex(table);
 
 		err = SysIndexIterator().for_each(dropIndex);
@@ -992,8 +977,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		}
 
 	} else {
-		/* For temporary tables we don't have entries in
-		SYSTEM TABLES. */
+		/* For temporary tables we don't have entries in SYSTEM TABLES*/
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
@@ -1027,7 +1011,6 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	/* Step-10: Re-create new indexes. */
 	if (!dict_table_is_temporary(table)) {
 
-		/* Recreate all the indexes. */
 		CreateIndex	createIndex(table);
 
 		err = SysIndexIterator().for_each(createIndex);
@@ -1095,12 +1078,13 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 }
 
 /**
-Assign new table-id to table that got truncated as part of REDO log
-apply phase.
-@return	error code or DB_SUCCESS */
+Fix the table truncate by applying information cached while REDO log
+scan phase. Fix-up includes re-creating table (drop and re-create
+indexes) and for single-tablespace re-creating tablespace.
+@return error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
-row_complete_truncate_of_tables()
+row_fixup_truncate_of_tables()
 {
 	dberr_t	err = DB_SUCCESS;
 
