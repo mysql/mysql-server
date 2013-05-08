@@ -4443,8 +4443,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         */
         table_names.replace(table_names.length()-1, 1, ".", 1);
         push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_WARN,
-                            WARN_ON_BLOCKHOLE_IN_RBR,
-                            ER(WARN_ON_BLOCKHOLE_IN_RBR),
+                            ER_UNKNOWN_ERROR,
+                            "Row events are not logged for %s statements "
+                            "that modify BLACKHOLE tables in row format. "
+                            "Table(s): '%-.192s'",
                             is_update ? "UPDATE" : "DELETE",
                             table_names.c_ptr());
       }
