@@ -347,6 +347,24 @@ private:
 	dict_table_t*		m_table;
 };
 
+/**
+Truncates a table for MySQL.
+@param table		table being truncated
+@param trx		transaction covering the truncate
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx);
+
+/**
+Fix the table truncate by applying information cached while REDO log
+scan phase. Fix-up includes re-creating table (drop and re-create
+indexes) and for single-tablespace re-creating tablespace.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+row_fixup_truncate_of_tables();
+
 #endif
 
 

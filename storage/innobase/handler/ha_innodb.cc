@@ -86,6 +86,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* UNIV_DEBUG */
 #include "fts0priv.h"
 #include "page0zip.h"
+#include "row0trunc.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
