@@ -56,7 +56,7 @@ Created 10/25/1995 Heikki Tuuri
 static ulint srv_data_read, srv_data_written;
 #endif /* !UNIV_HOTBACKUP */
 #include "srv0space.h"
-#include<set>
+#include <set>
 
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
@@ -130,9 +130,10 @@ UNIV_INTERN ulint	fil_n_pending_tablespace_flushes	= 0;
 /** Number of files currently open */
 UNIV_INTERN ulint	fil_n_file_opened			= 0;
 
-/** The spaces are truncated. We don't need protect the global variable
-by a mutex, since it is only updated in scan phase, and read in apply
-phase during recovery. */
+/** Capture spaces that are being truncated.
+We don't need to protect this global variable as it is used post recovery
+for fixing up truncation of table when server is still running in
+single threaded mode. */
 static std::set<ulint>	fil_space_truncated;
 
 /** The null file address */
@@ -2034,7 +2035,7 @@ fil_read_first_page(
 /*******************************************************************//**
 Increments the count of pending operation, if space is not being deleted
 or truncated.
-@return	TRUE if being deleted/truncated, and operation should be skipped */
+@return	TRUE if being deleted/truncated, and operations should be skipped */
 UNIV_INTERN
 ibool
 fil_inc_pending_ops(
@@ -2274,13 +2275,14 @@ fil_recreate_tablespace(
 	fil_space_truncated.clear();
 	fil_space_truncated.insert(space_id);
 
-	/* Invalidate in the buffer pool all pages belonging
-	to the tablespace. */
+	/* Step-1: Invalidate buffer pool pages belonging to the tablespace
+	to re-create. */
 	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
 
+	/* Step-2: truncate tablespace (reset the size back to original or
+	default size) of tablespace. */
 	err = truncate.truncate(
 		space_id, name, truncate.m_dir_path, flags, true);
-
 	if (err != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -2290,7 +2292,6 @@ fil_recreate_tablespace(
 	}
 
 	ulint zip_size = fil_space_get_zip_size(space_id);
-
 	if (zip_size == ULINT_UNDEFINED) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -2299,7 +2300,7 @@ fil_recreate_tablespace(
 		return;
 	}
 
-	/* Clean header */
+	/* Step-3: Initialize Header. */
 	if (fsp_flags_is_compressed(flags)) {
 		byte*	buf;
 		page_t*	page;
@@ -2340,28 +2341,31 @@ fil_recreate_tablespace(
 	}
 
 	mtr_start(&mtr);
-
 	/* Do not log operations when applying MLOG_FILE_TRUNCATE
 	redo record during recovery, since the recovery can safely
 	start from the last checkpoint of the redo log again even
 	if a crash happened during recovery */
 	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
-
 	/* Initialize the first extent descriptor page and
 	the second bitmap page for the new tablespace. */
 	fsp_header_init(space_id, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
-
 	mtr_commit(&mtr);
 
+	/* Step-4: Re-Create Indexes to newly re-created tablespace.
+	This operation will restore tablespace back to what it was
+	when it was created during CREATE TABLE. */
 	err = truncate.create_indexes(
 		name, space_id, zip_size, flags, format_flags,
 		redo_cache_entry);
-
 	if (err != DB_SUCCESS) {
 		return;
 	}
 
+	/* Step-5: Write new created pages into ibd file handle and
+	flush it to disk for the tablespace, in case i/o-handler thread
+	deletes the bitmap page from buffer. */
 	mtr_start(&mtr);
+
 	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
 	mutex_enter(&fil_system->mutex);
@@ -2371,11 +2375,6 @@ fil_recreate_tablespace(
 	mutex_exit(&fil_system->mutex);
 
 	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
-
-	/* Write new created pages into ibd file handle and
-	flush it to disk for the tablespace, in case i/o-handler
-	thread deletes the bitmap page from buffer after
-	recovery. */
 
 	for (ulint page_no = 0; page_no < node->size; ++page_no) {
 
@@ -2571,72 +2570,9 @@ fil_op_log_parse_or_replay(
 		break;
 
 	case MLOG_FILE_TRUNCATE:
-#if 0
-
-		/* Cache the info that is needed to complete the truncate
-		action. Importantly: any updates to dictionary is done
-		post recovery. */
-		redo_cache_entry = new truncate_redo_cache_t(
-			truncate.m_old_table_id, truncate.m_new_table_id);
-
-		if (!Tablespace::is_system_tablespace(space_id)) {
-
-			if (!fil_tablespace_exists_in_mem(space_id)) {
-
-				/* Create the database directory for name,
-				if it does not exist yet */
-
-				fil_create_directory_for_tablename(name);
-
-				mutex_exit(&log_sys->mutex);
-
-				if (fil_create_new_single_table_tablespace(
-						space_id, name,
-						truncate.m_dir_path,
-						tablespace_flags,
-						DICT_TF2_USE_TABLESPACE,
-						FIL_IBD_FILE_INITIAL_SIZE)
-					!= DB_SUCCESS) {
-
-					ib_logf(IB_LOG_LEVEL_INFO,
-						"innodb_force_recovery was set"
-						" to %lu. Continuing crash"
-						" recovery even though we"
-						" cannot create a new"
-						" tablespace.",
-						srv_force_recovery);
-
-					mutex_enter(&log_sys->mutex);
-					break;
-				}
-
-				mutex_enter(&log_sys->mutex);
-			}
-
-			ut_ad(fil_tablespace_exists_in_mem(space_id) == TRUE);
-
-			fil_recreate_tablespace(
-				space_id, log_flags, tablespace_flags, name,
-				truncate, recv_lsn, redo_cache_entry);
-
-		} else if (Tablespace::is_system_tablespace(space_id)) {
-
-			/* Only tables residing in ibdata1 are truncated.
-			Temp-tables in temp-tablespace are never restored.*/
-			ut_ad(space_id == srv_sys_space.space_id());
-
-			/* System table is always loaded. */
-			ut_ad(fil_tablespace_exists_in_mem(space_id) == TRUE);
-
-			fil_recreate_table(
-				space_id, log_flags, tablespace_flags, name,
-				truncate, recv_lsn, redo_cache_entry);
-		}
-
-		/* Note: we are handing over ownership to vector. */
-		srv_tables_to_truncate.push_back(redo_cache_entry);
-#endif
-
+		/* Do nothing if replay is demanded.
+		Replay of REDO log is done post recovery in truncate table
+		fix-up state. */
 		break;
 
 	case MLOG_FILE_RENAME:
@@ -5772,7 +5708,7 @@ fil_io(
 
 	/* If we are deleting a tablespace we don't allow any read
 	operations on that. However, we do allow write operations. */
-	if (space == 0
+	if (space == NULL 
 	    || (type == OS_FILE_READ
 		&& space->stop_new_ops && !space->is_being_truncated)) {
 		mutex_exit(&fil_system->mutex);

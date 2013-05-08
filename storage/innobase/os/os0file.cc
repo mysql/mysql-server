@@ -2092,7 +2092,7 @@ os_file_get_size(
 	/* Restore current position as the function should not change it */
 	lseek(file, cur_pos, SEEK_SET);
 	return(offset);
-#endif /*_WIN32 */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
@@ -2725,6 +2725,7 @@ try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
 	if ((ulint) ret == n) {
+
 		return(TRUE);
 	}
 

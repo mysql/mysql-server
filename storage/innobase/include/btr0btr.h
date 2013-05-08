@@ -406,7 +406,8 @@ btr_create(
 	const btr_create_t*	btr_create_info,/*!< in: used for applying
 						MLOG_FILE_TRUNCATE redo record
 						during recovery */
-	mtr_t*			mtr);		/*!< in: mini-transaction handle */
+	mtr_t*			mtr);		/*!< in: mini-transaction
+						handle */
 /************************************************************//**
 Frees a B-tree except the root page, which MUST be freed after this
 by calling btr_free_root. */
