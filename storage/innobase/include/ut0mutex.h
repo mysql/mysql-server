@@ -23,6 +23,8 @@ Policy based mutexes.
 Created 2012-03-24 Sunny Bains.
 ***********************************************************************/
 
+#ifndef UNIV_INNOCHECKSUM
+
 #ifndef ut0mutex_h
 #define ut0mutex_h
 
@@ -30,6 +32,7 @@ extern ulong	srv_spin_wait_delay;
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong 	srv_force_recovery_crash;
 
+#include "os0atomic.h"
 #include "sync0policy.h"
 #include "ib0mutex.h"
 
@@ -74,3 +77,5 @@ typedef SyncArrayMutex ib_mutex_t;
 #include "ut0mutex.ic"
 
 #endif /* ut0mutex_h */
+
+#endif /* !UNIV_INNOCHECKSUM */

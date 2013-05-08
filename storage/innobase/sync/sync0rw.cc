@@ -35,6 +35,8 @@ Created 9/11/1995 Heikki Tuuri
 #include "sync0rw.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "os0thread.h"
 #include "mem0mem.h"
 #include "srv0srv.h"

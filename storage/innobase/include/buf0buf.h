@@ -30,6 +30,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "fil0fil.h"
 #include "mtr0types.h"
 #include "buf0types.h"
+#ifndef UNIV_INNOCHECKSUM
 #include "hash0hash.h"
 #include "ut0byte.h"
 #include "page0types.h"
@@ -94,10 +95,12 @@ extern ibool		buf_debug_prints;/*!< If this is set TRUE, the program
 extern buf_block_t*	back_block1;	/*!< first block, for --apply-log */
 extern buf_block_t*	back_block2;	/*!< second block, for page reorganize */
 #endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_INNOCHECKSUM */
 
 /** Magic value to use instead of checksums when they are disabled */
 #define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
+#ifndef UNIV_INNOCHECKSUM
 /** @brief States of a control block
 @see buf_page_t
 
@@ -622,6 +625,7 @@ buf_block_buf_fix_inc_func(
 #else /* !UNIV_HOTBACKUP */
 # define buf_block_modify_clock_inc(block) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_INNOCHECKSUM */
 /********************************************************************//**
 Checks if a page is corrupt.
 @return	TRUE if corrupted */
@@ -632,9 +636,18 @@ buf_page_is_corrupted(
 	bool		check_lsn,	/*!< in: true if we need to check the
 					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size)	/*!< in: size of compressed page;
+	ulint		zip_size	/*!< in: size of compressed page;
 					0 for uncompressed pages */
+#ifdef UNIV_INNOCHECKSUM
+	/* these variables are used only for innochecksum tool. */
+	,ullint		page_no,	/*!< in: page number of
+					given read_buf */
+	bool		strict_check	/*!< in: true if strict-check
+					option is enable */
+#endif /* UNIV_INNOCHECKSUM */
+)
 	__attribute__((nonnull, warn_unused_result));
+#ifndef UNIV_INNOCHECKSUM
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Gets the space id, page offset, and byte offset within page of a
@@ -2141,5 +2154,6 @@ struct	CheckUnzipLRUAndLRUList {
 #ifndef UNIV_NONINL
 #include "buf0buf.ic"
 #endif
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

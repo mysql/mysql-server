@@ -23,8 +23,13 @@ Policy based mutexes.
 Created 2013-03-26 Sunny Bains.
 ***********************************************************************/
 
+#ifndef UNIV_INNOCHECKSUM
+
 #ifndef ib0mutex_h
 #define ib0mutex_h
+
+#include "ut0ut.h"
+#include "ut0rnd.h"
 
 extern ulong 	srv_force_recovery_crash;
 
@@ -63,7 +68,7 @@ struct OSBasicMutex {
 		ulint		line) UNIV_NOTHROW
 	{
 		ut_ad(m_freed);
-#ifdef __WIN__
+#ifdef _WIN32
 		InitializeCriticalSection((LPCRITICAL_SECTION) &m_mutex);
 #else
 		{
@@ -72,7 +77,7 @@ struct OSBasicMutex {
 			ret = pthread_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST);
 			ut_a(ret == 0);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 		ut_d(m_freed = false);
 
 		m_policy.init(*this, name, filename, line);
@@ -82,7 +87,7 @@ struct OSBasicMutex {
 	void destroy() UNIV_NOTHROW
 	{
                 ut_ad(!m_freed);
-#ifdef __WIN__
+#ifdef _WIN32
 		DeleteCriticalSection((LPCRITICAL_SECTION) &m_mutex);
 #else
 		int	ret;
@@ -100,7 +105,7 @@ struct OSBasicMutex {
 			ut_print_buf(stderr, &m_mutex, sizeof(m_mutex));
 			putc('\n', stderr);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 		m_policy.destroy();
 
@@ -111,13 +116,13 @@ struct OSBasicMutex {
 	void exit() UNIV_NOTHROW
 	{
 		ut_ad(!m_freed);
-#ifdef __WIN__
+#ifdef _WIN32
 		LeaveCriticalSection(&m_mutex);
 #else
 		// FIXME: Do we check for EINTR?
 		int	ret = pthread_mutex_unlock(&m_mutex);
 		ut_a(ret == 0);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	}
 
 	/** Acquire the mutex.
@@ -132,19 +137,19 @@ struct OSBasicMutex {
 		ulint		line) UNIV_NOTHROW
 	{
                 ut_ad(!m_freed);
-#ifdef __WIN__
+#ifdef _WIN32
 		EnterCriticalSection((LPCRITICAL_SECTION) &m_mutex);
 #else
 		int	ret = pthread_mutex_lock(&m_mutex);
 		ut_a(ret == 0);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	}
 
 	/** @return true if locking succeeded */
 	bool try_lock() UNIV_NOTHROW
 	{
                 ut_ad(!m_freed);
-#ifdef __WIN__
+#ifdef _WIN32
 		return(TryEnterCriticalSection(&m_mutex) != 0);
 #else
 		/* NOTE that the MySQL my_pthread.h redefines
@@ -156,7 +161,7 @@ struct OSBasicMutex {
 		0 on success. */
 
 		return(pthread_mutex_trylock(&m_mutex) == 0);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	}
 
 #ifdef UNIV_DEBUG
@@ -183,7 +188,6 @@ private:
 #ifdef UNIV_DEBUG
         /** true if the mutex has been freed/destroyed. */
 	bool			m_freed;
-
 #endif /* UNIV_DEBUG */
 
 	sys_mutex_t		m_mutex;
@@ -247,7 +251,7 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 		const char*	filename,
 		ulint		line) UNIV_NOTHROW
 	{
-#ifndef __WIN__
+#ifndef _WIN32
 		bool	locked = try_lock();
 
 		for (ulint i = 0; !locked && i < max_spins; ++i) {
@@ -260,7 +264,7 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 		if (locked) {
 			return;
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
                 OSBasicMutex<Policy>::enter(
 			max_spins, max_delay, filename, line);
 
@@ -1179,3 +1183,5 @@ private:
 };
 
 #endif /* ib0mutex_h */
+
+#endif /* !UNIV_INNOCHECKSUM */

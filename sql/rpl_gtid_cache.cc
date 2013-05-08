@@ -57,7 +57,7 @@ Group_cache::add_logged_group(const THD *thd, my_off_t binlog_offset)
   // otherwise add a new group
   Cached_group *group= allocate_group();
   if (group ==  NULL)
-    DBUG_RETURN(ERROR);
+    DBUG_RETURN(ERROR_GROUP);
   group->spec= spec;
   group->binlog_offset= binlog_offset;
   // Update the internal status of this Group_cache (see comment above
@@ -105,7 +105,7 @@ Group_cache::add_empty_group(const Gtid &gtid)
   // otherwise add new group
   Cached_group *group= allocate_group();
   if (group == NULL)
-    DBUG_RETURN(ERROR);
+    DBUG_RETURN(ERROR_GROUP);
   group->spec.type= GTID_GROUP;
   group->spec.gtid= gtid;
   group->binlog_offset= prev != NULL ? prev->binlog_offset : 0;

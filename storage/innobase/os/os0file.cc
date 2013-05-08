@@ -48,12 +48,12 @@ Created 10/21/1995 Heikki Tuuri
 # include "os0event.h"
 # include "os0thread.h"
 #else /* !UNIV_HOTBACKUP */
-# ifdef __WIN__
+# ifdef _WIN32
 /* Add includes for the _stat() call to compile on Windows */
 #  include <sys/types.h>
 #  include <sys/stat.h>
 #  include <errno.h>
-# endif /* __WIN__ */
+# endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
 #if defined(LINUX_NATIVE_AIO)
@@ -73,13 +73,13 @@ static const ulint NUM_RETRIES_ON_PARTIAL_IO = 10;
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
 my_umask */
 
-#ifndef __WIN__
+#ifndef _WIN32
 /** Umask for creating files */
 UNIV_INTERN ulint	os_innodb_umask = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
 #else
 /** Umask for creating files */
 UNIV_INTERN ulint	os_innodb_umask	= 0;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #ifndef UNIV_HOTBACKUP
 
@@ -221,7 +221,7 @@ struct os_aio_array_t{
 				/*!< Number of reserved slots in the
 				aio array outside the ibuf segment */
 	os_aio_slot_t*	slots;	/*!< Pointer to the slots in the array */
-#ifdef __WIN__
+#ifdef _WIN32
 	HANDLE*		handles;
 				/*!< Pointer to an array of OS native
 				event handles where we copied the
@@ -229,7 +229,7 @@ struct os_aio_array_t{
 				order. This can be used in
 				WaitForMultipleObjects; used only in
 				Windows */
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #if defined(LINUX_NATIVE_AIO)
 	io_context_t*		aio_ctx;
@@ -332,7 +332,7 @@ os_aio_validate_skip(void)
 # endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
 
-#ifdef __WIN__
+#ifdef _WIN32
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
 @return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
@@ -371,7 +371,7 @@ os_get_os_version(void)
 		return(0);
 	}
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
@@ -388,7 +388,7 @@ os_file_get_last_error_low(
 	bool	on_error_silent)	/*!< in: TRUE then don't print any
 					diagnostic to the log */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 
 	ulint	err = (ulint) GetLastError();
 	if (err == ERROR_SUCCESS) {
@@ -703,7 +703,7 @@ os_file_handle_error_no_exit(
 
 #undef USE_FILE_LOCK
 #define USE_FILE_LOCK
-#if defined(UNIV_HOTBACKUP) || defined(__WIN__)
+#if defined(UNIV_HOTBACKUP) || defined(_WIN32)
 /* InnoDB Hot Backup does not lock the data files.
  * On Windows, mandatory locking is used.
  */
@@ -816,7 +816,7 @@ os_file_opendir(
 					a directory */
 {
 	os_file_dir_t		dir;
-#ifdef __WIN__
+#ifdef _WIN32
 	LPWIN32_FIND_DATA	lpFindFileData;
 	char			path[OS_FILE_MAX_PATH + 3];
 
@@ -854,7 +854,7 @@ os_file_opendir(
 	}
 
 	return(dir);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
@@ -866,7 +866,7 @@ os_file_closedir(
 /*=============*/
 	os_file_dir_t	dir)	/*!< in: directory stream */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL		ret;
 
 	ret = FindClose(dir);
@@ -888,7 +888,7 @@ os_file_closedir(
 	}
 
 	return(ret);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
@@ -903,7 +903,7 @@ os_file_readdir_next_file(
 	os_file_dir_t	dir,	/*!< in: directory stream */
 	os_file_stat_t*	info)	/*!< in/out: buffer where the info is returned */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	LPWIN32_FIND_DATA	lpFindFileData;
 	BOOL			ret;
 
@@ -1076,7 +1076,7 @@ os_file_create_directory(
 	ibool		fail_if_exists)	/*!< in: if TRUE, pre-existing directory
 					is treated as an error. */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	rcode;
 
 	rcode = CreateDirectory((LPCTSTR) pathname, NULL);
@@ -1104,7 +1104,7 @@ os_file_create_directory(
 	}
 
 	return (TRUE);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /****************************************************************//**
@@ -1127,7 +1127,7 @@ os_file_create_simple_func(
 	os_file_t	file;
 	ibool		retry;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DWORD		access;
 	DWORD		create_flag;
 	DWORD		attributes	= 0;
@@ -1216,7 +1216,7 @@ os_file_create_simple_func(
 
 	} while (retry);
 
-#else /* __WIN__ */
+#else /* _WIN32 */
 	int		create_flag;
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
@@ -1295,7 +1295,7 @@ os_file_create_simple_func(
 	}
 #endif /* USE_FILE_LOCK */
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	return(file);
 }
@@ -1321,7 +1321,7 @@ os_file_create_simple_no_error_handling_func(
 {
 	os_file_t	file;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DWORD		access;
 	DWORD		create_flag;
 	DWORD		attributes	= 0;
@@ -1380,7 +1380,7 @@ os_file_create_simple_no_error_handling_func(
 			  NULL);		// No template file
 
 	*success = (file != INVALID_HANDLE_VALUE);
-#else /* __WIN__ */
+#else /* _WIN32 */
 	int		create_flag;
 
 	ut_a(name);
@@ -1439,7 +1439,7 @@ os_file_create_simple_no_error_handling_func(
 	}
 #endif /* USE_FILE_LOCK */
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	return(file);
 }
@@ -1516,23 +1516,23 @@ os_file_create_func(
 	ibool		on_error_no_exit;
 	ibool		on_error_silent;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DBUG_EXECUTE_IF(
 		"ib_create_table_fail_disk_full",
 		*success = FALSE;
 		SetLastError(ERROR_DISK_FULL);
 		return((os_file_t) -1);
 	);
-#else /* __WIN__ */
+#else /* _WIN32 */
 	DBUG_EXECUTE_IF(
 		"ib_create_table_fail_disk_full",
 		*success = FALSE;
 		errno = ENOSPC;
 		return((os_file_t) -1);
 	);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DWORD		create_flag;
 	DWORD		share_mode	= FILE_SHARE_READ;
 
@@ -1658,7 +1658,7 @@ os_file_create_func(
 
 	} while (retry);
 
-#else /* __WIN__ */
+#else /* _WIN32 */
 	int		create_flag;
 	const char*	mode_str	= NULL;
 
@@ -1788,7 +1788,7 @@ os_file_create_func(
 	}
 #endif /* USE_FILE_LOCK */
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	return(file);
 }
@@ -1807,7 +1807,7 @@ os_file_delete_if_exists_func(
 				or false if doesn't pre-exist.
 				If NULL, then ignore setting this value. */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	bool	ret;
 	ulint	count	= 0;
 	if (exist) {
@@ -1868,7 +1868,7 @@ loop:
 	}
 
 	return(true);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
@@ -1881,7 +1881,7 @@ os_file_delete_func(
 	const char*	name)	/*!< in: file path as a null-terminated
 				string */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 	ulint	count	= 0;
 loop:
@@ -1961,7 +1961,7 @@ os_file_rename_func(
 	ut_ad(exists);
 #endif /* UNIV_DEBUG */
 
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 
 	ret = MoveFile((LPCTSTR) oldpath, (LPCTSTR) newpath);
@@ -1985,7 +1985,7 @@ os_file_rename_func(
 	}
 
 	return(TRUE);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
@@ -1999,7 +1999,7 @@ os_file_close_func(
 /*===============*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 
 	ut_a(file);
@@ -2025,7 +2025,7 @@ os_file_close_func(
 	}
 
 	return(TRUE);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 #ifdef UNIV_HOTBACKUP
@@ -2038,7 +2038,7 @@ os_file_close_no_error_handling(
 /*============================*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 
 	ut_a(file);
@@ -2061,7 +2061,7 @@ os_file_close_no_error_handling(
 	}
 
 	return(TRUE);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 #endif /* UNIV_HOTBACKUP */
 
@@ -2074,7 +2074,7 @@ os_file_get_size(
 /*=============*/
 	os_file_t	file)	/*!< in: handle to a file */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	os_offset_t	offset;
 	DWORD		high;
 	DWORD		low;
@@ -2090,7 +2090,7 @@ os_file_get_size(
 	return(offset);
 #else
 	return((os_offset_t) lseek(file, 0, SEEK_END));
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
@@ -2182,15 +2182,15 @@ os_file_set_eof(
 /*============*/
 	FILE*		file)	/*!< in: file to be truncated */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	HANDLE h = (HANDLE) _get_osfhandle(fileno(file));
 	return(SetEndOfFile(h));
-#else /* __WIN__ */
+#else /* _WIN32 */
 	return(!ftruncate(fileno(file), ftell(file)));
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
-#ifndef __WIN__
+#ifndef _WIN32
 /***********************************************************************//**
 Wrapper to fsync(2) that retries the call on some errors.
 Returns the value 0 if successful; otherwise the value -1 is returned and
@@ -2237,7 +2237,7 @@ os_file_fsync(
 
 	return(ret);
 }
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 
 /***********************************************************************//**
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
@@ -2249,7 +2249,7 @@ os_file_flush_func(
 /*===============*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 
 	ut_a(file);
@@ -2307,7 +2307,7 @@ os_file_flush_func(
 #endif
 }
 
-#ifndef __WIN__
+#ifndef _WIN32
 /*******************************************************************//**
 Does a syncronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
@@ -2602,7 +2602,7 @@ os_file_read_func(
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n)	/*!< in: number of bytes to read */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL		ret;
 	DWORD		len;
 	DWORD		ret2;
@@ -2671,7 +2671,7 @@ try_again:
 	if (ret && len == n) {
 		return(TRUE);
 	}
-#else /* __WIN__ */
+#else /* _WIN32 */
 	ibool	retry;
 	ssize_t	ret;
 
@@ -2690,14 +2690,14 @@ try_again:
 		UINT64PF"\n"
 		"InnoDB: Was only able to read %ld.\n",
 		n, offset, (lint) ret);
-#endif /* __WIN__ */
-#ifdef __WIN__
+#endif /* _WIN32 */
+#ifdef _WIN32
 error_handling:
 #endif
 	retry = os_file_handle_error(NULL, "read");
 
 	if (retry) {
-#ifndef __WIN__
+#ifndef _WIN32
 		if (ret > 0 && (ulint) ret < n) {
 			buf = (uchar*) buf + (ulint) ret;
 			offset += (ulint) ret;
@@ -2708,7 +2708,7 @@ error_handling:
 	}
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Cannot read from file. OS error number %lu.",
-#ifdef __WIN__
+#ifdef _WIN32
 		(ulong) GetLastError());
 #else
 		(ulong) errno);
@@ -2732,7 +2732,7 @@ os_file_read_no_error_handling_func(
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n)	/*!< in: number of bytes to read */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL		ret;
 	DWORD		len;
 	DWORD		ret2;
@@ -2801,7 +2801,7 @@ try_again:
 	if (ret && len == n) {
 		return(TRUE);
 	}
-#else /* __WIN__ */
+#else /* _WIN32 */
 	ibool	retry;
 	ssize_t	ret;
 
@@ -2814,20 +2814,20 @@ try_again:
 
 		return(TRUE);
 	}
-#endif /* __WIN__ */
-#ifdef __WIN__
+#endif /* _WIN32 */
+#ifdef _WIN32
 error_handling:
 #endif
 	retry = os_file_handle_error_no_exit(NULL, "read", FALSE);
 
 	if (retry) {
-#ifndef __WIN__
+#ifndef _WIN32
 		if(ret > 0 && (ulint) ret < n) {
 			buf = (uchar*) buf + (ulint) ret;
 			offset += ret;
 			n -= (ulint) ret;
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 		goto try_again;
 	}
 
@@ -2875,7 +2875,7 @@ os_file_write_func(
 {
 	ut_ad(!srv_read_only_mode);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL		ret;
 	DWORD		len;
 	DWORD		ret2;
@@ -3062,7 +3062,7 @@ os_file_status(
 	ibool*		exists,	/*!< out: TRUE if file exists */
 	os_file_type_t* type)	/*!< out: type of the file (if it exists) */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	int		ret;
 	struct _stat64	statinfo;
 
@@ -3138,7 +3138,7 @@ os_file_get_status(
 {
 	int		ret;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	struct _stat64	statinfo;
 
 	ret = _stat64(path, &statinfo);
@@ -3754,9 +3754,9 @@ os_aio_array_create(
 		ut_malloc(n * sizeof(*array->slots)));
 
 	memset(array->slots, 0x0, sizeof(n * sizeof(*array->slots)));
-#ifdef __WIN__
+#ifdef _WIN32
 	array->handles = static_cast<HANDLE*>(ut_malloc(n * sizeof(HANDLE)));
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #if defined(LINUX_NATIVE_AIO)
 	array->aio_ctx = NULL;
@@ -3839,14 +3839,14 @@ os_aio_array_free(
 	}
 #endif /* WIN_ASYNC_IO */
 
-#ifdef __WIN__
+#ifdef _WIN32
 	ut_free(array->handles);
-#endif /* __WIN__ */
 
 	mutex_destroy(&array->mutex);
 
 	os_event_destroy(array->not_full);
 	os_event_destroy(array->is_empty);
+#endif /* _WIN32 */
 
 #if defined(LINUX_NATIVE_AIO)
 	if (srv_use_native_aio) {
@@ -4460,7 +4460,7 @@ os_aio_simulated_put_read_threads_to_sleep(void)
 Windows when using simulated AIO. Windows XP seems to schedule
 background threads too eagerly to allow for coalescing during
 readahead requests. */
-#ifdef __WIN__
+#ifdef _WIN32
 	os_aio_array_t*	array;
 
 	if (srv_use_native_aio) {
@@ -4479,7 +4479,7 @@ readahead requests. */
 			os_event_reset(os_aio_segment_wait_events[i]);
 		}
 	}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 #if defined(LINUX_NATIVE_AIO)
@@ -5701,11 +5701,11 @@ os_aio_print(
 			srv_io_thread_op_info[i],
 			srv_io_thread_function[i]);
 
-#ifndef __WIN__
+#ifndef _WIN32
 		if (os_event_is_set(os_aio_segment_wait_events[i])) {
 			fprintf(file, " ev set");
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 		fprintf(file, "\n");
 	}

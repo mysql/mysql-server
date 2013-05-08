@@ -30,6 +30,8 @@ InnoDB Native API
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
+#include "ha_prototypes.h"
+
 #include "api0misc.h"
 #include "trx0roll.h"
 #include "srv0srv.h"
@@ -38,10 +40,6 @@ InnoDB Native API
 #include "pars0pars.h"
 #include "row0sel.h"
 #include "lock0lock.h"
-#include "ha_prototypes.h"
-#include <m_ctype.h>
-#include <mysys_err.h>
-#include <mysql/plugin.h>
 
 /*********************************************************************//**
 Sets a lock on a table.

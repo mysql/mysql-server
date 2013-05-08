@@ -35,13 +35,11 @@ Created July 17, 2007 Vasil Dimov
    From the symptoms, this is related to bug#46587 in the MySQL bug DB.
 */
 #include "univ.i"
-
-#include <mysql/plugin.h>
+#include "ha_prototypes.h"
 
 #include "buf0buf.h"
 #include "dict0dict.h"
 #include "ha0storage.h"
-#include "ha_prototypes.h"
 #include "hash0hash.h"
 #include "lock0iter.h"
 #include "lock0lock.h"

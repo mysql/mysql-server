@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -142,7 +142,7 @@ retry:
 				"InnoDB: We keep retrying"
 				" the allocation for 60 seconds...\n",
 				(ulong) n, (ulong) ut_total_allocated_memory,
-#ifdef __WIN__
+#ifdef _WIN32
 				(ulong) GetLastError()
 #else
 				(ulong) errno

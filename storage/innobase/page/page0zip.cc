@@ -27,13 +27,14 @@ Created June 2005 by Marko Makela
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
-#include <map>
-#include <algorithm>
-
 #include "page0zip.h"
 #ifdef UNIV_NONINL
 # include "page0zip.ic"
 #endif
+
+#ifndef UNIV_INNOCHECKSUM
+#include <map>
+#include <algorithm>
 #include "page0page.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
@@ -4803,6 +4804,7 @@ corrupt:
 	return(ptr + 8 + size + trailer_size);
 }
 
+#endif /* !UNIV_INNOCHECKSUM */
 /**********************************************************************//**
 Calculate the compressed page checksum.
 @return	page checksum */
@@ -4864,8 +4866,16 @@ UNIV_INTERN
 ibool
 page_zip_verify_checksum(
 /*=====================*/
-	const void*	data,	/*!< in: compressed page */
-	ulint		size)	/*!< in: size of compressed page */
+	const void*	data,		/*!< in: compressed page */
+	ulint		size		/*!< in: size of compressed page */
+#ifdef UNIV_INNOCHECKSUM
+	/* these variables are used only for innochecksum tool. */
+	,ullint		page_no,	/*!< in: page number of
+					given read_buf */
+	bool		strict_check	/*!< in: true if strict-check
+					option is enable */
+#endif /* UNIV_INNOCHECKSUM */
+)
 {
 	ib_uint32_t	stored;
 	ib_uint32_t	calc;
@@ -4878,16 +4888,49 @@ page_zip_verify_checksum(
 	/* declare empty pages non-corrupted */
 	if (stored == 0) {
 		/* make sure that the page is really empty */
+#ifdef UNIV_INNOCHECKSUM
+		ulint i;
+		for (i = 0; i < size; i++) {
+			if (*((const char*) data + i) != 0)
+				break;
+		}
+		if (i >= size) {
+			DBUG_PRINT("info", ("Page::%llu is empty and "
+				   "uncorrupted",page_no));
+			return(TRUE);
+		}
+#else
 		ut_d(ulint i; for (i = 0; i < size; i++) {
 		     ut_a(*((const char*) data + i) == 0); });
 
 		return(TRUE);
+#endif /* UNIV_INNOCHECKSUM */
 	}
 
 	calc = page_zip_calc_checksum(
 		data, size, static_cast<srv_checksum_algorithm_t>(
 			srv_checksum_algorithm));
 
+#ifdef UNIV_INNOCHECKSUM
+	DBUG_PRINT("info", ("page::%llu; %s checksum: calculated = %u; "
+		   "recorded = %u",page_no,
+		   buf_checksum_algorithm_name(
+			static_cast<srv_checksum_algorithm_t>(
+				srv_checksum_algorithm)),
+		   calc,stored));
+
+	if (!strict_check) {
+
+		crc32 = page_zip_calc_checksum(data, size,
+					       SRV_CHECKSUM_ALGORITHM_CRC32);
+		DBUG_PRINT("info", ("page::%llu: crc32 checksum: "
+			   "calculated = %u; recorded = %u",
+			   page_no, crc32, stored));
+		DBUG_PRINT("info", ("page::%llu: none checksum: "
+			   "calculated = %lu; recorded = %u",
+			   page_no, BUF_NO_CHECKSUM_MAGIC, stored));
+	}
+#endif /* UNIV_INNOCHECKSUM */
 	if (stored == calc) {
 		return(TRUE);
 	}

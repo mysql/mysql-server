@@ -176,7 +176,7 @@ btr_search_sys_create(
 	btr_search_sys = reinterpret_cast<btr_search_sys_t*>(
 		mem_alloc(sizeof(btr_search_sys_t)));
 
-	btr_search_sys->hash_index = ha_create(
+	btr_search_sys->hash_index = ib_create(
 		hash_size, "hash_table_mutex", 0, MEM_HEAP_FOR_BTR_SEARCH);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
