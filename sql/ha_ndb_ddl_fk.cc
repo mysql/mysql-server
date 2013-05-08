@@ -264,9 +264,31 @@ isnull(const char * str)
   return str == 0;
 }
 
+extern bool ndb_show_foreign_key_dummies_enabled(THD* thd);
+
 class Dummy_table_util
 {
   THD* m_thd;
+
+  void
+  info(const char* fmt, ...) const
+  {
+    va_list args;
+    char msg[MYSQL_ERRMSG_SIZE];
+    va_start(args,fmt);
+    my_vsnprintf(msg, sizeof(msg), fmt, args);
+    va_end(args);
+
+    // Push as warning if user has turned on ndb_show_foreign_key_dummies
+    if (ndb_show_foreign_key_dummies_enabled(m_thd))
+    {
+      push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_YES, msg);
+    }
+
+    // Print info to log
+    sql_print_information("NDB FK: %s", msg);
+  }
+
 
   void
   warn(const char* fmt, ...) const
@@ -497,7 +519,7 @@ class Dummy_table_util
         error(dict, "Failed to drop dummy table '%s'", dummy_name);
         continue;
       }
-      sql_print_information("Dropped dummy table '%s' - resolved", dummy_name);
+      info("Dropped dummy table '%s' - resolved by '%s'", dummy_name, new_parent_name);
     }
     DBUG_VOID_RETURN;
   }
@@ -584,7 +606,7 @@ public:
     DBUG_RETURN(buf);
   }
 
-  bool create(NDBDICT *dict, const char* dummy_name,
+  bool create(NDBDICT *dict, const char* dummy_name, const char* child_name,
               List<Key_part_spec> col_names, const NDBCOL * col_types[])
   {
     NDBTAB dummy_tab;
@@ -647,7 +669,8 @@ public:
       // Error is available to caller in dict*
       DBUG_RETURN(false);
     }
-
+    info("Created dummy table '%s' referenced by '%s'",
+                          dummy_name, child_name);
     DBUG_RETURN(true);
   }
 
@@ -829,7 +852,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
                              "Failed to create dummy parent table, too long dummy name");
          DBUG_RETURN(err_default);
        }
-       if (!dummy_table.create(dict, dummy_name,
+       if (!dummy_table.create(dict, dummy_name, m_tabname,
                                fk->ref_columns, childcols))
        {
          const NdbError &error= dict->getNdbError();
@@ -840,7 +863,6 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
          DBUG_RETURN(err_default);
        }
 
-       DBUG_PRINT("info", ("Dummy table created!"));
        parent_tab.init(dummy_name);
        parent_tab.invalidate(); // invalidate dummy table when releasing
        if (parent_tab.get_table() == 0)
@@ -852,9 +874,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
          // Internal error, should be able to load the just created dummy table
          DBUG_ASSERT(parent_tab.get_table());
          DBUG_RETURN(err_default);
-       }
-       sql_print_information("Created dummy table '%s' referenced by '%s'",
-                             dummy_name, m_tabname);
+       }       
     }
 
     const NDBCOL * parentcols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];

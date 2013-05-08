@@ -212,3 +212,136 @@ select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 count(*)
 1
 drop table t1, t2;
+set @@ndb_show_foreign_key_dummies= 1;
+#
+# Test where FK goes from t1->t2->t3->t4 and tables are created in that order
+create table t1 (
+pk11 int not null primary key,
+b int,
+foreign key (b) references t2(pk21)
+) engine=ndb;
+Warnings:
+Warning	1003	Created dummy table 'NDB$DUMMY_10_0_t2' referenced by 't1'
+create table t2 (
+pk21 int not null primary key,
+b int, c int,
+foreign key (b, c) references t3(pk31, pk32)
+) engine=ndb;
+Warnings:
+Warning	1003	Created dummy table 'NDB$DUMMY_15_0_t3' referenced by 't2'
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_0_t2' - resolved by 't2'
+create table t3 (
+pk31 int not null,
+pk32 int not null,
+primary key(pk31, pk32),
+d int, e int,f int,
+foreign key (d,e,f) references t4(pk41, pk42, pk43)
+) engine=ndb;
+Warnings:
+Warning	1003	Created dummy table 'NDB$DUMMY_13_0_t4' referenced by 't3'
+Warning	1003	Dropped dummy table 'NDB$DUMMY_15_0_t3' - resolved by 't3'
+create table t4 (
+pk41 int not null,
+pk42 int not null,
+pk43 int not null,
+primary key(pk41, pk42, pk43),
+m varchar(55)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped dummy table 'NDB$DUMMY_13_0_t4' - resolved by 't4'
+
+ndb_show_tables completed.....
+
+# There should be no dummy tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+count(*)
+0
+drop table t1, t2, t3, t4;
+#
+# Test where FK 'fans out' t1->t2 t1->t3 t1->t4, create t1 first
+create table t1 (
+pk11 int not null primary key,
+b int,
+foreign key (b) references t2(c),
+d int, e int,
+foreign key (d, e) references t3(f, g),
+h varchar(55), i int, j datetime,
+foreign key (h, i, j) references t4(k, l, m)
+) engine=ndb;
+Warnings:
+Warning	1003	Created dummy table 'NDB$DUMMY_10_0_t2' referenced by 't1'
+Warning	1003	Created dummy table 'NDB$DUMMY_10_1_t3' referenced by 't1'
+Warning	1003	Created dummy table 'NDB$DUMMY_10_2_t4' referenced by 't1'
+create table t2 (
+pk21 int not null primary key,
+c int,
+unique(c)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_0_t2' - resolved by 't2'
+create table t3 (
+pk31 int not null,
+pk32 int not null,
+primary key(pk31, pk32),
+g int, f int,
+unique(f, g)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_1_t3' - resolved by 't3'
+create table t4 (
+pk41 int not null,
+pk42 int not null,
+pk43 int not null,
+primary key(pk41, pk42, pk43),
+m varchar(55), l int, k datetime,
+unique(k, l, m)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_2_t4' - resolved by 't4'
+
+ndb_show_tables completed.....
+
+# There should be no dummy tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+count(*)
+0
+drop table t1, t2, t3, t4;
+#
+# Test where FK refers to 2+ different indices in parent t1->t2(1) t1->t2(2)
+create table t1 (
+pk11 int not null primary key,
+foreign key (pk11) references t2(pk21),
+b int,
+foreign key (b) references t2(c),
+d int, e int,
+foreign key (d, e) references t2(f, g),
+h varchar(55), i int, j datetime,
+foreign key (h, i, j) references t2(k, l, m)
+) engine=ndb;
+Warnings:
+Warning	1003	Created dummy table 'NDB$DUMMY_10_0_t2' referenced by 't1'
+Warning	1003	Created dummy table 'NDB$DUMMY_10_1_t2' referenced by 't1'
+Warning	1003	Created dummy table 'NDB$DUMMY_10_2_t2' referenced by 't1'
+Warning	1003	Created dummy table 'NDB$DUMMY_10_3_t2' referenced by 't1'
+create table t2 (
+pk21 int not null primary key,
+c int,
+unique(c),
+g int, f int,
+unique(f, g),
+m varchar(55), l int, k datetime,
+unique(k, l, m)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_0_t2' - resolved by 't2'
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_1_t2' - resolved by 't2'
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_2_t2' - resolved by 't2'
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_3_t2' - resolved by 't2'
+
+ndb_show_tables completed.....
+
+# There should be no dummy tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+count(*)
+0
+drop table t1, t2;
