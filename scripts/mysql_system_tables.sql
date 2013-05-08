@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -808,7 +808,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.setup_objects("
-  "OBJECT_TYPE ENUM ('TABLE') not null default 'TABLE',"
+  "OBJECT_TYPE ENUM ('TABLE','EVENT','FUNCTION','PROCEDURE','TRIGGER') not null default 'TABLE',"
   "OBJECT_SCHEMA VARCHAR(64) default '%',"
   "OBJECT_NAME VARCHAR(64) not null default '%',"
   "ENABLED ENUM ('YES', 'NO') not null default 'YES',"
@@ -1246,7 +1246,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1298,7 +1299,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1350,7 +1352,8 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1630,6 +1633,50 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_digest("
   "LAST_SEEN TIMESTAMP(0) NOT NULL default 0"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_SUMMARY_BY_ROUTINE
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_program("
+  "OBJECT_TYPE enum('TABLE', 'EVENT', 'FUNCTION', 'PROCEDURE', 'TRIGGER'),"
+  "OBJECT_SCHEMA varchar(64) NOT NULL,"
+  "OBJECT_NAME varchar(64) NOT NULL,"
+  "COUNT_STAR bigint(20) unsigned NOT NULL,"
+  "SUM_TIMER_WAIT bigint(20) unsigned NOT NULL,"
+  "MIN_TIMER_WAIT bigint(20) unsigned NOT NULL,"
+  "AVG_TIMER_WAIT bigint(20) unsigned NOT NULL,"
+  "MAX_TIMER_WAIT bigint(20) unsigned NOT NULL,"
+  "COUNT_SUB_STATEMENTS bigint(20) unsigned NOT NULL,"
+  "SUM_SUB_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
+  "MIN_SUB_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
+  "AVG_SUB_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
+  "MAX_SUB_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
+  "SUM_LOCK_TIME bigint(20) unsigned NOT NULL,"
+  "SUM_ERRORS bigint(20) unsigned NOT NULL,"
+  "SUM_WARNINGS bigint(20) unsigned NOT NULL,"
+  "SUM_ROWS_AFFECTED bigint(20) unsigned NOT NULL,"
+  "SUM_ROWS_SENT bigint(20) unsigned NOT NULL,"
+  "SUM_ROWS_EXAMINED bigint(20) unsigned NOT NULL,"
+  "SUM_CREATED_TMP_DISK_TABLES bigint(20) unsigned NOT NULL,"
+  "SUM_CREATED_TMP_TABLES bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_FULL_JOIN bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_FULL_RANGE_JOIN bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_RANGE bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_RANGE_CHECK bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_SCAN bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_MERGE_PASSES bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_RANGE bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_ROWS bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_SCAN bigint(20) unsigned NOT NULL,"
+  "SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,"
+  "SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;

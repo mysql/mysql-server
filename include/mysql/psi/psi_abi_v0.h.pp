@@ -26,6 +26,8 @@ struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;
 typedef struct PSI_digest_locker PSI_digest_locker;
+struct PSI_sp_locker;
+typedef struct PSI_sp_locker PSI_sp_locker;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);

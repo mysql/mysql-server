@@ -389,6 +389,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   LF_PINS *m_account_hash_pins;
   /** Pins for digest_hash. */
   LF_PINS *m_digest_hash_pins;
+  /** Pins for routine_hash. */
+  LF_PINS *m_program_hash_pins;
   /** Internal thread identifier, unique. */
   ulonglong m_thread_internal_id;
   /** Parent internal thread identifier. */

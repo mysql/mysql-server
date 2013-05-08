@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,17 @@
 class sp_instr;
 class sp_branch_instr;
 class sp_lex_branch_instr;
+
+/**
+  Number of PSI_statement_info instruments
+  for internal stored programs statements.
+*/
+#define SP_PSI_STATEMENT_INFO_COUNT 16
+
+#ifdef HAVE_PSI_INTERFACE
+void init_sp_psi_keys(void);
+#endif
+
 
 ///////////////////////////////////////////////////////////////////////////
 

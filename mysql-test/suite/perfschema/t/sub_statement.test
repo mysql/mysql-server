@@ -1,0 +1,62 @@
+# -----------------------------------------------------------------------
+# Tests for the performance schema statement instrumentation.
+# -----------------------------------------------------------------------
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--echo ####################################
+--echo # SETUP
+--echo ####################################
+--disable_warnings
+CREATE DATABASE sub_statements;
+USE sub_statements;
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2(c1 INT);
+--enable_warnings
+
+# Creating Trigger
+CREATE TRIGGER simple_trigger BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO
+ t2 VALUES('12');
+
+# Creaing Stored Procedure
+DELIMITER //;
+CREATE PROCEDURE simple_procedure (OUT param1 INT) 
+BEGIN 
+  SELECT COUNT(*) INTO PARAM1 FROM t1; 
+  INSERT INTO t1 values('2');
+END //
+
+# Creating Function
+CREATE FUNCTION simple_function (s CHAR(20)) RETURNS CHAR(50)
+BEGIN 
+  INSERT INTO t1 values('3');
+  RETURN s;
+END //
+DELIMITER ;//
+
+TRUNCATE TABLE performance_schema.events_statements_history;
+
+--echo ####################################
+--echo # EXECUTING QUERIES
+--echo ####################################
+INSERT INTO t1 VALUES('1');
+CALL simple_procedure(@a);
+SELECT simple_function('Hello');
+
+--echo ####################################
+--echo # QUERYING PS STATEMENT HISTORY
+--echo ####################################
+SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
+       OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL from
+       performance_schema.events_statements_history WHERE
+       CURRENT_SCHEMA='sub_statements';
+
+--echo ####################################
+--echo # CLEANUP
+--echo ####################################
+--disable_warnings
+DROP TABLE t1;
+DROP TABLE t2;
+DROP DATABASE IF EXISTS sub_statements;
+--enable_warnings

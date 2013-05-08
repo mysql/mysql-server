@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -318,6 +318,24 @@ void PFS_statement_stat_row::set_field(uint index, Field *f)
   }
 }
 
+void PFS_sp_stat_row::set_field(uint index, Field *f)
+{
+  /* 
+     Are there any more field to be added for statistics specific 
+     to SP?
+  */
+  switch (index)
+  {
+    case 0: /* COUNT_STAR */
+    case 1: /* SUM_TIMER_WAIT */
+    case 2: /* MIN_TIMER_WAIT */
+    case 3: /* AVG_TIMER_WAIT */
+    case 4: /* MAX_TIMER_WAIT */
+      m_timer1_row.set_field(index, f);
+      break;
+  }
+}
+
 void PFS_connection_stat_row::set_field(uint index, Field *f)
 {
   switch (index)
@@ -343,6 +361,18 @@ void set_field_object_type(Field *f, enum_object_type object_type)
     break;
   case OBJECT_TYPE_TEMPORARY_TABLE:
     PFS_engine_table::set_field_varchar_utf8(f, "TEMPORARY TABLE", 15);
+    break;
+  case OBJECT_TYPE_PROCEDURE:
+    PFS_engine_table::set_field_varchar_utf8(f, "PROCEDURE", 9);
+    break;
+  case OBJECT_TYPE_FUNCTION:
+    PFS_engine_table::set_field_varchar_utf8(f, "FUNCTION", 8);
+    break;
+  case OBJECT_TYPE_TRIGGER:
+    PFS_engine_table::set_field_varchar_utf8(f, "TRIGGER", 7);
+    break;
+  case OBJECT_TYPE_EVENT:
+    PFS_engine_table::set_field_varchar_utf8(f, "EVENT", 5);
     break;
   default:
     DBUG_ASSERT(false);

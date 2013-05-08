@@ -1,0 +1,2 @@
+--performance_schema_max_program_instances=4
+--performance_schema_max_statement_stack=3

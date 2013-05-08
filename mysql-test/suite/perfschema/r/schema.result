@@ -23,6 +23,7 @@ events_statements_history_long
 events_statements_summary_by_account_by_event_name
 events_statements_summary_by_digest
 events_statements_summary_by_host_by_event_name
+events_statements_summary_by_program
 events_statements_summary_by_thread_by_event_name
 events_statements_summary_by_user_by_event_name
 events_statements_summary_global_by_event_name
@@ -212,7 +213,8 @@ events_statements_current	CREATE TABLE `events_statements_current` (
   `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_history;
 Table	Create Table
@@ -256,7 +258,8 @@ events_statements_history	CREATE TABLE `events_statements_history` (
   `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_history_long;
 Table	Create Table
@@ -300,7 +303,8 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_summary_by_digest;
 Table	Create Table
@@ -781,7 +785,7 @@ setup_instruments	CREATE TABLE `setup_instruments` (
 show create table setup_objects;
 Table	Create Table
 setup_objects	CREATE TABLE `setup_objects` (
-  `OBJECT_TYPE` enum('TABLE') NOT NULL DEFAULT 'TABLE',
+  `OBJECT_TYPE` enum('TABLE','EVENT','FUNCTION','PROCEDURE','TRIGGER') NOT NULL DEFAULT 'TABLE',
   `OBJECT_SCHEMA` varchar(64) DEFAULT '%',
   `OBJECT_NAME` varchar(64) NOT NULL DEFAULT '%',
   `ENABLED` enum('YES','NO') NOT NULL DEFAULT 'YES',

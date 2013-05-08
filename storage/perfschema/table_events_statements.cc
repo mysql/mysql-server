@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -232,12 +232,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
     { C_STRING_WITH_LEN("enum(\'STATEMENT\',\'STAGE\',\'WAIT\'") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("NESTING_EVENT_LEVEL") },
+    { C_STRING_WITH_LEN("int(11)") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_events_statements_current::m_field_def=
-{40 , field_types };
+{41 , field_types };
 
 PFS_engine_table_share
 table_events_statements_current::m_share=
@@ -318,6 +323,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_end_event_id= statement->m_end_event_id;
   m_row.m_nesting_event_id= statement->m_nesting_event_id;
   m_row.m_nesting_event_type= statement->m_nesting_event_type;
+  m_row.m_nesting_event_level= statement->m_nesting_event_level;
 
   m_normalizer->to_pico(statement->m_timer_start, statement->m_timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
@@ -333,6 +339,16 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_current_schema_name_length= statement->m_current_schema_name_length;
   if (m_row.m_current_schema_name_length > 0)
     memcpy(m_row.m_current_schema_name, statement->m_current_schema_name, m_row.m_current_schema_name_length);
+
+  m_row.m_object_type= statement->m_sp_type; 
+
+  m_row.m_schema_name_length= statement->m_schema_name_length;
+  if (m_row.m_schema_name_length > 0)
+    memcpy(m_row.m_schema_name, statement->m_schema_name, m_row.m_schema_name_length);
+
+  m_row.m_object_name_length= statement->m_object_name_length;
+  if (m_row.m_object_name_length > 0)
+    memcpy(m_row.m_object_name, statement->m_object_name, m_row.m_object_name_length);
 
   safe_source_file= statement->m_source_file;
   if (unlikely(safe_source_file == NULL))
@@ -483,18 +499,30 @@ int table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 12: /* CURRENT_SCHEMA */
         if (m_row.m_current_schema_name_length)
-          set_field_varchar_utf8(f, m_row.m_current_schema_name, m_row.m_current_schema_name_length);
+          set_field_varchar_utf8(f, m_row.m_current_schema_name,
+                                 m_row.m_current_schema_name_length);
         else
           f->set_null();
         break;
-      case 13: /* OBJECT_TYPE */
-        f->set_null();
+     case 13: /* OBJECT_TYPE */
+        if (m_row.m_object_name_length > 0)
+          set_field_object_type(f, m_row.m_object_type);
+        else
+          f->set_null();
         break;
       case 14: /* OBJECT_SCHEMA */
-        f->set_null();
+        if (m_row.m_schema_name_length)
+          set_field_varchar_utf8(f, m_row.m_schema_name,
+                                 m_row.m_schema_name_length);
+        else
+          f->set_null();
         break;
       case 15: /* OBJECT_NAME */
-        f->set_null();
+        if (m_row.m_object_name_length)
+          set_field_varchar_utf8(f, m_row.m_object_name,
+                                 m_row.m_object_name_length);
+        else
+          f->set_null();
         break;
       case 16: /* OBJECT_INSTANCE_BEGIN */
         f->set_null();
@@ -580,6 +608,9 @@ int table_events_statements_common::read_row_values(TABLE *table,
           set_field_enum(f, m_row.m_nesting_event_type);
         else
           f->set_null();
+        break;
+      case 40: /* NESTING_EVENT_LEVEL */
+          set_field_ulong(f, m_row.m_nesting_event_level);
         break;
       default:
         DBUG_ASSERT(false);
