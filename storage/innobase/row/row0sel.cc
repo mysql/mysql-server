@@ -36,6 +36,8 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0sel.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "dict0dict.h"
 #include "dict0boot.h"
 #include "trx0undo.h"
@@ -56,11 +58,6 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "read0read.h"
 #include "buf0lru.h"
-#include "ha_prototypes.h"
-#include "m_string.h" /* for my_sys.h */
-#include "my_sys.h" /* DEBUG_SYNC_C */
-
-#include "my_compare.h" /* enum icp_result */
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16

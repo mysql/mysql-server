@@ -40,7 +40,6 @@ Created 5/11/1994 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "trx0trx.h"
 # include "ha_prototypes.h"
-# include "mysql_com.h" /* NAME_LEN */
 #endif /* UNIV_HOTBACKUP */
 
 /** A constant to prevent the compiler from optimizing ut_delay() away. */

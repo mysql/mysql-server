@@ -38,7 +38,6 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "ha_prototypes.h"	/* innobase_casedn_str(),
 				innobase_get_lower_case_table_names */
-# include "mysql_com.h"		/* NAME_LEN */
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_BLOB_DEBUG
