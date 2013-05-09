@@ -10,10 +10,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compact
-key_block_size = NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -38,10 +35,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compact
-key_block_size = NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -66,10 +60,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compact
-key_block_size = NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -90,10 +81,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compact
-key_block_size = NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -111,13 +99,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
-key_block_size=NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size=16;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
@@ -137,13 +122,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
-key_block_size=NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size=16;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
@@ -173,11 +155,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compact
-key_block_size = NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -202,11 +180,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compact
-key_block_size = NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -231,11 +205,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compact
-key_block_size = NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -256,11 +226,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compact
-key_block_size = NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -278,14 +244,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
-key_block_size=NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size=16;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
@@ -305,14 +267,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
-key_block_size=NUMBER;
-Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+key_block_size=16;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
@@ -342,7 +300,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -367,7 +325,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -392,7 +350,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -413,7 +371,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -431,10 +389,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
-key_block_size=NUMBER;
+key_block_size=16;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
@@ -454,10 +412,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
-key_block_size=NUMBER;
+key_block_size=16;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
@@ -487,7 +445,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 4;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -512,7 +470,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 4;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -537,7 +495,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 4;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -558,7 +516,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 4;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -576,10 +534,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
-key_block_size=NUMBER;
+key_block_size=4;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
@@ -599,10 +557,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
-key_block_size=NUMBER;
+key_block_size=4;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
@@ -632,7 +590,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 8;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -657,7 +615,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 8;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -682,7 +640,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 8;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -703,7 +661,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 8;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -721,10 +679,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
-key_block_size=NUMBER;
+key_block_size=8;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
@@ -744,10 +702,10 @@ drop table t;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
-create  table t (i int, f float, c char(NUMBER),
+create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
-key_block_size=NUMBER;
+key_block_size=8;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');

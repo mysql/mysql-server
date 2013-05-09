@@ -8,7 +8,7 @@ set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
 create  table t (i int)
 engine=innodb row_format=compressed
-key_block_size=NUMBER;
+key_block_size=16;
 insert into t values (1), (2), (3);
 select * from t;
 i
@@ -36,7 +36,7 @@ set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
 create  table t (i int)
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1), (2), (3);
 select * from t;
 i
@@ -72,7 +72,7 @@ set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
 create  table t (i int)
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1), (2), (3);
 select * from t;
 i
@@ -105,7 +105,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -137,7 +137,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -169,7 +169,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -203,7 +203,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -232,7 +232,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -265,7 +265,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -297,7 +297,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -329,7 +329,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -363,7 +363,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -392,7 +392,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -425,7 +425,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -451,7 +451,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
@@ -478,7 +478,7 @@ create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = compressed
-key_block_size = NUMBER;
+key_block_size = 16;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 i	f	c
