@@ -1969,9 +1969,6 @@ void THD::cleanup_after_query()
     rand_used= 0;
     binlog_accessed_db_names= NULL;
     m_trans_fixed_log_file= NULL;
-
-    if (gtid_mode > 0)
-      gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.
