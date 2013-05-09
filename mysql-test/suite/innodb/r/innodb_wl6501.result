@@ -795,38 +795,7 @@ drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
 drop table t1;
 drop table t2;
-"Validate size of ibd file post truncate"
-"(applicable only for single tablespace)".
-use test;
-set global innodb_file_per_table = 1;
-create table t1
-(i int, f float, c char(100)) engine = innodb;
-select count(*) from t1;
-count(*)
-0
-"Size of ibd file before loading";
-98304
-create procedure populate_t1()
-begin
-declare i int default 1;
-while (i <= 200) do
-insert into t1 values (i, 1.1, 'nnnnnnnnnnnnnnnnnnnnnn');
-set i = i + 1;
-end while;
-end|
-begin;
-call populate_t1();
-commit;
-"Size of ibd file after loading";
-131072
-select count(*) from t1;
-count(*)
-200
-truncate table t1;
-"Size of ibd file after truncating";
-98304
-drop table t1;
-drop procedure populate_t1;
+"2. Test that truncating reference table is blocked."
 use test;
 create table master
 (i int, f float, c char(100),

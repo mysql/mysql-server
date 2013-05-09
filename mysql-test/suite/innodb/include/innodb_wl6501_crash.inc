@@ -52,10 +52,11 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (i int)
 	engine=innodb row_format=$wl6501_row_fmt
 	key_block_size=$wl6501_kbs;
+--enable_warnings
 insert into t values (1), (2), (3);
 select * from t;
 check table t;
@@ -81,10 +82,11 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (i int)
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1), (2), (3);
 select * from t;
 check table t;
@@ -108,10 +110,11 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (i int)
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1), (2), (3);
 select * from t;
 check table t;
@@ -139,12 +142,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -168,12 +172,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -197,12 +202,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -232,12 +238,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -259,12 +266,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -292,12 +300,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -321,12 +330,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -350,12 +360,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -384,12 +395,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -411,12 +423,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -444,12 +457,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -471,12 +485,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
@@ -499,12 +514,13 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
---replace_regex /[0-9]+/NUMBER/
+--disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
 	primary key pk(i), unique findex(f), index ck(c))
 	engine = innodb row_format = $wl6501_row_fmt
 	key_block_size = $wl6501_kbs;
+--enable_warnings
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
 check table t;
