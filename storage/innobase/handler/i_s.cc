@@ -23,18 +23,8 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
-#include <mysqld_error.h>
-#include <sql_acl.h>				// PROCESS_ACL
-
-#include <m_ctype.h>
-#include <hash.h>
-#include <myisampack.h>
-#include <mysys_err.h>
-#include <my_sys.h>
 #include "i_s.h"
-#include <sql_plugin.h>
-#include <mysql/innodb_priv.h>
-#include <vector>
+#include "ha_prototypes.h" /* for innobase_convert_name() */
 
 #include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
@@ -44,7 +34,6 @@ Created July 18, 2007 Vasil Dimov
 #include "dict0load.h"	/* for file sys_tables related info. */
 #include "dict0mem.h"
 #include "dict0types.h"
-#include "ha_prototypes.h" /* for innobase_convert_name() */
 #include "srv0start.h"	/* for srv_was_started */
 #include "trx0i_s.h"
 #include "trx0trx.h"	/* for TRX_QUE_STATE_STR_MAX_LEN */

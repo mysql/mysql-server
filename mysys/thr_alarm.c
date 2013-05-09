@@ -36,7 +36,7 @@ volatile my_bool alarm_thread_running= 0;
 time_t next_alarm_expire_time= ~ (time_t) 0;
 static sig_handler process_alarm_part2(int sig);
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 
 static mysql_mutex_t LOCK_alarm;
 static mysql_cond_t COND_alarm;
@@ -506,7 +506,7 @@ static sig_handler thread_alarm(int sig __attribute__((unused)))
   thr_alarm for win95
 *****************************************************************************/
 
-#else /* __WIN__ */
+#else /* _WIN32 */
 
 void thr_alarm_kill(my_thread_id thread_id)
 {
@@ -586,7 +586,7 @@ void resize_thr_alarm(uint max_alarms)
 {
 }
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /****************************************************************************
   Handling of test case (when compiled with -DMAIN)

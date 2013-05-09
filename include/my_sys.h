@@ -604,12 +604,12 @@ extern int      my_access(const char *path, int amode);
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
-#ifdef __WIN__
+#ifdef _WIN32
 extern my_bool is_filename_allowed(const char *name, size_t length,
                    my_bool allow_current_dir);
-#else /* __WIN__ */
+#else /* _WIN32 */
 # define is_filename_allowed(name, length, allow_cwd) (TRUE)
-#endif /* __WIN__ */ 
+#endif /* _WIN32 */ 
 
 #ifdef _WIN32
 extern int nt_share_delete(const char *name,myf MyFlags);
@@ -910,7 +910,7 @@ extern void add_compiled_collation(CHARSET_INFO *cs);
 extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);
-#ifdef __WIN__
+#ifdef _WIN32
 #define BACKSLASH_MBTAIL
 /* File system character set */
 extern CHARSET_INFO *fs_character_set(void);
@@ -922,7 +922,7 @@ extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 extern void thd_increment_bytes_sent(ulong length);
 extern void thd_increment_bytes_received(ulong length);
 
-#ifdef __WIN__
+#ifdef _WIN32
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
 
 /* implemented in my_windac.c */
@@ -941,7 +941,7 @@ void my_win_console_fputs(const CHARSET_INFO *cs, const char *data);
 void my_win_console_putc(const CHARSET_INFO *cs, int c);
 void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args);
 int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***av);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #include <mysql/psi/psi.h>
 

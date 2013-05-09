@@ -158,10 +158,10 @@ mem_init(
 	mutex_create(mem_hash_mutex_key, &mem_hash_mutex, SYNC_MEM_HASH);
 
 	for (i = 0; i < MEM_HASH_SIZE; i++) {
-		UT_LIST_INIT(*mem_hash_get_nth_cell(i));
+		UT_LIST_INIT(*mem_hash_get_nth_cell(i), &mem_hash_node_t::list);
 	}
 
-	UT_LIST_INIT(mem_all_list_base);
+	UT_LIST_INIT(mem_all_list_base, &mem_hash_node_t::all_list);
 
 	mem_hash_initialized = TRUE;
 #endif
@@ -251,16 +251,13 @@ mem_field_erase(
 	ulint	n __attribute__((unused)))
 			/*!< in: how many bytes the user requested */
 {
-	byte*	usr_buf;
-
-	usr_buf = buf + MEM_FIELD_HEADER_SIZE;
-
 	mutex_enter(&mem_hash_mutex);
 	mem_current_allocated_memory	-= n;
 	mutex_exit(&mem_hash_mutex);
 
 	/* Check that the field lengths agree */
-	ut_ad(n == (ulint) mem_field_header_get_len(usr_buf));
+	ut_ad(n == (ulint) mem_field_header_get_len(
+		buf + MEM_FIELD_HEADER_SIZE));
 
 	/* In the debug version, set the freed space to a random
 	combination of 0xDE and 0xAD */
@@ -348,9 +345,9 @@ mem_hash_insert(
 	new_node->nth_heap = mem_n_created_heaps;
 
 	/* Insert into lists */
-	UT_LIST_ADD_FIRST(list, *mem_hash_get_nth_cell(cell_no), new_node);
+	UT_LIST_ADD_FIRST(*mem_hash_get_nth_cell(cell_no), new_node);
 
-	UT_LIST_ADD_LAST(all_list, mem_all_list_base, new_node);
+	UT_LIST_ADD_LAST(mem_all_list_base, new_node);
 
 	mem_n_created_heaps++;
 
@@ -404,9 +401,9 @@ mem_hash_remove(
 	}
 
 	/* Remove from lists */
-	UT_LIST_REMOVE(list, *mem_hash_get_nth_cell(cell_no), node);
+	UT_LIST_REMOVE(*mem_hash_get_nth_cell(cell_no), node);
 
-	UT_LIST_REMOVE(all_list, mem_all_list_base, node);
+	UT_LIST_REMOVE(mem_all_list_base, node);
 
 	/* Validate the heap which will be freed */
 	mem_heap_validate_or_print(node->heap, NULL, FALSE, &error, &size,

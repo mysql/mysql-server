@@ -40,7 +40,7 @@
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
-#ifdef __WIN__
+#ifdef _WIN32
 #include <direct.h>
 #endif
 #include <signal.h>
@@ -53,7 +53,7 @@
 using std::min;
 using std::max;
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <crtdbg.h>
 #define SIGNAL_FMT "exception 0x%x"
 #else
@@ -573,7 +573,7 @@ void fix_win_paths(const char *val, int len);
 const char *get_errname_from_code (uint error_code);
 int multi_reg_replace(struct st_replace_regex* r,char* val);
 
-#ifdef __WIN__
+#ifdef _WIN32
 void free_win_path_patterns();
 #endif
 
@@ -987,7 +987,7 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
       break;
     }
   }
-#ifdef __WIN__
+#ifdef _WIN32
     fix_win_paths(query_eval->str, query_eval->length);
 #endif
   DBUG_VOID_RETURN;
@@ -1360,7 +1360,7 @@ void free_used_memory()
   my_free(opt_pass);
   free_defaults(default_argv);
   free_re();
-#ifdef __WIN__
+#ifdef _WIN32
   free_win_path_patterns();
 #endif
 
@@ -1396,7 +1396,7 @@ static void cleanup_and_exit(int exit_code)
   }
 
   /* exit() appears to be not 100% reliable on Windows under some conditions */
-#ifdef __WIN__
+#ifdef _WIN32
   fflush(stdout);
   fflush(stderr);
   _exit(exit_code);
@@ -1666,7 +1666,7 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
   va_end(args);
 
-#ifdef __WIN__
+#ifdef _WIN32
   dynstr_append(&ds_cmdline, "\"");
 #endif
 
@@ -1689,7 +1689,7 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
   not present.
 */
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 static int diff_check(const char *diff_name)
 {
@@ -1743,7 +1743,7 @@ void show_diff(DYNAMIC_STRING* ds,
      in order to correctly detect non-availibility of 'diff', and
      the way it's implemented does not work with default 'diff' on Solaris.
   */
-#ifdef __WIN__
+#ifdef _WIN32
   if (diff_check("diff"))
     diff_name = "diff";
   else if (diff_check("mtrdiff"))
@@ -1806,7 +1806,7 @@ void show_diff(DYNAMIC_STRING* ds,
 "two files was shown for you to diff manually.\n\n"
 "To get a better report you should install 'diff' on your system, which you\n"
 "for example can get from http://www.gnu.org/software/diffutils/diffutils.html\n"
-#ifdef __WIN__
+#ifdef _WIN32
 "or http://gnuwin32.sourceforge.net/packages/diffutils.htm\n"
 #endif
 "\n");
@@ -2964,7 +2964,7 @@ void do_source(struct st_command *command)
 FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
                struct st_command *command)
 {
-#if __WIN__
+#if _WIN32
   /*
     --execw is for tests executing commands containing non-ASCII characters.
 
@@ -3005,7 +3005,7 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
     wmode[len / sizeof(wchar_t)]= 0;
     return _wpopen(wcmd, wmode);
   }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
   return popen(ds_cmd->str, mode);
 }
@@ -3013,7 +3013,7 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
 
 static void init_builtin_echo(void)
 {
-#ifdef __WIN__
+#ifdef _WIN32
   size_t echo_length;
 
   /* Look for "echo.exe" in same dir as mysqltest was started from */
@@ -3119,7 +3119,7 @@ void do_exec(struct st_command *command)
     replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
   }
 
-#ifdef __WIN__
+#ifdef _WIN32
   /* Replace /dev/null with NUL */
   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
     ;
@@ -4222,7 +4222,7 @@ void do_perl(struct st_command *command)
 
     /* Check for error code that indicates perl could not be started */
     int exstat= WEXITSTATUS(error);
-#ifdef __WIN__
+#ifdef _WIN32
     if (exstat == 1)
       /* Text must begin 'perl not found' as mtr looks for it */
       abort_not_supported_test("perl not found in path or did not start");
@@ -4708,7 +4708,7 @@ int query_get_string(MYSQL* mysql, const char* query,
 
 static int my_kill(int pid, int sig)
 {
-#ifdef __WIN__
+#ifdef _WIN32
   HANDLE proc;
   if ((proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid)) == NULL)
     return -1;
@@ -5613,7 +5613,7 @@ void do_connect(struct st_command *command)
 
   if (con_pipe)
   {
-#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
     opt_protocol= MYSQL_PROTOCOL_PIPE;
 #endif
   }
@@ -6893,7 +6893,7 @@ void check_regerr(my_regex_t* r, int err)
 }
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 DYNAMIC_ARRAY patterns;
 
@@ -7033,7 +7033,7 @@ void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
     val= null;
     len= 4;
   }
-#ifdef __WIN__
+#ifdef _WIN32
   else if ((field->type == MYSQL_TYPE_DOUBLE ||
             field->type == MYSQL_TYPE_FLOAT ) &&
            field->decimals >= 31)
@@ -8444,12 +8444,12 @@ static sig_handler signal_handler(int sig)
   fprintf(stderr, "Writing a core file...\n");
   fflush(stderr);
   my_write_core(sig);
-#ifndef __WIN__
+#ifndef _WIN32
   exit(1);			// Shouldn't get here but just in case
 #endif
 }
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 LONG WINAPI exception_filter(EXCEPTION_POINTERS *exp)
 {
@@ -8486,7 +8486,7 @@ static void init_signal_handling(void)
   SetUnhandledExceptionFilter(exception_filter);
 }
 
-#else /* __WIN__ */
+#else /* _WIN32 */
 
 static void init_signal_handling(void)
 {
@@ -8514,7 +8514,7 @@ static void init_signal_handling(void)
   DBUG_VOID_RETURN;
 }
 
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 
 int main(int argc, char **argv)
 {
@@ -8577,7 +8577,7 @@ int main(int argc, char **argv)
   memset(&var_reg, 0, sizeof(var_reg));
 
   init_builtin_echo();
-#ifdef __WIN__
+#ifdef _WIN32
   is_windows= 1;
   init_win_path_patterns();
 #endif
@@ -9356,7 +9356,7 @@ void do_get_replace(struct st_command *command)
     if (!*from)
       die("Wrong number of arguments to replace_result in '%s'",
           command->query);
-#ifdef __WIN__
+#ifdef _WIN32
     fix_win_paths(to, from - to);
 #endif
     insert_pointer_name(&from_array,to);
@@ -10499,7 +10499,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
                                const char *val, int len)
 {
   char lower[512];
-#ifdef __WIN__
+#ifdef _WIN32
   fix_win_paths(val, len);
 #endif
 

@@ -25,12 +25,13 @@ Created 25/5/2010 Sunny Bains
 
 #define LOCK_MODULE_IMPLEMENTATION
 
+#include "ha_prototypes.h"
+
 #include "srv0mon.h"
 #include "que0que.h"
 #include "lock0lock.h"
 #include "row0mysql.h"
 #include "srv0start.h"
-#include "ha_prototypes.h"
 #include "lock0priv.h"
 
 /*********************************************************************//**

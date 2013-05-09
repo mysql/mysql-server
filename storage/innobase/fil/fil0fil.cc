@@ -25,8 +25,7 @@ Created 10/25/1995 Heikki Tuuri
 
 #include "fil0fil.h"
 
-#include <debug_sync.h>
-#include <my_dbug.h>
+#include "ha_prototypes.h"
 
 #include "mem0mem.h"
 #include "hash0hash.h"
@@ -316,14 +315,14 @@ static fil_system_t*	fil_system	= NULL;
 # define fil_is_user_tablespace_id(i) ((i) > srv_undo_tablespaces_open)
 
 /** Determine if user has explicitly disabled fsync(). */
-#ifndef __WIN__
+#ifndef _WIN32
 # define fil_buffering_disabled(s)	\
 	((s)->purpose == FIL_TABLESPACE	\
 	 && srv_unix_file_flush_method	\
 	 == SRV_UNIX_O_DIRECT_NO_FSYNC)
-#else /* __WIN__ */
+#else /* _WIN32 */
 # define fil_buffering_disabled(s)	(0)
-#endif /* __WIN__ */
+#endif /* _WIN32_ */
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
@@ -678,7 +677,7 @@ fil_node_create(
 
 	node->space = space;
 
-	UT_LIST_ADD_LAST(chain, space->chain, node);
+	UT_LIST_ADD_LAST(space->chain, node);
 
 	if (id < SRV_LOG_SPACE_FIRST_ID && fil_system->max_assigned_id < id) {
 
@@ -870,7 +869,7 @@ add_size:
 	if (fil_space_belongs_in_lru(space)) {
 
 		/* Put the node to the LRU list */
-		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
+		UT_LIST_ADD_FIRST(system->LRU, node);
 	}
 }
 
@@ -911,7 +910,7 @@ fil_node_close_file(
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
 
 		/* The node is in the LRU list, remove it */
-		UT_LIST_REMOVE(LRU, system->LRU, node);
+		UT_LIST_REMOVE(system->LRU, node);
 	}
 }
 
@@ -1155,9 +1154,7 @@ fil_node_free(
 
 			space->is_in_unflushed_spaces = false;
 
-			UT_LIST_REMOVE(unflushed_spaces,
-				       system->unflushed_spaces,
-				       space);
+			UT_LIST_REMOVE(system->unflushed_spaces, space);
 		}
 
 		fil_node_close_file(node, system);
@@ -1165,7 +1162,7 @@ fil_node_free(
 
 	space->size -= node->size;
 
-	UT_LIST_REMOVE(chain, space->chain, node);
+	UT_LIST_REMOVE(space->chain, node);
 
 	os_event_free(node->sync_event);
 	mem_free(node->name);
@@ -1244,10 +1241,13 @@ fil_space_create(
 	space->name = mem_strdup(name);
 	space->id = id;
 
+ 	UT_LIST_INIT(space->chain, &fil_node_t::chain);
+
 	fil_system->tablespace_version++;
 	space->tablespace_version = fil_system->tablespace_version;
 
-	if (purpose == FIL_TABLESPACE && !recv_recovery_on
+	if (purpose == FIL_TABLESPACE
+	    && !recv_recovery_on
 	    && id > fil_system->max_assigned_id) {
 
 		if (!fil_system->space_id_reuse_warned) {
@@ -1276,7 +1276,7 @@ fil_space_create(
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = false;
 
-	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
+	UT_LIST_ADD_LAST(fil_system->space_list, space);
 
 	mutex_exit(&fil_system->mutex);
 
@@ -1388,11 +1388,10 @@ fil_space_free(
 		ut_ad(!fil_buffering_disabled(space));
 		space->is_in_unflushed_spaces = false;
 
-		UT_LIST_REMOVE(unflushed_spaces, fil_system->unflushed_spaces,
-			       space);
+		UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 	}
 
-	UT_LIST_REMOVE(space_list, fil_system->space_list, space);
+	UT_LIST_REMOVE(fil_system->space_list, space);
 
 	ut_a(space->magic_n == FIL_SPACE_MAGIC_N);
 	ut_a(0 == space->n_pending_flushes);
@@ -1629,8 +1628,7 @@ fil_init(
 	ut_a(hash_size > 0);
 	ut_a(max_n_open > 0);
 
-	fil_system = static_cast<fil_system_t*>(
-		mem_zalloc(sizeof(fil_system_t)));
+	fil_system = static_cast<fil_system_t*>(mem_zalloc(sizeof(*fil_system)));
 
 	mutex_create(fil_system_mutex_key,
 		     &fil_system->mutex, SYNC_ANY_LATCH);
@@ -1638,7 +1636,11 @@ fil_init(
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
 
-	UT_LIST_INIT(fil_system->LRU);
+	UT_LIST_INIT(fil_system->LRU, &fil_node_t::LRU);
+	UT_LIST_INIT(fil_system->space_list, &fil_space_t::space_list);
+
+	UT_LIST_INIT(fil_system->unflushed_spaces,
+		     &fil_space_t::unflushed_spaces);
 
 	fil_system->max_n_open = max_n_open;
 }
@@ -4031,7 +4033,7 @@ fil_load_single_table_tablespace(
 	This must be freed independent of def.success. */
 	def.filepath = fil_make_ibd_name(tablename, false);
 
-#ifdef __WIN__
+#ifdef _WIN32
 # ifndef UNIV_HOTBACKUP
 	/* If lower_case_table_names is 0 or 2, then MySQL allows database
 	directory names with upper case letters. On Windows, all table and
@@ -5084,7 +5086,7 @@ fil_node_prepare_for_io(
 
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
 
-		UT_LIST_REMOVE(LRU, system->LRU, node);
+		UT_LIST_REMOVE(system->LRU, node);
 	}
 
 	node->n_pending++;
@@ -5127,16 +5129,16 @@ fil_node_complete_io(
 		} else if (!node->space->is_in_unflushed_spaces) {
 
 			node->space->is_in_unflushed_spaces = true;
-			UT_LIST_ADD_FIRST(unflushed_spaces,
-					  system->unflushed_spaces,
-					  node->space);
+
+			UT_LIST_ADD_FIRST(
+				system->unflushed_spaces, node->space);
 		}
 	}
 
 	if (node->n_pending == 0 && fil_space_belongs_in_lru(node->space)) {
 
 		/* The node must be put back to the LRU list */
-		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
+		UT_LIST_ADD_FIRST(system->LRU, node);
 	}
 }
 
@@ -5537,12 +5539,12 @@ fil_flush(
 			fil_n_pending_log_flushes++;
 			fil_n_log_flushes++;
 		}
-#ifdef __WIN__
+#ifdef _WIN32
 		if (node->is_raw_disk) {
 
 			goto skip_flush;
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 retry:
 		if (node->n_pending_flushes > 0) {
 			/* We want to avoid calling os_file_flush() on
@@ -5590,7 +5592,6 @@ skip_flush:
 				space->is_in_unflushed_spaces = false;
 
 				UT_LIST_REMOVE(
-					unflushed_spaces,
 					fil_system->unflushed_spaces,
 					space);
 			}
@@ -5692,10 +5693,9 @@ fil_validate(void)
 				HASH_GET_FIRST(fil_system->spaces, i));
 		     space != 0;
 		     space = static_cast<fil_space_t*>(
-			     	HASH_GET_NEXT(hash, space))) {
+				HASH_GET_NEXT(hash, space))) {
 
-			UT_LIST_VALIDATE(
-				chain, fil_node_t, space->chain, Check());
+			UT_LIST_VALIDATE(space->chain, Check());
 
 			for (fil_node = UT_LIST_GET_FIRST(space->chain);
 			     fil_node != 0;
@@ -5714,7 +5714,7 @@ fil_validate(void)
 
 	ut_a(fil_system->n_open == n_open);
 
-	UT_LIST_CHECK(LRU, fil_node_t, fil_system->LRU);
+	UT_LIST_CHECK(fil_system->LRU);
 
 	for (fil_node = UT_LIST_GET_FIRST(fil_system->LRU);
 	     fil_node != 0;

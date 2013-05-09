@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -328,7 +328,7 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
 #endif                                    /* IPTOS_THROUGHPUT */
   if (!r)
   {
-#ifdef __WIN__
+#ifdef _WIN32
     BOOL nodelay= 1;
 #else
     int nodelay = 1;

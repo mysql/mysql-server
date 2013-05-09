@@ -20,7 +20,7 @@
 #include "my_stacktrace.h"
 #include "global_threads.h"
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <crtdbg.h>
 #define SIGNAL_FMT "exception 0x%x"
 #else
@@ -65,7 +65,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 
   segfaulted = 1;
 
-#ifdef __WIN__
+#ifdef _WIN32
   SYSTEMTIME utc_time;
   GetSystemTime(&utc_time);
   const long hrs=  utc_time.wHour;
@@ -232,7 +232,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   }
 #endif
 
-#ifndef __WIN__
+#ifndef _WIN32
   /*
      Quit, without running destructors (etc.)
      On Windows, do not terminate, but pass control to exception filter.

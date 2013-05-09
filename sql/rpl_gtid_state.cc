@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -159,6 +159,15 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
     ret= logged_gtids._add_gtid(thd->owned_gtid);
   }
 
+  /*
+    There may be commands that cause implicit commits, e.g.
+    SET AUTOCOMMIT=1 may cause the previous statements to commit
+    without executing a COMMIT command or be on auto-commit mode.
+    Although we set GTID_NEXT type to UNDEFINED on
+    Gtid_state::update_on_commit(), we also set it here to do it
+    as soon as possible.
+  */
+  thd->variables.gtid_next.set_undefined();
   broadcast_owned_sidnos(thd);
   unlock_owned_sidnos(thd);
 
@@ -213,6 +222,12 @@ void Gtid_state::update_owned_gtids_impl(THD *thd, bool is_commit)
     owned_gtids.remove_gtid(thd->owned_gtid);
   }
 
+  /*
+    There may be commands that cause implicit commits, e.g.
+    SET AUTOCOMMIT=1 may cause the previous statements to commit
+    without executing a COMMIT command or be on auto-commit mode.
+  */
+  thd->variables.gtid_next.set_undefined();
   if (!is_commit)
     broadcast_owned_sidnos(thd);
   unlock_owned_sidnos(thd);
