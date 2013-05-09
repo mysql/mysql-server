@@ -3149,23 +3149,24 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
   @param thd              Thread context.
   @param key              Key to be checked.
   @param key_info         Key meta-data info.
-  @param key_list         List of existing keys.
+  @param alter_info       List of columns and indexes to create.
 */
 static void check_duplicate_key(THD *thd,
                                 Key *key, KEY *key_info,
-                                List<Key> *key_list)
+                                Alter_info *alter_info)
 {
   /*
     We only check for duplicate indexes if it is requested and the
     key is not auto-generated.
 
     Check is requested if the key was explicitly created or altered
-    by the user (unless it's a foreign key).
+    (Index is altered/column associated with it is dropped) by the user
+    (unless it's a foreign key).
   */
   if (!key->key_create_info.check_for_duplicate_indexes || key->generated)
     return;
 
-  List_iterator<Key> key_list_iterator(*key_list);
+  List_iterator<Key> key_list_iterator(alter_info->key_list);
   List_iterator<Key_part_spec> key_column_iterator(key->columns);
   Key *k;
 
@@ -3174,7 +3175,18 @@ static void check_duplicate_key(THD *thd,
     // Looking for a similar key...
 
     if (k == key)
-      break;
+    {
+      /*
+        Since the duplicate index might exist before or after
+        the modified key in the list, we continue the 
+        comparison with rest of the keys in case of DROP COLUMN
+        operation.
+      */
+      if (alter_info->flags & Alter_info::ALTER_DROP_COLUMN) 
+        continue;
+      else
+        break;
+    }
 
     if (k->generated ||
         (key->type != k->type) ||
@@ -4107,7 +4119,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
 
     // Check if a duplicate index is defined.
-    check_duplicate_key(thd, key, key_info, &alter_info->key_list);
+    check_duplicate_key(thd, key, key_info, alter_info);
 
     key_info++;
   }
@@ -6888,6 +6900,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   for (uint i=0 ; i < table->s->keys ; i++,key_info++)
   {
     char *key_name= key_info->name;
+    bool index_column_dropped= false;
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
@@ -6924,7 +6937,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  break;
       }
       if (!cfield)
+      {
+        /*
+           We are dropping a column associated with an index.
+        */
+        index_column_dropped= true;
 	continue;				// Field is removed
+      }
       uint key_part_length=key_part->length;
       if (cfield->field)			// Not new field
       {
@@ -6981,12 +7000,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (key_info->flags & HA_USES_COMMENT)
         key_create_info.comment= key_info->comment;
 
-      /*
-        We're refreshing an already existing index. Since the index is not
-        modified, there is no need to check for duplicate indexes again.
-      */
-      key_create_info.check_for_duplicate_indexes= false;
-
       if (key_info->flags & HA_SPATIAL)
         key_type= Key::SPATIAL;
       else if (key_info->flags & HA_NOSAME)
@@ -7000,6 +7013,15 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         key_type= Key::FULLTEXT;
       else
         key_type= Key::MULTIPLE;
+      
+      if (index_column_dropped)
+      {
+        /*
+           We have dropped a column associated with an index,
+           this warrants a check for duplicate indexes
+        */
+        key_create_info.check_for_duplicate_indexes= true;
+      }
 
       key= new Key(key_type, key_name, strlen(key_name),
                    &key_create_info,
