@@ -38,6 +38,7 @@ using namespace std;
 #define page_t	   ib_page_t
 /** Type of the index page */
 typedef	byte		page_t;
+#ifndef UNIV_INNOCHECKSUM
 /** Index page cursor */
 struct page_cur_t;
 
@@ -166,4 +167,5 @@ page_zip_dir_add_slot(
 	ulint		is_clustered)	/*!< in: nonzero for clustered index,
 					zero for others */
 	__attribute__((nonnull));
+#endif /* !UNIV_INNOCHECKSUM */
 #endif

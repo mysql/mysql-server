@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #ifdef HAVE_GETWD
 #include <sys/param.h>
 #endif
-#if defined(__WIN__)
+#if defined(_WIN32)
 #include <m_ctype.h>
 #include <dos.h>
 #include <direct.h>

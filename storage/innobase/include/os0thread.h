@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,7 +41,7 @@ can wait inside InnoDB */
 #define OS_THREAD_PRIORITY_NORMAL	2
 #define OS_THREAD_PRIORITY_ABOVE_NORMAL	3
 
-#ifdef __WIN__
+#ifdef _WIN32
 typedef DWORD			os_thread_id_t;	/*!< In Windows the thread id
 						is an unsigned long int */
 extern "C"  {
@@ -69,7 +69,7 @@ extern "C"  { typedef void*	(*os_thread_func_t)(void*); }
 #define DECLARE_THREAD(func)	func
 #define os_thread_create(f,a,i)	os_thread_create_func(f, a, i)
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /* Define a function pointer type to use in a typecast */
 typedef void* (*os_posix_f_t) (void*);

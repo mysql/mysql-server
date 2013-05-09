@@ -42,6 +42,7 @@ Created 1/20/1994 Heikki Tuuri
 #endif
 
 #include <stdarg.h> /* for va_list */
+#include <ostream>
 
 /** Index name prefix in fast index creation */
 #define	TEMP_INDEX_PREFIX	'\377'
@@ -334,6 +335,29 @@ ut_print_buf(
 	const void*	buf,	/*!< in: memory buffer */
 	ulint		len);	/*!< in: length of the buffer */
 
+#ifndef DBUG_OFF
+/*************************************************************//**
+Prints the contents of a memory buffer in hex. */
+UNIV_INTERN
+void
+ut_print_buf_hex(
+/*=============*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+	__attribute__((nonnull));
+/*************************************************************//**
+Prints the contents of a memory buffer in hex and ascii. */
+UNIV_INTERN
+void
+ut_print_buf(
+/*=========*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+	__attribute__((nonnull));
+#endif /* !DBUG_OFF */
+
 /**********************************************************************//**
 Outputs a NUL-terminated file name, quoted with apostrophes. */
 UNIV_INTERN
@@ -406,7 +430,7 @@ ut_copy_file(
 	FILE*	src);	/*!< in: input file to be appended to output */
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef __WIN__
+#ifdef _WIN32
 /**********************************************************************//**
 A substitute for vsnprintf(3), formatted output conversion into
 a limited buffer. Note: this function DOES NOT return the number of
@@ -450,7 +474,7 @@ of "ap" for that and VC does not provide va_copy(). */
 A wrapper for snprintf(3), formatted output conversion into
 a limited buffer. */
 # define ut_snprintf	snprintf
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*************************************************************//**
 Convert an error number to a human readable text message. The

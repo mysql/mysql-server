@@ -42,8 +42,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0types.h"
 #include "page0types.h"
 #include "ut0bh.h"
-
-typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
+#include "trx0trx.h"
 
 /** In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. */
@@ -603,9 +602,9 @@ identifier is added to this 64-bit constant. */
 
 #ifndef UNIV_HOTBACKUP
 /** The transaction system central memory data structure. */
-struct trx_sys_t{
+struct trx_sys_t {
 
-	ib_mutex_t		mutex;		/*!< mutex protecting most fields in
+	ib_mutex_t	mutex;		/*!< mutex protecting most fields in
 					this structure except when noted
 					otherwise */
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
@@ -648,7 +647,7 @@ struct trx_sys_t{
 					mysql_trx_list may additionally contain
 					transactions that have not yet been
 					started in InnoDB. */
-	trx_rseg_t*	const rseg_array[TRX_SYS_N_RSEGS];
+	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
 					/*!< Pointer array to rollback
 					segments; NULL if slot not in use;
 					created and destroyed in

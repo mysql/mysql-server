@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,12 +47,6 @@ on 1/27/1998 */
 #include "trx0roll.h"
 #include "lock0lock.h"
 #include "eval0eval.h"
-
-#ifdef UNIV_SQL_DEBUG
-/** If the following is set TRUE, the lexer will print the SQL string
-as it tokenizes it */
-UNIV_INTERN ibool	pars_print_lexed	= FALSE;
-#endif /* UNIV_SQL_DEBUG */
 
 /* Global variable used while parsing a single procedure or query : the code is
 NOT re-entrant */
@@ -256,8 +250,8 @@ pars_func_low(
 
 	node->args = arg;
 
-	UT_LIST_ADD_LAST(func_node_list, pars_sym_tab_global->func_node_list,
-			 node);
+	UT_LIST_ADD_LAST(pars_sym_tab_global->func_node_list, node);
+
 	return(node);
 }
 
@@ -715,8 +709,7 @@ pars_resolve_exp_variables_and_types(
 	sym_node->indirection = node;
 
 	if (select_node) {
-		UT_LIST_ADD_LAST(col_var_list, select_node->copy_variables,
-				 sym_node);
+		UT_LIST_ADD_LAST(select_node->copy_variables, sym_node);
 	}
 
 	dfield_set_type(que_node_get_val(sym_node),
@@ -1029,7 +1022,7 @@ pars_select_statement(
 		     == que_node_list_get_len(select_node->select_list));
 	}
 
-	UT_LIST_INIT(select_node->copy_variables);
+	UT_LIST_INIT(select_node->copy_variables, &sym_node_t::col_var_list);
 
 	pars_resolve_exp_list_columns(table_list, select_node->select_list);
 	pars_resolve_exp_list_variables_and_types(select_node,
@@ -1280,7 +1273,7 @@ pars_update_statement(
 	pars_retrieve_table_def(table_sym);
 	node->table = table_sym->table;
 
-	UT_LIST_INIT(node->columns);
+	UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
 
 	/* Make the single table node into a list of table nodes of length 1 */
 
@@ -2157,28 +2150,12 @@ pars_get_lex_chars(
 	len = pars_sym_tab_global->string_len
 		- pars_sym_tab_global->next_char_pos;
 	if (len == 0) {
-#ifdef YYDEBUG
-		/* fputs("SQL string ends\n", stderr); */
-#endif
 		return(0);
 	}
 
 	if (len > max_size) {
 		len = max_size;
 	}
-
-#ifdef UNIV_SQL_DEBUG
-	if (pars_print_lexed) {
-
-		if (len >= 5) {
-			len = 5;
-		}
-
-		fwrite(pars_sym_tab_global->sql_string
-		       + pars_sym_tab_global->next_char_pos,
-		       1, len, stderr);
-	}
-#endif /* UNIV_SQL_DEBUG */
 
 	ut_memcpy(buf, pars_sym_tab_global->sql_string
 		  + pars_sym_tab_global->next_char_pos, len);
