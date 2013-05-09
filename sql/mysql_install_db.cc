@@ -54,6 +54,7 @@ static char *opt_os_password;
 static my_bool opt_default_user;
 static my_bool opt_allow_remote_root_access;
 static my_bool opt_skip_networking;
+static my_bool opt_verbose_bootstrap;
 static my_bool verbose_errors;
 
 
@@ -83,6 +84,8 @@ static struct my_option my_long_options[]=
   0, 0},
   {"silent", 's', "Print less information", &opt_silent,
    &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose-bootstrap", 'o', "Include mysqld bootstrap output",&opt_verbose_bootstrap,
+   &opt_verbose_bootstrap, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -244,11 +247,12 @@ static char *init_bootstrap_command_line(char *cmdline, size_t size)
   get_basedir(basedir, sizeof(basedir), mysqld_path);
 
   my_snprintf(cmdline, size-1, 
-    "\"\"%s\" --no-defaults --bootstrap"
-    " \"--language=%s\\share\\english\""
+    "\"\"%s\" --no-defaults %s --bootstrap"
+    " \"--lc-messages-dir=%s/share\""
     " --basedir=. --datadir=. --default-storage-engine=myisam"
     " --max_allowed_packet=9M --loose-skip-innodb"
-    " --net-buffer-length=16k\"", mysqld_path, basedir);
+    " --net-buffer-length=16k\"", mysqld_path,
+    opt_verbose_bootstrap?"--console":"", basedir );
   return cmdline;
 }
 
@@ -552,7 +556,9 @@ static int create_db_instance()
 
   /* Do mysqld --bootstrap. */
   init_bootstrap_command_line(cmdline, sizeof(cmdline));
-  /* verbose("Executing %s", cmdline); */
+
+  if(opt_verbose_bootstrap)
+    printf("Executing %s\n", cmdline);
 
   in= popen(cmdline, "wt");
   if (!in)

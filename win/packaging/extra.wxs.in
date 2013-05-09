@@ -692,7 +692,7 @@
     <CustomAction Id='PresetDatabaseProperties' BinaryKey='wixca.dll' DllEntry='PresetDatabaseProperties' />
     <CustomAction Id="CreateDatabaseCommand" Property="CreateDatabase"
     Value=
-    "&quot;[#F.bin.mysql_install_db.exe]&quot;  &quot;--service=[SERVICENAME]&quot; --port=[PORT] &quot;--password=[ESCAPEDPASSWORD]&quot; &quot;--datadir=[DATADIR]\&quot; [SKIPNETWORKING] [ALLOWREMOTEROOTACCESS] [DEFAULTUSER]"
+    "&quot;[#F.bin.mysql_install_db.exe]&quot;  &quot;--service=[SERVICENAME]&quot; --port=[PORT] &quot;--password=[ESCAPEDPASSWORD]&quot; &quot;--datadir=[DATADIR]\&quot; [SKIPNETWORKING] [ALLOWREMOTEROOTACCESS] [DEFAULTUSER] --verbose-bootstrap"
      Execute="immediate"
      HideTarget="yes"
      />
