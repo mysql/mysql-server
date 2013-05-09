@@ -33,6 +33,7 @@ Errors = {
   "IM001" : "Driver does not support this function",  
   
   /* Implementation-defined classes (NDB) */
-  "NDB00" : "Refer to ndb_error for details"
+  "NDB00" : "Refer to ndb_error for details",
+  "WCTOR" : "Object clobbered by Domain Object Constructor"
 };
 

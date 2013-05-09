@@ -31,10 +31,8 @@ var nosql = require('../..');
 var t1 = new harness.ConcurrentTest("readTownByPK");
 
 var Town = function(name, county) {
-//  if(name) {
-    this.town = name;
-    this.county = county;
-//  }
+  this.town = name;
+  this.county = county;
 };
 
 // create basic object<->table mappings                                                                                                  
@@ -42,25 +40,18 @@ var annotations = new nosql.TableMapping('towns').applyToClass(Town);
 
 //check results of find                                                                                                                  
 var onFind = function(err, result) {
-  if (err) {
-    t1.appendErrorMessage(err);
-  } else {
-    t1.errorIfNotEqual("town",  "Maidenhead", result.town);
-    t1.errorIfNotEqual("county", "Berkshire", result.county);
+  try {
+    t1.errorIfNotEqual("Expected SQLState WCTOR", "WCTOR", err.sqlstate);
+  }
+  catch(e) {
+    t1.appendErrorMessage("Expected DBOperation Error with SQLState WCTOR");
   }
   t1.failOnError();
 };
 
 //check results of insert                                                                                                                
 var onInsert = function(err, object, session) {
-
-  if (err) {
-    t1.appendErrorMessage(err);
-   } else {
-
-    // Now read the data back out from the database                                                                                      
-    session.find(Town, 'Maidenhead', onFind);
-  }
+  session.find(Town, 'Maidenhead', onFind);
 };
 
 // insert an object                                                                                                                      

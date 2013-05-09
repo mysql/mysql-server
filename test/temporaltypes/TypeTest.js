@@ -22,8 +22,10 @@
 
 // Domain Object Constructor
 function TestData(id) {
-  if(id) this.id = id;
-  this.cTimestamp = new Date();
+  if(id) {
+    this.id = id;
+    this.cTimestamp = new Date();
+  }
 }
 
 function ErrorVerifier(testCase, sqlState) {
