@@ -262,11 +262,6 @@ static ulint	buf_dbg_counter	= 0; /*!< This is used to insert validation
 					operations in execution in the
 					debug version */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-#ifdef UNIV_DEBUG
-/** If this is set TRUE, the program prints info whenever
-read-ahead or flush occurs */
-UNIV_INTERN ibool		buf_debug_prints = FALSE;
-#endif /* UNIV_DEBUG */
 
 #ifdef UNIV_PFS_RWLOCK
 /* Keys to register buffer block related rwlocks and mutexes with
@@ -3789,12 +3784,8 @@ buf_page_create(
 
 	/* If we get here, the page was not in buf_pool: init it there */
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints) {
-		fprintf(stderr, "Creating space %lu page %lu to buffer\n",
-			(ulong) space, (ulong) offset);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_buf", ("create page %u:%u",
+			      unsigned(space), unsigned(offset)));
 
 	block = free_block;
 
@@ -4260,14 +4251,9 @@ corrupt:
 
 	buf_page_monitor(bpage, io_type);
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints) {
-		fprintf(stderr, "Has %s page space %lu page no %lu\n",
-			io_type == BUF_IO_READ ? "read" : "written",
-			(ulong) buf_page_get_space(bpage),
-			(ulong) buf_page_get_page_no(bpage));
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_buf", ("%s page %u:%u",
+			      io_type == BUF_IO_READ ? "read" : "wrote",
+			      bpage->space, bpage->offset));
 
 	mutex_exit(buf_page_get_mutex(bpage));
 	buf_pool_mutex_exit(buf_pool);
