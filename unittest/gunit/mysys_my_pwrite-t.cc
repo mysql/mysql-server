@@ -19,7 +19,7 @@
 #include <gmock/gmock.h>
 
 // Ignore test on windows, as we are mocking away a unix function, see below.
-#ifndef __WIN__
+#ifndef _WIN32
 namespace mysys_my_pwrite_unittest {
 
 using ::testing::_;

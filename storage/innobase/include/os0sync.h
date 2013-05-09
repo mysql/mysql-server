@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -38,7 +38,7 @@ Created 9/6/1995 Heikki Tuuri
 #include "ut0lst.h"
 #include "sync0types.h"
 
-#ifdef __WIN__
+#ifdef _WIN32
 /** Native event (slow)*/
 typedef HANDLE			os_native_event_t;
 /** Native mutex */
@@ -67,7 +67,7 @@ typedef struct os_event*	os_event_t;
 
 /** An asynchronous signal sent between threads */
 struct os_event {
-#ifdef __WIN__
+#ifdef _WIN32
 	HANDLE		handle;		/*!< kernel event object, slow,
 					used on older Windows */
 #endif
@@ -81,8 +81,8 @@ struct os_event {
 					the event becomes signaled */
 	os_cond_t	cond_var;	/*!< condition variable is used in
 					waiting for the event */
-	UT_LIST_NODE_T(os_event_t) os_event_list;
-					/*!< list of all created events */
+	UT_LIST_NODE_T(os_event)
+			os_event_list;	/*!< list of all created events */
 };
 
 /** Denotes an infinite delay for os_event_wait_time() */

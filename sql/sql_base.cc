@@ -52,7 +52,7 @@
 #include "datadict.h"   // dd_frm_type()
 #include "sql_hset.h"   // Hash_set
 #include "sql_tmp_table.h" // free_tmp_table
-#ifdef  __WIN__
+#ifdef  _WIN32
 #include <io.h>
 #endif
 #include "table_cache.h" // Table_cache_manager, Table_cache

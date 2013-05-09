@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -70,8 +70,6 @@ buf_calc_page_old_checksum(
 /*=======================*/
 	const byte*	page);	/*!< in: buffer page */
 
-#ifndef UNIV_INNOCHECKSUM
-
 /********************************************************************//**
 Return a printable string describing the checksum algorithm.
 @return	algorithm name */
@@ -82,7 +80,5 @@ buf_checksum_algorithm_name(
 	srv_checksum_algorithm_t	algo);	/*!< in: algorithm */
 
 extern ulong	srv_checksum_algorithm;
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* buf0checksum_h */

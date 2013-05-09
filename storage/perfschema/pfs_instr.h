@@ -29,7 +29,7 @@ struct PFS_table_share;
 struct PFS_thread_class;
 struct PFS_socket_class;
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <arpa/inet.h>

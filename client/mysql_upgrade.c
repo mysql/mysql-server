@@ -29,7 +29,7 @@
 #endif
 
 #ifndef WEXITSTATUS
-# ifdef __WIN__
+# ifdef _WIN32
 #  define WEXITSTATUS(stat_val) (stat_val)
 # else
 #  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
@@ -107,7 +107,7 @@ static struct my_option my_long_options[]=
    "Password to use when connecting to server. If password is not given,"
    " it's solicited on the tty.", &opt_password,&opt_password,
    0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -400,7 +400,7 @@ static int run_tool(char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
   va_end(args);
 
-#ifdef __WIN__
+#ifdef _WIN32
   dynstr_append(&ds_cmdline, "\"");
 #endif
 
@@ -957,7 +957,7 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);
 
-#if __WIN__
+#if _WIN32
   if (GetModuleFileName(NULL, self_name, FN_REFLEN) == 0)
 #endif
   {

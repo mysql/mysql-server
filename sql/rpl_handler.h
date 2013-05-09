@@ -218,4 +218,6 @@ extern Binlog_relay_IO_delegate *binlog_relay_io_delegate;
   (group ##_delegate->is_empty() ?              \
    0 : group ##_delegate->hook args)
 
+#define NO_HOOK(group) (group ##_delegate->is_empty())
+
 #endif /* RPL_HANDLER_H */

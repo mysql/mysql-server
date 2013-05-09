@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,13 +32,11 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(__WIN__)
 #ifdef HAVE_SELECT_H
 #  include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
-#endif
 #endif
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
@@ -50,7 +48,7 @@
 extern ulong net_buffer_length;
 extern ulong max_allowed_packet;
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define ERRNO WSAGetLastError()
 #define perror(A)
 #else
@@ -65,7 +63,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
 static my_bool is_NT(void)
 {
   char *os=getenv("OS");
