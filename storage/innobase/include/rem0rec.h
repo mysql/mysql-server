@@ -982,14 +982,14 @@ public:
 	@param info	rec_get_info_bits(rec)
 	@param offsets	rec_get_offsets(rec, ...) */
 	rec_printer(const rec_t* rec, ulint info, const ulint* offsets)
-	: ostringstream ()
+	: std::ostringstream ()
 	{
 		rec_print(*this, rec, info, offsets);
 	}
 
 	/** Construct a pretty-printed tuple.
 	@param tuple	data tuple */
-	rec_printer(const dtuple_t* tuple) : ostringstream ()
+	rec_printer(const dtuple_t* tuple) : std::ostringstream ()
 	{
 		dtuple_print(*this, tuple);
 	}
@@ -997,7 +997,7 @@ public:
 	/** Construct a pretty-printed tuple.
 	@param field	array of data tuple fields
 	@param n	number of fields */
-	rec_printer(const dfield_t* field, ulint n) : ostringstream ()
+	rec_printer(const dfield_t* field, ulint n) : std::ostringstream ()
 	{
 		dfield_print(*this, field, n);
 	}
