@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,6 +32,10 @@ Created 5/30/1994 Heikki Tuuri
 #include "data0type.h"
 #include "mem0mem.h"
 #include "dict0types.h"
+
+#ifndef DBUG_OFF
+# include <ostream>
+#endif /* !DBUG_OFF */
 
 /** Storage for overflow data in a big record, that is, a clustered
 index record which needs external storage of data fields */
@@ -437,6 +441,27 @@ dtuple_print(
 	FILE*		f,	/*!< in: output stream */
 	const dtuple_t*	tuple)	/*!< in: tuple */
 	__attribute__((nonnull));
+#ifndef DBUG_OFF
+/** Print the contents of a tuple.
+@param o	output stream
+@param field	array of data fields
+@param n	number of data fields */
+UNIV_INTERN
+void
+dfield_print(
+	std::ostream&	o,
+	const dfield_t*	field,
+	ulint		n);
+/** Print the contents of a tuple.
+@param o	output stream
+@param tuple	data tuple */
+UNIV_INTERN
+void
+dtuple_print(
+/*=========*/
+	std::ostream&	o,
+	const dtuple_t*	tuple);
+#endif /* DBUG_OFF */
 /**************************************************************//**
 Moves parts of long fields in entry to the big record vector so that
 the size of tuple drops below the maximum record size allowed in the

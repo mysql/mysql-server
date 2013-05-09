@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -264,7 +264,7 @@
 */
 #define MAX_TIME_ZONE_NAME_LENGTH       (NAME_LEN + 1)
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define INTERRUPT_PRIOR -2
 #define CONNECT_PRIOR	-1
 #define WAIT_PRIOR	0
@@ -274,6 +274,6 @@
 #define CONNECT_PRIOR	9
 #define WAIT_PRIOR	8
 #define QUERY_PRIOR	6
-#endif /* __WIN92__ */
+#endif /* _WIN32 */
 
 #endif /* SQL_CONST_INCLUDED */

@@ -14608,7 +14608,6 @@ option_value_no_option_type:
             lex->var_list.push_back(var);
             lex->autocommit= TRUE;
             lex->is_set_password_sql= true;
-            lex->is_change_password= TRUE;
 
             if (sp)
               sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
@@ -14627,30 +14626,6 @@ option_value_no_option_type:
             lex->is_set_password_sql= true;
             if (lex->sphead)
               lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-            /*
-              'is_change_password' should be set if the user is setting his
-              own password. This is later used to determine if the password
-              expiration flag should be reset.
-              Either the user exactly matches the currently authroized user or
-              the CURRENT_USER keyword was used.
-
-              If CURRENT_USER was used for the <user> rule then
-              user->user.str=0. See rule below:
-              
-              user:
-                 [..]
-              | CURRENT_USER optional_braces
-                {
-                 [..]
-                  memset($$, 0, sizeof(LEX_USER));
-                }
-            */
-            if (user->user.str ||
-                match_authorized_user(&current_thd->main_security_ctx,
-                                      user))
-              lex->is_change_password= TRUE;
-            else
-              lex->is_change_password= FALSE;
           }
         ;
 

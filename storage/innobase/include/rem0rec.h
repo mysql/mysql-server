@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,6 +31,10 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0types.h"
 #include "mtr0types.h"
 #include "page0types.h"
+#ifndef DBUG_OFF
+# include <ostream>
+# include <sstream>
+#endif /* !DBUG_OFF */
 
 /* Info bit denoting the predefined minimum record: this bit is set
 if and only if the record is the first user record on a non-leaf
@@ -946,6 +950,68 @@ rec_print(
 	const rec_t*		rec,	/*!< in: physical record */
 	const dict_index_t*	index)	/*!< in: record descriptor */
 	__attribute__((nonnull));
+
+# ifndef DBUG_OFF
+/***************************************************************//**
+Prints a physical record. */
+UNIV_INTERN
+void
+rec_print(
+/*======*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const rec_t*	rec,	/*!< in: physical record */
+	ulint		info,	/*!< in: rec_get_info_bits(rec) */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+	__attribute__((nonnull));
+
+/** Pretty-printer of records and tuples */
+class rec_printer : public std::ostringstream {
+public:
+	/** Construct a pretty-printed record.
+	@param rec	record with header
+	@param offsets	rec_get_offsets(rec, ...) */
+	rec_printer(const rec_t* rec, const ulint* offsets) : ostringstream ()
+	{
+		rec_print(*this, rec,
+			  rec_get_info_bits(rec, rec_offs_comp(offsets)),
+			  offsets);
+	}
+
+	/** Construct a pretty-printed record.
+	@param rec	record, possibly lacking header
+	@param info	rec_get_info_bits(rec)
+	@param offsets	rec_get_offsets(rec, ...) */
+	rec_printer(const rec_t* rec, ulint info, const ulint* offsets)
+	: std::ostringstream ()
+	{
+		rec_print(*this, rec, info, offsets);
+	}
+
+	/** Construct a pretty-printed tuple.
+	@param tuple	data tuple */
+	rec_printer(const dtuple_t* tuple) : std::ostringstream ()
+	{
+		dtuple_print(*this, tuple);
+	}
+
+	/** Construct a pretty-printed tuple.
+	@param field	array of data tuple fields
+	@param n	number of fields */
+	rec_printer(const dfield_t* field, ulint n) : std::ostringstream ()
+	{
+		dfield_print(*this, field, n);
+	}
+
+	/** Destructor */
+	virtual ~rec_printer() {}
+
+private:
+	/** Copy constructor */
+	rec_printer(const rec_printer& other);
+	/** Assignment operator */
+	rec_printer& operator=(const rec_printer& other);
+};
+# endif /* !DBUG_OFF */
 
 # ifdef UNIV_DEBUG
 /************************************************************//**

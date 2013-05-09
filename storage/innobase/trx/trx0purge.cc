@@ -996,13 +996,8 @@ trx_purge_fetch_next_rec(
 		trx_purge_choose_next_log();
 
 		if (!purge_sys->next_stored) {
-
-			if (srv_print_thread_releases) {
-				fprintf(stderr,
-					"Purge: No logs left in the"
-					" history list\n");
-			}
-
+			DBUG_PRINT("ib_purge",
+				   ("no logs left in the history list"));
 			return(NULL);
 		}
 	}

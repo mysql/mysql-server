@@ -301,7 +301,7 @@ srv_normalize_path_for_win(
 	char*	str __attribute__((unused)))	/*!< in/out: null-terminated
 						character string */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	for (; *str; str++) {
 
 		if (*str == '/') {
@@ -390,7 +390,7 @@ create_log_files(
 		/* Ignore errors about non-existent files or files
 		that cannot be removed. The create_log_file() will
 		return an error when the file exists. */
-#ifdef __WIN__
+#ifdef _WIN32
 		DeleteFile((LPCTSTR) logfilename);
 #else
 		unlink(logfilename);
@@ -1255,7 +1255,7 @@ innobase_start_or_create_for_mysql(void)
 	srv_is_being_started = TRUE;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	switch (os_get_os_version()) {
 	case OS_WIN95:
 	case OS_WIN31:
@@ -1291,7 +1291,7 @@ innobase_start_or_create_for_mysql(void)
 	and that also when the support is compiled in. In all other
 	cases, we ignore the setting of innodb_use_native_aio. */
 	srv_use_native_aio = FALSE;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
@@ -1299,7 +1299,7 @@ innobase_start_or_create_for_mysql(void)
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-#ifndef __WIN__
+#ifndef _WIN32
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
@@ -1329,7 +1329,7 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "async_unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	} else {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unrecognized value %s for innodb_flush_method",
@@ -1351,7 +1351,7 @@ innobase_start_or_create_for_mysql(void)
 		srv_max_n_threads = 50000;
 
 		if (srv_buf_pool_instances == SRV_BUF_POOL_INSTANCES_NOT_SET) {
-#if defined(__WIN__) && !defined(_WIN64)
+#if defined(_WIN32) && !defined(_WIN64)
 			/* Do not allocate too large of a buffer pool on
 			Windows 32-bit systems, which can have trouble
 			allocating larger single contiguous memory blocks. */
@@ -1359,10 +1359,10 @@ innobase_start_or_create_for_mysql(void)
 				MAX_BUFFER_POOLS,
 				(long) (srv_buf_pool_size
 					/ (128 * 1024 * 1024)));
-#else /* defined(__WIN__) && !defined(_WIN64) */
+#else /* defined(_WIN32) && !defined(_WIN64) */
 			/* Default to 8 instances when size > 1GB. */
 			srv_buf_pool_instances = 8;
-#endif /* defined(__WIN__) && !defined(_WIN64) */
+#endif /* defined(_WIN32) && !defined(_WIN64) */
 		}
 	} else {
 		/* If buffer pool is less than 1 GiB, assume fewer
@@ -1487,11 +1487,11 @@ innobase_start_or_create_for_mysql(void)
 	/* On Windows when using native aio the number of aio requests
 	that a thread can handle at a given time is limited to 32
 	i.e.: SRV_N_PENDING_IOS_PER_THREAD */
-# ifdef __WIN__
+# ifdef _WIN32
 	if (srv_use_native_aio) {
 		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
-# endif /* __WIN__ */
+# endif /* _WIN32 */
 
 	if (!os_aio_init(io_limit,
 			 srv_n_read_io_threads,
@@ -2195,10 +2195,6 @@ files_checked:
 	if (!srv_read_only_mode) {
 		os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
 	}
-
-#ifdef UNIV_DEBUG
-	/* buf_debug_prints = TRUE; */
-#endif /* UNIV_DEBUG */
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
 	ut_a(sum_of_new_sizes != ULINT_UNDEFINED);

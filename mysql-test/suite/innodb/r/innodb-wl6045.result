@@ -1,0 +1,433 @@
+# Set the environmental variables
+call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+DROP TABLE IF EXISTS tab1;
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+insert into t1 values(1,"i");
+insert into t1 values(2,"am");
+insert into t1 values(3,"compressed table");
+# Shutdown the Server
+# Server Default checksum = innodb
+[1a]: check the innochecksum when file doesn't exists
+[1b]: check the innochecksum without --strict-check
+[2]: check the innochecksum with full form --strict-check=Innodb
+[3]: check the innochecksum with short form -C Innodb
+[4]: check the innochecksum with --no-check ignores algorithm check, warning is expected
+[5]: check the innochecksum with short form --no-check ignores algorithm check, warning is expected
+[6]: check the innochecksum with full form strict-check & no-check , an error is expected
+[7]: check the innochecksum with short form strict-check & no-check , an error is expected
+[8]: check the innochecksum with short & full form combination
+# strict-check & no-check, an error is expected
+[9]: (negative scenario) check the innochecksum with full form --strict-check=crc32
+[10]: (negative scenario) check the innochecksum with full form --strict-check=none
+# when server Default checksum=InnoDB
+[11]: (negative scenario) check the innochecksum with short form -C crc32
+# when server Default checksum=InnoDB
+[12]: (negative scenario) check the innochecksum with short form -C none
+# when server Default checksum=InnoDB
+[13]: check strict-check with invalid values
+[14a]: when server default checksum=InnoDB rewrite new checksum=innodb with innochecksum
+# Also check the long form of write option.
+[14b]: when server default checksum=InnoDB rewrite new checksum=crc32 with innochecksum
+# Also check the long form of write option.
+# start the server with innodb_checksum_algorithm=InnoDB
+INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
+SELECT c1,c2 FROM tab1 order by c1,c2;
+c1	c2
+1	Innochecksum InnoDB1
+2	Innochecksum CRC32
+# Stop the server
+[15]: when server default checksum=InnoDB rewrite new checksum=none with innochecksum
+# Also check the short form of write option.
+# Start the server with checksum algorithm=none
+INSERT INTO tab1 VALUES(3, 'Innochecksum None');
+SELECT c1,c2 FROM tab1 order by c1,c2;
+c1	c2
+1	Innochecksum InnoDB1
+2	Innochecksum CRC32
+3	Innochecksum None
+DROP TABLE t1;
+# Stop the server
+[16]: rewrite into new checksum=crc32 with innochecksum
+# Restart the DB server with  innodb_checksum_algorithm=crc32
+SELECT * FROM tab1;
+c1	c2
+1	Innochecksum InnoDB1
+2	Innochecksum CRC32
+3	Innochecksum None
+DELETE FROM tab1 where c1=3;
+SELECT c1,c2 FROM tab1 order by c1,c2;
+c1	c2
+1	Innochecksum InnoDB1
+2	Innochecksum CRC32
+# Stop server
+[17]: rewrite into new checksum=InnoDB
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+DELETE FROM tab1 where c1=2;
+SELECT * FROM tab1;
+c1	c2
+1	Innochecksum InnoDB1
+# Stop server
+[18]:check Innochecksum with invalid write options
+# Restart the server
+DROP TABLE tab1;
+# Shutdown the server
+[19]: Further Test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool
+# Create and populate the table to be corrupted
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+INSERT INTO t1 (b) VALUES ('corrupt me');
+INSERT INTO t1 (b) VALUES ('corrupt me');
+# Write file to make mysql-test-run.pl expect the "crash", but don't
+# start it until it's told to
+# We give 30 seconds to do a clean shutdown because we do not want
+# to redo apply the pages of t1.ibd at the time of recovery.
+# We want SQL to initiate the first access to t1.ibd.
+# Corrupt the t1 table
+Munged a string.
+Munged a string.
+# Backup the corrupted t1.ibd for reuse for further testing.
+# Write file to make mysql-test-run.pl start up the server again
+# Write file to make mysql-test-run.pl expect the "crash", but don't
+# start it until it's told to
+# The below SELECT query will crash the server because some pages
+# on the disk are corrupted
+SELECT * FROM t1;
+ERROR HY000: Lost connection to MySQL server during query
+[19(a)]: Repair the ibd file with innochecksum with --write=innodb
+# Start the server
+# Server Started normally
+select count(*) from t1;
+# Shutdown the server
+# Move the corrupted ibd file to t1.ibd
+[19(b)]: Repair the ibd file with innochecksum with --write=crc32
+# Start the server
+# Server Started normally
+select count(*) from t1;
+# Shutdown the server
+# Move the corrupted ib file to t1.ibd
+[19(c)]: Repair the ibd file with innochecksum with --write=none
+# Start the server
+# Server Started normally
+select * from t1;
+DROP TABLE t1;
+[19]: Test Completed
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+# shutdown the server
+[20]: Test for verbose short option, output from innochecksum
+# Print the verbose output
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             FALSE
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+[21]: Test for --debug option , generate the output in mtrchecksum.trace file
+mtrchecksum.trace
+# Print the contents of trace file.
+main: info: Filename = tab1.ibd
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+[22]: test for --debug option with --strict-check=innodb for innochecksum
+: With verbose long option.
+mtrchecksum.trace
+# Print the verbose output
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,mtrchecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      innodb
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+# Print the contents of trace file
+
+main: info: Filename = tab1.ibd
+main: info: file tab1.ibd = # bytes (# pages)
+main: info: InnoChecksum: checking pages in range # to #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+[23]: Test for --allow-mismatches =99
+# Expect the fails for checksum mismatches. Print the error message.
+Fail: page 0 invalid
+Fail: page 1 invalid
+Fail: page 2 invalid
+Fail: page 3 invalid
+Fail: page 4 invalid
+# Print the contents of trace file.
+
+main: info: Filename = tab1.ibd
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+[24]: Test checksum check for page: 2 to page:5
+# Print the contents of trace file.
+main: info: Filename = tab1.ibd
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+[25]: Test for checksum check for only pageno.= 2
+# Print the contents of trace file.
+main: info: Filename = tab1.ibd
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+[26]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
+# Start the server
+DROP TABLE tab1;
+CREATE TABLE tab1 (pk INTEGER NOT NULL PRIMARY KEY,
+linestring_key GEOMETRY NOT NULL,
+linestring_nokey GEOMETRY NOT NULL)
+ENGINE=InnoDB ;
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (1, GeomFromText('POINT(10 10) '), GeomFromText('POINT(10 10) '));
+CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
+ALTER TABLE tab1 ADD  KEY (linestring_key(5));
+# create a compressed table
+CREATE TABLE tab2(col_1 CHAR (255) ,
+col_2 VARCHAR (255), col_3 longtext,
+col_4 longtext,col_5 longtext,
+col_6 longtext , col_7 int )
+engine = innodb row_format=compressed key_block_size=4;
+CREATE INDEX idx1 ON tab2(col_3(10));
+CREATE INDEX idx2 ON tab2(col_4(10));
+CREATE INDEX idx3 ON tab2(col_5(10));
+SET @col_1 = repeat('a', 5);
+SET @col_2 = repeat('b', 20);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,5);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,4);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,3);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,2);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,1);
+SELECT * FROM tab2 ORDER BY col_7;
+# stop the server
+[26(a)]: Rewrite into new checksum=InnoDB for all *.ibd file and ibdata1
+: start the server with innodb_checksum_algorithm=strict_innodb
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (2, GeomFromText('LINESTRING(10 10,20 20,30 30)'), GeomFromText('LINESTRING(10 10,20 20,30 30)'));
+SET @col_1 = repeat('a', 5);
+SET @col_2 = repeat('b', 20);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,6);
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+SELECT * FROM tab2 ORDER BY col_7;
+# stop the server
+[26(b)]: Rewrite into new checksum=crc32 for all *.ibd file and ibdata1
+# start the server with innodb_checksum_algorithm=strict_crc32
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (3, GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
+GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
+SET @col_1 = repeat('g', 5);
+SET @col_2 = repeat('h', 20);
+SET @col_3 = repeat('i', 100);
+SET @col_4 = repeat('j', 100);
+SET @col_5 = repeat('k', 100);
+SET @col_6 = repeat('l', 100);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,7);
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+SELECT * FROM tab2 ORDER BY col_7;
+# stop the server
+[26(c)]: Rewrite into new checksum=none for all *.ibd file and ibdata1
+# start the server with innodb_checksum_algorithm=strict_crc32
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (4, GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
+SET @col_1 = repeat('m', 5);
+SET @col_2 = repeat('n', 20);
+SET @col_3 = repeat('o', 100);
+SET @col_4 = repeat('p', 100);
+SET @col_5 = repeat('q', 100);
+SET @col_6 = repeat('r', 100);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,8);
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+SELECT * FROM tab2 ORDER BY col_7;
+# stop the server
+[27]: Check the page type summary with shortform for tab1.ibd
+
+File::tab#.ibd
+================PAGE TYPE SUMMARY==============
+#PAGE_COUNT	PAGE_TYPE
+===============================================
+       #	Index page
+       #	Undo log page
+       #	Inode page
+       #	Insert buffer free list page
+       #	Freshly allocated page
+       #	Insert buffer bitmap
+       #	System page
+       #	Transaction system page
+       #	File Space Header
+       #	Extent descriptor page
+       #	BLOB page
+       #	Compressed BLOB page
+       #	Other type of page
+===============================================
+Additional information:
+Undo page type: # insert, # update, # other
+Undo page state: # active, # cached, # to_free, # to_purge, # prepared, # other
+[28]: Check the page type summary with longform for tab1.ibd
+
+File::tab#.ibd
+================PAGE TYPE SUMMARY==============
+#PAGE_COUNT	PAGE_TYPE
+===============================================
+       #	Index page
+       #	Undo log page
+       #	Inode page
+       #	Insert buffer free list page
+       #	Freshly allocated page
+       #	Insert buffer bitmap
+       #	System page
+       #	Transaction system page
+       #	File Space Header
+       #	Extent descriptor page
+       #	BLOB page
+       #	Compressed BLOB page
+       #	Other type of page
+===============================================
+Additional information:
+Undo page type: # insert, # update, # other
+Undo page state: # active, # cached, # to_free, # to_purge, # prepared, # other
+[29]: Page type dump for  with longform for tab1.ibd
+# Print the contents stored in dump.txt
+
+
+Filename::tab#.ibd
+==============================================================================
+	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
+==============================================================================
+#::       #		|		File Space Header		|	-
+#::       #		|		Insert Buffer Bitmap		|	-
+#::       #		|		Inode page			|	-
+#::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
+#::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
+#::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
+#::       #		|		Freshly allocated page		|	-
+#::       #		|		Freshly allocated page		|	-
+[30]: Page type dump for with shortform for tab1.ibd
+
+
+Filename::tab#.ibd
+==============================================================================
+	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
+==============================================================================
+#::       #		|		File Space Header		|	-
+#::       #		|		Insert Buffer Bitmap		|	-
+#::       #		|		Inode page			|	-
+#::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
+#::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
+#::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
+#::       #		|		Freshly allocated page		|	-
+#::       #		|		Freshly allocated page		|	-
+[30]: check the valid lower bound values for option
+# allow-mismatches,page,start-page,end-page
+[31]: check the negative values for option
+# allow-mismatches,page,start-page,end-page.
+# They will reset to zero for negative values.
+# check the invalid lower bound values
+[32]: check the valid upper bound values for
+# both short and long options "allow-mismatches" and "end-page"
+[33]: check the both short and long options "page" and "start-page" when
+# seek value is larger than file size.
+[34]: check the invalid upper bound values for options, allow-mismatches, end-page, start-page and page.
+# innochecksum will fail with error code: 1
+# Restart the server
+DROP TABLE tab1;
+DROP TABLE tab2;
+SET GLOBAL innodb_file_per_table=default;
+SET GLOBAL innodb_file_format=default;

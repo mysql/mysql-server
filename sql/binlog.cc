@@ -829,7 +829,7 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
   {
     Group_cache::enum_add_group_status status= 
       group_cache.add_logged_group(thd, get_byte_position());
-    if (status == Group_cache::ERROR)
+    if (status == Group_cache::ERROR_GROUP)
       DBUG_RETURN(1);
     else if (status == Group_cache::APPEND_NEW_GROUP)
     {
@@ -899,7 +899,7 @@ static int write_one_empty_group_to_cache(THD *thd,
 #ifdef NON_ERROR_GTID
   IO_CACHE *cache= &cache_data->cache_log;
   Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
-  if (status == Group_cache::ERROR)
+  if (status == Group_cache::ERROR_GROUP)
     DBUG_RETURN(1);
   DBUG_ASSERT(status == Group_cache::APPEND_NEW_GROUP);
   Gtid_specification spec= { GTID_GROUP, gtid };
@@ -6922,6 +6922,30 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
   return thd->commit_error;
 }
 
+/**
+   Auxiliary function used in ordered_commit.
+*/
+static inline int call_after_sync_hook(THD *queue_head)
+{
+  const char *log_file= NULL;
+  my_off_t pos= 0;
+
+  if (NO_HOOK(binlog_storage))
+    return 0;
+
+  DBUG_ASSERT(queue_head != NULL);
+  for (THD *thd= queue_head; thd != NULL; thd= thd->next_to_commit)
+    if (likely(thd->commit_error == THD::CE_NONE))
+      thd->get_trans_pos(&log_file, &pos);
+
+  if (DBUG_EVALUATE_IF("simulate_after_sync_hook_error", 1, 0) ||
+      RUN_HOOK(binlog_storage, after_sync, (queue_head, log_file, pos)))
+  {
+    sql_print_error("Failed to run 'after_sync' hooks");
+    return ER_ERROR_ON_WRITE;
+  }
+  return 0;
+}
 
 /**
   Flush and commit the transaction.
@@ -7096,6 +7120,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     THD *commit_queue= stage_manager.fetch_queue_for(Stage_manager::COMMIT_STAGE);
     DBUG_EXECUTE_IF("semi_sync_3-way_deadlock",
                     DEBUG_SYNC(thd, "before_process_commit_stage_queue"););
+
+    if (flush_error == 0)
+      flush_error= call_after_sync_hook(commit_queue);
+
     process_commit_stage_queue(thd, commit_queue);
     mysql_mutex_unlock(&LOCK_commit);
     /*
@@ -7106,7 +7134,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     final_queue= commit_queue;
   }
   else
+  {
     mysql_mutex_unlock(&LOCK_sync);
+    if (flush_error == 0)
+      call_after_sync_hook(final_queue);
+  }
 
   /* Commit done so signal all waiting threads */
   stage_manager.signal_done(final_queue);
