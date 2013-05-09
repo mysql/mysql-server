@@ -1414,19 +1414,23 @@ srv_export_innodb_status(void)
 		: 0;
 	rw_lock_s_unlock(&purge_sys->latch);
 
-	if (!done_trx_no || trx_sys->rw_max_trx_id < done_trx_no - 1) {
+	mutex_enter(&trx_sys->mutex);
+	trx_id_t	max_trx_id	= trx_sys->rw_max_trx_id;
+	mutex_exit(&trx_sys->mutex);
+
+	if (!done_trx_no || max_trx_id < done_trx_no - 1) {
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-			(ulint) (trx_sys->rw_max_trx_id - done_trx_no + 1);
+			(ulint) (max_trx_id - done_trx_no + 1);
 	}
 
 	if (!up_limit_id
-	    || trx_sys->rw_max_trx_id < up_limit_id) {
+	    || max_trx_id < up_limit_id) {
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-			(ulint) (trx_sys->rw_max_trx_id - up_limit_id);
+			(ulint) (max_trx_id - up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
 
