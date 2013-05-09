@@ -95,7 +95,7 @@
 #define fnmatch(A,B,C) strcmp(A,B)
 #endif
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #include <process.h>
 #endif
 
@@ -596,7 +596,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
         if (!is_shared(stack, keywords))
           FreeList(stack->keywords);
         stack->keywords=NULL;
-        stack->flags &= ~DEBUG_ON;
+        stack->flags&= ~DEBUG_ON;
         break;
       }
       if (rel && is_shared(stack, keywords))
@@ -604,11 +604,29 @@ int DbugParse(CODE_STATE *cs, const char *control)
       if (sign < 0)
       {
         if (DEBUGGING)
+        {
           stack->keywords= ListDel(stack->keywords, control, end);
-      break;
+          /* Turn off DEBUG_ON if it is last keyword to be removed. */
+          if (stack->keywords == NULL)
+            stack->flags&= ~DEBUG_ON;
+        }
+        break;
       }
-      stack->keywords= ListAdd(stack->keywords, control, end);
-      stack->flags |= DEBUG_ON;
+
+      /* Do not add keyword if debugging all is enabled. */
+      if (!(DEBUGGING && stack->keywords == NULL))
+      {
+        stack->keywords= ListAdd(stack->keywords, control, end);
+        stack->flags|= DEBUG_ON;
+      }
+
+      /* If debug all is enabled, make the keyword list empty. */
+      if (sign == 1 && control == end)
+      {
+        FreeList(stack->keywords);
+        stack->keywords= NULL;
+      }
+
       break;
     case 'D':
       stack->delay= atoi(control);
@@ -2007,7 +2025,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
     (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);
   if (cs->stack->flags & TIMESTAMP_ON)
   {
-#ifdef __WIN__
+#ifdef _WIN32
     /* FIXME This doesn't give microseconds as in Unix case, and the resolution is
        in system ticks, 10 ms intervals. See my_getsystime.c for high res */
     SYSTEMTIME loc_t;
@@ -2415,7 +2433,7 @@ void _db_flush_()
 }
 
 
-#ifndef __WIN__
+#ifndef _WIN32
 
 #ifdef HAVE_GCOV
 extern void __gcov_flush();
@@ -2452,7 +2470,7 @@ void _db_suicide_()
   fprintf(stderr, "sigsuspend returned %d errno %d \n", retval, errno);
   assert(FALSE); /* With full signal mask, we should never return here. */
 }
-#endif  /* ! __WIN__ */
+#endif  /* ! _WIN32 */
 
 
 void _db_lock_file_()

@@ -26,6 +26,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef trx0undo_h
 #define trx0undo_h
 
+#ifndef UNIV_INNOCHECKSUM
 #include "univ.i"
 #include "trx0types.h"
 #include "mtr0mtr.h"
@@ -407,6 +408,7 @@ trx_undo_mem_free(
 /*==============*/
 	trx_undo_t*	undo);		/* in: the undo object to be freed */
 
+#endif /* !UNIV_INNOCHECKSUM */
 /* Types of an undo log segment */
 #define	TRX_UNDO_INSERT		1	/* contains undo entries for inserts */
 #define	TRX_UNDO_UPDATE		2	/* contains undo entries for updates
@@ -424,7 +426,7 @@ trx_undo_mem_free(
 #define	TRX_UNDO_PREPARED	5	/* contains an undo log of an
 					prepared transaction */
 
-#ifndef UNIV_HOTBACKUP
+#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
 /** Transaction undo log memory object; this is protected by the undo_mutex
 in the corresponding transaction object */
 
@@ -483,7 +485,7 @@ struct trx_undo_t{
 					/*!< undo log objects in the rollback
 					segment are chained into lists */
 };
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
 
 /** The offset of the undo log page header on pages of the undo log */
 #define	TRX_UNDO_PAGE_HDR	FSEG_PAGE_DATA
@@ -531,6 +533,9 @@ log segment */
 /* @{ */
 /*-------------------------------------------------------------*/
 #define	TRX_UNDO_STATE		0	/*!< TRX_UNDO_ACTIVE, ... */
+
+#ifndef UNIV_INNOCHECKSUM
+
 #define	TRX_UNDO_LAST_LOG	2	/*!< Offset of the last undo log header
 					on the segment header page, 0 if
 					none */
@@ -613,5 +618,6 @@ quite a large overhead. */
 #ifndef UNIV_NONINL
 #include "trx0undo.ic"
 #endif
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

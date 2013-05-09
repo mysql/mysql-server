@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -366,4 +366,4 @@ struct tm *localtime_r(const time_t *timep,struct tm *tmp)
   }
   return tmp;
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */

@@ -40,13 +40,12 @@ Created 5/11/1994 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "trx0trx.h"
 # include "ha_prototypes.h"
-# include "mysql_com.h" /* NAME_LEN */
 #endif /* UNIV_HOTBACKUP */
 
 /** A constant to prevent the compiler from optimizing ut_delay() away. */
 UNIV_INTERN ibool	ut_always_false	= FALSE;
 
-#ifdef __WIN__
+#ifdef _WIN32
 /*****************************************************************//**
 NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
 epoch starts from 1970/1/1. For selection of constant see:
@@ -224,7 +223,7 @@ ut_print_timestamp(
 	thread_id = os_thread_pf(os_thread_get_curr_id());
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEMTIME cal_tm;
 
 	GetLocalTime(&cal_tm);
@@ -271,7 +270,7 @@ ut_sprintf_timestamp(
 /*=================*/
 	char*	buf) /*!< in: buffer where to sprintf */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEMTIME cal_tm;
 
 	GetLocalTime(&cal_tm);
@@ -316,7 +315,7 @@ ut_sprintf_timestamp_without_extra_chars(
 /*=====================================*/
 	char*	buf) /*!< in: buffer where to sprintf */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEMTIME cal_tm;
 
 	GetLocalTime(&cal_tm);
@@ -361,7 +360,7 @@ ut_get_year_month_day(
 	ulint*	month,	/*!< out: month */
 	ulint*	day)	/*!< out: day */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEMTIME cal_tm;
 
 	GetLocalTime(&cal_tm);
@@ -449,6 +448,60 @@ ut_print_buf(
 
 	putc(';', file);
 }
+
+#ifndef DBUG_OFF
+/*************************************************************//**
+Prints the contents of a memory buffer in hex. */
+UNIV_INTERN
+void
+ut_print_buf_hex(
+/*=============*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+{
+	const byte*		data;
+	ulint			i;
+
+	static const char	hexdigit[16] = {
+		'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
+	};
+
+	UNIV_MEM_ASSERT_RW(buf, len);
+
+	o << "(0x";
+
+	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
+		byte	b = *data++;
+		o << hexdigit[b >> 16] << hexdigit[b & 15];
+	}
+
+	o << ")";
+}
+
+/*************************************************************//**
+Prints the contents of a memory buffer in hex and ascii. */
+UNIV_INTERN
+void
+ut_print_buf(
+/*=========*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+{
+	const byte*	data;
+	ulint		i;
+
+	UNIV_MEM_ASSERT_RW(buf, len);
+
+	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
+		int	c = static_cast<int>(*data++);
+		o << (isprint(c) ? static_cast<char>(c) : ' ');
+	}
+
+	ut_print_buf_hex(o, buf, len);
+}
+#endif /* !DBUG_OFF */
 
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
@@ -616,7 +669,7 @@ ut_copy_file(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef __WIN__
+#ifdef _WIN32
 # include <stdarg.h>
 /**********************************************************************//**
 A substitute for vsnprintf(3), formatted output conversion into
@@ -675,7 +728,7 @@ ut_snprintf(
 
 	return(res);
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*************************************************************//**
 Convert an error number to a human readable text message. The

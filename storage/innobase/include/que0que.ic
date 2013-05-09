@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -84,11 +84,9 @@ UNIV_INLINE
 ulint
 que_node_get_type(
 /*==============*/
-	que_node_t*	node)	/*!< in: graph node */
+	const que_node_t*	node)	/*!< in: graph node */
 {
-	ut_ad(node);
-
-	return(((que_common_t*) node)->type);
+	return(reinterpret_cast<const que_common_t*>(node)->type);
 }
 
 /***********************************************************************//**

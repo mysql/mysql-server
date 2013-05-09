@@ -143,7 +143,7 @@ trx_rseg_mem_free(
 
 		next_undo = UT_LIST_GET_NEXT(undo_list, undo);
 
-		UT_LIST_REMOVE(undo_list, rseg->update_undo_cached, undo);
+		UT_LIST_REMOVE(rseg->update_undo_cached, undo);
 
 		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 
@@ -156,7 +156,7 @@ trx_rseg_mem_free(
 
 		next_undo = UT_LIST_GET_NEXT(undo_list, undo);
 
-		UT_LIST_REMOVE(undo_list, rseg->insert_undo_cached, undo);
+		UT_LIST_REMOVE(rseg->insert_undo_cached, undo);
 
 		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 
@@ -164,7 +164,8 @@ trx_rseg_mem_free(
 	}
 
 	/* const_cast<trx_rseg_t*>() because this function is
-	like a destructor.  */
+	like a constructor.  */
+	ut_a(trx_sys->rseg_array[rseg->id] == rseg);
 
 	*((trx_rseg_t**) trx_sys->rseg_array + rseg->id) = NULL;
 
@@ -214,8 +215,11 @@ trx_rseg_mem_create(
 		mutex_create(redo_rseg_mutex_key, &rseg->mutex, SYNC_REDO_RSEG);
 	}
 
-	/* const_cast<trx_rseg_t*>() because this function is
-	like a constructor.  */
+	UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
+	UT_LIST_INIT(rseg->update_undo_cached, &trx_undo_t::undo_list);
+	UT_LIST_INIT(rseg->insert_undo_list, &trx_undo_t::undo_list);
+	UT_LIST_INIT(rseg->insert_undo_cached, &trx_undo_t::undo_list);
+
 	*((trx_rseg_t**) rseg_array + rseg->id) = rseg;
 
 	rseg_header = trx_rsegf_get_new(space, zip_size, page_no, mtr);

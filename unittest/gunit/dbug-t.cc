@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ TEST(DebugDeathTest, Suicide)
 #endif
 
 
-#if !defined(DBUG_OFF) && !defined(__WIN__)
+#if !defined(DBUG_OFF) && !defined(_WIN32)
 class DbugGcovThread : public Thread
 {
 public:
@@ -96,6 +96,63 @@ TEST(DebugPrintDeathTest, PrintEval)
     killing the server.
   */
   EXPECT_DEATH_IF_SUPPORTED(DBUG_PRINT("never",("%d",1/y)), "");
+  DBUG_SET("");
+}
+
+
+TEST(DebugSetTest, DebugKeywordsTest)
+{
+  char buf[1024];
+
+  /*
+    Enable d flag, then enable debug on a keyword. The debug should
+    remain set to d and empty list of keywords indicating debug is
+    enabled for all.
+  */
+  DBUG_SET("d");
+  DBUG_SET("+d,keyword");
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("d", buf);
+  DBUG_SET("");
+
+  /*
+    Set debug on a specific keyword. Debug should be enabled
+    for the keyword.
+  */
+  DBUG_SET("+d,keyword");
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("d,keyword", buf);
+
+  /*
+    Remove the keyword from debug list. Debug should be
+    disabled.
+  */
+  DBUG_SET("-d,keyword");
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("",buf);
+  DBUG_SET("");
+
+  /*
+    Enable debug for a keyword. Then enable debug for all
+    keywords. Debug should now be enabled for all keywords.
+  */
+  DBUG_SET("+d,keyword");
+  DBUG_SET("+d");
+  DBUG_EXPLAIN(buf,sizeof(buf));
+  EXPECT_STREQ("d",buf);
+  DBUG_SET("");
+
+  // Add multiple debug keywords.
+  DBUG_SET("+d,keyword1");
+  DBUG_SET("+d,keyword2");
+  DBUG_EXPLAIN(buf,sizeof(buf));
+  EXPECT_STREQ("d,keyword1,keyword2",buf);
+  DBUG_SET("-d,keyword1");
+  DBUG_EXPLAIN(buf,sizeof(buf));
+  EXPECT_STREQ("d,keyword2",buf);
+  DBUG_SET("-d,keyword2");
+  DBUG_EXPLAIN(buf,sizeof(buf));
+  EXPECT_STREQ("",buf);
   DBUG_SET("");
 }
 #endif /* DBUG_OFF */

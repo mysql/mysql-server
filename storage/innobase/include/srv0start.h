@@ -30,7 +30,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "log0log.h"
 #include "ut0byte.h"
 
-#ifdef __WIN__
+#ifdef _WIN32
 #define SRV_PATH_SEPARATOR	'\\'
 #else
 #define SRV_PATH_SEPARATOR	'/'

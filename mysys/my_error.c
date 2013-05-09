@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ char *my_strerror(char *buf, size_t len, int nr)
       this choice is not advertised, use the default (POSIX/XSI).  Testing
       for __GNUC__ is not sufficient to determine whether this choice exists.
     */
-#if defined(__WIN__)
+#if defined(_WIN32)
     strerror_s(buf, len, nr);
     if (my_winerr != 0)
     {
