@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,10 +36,6 @@ Created 5/27/1996 Heikki Tuuri
 #include "que0types.h"
 #include "row0types.h"
 #include "pars0types.h"
-
-/* If the following flag is set TRUE, the module will print trace info
-of SQL execution in the UNIV_SQL_DEBUG version */
-extern ibool	que_trace_on;
 
 /** Mutex protecting the query threads. */
 extern ib_mutex_t	que_thr_mutex;
@@ -200,7 +196,7 @@ UNIV_INLINE
 ulint
 que_node_get_type(
 /*==============*/
-	que_node_t*	node);	/*!< in: graph node */
+	const que_node_t*	node);	/*!< in: graph node */
 /***********************************************************************//**
 Gets pointer to the value data type field of a graph node. */
 UNIV_INLINE

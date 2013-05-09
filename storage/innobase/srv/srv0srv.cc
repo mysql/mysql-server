@@ -324,14 +324,6 @@ UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
 UNIV_INTERN ulong	srv_spin_wait_delay	= 6;
 UNIV_INTERN ibool	srv_priority_boost	= TRUE;
 
-#ifdef UNIV_DEBUG
-UNIV_INTERN ibool	srv_print_thread_releases	= FALSE;
-UNIV_INTERN ibool	srv_print_lock_waits		= FALSE;
-UNIV_INTERN ibool	srv_print_buf_io		= FALSE;
-UNIV_INTERN ibool	srv_print_log_io		= FALSE;
-UNIV_INTERN ibool	srv_print_latch_waits		= FALSE;
-#endif /* UNIV_DEBUG */
-
 static ulint		srv_n_rows_inserted_old		= 0;
 static ulint		srv_n_rows_updated_old		= 0;
 static ulint		srv_n_rows_deleted_old		= 0;
@@ -1422,19 +1414,23 @@ srv_export_innodb_status(void)
 		: 0;
 	rw_lock_s_unlock(&purge_sys->latch);
 
-	if (!done_trx_no || trx_sys->rw_max_trx_id < done_trx_no - 1) {
+	mutex_enter(&trx_sys->mutex);
+	trx_id_t	max_trx_id	= trx_sys->rw_max_trx_id;
+	mutex_exit(&trx_sys->mutex);
+
+	if (!done_trx_no || max_trx_id < done_trx_no - 1) {
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-			(ulint) (trx_sys->rw_max_trx_id - done_trx_no + 1);
+			(ulint) (max_trx_id - done_trx_no + 1);
 	}
 
 	if (!up_limit_id
-	    || trx_sys->rw_max_trx_id < up_limit_id) {
+	    || max_trx_id < up_limit_id) {
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-			(ulint) (trx_sys->rw_max_trx_id - up_limit_id);
+			(ulint) (max_trx_id - up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
 

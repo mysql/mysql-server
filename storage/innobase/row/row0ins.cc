@@ -1416,7 +1416,6 @@ row_ins_check_foreign_constraint(
 	ulint		n_fields_cmp;
 	btr_pcur_t	pcur;
 	int		cmp;
-	ulint		i;
 	mtr_t		mtr;
 	trx_t*		trx		= thr_get_trx(thr);
 	mem_heap_t*	heap		= NULL;
@@ -1440,13 +1439,8 @@ run_again:
 	/* If any of the foreign key fields in entry is SQL NULL, we
 	suppress the foreign key check: this is compatible with Oracle,
 	for example */
-
-	for (i = 0; i < foreign->n_fields; i++) {
-		if (UNIV_SQL_NULL == dfield_get_len(
-			    dtuple_get_nth_field(entry, i))) {
-
-			goto exit_func;
-		}
+	if (dtuple_contains_null(entry)) {
+		goto exit_func;
 	}
 
 	if (que_node_get_type(thr->run_node) == QUE_NODE_UPDATE) {

@@ -567,8 +567,6 @@ UNIV_INTERN mysql_pfs_key_t	lock_wait_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
-UNIV_INTERN ibool	lock_print_waits	= FALSE;
-
 /*********************************************************************//**
 Validates the lock system.
 @return	TRUE if ok */
@@ -2118,13 +2116,9 @@ lock_rec_enqueue_waiting(
 
 	ut_a(que_thr_stop(thr));
 
-#ifdef UNIV_DEBUG
-	if (lock_print_waits) {
-		fprintf(stderr, "Lock wait for trx " TRX_ID_FMT " in index ",
-			trx->id);
-		ut_print_name(stderr, trx, FALSE, index->name);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_lock", ("wait for trx " TRX_ID_FMT
+			       " in index %s of table %s",
+			       trx->id, index->name, index->table_name));
 
 	MONITOR_INC(MONITOR_LOCKREC_WAIT);
 
@@ -2551,12 +2545,8 @@ lock_grant(
 		}
 	}
 
-#ifdef UNIV_DEBUG
-	if (lock_print_waits) {
-		fprintf(stderr, "Lock wait for trx " TRX_ID_FMT " ends\n",
-			lock->trx->id);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_lock", ("wait for trx " TRX_ID_FMT " ends",
+			       lock->trx->id));
 
 	/* If we are resolving a deadlock by choosing another transaction
 	as a victim, then our original transaction may not be in the
@@ -7181,11 +7171,7 @@ DeadlockChecker::notify(const lock_t* lock) const
 		print(m_start->lock.wait_lock);
 	}
 
-#ifdef UNIV_DEBUG
-	if (lock_print_waits) {
-		fputs("Deadlock detected\n", stderr);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_lock", ("deadlock detected"));
 }
 
 /**

@@ -475,10 +475,6 @@ log_group_calc_lsn_offset(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
-UNIV_INTERN ibool	log_debug_writes = FALSE;
-#endif /* UNIV_DEBUG */
-
 /*******************************************************************//**
 Calculates where in log files we find a specified lsn.
 @return	log file number */
@@ -838,29 +834,22 @@ log_group_check_flush_completion(
 /*=============================*/
 	log_group_t*	group)	/*!< in: log group */
 {
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(mutex_own(&log_sys->mutex));
 
-	if (!log_sys->one_flushed && group->n_pending_writes == 0) {
-#ifdef UNIV_DEBUG
-		if (log_debug_writes) {
-			fprintf(stderr,
-				"Log flushed first to group %lu\n",
-				(ulong) group->id);
-		}
-#endif /* UNIV_DEBUG */
+	if (group->n_pending_writes) {
+		return(0);
+	}
+
+	if (!log_sys->one_flushed) {
+		DBUG_PRINT("ib_log", ("Log flushed first to group %u",
+				      unsigned(group->id)));
 		log_sys->written_to_some_lsn = log_sys->write_lsn;
 		log_sys->one_flushed = TRUE;
 
 		return(LOG_UNLOCK_NONE_FLUSHED_LOCK);
 	}
 
-#ifdef UNIV_DEBUG
-	if (log_debug_writes && (group->n_pending_writes == 0)) {
-
-		fprintf(stderr, "Log flushed to group %lu\n",
-			(ulong) group->id);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_log", ("Log flushed to group %u", unsigned(group->id)));
 	return(0);
 }
 
@@ -925,13 +914,8 @@ log_io_complete(
 			fil_flush(group->space_id);
 		}
 
-#ifdef UNIV_DEBUG
-		if (log_debug_writes) {
-			fprintf(stderr,
-				"Checkpoint info written to group %lu\n",
-				group->id);
-		}
-#endif /* UNIV_DEBUG */
+		DBUG_PRINT("ib_log", ("checkpoint info written to group %u",
+				      unsigned(group->id)));
 		log_io_complete_checkpoint();
 
 		return;
@@ -994,13 +978,9 @@ log_group_file_header_flush(
 
 	dest_offset = nth_file * group->file_size;
 
-#ifdef UNIV_DEBUG
-	if (log_debug_writes) {
-		fprintf(stderr,
-			"Writing log file header to group %lu file %lu\n",
-			(ulong) group->id, (ulong) nth_file);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_log", ("write file %u header for group %u",
+			      unsigned(nth_file), unsigned(group->id)));
+
 	if (log_do_write) {
 		log_sys->n_log_ios++;
 
@@ -1096,35 +1076,26 @@ loop:
 		write_len = len;
 	}
 
-#ifdef UNIV_DEBUG
-	if (log_debug_writes) {
+	DBUG_PRINT("ib_log",
+		   ("write " LSN_PF " to " LSN_PF
+		    ": group %u len %u blocks %u..%u",
+		    start_lsn, next_offset,
+		    unsigned(group->id), unsigned(write_len),
+		    unsigned(log_block_get_hdr_no(buf)),
+		    unsigned(log_block_get_hdr_no(
+				     buf + write_len
+				     - OS_FILE_LOG_BLOCK_SIZE))));
 
-		fprintf(stderr,
-			"Writing log file segment to group %lu"
-			" offset " LSN_PF " len %lu\n"
-			"start lsn " LSN_PF "\n"
-			"First block n:o %lu last block n:o %lu\n",
-			(ulong) group->id, next_offset,
-			write_len,
-			start_lsn,
-			(ulong) log_block_get_hdr_no(buf),
-			(ulong) log_block_get_hdr_no(
-				buf + write_len - OS_FILE_LOG_BLOCK_SIZE));
-		ut_a(log_block_get_hdr_no(buf)
-		     == log_block_convert_lsn_to_no(start_lsn));
+	ut_ad(log_block_get_hdr_no(buf)
+	      == log_block_convert_lsn_to_no(start_lsn));
 
-		for (i = 0; i < write_len / OS_FILE_LOG_BLOCK_SIZE; i++) {
-
-			ut_a(log_block_get_hdr_no(buf) + i
-			     == log_block_get_hdr_no(
-				     buf + i * OS_FILE_LOG_BLOCK_SIZE));
-		}
-	}
-#endif /* UNIV_DEBUG */
 	/* Calculate the checksums for each log block and write them to
 	the trailer fields of the log blocks */
 
 	for (i = 0; i < write_len / OS_FILE_LOG_BLOCK_SIZE; i++) {
+		ut_ad(log_block_get_hdr_no(
+			      buf + i * OS_FILE_LOG_BLOCK_SIZE)
+		      == log_block_get_hdr_no(buf) + i);
 		log_block_store_checksum(buf + i * OS_FILE_LOG_BLOCK_SIZE);
 	}
 
@@ -1268,14 +1239,9 @@ loop:
 		return;
 	}
 
-#ifdef UNIV_DEBUG
-	if (log_debug_writes) {
-		fprintf(stderr,
-			"Writing log from " LSN_PF " up to lsn " LSN_PF "\n",
-			log_sys->written_to_all_lsn,
-			log_sys->lsn);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_log", ("write " LSN_PF " to " LSN_PF,
+			      log_sys->written_to_all_lsn,
+			      log_sys->lsn));
 	log_sys->n_pending_writes++;
 	MONITOR_INC(MONITOR_PENDING_LOG_WRITE);
 
@@ -1853,14 +1819,9 @@ log_checkpoint(
 
 	log_sys->next_checkpoint_lsn = oldest_lsn;
 
-#ifdef UNIV_DEBUG
-	if (log_debug_writes) {
-		fprintf(stderr, "Making checkpoint no "
-			LSN_PF " at lsn " LSN_PF "\n",
-			log_sys->next_checkpoint_no,
-			oldest_lsn);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_log", ("checkpoint " LSN_PF " at " LSN_PF,
+			      log_sys->next_checkpoint_no,
+			      oldest_lsn));
 
 	log_groups_write_checkpoint_info();
 

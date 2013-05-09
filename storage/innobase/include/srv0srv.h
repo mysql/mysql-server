@@ -366,20 +366,6 @@ extern ulint	srv_available_undo_logs;
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
-#ifdef UNIV_DEBUG
-extern	ibool	srv_print_thread_releases;
-extern	ibool	srv_print_lock_waits;
-extern	ibool	srv_print_buf_io;
-extern	ibool	srv_print_log_io;
-extern	ibool	srv_print_latch_waits;
-#else /* UNIV_DEBUG */
-# define srv_print_thread_releases	FALSE
-# define srv_print_lock_waits		FALSE
-# define srv_print_buf_io		FALSE
-# define srv_print_log_io		FALSE
-# define srv_print_latch_waits		FALSE
-#endif /* UNIV_DEBUG */
-
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 extern my_bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */

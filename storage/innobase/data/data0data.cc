@@ -524,6 +524,67 @@ dtuple_print(
 	ut_ad(dtuple_validate(tuple));
 }
 
+#ifndef DBUG_OFF
+/** Print the contents of a tuple.
+@param o	output stream
+@param field	array of data fields
+@param n	number of data fields */
+UNIV_INTERN
+void
+dfield_print(
+	std::ostream&	o,
+	const dfield_t*	field,
+	ulint		n)
+{
+	for (ulint i = 0; i < n; i++, field++) {
+		const void*	data	= dfield_get_data(field);
+		const ulint	len	= dfield_get_len(field);
+
+		if (i) {
+			o << ',';
+		}
+
+		if (dfield_is_null(field)) {
+			o << "NULL";
+		} else if (dfield_is_ext(field)) {
+			ulint	local_len = len - BTR_EXTERN_FIELD_REF_SIZE;
+			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+			o << '['
+			  << local_len
+			  << '+' << BTR_EXTERN_FIELD_REF_SIZE << ']';
+			ut_print_buf(o, data, local_len);
+			ut_print_buf_hex(o, static_cast<const byte*>(data)
+					 + local_len,
+					 BTR_EXTERN_FIELD_REF_SIZE);
+		} else {
+			o << '[' << len << ']';
+			ut_print_buf(o, data, len);
+		}
+	}
+}
+
+/** Print the contents of a tuple.
+@param o	output stream
+@param tuple	data tuple */
+UNIV_INTERN
+void
+dtuple_print(
+/*=========*/
+	std::ostream&	o,
+	const dtuple_t*	tuple)
+{
+	const ulint	n	= dtuple_get_n_fields(tuple);
+
+	o << "TUPLE (info_bits=" << dtuple_get_info_bits(tuple)
+	  << ", " << n << " fields): {";
+
+	dfield_print(o, tuple->fields, n);
+
+	o << "}";
+}
+#endif /* DBUG_OFF */
+
 /**************************************************************//**
 Moves parts of long fields in entry to the big record vector so that
 the size of tuple drops below the maximum record size allowed in the
