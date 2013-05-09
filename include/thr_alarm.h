@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ typedef struct st_alarm_info
 
 void thr_alarm_info(ALARM_INFO *info);
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 typedef struct st_thr_alarm_entry
 {
   UINT_PTR crono;
@@ -45,7 +45,7 @@ typedef int thr_alarm_entry;
 
 #define thr_got_alarm(thr_alarm) (**(thr_alarm))
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 typedef thr_alarm_entry* thr_alarm_t;
 

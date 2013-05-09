@@ -34,6 +34,8 @@ InnoDB Native API
 #include <unistd.h>
 #endif
 
+#include "ha_prototypes.h"
+
 #include "api0api.h"
 #include "api0misc.h"
 #include "srv0start.h"
@@ -53,7 +55,6 @@ InnoDB Native API
 #include "ut0dbg.h"
 #include "dict0priv.h"
 #include "ut0ut.h"
-#include "ha_prototypes.h"
 #include "trx0roll.h"
 
 /** configure variable for binlog option with InnoDB APIs */
@@ -806,7 +807,7 @@ ib_index_find_col(
 	return(NULL);
 }
 
-#ifdef __WIN__
+#ifdef _WIN32
 /*****************************************************************//**
 Convert a string to lower case. */
 static
@@ -820,7 +821,7 @@ ib_to_lower_case(
 		++ptr;
 	}
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
@@ -872,7 +873,7 @@ ib_normalize_table_name(
 			ut_strlen(name) + 1 - (db_name - name));
 
 		norm_name[table_name - db_name - 1] = '/';
-#ifdef __WIN__
+#ifdef _WIN32
 		ib_to_lower_case(norm_name);
 #endif
 	} else {
@@ -903,7 +904,7 @@ ib_table_name_check(
 	}
 
 	for ( ; *name; ++name) {
-#ifdef __WIN__
+#ifdef _WIN32
 		/* Check for reserved characters in DOS filenames. */
 		switch (*name) {
 		case ':':
@@ -914,7 +915,7 @@ ib_table_name_check(
 		case '>':
 			return(DB_DATA_MISMATCH);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 		if (*name == '/') {
 			if (slash) {
 				return(DB_DATA_MISMATCH);
@@ -3308,7 +3309,7 @@ ib_index_get_id(
 	return(err);
 }
 
-#ifdef __WIN__
+#ifdef _WIN32
 #define SRV_PATH_SEPARATOR      '\\'
 #else
 #define SRV_PATH_SEPARATOR      '/'
