@@ -806,6 +806,21 @@ lock_table_get_n_locks(
 /*===================*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull));
+/*******************************************************************//**
+Initialise the trx lock list. */
+UNIV_INTERN
+void
+lock_trx_lock_list_init(
+/*====================*/
+	trx_lock_list_t*	lock_list)	/*!< List to initialise */
+	__attribute__((nonnull));
+
+/*******************************************************************//**
+Set the lock system timeout event. */
+UNIV_INTERN
+void
+lock_set_timeout_event();
+/*====================*/
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Checks that a transaction id is sensible, i.e., not in the future.

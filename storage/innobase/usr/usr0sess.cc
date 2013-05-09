@@ -48,8 +48,6 @@ sess_open(void)
 	sess->trx = trx_allocate_for_background();
 	sess->trx->sess = sess;
 
-	UT_LIST_INIT(sess->graphs);
-
 	return(sess);
 }
 
@@ -61,8 +59,6 @@ sess_close(
 /*=======*/
 	sess_t*	sess)	/*!< in, own: session object */
 {
-	ut_a(UT_LIST_GET_LEN(sess->graphs) == 0);
-
 	trx_free_for_background(sess->trx);
 	mem_free(sess);
 }

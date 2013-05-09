@@ -537,15 +537,13 @@ mem_heap_create_func(
 		return(NULL);
 	}
 
-	UT_LIST_INIT(block->base);
+	UT_LIST_INIT(block->base, &mem_block_t::list);
 
 	/* Add the created block itself as the first block in the list */
-	UT_LIST_ADD_FIRST(list, block->base, block);
+	UT_LIST_ADD_FIRST(block->base, block);
 
 #ifdef UNIV_MEM_DEBUG
-
 	mem_hash_insert(block, file_name, line);
-
 #endif
 
 	return(block);

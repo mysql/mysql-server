@@ -402,7 +402,7 @@ dict_stats_table_clone_create(
 
 	t->corrupted = table->corrupted;
 
-	UT_LIST_INIT(t->indexes);
+	UT_LIST_INIT(t->indexes, &dict_index_t::indexes);
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
@@ -440,13 +440,17 @@ dict_stats_table_clone_create(
 			heap, idx->n_uniq * sizeof(idx->fields[0]));
 
 		for (ulint i = 0; i < idx->n_uniq; i++) {
-			UNIV_MEM_ASSERT_RW_ABORT(index->fields[i].name, strlen(index->fields[i].name) + 1);
+
+			UNIV_MEM_ASSERT_RW_ABORT(
+				index->fields[i].name,
+				strlen(index->fields[i].name) + 1);
+
 			idx->fields[i].name = (char*) mem_heap_strdup(
 				heap, index->fields[i].name);
 		}
 
 		/* hook idx into t->indexes */
-		UT_LIST_ADD_LAST(indexes, t->indexes, idx);
+		UT_LIST_ADD_LAST(t->indexes, idx);
 
 		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_alloc(
 			heap,
