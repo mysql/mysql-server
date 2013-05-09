@@ -1356,21 +1356,23 @@ trx_undo_mem_create_at_db_start(
 add_to_list:
 	if (type == TRX_UNDO_INSERT) {
 		if (state != TRX_UNDO_CACHED) {
-			UT_LIST_ADD_LAST(undo_list, rseg->insert_undo_list,
-					 undo);
+
+			UT_LIST_ADD_LAST(rseg->insert_undo_list, undo);
 		} else {
-			UT_LIST_ADD_LAST(undo_list, rseg->insert_undo_cached,
-					 undo);
+
+			UT_LIST_ADD_LAST(rseg->insert_undo_cached, undo);
+
 			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 		}
 	} else {
 		ut_ad(type == TRX_UNDO_UPDATE);
 		if (state != TRX_UNDO_CACHED) {
-			UT_LIST_ADD_LAST(undo_list, rseg->update_undo_list,
-					 undo);
+
+			UT_LIST_ADD_LAST(rseg->update_undo_list, undo);
 		} else {
-			UT_LIST_ADD_LAST(undo_list, rseg->update_undo_cached,
-					 undo);
+
+			UT_LIST_ADD_LAST(rseg->update_undo_cached, undo);
+
 			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 		}
 	}
@@ -1393,11 +1395,6 @@ trx_undo_lists_init(
 	trx_rsegf_t*	rseg_header;
 	ulint		i;
 	mtr_t		mtr;
-
-	UT_LIST_INIT(rseg->update_undo_list);
-	UT_LIST_INIT(rseg->update_undo_cached);
-	UT_LIST_INIT(rseg->insert_undo_list);
-	UT_LIST_INIT(rseg->insert_undo_cached);
 
 	mtr_start(&mtr);
 
@@ -1648,7 +1645,7 @@ trx_undo_reuse_cached(
 			return(NULL);
 		}
 
-		UT_LIST_REMOVE(undo_list, rseg->insert_undo_cached, undo);
+		UT_LIST_REMOVE(rseg->insert_undo_cached, undo);
 
 		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
@@ -1660,7 +1657,7 @@ trx_undo_reuse_cached(
 			return(NULL);
 		}
 
-		UT_LIST_REMOVE(undo_list, rseg->update_undo_cached, undo);
+		UT_LIST_REMOVE(rseg->update_undo_cached, undo);
 
 		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	}
@@ -1789,11 +1786,14 @@ trx_undo_assign_undo(
 	}
 
 	if (type == TRX_UNDO_INSERT) {
-		UT_LIST_ADD_FIRST(undo_list, rseg->insert_undo_list, undo);
+
+		UT_LIST_ADD_FIRST(rseg->insert_undo_list, undo);
+
 		ut_ad(trx->insert_undo == NULL);
 		trx->insert_undo = undo;
 	} else {
-		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_list, undo);
+		UT_LIST_ADD_FIRST(rseg->update_undo_list, undo);
+
 		ut_ad(trx->update_undo == NULL);
 		trx->update_undo = undo;
 	}
@@ -1927,13 +1927,13 @@ trx_undo_update_cleanup(
 
 	trx_purge_add_update_undo_to_history(trx, undo_page, mtr);
 
-	UT_LIST_REMOVE(undo_list, rseg->update_undo_list, undo);
+	UT_LIST_REMOVE(rseg->update_undo_list, undo);
 
 	trx->update_undo = NULL;
 
 	if (undo->state == TRX_UNDO_CACHED) {
 
-		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_cached, undo);
+		UT_LIST_ADD_FIRST(rseg->update_undo_cached, undo);
 
 		MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
@@ -1963,12 +1963,13 @@ trx_undo_insert_cleanup(
 
 	mutex_enter(&(rseg->mutex));
 
-	UT_LIST_REMOVE(undo_list, rseg->insert_undo_list, undo);
+	UT_LIST_REMOVE(rseg->insert_undo_list, undo);
+
 	trx->insert_undo = NULL;
 
 	if (undo->state == TRX_UNDO_CACHED) {
 
-		UT_LIST_ADD_FIRST(undo_list, rseg->insert_undo_cached, undo);
+		UT_LIST_ADD_FIRST(rseg->insert_undo_cached, undo);
 
 		MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
@@ -2004,14 +2005,16 @@ trx_undo_free_prepared(
 
 	if (trx->update_undo) {
 		ut_a(trx->update_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->rseg->update_undo_list,
-			       trx->update_undo);
+
+		UT_LIST_REMOVE(trx->rseg->update_undo_list, trx->update_undo);
+
 		trx_undo_mem_free(trx->update_undo);
 	}
 	if (trx->insert_undo) {
 		ut_a(trx->insert_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->rseg->insert_undo_list,
-			       trx->insert_undo);
+
+		UT_LIST_REMOVE(trx->rseg->insert_undo_list, trx->insert_undo);
+
 		trx_undo_mem_free(trx->insert_undo);
 	}
 }

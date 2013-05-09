@@ -21,13 +21,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
-#include <unireg.h>
-#include <mysqld_error.h>
-#include <log.h>
-#include <debug_sync.h>
-#include <mysql/innodb_priv.h>
-#include <sql_alter.h>
-#include <sql_class.h>
+#include "ha_prototypes.h"
 
 #include "dict0crea.h"
 #include "dict0dict.h"
@@ -41,12 +35,10 @@ Smart ALTER TABLE
 #include "srv0space.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
-#include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "srv0mon.h"
 #include "fts0priv.h"
 #include "pars0pars.h"
-
 #include "ha_innodb.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
@@ -826,7 +818,7 @@ innobase_get_foreign_key_info(
 		char*		tbl_namep = NULL;
 		ulint		db_name_len = 0;
 		ulint		tbl_name_len = 0;
-#ifdef __WIN__
+#ifdef _WIN32
 		char		db_name[MAX_DATABASE_NAME_LEN];
 		char		tbl_name[MAX_TABLE_NAME_LEN];
 #endif
@@ -881,7 +873,7 @@ innobase_get_foreign_key_info(
 
 		add_fk[num_fk] = dict_mem_foreign_create();
 
-#ifndef __WIN__
+#ifndef _WIN32
 		tbl_namep = fk_key->ref_table.str;
 		tbl_name_len = fk_key->ref_table.length;
 		db_namep = fk_key->ref_db.str;

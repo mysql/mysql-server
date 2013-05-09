@@ -30,6 +30,7 @@ Created 4/20/1996 Heikki Tuuri
 #endif
 
 #include "ha_prototypes.h"
+
 #include "dict0dict.h"
 #include "dict0boot.h"
 #include "trx0rec.h"
@@ -51,7 +52,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "buf0lru.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "m_string.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -112,7 +112,7 @@ ins_node_create_entry_list(
 
 	ut_ad(node->entry_sys_heap);
 
-	UT_LIST_INIT(node->entry_list);
+	UT_LIST_INIT(node->entry_list, &dtuple_t::tuple_list);
 
 	/* We will include all indexes (include those corrupted
 	secondary indexes) in the entry list. Filteration of
@@ -125,7 +125,7 @@ ins_node_create_entry_list(
 		entry = row_build_index_entry(
 			node->row, NULL, index, node->entry_sys_heap);
 
-		UT_LIST_ADD_LAST(tuple_list, node->entry_list, entry);
+		UT_LIST_ADD_LAST(node->entry_list, entry);
 	}
 }
 
@@ -1416,7 +1416,6 @@ row_ins_check_foreign_constraint(
 	ulint		n_fields_cmp;
 	btr_pcur_t	pcur;
 	int		cmp;
-	ulint		i;
 	mtr_t		mtr;
 	trx_t*		trx		= thr_get_trx(thr);
 	mem_heap_t*	heap		= NULL;
@@ -1440,13 +1439,8 @@ run_again:
 	/* If any of the foreign key fields in entry is SQL NULL, we
 	suppress the foreign key check: this is compatible with Oracle,
 	for example */
-
-	for (i = 0; i < foreign->n_fields; i++) {
-		if (UNIV_SQL_NULL == dfield_get_len(
-			    dtuple_get_nth_field(entry, i))) {
-
-			goto exit_func;
-		}
+	if (dtuple_contains_null(entry)) {
+		goto exit_func;
 	}
 
 	if (que_node_get_type(thr->run_node) == QUE_NODE_UPDATE) {

@@ -118,11 +118,13 @@ SET DEBUG_SYNC= "now WAIT_FOR engine_commit_done";
 --source include/assert.inc
 
 SET DEBUG_SYNC= "now SIGNAL end";
-SET DEBUG_SYNC= "RESET";
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 --reap
 
+SET DEBUG_SYNC= "RESET";
+--source include/rpl_connection_master.inc
+SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 --sync_slave_with_master
