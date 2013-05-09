@@ -2065,7 +2065,7 @@ static int add_keyword_path(File fptr, const char *keyword,
 
   char temp_path[FN_REFLEN];
   strcpy(temp_path, path);
-#ifdef __WIN__
+#ifdef _WIN32
   /* Convert \ to / to be able to create table on unix */
   char *pos, *end;
   uint length= strlen(temp_path);
@@ -2557,7 +2557,7 @@ char *generate_partition_syntax(partition_info *part_info,
                                         O_RDWR | O_BINARY | O_TRUNC |  
                                         O_TEMPORARY, MYF(MY_WME)))) < 0))
     DBUG_RETURN(NULL);
-#ifndef __WIN__
+#ifndef _WIN32
   unlink(path);
 #endif
   err+= add_space(fptr);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -173,7 +173,7 @@ inline bool mem_compare_3(const uchar *s1, const uchar *s2, size_t len)
   return s1[0] < s2[0];
 }
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #pragma intrinsic(memcmp)
 #endif
 // For gcc, __builtin_memcmp is actually *slower* than the library call:

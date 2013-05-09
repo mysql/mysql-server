@@ -1,0 +1,253 @@
+call mtr.add_suppression("InnoDB: Unable to lock");
+DROP TABLE IF EXISTS t1;
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	innodb
+CREATE TABLE t1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, 'Innochecksum InnoDB');
+INSERT INTO t1 VALUES(2, 'Innochecksum CRC32');
+# Shutdown the Server
+# Test[1(a)]: for read from standard input for innochecksum tool without rewrite of checksum with debug option.
+main: info: Filename = -
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+# Test[1(b)]: for read from standard input for innochecksum tool Test checking for page: 3 to page:5
+main: info: Filename = -
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+# Test[1] End
+# Test [2] for read from standard input for innochecksum tool with rewrite of crc32 checksum.
+# Backup the t1.ibd before any rewrite of checksum, so used for further testing.
+# Print the information for debug option.
+
+main: info: Filename = -
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+# Recheck the a.ibd created file having crc32 checksum with the --strict-check=crc32 for innochecksum tool.
+
+main: info: Filename = a.ibd
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+#Replace the t.ibd with the newly created a.ibd having crc32 checksum.
+# Start the server to validate the t1.ibd having crc32 checksum.
+# Server Started normally
+# Shutdown the server
+# Test[2] End
+# Test[3] for read from standard input for innochecksum tool with rewrite of "none" checksum.
+# Retrieve the original t1.ibd before any rewrite of checksum, so used for further testing.
+# Check for innochecksum tool to read from stdin and rewrite the checksum to "none"
+# along with check for --verbose & --page-type-summary
+# Print the content for --verbose and --page-type-summary
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,mtrchecksum.trace
+count                             FALSE
+start-page                        #
+end-page                          #
+page                              #
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  #
+write                             none
+page-type-summary                 TRUE
+page-type-dump                    (No default value)
+
+================PAGE TYPE SUMMARY==============
+#PAGE_COUNT	PAGE_TYPE
+===============================================
+       #	Index page
+       #	Undo log page
+       #	Inode page
+       #	Insert buffer free list page
+       #	Freshly allocated page
+       #	Insert buffer bitmap
+       #	System page
+       #	Transaction system page
+       #	File Space Header
+       #	Extent descriptor page
+       #	BLOB page
+       #	Compressed BLOB page
+       #	Other type of page
+===============================================
+Additional information:
+Undo page type: # insert, # update, # other
+Undo page state: # active, # cached, # to_free, # to_purge, # prepared, # other
+# Print the information for debug option.
+
+main: info: Filename = -
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+# Recheck the a.ibd created file having crc32 checksum with the --strict-check=none for innochecksum tool.
+
+main: info: Filename = a.ibd
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+# Start the server to validate the t1.ibd having "none" checksum.
+# Server Started normally
+# Shutdown the server
+# Test[3] End
+# Test[4] for read from standard input for innochecksum tool with rewrite of "innodb" checksum.
+# Command for innochecksum too to read from stdin and rewrite the checksum to "innodb"
+# Print the information for debug option.
+
+main: info: Filename = -
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page #: Updated checksum field# = #;
+main: info: page #: Updated checksum field# = #;
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+# Recheck the a.ibd created file having crc32 checksum with the --strict-check=innodb for innochecksum tool.
+
+main: info: Filename = a.ibd
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+# Replace the t.ibd with the newly created a.ibd having "innodb" checksum.
+# Start the server to validate the t1.ibd having "innodb" checksum.
+# Server Started normally
+# Test[4] End
+# Test[5] for lock.
+# Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
+select * from t1;
+c1	c2
+1	Innochecksum InnoDB
+2	Innochecksum CRC32
+# INNOCHECKSUM MYSQLD_DATADIR/test/t1.ibd
+# create a base table,Index & insert a record
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+shutdown over
+# Test[a] end
+# Test[b] Scenario: Innochecksum is running state(had acquire lock on tab1.ibd file)
+# and then start the mysqld server, which must crash when it do any DDL/DML query on tab1.ibd.
+# Testing done by the usage of DBUG_EXECUTE_IF(), which will pool over the --page-type-dump file
+# passed as argument. Then start the server which will crash as explained before. Delete the
+# --page-type-dump file, to resume the innochecksum tool.
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+select * from tab1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+DROP TABLE t1;
+DROP TABLE tab1;
+SET GLOBAL innodb_file_format=default;

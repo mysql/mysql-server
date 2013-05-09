@@ -115,6 +115,35 @@ int handle_options(int *argc, char ***argv,
   return my_handle_options(argc, argv, longopts, get_one_option, NULL);
 }
 
+union ull_dbl
+{
+  ulonglong ull;
+  double dbl;
+};
+
+/**
+  Returns an ulonglong value containing a raw
+  representation of the given double value.
+*/
+ulonglong getopt_double2ulonglong(double v)
+{
+  union ull_dbl u;
+  u.dbl= v;
+  compile_time_assert(sizeof(ulonglong) >= sizeof(double));
+  return u.ull;
+}
+
+/**
+  Returns the double value which corresponds to
+  the given raw representation.
+*/
+double getopt_ulonglong2double(ulonglong v)
+{
+  union ull_dbl u;
+  u.ull= v;
+  return u.dbl;
+}
+
 /**
   Handle command line options.
   Sort options.
@@ -980,6 +1009,48 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
   return num;
 }
 
+/**
+  function: eval_num_suffix_ull
+  This is the same as eval_num_suffix, but is meant for unsigned long long
+  values. Transforms an unsigned number with a suffix to real number. Suffix can
+  be k|K for kilo, m|M for mega or g|G for giga.
+  @param [IN]        argument      argument value for option_name
+  @param [IN, OUT]   error         error no.
+  @param [IN]        option_name   name of option
+*/
+
+static ulonglong eval_num_suffix_ull(char *argument, int *error, char *option_name)
+{
+  char *endchar;
+  ulonglong num;
+
+  *error= 0;
+  errno= 0;
+  num= strtoull(argument, &endchar, 10);
+  if (errno == ERANGE)
+  {
+    my_getopt_error_reporter(ERROR_LEVEL,
+                             "Incorrect unsigned integer value: '%s'", argument);
+    *error= 1;
+    return 0;
+  }
+  if (*endchar == 'k' || *endchar == 'K')
+    num*= 1024L;
+  else if (*endchar == 'm' || *endchar == 'M')
+    num*= 1024L * 1024L;
+  else if (*endchar == 'g' || *endchar == 'G')
+    num*= 1024L * 1024L * 1024L;
+  else if (*endchar)
+  {
+    fprintf(stderr,
+            "Unknown suffix '%c' used for variable '%s' (value '%s')\n",
+            *endchar, option_name, argument);
+    *error= 1;
+    return 0;
+  }
+  return num;
+}
+
 /* 
   function: getopt_ll
 
@@ -1104,7 +1175,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
   if (arg == NULL || is_negative_num(arg) == TRUE)
     num= 0;
   else
-    num= eval_num_suffix(arg, err, (char*) optp->name);
+    num= eval_num_suffix_ull(arg, err, (char*) optp->name);
   
   return getopt_ull_limit_value(num, optp, NULL);
 }
@@ -1160,14 +1231,18 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
 {
   my_bool adjusted= FALSE;
   double old= num;
-  if (optp->max_value && num > (double) optp->max_value)
+  double min, max;
+
+  max= getopt_ulonglong2double(optp->max_value);
+  min= getopt_ulonglong2double(optp->min_value);
+  if (max && num > max)
   {
-    num= (double) optp->max_value;
+    num= max;
     adjusted= TRUE;
   }
-  if (num < (double) optp->min_value)
+  if (num < min)
   {
-    num= (double) optp->min_value;
+    num= min;
     adjusted= TRUE;
   }
   if (fix)
@@ -1250,7 +1325,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
-    *((double*) variable)= ulonglong2double(value);
+    *((double*) variable)= getopt_ulonglong2double(value);
     break;
   case GET_STR:
   case GET_PASSWORD:
@@ -1351,12 +1426,18 @@ static void init_variables(const struct my_option *options,
   DBUG_VOID_RETURN;
 }
 
-/** Prints variable or option name, replacing _ with - */
-static uint print_name(const struct my_option *optp)
+/**
+  Prints variable or option name, replacing _ with - to given file stream
+  parameter (by default to stdout).
+  @param [IN] optp      my_option parameter
+  @param [IN] file      stream where the output of optp parameter name
+                        goes (by default to stdout).
+*/
+static uint print_name(const struct my_option *optp, FILE* file = stdout)
 {
   const char *s= optp->name;
   for (;*s;s++)
-    putchar(*s == '_' ? '-' : *s);
+    putc(*s == '_' ? '-' : *s, file);
   return s - optp->name;
 }
 
@@ -1449,14 +1530,24 @@ void my_print_help(const struct my_option *options)
   }
 }
 
+/**
+ function: my_print_variables
+ Print variables.
+ @param [IN] options    my_option list
+*/
+void my_print_variables(const struct my_option *options)
+{
+  my_print_variables_ex(options, stdout);
+}
 
-/*
-  function: my_print_options
-
-  Print variables.
+/**
+  function: my_print_variables_ex
+  Print variables to given file parameter stream (by default to stdout).
+  @param [IN] options    my_options list
+  @param [IN] file       stream where the output goes.
 */
 
-void my_print_variables(const struct my_option *options)
+void my_print_variables_ex(const struct my_option *options, FILE* file)
 {
   uint name_space= 34, length, nr;
   ulonglong llvalue;
@@ -1470,82 +1561,83 @@ void my_print_variables(const struct my_option *options)
       name_space= length;
   }
 
-  printf("\nVariables (--variable-name=value)\n");
-  printf("%-*s%s", name_space, "and boolean options {FALSE|TRUE}",
-         "Value (after reading options)\n");
+  fprintf(file, "\nVariables (--variable-name=value)\n");
+  fprintf(file, "%-*s%s", name_space, "and boolean options {FALSE|TRUE}",
+          "Value (after reading options)\n");
   for (length=1; length < 75; length++)
-    putchar(length == name_space ? ' ' : '-');
-  putchar('\n');
-  
+    putc(length == name_space ? ' ' : '-', file);
+  putc('\n', file);
+
   for (optp= options; optp->name; optp++)
   {
     void *value= (optp->var_type & GET_ASK_ADDR ?
 		  (*getopt_get_addr)("", 0, optp, 0) : optp->value);
     if (value)
     {
-      length= print_name(optp);
+      length= print_name(optp, file);
       for (; length < name_space; length++)
-	putchar(' ');
+        putc(' ', file);
       switch ((optp->var_type & GET_TYPE_MASK)) {
       case GET_SET:
         if (!(llvalue= *(ulonglong*) value))
-	  printf("%s\n", "");
+          fprintf(file, "%s\n", "");
 	else
         for (nr= 0; llvalue && nr < optp->typelib->count; nr++, llvalue >>=1)
 	{
 	  if (llvalue & 1)
-            printf( llvalue > 1 ? "%s," : "%s\n", get_type(optp->typelib, nr));
+            fprintf(file, llvalue > 1 ? "%s," : "%s\n",
+                    get_type(optp->typelib, nr));
 	}
 	break;
       case GET_FLAGSET:
         llvalue= *(ulonglong*) value;
         for (nr= 0; llvalue && nr < optp->typelib->count; nr++, llvalue >>=1)
 	{
-          printf("%s%s=", (nr ? "," : ""), get_type(optp->typelib, nr));
-	  printf(llvalue & 1 ? "on" : "off");
+          fprintf(file, "%s%s=", (nr ? "," : ""), get_type(optp->typelib, nr));
+          fprintf(file, llvalue & 1 ? "on" : "off");
 	}
-        printf("\n");
-	break;
+        fprintf(file, "\n");
+        break;
       case GET_ENUM:
-        printf("%s\n", get_type(optp->typelib, *(ulong*) value));
-	break;
+        fprintf(file, "%s\n", get_type(optp->typelib, *(ulong*) value));
+        break;
       case GET_STR:
       case GET_PASSWORD:
       case GET_STR_ALLOC:                    /* fall through */
-	printf("%s\n", *((char**) value) ? *((char**) value) :
-	       "(No default value)");
-	break;
+        fprintf(file, "%s\n", *((char**) value) ? *((char**) value) :
+                "(No default value)");
+        break;
       case GET_BOOL:
-	printf("%s\n", *((my_bool*) value) ? "TRUE" : "FALSE");
-	break;
+        fprintf(file, "%s\n", *((my_bool*) value) ? "TRUE" : "FALSE");
+        break;
       case GET_INT:
-	printf("%d\n", *((int*) value));
-	break;
+        fprintf(file, "%d\n", *((int*) value));
+        break;
       case GET_UINT:
-	printf("%d\n", *((uint*) value));
-	break;
+        fprintf(file, "%d\n", *((uint*) value));
+        break;
       case GET_LONG:
-	printf("%ld\n", *((long*) value));
-	break;
+        fprintf(file, "%ld\n", *((long*) value));
+        break;
       case GET_ULONG:
-	printf("%lu\n", *((ulong*) value));
-	break;
+        fprintf(file, "%lu\n", *((ulong*) value));
+        break;
       case GET_LL:
-	printf("%s\n", llstr(*((longlong*) value), buff));
-	break;
+        fprintf(file, "%s\n", llstr(*((longlong*) value), buff));
+        break;
       case GET_ULL:
 	longlong2str(*((ulonglong*) value), buff, 10);
-	printf("%s\n", buff);
-	break;
+        fprintf(file, "%s\n", buff);
+        break;
       case GET_DOUBLE:
-	printf("%g\n", *(double*) value);
-	break;
+        fprintf(file, "%g\n", *(double*) value);
+        break;
       case GET_NO_ARG:
-	printf("(No default value)\n");
-	break;
+        fprintf(file, "(No default value)\n");
+        break;
       default:
-	printf("(Disabled)\n");
-	break;
+        fprintf(file, "(Disabled)\n");
+        break;
       }
     }
   }

@@ -37,7 +37,7 @@ Created 10/21/1995 Heikki Tuuri
 
 #include "univ.i"
 
-#ifndef __WIN__
+#ifndef _WIN32
 #include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -47,8 +47,6 @@ Created 10/21/1995 Heikki Tuuri
 struct fil_node_t;
 
 extern ibool	os_has_said_disk_full;
-/** Flag: enable debug printout for asynchronous i/o */
-extern ibool	os_aio_print_debug;
 
 /** Number of pending os_file_pread() operations */
 extern ulint	os_file_n_pending_preads;
@@ -60,7 +58,7 @@ extern ulint	os_n_pending_reads;
 /** Number of pending write operations */
 extern ulint	os_n_pending_writes;
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 /** We define always WIN_ASYNC_IO, and check at run-time whether
    the OS actually supports it: Win 95 does not, NT does. */
@@ -72,15 +70,15 @@ extern ulint	os_n_pending_writes;
 #endif
 
 /* path name separator character */
-#ifdef __WIN__
+#ifdef _WIN32
 #  define OS_FILE_PATH_SEPARATOR	'\\'
 #else
 #  define OS_FILE_PATH_SEPARATOR	'/'
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /** File offset in bytes */
 typedef ib_uint64_t os_offset_t;
-#ifdef __WIN__
+#ifdef _WIN32
 /** File handle */
 # define os_file_t	HANDLE
 /** Convert a C file descriptor to a native file handle
@@ -411,13 +409,13 @@ struct os_file_stat_t {
 						if type == OS_FILE_TYPE_FILE */
 };
 
-#ifdef __WIN__
+#ifdef _WIN32
 typedef HANDLE	os_file_dir_t;	/*!< directory stream */
 #else
 typedef DIR*	os_file_dir_t;	/*!< directory stream */
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
 @return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
@@ -426,7 +424,7 @@ UNIV_INTERN
 ulint
 os_get_os_version(void);
 /*===================*/
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 #ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */

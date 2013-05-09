@@ -29,6 +29,8 @@ Created 11/11/1995 Heikki Tuuri
 #include "buf0flu.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "buf0buf.h"
 #include "buf0checksum.h"
 #include "srv0start.h"
@@ -46,8 +48,6 @@ Created 11/11/1995 Heikki Tuuri
 #include "os0file.h"
 #include "trx0sys.h"
 #include "srv0mon.h"
-#include "mysql/plugin.h"
-#include "mysql/service_thd_wait.h"
 
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
@@ -373,7 +373,9 @@ buf_flush_insert_into_flush_list(
 
 	ut_d(block->page.in_flush_list = TRUE);
 	block->page.oldest_modification = lsn;
-	UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
+
+	UT_LIST_ADD_FIRST(buf_pool->flush_list, &block->page);
+
 	incr_flush_list_size_in_bytes(block, buf_pool);
 
 #ifdef UNIV_DEBUG_VALGRIND
@@ -473,10 +475,9 @@ buf_flush_insert_sorted_into_flush_list(
 	}
 
 	if (prev_b == NULL) {
-		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
+		UT_LIST_ADD_FIRST(buf_pool->flush_list, &block->page);
 	} else {
-		UT_LIST_INSERT_AFTER(list, buf_pool->flush_list,
-				     prev_b, &block->page);
+		UT_LIST_INSERT_AFTER(buf_pool->flush_list, prev_b, &block->page);
 	}
 
 	incr_flush_list_size_in_bytes(block, buf_pool);
@@ -513,13 +514,9 @@ buf_flush_ready_for_replace(
 		       && bpage->buf_fix_count == 0);
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Error: buffer block state %lu"
-		" in the LRU list!\n",
-		(ulong) buf_page_get_state(bpage));
-	ut_print_buf(stderr, bpage, sizeof(buf_page_t));
-	putc('\n', stderr);
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"buffer block %p state %u in the LRU list!",
+		reinterpret_cast<const void*>(bpage), bpage->state);
 
 	return(FALSE);
 }
@@ -601,13 +598,13 @@ buf_flush_remove(
 		return;
 	case BUF_BLOCK_ZIP_DIRTY:
 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_PAGE);
-		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+		UT_LIST_REMOVE(buf_pool->flush_list, bpage);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_LRU_insert_zip_clean(bpage);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		break;
 	case BUF_BLOCK_FILE_PAGE:
-		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+		UT_LIST_REMOVE(buf_pool->flush_list, bpage);
 		break;
 	}
 
@@ -685,19 +682,13 @@ buf_flush_relocate_on_flush_list(
 	ut_d(bpage->in_flush_list = FALSE);
 
 	prev = UT_LIST_GET_PREV(list, bpage);
-	UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+	UT_LIST_REMOVE(buf_pool->flush_list, bpage);
 
 	if (prev) {
 		ut_ad(prev->in_flush_list);
-		UT_LIST_INSERT_AFTER(
-			list,
-			buf_pool->flush_list,
-			prev, dpage);
+		UT_LIST_INSERT_AFTER( buf_pool->flush_list, prev, dpage);
 	} else {
-		UT_LIST_ADD_FIRST(
-			list,
-			buf_pool->flush_list,
-			dpage);
+		UT_LIST_ADD_FIRST(buf_pool->flush_list, dpage);
 	}
 
 	/* Just an extra check. Previous in flush_list
@@ -729,9 +720,6 @@ buf_flush_write_complete(
 
 	flush_type = buf_page_get_flush_type(bpage);
 	buf_pool->n_flush[flush_type]--;
-
-	/* fprintf(stderr, "n pending flush %lu\n",
-	buf_pool->n_flush[flush_type]); */
 
 	if (buf_pool->n_flush[flush_type] == 0
 	    && buf_pool->init_flush[flush_type] == FALSE) {
@@ -896,6 +884,10 @@ buf_flush_write_block_low(
 #ifdef UNIV_LOG_DEBUG
 	static ibool	univ_log_debug_warned;
 #endif /* UNIV_LOG_DEBUG */
+
+	DBUG_PRINT("ib_buf", ("flush %s %u page %u:%u",
+			      sync ? "sync" : "async", unsigned(flush_type),
+			      bpage->space, bpage->offset));
 
 	ut_ad(buf_page_in_file(bpage));
 
@@ -1096,13 +1088,6 @@ buf_flush_page(
 	oldest_modification != 0.  Thus, it cannot be relocated in the
 	buffer pool or removed from flush_list or LRU_list. */
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints) {
-		fprintf(stderr,
-			"Flushing %u space %u page %u\n",
-			flush_type, bpage->space, bpage->offset);
-	}
-#endif /* UNIV_DEBUG */
 	buf_flush_write_block_low(bpage, flush_type, sync);
 }
 
@@ -1253,11 +1238,13 @@ buf_flush_try_neighbors(
 		}
 	}
 
-	/* fprintf(stderr, "Flush area: low %lu high %lu\n", low, high); */
-
 	if (high > fil_space_get_size(space)) {
 		high = fil_space_get_size(space);
 	}
+
+	DBUG_PRINT("ib_buf", ("flush %u:%u..%u",
+			      unsigned(space),
+			      unsigned(low), unsigned(high)));
 
 	for (i = low; i < high; i++) {
 
@@ -1621,7 +1608,6 @@ buf_do_flush_list_batch(
 	     && bpage->oldest_modification < lsn_limit;
 	     ++scanned) {
 
-		bool		flushed;
 		buf_page_t*	prev;
 
 		ut_a(bpage->oldest_modification > 0);
@@ -1632,7 +1618,10 @@ buf_do_flush_list_batch(
 
 		buf_flush_list_mutex_exit(buf_pool);
 
-		flushed = buf_flush_page_and_try_neighbors(
+#ifdef UNIV_DEBUG
+		bool flushed =
+#endif /* UNIV_DEBUG */
+		buf_flush_page_and_try_neighbors(
 			bpage, BUF_FLUSH_LIST, min_n, &count);
 
 		buf_flush_list_mutex_enter(buf_pool);
@@ -1716,14 +1705,8 @@ buf_flush_batch(
 
 	buf_pool_mutex_exit(buf_pool);
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints && count > 0) {
-		fprintf(stderr, flush_type == BUF_FLUSH_LRU
-			? "Flushed %lu pages in LRU flush\n"
-			: "Flushed %lu pages in flush list flush\n",
-			(ulong) count);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_buf", ("flush %u completed, %u pages",
+			      unsigned(flush_type), unsigned(count)));
 
 	return(count);
 }
@@ -1741,14 +1724,8 @@ buf_flush_common(
 
 	ut_a(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints && page_count > 0) {
-		fprintf(stderr, flush_type == BUF_FLUSH_LRU
-			? "Flushed %lu pages in LRU flush\n"
-			: "Flushed %lu pages in flush list flush\n",
-			(ulong) page_count);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_buf", ("flush %u completed, %u pages",
+			      unsigned(flush_type), unsigned(page_count)));
 
 	srv_stats.buf_pool_flushed.add(page_count);
 }
@@ -2553,7 +2530,7 @@ buf_flush_validate_low(
 
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list, Check());
+	UT_LIST_VALIDATE(buf_pool->flush_list, Check());
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 

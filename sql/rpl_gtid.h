@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -2525,7 +2525,7 @@ public:
   */
   enum enum_add_group_status
   {
-    EXTEND_EXISTING_GROUP, APPEND_NEW_GROUP, ERROR
+    EXTEND_EXISTING_GROUP, APPEND_NEW_GROUP, ERROR_GROUP
   };
 #ifndef MYSQL_CLIENT
   enum_add_group_status
