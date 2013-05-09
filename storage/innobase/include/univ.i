@@ -153,6 +153,13 @@ be excluded from instrumentation. */
 
 #ifdef _WIN32
 # define YY_NO_UNISTD_H 1
+/* VC++ tries to optimise for size by default, from V8+. The size of
+the pointer to member depends on whether the type is defined before the
+compiler sees the type in the translation unit. This default behaviour
+can cause the pointer to be a different size in different translation
+units, depending on the above rule. We force optimise for size behaviour
+for all cases. This is used by ut0lst.h related code. */
+# pragma pointers_to_members(full_generality, single_inheritance)
 #endif /* _WIN32 */
 
 /*			DEBUG VERSION CONTROL

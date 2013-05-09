@@ -70,7 +70,7 @@ read_view_list_validate(void)
 {
 	ut_ad(trx_sys_mutex_own());
 
-	ut_list_map(trx_sys->view_list, &read_view_t::view_list, ViewCheck());
+	ut_list_map(trx_sys->view_list, ViewCheck());
 
 	return(true);
 }
@@ -136,7 +136,7 @@ read_view_remove(
 
 		ut_ad(read_view_validate(view));
 
-		UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
+		UT_LIST_REMOVE(trx_sys->view_list, view);
 
 		ut_ad(read_view_list_validate());
 

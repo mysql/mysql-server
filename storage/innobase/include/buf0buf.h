@@ -86,11 +86,6 @@ Created 11/5/1995 Heikki Tuuri
 
 extern	buf_pool_t*	buf_pool_ptr;	/*!< The buffer pools
 					of the database */
-#ifdef UNIV_DEBUG
-extern ibool		buf_debug_prints;/*!< If this is set TRUE, the program
-					prints info whenever read or flush
-					occurs */
-#endif /* UNIV_DEBUG */
 #else /* !UNIV_HOTBACKUP */
 extern buf_block_t*	back_block1;	/*!< first block, for --apply-log */
 extern buf_block_t*	back_block2;	/*!< second block, for page reorganize */

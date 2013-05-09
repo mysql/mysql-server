@@ -60,9 +60,6 @@ struct sess_t{
 					transaction instance designated by the
 					trx id changes, but the memory
 					structure is preserved */
-	UT_LIST_BASE_NODE_T(que_t)
-			graphs;		/*!< query graphs belonging to this
-					session */
 };
 
 /* Session states */

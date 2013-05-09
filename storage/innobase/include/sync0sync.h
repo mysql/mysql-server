@@ -138,6 +138,7 @@ extern	mysql_pfs_key_t	dict_table_stats_key;
 extern  mysql_pfs_key_t trx_sys_rw_lock_key;
 extern  mysql_pfs_key_t hash_table_locks_key;
 #endif /* UNIV_PFS_RWLOCK */
+
 #ifndef HAVE_ATOMIC_BUILTINS
 
 #include "sync0mutex.h"

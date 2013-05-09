@@ -310,7 +310,8 @@ trx_roll_savepoint_free(
 	trx_t*			trx,	/*!< in: transaction handle */
 	trx_named_savept_t*	savep)	/*!< in: savepoint to free */
 {
-	UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
+	UT_LIST_REMOVE(trx->trx_savepoints, savep);
+
 	mem_free(savep->name);
 	mem_free(savep);
 }
@@ -469,7 +470,7 @@ trx_savepoint_for_mysql(
 	if (savep) {
 		/* There is a savepoint with the same name: free that */
 
-		UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
+		UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
 		mem_free(savep->name);
 		mem_free(savep);
@@ -485,7 +486,7 @@ trx_savepoint_for_mysql(
 
 	savep->mysql_binlog_cache_pos = binlog_cache_pos;
 
-	UT_LIST_ADD_LAST(trx_savepoints, trx->trx_savepoints, savep);
+	UT_LIST_ADD_LAST(trx->trx_savepoints, savep);
 
 	return(DB_SUCCESS);
 }

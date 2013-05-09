@@ -46,61 +46,8 @@ Completed by Sunny Bains and Marko Makela
 # define posix_fadvise(fd, offset, len, advice) /* nothing */
 #endif /* _WIN32 */
 
-#ifdef UNIV_DEBUG
-/** Set these in order ot enable debug printout. */
-/* @{ */
-/** Log each record read from temporary file. */
-static ibool	row_merge_print_read;
-/** Log each record write to temporary file. */
-static ibool	row_merge_print_write;
-/** Log each row_merge_blocks() call, merging two blocks of records to
-a bigger one. */
-static ibool	row_merge_print_block;
-/** Log each block read from temporary file. */
-static ibool	row_merge_print_block_read;
-/** Log each block read from temporary file. */
-static ibool	row_merge_print_block_write;
-/* @} */
-#endif /* UNIV_DEBUG */
-
 /* Whether to disable file system cache */
 UNIV_INTERN char	srv_disable_sort_file_cache;
-
-#ifdef UNIV_DEBUG
-/******************************************************//**
-Display a merge tuple. */
-static __attribute__((nonnull))
-void
-row_merge_tuple_print(
-/*==================*/
-	FILE*		f,	/*!< in: output stream */
-	const mtuple_t*	entry,	/*!< in: tuple to print */
-	ulint		n_fields)/*!< in: number of fields in the tuple */
-{
-	ulint	j;
-
-	for (j = 0; j < n_fields; j++) {
-		const dfield_t*	field = &entry->fields[j];
-
-		if (dfield_is_null(field)) {
-			fputs("\n NULL;", f);
-		} else {
-			ulint	field_len	= dfield_get_len(field);
-			ulint	len		= ut_min(field_len, 20);
-			if (dfield_is_ext(field)) {
-				fputs("\nE", f);
-			} else {
-				fputs("\n ", f);
-			}
-			ut_print_buf(f, dfield_get_data(field), len);
-			if (len != field_len) {
-				fprintf(f, " (total %lu bytes)", field_len);
-			}
-		}
-	}
-	putc('\n', f);
-}
-#endif /* UNIV_DEBUG */
 
 /******************************************************//**
 Encode an index record. */
@@ -371,9 +318,9 @@ row_merge_buf_add(
 				bucket = *doc_id % fts_sort_pll_degree;
 
 				UT_LIST_ADD_LAST(
-					doc_list,
 					psort_info[bucket].fts_doc_list,
 					doc_item);
+
 				n_row_added = 1;
 				continue;
 			}
@@ -658,19 +605,20 @@ row_merge_buf_write(
 	ulint			n_fields= dict_index_get_n_fields(index);
 	byte*			b	= &block[0];
 
+	DBUG_ENTER("row_merge_buf_write");
+
 	for (ulint i = 0; i < buf->n_tuples; i++) {
 		const mtuple_t*	entry	= &buf->tuples[i];
 
 		row_merge_buf_encode(&b, index, entry, n_fields);
 		ut_ad(b < &block[srv_sort_buf_size]);
-#ifdef UNIV_DEBUG
-		if (row_merge_print_write) {
-			fprintf(stderr, "row_merge_buf_write %p,%d,%lu %lu",
-				(void*) b, of->fd, (ulong) of->offset,
-				(ulong) i);
-			row_merge_tuple_print(stderr, entry, n_fields);
-		}
-#endif /* UNIV_DEBUG */
+
+		DBUG_PRINT("ib_merge_sort",
+			   ("%p,fd=%d,%lu %lu: %s",
+			    reinterpret_cast<const void*>(b), of->fd,
+			    ulong(of->offset), ulong(i),
+			    rec_printer(entry->fields,
+					n_fields).str().c_str()));
 	}
 
 	/* Write an "end-of-chunk" marker. */
@@ -682,12 +630,11 @@ row_merge_buf_write(
 	to avoid bogus warnings. */
 	memset(b, 0xff, &block[srv_sort_buf_size] - b);
 #endif /* UNIV_DEBUG_VALGRIND */
-#ifdef UNIV_DEBUG
-	if (row_merge_print_write) {
-		fprintf(stderr, "row_merge_buf_write %p,%d,%lu EOF\n",
-			(void*) b, of->fd, (ulong) of->offset);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_merge_sort",
+		   ("write %p,%d,%lu EOF",
+		    reinterpret_cast<const void*>(b), of->fd,
+		    ulong(of->offset)));
+	DBUG_VOID_RETURN;
 }
 
 /******************************************************//**
@@ -737,21 +684,9 @@ row_merge_read(
 	os_offset_t	ofs = ((os_offset_t) offset) * srv_sort_buf_size;
 	ibool		success;
 
-	DBUG_EXECUTE_IF("row_merge_read_failure", return(FALSE););
-
-#ifdef UNIV_DEBUG
-	if (row_merge_print_block_read) {
-		fprintf(stderr, "row_merge_read fd=%d ofs=%lu\n",
-			fd, (ulong) offset);
-	}
-#endif /* UNIV_DEBUG */
-
-#ifdef UNIV_DEBUG
-	if (row_merge_print_block_read) {
-		fprintf(stderr, "row_merge_read fd=%d ofs=%lu\n",
-			fd, (ulong) offset);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_ENTER("row_merge_read");
+	DBUG_PRINT("ib_merge_sort", ("fd=%d ofs=" UINT64PF, fd, ofs));
+	DBUG_EXECUTE_IF("row_merge_read_failure", DBUG_RETURN(FALSE););
 
 	success = os_file_read_no_error_handling(OS_FILE_FROM_FD(fd), buf,
 						 ofs, srv_sort_buf_size);
@@ -761,13 +696,11 @@ row_merge_read(
 #endif /* POSIX_FADV_DONTNEED */
 
 	if (UNIV_UNLIKELY(!success)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: failed to read merge block at "UINT64PF"\n",
-			ofs);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"failed to read merge block at " UINT64PF, ofs);
 	}
 
-	return(UNIV_LIKELY(success));
+	DBUG_RETURN(success);
 }
 
 /********************************************************************//**
@@ -786,16 +719,11 @@ row_merge_write(
 	os_offset_t	ofs = buf_len * (os_offset_t) offset;
 	ibool		ret;
 
-	DBUG_EXECUTE_IF("row_merge_write_failure", return(FALSE););
+	DBUG_ENTER("row_merge_write");
+	DBUG_PRINT("ib_merge_sort", ("fd=%d ofs=" UINT64PF, fd, ofs));
+	DBUG_EXECUTE_IF("row_merge_write_failure", DBUG_RETURN(FALSE););
 
 	ret = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf, ofs, buf_len);
-
-#ifdef UNIV_DEBUG
-	if (row_merge_print_block_write) {
-		fprintf(stderr, "row_merge_write fd=%d ofs=%lu\n",
-			fd, (ulong) offset);
-	}
-#endif /* UNIV_DEBUG */
 
 #ifdef POSIX_FADV_DONTNEED
 	/* The block will be needed on the next merge pass,
@@ -803,7 +731,7 @@ row_merge_write(
 	posix_fadvise(fd, ofs, buf_len, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
-	return(UNIV_LIKELY(ret));
+	DBUG_RETURN(ret);
 }
 
 /********************************************************************//**
@@ -840,19 +768,19 @@ row_merge_read_rec(
 	ut_ad(*offsets == 1 + REC_OFFS_HEADER_SIZE
 	      + dict_index_get_n_fields(index));
 
+	DBUG_ENTER("row_merge_read_rec");
+
 	extra_size = *b++;
 
 	if (UNIV_UNLIKELY(!extra_size)) {
 		/* End of list */
 		*mrec = NULL;
-#ifdef UNIV_DEBUG
-		if (row_merge_print_read) {
-			fprintf(stderr, "row_merge_read %p,%p,%d,%lu EOF\n",
-				(const void*) b, (const void*) block,
-				fd, (ulong) *foffs);
-		}
-#endif /* UNIV_DEBUG */
-		return(NULL);
+		DBUG_PRINT("ib_merge_sort",
+			   ("read %p,%p,%d,%lu EOF\n",
+			    reinterpret_cast<const void*>(b),
+			    reinterpret_cast<const void*>(block),
+			    fd, ulong(*foffs)));
+		DBUG_RETURN(NULL);
 	}
 
 	if (extra_size >= 0x80) {
@@ -863,7 +791,7 @@ row_merge_read_rec(
 err_exit:
 				/* Signal I/O error. */
 				*mrec = b;
-				return(NULL);
+				DBUG_RETURN(NULL);
 			}
 
 			/* Wrap around to the beginning of the buffer. */
@@ -962,17 +890,13 @@ err_exit:
 	b += extra_size + data_size - avail_size;
 
 func_exit:
-#ifdef UNIV_DEBUG
-	if (row_merge_print_read) {
-		fprintf(stderr, "row_merge_read %p,%p,%d,%lu ",
-			(const void*) b, (const void*) block,
-			fd, (ulong) *foffs);
-		rec_print_comp(stderr, *mrec, offsets);
-		putc('\n', stderr);
-	}
-#endif /* UNIV_DEBUG */
-
-	return(b);
+	DBUG_PRINT("ib_merge_sort",
+		   ("%p,%p,fd=%d,%lu: %s",
+		    reinterpret_cast<const void*>(b),
+		    reinterpret_cast<const void*>(block),
+		    fd, ulong(*foffs),
+		    rec_printer(*mrec, 0, offsets).str().c_str()));
+	DBUG_RETURN(b);
 }
 
 /********************************************************************//**
@@ -983,29 +907,28 @@ row_merge_write_rec_low(
 /*====================*/
 	byte*		b,	/*!< out: buffer */
 	ulint		e,	/*!< in: encoded extra_size */
-#ifdef UNIV_DEBUG
+#ifndef DBUG_OFF
 	ulint		size,	/*!< in: total size to write */
 	int		fd,	/*!< in: file descriptor */
 	ulint		foffs,	/*!< in: file offset */
-#endif /* UNIV_DEBUG */
+#endif /* !DBUG_OFF */
 	const mrec_t*	mrec,	/*!< in: record to write */
 	const ulint*	offsets)/*!< in: offsets of mrec */
-#ifndef UNIV_DEBUG
+#ifdef DBUG_OFF
 # define row_merge_write_rec_low(b, e, size, fd, foffs, mrec, offsets)	\
 	row_merge_write_rec_low(b, e, mrec, offsets)
-#endif /* !UNIV_DEBUG */
+#endif /* DBUG_OFF */
 {
-#ifdef UNIV_DEBUG
-	const byte* const end = b + size;
-	ut_ad(e == rec_offs_extra_size(offsets) + 1);
+	DBUG_ENTER("row_merge_write_rec_low");
 
-	if (row_merge_print_write) {
-		fprintf(stderr, "row_merge_write %p,%d,%lu ",
-			(void*) b, fd, (ulong) foffs);
-		rec_print_comp(stderr, mrec, offsets);
-		putc('\n', stderr);
-	}
-#endif /* UNIV_DEBUG */
+#ifndef DBUG_OFF
+	const byte* const end = b + size;
+#endif /* DBUG_OFF */
+	DBUG_ASSERT(e == rec_offs_extra_size(offsets) + 1);
+	DBUG_PRINT("ib_merge_sort",
+		   ("%p,fd=%d,%lu: %s",
+		    reinterpret_cast<const void*>(b), fd, ulong(foffs),
+		    rec_printer(mrec, 0, offsets).str().c_str()));
 
 	if (e < 0x80) {
 		*b++ = (byte) e;
@@ -1015,7 +938,8 @@ row_merge_write_rec_low(
 	}
 
 	memcpy(b, mrec - rec_offs_extra_size(offsets), rec_offs_size(offsets));
-	ut_ad(b + rec_offs_size(offsets) == end);
+	DBUG_ASSERT(b + rec_offs_size(offsets) == end);
+	DBUG_VOID_RETURN;
 }
 
 /********************************************************************//**
@@ -1101,12 +1025,13 @@ row_merge_write_eof(
 	ut_ad(b >= &block[0]);
 	ut_ad(b < &block[srv_sort_buf_size]);
 	ut_ad(foffs);
-#ifdef UNIV_DEBUG
-	if (row_merge_print_write) {
-		fprintf(stderr, "row_merge_write %p,%p,%d,%lu EOF\n",
-			(void*) b, (void*) block, fd, (ulong) *foffs);
-	}
-#endif /* UNIV_DEBUG */
+
+	DBUG_ENTER("row_merge_write_eof");
+	DBUG_PRINT("ib_merge_sort",
+		   ("%p,%p,fd=%d,%lu",
+		    reinterpret_cast<const void*>(b),
+		    reinterpret_cast<const void*>(block),
+		    fd, ulong(*foffs)));
 
 	*b++ = 0;
 	UNIV_MEM_ASSERT_RW(&block[0], b - &block[0]);
@@ -1118,11 +1043,11 @@ row_merge_write_eof(
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	if (!row_merge_write(fd, (*foffs)++, block)) {
-		return(NULL);
+		DBUG_RETURN(NULL);
 	}
 
 	UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
-	return(&block[0]);
+	DBUG_RETURN(&block[0]);
 }
 
 /********************************************************************//**
@@ -1738,7 +1663,6 @@ wait_again:
 		} while (!all_exit && trial_count < max_trial_count);
 
 		if (!all_exit) {
-			ut_ad(0);
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"Not all child sort threads exited"
 				" when creating FTS index '%s'",
@@ -1827,16 +1751,11 @@ row_merge_blocks(
 	ulint*		offsets0;/* offsets of mrec0 */
 	ulint*		offsets1;/* offsets of mrec1 */
 
-#ifdef UNIV_DEBUG
-	if (row_merge_print_block) {
-		fprintf(stderr,
-			"row_merge_blocks fd=%d ofs=%lu + fd=%d ofs=%lu"
-			" = fd=%d ofs=%lu\n",
-			file->fd, (ulong) *foffs0,
-			file->fd, (ulong) *foffs1,
-			of->fd, (ulong) of->offset);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_ENTER("row_merge_blocks");
+	DBUG_PRINT("ib_merge_sort",
+		   ("fd=%d,%lu+%lu to fd=%d,%lu",
+		    file->fd, ulong(*foffs0), ulong(*foffs1),
+		    of->fd, ulong(of->offset)));
 
 	heap = row_merge_heap_create(dup->index, &buf, &offsets0, &offsets1);
 
@@ -1847,7 +1766,7 @@ row_merge_blocks(
 	    || !row_merge_read(file->fd, *foffs1, &block[srv_sort_buf_size])) {
 corrupt:
 		mem_heap_free(heap);
-		return(DB_CORRUPTION);
+		DBUG_RETURN(DB_CORRUPTION);
 	}
 
 	b0 = &block[0];
@@ -1873,7 +1792,7 @@ corrupt:
 				dup->index, dup->table)) {
 		case 0:
 			mem_heap_free(heap);
-			return(DB_DUPLICATE_KEY);
+			DBUG_RETURN(DB_DUPLICATE_KEY);
 		case -1:
 			ROW_MERGE_WRITE_GET_NEXT(0, dup->index, goto merged);
 			break;
@@ -1904,7 +1823,7 @@ done1:
 	mem_heap_free(heap);
 	b2 = row_merge_write_eof(&block[2 * srv_sort_buf_size],
 				 b2, of->fd, &of->offset);
-	return(b2 ? DB_SUCCESS : DB_CORRUPTION);
+	DBUG_RETURN(b2 ? DB_SUCCESS : DB_CORRUPTION);
 }
 
 /*************************************************************//**
@@ -1930,15 +1849,11 @@ row_merge_blocks_copy(
 	ulint*		offsets0;/* offsets of mrec0 */
 	ulint*		offsets1;/* dummy offsets */
 
-#ifdef UNIV_DEBUG
-	if (row_merge_print_block) {
-		fprintf(stderr,
-			"row_merge_blocks_copy fd=%d ofs=%lu"
-			" = fd=%d ofs=%lu\n",
-			file->fd, (ulong) foffs0,
-			of->fd, (ulong) of->offset);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_ENTER("row_merge_blocks_copy");
+	DBUG_PRINT("ib_merge_sort",
+		   ("fd=%d,%lu to fd=%d,%lu",
+		    file->fd, ulong(foffs0),
+		    of->fd, ulong(of->offset)));
 
 	heap = row_merge_heap_create(index, &buf, &offsets0, &offsets1);
 
@@ -1948,7 +1863,7 @@ row_merge_blocks_copy(
 	if (!row_merge_read(file->fd, *foffs0, &block[0])) {
 corrupt:
 		mem_heap_free(heap);
-		return(FALSE);
+		DBUG_RETURN(FALSE);
 	}
 
 	b0 = &block[0];
@@ -1975,9 +1890,9 @@ done0:
 	(*foffs0)++;
 
 	mem_heap_free(heap);
-	return(row_merge_write_eof(&block[2 * srv_sort_buf_size],
-				   b2, of->fd, &of->offset)
-	       != NULL);
+	DBUG_RETURN(row_merge_write_eof(&block[2 * srv_sort_buf_size],
+					b2, of->fd, &of->offset)
+		    != NULL);
 }
 
 /*************************************************************//**
@@ -2544,9 +2459,9 @@ row_merge_drop_index_dict(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: row_merge_drop_index_dict "
-			"failed with error code: %u.\n", (unsigned) error);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"row_merge_drop_index_dict "
+			"failed with error %u", unsigned(error));
 	}
 
 	trx->op_info = "";
@@ -2618,9 +2533,9 @@ row_merge_drop_indexes_dict(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: row_merge_drop_indexes_dict "
-			"failed with error code: %u.\n", (unsigned) error);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"row_merge_drop_indexes_dict "
+			"failed with error %u", unsigned(error));
 	}
 
 	trx->op_info = "";
@@ -2868,9 +2783,9 @@ row_merge_drop_temp_indexes(void)
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: row_merge_drop_temp_indexes "
-			"failed with error code: %u.\n", (unsigned) error);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"row_merge_drop_temp_indexes "
+			"failed with error %u", unsigned(error));
 	}
 
 	trx_commit_for_mysql(trx);
@@ -2907,7 +2822,7 @@ row_merge_file_create_low(void)
 	if (fd < 0) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot create temporary merge file");
-		return (-1);
+		return(-1);
 	}
 	return(fd);
 }
@@ -3016,10 +2931,9 @@ row_merge_rename_index_to_add(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: row_merge_rename_index_to_add "
-			 "failed with error code: %u.\n", (unsigned) err);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"row_merge_rename_index_to_add "
+			"failed with error %u", unsigned(err));
 	}
 
 	trx->op_info = "";
@@ -3073,10 +2987,9 @@ row_merge_rename_index_to_drop(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: row_merge_rename_index_to_drop "
-			 "failed with error code: %u.\n", (unsigned) err);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"row_merge_rename_index_to_drop "
+			"failed with error %u", unsigned(err));
 	}
 
 	trx->op_info = "";
@@ -3613,9 +3526,8 @@ wait_again:
 				name++;
 			}
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Finished building "
-				"full-text index %s\n", name);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Finished building full-text index %s", name);
 		}
 	}
 

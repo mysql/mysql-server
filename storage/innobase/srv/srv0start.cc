@@ -2174,10 +2174,6 @@ files_checked:
 		os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
 	}
 
-#ifdef UNIV_DEBUG
-	/* buf_debug_prints = TRUE; */
-#endif /* UNIV_DEBUG */
-
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
 	ut_a(sum_of_new_sizes != ULINT_UNDEFINED);
 
