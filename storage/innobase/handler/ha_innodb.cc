@@ -32,16 +32,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include <sql_table.h>	// explain_filename, nz2, EXPLAIN_PARTITIONS_AS_COMMENT,
-			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
-#include <log.h>
-#include <sql_acl.h>	// PROCESS_ACL
-#include <debug_sync.h> // DEBUG_SYNC
-#include <my_base.h>	// HA_OPTION_*
-#include <mysys_err.h>
-#include <mysql/innodb_priv.h>
-
 /** @file ha_innodb.cc */
+
+#include "ha_prototypes.h"
 
 /* Include necessary InnoDB headers */
 #include "univ.i"
@@ -57,7 +50,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0space.h"
 #include "trx0roll.h"
 #include "trx0trx.h"
-
 #include "trx0sys.h"
 #include "mtr0mtr.h"
 #include "rem0types.h"
@@ -78,7 +70,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0boot.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
-#include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
@@ -411,13 +402,13 @@ static PSI_file_info	all_innodb_files[] = {
 #endif /* HAVE_PSI_INTERFACE */
 
 /** Always normalize table name to lower case on Windows */
-#ifdef __WIN__
+#ifdef _WIN32
 #define normalize_table_name(norm_name, name)           \
 	normalize_table_name_low(norm_name, name, TRUE)
 #else
 #define normalize_table_name(norm_name, name)           \
 	normalize_table_name_low(norm_name, name, FALSE)
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /** Set up InnoDB API callback function array */
 ib_cb_t innodb_api_cb[] = {
@@ -4537,11 +4528,11 @@ ha_innobase::open(
 
 	/* We look for pattern #P# to see if the table is partitioned
 	MySQL table. */
-#ifdef __WIN__
+#ifdef _WIN32
 	is_part = strstr(norm_name, "#p#");
 #else
 	is_part = strstr(norm_name, "#P#");
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	/* Check whether FOREIGN_KEY_CHECKS is set to 0. If so, the table
 	can be opened even if some FK indexes are missing. If not, the table
@@ -4598,7 +4589,7 @@ ha_innobase::open(
 			if (innobase_get_lower_case_table_names() == 1) {
 
 				if (!par_case_name_set) {
-#ifndef __WIN__
+#ifndef _WIN32
 					/* Check for the table using lower
 					case name, including the partition
 					separator "P" */
@@ -4621,7 +4612,7 @@ ha_innobase::open(
 			}
 
 			if (ib_table) {
-#ifndef __WIN__
+#ifndef _WIN32
 				sql_print_warning("Partition table %s opened "
 						  "after converting to lower "
 						  "case. The table may have "
@@ -9005,7 +8996,7 @@ ha_innobase::parse_table_name(
 	bool		use_tablespace = flags2 & DICT_TF2_USE_TABLESPACE;
 	DBUG_ENTER("ha_innobase::parse_table_name");
 
-#ifdef __WIN__
+#ifdef _WIN32
 	/* Names passed in from server are in two formats:
 	1. <database_name>/<table_name>: for normal table creation
 	2. full path: for temp table creation, or DATA DIRECTORY.
@@ -9928,16 +9919,16 @@ ha_innobase::delete_table(
 	if (err == DB_TABLE_NOT_FOUND
 	    && innobase_get_lower_case_table_names() == 1) {
 		char*	is_part = NULL;
-#ifdef __WIN__
+#ifdef _WIN32
 		is_part = strstr(norm_name, "#p#");
 #else
 		is_part = strstr(norm_name, "#P#");
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 		if (is_part) {
 			char	par_case_name[FN_REFLEN];
 
-#ifndef __WIN__
+#ifndef _WIN32
 			/* Check for the table using lower
 			case name, including the partition
 			separator "P" */
@@ -10026,7 +10017,7 @@ innobase_drop_database(
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
 	namebuf[len + 1] = '\0';
-#ifdef	__WIN__
+#ifdef	_WIN32
 	innobase_casedn_str(namebuf);
 #endif
 	trx = innobase_trx_allocate(thd);
@@ -10101,15 +10092,15 @@ innobase_rename_table(
 		if (error == DB_TABLE_NOT_FOUND
 		    && innobase_get_lower_case_table_names() == 1) {
 			char*	is_part = NULL;
-#ifdef __WIN__
+#ifdef _WIN32
 			is_part = strstr(norm_from, "#p#");
 #else
 			is_part = strstr(norm_from, "#P#");
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 			if (is_part) {
 				char	par_case_name[FN_REFLEN];
-#ifndef __WIN__
+#ifndef _WIN32
 				/* Check for the table using lower
 				case name, including the partition
 				separator "P" */
@@ -10140,7 +10131,7 @@ innobase_rename_table(
 				fputs(" failed!\n", ef);
 			}
 		} else {
-#ifndef __WIN__
+#ifndef _WIN32
 			sql_print_warning("Rename partition table %s "
 					  "succeeds after converting to lower "
 					  "case. The table may have "
@@ -10155,7 +10146,7 @@ innobase_rename_table(
 					  "moved from a case sensitive "
 					  "file system.\n",
 					  norm_from);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 		}
 	}
 
@@ -14859,7 +14850,7 @@ exit:
 	return;
 }
 
-#ifdef __WIN__
+#ifdef _WIN32
 /*************************************************************//**
 Validate if passed-in "value" is a valid value for
 innodb_buffer_pool_filename. On Windows, file names with colon (:)
@@ -14902,9 +14893,9 @@ innodb_srv_buf_dump_filename_validate(
 
 	return(1);
 }
-#else /* __WIN__ */
+#else /* _WIN32 */
 # define innodb_srv_buf_dump_filename_validate NULL
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #ifdef UNIV_DEBUG
 static char* srv_buffer_pool_evict;
@@ -16611,7 +16602,7 @@ ib_senderrf(
 
 	va_start(args, code);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	int		size = _vscprintf(format, args) + 1;
 	str = static_cast<char*>(malloc(size));
 	str[size - 1] = 0x0;
@@ -16622,7 +16613,7 @@ ib_senderrf(
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	my_vsnprintf(str, BUFSIZ, format, args);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	Sql_condition::enum_severity_level	l;
 
@@ -16687,7 +16678,7 @@ ib_errf(
 
 	va_start(args, format);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	int		size = _vscprintf(format, args) + 1;
 	str = static_cast<char*>(malloc(size));
 	str[size - 1] = 0x0;
@@ -16698,7 +16689,7 @@ ib_errf(
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	my_vsnprintf(str, BUFSIZ, format, args);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	ib_senderrf(thd, level, code, str);
 
@@ -16721,7 +16712,7 @@ ib_logf(
 
 	va_start(args, format);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	int		size = _vscprintf(format, args) + 1;
 	str = static_cast<char*>(malloc(size));
 	str[size - 1] = 0x0;
@@ -16732,7 +16723,7 @@ ib_logf(
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	my_vsnprintf(str, BUFSIZ, format, args);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	switch(level) {
 	case IB_LOG_LEVEL_INFO:

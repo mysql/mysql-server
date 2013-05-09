@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1739,7 +1739,7 @@ int ha_archive::extra(enum ha_extra_function operation)
   int ret= 0;
   DBUG_ENTER("ha_archive::extra");
   /* On windows we need to close all files before rename/delete. */
-#ifdef __WIN__
+#ifdef _WIN32
   switch (operation)
   {
   case HA_EXTRA_PREPARE_FOR_RENAME:

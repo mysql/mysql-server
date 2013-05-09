@@ -829,7 +829,7 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
   {
     Group_cache::enum_add_group_status status= 
       group_cache.add_logged_group(thd, get_byte_position());
-    if (status == Group_cache::ERROR)
+    if (status == Group_cache::ERROR_GROUP)
       DBUG_RETURN(1);
     else if (status == Group_cache::APPEND_NEW_GROUP)
     {
@@ -899,7 +899,7 @@ static int write_one_empty_group_to_cache(THD *thd,
 #ifdef NON_ERROR_GTID
   IO_CACHE *cache= &cache_data->cache_log;
   Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
-  if (status == Group_cache::ERROR)
+  if (status == Group_cache::ERROR_GROUP)
     DBUG_RETURN(1);
   DBUG_ASSERT(status == Group_cache::APPEND_NEW_GROUP);
   Gtid_specification spec= { GTID_GROUP, gtid };
@@ -1455,15 +1455,15 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     rollback.
    */
   if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT)
-    if (int error= ha_rollback_low(thd, all))
-      DBUG_RETURN(error);
+    if ((error= ha_rollback_low(thd, all)))
+      goto end;
 
   /*
     If there is no cache manager, or if there is nothing in the
     caches, there are no caches to roll back, so we're trivially done.
    */
   if (cache_mngr == NULL || cache_mngr->is_binlog_empty())
-    DBUG_RETURN(0);
+    goto end;
 
   DBUG_PRINT("debug",
              ("all.cannot_safely_rollback(): %s, trx_cache_empty: %s",
@@ -1485,8 +1485,8 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   }
   else if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
-    if (int error= cache_mngr->stmt_cache.finalize(thd))
-      DBUG_RETURN(error);
+    if ((error= cache_mngr->stmt_cache.finalize(thd)))
+      goto end;
     stuff_logged= true;
   }
 
@@ -1575,8 +1575,15 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       a cache and need to be rolled back.
     */
     error |= cache_mngr->trx_cache.truncate(thd, all);
-    DBUG_RETURN(error);
   }
+
+end:
+  /*
+    When a statement errors out on auto-commit mode it is rollback
+    implicitly, so the same should happen to its GTID.
+  */
+  if (!thd->in_active_multi_stmt_transaction())
+    gtid_rollback(thd);
 
   DBUG_PRINT("return", ("error: %d", error));
   DBUG_RETURN(error);
@@ -5959,7 +5966,6 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         goto err;
       }
 
-      thd->variables.gtid_next.set_undefined();
       global_sid_lock->rdlock();
       if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
       {
@@ -6906,7 +6912,6 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
   else if (thd->transaction.flags.xid_written)
     dec_prep_xids(thd);
 
-  thd->variables.gtid_next.set_undefined();
   /*
     Remove committed GTID from owned_gtids, it was already logged on
     MYSQL_BIN_LOG::write_cache().
@@ -6929,18 +6934,17 @@ static inline int call_after_sync_hook(THD *queue_head)
 {
   const char *log_file= NULL;
   my_off_t pos= 0;
-  THD *tail= NULL;
+
+  if (NO_HOOK(binlog_storage))
+    return 0;
 
   DBUG_ASSERT(queue_head != NULL);
-  while (queue_head)
-  {
-    tail= queue_head;
-    queue_head= queue_head->next_to_commit;
-  }
+  for (THD *thd= queue_head; thd != NULL; thd= thd->next_to_commit)
+    if (likely(thd->commit_error == THD::CE_NONE))
+      thd->get_trans_pos(&log_file, &pos);
 
-  tail->get_trans_pos(&log_file, &pos);
   if (DBUG_EVALUATE_IF("simulate_after_sync_hook_error", 1, 0) ||
-      RUN_HOOK(binlog_storage, after_sync, (tail, log_file, pos)))
+      RUN_HOOK(binlog_storage, after_sync, (queue_head, log_file, pos)))
   {
     sql_print_error("Failed to run 'after_sync' hooks");
     return ER_ERROR_ON_WRITE;

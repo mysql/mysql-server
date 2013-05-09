@@ -212,9 +212,9 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
-#ifdef __WIN__
+#ifdef _WIN32
 extern ibool	srv_use_native_conditions;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server undo tablespaces directory, can be absolute path. */
@@ -365,20 +365,6 @@ extern ulint	srv_available_undo_logs;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
-
-#ifdef UNIV_DEBUG
-extern	ibool	srv_print_thread_releases;
-extern	ibool	srv_print_lock_waits;
-extern	ibool	srv_print_buf_io;
-extern	ibool	srv_print_log_io;
-extern	ibool	srv_print_latch_waits;
-#else /* UNIV_DEBUG */
-# define srv_print_thread_releases	FALSE
-# define srv_print_lock_waits		FALSE
-# define srv_print_buf_io		FALSE
-# define srv_print_log_io		FALSE
-# define srv_print_latch_waits		FALSE
-#endif /* UNIV_DEBUG */
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 extern my_bool	srv_ibuf_disable_background_merge;

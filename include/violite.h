@@ -60,7 +60,7 @@ enum enum_vio_io_event
 
 Vio* vio_new(my_socket sd, enum enum_vio_type type, uint flags);
 Vio*  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
-#ifdef __WIN__
+#ifdef _WIN32
 Vio* vio_new_win32pipe(HANDLE hPipe);
 Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
                                 HANDLE handle_map,
@@ -71,7 +71,7 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
                                 HANDLE event_conn_closed);
 #else
 #define HANDLE void *
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 void    vio_delete(Vio* vio);
 int vio_shutdown(Vio* vio);

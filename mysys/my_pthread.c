@@ -86,7 +86,7 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res)
 ** Author: Gary Wisniewski <garyw@spidereye.com.au>, much modified by Monty
 ****************************************************************************/
 
-#if !defined(HAVE_SIGWAIT) && !defined(sigwait) && !defined(__WIN__)
+#if !defined(HAVE_SIGWAIT) && !defined(sigwait) && !defined(_WIN32)
 
 static sigset_t sigwait_set,rev_sigwait_set,px_recd;
 
