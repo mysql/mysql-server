@@ -324,14 +324,6 @@ UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
 UNIV_INTERN ulong	srv_spin_wait_delay	= 6;
 UNIV_INTERN ibool	srv_priority_boost	= TRUE;
 
-#ifdef UNIV_DEBUG
-UNIV_INTERN ibool	srv_print_thread_releases	= FALSE;
-UNIV_INTERN ibool	srv_print_lock_waits		= FALSE;
-UNIV_INTERN ibool	srv_print_buf_io		= FALSE;
-UNIV_INTERN ibool	srv_print_log_io		= FALSE;
-UNIV_INTERN ibool	srv_print_latch_waits		= FALSE;
-#endif /* UNIV_DEBUG */
-
 static ulint		srv_n_rows_inserted_old		= 0;
 static ulint		srv_n_rows_updated_old		= 0;
 static ulint		srv_n_rows_deleted_old		= 0;
@@ -925,7 +917,7 @@ srv_init(void)
 
 		srv_buf_dump_event = os_event_create(0);
 
-		UT_LIST_INIT(srv_sys->tasks);
+		UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
 	}
 
 	/* page_zip_stat_per_index_mutex is acquired from:
@@ -1438,19 +1430,23 @@ srv_export_innodb_status(void)
 		: 0;
 	rw_lock_s_unlock(&purge_sys->latch);
 
-	if (!done_trx_no || trx_sys->rw_max_trx_id < done_trx_no - 1) {
+	mutex_enter(&trx_sys->mutex);
+	trx_id_t	max_trx_id	= trx_sys->rw_max_trx_id;
+	mutex_exit(&trx_sys->mutex);
+
+	if (!done_trx_no || max_trx_id < done_trx_no - 1) {
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-			(ulint) (trx_sys->rw_max_trx_id - done_trx_no + 1);
+			(ulint) (max_trx_id - done_trx_no + 1);
 	}
 
 	if (!up_limit_id
-	    || trx_sys->rw_max_trx_id < up_limit_id) {
+	    || max_trx_id < up_limit_id) {
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-			(ulint) (trx_sys->rw_max_trx_id - up_limit_id);
+			(ulint) (max_trx_id - up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -2389,7 +2385,7 @@ srv_task_execute(void)
 
 		ut_a(que_node_get_type(thr->child) == QUE_NODE_PURGE);
 
-		UT_LIST_REMOVE(queue, srv_sys->tasks, thr);
+		UT_LIST_REMOVE(srv_sys->tasks, thr);
 	}
 
 	mutex_exit(&srv_sys->tasks_mutex);
@@ -2789,7 +2785,7 @@ srv_que_task_enqueue_low(
 	ut_ad(!srv_read_only_mode);
 	mutex_enter(&srv_sys->tasks_mutex);
 
-	UT_LIST_ADD_LAST(queue, srv_sys->tasks, thr);
+	UT_LIST_ADD_LAST(srv_sys->tasks, thr);
 
 	mutex_exit(&srv_sys->tasks_mutex);
 

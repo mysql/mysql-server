@@ -677,7 +677,7 @@ fil_node_create(
 
 	node->space = space;
 
-	UT_LIST_ADD_LAST(chain, space->chain, node);
+	UT_LIST_ADD_LAST(space->chain, node);
 
 	if (id < SRV_LOG_SPACE_FIRST_ID && fil_system->max_assigned_id < id) {
 
@@ -869,7 +869,7 @@ add_size:
 	if (fil_space_belongs_in_lru(space)) {
 
 		/* Put the node to the LRU list */
-		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
+		UT_LIST_ADD_FIRST(system->LRU, node);
 	}
 }
 
@@ -910,7 +910,7 @@ fil_node_close_file(
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
 
 		/* The node is in the LRU list, remove it */
-		UT_LIST_REMOVE(LRU, system->LRU, node);
+		UT_LIST_REMOVE(system->LRU, node);
 	}
 }
 
@@ -1154,9 +1154,7 @@ fil_node_free(
 
 			space->is_in_unflushed_spaces = false;
 
-			UT_LIST_REMOVE(unflushed_spaces,
-				       system->unflushed_spaces,
-				       space);
+			UT_LIST_REMOVE(system->unflushed_spaces, space);
 		}
 
 		fil_node_close_file(node, system);
@@ -1164,7 +1162,7 @@ fil_node_free(
 
 	space->size -= node->size;
 
-	UT_LIST_REMOVE(chain, space->chain, node);
+	UT_LIST_REMOVE(space->chain, node);
 
 	os_event_destroy(node->sync_event);
 	mem_free(node->name);
@@ -1243,10 +1241,13 @@ fil_space_create(
 	space->name = mem_strdup(name);
 	space->id = id;
 
+ 	UT_LIST_INIT(space->chain, &fil_node_t::chain);
+
 	fil_system->tablespace_version++;
 	space->tablespace_version = fil_system->tablespace_version;
 
-	if (purpose == FIL_TABLESPACE && !recv_recovery_on
+	if (purpose == FIL_TABLESPACE
+	    && !recv_recovery_on
 	    && id > fil_system->max_assigned_id) {
 
 		if (!fil_system->space_id_reuse_warned) {
@@ -1275,7 +1276,7 @@ fil_space_create(
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = false;
 
-	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
+	UT_LIST_ADD_LAST(fil_system->space_list, space);
 
 	mutex_exit(&fil_system->mutex);
 
@@ -1387,11 +1388,10 @@ fil_space_free(
 		ut_ad(!fil_buffering_disabled(space));
 		space->is_in_unflushed_spaces = false;
 
-		UT_LIST_REMOVE(unflushed_spaces, fil_system->unflushed_spaces,
-			       space);
+		UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 	}
 
-	UT_LIST_REMOVE(space_list, fil_system->space_list, space);
+	UT_LIST_REMOVE(fil_system->space_list, space);
 
 	ut_a(space->magic_n == FIL_SPACE_MAGIC_N);
 	ut_a(0 == space->n_pending_flushes);
@@ -1628,15 +1628,18 @@ fil_init(
 	ut_a(hash_size > 0);
 	ut_a(max_n_open > 0);
 
-	fil_system = static_cast<fil_system_t*>(
-		mem_zalloc(sizeof(fil_system_t)));
+	fil_system = static_cast<fil_system_t*>(mem_zalloc(sizeof(*fil_system)));
 
 	mutex_create("fil_system", &fil_system->mutex);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
 
-	UT_LIST_INIT(fil_system->LRU);
+	UT_LIST_INIT(fil_system->LRU, &fil_node_t::LRU);
+	UT_LIST_INIT(fil_system->space_list, &fil_space_t::space_list);
+
+	UT_LIST_INIT(fil_system->unflushed_spaces,
+		     &fil_space_t::unflushed_spaces);
 
 	fil_system->max_n_open = max_n_open;
 }
@@ -5082,7 +5085,7 @@ fil_node_prepare_for_io(
 
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
 
-		UT_LIST_REMOVE(LRU, system->LRU, node);
+		UT_LIST_REMOVE(system->LRU, node);
 	}
 
 	node->n_pending++;
@@ -5125,16 +5128,16 @@ fil_node_complete_io(
 		} else if (!node->space->is_in_unflushed_spaces) {
 
 			node->space->is_in_unflushed_spaces = true;
-			UT_LIST_ADD_FIRST(unflushed_spaces,
-					  system->unflushed_spaces,
-					  node->space);
+
+			UT_LIST_ADD_FIRST(
+				system->unflushed_spaces, node->space);
 		}
 	}
 
 	if (node->n_pending == 0 && fil_space_belongs_in_lru(node->space)) {
 
 		/* The node must be put back to the LRU list */
-		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
+		UT_LIST_ADD_FIRST(system->LRU, node);
 	}
 }
 
@@ -5588,7 +5591,6 @@ skip_flush:
 				space->is_in_unflushed_spaces = false;
 
 				UT_LIST_REMOVE(
-					unflushed_spaces,
 					fil_system->unflushed_spaces,
 					space);
 			}
@@ -5690,10 +5692,9 @@ fil_validate(void)
 				HASH_GET_FIRST(fil_system->spaces, i));
 		     space != 0;
 		     space = static_cast<fil_space_t*>(
-			     	HASH_GET_NEXT(hash, space))) {
+				HASH_GET_NEXT(hash, space))) {
 
-			UT_LIST_VALIDATE(
-				chain, fil_node_t, space->chain, Check());
+			UT_LIST_VALIDATE(space->chain, Check());
 
 			for (fil_node = UT_LIST_GET_FIRST(space->chain);
 			     fil_node != 0;
@@ -5712,7 +5713,7 @@ fil_validate(void)
 
 	ut_a(fil_system->n_open == n_open);
 
-	UT_LIST_CHECK(LRU, fil_node_t, fil_system->LRU);
+	UT_LIST_CHECK(fil_system->LRU);
 
 	for (fil_node = UT_LIST_GET_FIRST(fil_system->LRU);
 	     fil_node != 0;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -57,8 +57,6 @@ struct log_group_t;
 #ifdef UNIV_DEBUG
 /** Flag: write to log file? */
 extern	ibool	log_do_write;
-/** Flag: enable debug output when writing to the log? */
-extern	ibool	log_debug_writes;
 #else /* UNIV_DEBUG */
 /** Write to log */
 # define log_do_write TRUE

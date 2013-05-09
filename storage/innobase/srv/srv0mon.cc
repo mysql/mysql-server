@@ -32,6 +32,7 @@ Created 12/9/2009 Jimmy Yang
 #include "buf0buf.h"
 #include "trx0sys.h"
 #include "trx0rseg.h"
+#include "dict0mem.h"
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
 #ifdef UNIV_NONINL

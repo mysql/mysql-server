@@ -79,10 +79,10 @@ ut_mem_init(void)
 /*=============*/
 {
 	ut_a(!ut_mem_block_list_inited);
-
 	mutex_create("ut_list_mutex", &ut_list_mutex);
 
-	UT_LIST_INIT(ut_mem_block_list);
+	UT_LIST_INIT(ut_mem_block_list, &ut_mem_block_t::mem_block_list);
+
 	ut_mem_block_list_inited = TRUE;
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -194,8 +194,7 @@ retry:
 
 	ut_total_allocated_memory += n + sizeof(ut_mem_block_t);
 
-	UT_LIST_ADD_FIRST(mem_block_list, ut_mem_block_list,
-			  ((ut_mem_block_t*) ret));
+	UT_LIST_ADD_FIRST(ut_mem_block_list, ((ut_mem_block_t*) ret));
 	mutex_exit(&ut_list_mutex);
 
 	return((void*)((byte*) ret + sizeof(ut_mem_block_t)));
@@ -235,7 +234,8 @@ ut_free(
 
 	ut_total_allocated_memory -= block->size;
 
-	UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
+	UT_LIST_REMOVE(ut_mem_block_list, block);
+
 	free(block);
 
 	mutex_exit(&ut_list_mutex);
@@ -345,7 +345,8 @@ ut_free_all_mem(void)
 
 		ut_total_allocated_memory -= block->size;
 
-		UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
+		UT_LIST_REMOVE(ut_mem_block_list, block);
+
 		free(block);
 	}
 
