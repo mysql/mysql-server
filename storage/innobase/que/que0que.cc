@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,12 +45,6 @@ Created 5/27/1996 Heikki Tuuri
 #include "pars0types.h"
 
 #define QUE_MAX_LOOPS_WITHOUT_CHECK	16
-
-#ifdef UNIV_DEBUG
-/* If the following flag is set TRUE, the module will print trace info
-of SQL execution in the UNIV_SQL_DEBUG version */
-UNIV_INTERN ibool	que_trace_on		= FALSE;
-#endif /* UNIV_DEBUG */
 
 /* Short introduction to query graphs
    ==================================
@@ -944,68 +938,64 @@ que_node_get_containing_loop_node(
 	return(node);
 }
 
-/**********************************************************************//**
-Prints info of an SQL query graph node. */
-UNIV_INTERN
-void
-que_node_print_info(
-/*================*/
-	que_node_t*	node)	/*!< in: query graph node */
+#ifndef DBUG_OFF
+/** Gets information of an SQL query graph node.
+@return type description */
+static __attribute__((warn_unused_result, nonnull))
+const char*
+que_node_type_string(
+/*=================*/
+	const que_node_t*	node)	/*!< in: query graph node */
 {
-	ulint		type;
-	const char*	str;
-
-	type = que_node_get_type(node);
-
-	if (type == QUE_NODE_SELECT) {
-		str = "SELECT";
-	} else if (type == QUE_NODE_INSERT) {
-		str = "INSERT";
-	} else if (type == QUE_NODE_UPDATE) {
-		str = "UPDATE";
-	} else if (type == QUE_NODE_WHILE) {
-		str = "WHILE";
-	} else if (type == QUE_NODE_ASSIGNMENT) {
-		str = "ASSIGNMENT";
-	} else if (type == QUE_NODE_IF) {
-		str = "IF";
-	} else if (type == QUE_NODE_FETCH) {
-		str = "FETCH";
-	} else if (type == QUE_NODE_OPEN) {
-		str = "OPEN";
-	} else if (type == QUE_NODE_PROC) {
-		str = "STORED PROCEDURE";
-	} else if (type == QUE_NODE_FUNC) {
-		str = "FUNCTION";
-	} else if (type == QUE_NODE_LOCK) {
-		str = "LOCK";
-	} else if (type == QUE_NODE_THR) {
-		str = "QUERY THREAD";
-	} else if (type == QUE_NODE_COMMIT) {
-		str = "COMMIT";
-	} else if (type == QUE_NODE_UNDO) {
-		str = "UNDO ROW";
-	} else if (type == QUE_NODE_PURGE) {
-		str = "PURGE ROW";
-	} else if (type == QUE_NODE_ROLLBACK) {
-		str = "ROLLBACK";
-	} else if (type == QUE_NODE_CREATE_TABLE) {
-		str = "CREATE TABLE";
-	} else if (type == QUE_NODE_CREATE_INDEX) {
-		str = "CREATE INDEX";
-	} else if (type == QUE_NODE_FOR) {
-		str = "FOR LOOP";
-	} else if (type == QUE_NODE_RETURN) {
-		str = "RETURN";
-	} else if (type == QUE_NODE_EXIT) {
-		str = "EXIT";
-	} else {
-		str = "UNKNOWN NODE TYPE";
+	switch (que_node_get_type(node)) {
+	case QUE_NODE_SELECT:
+		return("SELECT");
+	case QUE_NODE_INSERT:
+		return("INSERT");
+	case QUE_NODE_UPDATE:
+		return("UPDATE");
+	case QUE_NODE_WHILE:
+		return("WHILE");
+	case QUE_NODE_ASSIGNMENT:
+		return("ASSIGNMENT");
+	case QUE_NODE_IF:
+		return("IF");
+	case QUE_NODE_FETCH:
+		return("FETCH");
+	case QUE_NODE_OPEN:
+		return("OPEN");
+	case QUE_NODE_PROC:
+		return("STORED PROCEDURE");
+	case QUE_NODE_FUNC:
+		return("FUNCTION");
+	case QUE_NODE_LOCK:
+		return("LOCK");
+	case QUE_NODE_THR:
+		return("QUERY THREAD");
+	case QUE_NODE_COMMIT:
+		return("COMMIT");
+	case QUE_NODE_UNDO:
+		return("UNDO ROW");
+	case QUE_NODE_PURGE:
+		return("PURGE ROW");
+	case QUE_NODE_ROLLBACK:
+		return("ROLLBACK");
+	case QUE_NODE_CREATE_TABLE:
+		return("CREATE TABLE");
+	case QUE_NODE_CREATE_INDEX:
+		return("CREATE INDEX");
+	case QUE_NODE_FOR:
+		return("FOR LOOP");
+	case QUE_NODE_RETURN:
+		return("RETURN");
+	case QUE_NODE_EXIT:
+		return("EXIT");
+	default:
+		ut_ad(0);
+		return("UNKNOWN NODE TYPE");
 	}
-
-	fprintf(stderr, "Node type %lu: %s, address %p\n",
-		(ulong) type, str, (void*) node);
 }
+#endif /* !DBUG_OFF */
 
 /**********************************************************************//**
 Performs an execution step on a query thread.
@@ -1034,12 +1024,10 @@ que_thr_step(
 
 	old_thr = thr;
 
-#ifdef UNIV_DEBUG
-	if (que_trace_on) {
-		fputs("To execute: ", stderr);
-		que_node_print_info(node);
-	}
-#endif
+	DBUG_PRINT("ib_que", ("Execute %u (%s) at %p",
+			      unsigned(type), que_node_type_string(node),
+			      (const void*) node));
+
 	if (type & QUE_NODE_CONTROL_STAT) {
 		if ((thr->prev_node != que_node_get_parent(node))
 		    && que_node_get_next(thr->prev_node)) {

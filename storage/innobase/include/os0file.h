@@ -47,8 +47,6 @@ Created 10/21/1995 Heikki Tuuri
 struct fil_node_t;
 
 extern ibool	os_has_said_disk_full;
-/** Flag: enable debug printout for asynchronous i/o */
-extern ibool	os_aio_print_debug;
 
 /** Number of pending os_file_pread() operations */
 extern ulint	os_file_n_pending_preads;

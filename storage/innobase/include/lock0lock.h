@@ -39,10 +39,6 @@ Created 5/7/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "ut0vec.h"
 
-#ifdef UNIV_DEBUG
-extern ibool	lock_print_waits;
-#endif /* UNIV_DEBUG */
-
 /*********************************************************************//**
 Gets the size of a lock struct.
 @return	size in bytes */
