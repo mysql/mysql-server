@@ -7069,6 +7069,11 @@ ER_SLAVE_MI_INIT_REPOSITORY
 ER_SLAVE_RLI_INIT_REPOSITORY
   eng "Slave failed to initialize relay log info structure from the repository"
 
+ER_ACCESS_DENIED_CHANGE_USER_ERROR 28000 
+        eng "Access denied trying to change to user '%-.48s'@'%-.64s' (using password: %s). Disconnecting."
+        bgn "Отказан достъп при опит за смяна към потребител %-.48s'@'%-.64s' (използвана парола: %s). Затваряне на връзката."
+
+
 #
 #  End of 5.6 error messages.
 #
