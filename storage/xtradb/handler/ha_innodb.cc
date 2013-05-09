@@ -203,7 +203,7 @@ static ulong    innobase_sys_stats_root_page		= 0;
 #endif
 static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
 static uint	innobase_buffer_pool_shm_key		= 0;
-static ulong	srv_lazy_drop_table			= 0;
+static ulint	srv_lazy_drop_table			= 0;
 
 
 
