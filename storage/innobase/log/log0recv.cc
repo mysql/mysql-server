@@ -582,20 +582,15 @@ recv_find_max_checkpoint(
 			log_group_read_checkpoint_info(group, field);
 
 			if (!recv_check_cp_is_consistent(buf)) {
-#ifdef UNIV_DEBUG
-				if (log_debug_writes) {
-					fprintf(stderr,
-						"InnoDB: Checkpoint in group"
-						" %lu at %lu invalid, %lu\n",
-						(ulong) group->id,
-						(ulong) field,
-						(ulong) mach_read_from_4(
-							buf
-							+ LOG_CHECKPOINT_CHECKSUM_1));
-
-				}
-#endif /* UNIV_DEBUG */
-				goto not_consistent;
+				DBUG_PRINT("ib_log",
+					   ("invalid checkpoint, "
+					    "group %u at %u, checksum %#x",
+					    (unsigned) group->id,
+					    (unsigned) field,
+					    (unsigned) mach_read_from_4(
+						    LOG_CHECKPOINT_CHECKSUM_1
+						    + buf)));
+				continue;
 			}
 
 			group->state = LOG_GROUP_OK;
@@ -609,41 +604,32 @@ recv_find_max_checkpoint(
 			checkpoint_no = mach_read_from_8(
 				buf + LOG_CHECKPOINT_NO);
 
-#ifdef UNIV_DEBUG
-			if (log_debug_writes) {
-				fprintf(stderr,
-					"InnoDB: Checkpoint number %lu"
-					" found in group %lu\n",
-					(ulong) checkpoint_no,
-					(ulong) group->id);
-			}
-#endif /* UNIV_DEBUG */
+			DBUG_PRINT("ib_log",
+				   ("checkpoint %u found in group %u",
+				    unsigned(checkpoint_no),
+				    unsigned(group->id)));
 
 			if (checkpoint_no >= max_no) {
 				*max_group = group;
 				*max_field = field;
 				max_no = checkpoint_no;
 			}
-
-not_consistent:
-			;
 		}
 
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
 	if (*max_group == NULL) {
-
-		fprintf(stderr,
-			"InnoDB: No valid checkpoint found.\n"
-			"InnoDB: If this error appears when you are"
-			" creating an InnoDB database,\n"
-			"InnoDB: the problem may be that during"
-			" an earlier attempt you managed\n"
-			"InnoDB: to create the InnoDB data files,"
-			" but log file creation failed.\n"
-			"InnoDB: If that is the case, please refer to\n"
-			"InnoDB: " REFMAN "error-creating-innodb.html\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"No valid checkpoint found."
+			" If this error appears when you are"
+			" creating an InnoDB database,"
+			" the problem may be that during"
+			" an earlier attempt you managed"
+			" to create the InnoDB data files,"
+			" but log file creation failed."
+			" If that is the case, please refer to"
+			" " REFMAN "error-creating-innodb.html");
 		return(DB_ERROR);
 	}
 
@@ -1286,7 +1272,7 @@ recv_add_to_hash_table(
 		recv_addr->page_no = page_no;
 		recv_addr->state = RECV_NOT_PROCESSED;
 
-		UT_LIST_INIT(recv_addr->rec_list);
+		UT_LIST_INIT(recv_addr->rec_list, &recv_t::rec_list);
 
 		HASH_INSERT(recv_addr_t, addr_hash, recv_sys->addr_hash,
 			    recv_fold(space, page_no), recv_addr);
@@ -1297,7 +1283,7 @@ recv_add_to_hash_table(
 #endif
 	}
 
-	UT_LIST_ADD_LAST(rec_list, recv_addr->rec_list, recv);
+	UT_LIST_ADD_LAST(recv_addr->rec_list, recv);
 
 	prev_field = &(recv->data);
 
@@ -2725,15 +2711,8 @@ recv_group_scan_log_recs(
 		start_lsn = end_lsn;
 	}
 
-#ifdef UNIV_DEBUG
-	if (log_debug_writes) {
-		fprintf(stderr,
-			"InnoDB: Scanned group %lu up to"
-			" log sequence number " LSN_PF "\n",
-			(ulong) group->id,
-			*group_scanned_lsn);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_log", ("scan " LSN_PF " completed for log group %u",
+			      *group_scanned_lsn, unsigned(group->id)));
 }
 
 /*******************************************************//**

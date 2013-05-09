@@ -225,7 +225,8 @@ row_fts_psort_info_init(
 	a particular "FTS index partition" */
 	for (j = 0; j < fts_sort_pll_degree; j++) {
 
-		UT_LIST_INIT(psort_info[j].fts_doc_list);
+		UT_LIST_INIT(
+			psort_info[j].fts_doc_list, &fts_doc_item_t::doc_list);
 
 		for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 

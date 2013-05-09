@@ -139,6 +139,7 @@ typedef byte	trx_upagef_t;
 
 /** Undo log record */
 typedef	byte	trx_undo_rec_t;
+
 /* @} */
 
 typedef ib_mutex_t RsegMutex;

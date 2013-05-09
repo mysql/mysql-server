@@ -255,7 +255,7 @@ rw_lock_create_func(
 #endif /* UNIV_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
-	UT_LIST_INIT(lock->debug_list);
+	UT_LIST_INIT(lock->debug_list, &rw_lock_debug_t::list);
 
 	lock->level = level;
 #endif /* UNIV_SYNC_DEBUG */
@@ -278,7 +278,7 @@ rw_lock_create_func(
 	ut_ad(UT_LIST_GET_FIRST(rw_lock_list) == NULL
 	      || UT_LIST_GET_FIRST(rw_lock_list)->magic_n == RW_LOCK_MAGIC_N);
 
-	UT_LIST_ADD_FIRST(list, rw_lock_list, lock);
+	UT_LIST_ADD_FIRST(rw_lock_list, lock);
 
 	mutex_exit(&rw_lock_list_mutex);
 }
@@ -305,7 +305,7 @@ rw_lock_free_func(
 
 	os_event_destroy(lock->wait_ex_event);
 
-	UT_LIST_REMOVE(list, rw_lock_list, lock);
+	UT_LIST_REMOVE(rw_lock_list, lock);
 
 	mutex_exit(&rw_lock_list_mutex);
 
@@ -726,7 +726,7 @@ rw_lock_add_debug_info(
 	info->thread_id = os_thread_get_curr_id();
 	info->pass	= pass;
 
-	UT_LIST_ADD_FIRST(list, lock->debug_list, info);
+	UT_LIST_ADD_FIRST(lock->debug_list, info);
 
 	rw_lock_debug_mutex_exit();
 
@@ -771,7 +771,8 @@ rw_lock_remove_debug_info(
 		    && info->lock_type == lock_type) {
 
 			/* Found! */
-			UT_LIST_REMOVE(list, lock->debug_list, info);
+			UT_LIST_REMOVE(lock->debug_list, info);
+
 			rw_lock_debug_mutex_exit();
 
 			rw_lock_debug_free(info);

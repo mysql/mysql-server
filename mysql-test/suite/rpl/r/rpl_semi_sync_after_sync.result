@@ -65,8 +65,10 @@ include/assert.inc [Table is empty right now.]
 include/assert.inc [rpl_semi_sync_master_yes_tx was not increased]
 include/assert.inc [rpl_semi_sync_master_no_tx was not increased]
 SET DEBUG_SYNC= "now SIGNAL end";
-SET DEBUG_SYNC= "RESET";
 [connection server_1]
+SET DEBUG_SYNC= "RESET";
+[connection master]
+SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 [connection master]
@@ -131,8 +133,10 @@ include/assert.inc [Table is empty right now.]
 include/assert.inc [rpl_semi_sync_master_yes_tx was not increased]
 include/assert.inc [rpl_semi_sync_master_no_tx was not increased]
 SET DEBUG_SYNC= "now SIGNAL end";
-SET DEBUG_SYNC= "RESET";
 [connection server_1]
+SET DEBUG_SYNC= "RESET";
+[connection master]
+SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 [connection master]

@@ -1044,7 +1044,7 @@ sync_check_init()
 
 	/* Init the rw-lock list and create the mutex to protect it. */
 
-	UT_LIST_INIT(rw_lock_list);
+	UT_LIST_INIT(rw_lock_list, &rw_lock_t::list);
 
 	mutex_create("rw_lock_list", &rw_lock_list_mutex);
 

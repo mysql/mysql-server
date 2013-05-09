@@ -7,6 +7,7 @@ include/install_semisync.inc
 SET @max_binlog_size_save= @@GLOBAL.MAX_BINLOG_SIZE;
 SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
 SET GLOBAL rpl_semi_sync_master_timeout= 600000;
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
 # disable diff_table test
 # simulate flush error and session attach error at the same time
 # Test tables with InnoDB engine when disabling diff_table and

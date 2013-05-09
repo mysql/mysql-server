@@ -92,9 +92,10 @@ buffers in an already freed heap. */
 
 #ifdef MEM_PERIODIC_CHECK
 
-ibool					mem_block_list_inited;
-/* List of all mem blocks allocated; protected by the mem_comm_pool mutex */
-UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
+/** List of all mem blocks allocated; protected by the mem_comm_pool mutex */
+UNIV_INTERN UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
+
+UNIV_INTERN ibool				mem_block_list_inited;
 
 #endif
 
@@ -375,7 +376,7 @@ mem_heap_create_block(
 
 	if (!mem_block_list_inited) {
 		mem_block_list_inited = TRUE;
-		UT_LIST_INIT(mem_block_list);
+		UT_LIST_INIT(mem_block_list, &mem_block_t::mem_block_list);
 	}
 
 	UT_LIST_ADD_LAST(mem_block_list, mem_block_list, block);
@@ -456,7 +457,7 @@ mem_heap_add_block(
 
 	/* Add the new block as the last block */
 
-	UT_LIST_INSERT_AFTER(list, heap->base, block, new_block);
+	UT_LIST_INSERT_AFTER(heap->base, block, new_block);
 
 	return(new_block);
 }
@@ -482,12 +483,12 @@ mem_heap_block_free(
 		mem_analyze_corruption(block);
 	}
 
-	UT_LIST_REMOVE(list, heap->base, block);
+	UT_LIST_REMOVE(heap->base, block);
 
 #ifdef MEM_PERIODIC_CHECK
 	mutex_enter(&(mem_comm_pool->mutex));
 
-	UT_LIST_REMOVE(mem_block_list, mem_block_list, block);
+	UT_LIST_REMOVE(mem_block_list, block);
 
 	mutex_exit(&(mem_comm_pool->mutex));
 #endif

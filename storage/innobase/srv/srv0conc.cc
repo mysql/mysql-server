@@ -135,7 +135,7 @@ srv_conc_init(void)
 
 	os_fast_mutex_init(srv_conc_mutex_key, &srv_conc_mutex);
 
-	UT_LIST_INIT(srv_conc_queue);
+	UT_LIST_INIT(srv_conc_queue, &srv_conc_slot_t::srv_conc_queue);
 
 	srv_conc_slots = static_cast<srv_conc_slot_t*>(
 		mem_zalloc(OS_THREAD_MAX_N * sizeof(*srv_conc_slots)));
@@ -451,7 +451,7 @@ retry:
 	slot->reserved = TRUE;
 	slot->wait_ended = FALSE;
 
-	UT_LIST_ADD_LAST(srv_conc_queue, srv_conc_queue, slot);
+	UT_LIST_ADD_LAST(srv_conc_queue, slot);
 
 	os_event_reset(slot->event);
 
@@ -488,7 +488,7 @@ retry:
 
 	slot->reserved = FALSE;
 
-	UT_LIST_REMOVE(srv_conc_queue, srv_conc_queue, slot);
+	UT_LIST_REMOVE(srv_conc_queue, slot);
 
 	trx->declared_to_be_inside_innodb = TRUE;
 	trx->n_tickets_to_enter_innodb = srv_n_free_tickets_to_enter;
