@@ -530,8 +530,6 @@ trx_sys_init_at_db_start(void)
 
 	ut_d(trx_sys->rw_max_trx_id = trx_sys->max_trx_id);
 
-	UT_LIST_INIT(trx_sys->mysql_trx_list);
-
 	trx_dummy_sess = sess_open();
 
 	trx_lists_init_at_db_start();
@@ -577,8 +575,6 @@ trx_sys_init_at_db_start(void)
 
 	mutex_exit(&trx_sys->mutex);
 
-	UT_LIST_INIT(trx_sys->view_list);
-
 	mtr_commit(&mtr);
 
 	return(ib_bh);
@@ -596,6 +592,11 @@ trx_sys_create(void)
 	trx_sys = static_cast<trx_sys_t*>(mem_zalloc(sizeof(*trx_sys)));
 
 	mutex_create(trx_sys_mutex_key, &trx_sys->mutex, SYNC_TRX_SYS);
+
+	UT_LIST_INIT(trx_sys->ro_trx_list, &trx_t::trx_list);
+	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
+	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
+	UT_LIST_INIT(trx_sys->view_list, &read_view_t::view_list);
 }
 
 /*****************************************************************//**
@@ -1224,7 +1225,7 @@ trx_sys_close(void)
 
 		/* Views are allocated from the trx->read_view_heap.
 		So, we simply remove the element here. */
-		UT_LIST_REMOVE(view_list, trx_sys->view_list, prev_view);
+		UT_LIST_REMOVE(trx_sys->view_list, prev_view);
 	}
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);

@@ -76,7 +76,13 @@ dict_mem_table_create(
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 
 	table = static_cast<dict_table_t*>(
-		mem_heap_zalloc(heap, sizeof(dict_table_t)));
+		mem_heap_zalloc(heap, sizeof(*table)));
+
+	lock_table_lock_list_init(&table->locks);
+
+	UT_LIST_INIT(table->indexes, &dict_index_t::indexes);
+	UT_LIST_INIT(table->foreign_list, &dict_foreign_t::foreign_list);
+	UT_LIST_INIT(table->referenced_list, &dict_foreign_t::referenced_list);
 
 	table->heap = heap;
 
