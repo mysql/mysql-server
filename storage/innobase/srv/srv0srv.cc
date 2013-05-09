@@ -916,7 +916,7 @@ srv_init(void)
 
 		srv_buf_dump_event = os_event_create();
 
-		UT_LIST_INIT(srv_sys->tasks);
+		UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
 	}
 
 	/* page_zip_stat_per_index_mutex is acquired from:
@@ -2369,7 +2369,7 @@ srv_task_execute(void)
 
 		ut_a(que_node_get_type(thr->child) == QUE_NODE_PURGE);
 
-		UT_LIST_REMOVE(queue, srv_sys->tasks, thr);
+		UT_LIST_REMOVE(srv_sys->tasks, thr);
 	}
 
 	mutex_exit(&srv_sys->tasks_mutex);
@@ -2769,7 +2769,7 @@ srv_que_task_enqueue_low(
 	ut_ad(!srv_read_only_mode);
 	mutex_enter(&srv_sys->tasks_mutex);
 
-	UT_LIST_ADD_LAST(queue, srv_sys->tasks, thr);
+	UT_LIST_ADD_LAST(srv_sys->tasks, thr);
 
 	mutex_exit(&srv_sys->tasks_mutex);
 

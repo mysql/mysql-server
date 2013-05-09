@@ -373,7 +373,9 @@ buf_flush_insert_into_flush_list(
 
 	ut_d(block->page.in_flush_list = TRUE);
 	block->page.oldest_modification = lsn;
-	UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
+
+	UT_LIST_ADD_FIRST(buf_pool->flush_list, &block->page);
+
 	incr_flush_list_size_in_bytes(block, buf_pool);
 
 #ifdef UNIV_DEBUG_VALGRIND
@@ -473,10 +475,9 @@ buf_flush_insert_sorted_into_flush_list(
 	}
 
 	if (prev_b == NULL) {
-		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
+		UT_LIST_ADD_FIRST(buf_pool->flush_list, &block->page);
 	} else {
-		UT_LIST_INSERT_AFTER(list, buf_pool->flush_list,
-				     prev_b, &block->page);
+		UT_LIST_INSERT_AFTER(buf_pool->flush_list, prev_b, &block->page);
 	}
 
 	incr_flush_list_size_in_bytes(block, buf_pool);
@@ -597,13 +598,13 @@ buf_flush_remove(
 		return;
 	case BUF_BLOCK_ZIP_DIRTY:
 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_PAGE);
-		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+		UT_LIST_REMOVE(buf_pool->flush_list, bpage);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_LRU_insert_zip_clean(bpage);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		break;
 	case BUF_BLOCK_FILE_PAGE:
-		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+		UT_LIST_REMOVE(buf_pool->flush_list, bpage);
 		break;
 	}
 
@@ -681,19 +682,13 @@ buf_flush_relocate_on_flush_list(
 	ut_d(bpage->in_flush_list = FALSE);
 
 	prev = UT_LIST_GET_PREV(list, bpage);
-	UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+	UT_LIST_REMOVE(buf_pool->flush_list, bpage);
 
 	if (prev) {
 		ut_ad(prev->in_flush_list);
-		UT_LIST_INSERT_AFTER(
-			list,
-			buf_pool->flush_list,
-			prev, dpage);
+		UT_LIST_INSERT_AFTER( buf_pool->flush_list, prev, dpage);
 	} else {
-		UT_LIST_ADD_FIRST(
-			list,
-			buf_pool->flush_list,
-			dpage);
+		UT_LIST_ADD_FIRST(buf_pool->flush_list, dpage);
 	}
 
 	/* Just an extra check. Previous in flush_list
@@ -2535,7 +2530,7 @@ buf_flush_validate_low(
 
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list, Check());
+	UT_LIST_VALIDATE(buf_pool->flush_list, Check());
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
