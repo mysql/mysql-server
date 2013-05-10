@@ -59,12 +59,12 @@ UNIV_INTERN
 trx_undo_rec_t*
 trx_roll_pop_top_rec_of_trx_low(
 /*============================*/
-	trx_t*		trx,		/*!< in: transaction */
+	trx_t*		trx,		/*!< in/out: transaction */
 	trx_undo_ptr_t*	undo_ptr,	/*!< in: rollback segment to look
 					for next undo log record. */
 	undo_no_t	limit,		/*!< in: least undo number we need */
 	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
-	mem_heap_t*	heap);		/*!< in: memory heap where copied */
+	mem_heap_t*	heap);		/*!< in/out: memory heap where copied */
 
 /********************************************************************//**
 Get next undo log record from redo and noredo rollback segments.

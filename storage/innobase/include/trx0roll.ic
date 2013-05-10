@@ -37,7 +37,7 @@ trx_roll_check_undo_rec_ordering(
 	ulint		curr_undo_space_id,	/*!< in: space-id of rollback
 						segment that contains the
 						undo record to process. */
-	trx_t*          trx)			/*!< in: transaction */
+	const trx_t*	trx)			/*!< in: transaction */
 {
 	/* Each transaction now can have multiple rollback segments.
 	If a transaction involves temp and non-temp tables, both the rollback
@@ -55,8 +55,8 @@ trx_roll_check_undo_rec_ordering(
 	rollback segments are switching. Once switched new rollback segment
 	should re-follow undo record number pattern (as mentioned in CASE-1). */
 
-	return((curr_undo_space_id != trx->undo_rseg_space)
-	       || (curr_undo_rec_no + 1 <= trx->undo_no));
+	return(curr_undo_space_id != trx->undo_rseg_space
+	       || curr_undo_rec_no + 1 <= trx->undo_no);
 }
 #endif /* UNIV_DEBUG */
 
