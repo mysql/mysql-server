@@ -358,7 +358,7 @@ trx_rseg_create_instance(
 				   ? fil_space_get_zip_size(space) : 0;
 
 			trx_rseg_t** rseg_array =
-				((trx_rseg_t**) trx_sys->rseg_array);
+				static_cast<trx_rseg_t**>(trx_sys->rseg_array);
 
 			rseg = trx_rseg_mem_create(
 				i, space, zip_size, page_no,

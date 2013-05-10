@@ -214,3 +214,16 @@ trx_is_rseg_updated(
 	       || trx_is_noredo_rseg_updated(trx));
 }
 
+/********************************************************************//**
+Check if redo/nonredo rseg is valid. */
+UNIV_INLINE
+bool
+trx_is_rseg_assigned(
+/*=================*/
+	const trx_t*	   trx) /*!< in: transaction */
+{
+	return(trx->rsegs.m_redo.rseg != NULL
+	       || trx->rsegs.m_noredo.rseg != NULL);
+}
+
+
