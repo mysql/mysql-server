@@ -108,6 +108,7 @@ class ColumnImpl implements Column {
         this.precision = ndbColumn.getPrecision();
         this.scale = ndbColumn.getScale();
         this.size = ndbColumn.getSize();
+        logger.info("ColumnImpl column type: " + this.columnType);
         switch(ndbColumn.getType()) {
             case ColumnConst.Type.Tinyint:
             case ColumnConst.Type.Tinyunsigned:
@@ -215,9 +216,24 @@ class ColumnImpl implements Column {
                 this.prefixLength = 0;
                 this.columnSpace = 0;
                 break;
-            default: throw new ClusterJFatalInternalException(
+            case 31: // Time2
+                this.prefixLength = 0;
+                this.columnSpace = 0;
+                break;
+            case 32: // DateTime2
+                this.prefixLength = 0;
+                this.columnSpace = 0;
+                break;
+            case 33: // Timestamp2
+                this.prefixLength = 0;
+                this.columnSpace = 0;
+                break;
+            default:
+                String message = 
                     local.message("ERR_Unknown_Column_Type",
-                    tableName, ndbColumn.getName(), ndbType));
+                    tableName, ndbColumn.getName(), ndbType);
+                logger.info(message);
+                throw new ClusterJFatalInternalException(message);
         }
         if (logger.isDetailEnabled()) logger.detail("Column " + columnName
                 + " columnSpace: " + columnSpace + " prefixLength: " + prefixLength
@@ -279,9 +295,15 @@ class ColumnImpl implements Column {
             case ColumnConst.Type.Varbinary: return ColumnType.Varbinary;
             case ColumnConst.Type.Varchar: return ColumnType.Varchar;
             case ColumnConst.Type.Year: return ColumnType.Year;
-            default: throw new ClusterJFatalInternalException(
+            case ColumnConst.Type.Time2: return ColumnType.Time2;
+            case ColumnConst.Type.Datetime2: return ColumnType.Datetime2;
+            case ColumnConst.Type.Timestamp2: return ColumnType.Timestamp2;
+            default: 
+                String message = 
                     local.message("ERR_Unknown_Column_Type",
-                    tableName, columnName, type));
+                    tableName, columnName, type);
+                logger.info(message);
+                throw new ClusterJFatalInternalException(message);
         }
     }
 
