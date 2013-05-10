@@ -1243,6 +1243,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
 #endif
+    char *save_db= thd->db;
+    Security_context save_security_ctx= *thd->security_ctx;
 
     auth_rc= acl_authenticate(thd, packet_length);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
@@ -1262,6 +1264,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+      my_free(save_db);
+      my_free(save_security_ctx.user);
+
     }
     break;
   }
