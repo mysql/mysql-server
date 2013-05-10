@@ -986,8 +986,8 @@ trx_sys_create_rsegs(
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"%lu redo rollback segment(s) found."
 		" %lu redo rollback segment(s) are active.",
-		(n_used - srv_tmp_undo_logs),
-		(n_rsegs <= n_tmp_rsegs ? 1 : (n_rsegs - n_tmp_rsegs)));
+		n_used - srv_tmp_undo_logs,
+		n_rsegs <= n_tmp_rsegs ? 1 : (n_rsegs - n_tmp_rsegs));
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"%lu non-redo rollback segment(s) are active.",
