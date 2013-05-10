@@ -38,6 +38,12 @@ performance_schema	hosts	def
 performance_schema	mutex_instances	def
 performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
+performance_schema	replication_connection_config_by_channel	def
+performance_schema	replication_connection_status_by_channel	def
+performance_schema	replication_execute_config_by_channel	def
+performance_schema	replication_execute_status_by_channel	def
+performance_schema	replication_execute_status_by_coordinator	def
+performance_schema	replication_execute_status_by_executor	def
 performance_schema	rwlock_instances	def
 performance_schema	session_account_connect_attrs	def
 performance_schema	session_connect_attrs	def
@@ -94,6 +100,12 @@ hosts	BASE TABLE	PERFORMANCE_SCHEMA
 mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
 objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
+replication_connection_config_by_channel	BASE TABLE	PERFORMANCE_SCHEMA
+replication_connection_status_by_channel	BASE TABLE	PERFORMANCE_SCHEMA
+replication_execute_config_by_channel	BASE TABLE	PERFORMANCE_SCHEMA
+replication_execute_status_by_channel	BASE TABLE	PERFORMANCE_SCHEMA
+replication_execute_status_by_coordinator	BASE TABLE	PERFORMANCE_SCHEMA
+replication_execute_status_by_executor	BASE TABLE	PERFORMANCE_SCHEMA
 rwlock_instances	BASE TABLE	PERFORMANCE_SCHEMA
 session_account_connect_attrs	BASE TABLE	PERFORMANCE_SCHEMA
 session_connect_attrs	BASE TABLE	PERFORMANCE_SCHEMA
@@ -150,6 +162,12 @@ hosts	10	Fixed
 mutex_instances	10	Dynamic
 objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
+replication_connection_config_by_channel	10	Dynamic
+replication_connection_status_by_channel	10	Dynamic
+replication_execute_config_by_channel	10	Fixed
+replication_execute_status_by_channel	10	Dynamic
+replication_execute_status_by_coordinator	10	Dynamic
+replication_execute_status_by_executor	10	Dynamic
 rwlock_instances	10	Dynamic
 session_account_connect_attrs	10	Dynamic
 session_connect_attrs	10	Dynamic
@@ -206,6 +224,12 @@ hosts	1000	0
 mutex_instances	1000	0
 objects_summary_global_by_type	1000	0
 performance_timers	5	0
+replication_connection_config_by_channel	1	0
+replication_connection_status_by_channel	1	0
+replication_execute_config_by_channel	1	0
+replication_execute_status_by_channel	1	0
+replication_execute_status_by_coordinator	1	0
+replication_execute_status_by_executor	1	0
 rwlock_instances	1000	0
 session_account_connect_attrs	1000	0
 session_connect_attrs	1000	0
@@ -262,6 +286,12 @@ hosts	0	0
 mutex_instances	0	0
 objects_summary_global_by_type	0	0
 performance_timers	0	0
+replication_connection_config_by_channel	0	0
+replication_connection_status_by_channel	0	0
+replication_execute_config_by_channel	0	0
+replication_execute_status_by_channel	0	0
+replication_execute_status_by_coordinator	0	0
+replication_execute_status_by_executor	0	0
 rwlock_instances	0	0
 session_account_connect_attrs	0	0
 session_connect_attrs	0	0
@@ -318,6 +348,12 @@ hosts	0	0	NULL
 mutex_instances	0	0	NULL
 objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
+replication_connection_config_by_channel	0	0	NULL
+replication_connection_status_by_channel	0	0	NULL
+replication_execute_config_by_channel	0	0	NULL
+replication_execute_status_by_channel	0	0	NULL
+replication_execute_status_by_coordinator	0	0	NULL
+replication_execute_status_by_executor	0	0	NULL
 rwlock_instances	0	0	NULL
 session_account_connect_attrs	0	0	NULL
 session_connect_attrs	0	0	NULL
@@ -374,6 +410,12 @@ hosts	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
+replication_connection_config_by_channel	NULL	NULL	NULL
+replication_connection_status_by_channel	NULL	NULL	NULL
+replication_execute_config_by_channel	NULL	NULL	NULL
+replication_execute_status_by_channel	NULL	NULL	NULL
+replication_execute_status_by_coordinator	NULL	NULL	NULL
+replication_execute_status_by_executor	NULL	NULL	NULL
 rwlock_instances	NULL	NULL	NULL
 session_account_connect_attrs	NULL	NULL	NULL
 session_connect_attrs	NULL	NULL	NULL
@@ -430,6 +472,12 @@ hosts	utf8_general_ci	NULL
 mutex_instances	utf8_general_ci	NULL
 objects_summary_global_by_type	utf8_general_ci	NULL
 performance_timers	utf8_general_ci	NULL
+replication_connection_config_by_channel	utf8_general_ci	NULL
+replication_connection_status_by_channel	utf8_general_ci	NULL
+replication_execute_config_by_channel	utf8_general_ci	NULL
+replication_execute_status_by_channel	utf8_general_ci	NULL
+replication_execute_status_by_coordinator	utf8_general_ci	NULL
+replication_execute_status_by_executor	utf8_general_ci	NULL
 rwlock_instances	utf8_general_ci	NULL
 session_account_connect_attrs	utf8_bin	NULL
 session_connect_attrs	utf8_bin	NULL
@@ -486,6 +534,12 @@ hosts
 mutex_instances	
 objects_summary_global_by_type	
 performance_timers	
+replication_connection_config_by_channel	
+replication_connection_status_by_channel	
+replication_execute_config_by_channel	
+replication_execute_status_by_channel	
+replication_execute_status_by_coordinator	
+replication_execute_status_by_executor	
 rwlock_instances	
 session_account_connect_attrs	
 session_connect_attrs	

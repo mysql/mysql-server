@@ -73,7 +73,13 @@
 #include "table_session_connect_attrs.h"
 #include "table_session_account_connect_attrs.h"
 
-/* For show status */
+#include "table_replication_connection_config_by_channel.h"
+#include "table_replication_connection_status_by_channel.h"
+#include "table_replication_execute_config_by_channel.h"
+#include "table_replication_execute_status_by_channel.h"
+#include "table_replication_execute_status_by_coordinator.h"
+#include "table_replication_execute_status_by_executor.h"
+
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
@@ -148,6 +154,12 @@ static PFS_engine_table_share *all_shares[]=
   &table_socket_summary_by_event_name::m_share,
   &table_session_connect_attrs::m_share,
   &table_session_account_connect_attrs::m_share,
+  &table_replication_connection_config_by_channel::m_share,
+  &table_replication_connection_status_by_channel::m_share,
+  &table_replication_execute_config_by_channel::m_share,
+  &table_replication_execute_status_by_channel::m_share,
+  &table_replication_execute_status_by_coordinator::m_share,
+  &table_replication_execute_status_by_executor::m_share,
   NULL
 };
 

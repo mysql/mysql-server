@@ -122,6 +122,12 @@ cursor_by_thread_connect_attr.h
 table_session_connect.h
 table_session_connect_attrs.h
 table_session_account_connect_attrs.h
+table_replication_connection_config_by_channel.h
+table_replication_connection_status_by_channel.h
+table_replication_execute_config_by_channel.h
+table_replication_execute_status_by_channel.h
+table_replication_execute_status_by_coordinator.h
+table_replication_execute_status_by_executor.h
 cursor_by_account.cc
 cursor_by_host.cc
 cursor_by_thread.cc
@@ -198,6 +204,12 @@ cursor_by_thread_connect_attr.cc
 table_session_connect.cc
 table_session_connect_attrs.cc
 table_session_account_connect_attrs.cc
+table_replication_connection_config_by_channel.cc
+table_replication_connection_status_by_channel.cc
+table_replication_execute_config_by_channel.cc
+table_replication_execute_status_by_channel.cc
+table_replication_execute_status_by_coordinator.cc
+table_replication_execute_status_by_executor.cc
 )
 
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY)

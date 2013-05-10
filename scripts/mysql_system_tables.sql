@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -1630,6 +1630,115 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_digest("
   "LAST_SEEN TIMESTAMP(0) NOT NULL default 0"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_connection_config_by_channel
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_connection_config_by_channel("
+    "Host varchar(60) not null,"
+    "Port bigint not null,"
+    "User varchar(16) not null,"
+    "Network_Interface varchar(60) not null,"
+    "Auto_Position bigint not null,"
+    "SSL_Allowed ENUM('Yes','No','Ignored') not null,"
+    "SSL_CA_File varchar(512) not null,"
+    "SSL_CA_Path varchar(512) not null,"
+    "SSL_Certificate varchar(512) not null,"
+    "SSL_Cipher varchar(512) not null,"
+    "SSL_Key varchar(512) not null,"
+    "SSL_Verify_Server_Certificate ENUM('Yes','No') not null,"
+    "SSL_Crl_File varchar(255) not null,"
+    "SSL_Crl_Path varchar(255) not null,"
+    "Connection_Retry_Interval bigint not null,"
+    "Connection_Retry_Count bigint not null"
+    ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_connection_status_by_channel
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_connection_status_by_channel("
+    "Source_UUID varchar(36) not null,"
+    "Thread_Id bigint not null,"
+    "Service_State enum('Yes','No','Connecting') not null,"
+    "Received_Transaction_Set text not null,"
+    "Last_Error_Number bigint not null,"
+    "Last_Error_Message varchar(1024) not null,"
+    "Last_Error_Timestamp varchar(16) not null"
+    ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_execute_config_by_channel
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_execute_config_by_channel("
+    "Desired_Delay bigint not null"
+    ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_execute_status_by_channel
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_channel("
+    "Service_State ENUM('Yes','No') not null,"
+    "Remaining_Delay varchar(11) not null"
+    ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_execute_status_by_coordinator
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordinator("
+    "Thread_Id bigint not null,"
+    "Service_State ENUM('Yes','No') not null,"
+    "Last_Error_Number bigint not null,"
+    "Last_Error_Message varchar(1024) not null,"
+    "Last_Error_Timestamp varchar(16) not null"
+    ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_execute_status_by_executor
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_executor("
+    "Thread_Id bigint not null,"
+    "Service_State ENUM('Yes','No') not null,"
+    "Last_Executed_Transaction char(57) not null,"
+    "Last_Error_Number bigint not null,"
+    "Last_Error_Message varchar(1024) not null,"
+    "Last_Error_Timestamp varchar(16) not null"
+    ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
