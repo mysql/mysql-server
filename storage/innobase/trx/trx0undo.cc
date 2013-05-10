@@ -1769,8 +1769,7 @@ trx_undo_assign_undo(
 	If there is no rollback segment assigned to trx and still there is
 	object being updated there is something wrong and so this condition
 	check. */
-	ut_ad(!(trx->rsegs.m_redo.rseg == NULL
-		&& trx->rsegs.m_noredo.rseg == NULL));
+	ut_ad(trx_is_rseg_assigned(trx));
 
 	rseg = undo_ptr->rseg;
 

@@ -728,47 +728,61 @@ get_next_redo_rseg(
 {
 	trx_rseg_t*	rseg;
 	static ulint	redo_rseg_slot = 0;
-	ulint		curr_redo_rseg_slot = 0;
+	ulint		slot = 0;
 
-	curr_redo_rseg_slot = redo_rseg_slot++;
-	curr_redo_rseg_slot = curr_redo_rseg_slot % max_undo_logs;
+	slot = redo_rseg_slot++;
+	slot = slot % max_undo_logs;
 
 	/* Skip slots alloted to non-redo also ensure even distribution
 	in selecting next redo slots.
-	For example: If we don't do even distribution then for
-	any value of curr_redo_rseg_slot between 1 - 32 ... 33rd slots
-	will be alloted creating skewed distribution. */
-	if (trx_sys_is_noredo_rseg_slot(curr_redo_rseg_slot)) {
-		if (max_undo_logs > srv_tmp_undo_logs) {
-			curr_redo_rseg_slot %=
-					(max_undo_logs - srv_tmp_undo_logs);
+	For example: If we don't do even distribution then for any value of
+	slot between 1 - 32 ... 33rd slots will be alloted creating
+	skewed distribution. */
+	if (trx_sys_is_noredo_rseg_slot(slot)) {
 
-			if (trx_sys_is_noredo_rseg_slot(curr_redo_rseg_slot)) {
-				curr_redo_rseg_slot += srv_tmp_undo_logs;
+		if (max_undo_logs > srv_tmp_undo_logs) {
+
+			slot %= (max_undo_logs - srv_tmp_undo_logs);
+
+			if (trx_sys_is_noredo_rseg_slot(slot)) {
+				slot += srv_tmp_undo_logs;
 			}
+
 		} else {
-			curr_redo_rseg_slot = 0;
+			slot = 0;
 		}
 	}
 
-	for(;;) {
-		rseg = trx_sys->rseg_array[curr_redo_rseg_slot];
+#if UNIV_DEBUG
+	ulint start_scan_slot = slot;
+	bool look_for_rollover = false;
+#endif
 
-		curr_redo_rseg_slot = (curr_redo_rseg_slot + 1) % max_undo_logs;
+	for(;;) {
+		rseg = trx_sys->rseg_array[slot];
+
+#if UNIV_DEBUG
+		/* Ensure that we are not revisiting the same
+		slot that we have already inspected. */
+		if (look_for_rollover) {
+			ut_ad(start_scan_slot != slot);
+		}
+		look_for_rollover = true;
+#endif
+
+		slot = (slot + 1) % max_undo_logs;
 
 		/* Skip slots allocated for noredo rsegs */
-		while (trx_sys_is_noredo_rseg_slot(curr_redo_rseg_slot)) {
-			curr_redo_rseg_slot =
-				(curr_redo_rseg_slot + 1) % max_undo_logs;
+		while (trx_sys_is_noredo_rseg_slot(slot)) {
+			slot = (slot + 1) % max_undo_logs;
 		}
 
 		if (rseg == NULL) {
 			continue;
 		} else if (rseg->space == srv_sys_space.space_id()
 			   && n_tablespaces > 0
-			   && trx_sys->rseg_array[curr_redo_rseg_slot]
-			   != NULL
-			   && trx_sys->rseg_array[curr_redo_rseg_slot]->space
+			   && trx_sys->rseg_array[slot] != NULL
+			   && trx_sys->rseg_array[slot]->space
 			   != srv_sys_space.space_id()) {
 			/* If undo-tablespace is configured, skip
 			rseg from system-tablespace and try to use
@@ -794,24 +808,21 @@ get_next_noredo_rseg(
 {
 	trx_rseg_t*	rseg;
 	static ulint	noredo_rseg_slot = 1;
-	ulint		curr_noredo_rseg_slot = 0;
+	ulint		slot = 0;
 
-	curr_noredo_rseg_slot = noredo_rseg_slot++;
-	curr_noredo_rseg_slot = curr_noredo_rseg_slot % max_undo_logs;
-	while (!trx_sys_is_noredo_rseg_slot(curr_noredo_rseg_slot)) {
-		curr_noredo_rseg_slot =
-			(curr_noredo_rseg_slot + 1) % max_undo_logs;
+	slot = noredo_rseg_slot++;
+	slot = slot % max_undo_logs;
+	while (!trx_sys_is_noredo_rseg_slot(slot)) {
+		slot = (slot + 1) % max_undo_logs;
 	}
 
 	for(;;) {
-		rseg = trx_sys->rseg_array[curr_noredo_rseg_slot];
+		rseg = trx_sys->rseg_array[slot];
 
-		curr_noredo_rseg_slot =
-			(curr_noredo_rseg_slot + 1) % max_undo_logs;
+		slot = (slot + 1) % max_undo_logs;
 
-		while (!trx_sys_is_noredo_rseg_slot(curr_noredo_rseg_slot)) {
-			curr_noredo_rseg_slot =
-				(curr_noredo_rseg_slot + 1) % max_undo_logs;
+		while (!trx_sys_is_noredo_rseg_slot(slot)) {
+			slot = (slot + 1) % max_undo_logs;
 		}
 
 		if (rseg != NULL) {
@@ -2214,18 +2225,15 @@ trx_prepare(
 	Recovered transactions cannot. */
 	ut_a(!trx->is_recovered);
 
-	if (trx->rsegs.m_redo.rseg &&
-	    (trx->rsegs.m_redo.insert_undo != NULL
-	     || trx->rsegs.m_redo.update_undo != NULL)) {
+	if (trx->rsegs.m_redo.rseg != NULL && trx_is_redo_rseg_updated(trx)) {
 
 		lsn = trx_prepare_low(trx, &trx->rsegs.m_redo, false);
 	}
 
 	DBUG_EXECUTE_IF("ib_trx_crash_during_xa_prepare_step", DBUG_SUICIDE(););
 
-	if (trx->rsegs.m_noredo.rseg &&
-	    (trx->rsegs.m_noredo.insert_undo != NULL
-	     || trx->rsegs.m_noredo.update_undo != NULL)) {
+	if (trx->rsegs.m_noredo.rseg != NULL &&
+	    trx_is_noredo_rseg_updated(trx)) {
 
 		lsn_t noredo_lsn = trx_prepare_low(
 			trx, &trx->rsegs.m_noredo, true);

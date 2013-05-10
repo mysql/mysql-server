@@ -893,12 +893,12 @@ UNIV_INTERN
 trx_undo_rec_t*
 trx_roll_pop_top_rec_of_trx_low(
 /*============================*/
-	trx_t*		trx,		/*!< in: transaction */
+	trx_t*		trx,		/*!< in/out: transaction */
 	trx_undo_ptr_t*	undo_ptr,	/*!< in: rollback segment to look
 					for next undo log record. */
 	undo_no_t	limit,		/*!< in: least undo number we need */
 	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
-	mem_heap_t*	heap)		/*!< in: memory heap where copied */
+	mem_heap_t*	heap)		/*!< in/out: memory heap where copied */
 {
 	trx_undo_t*	undo;
 	trx_undo_t*	ins_undo;
@@ -1005,15 +1005,12 @@ trx_roll_pop_top_rec_of_trx(
 {
 	trx_undo_rec_t* undo_rec = 0;
 
-	if (trx->rsegs.m_redo.insert_undo !=0
-	    || trx->rsegs.m_redo.update_undo != 0) {
+	if (trx_is_redo_rseg_updated(trx)) {
 		undo_rec = trx_roll_pop_top_rec_of_trx_low(
 			trx, &trx->rsegs.m_redo, limit, roll_ptr, heap);
 	}
 
-	if (undo_rec == 0
-	    && (trx->rsegs.m_noredo.insert_undo != 0
-		|| trx->rsegs.m_noredo.update_undo != 0)) {
+	if (undo_rec == 0 && trx_is_noredo_rseg_updated(trx)) {
 		undo_rec = trx_roll_pop_top_rec_of_trx_low(
 			trx, &trx->rsegs.m_noredo, limit, roll_ptr, heap);
 	}

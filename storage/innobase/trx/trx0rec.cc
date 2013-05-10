@@ -565,7 +565,7 @@ trx_undo_page_report_modify(
 			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
 	table = index->table;
 
-	/* If object is temp-table then select noredo rseg as changes
+	/* If table instance is temporary then select noredo rseg as changes
 	to undo logs don't need REDO logging given that they are not
 	restored on restart as corresponding object doesn't exist on restart.*/
 	undo_ptr = dict_table_is_temporary(index->table)

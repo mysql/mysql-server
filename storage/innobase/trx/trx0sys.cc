@@ -366,7 +366,7 @@ UNIV_INTERN
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
-	mtr_t*	mtr,			/*!< in: mtr */
+	mtr_t*	mtr,			/*!< in/out: mtr */
 	bool	include_tmp_slots,	/*!< in: if true, report slots reserved
 					for temp-tablespace as free slots. */
 	ulint	nth_free_slots)		/*!< in: allocate nth free slot.
@@ -409,13 +409,12 @@ trx_sysf_used_slots_for_redo_rseg(
 /*==============================*/
 	mtr_t*	mtr)			/*!< in: mtr */
 {
-	ulint		i;
 	trx_sysf_t*	sys_header;
 	ulint		n_used = 0;
 
 	sys_header = trx_sysf_get(mtr);
 
-	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+	for (ulint i = 0; i < TRX_SYS_N_RSEGS; i++) {
 
 		if (trx_sys_is_noredo_rseg_slot(i)) {
 			continue;
@@ -425,7 +424,7 @@ trx_sysf_used_slots_for_redo_rseg(
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
 
-		if (page_no != FIL_NULL) { 
+		if (page_no != FIL_NULL) {
 			++n_used;
 		}
 	}
@@ -1223,7 +1222,6 @@ void
 trx_sys_close(void)
 /*===============*/
 {
-	ulint		i;
 	trx_t*		trx;
 	read_view_t*	view;
 
@@ -1265,7 +1263,7 @@ trx_sys_close(void)
 	}
 
 	/* There can't be any active transactions. */
-	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
 
 		rseg = trx_sys->rseg_array[i];
@@ -1277,7 +1275,7 @@ trx_sys_close(void)
 		}
 	}
 
-	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
 
 		rseg = trx_sys->pending_purge_rseg_array[i];
