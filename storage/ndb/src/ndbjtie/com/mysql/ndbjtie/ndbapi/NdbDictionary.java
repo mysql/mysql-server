@@ -143,10 +143,7 @@ public class NdbDictionary extends Wrapper
                 Longvarbinary = 24 /*_NDB_TYPE_LONGVARBINARY_*/,
                 Time = 25 /*_NDB_TYPE_TIME_*/,
                 Year = 26 /*_NDB_TYPE_YEAR_*/,
-                Timestamp = 27 /*_NDB_TYPE_TIMESTAMP_*/,
-                Time2 = 31 /*_NDB_TYPE_TIME2_*/,
-                Datetime2 = 32 /*_NDB_TYPE_DATETIME2_*/,
-                Timestamp2 = 33 /*_NDB_TYPE_TIMESTAMP2_*/;
+                Timestamp = 27 /*_NDB_TYPE_TIMESTAMP_*/;
         }
         public interface /*_enum_*/ ArrayType
         {
