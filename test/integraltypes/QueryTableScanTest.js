@@ -21,7 +21,7 @@
 
 var udebug = unified_debug.getLogger("integraltypes/QueryTableScan.js");
 
-var t0 = new harness.ConcurrentTest('test');
+var t0 = new harness.SerialTest('test');
 t0.run = function() {
   this.pass();
 };
