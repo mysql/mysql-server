@@ -1752,7 +1752,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ID` bigint(4) NOT NULL DEFAULT '0',
-  `USER` varchar(16) NOT NULL DEFAULT '',
+  `USER` varchar(128) NOT NULL DEFAULT '',
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
@@ -1770,7 +1770,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `ID` bigint(4) NOT NULL DEFAULT '0',
-  `USER` varchar(16) NOT NULL DEFAULT '',
+  `USER` varchar(128) NOT NULL DEFAULT '',
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
