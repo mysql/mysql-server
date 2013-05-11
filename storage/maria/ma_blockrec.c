@@ -6937,6 +6937,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
 
   res= 0;
 end:
+  /* The following is true only if _ma_bitmap_flushable() was called earlier */
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
@@ -6946,6 +6947,11 @@ err:
   DBUG_ASSERT(!maria_assert_if_crashed_table);
   res= 1;
   _ma_mark_file_crashed(share);
+  /*
+    Don't write a new LSN on the used pages. Not important as the file is
+    marked as crashed and need to be repaired before it can be used.
+  */
+  lsn= LSN_IMPOSSIBLE;
   goto end;
 }
 
