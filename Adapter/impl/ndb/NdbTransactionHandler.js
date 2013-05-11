@@ -49,6 +49,7 @@ function DBTransactionHandler(dbsession) {
   this.ndbtx              = null;
   this.sentNdbStartTx     = false;
   this.execCount          = 0;   // number of execute calls 
+  this.nTxRecords         = 1;   // 1 for non-scan, 2 for scan
   this.pendingOpsLists    = [];
   this.executedOperations = [];
   this.execAfterOpenQueue = [];
@@ -140,7 +141,7 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
      and register the DBTransactionHandler as closed with DBSession
   */
   if(execMode === COMMIT || execMode === ROLLBACK) {
-    ndbsession.closeNdbTransaction(dbTxHandler);
+    ndbsession.closeNdbTransaction(dbTxHandler, dbTxHandler.nTxRecords);
     if(dbTxHandler.ndbtx) {       // May not exist on "stub" commit/rollback
       dbTxHandler.ndbtx.close();
     }
@@ -166,9 +167,54 @@ function getExecIdForOperationList(self, operationList) {
   return execId;
 }
 
-/* Internal execute()
-*/ 
-function execute(self, execMode, abortFlag, dbOperationList, callback) {
+
+/* NOTE: Until we have a Batch.createQuery() API, there will only ever be
+   one scan in an operationList.  And there will never be key operations
+   and scans combined in a single operationList.
+*/
+
+function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
+  var op = dbOperationList[0];
+
+  /* Execute NdbTransaction after reading from scan */
+  function executeNdbTransaction() {
+    udebug.log("executeScan executeNdbTransaction");
+    var execId = getExecIdForOperationList(self, dbOperationList);
+
+    function onCompleteExec(err) {
+      onExecute(self, execMode, err, execId, callback);
+    }
+    
+    run(self, execMode, abortFlag, onCompleteExec);
+  }
+
+  /* Fetch results */
+  function getScanResults(err) {
+    udebug.log("executeScan getScanResults");
+    // TODO: check error?
+    ndboperation.getScanResults(op, executeNdbTransaction);
+  }
+  
+  /* Execute NoCommit so that you can start reading from scans */
+  function executeScanNoCommit(err, ndbop) {
+    udebug.log("executeScan executeScanNoCommit");
+    if(! ndbop) {
+      fatalError = self.ndbtx.getNdbError();
+      callback(new ndboperation.DBOperationError(fatalError), self);
+      return;  /* is that correct? */
+    }
+
+    op.ndbop = ndbop;
+    run(self, NOCOMMIT, AO_IGNORE, getScanResults);
+  }
+
+  /* executeScan() starts here */
+  udebug.log("executeScan");
+  op.prepareScan(self.ndbtx, executeScanNoCommit);
+}
+
+
+function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
 
   function executeNdbTransaction() {
     var execId = getExecIdForOperationList(self, dbOperationList);
@@ -180,22 +226,9 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     run(self, execMode, abortFlag, onCompleteExec);
   }
 
-  function executeScans(scanList) {
-    // TODO? If only scan/read in this tx, skip the final execute
-    function execOneScan(err) {
-      var scanop = scanList.pop();
-      var cb = scanList.length ? execOneScan : executeNdbTransaction;      
-      ndboperation.getScanResults(scanop, cb);
-    }
-    
-    /* Execute NoCommit so that you can start reading from scans */
-    run(self, NOCOMMIT, AO_IGNORE, execOneScan);
-  }
-
   function prepareOperations() {
-    udebug.log("execute prepareOperations", self.moniker);
-    var i, op, scans, fatalError;
-    scans = [];
+    udebug.log("executeNonScan prepareOperations", self.moniker);
+    var i, op, fatalError;
     for(i = 0 ; i < dbOperationList.length; i++) {
       op = dbOperationList[i];
       op.prepare(self.ndbtx);
@@ -204,20 +237,14 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
         callback(new ndboperation.DBOperationError(fatalError), self);
         return;  /* is that correct? */
       }
-      if(op.isScanOperation()) scans.push(op);
     }
-    if(scans.length) {
-      executeScans(scans);
-    }
-    else {
-      executeNdbTransaction();
-    }
+    executeNdbTransaction();
   }
 
   function getAutoIncrementValues() {
     var autoIncHandler = new AutoIncHandler(dbOperationList);
     if(autoIncHandler.values_needed > 0) {
-      udebug.log("execute getAutoIncrementValues", autoIncHandler.values_needed);
+      udebug.log("executeNonScan getAutoIncrementValues", autoIncHandler.values_needed);
       autoIncHandler.getAllValues(prepareOperations);
     }
     else {
@@ -225,9 +252,29 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     }  
   }
 
+  getAutoIncrementValues();
+}
+
+
+/* Internal execute()
+*/ 
+function execute(self, execMode, abortFlag, dbOperationList, callback) {
+  var startTxCall, queueItem;
+  var isScan = dbOperationList[0].isScanOperation();
+  if(isScan) self.nTxRecords = 2;
+
+  function executeSpecific() {
+   if(isScan) {
+      executeScan(self, execMode, abortFlag, dbOperationList, callback);
+    }
+    else {
+      executeNonScan(self, execMode, abortFlag, dbOperationList, callback);
+    }
+  }
+
   function onStartTx(err, ndbtx) {
     if(err) {
-      ndbsession.closeNdbTransaction(self);
+      ndbsession.closeNdbTransaction(self, self.nTxRecords);
       udebug.log("execute onStartTx [ERROR].", err);
       if(callback) {
         err = new ndboperation.DBOperationError(err.ndb_error);
@@ -240,14 +287,11 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     udebug.log("execute onStartTx. ", self.moniker, 
                " TC node:", ndbtx.getConnectedNodeId(),
                "operations:",  dbOperationList.length);
-    getAutoIncrementValues();    
+    executeSpecific();
   }
 
-  /* execute() starts here */
-  var startTxCall, queueItem;
-
   if(self.ndbtx) {                   /* startTransaction has returned */
-    getAutoIncrementValues();
+    executeSpecific();
   }
   else if(self.sentNdbStartTx) {     /* startTransaction has not yet returned */
     queueItem = { dbOperationList: dbOperationList, callback: callback };
@@ -259,6 +303,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     startTxCall.table = dbOperationList[0].tableHandler.dbTable;
     startTxCall.ndb = self.dbSession.impl;
     startTxCall.description = "startNdbTransaction";
+    startTxCall.nTxRecords = self.nTxRecords;
     startTxCall.run = function() {
       // TODO: partitionKey
       this.ndb.startTransaction(this.table, 0, 0, this.callback);

@@ -221,85 +221,90 @@ ScanHelperSpec.prototype.clear = function() {
 var scanSpec = new ScanHelperSpec;
 
 
-function prepareKeyOperation(op, ndbTransaction) {
-  var code = op.opcode;
-  var isVOwrite = (op.values && adapter.impl.isValueObject(op.values));
+DBOperation.prototype.prepare = function(ndbTransaction) {
+  var code = this.opcode;
+  var isVOwrite = (this.values && adapter.impl.isValueObject(this.values));
 
   /* There is one global helperSpec */
   helperSpec.clear();
 
   /* All operations but insert use a key. */
   if(code !== 2) {
-    allocateKeyBuffer(op);
-    encodeKeyBuffer(op);
-    helperSpec[OpHelper.key_record]  = op.index.record;
-    helperSpec[OpHelper.key_buffer]  = op.buffers.key;
+    allocateKeyBuffer(this);
+    encodeKeyBuffer(this);
+    helperSpec[OpHelper.key_record]  = this.index.record;
+    helperSpec[OpHelper.key_buffer]  = this.buffers.key;
   }
   
   /* If this is an update-after-read operation on a Value Object, 
      DBOperationHelper only needs the VO.
   */
   if(isVOwrite) {
-    helperSpec[OpHelper.value_obj] = op.values;
+    helperSpec[OpHelper.value_obj] = this.values;
   }  
   else {
     /* All non-VO operations get a row record */
-    helperSpec[OpHelper.row_record] = op.tableHandler.dbTable.record;
+    helperSpec[OpHelper.row_record] = this.tableHandler.dbTable.record;
     
     /* All but delete get an allocated row buffer, and column mask */
     if(code !== 16) {
-      allocateRowBuffer(op);
-      helperSpec[OpHelper.row_buffer]  = op.buffers.row;
-      helperSpec[OpHelper.column_mask] = op.columnMask;
+      allocateRowBuffer(this);
+      helperSpec[OpHelper.row_buffer]  = this.buffers.row;
+      helperSpec[OpHelper.column_mask] = this.columnMask;
 
       /* Read gets a lock mode; 
          writes get the data encoded into the row buffer. */
       if(code === 1) {
-        helperSpec[OpHelper.lock_mode]  = constants.LockModes[op.lockMode];
+        helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
       }
       else { 
-        encodeRowBuffer(op);
+        encodeRowBuffer(this);
       }
     }
   }
   
   /* Use the HelperSpec and opcode to build the NdbOperation */
-  op.ndbop = 
+  this.ndbop = 
     adapter.impl.DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
+  this.state = doc.OperationStates[1];  // PREPARED
 }
 
-function prepareScanOperation(op, ndbTransaction) {
+
+DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   var opcode = 33;  // How to tell from operation?
   var boundHelper = null;
+  var scanHelper;
  
   /* There is one global ScanHelperSpec */
   scanSpec.clear();
 
-  scanSpec[ScanHelper.table_record] = op.query.dbTableHandler.dbTable.record;
+  scanSpec[ScanHelper.table_record] = this.query.dbTableHandler.dbTable.record;
 
-  if(op.query.queryType == 2) {  /* Index Scan */
-    scanSpec[ScanHelper.index_record] = op.query.dbIndexHandler.dbIndex.record;
-//    boundHelper = getBoundHelper(op.query, op.keys);
+  if(this.query.queryType == 2) {  /* Index Scan */
+    scanSpec[ScanHelper.index_record] = this.query.dbIndexHandler.dbIndex.record;
+//    boundHelper = getBoundHelper(this.query, this.keys);
 //    if(boundHelper) {
 //      scanHelper[bounds] = adapter.impl.IndexBound.create(boundHelper);
 //    }
   }
 
-  scanSpec[ScanHelper.lock_mode] = constants.LockModes[op.lockMode];
+  scanSpec[ScanHelper.lock_mode] = constants.LockModes[this.lockMode];
 
-  if(typeof op.keys.order !== 'undefined') {
+  if(typeof this.keys.order !== 'undefined') {
     var flags = constants.Scan.flags.SF_OrderBy;
-    if(op.keys.order == 'desc') flags |= constants.Scan.flags.SF_Descending;
+    if(this.keys.order == 'desc') flags |= constants.Scan.flags.SF_Descending;
     scanSpec[ScanHelper.flags] = flags;  
   }
 
-  if(op.query.ndbFilterSpec) {
+  if(this.query.ndbFilterSpec) {
     scanSpec[ScanHelper.filter_code] = 
-      op.query.ndbFilterSpec.getScanFilterCode(op.keys);  // call them params?
+      this.query.ndbFilterSpec.getScanFilterCode(this.keys);  // call them params?
   }
 
-  /* Build the NdbScanOperation */
-  op.ndbop = adapter.impl.Scan.create(scanSpec, opcode, ndbTransaction);
+  this.state = doc.OperationStates[1];  // PREPARED
+ 
+  scanHelper = adapter.impl.Scan.create(scanSpec, opcode, ndbTransaction);
+  scanHelper.prepareScan(callback);
 }
 
 
@@ -307,14 +312,6 @@ DBOperation.prototype.isScanOperation = function() {
   return (this.opcode >= 32);
 }
 
-DBOperation.prototype.prepare = function(ndbTransaction) {
-  udebug.log("prepare", opcodes[this.opcode], this.values);
-
-  var f = this.isScanOperation() ? prepareScanOperation : prepareKeyOperation;
-  f(this, ndbTransaction);
-  this.state = doc.OperationStates[1];  // PREPARED
-  return;
-}
 
 function readResultRow(op) {
   udebug.log("readResultRow");
