@@ -36,7 +36,12 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     AO_ABORT        = adapter.ndbapi.AbortOnError,
     AO_IGNORE       = adapter.ndbapi.AO_IgnoreError,
     AO_DEFAULT      = adapter.ndbapi.DefaultAbortOption,
+    modeNames       = [],
     serial          = 1;
+
+modeNames[COMMIT] = 'commit';
+modeNames[NOCOMMIT] = 'noCommit';
+modeNames[ROLLBACK] = 'rollback';
 
 function DBTransactionHandler(dbsession) {
   this.dbSession          = dbsession;
@@ -69,7 +74,7 @@ function run(self, execMode, abortFlag, callback) {
   apiCall.tx = self;
   apiCall.execMode = execMode;
   apiCall.abortFlag = abortFlag;
-  apiCall.description = "NdbTransactionHandler execute";
+  apiCall.description = "execute_" + modeNames[execMode];
   apiCall.run = function runExecCall() {
     /* NDB Execute.
        "Sync" execute is an async operation for the JavaScript user,
@@ -122,11 +127,6 @@ function attachErrorToTransaction(dbTxHandler, err) {
     dbTxHandler.success = true;
   }
 }
-
-var modeNames = [];
-modeNames[COMMIT] = 'commit';
-modeNames[NOCOMMIT] = 'noCommit';
-modeNames[ROLLBACK] = 'rollback';
 
 /* Common callback for execute, commit, and rollback 
 */
@@ -181,6 +181,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   }
 
   function executeScans(scanList) {
+    // TODO? If only scan/read in this tx, skip the final execute
     function execOneScan(err) {
       var scanop = scanList.pop();
       var cb = scanList.length ? execOneScan : executeNdbTransaction;      
@@ -257,6 +258,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     startTxCall = new QueuedAsyncCall(self.dbSession.execQueue, onStartTx);
     startTxCall.table = dbOperationList[0].tableHandler.dbTable;
     startTxCall.ndb = self.dbSession.impl;
+    startTxCall.description = "startNdbTransaction";
     startTxCall.run = function() {
       // TODO: partitionKey
       this.ndb.startTransaction(this.table, 0, 0, this.callback);
