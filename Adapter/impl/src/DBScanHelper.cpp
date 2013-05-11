@@ -31,6 +31,7 @@
 #include "Operation.h"
 #include "NdbWrappers.h"
 #include "NdbWrapperErrors.h"
+#include "NativeMethodCall.h"
 
 using namespace v8;
 
@@ -51,48 +52,51 @@ enum {
   OP_SCAN_DELETE = 48
 };
 
-/* 
-   arg0: DBScan HelperSpec
-   arg1: opcode
-   arg2: NdbTransaction *
-*/
-Handle<Value> DBScanHelper(const Arguments &args) {
+class DBScanHelper : public Operation {
+public:
+  DBScanHelper(const Arguments &);
+  NdbScanOperation * prepareScan();
+private:
+  NdbTransaction *tx;
+  NdbIndexScanOperation::IndexBound *bound;
+  bool isIndexScan;
+  NdbScanOperation::ScanOptions options;
+};
+
+
+DBScanHelper::DBScanHelper(const Arguments &args) : 
+  bound(0),
+  isIndexScan(false)
+{
   DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
 
   Local<Value> v;
 
   const Local<Object> spec = args[0]->ToObject();
   int opcode = args[1]->Int32Value();
-  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
+  tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
 
-  NdbScanOperation::ScanOptions options;
-  Operation op;
-  op.lmode = NdbOperation::LM_CommittedRead;
-  op.scan_options = & options;
+  lmode = NdbOperation::LM_CommittedRead;
+  scan_options = & options;
   options.optionsPresent = 0ULL;
-
-  NdbScanOperation * scan_op = 0;
-  NdbIndexScanOperation::IndexBound *bound = 0;
-  bool isIndexScan = false;
 
   v = spec->Get(SCAN_TABLE_RECORD);
   if(! v->IsNull()) {
     Local<Object> o = v->ToObject();
-    op.row_record = unwrapPointer<Record *>(o);
+    row_record = unwrapPointer<Record *>(o);
   }
 
   v = spec->Get(SCAN_INDEX_RECORD);
   if(! v->IsNull()) {
     Local<Object> o = v->ToObject();
     isIndexScan = true;
-    op.key_record = unwrapPointer<Record *>(o);
+    key_record = unwrapPointer<Record *>(o);
   }
   
   v = spec->Get(SCAN_LOCK_MODE);
   if(! v->IsNull()) {
     int intLockMode = v->Int32Value();
-    op.lmode = static_cast<NdbOperation::LockMode>(intLockMode);
+    lmode = static_cast<NdbOperation::LockMode>(intLockMode);
   }
 
   v = spec->Get(SCAN_BOUNDS);
@@ -131,16 +135,63 @@ Handle<Value> DBScanHelper(const Arguments &args) {
     options.scan_flags |= NdbScanOperation::SF_KeyInfo;
     options.optionsPresent |= NdbScanOperation::ScanOptions::SO_SCANFLAGS;    
   }
+  
+  /* Done defining the object */
+}
 
+
+/* Async Method: 
+*/
+NdbScanOperation * DBScanHelper::prepareScan() {
+  DEBUG_MARKER(UDEB_DEBUG);
+  NdbScanOperation * scan_op;
+  
   if(isIndexScan) {
-    scan_op = op.scanIndex(tx, bound);
+    scan_op = scanIndex(tx, bound);
   }
   else {
-    scan_op = op.scanTable(tx);
+    scan_op = scanTable(tx);
   }
   
-  if(scan_op) return scope.Close(NdbScanOperation_Wrapper(scan_op));
-  else return Null();
+  return scan_op;
+}
+
+
+//// DBScanHelper Wrapper
+
+extern Envelope * NdbScanOperationEnvelope;
+Handle<Value> prepareScan_wrapper(const Arguments &);
+
+class DBScanHelperEnvelopeClass : public Envelope {
+public:
+  DBScanHelperEnvelopeClass() : Envelope("DBScanHelper") {
+    DEFINE_JS_FUNCTION(Envelope::stencil, "prepareScan", prepareScan_wrapper);
+  }
+};
+
+DBScanHelperEnvelopeClass dbScanHelperEnvelope;
+
+// Constructor wrapper
+Handle<Value> DBScanHelper_wrapper(const Arguments &args) {
+  HandleScope scope;
+  DBScanHelper * helper = new DBScanHelper(args);
+  Local<Object> wrapper = dbScanHelperEnvelope.newWrapper();
+  wrapPointerInObject<DBScanHelper *>(helper, dbScanHelperEnvelope, wrapper);
+  freeFromGC<DBScanHelper *>(helper, wrapper);
+  return scope.Close(wrapper);
+}
+
+
+// prepareScan wrapper
+Handle<Value> prepareScan_wrapper(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  REQUIRE_ARGS_LENGTH(1);
+  typedef NativeMethodCall_0_<NdbScanOperation *, DBScanHelper> MCALL;
+  MCALL * mcallptr = new MCALL(& DBScanHelper::prepareScan, args);
+  mcallptr->wrapReturnValueAs(NdbScanOperationEnvelope);
+  mcallptr->runAsync();
+  
+  return Undefined();
 }
 
 
@@ -151,7 +202,7 @@ void ScanHelper_initOnLoad(Handle<Object> target) {
   Persistent<String> scanKey = Persistent<String>(String::NewSymbol("Scan"));
   target->Set(scanKey, scanObj);
 
-  DEFINE_JS_FUNCTION(scanObj, "create", DBScanHelper);
+  DEFINE_JS_FUNCTION(scanObj, "create", DBScanHelper_wrapper);
 
   Persistent<Object> ScanHelper = Persistent<Object>(Object::New());
   Persistent<Object> ScanFlags = Persistent<Object>(Object::New());
