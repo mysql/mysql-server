@@ -385,9 +385,10 @@ function buildValueObject(op) {
 
 
 function fetchResults(dbSession, ndb_scan_op, buffer, callback) {
-  var apiCall = new QueuedAsyncCall(dbSession.execQueue, callback);
+  var apiCall = new QueuedAsyncCall(dbSession.execQueue, null, callback);
   var force_send = true;
   apiCall.ndb_scan_op = ndb_scan_op;
+  apiCall.description = "fetchResults";
   apiCall.buffer = buffer;
   apiCall.run = function runFetchResults() {
     this.ndb_scan_op.fetchResults(this.buffer, force_send, this.callback);
@@ -408,7 +409,10 @@ function getScanResults(scanop, userCallback) {
 
   var recordSize = scanop.tableHandler.dbTable.record.getBufferSize();
 
-  function gather(error, status) {    
+  /* <0: ERROR, 0: RESULTS_READY, 1: SCAN_FINISHED, 2: CACHE_EMPTY */
+  function gather(error, status) {
+    var postScanCallback;
+    
     if(status !== 0) {
       results.pop();  // remove the optimistic result 
     }
@@ -428,6 +432,7 @@ function getScanResults(scanop, userCallback) {
     
     /* Gather more results. */
     while(status === 0) {
+      udebug.log("gather() 0 Result_Ready");
       buffer = new Buffer(recordSize);
       status = scanop.ndbop.nextResult(buffer);
       if(status === 0) {
@@ -436,15 +441,20 @@ function getScanResults(scanop, userCallback) {
     }
     
     if(status == 2) {  // No more locally cached results
+      udebug.log("gather() 2 Cache_Empty");
       fetch();
     }
     else {  // end of scan.
-      assert(status === 1);
-      udebug.log("Scan Result length:", results.length);
+      // assert(status === 1);
+      udebug.log("gather() 1 End_Of_Scan.  Final length:", results.length);
       scanop.result.success = true;
       scanop.result.value = results;
-      userCallback(null, results);
-      return;
+      postScanCallback = {
+        fn  : userCallback,
+        arg0: null,
+        arg1: results
+      };
+      return postScanCallback;
     }    
   }
 

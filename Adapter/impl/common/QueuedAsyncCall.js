@@ -37,27 +37,43 @@ var udebug = unified_debug.getLogger("QueuedAsyncCall.js");
 
 /* Public constructor.
    The queue is simply an array.
-   The callback will be wrapped.
+   The callbacks will be wrapped.
+   The mainCallback will be run after advancing the queue.
+   The preCallback will be run while still holding exclusive accesss to the
+   exec queue. 
+   The preCallback may return a postCallback, containing members 
+   "fn", "arg0", and "arg1".  
+   If so, fn(arg0, arg1) will be run after advancing the queue.
 */
-function QueuedAsyncCall(queue, callback) {
+function QueuedAsyncCall(queue, mainCallback, preCallback) {
   this.queue = queue;
 
   /* Function Generator */
-  function wrapCallback(queue, callback) {
+  function wrapCallbacks(queue, mainCallback, preCallback) {
     return function wrappedCallback(err, obj) {
-      var thisCall, next;
+      var thisCall, next, postCallback;
+      postCallback = null;
       thisCall = queue.shift();  // Our own QueuedAsyncCall
-      udebug.log("wrappedCallback", thisCall.description, typeof callback);
+      udebug.log(thisCall.description, "has returned");
+      /* Run the user's pre-callback function */
+      if(typeof preCallback === 'function') {
+        postCallback = preCallback(err, obj);
+      }
+      /* Launch the next queued async call */
       if(queue.length) {
-        udebug.log("Run from queue");
+        udebug.log("Next queued:", queue[0].description);
         queue[0].run();
       }
-      /* Run the user's callback function */
-      if(typeof callback === 'function') {  callback(err, obj);  }
+      /* The preCallback may have returned a postCallback */
+      if(postCallback && postCallback.fn) {
+        postCallback.fn(postCallback.arg0, postCallback.arg1);
+      }
+      /* Run the user's main callback function */
+      if(typeof mainCallback === 'function') {  mainCallback(err, obj);  }
     };
   }
   
-  this.callback = wrapCallback(queue, callback);
+  this.callback = wrapCallbacks(queue, mainCallback, preCallback);
 }
 
 
@@ -75,7 +91,7 @@ QueuedAsyncCall.prototype.enqueue = function() {
     this.run();
   }
   else {
-    udebug.log("enqueue", this.description, "- deferred, position", pos);
+    udebug.log("enqueue", this.description, "- position", pos);
   }
   return pos;
 };
