@@ -82,7 +82,7 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      */
     public ResultData resultData(boolean execute, long skip, long limit) {
         NdbRecordResultDataImpl result =
-            new NdbRecordScanResultDataImpl(this, skip, limit);
+            new NdbRecordScanResultDataImpl(clusterTransaction, this, skip, limit);
         if (execute) {
             clusterTransaction.executeNoCommit(false, true);
         }
@@ -230,15 +230,17 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      * Only transfer the lock if the lock mode is not committed read
      * (there is no lock held for committed read).
      */
-    public void lockCurrentTuple() {
+    public NdbOperationConst lockCurrentTuple() {
+        NdbOperationConst result = null;
         if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
-            NdbOperationConst op = ((NdbScanOperation)ndbOperation).lockCurrentTuple(
+            result = ((NdbScanOperation)ndbOperation).lockCurrentTuple(
                     clusterTransaction.ndbTransaction, ndbRecordValues.getNdbRecord(),
                     null, null, null, 0);
-            if (op == null) {
-                Utility.throwError(op, ndbOperation.getNdbError());
+            if (result == null) {
+                Utility.throwError(result, ndbOperation.getNdbError());
             }
         }
+        return result;
     }
 
     /** Transform this NdbRecordOperationImpl into one that can be used to back a SmartValueHandler.
