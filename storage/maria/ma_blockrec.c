@@ -4008,6 +4008,8 @@ static int delete_dir_entry(uchar *buff, uint block_size, uint record_number,
   uint length, empty_space;
   uchar *dir;
   DBUG_ENTER("delete_dir_entry");
+  DBUG_PRINT("enter", ("record_number: %u  number_of_records: %u",
+                       record_number, number_of_records));
 
 #ifdef SANITY_CHECKS
   if (record_number >= number_of_records ||
@@ -4024,7 +4026,8 @@ static int delete_dir_entry(uchar *buff, uint block_size, uint record_number,
   check_directory(buff, block_size, 0, (uint) -1);
   empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
   dir= dir_entry_pos(buff, block_size, record_number);
-  length= uint2korr(dir + 2);
+  length= uint2korr(dir + 2);  /* Length of entry we just deleted */
+  DBUG_ASSERT(uint2korr(dir) != 0 && length < block_size);
 
   if (record_number == number_of_records - 1)
   {
@@ -5230,11 +5233,6 @@ void _ma_scan_end_block_record(MARIA_HA *info)
   For the moment we can only remember one position, but this is
   good enough for MySQL usage
 
-  @Warning
-    When this function is called, we assume that the thread is not deleting
-    or updating the current row before ma_scan_restore_block_record()
-    is called!
-
   @return
   @retval 0			  ok
   @retval HA_ERR_WRONG_IN_RECORD  Could not allocate memory to hold position
@@ -5254,15 +5252,18 @@ int _ma_scan_remember_block_record(MARIA_HA *info,
     info->scan_save->bitmap_buff= ((uchar*) info->scan_save +
                                    ALIGN_SIZE(sizeof(*info->scan_save)));
   }
-  /* Point to the last read row */
-  *lastpos= info->cur_row.nextpos - 1;
-  info->scan.dir+= DIR_ENTRY_SIZE;
+  /* For checking if pages have changed since we last read it */
+  info->scan.row_changes= info->row_changes;
 
   /* Remember used bitmap and used head page */
   bitmap_buff= info->scan_save->bitmap_buff;
   memcpy(info->scan_save, &info->scan, sizeof(*info->scan_save));
   info->scan_save->bitmap_buff= bitmap_buff;
   memcpy(bitmap_buff, info->scan.bitmap_buff, info->s->block_size * 2);
+
+  /* Point to the last read row */
+  *lastpos= info->cur_row.nextpos - 1;
+  info->scan_save->dir+= DIR_ENTRY_SIZE;
   DBUG_RETURN(0);
 }
 
@@ -5270,15 +5271,22 @@ int _ma_scan_remember_block_record(MARIA_HA *info,
 /**
    @brief restore scan block it's original values
 
+   @return
+   0 ok
+   # error
+
    @note
    In theory we could swap bitmap buffers instead of copy them.
    For the moment we don't do that because there are variables pointing
    inside the buffers and it's a bit of hassle to either make them relative
    or repoint them.
+
+   If the data file has changed, we will re-read the new block record
+   to ensure that when we continue scanning we can ignore any deleted rows.
 */
 
-void _ma_scan_restore_block_record(MARIA_HA *info,
-                                   MARIA_RECORD_POS lastpos)
+int _ma_scan_restore_block_record(MARIA_HA *info,
+                                  MARIA_RECORD_POS lastpos)
 {
   uchar *bitmap_buff;
   DBUG_ENTER("_ma_scan_restore_block_record");
@@ -5289,7 +5297,26 @@ void _ma_scan_restore_block_record(MARIA_HA *info,
   info->scan.bitmap_buff= bitmap_buff;
   memcpy(bitmap_buff, info->scan_save->bitmap_buff, info->s->block_size * 2);
 
-  DBUG_VOID_RETURN;
+  if (info->scan.row_changes != info->row_changes)
+  {
+    /*
+      Table has been changed. We have to re-read the current page block as
+      data may have changed on it that we have to see.
+    */
+    if (!(pagecache_read(info->s->pagecache,
+                         &info->dfile,
+                         ma_recordpos_to_page(info->scan.row_base_page),
+                         0, info->scan.page_buff,
+                         info->s->page_type,
+                         PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
+      DBUG_RETURN(my_errno);
+    info->scan.number_of_rows=
+      (uint) (uchar) info->scan.page_buff[DIR_COUNT_OFFSET];
+    info->scan.dir_end= (info->scan.page_buff + info->s->block_size -
+                         PAGE_SUFFIX_SIZE -
+                         info->scan.number_of_rows * DIR_ENTRY_SIZE);
+  }
+  DBUG_RETURN(0);
 }
 
 
@@ -5316,7 +5343,7 @@ void _ma_scan_restore_block_record(MARIA_HA *info,
 
   RETURN
     0   ok
-    #   Error code
+    #   Error code  (Normally HA_ERR_END_OF_FILE)
 */
 
 int _ma_scan_block_record(MARIA_HA *info, uchar *record,
@@ -5336,6 +5363,12 @@ restart_record_read:
     uchar *data, *end_of_data;
     int error;
 
+    /* Ensure that scan.dir and record_pos are in sync */
+    DBUG_ASSERT(info->scan.dir == dir_entry_pos(info->scan.page_buff,
+                                                share->block_size,
+                                                record_pos));
+
+    /* Search for a valid directory entry (not 0) */
     while (!(offset= uint2korr(info->scan.dir)))
     {
       info->scan.dir-= DIR_ENTRY_SIZE;
@@ -5348,13 +5381,19 @@ restart_record_read:
       }
 #endif
     }
+    /*
+      This should always be true as the directory should always start with
+      a valid entry.
+    */
+    DBUG_ASSERT(info->scan.dir >= info->scan.dir_end);
+
     /* found row */
     info->cur_row.lastpos= info->scan.row_base_page + record_pos;
     info->cur_row.nextpos= record_pos + 1;
     data= info->scan.page_buff + offset;
     length= uint2korr(info->scan.dir + 2);
     end_of_data= data + length;
-    info->scan.dir-= DIR_ENTRY_SIZE;          /* Point to previous row */
+    info->scan.dir-= DIR_ENTRY_SIZE;      /* Point to next row to process */
 #ifdef SANITY_CHECKS
     if (end_of_data > info->scan.dir_end ||
         offset < PAGE_HEADER_SIZE || length < share->base.min_block_length)

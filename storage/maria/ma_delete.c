@@ -112,6 +112,7 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   info->state->checksum-= info->cur_row.checksum;
   info->state->records--;
   info->update= HA_STATE_CHANGED+HA_STATE_DELETED+HA_STATE_ROW_CHANGED;
+  info->row_changes++;
   share->state.changed|= (STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_MOVABLE |
                           STATE_NOT_ZEROFILLED);
   info->state->changed=1;

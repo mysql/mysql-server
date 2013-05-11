@@ -1957,3 +1957,4 @@ CPackSourceConfig.cmake
 win/nmake_cache.txt
 *.manifest
 *.resource.txt
+sql/sql_yacc.hh

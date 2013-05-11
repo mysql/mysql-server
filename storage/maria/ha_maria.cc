@@ -2255,7 +2255,9 @@ int ha_maria::remember_rnd_pos()
 
 int ha_maria::restart_rnd_next(uchar *buf)
 {
-  (*file->s->scan_restore_pos)(file, remember_pos);
+  int error;
+  if ((error= (*file->s->scan_restore_pos)(file, remember_pos)))
+    return error;
   return rnd_next(buf);
 }
 
