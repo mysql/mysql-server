@@ -70,7 +70,20 @@ function isBoolean(x) {
   return (typeof x === 'boolean');
 }
 
-// TODO: Points that rely on NdbSqlUtil compare functions
+/* An EncodedValue holds a value that has been encoded in a buffer for 
+   a particular column
+*/
+function EncodedValue(column, buffer, size) {
+  this.column = column;
+  this.buffer = buffer;
+  this.size = size;
+}
+
+EncodedValue.prototype = {
+  isEncodedValue : true;
+};
+
+
 function Point(value, inclusive) {
   this.value     = value;
   this.inclusive = inclusive;
@@ -86,7 +99,7 @@ Point.prototype.asString = function(close) {
     s += (this.inclusive ? "[" : "(");
     s += this.value;
   }
-}
+};
 
 /* Compare two points.
    Returns:
@@ -94,17 +107,47 @@ Point.prototype.asString = function(close) {
      +1 if this point's value is greater than the other's
      true if the values are equal and both points are inclusive
      false if the values are equal and either point is exclusive
-   Caller is encouraged to test the return value with isBoolean()
+   Caller is encouraged to test the return value with isBoolean().
 */
 Point.prototype.compare = function(that) {
-  if(this.value == that.value) {
-    return (this.inclusive && that.inclusive);
-  }
-  if(this.value < that.value || this.value == -Infinity) {
+  var cmp;
+
+  /* First compare to infinity */
+  if(this.value == -Infinity || that.value == Infinity) {
     return -1;
   }
-  return 1;  
-}
+
+  if(this.value == Infinity  || that.value == -Infinity) {
+    return 1;
+  }
+
+  if(typepof this.value === 'object' && this.isEncodedValue) {
+    /* Compare Encoded Values */
+    cmp = 0; // cmp = xxx.compare( ... )
+  }
+  else {
+    /* Compare JavaScript values */
+    if(this.value == that.value) cmp = 0;
+    else if (this.value < that.value) cmp = -1;
+    else cmp = 1;
+  }
+
+  if(cmp === 0) {
+    return (this.inclusive && that.inclusive);
+  }
+  else {
+    return cmp;
+  }
+};
+
+/* complement flips Point between inclusive and exclusive
+   Used in complementing number lines.
+   e.g. the complement of [4,10] is (-Inf, 4) and (10, Inf)
+*/
+Point.prototype.complement = function() {
+   this.inclusive = ! this.inclusive;
+};
+
 
 var negInf = new Point(-Infinity, false);
 var posInf = new Point(Infinity, false);
@@ -190,60 +233,50 @@ function createSegmentBetween(a, b) {
 /* A number line represents a set of line segments on a key space
    stretching from -Infinity to +Infinity
    
-   The line is stored as an ordered list of transition points, along 
-   with a flag that indicates whether Negative Infinity is the start 
-   of the first segment.  Computing the complement to any set is a 
-   simple matter of flipping this flag. 
-
-   TODO: Reimplement as a list without the flag & eliminate toList()
-      
+   The line is stored as an ordered list of transition points. 
+ 
    The constructor "new NumberLine()" returns the full line from
    -Infinity +Infinity.
 */
 
 function NumberLine() {
-  this.transitions = [];
-  this.hasNegInf = true;
+  this.transitions = [NegInf, posInf];
 } 
 
 NumberLine.prototype.setEmpty = function() {
   this.transitions = [];
-  this.hasNegInf = false;
-} 
+  return this;
+};
 
 NumberLine.prototype.isEmpty = function() {
-  return (this.transitions.length == 0 && this.hasNegInf == false);
-}
+  return (this.transitions.length == 0);
+};
 
 NumberLine.prototype.complement = function() {
-  this.hasNegInf = ! this.hasNegInf;
+  var i;
+  if(this.transitions[0].value == -Infinity) {
+    this.transitions.unshift();
+  }
+  else {
+    this.transitions.shift(negInf);
+  }
+  for(i = 1; i < this.transitions.length; i ++) {
+    this.transitions[i].complement();
+  }
   return this;
-}
+};
 
 NumberLine.prototype.upperBound = function() {
-  if(this.isEmpty()) {
-    return negInf;
-  }  
-  var a = this.transitions.length % 2;
-  var b = this.hasNegInf ? 1 : 0;
-  var isBounded = (a + b) % 2;
-  return isBounded ? this.transitions[this.transitions.length - 1] : posInf;  
-}
+  return (this.isEmpty() ? negInf : this.transitions[this.transitions.length - 1]);
+};
 
-/* Return an array [startPoint, endPoint, startPoint, endPoint, ... ] 
-*/
-NumberLine.prototype.toList = function() {
-  var i;
-  var list = [];
-  if(this.hasNegInf) list.push(negInf);
-  list = list.concat(this.transitions);
-  if(list.length % 2) list.push(posInf);
-  return list;  
-}
+NumberLine.prototype.lowerBound = function() {
+  return (this.isEmpty() ? posInf : this.transitions[0]);
+};
 
 NumberLine.prototype.toString = function() {
   var i, close;  
-  var list = this.toList();
+  var list = this.transitions;
   var str = "";
   for(i = 0 ; i < list.length ; i ++) {
     if(i) str += ",";
@@ -256,7 +289,7 @@ NumberLine.prototype.toString = function() {
 */
 function NumberLineIterator(numberLine) {
   this.line = numberLine;
-  this.list = numberLine.toList();
+  this.list = numberLine.transitions;
   this.length = list.length / 2;
   this.n = 0;
 }
@@ -275,12 +308,11 @@ NumberLineIterator.prototype.next = function() {
    Returns null if the iterator has not yet been read. 
 */
 NumberLineIterator.prototype.getSplicePoint = function() {
-  var pt = null;
+  var idx = null;
   if(this.n >= 2) {  
-    pt = this.n - 2;
-    if(line.hasNegInf) pt += 1;
+    idx = this.n - 2;
   }
-  return pt;
+  return idx;
 }
 
 
