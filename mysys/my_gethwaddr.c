@@ -101,7 +101,7 @@ my_bool my_gethwaddr(uchar *to)
     uint i;
     for (i= 0; res && i < ifc.ifc_len / sizeof(ifr[0]); i++)
     {
-#ifdef SIOCGIFHWADDR
+#ifdef __linux__
       if (ioctl(fd, SIOCGIFHWADDR, &ifr[i]) >= 0)
         res= memcpy_and_test(to, (uchar *)&ifr[i].ifr_hwaddr.sa_data,
                              ETHER_ADDR_LEN);
