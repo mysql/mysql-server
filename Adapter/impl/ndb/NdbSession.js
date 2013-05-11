@@ -48,8 +48,9 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
      until startTransaction() has returned.
   3. All ndb.startTransaction() calls must wait on NdbSession.startTxQueue
      for some NdbTransaction to close, if more than N NdbTransactions are open.
-     N is an argument to the Ndb() constructor and defaults to 4, but I have
-     cowardly set maxNdbTransactions to 3 here.
+     N is an argument to the Ndb() constructor and defaults to 4.
+     However, scans count as two transactions because they require 
+     two API Connect Records.
 */
 
 
@@ -71,7 +72,7 @@ NdbSession = function() {
   this.tx                  = null;
   this.execQueue           = [];
   this.startTxQueue        = [];
-  this.maxNdbTransactions  = 3;    // related to Ndb() constructor arguments
+  this.maxNdbTransactions  = 4;  // do not set less than two
   this.openNdbTransactions = 0;
 };
 
@@ -101,8 +102,10 @@ exports.closeActiveTransaction = function(dbTransactionHandler) {
 */
 exports.queueStartNdbTransaction = function(dbTransactionHandler, startTxCall) {
   var self = dbTransactionHandler.dbSession;
-  if(self.openNdbTransactions < self.maxNdbTransactions) {
-    self.openNdbTransactions++;
+  var nTx = startTxCall.nTxRecords;
+  
+  if(self.openNdbTransactions + nTx <= self.maxNdbTransactions) {
+    self.openNdbTransactions += nTx;
     udebug.log("startTransaction => exec queue");
     startTxCall.enqueue();           // go directly to the exec queue
   }
@@ -115,15 +118,17 @@ exports.queueStartNdbTransaction = function(dbTransactionHandler, startTxCall) {
 
 /* Close an NdbTransaction. 
 */
-exports.closeNdbTransaction = function(dbTransactionHandler) {
+exports.closeNdbTransaction = function(dbTransactionHandler, nTx) {
   var self, nextTx;
   self = dbTransactionHandler.dbSession;
-  assert(self.openNdbTransactions > 0);
-  self.openNdbTransactions--;
-  while(self.startTxQueue.length > 0 && self.openNdbTransactions < self.maxNdbTransactions) {
+  udebug.log("closeNdbTransaction", nTx, self.openNdbTransactions);
+  self.openNdbTransactions -= nTx;
+  assert(self.openNdbTransactions >= 0);
+  while(self.startTxQueue.length > 0 && 
+        self.openNdbTransactions + self.startTxQueue[0].nTxRecords <= self.maxNdbTransactions) {
     /* move a waiting StartTxCall from the startTxQueue to the execQueue */
     nextTx = self.startTxQueue.shift();
-    self.openNdbTransactions++;
+    self.openNdbTransactions += nextTx.nTxRecords;
     udebug.log("closeNdbTransaction: pulled 1 from startTxQueue. Length:", self.startTxQueue.length);
     nextTx.enqueue(); 
   }
