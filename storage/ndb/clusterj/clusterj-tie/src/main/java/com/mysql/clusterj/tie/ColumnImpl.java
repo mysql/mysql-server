@@ -295,9 +295,9 @@ class ColumnImpl implements Column {
             case ColumnConst.Type.Varbinary: return ColumnType.Varbinary;
             case ColumnConst.Type.Varchar: return ColumnType.Varchar;
             case ColumnConst.Type.Year: return ColumnType.Year;
-            case ColumnConst.Type.Time2: return ColumnType.Time2;
-            case ColumnConst.Type.Datetime2: return ColumnType.Datetime2;
-            case ColumnConst.Type.Timestamp2: return ColumnType.Timestamp2;
+            case 31: return ColumnType.Time2; // ColumnConst.Type.Time2: 
+            case 32: return ColumnType.Datetime2; // ColumnConst.Type.Datetime2
+            case 33: return ColumnType.Timestamp2; // ColumnConst.Type.Timestamp2
             default: 
                 String message = 
                     local.message("ERR_Unknown_Column_Type",
