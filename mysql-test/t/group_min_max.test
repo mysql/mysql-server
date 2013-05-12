@@ -1208,6 +1208,8 @@ EXPLAIN SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
 SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
   WHERE b = 13 AND c = 42 GROUP BY a;
 
+--echo # This query could have been resolved using loose index scan since
+--echo # the second part of count(..) is defined by a constant predicate
 EXPLAIN SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 
