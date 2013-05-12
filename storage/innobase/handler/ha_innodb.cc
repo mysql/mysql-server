@@ -11978,7 +11978,6 @@ test_innobase_convert_name()
 		}
 	}
 }
-
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 
 /**********************************************************************
@@ -11992,17 +11991,8 @@ innobase_convert_to_filename_charset(
 	ulint		len)	/* in: length of 'to', in bytes */
 {
 	uint		errors;
-	uint		rlen;
 	CHARSET_INFO*	cs_to = &my_charset_filename;
 	CHARSET_INFO*	cs_from = system_charset_info;
 
-	rlen = strconvert(cs_from, from, cs_to, to, len, &errors);
-
-	if (errors) {
-		fprintf(stderr, "InnoDB: There was a problem in converting"
-			"'%s' in charset %s to charset %s", from, cs_from->name,
-			cs_to->name);
-	}
-
-	return(rlen);
+	return(strconvert(cs_from, from, cs_to, to, len, &errors));
 }
