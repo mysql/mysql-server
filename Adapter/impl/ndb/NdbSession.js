@@ -275,7 +275,6 @@ NdbSession.prototype.buildScanOperation = function(queryHandler, properties,
    RETURNS the current transaction handler, creating it if necessary
 */
 NdbSession.prototype.getTransactionHandler = function() {
-  udebug.log("getTransactionHandler");
   if(this.tx) {
     udebug.log("getTransactionHandler -- return existing");
   }
