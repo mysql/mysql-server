@@ -437,15 +437,23 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       share->open_count_not_zero_on_open= 1;
 
     /*
+      A transactional table is not usable on this system if:
+      - share->state.create_trid > trnman_get_max_trid()
+        - Critical as trid as stored releativel to create_trid.
+      - uuid is different
+      
+        STATE_NOT_MOVABLE is reset when a table is zerofilled
+        (has no LSN's and no trids)
+
       We can ignore testing uuid if STATE_NOT_MOVABLE is set, as in this
-      case the uuid will be set in _ma_mark_file_changed()
+      case the uuid will be set in _ma_mark_file_changed().
     */
-    if ((share->state.changed & STATE_NOT_MOVABLE) &&
-        share->base.born_transactional &&
-        ((!(open_flags & HA_OPEN_IGNORE_MOVED_STATE) &&
-          memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE)) ||
-         (share->state.create_trid > trnman_get_max_trid() &&
-          !maria_in_recovery)))
+    if (share->base.born_transactional &&
+        ((share->state.create_trid > trnman_get_max_trid() &&
+         !maria_in_recovery) ||
+         ((share->state.changed & STATE_NOT_MOVABLE) &&
+          ((!(open_flags & HA_OPEN_IGNORE_MOVED_STATE) &&
+            memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE))))))
     {
       DBUG_PRINT("warning", ("table is moved from another system.  uuid_diff: %d  create_trid: %lu  max_trid: %lu",
                             memcmp(share->base.uuid, maria_uuid,
@@ -756,7 +764,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                   HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE);
         goto err;
       }
-      else
+      else if (!(open_flags & HA_OPEN_FOR_REPAIR))
       {
         /* create_rename_lsn != LSN_NEEDS_NEW_STATE_LSNS */
         share->state.changed|= STATE_NOT_MOVABLE;

@@ -31,27 +31,27 @@
 #define T_AUTO_REPAIR           2		/* QQ to be removed */
 #define T_BACKUP_DATA           4
 #define T_CALC_CHECKSUM         8
-#define T_CHECK                 16		/* QQ to be removed */
-#define T_CHECK_ONLY_CHANGED    32		/* QQ to be removed */
+#define T_CHECK                 16
+#define T_CHECK_ONLY_CHANGED    32
 #define T_CREATE_MISSING_KEYS   64
 #define T_DESCRIPT              128
 #define T_DONT_CHECK_CHECKSUM   256
 #define T_EXTEND                512
-#define T_FAST                  (1L << 10)	/* QQ to be removed */
-#define T_FORCE_CREATE          (1L << 11)	/* QQ to be removed */
+#define T_FAST                  (1L << 10)
+#define T_FORCE_CREATE          (1L << 11)
 #define T_FORCE_UNIQUENESS      (1L << 12)
 #define T_INFO                  (1L << 13)
 #define T_MEDIUM                (1L << 14)
-#define T_QUICK                 (1L << 15)	/* QQ to be removed */
-#define T_READONLY              (1L << 16)	/* QQ to be removed */
+#define T_QUICK                 (1L << 15)
+#define T_READONLY              (1L << 16)
 #define T_REP                   (1L << 17)
-#define T_REP_BY_SORT           (1L << 18)	/* QQ to be removed */
-#define T_REP_PARALLEL          (1L << 19)	/* QQ to be removed */
+#define T_REP_BY_SORT           (1L << 18)
+#define T_REP_PARALLEL          (1L << 19)
 #define T_RETRY_WITHOUT_QUICK   (1L << 20)
 #define T_SAFE_REPAIR           (1L << 21)
 #define T_SILENT                (1L << 22)
-#define T_SORT_INDEX            (1L << 23)	/* QQ to be removed */
-#define T_SORT_RECORDS          (1L << 24)	/* QQ to be removed */
+#define T_SORT_INDEX            (1L << 23)
+#define T_SORT_RECORDS          (1L << 24)
 #define T_STATISTICS            (1L << 25)
 #define T_UNPACK                (1L << 26)
 #define T_UPDATE_STATE          (1L << 27)

@@ -1309,8 +1309,9 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
 
   old_proc_info= thd_proc_info(thd, "Checking status");
   thd_progress_init(thd, 3);
-  (void) maria_chk_status(&param, file);                // Not fatal
-  error= maria_chk_size(&param, file);
+  error= maria_chk_status(&param, file);                // Not fatal
+  if (maria_chk_size(&param, file))
+    error= 1;
   if (!error)
     error|= maria_chk_del(&param, file, param.testflag);
   thd_proc_info(thd, "Checking keys");

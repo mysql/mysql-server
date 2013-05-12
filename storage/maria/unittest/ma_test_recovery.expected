@@ -69,8 +69,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -78,8 +78,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -87,8 +87,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -98,8 +98,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -107,8 +107,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -116,8 +116,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -166,8 +166,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -175,8 +175,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -184,8 +184,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -195,8 +195,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -204,8 +204,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -213,8 +213,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -263,8 +263,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -272,8 +272,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -281,8 +281,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -292,8 +292,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -301,8 +301,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -310,8 +310,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -360,8 +360,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -369,8 +369,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -378,8 +378,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -389,8 +389,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -398,8 +398,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -407,8 +407,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -457,8 +457,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -466,8 +466,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -475,8 +475,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -486,8 +486,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -495,8 +495,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -504,8 +504,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -554,8 +554,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -563,8 +563,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -572,8 +572,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -583,8 +583,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -592,8 +592,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -601,8 +601,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -651,8 +651,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -660,8 +660,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -669,8 +669,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -680,8 +680,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -689,8 +689,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -698,8 +698,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -748,8 +748,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -757,8 +757,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -766,8 +766,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -777,8 +777,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -786,8 +786,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -795,8 +795,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -845,8 +845,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -854,8 +854,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -863,8 +863,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -874,8 +874,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -883,8 +883,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -892,8 +892,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -942,8 +942,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -951,8 +951,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -960,8 +960,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -971,8 +971,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -980,8 +980,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -989,8 +989,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1039,8 +1039,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1048,8 +1048,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1057,8 +1057,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1068,8 +1068,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1077,8 +1077,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1086,8 +1086,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1136,8 +1136,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1145,8 +1145,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1154,8 +1154,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1165,8 +1165,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1174,8 +1174,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1183,8 +1183,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1233,8 +1233,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1242,8 +1242,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1251,8 +1251,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1262,8 +1262,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1271,8 +1271,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1280,8 +1280,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1330,8 +1330,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1339,8 +1339,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1348,8 +1348,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1359,8 +1359,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1368,8 +1368,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1377,8 +1377,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1427,8 +1427,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1436,8 +1436,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1445,8 +1445,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1456,8 +1456,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1465,8 +1465,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1474,8 +1474,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1524,8 +1524,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1533,8 +1533,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1542,8 +1542,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1553,8 +1553,8 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1562,8 +1562,8 @@ testing idempotency
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1571,8 +1571,8 @@ testing applying of CLRs to recreate table
 applying log
 Differences in aria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled
+7c7
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======

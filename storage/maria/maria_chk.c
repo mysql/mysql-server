@@ -88,8 +88,21 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param, MARIA_PAGE *page,
 			     uint sortkey, File new_file,
                              my_bool update_index);
 static my_bool write_log_record(HA_CHECK *param);
+static void my_exit(int exit_code) __attribute__ ((noreturn));
 
 HA_CHECK check_param;
+
+/* Free memory and exit */
+
+static void my_exit(int exit_code)
+{
+  free_tmpdir(&maria_chk_tmpdir);
+  free_defaults(default_argv);
+  my_end(check_param.testflag & T_INFO ?
+         MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
+  exit(exit_code);
+}
+  
 
 	/* Main program */
 
@@ -178,12 +191,8 @@ end:
     printf("\nTotal of all %d Aria-files:\nData records: %9s   Deleted blocks: %9s\n",check_param.total_files,llstr(check_param.total_records,buff),
 	   llstr(check_param.total_deleted,buff2));
   }
-  free_defaults(default_argv);
-  free_tmpdir(&maria_chk_tmpdir);
   maria_end();
-  my_end(check_param.testflag & T_INFO ?
-         MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-  exit(error);
+  my_exit(error);
 #ifndef _lint
   return 0;				/* No compiler warning */
 #endif
@@ -252,10 +261,10 @@ static struct my_option my_long_options[] =
    "Restart with -r if there are any errors in the table. States will be updated as with --update-state.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"HELP", 'H',
-   "Display this help and exit.",
+   "Print all argument options sorted alphabetically and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?',
-   "Display this help and exit.",
+   "Print all options by groups and exit. See also --HELP",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"information", 'i',
    "Print statistics information about table that is checked.",
@@ -406,7 +415,7 @@ static struct my_option my_long_options[] =
     (char**) &maria_stats_method_str, (char**) &maria_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "zerofill", 'z',
-    "Fill empty space in data and index files with zeroes,",
+    "Fill empty space in data and index files with zeroes. This makes the data file movable between different servers.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "zerofill-keep-lsn", OPT_ZEROFILL_KEEP_LSN,
     "Like --zerofill but does not zero out LSN of data/index pages;"
@@ -418,7 +427,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.1 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 1.2 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -437,8 +446,8 @@ static void usage(void)
   -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'.\n");
 #endif
   printf("\
-  -H, --HELP          Display this help and exit.\n\
-  -?, --help          Display this help and exit.\n\
+  -H, --HELP          Print all argument options sorted alphabetically.\n\
+  -?, --help          Print all options by groups\n\
   --datadir=path      Path for control file (and logs if --logdir not used)\n\
   --logdir=path       Path for log files\n\
   --ignore-control-file  Don't open the control file. Only use this if you\n\
@@ -554,7 +563,9 @@ Recover (repair)/ options (When using '--recover' or '--safe-recover'):\n\
 		      (It may be VERY slow to do a sort the first time!).\n\
   -b,  --block-search=#\n\
                       Find a record, a block at given offset belongs to.\n\
-  -z,  --zerofill     Fill empty space in data and index files with zeroes\n\
+  -z,  --zerofill     Fill empty space in data and index files with zeroes.\n\
+                      This makes the data file movable between different \n\
+                      servers.\n\
   --zerofill-keep-lsn Like --zerofill but does not zero out LSN of\n\
                       data/index pages.");
 
@@ -757,7 +768,7 @@ get_one_option(int optid,
 	fprintf(stderr,
 		"The value of the sort key is bigger than max key: %d.\n",
 		MARIA_MAX_KEY);
-	exit(1);
+	my_exit(1);
       }
     }
     break;
@@ -785,7 +796,7 @@ get_one_option(int optid,
     break;
   case 'V':
     print_version();
-    exit(0);
+    my_exit(0);
   case OPT_CORRECT_CHECKSUM:
     if (argument == disabled_my_option)
       check_param.testflag&= ~T_CALC_CHECKSUM;
@@ -800,7 +811,7 @@ get_one_option(int optid,
     if ((method=find_type(argument, &maria_stats_method_typelib, 2)) <= 0)
     {
       fprintf(stderr, "Invalid value of stats_method: %s.\n", argument);
-      exit(1);
+      my_exit(1);
     }
     switch (method-1) {
     case 0:
@@ -836,10 +847,11 @@ get_one_option(int optid,
     break;
   case 'H':
     my_print_help(my_long_options);
-    exit(0);
+    my_print_variables(my_long_options);
+    my_exit(0);
   case '?':
     usage();
-    exit(0);
+    my_exit(0);
   }
   return 0;
 }
@@ -856,7 +868,7 @@ static void get_options(register int *argc,register char ***argv)
     check_param.testflag|=T_WRITE_LOOP;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-    exit(ho_error);
+    my_exit(ho_error);
 
   /* If using repair, then update checksum if one uses --update-state */
   if ((check_param.testflag & T_UPDATE_STATE) &&
@@ -866,7 +878,7 @@ static void get_options(register int *argc,register char ***argv)
   if (*argc == 0)
   {
     usage();
-    exit(-1);
+    my_exit(-1);
   }
 
   if ((check_param.testflag & T_UNPACK) &&
@@ -874,7 +886,7 @@ static void get_options(register int *argc,register char ***argv)
   {
     fprintf(stderr, "%s: --unpack can't be used with --quick or --sort-records\n",
 		 my_progname_short);
-    exit(1);
+    my_exit(1);
   }
   if ((check_param.testflag & T_READONLY) &&
       (check_param.testflag &
@@ -883,7 +895,7 @@ static void get_options(register int *argc,register char ***argv)
   {
     fprintf(stderr, "%s: Can't use --readonly when repairing or sorting\n",
 		 my_progname_short);
-    exit(1);
+    my_exit(1);
   }
 
   if (!opt_debug)
@@ -891,20 +903,26 @@ static void get_options(register int *argc,register char ***argv)
     DEBUGGER_OFF;                               /* Speed up things a bit */
   }
   if (init_tmpdir(&maria_chk_tmpdir, opt_tmpdir))
-    exit(1);
+    my_exit(1);
 
   check_param.tmpdir=&maria_chk_tmpdir;
 
   if (set_collation_name)
     if (!(set_collation= get_charset_by_name(set_collation_name,
                                              MYF(MY_WME))))
-      exit(1);
+      my_exit(1);
 
   if (maria_data_root != default_log_dir && opt_log_dir == default_log_dir)
   {
     /* --datadir was used and --log-dir was not. Set log-dir to datadir */
     opt_log_dir= maria_data_root;
   }
+
+  /* If we are using zerofill, then we don't need to read the control file */
+  if ((check_param.testflag & (T_ZEROFILL_KEEP_LSN | T_ZEROFILL)) &&
+      !(check_param.testflag & ~(T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX | T_STATISTICS | T_CHECK | T_FAST | T_CHECK_ONLY_CHANGED)))
+    opt_ignore_control_file= 1;
+
   return;
 } /* get options */
 
@@ -1475,6 +1493,8 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
              LSN_IN_PARTS(share->state.create_rename_lsn),
              LSN_IN_PARTS(share->state.is_of_horizon),
              LSN_IN_PARTS(share->state.skip_redo_lsn));
+      printf("create_trid:         %s\n",
+             llstr(share->state.create_trid, llbuff));
     }
     compile_time_assert((MY_UUID_STRING_LENGTH + 1) <= sizeof(buff));
     buff[MY_UUID_STRING_LENGTH]= 0;
