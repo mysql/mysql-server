@@ -8369,7 +8369,16 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
 
 err:
   if (error)
+  {
     end_io_cache(&file);
+    /*
+      Error occured. Delete .info and .data files if they are created.
+    */
+    strmov(ext,".info");
+    mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
+    strmov(ext,".data");
+    mysql_file_delete(key_file_log_event_data, fname_buf, MYF(0));
+  }
   if (fd >= 0)
     mysql_file_close(fd, MYF(0));
   return error != 0;
@@ -8831,12 +8840,16 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
     end_io_cache(&file);
     fd= -1;
   }
-  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
-  memcpy(ext, ".data", 6);
-  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   error = 0;
 
 err:
+  DBUG_EXECUTE_IF("simulate_file_open_error_exec_event",
+                  {
+                     strmov(ext, ".info");
+                  });
+  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
+  strmov(ext, ".data");
+  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   delete lev;
   if (fd >= 0)
   {
