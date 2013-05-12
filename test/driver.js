@@ -33,7 +33,6 @@ global.adapter    = "ndb";
 global.engine     = "ndb";
 
 var tprops = require(path.join(suites_dir, "lib", "test_properties"));
-var stream = require("stream");
 var udebug = unified_debug.getLogger("Driver.js");
 
 /** Driver 
@@ -259,6 +258,7 @@ for(i = 2; i < process.argv.length ; i++) {
             global.engine = engine;
           } else {
             exit = true;
+// change this to a warning
             console.log('Invalid adapter engine parameter -- use ndb or innodb');
           }
           break;
@@ -351,8 +351,8 @@ global.fail_openSession = function(testCase, callback) {
       callback(session, testCase);
     }
     catch(e) {
-      testCase.fail(e);
+      testCase.appendErrorMessage(e);
+      testCase.failOnError();
     }
  });
 };
-
