@@ -1455,15 +1455,15 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     rollback.
    */
   if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT)
-    if ((error= ha_rollback_low(thd, all)))
-      goto end;
+    if (int error= ha_rollback_low(thd, all))
+      DBUG_RETURN(error);
 
   /*
     If there is no cache manager, or if there is nothing in the
     caches, there are no caches to roll back, so we're trivially done.
    */
   if (cache_mngr == NULL || cache_mngr->is_binlog_empty())
-    goto end;
+    DBUG_RETURN(0);
 
   DBUG_PRINT("debug",
              ("all.cannot_safely_rollback(): %s, trx_cache_empty: %s",
@@ -1485,8 +1485,8 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   }
   else if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
-    if ((error= cache_mngr->stmt_cache.finalize(thd)))
-      goto end;
+    if (int error= cache_mngr->stmt_cache.finalize(thd))
+      DBUG_RETURN(error);
     stuff_logged= true;
   }
 
@@ -1575,15 +1575,8 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       a cache and need to be rolled back.
     */
     error |= cache_mngr->trx_cache.truncate(thd, all);
+    DBUG_RETURN(error);
   }
-
-end:
-  /*
-    When a statement errors out on auto-commit mode it is rollback
-    implicitly, so the same should happen to its GTID.
-  */
-  if (!thd->in_active_multi_stmt_transaction())
-    gtid_rollback(thd);
 
   DBUG_PRINT("return", ("error: %d", error));
   DBUG_RETURN(error);
@@ -5966,6 +5959,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         goto err;
       }
 
+      thd->variables.gtid_next.set_undefined();
       global_sid_lock->rdlock();
       if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
       {
@@ -6912,6 +6906,7 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
   else if (thd->transaction.flags.xid_written)
     dec_prep_xids(thd);
 
+  thd->variables.gtid_next.set_undefined();
   /*
     Remove committed GTID from owned_gtids, it was already logged on
     MYSQL_BIN_LOG::write_cache().
