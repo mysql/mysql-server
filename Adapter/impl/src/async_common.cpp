@@ -28,13 +28,31 @@
 #include "async_common.h"
 #include "unified_debug.h"
 
+using namespace v8;
+
+
+void report_error(TryCatch * err) {
+  HandleScope scope;
+  String::Utf8Value exception(err->Exception());
+  String::Utf8Value stack(err->StackTrace());
+  Handle<Message> message = err->Message();
+  fprintf(stderr, "%s\n", *exception);
+  if(! message.IsEmpty()) {
+    String::Utf8Value file(message->GetScriptResourceName());
+    int line = message->GetLineNumber();
+    fprintf(stderr, "%s:%d\n", *file, line);
+  }
+  if(stack.length() > 0) 
+    fprintf(stderr, "%s\n", *stack);
+}
+
+
 void work_thd_run(uv_work_t *req) {
   AsyncCall *m = (AsyncCall *) req->data;
 
   m->run();
   m->handleErrors();
 }
-
 
 void main_thd_complete(uv_work_t *req) {
   v8::HandleScope scope;
@@ -45,14 +63,14 @@ void main_thd_complete(uv_work_t *req) {
 
   m->doAsyncCallback(v8::Context::GetCurrent()->Global());
 
+  /* exceptions */
+  if(try_catch.HasCaught()) {
+    report_error(& try_catch);
+  }
+
   /* cleanup */
   delete m;
   delete req;
-
-  /* exceptions */
-  if(try_catch.HasCaught()) {
-    try_catch.ReThrow();
-  }
 }
 
 
