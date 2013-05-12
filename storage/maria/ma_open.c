@@ -894,8 +894,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                         &share->keyinfo[i].root_lock);
     mysql_rwlock_init(key_SHARE_mmap_lock, &share->mmap_lock);
 
-    share->row_is_visible= _ma_row_visible_always;
-    share->lock.get_status= _ma_reset_update_flag;
+    share->row_is_visible=   _ma_row_visible_always;
+    share->lock.get_status=  _ma_reset_update_flag;
+    share->lock.start_trans= _ma_start_trans;
+
     if (!thr_lock_inited)
     {
       /* Probably a single threaded program; Don't use concurrent inserts */

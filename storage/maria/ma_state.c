@@ -59,6 +59,8 @@ my_bool _ma_setup_live_state(MARIA_HA *info)
   MARIA_STATE_HISTORY *history;
   DBUG_ENTER("_ma_setup_live_state");
 
+  DBUG_ASSERT(share->lock_key_trees);
+
   if (maria_create_trn_hook(info))
     DBUG_RETURN(1);
 
@@ -377,6 +379,17 @@ void _ma_reset_update_flag(void *param,
   info->state->changed= 0;
 }
 
+my_bool _ma_start_trans(void* param)
+{
+  MARIA_HA *info=(MARIA_HA*) param;
+  if (!info->s->lock_key_trees)
+  {
+    info->state=  info->state_start;
+    *info->state= info->s->state.state;
+  }
+  return 0;
+}
+
 
 /**
    @brief Check if should allow concurrent inserts
@@ -622,6 +635,22 @@ my_bool _ma_block_start_trans(void* param)
     */
     return _ma_setup_live_state(info);
   }
+  else
+  {
+    /*
+      We come here in the following cases:
+      - The table is a temporary table
+      - It's a table which is crash safe but not yet versioned, for
+      example a table with fulltext or rtree keys
+
+      Set the current state to point to save_state so that the
+      block_format code don't count the same record twice.
+      Copy also the current state. This may have been wrong if the
+      same file was used several times in the last statement
+    */
+    info->state=  info->state_start;
+    *info->state= info->s->state.state;
+  }
 
   /*
     Info->trn is set if this table is already handled and we are
@@ -668,9 +697,11 @@ my_bool _ma_block_start_trans_no_versioning(void* param)
 {
   MARIA_HA *info=(MARIA_HA*) param;
   DBUG_ENTER("_ma_block_get_status_no_version");
-  DBUG_ASSERT(info->s->base.born_transactional);
+  DBUG_ASSERT(info->s->base.born_transactional && !info->s->lock_key_trees);
 
   info->state->changed= 0;              /* from _ma_reset_update_flag() */
+  info->state=  info->state_start;
+  *info->state= info->s->state.state;
   if (!info->trn)
   {
     /*
@@ -689,18 +720,22 @@ my_bool _ma_block_start_trans_no_versioning(void* param)
 
 void maria_versioning(MARIA_HA *info, my_bool versioning)
 {
+  MARIA_SHARE *share= info->s;
   /* For now, this is a hack */
-  if (info->s->have_versioning)
+  if (share->have_versioning)
   {
     enum thr_lock_type save_lock_type;
-    /* Assume is a non threaded application (for now) */
-    info->s->lock_key_trees= 0;
+    share->lock_key_trees= versioning;
     /* Set up info->lock.type temporary for _ma_block_get_status() */
     save_lock_type= info->lock.type;
     info->lock.type= versioning ? TL_WRITE_CONCURRENT_INSERT : TL_WRITE;
     _ma_block_get_status((void*) info, versioning);
     info->lock.type= save_lock_type;
-    info->state= info->state_start= &info->s->state.common;
+    if (versioning)
+      info->state= &share->state.common;
+    else
+      info->state= &share->state.state;	/* Change global values by default */
+    info->state_start= info->state;             /* Initial values */
   }
 }
 

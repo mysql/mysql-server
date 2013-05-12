@@ -2424,9 +2424,8 @@ static void restore_table_state_after_repair(MARIA_HA *info,
 {
   maria_versioning(info, info->s->have_versioning);
   info->s->lock_key_trees= org_share->lock_key_trees;
+  DBUG_ASSERT(!info->s->have_versioning || info->s->lock_key_trees);
 }
-
-
 
 
 /**

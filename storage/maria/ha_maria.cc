@@ -2638,23 +2638,6 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     /* Transactional table */
     if (lock_type != F_UNLCK)
     {
-      if (!file->s->lock_key_trees)             // If we don't use versioning
-      {
-        /*
-          We come here in the following cases:
-           - The table is a temporary table
-           - It's a table which is crash safe but not yet versioned, for
-             example a table with fulltext or rtree keys
-
-          Set the current state to point to save_state so that the
-          block_format code don't count the same record twice.
-          Copy also the current state. This may have been wrong if the
-          same file was used several times in the last statement
-        */
-        file->state=  file->state_start;
-        *file->state= file->s->state.state;
-      }
-
       if (file->trn)
       {
         /* This can only happen with tables created with clone() */

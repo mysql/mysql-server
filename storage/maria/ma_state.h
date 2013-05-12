@@ -66,6 +66,7 @@ void _ma_update_status_with_lock(MARIA_HA *info);
 void _ma_restore_status(void *param);
 void _ma_copy_status(void* to, void *from);
 void _ma_reset_update_flag(void *param, my_bool concurrent_insert);
+my_bool _ma_start_trans(void* param);
 my_bool _ma_check_status(void *param);
 void _ma_block_get_status(void* param, my_bool concurrent_insert);
 void _ma_block_update_status(void *param);

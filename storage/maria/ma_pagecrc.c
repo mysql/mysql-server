@@ -358,8 +358,7 @@ my_bool maria_flush_log_for_page(uchar *page,
   MARIA_SHARE *share= (MARIA_SHARE*) data_ptr;
   DBUG_ENTER("maria_flush_log_for_page");
   /* share is 0 here only in unittest */
-  DBUG_ASSERT(!share || (share->page_type == PAGECACHE_LSN_PAGE &&
-                         share->now_transactional));
+  DBUG_ASSERT(!share || share->page_type == PAGECACHE_LSN_PAGE);
   lsn= lsn_korr(page);
   if (translog_flush(lsn))
     DBUG_RETURN(1);
