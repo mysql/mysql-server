@@ -1,7 +1,7 @@
 #ifndef MY_ATOMIC_INCLUDED
 #define MY_ATOMIC_INCLUDED
 
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,8 +61,6 @@
   Currently we don't support 8-bit and 16-bit operations.
   It can be added later if needed.
 */
-#undef MY_ATOMIC_HAS_8_16
-
 #ifndef MY_ATOMIC_MODE_RWLOCKS
 /*
  * Attempt to do atomic ops without locks
@@ -195,41 +193,21 @@ static inline void my_atomic_store ## S(                        \
   make_atomic_store_body(S);                                    \
 }
 
-#ifdef MY_ATOMIC_HAS_8_16
-make_atomic_cas(8)
-make_atomic_cas(16)
-#endif
 make_atomic_cas(32)
 make_atomic_cas(64)
 make_atomic_cas(ptr)
 
-#ifdef MY_ATOMIC_HAS_8_16
-make_atomic_add(8)
-make_atomic_add(16)
-#endif
 make_atomic_add(32)
 make_atomic_add(64)
 
-#ifdef MY_ATOMIC_HAS_8_16
-make_atomic_load(8)
-make_atomic_load(16)
-#endif
 make_atomic_load(32)
 make_atomic_load(64)
 make_atomic_load(ptr)
 
-#ifdef MY_ATOMIC_HAS_8_16
-make_atomic_fas(8)
-make_atomic_fas(16)
-#endif
 make_atomic_fas(32)
 make_atomic_fas(64)
 make_atomic_fas(ptr)
 
-#ifdef MY_ATOMIC_HAS_8_16
-make_atomic_store(8)
-make_atomic_store(16)
-#endif
 make_atomic_store(32)
 make_atomic_store(64)
 make_atomic_store(ptr)
