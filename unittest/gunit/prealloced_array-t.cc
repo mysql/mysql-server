@@ -123,7 +123,7 @@ private:
 */
 TEST_F(PreallocedArrayTest, NoMemLeaks)
 {
-  Prealloced_array<IntWrap, 0, false> array;
+  Prealloced_array<IntWrap, 1, false> array;
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   for (int ix= 0; ix < 42; ++ix)
@@ -155,7 +155,7 @@ private:
  */
 TEST_F(PreallocedArrayTest, SqlAlloc)
 {
-  Prealloced_array<TestAlloc, 0, false> array;
+  Prealloced_array<TestAlloc, 1, false> array;
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(TestAlloc(ix));
   for (int ix= 0; ix < 42; ++ix)
