@@ -2309,6 +2309,8 @@ PageCur::insertNoReorganize(
 	ut_ad(isMutable());
 
 	if (free_rec) {
+		rec_t*	next_free;
+
 		/* Try to allocate from the head of the free list. */
 		if (isComp()) {
 
@@ -2346,6 +2348,7 @@ PageCur::insertNoReorganize(
 			}
 
 			heap_no = rec_get_heap_no_new(free_rec);
+			next_free = rec_get_next_ptr(free_rec, TRUE);
 		} else {
 			ut_ad(!page_zip);
 
@@ -2360,10 +2363,10 @@ PageCur::insertNoReorganize(
 
 			insert_buf = free_rec - free_extra_size;
 			heap_no = rec_get_heap_no_old(free_rec);
+			next_free = rec_get_next_ptr(free_rec, FALSE);
 		}
 
-		page_mem_alloc_free(page, page_zip,
-				    rec_get_next_ptr(free_rec, TRUE),
+		page_mem_alloc_free(page, page_zip, next_free,
 				    extra_size + data_size);
 	} else {
 use_heap:
