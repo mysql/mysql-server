@@ -34,7 +34,22 @@ select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on 
 --echo verify that it is not possible to reinsert all rows in t1 to itself
 --echo affected rows should be zero
 --enable_info
-insert ignore into t1 select a from t1;
+insert ignore into t1 select a from t2 limit      0, 10000;
+insert ignore into t1 select a from t2 limit  10000, 10000;
+insert ignore into t1 select a from t2 limit  20000, 10000;
+insert ignore into t1 select a from t2 limit  30000, 10000;
+insert ignore into t1 select a from t2 limit  40000, 10000;
+insert ignore into t1 select a from t2 limit  50000, 10000;
+insert ignore into t1 select a from t2 limit  60000, 10000;
+insert ignore into t1 select a from t2 limit  70000, 10000;
+insert ignore into t1 select a from t2 limit  80000, 10000;
+insert ignore into t1 select a from t2 limit  90000, 10000;
+insert ignore into t1 select a from t2 limit 100000, 10000;
+insert ignore into t1 select a from t2 limit 110000, 10000;
+insert ignore into t1 select a from t2 limit 120000, 10000;
+insert ignore into t1 select a from t2 limit 130000, 10000;
+insert ignore into t1 select a from t2 limit 140000, 10000;
+insert ignore into t1 select a from t2 limit 150000, 10000;
 --disable_info
 
 drop table t1, t2;
