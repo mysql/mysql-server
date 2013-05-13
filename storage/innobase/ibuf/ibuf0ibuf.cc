@@ -4093,6 +4093,7 @@ update_in_place:
 	cur.prev();
 
 	ibuf_insert_to_index_page_low(entry, cur);
+	cur.next();
 	lock_rec_restore_from_page_infimum(block, cur.getRec(), block);
 
 func_exit:
