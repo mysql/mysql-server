@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@
 #define NDB_PORT 1186
 #endif
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
+#if defined(_WIN32)
 #define NDB_WIN32 1
 #define NDB_WIN 1
 #define PATH_MAX 256
