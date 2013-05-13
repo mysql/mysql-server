@@ -154,7 +154,8 @@ public:
   */
   void doAsyncCallback(Local<Object> context) {
     HandleScope scope;
-    DEBUG_PRINT("doAsyncCallback()");
+    //String::Utf8Value cbname(callback->GetName());
+    //DEBUG_PRINT("doAsyncCallback() [%s]", *cbname);
     Handle<Value> cb_args[2];
 
     if(error) cb_args[0] = error->toJS();

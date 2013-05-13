@@ -94,6 +94,11 @@ public:
 
 NdbScanOperationEnvelopeClass NdbScanOperationEnvelope;
 
+Envelope * getNdbScanOperationEnvelope() {
+  return & NdbScanOperationEnvelope;
+}
+
+
 Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *op) {
   HandleScope scope;
   Local<Object> jsobj = NdbScanOperationEnvelope.newWrapper();
