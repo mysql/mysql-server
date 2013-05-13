@@ -2578,6 +2578,7 @@ PageCur::insert(const dtuple_t* tuple, ulint n_ext)
 			m_index,
 			dtuple_get_info_bits(tuple) & REC_NEW_STATUS_MASK,
 			tuple->fields, tuple->n_fields, &extra_size);
+		data_size -= extra_size;
 	} else {
 		data_size = dtuple_get_data_size(tuple, 0);
 		extra_size = rec_get_converted_extra_size(
