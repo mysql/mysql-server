@@ -943,6 +943,46 @@ page_rec_find_owner_rec(
 	return(rec);
 }
 
+/** Find the record that owns the given record in the sparse directory.
+@param[in]	rec	physical record in ROW_FORMAT=REDUNDANT
+@return	the owner record */
+UNIV_INLINE
+rec_t*
+page_rec_find_owner_rec_old(
+	rec_t*	rec)
+{
+	page_t*	page	= page_align(rec);
+
+	ut_ad(!page_is_comp(page));
+	ut_ad(page_rec_check(rec));
+
+	do {
+		rec = page + rec_get_next_offs(rec, 0);
+	} while (rec_get_n_owned_old(rec) == 0);
+
+	return(rec);
+}
+
+/** Find the record that owns the given record in the sparse directory.
+@param[in]	rec	physical record in ROW_FORMAT=COMPACT or later
+@return	the owner record */
+UNIV_INLINE
+rec_t*
+page_rec_find_owner_rec_comp(
+	rec_t*	rec)
+{
+	page_t*	page	= page_align(rec);
+
+	ut_ad(page_is_comp(page));
+	ut_ad(page_rec_check(rec));
+
+	do {
+		rec = page + rec_get_next_offs(rec, 1);
+	} while (rec_get_n_owned_new(rec) == 0);
+
+	return(rec);
+}
+
 /**********************************************************//**
 Returns the base extra size of a physical record.  This is the
 size of the fixed header, independent of the record size.

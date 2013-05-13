@@ -419,12 +419,7 @@ page_cur_insert_rec_write_log(
 	/* Avoid REDO logging to save on costly IO because
 	temporary tables are not recovered during crash recovery. */
 	if (dict_table_is_temporary(index->table)) {
-		log_ptr = mlog_open(mtr, 0);
-		if (log_ptr == NULL) {
-			return;
-		}
-		mlog_close(mtr, log_ptr);
-		log_ptr = NULL;
+		return;
 	}
 
 	ut_a(rec_size < UNIV_PAGE_SIZE);
@@ -2001,6 +1996,141 @@ use_heap:
 	return(insert_rec);
 }
 
+/** Write a redo log record about an insert.
+@param[in]	rec		inserted record
+@param[in]	extra_size	size of insert_rec header, in bytes
+@param[in]	data_size	size of insert_rec payload, in bytes */
+inline
+void
+PageCur::logInsert(
+	const rec_t*	rec,
+	ulint		extra_size,
+	ulint		data_size)
+{
+	ut_ad(isMutable());
+	ut_ad(extra_size < UNIV_PAGE_SIZE);
+	ut_ad(data_size < UNIV_PAGE_SIZE);
+
+	if (!m_mtr) {
+		return;
+	}
+
+	switch (mtr_get_log_mode(m_mtr)) {
+	case MTR_LOG_NONE:
+	case MTR_LOG_NO_REDO:
+		return;
+	}
+
+	if (dict_table_is_temporary(m_index->table)) {
+		return;
+	}
+
+	ulint		cur_extra_size;
+	ulint		cur_data_size = getRecSize(cur_extra_size);
+
+	const byte*	ins_ptr = rec - extra_size;
+
+	if (extra_size == cur_extra_size) {
+		/* Find out the first byte in the inserted record
+		which differs from the cursor record; skip the
+		fixed-length header. */
+
+		const byte*	cur_ptr
+			= m_rec - cur_extra_size;
+		const byte*	cur_extra_end
+			= m_rec - getRecHeaderFixed();
+
+		while (cur_ptr < cur_extra_end && *cur_ptr == *ins_ptr) {
+			cur_ptr++;
+			ins_ptr++;
+		}
+
+		if (cur_ptr == cur_extra_end) {
+			const byte*	ins_end
+				= rec + ut_min(cur_data_size, data_size);
+
+			for (cur_ptr = getRec(), ins_ptr = rec;
+			     ins_ptr < ins_end && *cur_ptr == *ins_ptr; ) {
+				cur_ptr++;
+				ins_ptr++;
+			}
+		}
+	}
+
+	byte*		log_ptr;
+	const byte*	log_end;
+
+	if (mtr_get_log_mode(m_mtr) != MTR_LOG_SHORT_INSERTS) {
+		if (isComp()) {
+			log_ptr = mlog_open_and_write_index(
+				m_mtr, rec, m_index, MLOG_COMP_REC_INSERT,
+				2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
+		} else {
+			log_ptr = mlog_open(m_mtr, 11
+					    + 2 + 5 + 1 + 5 + 5
+					    + MLOG_BUF_MARGIN);
+			log_ptr = mlog_write_initial_log_record_fast(
+				rec, MLOG_REC_INSERT, log_ptr, m_mtr);
+		}
+
+		mach_write_to_2(log_ptr, page_offset(m_rec));
+		log_ptr += 2;
+		log_end = &log_ptr[2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
+	} else {
+		log_ptr = mlog_open(m_mtr, 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
+		log_end = &log_ptr[5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
+	}
+
+	const ulint	i = ins_ptr - (rec - extra_size);
+	ulint		length_info = (extra_size + data_size - i) << 1;
+
+	ut_ad(i <= extra_size + data_size);
+
+	if (extra_size != cur_extra_size || data_size != cur_data_size) {
+		length_info |= 1;
+	} else if (isComp()) {
+		if (UNIV_UNLIKELY
+		    (rec_get_info_and_status_bits(rec, TRUE)
+		     != rec_get_info_and_status_bits(m_rec, TRUE))) {
+			length_info |= 1;
+		}
+	} else {
+		if (UNIV_UNLIKELY
+		    (rec_get_info_and_status_bits(rec, FALSE)
+		     != rec_get_info_and_status_bits(m_rec, FALSE))) {
+			length_info |= 1;
+		}
+	}
+
+	log_ptr += mach_write_compressed(log_ptr, length_info);
+
+	if (length_info & 1) {
+		/* Write the info bits */
+		mach_write_to_1(log_ptr++,
+				rec_get_info_and_status_bits(rec, isComp()));
+
+		/* Write the record origin offset */
+		log_ptr += mach_write_compressed(log_ptr, extra_size);
+
+		/* Write the mismatch index */
+		log_ptr += mach_write_compressed(log_ptr, i);
+	}
+
+	/* Write to the log the inserted index record end segment which
+	differs from the cursor record */
+
+	length_info >>= 1;
+	ut_ad(length_info < UNIV_PAGE_SIZE);
+
+	if (log_ptr + length_info <= log_end) {
+		memcpy(log_ptr, ins_ptr, length_info);
+		mlog_close(m_mtr, log_ptr + length_info);
+	} else {
+		mlog_close(m_mtr, log_ptr);
+		mlog_catenate_string(m_mtr, ins_ptr, length_info);
+	}
+}
+
 /** Insert an entry after the current cursor position
 into a compressed page, recompressing the page.
 The cursor stays at the same position.
@@ -2117,9 +2247,7 @@ try_insert:
 			if (page_zip_compress(
 				    page_zip, page, m_index,
 				    level, NULL)) {
-				page_cur_insert_rec_write_log(
-					insert_rec, rec_size,
-					m_rec, m_index, m_mtr);
+				logInsert(insert_rec, extra_size, data_size);
 				page_zip_compress_write_log_no_data(
 					level, page, m_index, m_mtr);
 				return(insert_rec);
@@ -2182,40 +2310,58 @@ PageCur::insertNoReorganize(
 
 	if (free_rec) {
 		/* Try to allocate from the head of the free list. */
-		ulint	free_extra_size;
-		ulint	free_data_size = isComp()
-			? rec_get_size_comp(free_rec, m_index, free_extra_size)
-			: rec_get_size_old(free_rec, free_extra_size);
+		if (isComp()) {
 
-		if (free_extra_size + free_data_size
-		    < extra_size + data_size) {
-			goto use_heap;
-		}
+			ulint	free_extra_size;
+			ulint	free_data_size	= rec_get_size_comp(
+				free_rec, m_index, free_extra_size);
 
-		insert_buf = free_rec - free_extra_size;
-
-		if (page_zip) {
-			/* On compressed pages, do not relocate
-			records from the free list. If extra_size
-			would grow, use the heap. */
-			lint	extra_size_diff = free_extra_size - extra_size;
-
-			if (extra_size_diff > 0) {
-				/* Add an offset to the extra_size. */
-				if (free_data_size + free_extra_size
-				    < extra_size
-				    + data_size + extra_size_diff) {
-					goto use_heap;
-				}
-
-				insert_buf += extra_size_diff;
-			} else if (extra_size_diff) {
-				/* Do not allow extra_size to grow */
+			if (free_extra_size + free_data_size
+			    < extra_size + data_size) {
 				goto use_heap;
 			}
+
+			insert_buf = free_rec - free_extra_size;
+
+			if (page_zip) {
+				/* On compressed pages, do not relocate
+				records from the free list. If extra_size
+				would grow, use the heap. */
+				lint	extra_size_diff
+					= free_extra_size - extra_size;
+
+				if (extra_size_diff > 0) {
+					/* Add an offset to the extra_size. */
+					if (free_data_size + free_extra_size
+					    < extra_size
+					    + data_size + extra_size_diff) {
+						goto use_heap;
+					}
+
+					insert_buf += extra_size_diff;
+				} else if (extra_size_diff) {
+					/* Do not allow extra_size to grow */
+					goto use_heap;
+				}
+			}
+
+			heap_no = rec_get_heap_no_new(free_rec);
+		} else {
+			ut_ad(!page_zip);
+
+			ulint	free_extra_size;
+			ulint	free_data_size
+				= rec_get_size_old(free_rec, free_extra_size);
+
+			if (free_extra_size + free_data_size
+			    < extra_size + data_size) {
+				goto use_heap;
+			}
+
+			insert_buf = free_rec - free_extra_size;
+			heap_no = rec_get_heap_no_old(free_rec);
 		}
 
-		heap_no = rec_get_heap_no_new(free_rec);
 		page_mem_alloc_free(page, page_zip,
 				    rec_get_next_ptr(free_rec, TRUE),
 				    extra_size + data_size);
@@ -2271,31 +2417,53 @@ PageCur::insert(
 
 	memcpy(insert_buf, rec - extra_size, extra_size + data_size);
 
-	/* Insert the record in the linked list of records */
+	/* Insert the record in the linked list of records. */
 
 	/* next record after current before the insertion */
 	const rec_t*	next_rec = page_rec_get_next_const(getRec());
+
+	mach_write_to_2(PAGE_N_RECS + PAGE_HEADER + page,
+			1 + page_get_n_recs(page));
+
+	rec_t*		owner_rec;
+	ulint		n_owned;
+
 	if (isComp()) {
 		ut_ad(rec_get_status(insert_rec) < REC_STATUS_INFIMUM);
 		ut_ad(rec_get_status(next_rec) != REC_STATUS_INFIMUM);
 		rec_set_next_offs_new(insert_rec, page_offset(next_rec));
 		rec_set_next_offs_new(m_rec, page_offset(insert_rec));
+		rec_set_n_owned_new(insert_rec, NULL, 0);
+		rec_set_heap_no_new(insert_rec, heap_no);
+
+		if (page_zip) {
+			page_zip_write_header(page_zip,
+					      PAGE_N_RECS + PAGE_HEADER + page,
+					      2, NULL);
+			page_zip_dir_insert(
+				page_zip, m_rec, free_rec, insert_rec);
+		}
+
+		owner_rec = page_rec_find_owner_rec_comp(insert_rec);
+		n_owned = rec_get_n_owned_new(owner_rec);
+		rec_set_n_owned_new(owner_rec, page_zip, n_owned + 1);
 	} else {
+		ut_ad(!page_zip);
 		rec_set_next_offs_old(insert_rec, page_offset(next_rec));
 		rec_set_next_offs_old(m_rec, page_offset(insert_rec));
+		rec_set_n_owned_old(insert_rec, 0);
+		rec_set_heap_no_old(insert_rec, heap_no);
+
+		owner_rec = page_rec_find_owner_rec_old(insert_rec);
+		n_owned = rec_get_n_owned_old(owner_rec);
+		rec_set_n_owned_old(owner_rec, n_owned + 1);
 	}
 
-	page_header_set_field(page, page_zip, PAGE_N_RECS,
-			      1 + page_get_n_recs(page));
-
-	/* Set the n_owned field in the inserted record to zero,
-	and set the heap_no field */
-	rec_set_n_owned_new(insert_rec, NULL, 0);
-	rec_set_heap_no_new(insert_rec, heap_no);
-
 	UNIV_MEM_ASSERT_RW(insert_buf, extra_size + data_size);
-	if (page_zip) {
-		page_zip_dir_insert(page_zip, m_rec, free_rec, insert_rec);
+
+	if (UNIV_UNLIKELY(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED)) {
+		page_dir_split_slot(page, page_zip,
+				    page_dir_find_owner_slot(owner_rec));
 	}
 
 	/* Update the last insertion info in page header */
@@ -2332,20 +2500,6 @@ PageCur::insert(
 		page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
 	}
 
-	/* It remains to update the owner record. */
-	rec_t*	owner_rec	= page_rec_find_owner_rec(insert_rec);
-	ulint	n_owned		= rec_get_n_owned_new(owner_rec);
-	rec_set_n_owned_new(owner_rec, page_zip, n_owned + 1);
-
-	/* Now we have incremented the n_owned field of the owner
-	record. If the number exceeds PAGE_DIR_SLOT_MAX_N_OWNED, we
-	have to split the corresponding directory slot in two. */
-
-	if (UNIV_UNLIKELY(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED)) {
-		page_dir_split_slot(page, page_zip,
-				    page_dir_find_owner_slot(owner_rec));
-	}
-
 	if (page_zip) {
 		PageCur cur_ins(*this);
 		cur_ins.setRec(insert_rec);
@@ -2354,9 +2508,7 @@ PageCur::insert(
 	}
 
 	if (m_mtr) {
-		page_cur_insert_rec_write_log(
-			insert_rec, extra_size + data_size,
-			m_rec, m_index, m_mtr);
+		logInsert(insert_rec, extra_size, data_size);
 	}
 
 	return(insert_rec);
@@ -2534,13 +2686,10 @@ PageCur::update(const upd_t* update)
 	ut_ad(isMutable());
 	ut_ad(isUser());
 
-	if (isComp()) {
-		rec_set_info_bits_new(m_rec, update->info_bits);
-	} else {
-		rec_set_info_bits_old(m_rec, update->info_bits);
-	}
-
 	if (const ulint* offsets = getOffsets()) {
+		ut_ad(isComp());
+		rec_set_info_bits_new(m_rec, update->info_bits);
+
 		for (ulint i = 0; i < upd_get_n_fields(update); i++) {
 			const upd_field_t*	upd_field
 				= upd_get_nth_field(update, i);
@@ -2567,7 +2716,9 @@ PageCur::update(const upd_t* update)
 				page_zip, m_rec, m_index, m_offsets, 0);
 		}
 	} else {
+		ut_ad(!isComp());
 		ut_ad(!getPageZip());
+		rec_set_info_bits_old(m_rec, update->info_bits);
 
 		for (ulint i = 0; i < upd_get_n_fields(update); i++) {
 			const upd_field_t*	upd_field
@@ -2583,23 +2734,20 @@ PageCur::update(const upd_t* update)
 			ut_ad(!dfield_is_ext(new_val)
 			      == rec_get_1byte_offs_flag(m_rec)
 			      || !rec_2_is_field_extern(m_rec, field_no));
-			ut_ad(rec_get_nth_field_size(m_rec, field_no)
-			      == dfield_get_len(new_val));
-			memcpy(field, dfield_get_data(new_val),
-			       dfield_get_len(new_val));
-			UNIV_MEM_ASSERT_RW(field, dfield_get_len(new_val));
 
 			if (dfield_is_null(new_val)) {
-				if (len == UNIV_SQL_NULL) {
-					/* This should not have been
-					included in the update vector. */
-					ut_ad(0);
-					continue;
-				}
-
-				rec_set_nth_field_sql_null(
-					m_rec, field_no);
+				/* An update from NULL to NULL should
+				not be included in the update vector. */
+				ut_ad(len != UNIV_SQL_NULL);
+				rec_set_nth_field_sql_null(m_rec, field_no);
 			} else {
+				ut_ad(rec_get_nth_field_size(m_rec, field_no)
+				      == dfield_get_len(new_val));
+				/* The field should be different. */
+				ut_ad(memcmp(field, dfield_get_data(new_val),
+					     dfield_get_len(new_val))
+				      || len == UNIV_SQL_NULL);
+
 				if (len == UNIV_SQL_NULL) {
 					rec_set_nth_field_null_bit(
 						m_rec, field_no, FALSE);
@@ -2608,8 +2756,6 @@ PageCur::update(const upd_t* update)
 				memcpy(field, dfield_get_data(new_val),
 				       dfield_get_len(new_val));
 			}
-
-			UNIV_MEM_ASSERT_RW(field, dfield_get_len(new_val));
 		}
 	}
 }

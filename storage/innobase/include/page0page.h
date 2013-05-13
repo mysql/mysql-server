@@ -679,6 +679,21 @@ rec_t*
 page_rec_find_owner_rec(
 /*====================*/
 	rec_t*	rec);	/*!< in: the physical record */
+
+/** Find the record that owns the given record in the sparse directory.
+@param[in]	rec	physical record in ROW_FORMAT=REDUNDANT
+@return	the owner record */
+UNIV_INLINE
+rec_t*
+page_rec_find_owner_rec_old(
+	rec_t*	rec);
+/** Find the record that owns the given record in the sparse directory.
+@param[in]	rec	physical record in ROW_FORMAT=COMPACT or later
+@return	the owner record */
+UNIV_INLINE
+rec_t*
+page_rec_find_owner_rec_comp(
+	rec_t*	rec);
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Write a 32-bit field in a data dictionary record. */
