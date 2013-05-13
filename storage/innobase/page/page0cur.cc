@@ -2627,11 +2627,13 @@ PageCur::zipAlloc(bool create)
 	ut_ad(!dict_index_is_ibuf(m_index));
 	ut_ad(isUser());
 	ut_ad(getPageZip());
-	ut_ad(getOffsets());
+	ut_ad(isComp());
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
 	      == m_index->id);
 
-	const ulint	length = rec_offs_size(m_offsets);
+	ulint	extra;
+	ulint	length = getRecSize(extra);
+	length += extra;
 
 	if (page_zip_available(page_zip, dict_index_is_clust(m_index),
 			       length, create)) {
@@ -2665,8 +2667,6 @@ PageCur::zipAlloc(bool create)
 		    page_zip, dict_index_is_clust(m_index), length, create)) {
 		return(true);
 	}
-
-	ut_ad(getOffsets());
 
 	/* Out of space: reset the free bits. */
 	if (!dict_index_is_clust(m_index)
