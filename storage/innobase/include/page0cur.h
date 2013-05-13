@@ -627,18 +627,13 @@ public:
 		return(rec_get_deleted_flag(m_rec, isComp()));
 	}
 
-	/** Insert the record that the page cursor is pointing to,
-	to another page.
-	@param[in/out] rec	record after which to insert
-	@return	pointer to record if enough space available, NULL otherwise */
-	rec_t* insert(rec_t* current) const;
-
 	/** Search for an entry in the index page.
 	@param tuple data tuple to search for
 	@return true if a full match was found */
 	bool search(const dtuple_t* tuple);
 
 	/** Insert an entry after the current cursor position.
+	The compressed page is updated in sync.
 	The cursor stays at the same position.
 	@param[in]	rec		record to insert
 	@param[in]	extra_size	size of record header, in bytes
@@ -648,6 +643,35 @@ public:
 		const rec_t*	rec,
 		ulint		extra_size,
 		ulint		data_size);
+
+	/** Insert an entry after the current cursor position,
+	not updating the compressed page.
+	The cursor stays at the same position.
+	@param[in]	cursor		cursor pointing to record to insert
+	@return pointer to record if enough space available, NULL otherwise */
+	const rec_t* insertNoZip(const PageCur& cursor) {
+		ut_ad(cursor.m_index == m_index);
+		ut_ad(cursor.m_block != m_block);
+		ut_ad(cursor.isUser());
+		ut_ad(!isAfterLast());
+		ulint	extra_size;
+		ulint	data_size	= cursor.getRecSize(extra_size);
+		return(insertNoZip(cursor.getRec(), extra_size, data_size));
+	}
+
+	/** Insert an entry after the current cursor position,
+	not updating the compressed page.
+	The cursor stays at the same position.
+	@param[in]	rec		record to insert
+	@param[in]	extra_size	size of record header, in bytes
+	@param[in]	data_size	size of record payload, in bytes
+	@return	pointer to record if enough space available, NULL otherwise */
+	const rec_t* insertNoZip(
+		const rec_t*	rec,
+		ulint		extra_size,
+		ulint		data_size) {
+		return(insertNoReorganize(rec, extra_size, data_size, NULL));
+	}
 
 	/** Insert an entry after the current cursor position.
 	The cursor stays at the same position.
@@ -785,29 +809,35 @@ private:
 	@param[in]	rec		record to insert
 	@param[in]	extra_size	size of record header, in bytes
 	@param[in]	data_size	size of record payload, in bytes
+	@param[in/out]	page_zip	getPageZip(), or NULL to not
+	update the compressed page
 	@return	inserted record; NULL if out of space */
-	inline const rec_t* insertNoReorganize(
+	const rec_t* insertNoReorganize(
 		const rec_t*	rec,
 		ulint		extra_size,
-		ulint		data_size);
+		ulint		data_size,
+		page_zip_des_t*	page_zip);
 
 	/** Insert an entry after the current cursor position.
 	The cursor stays at the same position.
+	@param[in]	rec		record to insert
+	@param[in]	extra_size	size of record header, in bytes
+	@param[in]	data_size	size of record payload, in bytes
+	@param[in/out]	page_zip	getPageZip(), or NULL to not
+	update the compressed page
 	@param[out]	insert_buf	storage for the inserted record
 	@param[in]	free_rec	record from which insert_buf was
 	allocated; NULL if not from the PAGE_FREE list
 	@param[in]	heap_no		heap_no of the inserted record
-	@param[in]	rec		record to insert
-	@param[in]	extra_size	size of record header, in bytes
-	@param[in]	data_size	size of record payload, in bytes
 	@return	pointer to record if enough space available, NULL otherwise */
-	inline const rec_t* insert(
-		byte*		insert_buf,
-		const byte*	free_rec,
-		ulint		heap_no,
+	inline const rec_t* insertBuf(
 		const rec_t*	rec,
 		ulint		extra_size,
-		ulint		data_size);
+		ulint		data_size,
+		page_zip_des_t*	page_zip,
+		byte*		insert_buf,
+		const byte*	free_rec,
+		ulint		heap_no);
 
 #ifdef PAGE_CUR_ADAPT
 	/** Try a search shortcut based on the last insert.

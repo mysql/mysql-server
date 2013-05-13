@@ -589,8 +589,7 @@ page_copy_rec_list_end_no_locks(
 	const dict_index_t*	index,
 	mtr_t*			mtr)
 {
-	page_t*		new_page	= buf_block_get_frame(new_block);
-	rec_t*		cur2;
+	const page_t*		new_page= buf_block_get_frame(new_block);
 
 	btr_assert_not_corrupted(new_block, index);
 	ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
@@ -604,13 +603,14 @@ page_copy_rec_list_end_no_locks(
 		return;
 	}
 
-	cur2 = page_get_infimum_rec(buf_block_get_frame(new_block));
+	PageCur cur2(mtr, index, new_block);
 
 	/* Copy records from the original page to the new page */
 
 	do {
-		cur2 = cur1.insert(cur2);
-		ut_a(cur2);
+		if (!cur2.insertNoZip(cur1) || !cur2.next()) {
+			ut_error;
+		}
 	} while (cur1.next());
 }
 
@@ -776,9 +776,11 @@ page_copy_rec_list_start(
 	}
 
 	/* Copy records from the original page to the new page */
-	for (rec_t* cur2 = ret; cur1.next() && cur1.getRec() != rec; ) {
-		cur2 = cur1.insert(cur2);
-		ut_a(cur2);
+	for (PageCur cur2(mtr, index, new_block, ret);
+	     cur1.next() && cur1.getRec() != rec; ) {
+		if (!cur2.insertNoZip(cur1) || !cur2.next()) {
+			ut_error;
+		}
 	}
 
 	ut_ad(!cur1.isUser() == page_rec_is_supremum(rec));
