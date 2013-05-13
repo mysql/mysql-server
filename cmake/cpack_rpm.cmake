@@ -95,7 +95,7 @@ SET(CPACK_RPM_devel_USER_FILELIST ${ignored})
 SET(CPACK_RPM_test_USER_FILELIST ${ignored})
 
 SET(CPACK_RPM_client_PACKAGE_OBSOLETES "mysql-client MySQL-client MySQL-OurDelta-client")
-SET(CPACK_RPM_client_PACKAGE_PROVIDES "MariaDB-client MySQL-client mysql-client")
+SET(CPACK_RPM_client_PACKAGE_PROVIDES "MySQL-client mysql-client")
 
 # this is a workaround for CPackRPM.cmake (as of 2.8.8) bug.
 # If a package group does not specify OBSOLETES/REQUIRES the values of the
@@ -104,22 +104,40 @@ SET(CPACK_RPM_common_PACKAGE_OBSOLETES "MySQL-common")
 SET(CPACK_RPM_common_PACKAGE_PROVIDES "MariaDB-common")
 
 SET(CPACK_RPM_devel_PACKAGE_OBSOLETES "mysql-devel MySQL-devel MySQL-OurDelta-devel")
-SET(CPACK_RPM_devel_PACKAGE_PROVIDES "MariaDB-devel MySQL-devel mysql-devel")
+SET(CPACK_RPM_devel_PACKAGE_PROVIDES "MySQL-devel mysql-devel")
 
-SET(CPACK_RPM_server_PACKAGE_OBSOLETES "MariaDB mysql mysql-server MySQL-server MySQL-OurDelta-server")
-SET(CPACK_RPM_server_PACKAGE_PROVIDES "MariaDB MariaDB-server MySQL-server config(MariaDB-server) msqlormysql mysql mysql(x86-32) mysql(x86-64) mysql-server")
+SET(CPACK_RPM_server_PACKAGE_OBSOLETES "MariaDB MySQL mysql-server MySQL-server MySQL-OurDelta-server")
+SET(CPACK_RPM_server_PACKAGE_PROVIDES "MariaDB MySQL MySQL-server msqlormysql mysql-server")
 SET(CPACK_RPM_server_PRE_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-prein.sh)
 SET(CPACK_RPM_server_PRE_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-preun.sh)
 SET(CPACK_RPM_server_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postin.sh)
 SET(CPACK_RPM_server_POST_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postun.sh)
 
 SET(CPACK_RPM_shared_PACKAGE_OBSOLETES "mysql-shared MySQL-shared-standard MySQL-shared-pro MySQL-shared-pro-cert MySQL-shared-pro-gpl MySQL-shared-pro-gpl-cert MySQL-shared MySQL-OurDelta-shared mysql-libs")
-SET(CPACK_RPM_shared_PACKAGE_PROVIDES "MariaDB-shared MySQL-shared mysql-shared libmysqlclient.so.18 libmysqlclient.so.18(libmysqlclient_16) libmysqlclient.so.18(libmysqlclient_18) libmysqlclient_r.so.18 libmysqlclient_r.so.18(libmysqlclient_18) mysql-libs")
+SET(CPACK_RPM_shared_PACKAGE_PROVIDES "MySQL-shared mysql-shared")
+
 SET(CPACK_RPM_shared_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/shared-post.sh)
 SET(CPACK_RPM_shared_POST_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/shared-post.sh)
 
 SET(CPACK_RPM_test_PACKAGE_OBSOLETES "mysql-test MySQL-test MySQL-OurDelta-test")
-SET(CPACK_RPM_test_PACKAGE_PROVIDES "MariaDB-test MySQL-test mysql-test")
+SET(CPACK_RPM_test_PACKAGE_PROVIDES "MySQL-test mysql-test")
+
+# Argh! Different distributions call packages differently, to be a drop-in replacement
+# we have to fake distribution-speficic dependencies
+MACRO(ALTERNATIVE_NAME real alt)
+  SET(p "CPACK_RPM_${real}_PACKAGE_PROVIDES")
+  SET(${p} "${${p}} ${alt} ${alt}(x86-32) ${alt}(x86-64) config(${alt})")
+ENDMACRO(ALTERNATIVE_NAME)
+
+IF(RPM MATCHES "(rhel|centos)5")
+  ALTERNATIVE_NAME("shared" "mysql")
+ELSEIF(RPM MATCHES "(rhel|centos)6")
+  ALTERNATIVE_NAME("client" "mysql")
+  ALTERNATIVE_NAME("shared" "mysql-libs")
+ELSEIF(RPM MATCHES "fedora")
+  ALTERNATIVE_NAME("client" "mysql")
+  ALTERNATIVE_NAME("shared" "mysql-libs")
+ENDIF()
 
 # workaround for lots of perl dependencies added by rpmbuild
 SET(CPACK_RPM_test_PACKAGE_PROVIDES "${CPACK_RPM_test_PACKAGE_PROVIDES} perl(lib::mtr_gcov.pl) perl(lib::mtr_gprof.pl) perl(lib::mtr_io.pl) perl(lib::mtr_misc.pl) perl(lib::mtr_process.pl) perl(lib::v1/mtr_cases.pl) perl(lib::v1/mtr_gcov.pl) perl(lib::v1/mtr_gprof.pl) perl(lib::v1/mtr_im.pl) perl(lib::v1/mtr_io.pl) perl(lib::v1/mtr_match.pl) perl(lib::v1/mtr_misc.pl) perl(lib::v1/mtr_process.pl) perl(lib::v1/mtr_report.pl) perl(lib::v1/mtr_stress.pl) perl(lib::v1/mtr_timer.pl) perl(lib::v1/mtr_unique.pl) perl(mtr_cases) perl(mtr_io.pl) perl(mtr_match) perl(mtr_misc.pl) perl(mtr_report) perl(mtr_results) perl(mtr_unique)")
