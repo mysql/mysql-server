@@ -789,7 +789,7 @@ rec_get_size_old(
 	const rec_t*	rec,
 	ulint&		extra)
 	__attribute__((nonnull, pure, warn_unused_result));
-/** Get the size of a user record that is not in ROW_FORMAT=REDUNDANT.
+/** Get the size of a record that is not in ROW_FORMAT=REDUNDANT.
 @param[in]	rec	physical user record in a B-tree page
 @param[in]	index	the B-tree
 @param[out]	extra	length of the record header, in bytes
