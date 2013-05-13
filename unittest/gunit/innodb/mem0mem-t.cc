@@ -36,6 +36,7 @@ protected:
 	{
 		if (!innodb_inited) {
 			srv_max_n_threads = srv_sync_array_size + 1;
+			os_sync_init();
 			sync_init();
 			mem_init(1024);
 
