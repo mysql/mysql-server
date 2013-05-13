@@ -467,8 +467,6 @@ public:
 	@param[out]	n_ext		number of externally stored columns
 	@return		the data size of the record, in bytes */
 	ulint getRecSize(ulint& extra_size, ulint* n_ext = 0) const {
-		ut_ad(isUser());
-
 		if (const ulint* offsets = getOffsetsIfExist()) {
 			if (n_ext) {
 				*n_ext = rec_offs_n_extern(offsets);
@@ -787,6 +785,15 @@ private:
 	/** Initialize a page cursor, either to rec or the page infimum.
 	Allocates and initializes offsets[]. */
 	void init(void);
+
+	/** Write a redo log record about an insert.
+	@param[in]	rec		inserted record
+	@param[in]	extra_size	size of insert_rec header, in bytes
+	@param[in]	data_size	size of insert_rec payload, in bytes */
+	inline void logInsert(
+		const rec_t*	rec,
+		ulint		extra_size,
+		ulint		data_size);
 
 	/** Insert an entry after the current cursor position
 	into a compressed page, recompressing the page.
