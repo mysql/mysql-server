@@ -651,36 +651,6 @@ public:
 
 	/** Insert an entry after the current cursor position.
 	The cursor stays at the same position.
-	@param[in]	rec	record to insert
-	@param[in]	offsets	rec_get_offsets(rec), or NULL
-	if ROW_FORMAT=REDUNDANT
-	@return	pointer to record if enough space available, NULL otherwise */
-	const rec_t* insert(const rec_t* rec, const ulint* offsets) {
-		ulint	extra_size;
-		ulint	data_size;
-
-		if (offsets) {
-			ut_ad(rec_offs_validate(rec, NULL, offsets));
-			extra_size = rec_offs_extra_size(offsets);
-			data_size = rec_offs_data_size(offsets);
-		} else {
-			ut_ad(!isComp());
-			data_size = rec_get_size_old(rec, extra_size);
-		}
-
-		return(insert(rec, extra_size, data_size));
-	}
-
-	/** Insert an entry after the current cursor position.
-	The cursor stays at the same position.
-	@param[in] cur		cursor pointing to record to insert
-	@return	pointer to record if enough space available, NULL otherwise */
-	const rec_t* insert(PageCur& cur) {
-		return(insert(cur.getRec(), cur.getOffsets()));
-	}
-
-	/** Insert an entry after the current cursor position.
-	The cursor stays at the same position.
 	@param[in] tuple	record to insert
 	@param[in] n_ext	number of externally stored columns
 	@return	pointer to record if enough space available, NULL otherwise */
