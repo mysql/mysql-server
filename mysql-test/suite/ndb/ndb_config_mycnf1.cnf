@@ -30,3 +30,27 @@ mysql = localhost, localhost
 LockExecuteThreadToCPU=0-65535
 Arbitration=Disabled
 
+[cluster_config.bug14555359]
+NoOfReplicas=2
+ndbd = localhost, localhost
+ndb_mgmd = localhost
+mysql = localhost, localhost
+ExtraSendBufferMemory=3M
+
+# cluster_config.ndbd.1.bug14555359 gets 3M for ExtraSendBufferMemory
+# from the above [cluster_config.bug14555359], but not mgmds or mysqlds
+
+# Config ExtraSendBufferMemory for ndbd.2.bug14555359, to use a value
+# different from that defined in cluster_config.bug14555359
+[cluster_config.ndbd.2.bug14555359]
+ExtraSendBufferMemory=4M
+
+# Config ExtraSendBufferMemory for mgmd.1.bug14555359
+[cluster_config.ndb_mgmd.1.bug14555359]
+ExtraSendBufferMemory=1M
+
+# Config ExtraSendBufferMemory for mysqld.1.bug14555359
+[cluster_config.mysqld.1.bug14555359]
+ExtraSendBufferMemory=2M
+
+# mysqld.2.bug14555359 will have 0 for ExtraSendBufferMemory
