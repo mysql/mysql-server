@@ -8,8 +8,6 @@
 
 --source include/not_embedded.inc
 
-set global event_scheduler = on;
-
 --enable_metadata
 select user();
 --disable_metadata
@@ -24,7 +22,10 @@ alter table mysql.columns_priv modify User char(80) binary not null default '';
 alter table mysql.procs_priv modify User char(80) binary not null default '';
 alter table mysql.proc modify definer char(141) collate utf8_bin not null default '';
 alter table mysql.event modify definer char(141) collate utf8_bin not null default '';
-flush privileges;
+
+--source include/restart_mysqld.inc
+
+set global event_scheduler = on;
 
 --enable_metadata
 select user();

@@ -70,7 +70,7 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }, 
   {
     { C_STRING_WITH_LEN("User") },
-    { C_STRING_WITH_LEN("char(16)") },
+    { C_STRING_WITH_LEN("char(") },
     {NULL, 0}
   },
   {
