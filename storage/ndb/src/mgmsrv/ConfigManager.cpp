@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -553,7 +553,7 @@ ConfigManager::prepareConfigChange(const Config* config)
     return false;
   }
 
-#ifdef __WIN__
+#ifdef _WIN32
   /*
 	File is opened with the commit flag "c" so
 	that the contents of the file buffer are written
