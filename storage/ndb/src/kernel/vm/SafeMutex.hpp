@@ -17,7 +17,7 @@
 #ifndef NDB_SAFE_MUTEX_HPP
 #define NDB_SAFE_MUTEX_HPP
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <ndb_global.h>
 #include <my_pthread.h>
 #else
