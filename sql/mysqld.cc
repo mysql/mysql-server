@@ -4253,11 +4253,13 @@ will be ignored as the --log-bin option is not defined.");
   }
 #endif
 
+  DBUG_ASSERT(!opt_bin_log || opt_bin_logname);
+
   if (opt_bin_log)
   {
     /* Reports an error and aborts, if the --log-bin's path 
        is a directory.*/
-    if (opt_bin_logname && 
+    if (opt_bin_logname[0] && 
         opt_bin_logname[strlen(opt_bin_logname) - 1] == FN_LIBCHAR)
     {
       sql_print_error("Path '%s' is a directory name, please specify \
@@ -4279,7 +4281,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     char buf[FN_REFLEN];
     const char *ln;
     ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", 1, buf);
-    if (!opt_bin_logname && !opt_binlog_index_name)
+    if (!opt_bin_logname[0] && !opt_binlog_index_name)
     {
       /*
         User didn't give us info to name the binlog index file.
