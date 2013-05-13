@@ -775,7 +775,7 @@ rec_get_nth_field_offs_old(
 	return(os);
 }
 
-/** Get the size of a user record that is not in ROW_FORMAT=REDUNDANT.
+/** Get the size of a record that is not in ROW_FORMAT=REDUNDANT.
 @param[in]	rec	physical user record in a B-tree page
 @param[in]	index	the B-tree
 @param[out]	extra	length of the record header, in bytes
@@ -797,10 +797,16 @@ rec_get_size_comp(
 	ulint		n_fields;
 
 	ut_ad(dict_table_is_comp(index->table));
-	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(!n_ext || !*n_ext);
 
-	if (page_is_leaf(page_align(rec))) {
+	if (!page_rec_is_user_rec(rec)) {
+		ut_ad((rec_get_status(rec) == REC_STATUS_INFIMUM)
+		      == page_rec_is_infimum(rec));
+		ut_ad((rec_get_status(rec) == REC_STATUS_SUPREMUM)
+		      == page_rec_is_supremum(rec));
+		data_size = 8;
+		n_fields = 0;
+	} else if (page_is_leaf(page_align(rec))) {
 		ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
 		data_size = 0;
 		n_fields = dict_index_get_n_fields(index);
