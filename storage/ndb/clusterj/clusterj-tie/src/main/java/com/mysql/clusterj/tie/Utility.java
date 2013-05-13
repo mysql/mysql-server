@@ -1572,7 +1572,7 @@ public class Utility {
 
     protected static long unpackTimestamp2(int precision, long value) {
         long result = ((value >>> 32) * 1000) +
-                (unpackFractionalSeconds(precision, (int)value) >>> 8) ;
+                (unpackFractionalSeconds(precision, ((int)value) >>> 8)) ;
         return result;
     }
 
