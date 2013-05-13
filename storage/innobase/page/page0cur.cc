@@ -2715,7 +2715,7 @@ PageCur::update(const upd_t* update)
 
 		if (page_zip_des_t* page_zip = getPageZip()) {
 			page_zip_write_rec(
-				page_zip, m_rec, m_index, m_offsets, 0);
+				page_zip, m_rec, m_index, offsets, 0);
 		}
 	} else {
 		ut_ad(!isComp());
