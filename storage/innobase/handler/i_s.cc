@@ -25,6 +25,7 @@ Created July 18, 2007 Vasil Dimov
 
 #include <mysqld_error.h>
 #include <sql_acl.h>
+
 #include <m_ctype.h>
 #include <hash.h>
 #include <myisampack.h>
@@ -36,11 +37,11 @@ Created July 18, 2007 Vasil Dimov
 
 #include "btr0pcur.h"
 #include "btr0types.h"
+#include "dict0dict.h"
+#include "dict0load.h"
 #include "buf0buddy.h"
 #include "buf0buf.h"
 #include "ibuf0ibuf.h"
-#include "dict0dict.h"
-#include "dict0load.h"
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "ha_prototypes.h"
