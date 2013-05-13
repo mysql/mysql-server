@@ -23,7 +23,7 @@ SHOW CREATE TABLE processlist;
 Table	Create Table
 PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
   `ID` bigint(4) NOT NULL DEFAULT '0',
-  `USER` varchar(16) NOT NULL DEFAULT '',
+  `USER` varchar(128) NOT NULL DEFAULT '',
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
@@ -96,7 +96,7 @@ SHOW CREATE TABLE processlist;
 Table	Create Table
 PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
   `ID` bigint(4) NOT NULL DEFAULT '0',
-  `USER` varchar(16) NOT NULL DEFAULT '',
+  `USER` varchar(128) NOT NULL DEFAULT '',
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
