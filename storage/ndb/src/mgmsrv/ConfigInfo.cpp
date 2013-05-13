@@ -2374,6 +2374,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_EXTRA_SEND_BUFFER_MEMORY,
+    "ExtraSendBufferMemory",
+    API_TOKEN,
+    "Extra send buffer memory to use for send buffers in all transporters",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "0",
+    "0",
+    "32G"
+  },
+
+  {
     CFG_TOTAL_SEND_BUFFER_MEMORY,
     "TotalSendBufferMemory",
     "API",
@@ -2610,6 +2623,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_EXTRA_SEND_BUFFER_MEMORY,
+    "ExtraSendBufferMemory",
+    MGM_TOKEN,
+    "Extra send buffer memory to use for send buffers in all transporters",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "0",
+    "0",
+    "32G"
+  },
 
   {
     CFG_TOTAL_SEND_BUFFER_MEMORY,
