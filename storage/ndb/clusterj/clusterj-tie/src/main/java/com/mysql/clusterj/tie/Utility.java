@@ -1451,13 +1451,13 @@ public class Utility {
 
      * FSP      nBytes MaxValue MaxValueHex
      * ---      -----  -------- -----------
-     * FSP=1    1byte  9                 9
+     * FSP=1    1byte  90               5A
      * FSP=2    1byte  99               63
 
-     * FSP=3    2bytes 999             3E7
+     * FSP=3    2bytes 9990           2706
      * FSP=4    2bytes 9999           270F
 
-     * FSP=5    3bytes 99999         1869F
+     * FSP=5    3bytes 999990        F4236
      * FSP=6    3bytes 999999        F423F
 
      * @param precision number of digits of precision, 0 to 6
@@ -1471,16 +1471,14 @@ public class Utility {
                 return 0L;
             case 1: // possible truncation
                 if (milliseconds % 100 != 0) throwOnTruncation();
-                return (milliseconds / 100L) * 0x0000000000010000L;
+                return (milliseconds / 10L) * 0x0000000000010000L;
             case 2: // possible truncation
                 if (milliseconds % 10 != 0) throwOnTruncation();
-                return (milliseconds / 10L)  * 0x0000000000010000L;
+                return (milliseconds / 10L) * 0x0000000000010000L;
             case 3:
-                return milliseconds * 0x0000000000000100L;
             case 4:
                 return milliseconds * 0x0000000000000A00L; // milliseconds * 10
             case 5:
-                return milliseconds * 0x0000000000000064L; // milliseconds * 100
             case 6:
                 return milliseconds * 0x00000000000003E8L; // milliseconds * 1000
             default:
@@ -1493,15 +1491,12 @@ public class Utility {
             case 0:
                 return 0;
             case 1:
-                return (fraction & 0x00FF0000) * 100;
             case 2:
-                return (fraction & 0x00FF0000) * 10;
+                return ((fraction & 0x00FF0000) >> 16) * 10;
             case 3:
-                return  fraction & 0x00FFFF00;
             case 4:
-                return (fraction & 0x00FFFF00) / 10;
+                return ((fraction & 0x00FFFF00) >> 8) / 10;
             case 5:
-                return  fraction / 100;
             case 6:
                 return  fraction / 1000;
             default:
