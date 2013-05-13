@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2013, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,7 @@ Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
 #include <mysqld_error.h>
-#include <sql_acl.h>                            // PROCESS_ACL
+#include <sql_acl.h>
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -37,14 +37,16 @@ Created July 18, 2007 Vasil Dimov
 
 extern "C" {
 #include "btr0types.h"
-#include "buf0buddy.h" /* for i_s_cmpmem */
-#include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
+#include "buf0buddy.h"
+#include "buf0buf.h"
+#include "ibuf0ibuf.h"
 #include "dict0mem.h"
 #include "dict0types.h"
-#include "ha_prototypes.h" /* for innobase_convert_name() */
-#include "srv0start.h" /* for srv_was_started */
+#include "dict0boot.h"
+#include "ha_prototypes.h"
+#include "srv0start.h"
 #include "trx0i_s.h"
-#include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
+#include "trx0trx.h"
 #include "btr0btr.h"
 #include "page0zip.h"
 #include "log0log.h"
@@ -60,8 +62,12 @@ struct buffer_page_desc_str_struct{
 
 typedef struct buffer_page_desc_str_struct	buf_page_desc_str_t;
 
-/** Any states greater than FIL_PAGE_TYPE_LAST would be treated as unknown. */
-#define	I_S_PAGE_TYPE_UNKNOWN		(FIL_PAGE_TYPE_LAST + 1)
+/** Change buffer B-tree page */
+#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 1)
+
+/** Any states greater than I_S_PAGE_TYPE_IBUF would be treated as
+unknown. */
+#define	I_S_PAGE_TYPE_UNKNOWN		(I_S_PAGE_TYPE_IBUF + 1)
 
 /** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
 in i_s_page_type[] array */
@@ -82,6 +88,7 @@ static buf_page_desc_str_t	i_s_page_type[] = {
 	{"BLOB", FIL_PAGE_TYPE_BLOB},
 	{"COMPRESSED_BLOB", FIL_PAGE_TYPE_ZBLOB},
 	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
+	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
 	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN}
 };
 
@@ -2788,14 +2795,21 @@ i_s_innodb_set_page_type(
 	if (page_type == FIL_PAGE_INDEX) {
 		const page_t*	page = (const page_t*) frame;
 
+		page_info->index_id = btr_page_get_index_id(page);
+
 		/* FIL_PAGE_INDEX is a bit special, its value
 		is defined as 17855, so we cannot use FIL_PAGE_INDEX
 		to index into i_s_page_type[] array, its array index
 		in the i_s_page_type[] array is I_S_PAGE_TYPE_INDEX
-		(1) */
-		page_info->page_type = I_S_PAGE_TYPE_INDEX;
-
-		page_info->index_id = btr_page_get_index_id(page);
+		(1) for index pages or I_S_PAGE_TYPE_IBUF for
+		change buffer index pages */
+		if (page_info->index_id
+		    == static_cast<index_id_t>(DICT_IBUF_ID_MIN
+					       + IBUF_SPACE_ID)) {
+			page_info->page_type = I_S_PAGE_TYPE_IBUF;
+		} else {
+			page_info->page_type = I_S_PAGE_TYPE_INDEX;
+		}
 
 		page_info->data_size = (ulint)(page_header_get_field(
 			page, PAGE_HEAP_TOP) - (page_is_comp(page)
@@ -2804,7 +2818,7 @@ i_s_innodb_set_page_type(
 			- page_header_get_field(page, PAGE_GARBAGE));
 
 		page_info->num_recs = page_get_n_recs(page);
-	} else if (page_type >= I_S_PAGE_TYPE_UNKNOWN) {
+	} else if (page_type > FIL_PAGE_TYPE_LAST) {
 		/* Encountered an unknown page type */
 		page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
 	} else {
