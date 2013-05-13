@@ -78,15 +78,21 @@ foreach my $node (@nodes)
 	(($config_get_fs)?" with filesystem":"").
 	"\n\n";
     my $recurse= ($config_get_fs)?'-r ':'';
+    my $datadir= config($node,'datadir');
     system 'scp -p '.$recurse.$config_username.config($node,'host').
-	':'.config($node,'datadir')."/ndb_".$node."* ".
-	"$reportdir/\n";
+	':'.$datadir."/ndb_".$node."* "."$reportdir/\n";
 
     # Extract cluster log name from LogDestination(if any)
     foreach my $file_handler (grep(s/^FILE://i, split(/;/, config($node, 'LogDestination'))))
     {
       foreach my $file_name (grep(s/^filename=//i, split(/,/, $file_handler)))
       {
+        # Check whether the file has an absolute path - otherwise the file
+        # will be located in $datadir
+        if (substr($file_name, 0, 1) ne '/')
+        {
+          $file_name = $datadir.'/'.$file_name;
+        }
         print "  Copying cluster log from '$file_name' on node $node...\n";
         system 'scp -p '.$config_username.config($node,'host').
             ':'.$file_name."* $reportdir/\n";
