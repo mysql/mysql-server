@@ -670,3 +670,28 @@ set sql_mode='STRICT_TRANS_TABLES';
 --error ER_DUP_ENTRY
 insert into t1 values ('code');
 drop table t1;
+
+#
+# Bug#14065831 "TRANSACTION ALREADY ABORTED" HIDES REAL ERROR MSG ON INSERT ... ONE DUP U
+#
+connect(con1, localhost, root,,);
+connect(con2, localhost, root,,);
+
+connection con1;
+
+create table t1(id int primary key, val int) engine=ndb;
+
+insert into t1 set id=1, val=23;
+
+begin;
+select * from t1 where id=1 for update;
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into t1 set id=1, val=42 on duplicate key update val=42;
+
+connection con1;
+rollback;
+
+drop table t1;
