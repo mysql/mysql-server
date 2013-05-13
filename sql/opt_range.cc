@@ -1356,7 +1356,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   index= key_nr;
   head=  table;
   key_part_info= head->key_info[index].key_part;
-  my_init_dynamic_array(&ranges, sizeof(QUICK_RANGE*), 16, 16);
 
   /* 'thd' is not accessible in QUICK_RANGE_SELECT::reset(). */
   mrr_buf_size= thd->variables.read_rnd_buff_size;
@@ -1426,7 +1425,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
         delete file;
       }
     }
-    delete_dynamic(&ranges); /* ranges are allocated in alloc */
     free_root(&alloc,MYF(0));
     my_free(column_bitmap.bitmap);
   }
@@ -9754,7 +9752,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
   set_if_bigger(quick->max_used_key_length, range->min_length);
   set_if_bigger(quick->max_used_key_length, range->max_length);
   set_if_bigger(quick->used_key_parts, (uint) key_tree->part+1);
-  if (insert_dynamic(&quick->ranges, &range))
+  if (quick->ranges.push_back(range))
     return 1;
 
  end:
@@ -9771,9 +9769,9 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 
 bool QUICK_RANGE_SELECT::unique_key_range()
 {
-  if (ranges.elements == 1)
+  if (ranges.size() == 1)
   {
-    QUICK_RANGE *tmp= *((QUICK_RANGE**)ranges.buffer);
+    QUICK_RANGE *tmp= ranges[0];
     if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE)
     {
       KEY *key=head->key_info+index;
@@ -9962,7 +9960,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     key_part->null_bit=     key_info->key_part[part].null_bit;
     key_part->flag=         (uint8) key_info->key_part[part].key_part_flag;
   }
-  if (insert_dynamic(&quick->ranges, &range))
+  if (quick->ranges.push_back(range))
     goto err;
 
   /*
@@ -9983,7 +9981,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                       make_prev_keypart_map(ref->key_parts), EQ_RANGE)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
-    if (insert_dynamic(&quick->ranges, &null_range))
+    if (quick->ranges.push_back(null_range))
       goto err;
   }
 
@@ -10368,7 +10366,7 @@ int QUICK_RANGE_SELECT::reset()
   HANDLER_BUFFER empty_buf;
   DBUG_ENTER("QUICK_RANGE_SELECT::reset");
   last_range= NULL;
-  cur_range= (QUICK_RANGE**) ranges.buffer;
+  cur_range= ranges.begin();
 
   /* set keyread to TRUE if index is covering */
   if(!head->no_keyread && head->covering_keys.is_set(index))
@@ -10423,8 +10421,8 @@ int QUICK_RANGE_SELECT::reset()
     empty_buf.buffer= empty_buf.buffer_end= empty_buf.end_of_used_area= NULL;
  
   RANGE_SEQ_IF seq_funcs= {quick_range_seq_init, quick_range_seq_next, 0, 0};
-  error= file->multi_range_read_init(&seq_funcs, (void*)this, ranges.elements,
-                                     mrr_flags, mrr_buf_desc? mrr_buf_desc: 
+  error= file->multi_range_read_init(&seq_funcs, this, ranges.size(),
+                                     mrr_flags, mrr_buf_desc? mrr_buf_desc:
                                                               &empty_buf);
   DBUG_RETURN(error);
 }
@@ -10445,11 +10443,10 @@ int QUICK_RANGE_SELECT::reset()
 
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags)
 {
-  QUICK_RANGE_SELECT *quick= (QUICK_RANGE_SELECT*)init_param;
-  quick->qr_traversal_ctx.first=  (QUICK_RANGE**)quick->ranges.buffer;
-  quick->qr_traversal_ctx.cur=    (QUICK_RANGE**)quick->ranges.buffer;
-  quick->qr_traversal_ctx.last=   quick->qr_traversal_ctx.cur + 
-                                  quick->ranges.elements;
+  QUICK_RANGE_SELECT *quick= static_cast<QUICK_RANGE_SELECT*>(init_param);
+  quick->qr_traversal_ctx.first= quick->ranges.begin();
+  quick->qr_traversal_ctx.cur= quick->ranges.begin();
+  quick->qr_traversal_ctx.last= quick->ranges.end();
   return &quick->qr_traversal_ctx;
 }
 
@@ -10651,7 +10648,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
         DBUG_RETURN(0);
     }
 
-    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    const uint count= ranges.size() - (cur_range - ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -10697,7 +10694,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 	DBUG_RETURN(result);
     }
 
-    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    const uint count= ranges.size() - (cur_range-ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -10739,12 +10736,12 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
 {
   QUICK_RANGE *res;
   uint min= 0;
-  uint max= ranges.elements - 1;
+  uint max= ranges.size() - 1;
   uint mid= (max + min)/2;
 
   while (min != max)
   {
-    if (cmp_next(*(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid)))
+    if (cmp_next(ranges[mid]))
     {
       /* current row value > mid->max */
       min= mid + 1;
@@ -10753,7 +10750,7 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
       max= mid;
     mid= (min + max) / 2;
   }
-  res= *(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid);
+  res= ranges[mid];
   return (!cmp_next(res) && !cmp_prev(res));
 }
 
@@ -10784,9 +10781,9 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
   mrr_buf_size= 0;
 
 
-  QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
-  QUICK_RANGE **end_range= pr + ranges.elements;
-  for (; pr!=end_range; pr++)
+  Quick_ranges::const_iterator pr= ranges.begin();
+  Quick_ranges::const_iterator end_range= ranges.end();
+  for (; pr != end_range; pr++)
     rev_ranges.push_front(*pr);
 
   /* Remove EQ_RANGE flag for keys that are not using the full key */
@@ -12806,15 +12803,10 @@ void QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges ()
   if (quick_prefix_select &&
       group_prefix_len < quick_prefix_select->max_used_key_length)
   {
-    DYNAMIC_ARRAY *arr;
-    uint inx;
-
-    for (inx= 0, arr= &quick_prefix_select->ranges; inx < arr->elements; inx++)
+    for (size_t ix= 0; ix < quick_prefix_select->ranges.size(); ++ix)
     {
-      QUICK_RANGE *range;
-
-      get_dynamic(arr, (uchar*)&range, inx);
-      range->flag &= ~(NEAR_MIN | NEAR_MAX);
+      QUICK_RANGE *range= quick_prefix_select->ranges[ix];
+      range->flag&= ~(NEAR_MIN | NEAR_MAX);
     }
   }
 }
@@ -14206,13 +14198,10 @@ void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose)
 
   if (verbose)
   {
-    QUICK_RANGE *range;
-    QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
-    QUICK_RANGE **end_range= pr + ranges.elements;
-    for (; pr != end_range; ++pr)
+    for (size_t ix= 0; ix < ranges.size(); ++ix)
     {
       fprintf(DBUG_FILE, "%*s", indent + 2, "");
-      range= *pr;
+      QUICK_RANGE *range= ranges[ix];
       if (!(range->flag & NO_MIN_RANGE))
       {
         print_multiple_key_values(key_parts, range->min_key,
