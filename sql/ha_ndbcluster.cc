@@ -3295,7 +3295,10 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
   }
-  if (check_all_operations_for_error(trans, first, last, 
+  const NdbError ndberr= trans->getNdbError();
+  error= ndberr.mysql_code;
+  if ((error != 0 && error != HA_ERR_KEY_NOT_FOUND) ||
+      check_all_operations_for_error(trans, first, last, 
                                      HA_ERR_KEY_NOT_FOUND))
   {
     table->status= STATUS_NOT_FOUND;
