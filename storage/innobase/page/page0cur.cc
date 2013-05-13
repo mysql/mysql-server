@@ -2570,34 +2570,36 @@ UNIV_INTERN
 const rec_t*
 PageCur::insert(const dtuple_t* tuple, ulint n_ext)
 {
-	const ulint	size	= rec_get_converted_size(
-		m_index, tuple, n_ext);
-	ulint		alloc	= size;
+	ulint		extra_size;
+	ulint		data_size;
 
-	if (getOffsets()) {
-		alloc += rec_offs_get_n_alloc(m_offsets) * sizeof *m_offsets;
+	if (isComp()) {
+		data_size = rec_get_converted_size_comp(
+			m_index,
+			dtuple_get_info_bits(tuple) & REC_NEW_STATUS_MASK,
+			tuple->fields, tuple->n_fields, &extra_size);
+	} else {
+		data_size = dtuple_get_data_size(tuple, 0);
+		extra_size = rec_get_converted_extra_size(
+			data_size, dtuple_get_n_fields(tuple), n_ext);
 	}
 
-	mem_heap_t*	heap	= mem_heap_create(alloc);
+	byte*		buf	= new byte[data_size + extra_size];
 	const rec_t*	rec	= rec_convert_dtuple_to_rec(
-		static_cast<byte*>(mem_heap_alloc(heap, size)),
-		m_index, tuple, n_ext);
-	ulint*		offsets	= getOffsets()
-		? rec_get_offsets(rec, m_index, 0, ULINT_UNDEFINED, &heap)
-		: NULL;
-	const rec_t*	ins_rec	= insert(rec, offsets);
+		buf, m_index, tuple, n_ext);
+	const rec_t*	ins_rec	= insert(rec, extra_size, data_size);
 
 	if (!ins_rec) {
 		/* Page reorganization or recompression should already
-		have been attempted by PageCur::insert(rec,offsets). */
+		have been attempted by PageCur::insertZip(). */
 		ut_ad(!getPageZip());
 
 		if (reorganize()) {
-			ins_rec = insert(rec, offsets);
+			ins_rec = insert(rec, extra_size, data_size);
 		}
 	}
 
-	mem_heap_free(heap);
+	delete[] buf;
 	return(ins_rec);
 }
 
