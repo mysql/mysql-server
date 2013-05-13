@@ -50,9 +50,9 @@ function DBTransactionHandler(dbsession) {
   this.sentNdbStartTx     = false;
   this.execCount          = 0;   // number of execute calls 
   this.nTxRecords         = 1;   // 1 for non-scan, 2 for scan
-  this.pendingOpsLists    = [];
-  this.executedOperations = [];
-  this.execAfterOpenQueue = [];
+  this.pendingOpsLists    = [];  // [ execCallNumber : dbOperationList, ... ]
+  this.executedOperations = [];  // All finished operations 
+  this.execAfterOpenQueue = [];  // exec calls waiting on startTransaction()
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
   this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
   this.serial             = serial++;
@@ -71,7 +71,7 @@ function onAsyncSent(a,b) {
 */
 function run(self, execMode, abortFlag, callback) {
   var qpos;
-  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback);
+  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback, null);
   apiCall.tx = self;
   apiCall.execMode = execMode;
   apiCall.abortFlag = abortFlag;
@@ -129,6 +129,30 @@ function attachErrorToTransaction(dbTxHandler, err) {
   }
 }
 
+/* EXECUTE PATH FOR KEY OPERATIONS
+   -------------------------------
+   Start NdbTransaction 
+   Fetch needed auto-increment values
+   Prepare each operation (synchronous)
+   Execute the NdbTransaction
+   Close the NdbTransaction
+   Attach results to operations, and run operation callbacks
+   Run the transaction callback
+   
+   EXECUTE PATH FOR SCAN OPERATIONS
+   --------------------------------
+   Start NdbTransaction 
+   Prepare the NdbScanOperation (async)
+   Execute NdbTransaction NoCommit
+   Fetch results from scan
+   Execute the NdbTransaction (commit or rollback)
+   Close the NdbTransaction
+   Attach results to query operation
+   Run query operation callback
+   Run the transaction callback
+*/
+
+
 /* Common callback for execute, commit, and rollback 
 */
 function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
@@ -141,9 +165,9 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
      and register the DBTransactionHandler as closed with DBSession
   */
   if(execMode === COMMIT || execMode === ROLLBACK) {
-    ndbsession.closeNdbTransaction(dbTxHandler, dbTxHandler.nTxRecords);
     if(dbTxHandler.ndbtx) {       // May not exist on "stub" commit/rollback
       dbTxHandler.ndbtx.close();
+      ndbsession.closeNdbTransaction(dbTxHandler, dbTxHandler.nTxRecords);
     }
   }
 
@@ -188,11 +212,25 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
     run(self, execMode, abortFlag, onCompleteExec);
   }
 
+  /* Fetch is complete. */
+  function onFetchComplete(err) {
+    if(execMode == NOCOMMIT) {
+      onExecute(self, execMode, err, execId, callback);
+    }
+    else {
+      executeNdbTransaction();
+    }
+  }
+  
   /* Fetch results */
   function getScanResults(err) {
     udebug.log("executeScan getScanResults");
-    // TODO: check error?
-    ndboperation.getScanResults(op, executeNdbTransaction);
+    if(err) {
+      onFetchComplete(err);
+    }
+    else {
+      ndboperation.getScanResults(op, onFetchComplete);
+    }
   }
   
   /* Execute NoCommit so that you can start reading from scans */
@@ -261,7 +299,7 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
 function execute(self, execMode, abortFlag, dbOperationList, callback) {
   var startTxCall, queueItem;
   var isScan = dbOperationList[0].isScanOperation();
-  if(isScan) self.nTxRecords = 2;
+  self.nTxRecords = isScan ? 2 : 1;
 
   function executeSpecific() {
    if(isScan) {

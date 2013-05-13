@@ -42,3 +42,4 @@ Envelope * getNdbTransactionEnvelope(void);
 Envelope * getNdbInterpretedCodeEnvelope(void);
 Envelope * getConstNdbInterpretedCodeEnvelope(void);
 Envelope * getNdbDictTableEnvelope(void);
+Envelope * getNdbScanOperationEnvelope(void);

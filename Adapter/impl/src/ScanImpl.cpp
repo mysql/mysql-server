@@ -37,7 +37,7 @@ class FetchResultsCall;  // forward declaration
  * IMMEDIATE
  */
 Handle<Value> scanNextResult(const Arguments & args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
 
   NdbScanOperation * scanop = unwrapPointer<NdbScanOperation *>(args.Holder());
@@ -69,7 +69,7 @@ public:
 };
 
 Handle<Value> scanFetchResults(const Arguments & args) { 
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   REQUIRE_ARGS_LENGTH(3);
   
   FetchResultsCall * ncallptr = new FetchResultsCall(args);

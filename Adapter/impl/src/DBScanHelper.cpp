@@ -159,7 +159,6 @@ NdbScanOperation * DBScanHelper::prepareScan() {
 
 //// DBScanHelper Wrapper
 
-extern Envelope * NdbScanOperationEnvelope;
 Handle<Value> prepareScan_wrapper(const Arguments &);
 
 class DBScanHelperEnvelopeClass : public Envelope {
@@ -188,7 +187,7 @@ Handle<Value> prepareScan_wrapper(const Arguments &args) {
   REQUIRE_ARGS_LENGTH(1);
   typedef NativeMethodCall_0_<NdbScanOperation *, DBScanHelper> MCALL;
   MCALL * mcallptr = new MCALL(& DBScanHelper::prepareScan, args);
-  mcallptr->wrapReturnValueAs(NdbScanOperationEnvelope);
+  mcallptr->wrapReturnValueAs(getNdbScanOperationEnvelope());
   mcallptr->runAsync();
   
   return Undefined();

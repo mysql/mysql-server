@@ -273,7 +273,8 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
 DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   var opcode = 33;  // How to tell from operation?
   var boundHelper = null;
-  var scanHelper;
+  var execQueue = this.transaction.dbSession.execQueue;
+  var scanHelper, apiCall;
  
   /* There is one global ScanHelperSpec */
   scanSpec.clear();
@@ -304,7 +305,12 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   this.state = doc.OperationStates[1];  // PREPARED
  
   scanHelper = adapter.impl.Scan.create(scanSpec, opcode, ndbTransaction);
-  scanHelper.prepareScan(callback);
+  apiCall = new QueuedAsyncCall(execQueue, callback);
+  apiCall.description = "DBScanHelper.prepareScan";
+  apiCall.run = function() {
+    scanHelper.prepareScan(this.callback);
+  }
+  apiCall.enqueue();
 }
 
 
@@ -381,23 +387,16 @@ function buildValueObject(op) {
 }
 
 
-function fetchResults(dbSession, ndb_scan_op, buffer, callback) {
-  var apiCall = new QueuedAsyncCall(dbSession.execQueue, null, callback);
-  var force_send = true;
-  apiCall.ndb_scan_op = ndb_scan_op;
-  apiCall.description = "fetchResults";
-  apiCall.buffer = buffer;
-  apiCall.run = function runFetchResults() {
-    this.ndb_scan_op.fetchResults(this.buffer, force_send, this.callback);
-  }
-  apiCall.enqueue();
-}
-
 
 function getScanResults(scanop, userCallback) {
   var buffer;
   var dbSession = scanop.transaction.dbSession;
   var ResultConstructor = scanop.tableHandler.ValueObject;
+  var postScanCallback = {
+    fn  : userCallback,
+    arg0: null,
+    arg1: null  
+  };
 
   if(ResultConstructor == null) {
     storeNativeConstructorInMapping(scanop.tableHandler);
@@ -406,9 +405,22 @@ function getScanResults(scanop, userCallback) {
 
   var recordSize = scanop.tableHandler.dbTable.record.getBufferSize();
 
+  function fetchResults(dbSession, ndb_scan_op, buffer) {
+    var apiCall = new QueuedAsyncCall(dbSession.execQueue, null);
+    var force_send = true;
+    apiCall.preCallback = gather;
+    apiCall.ndb_scan_op = ndb_scan_op;
+    apiCall.description = "fetchResults";
+    apiCall.buffer = buffer;
+    apiCall.run = function runFetchResults() {
+      this.ndb_scan_op.fetchResults(this.buffer, force_send, this.callback);
+    }
+    apiCall.enqueue();
+  }
+
   /* <0: ERROR, 0: RESULTS_READY, 1: SCAN_FINISHED, 2: CACHE_EMPTY */
+  /* gather runs as a preCallback */
   function gather(error, status) {
-    var postScanCallback;
     
     if(status !== 0) {
       results.pop();  // remove the optimistic result 
@@ -422,9 +434,9 @@ function getScanResults(scanop, userCallback) {
       else {
         scanop.result.success = false;
         scanop.result.error = error;
-        userCallback(error, results);
+        postScanCallback.arg0 = error;
+        return postScanCallback;
       }
-      return;
     }
     
     /* Gather more results. */
@@ -446,11 +458,7 @@ function getScanResults(scanop, userCallback) {
       udebug.log("gather() 1 End_Of_Scan.  Final length:", results.length);
       scanop.result.success = true;
       scanop.result.value = results;
-      postScanCallback = {
-        fn  : userCallback,
-        arg0: null,
-        arg1: results
-      };
+      postScanCallback.arg1 = results;
       return postScanCallback;
     }    
   }
@@ -458,7 +466,7 @@ function getScanResults(scanop, userCallback) {
   function fetch() {
     buffer = new Buffer(recordSize);
     results.push(new ResultConstructor(buffer));  // Optimistic
-    fetchResults(dbSession, scanop.ndbop, buffer, gather);
+    fetchResults(dbSession, scanop.ndbop, buffer);
   }
 
   /* start here */
