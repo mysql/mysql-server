@@ -219,8 +219,12 @@ ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
 ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
 ignore("NdbTransactionHandler.js", 32, "Expected \'{\' and instead saw \'scans\'.");
 ignore("NdbScanFilter.js", 34, "Expected \'{\' and instead saw \'return\'.");
+
+// spi
 ignore("BasicVarcharTest.js", 19, "Expected \'{\' and instead saw \'onSession\'.");
 ignore("BasicVarcharTest.js", 10, "Expected \'{\' and instead saw \'connection\'.");
+ignore("SmokeTest.js", 13, "Expected \'{\' and instead saw \'test\'.");
+ignore("SmokeTest.js", 10, "Expected \'{\' and instead saw \'test\'.");
 
 //stringtypes
 ignore("CharsetTest.js", 27, "Missing \'new\'.");

@@ -199,11 +199,11 @@ function getExecIdForOperationList(self, operationList) {
 
 function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   var op = dbOperationList[0];
+  var execId = getExecIdForOperationList(self, dbOperationList);
 
   /* Execute NdbTransaction after reading from scan */
   function executeNdbTransaction() {
     udebug.log("executeScan executeNdbTransaction");
-    var execId = getExecIdForOperationList(self, dbOperationList);
 
     function onCompleteExec(err) {
       onExecute(self, execMode, err, execId, callback);
@@ -235,6 +235,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   
   /* Execute NoCommit so that you can start reading from scans */
   function executeScanNoCommit(err, ndbop) {
+    var fatalError;
     udebug.log("executeScan executeScanNoCommit");
     if(! ndbop) {
       fatalError = self.ndbtx.getNdbError();
