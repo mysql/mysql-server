@@ -5894,6 +5894,81 @@ VARIABLE_NAME	old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE
 NDB_SCAN_COUNT	2
 drop table scan_count;
 drop table t1;
+5.6 tests
+create table t1 (
+a int not null,
+b int not null,
+c int not null,
+d int not null,
+primary key (`a`,`b`),
+key(c), key(d)
+) engine=ndbcluster;
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+set global debug='+d,max_4rows_in_spj_batches';
+set optimizer_switch='materialization=off';
+explain extended
+select count(*) from t1 where 
+t1.c in (select c from t1 as subq);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+2	DEPENDENT SUBQUERY	subq	index_subquery	c	c	4	func	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`c`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`c`) in t1 on c)))
+select count(*) from t1 where
+t1.c in (select c from t1 as subq);
+count(*)
+16
+explain extended
+select count(*) from t1 where 
+t1.c in (select c from t1 as subq1) and
+t1.d in (select d from t1 as subq2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+3	DEPENDENT SUBQUERY	subq2	index_subquery	d	d	4	func	2	100.00	NULL
+2	DEPENDENT SUBQUERY	subq1	index_subquery	c	c	4	func	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`c`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`c`) in t1 on c))) and <in_optimizer>(`test`.`t1`.`d`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`d`) in t1 on d))))
+select count(*) from t1 where 
+t1.c in (select c from t1 as subq1) and
+t1.d in (select d from t1 as subq2);
+count(*)
+16
+explain extended
+select count(*) from t1 where 
+t1.c in (select c from t1 as subq1 where 
+subq1.c in (select c from t1 as subq2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+2	DEPENDENT SUBQUERY	subq1	index_subquery	c	c	4	func	2	100.00	Using where
+3	DEPENDENT SUBQUERY	subq2	index_subquery	c	c	4	func	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`c`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`c`) in t1 on c where (<in_optimizer>(`test`.`subq1`.`c`,<exists>(<index_lookup>(<cache>(`test`.`subq1`.`c`) in t1 on c))) and (<cache>(`test`.`t1`.`c`) = `test`.`subq1`.`c`)))))
+select count(*) from t1 where 
+t1.c in (select c from t1 as subq1 where 
+subq1.c in (select c from t1 as subq2));
+count(*)
+16
+explain extended
+select count(*) from t1 where 
+t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+2	DEPENDENT SUBQUERY	subq1	ref	PRIMARY,c	c	4	func	2	100.00	Parent of 2 pushed join@1
+2	DEPENDENT SUBQUERY	subq2	ref	c	c	4	test.subq1.a	2	100.00	Child of 'subq1' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`c`,<exists>(/* select#2 */ select 1 from `test`.`t1` `subq1` straight_join `test`.`t1` `subq2` where ((`test`.`subq2`.`c` = `test`.`subq1`.`a`) and (<cache>(`test`.`t1`.`c`) = `test`.`subq1`.`c`))))
+select count(*) from t1 where 
+t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
+count(*)
+16
+set optimizer_switch='materialization=default';
+set global debug=@save_debug;
+drop table t1;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) as val 
 from ndbinfo.counters 
@@ -5914,7 +5989,7 @@ counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	8
 LOCAL_TABLE_SCANS_SENT	258
 PRUNED_RANGE_SCANS_RECEIVED	27
-RANGE_SCANS_RECEIVED	737
+RANGE_SCANS_RECEIVED	769
 READS_RECEIVED	50
 TABLE_SCANS_RECEIVED	258
 drop table spj_counts_at_startup;
@@ -5926,10 +6001,10 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	11
-NDB_PUSHED_QUERIES_DEFINED	412
+NDB_PUSHED_QUERIES_DEFINED	414
 NDB_PUSHED_QUERIES_DROPPED	11
-NDB_PUSHED_QUERIES_EXECUTED	546
-NDB_SORTED_SCAN_COUNT	11
+NDB_PUSHED_QUERIES_EXECUTED	562
+NDB_SORTED_SCAN_COUNT	91
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 set @@global.optimizer_switch=default;

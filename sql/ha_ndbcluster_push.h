@@ -250,8 +250,11 @@ private:
   // These are effectively const or params wrt. the pushed join
   ndb_table_access_map m_const_scope;
 
-  // Set of tables required to have strict sequential dependency
-  ndb_table_access_map m_forced_sequence;
+  // Set of tables which 'FirstMatch' algorithm will 
+  // skip when a FirstMatch has been found.
+  // Use a bitmap as there may be multiple usage of FirstMatch
+  // in a query, and each FirstMatch may skip multiple tables.
+  ndb_table_access_map m_firstmatch_skipped;
 
   // Number of internal operations used so far (unique lookups count as two).
   uint m_internal_op_count;
