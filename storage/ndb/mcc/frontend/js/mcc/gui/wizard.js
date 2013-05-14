@@ -205,7 +205,7 @@ var configWizardPages = {
                             button below and enter a comma separated list of \
                             host names or ip addresses. Resource information \
                             is automatically retrieved from the added host if \
-                            this is checked in the settinge menu, and if the \
+                            this is checked in the settings menu, and if the \
                             required SSH credentials have been submitted. \
                             When a host has been added, the corresponding \
                             information can be edited by double clicking a cell\
@@ -213,7 +213,7 @@ var configWizardPages = {
                             to several hosts, multiple rows can be selected \
                             and the <i>Edit selected host(s)</i> button can \
                             be pressed, which shows a dialog where the editing\
-                            can be done. Hosts can be deleted by selected the \
+                            can be done. Hosts can be deleted by selecting the \
                             corresponding rows in the table and pressing the \
                             <i>Remove selected host(s)</i> button. If a host \
                             is removed, processes configured to run on that \
