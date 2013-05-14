@@ -1,5 +1,4 @@
-/* Copyright (c) 2002-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -952,13 +951,16 @@ cnv:
 #define INC_PTR(cs,A,B) (A)++
 
 
-int my_wildcmp_8bit(CHARSET_INFO *cs,
-		    const char *str,const char *str_end,
-		    const char *wildstr,const char *wildend,
-		    int escape, int w_one, int w_many)
+static
+int my_wildcmp_8bit_impl(CHARSET_INFO *cs,
+                         const char *str,const char *str_end,
+                         const char *wildstr,const char *wildend,
+                         int escape, int w_one, int w_many, int recurse_level)
 {
   int result= -1;			/* Not found, using wildcards */
 
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level))
+    return 1;
   while (wildstr != wildend)
   {
     while (*wildstr != w_many && *wildstr != w_one)
@@ -1018,8 +1020,9 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
 	  str++;
 	if (str++ == str_end) return(-1);
 	{
-	  int tmp=my_wildcmp_8bit(cs,str,str_end,wildstr,wildend,escape,w_one,
-				  w_many);
+	  int tmp=my_wildcmp_8bit_impl(cs,str,str_end,
+                                       wildstr,wildend,escape,w_one,
+                                       w_many, recurse_level+1);
 	  if (tmp <= 0)
 	    return(tmp);
 	}
@@ -1028,6 +1031,16 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
     }
   }
   return(str != str_end ? 1 : 0);
+}
+
+int my_wildcmp_8bit(CHARSET_INFO *cs,
+                    const char *str,const char *str_end,
+                    const char *wildstr,const char *wildend,
+                    int escape, int w_one, int w_many)
+{
+  return my_wildcmp_8bit_impl(cs, str, str_end,
+                              wildstr, wildend,
+                              escape, w_one, w_many, 1);
 }
 
 

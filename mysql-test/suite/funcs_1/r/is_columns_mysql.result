@@ -353,7 +353,7 @@ NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	help_category	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
 3.0000	mysql	help_category	name	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	help_category	parent_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
-3.0000	mysql	help_category	url	char	128	384	utf8	utf8_general_ci	char(128)
+1.0000	mysql	help_category	url	text	65535	65535	utf8	utf8_general_ci	text
 NULL	mysql	help_keyword	help_keyword_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	help_keyword	name	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	help_relation	help_topic_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
@@ -363,7 +363,7 @@ NULL	mysql	help_topic	help_topic_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	help_topic	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
 1.0000	mysql	help_topic	description	text	65535	65535	utf8	utf8_general_ci	text
 1.0000	mysql	help_topic	example	text	65535	65535	utf8	utf8_general_ci	text
-3.0000	mysql	help_topic	url	char	128	384	utf8	utf8_general_ci	char(128)
+1.0000	mysql	help_topic	url	text	65535	65535	utf8	utf8_general_ci	text
 3.0000	mysql	host	Host	char	60	180	utf8	utf8_bin	char(60)
 3.0000	mysql	host	Db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	host	Select_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
+
 
 /*
   This file is a container for general functionality related
@@ -6833,6 +6833,9 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   get_endpoint_func  UNINIT_VAR(get_endpoint);
   bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
+  MYSQL_TIME start_date;
+  bool check_zero_dates= false;
+  bool zero_in_start_date= true;
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
 
   if (part_info->part_type == RANGE_PARTITION)
@@ -6884,6 +6887,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     {
       /* col is NOT NULL, but F(col) can return NULL, add NULL partition */
       part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+      check_zero_dates= true;
     }
   }
 
@@ -6927,6 +6931,19 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
         return 1;
       }
       part_iter->part_nums.cur= part_iter->part_nums.start;
+      if (check_zero_dates && !part_info->part_expr->null_value)
+      {
+        if (!(flags & NO_MAX_RANGE) &&
+            (field->type() == MYSQL_TYPE_DATE ||
+             field->type() == MYSQL_TYPE_DATETIME))
+        {
+          /* Monotonic, but return NULL for dates with zeros in month/day. */
+          zero_in_start_date= field->get_date(&start_date, 0);
+          DBUG_PRINT("info", ("zero start %u %04d-%02d-%02d",
+                              zero_in_start_date, start_date.year,
+                              start_date.month, start_date.day));
+        }
+      }
       if (part_iter->part_nums.start == max_endpoint_val)
         return 0; /* No partitions */
     }
@@ -6940,6 +6957,27 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     store_key_image_to_rec(field, max_value, field_len);
     bool include_endp= !test(flags & NEAR_MAX);
     part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
+    if (check_zero_dates &&
+        !zero_in_start_date &&
+        !part_info->part_expr->null_value)
+    {
+      MYSQL_TIME end_date;
+      bool zero_in_end_date= field->get_date(&end_date, 0);
+      /*
+        This is an optimization for TO_DAYS() to avoid scanning the NULL
+        partition for ranges that cannot include a date with 0 as
+        month/day.
+      */
+      DBUG_PRINT("info", ("zero end %u %04d-%02d-%02d",
+                          zero_in_end_date,
+                          end_date.year, end_date.month, end_date.day));
+      DBUG_ASSERT(!memcmp(((Item_func*) part_info->part_expr)->func_name(),
+                          "to_days", 7));
+      if (!zero_in_end_date &&
+          start_date.month == end_date.month &&
+          start_date.year == end_date.year)
+        part_iter->ret_null_part= part_iter->ret_null_part_orig= false;
+    }
     if (part_iter->part_nums.start >= part_iter->part_nums.end &&
         !part_iter->ret_null_part)
       return 0; /* No partitions */
