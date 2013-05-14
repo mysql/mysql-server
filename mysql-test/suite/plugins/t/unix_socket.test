@@ -1,4 +1,7 @@
 --source include/not_embedded.inc
+# If we run this as root, $USER gets authenticated as the `root' user, and we
+# get .result differences from CURRENT_USER().
+--source include/not_as_root.inc
 
 if (!$AUTH_SOCKET_SO) {
   skip No auth_socket plugin;
