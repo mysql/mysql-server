@@ -665,7 +665,7 @@ log_init(void)
 	log_sys->max_buf_free = log_sys->buf_size / LOG_BUF_FLUSH_RATIO
 		- LOG_BUF_FLUSH_MARGIN;
 	log_sys->check_flush_or_checkpoint = TRUE;
-	UT_LIST_INIT(log_sys->log_groups);
+	UT_LIST_INIT(log_sys->log_groups, &log_group_t::log_groups);
 
 	log_sys->n_log_ios = 0;
 
@@ -788,7 +788,7 @@ log_group_init(
 	group->checkpoint_buf = static_cast<byte*>(
 		ut_align(group->checkpoint_buf_ptr,OS_FILE_LOG_BLOCK_SIZE));
 
-	UT_LIST_ADD_LAST(log_groups, log_sys->log_groups, group);
+	UT_LIST_ADD_LAST(log_sys->log_groups, group);
 
 	return(log_calc_max_ages());
 }
@@ -2496,7 +2496,8 @@ log_group_close_all(void)
 		log_group_t*	prev_group = group;
 
 		group = UT_LIST_GET_NEXT(log_groups, group);
-		UT_LIST_REMOVE(log_groups, log_sys->log_groups, prev_group);
+
+		UT_LIST_REMOVE(log_sys->log_groups, prev_group);
 
 		log_group_close(prev_group);
 	}

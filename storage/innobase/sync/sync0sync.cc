@@ -206,7 +206,7 @@ UNIV_INTERN mysql_pfs_key_t	sync_thread_mutex_key;
 #endif /* UNIV_SYNC_DEBUG */
 
 /** Global list of database mutexes (not OS mutexes) created. */
-UNIV_INTERN ut_list_base_node_t  mutex_list;
+UNIV_INTERN mutex_list_t	mutex_list;
 
 /** Mutex protecting the mutex_list variable */
 UNIV_INTERN ib_mutex_t mutex_list_mutex;
@@ -315,7 +315,7 @@ mutex_create_func(
 	ut_ad(UT_LIST_GET_LEN(mutex_list) == 0
 	      || UT_LIST_GET_FIRST(mutex_list)->magic_n == MUTEX_MAGIC_N);
 
-	UT_LIST_ADD_FIRST(list, mutex_list, mutex);
+	UT_LIST_ADD_FIRST(mutex_list, mutex);
 
 	mutex_exit(&mutex_list_mutex);
 }
@@ -339,7 +339,7 @@ mutex_free_func(
 	if (mutex == &mem_hash_mutex) {
 		ut_ad(UT_LIST_GET_LEN(mutex_list) == 1);
 		ut_ad(UT_LIST_GET_FIRST(mutex_list) == &mem_hash_mutex);
-		UT_LIST_REMOVE(list, mutex_list, mutex);
+		UT_LIST_REMOVE(mutex_list, mutex);
 		goto func_exit;
 	}
 #endif /* UNIV_MEM_DEBUG */
@@ -359,7 +359,7 @@ mutex_free_func(
 		      || UT_LIST_GET_NEXT(list, mutex)->magic_n
 		      == MUTEX_MAGIC_N);
 
-		UT_LIST_REMOVE(list, mutex_list, mutex);
+		UT_LIST_REMOVE(mutex_list, mutex);
 
 		mutex_exit(&mutex_list_mutex);
 	}
@@ -1497,7 +1497,7 @@ sync_init(void)
 #endif /* UNIV_SYNC_DEBUG */
 	/* Init the mutex list and create the mutex to protect it. */
 
-	UT_LIST_INIT(mutex_list);
+	UT_LIST_INIT(mutex_list, &ib_mutex_t::list);
 	mutex_create(mutex_list_mutex_key, &mutex_list_mutex,
 		     SYNC_NO_ORDER_CHECK);
 #ifdef UNIV_SYNC_DEBUG
@@ -1507,7 +1507,7 @@ sync_init(void)
 
 	/* Init the rw-lock list and create the mutex to protect it. */
 
-	UT_LIST_INIT(rw_lock_list);
+	UT_LIST_INIT(rw_lock_list, &rw_lock_t::list);
 	mutex_create(rw_lock_list_mutex_key, &rw_lock_list_mutex,
 		     SYNC_NO_ORDER_CHECK);
 
