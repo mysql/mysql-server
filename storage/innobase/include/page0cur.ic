@@ -272,39 +272,3 @@ page_cur_tuple_insert(
 	return(rec);
 }
 #endif /* !UNIV_HOTBACKUP */
-
-/***********************************************************//**
-Inserts a record next to page cursor. Returns pointer to inserted record if
-succeed, i.e., enough space available, NULL otherwise. The cursor stays at
-the same logical position, but the physical position may change if it is
-pointing to a compressed page that was reorganized.
-
-IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
-if this is a compressed leaf page in a secondary index.
-This has to be done either within the same mini-transaction,
-or by invoking ibuf_reset_free_bits() before mtr_commit().
-
-@return	pointer to record if succeed, NULL otherwise */
-UNIV_INLINE
-rec_t*
-page_cur_rec_insert(
-/*================*/
-	page_cur_t*	cursor,	/*!< in/out: a page cursor */
-	const rec_t*	rec,	/*!< in: record to insert */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
-{
-	if (buf_block_get_page_zip(cursor->block)) {
-		return(page_cur_insert_rec_zip(
-			       cursor, index, rec, offsets, mtr));
-	} else {
-		ut_ad(rec_offs_validate(rec, index, offsets));
-		rec_t*	ret = page_cur_insert_rec_low(
-			cursor->rec, index, rec,
-			rec_offs_extra_size(offsets),
-			rec_offs_data_size(offsets), mtr);
-		ut_d(if (ret) rec_offs_make_valid(ret, index, offsets));
-		return(ret);
-	}
-}
