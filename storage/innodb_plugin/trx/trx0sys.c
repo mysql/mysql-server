@@ -129,7 +129,7 @@ static const ulint	FILE_FORMAT_NAME_N
 
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
-uint		trx_rseg_n_slots_debug = 0;
+UNIV_INTERN uint	trx_rseg_n_slots_debug = 0;
 #endif
 
 #ifndef UNIV_HOTBACKUP

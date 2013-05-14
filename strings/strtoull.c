@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2001, 2003, 2004, 2006 MySQL AB
+/* Copyright (c) 2000, 2001, 2003, 2004 MySQL AB
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
