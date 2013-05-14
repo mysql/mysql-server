@@ -5600,7 +5600,13 @@ uint MYSQL_BIN_LOG::next_file_id()
   *crc= my_checksum(*crc, event_begin, event_len - ret);
   return ret;
 }
+
 /*
+  Auxiliary function to fix the commit seq number for the cache involved in
+  do_write_cache.
+  @param cache   Instance of IO_CACHE being written to the disk.
+  @param buff    Buffer which needs to be fixed to make sure that
+                 commit seq_number is written at the pre-allocated space.
  */
 void fix_commit_seq_no(IO_CACHE* cache, uchar* buff)
 {
