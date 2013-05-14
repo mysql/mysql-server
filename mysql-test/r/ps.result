@@ -2816,14 +2816,23 @@ prepare stmt1 from 'select decode(encode(?, ?), ?)';
 execute stmt1 using @my_data, @my_password, @my_password;
 decode(encode(?, ?), ?)
 clear text to encode
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 set @my_data="more text to encode";
 execute stmt1 using @my_data, @my_password, @my_password;
 decode(encode(?, ?), ?)
 more text to encode
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 set @my_password="new password";
 execute stmt1 using @my_data, @my_password, @my_password;
 decode(encode(?, ?), ?)
 more text to encode
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 deallocate prepare stmt1;
 set @to_format="123456789.123456789";
 set @dec=0;
@@ -2955,13 +2964,21 @@ prepare encode from "select encode(?, ?) into @ciphertext";
 prepare decode from "select decode(?, ?) into @plaintext";
 set @str="abc", @key="cba";
 execute encode using @str, @key;
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 execute decode using @ciphertext, @key;
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select @plaintext;
 @plaintext
 abc
 set @str="bcd", @key="dcb";
 execute encode using @str, @key;
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 execute decode using @ciphertext, @key;
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select @plaintext;
 @plaintext
 bcd
