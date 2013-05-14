@@ -168,27 +168,6 @@ page_cur_tuple_insert(
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
 	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
-/***********************************************************//**
-Inserts a record next to page cursor. Returns pointer to inserted record if
-succeed, i.e., enough space available, NULL otherwise. The cursor stays at
-the same logical position, but the physical position may change if it is
-pointing to a compressed page that was reorganized.
-
-IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
-if this is a compressed leaf page in a secondary index.
-This has to be done either within the same mini-transaction,
-or by invoking ibuf_reset_free_bits() before mtr_commit().
-
-@return	pointer to record if succeed, NULL otherwise */
-UNIV_INLINE
-rec_t*
-page_cur_rec_insert(
-/*================*/
-	page_cur_t*	cursor,	/*!< in/out: a page cursor */
-	const rec_t*	rec,	/*!< in: record to insert */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle, or NULL */
 /** Inserts a record next to page cursor on an uncompressed page.
 @param[in/out]	current_rec	record after which the new record is inserted
 @param[in]	index		B-tree index
@@ -635,6 +614,12 @@ public:
 	/** Insert an entry after the current cursor position.
 	The compressed page is updated in sync.
 	The cursor stays at the same position.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+	if this is a compressed leaf page in a secondary index.
+	This has to be done either within the same mini-transaction,
+	or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 	@param[in]	rec		record to insert
 	@param[in]	extra_size	size of record header, in bytes
 	@param[in]	data_size	size of record payload, in bytes
@@ -647,6 +632,12 @@ public:
 	/** Insert an entry after the current cursor position,
 	not updating the compressed page.
 	The cursor stays at the same position.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+	if this is a compressed leaf page in a secondary index.
+	This has to be done either within the same mini-transaction,
+	or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 	@param[in]	cursor		cursor pointing to record to insert
 	@return pointer to record if enough space available, NULL otherwise */
 	const rec_t* insertNoZip(const PageCur& cursor) {
@@ -662,6 +653,12 @@ public:
 	/** Insert an entry after the current cursor position,
 	not updating the compressed page.
 	The cursor stays at the same position.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+	if this is a compressed leaf page in a secondary index.
+	This has to be done either within the same mini-transaction,
+	or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 	@param[in]	rec		record to insert
 	@param[in]	extra_size	size of record header, in bytes
 	@param[in]	data_size	size of record payload, in bytes
@@ -675,6 +672,12 @@ public:
 
 	/** Insert an entry after the current cursor position.
 	The cursor stays at the same position.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+	if this is a compressed leaf page in a secondary index.
+	This has to be done either within the same mini-transaction,
+	or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 	@param[in] tuple	record to insert
 	@param[in] n_ext	number of externally stored columns
 	@return	pointer to record if enough space available, NULL otherwise */
@@ -692,6 +695,7 @@ public:
 	this is a secondary index leaf page. This has to be done
 	either within m_mtr, or by invoking ibuf_reset_free_bits()
 	before mtr_commit(m_mtr).
+
 	@param[in]	create		true=delete-and-insert,
 	false=update-in-place
 	@return true if enough space is available; if not,
@@ -792,6 +796,12 @@ private:
 	/** Insert an entry after the current cursor position
 	into a compressed page, recompressing the page.
 	The cursor stays at the same position.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+	if this is a compressed leaf page in a secondary index.
+	This has to be done either within the same mini-transaction,
+	or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 	@param[in]	rec		record to insert
 	@param[in]	extra_size	size of record header, in bytes
 	@param[in]	data_size	size of record payload, in bytes
@@ -806,6 +816,12 @@ private:
 	/** Insert an entry after the current cursor position
 	without reorganizing the page.
 	The cursor stays at the same position.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+	if this is a compressed leaf page in a secondary index.
+	This has to be done either within the same mini-transaction,
+	or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 	@param[in]	rec		record to insert
 	@param[in]	extra_size	size of record header, in bytes
 	@param[in]	data_size	size of record payload, in bytes
@@ -820,6 +836,12 @@ private:
 
 	/** Insert an entry after the current cursor position.
 	The cursor stays at the same position.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+	if this is a compressed leaf page in a secondary index.
+	This has to be done either within the same mini-transaction,
+	or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 	@param[in]	rec		record to insert
 	@param[in]	extra_size	size of record header, in bytes
 	@param[in]	data_size	size of record payload, in bytes

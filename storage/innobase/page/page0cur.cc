@@ -603,25 +603,15 @@ page_cur_parse_insert_rec(
 	ulint	origin_offset;
 	ulint	end_seg_len;
 	ulint	mismatch_index;
-	page_t*	page;
-	rec_t*	cursor_rec;
+	ulint	rec_offset;
 	byte	buf1[1024];
 	byte*	buf;
-	byte*	ptr2			= ptr;
+	const byte* const	ptr2	= ptr;
 	ulint	info_and_status_bits = 0; /* remove warning */
-	page_cur_t	cursor;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
-
-	page = block ? buf_block_get_frame(block) : NULL;
 
 	if (is_short) {
-		cursor_rec = page_rec_get_prev(page_get_supremum_rec(page));
+		rec_offset = 0;
 	} else {
-		ulint	offset;
-
 		/* Read the cursor rec offset as a 2-byte ulint */
 
 		if (UNIV_UNLIKELY(end_ptr < ptr + 2)) {
@@ -629,12 +619,10 @@ page_cur_parse_insert_rec(
 			return(NULL);
 		}
 
-		offset = mach_read_from_2(ptr);
+		rec_offset = mach_read_from_2(ptr);
 		ptr += 2;
 
-		cursor_rec = page + offset;
-
-		if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)) {
+		if (UNIV_UNLIKELY(rec_offset >= UNIV_PAGE_SIZE)) {
 
 			recv_sys->found_corrupt_log = TRUE;
 
@@ -673,6 +661,7 @@ page_cur_parse_insert_rec(
 			return(NULL);
 		}
 
+		ut_ad(origin_offset >= REC_N_NEW_EXTRA_BYTES);
 		ut_a(origin_offset < UNIV_PAGE_SIZE);
 
 		ptr = mach_parse_compressed(ptr, end_ptr, &mismatch_index);
@@ -685,40 +674,42 @@ page_cur_parse_insert_rec(
 		ut_a(mismatch_index < UNIV_PAGE_SIZE);
 	}
 
-	if (UNIV_UNLIKELY(end_ptr < ptr + (end_seg_len >> 1))) {
+	ptr += (end_seg_len >> 1);
+
+	if (UNIV_UNLIKELY(end_ptr < ptr)) {
 
 		return(NULL);
 	}
 
 	if (!block) {
 
-		return(ptr + (end_seg_len >> 1));
+		return(ptr);
 	}
 
-	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
-	ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
+	PageCur cursor(mtr, index, block);
+
+	if (rec_offset) {
+		cursor.setRec(buf_block_get_frame(block) + rec_offset);
+	} else {
+		cursor.setAfterLast();
+		cursor.prev();
+	}
+
+	ulint		cur_extra_size;
+	const ulint	cur_data_size = cursor.getRecSize(cur_extra_size);
 
 	/* Read from the log the inserted index record end segment which
 	differs from the cursor record */
 
-	offsets = rec_get_offsets(cursor_rec, index, offsets,
-				  ULINT_UNDEFINED, &heap);
-
 	if (!(end_seg_len & 0x1UL)) {
 		info_and_status_bits = rec_get_info_and_status_bits(
-			cursor_rec, page_is_comp(page));
-		origin_offset = rec_offs_extra_size(offsets);
-		mismatch_index = rec_offs_size(offsets) - (end_seg_len >> 1);
+			cursor.getRec(), cursor.isComp());
+		origin_offset = cur_extra_size;
+		mismatch_index = cur_data_size + cur_extra_size
+			- (end_seg_len >> 1);
 	}
 
 	end_seg_len >>= 1;
-
-	if (mismatch_index + end_seg_len < sizeof buf1) {
-		buf = buf1;
-	} else {
-		buf = static_cast<byte*>(
-			mem_alloc(mismatch_index + end_seg_len));
-	}
 
 	/* Build the inserted record to buf */
 
@@ -728,7 +719,7 @@ page_cur_parse_insert_rec(
 			"o_offset %lu, mismatch index %lu, end_seg_len %lu"
 			"parsed len %lu",
 			(ulong) is_short, (ulong) info_and_status_bits,
-			(ulong) page_offset(cursor_rec),
+			(ulong) page_offset(cursor.getRec()),
 			(ulong) origin_offset,
 			(ulong) mismatch_index, (ulong) end_seg_len,
 			(ulong) (ptr - ptr2));
@@ -737,44 +728,40 @@ page_cur_parse_insert_rec(
 		ut_print_buf(stderr, ptr2, 300);
 		putc('\n', stderr);
 
-		buf_page_print(page, 0, 0);
+		buf_page_print(buf_block_get_frame(block), 0, 0);
 
 		ut_error;
 	}
 
-	ut_memcpy(buf, rec_get_start(cursor_rec, offsets), mismatch_index);
-	ut_memcpy(buf + mismatch_index, ptr, end_seg_len);
-
-	if (page_is_comp(page)) {
-		rec_set_info_and_status_bits(buf + origin_offset,
-				     info_and_status_bits);
+	if (mismatch_index + end_seg_len < sizeof buf1) {
+		buf = buf1;
 	} else {
-		rec_set_info_bits_old(buf + origin_offset,
-							info_and_status_bits);
+		buf = new byte[mismatch_index + end_seg_len];
 	}
 
-	page_cur_position(cursor_rec, block, &cursor);
+	memcpy(buf, cursor.getRec() - cur_extra_size, mismatch_index);
+	memcpy(buf + mismatch_index, ptr - end_seg_len, end_seg_len);
 
-	offsets = rec_get_offsets(buf + origin_offset, index, offsets,
-				  ULINT_UNDEFINED, &heap);
-	if (UNIV_UNLIKELY(!page_cur_rec_insert(&cursor,
-					       buf + origin_offset,
-					       index, offsets, mtr))) {
+	if (cursor.isComp()) {
+		rec_set_info_and_status_bits(buf + origin_offset,
+					     info_and_status_bits);
+	} else {
+		rec_set_info_bits_old(buf + origin_offset,
+				      info_and_status_bits);
+	}
+
+	if (!cursor.insert(buf + origin_offset, origin_offset,
+			   end_seg_len + mismatch_index - origin_offset)) {
 		/* The redo log record should only have been written
 		after the write was successful. */
 		ut_error;
 	}
 
 	if (buf != buf1) {
-
-		mem_free(buf);
+		delete[] buf;
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-
-	return(ptr + end_seg_len);
+	return(ptr);
 }
 
 /** Inserts a record next to page cursor on an uncompressed page.
@@ -1986,6 +1973,12 @@ PageCur::logInsert(
 /** Insert an entry after the current cursor position
 into a compressed page, recompressing the page.
 The cursor stays at the same position.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @param[in]	rec		record to insert
 @param[in]	extra_size	size of record header, in bytes
 @param[in]	data_size	size of record payload, in bytes
@@ -2148,6 +2141,12 @@ try_insert:
 /** Insert an entry after the current cursor position
 without reorganizing the page.
 The cursor stays at the same position.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @param[in]	rec		record to insert
 @param[in]	extra_size	size of record header, in bytes
 @param[in]	data_size	size of record payload, in bytes
@@ -2260,6 +2259,12 @@ use_heap:
 
 /** Insert an entry after the current cursor position.
 The cursor stays at the same position.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @param[in]	rec		record to insert
 @param[in]	extra_size	size of record header, in bytes
 @param[in]	data_size	size of record payload, in bytes
@@ -2389,6 +2394,12 @@ PageCur::insertBuf(
 /** Insert an entry after the current cursor position.
 The compressed page is updated in sync.
 The cursor stays at the same position.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @param[in]	rec		record to insert
 @param[in]	extra_size	size of record header, in bytes
 @param[in]	data_size	size of record payload, in bytes
@@ -2424,6 +2435,12 @@ PageCur::insert(
 }
 
 /** Insert an entry after the current cursor position.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @param[in] tuple	record to insert
 @param[in] n_ext	number of externally stored columns
 @return	pointer to record if enough space available, NULL otherwise */
@@ -2472,6 +2489,7 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE if
 this is a secondary index leaf page. This has to be done
 either within m_mtr, or by invoking ibuf_reset_free_bits()
 before mtr_commit(m_mtr).
+
 @param[in]	create		true=delete-and-insert,
 false=update-in-place
 @return true if enough space is available; if not,
