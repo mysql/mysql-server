@@ -1754,6 +1754,8 @@ dict_create_add_foreign_field_to_dictionary(
 	const dict_foreign_t*	foreign,	/*!< in: foreign */
 	trx_t*			trx)		/*!< in/out: transaction */
 {
+	DBUG_ENTER("dict_create_add_foreign_field_to_dictionary");
+
 	pars_info_t*	info = pars_info_create();
 
 	pars_info_add_str_literal(info, "id", foreign->id);
@@ -1766,7 +1768,7 @@ dict_create_add_foreign_field_to_dictionary(
 	pars_info_add_str_literal(info, "ref_col_name",
 				  foreign->referenced_col_names[field_nr]);
 
-	return(dict_foreign_eval_sql(
+	DBUG_RETURN(dict_foreign_eval_sql(
 		       info,
 		       "PROCEDURE P () IS\n"
 		       "BEGIN\n"
@@ -1788,6 +1790,9 @@ dict_create_add_foreign_to_dictionary(
 	trx_t*			trx)	/*!< in/out: dictionary transaction */
 {
 	dberr_t		error;
+
+	DBUG_ENTER("dict_create_add_foreign_to_dictionary");
+
 	pars_info_t*	info = pars_info_create();
 
 	pars_info_add_str_literal(info, "id", foreign->id);
@@ -1800,6 +1805,11 @@ dict_create_add_foreign_to_dictionary(
 	pars_info_add_int4_literal(info, "n_cols",
 				   foreign->n_fields + (foreign->type << 24));
 
+	DBUG_PRINT("dict_create_add_foreign_to_dictionary",
+		   ("'%s', '%s', '%s', %d", foreign->id, name,
+		    foreign->referenced_table_name,
+		    foreign->n_fields + (foreign->type << 24)));
+
 	error = dict_foreign_eval_sql(info,
 				      "PROCEDURE P () IS\n"
 				      "BEGIN\n"
@@ -1810,7 +1820,7 @@ dict_create_add_foreign_to_dictionary(
 
 	if (error != DB_SUCCESS) {
 
-		return(error);
+		DBUG_RETURN(error);
 	}
 
 	for (ulint i = 0; i < foreign->n_fields; i++) {
@@ -1819,11 +1829,11 @@ dict_create_add_foreign_to_dictionary(
 
 		if (error != DB_SUCCESS) {
 
-			return(error);
+			DBUG_RETURN(error);
 		}
 	}
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /********************************************************************//**

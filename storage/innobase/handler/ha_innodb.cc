@@ -1302,16 +1302,8 @@ convert_error_code_to_mysql(
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ut_ad(thd);
-		push_warning_printf(thd, Sql_condition::SL_WARNING,
-				    HA_ERR_ROW_IS_REFERENCED,
-				    "InnoDB: Cannot delete/update "
-				    "rows with cascading foreign key "
-				    "constraints that exceed max "
-				    "depth of %d. Please "
-				    "drop extra constraints and try "
-				    "again", DICT_FK_MAX_RECURSIVE_LOAD);
-
-		/* fall through */
+		my_error(ER_FK_DEPTH_EXCEEDED, MYF(0), FK_MAX_CASCADE_DEL);
+		return(HA_ERR_FK_DEPTH_EXCEEDED);
 
 	case DB_ERROR:
 	default:
