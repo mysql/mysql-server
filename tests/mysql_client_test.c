@@ -12156,8 +12156,7 @@ static void test_cursors_with_procedure()
   Altough mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
   should not crash server and should not hang in case of errors.
 
-  Since those functions can't be seen in modern API (unless client library
-  was compiled with USE_OLD_FUNCTIONS define) we use simple_command() macro.
+  Since those functions can't be seen in modern API we use simple_command() macro.
 */
 static void test_bug6081()
 {
