@@ -23,6 +23,8 @@ call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
 # 1. Hit crash point on completing drop of all indexes before creation of index
 #    is commenced.
 # 2. Hit crash point after data is updated to system-table and in-memory dict.
+# 3. Post truncate recovery, abruptly shutdown the server.
+#    On restart ensure table state is maintained. 
 #
 ################################################################################
 
@@ -106,6 +108,51 @@ truncate table t;
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+drop table t;
+
+#-----------------------------------------------------------------------------
+#
+# 3. Post truncate recovery, abruptly shutdown the server.
+#    On restart ensure table state is maintained. 
+#
+--echo "3. Post truncate recovery, abruptly shutdown the server."
+--echo "   On restart ensure table state is maintained."
+use test;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
+--disable_warnings
+eval create $wl6501_temp table t (
+	i int, f float, c char,
+	primary key pk(i), unique findex(f), index ck(c))
+	engine = innodb row_format = $wl6501_row_fmt
+	key_block_size = $wl6501_kbs;
+--enable_warnings
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+check table t;
+#
+set session debug = "+d,+d,ib_trunc_crash_after_redo_log_write_complete2";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+truncate table t;
+#
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+check table t;
+select * from t;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+#
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 0
+--echo "restarting"
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+check table t;
 select * from t;
 drop table t;
 

@@ -70,6 +70,44 @@ i	f	c
 2	2.2	b
 3	3.3	c
 drop table t;
+"3. Post truncate recovery, abruptly shutdown the server."
+"   On restart ensure table state is maintained."
+use test;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = 16;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+set session debug = "+d,+d,ib_trunc_crash_after_redo_log_write_complete2";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+select * from t;
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+"restarting"
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
 call mtr.add_suppression("The file '.*' already exists though the corresponding table did not exist in the InnoDB data dictionary");
@@ -144,6 +182,44 @@ i	f	c
 2	2.2	b
 3	3.3	c
 drop table t;
+"3. Post truncate recovery, abruptly shutdown the server."
+"   On restart ensure table state is maintained."
+use test;
+set global innodb_file_per_table = 0;
+set global innodb_file_format = 'Antelope';
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compact
+key_block_size = 16;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+set session debug = "+d,+d,ib_trunc_crash_after_redo_log_write_complete2";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+select * from t;
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+"restarting"
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
 call mtr.add_suppression("The file '.*' already exists though the corresponding table did not exist in the InnoDB data dictionary");
@@ -212,6 +288,44 @@ test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t;
+"3. Post truncate recovery, abruptly shutdown the server."
+"   On restart ensure table state is maintained."
+use test;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Barracuda';
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
+engine = innodb row_format = compressed
+key_block_size = 16;
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+set session debug = "+d,+d,ib_trunc_crash_after_redo_log_write_complete2";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+select * from t;
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+"restarting"
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
 select * from t;
 i	f	c
 1	1.1	a
