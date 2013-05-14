@@ -3142,7 +3142,7 @@ err_exit:
 			nth_rec += page_rec_get_n_recs_before(orig_pred);
 		}
 	} else {
-		rec_t*		orig_succ;
+		const rec_t*	orig_succ;
 #ifdef UNIV_BTR_DEBUG
 		byte		fil_page_prev[4];
 #endif /* UNIV_BTR_DEBUG */
