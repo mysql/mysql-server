@@ -1938,13 +1938,6 @@ files_checked:
 
 		recv_recovery_from_checkpoint_finish();
 
-		/* Fix-up truncate of table if server crashed while truncate
-		was active. */
-		err = row_fixup_truncate_of_tables();	
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(err));
-		}
-
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
 			/* The following call is necessary for the insert
 			buffer to work with multiple tablespaces. We must
@@ -1972,6 +1965,13 @@ files_checked:
 			}
 
 			dict_check_tablespaces_and_store_max_id(dict_check);
+		}
+
+		/* Fix-up truncate of table if server crashed while truncate
+		was active. */
+		err = row_fixup_truncate_of_tables();	
+		if (err != DB_SUCCESS) {
+			return(srv_init_abort(err));
 		}
 
 		if (!srv_force_recovery
