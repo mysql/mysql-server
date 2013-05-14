@@ -4618,11 +4618,10 @@ alloc_another:
 				able to adjust the BLOB pointer in the
 				record.  We do not store the heap
 				number of the record, because it can
-				change in page_zip_reorganize() or
-				btr_page_reorganize().  However, also
-				the page number of the record may
-				change when B-tree nodes are split or
-				merged. */
+				change in PageCur::reorganize().
+				However, also the page number of the
+				record may change when B-tree nodes
+				are split or merged. */
 				mlog_write_ulint(page
 						 + FIL_PAGE_FILE_FLUSH_LSN,
 						 space_id,
