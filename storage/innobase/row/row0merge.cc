@@ -318,9 +318,9 @@ row_merge_buf_add(
 				bucket = *doc_id % fts_sort_pll_degree;
 
 				UT_LIST_ADD_LAST(
-					doc_list,
 					psort_info[bucket].fts_doc_list,
 					doc_item);
+
 				n_row_added = 1;
 				continue;
 			}

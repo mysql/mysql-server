@@ -8463,67 +8463,103 @@ mysqld_get_one_option(int optid,
     {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #ifndef EMBEDDED_LIBRARY
-      /* Parse instrument name and value from argument string */
-      char* name = argument,*p, *val;
 
-      /* Assignment required */
+      /*
+        Parse instrument name and value from argument string. Handle leading
+        and trailing spaces. Also handle single quotes.
+
+        Acceptable:
+          performance_schema_instrument = ' foo/%/bar/  =  ON  '
+          performance_schema_instrument = '%=OFF'
+        Not acceptable:
+          performance_schema_instrument = '' foo/%/bar = ON ''
+          performance_schema_instrument = '%='OFF''
+      */
+      char *name= argument,*p= NULL, *val= NULL;
+      my_bool quote= false; /* true if quote detected */
+      my_bool error= true;  /* false if no errors detected */
+      const int PFS_BUFFER_SIZE= 128;
+      char orig_argument[PFS_BUFFER_SIZE+1];
+      orig_argument[0]= 0;
+
+      if (!argument)
+        goto pfs_error;
+
+      /* Save original argument string for error reporting */
+      strncpy(orig_argument, argument, PFS_BUFFER_SIZE);
+
+      /* Split instrument name and value at the equal sign */
       if (!(p= strchr(argument, '=')))
-      {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Missing value for performance_schema_instrument "
-                               "'%s'", argument);
-        return 0;
-      }
+        goto pfs_error;
 
-      /* Option value */
+      /* Get option value */
       val= p + 1;
       if (!*val)
+        goto pfs_error;
+
+      /* Trim leading spaces and quote from the instrument name */
+      while (*name && (my_isspace(mysqld_charset, *name) || (*name == '\'')))
       {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Missing value for performance_schema_instrument "
-                               "'%s'", argument);
-        return 0;
+        /* One quote allowed */
+        if (*name == '\'')
+        {
+          if (!quote)
+            quote= true;
+          else
+            goto pfs_error;
+        }
+        name++;
       }
 
-      /* Trim leading spaces from instrument name */
-      while (*name && my_isspace(mysqld_charset, *name))
-        name++;
-
-      /* Trim trailing spaces and slashes from instrument name */
-      while (p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
+      /* Trim trailing spaces from instrument name */
+      while ((p > name) && my_isspace(mysqld_charset, p[-1]))
         p--;
       *p= 0;
 
+      /* Remove trailing slash from instrument name */
+      if (p > name && (p[-1] == '/'))
+        p[-1]= 0;
+
       if (!*name)
-      {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Invalid instrument name for "
-                               "performance_schema_instrument '%s'", argument);
-        return 0;
-      }
+        goto pfs_error;
 
       /* Trim leading spaces from option value */
       while (*val && my_isspace(mysqld_charset, *val))
         val++;
 
-      /* Trim trailing spaces from option value */
-      if ((p= my_strchr(mysqld_charset, val, val+strlen(val), ' ')) != NULL)
-        *p= 0;
+      /* Trim trailing spaces and matching quote from value */
+      p= val + strlen(val);
+      while (p > val && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '\''))
+      {
+        /* One matching quote allowed */
+        if (p[-1] == '\'')
+        {
+          if (quote)
+            quote= false;
+          else
+            goto pfs_error;
+        }
+        p--;
+      }
+
+      *p= 0;
 
       if (!*val)
-      {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Invalid value for performance_schema_instrument "
-                               "'%s'", argument);
-        return 0;
-      }
+        goto pfs_error;
 
       /* Add instrument name and value to array of configuration options */
       if (add_pfs_instr_to_array(name, val))
+        goto pfs_error;
+
+      error= false;
+
+pfs_error:
+      if (error)
       {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Invalid value for performance_schema_instrument "
-                               "'%s'", argument);
+        my_getopt_error_reporter(WARNING_LEVEL,
+                                 "Invalid instrument name or value for "
+                                 "performance_schema_instrument '%s'",
+                                 orig_argument);
         return 0;
       }
 #endif /* EMBEDDED_LIBRARY */
