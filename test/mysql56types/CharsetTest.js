@@ -23,7 +23,9 @@
 // Domain Object Constructor
 var test_id = 1;
 function TestData() {
-  this.id = test_id++;
+  if(! this.id) {
+    this.id = test_id++;
+  }
 }
 
 function ErrorVerifier(testCase, sqlState) {
