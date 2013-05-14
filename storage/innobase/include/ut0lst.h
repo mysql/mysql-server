@@ -262,19 +262,6 @@ Inserts a ELEM2 after ELEM1 in a list.
 #define UT_LIST_INSERT_AFTER(LIST, ELEM1, ELEM2)			\
 	ut_list_insert(LIST, ELEM1, ELEM2)
 
-#ifdef UNIV_LIST_DEBUG
-/** Invalidate the pointers in a list node. Note: We expect "Type" to exist
-in the lexical scope. Since this is internal debug code, it is OK.
-@param n	pointer to the node that was removed */
-# define UT_LIST_REMOVE_CLEAR(n)					\
-	(n).next = (Type*) -1;						\
-	(n).prev = (n).next
-#else
-/** Invalidate the pointers in a list node.
-@param n	pointer to the node that was removed */
-# define UT_LIST_REMOVE_CLEAR(n)
-#endif /* UNIV_LIST_DEBUG */
-
 /*******************************************************************//**
 Removes a node from a two-way linked list.
 @param list	the base node (not a pointer to it)
@@ -308,7 +295,8 @@ ut_list_remove(
 		list.start = node.next;
 	}
 
-	UT_LIST_REMOVE_CLEAR(node);
+	node.next = 0;
+	node.prev = 0;
 
 	--list.count;
 }

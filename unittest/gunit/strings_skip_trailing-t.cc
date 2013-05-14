@@ -63,11 +63,7 @@ protected:
     m_length= m_string.length();
     // The first byte will allways be aligned:
     ulonglong foo= reinterpret_cast<ulonglong>(m_string.c_str());
-#if defined(_WIN32)
     const ulonglong expected_alignment= 0x3ULL;
-#else
-    const ulonglong expected_alignment= 0x7ULL;
-#endif
     EXPECT_EQ(0ULL, foo & expected_alignment);
   }
   size_t m_length;
