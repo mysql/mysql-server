@@ -29,9 +29,11 @@
    especially with regard to local time vs. UTC.
 */
 
+// http://dev.mysql.com/doc/refman/5.6/en/time-zone-support.html
+
 var propsNdb = new mynode.ConnectionProperties(global.test_conn_properties);
 var propsMysql = new mynode.ConnectionProperties(global.test_conn_properties);
-propsNdb.implementation = "ndb";
+propsNdb.implementation = global.adapter;
 propsMysql.implementation = "mysql";
 
 function openSessions(testCase, callback) {
