@@ -52,6 +52,8 @@ dict_create_add_foreign_id(
 	const char*	name,	/*!< in: table name */
 	dict_foreign_t*	foreign)/*!< in/out: foreign key */
 {
+	DBUG_ENTER("dict_create_add_foreign_id");
+
 	if (foreign->id == NULL) {
 		/* Generate a new constraint id */
 		ulint	namelen	= strlen(name);
@@ -87,12 +89,16 @@ dict_create_add_foreign_id(
 
 			if (innobase_check_identifier_length(
 				strchr(id,'/') + 1)) {
-				return(DB_IDENTIFIER_TOO_LONG);
+				DBUG_RETURN(DB_IDENTIFIER_TOO_LONG);
 			}
 		}
 		foreign->id = id;
+
+		DBUG_PRINT("dict_create_add_foreign_id",
+			   ("generated foreign id: %s", id));
 	}
 
-	return(DB_SUCCESS);
+
+	DBUG_RETURN(DB_SUCCESS);
 }
 

@@ -7046,6 +7046,9 @@ ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
 ER_CANNOT_DISCARD_TEMPORARY_TABLE
   eng "Cannot DISCARD/IMPORT tablespace associated with temporary table"
 
+ER_FK_DEPTH_EXCEEDED
+  eng "Foreign key cascade delete/update exceeds max depth of %d."
+
 #
 #  End of 5.7 error messages.
 #

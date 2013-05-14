@@ -5076,6 +5076,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 {
   int error __attribute__((unused));
   DBUG_ENTER("mysql_parse");
+  DBUG_PRINT("mysql_parse", ("query: '%s'", rawbuf));
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
