@@ -6716,7 +6716,7 @@ lock_trx_release_locks(
 	background thread. To avoid this race we unconditionally unset
 	the is_recovered flag. */
 
-	trx->is_recovered = FALSE;
+	trx->is_recovered = false;
 
 	trx_mutex_exit(trx);
 
