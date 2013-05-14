@@ -22,6 +22,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/unittest/gunit
 )
 
+INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/innodb.cmake)
+
 SET(TESTS
   #example
   ha_innodb
