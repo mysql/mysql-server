@@ -43,7 +43,7 @@ NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
 trx_is_active() while holding lock_sys->mutex. */
 UNIV_INTERN
-trx_id_t
+trx_t*
 row_vers_impl_x_locked(
 /*===================*/
 	const rec_t*	rec,	/*!< in: record in a secondary index */

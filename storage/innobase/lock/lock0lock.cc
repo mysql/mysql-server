@@ -1808,14 +1808,14 @@ NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
 trx_is_active(). */
 static
-trx_id_t
+trx_t*
 lock_sec_rec_some_has_impl(
 /*=======================*/
 	const rec_t*	rec,	/*!< in: user record */
 	dict_index_t*	index,	/*!< in: secondary index */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
-	trx_id_t	trx_id;
+	trx_t*		trx;
 	trx_id_t	max_trx_id;
 	const page_t*	page = page_align(rec);
 
@@ -1835,23 +1835,23 @@ lock_sec_rec_some_has_impl(
 
 	if (max_trx_id < trx_rw_min_trx_id() && !recv_recovery_is_on()) {
 
-		trx_id = 0;
+		trx = 0;
 
 	} else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
 
 		buf_page_print(page, 0, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning 0 */
-		trx_id = 0;
+		trx = 0;
 
 	/* In this case it is possible that some transaction has an implicit
 	x-lock. We have to look in the clustered index. */
 
 	} else {
-		trx_id = row_vers_impl_x_locked(rec, index, offsets);
+		trx = row_vers_impl_x_locked(rec, index, offsets);
 	}
 
-	return(trx_id);
+	return(trx);
 }
 
 /*********************************************************************//**
@@ -5832,6 +5832,55 @@ lock_rec_insert_check_and_lock(
 }
 
 /*********************************************************************//**
+Creates an explicit record lock for a running transaction that currently only
+has an implicit lock on the record. The transaction instance must have a
+reference count > 0 so that it can't be committed and freed before this
+function has completed. */
+static
+void
+lock_rec_convert_impl_to_expl_for_trx(
+/*==================================*/
+	const buf_block_t*	block,	/*!< in: buffer block of rec */
+	const rec_t*		rec,	/*!< in: user record on page */
+	dict_index_t*		index,	/*!< in: index of record */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	trx_t*			trx,	/*!< in/out: active transaction */
+	ulint			heap_no)/*!< in: rec heap number to lock */
+{
+	ut_ad(trx_is_referenced(trx));
+
+	lock_mutex_enter();
+
+	if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
+			       block, heap_no, trx)) {
+
+		ulint	type_mode;
+
+		type_mode = (LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP);
+
+		/* If the delete-marked record was locked already, we
+		should reserve a lock waiting lock for the trx as an
+		implicit lock. Because we cannot lock at this moment.*/
+
+		if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))
+		    && lock_rec_other_has_conflicting(
+			    static_cast<enum lock_mode>
+			    (LOCK_X | LOCK_REC_NOT_GAP), block,
+			    heap_no, trx)) {
+
+			type_mode |= (LOCK_WAIT | LOCK_CONV_BY_OTHER);
+		}
+
+		lock_rec_add_to_queue(
+			type_mode, block, heap_no, index, trx, FALSE);
+	}
+
+	lock_mutex_exit();
+
+	trx_release_reference(trx);
+}
+
+/*********************************************************************//**
 If a transaction has an implicit x-lock on a record, but no explicit x-lock
 set on the record, sets one for it. */
 static
@@ -5843,7 +5892,7 @@ lock_rec_convert_impl_to_expl(
 	dict_index_t*		index,	/*!< in: index of record */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
 {
-	trx_id_t		trx_id;
+	trx_t*		trx;
 
 	ut_ad(!lock_mutex_own());
 	ut_ad(page_rec_is_user_rec(rec));
@@ -5851,58 +5900,28 @@ lock_rec_convert_impl_to_expl(
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 
 	if (dict_index_is_clust(index)) {
+		trx_id_t	trx_id;
+
 		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
-		/* The clustered index record was last modified by
-		this transaction. The transaction may have been
-		committed a long time ago. */
+
+		trx = trx_rw_is_active(trx_id, NULL, true);
 	} else {
 		ut_ad(!dict_index_is_online_ddl(index));
-		trx_id = lock_sec_rec_some_has_impl(rec, index, offsets);
-		/* The transaction can be committed before the
-		trx_is_active(trx_id, NULL) check below, because we are not
-		holding lock_mutex. */
+
+		trx = lock_sec_rec_some_has_impl(rec, index, offsets);
 	}
 
-	if (trx_id != 0) {
-		trx_t*	impl_trx;
+	if (trx != 0) {
 		ulint	heap_no = page_rec_get_heap_no(rec);
 
-		lock_mutex_enter();
+		ut_ad(trx_is_referenced(trx));
 
 		/* If the transaction is still active and has no
-		explicit x-lock set on the record, set one for it */
+		explicit x-lock set on the record, set one for it.
+		trx cannot be committed until the ref count is zero. */
 
-		impl_trx = trx_rw_is_active(trx_id, NULL);
-
-		/* impl_trx cannot be committed until lock_mutex_exit()
-		because lock_trx_release_locks() acquires lock_sys->mutex */
-
-		if (impl_trx != NULL
-		    && !lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block,
-				       heap_no, impl_trx)) {
-			ulint	type_mode = (LOCK_REC | LOCK_X
-					     | LOCK_REC_NOT_GAP);
-
-			/* If the delete-marked record was locked already,
-			we should reserve lock waiting for impl_trx as
-			implicit lock. Because cannot lock at this moment.*/
-
-			if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))
-			    && lock_rec_other_has_conflicting(
-					static_cast<enum lock_mode>
-					(LOCK_X | LOCK_REC_NOT_GAP), block,
-					heap_no, impl_trx)) {
-
-				type_mode |= (LOCK_WAIT
-					      | LOCK_CONV_BY_OTHER);
-			}
-
-			lock_rec_add_to_queue(
-				type_mode, block, heap_no, index,
-				impl_trx, FALSE);
-		}
-
-		lock_mutex_exit();
+		lock_rec_convert_impl_to_expl_for_trx(
+			block, rec, index, offsets, trx, heap_no);
 	}
 }
 
@@ -6641,6 +6660,7 @@ lock_trx_release_locks(
 	/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
 	is protected by both the lock_sys->mutex and the trx->mutex. */
 	lock_mutex_enter();
+
 	trx_mutex_enter(trx);
 
 	/* The following assignment makes the transaction committed in memory
@@ -6660,6 +6680,30 @@ lock_trx_release_locks(
 	/*--------------------------------------*/
 	trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
 	/*--------------------------------------*/
+
+	if (trx_is_referenced(trx)) {
+
+		lock_mutex_exit();
+
+		while (trx_is_referenced(trx)) {
+
+			trx_mutex_exit(trx);
+
+			/** Doing an implicit to explicit conversion
+			should not be expensive. */
+			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+
+			trx_mutex_enter(trx);
+		}
+
+		trx_mutex_exit(trx);
+
+		lock_mutex_enter();
+
+		trx_mutex_enter(trx);
+	}
+
+	ut_ad(!trx_is_referenced(trx));
 
 	/* If the background thread trx_rollback_or_clean_recovered()
 	is still active then there is a chance that the rollback

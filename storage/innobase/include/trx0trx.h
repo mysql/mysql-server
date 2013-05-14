@@ -487,6 +487,31 @@ trx_set_rw_mode(
 /*============*/
 	trx_t*		trx);		/*!< in/out: transaction that is RW */
 
+/**
+Increase the reference count. If the transaction is in state
+TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered
+committed and the reference count is not incremented.
+@param trx		Transaction that is being referenced
+@param do_ref_count	Increment the reference iff this is true
+@return transaction instance if it is not committed */
+UNIV_INLINE
+trx_t*
+trx_reference(
+	trx_t*		trx,
+	bool		do_ref_count);
+
+/**
+Release the transaction. Decrease the reference count.
+@param trx	Transaction that is being released */
+UNIV_INLINE
+void
+trx_release_reference(
+	trx_t*		trx);
+
+/**
+Check if the transaction is being referenced. */
+#define trx_is_referenced(t)	((t)->n_ref > 0)
+
 /*******************************************************************//**
 Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
@@ -494,9 +519,9 @@ wait timeout to 0 instead of the user configured value that comes
 from innodb_lock_wait_timeout via trx_t::mysql_thd.
 @param trx	transaction
 @return		lock wait timeout in seconds */
-#define trx_lock_wait_timeout_get(trx)					\
-	((trx)->mysql_thd != NULL					\
-	 ? thd_lock_wait_timeout((trx)->mysql_thd)			\
+#define trx_lock_wait_timeout_get(t)					\
+	((t)->mysql_thd != NULL						\
+	 ? thd_lock_wait_timeout((t)->mysql_thd)			\
 	 : 0)
 
 /*******************************************************************//**
@@ -1027,6 +1052,14 @@ struct trx_t{
 	const char*	start_file;	/*!< Filename where it was started */
 #endif /* UNIV_DEBUG */
 
+	lint		n_ref;		/*!< Count of references, protected
+					by trx_t::mutex. We can't release the
+					locks nor commit the transaction until
+					this reference is 0.  We can change
+					the state to COMMITTED_IN_MEMORY to
+					signify that it is no longer
+					"active". */
+
 	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
@@ -1072,20 +1105,6 @@ Multiple flags can be combined with bitwise OR. */
 #define TRX_DUP_IGNORE	1	/* duplicate rows are to be updated */
 #define TRX_DUP_REPLACE	2	/* duplicate rows are to be replaced */
 
-
-/* Types of a trx signal */
-#define TRX_SIG_NO_SIGNAL		0
-#define TRX_SIG_TOTAL_ROLLBACK		1
-#define TRX_SIG_ROLLBACK_TO_SAVEPT	2
-#define TRX_SIG_COMMIT			3
-#define TRX_SIG_BREAK_EXECUTION		5
-
-/* Sender types of a signal */
-#define TRX_SIG_SELF		0	/* sent by the session itself, or
-					by an error occurring within this
-					session */
-#define TRX_SIG_OTHER_SESS	1	/* sent by another session (which
-					must hold rights to this) */
 
 /** Commit node states */
 enum commit_node_state {
