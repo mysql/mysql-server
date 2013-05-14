@@ -30,10 +30,6 @@ set(MCC_INSTALL_SUBDIR ".")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
   "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}")
 
-# Overwrites the checked-in version
-#configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
-#  "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_BASE}")
-
 set(MCC_LAUNCH_BASE "setup")
 
 # Check if we are running cmake standalone, or as part of Cluster
@@ -61,18 +57,9 @@ if(NOT WITH_MCC)
   return()
 endif(NOT WITH_MCC) 
 
-macro(APPEND_ var val)
-  set(${var} ${${var}} ${val})
-endmacro(APPEND_)
-
 macro(SHOW_VAR_ var)
   message("${var}=${${var}}")
 endmacro(SHOW_VAR_)
-
-set(MCC_BUILDING_MSI FALSE)
-if(DEFINED CPACK_MONOLITHIC_INSTALL AND NOT CPACK_MONOLITHIC_INSTALL)
-  set(MCC_BUILDING_MSI TRUE)
-endif()
 
 add_subdirectory("host_info")
 add_subdirectory("frontend")
@@ -90,7 +77,6 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
 
     if(NOT BUNDLEPY_RES)
       string(REPLACE "Python " "" BUNDLEPY_VER ${BUNDLEPY_ERR})
-      #SHOW_VAR_(BUNDLEPY_VER)
       
       if(NOT BUNDLEPY_VER VERSION_LESS "2.6" 
           AND BUNDLEPY_VER VERSION_LESS "3.0")
@@ -114,20 +100,9 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
   else(BUNDLEPY_EXE)
     message("Failed to locate a python executable in ${MCC_PYTHON_TO_BUNDLE}")
   endif(BUNDLEPY_EXE)
-  # Install the python dir regardless of tests so that win packages can
-  # be built on other platforms
-  set(WS $ENV{WIXSOURCE})
-  if(MCC_BUILDING_MSI)
-    message("Bundling custom Python for Wix")
-    # Add a custom python when building msi to avoid path problems
-    INCLUDE(python.cmake)
-  else()
-    # Include the whole Python installation when building the zip as 
-    # it is used to run the unit tests.
-    #message("Bundling full Python")
-    install(DIRECTORY "${MCC_PYTHON_TO_BUNDLE}/"
-      DESTINATION "${MCC_INSTALL_SUBDIR}/Python")
-  endif()
+
+  install(DIRECTORY "${MCC_PYTHON_TO_BUNDLE}/" 
+	DESTINATION "${MCC_INSTALL_SUBDIR}/Python" COMPONENT ClusterTools)
   
   FILE(TO_NATIVE_PATH "${MCC_INSTALL_SUBDIR}/Python" MCC_PY_INSTALL_DIR)
   # Create setup.bat and setup-debug.bat with suitable content
@@ -186,33 +161,6 @@ if(NOT DEFAULT_MYSQL_HOME)
     SETIFUNDEF_(MCC_CPACK_GENERATOR "TGZ;ZIP")
   endif(WIN32)
   set(CPACK_GENERATOR "${MCC_CPACK_GENERATOR}")
-#set(CPACK_SET_DESTDIR "ON")
-#set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_CURRENT_BINARY_DIR};MCC;ALL;/install")
 
-#SET(CPACK_NSIS_DISPLAY_NAME "CMake 2.5")
-#SET(CPACK_OUTPUT_CONFIG_FILE "/home/andy/vtk/CMake-bin/CPackConfig.cmake")
-#SET(CPACK_PACKAGE_DESCRIPTION_FILE "/home/andy/vtk/CMake/Copyright.txt")
-#SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "CMake is a build tool")
-#SET(CPACK_PACKAGE_EXECUTABLES "ccmake;CMake")
-#SET(CPACK_PACKAGE_FILE_NAME "cmake-2.5.0-Linux-i686")
-#SET(CPACK_PACKAGE_INSTALL_DIRECTORY "CMake 2.5")
-#SET(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "CMake 2.5.0")
-#SET(CPACK_PACKAGE_NAME "CMake")
-#SET(CPACK_PACKAGE_VENDOR "Kitware")
-#SET(CPACK_PACKAGE_VERSION "2.5.0")
-#SET(CPACK_PACKAGE_VERSION_MAJOR "2")
-#SET(CPACK_PACKAGE_VERSION_MINOR "5")
-#SET(CPACK_PACKAGE_VERSION_PATCH "0")
-#SET(CPACK_RESOURCE_FILE_LICENSE "/home/andy/vtk/CMake/Copyright.txt")
-#SET(CPACK_RESOURCE_FILE_README "/home/andy/vtk/CMake/Templates/CPack.GenericDescription.txt")
-#SET(CPACK_RESOURCE_FILE_WELCOME "/home/andy/vtk/CMake/Templates/CPack.GenericWelcome.txt")
-#SET(CPACK_SOURCE_GENERATOR "TGZ;TZ")
-#SET(CPACK_SOURCE_OUTPUT_CONFIG_FILE "/home/andy/vtk/CMake-bin/CPackSourceConfig.cmake")
-#SET(CPACK_SOURCE_PACKAGE_FILE_NAME "cmake-2.5.0")
-#SET(CPACK_SOURCE_STRIP_FILES "")
-#SET(CPACK_STRIP_FILES "bin/ccmake;bin/cmake;bin/cpack;bin/ctest")
-#SET(CPACK_SYSTEM_NAME "Linux-i686")
-#SET(CPACK_TOPLEVEL_TAG "Linux-i686")
-#SET(CPACK_MONOLITHIC_INSTALL 1 CACHE INTERNAL "")
 include(CPack)
 endif(NOT DEFAULT_MYSQL_HOME)
