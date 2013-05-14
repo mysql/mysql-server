@@ -3003,6 +3003,8 @@ dict_load_foreign(
 		fk_tables.push_back(foreign->foreign_table_name_lookup);
 	}
 
+	ut_a(for_table || ref_table);
+
 	/* Note that there may already be a foreign constraint object in
 	the dictionary cache for this constraint: then the following
 	call only sets the pointers in it to point to the appropriate table
