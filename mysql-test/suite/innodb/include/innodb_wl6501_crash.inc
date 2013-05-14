@@ -133,29 +133,6 @@ select * from t;
 insert into t values (1), (2), (3);
 select * from t;
 drop table t;
-#
-set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete2";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-truncate table t;
-#
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-check table t;
-select * from t;
-insert into t values (1), (2), (3);
-#
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-check table t;
-select * from t;
-drop table t;
 
 #-----------------------------------------------------------------------------
 #
