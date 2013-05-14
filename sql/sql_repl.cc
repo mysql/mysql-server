@@ -1,4 +1,6 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -634,7 +636,10 @@ impossible position";
   while (!net->error && net->vio != 0 && !thd->killed)
   {
     my_off_t prev_pos= pos;
-    while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+    bool is_active_binlog= false;
+    while (!(error= Log_event::read_log_event(&log, packet, log_lock,
+                                              log_file_name,
+                                              &is_active_binlog)))
     {
       prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
@@ -717,6 +722,13 @@ impossible position";
       error=LOG_READ_EOF;
     }
 
+    DBUG_EXECUTE_IF("wait_after_binlog_EOF",
+                    {
+                      const char act[]= "now wait_for signal.rotate_finished";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -727,8 +739,11 @@ impossible position";
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       goto err;
 
-    if (!(flags & BINLOG_DUMP_NON_BLOCK) &&
-        mysql_bin_log.is_active(log_file_name))
+    /*
+      We should only move to the next binlog when the last read event
+      came from a already deactivated binlog.
+     */
+    if (!(flags & BINLOG_DUMP_NON_BLOCK) && is_active_binlog)
     {
       /*
 	Block until there is more data in the log
@@ -1954,6 +1969,8 @@ bool show_binlogs(THD* thd)
     if (protocol->write())
       goto err;
   }
+  if(index_file->error == -1)
+    goto err;
   mysql_bin_log.unlock_index();
   my_eof(thd);
   DBUG_RETURN(FALSE);
