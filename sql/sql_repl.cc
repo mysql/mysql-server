@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -452,7 +452,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   mysql_mutex_t *log_lock;
   mysql_cond_t *log_cond;
 
-  bool binlog_can_be_corrupted= FALSE;
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
@@ -621,8 +620,6 @@ impossible position";
                    (*packet)[EVENT_TYPE_OFFSET+ev_offset]));
        if ((*packet)[EVENT_TYPE_OFFSET+ev_offset] == FORMAT_DESCRIPTION_EVENT)
        {
-         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                       LOG_EVENT_BINLOG_IN_USE_F);
          (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
          /*
            mark that this event with "log_pos=0", so the slave
@@ -679,7 +676,10 @@ impossible position";
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
       goto err;
 
-    while (!(error= Log_event::read_log_event(&log, packet, log_lock)))
+    bool is_active_binlog= false;
+    while (!(error= Log_event::read_log_event(&log, packet, log_lock,
+                                              log_file_name,
+                                              &is_active_binlog)))
     {
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
@@ -711,34 +711,8 @@ impossible position";
                       });
       if (event_type == FORMAT_DESCRIPTION_EVENT)
       {
-        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                      LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
       }
-      else if (event_type == STOP_EVENT)
-        binlog_can_be_corrupted= FALSE;
-
-      /*
-        Introduced this code to make the gcc 4.6.1 compiler happy. When
-        warnings are converted to errors, the compiler complains about
-        the fact that binlog_can_be_corrupted is defined but never used.
-
-        We need to check if this is a dead code or if someone removed any
-        code by mistake.
-
-        /Alfranio
-      */
-      if (binlog_can_be_corrupted)
-      {
-        /*
-           Don't try to print out warning messages because this generates
-           erroneous messages in the error log and causes performance
-           problems.
-
-           /Alfranio
-        */
-      }
-      
       pos = my_b_tell(&log);
       if (RUN_HOOK(binlog_transmit, before_send_event,
                    (thd, flags, packet, log_file_name, pos)))
@@ -786,6 +760,13 @@ impossible position";
         goto err;
     }
 
+    DBUG_EXECUTE_IF("wait_after_binlog_EOF",
+                    {
+                      const char act[]= "now wait_for signal.rotate_finished";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -796,8 +777,11 @@ impossible position";
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       goto err;
 
-    if (!(flags & BINLOG_DUMP_NON_BLOCK) &&
-        mysql_bin_log.is_active(log_file_name))
+    /*
+      We should only move to the next binlog when the last read event
+      came from a already deactivated binlog.
+     */
+    if (!(flags & BINLOG_DUMP_NON_BLOCK) && is_active_binlog)
     {
       /*
 	Block until there is more data in the log

@@ -1,5 +1,6 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +53,8 @@ enum YasslError {
     badVersion_error    = 117,
     compress_error      = 118,
     decompress_error    = 119,
-    pms_version_error   = 120
+    pms_version_error   = 120,
+    sanityCipher_error  = 121
 
     // !!!! add error message to .cpp !!!!
 

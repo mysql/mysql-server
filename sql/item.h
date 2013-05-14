@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1249,6 +1249,11 @@ public:
     Return TRUE if the item points to a column of an outer-joined table.
   */
   virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
+
+  /**
+    Checks if this item or any of its decendents contains a subquery.
+  */
+  virtual bool has_subquery() const { return with_subselect; }
 };
 
 
@@ -2528,6 +2533,10 @@ public:
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd);
+  bool const_item() const
+  {
+    return (*ref)->const_item() && (used_tables() == 0);
+  }
   table_map used_tables() const		
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -2603,6 +2612,13 @@ public:
     return (*ref)->is_outer_field();
   }
 
+  /**
+    Checks if the item tree that ref points to contains a subquery.
+  */
+  virtual bool has_subquery() const 
+  { 
+    return (*ref)->has_subquery();
+  }
 };
 
 
@@ -2720,6 +2736,8 @@ public:
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
   }
+  table_map not_null_tables() const { return 0; }
+
   virtual Ref_Type ref_type() { return OUTER_REF; }
 };
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -247,7 +247,7 @@ Distribution:   %{distro_description}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{license_type} license as shown in the Description field.
 Source:         %{src_dir}.tar.gz
 URL:            http://www.mysql.com/
-Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
+Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com> 
 Vendor:         %{mysql_vendor}
 Conflicts:      msqlormysql MySQL-server mysql
 BuildRequires:  %{distro_buildreq}
@@ -291,8 +291,6 @@ Obsoletes:      MySQL-Cluster-server
 Obsoletes:      MySQL-Cluster-management MySQL-Cluster-storage
 Obsoletes:      MySQL-Cluster-extra MySQL-Cluster-tools
 Obsoletes:      mysql MySQL mysql-server MySQL-server
-Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
-Obsoletes:      MySQL-server-advanced MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 
 %description -n MySQL-Cluster-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -319,6 +317,7 @@ If you want to access and work with the database, you have to install
 package "MySQL-Cluster-client%{product_suffix}" as well!
 
 # ----------------------------------------------------------------------------
+
 %package -n MySQL-Cluster-client%{product_suffix}
 Summary:        MySQL Cluster - Client
 Group:          Applications/Databases
@@ -358,6 +357,7 @@ to develop MySQL client applications.
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
+
 %package -n MySQL-Cluster-shared%{product_suffix}
 Summary:        MySQL Cluster - Shared libraries
 Group:          Applications/Databases
@@ -699,13 +699,16 @@ if [ -d $mysql_datadir ] ; then
 	echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
 	echo "'pre' step running at `date`"          >> $STATUS_FILE
 	echo                                         >> $STATUS_FILE
-	echo "ERR file(s):"                          >> $STATUS_FILE
-	ls -ltr $mysql_datadir/*.err                 >> $STATUS_FILE
-	echo                                         >> $STATUS_FILE
-	echo "Latest 'Version' line in latest file:" >> $STATUS_FILE
-	grep '^Version' `ls -tr $mysql_datadir/*.err | tail -1` | \
+	fcount=`ls -ltr $mysql_datadir/*.err 2>/dev/null | wc -l`       
+        if [ $fcount -gt 0 ] ; then
+             echo "ERR file(s):"                          >> $STATUS_FILE
+	     ls -ltr $mysql_datadir/*.err                 >> $STATUS_FILE
+	     echo                                         >> $STATUS_FILE
+	     echo "Latest 'Version' line in latest file:" >> $STATUS_FILE
+	     grep '^Version' `ls -tr $mysql_datadir/*.err | tail -1` | \
 		tail -1                              >> $STATUS_FILE
-	echo                                         >> $STATUS_FILE
+	     echo                                         >> $STATUS_FILE
+        fi
 
 	if [ -n "$SERVER_TO_START" ] ; then
 		# There is only one PID file, race possibility ignored

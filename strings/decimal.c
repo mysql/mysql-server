@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1170,7 +1170,7 @@ int decimal2longlong(decimal_t *from, longlong *to)
 
     And for -1234567890.1234 it would be
 
-                7E F2 04 37 2D FB 2D
+                7E F2 04 C7 2D FB 2D
 */
 int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
 {

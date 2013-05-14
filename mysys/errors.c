@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,7 +117,7 @@ void wait_for_free_space(const char *filename, int errors)
                     MY_WAIT_FOR_USER_TO_FIX_PANIC,
                     MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC );
   }
-  DBUG_EXECUTE_IF("simulate_file_write_error_once",
+  DBUG_EXECUTE_IF("simulate_no_free_space_error",
                  {
                    (void) sleep(1);
                    return;
