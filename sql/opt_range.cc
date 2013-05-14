@@ -7294,6 +7294,14 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
 		          param->current_table);
   DBUG_ENTER("get_full_func_mm_tree");
 
+#ifdef HAVE_SPATIAL
+  if (field_item->field->type() == MYSQL_TYPE_GEOMETRY)
+  {
+    /* We have to be able to store all sorts of spatial features here */
+    ((Field_geom*) field_item->field)->geom_type= Field::GEOM_GEOMETRY;
+  }
+#endif /*HAVE_SPATIAL*/
+
   for (uint i= 0; i < cond_func->arg_count; i++)
   {
     Item *arg= cond_func->arguments()[i]->real_item();
