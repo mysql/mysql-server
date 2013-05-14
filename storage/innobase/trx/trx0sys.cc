@@ -530,8 +530,6 @@ trx_sys_init_at_db_start(void)
 
 	ut_d(trx_sys->rw_max_trx_id = trx_sys->max_trx_id);
 
-	UT_LIST_INIT(trx_sys->mysql_trx_list);
-
 	trx_dummy_sess = sess_open();
 
 	trx_lists_init_at_db_start();
@@ -577,8 +575,6 @@ trx_sys_init_at_db_start(void)
 
 	mutex_exit(&trx_sys->mutex);
 
-	UT_LIST_INIT(trx_sys->view_list);
-
 	mtr_commit(&mtr);
 
 	return(ib_bh);
@@ -596,6 +592,11 @@ trx_sys_create(void)
 	trx_sys = static_cast<trx_sys_t*>(mem_zalloc(sizeof(*trx_sys)));
 
 	mutex_create(trx_sys_mutex_key, &trx_sys->mutex, SYNC_TRX_SYS);
+
+	UT_LIST_INIT(trx_sys->ro_trx_list, &trx_t::trx_list);
+	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
+	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
+	UT_LIST_INIT(trx_sys->view_list, &read_view_t::view_list);
 }
 
 /*****************************************************************//**
@@ -1162,8 +1163,6 @@ trx_sys_close(void)
 /*===============*/
 {
 	ulint		i;
-	trx_t*		trx;
-	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
@@ -1198,8 +1197,13 @@ trx_sys_close(void)
 	/* Only prepared transactions may be left in the system. Free them. */
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
 
-	while ((trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list)) != NULL) {
+	for (trx_t* trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list)) {
+
 		trx_free_prepared(trx);
+
+		UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
 	}
 
 	/* There can't be any active transactions. */
@@ -1215,16 +1219,13 @@ trx_sys_close(void)
 		}
 	}
 
-	view = UT_LIST_GET_FIRST(trx_sys->view_list);
-
-	while (view != NULL) {
-		read_view_t*	prev_view = view;
-
-		view = UT_LIST_GET_NEXT(view_list, prev_view);
+	for (read_view_t* view = UT_LIST_GET_FIRST(trx_sys->view_list);
+	     view != NULL;
+	     view = UT_LIST_GET_FIRST(trx_sys->view_list)) {
 
 		/* Views are allocated from the trx->read_view_heap.
 		So, we simply remove the element here. */
-		UT_LIST_REMOVE(view_list, trx_sys->view_list, prev_view);
+		UT_LIST_REMOVE(trx_sys->view_list, view);
 	}
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);

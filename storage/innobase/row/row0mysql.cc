@@ -1552,7 +1552,8 @@ row_create_update_node_for_mysql(
 
 	node->update_n_fields = dict_table_get_n_cols(table);
 
-	UT_LIST_INIT(node->columns);
+	UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
+
 	node->has_clust_rec_x_lock = TRUE;
 	node->cmpl_info = 0;
 
@@ -2693,7 +2694,7 @@ row_drop_table_for_mysql_in_background(
 	foreign keys, we must set the following to be able to drop the
 	table: */
 
-	trx->check_foreigns = FALSE;
+	trx->check_foreigns = false;
 
 	/*	fputs("InnoDB: Error: Dropping table ", stderr);
 	ut_print_name(stderr, trx, TRUE, name);
@@ -2774,7 +2775,7 @@ loop:
 already_dropped:
 	mutex_enter(&row_drop_list_mutex);
 
-	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
+	UT_LIST_REMOVE(row_mysql_drop_list, drop);
 
 	MONITOR_DEC(MONITOR_BACKGROUND_DROP_TABLE);
 
@@ -2852,7 +2853,7 @@ row_add_table_to_background_drop_list(
 
 	drop->table_name = mem_strdup(name);
 
-	UT_LIST_ADD_LAST(row_mysql_drop_list, row_mysql_drop_list, drop);
+	UT_LIST_ADD_LAST(row_mysql_drop_list, drop);
 
 	MONITOR_INC(MONITOR_BACKGROUND_DROP_TABLE);
 
@@ -4947,7 +4948,9 @@ row_mysql_init(void)
 		row_drop_list_mutex_key,
 		&row_drop_list_mutex, SYNC_NO_ORDER_CHECK);
 
-	UT_LIST_INIT(row_mysql_drop_list);
+	UT_LIST_INIT(
+		row_mysql_drop_list,
+		&row_mysql_drop_t::row_mysql_drop_list);
 
 	row_mysql_drop_list_inited = TRUE;
 }
