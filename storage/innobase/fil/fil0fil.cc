@@ -2328,11 +2328,11 @@ fil_recreate_tablespace(
 	}
 
 	mtr_start(&mtr);
-	/* Do not log operations when applying MLOG_FILE_TRUNCATE
-	redo record during recovery, since the recovery can safely
-	start from the last checkpoint of the redo log again even
-	if a crash happened during recovery */
-	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	/* Don't log the operation while fixing up table truncate operation
+	as crash at this level can still be sustained with recovery restarting
+	from last checkpoint. */
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
 	/* Initialize the first extent descriptor page and
 	the second bitmap page for the new tablespace. */
 	fsp_header_init(space_id, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
@@ -2352,7 +2352,7 @@ fil_recreate_tablespace(
 	deletes the bitmap page from buffer. */
 	mtr_start(&mtr);
 
-	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	mutex_enter(&fil_system->mutex);
 
@@ -6738,8 +6738,10 @@ void truncate_t::drop_indexes(
 
 		mtr_start(&mtr);
 
-		/* Don't log changes, we are in recovery mode. */
-		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+		/* Don't log the operation while fixing up table truncate
+		operation as crash at this level can still be sustained with
+		recovery restarting from last checkpoint. */
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 		root_page_no = it->m_root_page_no;
 
@@ -6754,7 +6756,8 @@ void truncate_t::drop_indexes(
 			/* We free all the pages but the root page first;
 			this operation may span several mini-transactions */
 			btr_free_but_not_root(
-				space_id, zip_size, root_page_no, MTR_LOG_NONE);
+				space_id, zip_size, root_page_no,
+				MTR_LOG_NO_REDO);
 
 			/* Then we free the root page. */
 			btr_free_root(space_id, zip_size, root_page_no, &mtr);
@@ -6790,7 +6793,7 @@ truncate_t::create_indexes(
 	mtr_start(&mtr);
 
 	/* Don't log changes, we are in recoery mode. */
-	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	/* Create all new index trees with table format, index ids, index
 	types, number of index fields and index field information taken
