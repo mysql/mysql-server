@@ -1166,6 +1166,10 @@ row_fixup_truncate_of_tables()
 		}
 	}
 
+	if (err == DB_SUCCESS && (srv_tables_to_truncate.size() > 0)) {
+		log_make_checkpoint_at(LSN_MAX, TRUE);
+	}
+
 	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
 		delete(srv_tables_to_truncate[i]);
 	}
