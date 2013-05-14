@@ -460,7 +460,7 @@ AC_DEFUN([MYSQL_STACK_DIRECTION],
 #if defined(__HP_cc) || defined (__HP_aCC) || defined (__hpux)
 #pragma noinline
 #endif
-  /* Check stack direction (0-down, 1-up) */
+  /* Check stack direction (-1 down, 1 up) */
   int f(int *a)
   {
     int b;
