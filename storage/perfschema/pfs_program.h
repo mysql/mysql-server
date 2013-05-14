@@ -46,7 +46,7 @@ struct PFS_program_key
   uint m_key_length;
 }; 
 
-struct PFS_program_stat
+struct PFS_program : public PFS_instr
 {
   /** Object type. */
   enum_object_type m_type;
@@ -72,7 +72,7 @@ struct PFS_program_stat
   void reset_data(); 
 };
 
-extern PFS_program_stat *program_stat_array;
+extern PFS_program *program_array;
 
 int init_program(const PFS_global_param *param);
 void cleanup_program(void);
@@ -81,13 +81,14 @@ void cleanup_program_hash(void);
 
 void reset_esms_by_program();
 
-PFS_program_stat*
+PFS_program*
 find_or_create_program(PFS_thread *thread,                                      
                       enum_object_type object_type,                                         
                       const char *object_name,                                  
                       uint object_name_length,                                  
                       const char *schema,                                       
-                      uint schema_length);
+                      uint schema_length,
+                      my_bool fromSP);
 
 int
 find_and_drop_program(PFS_thread *thread,

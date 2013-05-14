@@ -83,7 +83,7 @@ public:
   {}
 
 protected:
-  void make_row(PFS_program_stat*);
+  void make_row(PFS_program*);
 
 private:
   /** Table share lock. */
