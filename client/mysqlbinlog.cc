@@ -2225,3 +2225,4 @@ int main(int argc, char** argv)
 #include "log_event.cc"
 #include "log_event_old.cc"
 #include "rpl_utility.cc"
+#include "rpl_tblmap.cc"
