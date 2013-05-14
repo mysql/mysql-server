@@ -979,6 +979,7 @@ srv_general_init(void)
 	os_sync_init();
 	sync_init();
 	mem_init(srv_mem_pool_size);
+	trx_pool_init();
 	que_init();
 	row_mysql_init();
 }

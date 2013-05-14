@@ -48,8 +48,11 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "srv0mon.h"
 #include "ut0vec.h"
+#include "ut0pool.h"
 
 #include <set>
+
+static const ulint MAX_DETAILED_ERROR_LEN = 256;
 
 /** Set of table_id */
 typedef std::set<table_id_t>	table_id_set;
@@ -60,6 +63,8 @@ UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 #ifdef UNIV_PFS_MUTEX
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	trx_pool_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	trx_pools_mutex_key;
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_undo_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
@@ -73,7 +78,7 @@ trx_set_detailed_error(
 	trx_t*		trx,	/*!< in: transaction struct */
 	const char*	msg)	/*!< in: detailed error message */
 {
-	ut_strlcpy(trx->detailed_error, msg, sizeof(trx->detailed_error));
+	ut_strlcpy(trx->detailed_error, msg, MAX_DETAILED_ERROR_LEN);
 }
 
 /*************************************************************//**
@@ -86,59 +91,245 @@ trx_set_detailed_error_from_file(
 	trx_t*	trx,	/*!< in: transaction struct */
 	FILE*	file)	/*!< in: file to read message from */
 {
-	os_file_read_string(file, trx->detailed_error,
-			    sizeof(trx->detailed_error));
+	os_file_read_string(file, trx->detailed_error, MAX_DETAILED_ERROR_LEN);
 }
 
-/****************************************************************//**
-Creates and initializes a transaction object. It must be explicitly
-started with trx_start_if_not_started() before using it. The default
-isolation level is TRX_ISO_REPEATABLE_READ.
-@return transaction instance, should never be NULL */
+/** For managing the life-cycle of the trx_t instance that we get
+from the pool. */
+struct TrxFactory {
+
+	/**
+	Initializes a transaction object. It must be explicitly started with
+	trx_start_if_not_started() before using it. The default isolation level
+	is TRX_ISO_REPEATABLE_READ.
+	@param trx	Transaction instance to initialise */
+	static void init(trx_t* trx)
+	{
+		trx->magic_n = TRX_MAGIC_N;
+
+		trx->state = TRX_STATE_NOT_STARTED;
+
+		trx->isolation_level = TRX_ISO_REPEATABLE_READ;
+
+		trx->no = TRX_ID_MAX;
+
+		trx->support_xa = true;
+
+		trx->check_foreigns = true;
+
+		trx->check_unique_secondary = true;
+
+		trx->dict_operation = TRX_DICT_OP_NONE;
+
+		trx->error_state = DB_SUCCESS;
+
+		trx->lock.que_state = TRX_QUE_RUNNING;
+
+		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+
+		trx->xid = reinterpret_cast<XID*>(
+			mem_zalloc(sizeof(*trx->xid)));
+
+		trx->detailed_error = reinterpret_cast<char*>(
+			mem_zalloc(MAX_DETAILED_ERROR_LEN));
+
+		trx->xid->formatID = -1;
+
+		trx->op_info = "";
+
+		trx->lock.lock_heap = mem_heap_create_typed(
+			256, MEM_HEAP_FOR_LOCK_HEAP);
+
+		trx->read_view_heap = mem_heap_create(256);
+
+		mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
+
+		mutex_create(
+			trx_undo_mutex_key,
+			&trx->undo_mutex, SYNC_TRX_UNDO);
+	}
+
+	/**
+	Release resources held by the transaction object.
+	@param trx	the transaction for which to release resources */
+	static void destroy(trx_t* trx)
+	{
+		ut_a(trx->magic_n == TRX_MAGIC_N);
+		ut_ad(!trx->in_ro_trx_list);
+		ut_ad(!trx->in_rw_trx_list);
+		ut_ad(!trx->in_mysql_trx_list);
+
+		ut_a(trx->lock.wait_lock == NULL);
+		ut_a(trx->lock.wait_thr == NULL);
+
+		ut_a(!trx->has_search_latch);
+
+		ut_a(trx->dict_operation_lock_mode == 0);
+
+		if (trx->lock.lock_heap != NULL) {
+			mem_heap_free(trx->lock.lock_heap);
+			trx->lock.lock_heap = NULL;
+		}
+
+		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
+		mem_free(trx->xid);
+		mem_free(trx->detailed_error);
+
+		mutex_free(&trx->mutex);
+		mutex_free(&trx->undo_mutex);
+	}
+
+	/**
+	Enforce any invariants here, this is called before the transaction
+	is added to the pool.
+	@return true if all OK */
+	static bool debug(const trx_t* trx)
+	{
+		ut_a(trx->magic_n == TRX_MAGIC_N);
+
+		ut_ad(!trx->read_only);
+
+		ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+
+		ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
+
+		ut_ad(trx->mysql_thd == 0);
+
+		ut_ad(!trx->in_ro_trx_list);
+		ut_ad(!trx->in_rw_trx_list);
+		ut_ad(!trx->in_mysql_trx_list);
+
+		ut_a(trx->lock.wait_thr == NULL);
+		ut_a(trx->lock.wait_lock == NULL);
+
+		ut_a(!trx->has_search_latch);
+
+		ut_a(trx->dict_operation_lock_mode == 0);
+
+		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
+		ut_ad(trx->autoinc_locks == NULL);
+
+		ut_ad(trx->lock.table_locks == NULL);
+
+		return(true);
+	}
+};
+
+/** The lock strategy for TrxPool */
+struct TrxPoolLock {
+	TrxPoolLock() { }
+
+	/** Create the mutex */
+	void create()
+	{
+		mutex_create(trx_pool_mutex_key, &m_mutex, SYNC_POOL);
+	}
+
+	/** Acquire the mutex */
+	void enter() { mutex_enter(&m_mutex); }
+
+	/** Release the mutex */
+	void exit() { mutex_exit(&m_mutex); }
+
+	/** Free the mutex */
+	void destroy() { mutex_free(&m_mutex); }
+
+	/** Mutex to use */
+	ib_mutex_t	m_mutex;
+};
+
+/** The lock strategy for the TrxPoolManager */
+struct TrxPoolManagerLock {
+	TrxPoolManagerLock() { }
+
+	/** Create the mutex */
+	void create()
+	{
+		mutex_create(trx_pools_mutex_key, &m_mutex, SYNC_POOL_MANAGER);
+	}
+
+	/** Acquire the mutex */
+	void enter() { mutex_enter(&m_mutex); }
+
+	/** Release the mutex */
+	void exit() { mutex_exit(&m_mutex); }
+
+	/** Free the mutex */
+	void destroy() { mutex_free(&m_mutex); }
+
+	/** Mutex to use */
+	ib_mutex_t	m_mutex;
+};
+
+/** Use explicit mutexes for the trx_t pool and its manager. */
+typedef Pool<trx_t, TrxFactory, TrxPoolLock> trx_pool_t;
+typedef PoolManager<trx_pool_t, TrxPoolManagerLock > trx_pools_t;
+
+/** The trx_t pool manager */
+static trx_pools_t* trx_pools;
+
+/** Size of on trx_t pool in bytes. */
+static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
+
+/** Create the trx_t pool */
+UNIV_INTERN
+void
+trx_pool_init()
+{
+	trx_pools = new (std::nothrow) trx_pools_t(MAX_TRX_BLOCK_SIZE);
+
+	ut_a(trx_pools != 0);
+}
+
+/** Destroy the trx_t pool */
+UNIV_INTERN
+void
+trx_pool_close()
+{
+	delete trx_pools;
+
+	trx_pools = 0;
+}
+
+/** @return a trx_t instance from trx_pools.  */
 static
 trx_t*
-trx_create(void)
-/*============*/
+trx_create_low()
 {
-	trx_t*		trx;
-	mem_heap_t*	heap;
-	ib_alloc_t*	heap_alloc;
+	trx_t*	trx = trx_pools->get();
 
-	trx = static_cast<trx_t*>(mem_zalloc(sizeof(*trx)));
+	ut_a(trx->state == TRX_STATE_NOT_STARTED);
 
-	mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
+	ut_a(trx->dict_operation == TRX_DICT_OP_NONE);
 
-	trx->magic_n = TRX_MAGIC_N;
-
-	trx->state = TRX_STATE_NOT_STARTED;
+	ut_a(!trx->read_only);
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
 	trx->no = TRX_ID_MAX;
 
-	trx->support_xa = TRUE;
+	trx->support_xa = true;
 
-	trx->check_foreigns = TRUE;
-	trx->check_unique_secondary = TRUE;
+	trx->check_foreigns = true;
+
+	trx->check_unique_secondary = true;
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
-
-	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 
 	trx->error_state = DB_SUCCESS;
 
 	trx->lock.que_state = TRX_QUE_RUNNING;
 
-	trx->lock.lock_heap = mem_heap_create_typed(
-		256, MEM_HEAP_FOR_LOCK_HEAP);
-
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
-	trx->read_view_heap = mem_heap_create(256);
-
-	trx->xid.formatID = -1;
+	trx->xid->formatID = -1;
 
 	trx->op_info = "";
+
+	mem_heap_t*	heap;
+	ib_alloc_t*	heap_alloc;
 
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -147,7 +338,8 @@ trx_create(void)
 	trx->autoinc_locks = ib_vector_create(heap_alloc, sizeof(void**), 4);
 
 	/* Remember to free the vector explicitly in trx_free(). */
-	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 128);
+	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 32);
+
 	heap_alloc = ib_heap_allocator_create(heap);
 
 	trx->lock.table_locks = ib_vector_create(
@@ -157,6 +349,41 @@ trx_create(void)
 	UT_LIST_INIT(trx->trx_savepoints, &trx_named_savept_t::trx_savepoints);
 
 	return(trx);
+}
+
+/**
+Release a trx_t instance back to the pool.
+@param trx	the instance to release. */
+static
+void
+trx_free(trx_t*& trx)
+{
+	ut_a(trx->state == TRX_STATE_NOT_STARTED);
+
+	ut_a(trx->dict_operation == TRX_DICT_OP_NONE);
+
+	ut_a(!trx->read_only);
+
+	trx->mysql_thd = 0;
+
+	// FIXME: We need to avoid this heap free/alloc for each commit.
+	if (trx->autoinc_locks != NULL) {
+		ut_ad(ib_vector_is_empty(trx->autoinc_locks));
+		/* We allocated a dedicated heap for the vector. */
+		ib_vector_free(trx->autoinc_locks);
+		trx->autoinc_locks = NULL;
+	}
+
+	if (trx->lock.table_locks != NULL) {
+		ut_ad(ib_vector_is_empty(trx->lock.table_locks));
+		/* We allocated a dedicated heap for the vector. */
+		ib_vector_free(trx->lock.table_locks);
+		trx->lock.table_locks = NULL;
+	}
+
+	trx_pools->free(trx);
+
+	trx = NULL;
 }
 
 /********************************************************************//**
@@ -169,7 +396,7 @@ trx_allocate_for_background(void)
 {
 	trx_t*	trx;
 
-	trx = trx_create();
+	trx = trx_create_low();
 
 	trx->sess = trx_dummy_sess;
 
@@ -196,44 +423,6 @@ trx_allocate_for_mysql(void)
 	mutex_exit(&trx_sys->mutex);
 
 	return(trx);
-}
-
-/********************************************************************//**
-Frees a transaction object. */
-static
-void
-trx_free(
-/*=====*/
-	trx_t*	trx)	/*!< in, own: trx object */
-{
-	ut_a(trx->magic_n == TRX_MAGIC_N);
-	ut_ad(!trx->in_ro_trx_list);
-	ut_ad(!trx->in_rw_trx_list);
-	ut_ad(!trx->in_mysql_trx_list);
-
-	mutex_free(&trx->undo_mutex);
-
-	ut_a(trx->lock.wait_lock == NULL);
-	ut_a(trx->lock.wait_thr == NULL);
-
-	ut_a(!trx->has_search_latch);
-	ut_a(trx->dict_operation_lock_mode == 0);
-	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-
-	mem_heap_free(trx->lock.lock_heap);
-	mem_heap_free(trx->read_view_heap);
-
-	ut_a(ib_vector_is_empty(trx->autoinc_locks));
-	/* We allocated a dedicated heap for the vector. */
-	ib_vector_free(trx->autoinc_locks);
-
-	if (trx->lock.table_locks != NULL) {
-		/* We allocated a dedicated heap for the vector. */
-		ib_vector_free(trx->lock.table_locks);
-	}
-
-	mutex_free(&trx->mutex);
-	mem_free(trx);
 }
 
 /********************************************************************//**
@@ -278,6 +467,8 @@ trx_free_for_background(
 	ut_a(trx->update_undo == NULL);
 	ut_a(trx->read_view == NULL);
 
+	trx->dict_operation = TRX_DICT_OP_NONE;
+
 	trx_free(trx);
 }
 
@@ -300,11 +491,17 @@ trx_free_prepared(
 
 	ut_a(!trx->read_only);
 
-	UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
+
+	trx->state = TRX_STATE_NOT_STARTED;
 
 	/* Undo trx_resurrect_table_locks(). */
 	lock_trx_lock_list_init(&trx->lock.trx_locks);
+
+	/* Note: This vector is not guaranteed to be empty because the
+	transaction was never committed and therefore lock_trx_release()
+	was not called. */
+	ib_vector_reset(trx->lock.table_locks);
 
 	trx_free(trx);
 }
@@ -487,10 +684,10 @@ trx_resurrect_insert(
 	ut_d(trx->start_line = __LINE__);
 
 	trx->rseg = rseg;
-	trx->xid = undo->xid;
+	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->insert_undo = undo;
-	trx->is_recovered = TRUE;
+	trx->is_recovered = true;
 
 	/* This is single-threaded startup code, we do not need the
 	protection of trx->mutex or trx_sys->mutex here. */
@@ -602,10 +799,10 @@ trx_resurrect_update(
 	trx_rseg_t*	rseg)	/*!< in/out: rollback segment */
 {
 	trx->rseg = rseg;
-	trx->xid = undo->xid;
+	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->update_undo = undo;
-	trx->is_recovered = TRUE;
+	trx->is_recovered = true;
 
 	/* This is single-threaded startup code, we do not need the
 	protection of trx->mutex or trx_sys->mutex here. */
@@ -1012,7 +1209,7 @@ trx_write_serialisation_history(
 	in trx sys header if MySQL binlogging is on or the database
 	server is a MySQL replication slave */
 
-	if (trx->mysql_log_file_name
+	if (trx->mysql_log_file_name != NULL
 	    && trx->mysql_log_file_name[0] != '\0') {
 
 		trx_sys_update_mysql_binlog_offset(
@@ -1150,7 +1347,7 @@ trx_commit_in_memory(
 			commit of trx_write_serialisation_history(), or 0
 			if the transaction did not modify anything */
 {
-	trx->must_flush_log_later = FALSE;
+	trx->must_flush_log_later = false;
 
 	if (trx_is_autocommit_non_locking(trx)) {
 		ut_ad(trx->read_only);
@@ -1259,7 +1456,7 @@ trx_commit_in_memory(
 
 		if (trx->flush_log_later) {
 			/* Do nothing yet */
-			trx->must_flush_log_later = TRUE;
+			trx->must_flush_log_later = true;
 		} else if (srv_flush_log_at_trx_commit == 0
 			   || thd_requested_durability(trx->mysql_thd)
 			   == HA_IGNORE_DURABILITY) {
@@ -1644,7 +1841,7 @@ trx_commit_complete_for_mysql(
 
 	trx_flush_log_if_needed(trx->commit_lsn, trx);
 
-	trx->must_flush_log_later = FALSE;
+	trx->must_flush_log_later = false;
 }
 
 /**********************************************************************//**
@@ -2062,7 +2259,7 @@ trx_recover_for_mysql(
 		trx_sys->mutex. It may change to PREPARED, but not if
 		trx->is_recovered. It may also change to COMMITTED. */
 		if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
-			xid_list[count] = trx->xid;
+			xid_list[count] = *trx->xid;
 
 			if (count == 0) {
 				ut_print_timestamp(stderr);
@@ -2134,15 +2331,15 @@ trx_get_trx_by_xid_low(
 
 		if (trx->is_recovered
 		    && trx_state_eq(trx, TRX_STATE_PREPARED)
-		    && xid->gtrid_length == trx->xid.gtrid_length
-		    && xid->bqual_length == trx->xid.bqual_length
-		    && memcmp(xid->data, trx->xid.data,
+		    && xid->gtrid_length == trx->xid->gtrid_length
+		    && xid->bqual_length == trx->xid->bqual_length
+		    && memcmp(xid->data, trx->xid->data,
 			      xid->gtrid_length + xid->bqual_length) == 0) {
 
 			/* Invalidate the XID, so that subsequent calls
 			will not find it. */
-			memset(&trx->xid, 0, sizeof(trx->xid));
-			trx->xid.formatID = -1;
+			memset(trx->xid, 0, sizeof(*trx->xid));
+			trx->xid->formatID = -1;
 			break;
 		}
 	}
