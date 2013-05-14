@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1058,7 +1058,9 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
-                              mysql_mutex_t* log_lock)
+                              mysql_mutex_t* log_lock,
+                              const char *log_file_name_arg,
+                              bool* is_binlog_active)
 {
   ulong data_len;
   int result=0;
@@ -1067,6 +1069,10 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
   if (log_lock)
     mysql_mutex_lock(log_lock);
+
+  if (log_file_name_arg)
+    *is_binlog_active= mysql_bin_log.is_active(log_file_name_arg);
+
   if (my_b_read(file, (uchar*) buf, sizeof(buf)))
   {
     /*
@@ -6034,10 +6040,9 @@ User_var_log_event(const char* buf, uint event_len,
   /*
     We don't know yet is_null value, so we must assume that name_len
     may have the bigger value possible, is_null= True and there is no
-    payload for val.
+    payload for val, or even that name_len is 0.
   */
-  if (0 == name_len ||
-      !valid_buffer_range<uint>(name_len, buf_start, name,
+  if (!valid_buffer_range<uint>(name_len, buf_start, name,
                                 event_len - UV_VAL_IS_NULL))
   {
     error= true;
@@ -9199,6 +9204,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 
   table_list->table_id= DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id);
   table_list->updating= 1;
+  table_list->required_type= FRMTYPE_TABLE;
   DBUG_PRINT("debug", ("table: %s is mapped to %u", table_list->table_name, table_list->table_id));
   enum_tbl_map_status tblmap_status= check_table_map(rli, table_list);
   if (tblmap_status == OK_TO_PROCESS)

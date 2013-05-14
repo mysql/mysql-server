@@ -42,6 +42,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "usr0sess.h"
 #include "ut0vec.h"
+#include "ha_prototypes.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -1427,12 +1428,20 @@ dict_create_add_foreign_to_dictionary(
 	pars_info_t*	info = pars_info_create();
 
 	if (foreign->id == NULL) {
+		char*	stripped_name;
 		/* Generate a new constraint id */
 		ulint	namelen	= strlen(table->name);
 		char*	id	= mem_heap_alloc(foreign->heap, namelen + 20);
 		/* no overflow if number < 1e13 */
 		sprintf(id, "%s_ibfk_%lu", table->name, (ulong) (*id_nr)++);
 		foreign->id = id;
+
+		stripped_name = strchr(foreign->id, '/') + 1;
+		if (innobase_check_identifier_length(stripped_name)) {
+			fprintf(stderr, "InnoDB: Generated foreign key "
+				"name (%s) is too long\n", foreign->id);
+			return(DB_IDENTIFIER_TOO_LONG);
+		}
 	}
 
 	pars_info_add_str_literal(info, "id", foreign->id);

@@ -1552,5 +1552,35 @@ EXECUTE prep_stmt;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#13068506 - QUERY WITH GROUP BY ON NON-AGGR COLUMN RETURNS 
+--echo #                WRONG RESULT
+--echo #
+
+CREATE TABLE t1 (i1 int);
+INSERT INTO t1 VALUES (100), (101);
+
+CREATE TABLE t2 (i2 int, i3 int);
+INSERT INTO t2 VALUES (20,1),(10,2);
+
+CREATE TABLE t3 (i4 int(11));
+INSERT INTO t3 VALUES (1),(2);
+
+let $query= SELECT (
+  SELECT MAX( t2.i2 )
+  FROM t3 RIGHT JOIN t2 ON ( t2.i3 = 2 )
+  WHERE t2.i3 <> t1.i1
+) AS field1
+FROM t1;
+
+--echo
+--eval $query;
+--echo
+--eval $query GROUP BY field1;
+
+--echo
+drop table t1,t2,t3;
+
+--echo # End of test for Bug#13068506
 
 --echo End of 5.1 tests

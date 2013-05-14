@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -273,7 +273,8 @@ char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info);
+                                Alter_info *alter_info,
+                                const char *current_comment_start);
 #endif
 
 void create_partition_name(char *out, const char *in1,

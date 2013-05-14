@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -837,11 +837,12 @@ page_zip_compress_node_ptrs(
 		c_stream->next_in = (byte*) rec;
 		c_stream->avail_in = rec_offs_data_size(offsets)
 			- REC_NODE_PTR_SIZE;
-		ut_ad(c_stream->avail_in);
 
-		err = deflate(c_stream, Z_NO_FLUSH);
-		if (UNIV_UNLIKELY(err != Z_OK)) {
-			break;
+		if (c_stream->avail_in) {
+			err = deflate(c_stream, Z_NO_FLUSH);
+			if (UNIV_UNLIKELY(err != Z_OK)) {
+				break;
+			}
 		}
 
 		ut_ad(!c_stream->avail_in);
