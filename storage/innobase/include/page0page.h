@@ -877,7 +877,7 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 @return pointer to the original successor of the infimum record on
 new_page, or NULL on zip overflow (new_block will be decompressed) */
 UNIV_INTERN
-rec_t*
+const rec_t*
 page_copy_rec_list_end(
 /*===================*/
 	buf_block_t*	new_block,	/*!< in/out: index page to copy to */
