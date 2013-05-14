@@ -1330,7 +1330,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     case 134:
       name= "events_statements_summary_by_program.size";
-      size= sizeof(PFS_program_stat);
+      size= sizeof(PFS_program);
       break;
     case 135:
       name= "events_statements_summary_by_program.count";
@@ -1338,7 +1338,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     case 136:
       name= "events_statements_summary_by_program.memory";
-      size= program_max * sizeof(PFS_program_stat);
+      size= program_max * sizeof(PFS_program);
       total_memory+= size;
       break;
     case 137:

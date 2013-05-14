@@ -242,19 +242,19 @@ void table_esms_by_program::reset_position(void)
 
 int table_esms_by_program::rnd_next(void)
 {
-  PFS_program_stat* program_stat;
+  PFS_program* program;
 
-  if (program_stat_array == NULL)
+  if (program_array == NULL)
     return HA_ERR_END_OF_FILE;
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < program_max;
        m_pos.next())
   {
-    program_stat= &program_stat_array[m_pos.m_index];
-    if (program_stat->m_object_name_length > 0)
+    program= &program_array[m_pos.m_index];
+    if (program->m_object_name_length > 0)
     {
-      make_row(program_stat);
+      make_row(program);
       m_next_pos.set_after(&m_pos);
       return 0;
     }
@@ -266,17 +266,17 @@ int table_esms_by_program::rnd_next(void)
 int
 table_esms_by_program::rnd_pos(const void *pos)
 {
-  PFS_program_stat* program_stat;
+  PFS_program* program;
 
-  if (program_stat_array == NULL)
+  if (program_array == NULL)
     return HA_ERR_END_OF_FILE;
 
   set_position(pos);
-  program_stat= &program_stat_array[m_pos.m_index];
+  program= &program_array[m_pos.m_index];
 
-  if (program_stat->m_object_name_length > 0)
+  if (program->m_object_name_length > 0)
   {
-    make_row(program_stat);
+    make_row(program);
     return 0;
   }
 
@@ -284,30 +284,30 @@ table_esms_by_program::rnd_pos(const void *pos)
 }
 
 
-void table_esms_by_program::make_row(PFS_program_stat* program_stat)
+void table_esms_by_program::make_row(PFS_program* program)
 {
 
   m_row_exists= false;
   
-  m_row.m_object_type= program_stat->m_type;
+  m_row.m_object_type= program->m_type;
 
-  m_row.m_object_name_length= program_stat->m_object_name_length;
+  m_row.m_object_name_length= program->m_object_name_length;
   if(m_row.m_object_name_length > 0)
-    memcpy(m_row.m_object_name, program_stat->m_object_name,
+    memcpy(m_row.m_object_name, program->m_object_name,
            m_row.m_object_name_length); 
 
-  m_row.m_schema_name_length= program_stat->m_schema_name_length;
+  m_row.m_schema_name_length= program->m_schema_name_length;
   if(m_row.m_schema_name_length > 0)
-    memcpy(m_row.m_schema_name, program_stat->m_schema_name,
+    memcpy(m_row.m_schema_name, program->m_schema_name,
            m_row.m_schema_name_length); 
 
   /* Get stored program's over all stats. */
   time_normalizer *normalizer1= time_normalizer::get(statement_timer);
-  m_row.m_sp_stat.set(normalizer1, &program_stat->m_sp_stat);
+  m_row.m_sp_stat.set(normalizer1, &program->m_sp_stat);
 
   /* Get sub statements' stats. */
   time_normalizer *normalizer2= time_normalizer::get(statement_timer);
-  m_row.m_stmt_stat.set(normalizer2, & program_stat->m_stmt_stat);
+  m_row.m_stmt_stat.set(normalizer2, & program->m_stmt_stat);
 
   m_row_exists= true;
 }
