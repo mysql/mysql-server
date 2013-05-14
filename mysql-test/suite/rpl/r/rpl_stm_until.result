@@ -93,15 +93,4 @@ one
 1
 drop table t1;
 start slave;
-include/rpl_reset.inc
-flush logs;
-stop slave;
-reset slave;
-start slave until master_log_file='master-bin.000001', master_log_pos=294 /* to stop right before DROP */;
-include/wait_for_slave_sql_to_stop.inc
-show tables /* t1 must exist */;
-Tables_in_test
-t1
-drop table t1;
-stop slave;
 include/rpl_end.inc

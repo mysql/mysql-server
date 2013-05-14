@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -941,20 +941,46 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case PRE_GA_DELETE_ROWS_EVENT:
     case PRE_GA_UPDATE_ROWS_EVENT:
     {
-      if (ev_type != TABLE_MAP_EVENT)
-      {
-        Rows_log_event *e= (Rows_log_event*) ev;
-        Table_map_log_event *ignored_map= 
-          print_event_info->m_table_map_ignored.get_table(e->get_table_id());
-        bool skip_event= (ignored_map != NULL);
+      bool stmt_end= FALSE;
+      Table_map_log_event *ignored_map= NULL;
 
-        /* 
-           end of statement check:
-             i) destroy/free ignored maps
-            ii) if skip event, flush cache now
-         */
-        if (e->get_flags(Rows_log_event::STMT_END_F))
-        {
+#ifndef MCP_WL5353
+      if (ev_type == WRITE_ROWS_EVENT ||
+          ev_type == DELETE_ROWS_EVENT ||
+          ev_type == UPDATE_ROWS_EVENT ||
+          ev_type == WRITE_ROWS_EVENT_V1 ||
+          ev_type == DELETE_ROWS_EVENT_V1 ||
+          ev_type == UPDATE_ROWS_EVENT_V1)
+#else
+      if (ev_type == WRITE_ROWS_EVENT ||
+          ev_type == DELETE_ROWS_EVENT ||
+          ev_type == UPDATE_ROWS_EVENT)
+#endif
+      {
+        Rows_log_event *new_ev= (Rows_log_event*) ev;
+        if (new_ev->get_flags(Rows_log_event::STMT_END_F))
+          stmt_end= TRUE;
+        ignored_map= print_event_info->m_table_map_ignored.get_table(new_ev->get_table_id());
+      }
+      else if (ev_type == PRE_GA_WRITE_ROWS_EVENT ||
+               ev_type == PRE_GA_DELETE_ROWS_EVENT ||
+               ev_type == PRE_GA_UPDATE_ROWS_EVENT)
+      {
+        Old_rows_log_event *old_ev= (Old_rows_log_event*) ev;
+        if (old_ev->get_flags(Rows_log_event::STMT_END_F))
+          stmt_end= TRUE;
+        ignored_map= print_event_info->m_table_map_ignored.get_table(old_ev->get_table_id());
+      }
+
+      bool skip_event= (ignored_map != NULL);
+      /*
+        end of statement check:
+        i) destroy/free ignored maps
+        ii) if skip event, flush cache now
+       */
+      if (stmt_end)
+      {
+
           /* 
             Now is safe to clear ignored map (clear_tables will also
             delete original table map events stored in the map).
@@ -981,7 +1007,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         /* skip the event check */
         if (skip_event)
           goto end;
-      }
       /*
         These events must be printed in base64 format, if printed.
         base64 format requires a FD event to be safe, so if no FD
