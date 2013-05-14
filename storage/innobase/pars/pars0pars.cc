@@ -250,8 +250,8 @@ pars_func_low(
 
 	node->args = arg;
 
-	UT_LIST_ADD_LAST(func_node_list, pars_sym_tab_global->func_node_list,
-			 node);
+	UT_LIST_ADD_LAST(pars_sym_tab_global->func_node_list, node);
+
 	return(node);
 }
 
@@ -709,8 +709,7 @@ pars_resolve_exp_variables_and_types(
 	sym_node->indirection = node;
 
 	if (select_node) {
-		UT_LIST_ADD_LAST(col_var_list, select_node->copy_variables,
-				 sym_node);
+		UT_LIST_ADD_LAST(select_node->copy_variables, sym_node);
 	}
 
 	dfield_set_type(que_node_get_val(sym_node),
@@ -1023,7 +1022,7 @@ pars_select_statement(
 		     == que_node_list_get_len(select_node->select_list));
 	}
 
-	UT_LIST_INIT(select_node->copy_variables);
+	UT_LIST_INIT(select_node->copy_variables, &sym_node_t::col_var_list);
 
 	pars_resolve_exp_list_columns(table_list, select_node->select_list);
 	pars_resolve_exp_list_variables_and_types(select_node,
@@ -1274,7 +1273,7 @@ pars_update_statement(
 	pars_retrieve_table_def(table_sym);
 	node->table = table_sym->table;
 
-	UT_LIST_INIT(node->columns);
+	UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
 
 	/* Make the single table node into a list of table nodes of length 1 */
 

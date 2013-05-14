@@ -81,8 +81,8 @@ struct os_event {
 					the event becomes signaled */
 	os_cond_t	cond_var;	/*!< condition variable is used in
 					waiting for the event */
-	UT_LIST_NODE_T(os_event_t) os_event_list;
-					/*!< list of all created events */
+	UT_LIST_NODE_T(os_event)
+			os_event_list;	/*!< list of all created events */
 };
 
 /** Denotes an infinite delay for os_event_wait_time() */
