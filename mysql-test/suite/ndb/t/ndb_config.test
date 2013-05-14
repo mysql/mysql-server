@@ -73,3 +73,7 @@ echo == 19 == bug12712109;
 echo == 21 == ThreadConfig;
 --replace_regex /.*\[ndb_config\]//
 --exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_threadconfig.ini --query=NodeId,LockExecuteThreadToCPU,ThreadConfig 2>&1
+
+echo == 22 == bug14555359;
+# Read ExtraSendBufferMemory from all nodes
+--exec $NDB_CONFIG  --defaults-group-suffix=.bug14555359 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --query=nodeid,type,ExtraSendBufferMemory --mycnf

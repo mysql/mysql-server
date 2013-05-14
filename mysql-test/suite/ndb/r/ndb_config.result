@@ -52,3 +52,5 @@ Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
 Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
 
 6,, 7,, 1,0-3,ldm={count=4} 2,4-8,ldm={count=4,cpubind=0-3} 3,,ldm={count=4} 4,0-3,main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=1},recv={cpubind=0},rep={cpubind=0} 5,,ldm,ldm
+== 22 == bug14555359
+3,ndb_mgmd,1048576 4,mysqld,2097152 5,mysqld,0 1,ndbd,3145728 2,ndbd,4194304
