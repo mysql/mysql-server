@@ -29,9 +29,10 @@ our @EXPORT= qw(init_bootstrap fini_bootstrap check_bootstrap_log
                 insert_option_my_cnf create_var_stmt my_cnf_bootstrap
 	        commandline_bootstrap);
 
-our $mysqld_bootstrap_cmd= "$ENV{'MYSQLD_BOOTSTRAP_CMD'} --datadir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/data/ --tmpdir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/ --log-error=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB";
+our $mysqld_bootstrap_cmd= "$ENV{'MYSQLD_BOOTSTRAP_CMD'} --basedir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap --datadir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/data/ --tmpdir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/ --log-error=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB";
 
 our $mysqld_bootstrap= "$ENV{'MYSQLD'} --defaults-file=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/my.cnf --bootstrap --core-file --datadir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/data/ --tmpdir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/";
+
 #
 # Creates the directories needed by bootstrap cmd.
 #
@@ -58,10 +59,10 @@ rmtree("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap");
 #
 sub create_var_stmt ($) {
 my $test_var= shift;
+my @wrlines; 
 # Input file for bootstrap cmd (mysql_install_db) containing a SELECT var otherwise it is failing.
 # It can also be used for test purposes.
 my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap_in.sql";
-my @wrlines;
 if ($test_var) {
   $test_var=~ s/--//;
   $test_var=~ s/loose-//;
@@ -83,7 +84,6 @@ my $found_pattern= 0;
 my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log";
 open(FILE, "<", $fname) or die "\nError: Cannot read bootstrap.log.\nError: Nothing has been written to the log file, which might be suspicious in case of wrong/missing value for the option. It is recommended to file a bug about the weak handling of such values.\n\n";
 my @lines= <FILE>;
-# those must be in the file for the test to pass
 foreach my $one_line (@lines)
 {
   foreach my $one_pattern (@_)
@@ -99,76 +99,92 @@ return $found_pattern;
 }
 
 #
-# Inserts a startup option into my.cnf.
+# Creates the my.cnf (for option in commandline).
 #
-sub insert_option_my_cnf ($) {
+sub create_my_cnf {
 use strict;
-my $test_option= shift;
-my $paragraph= "mysqld";
+my @wrlines; 
 my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/my.cnf";
-my @wrlines;
-# those must be in the file for the test to pass
-my $nb_rm_files= unlink("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log");
-$test_option=~ s/--//;
-#print "$test_option\n";
-# Create a mini config file including the option to be tested.
-# This config file is relying on "small.cnf" (see user manual).
-push(@wrlines,"[mysqld]\n");
-push(@wrlines,"open-files-limit=1024\n");
-push(@wrlines,"local-infile\n");
-push(@wrlines,"character-set-server=latin1\n");
-push(@wrlines,"connect-timeout=60\n");
-push(@wrlines,"socket=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/mysqld.sock\n");
-push(@wrlines,"skip-external-locking\n");
-push(@wrlines,"key_buffer_size=16K\n");
-push(@wrlines,"max_allowed_packet=1M\n");
-push(@wrlines,"table_open_cache=4\n");
-push(@wrlines,"sort_buffer_size=64K\n");
-push(@wrlines,"read_buffer_size=256K\n");
-push(@wrlines,"read_rnd_buffer_size=256K\n");
-push(@wrlines,"net_buffer_length=2K\n");
-push(@wrlines,"thread_stack=128K\n");
-push(@wrlines,"server-id=1\n");
-
-push(@wrlines,$test_option."\n");
-
-push(@wrlines,"\n");
-push(@wrlines,"[client]\n");
-push(@wrlines,"password=\n");
-push(@wrlines,"host=localhost\n");
-push(@wrlines,"user=root\n");
-push(@wrlines,"socket=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/mysqld.sock\n");
-
+@wrlines= (@wrlines, server_options_my_cnf(@wrlines));
+@wrlines= (@wrlines, client_options_my_cnf(@wrlines));
 open(FILE, ">", $fname) or die "Error: Cannot open my.cnf for writing.\n";
 print FILE @wrlines;
 close FILE;
 }
 
 #
+# Inserts a startup option into my.cnf.
+#
+sub insert_option_my_cnf ($) {
+use strict;
+my $test_option= shift;
+my @wrlines; 
+my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/my.cnf";
+$test_option=~ s/--//;
+@wrlines= (@wrlines, server_options_my_cnf(@wrlines));
+push(@wrlines,$test_option."\n");
+@wrlines= (@wrlines, client_options_my_cnf(@wrlines));
+open(FILE, ">", $fname) or die "Error: Cannot open my.cnf for writing.\n";
+print FILE @wrlines;
+close FILE;
+}
+
+#
+# Inserts server startup options into my.cnf.
+#
+sub server_options_my_cnf ($) {
+use strict;
+my @wrlines= shift; 
+# Create a mini config file including the option to be tested.
+# This config file is s the minimum to be given to the server.
+push(@wrlines,"[mysqld]\n");
+push(@wrlines,"lc-messages-dir=$ENV{'MYSQL_SHAREDIR'}\n");
+push(@wrlines,"character-sets-dir=$ENV{'MYSQL_CHARSETSDIR'}\n");
+push(@wrlines,"character-set-server=latin1\n");
+push(@wrlines,"socket=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/mysqld.sock\n");
+push(@wrlines,"server-id=1\n");
+return (@wrlines);
+}
+
+#
+# Inserts client startup options into my.cnf.
+#
+sub client_options_my_cnf ($) {
+use strict;
+my @wrlines= shift; 
+push(@wrlines,"\n");
+push(@wrlines,"[client]\n");
+push(@wrlines,"password=\n");
+push(@wrlines,"host=localhost\n");
+push(@wrlines,"user=root\n");
+push(@wrlines,"socket=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/mysqld.sock\n");
+return (@wrlines);
+}
+
+#
 # Startup option on commandline and exec bootstrap with SELECT variable.
 #
-sub commandline_bootstrap ($) {
+sub commandline_bootstrap ($$) {
 my $test_option= shift;
-create_var_stmt($test_option);
+my $additional_options= shift;
 my $nb_rm_files= unlink("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log");
 $nb_rm_files= unlink("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap.out");
-my $ret_code= qx($mysqld_bootstrap_cmd $test_option < $ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap_in.sql 2>&1);
-#print "$mysqld_bootstrap_cmd\n";
-#print "retcode: $ret_code\n";
+create_my_cnf ();
+create_var_stmt ($test_option);
+my $ret_code= qx($mysqld_bootstrap_cmd $test_option $additional_options< $ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap_in.sql 2>&1);
 }
 
 #
 # Inserts a startup option into my.cnf and exec bootstrap with SELECT variable.
 #
-sub my_cnf_bootstrap ($) {
+sub my_cnf_bootstrap ($$) {
 my $test_option= shift;
-insert_option_my_cnf($test_option);
-create_var_stmt($test_option);
+my $additional_options= shift;
 my $nb_rm_files= unlink("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log");
 $nb_rm_files= unlink("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap.out");
-my $ret_code= qx($mysqld_bootstrap < $ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap_in.sql > $ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log 2>&1);
-#print "$mysqld_bootstrap\n";
-#print "retcode: $ret_code\n";
+insert_option_my_cnf ($test_option);
+create_var_stmt ($test_option);
+my $ret_code= qx($mysqld_bootstrap $additional_options < $ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap_in.sql > $ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log 2>&1);
 }
 
 1;
