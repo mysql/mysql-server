@@ -11428,7 +11428,8 @@ procedure_analyse_clause:
 
             if ((lex->proc_analyse= new Proc_analyse_params) == NULL)
             {
-              my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR));
+              my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+                       sizeof(Proc_analyse_params));
               MYSQL_YYABORT;
             }
             
