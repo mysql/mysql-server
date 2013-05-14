@@ -1,4 +1,4 @@
-/* Copyright (c) 2000-2002, 2006 MySQL AB
+/* Copyright (c) 2000-2002 MySQL AB
    Use is subject to license terms.
    
    This library is free software; you can redistribute it and/or

@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2005-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -221,11 +220,44 @@ void buildSHA(SSL& ssl, Finished& fin, const opaque* sender)
 }
 
 
+// sanity checks on encrypted message size
+static int sanity_check_message(SSL& ssl, uint msgSz)
+{
+    uint minSz = 0;
+
+    if (ssl.getSecurity().get_parms().cipher_type_ == block) {
+        uint blockSz = ssl.getCrypto().get_cipher().get_blockSize();
+        if (msgSz % blockSz)
+            return -1;
+
+        minSz = ssl.getSecurity().get_parms().hash_size_ + 1;  // pad byte too
+        if (blockSz > minSz)
+            minSz = blockSz;
+
+        if (ssl.isTLSv1_1())
+            minSz += blockSz;   // explicit IV
+    }
+    else {      // stream
+        minSz = ssl.getSecurity().get_parms().hash_size_;
+    }
+
+    if (msgSz < minSz)
+        return -1;
+
+    return 0;
+}
+
+
 // decrypt input message in place, store size in case needed later
 void decrypt_message(SSL& ssl, input_buffer& input, uint sz)
 {
     input_buffer plain(sz);
     opaque*      cipher = input.get_buffer() + input.get_current();
+
+    if (sanity_check_message(ssl, sz) != 0) {
+        ssl.SetError(sanityCipher_error);
+        return;
+    }
 
     ssl.useCrypto().use_cipher().decrypt(plain.get_buffer(), cipher, sz);
     memcpy(cipher, plain.get_buffer(), sz);
@@ -774,6 +806,8 @@ int DoProcessReply(SSL& ssl)
                     return 0;
                 }
                 decrypt_message(ssl, buffer, hdr.length_);
+                if (ssl.GetError())
+                    return 0;
             }
                 
             mySTL::auto_ptr<Message> msg(mf.CreateObject(hdr.type_));

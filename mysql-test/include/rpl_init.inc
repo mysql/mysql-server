@@ -7,7 +7,6 @@
 #    well as extra connections server_1_1, server_2_1, ...,
 #    server_N_1. server_I and server_I_1 are connections to the same
 #    server.
-#  - Sets up @@auto_increment_increment and @@auto_increment_increment.
 #  - Verifies that @@server_id of all servers are different.
 #  - Calls RESET MASTER, RESET SLAVE, USE test, CHANGE MASTER, START SLAVE.
 #  - Sets the connection to server_1 before exiting.
@@ -179,8 +178,6 @@ while ($_rpl_server)
     RESET MASTER;
     RESET SLAVE;
   }
-  eval SET auto_increment_increment= $rpl_server_count;
-  eval SET auto_increment_offset= $_rpl_server;
 
   --dec $_rpl_server
 }

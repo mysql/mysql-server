@@ -1,5 +1,5 @@
-/*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2005-2007 MySQL AB
+
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,53 +12,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /**
- * Description of config variables, including their min, max, default
- * values can be printed (--configinfo). This can also be printed
- * in xml format (--xml).
- *
- * Config can be retrieved from only one of the following sources:
- ** 1) config stored at mgmd (default)
- ** 2) config stored at a data node (--config_from_node=<data node id>)
- *** (Note:
- ***  Node numbers less than 1 give error:
- ***  "Given value <node id> is not a valid node number." 
- ***  Non-data node numbers give error:
- ***  "Node <node id> is not a data node.")
- ** 3) my.cnf (--mycnf=<fullPath/mycnfFileName>)
- ** 4) config.file (--config_file=<fullPath/configFileName>
- *
- * Config variables are displayed from only one of the following
- * sections of the retrieved config:
- ** CFG_SECTION_NODE (default, or --nodes)
- ** CFG_SECTION_CONNECTION (--connections)
- ** CFG_SECTION_SYSTEM (--system)
- */
+ * ndb_config --nodes --query=nodeid --type=ndbd --host=local1
 
-/**
- * Examples:
- * Get config from mgmd (default):
- ** Display results from section CFG_SECTION_NODE (default)
- *** ndb_config --nodes --query=nodeid --type=ndbd --host=local1
- *** ndb_config  --query=nodeid,host
- *
- ** Display results from section CFG_SECTION_SYSTEM
- *** ndb_config --system --query=ConfigGenerationNumber
- *
- ** Display results from section CFG_SECTION_CONNECTION
- *** ndb_config --connections --query=type
- *
- * Get config from eg. node 2, which is a data node:
- *
- ** ndb_config --config_from_node=2 --system --query=ConfigGenerationNumber
- ** ndb_config --config_from_node=2 --connections --query=type
- ** ndb_config --config_from_node=2 --query=id,NoOfFragmentLogFiles
- *
- **  Get config from eg. node 2 and display results for node 2 only:
- *** ndb_config --config_from_node=2 --query=id,NoOfFragmentLogFiles --nodeid=2
  */
 
 #include <ndb_global.h>
