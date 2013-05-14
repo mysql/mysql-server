@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.  #
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.  #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -302,3 +302,5 @@ ADD_SUBDIRECTORY(nodejs)
 IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
 ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
+
+ADD_SUBDIRECTORY(wix)

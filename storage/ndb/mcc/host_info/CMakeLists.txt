@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ if(HAVE_UNISTD_H)
 endif(HAVE_UNISTD_H)
 
 if(HAVE_WINDOWS_H)
-  APPEND_(CMAKE_REQUIRED_INCLUDES "Windows.h")
+  LIST(APPEND CMAKE_REQUIRED_INCLUDES "Windows.h")
   CHECK_SYMBOL_EXISTS("GlobalMemoryStatusEx" "Windows.h" 
     HAVE_GLOBALMEMORYSTATUSEX_SYMBOL)
   CHECK_SYMBOL_EXISTS("GlobalMemoryStatus" "Windows.h" 
