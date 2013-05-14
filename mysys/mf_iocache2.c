@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2000-2004, 2006, 2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,6 +66,8 @@ my_b_copy_to_file(IO_CACHE *cache, FILE *file)
       DBUG_RETURN(1);
     cache->read_pos= cache->read_end;
   } while ((bytes_in_cache= my_b_fill(cache)));
+  if(cache->error == -1)
+    DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
@@ -216,6 +217,8 @@ size_t my_b_fill(IO_CACHE *info)
     info->error= 0;
     return 0;					/* EOF */
   }
+  DBUG_EXECUTE_IF ("simulate_my_b_fill_error",
+                   {DBUG_SET("+d,simulate_file_read_error");});
   if ((length= my_read(info->file,info->buffer,max_length,
                        info->myflags)) == (size_t) -1)
   {
