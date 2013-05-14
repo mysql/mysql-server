@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
+
 
 /*
   TODO:
@@ -9220,13 +9220,15 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
     NGA1.If in the index I there is a gap between the last GROUP attribute G_k,
          and the MIN/MAX attribute C, then NGA must consist of exactly the
          index attributes that constitute the gap. As a result there is a
-         permutation of NGA that coincides with the gap in the index
-         <B_1, ..., B_m>.
+         permutation of NGA, BA=<B_1,...,B_m>, that coincides with the gap
+         in the index.
     NGA2.If BA <> {}, then the WHERE clause must contain a conjunction EQ of
          equality conditions for all NG_i of the form (NG_i = const) or
          (const = NG_i), such that each NG_i is referenced in exactly one
          conjunct. Informally, the predicates provide constants to fill the
          gap in the index.
+    NGA3.If BA <> {}, there can only be one range. TODO: This is a code
+         limitation and is not strictly needed. See BUG#15947433
     WA1. There are no other attributes in the WHERE clause except the ones
          referenced in predicates RNG, PA, PC, EQ defined above. Therefore
          WA is subset of (GA union NGA union C) for GA,NGA,C that pass the
@@ -9843,6 +9845,74 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
 
 
 /*
+  Get SEL_ARG tree, if any, for the keypart covering non grouping
+  attribute (NGA) field 'nga_field'.
+
+  This function enforces the NGA3 test: If 'keypart_tree' contains a
+  condition for 'nga_field', there can only be one range. In the
+  opposite case, this function returns with error and 'cur_range'
+  should not be used.
+
+  Note that the NGA1 and NGA2 requirements, like whether or not the
+  range predicate for 'nga_field' is equality, is not tested by this
+  function.
+
+  @param[in]   nga_field      The NGA field we want the SEL_ARG tree for
+  @param[in]   keypart_tree   Root node of the SEL_ARG* tree for the index
+  @param[out]  cur_range      The SEL_ARG tree, if any, for the keypart
+                              covering field 'keypart_field'
+  @retval true   'keypart_tree' contained a predicate for 'nga_field' but
+                  multiple ranges exists. 'cur_range' should not be used.
+  @retval false  otherwise
+*/
+
+static bool
+get_sel_arg_for_keypart(Field *nga_field,
+                        SEL_ARG *keypart_tree,
+                        SEL_ARG **cur_range)
+{
+  if(keypart_tree == NULL)
+    return false;
+  if(keypart_tree->field->eq(nga_field))
+  {
+    /*
+      Enforce NGA3: If a condition for nga_field has been found, only
+      a single range is allowed.
+    */
+  if (keypart_tree->prev || keypart_tree->next)
+      return true; // There are multiple ranges
+
+    *cur_range= keypart_tree;
+    return false;
+  }
+
+  SEL_ARG *found_tree= NULL;
+  SEL_ARG *first_kp=  keypart_tree->first();
+
+  for (SEL_ARG *cur_kp= first_kp; cur_kp && !found_tree;
+       cur_kp= cur_kp->next)
+  {
+    if (cur_kp->next_key_part)
+    {
+      if (get_sel_arg_for_keypart(nga_field,
+                                  cur_kp->next_key_part,
+                                  &found_tree))
+        return true;
+
+    }
+    /*
+       Enforce NGA3: If a condition for nga_field has been found,only
+       a single range is allowed.
+    */
+    if (found_tree && first_kp->next)
+      return true; // There are multiple ranges
+  }
+  *cur_range= found_tree;
+  return false;
+}
+
+
+/*
   Extract a sequence of constants from a conjunction of equality predicates.
 
   SYNOPSIS
@@ -9856,12 +9926,13 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     key_infix              [out] Infix of constants to be used for index lookup
     key_infix_len          [out] Lenghth of the infix
     first_non_infix_part   [out] The first keypart after the infix (if any)
-    
+
   DESCRIPTION
-    Test conditions (NGA1, NGA2) from get_best_group_min_max(). Namely,
-    for each keypart field NGF_i not in GROUP-BY, check that there is a
-    constant equality predicate among conds with the form (NGF_i = const_ci) or
-    (const_ci = NGF_i).
+    Test conditions (NGA1, NGA2, NGA3) from get_best_group_min_max(). Namely,
+    for each keypart field NG_i not in GROUP-BY, check that there is exactly one
+    constant equality predicate among conds with the form (NG_i = const_ci) or
+    (const_ci = NG_i).. In addition, there can only be one range when there is
+    such a gap.
     Thus all the NGF_i attributes must fill the 'gap' between the last group-by
     attribute and the MIN/MAX attribute in the index (if present). If these
     conditions hold, copy each constant from its corresponding predicate into
@@ -9890,16 +9961,14 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
   uchar *key_ptr= key_infix;
   for (cur_part= first_non_group_part; cur_part != end_part; cur_part++)
   {
+    cur_range= NULL;
     /*
       Find the range tree for the current keypart. We assume that
-      index_range_tree points to the leftmost keypart in the index.
+      index_range_tree points to the first keypart in the index.
     */
-    for (cur_range= index_range_tree; cur_range;
-         cur_range= cur_range->next_key_part)
-    {
-      if (cur_range->field->eq(cur_part->field))
-        break;
-    }
+    if(get_sel_arg_for_keypart(cur_part->field, index_range_tree, &cur_range))
+      return false;
+
     if (!cur_range)
     {
       if (min_max_arg_part)
@@ -9911,9 +9980,6 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       }
     }
 
-    /* Check that the current range tree is a single point interval. */
-    if (cur_range->prev || cur_range->next)
-      return FALSE; /* This is not the only range predicate for the field. */
     if ((cur_range->min_flag & NO_MIN_RANGE) ||
         (cur_range->max_flag & NO_MAX_RANGE) ||
         (cur_range->min_flag & NEAR_MIN) || (cur_range->max_flag & NEAR_MAX))

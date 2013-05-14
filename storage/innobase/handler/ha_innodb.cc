@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /* This file defines the InnoDB handler: the interface between MySQL and InnoDB
 NOTE: You can only use noninlined InnoDB functions in this file, because we
@@ -791,6 +791,11 @@ convert_error_code_to_mysql(
 	} else if (error == DB_UNSUPPORTED) {
 
 		return(HA_ERR_UNSUPPORTED);
+
+	} else if (error == DB_IDENTIFIER_TOO_LONG) {
+
+		return(HA_ERR_INTERNAL_ERROR);
+
 	} else if (error == DB_INTERRUPTED) {
 
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
@@ -895,6 +900,37 @@ innobase_convert_from_table_id(
 }
 
 /**********************************************************************
+Check if the length of the identifier exceeds the maximum allowed.
+The input to this function is an identifier in charset my_charset_filename.
+return true when length of identifier is too long. */
+extern "C"
+my_bool
+innobase_check_identifier_length(
+/*=============================*/
+	const char*	id)	/* in: identifier to check.  it must belong
+				to charset my_charset_filename */
+{
+	char		tmp[MAX_TABLE_NAME_LEN + 10];
+	uint		errors;
+	uint		len;
+	int		well_formed_error = 0;
+	CHARSET_INFO	*cs1 = &my_charset_filename;
+	CHARSET_INFO	*cs2 = thd_charset(current_thd);
+
+	len = strconvert(cs1, id, cs2, tmp, MAX_TABLE_NAME_LEN + 10, &errors);
+
+	uint res = cs2->cset->well_formed_len(cs2, tmp, tmp + len,
+					      NAME_CHAR_LEN,
+					      &well_formed_error);
+
+	if (well_formed_error || res != len) {
+		my_error(ER_TOO_LONG_IDENT, MYF(0), tmp);
+		return(true);
+	}
+	return(false);
+}
+
+/**********************************************************************
 Converts an identifier to UTF-8.
 
 NOTE that the exact prototype of this function has to be in
@@ -912,6 +948,33 @@ innobase_convert_from_id(
 	strconvert(thd_charset(current_thd), from,
 		   system_charset_info, to, (uint) len, &errors);
 }
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+extern "C"
+uint
+innobase_convert_to_system_charset(
+/*===============================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len)	/* in: length of 'to', in bytes */
+{
+	uint		errors;
+	uint		rlen;
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = system_charset_info;
+
+	rlen = strconvert(cs1, from, cs2, to, len, &errors);
+
+	if (errors) {
+		fprintf(stderr, "  InnoDB: There was a problem in converting"
+			"'%s' in charset %s to charset %s", from, cs1->name,
+			cs2->name);
+	}
+
+	return(rlen);
+}
+
 
 /**********************************************************************
 Compares NUL-terminated UTF-8 strings case insensitively.

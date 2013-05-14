@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
+
 
 
 #ifdef USE_PRAGMA_INTERFACE
@@ -1058,6 +1058,11 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
+
+  /**
+    Checks if this item or any of its decendents contains a subquery.
+  */
+  virtual bool has_subquery() const { return with_subselect; }
 };
 
 
@@ -2268,6 +2273,10 @@ public:
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd);
+  bool const_item() const
+  {
+    return (*ref)->const_item() && (used_tables() == 0);
+  }
   table_map used_tables() const		
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -2336,6 +2345,13 @@ public:
     return (*ref)->get_time(ltime);
   }
 
+  /**
+    Checks if the item tree that ref points to contains a subquery.
+  */
+  virtual bool has_subquery() const 
+  { 
+    return (*ref)->has_subquery();
+  }
 };
 
 
@@ -2452,6 +2468,8 @@ public:
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
   }
+  table_map not_null_tables() const { return 0; }
+
   virtual Ref_Type ref_type() { return OUTER_REF; }
 };
 
