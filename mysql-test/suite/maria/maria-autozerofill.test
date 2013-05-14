@@ -33,11 +33,13 @@ create table t4 (a int) engine=aria;
 INSERT INTO t4 VALUES (1),(2);
 create table t5 (a int) engine=aria;
 INSERT INTO t5 VALUES (1),(2);
+create table t6 (a int) engine=aria;
+INSERT INTO t6 VALUES (1),(2);
 flush tables;
 
 # Check that table is not zerofilled, not movable
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+--exec $MARIA_CHK -dv --ignore-control-file $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
 perl;
     use strict;
     use warnings;
@@ -62,7 +64,7 @@ enable_ps_protocol;
 flush table t1;
 
 # Check that table is auto-zerofilled, movable
---exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+--exec $MARIA_CHK -dv --ignore-control-file $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
 perl;
     use strict;
     use warnings;
@@ -79,7 +81,7 @@ insert into t1 values(2);
 flush table t1;
 
 # Check that table is not zerofilled, not movable
---exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+--exec $MARIA_CHK -dv --ignore-control-file $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
 perl;
     use strict;
     use warnings;
@@ -91,10 +93,13 @@ perl;
     close FILE;
 EOF
 
-#
-# BUG#44422 "mysql_upgrade destroys Maria tables?"
-# Check repair and optimize of moved table
-#
+--echo #
+--echo # BUG#44422 "mysql_upgrade destroys Maria tables?"
+--echo # Check repair and optimize of moved table
+--echo #
+
+# Table t2 is regarded as it would be from another server as we removed
+# the aria control file earlier
 check table t2;
 check table t2;
 repair table t2;
@@ -107,5 +112,11 @@ repair table t5;
 check table t5;
 repair table t5;
 check table t5;
+
+# Check that if we zerofill with aria_chk, we should not get any warnings when
+# accessing the table
+--exec $MARIA_CHK --zerofill $MYSQLD_DATADIR/mysqltest/t6 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+select * from t6;
+check table t6;
 
 drop database mysqltest;

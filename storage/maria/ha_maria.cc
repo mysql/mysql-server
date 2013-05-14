@@ -1668,6 +1668,11 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     }
   }
   thd_proc_info(thd, "Saving state");
+  if (optimize_done && !error && !(param->testflag & T_NO_CREATE_RENAME_LSN))
+  {
+    /* Set trid (needed if the table was moved from another system) */
+    share->state.create_trid= trnman_get_min_safe_trid();
+  }
   mysql_mutex_lock(&share->intern_lock);
   if (!error)
   {
@@ -1683,6 +1688,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     */
     if (file->state != &share->state.state)
       *file->state= share->state.state;
+
     if (share->base.auto_key)
       _ma_update_auto_increment_key(param, file, 1);
     if (optimize_done)
@@ -1690,6 +1696,9 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
                                      UPDATE_TIME | UPDATE_OPEN_COUNT |
                                      (local_testflag &
                                       T_STATISTICS ? UPDATE_STAT : 0));
+    /* File is repaired; Mark the file as moved to this system */
+    (void) _ma_set_uuid(share, 0);
+
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
          HA_STATUS_CONST);
     if (rows != file->state->records && !(param->testflag & T_VERY_SILENT))

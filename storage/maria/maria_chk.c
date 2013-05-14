@@ -1205,8 +1205,11 @@ static int maria_chk(HA_CHECK *param, char *filename)
           ((param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX |
                                T_ZEROFILL | T_ZEROFILL_KEEP_LSN)) !=
            (T_ZEROFILL | T_ZEROFILL_KEEP_LSN)))
+      {
         share->state.create_rename_lsn= share->state.is_of_horizon=
           share->state.skip_redo_lsn= LSN_NEEDS_NEW_STATE_LSNS;
+        share->state.create_trid= 0;
+      }
     }
     if (!error && (param->testflag & T_REP_ANY))
     {

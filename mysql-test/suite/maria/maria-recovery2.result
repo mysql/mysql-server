@@ -107,6 +107,9 @@ flush table t1;
 * copied t1 for comparison
 lock tables t1 write, t2 read;
 delete from t1 limit 1;
+select count(*) from t1;
+count(*)
+0
 insert into t1 select * from t2;
 SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
 * crashing mysqld intentionally
@@ -123,6 +126,9 @@ use mysqltest;
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE		
+select count(*) from t1;
+count(*)
+1
 drop table t1;
 * TEST of recovery when OPTIMIZE has replaced the index file and crash
 create table t_corrupted1 (a varchar(100), key(a)) engine=aria;

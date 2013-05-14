@@ -130,9 +130,11 @@ insert into t1 values(30);
 lock tables t1 write, t2 read;
 delete from t1 limit 1;
 # 127 rows in t2, >100, so this will use repair-at-end
+select count(*) from t1;
 insert into t1 select * from t2;
 -- source include/maria_verify_recovery.inc
 show keys from t1; # should be enabled
+select count(*) from t1;
 drop table t1;
 
 --echo * TEST of recovery when OPTIMIZE has replaced the index file and crash
