@@ -1204,10 +1204,6 @@ row_log_table_apply_convert_mrec(
 {
 	dtuple_t*	row;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
-
 	/* This is based on row_build(). */
 	if (log->add_cols) {
 		row = dtuple_copy(log->add_cols, heap);
@@ -1253,6 +1249,8 @@ row_log_table_apply_convert_mrec(
 
 		if (rec_offs_nth_extern(offsets, i)) {
 			ut_ad(rec_offs_any_extern(offsets));
+			rw_lock_x_lock(dict_index_get_lock(index));
+
 			if (const page_no_map* blobs = log->blobs) {
 				data = rec_get_nth_field(
 					mrec, offsets, i, &len);
@@ -1268,15 +1266,22 @@ row_log_table_apply_convert_mrec(
 					/* This BLOB has been freed.
 					We must not access the row. */
 					row = NULL;
-					goto func_exit;
 				}
 			}
 
-			data = btr_rec_copy_externally_stored_field(
-				mrec, offsets,
-				dict_table_zip_size(index->table),
-				i, &len, heap);
-			ut_a(data);
+			if (row) {
+				data = btr_rec_copy_externally_stored_field(
+					mrec, offsets,
+					dict_table_zip_size(index->table),
+					i, &len, heap);
+				ut_a(data);
+			}
+
+			rw_lock_x_unlock(dict_index_get_lock(index));
+
+			if (!row) {
+				goto func_exit;
+			}
 		} else {
 			data = rec_get_nth_field(mrec, offsets, i, &len);
 		}

@@ -112,7 +112,7 @@ ins_node_create_entry_list(
 
 	ut_ad(node->entry_sys_heap);
 
-	UT_LIST_INIT(node->entry_list);
+	UT_LIST_INIT(node->entry_list, &dtuple_t::tuple_list);
 
 	/* We will include all indexes (include those corrupted
 	secondary indexes) in the entry list. Filteration of
@@ -125,7 +125,7 @@ ins_node_create_entry_list(
 		entry = row_build_index_entry(
 			node->row, NULL, index, node->entry_sys_heap);
 
-		UT_LIST_ADD_LAST(tuple_list, node->entry_list, entry);
+		UT_LIST_ADD_LAST(node->entry_list, entry);
 	}
 }
 

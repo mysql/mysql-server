@@ -430,9 +430,9 @@ void gtid_post_statement_checks(THD *thd)
     SET AUTOCOMMIT=1 statement is handled on Gtid_state::update_on_flush().
   */
   if (thd->variables.gtid_next.type == GTID_GROUP &&
+      thd->get_command() != COM_STMT_PREPARE &&
       (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) ||
-       (thd->lex->sql_command == SQLCOM_SET_OPTION &&
-        thd->lex->is_set_password_sql) ||
+       (sql_command == SQLCOM_SET_OPTION && thd->lex->is_set_password_sql) ||
        sql_command == SQLCOM_COMMIT ||
        sql_command == SQLCOM_ROLLBACK))
     thd->variables.gtid_next.set_undefined();

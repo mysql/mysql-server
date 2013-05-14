@@ -1284,7 +1284,7 @@ recv_add_to_hash_table(
 		recv_addr->page_no = page_no;
 		recv_addr->state = RECV_NOT_PROCESSED;
 
-		UT_LIST_INIT(recv_addr->rec_list);
+		UT_LIST_INIT(recv_addr->rec_list, &recv_t::rec_list);
 
 		HASH_INSERT(recv_addr_t, addr_hash, recv_sys->addr_hash,
 			    recv_fold(space, page_no), recv_addr);
@@ -1295,7 +1295,7 @@ recv_add_to_hash_table(
 #endif
 	}
 
-	UT_LIST_ADD_LAST(rec_list, recv_addr->rec_list, recv);
+	UT_LIST_ADD_LAST(recv_addr->rec_list, recv);
 
 	prev_field = &(recv->data);
 
