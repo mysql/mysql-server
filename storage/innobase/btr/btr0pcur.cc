@@ -42,13 +42,15 @@ btr_pcur_create_for_mysql(void)
 /*============================*/
 {
 	btr_pcur_t*	pcur;
+	DBUG_ENTER("btr_pcur_create_for_mysql");
 
 	pcur = (btr_pcur_t*) mem_alloc(sizeof(btr_pcur_t));
 
 	pcur->btr_cur.index = NULL;
 	btr_pcur_init(pcur);
 
-	return(pcur);
+	DBUG_PRINT("btr_pcur_create_for_mysql", ("pcur: %p", pcur));
+	DBUG_RETURN(pcur);
 }
 
 /**************************************************************//**
@@ -85,8 +87,12 @@ btr_pcur_free_for_mysql(
 /*====================*/
 	btr_pcur_t*	cursor)	/*!< in, own: persistent cursor */
 {
+	DBUG_ENTER("btr_pcur_free_for_mysql");
+	DBUG_PRINT("btr_pcur_free_for_mysql", ("pcur: %p", cursor));
+
 	btr_pcur_reset(cursor);
 	mem_free(cursor);
+	DBUG_VOID_RETURN;
 }
 
 /**************************************************************//**
