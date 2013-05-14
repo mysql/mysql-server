@@ -105,6 +105,7 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   this.autoinc      = null;
   this.buffers      = { 'row' : null, 'key' : null  };
   this.columnMask   = [];
+  this.scan         = {};
 
   stats.incr(["created",opcode]);
 };
@@ -270,6 +271,12 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
 }
 
 
+/* Prepare a scan operation.
+   This produces the scan filter and index bounds, which are stored in op.scan 
+   to protect them from garbage collecteion before their use in the async call.
+   A ScanHelperSpec is used to build a scan helper, which will run an async
+   prepareScan call.    
+*/
 DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   var opcode = 33;  // How to tell from operation?
   var boundHelper = null;
@@ -286,6 +293,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 //    boundHelper = getBoundHelper(this.query, this.keys);
 //    if(boundHelper) {
 //      scanHelper[bounds] = adapter.impl.IndexBound.create(boundHelper);
+//      this.scan.bounds = scanHelper[bounds];
 //    }
   }
 
@@ -300,6 +308,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   if(this.query.ndbFilterSpec) {
     scanSpec[ScanHelper.filter_code] = 
       this.query.ndbFilterSpec.getScanFilterCode(this.keys);  // call them params?
+    this.scan.filter = scanSpec[ScanHelper.filter_code];
   }
 
   this.state = doc.OperationStates[1];  // PREPARED
@@ -385,7 +394,6 @@ function buildValueObject(op) {
     process.exit();
   }
 }
-
 
 
 function getScanResults(scanop, userCallback) {
