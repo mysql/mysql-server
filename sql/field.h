@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1876,7 +1876,13 @@ public:
   int  store(longlong nr, bool unsigned_val);
   int  store_decimal(const my_decimal *);
   uint size_of() const { return sizeof(*this); }
-  int  reset(void) { return !maybe_null() || Field_blob::reset(); }
+
+  /**
+    Non-nullable GEOMETRY types cannot have defaults,
+    but the underlying blob must still be reset.
+   */
+  int reset(void) { return Field_blob::reset() || !maybe_null(); }
+
   geometry_type get_geometry_type() { return geom_type; };
   uint pack_length_from_metadata(uint field_metadata)
   {

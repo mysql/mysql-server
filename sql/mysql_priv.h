@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2459,6 +2459,11 @@ inline bool add_value_to_list(THD *thd, Item *value)
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
   return thd->lex->current_select->add_order_to_list(thd, item, asc);
+}
+
+inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
+{
+  return thd->lex->current_select->add_gorder_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)

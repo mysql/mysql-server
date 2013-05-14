@@ -1,5 +1,4 @@
-/* Copyright (c) 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -7327,10 +7326,10 @@ static int my_uca_charcmp(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 */
 
 static
-int my_wildcmp_uca(CHARSET_INFO *cs,
-		   const char *str,const char *str_end,
-		   const char *wildstr,const char *wildend,
-		   int escape, int w_one, int w_many)
+int my_wildcmp_uca_impl(CHARSET_INFO *cs,
+                        const char *str,const char *str_end,
+                        const char *wildstr,const char *wildend,
+                        int escape, int w_one, int w_many, int recurse_level)
 {
   int result= -1;			/* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
@@ -7338,7 +7337,9 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
   int (*mb_wc)(struct charset_info_st *, my_wc_t *,
                const uchar *, const uchar *);
   mb_wc= cs->cset->mb_wc;
-  
+
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level))
+    return 1;
   while (wildstr != wildend)
   {
     while (1)
@@ -7445,8 +7446,8 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
         if (str == str_end)
           return -1;
         
-        result= my_wildcmp_uca(cs, str, str_end, wildstr, wildend,
-        		       escape, w_one, w_many);
+        result= my_wildcmp_uca_impl(cs, str, str_end, wildstr, wildend,
+                                    escape, w_one, w_many, recurse_level+1);
         
         if (result <= 0)
           return result;
@@ -7456,6 +7457,16 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
     }
   }
   return (str != str_end ? 1 : 0);
+}
+
+int my_wildcmp_uca(CHARSET_INFO *cs,
+                   const char *str,const char *str_end,
+                   const char *wildstr,const char *wildend,
+                   int escape, int w_one, int w_many)
+{
+  return my_wildcmp_uca_impl(cs, str, str_end,
+                             wildstr, wildend,
+                             escape, w_one, w_many, 1);
 }
 
 
