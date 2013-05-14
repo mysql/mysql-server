@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -290,7 +290,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Msg_type", 10));
   item->maybe_null = 1;
-  field_list.push_back(item = new Item_empty_string("Msg_text", 255));
+  field_list.push_back(item = new Item_empty_string("Msg_text",
+                                                    SQL_ADMIN_MSG_TEXT_SIZE));
   item->maybe_null = 1;
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))

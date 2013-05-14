@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,9 @@ const LEX_STRING partition_keywords[]=
   { C_STRING_WITH_LEN("KEY") },
   { C_STRING_WITH_LEN("MAXVALUE") },
   { C_STRING_WITH_LEN("LINEAR ") },
-  { C_STRING_WITH_LEN(" COLUMNS") }
+  { C_STRING_WITH_LEN(" COLUMNS") },
+  { C_STRING_WITH_LEN("ALGORITHM") }
+
 };
 static const char *part_str= "PARTITION";
 static const char *sub_str= "SUB";
@@ -368,7 +370,7 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
   longlong old_func_value;
   DBUG_ENTER("get_parts_for_update");
 
-  DBUG_ASSERT(new_data == rec0);
+  DBUG_ASSERT(new_data == rec0);             // table->record[0]
   set_field_ptr(part_field_array, old_data, rec0);
   error= part_info->get_partition_id(part_info, old_part_id,
                                      &old_func_value);
@@ -526,12 +528,12 @@ static bool set_up_field_array(TABLE *table,
   }
   if (num_fields > MAX_REF_PARTS)
   {
-    char *ptr;
+    char *err_str;
     if (is_sub_part)
-      ptr= (char*)"subpartition function";
+      err_str= (char*)"subpartition function";
     else
-      ptr= (char*)"partition function";
-    my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0), ptr);
+      err_str= (char*)"partition function";
+    my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0), err_str);
     DBUG_RETURN(TRUE);
   }
   if (num_fields == 0)
@@ -2413,6 +2415,58 @@ end:
   return err;
 }
 
+
+/**
+  Add 'KEY' word, with optional 'ALGORTIHM = N'.
+
+  @param fptr                   File to write to.
+  @param part_info              partition_info holding the used key_algorithm
+  @param current_comment_start  NULL, or comment string encapsulating the
+                                PARTITION BY clause.
+
+  @return Operation status.
+    @retval 0    Success
+    @retval != 0 Failure
+*/
+
+static int add_key_with_algorithm(File fptr, partition_info *part_info,
+                                  const char *current_comment_start)
+{
+  int err= 0;
+  err+= add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
+
+  /*
+    current_comment_start is given when called from SHOW CREATE TABLE,
+    Then only add ALGORITHM = 1, not the default 2 or non-set 0!
+    For .frm current_comment_start is NULL, then add ALGORITHM if != 0.
+  */
+  if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51 || // SHOW
+      (!current_comment_start &&                                      // .frm
+       (part_info->key_algorithm != partition_info::KEY_ALGORITHM_NONE)))
+  {
+    /* If we already are within a comment, end that comment first. */
+    if (current_comment_start)
+      err+= add_string(fptr, "*/ ");
+    err+= add_string(fptr, "/*!50531 ");
+    err+= add_part_key_word(fptr, partition_keywords[PKW_ALGORITHM].str);
+    err+= add_equal(fptr);
+    err+= add_space(fptr);
+    err+= add_int(fptr, part_info->key_algorithm);
+    err+= add_space(fptr);
+    err+= add_string(fptr, "*/ ");
+    if (current_comment_start)
+    {
+      /* Skip new line. */
+      if (current_comment_start[0] == '\n')
+        current_comment_start++;
+      err+= add_string(fptr, current_comment_start);
+      err+= add_space(fptr);
+    }
+  }
+  return err;
+}
+
+
 /*
   Generate the partition syntax from the partition data structure.
   Useful for support of generating defaults, SHOW CREATE TABLES
@@ -2457,7 +2511,8 @@ char *generate_partition_syntax(partition_info *part_info,
                                 bool use_sql_alloc,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info)
+                                Alter_info *alter_info,
+                                const char *current_comment_start)
 {
   uint i,j, tot_num_parts, num_subparts;
   partition_element *part_elem;
@@ -2491,7 +2546,8 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
       if (part_info->list_of_part_fields)
       {
-        err+= add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
+        err+= add_key_with_algorithm(fptr, part_info,
+                                     current_comment_start);
         err+= add_part_field_list(fptr, part_info->part_field_list);
       }
       else
@@ -2531,8 +2587,9 @@ char *generate_partition_syntax(partition_info *part_info,
       err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
     if (part_info->list_of_subpart_fields)
     {
-      add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
-      add_part_field_list(fptr, part_info->subpart_field_list);
+      err+= add_key_with_algorithm(fptr, part_info,
+                                   current_comment_start);
+      err+= add_part_field_list(fptr, part_info->subpart_field_list);
     }
     else
       err+= add_part_key_word(fptr, partition_keywords[PKW_HASH].str);
@@ -2749,10 +2806,82 @@ static uint32 calculate_key_value(Field **field_array)
 {
   ulong nr1= 1;
   ulong nr2= 4;
+  bool use_51_hash;
+  use_51_hash= test((*field_array)->table->part_info->key_algorithm ==
+                    partition_info::KEY_ALGORITHM_51);
 
   do
   {
     Field *field= *field_array;
+    if (use_51_hash)
+    {
+      switch (field->real_type()) {
+      case MYSQL_TYPE_TINY:
+      case MYSQL_TYPE_SHORT:
+      case MYSQL_TYPE_LONG:
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_DOUBLE:
+      case MYSQL_TYPE_NEWDECIMAL:
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_INT24:
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_YEAR:
+      case MYSQL_TYPE_NEWDATE:
+        {
+          if (field->is_null())
+          {
+            nr1^= (nr1 << 1) | 1;
+            continue;
+          }
+          /* Force this to my_hash_sort_bin, which was used in 5.1! */
+          uint len= field->pack_length();
+          my_charset_bin.coll->hash_sort(&my_charset_bin, field->ptr, len,
+                                         &nr1, &nr2);
+          /* Done with this field, continue with next one. */
+          continue;
+        }
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_BIT:
+        /* Not affected, same in 5.1 and 5.5 */
+        break;
+      /*
+        ENUM/SET uses my_hash_sort_simple in 5.1 (i.e. my_charset_latin1)
+        and my_hash_sort_bin in 5.5!
+      */
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET:
+        {
+          if (field->is_null())
+          {
+            nr1^= (nr1 << 1) | 1;
+            continue;
+          }
+          /* Force this to my_hash_sort_bin, which was used in 5.1! */
+          uint len= field->pack_length();
+          my_charset_latin1.coll->hash_sort(&my_charset_latin1, field->ptr,
+                                            len, &nr1, &nr2);
+          continue;
+        }
+      /* These types should not be allowed for partitioning! */
+      case MYSQL_TYPE_NULL:
+      case MYSQL_TYPE_DECIMAL:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_GEOMETRY:
+        /* fall through. */
+      default:
+        DBUG_ASSERT(0);                    // New type?
+        /* Fall through for default hashing (5.5). */
+      }
+      /* fall through, use collation based hashing. */
+    }
     field->hash(&nr1, &nr2);
   } while (*(++field_array));
   return (uint32) nr1;
@@ -5597,13 +5726,24 @@ the generated partition syntax in a correct manner.
         Need to cater for engine types that can handle partition without
         using the partition handler.
       */
-      if (thd->work_part_info != table->part_info)
+      if (part_info != table->part_info)
       {
-        DBUG_PRINT("info", ("partition changed"));
-        *partition_changed= TRUE;
-        if (thd->work_part_info->fix_parser_data(thd))
+        if (part_info->fix_parser_data(thd))
         {
           goto err;
+        }
+        /*
+          Compare the old and new part_info. If only key_algorithm
+          change is done, don't consider it as changed partitioning (to avoid
+          rebuild). This is to handle KEY (numeric_cols) partitioned tables
+          created in 5.1. For more info, see bug#14521864.
+        */
+        if (alter_info->flags != ALTER_PARTITION ||
+            !table->part_info ||
+            !table->part_info->has_same_partitioning(part_info))
+        {
+          DBUG_PRINT("info", ("partition changed"));
+          *partition_changed= true;
         }
       }
       /*
@@ -7161,7 +7301,8 @@ void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
 
 void mem_alloc_error(size_t size)
 {
-  my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(size));
+  my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+           static_cast<int>(size));
 }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -7248,12 +7389,12 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
     definition)
 
   IMPLEMENTATION
-    There are two available interval analyzer functions:
-    (1) get_part_iter_for_interval_via_mapping 
+    There are three available interval analyzer functions:
+    (1) get_part_iter_for_interval_via_mapping
     (2) get_part_iter_for_interval_cols_via_map 
     (3) get_part_iter_for_interval_via_walking
 
-    They both have limited applicability:
+    They all have limited applicability:
     (1) is applicable for "PARTITION BY <RANGE|LIST>(func(t.field))", where
     func is a monotonic function.
 
@@ -7626,6 +7767,9 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   get_endpoint_func  UNINIT_VAR(get_endpoint);
   bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
+  MYSQL_TIME start_date;
+  bool check_zero_dates= false;
+  bool zero_in_start_date= true;
   DBUG_ENTER("get_part_iter_for_interval_via_mapping");
   DBUG_ASSERT(!is_subpart);
   (void) store_length_array;
@@ -7682,6 +7826,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     {
       /* col is NOT NULL, but F(col) can return NULL, add NULL partition */
       part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+      check_zero_dates= true;
     }
   }
 
@@ -7725,6 +7870,19 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
         DBUG_RETURN(1);
       }
       part_iter->part_nums.cur= part_iter->part_nums.start;
+      if (check_zero_dates && !part_info->part_expr->null_value)
+      {
+        if (!(flags & NO_MAX_RANGE) &&
+            (field->type() == MYSQL_TYPE_DATE ||
+             field->type() == MYSQL_TYPE_DATETIME))
+        {
+          /* Monotonic, but return NULL for dates with zeros in month/day. */
+          zero_in_start_date= field->get_date(&start_date, 0);
+          DBUG_PRINT("info", ("zero start %u %04d-%02d-%02d",
+                              zero_in_start_date, start_date.year,
+                              start_date.month, start_date.day));
+        }
+      }
       if (part_iter->part_nums.start == max_endpoint_val)
         DBUG_RETURN(0); /* No partitions */
     }
@@ -7738,6 +7896,29 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     store_key_image_to_rec(field, max_value, field_len);
     bool include_endp= !test(flags & NEAR_MAX);
     part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
+    if (check_zero_dates &&
+        !zero_in_start_date &&
+        !part_info->part_expr->null_value)
+    {
+      MYSQL_TIME end_date;
+      bool zero_in_end_date= field->get_date(&end_date, 0);
+      /*
+        This is an optimization for TO_DAYS()/TO_SECONDS() to avoid scanning
+        the NULL partition for ranges that cannot include a date with 0 as
+        month/day.
+      */
+      DBUG_PRINT("info", ("zero end %u %04d-%02d-%02d",
+                          zero_in_end_date,
+                          end_date.year, end_date.month, end_date.day));
+      DBUG_ASSERT(!memcmp(((Item_func*) part_info->part_expr)->func_name(),
+                          "to_days", 7) ||
+                  !memcmp(((Item_func*) part_info->part_expr)->func_name(),
+                          "to_seconds", 10));
+      if (!zero_in_end_date &&
+          start_date.month == end_date.month &&
+          start_date.year == end_date.year)
+        part_iter->ret_null_part= part_iter->ret_null_part_orig= false;
+    }
     if (part_iter->part_nums.start >= part_iter->part_nums.end &&
         !part_iter->ret_null_part)
       DBUG_RETURN(0); /* No partitions */

@@ -697,9 +697,11 @@ sub run_test_server ($$$) {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
               #saving the log file as filename.failed in case of retry
-              my $worker_logdir= $result->{savedir};
-              my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
-              rename $log_file_name,$log_file_name.".failed";
+              if ( $result->is_failed() ) {
+                my $worker_logdir= $result->{savedir};
+                my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
+                rename $log_file_name,$log_file_name.".failed";
+              }
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -4031,6 +4033,7 @@ sub resfile_report_test ($) {
 
 sub run_testcase ($) {
   my $tinfo=  shift;
+  my $print_freq=20;
 
   mtr_verbose("Running test:", $tinfo->{name});
   resfile_report_test($tinfo) if $opt_resfile;
@@ -4190,6 +4193,7 @@ sub run_testcase ($) {
   my $test= start_mysqltest($tinfo);
   # Set only when we have to keep waiting after expectedly died server
   my $keep_waiting_proc = 0;
+  my $print_timeout= start_timer($print_freq * 60);
 
   while (1)
   {
@@ -4214,7 +4218,22 @@ sub run_testcase ($) {
     }
     if (! $keep_waiting_proc)
     {
-      $proc= My::SafeProcess->wait_any_timeout($test_timeout);
+      if($test_timeout > $print_timeout)
+      {
+         $proc= My::SafeProcess->wait_any_timeout($print_timeout);
+         if ( $proc->{timeout} )
+         {
+            #print out that the test is still on
+            mtr_print("Test still running: $tinfo->{name}");
+            #reset the timer
+            $print_timeout= start_timer($print_freq * 60);
+            next;
+         }
+      }
+      else
+      {
+         $proc= My::SafeProcess->wait_any_timeout($test_timeout);
+      }
     }
 
     # Will be restored if we need to keep waiting

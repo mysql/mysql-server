@@ -4126,7 +4126,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (lower_case_table_names && db)
   {
-    strmov(tmp_db,db);
+    strnmov(tmp_db,db,NAME_LEN);
+    tmp_db[NAME_LEN]= '\0';
     my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
