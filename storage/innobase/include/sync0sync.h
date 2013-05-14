@@ -114,6 +114,8 @@ extern mysql_pfs_key_t	sync_thread_mutex_key;
 extern mysql_pfs_key_t	buf_dblwr_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
+extern mysql_pfs_key_t	trx_pool_mutex_key;
+extern mysql_pfs_key_t	trx_pools_mutex_key;
 extern mysql_pfs_key_t	lock_mutex_key;
 extern mysql_pfs_key_t	lock_wait_mutex_key;
 extern mysql_pfs_key_t	trx_sys_mutex_key;
@@ -725,6 +727,8 @@ or row lock! */
 #define	SYNC_BUF_BLOCK		146	/* Block mutex */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140
+#define SYNC_POOL_MANAGER	139
+#define SYNC_POOL		138
 #define	SYNC_ANY_LATCH		135
 #define	SYNC_MEM_HASH		131
 #define	SYNC_MEM_POOL		130
@@ -802,9 +806,9 @@ extern ibool	sync_order_checks_on;
 extern ibool	sync_initialized;
 
 /** Global list of database mutexes (not OS mutexes) created. */
-typedef UT_LIST_BASE_NODE_T(ib_mutex_t)  ut_list_base_node_t;
+typedef UT_LIST_BASE_NODE_T(ib_mutex_t) mutex_list_t;
 /** Global list of database mutexes (not OS mutexes) created. */
-extern ut_list_base_node_t  mutex_list;
+extern mutex_list_t mutex_list;
 
 /** Mutex protecting the mutex_list variable */
 extern ib_mutex_t mutex_list_mutex;

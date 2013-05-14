@@ -307,32 +307,6 @@ my_pipe_sig_handler(int sig __attribute__((unused)))
 
 
 /**************************************************************************
-  Connect to sql server
-  If host == 0 then use localhost
-**************************************************************************/
-
-#ifdef USE_OLD_FUNCTIONS
-MYSQL * STDCALL
-mysql_connect(MYSQL *mysql,const char *host,
-	      const char *user, const char *passwd)
-{
-  MYSQL *res;
-  mysql=mysql_init(mysql);			/* Make it thread safe */
-  {
-    DBUG_ENTER("mysql_connect");
-    if (!(res=mysql_real_connect(mysql,host,user,passwd,NullS,0,NullS,0)))
-    {
-      if (mysql->free_me)
-	my_free(mysql);
-    }
-    mysql->reconnect= 1;
-    DBUG_RETURN(res);
-  }
-}
-#endif
-
-
-/**************************************************************************
   Change user and database
 **************************************************************************/
 
@@ -863,26 +837,6 @@ mysql_list_processes(MYSQL *mysql)
   mysql->field_count=field_count;
   DBUG_RETURN(mysql_store_result(mysql));
 }
-
-
-#ifdef USE_OLD_FUNCTIONS
-int  STDCALL
-mysql_create_db(MYSQL *mysql, const char *db)
-{
-  DBUG_ENTER("mysql_createdb");
-  DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_CREATE_DB,db, (ulong) strlen(db),0));
-}
-
-
-int  STDCALL
-mysql_drop_db(MYSQL *mysql, const char *db)
-{
-  DBUG_ENTER("mysql_drop_db");
-  DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_DROP_DB,db,(ulong) strlen(db),0));
-}
-#endif
 
 
 int STDCALL
