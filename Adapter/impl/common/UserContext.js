@@ -529,7 +529,7 @@ function checkOperation(err, dbOperation) {
   if (err) {
     return err;
   } else if (!dbOperation.result.success) {
-    var code = dbOperation.result.error.code;
+    var code = dbOperation.result.error.sqlstate;
     return new Error('Operation error: ' + code);
   } else {
     return null;
