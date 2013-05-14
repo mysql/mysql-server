@@ -4884,7 +4884,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   */
   PSI_digest_storage *digest_storage= NULL;
   PFS_statement_stat *digest_stat= NULL;
-  PFS_program_stat *program_stat= NULL;
+  PFS_program *pfs_program= NULL;
 
   if (flags & STATE_FLAG_THREAD)
   {
@@ -4949,12 +4949,12 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         digest_copy(& pfs->m_digest_storage, digest_storage);
       }
     
-      program_stat= find_or_create_program(thread,
+      pfs_program= find_or_create_program(thread,
                                            pfs->m_sp_type,
                                            pfs->m_object_name,
                                            pfs->m_object_name_length,
                                            pfs->m_schema_name,
-                                           pfs->m_schema_name_length);
+                                           pfs->m_schema_name_length, false);
 
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
@@ -5045,10 +5045,10 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     digest_stat->m_no_good_index_used+= state->m_no_good_index_used;
   }
 
-  if(program_stat != NULL)
+  if(pfs_program != NULL)
   {
     PFS_statement_stat *sub_stmt_stat= NULL;
-    sub_stmt_stat= &program_stat->m_stmt_stat;
+    sub_stmt_stat= &pfs_program->m_stmt_stat;
     if(sub_stmt_stat != NULL)
     {
       if (flags & STATE_FLAG_TIMED)
@@ -5091,10 +5091,10 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         digest_stat->m_rows_affected+= da->affected_rows();
         digest_stat->m_warning_count+= da->last_statement_cond_count();
       }
-      if(program_stat != NULL)
+      if(pfs_program != NULL)
       {
-        program_stat->m_stmt_stat.m_rows_affected+= da->affected_rows();
-        program_stat->m_stmt_stat.m_warning_count+=
+        pfs_program->m_stmt_stat.m_rows_affected+= da->affected_rows();
+        pfs_program->m_stmt_stat.m_warning_count+=
                                                da->last_statement_cond_count();
       }
       break;
@@ -5104,9 +5104,9 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         digest_stat->m_warning_count+= da->last_statement_cond_count();
       }
-      if(program_stat != NULL)
+      if(pfs_program != NULL)
       {
-        program_stat->m_stmt_stat.m_warning_count+= 
+        pfs_program->m_stmt_stat.m_warning_count+= 
                                                da->last_statement_cond_count();
       }
       break;
@@ -5116,9 +5116,9 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         digest_stat->m_error_count++;
       }
-      if(program_stat != NULL)
+      if(pfs_program != NULL)
       {
-        program_stat->m_stmt_stat.m_error_count++;
+        pfs_program->m_stmt_stat.m_error_count++;
       }
       break;
     case Diagnostics_area::DA_DISABLED:
@@ -5185,19 +5185,19 @@ void pfs_end_sp_v1(PSI_sp_locker *locker)
   }
 
   /* Now use this timer_end and wait_time for timing information. */
-  PFS_program_stat *program_stat= NULL;
+  PFS_program *pfs_program= NULL;
   PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
   enum enum_object_type object_type= (enum_object_type)state->m_object_type;
 
-  program_stat= find_or_create_program(thread,
+  pfs_program= find_or_create_program(thread,
                                        object_type,
                                        state->m_object_name,
                                        state->m_object_name_length,
                                        state->m_schema_name,
-                                       state->m_schema_name_length);
-  if(program_stat != NULL)
+                                       state->m_schema_name_length, true);
+  if(pfs_program != NULL)
   {
-    PFS_sp_stat *stat= &program_stat->m_sp_stat;
+    PFS_sp_stat *stat= &pfs_program->m_sp_stat;
     if (state->m_timed)
     {
       stat->aggregate_value(wait_time);
