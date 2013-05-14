@@ -2046,8 +2046,8 @@ try_insert:
 		reorganizing it will not help. */
 	} else if (log_compressed && !reorg_first) {
 		/* Insert into uncompressed page only, and
-		try page_zip_reorganize() afterwards. */
-	} else if (reorganize(recv_recovery_is_on(), level)) {
+		try reorganize() afterwards. */
+	} else if (reorganize(recv_recovery_is_on(), true, level)) {
 		ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 		if (page_zip_available(
 			    page_zip, dict_index_is_clust(m_index),
@@ -2092,9 +2092,6 @@ try_insert:
 		MLOG_ZIP_PAGE_COMPRESS_NO_DATA,
 		which should succeed. */
 	} else {
-		ulint	pos = page_rec_get_n_recs_before(insert_rec);
-		ut_ad(pos > 0);
-
 		if (!log_compressed) {
 			if (page_zip_compress(
 				    page_zip, page, m_index,
@@ -2105,15 +2102,16 @@ try_insert:
 				return(insert_rec);
 			}
 
-			ut_ad(m_rec == page_rec_get_nth(page, pos - 1));
+			/* Out of space: restore the page */
+			if (!page_zip_decompress(page_zip, page, FALSE)) {
+				ut_error; /* Memory corrupted? */
+			}
+			ut_ad(page_validate(m_block, m_index));
 		} else {
 			/* We are writing entire page images
 			to the log. Reduce the redo log volume
 			by reorganizing the page at the same time. */
-			if (page_zip_reorganize(m_block, m_index, m_mtr)) {
-				/* The page was reorganized:
-				Seek to pos. */
-				m_rec = page_rec_get_nth(page, pos - 1);
+			if (reorganize(false, false, level)) {
 				return(page + rec_get_next_offs(m_rec, TRUE));
 			}
 
@@ -2127,11 +2125,6 @@ try_insert:
 			the insert of this record? */
 		}
 
-		/* Out of space: restore the page */
-		if (!page_zip_decompress(page_zip, page, FALSE)) {
-			ut_error; /* Memory corrupted? */
-		}
-		ut_ad(page_validate(m_block, m_index));
 		return(NULL);
 	}
 
@@ -2473,7 +2466,7 @@ PageCur::insert(const dtuple_t* tuple, ulint n_ext)
 		have been attempted by PageCur::insertZip(). */
 		ut_ad(!getPageZip());
 
-		if (reorganize()) {
+		if (reorganize(false, false, 0)) {
 			ins_rec = insertNoZip(rec, extra_size, data_size);
 		}
 	}
@@ -2526,13 +2519,6 @@ PageCur::zipAlloc(bool create)
 		return(false);
 	}
 
-	if (create && page_is_leaf(page)
-	    && (length + page_get_data_size(page)
-		>= dict_index_zip_pad_optimal_page_size(
-			const_cast<dict_index_t*>(m_index)))) {
-		return(false);
-	}
-
 	/* After recompressing a page, we must make sure that the free
 	bits in the insert buffer bitmap will not exceed the free
 	space on the page. Because we will not attempt recompression
@@ -2540,12 +2526,21 @@ PageCur::zipAlloc(bool create)
 	the free bits if page_zip_available() fails again, below. The
 	free bits can safely be reset in a separate mini-transaction.
 	If page_zip_available() succeeds below, we can be sure that
-	the btr_page_reorganize() above did not reduce the free space
+	the reorganize() below did not reduce the free space
 	available on the page. */
 
-	if (reorganize() && page_zip_available(
-		    page_zip, dict_index_is_clust(m_index), length, create)) {
-		return(true);
+	if (!create
+	    || !page_is_leaf(page)
+	    || (length + page_get_data_size(page)
+		< dict_index_zip_pad_optimal_page_size(
+			const_cast<dict_index_t*>(m_index)))) {
+
+		if (reorganize(false, true, page_zip_level)
+		    && page_zip_available(
+			    page_zip, dict_index_is_clust(m_index),
+			    length, create)) {
+			return(true);
+		}
 	}
 
 	/* Out of space: reset the free bits. */
@@ -2968,6 +2963,10 @@ PageCur::purge()
 
 NOTE: m_mtr must not be NULL.
 
+NOTE: m_rec must be positioned on a record that exists on both
+the uncompressed page and the uncompressed copy of the
+compressed page.
+
 IMPORTANT: On success, the caller will have to update
 IBUF_BITMAP_FREE if this is a compressed leaf page in a
 secondary index. This has to be done either within m_mtr, or
@@ -2975,14 +2974,18 @@ by invoking ibuf_reset_free_bits() before
 mtr_commit(m_mtr). On uncompressed pages, IBUF_BITMAP_FREE is
 unaffected by reorganization.
 
-@param[in] recovery true if called in recovery:
+@param[in]	recovery	true if called in recovery:
 locks and adaptive hash index will not be updated on recovery
-@param[in] z_level	compression level, for compressed pages
+@param[in]	zip_valid	true if the compressed page corresponds
+to the uncompressed page
+@param[in]	z_level		compression level, for compressed pages
 @retval true if the operation was successful
-@retval false if it is a compressed page, and recompression failed */
+@retval false if it is a compressed page, and recompression failed
+(the page will be restored to correspond to the compressed page,
+and the cursor will be positioned on the page infimum) */
 UNIV_INTERN
 bool
-PageCur::reorganize(bool recovery, ulint z_level)
+PageCur::reorganize(bool recovery, bool zip_valid, ulint z_level)
 {
 #ifndef UNIV_HOTBACKUP
 	buf_pool_t*	buf_pool	= buf_pool_from_bpage(&m_block->page);
@@ -3002,7 +3005,7 @@ PageCur::reorganize(bool recovery, ulint z_level)
 
 	ut_ad(m_mtr);
 	ut_ad(isMutable());
-	page_zip_validate_if_zip(page_zip, page, m_index);
+	page_zip_validate_if_zip(zip_valid ? page_zip : 0, page, m_index);
 	data_size1 = page_get_data_size(page);
 	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
 
@@ -3076,25 +3079,32 @@ PageCur::reorganize(bool recovery, ulint z_level)
 
 		/* Restore the old page and exit. */
 
+		if (zip_valid) {
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-		/* Check that the bytes that we skip are identical. */
-		ut_a(!memcmp(page, temp_page, PAGE_HEADER));
-		ut_a(!memcmp(PAGE_HEADER + PAGE_N_RECS + page,
-			     PAGE_HEADER + PAGE_N_RECS + temp_page,
-			     PAGE_DATA - (PAGE_HEADER + PAGE_N_RECS)));
-		ut_a(!memcmp(UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + page,
-			     UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + temp_page,
-			     FIL_PAGE_DATA_END));
+			/* Check that the bytes that we skip are identical. */
+			ut_a(!memcmp(page, temp_page, PAGE_HEADER));
+			ut_a(!memcmp(PAGE_HEADER + PAGE_N_RECS + page,
+				     PAGE_HEADER + PAGE_N_RECS + temp_page,
+				     PAGE_DATA - (PAGE_HEADER + PAGE_N_RECS)));
+			ut_a(!memcmp(UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + page,
+				     UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
+				     + temp_page, FIL_PAGE_DATA_END));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
-		memcpy(PAGE_HEADER + page, PAGE_HEADER + temp_page,
-		       PAGE_N_RECS - PAGE_N_DIR_SLOTS);
-		memcpy(PAGE_DATA + page, PAGE_DATA + temp_page,
-		       UNIV_PAGE_SIZE - PAGE_DATA - FIL_PAGE_DATA_END);
+			memcpy(PAGE_HEADER + page, PAGE_HEADER + temp_page,
+			       PAGE_N_RECS - PAGE_N_DIR_SLOTS);
+			memcpy(PAGE_DATA + page, PAGE_DATA + temp_page,
+			       UNIV_PAGE_SIZE - PAGE_DATA - FIL_PAGE_DATA_END);
 
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-		ut_a(!memcmp(page, temp_page, UNIV_PAGE_SIZE));
+			ut_a(!memcmp(page, temp_page, UNIV_PAGE_SIZE));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+		} else {
+			if (!page_zip_decompress(page_zip, page, FALSE)) {
+				ut_error;
+			}
+			ut_ad(page_validate(m_block, m_index));
+		}
 
 		goto func_exit;
 	}
