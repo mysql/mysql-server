@@ -4342,6 +4342,82 @@ drop table scan_count;
 connection ddl;
 drop table t1;
 
+
+--echo 5.6 tests
+#######################################
+# MySQL 5.6 include improved optimizer
+# handling of subqueries. Some specific
+# test for handling limitations / problems
+# specific to these features
+
+##############
+# Bug #16664035
+# PUSHED JOIN TOGETHER WITH 'FIRSTMATCH' STRATEGY MAY RETURN TOO MANY ROWS
+
+connection ddl;
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`),
+  key(c), key(d)
+) engine=ndbcluster;
+
+connection spj;
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+# Use debug hook to enforce only 4 rows in each batch (Two roundtips)
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+# Make use of FirstMatch more likely:
+set optimizer_switch='materialization=off';
+
+# 'subq' should use 'ref, FirstMatch(t1)', preventing join pushdown
+explain extended
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq);
+select count(*) from t1 where
+  t1.c in (select c from t1 as subq);
+
+explain extended
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq1) and
+  t1.d in (select d from t1 as subq2);
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq1) and
+  t1.d in (select d from t1 as subq2);
+
+explain extended
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq1 where 
+    subq1.c in (select c from t1 as subq2));
+select count(*) from t1 where 
+  t1.c in (select c from t1 as subq1 where 
+    subq1.c in (select c from t1 as subq2));
+
+explain extended
+select count(*) from t1 where 
+  t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
+select count(*) from t1 where 
+  t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
+
+set optimizer_switch='materialization=default';
+
+--error 0,1193
+set global debug=@save_debug;
+
+connection ddl;
+drop table t1;
+
+
+
 ########################################
 # Verify DBSPJ counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'

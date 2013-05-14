@@ -48,7 +48,7 @@ do                                                                \
   if (unlikely(current_thd->lex->describe & DESCRIBE_EXTENDED))   \
   {                                                               \
     push_warning_printf(current_thd,                              \
-                        Sql_condition::WARN_LEVEL_NOTE, ER_YES,     \
+                        Sql_condition::WARN_LEVEL_NOTE, ER_YES,   \
                         (msgfmt), __VA_ARGS__);                   \
   }                                                               \
 }                                                                 \
@@ -279,6 +279,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
   m_join_root(),
   m_join_scope(),
   m_const_scope(),
+  m_firstmatch_skipped(),
   m_internal_op_count(0),
   m_fld_refs(0),
   m_builder(NULL)
@@ -339,8 +340,26 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
                           table->get_table()->alias, reason);
         }
         break;
+      } //switch
+
+      /**
+       * FirstMatch algorithm may skip further nested-loop evaluation
+       * if this, and possible a number of previous tables.
+       * Aggregate into the bitmap 'm_firstmatch_skipped' those tables
+       * which 'FirstMatch' usage may possible skip.
+       */
+      const AQP::Table_access* const firstmatch_last_skipped=
+        table->get_firstmatch_last_skipped();
+      if (firstmatch_last_skipped)
+      {
+        const uint last_skipped_tab= firstmatch_last_skipped->get_access_no();
+        DBUG_ASSERT(last_skipped_tab <= i);
+        for (uint skip_tab= last_skipped_tab; skip_tab <= i; skip_tab++)
+        {
+          m_firstmatch_skipped.add(skip_tab); 
+        }
       }
-    }
+    } //for 'all tables'
 
     m_tables[0].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
     m_tables[count-1].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
@@ -684,11 +703,13 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
         DBUG_RETURN(false);
       }
 
-      if (key_item->type() == Item::FIELD_ITEM)
-      {
-        uint referred_table_no= get_table_no(key_item);
-        current_parents.add(referred_table_no);
-      }
+      /**
+       * Calculate 'current_parents' as the set of tables
+       * currently being referred by some 'key_item'.
+       */
+      DBUG_ASSERT(key_item == table->get_key_field(key_part_no));
+      DBUG_ASSERT(key_item->type() == Item::FIELD_ITEM);
+      current_parents.add(get_table_no(key_item));
 
       /**
        * Calculate 'common_parents' as the set of possible 'field_parents'
@@ -753,9 +774,10 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
      * Where 'predicate' cannot be pushed to the ndb. The ndb api may then
      * return:
      * +---------+---------+
-     * | t1.row1 | t2.row1 | 
+     * | t1.row1 | t2.row1 | (First batch)
      * | t1.row2 | t2.row1 | 
-     * | t1.row1 | t2.row2 |
+     * ..... (NextReq).....
+     * | t1.row1 | t2.row2 | (Next batch)
      * +---------+---------+
      * Now assume that all rows but [t1.row1, t2.row1] satisfies 'predicate'.
      * mysqld would be confused since the rows are not grouped on t1 values.
@@ -777,6 +799,37 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
                        m_join_root->get_table()->alias);
       DBUG_RETURN(false);
     }
+
+    /**
+     * 'FirstMatch' is not allowed to skip over a scan-child.
+     * The reason is similar to the outer joined scan-scan above:
+     *
+     * Scan-scan result may return the same ancestor-scan rowset
+     * multiple times when rowset from child scan has to be fetched
+     * in multiple batches (as above).
+     *
+     * When a 'FirstMatch' skip remaining rows in a scan-child,
+     * the Nested Loop (NL) will also advance to the next ancestor
+     * row. However, due to child scan requiring multiple batches
+     * the same ancestor row will reappear in the next batch!
+     */
+    if (m_firstmatch_skipped.contain(tab_no))
+    {
+      EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
+                      "'FirstMatch' not allowed to contain scan-child",
+                       table->get_table()->alias,
+                       m_join_root->get_table()->alias);
+
+      m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently dissable
+      DBUG_RETURN(false);
+    }
+
+    /**
+     * Note, for both 'outer join' and 'FirstMatch' restriction above:
+     * The restriction could have been lifted if we could
+     * somehow ensure that all rows from a child scan are fetched
+     * before we move to the next ancestor row.
+     */
   } // scan operation
 
   /**
