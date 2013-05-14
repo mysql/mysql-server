@@ -296,7 +296,7 @@ function clusterDefinitionSetup() {
     dojo.connect(cd_apparea, "onChange", saveClusterDefinition);
     var cd_apparea_tt = new dijit.Tooltip({
         connectId: ["cd_apparea", "cd_apparea_qm"],
-        label: "Intented use of the application. \
+        label: "Intended use of the application. \
                 This information is used for determining the appropriate \
                 value of various configuration parameters."
     });
