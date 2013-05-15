@@ -6877,10 +6877,82 @@ uint32 ha_partition::calculate_key_hash_value(Field **field_array)
 {
   ulong nr1= 1;
   ulong nr2= 4;
+  bool use_51_hash;
+  use_51_hash= test((*field_array)->table->part_info->key_algorithm ==
+                    partition_info::KEY_ALGORITHM_51);
 
   do
   {
     Field *field= *field_array;
+    if (use_51_hash)
+    {
+      switch (field->real_type()) {
+      case MYSQL_TYPE_TINY:
+      case MYSQL_TYPE_SHORT:
+      case MYSQL_TYPE_LONG:
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_DOUBLE:
+      case MYSQL_TYPE_NEWDECIMAL:
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_INT24:
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_YEAR:
+      case MYSQL_TYPE_NEWDATE:
+        {
+          if (field->is_null())
+          {
+            nr1^= (nr1 << 1) | 1;
+            continue;
+          }
+          /* Force this to my_hash_sort_bin, which was used in 5.1! */
+          uint len= field->pack_length();
+          my_charset_bin.coll->hash_sort(&my_charset_bin, field->ptr, len,
+                                         &nr1, &nr2);
+          /* Done with this field, continue with next one. */
+          continue;
+        }
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_BIT:
+        /* Not affected, same in 5.1 and 5.5 */
+        break;
+      /*
+        ENUM/SET uses my_hash_sort_simple in 5.1 (i.e. my_charset_latin1)
+        and my_hash_sort_bin in 5.5!
+      */
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET:
+        {
+          if (field->is_null())
+          {
+            nr1^= (nr1 << 1) | 1;
+            continue;
+          }
+          /* Force this to my_hash_sort_bin, which was used in 5.1! */
+          uint len= field->pack_length();
+          my_charset_latin1.coll->hash_sort(&my_charset_latin1, field->ptr,
+                                            len, &nr1, &nr2);
+          continue;
+        }
+      /* These types should not be allowed for partitioning! */
+      case MYSQL_TYPE_NULL:
+      case MYSQL_TYPE_DECIMAL:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_GEOMETRY:
+        /* fall through. */
+      default:
+        DBUG_ASSERT(0);                    // New type?
+        /* Fall through for default hashing (5.5). */
+      }
+      /* fall through, use collation based hashing. */
+    }
     field->hash(&nr1, &nr2);
   } while (*(++field_array));
   return (uint32) nr1;
