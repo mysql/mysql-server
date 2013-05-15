@@ -825,7 +825,6 @@ Log the operation if page_zip_compress_dbg is set.
 @param[in]	n_dense		size of recs[]
 @param[in]	index		B-tree index
 @param[in/out]	storage		end of dense page directory
-@param[in/out]	heap		temporary memory heap
 @return	Z_OK, or a zlib error code */
 static
 int
@@ -835,23 +834,21 @@ page_zip_compress_node_ptrs(
 	const rec_t**		recs,
 	ulint			n_dense,
 	const dict_index_t*	index,
-	byte*			storage,
-	mem_heap_t*		heap)
+	byte*			storage)
 {
 	int	err	= Z_OK;
-	ulint*	offsets = NULL;
 
 	do {
-		const rec_t*	rec = *recs++;
+		const rec_t*	rec	= *recs++;
+		ulint		extra;
+		ulint		n_ext;
+		const ulint	data	= rec_get_size_comp(
+			rec, index, extra, &n_ext);
 
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
 		/* Only leaf nodes may contain externally stored columns. */
-		ut_ad(!rec_offs_any_extern(offsets));
+		ut_ad(!n_ext);
 
-		UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
-		UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
-				   rec_offs_extra_size(offsets));
+		UNIV_MEM_ASSERT_RW(rec - extra, extra + data);
 
 		/* Compress the extra bytes. */
 		c_stream->avail_in = rec - REC_N_NEW_EXTRA_BYTES
@@ -867,8 +864,7 @@ page_zip_compress_node_ptrs(
 
 		/* Compress the data bytes, except node_ptr. */
 		c_stream->next_in = (byte*) rec;
-		c_stream->avail_in = rec_offs_data_size(offsets)
-			- REC_NODE_PTR_SIZE;
+		c_stream->avail_in = data - REC_NODE_PTR_SIZE;
 
 		if (c_stream->avail_in) {
 			err = deflate(c_stream, Z_NO_FLUSH);
@@ -1405,7 +1401,7 @@ page_zip_compress(
 		/* This is a node pointer page. */
 		err = page_zip_compress_node_ptrs(LOGFILE
 						  &c_stream, recs, n_dense,
-						  index, storage, heap);
+						  index, storage);
 		if (UNIV_UNLIKELY(err != Z_OK)) {
 			goto zlib_error;
 		}
@@ -2048,15 +2044,9 @@ page_zip_apply_log(
 
 		if (val & 1) {
 			/* Clear the data bytes of the record. */
-			mem_heap_t*	heap	= NULL;
-			ulint*		offs;
-			offs = rec_get_offsets(rec, index, offsets,
-					       ULINT_UNDEFINED, &heap);
-			memset(rec, 0, rec_offs_data_size(offs));
-
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
+			ulint	extra;
+			ulint	data	= rec_get_size_comp(rec, index, extra);
+			memset(rec, 0, data);
 			continue;
 		}
 
@@ -2175,8 +2165,7 @@ page_zip_decompress_node_ptrs(
 					sorted by address */
 	ulint		n_dense,	/*!< in: size of recs[] */
 	dict_index_t*	index,		/*!< in: the index of the page */
-	ulint*		offsets,	/*!< in/out: temporary offsets */
-	mem_heap_t*	heap)		/*!< in: temporary memory heap */
+	ulint*		offsets)	/*!< in/out: temporary offsets */
 {
 	ulint		heap_status = REC_STATUS_NODE_PTR
 		| PAGE_HEAP_NO_USER_LOW << REC_HEAP_NO_SHIFT;
@@ -2221,17 +2210,17 @@ page_zip_decompress_node_ptrs(
 		mach_write_to_2(rec - REC_NEW_HEAP_NO, heap_status);
 		heap_status += 1 << REC_HEAP_NO_SHIFT;
 
-		/* Read the offsets. The status bits are needed here. */
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
+		ulint	extra;
+		ulint	n_ext;
+		ulint	data	= rec_get_size_comp(
+			rec, index, extra, &n_ext);
 
-		/* Non-leaf nodes should not have any externally
+		/* Node pointers should not contain any externally
 		stored columns. */
-		ut_ad(!rec_offs_any_extern(offsets));
+		ut_ad(!n_ext);
 
 		/* Decompress the data bytes, except node_ptr. */
-		d_stream->avail_out = rec_offs_data_size(offsets)
-			- REC_NODE_PTR_SIZE;
+		d_stream->avail_out = data - REC_NODE_PTR_SIZE;
 
 		switch (inflate(d_stream, Z_SYNC_FLUSH)) {
 		case Z_STREAM_END:
@@ -2255,7 +2244,7 @@ page_zip_decompress_node_ptrs(
 		memset(d_stream->next_out, 0, REC_NODE_PTR_SIZE);
 		d_stream->next_out += REC_NODE_PTR_SIZE;
 
-		ut_ad(d_stream->next_out == rec_get_end(rec, offsets));
+		ut_ad(d_stream->next_out == rec + data);
 	}
 
 	/* Decompress any trailing garbage, in case the last record was
@@ -2337,16 +2326,17 @@ zlib_done:
 	storage = page_zip_dir_start_low(page_zip, n_dense);
 
 	for (slot = 0; slot < n_dense; slot++) {
-		rec_t*		rec	= recs[slot];
+		rec_t*	rec	= recs[slot];
+		ulint	extra;
+		ulint	n_ext	= 0;
+		ulint	data	= rec_get_size_comp(rec, index, extra, &n_ext);
 
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		/* Non-leaf nodes should not have any externally
+		/* Node pointers should not contain any externally
 		stored columns. */
-		ut_ad(!rec_offs_any_extern(offsets));
+		ut_ad(!n_ext);
 		storage -= REC_NODE_PTR_SIZE;
 
-		memcpy(rec_get_end(rec, offsets) - REC_NODE_PTR_SIZE,
+		memcpy(rec + data - REC_NODE_PTR_SIZE,
 		       storage, REC_NODE_PTR_SIZE);
 	}
 
@@ -2378,7 +2368,7 @@ page_zip_decompress_sec(
 	d_stream->avail_in -= n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
 
 	for (slot = 0; slot < n_dense; slot++) {
-		rec_t*	rec = recs[slot];
+		rec_t*	rec	= recs[slot];
 
 		/* Decompress everything up to this record. */
 		d_stream->avail_out = rec - REC_N_NEW_EXTRA_BYTES
@@ -3060,7 +3050,7 @@ zlib_error:
 		if (UNIV_UNLIKELY
 		    (!page_zip_decompress_node_ptrs(page_zip, &d_stream,
 						    recs, n_dense, index,
-						    offsets, heap))) {
+						    offsets))) {
 			goto err_exit;
 		}
 
