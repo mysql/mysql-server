@@ -3297,8 +3297,6 @@ page_zip_validate_low(
 		committed.  Let us tolerate that difference when we
 		are performing a sloppy validation. */
 
-		ulint*		offsets;
-		mem_heap_t*	heap;
 		const rec_t*	rec;
 		const rec_t*	trec;
 		byte		info_bits_diff;
@@ -3351,8 +3349,6 @@ page_zip_validate_low(
 		}
 
 		/* Compare the records. */
-		heap = NULL;
-		offsets = NULL;
 		rec = page_rec_get_next_low(
 			page + PAGE_NEW_INFIMUM, TRUE);
 		trec = page_rec_get_next_low(
@@ -3370,13 +3366,13 @@ page_zip_validate_low(
 
 			if (index) {
 				/* Compare the data. */
-				offsets = rec_get_offsets(
-					rec, index, offsets,
-					ULINT_UNDEFINED, &heap);
 
-				if (memcmp(rec - rec_offs_extra_size(offsets),
-					   trec - rec_offs_extra_size(offsets),
-					   rec_offs_size(offsets))) {
+				ulint	extra;
+				ulint	data
+					= rec_get_size_comp(rec, index, extra);
+
+				if (memcmp(rec - extra, trec - extra,
+					   extra + data)) {
 					page_zip_fail(
 						("page_zip_validate: "
 						 "record content: 0x%02x",
@@ -3389,10 +3385,6 @@ page_zip_validate_low(
 			rec = page_rec_get_next_low(rec, TRUE);
 			trec = page_rec_get_next_low(trec, TRUE);
 		} while (rec || trec);
-
-		if (heap) {
-			mem_heap_free(heap);
-		}
 	}
 
 func_exit:
