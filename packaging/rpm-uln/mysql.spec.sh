@@ -662,7 +662,7 @@ rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/postinstall
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/mysql-*.spec
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/mysql-log-rotate
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/ChangeLog
-rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris/postinstall-solaris
+rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris/postinstall_check
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-stress-test.pl.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-test-run.pl.1*
 
