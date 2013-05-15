@@ -59,7 +59,7 @@ struct IndexIterator {
 		mtr_start(&m_mtr);
 
 		if (turn_off_logging) {
-			mtr_set_log_mode(&m_mtr, MTR_LOG_NONE);
+			mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 		}
 
 

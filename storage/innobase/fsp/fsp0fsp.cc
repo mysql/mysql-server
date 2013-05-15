@@ -1175,7 +1175,7 @@ fsp_fill_free_list(
 				truncate action. */
 				if (srv_trunc_table_fix_up_active) {
 					mtr_set_log_mode(
-						&ibuf_mtr, MTR_LOG_NONE);
+						&ibuf_mtr, MTR_LOG_NO_REDO);
 				}
 
 				block = buf_page_create(

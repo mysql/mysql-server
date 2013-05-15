@@ -1095,11 +1095,14 @@ row_fixup_truncate_of_tables()
 
 	/* Using the info cached during REDO log scan phase fix the
 	table truncate. */
-	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
+	truncate_tables_t::iterator end = srv_tables_to_truncate.end();
+	for (truncate_tables_t::iterator it = srv_tables_to_truncate.begin();
+	     it != end;
+	     ++it) {
 
 		/* Step-1: Drop tablespace (only for single-tablespace),
 		drop indexes and re-create indexes. */
-		truncate_t* tbl = srv_tables_to_truncate[i];
+		truncate_t* tbl = *it;
 
 		if (!Tablespace::is_system_tablespace(tbl->m_space_id)) {
 
