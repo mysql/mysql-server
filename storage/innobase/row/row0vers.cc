@@ -54,7 +54,7 @@ NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
 trx_is_active() while holding lock_sys->mutex. */
 UNIV_INLINE
-trx_id_t
+trx_t*
 row_vers_impl_x_locked_low(
 /*=======================*/
 	const rec_t*	clust_rec,	/*!< in: clustered index record */
@@ -83,7 +83,9 @@ row_vers_impl_x_locked_low(
 	trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
 	corrupt = FALSE;
 
-	if (!trx_rw_is_active(trx_id, &corrupt)) {
+	trx_t*	trx = trx_rw_is_active(trx_id, &corrupt, true);
+
+	if (trx == 0) {
 		/* The transaction that modified or inserted clust_rec is no
 		longer active, or it is corrupt: no implicit lock on rec */
 		if (corrupt) {
@@ -184,21 +186,7 @@ row_vers_impl_x_locked_low(
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
 
-		if (!trx_rw_is_active(trx_id, &corrupt)) {
-			/* Transaction no longer active: no implicit
-			x-lock. This situation should only be possible
-			because we are not holding lock_sys->mutex. */
-			ut_ad(!lock_mutex_own());
-			if (corrupt) {
-				lock_report_trx_id_insanity(
-					trx_id,
-					prev_version, clust_index,
-					clust_offsets,
-					trx_sys_get_max_trx_id());
-			}
-			trx_id = 0;
-			break;
-		} else if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
+		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
@@ -228,17 +216,18 @@ row_vers_impl_x_locked_low(
 			break;
 		}
 
-		if (trx_id != prev_trx_id) {
+		if (trx->id != prev_trx_id) {
 			/* prev_version was the first version modified by
 			the trx_id transaction: no implicit x-lock */
 
-			trx_id = 0;
+			trx_release_reference(trx);
+			trx = 0;
 			break;
 		}
 	}
 
 	mem_heap_free(heap);
-	return(trx_id);
+	return(trx);
 }
 
 /*****************************************************************//**
@@ -249,17 +238,17 @@ NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
 trx_is_active() while holding lock_sys->mutex. */
 UNIV_INTERN
-trx_id_t
+trx_t*
 row_vers_impl_x_locked(
 /*===================*/
 	const rec_t*	rec,	/*!< in: record in a secondary index */
 	dict_index_t*	index,	/*!< in: the secondary index */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
-	dict_index_t*	clust_index;
-	const rec_t*	clust_rec;
-	trx_id_t	trx_id;
 	mtr_t		mtr;
+	trx_t*		trx;
+	const rec_t*	clust_rec;
+	dict_index_t*	clust_index;
 
 	ut_ad(!lock_mutex_own());
 	ut_ad(!trx_sys_mutex_own());
@@ -276,7 +265,7 @@ row_vers_impl_x_locked(
 	clust_rec = row_get_clust_rec(
 		BTR_SEARCH_LEAF, rec, index, &clust_index, &mtr);
 
-	if (UNIV_UNLIKELY(!clust_rec)) {
+	if (!clust_rec) {
 		/* In a rare case it is possible that no clust rec is found
 		for a secondary index record: if in row0umod.cc
 		row_undo_mod_remove_clust_low() we have already removed the
@@ -289,15 +278,17 @@ row_vers_impl_x_locked(
 		a rollback we always undo the modifications to secondary index
 		records before the clustered index record. */
 
-		trx_id = 0;
+		trx = 0;
 	} else {
-		trx_id = row_vers_impl_x_locked_low(
+		trx = row_vers_impl_x_locked_low(
 			clust_rec, clust_index, rec, index, offsets, &mtr);
+
+		ut_ad(trx == 0 || trx_is_referenced(trx));
 	}
 
 	mtr_commit(&mtr);
 
-	return(trx_id);
+	return(trx);
 }
 
 /*****************************************************************//**
