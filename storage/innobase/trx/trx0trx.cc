@@ -176,6 +176,8 @@ struct TrxFactory {
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
+		mem_heap_free(trx->read_view_heap);
+
 		mem_free(trx->xid);
 		mem_free(trx->detailed_error);
 

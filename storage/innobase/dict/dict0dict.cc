@@ -984,6 +984,8 @@ dict_table_open_on_name(
 					loading a table definition */
 {
 	dict_table_t*	table;
+	DBUG_ENTER("dict_table_open_on_name");
+	DBUG_PRINT("dict_table_open_on_name", ("table: '%s'", table_name));
 
 	if (!dict_locked) {
 		mutex_enter(&(dict_sys->mutex));
@@ -1020,7 +1022,7 @@ dict_table_open_on_name(
 			fprintf(stderr, "is corrupted. Please drop the table "
 				"and recreate\n");
 
-			return(NULL);
+			DBUG_RETURN(NULL);
 		}
 
 		if (table->can_be_evicted) {
@@ -1038,7 +1040,7 @@ dict_table_open_on_name(
 		dict_table_try_drop_aborted_and_mutex_exit(table, try_drop);
 	}
 
-	return(table);
+	DBUG_RETURN(table);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3150,7 +3152,13 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	DBUG_ENTER("dict_foreign_free");
+	DBUG_PRINT("dict_foreign_free", ("id: '%s', heap: %p", foreign->id,
+					 foreign->heap));
+
 	mem_heap_free(foreign->heap);
+
+	DBUG_VOID_RETURN;
 }
 
 /**********************************************************************//**
@@ -3338,6 +3346,9 @@ dict_foreign_add_to_cache(
 	ibool		added_to_referenced_list= FALSE;
 	FILE*		ef			= dict_foreign_err_file;
 
+	DBUG_ENTER("dict_foreign_add_to_cache");
+	DBUG_PRINT("dict_foreign_add_to_cache", ("id: %s", foreign->id));
+
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	for_table = dict_table_check_if_in_cache_low(
@@ -3357,10 +3368,12 @@ dict_foreign_add_to_cache(
 
 	if (for_in_cache) {
 		/* Free the foreign object */
-		mem_heap_free(foreign->heap);
+		dict_foreign_free(foreign);
 	} else {
 		for_in_cache = foreign;
+
 	}
+
 
 	if (ref_table && !for_in_cache->referenced_table) {
 		index = dict_foreign_find_index(
@@ -3380,11 +3393,12 @@ dict_foreign_add_to_cache(
 				"referenced table do not match"
 				" the ones in table.");
 
-			if (for_in_cache == foreign) {
-				mem_heap_free(foreign->heap);
-			}
+                       if (for_in_cache == foreign) {
+                                mem_heap_free(foreign->heap);
+                        }
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+
+			DBUG_RETURN(DB_CANNOT_ADD_CONSTRAINT);
 		}
 
 		for_in_cache->referenced_table = ref_table;
@@ -3422,11 +3436,10 @@ dict_foreign_add_to_cache(
 						ref_table->referenced_list,
 						for_in_cache);
 				}
-
 				mem_heap_free(foreign->heap);
 			}
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+			DBUG_RETURN(DB_CANNOT_ADD_CONSTRAINT);
 		}
 
 		for_in_cache->foreign_table = for_table;
@@ -3447,7 +3460,13 @@ dict_foreign_add_to_cache(
 
 	ut_ad(dict_lru_validate());
 
-	return(DB_SUCCESS);
+/*
+	if (for_in_cache->foreign_table == NULL) {
+		dict_foreign_remove_from_cache(for_in_cache);
+	}
+*/
+
+	DBUG_RETURN(DB_SUCCESS);
 }
 
 /*********************************************************************//**
@@ -3975,6 +3994,8 @@ dict_table_get_highest_foreign_id(
 	ulint		id;
 	ulint		len;
 
+	DBUG_ENTER("dict_table_get_highest_foreign_id");
+
 	ut_a(table);
 
 	len = ut_strlen(table->name);
@@ -4003,7 +4024,10 @@ dict_table_get_highest_foreign_id(
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
 
-	return(biggest_id);
+	DBUG_PRINT("dict_table_get_highest_foreign_id",
+		   ("id: %lu", biggest_id));
+
+	DBUG_RETURN(biggest_id);
 }
 
 /*********************************************************************//**
