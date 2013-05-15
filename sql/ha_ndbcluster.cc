@@ -6500,6 +6500,7 @@ void ha_ndbcluster::position(const uchar *record)
       Field *field = key_part->field;
       if (field->type() ==  MYSQL_TYPE_VARCHAR)
       {
+        size_t var_length;
         if (((Field_varstring*)field)->length_bytes == 1)
         {
           /**
@@ -6507,12 +6508,24 @@ void ha_ndbcluster::position(const uchar *record)
            */
           buff[0] = ptr[0];
           buff[1] = 0;
-          memcpy(buff+2, ptr + 1, len);
+          var_length = ptr[0];
+          DBUG_ASSERT(var_length <= len);
+          memcpy(buff+2, ptr + 1, var_length);
         }
         else
         {
-          memcpy(buff, ptr, len + 2);
+          var_length = ptr[0] + (ptr[1]*256);
+          DBUG_ASSERT(var_length <= len);
+          memcpy(buff, ptr, var_length + 2);
         }
+        /**
+          We have to zero-pad any unused VARCHAR buffer so that MySQL is 
+          able to use simple memcmp to compare two instances of the same
+          unique key value to determine if they are equal. 
+          MySQL does this to compare contents of two 'ref' values.
+          (Duplicate weedout algorithm is one such case.)
+        */
+        memset(buff+2+var_length, 0, len - var_length);
         len += 2;
       }
       else
