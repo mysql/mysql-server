@@ -70,7 +70,7 @@ struct Pool {
 		(MTR) results change if we instantiate too many mutexes up
 		front. */
 
-		init(std::min(size_t(16), size_t(m_end - m_start)));
+		init(ut_min(size_t(16), size_t(m_end - m_start)));
 
 		ut_ad(m_pqueue.size() <= size_t(m_last - m_start));
 	}
@@ -127,9 +127,9 @@ struct Pool {
 	static void free(value_type* ptr)
 	{
 		Element*	elem;
+		byte*		p = reinterpret_cast<byte*>(ptr + 1);
 
-		byte*	p = reinterpret_cast<byte*>(ptr);
-		elem = reinterpret_cast<Element*>(p - sizeof(Pool*));
+		elem = reinterpret_cast<Element*>(p - sizeof(*elem));
 
 		elem->m_pool->put(elem);
 	}

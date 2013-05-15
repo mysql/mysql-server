@@ -474,6 +474,7 @@ dict_mem_foreign_create(void)
 {
 	dict_foreign_t*	foreign;
 	mem_heap_t*	heap;
+	DBUG_ENTER("dict_mem_foreign_create");
 
 	heap = mem_heap_create(100);
 
@@ -482,7 +483,9 @@ dict_mem_foreign_create(void)
 
 	foreign->heap = heap;
 
-	return(foreign);
+	DBUG_PRINT("dict_mem_foreign_create", ("heap: %p", heap));
+
+	DBUG_RETURN(foreign);
 }
 
 /**********************************************************************//**
