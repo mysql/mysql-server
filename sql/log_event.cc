@@ -187,12 +187,12 @@ bool get_binlog_rewrite_db(const char* db)
     @param[in]     event_len          length of the event
     @param[in]     description_event  error, warning or info
 
-    @retval        true               returns if the space is not allocated.
-    @retval        false              if rewrite is successful or no rewrite
-                                      for the event.
+    @retval        0                  incase of no change to the event length
+    @retval        -1                 incase of memory full error.
+    @retval        >0                 return the new length of the event.
 
 */
-bool rewrite_buffer(char **buf, int event_len,
+int rewrite_buffer(char **buf, int event_len,
                     const Format_description_log_event
                     *description_event)
 {
@@ -203,7 +203,7 @@ bool rewrite_buffer(char **buf, int event_len,
   uchar const *const ptr_dblen= (uchar const*)temp_vpart + 0;
 
   if(!(get_binlog_rewrite_db((const char*)ptr_dblen + 1)))
-    return false;
+    return 0;
   int temp_length_l= common_header_len + post_header_len;
   size_t old_db_len= *(uchar*) ptr_dblen;
   size_t rewrite_db_len= strlen(rewrite_to_db);
@@ -212,7 +212,7 @@ bool rewrite_buffer(char **buf, int event_len,
   int replace_segment= rewrite_db_len - old_db_len;
   if (!(temp_rewrite_buf= (char*) my_malloc(event_len + replace_segment,
                                             MYF(MY_WME))))
-    return true;
+    return -1;
 
   memcpy(temp_rewrite_buf, *buf, temp_length_l);
   char* temp_ptr=temp_rewrite_buf + temp_length_l + 0;
@@ -224,7 +224,7 @@ bool rewrite_buffer(char **buf, int event_len,
   memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
 
   *buf= temp_rewrite_buf;
-  return false;
+  return (event_len + replace_segment);
 }
 
 #endif
@@ -1488,10 +1488,16 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
 #if defined(MYSQL_CLIENT)
   if(option_rewrite_set && buf[EVENT_TYPE_OFFSET] == TABLE_MAP_EVENT)
   {
-    if (rewrite_buffer(&buf, data_len, description_event))
+    int rewrite= rewrite_buffer(&buf, data_len, description_event);
+    if(rewrite == -1)
     {
       error= "Out of memory";
       goto err;
+    }
+    else if(rewrite > 0)
+    {
+      *(buf+EVENT_LEN_OFFSET)= rewrite;
+      data_len= uint4korr(buf+EVENT_LEN_OFFSET);
     }
   }
 #endif
