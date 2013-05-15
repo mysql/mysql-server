@@ -749,7 +749,9 @@ dberr_t
 row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 {
 	dberr_t		err;
+#if UNIV_DEBUG
 	ulint		old_space = table->space;
+#endif
 
 	/* Understanding the truncate flow.
 
