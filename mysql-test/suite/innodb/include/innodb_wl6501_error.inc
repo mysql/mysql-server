@@ -149,6 +149,31 @@ set session debug = "-d,ib_err_trunc_create_index";
 --error ER_INDEX_CORRUPT
 select * from t;
 drop table t;
+#
+#
+use test;
+eval set global innodb_file_per_table = $wl6501_file_per_table;
+eval set global innodb_file_format = $wl6501_file_format;
+--disable_warnings
+eval create temporary table t (
+        i int, f float, c char,
+        primary key pk(i), unique findex(f), index ck(c))
+        engine = innodb row_format = $wl6501_row_fmt
+        key_block_size = $wl6501_kbs;
+--enable_warnings
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t;
+#check table t;
+#
+set session debug = "+d,ib_err_trunc_temp_recreate_index";
+--error ER_GET_ERRNO
+truncate table t;
+set session debug = "-d,ib_err_trunc_temp_recreate_index";
+#
+#check table t;
+--error ER_INDEX_CORRUPT
+select * from t;
+drop table t;
 
 #-----------------------------------------------------------------------------
 #

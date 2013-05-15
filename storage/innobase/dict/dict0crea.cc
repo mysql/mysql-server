@@ -1055,9 +1055,10 @@ dict_recreate_index_tree(
 }
 
 /*******************************************************************//**
-Truncates the index tree but don't update SYSTEM TABLES. */
+Truncates the index tree but don't update SYSTEM TABLES.
+@return DB_SUCCESS or error */
 UNIV_INTERN
-void
+dberr_t
 dict_truncate_index_tree_in_mem(
 /*============================*/
 	dict_index_t*	index)		/*!< in/out: index */
@@ -1133,9 +1134,14 @@ dict_truncate_index_tree_in_mem(
 	root_page_no = btr_create(
 		type, space, zip_size, index->id, index, NULL, &mtr);
 
+	DBUG_EXECUTE_IF("ib_err_trunc_temp_recreate_index",
+			root_page_no = FIL_NULL;);
+
 	index->page = root_page_no;
 
 	mtr_commit(&mtr);
+
+	return(index->page == FIL_NULL ? DB_ERROR : DB_SUCCESS);
 }
 
 /*********************************************************************//**
