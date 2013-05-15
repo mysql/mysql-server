@@ -584,6 +584,12 @@ public:
 		return(m_comp);
 	}
 
+	/** Determine if the page is in compressed format. */
+	bool isZip() const {
+		ut_ad(!getPageZip() || isComp());
+		return(getPageZip());
+	}
+
 	/** Set the delete-mark flag on the current record.
 	NOTE: This is not redo-logged. The caller must take care of
 	writing a redo log record.
@@ -645,6 +651,10 @@ public:
 		ut_ad(cursor.m_block != m_block);
 		ut_ad(cursor.isUser());
 		ut_ad(!isAfterLast());
+		ut_ad(isComp() == cursor.isComp());
+		ut_ad(page_is_leaf(getPage())
+		      == page_is_leaf(cursor.getPage()));
+
 		ulint	extra_size;
 		ulint	data_size	= cursor.getRecSize(extra_size);
 		return(insertNoZip(cursor.getRec(), extra_size, data_size));
@@ -735,6 +745,28 @@ public:
 	@retval false if it is a compressed page, and recompression failed
 	(the page will be restored to correspond to the compressed page) */
 	bool reorganize(bool recovery, bool zip_valid, ulint z_level);
+
+	/** Compress the page, reorganizing it if needed.
+
+	NOTE: m_mtr must not be NULL.
+
+	NOTE: m_rec must be positioned on a record that exists on both
+	the uncompressed page and the uncompressed copy of the
+	compressed page.
+
+	IMPORTANT: On success, the caller will have to update
+	IBUF_BITMAP_FREE if this is a compressed leaf page in a
+	secondary index. This has to be done either within m_mtr, or
+	by invoking ibuf_reset_free_bits() before
+	mtr_commit(m_mtr). On uncompressed pages, IBUF_BITMAP_FREE is
+	unaffected by reorganization.
+
+	@param[in]	z_level		compression level, for compressed pages
+	@retval true if the operation was successful
+	@retval false if the recompression failed
+	(the page will be restored to correspond to the compressed page,
+	and the cursor will be positioned on the page infimum) */
+	bool compress(ulint z_level);
 
 	/** Get the number of fields in the page. */
 	ulint getNumFields() const {
