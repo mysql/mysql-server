@@ -204,7 +204,7 @@ set session debug = "-d,ib_err_trunc_during_fts_trunc";
 --error ER_INDEX_CORRUPT
 select * from t;
 drop table t;
- 
+
 #-----------------------------------------------------------------------------
 #
 # 5. Error while updating sys-tables.
@@ -234,7 +234,7 @@ set session debug = "-d,ib_err_trunc_during_sys_table_update";
 --error ER_INDEX_CORRUPT
 select * from t order by i;
 drop table t;
- 
+
 #-----------------------------------------------------------------------------
 #
 # remove test-bed

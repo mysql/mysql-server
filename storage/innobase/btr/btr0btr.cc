@@ -1687,7 +1687,7 @@ btr_free_but_not_root(
 						in bytes or 0 for uncompressed
 						pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	ulint			logging_mode)	/*!< in: mtr logging mode */ 
+	ulint			logging_mode)	/*!< in: mtr logging mode */
 {
 	ibool	finished;
 	page_t*	root;

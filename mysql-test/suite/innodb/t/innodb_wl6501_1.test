@@ -1,7 +1,7 @@
 
 ####################################################################
-# TC to check truncate table statement atomicity for single        #  
-# tablespace                                                       # 
+# TC to check truncate table statement atomicity for single        #
+# tablespace                                                       #
 # Sceanrio covered:                                                #
 # 1. Debug points added for worklog                                #
 # 2. Table with  differnt row types                                #
@@ -336,7 +336,7 @@ while ($cnt) {
 	select count(*) from t2;
 	select count(*) from t3;
 	select count(*) from t4;
-	--error ER_NO_SUCH_TABLE 
+	--error ER_NO_SUCH_TABLE
 	select count(*) from t5;
 	select count(*) from t6;
 
@@ -387,7 +387,7 @@ while ($cnt) {
 	select count(*) from t2;
 	select count(*) from t3;
 	select count(*) from t4;
-	--error ER_NO_SUCH_TABLE 
+	--error ER_NO_SUCH_TABLE
 	select count(*) from t5;
 	select count(*) from t6;
 
@@ -438,7 +438,7 @@ while ($cnt) {
 	select count(*) from t2;
 	select count(*) from t3;
 	select count(*) from t4;
-	--error ER_NO_SUCH_TABLE 
+	--error ER_NO_SUCH_TABLE
 	select count(*) from t5;
 	select count(*) from t6;
 
@@ -451,7 +451,7 @@ while ($cnt) {
 	eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 	eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 	--enable_query_log
-} 
+}
 
 
 

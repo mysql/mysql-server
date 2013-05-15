@@ -426,8 +426,8 @@ row_truncate_fts(dict_table_t* table, table_id_t new_id, trx_t* trx)
 Update system table to reflect new table id.
 @param old_table_id		old table id
 @param new_table_id		new table id
-@param reserve_dict_mutex 	if true, acquire/release
-				dict_sys->mutex around call to pars_sql. 
+@param reserve_dict_mutex	if true, acquire/release
+				dict_sys->mutex around call to pars_sql.
 @param trx			transaction
 @return error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
@@ -439,7 +439,7 @@ row_truncate_update_table_id(
 	trx_t*	trx)
 {
 	pars_info_t*	info	= NULL;
-	dberr_t		err 	= DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
 
 	/* Scan the SYS_XXXX table and update to reflect new table-id. */
 	info = pars_info_create();
@@ -468,8 +468,8 @@ Update system table to reflect new table id and root page number.
 @param redo_cache		contains info like old table id
 				and updated root_page_no of indexes.
 @param new_table_id		new table id
-@param reserve_dict_mutex 	if true, acquire/release
-				dict_sys->mutex around call to pars_sql. 
+@param reserve_dict_mutex	if true, acquire/release
+				dict_sys->mutex around call to pars_sql.
 @return error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -478,7 +478,7 @@ row_truncate_update_sys_tables_during_fix_up(
 	ulint			new_table_id,
 	ibool			reserve_dict_mutex)
 {
-	dberr_t	err 	= DB_SUCCESS;
+	dberr_t	err	= DB_SUCCESS;
 	trx_t*	trx;
 
 	trx = trx_allocate_for_background();
@@ -517,7 +517,7 @@ row_truncate_update_sys_tables_during_fix_up(
 			return(err);
 		}
 	}
-		
+
 	/* Step-2: Update table-id. */
 	err = row_truncate_update_table_id(
 		truncate.m_old_table_id, new_table_id,
@@ -806,7 +806,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	Step-11: Update new table-id to in-memory cache (dictionary),
 	on-disk (INNODB_SYS_TABLES). INNODB_SYS_INDEXES also needs to
 	get updated to reflect updated page-no of new index created
-	and updated table-id. 
+	and updated table-id.
 
 	Step-12: Cleanup Stage. Reset auto-inc value to 1.
 	Release all the locks.
@@ -823,7 +823,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	On recovery both REDO log entries will be loaded w/o knowledge of which
 	REDO log entry to apply assuming default log check point didn't
 	kicked in between 2 truncates.
-	
+
 	- Insert buffer: TRUNCATE TABLE is analogous to DROP TABLE,
 	so we do not have to remove insert buffer records, as the
 	insert buffer works at a low level. If a freed page is later
