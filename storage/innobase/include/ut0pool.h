@@ -248,8 +248,8 @@ struct PoolManager {
 						"a pool of size %lu bytes. "
 						"Will wait for  %lu seconds "
 						"for a thread to free a "
-						"resource", (ulong)m_size,
-						(ulong)delay);
+						"resource", (ulong) m_size,
+						(ulong) delay);
 
 					/* There is nothing much we can do "
 					except crash and burn, however lets
@@ -307,7 +307,7 @@ private:
 
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Number of pools: %lu",
-					(ulong)m_pools.size());
+					(ulong) m_pools.size());
 
 				added = true;
 			}
