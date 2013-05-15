@@ -3763,7 +3763,7 @@ row_search_for_mysql(
 		calls from MySQL */
 
 		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
+		trx->has_search_latch = false;
 
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 	}
@@ -3916,7 +3916,7 @@ row_search_for_mysql(
 #ifndef UNIV_SEARCH_DEBUG
 			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
-				trx->has_search_latch = TRUE;
+				trx->has_search_latch = true;
 			}
 #endif
 			switch (row_sel_try_search_shortcut_for_mysql(
@@ -3988,7 +3988,7 @@ release_search_latch_if_needed:
 					trx->search_latch_timeout--;
 
 					rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = FALSE;
+					trx->has_search_latch = false;
 				}
 
 				/* NOTE that we do NOT store the cursor
@@ -4012,7 +4012,7 @@ release_search_latch_if_needed:
 
 	if (trx->has_search_latch) {
 		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
+		trx->has_search_latch = false;
 	}
 
 	/* The state of a running trx can only be changed by the

@@ -200,6 +200,9 @@ enum latch_level_t {
 
 	SYNC_MUTEX = 1,
 
+	SYNC_POOL,
+	SYNC_POOL_MANAGER,
+
 	RW_LOCK_X_WAIT,
 	RW_LOCK_S,
 	RW_LOCK_X,
