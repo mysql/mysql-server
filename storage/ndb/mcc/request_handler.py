@@ -141,7 +141,7 @@ def start_proc(proc, body):
             if isinstance(f['autoComplete'], list):
                 executable = ch.auto_complete(f['path'], f['autoComplete'], f['name'])
             else:
-                executable = ch.auto_complete(f['path'], ['bin', 'scripts', '', ch.path_module.join('..','scripts')], f['name'])
+                executable = ch.auto_complete(f['path'], ['bin', 'sbin', 'scripts', '', ch.path_module.join('..','scripts')], f['name'])
         else:
             executable = ch.path_module.join(f['path'], f['name'])
         
