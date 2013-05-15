@@ -47,6 +47,8 @@ btr/btr0cur\.c: null argument where non-null required: 1800-3000
 btr/btr0btr\.c: null argument where non-null required: 2500-3000
 ibuf/ibuf0ibuf.c: null argument where non-null required: 700-1000
 fsp0fsp\.c: result of 32-bit shift implicitly converted to 64 bits
+log/log0log\.c : passing arg 1 of `atomic_add_64_nv' from incompatible pointer type
+log/log0online\.c : passing arg 1 of `atomic_add_64_nv' from incompatible pointer type
 
 #
 # bdb is not critical to keep up to date

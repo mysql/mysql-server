@@ -22,7 +22,7 @@
 # any of the variables.
 #
 
---source include/long_test.inc
+--source include/big_test.inc
 
 #------------------------------------------------------------------------------#
 # General not engine specific settings and requirements

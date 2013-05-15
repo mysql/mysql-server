@@ -959,11 +959,14 @@ CHECK_CXX_SOURCE_COMPILES("
 # they are silently ignored. For those OS's we will not attempt
 # to use SO_SNDTIMEO and SO_RCVTIMEO even if it is said to work.
 # See Bug#29093 for the problem with SO_SND/RCVTIMEO on HP/UX.
+# Solaris11 has a similar problem
 # To use alarm is simple, simply avoid setting anything.
 
 IF(WIN32)
   SET(HAVE_SOCKET_TIMEOUT 1)
 ELSEIF(CMAKE_SYSTEM MATCHES "HP-UX")
+  SET(HAVE_SOCKET_TIMEOUT 0)
+ELSEIF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   SET(HAVE_SOCKET_TIMEOUT 0)
 ELSEIF(CMAKE_CROSSCOMPILING)
   SET(HAVE_SOCKET_TIMEOUT 0)

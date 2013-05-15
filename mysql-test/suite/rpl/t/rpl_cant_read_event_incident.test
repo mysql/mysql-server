@@ -67,7 +67,9 @@ stop slave;
 reset slave;
 # Table was created from binlog, it may not be created if SQL thread is running
 # slowly and IO thread reaches incident before SQL thread applies it.
+--disable_warnings
 drop table if exists t;
+--enable_warnings
 reset master;
 
 --echo End of the tests
