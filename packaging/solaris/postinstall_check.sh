@@ -58,67 +58,17 @@ fi
 
 chown -R $myuser:$mygroup $mydatadir
 
-# Solaris patch 119255 (somewhere around revision 42) changes the behaviour
-# of pkgadd to set TMPDIR internally to a root-owned install directory.  This
-# has the unfortunate side effect of breaking running mysql_install_db with
-# the --user=mysql argument as mysqld uses TMPDIR if set, and is unable to
-# write temporary tables to that directory.  To work around this issue, we
-# create a subdirectory inside TMPDIR (if set) for mysqld to write to.
-#
-# Idea from Ben Hekster <heksterb@gmail.com> in bug#31164
-
-if [ -n "$TMPDIR" ] ; then
-  savetmpdir="$TMPDIR"
-  TMPDIR="$TMPDIR/mysql.$$"
-  export TMPDIR
-  mkdir "$TMPDIR"
-  chown $myuser:$mygroup "$TMPDIR"
-fi
-
 if [ -n "$INSTALL" ] ; then
   # We install/update the system tables
   (
     cd "$mybasedir"
     scripts/mysql_install_db \
 	  --rpm \
-	  --random-passwords \
 	  --user=mysql \
 	  --basedir="$mybasedir" \
 	  --datadir=$mydatadir
   )
 fi
-
-if [ -n "$savetmpdir" ] ; then
-  TMPDIR="$savetmpdir"
-fi
-
-# ----------------------------------------------------------------------
-
-# Handle situation there is old start script installed already
-
-# If old start script is a soft link, we just remove it
-[ -h "$mystart" ] && rm -f "$mystart"
-
-# If old start script is a file, we rename it
-[ -f "$mystart" ] && mv -f "$mystart" "$mystart.old.$$"
-
-# ----------------------------------------------------------------------
-
-# We create a copy of an unmodified start script,
-# as a reference for the one maybe modifying it
-
-cp -f "$mystart1.in" "$mystart.in" || exit 1
-
-# We rewrite some scripts
-
-for script in "$mystart" "$mystart1" "$myinstdb" ; do
-  script_in="$script.in"
-  sed -e "s,@basedir@,$mybasedir,g" \
-      -e "s,@datadir@,$mydatadir,g" "$script_in" > "$script"
-  chmod u+x $script
-done
-
-rm -f "$mystart.in"
 
 exit 0
 
