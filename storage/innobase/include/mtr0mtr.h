@@ -194,7 +194,7 @@ For 1 - 8 bytes, the flag value must give the length also! @{ */
 						it relays on an older versions.
 						ibbackup should be fixed to
 						flexibly handle unknown types */
-#define MLOG_BIGGEST_TYPE	((byte)55)	/*!< biggest value (used in
+#define MLOG_BIGGEST_TYPE	((byte)54)	/*!< biggest value (used in
 						assertions) */
 /* @} */
 
