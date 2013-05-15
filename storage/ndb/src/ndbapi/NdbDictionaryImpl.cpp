@@ -8439,6 +8439,8 @@ NdbForeignKeyImpl::init()
     m_references[i].m_objectId = RNIL;
     m_references[i].m_objectVersion = RNIL;
   }
+  m_on_update_action = NoAction;
+  m_on_delete_action = NoAction;
 }
 
 int
@@ -8468,6 +8470,9 @@ NdbForeignKeyImpl::assign(const NdbForeignKeyImpl& org)
   m_child_columns.clear();
   for (unsigned i = 0; i < org.m_child_columns.size(); i++)
     m_child_columns.push_back(org.m_child_columns[i]);
+
+  m_on_update_action = org.m_impl.m_on_update_action;
+  m_on_delete_action = org.m_impl.m_on_delete_action;
 
   return 0;
 }
