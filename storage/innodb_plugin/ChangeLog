@@ -1,3 +1,8 @@
+2013-05-15	The InnoDB Team
+
+	* page/page0zip.c:
+	Fix Bug#16736929 PAGE_ZIP_DECOMPRESS() FAILS ON EMPTY RECORD
+
 2013-03-12	The InnoDB Team
 
 	* include/page0zip.ic, page/page0zip.c:

@@ -2148,8 +2148,19 @@ page_zip_decompress_node_ptrs(
 		      - PAGE_ZIP_START - PAGE_DIR);
 		switch (inflate(d_stream, Z_SYNC_FLUSH)) {
 		case Z_STREAM_END:
-			/* Apparently, n_dense has grown
-			since the time the page was last compressed. */
+			if (d_stream->next_out
+			    != rec - REC_N_NEW_EXTRA_BYTES) {
+				/* n_dense has grown since the page
+				was last compressed. */
+			} else {
+				/* Skip the REC_N_NEW_EXTRA_BYTES. */
+				d_stream->next_out = rec;
+
+				/* Set heap_no and the status bits. */
+				mach_write_to_2(rec - REC_NEW_HEAP_NO,
+						heap_status);
+				heap_status += 1 << REC_HEAP_NO_SHIFT;
+			}
 			goto zlib_done;
 		case Z_OK:
 		case Z_BUF_ERROR:
@@ -2337,8 +2348,19 @@ page_zip_decompress_sec(
 		if (UNIV_LIKELY(d_stream->avail_out)) {
 			switch (inflate(d_stream, Z_SYNC_FLUSH)) {
 			case Z_STREAM_END:
-				/* Apparently, n_dense has grown
-				since the time the page was last compressed. */
+				if (d_stream->next_out
+				    != rec - REC_N_NEW_EXTRA_BYTES) {
+					/* n_dense has grown since the page
+					was last compressed. */
+				} else {
+					/* Skip the REC_N_NEW_EXTRA_BYTES. */
+					d_stream->next_out = rec;
+
+					/* Set heap_no and the status bits. */
+					mach_write_to_2(rec - REC_NEW_HEAP_NO,
+							heap_status);
+					heap_status += 1 << REC_HEAP_NO_SHIFT;
+				}
 				goto zlib_done;
 			case Z_OK:
 			case Z_BUF_ERROR:
@@ -2596,8 +2618,19 @@ page_zip_decompress_clust(
 		err = inflate(d_stream, Z_SYNC_FLUSH);
 		switch (err) {
 		case Z_STREAM_END:
-			/* Apparently, n_dense has grown
-			since the time the page was last compressed. */
+			if (d_stream->next_out
+			    != rec - REC_N_NEW_EXTRA_BYTES) {
+				/* n_dense has grown since the page
+				was last compressed. */
+			} else {
+				/* Skip the REC_N_NEW_EXTRA_BYTES. */
+				d_stream->next_out = rec;
+
+				/* Set heap_no and the status bits. */
+				mach_write_to_2(rec - REC_NEW_HEAP_NO,
+						heap_status);
+				heap_status += 1 << REC_HEAP_NO_SHIFT;
+			}
 			goto zlib_done;
 		case Z_OK:
 		case Z_BUF_ERROR:
