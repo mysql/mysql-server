@@ -3171,6 +3171,41 @@ PageCur::reorganize(bool recovery, bool zip_valid, ulint z_level)
 	return(success);
 }
 
+/** Compress the page, reorganizing it if needed.
+
+NOTE: m_mtr must not be NULL.
+
+NOTE: m_rec must be positioned on a record that exists on both
+the uncompressed page and the uncompressed copy of the
+compressed page.
+
+IMPORTANT: On success, the caller will have to update
+IBUF_BITMAP_FREE if this is a compressed leaf page in a
+secondary index. This has to be done either within m_mtr, or
+by invoking ibuf_reset_free_bits() before
+mtr_commit(m_mtr). On uncompressed pages, IBUF_BITMAP_FREE is
+unaffected by reorganization.
+
+@param[in]	z_level		compression level, for compressed pages
+@retval true if the operation was successful
+@retval false if the recompression failed
+(the page will be restored to correspond to the compressed page,
+and the cursor will be positioned on the page infimum) */
+UNIV_INTERN
+bool
+PageCur::compress(ulint z_level)
+{
+	page_t*		page		= getPage();
+	page_zip_des_t*	page_zip	= getPageZip();
+
+	ut_ad(m_mtr);
+	ut_ad(isMutable());
+	ut_ad(page_zip);
+
+	return(page_zip_compress(page_zip, page, m_index, z_level, m_mtr)
+	       || reorganize(false, false, z_level));
+}
+
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
 /*******************************************************************//**
