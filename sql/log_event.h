@@ -40,7 +40,6 @@
 #include "rpl_utility.h"
 #include "hash.h"
 #include "rpl_tblmap.h"
-#include "rpl_tblmap.cc"
 
 /*
   Variable to suppress the USE <DATABASE> command when using the
