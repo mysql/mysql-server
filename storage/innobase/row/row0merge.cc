@@ -1398,7 +1398,7 @@ end_of_index:
 			}
 
 			trx_id = trx_read_trx_id(rec + trx_id_offset);
-			ut_a(trx_rw_is_active(trx_id, NULL));
+			ut_a(trx_rw_is_active(trx_id, NULL, false));
 			ut_a(trx_undo_trx_id_is_insert(rec + trx_id_offset));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 

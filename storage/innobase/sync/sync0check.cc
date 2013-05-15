@@ -520,6 +520,8 @@ SyncCheck::check_order(const latch_t* latch)
 	case SYNC_IBUF_MUTEX:
 	case SYNC_INDEX_ONLINE_LOG:
 	case SYNC_STATS_AUTO_RECALC:
+	case SYNC_POOL:
+	case SYNC_POOL_MANAGER:
 
 		basic_check(latches, latch->m_level);
 		break;
@@ -894,6 +896,12 @@ sync_latch_meta_init()
 
 	LATCH_ADD(SrvLatches, "trx_undo",
 		  SYNC_TRX_UNDO, trx_undo_mutex_key);
+
+	LATCH_ADD(SrvLatches, "trx_pool",
+		  SYNC_POOL, trx_pool_key);
+
+	LATCH_ADD(SrvLatches, "trx_pool_manager",
+		  SYNC_POOL_MANAGER, trx_pool_manager_key);
 
 	LATCH_ADD(SrvLatches, "trx",
 		  SYNC_TRX, trx_mutex_key);
