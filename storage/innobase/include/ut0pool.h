@@ -127,9 +127,9 @@ struct Pool {
 	static void free(value_type* ptr)
 	{
 		Element*	elem;
+		byte*		p = reinterpret_cast<byte*>(ptr + 1);
 
-		byte*	p = reinterpret_cast<byte*>(ptr);
-		elem = reinterpret_cast<Element*>(p - sizeof(Pool*));
+		elem = reinterpret_cast<Element*>(p - sizeof(*elem));
 
 		elem->m_pool->put(elem);
 	}
