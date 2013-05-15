@@ -279,7 +279,8 @@ row_truncate_rollback(
 
 	trx->error_state = DB_SUCCESS;
 
-	if (corrupted) {
+	if (corrupted && !dict_table_is_temporary(table)) {
+
 		/* Cleanup action to ensure we don't left over stale entries
 		if we are marking table as corrupted. This will ensure
 `		it can be recovered using drop/create sequence. */
@@ -287,6 +288,18 @@ row_truncate_rollback(
 		DropIndex       dropIndex(table);
 		SysIndexIterator().for_each(dropIndex);
 		dict_table_x_unlock_indexes(table);
+
+	} else if (corrupted && dict_table_is_temporary(table)) {
+
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			dict_drop_index_tree_in_mem(index, index->page);
+
+			index->page = FIL_NULL;
+		}
+
 	}
 
 	table->corrupted = corrupted;
@@ -987,7 +1000,13 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-			dict_truncate_index_tree_in_mem(index);
+			err = dict_truncate_index_tree_in_mem(index);
+
+			if (err != DB_SUCCESS) {
+				row_truncate_rollback(table, trx, true, true);
+				return(row_truncate_complete(
+					table, trx, flags, err));
+			}
 
 			DBUG_EXECUTE_IF(
 				"ib_trunc_crash_during_drop_index_temp_table",

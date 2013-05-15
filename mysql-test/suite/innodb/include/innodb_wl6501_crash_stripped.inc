@@ -65,6 +65,7 @@ set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start2";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
+exit;
 #
 --enable_reconnect
 --source include/wait_until_connected_again.inc

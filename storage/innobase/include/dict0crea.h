@@ -149,9 +149,9 @@ dict_create_index_tree_in_mem(
 
 /*******************************************************************//**
 Truncates the index tree but don't update SYSTEM TABLES.
-@return	new root page number, or FIL_NULL on failure */
+@return DB_SUCCESS or error */
 UNIV_INTERN
-void
+dberr_t
 dict_truncate_index_tree_in_mem(
 /*============================*/
 	dict_index_t*	index);		/*!< in/out: index */
