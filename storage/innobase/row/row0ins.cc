@@ -1437,8 +1437,10 @@ run_again:
 	/* If any of the foreign key fields in entry is SQL NULL, we
 	suppress the foreign key check: this is compatible with Oracle,
 	for example */
-	if (dtuple_contains_null(entry)) {
-		goto exit_func;
+	for (ulint i = 0; i < foreign->n_fields; i++) {
+		if (dfield_is_null(dtuple_get_nth_field(entry, i))) {
+			goto exit_func;
+		}
 	}
 
 	if (que_node_get_type(thr->run_node) == QUE_NODE_UPDATE) {
