@@ -3074,11 +3074,27 @@ PageCur::reorganize(bool recovery, bool zip_valid, ulint z_level)
 		mtr_set_log_mode(m_mtr, log_mode);
 	}
 
-	if (page_zip
-	    && !page_zip_compress(page_zip, page, m_index, z_level, m_mtr)) {
+	data_size2 = page_get_data_size(page);
+	max_ins_size2 = page_get_max_insert_size_after_reorganize(page, 1);
 
-		/* Restore the old page and exit. */
+	if (data_size1 != data_size2 || max_ins_size1 != max_ins_size2) {
+		buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
+		buf_page_print(temp_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
+		fprintf(stderr,
+			"InnoDB: Error: page old data size %lu"
+			" new data size %lu\n"
+			"InnoDB: Error: page old max ins size %lu"
+			" new max ins size %lu\n"
+			"InnoDB: Submit a detailed bug report"
+			" to http://bugs.mysql.com\n",
+			(unsigned long) data_size1, (unsigned long) data_size2,
+			(unsigned long) max_ins_size1,
+			(unsigned long) max_ins_size2);
+		ut_ad(0);
+	} else if (page_zip && !page_zip_compress(
+			   page_zip, page, m_index, z_level, m_mtr)) {
+		/* Failed to compress. Restore the old page. */
 		if (zip_valid) {
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 			/* Check that the bytes that we skip are identical. */
@@ -3105,43 +3121,19 @@ PageCur::reorganize(bool recovery, bool zip_valid, ulint z_level)
 			}
 			ut_ad(page_validate(m_block, m_index));
 		}
-
-		goto func_exit;
-	}
-
-#ifndef UNIV_HOTBACKUP
-	if (!recovery) {
-		/* Update the record lock bitmaps */
-		lock_move_reorganize_page(m_block, temp_block);
-	}
-#endif /* !UNIV_HOTBACKUP */
-
-	data_size2 = page_get_data_size(page);
-	max_ins_size2 = page_get_max_insert_size_after_reorganize(page, 1);
-
-	if (data_size1 != data_size2 || max_ins_size1 != max_ins_size2) {
-		buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
-		buf_page_print(temp_page, 0, BUF_PAGE_PRINT_NO_CRASH);
-
-		fprintf(stderr,
-			"InnoDB: Error: page old data size %lu"
-			" new data size %lu\n"
-			"InnoDB: Error: page old max ins size %lu"
-			" new max ins size %lu\n"
-			"InnoDB: Submit a detailed bug report"
-			" to http://bugs.mysql.com\n",
-			(unsigned long) data_size1, (unsigned long) data_size2,
-			(unsigned long) max_ins_size1,
-			(unsigned long) max_ins_size2);
-		ut_ad(0);
 	} else {
 		success = true;
+
+#ifndef UNIV_HOTBACKUP
+		if (!recovery) {
+			/* Update the record lock bitmaps */
+			lock_move_reorganize_page(m_block, temp_block);
+		}
+#endif /* !UNIV_HOTBACKUP */
 	}
 
-func_exit:
 	/* Restore the cursor position. */
 	setRec(page_rec_get_nth(page, pos));
-
 	page_zip_validate_if_zip(page_zip, page, m_index);
 	mtr_set_log_mode(m_mtr, log_mode);
 
