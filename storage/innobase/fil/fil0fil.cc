@@ -2399,7 +2399,7 @@ fil_recreate_tablespace(
 
 				/* Make sure that the page is really empty */
 				for (ulint i = 0; i < zip_size; ++i) {
-		     			ut_a(data[i] == 0);
+					ut_a(data[i] == 0);
 				}
 #endif /* UNIV_DEBUG */
 			}
@@ -2461,7 +2461,7 @@ fil_op_log_parse_or_replay(
 	ulint			tablespace_flags = 0;
 	ulint			new_name_len;
 	const char*		new_name = NULL;
-	truncate_t* 		truncate = NULL;
+	truncate_t*		truncate = NULL;
 
 	/* Step-1: Parse the log records. */
 
@@ -5674,7 +5674,7 @@ fil_io(
 
 	/* If we are deleting a tablespace we don't allow any read
 	operations on that. However, we do allow write operations. */
-	if (space == NULL 
+	if (space == NULL
 	    || (type == OS_FILE_READ
 		&& space->stop_new_ops && !space->is_being_truncated)) {
 		mutex_exit(&fil_system->mutex);
@@ -5716,7 +5716,7 @@ fil_io(
 			/* Found! */
 			break;
 		} else {
-			if (space->id != srv_sys_space.space_id() 
+			if (space->id != srv_sys_space.space_id()
 			    && UT_LIST_GET_LEN(space->chain) == 1
 			    && (srv_trunc_table_fix_up_active
 				|| space->is_being_truncated)
@@ -6863,7 +6863,7 @@ truncate_t::write(
 	}
 
 	/* Type, Space-ID, format-flag (also know as log_flag. Stored in page_no
-	field), tablespace flags */ 
+	field), tablespace flags */
 	{
 		log_ptr = mlog_write_initial_log_record_for_file_op(
 			MLOG_FILE_TRUNCATE, space_id, format_flags,
@@ -6872,7 +6872,6 @@ truncate_t::write(
 		mach_write_to_4(log_ptr, flags);
 		log_ptr += 4;
 	}
-	
 
 	/* Name of the table. */
 	{
@@ -6992,9 +6991,9 @@ Parses MLOG_FILE_TRUNCATE redo record during recovery
 bool
 truncate_t::parse(
 /*==============*/
-	byte** 		ptr,
-	const byte** 	end_ptr,
-	ulint 		flags)
+	byte**		ptr,
+	const byte**	end_ptr,
+	ulint		flags)
 {
 	ulint n_indexes;
 
@@ -7020,7 +7019,7 @@ truncate_t::parse(
 	}
 
 	/* Parse the remote directory from TRUNCATE log record */
-	{	
+	{
 		ulint n_tabledirpath_len = mach_read_from_2(*ptr);
 		*ptr += 2;
 
@@ -7086,9 +7085,9 @@ truncate_t::parse(
 			/* Should be NUL terminated. */
 			ut_ad((*ptr)[len - 1] == 0);
 
-			index_t::fields_t::iterator	end; 
+			index_t::fields_t::iterator	end;
 
-		       	end = index.m_fields.end();
+			end = index.m_fields.end();
 
 			index.m_fields.insert(end, *ptr, &(*ptr)[len]);
 
@@ -7173,7 +7172,7 @@ truncate_t::truncate(
 		opened = false;
 	}
 
-	os_offset_t	trunc_size = trunc_to_default 
+	os_offset_t	trunc_size = trunc_to_default
 		? FIL_IBD_FILE_INITIAL_SIZE
 		: space->size;
 

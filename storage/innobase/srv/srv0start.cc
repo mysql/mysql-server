@@ -1969,7 +1969,7 @@ files_checked:
 
 		/* Fix-up truncate of table if server crashed while truncate
 		was active. */
-		err = row_fixup_truncate_of_tables();	
+		err = row_fixup_truncate_of_tables();
 		if (err != DB_SUCCESS) {
 			return(srv_init_abort(err));
 		}
