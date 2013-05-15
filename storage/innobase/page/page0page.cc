@@ -637,36 +637,66 @@ page_copy_rec_list_end(
 	dict_index_t*	index,		/*!< in: record descriptor */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	page_t*		new_page	= buf_block_get_frame(new_block);
-	page_zip_des_t*	new_page_zip	= buf_block_get_page_zip(new_block);
-	page_t*		page		= page_align(rec);
-	rec_t*		ret		= page_rec_get_next(
-		page_get_infimum_rec(new_page));
-	ulint		log_mode	= 0; /* remove warning */
+	PageCur dst(mtr, index, new_block);
+	PageCur src(mtr, index, block, rec);
 
-	ut_ad(!new_page_zip == !buf_block_get_page_zip(block));
+	ut_ad(!page_is_empty(buf_block_get_frame(block)));
+
+	dst.next();
+
+	/* The target page cursor may point to a user record or the
+	predefined supremum record (in case new_block is empty). */
+
 	/* Strict page_zip_validate() may fail here.
 	Furthermore, btr_compress() may set FIL_PAGE_PREV to
 	FIL_NULL on new_page while leaving it intact on
 	new_page_zip. So, we cannot validate new_page_zip. */
-	page_zip_validate_sloppy_if_zip(buf_block_get_page_zip(block),
-					page, index);
-	ut_ad(buf_block_get_frame(block) == page);
-	ut_ad(page_is_leaf(page) == page_is_leaf(new_page));
-	ut_ad(page_is_comp(page) == page_is_comp(new_page));
-	/* Here, "ret" may be pointing to a user record or the
-	predefined supremum record. */
+	page_zip_validate_sloppy_if_zip(
+		buf_block_get_page_zip(block),
+		buf_block_get_frame(block), index);
 
-	if (new_page_zip) {
-		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
+	if (src.isBeforeFirst() ? !src.next() : src.isAfterLast()) {
+		/* Nothing to copy. But, we have to ensure that the
+		PAGE_MAX_TRX_ID is set on secondary index leaf pages. */
+		const page_t*	new_page
+			= buf_block_get_frame(new_block);
+
+		if (dict_index_is_sec_or_ibuf(index)
+		    && page_is_leaf(new_page)
+		    && !page_get_max_trx_id(new_page)
+		    && !dict_table_is_temporary(index->table)) {
+			ut_ad(page_is_empty(new_page));
+
+			page_update_max_trx_id(
+				new_block, buf_block_get_page_zip(new_block),
+				page_get_max_trx_id(
+					buf_block_get_frame(block)),
+				mtr);
+		}
+
+		return(dst.getRec());
 	}
 
-	if (page_dir_get_n_heap(new_page) == PAGE_HEAP_NO_USER_LOW) {
-		page_copy_rec_list_end_to_created_page(new_page, rec,
-						       index, mtr);
+	const ulint	log_mode = dst.isZip()
+		? mtr_set_log_mode(mtr, MTR_LOG_NONE)
+		: mtr_get_log_mode(mtr);
+
+	if (page_dir_get_n_heap(buf_block_get_frame(new_block))
+		   == PAGE_HEAP_NO_USER_LOW) {
+		page_copy_rec_list_end_to_created_page(
+			buf_block_get_frame(new_block), rec, index, mtr);
 	} else {
-		page_copy_rec_list_end_no_locks(new_block, block, rec,
-						index, mtr);
+		const rec_t*	ret = dst.getRec();
+
+		dst.setBeforeFirst();
+
+		do {
+			if (!dst.insertNoZip(src) || !dst.next()) {
+				ut_error;
+			}
+		} while (src.next());
+
+		dst.setRec(ret);
 	}
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
@@ -677,46 +707,17 @@ page_copy_rec_list_end(
 	max_trx_id is ignored for temp tables because it not required
 	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
-	    && page_is_leaf(page)
+	    && page_is_leaf(buf_block_get_frame(block))
 	    && !dict_table_is_temporary(index->table)) {
-		page_update_max_trx_id(new_block, NULL,
-				       page_get_max_trx_id(page), mtr);
+		page_update_max_trx_id(
+			new_block, NULL,
+			page_get_max_trx_id(buf_block_get_frame(block)), mtr);
 	}
 
-	if (new_page_zip) {
-		mtr_set_log_mode(mtr, log_mode);
+	mtr_set_log_mode(mtr, log_mode);
 
-		if (!page_zip_compress(new_page_zip, new_page,
-				       index, page_zip_level, mtr)) {
-			/* Before trying to reorganize the page,
-			store the number of preceding records on the page. */
-			ulint	ret_pos
-				= page_rec_get_n_recs_before(ret);
-			/* Before copying, "ret" was the successor of
-			the predefined infimum record.  It must still
-			have at least one predecessor (the predefined
-			infimum record, or a freshly copied record
-			that is smaller than "ret"). */
-			ut_a(ret_pos > 0);
-
-			if (!page_zip_reorganize(new_block, index, mtr)) {
-
-				if (!page_zip_decompress(new_page_zip,
-							 new_page, FALSE)) {
-					ut_error;
-				}
-				ut_ad(page_validate(new_block, index));
-				return(NULL);
-			} else {
-				/* The page was reorganized:
-				Seek to ret_pos. */
-				ret = new_page + PAGE_NEW_INFIMUM;
-
-				do {
-					ret = rec_get_next_ptr(ret, TRUE);
-				} while (--ret_pos);
-			}
-		}
+	if (dst.isZip() && !dst.compress(page_zip_level)) {
+		return(NULL);
 	}
 
 	/* Update the lock table and possible hash index */
@@ -725,7 +726,7 @@ page_copy_rec_list_end(
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 
-	return(ret);
+	return(dst.getRec());
 }
 
 /*************************************************************//**
