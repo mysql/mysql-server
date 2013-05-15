@@ -436,10 +436,15 @@ que_graph_free_recursive(
 	ind_node_t*	cre_ind;
 	purge_node_t*	purge;
 
+	DBUG_ENTER("que_graph_free_recursive");
+
 	if (node == NULL) {
 
-		return;
+		DBUG_VOID_RETURN;
 	}
+
+	DBUG_PRINT("que_graph_free_recursive",
+		   ("node: %p, type: %lu", node, que_node_get_type(node)));
 
 	switch (que_node_get_type(node)) {
 
@@ -504,18 +509,20 @@ que_graph_free_recursive(
 		break;
 
 	case QUE_NODE_UPDATE:
-
 		upd = static_cast<upd_node_t*>(node);
+
+		DBUG_PRINT("que_graph_free_recursive",
+			   ("QUE_NODE_UPDATE: %p, processed_cascades: %p",
+			    upd, upd->processed_cascades));
 
 		if (upd->in_mysql_interface) {
 
 			btr_pcur_free_for_mysql(upd->pcur);
 		}
 
-		que_graph_free_recursive(upd->cascade_node);
-
-		if (upd->cascade_heap) {
+		if (upd->cascade_top) {
 			mem_heap_free(upd->cascade_heap);
+			upd->cascade_top = false;
 		}
 
 		que_graph_free_recursive(upd->select);
@@ -587,6 +594,8 @@ que_graph_free_recursive(
 		mem_analyze_corruption(node);
 		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
+
+	DBUG_VOID_RETURN;
 }
 
 /**********************************************************************//**
@@ -1243,6 +1252,9 @@ que_eval_sql(
 	que_thr_t*	thr;
 	que_t*		graph;
 
+	DBUG_ENTER("que_eval_sql");
+	DBUG_PRINT("que_eval_sql", ("query: %s", sql));
+
 	ut_a(trx->error_state == DB_SUCCESS);
 
 	if (reserve_dict_mutex) {
@@ -1276,7 +1288,7 @@ que_eval_sql(
 		mutex_exit(&dict_sys->mutex);
 	}
 
-	return(trx->error_state);
+	DBUG_RETURN(trx->error_state);
 }
 
 /*********************************************************************//**
