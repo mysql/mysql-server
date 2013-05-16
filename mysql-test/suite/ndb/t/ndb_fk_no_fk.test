@@ -38,36 +38,36 @@ create table t3 (
 --source ndb_show_tables_result.inc
 
 --echo # There should be 4 mock tables created
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 let $id_t1 = `select id from ndb_show_tables_results where name = "'t1'"`;
 --echo # There should be 1 mock table created for t1
 --replace_result $id_t1 <id>
 eval select type, name from ndb_show_tables_results
-  where name like "'NDB\$DUMMY_$id_t1%'";
+  where name like "'NDB\$FKM_$id_t1%'";
 
 let $id_t3 = `select id from ndb_show_tables_results where name = "'t3'"`;
 --echo # There should be 3 mock tables created for t3
 --replace_result $id_t3 <id>
 eval select type, name from ndb_show_tables_results
-  where name like "'NDB\$DUMMY_$id_t3%'" order by name;
+  where name like "'NDB\$FKM_$id_t3%'" order by name;
 
 drop table t3;
 
 --source ndb_show_tables_result.inc
 
 --echo # There should be 1 mock table
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo # Only t1 should have 1 mock table
 --replace_result $id_t1 <id>
 eval select type, name from ndb_show_tables_results
-  where name like "'NDB\$DUMMY_$id_t1%'";
+  where name like "'NDB\$FKM_$id_t1%'";
 
 drop table t1;
 
 --echo # There should be 0 mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo #
 --echo # Create child table before parent
@@ -88,7 +88,7 @@ create table t2 (
 --source ndb_show_tables_result.inc
 
 --echo # There should be 0 mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo # Verify that fk is working now when parent has been resolved
 set foreign_key_checks=1;
@@ -189,7 +189,7 @@ create table t2 (
 --source ndb_show_tables_result.inc
 
 --echo # There should be 1 mock table still
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table t1, t2;
 
@@ -216,7 +216,7 @@ create table t2 (
 --source ndb_show_tables_result.inc
 
 --echo # There should be 1 mock table still
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table t1, t2;
 
@@ -258,7 +258,7 @@ create table t4 (
 --source ndb_show_tables_result.inc
 
 --echo # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table t1, t2, t3, t4;
 
@@ -302,7 +302,7 @@ create table t4 (
 --source ndb_show_tables_result.inc
 
 --echo # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table t1, t2, t3, t4;
 
@@ -333,7 +333,7 @@ create table t2 (
 --source ndb_show_tables_result.inc
 
 --echo # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table t1, t2;
 
@@ -356,7 +356,7 @@ create table t2 (
 --source ndb_show_tables_result.inc
 
 --echo # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table t2;
 
@@ -366,11 +366,11 @@ let $id_t1 = `select id from ndb_show_tables_results where name = "'t1'"`;
 --echo # There should be 1 mock table created for t1
 --replace_result $id_t1 <id>
 eval select type, name from ndb_show_tables_results
-  where name like "'NDB\$DUMMY_$id_t1%'";
+  where name like "'NDB\$FKM_$id_t1%'";
 
 drop table t1;
 
 --source ndb_show_tables_result.inc
 --echo # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
