@@ -1222,8 +1222,6 @@ void
 trx_sys_close(void)
 /*===============*/
 {
-	ulint		i;
-
 	ut_ad(trx_sys != NULL);
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
@@ -1267,25 +1265,27 @@ trx_sys_close(void)
 	}
 
 	/* There can't be any active transactions. */
+	trx_rseg_t** rseg_array =
+		static_cast<trx_rseg_t**>(trx_sys->rseg_array);
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
 
 		rseg = trx_sys->rseg_array[i];
 
 		if (rseg != NULL) {
-			trx_rseg_mem_free(rseg);
-		} else {
-			break;
+			trx_rseg_mem_free(rseg, rseg_array);
 		}
 	}
 
+	rseg_array =
+		((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
 
 		rseg = trx_sys->pending_purge_rseg_array[i];
 
 		if (rseg != NULL) {
-			trx_rseg_mem_free(rseg);
+			trx_rseg_mem_free(rseg, rseg_array);
 		}
 	}
 
