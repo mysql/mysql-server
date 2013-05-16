@@ -363,3 +363,47 @@ select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 count(*)
 0
 drop table t1, t2;
+#
+# Test drop of referenced table(dummy table should be created)
+#
+create table t1 (
+pk1 int not null primary key,
+foreign key (pk1) references t2(pk2),
+a varchar(255)
+) engine=ndb;
+Warnings:
+Warning	1003	Created dummy table 'NDB$DUMMY_10_0_t2' referenced by 't1'
+create table t2 (
+pk2 int not null primary key,
+b datetime
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_0_t2' - resolved by 't2'
+
+ndb_show_tables completed.....
+
+# There should be no dummy tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+count(*)
+0
+drop table t2;
+Warnings:
+Warning	1003	Created dummy table 'NDB$DUMMY_10_0_t2' referenced by 't1'
+
+ndb_show_tables completed.....
+
+# There should be 1 dummy table created for t1
+select type, name from ndb_show_tables_results
+where name like "'NDB$DUMMY_<id>%'";
+type	name
+'UserTable'	'NDB$DUMMY_<id>_0_t2'
+drop table t1;
+Warnings:
+Warning	1003	Dropped dummy table 'NDB$DUMMY_10_0_t2' - referencing table dropped
+
+ndb_show_tables completed.....
+
+# There should be no dummy tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+count(*)
+0
