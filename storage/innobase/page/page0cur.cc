@@ -1439,14 +1439,9 @@ page_copy_rec_list_end_to_created_page(
 	ulint	count;
 	ulint	n_recs;
 	ulint	slot_index;
-	ulint	rec_size;
 	ulint	log_mode;
 	byte*	log_ptr;
 	ulint	log_data_len;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
 	ut_ad(page_dir_get_n_heap(new_page) == PAGE_HEAP_NO_USER_LOW);
 	ut_ad(page_align(rec) != new_page);
@@ -1493,11 +1488,17 @@ page_copy_rec_list_end_to_created_page(
 	n_recs = 0;
 
 	do {
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		insert_rec = rec_copy(heap_top, rec, offsets);
+		ulint	extra_size;
+		ulint	data_size;
 
 		if (page_is_comp(new_page)) {
+			data_size = rec_get_size_comp(rec, index, extra_size);
+
+			memcpy(heap_top, rec - extra_size,
+			       extra_size + data_size);
+
+			insert_rec = heap_top + extra_size;
+
 			rec_set_next_offs_new(prev_rec,
 					      page_offset(insert_rec));
 
@@ -1505,6 +1506,13 @@ page_copy_rec_list_end_to_created_page(
 			rec_set_heap_no_new(insert_rec,
 					    PAGE_HEAP_NO_USER_LOW + n_recs);
 		} else {
+			data_size = rec_get_size_old(rec, extra_size);
+
+			memcpy(heap_top, rec - extra_size,
+			       extra_size + data_size);
+
+			insert_rec = heap_top + extra_size;
+
 			rec_set_next_offs_old(prev_rec,
 					      page_offset(insert_rec));
 
@@ -1529,13 +1537,11 @@ page_copy_rec_list_end_to_created_page(
 			count = 0;
 		}
 
-		rec_size = rec_offs_size(offsets);
-
 		ut_ad(heap_top < new_page + UNIV_PAGE_SIZE);
 
-		heap_top += rec_size;
+		const ulint	rec_size = extra_size + data_size;
 
-		rec_offs_make_valid(insert_rec, index, offsets);
+		heap_top += rec_size;
 
 		page_cur_insert_rec_write_log(insert_rec, rec_size, prev_rec,
 					      index, mtr);
@@ -1558,10 +1564,6 @@ page_copy_rec_list_end_to_created_page(
 		page_dir_slot_set_n_owned(slot, NULL, 0);
 
 		slot_index--;
-	}
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
 	}
 
 	log_data_len = dyn_array_get_data_size(&(mtr->log)) - log_data_len;
