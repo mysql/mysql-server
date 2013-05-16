@@ -5256,8 +5256,8 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     }
     mysql_mutex_unlock(&w->jobs_lock);
 
-    delete_dynamic_element(&rli->workers, i);
-    delete w;
+    //delete_dynamic_element(&rli->workers, i);
+    //delete w;
   }
 
   if (log_warnings > 1)
@@ -5286,8 +5286,8 @@ end:
   delete_dynamic(&rli->curr_group_da);             // GCDA
 
   delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
-  rli->deinit_workers();
-  rli->slave_parallel_workers= 0;
+  //rli->deinit_workers();
+  //rli->slave_parallel_workers= 0;
   free_root(&rli->mts_coor_mem_root, MYF(0));
   *mts_inited= false;
 }

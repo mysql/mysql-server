@@ -505,6 +505,13 @@ public:
     WQ - Worker Queue containing event assignments
   */
   DYNAMIC_ARRAY workers; // number's is determined by global slave_parallel_workers
+  /*
+    This flag is turned ON when the workers array is initialized.
+    Before destroying the workers array we check this flag to make sure
+    that we are not destroying an unitilized array
+  */
+  bool workers_array_initialized;
+
   volatile ulong pending_jobs;
   mysql_mutex_t pending_jobs_lock;
   mysql_cond_t pending_jobs_cond;

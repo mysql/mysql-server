@@ -94,7 +94,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
-   slave_parallel_workers(0),
+   workers_array_initialized(false), slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
    checkpoint_group(opt_mts_checkpoint_group), 
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
@@ -160,6 +160,11 @@ void Relay_log_info::init_workers(ulong n_workers)
   mts_groups_assigned= mts_events_assigned= pending_jobs= wq_size_waits_cnt= 0;
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
   mts_last_online_stat= 0;
+
+  //check for initialization before destroying memory.
+  if (workers_array_initialized)
+    deinit_workers();
+  workers_array_initialized= true; //set before init
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
 }
 
