@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,8 +43,7 @@ mystart=/etc/init.d/mysql
 # Check: Is this a first installation, or an upgrade ?
 
 if [ -d "$mydatadir/mysql" ] ; then
-   # If the directory for system table files exists, we assume an upgrade.
-  INSTALL=upgrade
+  :   # If the directory for system table files exists, we assume an upgrade.
 else
   INSTALL=new  # This is a new installation, the directory will soon be created.
 fi
@@ -59,7 +58,28 @@ fi
 
 chown -R $myuser:$mygroup $mydatadir
 
-if [ "$INSTALL" -eq "new" ] ; then
+# Solaris patch 119255 (somewhere around revision 42) changes the behaviour
+# of pkgadd to set TMPDIR internally to a root-owned install directory.  This
+# has the unfortunate side effect of breaking running mysql_install_db with
+# the --user=mysql argument as mysqld uses TMPDIR if set, and is unable to
+# write temporary tables to that directory.  To work around this issue, we
+# create a subdirectory inside TMPDIR (if set) for mysqld to write to.
+#
+# Idea from Ben Hekster <heksterb@gmail.com> in bug#31164
+
+if [ -n "$TMPDIR" ] ; then
+  savetmpdir="$TMPDIR"
+  TMPDIR="$TMPDIR/mysql.$$"
+  export TMPDIR
+  mkdir "$TMPDIR"
+  chown $myuser:$mygroup "$TMPDIR"
+fi
+
+
+# BUG# 16812255: Removing the option --random-passwords
+# as this is supported only for MYSQL releases 5.6 and above.
+ 
+if [ -n "$INSTALL" ] ; then
   # We install/update the system tables
   (
     cd "$mybasedir"
@@ -70,6 +90,38 @@ if [ "$INSTALL" -eq "new" ] ; then
 	  --datadir=$mydatadir
   )
 fi
+
+if [ -n "$savetmpdir" ] ; then
+  TMPDIR="$savetmpdir"
+fi
+
+# ----------------------------------------------------------------------
+
+# Handle situation there is old start script installed already
+
+# If old start script is a soft link, we just remove it
+[ -h "$mystart" ] && rm -f "$mystart"
+
+# If old start script is a file, we rename it
+[ -f "$mystart" ] && mv -f "$mystart" "$mystart.old.$$"
+
+# ----------------------------------------------------------------------
+
+# We create a copy of an unmodified start script,
+# as a reference for the one maybe modifying it
+
+cp -f "$mystart1.in" "$mystart.in" || exit 1
+
+# We rewrite some scripts
+
+for script in "$mystart" "$mystart1" "$myinstdb" ; do
+  script_in="$script.in"
+  sed -e "s,@basedir@,$mybasedir,g" \
+      -e "s,@datadir@,$mydatadir,g" "$script_in" > "$script"
+  chmod u+x $script
+done
+
+rm -f "$mystart.in"
 
 exit 0
 

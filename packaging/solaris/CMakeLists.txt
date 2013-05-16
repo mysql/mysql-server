@@ -22,7 +22,7 @@
 # It is important not to pollute "/usr/bin".
 SET(inst_location ${INSTALL_SUPPORTFILESDIR})
 
-FOREACH(script  postinstall_check)
+FOREACH(script  postinstall-solaris)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
                  ${CMAKE_CURRENT_BINARY_DIR}/${script} COPYONLY )
 
