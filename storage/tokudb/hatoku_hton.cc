@@ -169,8 +169,7 @@ static MYSQL_THDVAR_UINT(analyze_time,
 static void tokudb_checkpoint_lock(THD * thd);
 static void tokudb_checkpoint_unlock(THD * thd);
 
-static void
-tokudb_checkpoint_lock_update(
+static void tokudb_checkpoint_lock_update(
     THD* thd,
     struct st_mysql_sys_var* var,
     void* var_ptr,
@@ -303,6 +302,7 @@ static char *tokudb_log_dir;
 // static ulong tokudb_cache_parts = 1;
 const char *tokudb_hton_name = "TokuDB";
 static uint32_t tokudb_checkpointing_period;
+static uint32_t tokudb_fsync_log_period;
 uint32_t tokudb_write_status_frequency;
 uint32_t tokudb_read_status_frequency;
 #ifdef TOKUDB_VERSION
@@ -520,11 +520,12 @@ static int tokudb_init_func(void *p) {
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env open:flags=%x\n", __FUNCTION__, tokudb_init_flags);
 
     r = db_env->set_generate_row_callback_for_put(db_env,generate_row_for_put);
-    assert(!r);
+    assert(r == 0);
     r = db_env->set_generate_row_callback_for_del(db_env,generate_row_for_del);
-    assert(!r);
+    assert(r == 0);
     db_env->set_update(db_env, tokudb_update_fun);
     db_env_set_direct_io(tokudb_directio == TRUE);
+    db_env->change_fsync_log_period(db_env, tokudb_fsync_log_period);
     r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env opened:return=%d\n", __FUNCTION__, r);
@@ -535,7 +536,7 @@ static int tokudb_init_func(void *p) {
     }
 
     r = db_env->checkpointing_set_period(db_env, tokudb_checkpointing_period);
-    assert(!r);
+    assert(r == 0);
     r = db_env->cleaner_set_period(db_env, tokudb_cleaner_period);
     assert(r == 0);
     r = db_env->cleaner_set_iterations(db_env, tokudb_cleaner_iterations);
@@ -545,7 +546,7 @@ static int tokudb_init_func(void *p) {
     assert(r == 0);
 
     r = db_env->get_engine_status_num_rows (db_env, &toku_global_status_max_rows);
-    assert(r==0);
+    assert(r == 0);
 
     {
         const myf mem_flags = MY_FAE|MY_WME|MY_ZEROFILL|MY_ALLOW_ZERO_PTR|MY_FREE_ON_ERROR;
@@ -641,7 +642,7 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
 
     if (metadata_db) {
         int r = metadata_db->close(metadata_db, 0);
-        assert(r==0);
+        assert(r == 0);
     }
     if (db_env) {
         if (tokudb_init_flags & DB_INIT_LOG)
@@ -1158,7 +1159,7 @@ static int tokudb_dictionary_info(TABLE *table, THD *thd) {
 cleanup:
     if (tmp_cursor) {
         int r = tmp_cursor->c_close(tmp_cursor);
-        assert(r==0);
+        assert(r == 0);
     }
     if (txn) {
         commit_txn(txn, 0);
@@ -1258,7 +1259,7 @@ static int tokudb_fractal_tree_info(TABLE *table, THD *thd) {
 cleanup:
     if (tmp_cursor) {
         int r = tmp_cursor->c_close(tmp_cursor);
-        assert(r==0);
+        assert(r == 0);
     }
     if (txn) {
         commit_txn(txn, 0);
@@ -1422,7 +1423,7 @@ static int tokudb_fractal_tree_block_map(TABLE *table, THD *thd) {
 cleanup:
     if (tmp_cursor) {
         int r = tmp_cursor->c_close(tmp_cursor);
-        assert(r==0);
+        assert(r == 0);
     }
     if (txn) {
         commit_txn(txn, 0);
@@ -1553,7 +1554,7 @@ static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
 
             {
                 int r = curr_db->close(curr_db, 0);
-                assert(r==0);
+                assert(r == 0);
                 curr_db = NULL;
             }
         }
@@ -1569,15 +1570,15 @@ static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
 cleanup:
     if (tmp_cursor) {
         int r = tmp_cursor->c_close(tmp_cursor);
-        assert(r==0);
+        assert(r == 0);
     }
     if (tmp_table_cursor) {
         int r = tmp_table_cursor->c_close(tmp_table_cursor);
-        assert(r==0);
+        assert(r == 0);
     }
     if (curr_db) {
         int r = curr_db->close(curr_db, 0);
-        assert(r==0);
+        assert(r == 0);
     }
     if (tmp_txn) {
         commit_txn(tmp_txn, 0);
@@ -1813,12 +1814,8 @@ static void tokudb_cleanup_log_files(void) {
 
 // system variables
 
-static void tokudb_lock_timeout_update(THD * thd,
-        struct st_mysql_sys_var * sys_var, 
-        void * var, const void * save)
-{
-    ulonglong * timeout = (ulonglong *) var;
-
+static void tokudb_lock_timeout_update(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
+    ulonglong *timeout = (ulonglong *) var;
     *timeout = *(const ulonglong *) save;
     db_env->set_lock_timeout(db_env, *timeout);
 }
@@ -1826,74 +1823,63 @@ static void tokudb_lock_timeout_update(THD * thd,
 #define DEFAULT_LOCK_TIMEOUT_MSEC 4000
 
 static MYSQL_SYSVAR_ULONGLONG(lock_timeout, tokudb_lock_timeout,
-        0, "TokuDB lock timeout", 
-        NULL, tokudb_lock_timeout_update, DEFAULT_LOCK_TIMEOUT_MSEC,
-        0, ~0ULL, 0);
+    0, "TokuDB lock timeout", 
+    NULL, tokudb_lock_timeout_update, DEFAULT_LOCK_TIMEOUT_MSEC,
+    0, ~0ULL, 0);
 
-static void tokudb_cleaner_period_update(THD * thd,
-        struct st_mysql_sys_var * sys_var, 
-        void * var, const void * save)
-{
+static void tokudb_cleaner_period_update(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
     ulong * cleaner_period = (ulong *) var;
-
-    *cleaner_period = *(const ulong *) save;
+    *cleaner_period = *(const ulonglong *) save;
     int r = db_env->cleaner_set_period(db_env, *cleaner_period);
-    assert(r==0);
+    assert(r == 0);
 }
 
 #define DEFAULT_CLEANER_PERIOD 1
 
 static MYSQL_SYSVAR_ULONG(cleaner_period, tokudb_cleaner_period,
-        0, "TokuDB cleaner_period", 
-        NULL, tokudb_cleaner_period_update, DEFAULT_CLEANER_PERIOD,
-        0, ~0UL, 0);
+    0, "TokuDB cleaner_period", 
+    NULL, tokudb_cleaner_period_update, DEFAULT_CLEANER_PERIOD,
+    0, ~0UL, 0);
 
-static void tokudb_cleaner_iterations_update(THD * thd,
-        struct st_mysql_sys_var * sys_var, 
-        void * var, const void * save)
-{
+static void tokudb_cleaner_iterations_update(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
     ulong * cleaner_iterations = (ulong *) var;
-
-    *cleaner_iterations = *(const ulong *) save;
+    *cleaner_iterations = *(const ulonglong *) save;
     int r = db_env->cleaner_set_iterations(db_env, *cleaner_iterations);
-    assert(r==0);
+    assert(r == 0);
 }
 
 #define DEFAULT_CLEANER_ITERATIONS 5
 
-static void tokudb_checkpointing_period_update(THD * thd,
-        struct st_mysql_sys_var * sys_var, 
-        void * var, const void * save)
-{
-    uint * checkpointing_period = (uint *) var;
+static MYSQL_SYSVAR_ULONG(cleaner_iterations, tokudb_cleaner_iterations,
+    0, "TokuDB cleaner_iterations", 
+    NULL, tokudb_cleaner_iterations_update, DEFAULT_CLEANER_ITERATIONS,
+    0, ~0UL, 0);
 
-    *checkpointing_period= *(const ulong *) save;
+static void tokudb_checkpointing_period_update(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
+    uint * checkpointing_period = (uint *) var;
+    *checkpointing_period = *(const ulonglong *) save;
     int r = db_env->checkpointing_set_period(db_env, *checkpointing_period);
-    assert(r==0);
+    assert(r == 0);
 }
 
-
-static MYSQL_SYSVAR_BOOL(directio, tokudb_directio,
-  PLUGIN_VAR_READONLY,
-  "TokuDB Enable Direct I/O ",
-  NULL, NULL, FALSE);
-static MYSQL_SYSVAR_BOOL(checkpoint_on_flush_logs, tokudb_checkpoint_on_flush_logs,
-  0,
-  "TokuDB Checkpoint on Flush Logs ",
-  NULL, NULL, FALSE);
-
-static MYSQL_SYSVAR_ULONG(cleaner_iterations, tokudb_cleaner_iterations,
-        0, "TokuDB cleaner_iterations", 
-        NULL, tokudb_cleaner_iterations_update, DEFAULT_CLEANER_ITERATIONS,
-        0, ~0UL, 0);
-
-static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size,
-        PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0,
-        0, ~0ULL, 0);
 static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 
     0, "TokuDB Checkpointing period", 
     NULL, tokudb_checkpointing_period_update, 60, 
     0, ~0U, 0);
+
+static MYSQL_SYSVAR_BOOL(directio, tokudb_directio,
+    PLUGIN_VAR_READONLY,
+    "TokuDB Enable Direct I/O ",
+    NULL, NULL, FALSE);
+static MYSQL_SYSVAR_BOOL(checkpoint_on_flush_logs, tokudb_checkpoint_on_flush_logs,
+    0,
+    "TokuDB Checkpoint on Flush Logs ",
+    NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size,
+    PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0,
+    0, ~0ULL, 0);
+
 static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, tokudb_max_lock_memory, PLUGIN_VAR_READONLY, "TokuDB max memory for locks", NULL, NULL, 0, 0, ~0ULL, 0);
 static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, 0, "TokuDB Debug", NULL, NULL, 0, 0, ~0UL, 0);
 
@@ -1909,6 +1895,14 @@ static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 
 static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0U, 0);
 static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
 static MYSQL_SYSVAR_STR(tmp_dir, tokudb_tmp_dir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
+
+static void tokudb_fsync_log_period_update(THD *thd, struct st_mysql_sys_var *sys_var, void *var, const void *save) {
+    uint32 *period = (uint32 *) var;
+    *period = *(const ulonglong *) save;
+    db_env->change_fsync_log_period(db_env, *period);
+}
+
+static MYSQL_SYSVAR_UINT(fsync_log_period, tokudb_fsync_log_period, 0, "TokuDB fsync log period", NULL, tokudb_fsync_log_period_update, 0, 0, ~0U, 0);
 
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
@@ -1947,6 +1941,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(disable_slow_upsert),
 #endif
     MYSQL_SYSVAR(analyze_time),
+    MYSQL_SYSVAR(fsync_log_period),
     NULL
 };
 
