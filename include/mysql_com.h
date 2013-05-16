@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,10 +53,10 @@
 #define LOCAL_HOST_NAMEDPIPE "."
 
 
-#if defined(__WIN__) && !defined( _CUSTOMCONFIG_)
+#if defined(_WIN32) && !defined( _CUSTOMCONFIG_)
 #define MYSQL_NAMEDPIPE "MySQL"
 #define MYSQL_SERVICENAME "MySQL"
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*
   You should add new commands to the end of this list, otherwise old
@@ -314,7 +314,6 @@ typedef struct st_vio Vio;
 #define MAX_BLOB_WIDTH		16777216	/* Default width for blob */
 
 typedef struct st_net {
-#if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
   Vio *vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
@@ -339,7 +338,6 @@ typedef struct st_net {
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
   */
-#endif
   /*
     Unused, please remove with the next incompatible ABI change.
   */

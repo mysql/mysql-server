@@ -537,7 +537,7 @@ void init_sql_statement_info();
 void init_com_statement_info();
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
-#ifndef __WIN__
+#ifndef _WIN32
 extern pthread_t signal_thread;
 #endif
 

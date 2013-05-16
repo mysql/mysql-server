@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ protected:
 
 TEST_F(FatalSignalDeathTest, Abort)
 {
-#if defined(__WIN__)
+#if defined(_WIN32)
   EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
 #else
   EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
@@ -54,7 +54,7 @@ TEST_F(FatalSignalDeathTest, Abort)
 TEST_F(FatalSignalDeathTest, Segfault)
 {
   int *pint= NULL;
-#if defined(__WIN__)
+#if defined(_WIN32)
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer
    caught by handle_fatal_signal(). We get an empty error message from the

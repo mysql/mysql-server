@@ -138,6 +138,9 @@ typedef byte	trx_upagef_t;
 
 /** Undo log record */
 typedef	byte	trx_undo_rec_t;
+
+/** Transaction list */
+typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
 /* @} */
 
 #endif

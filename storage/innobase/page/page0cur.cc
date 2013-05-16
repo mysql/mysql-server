@@ -175,7 +175,7 @@ exit_func:
 
 /****************************************************************//**
 Searches the right position for a page cursor. */
-UNIV_INTERN
+
 void
 page_cur_search_with_match(
 /*=======================*/
@@ -376,7 +376,7 @@ up_rec_match:
 /***********************************************************//**
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */
-UNIV_INTERN
+
 void
 page_cur_open_on_rnd_user_rec(
 /*==========================*/
@@ -589,7 +589,7 @@ need_extra_info:
 /***********************************************************//**
 Parses a log record of a record insert on a page.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 page_cur_parse_insert_rec(
 /*======================*/
@@ -772,7 +772,7 @@ page_cur_parse_insert_rec(
 @param[in]	data		size of rec data, in bytes
 @param[in/out]	mtr		mini-transaction, NULL=no redo logging
 @return	pointer to record if succeed, NULL otherwise */
-UNIV_INTERN
+
 rec_t*
 page_cur_insert_rec_low(
 	rec_t*			current_rec,
@@ -960,7 +960,7 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return	pointer to record if succeed, NULL otherwise */
-UNIV_INTERN
+
 rec_t*
 page_cur_insert_rec_zip(
 /*====================*/
@@ -1361,7 +1361,7 @@ page_copy_rec_list_to_created_page_write_log(
 /**********************************************************//**
 Parses a log record of copying a record list end to a new created page.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 page_parse_copy_rec_list_to_created_page(
 /*=====================================*/
@@ -1423,7 +1423,7 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if this is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-UNIV_INTERN
+
 void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
@@ -1637,7 +1637,7 @@ page_cur_delete_rec_write_log(
 /***********************************************************//**
 Parses log record of a record delete on a page.
 @return	pointer to record end or NULL */
-UNIV_INTERN
+
 byte*
 page_cur_parse_delete_rec(
 /*======================*/
@@ -1668,7 +1668,7 @@ page_cur_parse_delete_rec(
 /***********************************************************//**
 Deletes a record at the page cursor. The cursor is moved to the next
 record after the deleted one. */
-UNIV_INTERN
+
 void
 page_cur_delete_rec(
 /*================*/
@@ -1810,7 +1810,7 @@ page_cur_delete_rec(
 
 /** Initialize a page cursor, either to rec or the page infimum.
 Allocates and initializes offsets[]. */
-UNIV_INTERN
+
 void
 PageCur::init(void)
 {
@@ -2148,7 +2148,7 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 @param[in/out]	page_zip	getPageZip(), or NULL to not
 update the compressed page
 @return	inserted record; NULL if out of space */
-UNIV_INTERN
+
 const rec_t*
 PageCur::insertNoReorganize(
 	const rec_t*	rec,
@@ -2399,7 +2399,7 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 @param[in]	extra_size	size of record header, in bytes
 @param[in]	data_size	size of record payload, in bytes
 @return	pointer to record if enough space available, NULL otherwise */
-UNIV_INTERN
+
 const rec_t*
 PageCur::insert(
 	const rec_t*	rec,
@@ -2439,7 +2439,7 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 @param[in] tuple	record to insert
 @param[in] n_ext	number of externally stored columns
 @return	pointer to record if enough space available, NULL otherwise */
-UNIV_INTERN
+
 const rec_t*
 PageCur::insert(const dtuple_t* tuple, ulint n_ext)
 {
@@ -2490,7 +2490,7 @@ false=update-in-place
 @return true if enough space is available; if not,
 IBUF_BITMAP_FREE will be reset outside m_mtr
 if the page was recompressed */
-UNIV_INTERN
+
 bool
 PageCur::zipAlloc(bool create)
 {
@@ -2558,7 +2558,7 @@ PageCur::zipAlloc(bool create)
 /** Update the current record in place.
 NOTE: on compressed page, updateAlloc() must have been called first.
 @param[in]	update		the update vector */
-UNIV_INTERN
+
 void
 PageCur::update(const upd_t* update)
 {
@@ -2705,7 +2705,7 @@ PageCur::searchShortcut(
 /** Search for an entry in the index page.
 @param entry data tuple to search for
 @return true if a full match was found */
-UNIV_INTERN
+
 bool
 PageCur::search(const dtuple_t* tuple)
 {
@@ -2841,7 +2841,7 @@ up_rec_match:
 /** Delete the current record.
 The cursor is moved to the next record after the deleted one.
 @return true if the next record is a user record */
-UNIV_INTERN
+
 bool
 PageCur::purge()
 {
@@ -2985,7 +2985,7 @@ to the uncompressed page
 @retval false if it is a compressed page, and recompression failed
 (the page will be restored to correspond to the compressed page,
 and the cursor will be positioned on the page infimum) */
-UNIV_INTERN
+
 bool
 PageCur::reorganize(bool recovery, bool zip_valid, ulint z_level)
 {
@@ -3193,7 +3193,7 @@ unaffected by reorganization.
 @retval false if the recompression failed
 (the page will be restored to correspond to the compressed page,
 and the cursor will be positioned on the page infimum) */
-UNIV_INTERN
+
 bool
 PageCur::compress(ulint z_level)
 {

@@ -426,7 +426,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
     }
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
     MY_STAT stat_info;
     if (!my_stat(name, &stat_info, MYF(MY_WME)))
       DBUG_RETURN(TRUE);

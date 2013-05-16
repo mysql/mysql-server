@@ -34,6 +34,8 @@ Created 2/16/1997 Heikki Tuuri
 
 #include <algorithm>
 
+using std::min;
+
 /*
 -------------------------------------------------------------------------------
 FACT A: Cursor read view on a secondary index sees only committed versions
@@ -255,7 +257,7 @@ read_view_clone(
 /*********************************************************************//**
 Insert the view in the proper order into the trx_sys->view_list. The
 read view list is ordered by read_view_t::low_limit_no in descending order. */
-UNIV_INTERN
+
 void
 read_view_add(
 /*==========*/
@@ -275,10 +277,9 @@ read_view_add(
 	}
 
 	if (prev_elem == NULL) {
-		UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
+		UT_LIST_ADD_FIRST(trx_sys->view_list, view);
 	} else {
-		UT_LIST_INSERT_AFTER(
-			view_list, trx_sys->view_list, prev_elem, view);
+		UT_LIST_INSERT_AFTER(trx_sys->view_list, prev_elem, view);
 	}
 
 	ut_ad(read_view_list_validate());
@@ -362,7 +363,7 @@ read_view_open_now_low(
 
 	/* No active transaction should be visible, except cr_trx */
 
-	ut_list_map(trx_sys->rw_trx_list, &trx_t::trx_list, CreateView(view));
+	ut_list_map(trx_sys->rw_trx_list, CreateView(view));
 
 	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
@@ -385,7 +386,7 @@ read_view_open_now_low(
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
 @return	own: read view struct */
-UNIV_INTERN
+
 read_view_t*
 read_view_open_now(
 /*===============*/
@@ -413,7 +414,7 @@ the creating trx of the oldest view is set as not visible in the 'copied'
 view. Opens a new view if no views currently exist. The view must be closed
 with ..._close. This is used in purge.
 @return	own: read view struct */
-UNIV_INTERN
+
 read_view_t*
 read_view_purge_open(
 /*=================*/
@@ -495,7 +496,7 @@ read_view_purge_open(
 		the oldest view's creator id can be larger and that will be
 		in the tx_ids array. */
 
-		view->up_limit_id = std::min(
+		view->up_limit_id = min(
 			view->trx_ids[view->n_trx_ids - 1],
 			view->up_limit_id);
 	}
@@ -508,7 +509,7 @@ read_view_purge_open(
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
-UNIV_INTERN
+
 void
 read_view_close_for_mysql(
 /*======================*/

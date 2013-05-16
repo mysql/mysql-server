@@ -2256,7 +2256,7 @@ public:
   } transaction;
   Global_read_lock global_read_lock;
   Field      *dup_field;
-#ifndef __WIN__
+#ifndef _WIN32
   sigset_t signals;
 #endif
 

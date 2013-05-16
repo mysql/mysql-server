@@ -38,21 +38,18 @@ extern "C" {
 #include <winsock2.h>				/* For windows */
 #endif
 typedef char my_bool;
-#if (defined(_WIN32) || defined(_WIN64)) && !defined(__WIN__)
-#define __WIN__
-#endif
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #define STDCALL
 #else
 #define STDCALL __stdcall
 #endif
 
 #ifndef my_socket_defined
-#ifdef __WIN__
+#ifdef _WIN32
 #define my_socket SOCKET
 #else
 typedef int my_socket;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 #endif /* my_socket_defined */
 #endif /* MY_GLOBAL_INCLUDED */
 
@@ -107,9 +104,7 @@ typedef char **MYSQL_ROW;		/* return data as array of strings */
 typedef unsigned int MYSQL_FIELD_OFFSET; /* offset to current field */
 
 #ifndef MY_GLOBAL_INCLUDED
-#if defined(NO_CLIENT_LONG_LONG)
-typedef unsigned long my_ulonglong;
-#elif defined (__WIN__)
+#if defined (_WIN32)
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
@@ -712,12 +707,6 @@ void STDCALL mysql_close(MYSQL *sock);
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 
-#ifdef USE_OLD_FUNCTIONS
-MYSQL *		STDCALL mysql_connect(MYSQL *mysql, const char *host,
-				      const char *user, const char *passwd);
-int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
-int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
-#endif
 #define HAVE_MYSQL_REAL_CONNECT
 
 #ifdef	__cplusplus

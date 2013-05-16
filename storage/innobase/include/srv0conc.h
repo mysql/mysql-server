@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -67,7 +67,7 @@ srv_conc_free(void);
 /*********************************************************************//**
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
-UNIV_INTERN
+
 void
 srv_conc_enter_innodb(
 /*==================*/
@@ -77,7 +77,7 @@ srv_conc_enter_innodb(
 /*********************************************************************//**
 This lets a thread enter InnoDB regardless of the number of threads inside
 InnoDB. This must be called when a thread ends a lock wait. */
-UNIV_INTERN
+
 void
 srv_conc_force_enter_innodb(
 /*========================*/
@@ -87,7 +87,7 @@ srv_conc_force_enter_innodb(
 /*********************************************************************//**
 This must be called when a thread exits InnoDB in a lock wait or at the
 end of an SQL statement. */
-UNIV_INTERN
+
 void
 srv_conc_force_exit_innodb(
 /*=======================*/
@@ -96,14 +96,14 @@ srv_conc_force_exit_innodb(
 
 /*********************************************************************//**
 Get the count of threads waiting inside InnoDB. */
-UNIV_INTERN
+
 ulint
 srv_conc_get_waiting_threads(void);
 /*==============================*/
 
 /*********************************************************************//**
 Get the count of threads active inside InnoDB. */
-UNIV_INTERN
+
 ulint
 srv_conc_get_active_threads(void);
 /*==============================*/

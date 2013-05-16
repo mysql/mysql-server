@@ -3226,7 +3226,7 @@ row_import_read_cfg(
 Update the <space, root page> of a table's indexes from the values
 in the data dictionary.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 row_import_update_index_root(
 /*=========================*/
@@ -3394,7 +3394,7 @@ row_import_set_discarded(
 /*****************************************************************//**
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
 @return DB_SUCCESS or error code. */
-UNIV_INTERN
+
 dberr_t
 row_import_update_discarded_flag(
 /*=============================*/
@@ -3458,7 +3458,7 @@ row_import_update_discarded_flag(
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 row_import_for_mysql(
 /*=================*/

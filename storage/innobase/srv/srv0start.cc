@@ -94,20 +94,20 @@ Created 2/16/1996 Heikki Tuuri
 # include "ut0crc32.h"
 
 /** Log sequence number immediately after startup */
-UNIV_INTERN lsn_t	srv_start_lsn;
+lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
-UNIV_INTERN lsn_t	srv_shutdown_lsn;
+lsn_t	srv_shutdown_lsn;
 
 /** TRUE if a raw partition is in use */
-UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
+ibool	srv_start_raw_disk_in_use = FALSE;
 
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
-UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
+ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
 /** TRUE if the server is being started */
-UNIV_INTERN ibool	srv_is_being_started = FALSE;
+ibool	srv_is_being_started = FALSE;
 /** TRUE if the server was successfully started */
-UNIV_INTERN ibool	srv_was_started = FALSE;
+ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
 static ibool		srv_start_has_been_called = FALSE;
 
@@ -131,7 +131,7 @@ static ulint	srv_start_state;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
-UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
+enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
@@ -162,16 +162,16 @@ static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
-UNIV_INTERN mysql_pfs_key_t	io_ibuf_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_log_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_read_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_write_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_handler_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_lock_timeout_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_error_monitor_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
+mysql_pfs_key_t	io_ibuf_thread_key;
+mysql_pfs_key_t	io_log_thread_key;
+mysql_pfs_key_t	io_read_thread_key;
+mysql_pfs_key_t	io_write_thread_key;
+mysql_pfs_key_t	io_handler_thread_key;
+mysql_pfs_key_t	srv_lock_timeout_thread_key;
+mysql_pfs_key_t	srv_error_monitor_thread_key;
+mysql_pfs_key_t	srv_monitor_thread_key;
+mysql_pfs_key_t	srv_master_thread_key;
+mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /*********************************************************************//**
@@ -235,7 +235,7 @@ srv_file_check_mode(
 /********************************************************************//**
 I/o-handler thread function.
 @return	OS_THREAD_DUMMY_RETURN */
-extern "C" UNIV_INTERN
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(io_handler_thread)(
 /*==============================*/
@@ -294,14 +294,14 @@ DECLARE_THREAD(io_handler_thread)(
 
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
-UNIV_INTERN
+
 void
 srv_normalize_path_for_win(
 /*=======================*/
 	char*	str __attribute__((unused)))	/*!< in/out: null-terminated
 						character string */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	for (; *str; str++) {
 
 		if (*str == '/') {
@@ -390,7 +390,7 @@ create_log_files(
 		/* Ignore errors about non-existent files or files
 		that cannot be removed. The create_log_file() will
 		return an error when the file exists. */
-#ifdef __WIN__
+#ifdef _WIN32
 		DeleteFile((LPCTSTR) logfilename);
 #else
 		unlink(logfilename);
@@ -996,7 +996,7 @@ srv_start_state_is_set(
 
 /****************************************************************//**
 Shutdown all background threads created by InnoDB. */
-UNIV_INTERN
+
 void
 srv_shutdown_all_bg_threads()
 /*=========================*/
@@ -1108,7 +1108,7 @@ srv_init_abort_low(
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 innobase_start_or_create_for_mysql(void)
 /*====================================*/
@@ -1242,7 +1242,7 @@ innobase_start_or_create_for_mysql(void)
 	srv_is_being_started = TRUE;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	switch (os_get_os_version()) {
 	case OS_WIN95:
 	case OS_WIN31:
@@ -1278,7 +1278,7 @@ innobase_start_or_create_for_mysql(void)
 	and that also when the support is compiled in. In all other
 	cases, we ignore the setting of innodb_use_native_aio. */
 	srv_use_native_aio = FALSE;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
@@ -1286,7 +1286,7 @@ innobase_start_or_create_for_mysql(void)
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-#ifndef __WIN__
+#ifndef _WIN32
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
@@ -1316,7 +1316,7 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "async_unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	} else {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unrecognized value %s for innodb_flush_method",
@@ -1338,7 +1338,7 @@ innobase_start_or_create_for_mysql(void)
 		srv_max_n_threads = 50000;
 
 		if (srv_buf_pool_instances == SRV_BUF_POOL_INSTANCES_NOT_SET) {
-#if defined(__WIN__) && !defined(_WIN64)
+#if defined(_WIN32) && !defined(_WIN64)
 			/* Do not allocate too large of a buffer pool on
 			Windows 32-bit systems, which can have trouble
 			allocating larger single contiguous memory blocks. */
@@ -1346,10 +1346,10 @@ innobase_start_or_create_for_mysql(void)
 				MAX_BUFFER_POOLS,
 				(long) (srv_buf_pool_size
 					/ (128 * 1024 * 1024)));
-#else /* defined(__WIN__) && !defined(_WIN64) */
+#else /* defined(_WIN32) && !defined(_WIN64) */
 			/* Default to 8 instances when size > 1GB. */
 			srv_buf_pool_instances = 8;
-#endif /* defined(__WIN__) && !defined(_WIN64) */
+#endif /* defined(_WIN32) && !defined(_WIN64) */
 		}
 	} else {
 		/* If buffer pool is less than 1 GiB, assume fewer
@@ -1474,11 +1474,11 @@ innobase_start_or_create_for_mysql(void)
 	/* On Windows when using native aio the number of aio requests
 	that a thread can handle at a given time is limited to 32
 	i.e.: SRV_N_PENDING_IOS_PER_THREAD */
-# ifdef __WIN__
+# ifdef _WIN32
 	if (srv_use_native_aio) {
 		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
-# endif /* __WIN__ */
+# endif /* _WIN32 */
 
 	if (!os_aio_init(io_limit,
 			 srv_n_read_io_threads,
@@ -2183,10 +2183,6 @@ files_checked:
 		os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
 	}
 
-#ifdef UNIV_DEBUG
-	/* buf_debug_prints = TRUE; */
-#endif /* UNIV_DEBUG */
-
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
 	ut_a(sum_of_new_sizes != ULINT_UNDEFINED);
 
@@ -2366,7 +2362,7 @@ srv_fts_close(void)
 /****************************************************************//**
 Shuts down the InnoDB database.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 innobase_shutdown_for_mysql(void)
 /*=============================*/
@@ -2405,6 +2401,7 @@ innobase_shutdown_for_mysql(void)
 	/* 2. Make all threads created by InnoDB to exit */
 	srv_shutdown_all_bg_threads();
 
+
 	if (srv_monitor_file) {
 		fclose(srv_monitor_file);
 		srv_monitor_file = 0;
@@ -2438,6 +2435,8 @@ innobase_shutdown_for_mysql(void)
 	trx_sys_file_format_close();
 	trx_sys_close();
 
+	trx_pool_close();
+
 	/* We don't create these mutexes in RO mode because we don't create
 	the temp files that the cover. */
 	if (!srv_read_only_mode) {
@@ -2468,6 +2467,7 @@ innobase_shutdown_for_mysql(void)
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
+
 	mem_close();
 
 	/* ut_free_all_mem() frees all allocated memory not freed yet
@@ -2508,7 +2508,7 @@ innobase_shutdown_for_mysql(void)
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-UNIV_INTERN
+
 void
 srv_shutdown_table_bg_threads(void)
 /*===============================*/
@@ -2584,7 +2584,7 @@ srv_shutdown_table_bg_threads(void)
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
-UNIV_INTERN
+
 void
 srv_get_meta_data_filename(
 /*=======================*/

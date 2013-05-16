@@ -34,9 +34,9 @@ Created 12/18/1995 Heikki Tuuri
 #include "fut0lst.h"
 #include "ut0byte.h"
 #include "page0types.h"
-#include "fsp0types.h"
 
 #endif /* !UNIV_INNOCHECKSUM */
+#include "fsp0types.h"
 
 /* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */
 
@@ -338,7 +338,7 @@ the extent are free and which contain old tuple version to clean. */
 
 /**********************************************************************//**
 Initializes the file space system. */
-UNIV_INTERN
+
 void
 fsp_init(void);
 /*==========*/
@@ -348,14 +348,14 @@ we do not have an auto-extending data file, this should be equal to
 the size of the data files.  If there is an auto-extending data file,
 this can be smaller.
 @return	size in pages */
-UNIV_INTERN
+
 ulint
 fsp_header_get_tablespace_size(void);
 /*================================*/
 /**********************************************************************//**
 Reads the file space size stored in the header page.
 @return	tablespace size stored in the space header */
-UNIV_INTERN
+
 ulint
 fsp_get_size_low(
 /*=============*/
@@ -363,7 +363,7 @@ fsp_get_size_low(
 /**********************************************************************//**
 Reads the space id from the first page of a tablespace.
 @return	space id, ULINT UNDEFINED if error */
-UNIV_INTERN
+
 ulint
 fsp_header_get_space_id(
 /*====================*/
@@ -371,7 +371,7 @@ fsp_header_get_space_id(
 /**********************************************************************//**
 Reads the space flags from the first page of a tablespace.
 @return	flags */
-UNIV_INTERN
+
 ulint
 fsp_header_get_flags(
 /*=================*/
@@ -379,7 +379,7 @@ fsp_header_get_flags(
 /**********************************************************************//**
 Reads the compressed page size from the first page of a tablespace.
 @return	compressed page size in bytes, or 0 if uncompressed */
-UNIV_INTERN
+
 ulint
 fsp_header_get_zip_size(
 /*====================*/
@@ -388,7 +388,7 @@ fsp_header_get_zip_size(
 Writes the space id and flags to a tablespace header.  The flags contain
 row type, physical/compressed page size, and logical/uncompressed page
 size of the tablespace. */
-UNIV_INTERN
+
 void
 fsp_header_init_fields(
 /*===================*/
@@ -399,7 +399,7 @@ fsp_header_init_fields(
 /**********************************************************************//**
 Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0. */
-UNIV_INTERN
+
 void
 fsp_header_init(
 /*============*/
@@ -408,7 +408,7 @@ fsp_header_init(
 	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Increases the space size field of a space. */
-UNIV_INTERN
+
 void
 fsp_header_inc_size(
 /*================*/
@@ -419,7 +419,7 @@ fsp_header_inc_size(
 Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
-UNIV_INTERN
+
 buf_block_t*
 fseg_create(
 /*========*/
@@ -435,7 +435,7 @@ fseg_create(
 Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
-UNIV_INTERN
+
 buf_block_t*
 fseg_create_general(
 /*================*/
@@ -457,7 +457,7 @@ fseg_create_general(
 Calculates the number of pages reserved by a segment, and how many pages are
 currently used.
 @return	number of reserved pages */
-UNIV_INTERN
+
 ulint
 fseg_n_reserved_pages(
 /*==================*/
@@ -488,7 +488,7 @@ fragmentation.
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-UNIV_INTERN
+
 buf_block_t*
 fseg_alloc_free_page_general(
 /*=========================*/
@@ -537,7 +537,7 @@ split or merge in a B-tree. But we do not want to waste disk space if the table
 only occupies < 32 pages. That is why we apply different rules in that special
 case, just ensuring that there are 3 free pages available.
 @return	TRUE if we were able to make the reservation */
-UNIV_INTERN
+
 ibool
 fsp_reserve_free_extents(
 /*=====================*/
@@ -554,14 +554,14 @@ will be able to insert new data to the database without running out the
 tablespace. Only free extents are taken into account and we also subtract
 the safety margin required by the above function fsp_reserve_free_extents.
 @return	available space in kB */
-UNIV_INTERN
+
 ullint
 fsp_get_available_space_in_free_extents(
 /*====================================*/
 	ulint	space);	/*!< in: space id */
 /**********************************************************************//**
 Frees a single page of a segment. */
-UNIV_INTERN
+
 void
 fseg_free_page(
 /*===========*/
@@ -575,7 +575,7 @@ fseg_free_page(
 /**********************************************************************//**
 Checks if a single page of a segment is free.
 @return	true if free */
-UNIV_INTERN
+
 bool
 fseg_page_is_free(
 /*==============*/
@@ -589,7 +589,7 @@ by repeatedly calling this function in different mini-transactions.
 Doing the freeing in a single mini-transaction might result in
 too big a mini-transaction.
 @return	TRUE if freeing completed */
-UNIV_INTERN
+
 ibool
 fseg_free_step(
 /*===========*/
@@ -605,7 +605,7 @@ fseg_free_step(
 Frees part of a segment. Differs from fseg_free_step because this function
 leaves the header page unfreed.
 @return	TRUE if freeing completed, except the header page */
-UNIV_INTERN
+
 ibool
 fseg_free_step_not_header(
 /*======================*/
@@ -628,7 +628,7 @@ fsp_descr_page(
 /***********************************************************//**
 Parses a redo log record of a file page init.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 fsp_parse_init_file_page(
 /*=====================*/
@@ -638,14 +638,14 @@ fsp_parse_init_file_page(
 /*******************************************************************//**
 Validates the file space system and its segments.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 fsp_validate(
 /*=========*/
 	ulint	space);	/*!< in: space id */
 /*******************************************************************//**
 Prints info of a file space. */
-UNIV_INTERN
+
 void
 fsp_print(
 /*======*/
@@ -654,7 +654,7 @@ fsp_print(
 /*******************************************************************//**
 Validates a segment.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 fseg_validate(
 /*==========*/
@@ -664,7 +664,7 @@ fseg_validate(
 #ifdef UNIV_BTR_PRINT
 /*******************************************************************//**
 Writes info of a segment. */
-UNIV_INTERN
+
 void
 fseg_print(
 /*=======*/

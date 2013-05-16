@@ -26,6 +26,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef trx0undo_h
 #define trx0undo_h
 
+#ifndef UNIV_INNOCHECKSUM
 #include "univ.i"
 #include "trx0types.h"
 #include "mtr0mtr.h"
@@ -168,7 +169,7 @@ trx_undo_page_get_first_rec(
 /***********************************************************************//**
 Gets the previous record in an undo log.
 @return	undo log record, the page s-latched, NULL if none */
-UNIV_INTERN
+
 trx_undo_rec_t*
 trx_undo_get_prev_rec(
 /*==================*/
@@ -180,7 +181,7 @@ trx_undo_get_prev_rec(
 /***********************************************************************//**
 Gets the next record in an undo log.
 @return	undo log record, the page s-latched, NULL if none */
-UNIV_INTERN
+
 trx_undo_rec_t*
 trx_undo_get_next_rec(
 /*==================*/
@@ -191,7 +192,7 @@ trx_undo_get_next_rec(
 /***********************************************************************//**
 Gets the first record in an undo log.
 @return	undo log record, the page latched, NULL if none */
-UNIV_INTERN
+
 trx_undo_rec_t*
 trx_undo_get_first_rec(
 /*===================*/
@@ -205,7 +206,7 @@ trx_undo_get_first_rec(
 /********************************************************************//**
 Tries to add a page to the undo log segment where the undo log is placed.
 @return	X-latched block if success, else NULL */
-UNIV_INTERN
+
 buf_block_t*
 trx_undo_add_page(
 /*==============*/
@@ -218,7 +219,7 @@ trx_undo_add_page(
 /********************************************************************//**
 Frees the last undo log page.
 The caller must hold the rollback segment mutex. */
-UNIV_INTERN
+
 void
 trx_undo_free_last_page_func(
 /*==========================*/
@@ -241,7 +242,7 @@ trx_undo_free_last_page_func(
 /***********************************************************************//**
 Truncates an undo log from the end. This function is used during a rollback
 to free space from an undo log. */
-UNIV_INTERN
+
 void
 trx_undo_truncate_end_func(
 /*=======================*/
@@ -263,7 +264,7 @@ trx_undo_truncate_end_func(
 /***********************************************************************//**
 Truncates an undo log from the start. This function is used during a purge
 operation. */
-UNIV_INTERN
+
 void
 trx_undo_truncate_start(
 /*====================*/
@@ -283,7 +284,7 @@ Initializes the undo log lists for a rollback segment memory copy.
 This function is only called when the database is started or a new
 rollback segment created.
 @return	the combined size of undo log segments in pages */
-UNIV_INTERN
+
 ulint
 trx_undo_lists_init(
 /*================*/
@@ -294,7 +295,7 @@ undo log reused.
 @return DB_SUCCESS if undo log assign successful, possible error codes
 are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE DB_READ_ONLY
 DB_OUT_OF_MEMORY */
-UNIV_INTERN
+
 dberr_t
 trx_undo_assign_undo(
 /*=================*/
@@ -304,7 +305,7 @@ trx_undo_assign_undo(
 /******************************************************************//**
 Sets the state of the undo log segment at a transaction finish.
 @return	undo log segment header page, x-latched */
-UNIV_INTERN
+
 page_t*
 trx_undo_set_state_at_finish(
 /*=========================*/
@@ -313,7 +314,7 @@ trx_undo_set_state_at_finish(
 /******************************************************************//**
 Sets the state of the undo log segment at a transaction prepare.
 @return	undo log segment header page, x-latched */
-UNIV_INTERN
+
 page_t*
 trx_undo_set_state_at_prepare(
 /*==========================*/
@@ -325,7 +326,7 @@ trx_undo_set_state_at_prepare(
 Adds the update undo log header as the first in the history list, and
 frees the memory object, or puts it to the list of cached update undo log
 segments. */
-UNIV_INTERN
+
 void
 trx_undo_update_cleanup(
 /*====================*/
@@ -337,7 +338,7 @@ trx_undo_update_cleanup(
 Frees or caches an insert undo log after a transaction commit or rollback.
 Knowledge of inserts is not needed after a commit or rollback, therefore
 the data can be discarded. */
-UNIV_INTERN
+
 void
 trx_undo_insert_cleanup(
 /*====================*/
@@ -345,7 +346,7 @@ trx_undo_insert_cleanup(
 
 /********************************************************************//**
 At shutdown, frees the undo logs of a PREPARED transaction. */
-UNIV_INTERN
+
 void
 trx_undo_free_prepared(
 /*===================*/
@@ -355,7 +356,7 @@ trx_undo_free_prepared(
 /***********************************************************//**
 Parses the redo log entry of an undo log page initialization.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 trx_undo_parse_page_init(
 /*=====================*/
@@ -366,7 +367,7 @@ trx_undo_parse_page_init(
 /***********************************************************//**
 Parses the redo log entry of an undo log page header create or reuse.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 trx_undo_parse_page_header(
 /*=======================*/
@@ -378,7 +379,7 @@ trx_undo_parse_page_header(
 /***********************************************************//**
 Parses the redo log entry of an undo log page header discard.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 trx_undo_parse_discard_latest(
 /*==========================*/
@@ -388,12 +389,13 @@ trx_undo_parse_discard_latest(
 	mtr_t*	mtr);	/*!< in: mtr or NULL */
 /************************************************************************
 Frees an undo log memory copy. */
-UNIV_INTERN
+
 void
 trx_undo_mem_free(
 /*==============*/
 	trx_undo_t*	undo);		/* in: the undo object to be freed */
 
+#endif /* !UNIV_INNOCHECKSUM */
 /* Types of an undo log segment */
 #define	TRX_UNDO_INSERT		1	/* contains undo entries for inserts */
 #define	TRX_UNDO_UPDATE		2	/* contains undo entries for updates
@@ -411,7 +413,7 @@ trx_undo_mem_free(
 #define	TRX_UNDO_PREPARED	5	/* contains an undo log of an
 					prepared transaction */
 
-#ifndef UNIV_HOTBACKUP
+#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
 /** Transaction undo log memory object; this is protected by the undo_mutex
 in the corresponding transaction object */
 
@@ -470,7 +472,7 @@ struct trx_undo_t{
 					/*!< undo log objects in the rollback
 					segment are chained into lists */
 };
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
 
 /** The offset of the undo log page header on pages of the undo log */
 #define	TRX_UNDO_PAGE_HDR	FSEG_PAGE_DATA
@@ -518,6 +520,9 @@ log segment */
 /* @{ */
 /*-------------------------------------------------------------*/
 #define	TRX_UNDO_STATE		0	/*!< TRX_UNDO_ACTIVE, ... */
+
+#ifndef UNIV_INNOCHECKSUM
+
 #define	TRX_UNDO_LAST_LOG	2	/*!< Offset of the last undo log header
 					on the segment header page, 0 if
 					none */
@@ -600,5 +605,6 @@ quite a large overhead. */
 #ifndef UNIV_NONINL
 #include "trx0undo.ic"
 #endif
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif
