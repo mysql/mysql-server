@@ -1,3 +1,21 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
 /******************************************************
 Insert buffer
 
@@ -29,6 +47,7 @@ Created 7/19/1997 Heikki Tuuri
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "que0que.h"
+#include "rem0cmp.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD
 
@@ -2837,9 +2856,10 @@ ibuf_insert(
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer. */
 static
-void
+rec_t*
 ibuf_insert_to_index_page_low(
 /*==========================*/
+				/* out: newly inserted record */
 	dtuple_t*	entry,	/* in: buffered entry to insert */
 	page_t*		page,	/* in: index page where the buffered entry
 				should be placed */
@@ -2852,10 +2872,13 @@ ibuf_insert_to_index_page_low(
 	ulint	page_no;
 	page_t*	bitmap_page;
 	ulint	old_bits;
+	rec_t*	rec;
+	DBUG_ENTER("ibuf_insert_to_index_page_low");
 
-	if (UNIV_LIKELY
-	    (page_cur_tuple_insert(page_cur, entry, index, mtr) != NULL)) {
-		return;
+	rec = page_cur_tuple_insert(page_cur, entry, index, mtr);
+
+	if (rec != NULL) {
+		DBUG_RETURN(rec);
 	}
 
 	/* If the record did not fit, reorganize */
@@ -2866,9 +2889,10 @@ ibuf_insert_to_index_page_low(
 
 	/* This time the record must fit */
 
-	if (UNIV_LIKELY
-	    (page_cur_tuple_insert(page_cur, entry, index, mtr) != NULL)) {
-		return;
+	rec = page_cur_tuple_insert(page_cur, entry, index, mtr);
+
+	if (rec != NULL) {
+		DBUG_RETURN(rec);
 	}
 
 	ut_print_timestamp(stderr);
@@ -2897,6 +2921,8 @@ ibuf_insert_to_index_page_low(
 
 	fputs("InnoDB: Submit a detailed bug report"
 	      " to http://bugs.mysql.com\n", stderr);
+
+	DBUG_RETURN(NULL);
 }
 
 /************************************************************************
@@ -2915,6 +2941,8 @@ ibuf_insert_to_index_page(
 	page_cur_t	page_cur;
 	ulint		low_match;
 	rec_t*		rec;
+
+	DBUG_ENTER("ibuf_insert_to_index_page");
 
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
@@ -2950,7 +2978,7 @@ dump:
 		      "InnoDB: Submit a detailed bug report to"
 		      " http://bugs.mysql.com!\n", stderr);
 
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	low_match = page_cur_search(page, index, entry,
@@ -2981,7 +3009,7 @@ dump:
 			btr_cur_set_deleted_flag_for_ibuf(rec, FALSE, mtr);
 updated_in_place:
 			mem_heap_free(heap);
-			return;
+			DBUG_VOID_RETURN;
 		}
 
 		/* Copy the info bits. Clear the delete-mark. */
@@ -3021,15 +3049,21 @@ updated_in_place:
 		lock_rec_store_on_page_infimum(page, rec);
 		page_cur_delete_rec(&page_cur, index, offsets, mtr);
 		page_cur_move_to_prev(&page_cur);
-		mem_heap_free(heap);
 
-		ibuf_insert_to_index_page_low(entry, page, index, mtr,
-					      &page_cur);
+		rec = ibuf_insert_to_index_page_low(entry, page, index, mtr,
+						    &page_cur);
+		ut_ad(!cmp_dtuple_rec(entry, rec,
+				      rec_get_offsets(rec, index, NULL,
+						      ULINT_UNDEFINED,
+						      &heap)));
+		mem_heap_free(heap);
 		lock_rec_restore_from_page_infimum(rec, page);
 	} else {
 		ibuf_insert_to_index_page_low(entry, page, index, mtr,
 					      &page_cur);
 	}
+
+	DBUG_VOID_RETURN;
 }
 
 /*************************************************************************
