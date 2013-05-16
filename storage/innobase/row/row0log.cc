@@ -188,7 +188,7 @@ struct row_log_t {
 
 /******************************************************//**
 Logs an operation to a secondary index that is (or was) being created. */
-UNIV_INTERN
+
 void
 row_log_online_op(
 /*==============*/
@@ -314,7 +314,7 @@ write_failed:
 /******************************************************//**
 Gets the error status of the online index rebuild log.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 row_log_table_get_error(
 /*====================*/
@@ -422,7 +422,7 @@ write_failed:
 /******************************************************//**
 Logs a delete operation to a table that is being rebuilt.
 This will be merged in row_log_table_apply_delete(). */
-UNIV_INTERN
+
 void
 row_log_table_delete(
 /*=================*/
@@ -838,7 +838,7 @@ row_log_table_low(
 /******************************************************//**
 Logs an update to a table that is being rebuilt.
 This will be merged in row_log_table_apply_update(). */
-UNIV_INTERN
+
 void
 row_log_table_update(
 /*=================*/
@@ -945,7 +945,7 @@ Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
 of a table that is being rebuilt.
 @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
 or NULL if the PRIMARY KEY definition does not change */
-UNIV_INTERN
+
 const dtuple_t*
 row_log_table_get_pk(
 /*=================*/
@@ -1095,7 +1095,7 @@ func_exit:
 /******************************************************//**
 Logs an insert to a table that is being rebuilt.
 This will be merged in row_log_table_apply_insert(). */
-UNIV_INTERN
+
 void
 row_log_table_insert(
 /*=================*/
@@ -1110,7 +1110,7 @@ row_log_table_insert(
 
 /******************************************************//**
 Notes that a BLOB is being freed during online ALTER TABLE. */
-UNIV_INTERN
+
 void
 row_log_table_blob_free(
 /*====================*/
@@ -1155,7 +1155,7 @@ row_log_table_blob_free(
 
 /******************************************************//**
 Notes that a BLOB is being allocated during online ALTER TABLE. */
-UNIV_INTERN
+
 void
 row_log_table_blob_alloc(
 /*=====================*/
@@ -2534,7 +2534,7 @@ func_exit:
 /******************************************************//**
 Apply the row_log_table log to a table upon completing rebuild.
 @return DB_SUCCESS, or error code on failure */
-UNIV_INTERN
+
 dberr_t
 row_log_table_apply(
 /*================*/
@@ -2585,7 +2585,7 @@ row_log_table_apply(
 Allocate the row log for an index and flag the index
 for online creation.
 @retval true if success, false if not */
-UNIV_INTERN
+
 bool
 row_log_allocate(
 /*=============*/
@@ -2655,7 +2655,7 @@ row_log_allocate(
 
 /******************************************************//**
 Free the row log for an index that was being created online. */
-UNIV_INTERN
+
 void
 row_log_free(
 /*=========*/
@@ -2674,7 +2674,7 @@ row_log_free(
 Get the latest transaction ID that has invoked row_log_online_op()
 during online creation.
 @return latest transaction ID, or 0 if nothing was logged */
-UNIV_INTERN
+
 trx_id_t
 row_log_get_max_trx(
 /*================*/
@@ -3318,7 +3318,7 @@ func_exit:
 /******************************************************//**
 Apply the row log to the index upon completing index creation.
 @return DB_SUCCESS, or error code on failure */
-UNIV_INTERN
+
 dberr_t
 row_log_apply(
 /*==========*/

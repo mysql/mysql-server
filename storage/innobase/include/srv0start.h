@@ -38,7 +38,7 @@ Created 10/10/1995 Heikki Tuuri
 
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
-UNIV_INTERN
+
 void
 srv_normalize_path_for_win(
 /*=======================*/
@@ -46,7 +46,7 @@ srv_normalize_path_for_win(
 /*********************************************************************//**
 Parse temporary tablespace configuration.
 @return	true if ok, false on parse error */
-UNIV_INTERN
+
 bool
 srv_parse_temp_data_file_paths_and_sizes(
 /*=====================================*/
@@ -54,7 +54,7 @@ srv_parse_temp_data_file_paths_and_sizes(
 /*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
-UNIV_INTERN
+
 void
 srv_free_paths_and_sizes(void);
 /*==========================*/
@@ -62,7 +62,7 @@ srv_free_paths_and_sizes(void);
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty.
 @return	string which has the separator if the string is not empty */
-UNIV_INTERN
+
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
@@ -72,21 +72,21 @@ srv_add_path_separator_if_needed(
 Starts Innobase and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 innobase_start_or_create_for_mysql(void);
 /*====================================*/
 /****************************************************************//**
 Shuts down the Innobase database.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 innobase_shutdown_for_mysql(void);
 
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-UNIV_INTERN
+
 void
 srv_shutdown_table_bg_threads(void);
 /*=============================*/
@@ -96,7 +96,7 @@ Copy the file path component of the physical file to parameter. It will
 copy up to and including the terminating path separator.
 @return number of bytes copied or ULINT_UNDEFINED if destination buffer
 	is smaller than the path to be copied. */
-UNIV_INTERN
+
 ulint
 srv_path_copy(
 /*==========*/
@@ -108,7 +108,7 @@ srv_path_copy(
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
-UNIV_INTERN
+
 void
 srv_get_meta_data_filename(
 /*======================*/
