@@ -564,6 +564,136 @@ class Dummy_table_util
     DBUG_VOID_RETURN;
   }
 
+
+  bool
+  dummify_and_drop(NdbDictionary::Dictionary* dict,
+                   const NdbDictionary::Table* table)
+  {
+    DBUG_ENTER("dummify_and_drop");
+    DBUG_PRINT("enter", ("table: %s", table->getName()));
+
+    /*
+      List all foreign keys referencing the table to be dropped
+      and recreate those to point at a new dummy
+    */
+    NdbDictionary::Dictionary::List list;
+    if (dict->listDependentObjects(list, *table) != 0)
+    {
+      error(dict, "Failed to list dependent objects for dummy table '%s'", table->getName());
+      DBUG_RETURN(false);
+    }
+
+    uint fk_index = 0;
+    for (unsigned i = 0; i < list.count; i++)
+    {
+      const NdbDictionary::Dictionary::List::Element& element = list.elements[i];
+
+      if (element.type != NdbDictionary::Object::ForeignKey)
+        continue;
+
+      DBUG_PRINT("fk", ("name: %s, type: %d", element.name, element.type));
+
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, element.name) != 0)
+      {
+        // Could not find the listed fk
+        DBUG_ASSERT(false);
+        continue;
+      }
+
+      // Parent of the found fk should be the table to be dropped
+      DBUG_PRINT("info", ("fk.parent: %s", fk.getParentTable()));
+      char parent_db_and_name[FN_LEN + 1];
+      const char * parent_name = fk_split_name(parent_db_and_name, fk.getParentTable());
+
+      if (strcmp(parent_name, table->getName()) != 0)
+      {
+        DBUG_PRINT("info", ("fk is not parent, skip"));
+        continue;
+      }
+
+      DBUG_PRINT("info", ("fk.child: %s", fk.getChildTable()));
+      char child_db_and_name[FN_LEN + 1];
+      const char * child_name = fk_split_name(child_db_and_name, fk.getChildTable());
+
+      // Open child table
+      Ndb_table_guard child_tab(dict, child_name);
+      if (child_tab.get_table() == 0)
+      {
+        error(dict, "Failed to open child table '%s'", child_name);
+        DBUG_RETURN(false);
+      }
+
+      /* Format dummy table name */
+      char dummy_name[FN_REFLEN];
+      if (!format_name(dummy_name, sizeof(dummy_name),
+                       child_tab.get_table()->getObjectId(),
+                       fk_index, parent_name))
+      {
+        error(NULL, "Failed to create dummy parent table, too long dummy name");
+        DBUG_RETURN(false);
+      }
+
+      // Build both column name and column type list from parent(which will be dropped)
+      const char* col_names[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+      const NdbDictionary::Column* col_types[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+      {
+        unsigned num_columns = 0;
+        for (unsigned j = 0; j < fk.getParentColumnCount(); j++)
+        {
+          const NdbDictionary::Column* col =
+              table->getColumn(fk.getParentColumnNo(j));
+          DBUG_PRINT("col", ("[%u] %s", i, col->getName()));
+          if (!col)
+          {
+            error(NULL, "Could not find column '%s' in parent table '%s'",
+                  fk.getParentColumnNo(j), table->getName());
+            continue;
+          }
+          col_names[num_columns] = col->getName();
+          col_types[num_columns] = col;
+          num_columns++;
+        }
+        col_names[num_columns]= 0;
+        col_types[num_columns] = 0;
+
+        if (num_columns != fk.getParentColumnCount())
+        {
+          error(NULL, "Could not find all columns referenced by fk in parent table '%s'",
+                table->getName());
+          continue;
+        }
+      }
+
+      // Create new dummy
+      if (!create(dict, dummy_name, child_name,
+                  col_names, col_types))
+      {
+        error(dict, "Failed to create dummy parent table");
+        DBUG_RETURN(false);
+      }
+
+      // Recreate fks to point at new dummy
+      if (!copy_fk_to_new_parent(dict, fk, dummy_name, col_names))
+      {
+        DBUG_RETURN(false);
+      }
+
+      fk_index++;
+    }
+
+    // Drop the requested table and all foreign keys refering to it
+    // i.e the old fks
+    const int drop_flags= NDBDICT::DropTableCascadeConstraints;
+    if (dict->dropTableGlobal(*table, drop_flags) != 0)
+    {
+      error(dict, "Failed to drop the requested table");
+      DBUG_RETURN(false);
+    }
+
+    DBUG_RETURN(true);
+  }
+
 public:
   Dummy_table_util(THD* thd) : m_thd(thd) {}
 
@@ -804,6 +934,37 @@ public:
     }
   }
 
+
+  bool
+  drop(NdbDictionary::Dictionary* dict,
+       const NdbDictionary::Table* table)
+  {
+    DBUG_ENTER("drop");
+
+    // Start schema transaction to make this operation atomic
+    if (dict->beginSchemaTrans() != 0)
+    {
+      error(dict, "Failed to start schema transaction");
+      DBUG_RETURN(false);
+    }
+
+    bool result = true;
+    if (!dummify_and_drop(dict, table))
+    {
+      // Operation failed, set flag to abort when ending trans
+      result = false;
+    }
+
+    // End schema transaction
+    const Uint32 end_trans_flag = result ?  0 : NdbDictionary::Dictionary::SchemaTransAbort;
+    if (dict->endSchemaTrans(end_trans_flag) != 0)
+    {
+      error(dict, "Failed to end schema transaction");
+      result = false;
+    }
+
+    DBUG_RETURN(result);
+  }
 };
 
 bool ndb_dummy_build_list(THD* thd, NdbDictionary::Dictionary* dict,
@@ -818,6 +979,14 @@ void ndb_dummy_drop_list(THD* thd, NdbDictionary::Dictionary* dict, List<char> &
 {
   Dummy_table_util dummy_util(thd);
   dummy_util.drop_dummy_list(dict, drop_list);
+}
+
+
+bool ndb_dummy_drop_table(THD* thd, NdbDictionary::Dictionary* dict,
+                          const NdbDictionary::Table* table)
+{
+  Dummy_table_util dummy_util(thd);
+  return dummy_util.drop(dict, table);
 }
 
 

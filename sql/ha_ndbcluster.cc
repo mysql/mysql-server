@@ -10537,6 +10537,8 @@ do_drop:
 extern bool ndb_dummy_build_list(THD*, NdbDictionary::Dictionary*,
                                  const NdbDictionary::Table*, List<char>&);
 extern void ndb_dummy_drop_list(THD*, NdbDictionary::Dictionary*, List<char>&);
+extern bool ndb_dummy_drop_table(THD*, NdbDictionary::Dictionary*,
+                                 const NdbDictionary::Table*);
 
 bool
 ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
@@ -10555,7 +10557,26 @@ ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
   // Drop the table
   if (dict->dropTableGlobal(*table, drop_flags) != 0)
   {
-    DBUG_RETURN(false);
+    const NdbError& ndb_err = dict->getNdbError();
+    if (ndb_err.code == 21080 &&
+        thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+    {
+      /*
+        Drop was not allowed because table is still referenced by
+        foreign key(s). Since foreign_key_checks=0 the problem is
+        worked around by creating a dummy table, recreating the foreign
+        key(s) to point at the dummy table and finally dropping
+        the requested table.
+      */
+      if (!ndb_dummy_drop_table(thd, dict, table))
+      {
+        DBUG_RETURN(false);
+      }
+    }
+    else
+    {
+      DBUG_RETURN(false);
+    }
   }
 
   // Drop objects which should be dropped after table
