@@ -264,9 +264,9 @@ isnull(const char * str)
   return str == 0;
 }
 
-extern bool ndb_show_foreign_key_dummies_enabled(THD* thd);
+extern bool ndb_show_foreign_key_mock_tables(THD* thd);
 
-class Dummy_table_util
+class Fk_util
 {
   THD* m_thd;
 
@@ -279,8 +279,8 @@ class Dummy_table_util
     my_vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
 
-    // Push as warning if user has turned on ndb_show_foreign_key_dummies
-    if (ndb_show_foreign_key_dummies_enabled(m_thd))
+    // Push as warning if user has turned on ndb_show_foreign_key_mock_tables
+    if (ndb_show_foreign_key_mock_tables(m_thd))
     {
       push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN, ER_YES, msg);
     }
@@ -427,7 +427,7 @@ class Dummy_table_util
       new_fk.setParent(*new_parent_tab.get_table(), 0, columns);
     }
 
-    // Old fk is dropped by cascading when the dummy table is dropped
+    // Old fk is dropped by cascading when the mock table is dropped
 
     // Create new fk referencing the new table
     DBUG_PRINT("info", ("Create new fk: %s", new_fk.getName()));
@@ -444,26 +444,26 @@ class Dummy_table_util
 
 
   void
-  resolve_dummy(NdbDictionary::Dictionary* dict,
-                const char* new_parent_name, const char* dummy_name) const
+  resolve_mock(NdbDictionary::Dictionary* dict,
+               const char* new_parent_name, const char* mock_name) const
   {
-    DBUG_ENTER("resolve_dummy");
-    DBUG_PRINT("enter", ("dummy_name '%s'", dummy_name));
-    DBUG_ASSERT(is_dummy_name(dummy_name));
+    DBUG_ENTER("resolve_mock");
+    DBUG_PRINT("enter", ("mock_name '%s'", mock_name));
+    DBUG_ASSERT(is_mock_name(mock_name));
 
-    // Load up the dummy table
-    Ndb_table_guard dummy_tab(dict, dummy_name);
-    if (!dummy_tab.get_table())
+    // Load up the mock table
+    Ndb_table_guard mock_tab(dict, mock_name);
+    if (!mock_tab.get_table())
     {
-      error(dict, "Failed to load the listed dummy table '%s'", dummy_name);
+      error(dict, "Failed to load the listed mock table '%s'", mock_name);
       DBUG_VOID_RETURN;
     }
 
-    // List dependent objects of dummy table
+    // List dependent objects of mock table
     NdbDictionary::Dictionary::List list;
-    if (dict->listDependentObjects(list, *dummy_tab.get_table()) != 0)
+    if (dict->listDependentObjects(list, *mock_tab.get_table()) != 0)
     {
-      error(dict, "Failed to list dependent objects for dummy table '%s'", dummy_name);
+      error(dict, "Failed to list dependent objects for mock table '%s'", mock_name);
       DBUG_VOID_RETURN;
     }
 
@@ -489,11 +489,11 @@ class Dummy_table_util
         for (unsigned j = 0; j < fk.getParentColumnCount(); j++)
         {
           const NdbDictionary::Column* col =
-              dummy_tab.get_table()->getColumn(fk.getParentColumnNo(j));
+              mock_tab.get_table()->getColumn(fk.getParentColumnNo(j));
           if (!col)
           {
-            error(NULL, "Could not find column '%s' in dummy table '%s'",
-                  fk.getParentColumnNo(j), dummy_name);
+            error(NULL, "Could not find column '%s' in mock table '%s'",
+                  fk.getParentColumnNo(j), mock_name);
             continue;
           }
           col_names[num_columns++]= col->getName();
@@ -502,8 +502,8 @@ class Dummy_table_util
 
         if (num_columns != fk.getParentColumnCount())
         {
-          error(NULL, "Could not find all columns referenced by fk in dummy table '%s'",
-                dummy_name);
+          error(NULL, "Could not find all columns referenced by fk in mock table '%s'",
+                mock_name);
           continue;
         }
       }
@@ -511,29 +511,29 @@ class Dummy_table_util
       if (!copy_fk_to_new_parent(dict, fk, new_parent_name, col_names))
         continue;
 
-      // New fk has been created between child and new parent, drop the dummy
+      // New fk has been created between child and new parent, drop the mock
       // table and it's related fk
       const int drop_flags= NDBDICT::DropTableCascadeConstraints;
-      if (dict->dropTableGlobal(*dummy_tab.get_table(), drop_flags) != 0)
+      if (dict->dropTableGlobal(*mock_tab.get_table(), drop_flags) != 0)
       {
-        error(dict, "Failed to drop dummy table '%s'", dummy_name);
+        error(dict, "Failed to drop mock table '%s'", mock_name);
         continue;
       }
-      info("Dropped dummy table '%s' - resolved by '%s'", dummy_name, new_parent_name);
+      info("Dropped mock table '%s' - resolved by '%s'", mock_name, new_parent_name);
     }
     DBUG_VOID_RETURN;
   }
 
 
   void
-  resolve_dummies(NdbDictionary::Dictionary* dict,
-                  const char* new_parent_name) const
+  resolve_mock_tables(NdbDictionary::Dictionary* dict,
+                      const char* new_parent_name) const
   {
-    DBUG_ENTER("resolve_dummies");
+    DBUG_ENTER("resolve_mock_tables");
     DBUG_PRINT("enter", ("new_parent_name: %s", new_parent_name));
 
     /*
-      List all tables in NDB and look for dummies which could
+      List all tables in NDB and look for mock tables which could
       potentially be resolved to the new table
     */
     NdbDictionary::Dictionary::List table_list;
@@ -548,17 +548,17 @@ class Dummy_table_util
       const NdbDictionary::Dictionary::List::Element& el = table_list.elements[i];
 
       const char* parent_name;
-      if (!Dummy_table_util::split_dummy_name(el.name, NULL, NULL, &parent_name))
+      if (!Fk_util::split_mock_name(el.name, NULL, NULL, &parent_name))
         continue;
 
-      // Check if this dummy table should reference the new table
+      // Check if this mock table should reference the new table
       if (strcmp(parent_name, new_parent_name) != 0)
       {
-        DBUG_PRINT("info", ("Skip, parent of this dummy table is not the new table"));
+        DBUG_PRINT("info", ("Skip, parent of this mock table is not the new table"));
         continue;
       }
 
-      resolve_dummy(dict, new_parent_name, el.name);
+      resolve_mock(dict, new_parent_name, el.name);
     }
 
     DBUG_VOID_RETURN;
@@ -566,15 +566,15 @@ class Dummy_table_util
 
 
   bool
-  dummify_and_drop(NdbDictionary::Dictionary* dict,
-                   const NdbDictionary::Table* table)
+  create_mock_tables_and_drop(NdbDictionary::Dictionary* dict,
+                              const NdbDictionary::Table* table)
   {
-    DBUG_ENTER("dummify_and_drop");
+    DBUG_ENTER("create_mock_tables_and_drop");
     DBUG_PRINT("enter", ("table: %s", table->getName()));
 
     /*
       List all foreign keys referencing the table to be dropped
-      and recreate those to point at a new dummy
+      and recreate those to point at a new mock
     */
     NdbDictionary::Dictionary::List list;
     if (dict->listDependentObjects(list, *table) != 0)
@@ -624,13 +624,13 @@ class Dummy_table_util
         DBUG_RETURN(false);
       }
 
-      /* Format dummy table name */
-      char dummy_name[FN_REFLEN];
-      if (!format_name(dummy_name, sizeof(dummy_name),
+      /* Format mock table name */
+      char mock_name[FN_REFLEN];
+      if (!format_name(mock_name, sizeof(mock_name),
                        child_tab.get_table()->getObjectId(),
                        fk_index, parent_name))
       {
-        error(NULL, "Failed to create dummy parent table, too long dummy name");
+        error(NULL, "Failed to create mock parent table, too long mock name");
         DBUG_RETURN(false);
       }
 
@@ -665,16 +665,16 @@ class Dummy_table_util
         }
       }
 
-      // Create new dummy
-      if (!create(dict, dummy_name, child_name,
+      // Create new mock
+      if (!create(dict, mock_name, child_name,
                   col_names, col_types))
       {
-        error(dict, "Failed to create dummy parent table");
+        error(dict, "Failed to create mock parent table");
         DBUG_RETURN(false);
       }
 
-      // Recreate fks to point at new dummy
-      if (!copy_fk_to_new_parent(dict, fk, dummy_name, col_names))
+      // Recreate fks to point at new mock
+      if (!copy_fk_to_new_parent(dict, fk, mock_name, col_names))
       {
         DBUG_RETURN(false);
       }
@@ -695,13 +695,13 @@ class Dummy_table_util
   }
 
 public:
-  Dummy_table_util(THD* thd) : m_thd(thd) {}
+  Fk_util(THD* thd) : m_thd(thd) {}
 
   static
-  bool split_dummy_name(const char* name,
-                        unsigned* child_id_ptr = NULL,
-                        unsigned* child_index_ptr = NULL,
-                        const char** parent_name = NULL)
+  bool split_mock_name(const char* name,
+                       unsigned* child_id_ptr = NULL,
+                       unsigned* child_index_ptr = NULL,
+                       const char** parent_name = NULL)
   {
     const struct {
       const char* str;
@@ -737,9 +737,9 @@ public:
   }
 
   static
-  bool is_dummy_name(const char* name)
+  bool is_mock_name(const char* name)
   {
-    return split_dummy_name(name);
+    return split_mock_name(name);
   }
 
   static
@@ -763,7 +763,7 @@ public:
 
 
   // Adaptor function for calling create() with List<key_part_spec>
-  bool create(NDBDICT *dict, const char* dummy_name, const char* child_name,
+  bool create(NDBDICT *dict, const char* mock_name, const char* child_name,
               List<Key_part_spec> key_part_list, const NDBCOL * col_types[])
   {
     // Convert List<Key_part_spec> into null terminated const char* array
@@ -781,7 +781,7 @@ public:
       col_names[i] = 0;
     }
 
-    const bool ret = create(dict, dummy_name, child_name, col_names, col_types);
+    const bool ret = create(dict, mock_name, child_name, col_names, col_types);
 
     // Free the strings in col_names array
     for (unsigned i = 0; col_names[i] != 0; i++)
@@ -794,29 +794,29 @@ public:
   }
 
 
-  bool create(NDBDICT *dict, const char* dummy_name, const char* child_name,
+  bool create(NDBDICT *dict, const char* mock_name, const char* child_name,
               const char* col_names[], const NDBCOL * col_types[])
   {
-    NDBTAB dummy_tab;
+    NDBTAB mock_tab;
 
-    DBUG_ENTER("dummy_table::create");
-    DBUG_PRINT("enter", ("dummy_name: %s", dummy_name));
-    DBUG_ASSERT(is_dummy_name(dummy_name));
+    DBUG_ENTER("mock_table::create");
+    DBUG_PRINT("enter", ("mock_name: %s", mock_name));
+    DBUG_ASSERT(is_mock_name(mock_name));
 
-    if (dummy_tab.setName(dummy_name))
+    if (mock_tab.setName(mock_name))
     {
       DBUG_RETURN(false);
     }
-    dummy_tab.setLogging(FALSE);
+    mock_tab.setLogging(FALSE);
 
     unsigned i = 0;
     while (col_names[i])
     {
-      NDBCOL dummy_col;
+      NDBCOL mock_col;
 
       const char* col_name = col_names[i];
       DBUG_PRINT("info", ("name: %s", col_name));
-      if (dummy_col.setName(col_name))
+      if (mock_col.setName(col_name))
       {
         DBUG_ASSERT(false);
         DBUG_RETURN(false);
@@ -831,17 +831,17 @@ public:
       }
 
       // Use column spec as requested(normally built from child table)
-      dummy_col.setType(col->getType());
-      dummy_col.setPrecision(col->getPrecision());
-      dummy_col.setScale(col->getScale());
-      dummy_col.setLength(col->getLength());
-      dummy_col.setCharset(col->getCharset());
+      mock_col.setType(col->getType());
+      mock_col.setPrecision(col->getPrecision());
+      mock_col.setScale(col->getScale());
+      mock_col.setLength(col->getLength());
+      mock_col.setCharset(col->getCharset());
 
       // Make column part of primary key and thus not nullable
-      dummy_col.setPrimaryKey(true);
-      dummy_col.setNullable(false);
+      mock_col.setPrimaryKey(true);
+      mock_col.setNullable(false);
 
-      if (dummy_tab.addColumn(dummy_col))
+      if (mock_tab.addColumn(mock_col))
       {
         DBUG_RETURN(false);
       }
@@ -849,30 +849,29 @@ public:
     }
 
     // Create the table in NDB
-    if (dict->createTable(dummy_tab) != 0)
+    if (dict->createTable(mock_tab) != 0)
     {
       // Error is available to caller in dict*
       DBUG_RETURN(false);
     }
-    info("Created dummy table '%s' referenced by '%s'",
-                          dummy_name, child_name);
+    info("Created mock table '%s' referenced by '%s'", mock_name, child_name);
     DBUG_RETURN(true);
   }
 
   static
-  void resolve_dummies(THD* thd, NdbDictionary::Dictionary* dict,
-                       const char* new_parent_name)
+  void resolve_mock_tables(THD* thd, NdbDictionary::Dictionary* dict,
+                           const char* new_parent_name)
   {
-    Dummy_table_util dummy_table(thd);
-    dummy_table.resolve_dummies(dict, new_parent_name);
+    Fk_util fk_util(thd);
+    fk_util.resolve_mock_tables(dict, new_parent_name);
   }
 
 
   bool
-  build_dummy_list(NdbDictionary::Dictionary* dict,
-                   const NdbDictionary::Table* table, List<char> &dummy_list)
+  build_mock_list(NdbDictionary::Dictionary* dict,
+                  const NdbDictionary::Table* table, List<char> &mock_list)
   {
-    DBUG_ENTER("build_dummy_list");
+    DBUG_ENTER("build_mock_list");
 
     NdbDictionary::Dictionary::List list;
     if (dict->listDependentObjects(list, *table) != 0)
@@ -898,40 +897,40 @@ public:
       char parent_db_and_name[FN_LEN + 1];
       const char * name = fk_split_name(parent_db_and_name,fk.getParentTable());
 
-      if (!Dummy_table_util::is_dummy_name(name))
+      if (!Fk_util::is_mock_name(name))
         continue;
 
-      dummy_list.push_back(thd_strdup(m_thd, name));
+      mock_list.push_back(thd_strdup(m_thd, name));
     }
     DBUG_RETURN(true);
   }
 
 
   void
-  drop_dummy_list(NdbDictionary::Dictionary* dict, List<char> &drop_list)
+  drop_mock_list(NdbDictionary::Dictionary* dict, List<char> &drop_list)
   {
     const char* tabname;
     List_iterator_fast<char> it(drop_list);
     while ((tabname=it++))
     {
       DBUG_PRINT("info", ("drop table: %s", tabname));
-      Ndb_table_guard dummytab_g(dict, tabname);
-      if (!dummytab_g.get_table())
+      Ndb_table_guard mocktab_g(dict, tabname);
+      if (!mocktab_g.get_table())
       {
-       // Could not open the dummy table
-       DBUG_PRINT("error", ("Could not open the listed dummy table, ignore it"));
+       // Could not open the mock table
+       DBUG_PRINT("error", ("Could not open the listed mock table, ignore it"));
        DBUG_ASSERT(false);
        continue;
       }
 
-      if (dict->dropTableGlobal(*dummytab_g.get_table()) != 0)
+      if (dict->dropTableGlobal(*mocktab_g.get_table()) != 0)
       {
-        DBUG_PRINT("error", ("Failed to drop the dummy table '%s'",
-                              dummytab_g.get_table()->getName()));
+        DBUG_PRINT("error", ("Failed to drop the mock table '%s'",
+                              mocktab_g.get_table()->getName()));
         DBUG_ASSERT(false);
         continue;
       }
-      info("Dropped dummy table '%s' - referencing table dropped", tabname);
+      info("Dropped mock table '%s' - referencing table dropped", tabname);
     }
   }
 
@@ -950,7 +949,7 @@ public:
     }
 
     bool result = true;
-    if (!dummify_and_drop(dict, table))
+    if (!create_mock_tables_and_drop(dict, table))
     {
       // Operation failed, set flag to abort when ending trans
       result = false;
@@ -968,26 +967,26 @@ public:
   }
 };
 
-bool ndb_dummy_build_list(THD* thd, NdbDictionary::Dictionary* dict,
-                          const NdbDictionary::Table* table, List<char> &dummy_list)
+bool ndb_fk_util_build_list(THD* thd, NdbDictionary::Dictionary* dict,
+                            const NdbDictionary::Table* table, List<char> &mock_list)
 {
-  Dummy_table_util dummy_util(thd);
-  return dummy_util.build_dummy_list(dict, table, dummy_list);
+  Fk_util fk_util(thd);
+  return fk_util.build_mock_list(dict, table, mock_list);
 }
 
 
-void ndb_dummy_drop_list(THD* thd, NdbDictionary::Dictionary* dict, List<char> &drop_list)
+void ndb_fk_util_drop_list(THD* thd, NdbDictionary::Dictionary* dict, List<char> &drop_list)
 {
-  Dummy_table_util dummy_util(thd);
-  dummy_util.drop_dummy_list(dict, drop_list);
+  Fk_util fk_util(thd);
+  fk_util.drop_mock_list(dict, drop_list);
 }
 
 
-bool ndb_dummy_drop_table(THD* thd, NdbDictionary::Dictionary* dict,
-                          const NdbDictionary::Table* table)
+bool ndb_fk_util_drop_table(THD* thd, NdbDictionary::Dictionary* dict,
+                            const NdbDictionary::Table* table)
 {
-  Dummy_table_util dummy_util(thd);
-  return dummy_util.drop(dict, table);
+  Fk_util fk_util(thd);
+  return fk_util.drop(dict, table);
 }
 
 
@@ -1109,38 +1108,38 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
        DBUG_PRINT("info", ("No parent and foreign_key_checks=0"));
 
-       /* Format dummy table name */
-       char dummy_name[FN_REFLEN];
-       Dummy_table_util dummy_table(thd);
-       if (!dummy_table.format_name(dummy_name, sizeof(dummy_name),
-                                    child_tab.get_table()->getObjectId(),
-                                    fk_index, parent_name))
+       /* Format mock table name */
+       char mock_name[FN_REFLEN];
+       Fk_util fk_util(thd);
+       if (!fk_util.format_name(mock_name, sizeof(mock_name),
+                                child_tab.get_table()->getObjectId(),
+                                fk_index, parent_name))
        {
          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                              ER_CANNOT_ADD_FOREIGN,
-                             "Failed to create dummy parent table, too long dummy name");
+                             "Failed to create mock parent table, too long mock name");
          DBUG_RETURN(err_default);
        }
-       if (!dummy_table.create(dict, dummy_name, m_tabname,
-                               fk->ref_columns, childcols))
+       if (!fk_util.create(dict, mock_name, m_tabname,
+                           fk->ref_columns, childcols))
        {
          const NdbError &error= dict->getNdbError();
          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                              ER_CANNOT_ADD_FOREIGN,
-                             "Failed to create dummy parent table in NDB: %d: %s",
+                             "Failed to create mock parent table in NDB: %d: %s",
                              error.code, error.message);
          DBUG_RETURN(err_default);
        }
 
-       parent_tab.init(dummy_name);
-       parent_tab.invalidate(); // invalidate dummy table when releasing
+       parent_tab.init(mock_name);
+       parent_tab.invalidate(); // invalidate mock table when releasing
        if (parent_tab.get_table() == 0)
        {
          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                              ER_CANNOT_ADD_FOREIGN,
-                             "INTERNAL ERROR: Could not find created dummy table '%s'",
-                             dummy_name);
-         // Internal error, should be able to load the just created dummy table
+                             "INTERNAL ERROR: Could not find created mock table '%s'",
+                             mock_name);
+         // Internal error, should be able to load the just created mock table
          DBUG_ASSERT(parent_tab.get_table());
          DBUG_RETURN(err_default);
        }       
@@ -1298,7 +1297,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     fk_index++;
   }
 
-  Dummy_table_util::resolve_dummies(thd, ndb->getDictionary(), m_tabname);
+  Fk_util::resolve_mock_tables(thd, ndb->getDictionary(), m_tabname);
 
   DBUG_RETURN(0);
 }
@@ -1929,9 +1928,9 @@ ha_ndbcluster::get_foreign_key_create_info()
 
 
     const char* real_parent_name;
-    if (ndb_show_foreign_key_dummies_enabled(thd) == false &&
-        Dummy_table_util::split_dummy_name(parenttab->getName(),
-                                           NULL, NULL, &real_parent_name))
+    if (ndb_show_foreign_key_mock_tables(thd) == false &&
+        Fk_util::split_mock_name(parenttab->getName(),
+                                 NULL, NULL, &real_parent_name))
     {
       DBUG_PRINT("info", ("real_parent_name: %s", real_parent_name));
       fk_string.append(real_parent_name);

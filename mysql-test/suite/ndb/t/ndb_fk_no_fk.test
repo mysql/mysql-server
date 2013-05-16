@@ -37,17 +37,17 @@ create table t3 (
 
 --source ndb_show_tables_result.inc
 
---echo # There should be 4 dummy tables created
+--echo # There should be 4 mock tables created
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 let $id_t1 = `select id from ndb_show_tables_results where name = "'t1'"`;
---echo # There should be 1 dummy table created for t1
+--echo # There should be 1 mock table created for t1
 --replace_result $id_t1 <id>
 eval select type, name from ndb_show_tables_results
   where name like "'NDB\$DUMMY_$id_t1%'";
 
 let $id_t3 = `select id from ndb_show_tables_results where name = "'t3'"`;
---echo # There should be 3 dummy tables created for t3
+--echo # There should be 3 mock tables created for t3
 --replace_result $id_t3 <id>
 eval select type, name from ndb_show_tables_results
   where name like "'NDB\$DUMMY_$id_t3%'" order by name;
@@ -56,17 +56,17 @@ drop table t3;
 
 --source ndb_show_tables_result.inc
 
---echo # There should be 1 dummy table
+--echo # There should be 1 mock table
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
---echo # Only t1 should have 1 dummy table
+--echo # Only t1 should have 1 mock table
 --replace_result $id_t1 <id>
 eval select type, name from ndb_show_tables_results
   where name like "'NDB\$DUMMY_$id_t1%'";
 
 drop table t1;
 
---echo # There should be 0 dummy tables
+--echo # There should be 0 mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 --echo #
@@ -87,7 +87,7 @@ create table t2 (
 
 --source ndb_show_tables_result.inc
 
---echo # There should be 0 dummy tables
+--echo # There should be 0 mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 --echo # Verify that fk is working now when parent has been resolved
@@ -100,11 +100,11 @@ drop table t1, t2;
 
 
 --echo #
---echo # Exceed table name when creating the dummy table by referencing
+--echo # Exceed table name when creating the mock table by referencing
 --echo # a not yet created table with really long name
 --echo #
 
---echo # 1) By blowing the dummy_tabname buffer(currently 512 bytes)
+--echo # 1) By blowing the mock_tabname buffer(currently 512 bytes)
 let $parent_tabname = `select repeat('abcdefghijklmnopqrstuvxyz_', 20)`;
 --error ER_CANNOT_ADD_FOREIGN
 eval create table t1 (
@@ -130,7 +130,7 @@ show warnings;
 
 
 --echo #
---echo # show create of table with dummy table references
+--echo # show create of table with mock table references
 --echo #
 create table t1 (
   a int not null,
@@ -159,9 +159,9 @@ create table t2 (
 
 show create table t1;
 
-set @@ndb_show_foreign_key_dummies= 1;
+set @@ndb_show_foreign_key_mock_tables= 1;
 show create table t1;
-set @@ndb_show_foreign_key_dummies= 0;
+set @@ndb_show_foreign_key_mock_tables= 0;
 
 drop table t1, t2;
 
@@ -188,7 +188,7 @@ create table t2 (
 
 --source ndb_show_tables_result.inc
 
---echo # There should be 1 dummy table still
+--echo # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 drop table t1, t2;
@@ -215,14 +215,14 @@ create table t2 (
 
 --source ndb_show_tables_result.inc
 
---echo # There should be 1 dummy table still
+--echo # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 drop table t1, t2;
 
-# Turn on ndb_show_foreign_key_dummies to get more info about
-# when creating and dropping dummy tables
-set @@ndb_show_foreign_key_dummies= 1;
+# Turn on ndb_show_foreign_key_mock_tables to get more info about
+# when creating and dropping mock tables
+set @@ndb_show_foreign_key_mock_tables= 1;
 
 --echo #
 --echo # Test where FK goes from t1->t2->t3->t4 and tables are created in that order
@@ -257,7 +257,7 @@ create table t4 (
 
 --source ndb_show_tables_result.inc
 
---echo # There should be no dummy tables
+--echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 drop table t1, t2, t3, t4;
@@ -301,7 +301,7 @@ create table t4 (
 
 --source ndb_show_tables_result.inc
 
---echo # There should be no dummy tables
+--echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 drop table t1, t2, t3, t4;
@@ -332,14 +332,14 @@ create table t2 (
 
 --source ndb_show_tables_result.inc
 
---echo # There should be no dummy tables
+--echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 drop table t1, t2;
 
 
 --echo #
---echo # Test drop of referenced table(dummy table should be created)
+--echo # Test drop of referenced table(mock table should be created)
 --echo #
 
 create table t1 (
@@ -355,7 +355,7 @@ create table t2 (
 
 --source ndb_show_tables_result.inc
 
---echo # There should be no dummy tables
+--echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
 drop table t2;
@@ -363,7 +363,7 @@ drop table t2;
 --source ndb_show_tables_result.inc
 
 let $id_t1 = `select id from ndb_show_tables_results where name = "'t1'"`;
---echo # There should be 1 dummy table created for t1
+--echo # There should be 1 mock table created for t1
 --replace_result $id_t1 <id>
 eval select type, name from ndb_show_tables_results
   where name like "'NDB\$DUMMY_$id_t1%'";
@@ -371,6 +371,6 @@ eval select type, name from ndb_show_tables_results
 drop table t1;
 
 --source ndb_show_tables_result.inc
---echo # There should be no dummy tables
+--echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
 
