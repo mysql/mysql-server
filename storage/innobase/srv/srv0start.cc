@@ -2414,6 +2414,7 @@ innobase_shutdown_for_mysql(void)
 	/* 2. Make all threads created by InnoDB to exit */
 	srv_shutdown_all_bg_threads();
 
+
 	if (srv_monitor_file) {
 		fclose(srv_monitor_file);
 		srv_monitor_file = 0;
@@ -2447,6 +2448,8 @@ innobase_shutdown_for_mysql(void)
 	trx_sys_file_format_close();
 	trx_sys_close();
 
+	trx_pool_close();
+
 	/* We don't create these mutexes in RO mode because we don't create
 	the temp files that the cover. */
 	if (!srv_read_only_mode) {
@@ -2477,6 +2480,7 @@ innobase_shutdown_for_mysql(void)
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
+
 	mem_close();
 
 	/* ut_free_all_mem() frees all allocated memory not freed yet

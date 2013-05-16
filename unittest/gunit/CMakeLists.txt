@@ -246,6 +246,7 @@ SET(TESTS
   mysys_my_rdtsc
   mysys_my_vsnprintf
   mysys_my_write
+  prealloced_array
   sql_list
   sql_plist
   sql_string

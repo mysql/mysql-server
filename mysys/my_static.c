@@ -65,9 +65,6 @@ int volatile my_have_got_alarm=0;	/* declare variable to reset */
 ulong my_time_to_wait_for_lock=2;	/* In seconds */
 
 	/* from errors.c */
-#ifdef SHARED_LIBRARY
-const char *globerrs[GLOBERRS];		/* my_error_messages is here */
-#endif
 void (*my_abort_hook)(int) = (void(*)(int)) exit;
 void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=
   my_message_stderr;

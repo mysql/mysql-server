@@ -785,9 +785,7 @@ typedef longlong int64;
 typedef ulonglong uint64;
 #endif
 
-#if defined(NO_CLIENT_LONG_LONG)
-typedef unsigned long my_ulonglong;
-#elif defined (_WIN32)
+#if defined (_WIN32)
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
@@ -974,8 +972,6 @@ typedef char		my_bool; /* Small bool */
 #  else
 #    define __func__ __FUNCTION__
 #  endif
-#elif defined(__BORLANDC__)
-#  define __func__ __FUNC__
 #else
 #  define __func__ "<unknown>"
 #endif
