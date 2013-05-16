@@ -46,11 +46,12 @@ var jslintOptions = {
   "node"      : true,     // node.js globals
   "nomen"     : true,     // allow dangling underscore
   "eqeq"      : true,     // allow ==
+  "bitwise"   : true,
   "predef"    :  
     [ /* globals, from Adapter/adapter_config.js */
       "path" , "fs" , "assert" , "util"  , "unified_debug" , 
       "adapter_dir" , "parent_dir" , "api_dir" , "spi_dir" , 
-      "spi_doc_dir" , "api_doc_dir", "build_dir",
+      "spi_doc_dir" , "api_doc_dir", "build_dir", "converters_dir", 
       "spi_module", "api_module", "udebug_module", 
       /* globals from test/driver.js */
       "suites_dir", "harness", "mynode", "adapter",
@@ -61,7 +62,7 @@ var jslintOptions = {
 
 var lintOptions = jslintOptions;
 
-var ignoreAlways = "Expected \'{\' and instead saw \'this\'.";
+var ignoreAlways = "Expected \'{\' and instead saw";
 
 function ignore(file, pos, msg, count) { 
   var i;
@@ -87,7 +88,7 @@ function isIgnored(file, pos, msg) {
     list.shift();
     return true;
   }
-  if(msg == ignoreAlways) {
+  if(msg.indexOf(ignoreAlways) == 0) {
     return true;
   }
   return false;
@@ -144,16 +145,19 @@ var skipFilePatterns = [
 ];
 
 function checkDirectory(base, dir) {
-  var dirname, files, file, i;
+  var dirname, files, file, i, useFile;
   dirname = path.join(base, dir);
   files = fs.readdirSync(dirname);
   while(file = files.pop()) {
+    useFile = false;
     for(i = 0 ; i < skipFilePatterns.length ; i++) {
-      if(file.match(skipFilePatterns[i])) { 
-        return; 
+      if( (file.match(/\.js$/) 
+         && (! file.match(skipFilePatterns[i]))))
+      {
+        useFile = true;
       }
     }
-    if(file.match(/\.js$/)) {
+    if(useFile) {
       exports.tests.push(lintTest(dirname, file));
     }
   }
@@ -204,6 +208,13 @@ checkDirectory(suites_dir, "t_basic");
    and matching <message>.
    If multiple errors are declared for one file, they must match in the order declared.
 ***/
+
+// Adapter/impl/ndb
+ignore("NdbOperation.js",5,"\'storeNativeConstructorInMapping\' was used before it was defined.");
+ignore("NdbOperation.js",27,"\'gather\' was used before it was defined.");
+ignore("NdbOperation.js",7,"Empty block.");
+ignore("NdbConnectionPool.js",15,"Expected a conditional expression and instead saw an assignment.");
+ignore("NdbConnectionPool.js",17,"Expected a conditional expression and instead saw an assignment.");
 
 ignore("LintTest.js",14,"Expected a conditional expression and instead saw an assignment.");
 ignore("NdbOperation.js",12,"Expected a conditional expression and instead saw an assignment.");

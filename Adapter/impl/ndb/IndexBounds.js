@@ -80,7 +80,7 @@ function EncodedValue(column, buffer, size) {
 }
 
 EncodedValue.prototype = {
-  isEncodedValue : true;
+  isEncodedValue : true
 };
 
 
@@ -121,7 +121,7 @@ Point.prototype.compare = function(that) {
     return 1;
   }
 
-  if(typepof this.value === 'object' && this.isEncodedValue) {
+  if(typeof this.value === 'object' && this.isEncodedValue) {
     /* Compare Encoded Values */
     cmp = 0; // cmp = xxx.compare( ... )
   }
@@ -132,12 +132,7 @@ Point.prototype.compare = function(that) {
     else cmp = 1;
   }
 
-  if(cmp === 0) {
-    return (this.inclusive && that.inclusive);
-  }
-  else {
-    return cmp;
-  }
+  return (cmp === 0) ? (this.inclusive && that.inclusive) : cmp;
 };
 
 /* complement flips Point between inclusive and exclusive
@@ -170,18 +165,18 @@ Segment.prototype.toString = function() {
   var s = "";
   s += this.low.asString(0) + "," + this.high.asString(1);
   return s;
-}
+};
 
 Segment.prototype.contains = function(point) {
   var hi = this.high.compare(point);
   var lo = this.low.compare(point);
-  return(   (lo === true) || (lo === -1) 
-         && (hi === true) || (hi === 1));
-}
+  return(   ((lo === true) || (lo === -1))
+         && ((hi === true) || (hi === 1)));
+};
 
 Segment.prototype.intersects = function(that) {
   return (this.contains(that.low) || this.contains(that.high));
-}
+};
 
 /* compare() returns 0 if segments intersect. 
    otherwise like Point.compare()
@@ -192,7 +187,7 @@ Segment.prototype.compare = function(that) {
     r = this.low.compare(that.low);
   }
   return r;
-}
+};
 
 /* intersection: greatest lower bound & least upper bound 
 */
@@ -205,7 +200,7 @@ Segment.prototype.intersection = function(that) {
     s = new Segment(lp, hp);
   }
   return s;
-}
+};
 
 /* span of intersecting segments: least lower bound & greatest upper bound
 */
@@ -218,7 +213,7 @@ Segment.prototype.span = function(that) {
     s = new Segment(lp, hp);
   }
   return s;
-}
+};
 
 /* Process an inclusive BETWEEN operator 
 */
@@ -240,7 +235,7 @@ function createSegmentBetween(a, b) {
 */
 
 function NumberLine() {
-  this.transitions = [NegInf, posInf];
+  this.transitions = [negInf, posInf];
 } 
 
 NumberLine.prototype.setEmpty = function() {
@@ -283,14 +278,14 @@ NumberLine.prototype.toString = function() {
     str += list[i].asString(i % 2);
   }
   return str;
-}
+};
 
 /* A NumberLineIterator can iterate over the segments of a NumberLine 
 */
 function NumberLineIterator(numberLine) {
   this.line = numberLine;
   this.list = numberLine.transitions;
-  this.length = list.length / 2;
+  this.length = this.list.length / 2;
   this.n = 0;
 }
 
@@ -301,7 +296,7 @@ NumberLineIterator.prototype.next = function() {
     this.n += 2;
   }
   return s;    
-}
+};
 
 /* An iterator's splice point is the index into a NumberLine's transition list
    just prior to the most recently read segment. 
@@ -313,12 +308,12 @@ NumberLineIterator.prototype.getSplicePoint = function() {
     idx = this.n - 2;
   }
   return idx;
-}
+};
 
 
 NumberLine.prototype.getIterator = function() { 
   return new NumberLineIterator(this);
-}
+};
 
 /* A NumberLine intersects segment S if any of its segments 
    intersects S.
@@ -332,7 +327,7 @@ NumberLine.prototype.intersects = function(segment) {
     }
   }
   return false;
-}
+};
 
 /* Insert a segment into a number line.
    Assume as a given that the segment does not intersect any existing one.
@@ -346,8 +341,7 @@ NumberLine.prototype.insertSegment = function(segment) {
   }
   else { 
     /* Sorted Insertion */
-    var i = this.getIterator();
-    var s, sp;
+    i = this.getIterator();
     while(s = i.next()) {
       if(s.compare(segment) == 1) { 
         sp = i.getSplicePoint(); 
@@ -359,7 +353,7 @@ NumberLine.prototype.insertSegment = function(segment) {
       }
     }
   }
-}
+};
 
 // With this much we can do union of Line with non-intersecting Segment.
 // To do union of line and intersecting Segment we need to sort and span.
@@ -431,8 +425,8 @@ function IndexBoundVisitor(column, params) {
 
 /** Handle nodes QueryAnd, QueryOr */
 IndexBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
-    
-  for(var i = 0 ; i < node.predicates.length ; i++) {
+  var i;  
+  for(i = 0 ; i < node.predicates.length ; i++) {
     node.predicates[i].visit(this);
   }
   

@@ -119,7 +119,7 @@ exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
     apiCall.ndb = ndbSession.impl;
     apiCall.run = function() {
       this.ndb.close(this.callback);
-    }
+    };
     apiCall.enqueue();
   }
   else 
@@ -333,7 +333,7 @@ DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
     apiCall.db = this.properties.database;
     apiCall.run = function() {
       adapter.ndb.impl.create_ndb(this.impl, this.db, this.callback);
-    }
+    };
     apiCall.enqueue();
   }
 };
