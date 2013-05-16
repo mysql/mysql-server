@@ -183,10 +183,6 @@ srv_printf_innodb_monitor() will request mutex acquisition
 with mutex_enter(), which will wait until it gets the mutex. */
 #define MUTEX_NOWAIT(mutex_skipped)	((mutex_skipped) < MAX_MUTEX_NOWAIT)
 
-/** The sort order table of the MySQL latin1_swedish_ci character set
-collation */
-const byte*	srv_latin1_ordering;
-
 /* use os/external memory allocator */
 my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
