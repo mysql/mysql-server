@@ -1398,7 +1398,7 @@ end_of_index:
 			}
 
 			trx_id = trx_read_trx_id(rec + trx_id_offset);
-			ut_a(trx_rw_is_active(trx_id, NULL));
+			ut_a(trx_rw_is_active(trx_id, NULL, false));
 			ut_a(trx_undo_trx_id_is_insert(rec + trx_id_offset));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
@@ -3154,6 +3154,8 @@ row_merge_create_index_graph(
 	que_thr_t*	thr;		/*!< Query thread */
 	dberr_t		err;
 
+	DBUG_ENTER("row_merge_create_index_graph");
+
 	ut_ad(trx);
 	ut_ad(table);
 	ut_ad(index);
@@ -3173,7 +3175,7 @@ row_merge_create_index_graph(
 
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /*********************************************************************//**
@@ -3192,6 +3194,8 @@ row_merge_create_index(
 	dberr_t		err;
 	ulint		n_fields = index_def->n_fields;
 	ulint		i;
+
+	DBUG_ENTER("row_merge_create_index");
 
 	ut_ad(!srv_read_only_mode);
 
@@ -3229,7 +3233,7 @@ row_merge_create_index(
 		index = NULL;
 	}
 
-	return(index);
+	DBUG_RETURN(index);
 }
 
 /*********************************************************************//**
