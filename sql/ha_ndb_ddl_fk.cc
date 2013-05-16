@@ -547,6 +547,8 @@ class Fk_util
     {
       const NdbDictionary::Dictionary::List::Element& el = table_list.elements[i];
 
+      DBUG_ASSERT(el.type == NdbDictionary::Object::UserTable);
+
       const char* parent_name;
       if (!Fk_util::split_mock_name(el.name, NULL, NULL, &parent_name))
         continue;
@@ -706,7 +708,7 @@ public:
     const struct {
       const char* str;
       size_t len;
-    } prefix = { STRING_WITH_LEN("NDB$DUMMY_") };
+    } prefix = { STRING_WITH_LEN("NDB$FKM_") };
 
     if (strncmp(name, prefix.str, prefix.len) != 0)
       return false;
@@ -749,7 +751,7 @@ public:
     DBUG_ENTER("format_name");
     DBUG_PRINT("enter", ("child_id: %d, fk_index: %u, parent_name: %s",
                          child_id, fk_index, parent_name));
-    const size_t len = my_snprintf(buf, buf_size, "NDB$DUMMY_%d_%u_%s",
+    const size_t len = my_snprintf(buf, buf_size, "NDB$FKM_%d_%u_%s",
                                    child_id, fk_index, parent_name);
     DBUG_PRINT("info", ("len: %lu, buf_size: %lu", len, buf_size));
     if (len >= buf_size - 1)

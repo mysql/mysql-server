@@ -35,37 +35,37 @@ foreign key (g, h, i, j) references t6(oi1, oi2, oi3, oi4)
 ndb_show_tables completed.....
 
 # There should be 4 mock tables created
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 4
 # There should be 1 mock table created for t1
 select type, name from ndb_show_tables_results
-where name like "'NDB$DUMMY_<id>%'";
+where name like "'NDB$FKM_<id>%'";
 type	name
-'UserTable'	'NDB$DUMMY_<id>_0_t2'
+'UserTable'	'NDB$FKM_<id>_0_t2'
 # There should be 3 mock tables created for t3
 select type, name from ndb_show_tables_results
-where name like "'NDB$DUMMY_<id>%'" order by name;
+where name like "'NDB$FKM_<id>%'" order by name;
 type	name
-'UserTable'	'NDB$DUMMY_<id>_0_t4'
-'UserTable'	'NDB$DUMMY_<id>_1_t5'
-'UserTable'	'NDB$DUMMY_<id>_2_t6'
+'UserTable'	'NDB$FKM_<id>_0_t4'
+'UserTable'	'NDB$FKM_<id>_1_t5'
+'UserTable'	'NDB$FKM_<id>_2_t6'
 drop table t3;
 
 ndb_show_tables completed.....
 
 # There should be 1 mock table
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 1
 # Only t1 should have 1 mock table
 select type, name from ndb_show_tables_results
-where name like "'NDB$DUMMY_<id>%'";
+where name like "'NDB$FKM_<id>%'";
 type	name
-'UserTable'	'NDB$DUMMY_<id>_0_t2'
+'UserTable'	'NDB$FKM_<id>_0_t2'
 drop table t1;
 # There should be 0 mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 1
 #
@@ -85,7 +85,7 @@ c int
 ndb_show_tables completed.....
 
 # There should be 0 mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
 # Verify that fk is working now when parent has been resolved
@@ -175,10 +175,10 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `NDB$DUMMY_10_1_t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `NDB$DUMMY_10_2_t4` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `NDB$DUMMY_10_4_t3` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `NDB$DUMMY_10_5_t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `NDB$FKM_10_1_t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `NDB$FKM_10_2_t4` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `NDB$FKM_10_4_t3` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `NDB$FKM_10_5_t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk4` FOREIGN KEY(`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
@@ -203,7 +203,7 @@ Warning	1215	Could not resolve 't2' as fk parent for 'test/def/t1' since it didn
 ndb_show_tables completed.....
 
 # There should be 1 mock table still
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 1
 drop table t1, t2;
@@ -226,7 +226,7 @@ Warning	1215	Could not resolve 't2' as fk parent for 'test/def/t1' since no matc
 ndb_show_tables completed.....
 
 # There should be 1 mock table still
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 1
 drop table t1, t2;
@@ -239,15 +239,15 @@ b int,
 foreign key (b) references t2(pk21)
 ) engine=ndb;
 Warnings:
-Warning	1003	Created mock table 'NDB$DUMMY_10_0_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_0_t2' referenced by 't1'
 create table t2 (
 pk21 int not null primary key,
 b int, c int,
 foreign key (b, c) references t3(pk31, pk32)
 ) engine=ndb;
 Warnings:
-Warning	1003	Created mock table 'NDB$DUMMY_15_0_t3' referenced by 't2'
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_0_t2' - resolved by 't2'
+Warning	1003	Created mock table 'NDB$FKM_15_0_t3' referenced by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_10_0_t2' - resolved by 't2'
 create table t3 (
 pk31 int not null,
 pk32 int not null,
@@ -256,8 +256,8 @@ d int, e int,f int,
 foreign key (d,e,f) references t4(pk41, pk42, pk43)
 ) engine=ndb;
 Warnings:
-Warning	1003	Created mock table 'NDB$DUMMY_13_0_t4' referenced by 't3'
-Warning	1003	Dropped mock table 'NDB$DUMMY_15_0_t3' - resolved by 't3'
+Warning	1003	Created mock table 'NDB$FKM_13_0_t4' referenced by 't3'
+Warning	1003	Dropped mock table 'NDB$FKM_15_0_t3' - resolved by 't3'
 create table t4 (
 pk41 int not null,
 pk42 int not null,
@@ -266,12 +266,12 @@ primary key(pk41, pk42, pk43),
 m varchar(55)
 ) engine=ndb;
 Warnings:
-Warning	1003	Dropped mock table 'NDB$DUMMY_13_0_t4' - resolved by 't4'
+Warning	1003	Dropped mock table 'NDB$FKM_13_0_t4' - resolved by 't4'
 
 ndb_show_tables completed.....
 
 # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
 drop table t1, t2, t3, t4;
@@ -287,16 +287,16 @@ h varchar(55), i int, j datetime,
 foreign key (h, i, j) references t4(k, l, m)
 ) engine=ndb;
 Warnings:
-Warning	1003	Created mock table 'NDB$DUMMY_10_0_t2' referenced by 't1'
-Warning	1003	Created mock table 'NDB$DUMMY_10_1_t3' referenced by 't1'
-Warning	1003	Created mock table 'NDB$DUMMY_10_2_t4' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_0_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_1_t3' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_2_t4' referenced by 't1'
 create table t2 (
 pk21 int not null primary key,
 c int,
 unique(c)
 ) engine=ndb;
 Warnings:
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_0_t2' - resolved by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_10_0_t2' - resolved by 't2'
 create table t3 (
 pk31 int not null,
 pk32 int not null,
@@ -305,7 +305,7 @@ g int, f int,
 unique(f, g)
 ) engine=ndb;
 Warnings:
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_1_t3' - resolved by 't3'
+Warning	1003	Dropped mock table 'NDB$FKM_10_1_t3' - resolved by 't3'
 create table t4 (
 pk41 int not null,
 pk42 int not null,
@@ -315,12 +315,12 @@ m varchar(55), l int, k datetime,
 unique(k, l, m)
 ) engine=ndb;
 Warnings:
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_2_t4' - resolved by 't4'
+Warning	1003	Dropped mock table 'NDB$FKM_10_2_t4' - resolved by 't4'
 
 ndb_show_tables completed.....
 
 # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
 drop table t1, t2, t3, t4;
@@ -337,10 +337,10 @@ h varchar(55), i int, j datetime,
 foreign key (h, i, j) references t2(k, l, m)
 ) engine=ndb;
 Warnings:
-Warning	1003	Created mock table 'NDB$DUMMY_10_0_t2' referenced by 't1'
-Warning	1003	Created mock table 'NDB$DUMMY_10_1_t2' referenced by 't1'
-Warning	1003	Created mock table 'NDB$DUMMY_10_2_t2' referenced by 't1'
-Warning	1003	Created mock table 'NDB$DUMMY_10_3_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_0_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_1_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_2_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_3_t2' referenced by 't1'
 create table t2 (
 pk21 int not null primary key,
 c int,
@@ -351,15 +351,15 @@ m varchar(55), l int, k datetime,
 unique(k, l, m)
 ) engine=ndb;
 Warnings:
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_0_t2' - resolved by 't2'
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_1_t2' - resolved by 't2'
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_2_t2' - resolved by 't2'
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_3_t2' - resolved by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_10_3_t2' - resolved by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_10_0_t2' - resolved by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_10_1_t2' - resolved by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_10_2_t2' - resolved by 't2'
 
 ndb_show_tables completed.....
 
 # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
 drop table t1, t2;
@@ -372,38 +372,38 @@ foreign key (pk1) references t2(pk2),
 a varchar(255)
 ) engine=ndb;
 Warnings:
-Warning	1003	Created mock table 'NDB$DUMMY_10_0_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_0_t2' referenced by 't1'
 create table t2 (
 pk2 int not null primary key,
 b datetime
 ) engine=ndb;
 Warnings:
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_0_t2' - resolved by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_10_0_t2' - resolved by 't2'
 
 ndb_show_tables completed.....
 
 # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
 drop table t2;
 Warnings:
-Warning	1003	Created mock table 'NDB$DUMMY_10_0_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_10_0_t2' referenced by 't1'
 
 ndb_show_tables completed.....
 
 # There should be 1 mock table created for t1
 select type, name from ndb_show_tables_results
-where name like "'NDB$DUMMY_<id>%'";
+where name like "'NDB$FKM_<id>%'";
 type	name
-'UserTable'	'NDB$DUMMY_<id>_0_t2'
+'UserTable'	'NDB$FKM_<id>_0_t2'
 drop table t1;
 Warnings:
-Warning	1003	Dropped mock table 'NDB$DUMMY_10_0_t2' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_10_0_t2' - referencing table dropped
 
 ndb_show_tables completed.....
 
 # There should be no mock tables
-select count(*) from ndb_show_tables_results where name like "'NDB\$DUMMY%'";
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
