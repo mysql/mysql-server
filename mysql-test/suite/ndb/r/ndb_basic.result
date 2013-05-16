@@ -135,7 +135,7 @@ ndb_recv_thread_activation_threshold	#
 ndb_recv_thread_cpu_mask	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
-ndb_show_foreign_key_dummies	#
+ndb_show_foreign_key_mock_tables	#
 ndb_table_no_logging	#
 ndb_table_temporary	#
 ndb_use_copying_alter_table	#
