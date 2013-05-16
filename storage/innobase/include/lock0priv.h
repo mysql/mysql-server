@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -90,7 +90,7 @@ lock_get_type_low(
 /*********************************************************************//**
 Gets the previous record lock set on a record.
 @return	previous lock on the same record, NULL if none exists */
-UNIV_INTERN
+
 const lock_t*
 lock_rec_get_prev(
 /*==============*/
@@ -100,7 +100,7 @@ lock_rec_get_prev(
 /*********************************************************************//**
 Cancels a waiting lock request and releases possible other transactions
 waiting behind it. */
-UNIV_INTERN
+
 void
 lock_cancel_waiting_and_release(
 /*============================*/

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@ Created 4/26/2006 Osku Salerma
 /****************************************************************//**
 Create a new work queue.
 @return	work queue */
-UNIV_INTERN
+
 ib_wqueue_t*
 ib_wqueue_create(void)
 /*===================*/
@@ -47,7 +47,7 @@ ib_wqueue_create(void)
 
 /****************************************************************//**
 Free a work queue. */
-UNIV_INTERN
+
 void
 ib_wqueue_free(
 /*===========*/
@@ -62,7 +62,7 @@ ib_wqueue_free(
 
 /****************************************************************//**
 Add a work item to the queue. */
-UNIV_INTERN
+
 void
 ib_wqueue_add(
 /*==========*/
@@ -82,7 +82,7 @@ ib_wqueue_add(
 /****************************************************************//**
 Wait for a work item to appear in the queue.
 @return	work item */
-UNIV_INTERN
+
 void*
 ib_wqueue_wait(
 /*===========*/

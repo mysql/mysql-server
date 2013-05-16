@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ extern ulint	mem_current_allocated_memory;
 
 /******************************************************************//**
 Initializes an allocated memory field in the debug version. */
-UNIV_INTERN
+
 void
 mem_field_init(
 /*===========*/
@@ -37,7 +37,7 @@ mem_field_init(
 	ulint	n);	/*!< in: how many bytes the user requested */
 /******************************************************************//**
 Erases an allocated memory field in the debug version. */
-UNIV_INTERN
+
 void
 mem_field_erase(
 /*============*/
@@ -46,7 +46,7 @@ mem_field_erase(
 /***************************************************************//**
 Initializes a buffer to a random combination of hex BA and BE.
 Used to initialize allocated memory. */
-UNIV_INTERN
+
 void
 mem_init_buf(
 /*=========*/
@@ -55,7 +55,7 @@ mem_init_buf(
 /***************************************************************//**
 Initializes a buffer to a random combination of hex DE and AD.
 Used to erase freed memory. */
-UNIV_INTERN
+
 void
 mem_erase_buf(
 /*==========*/
@@ -65,7 +65,7 @@ mem_erase_buf(
 Inserts a created memory heap to the hash table of
 current allocated memory heaps.
 Initializes the hash table when first called. */
-UNIV_INTERN
+
 void
 mem_hash_insert(
 /*============*/
@@ -80,7 +80,7 @@ the heap (not the total space occupied by the heap).
 Also validates the heap.
 NOTE: This function does not free the storage occupied by the
 heap itself, only the node in the list of heaps. */
-UNIV_INTERN
+
 void
 mem_hash_remove(
 /*============*/

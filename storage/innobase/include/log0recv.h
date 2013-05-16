@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,7 +38,7 @@ extern ibool	recv_replay_file_ops;
 /*******************************************************************//**
 Reads the checkpoint info needed in hot backup.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 recv_read_checkpoint_info_for_backup(
 /*=================================*/
@@ -54,7 +54,7 @@ recv_read_checkpoint_info_for_backup(
 /*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
-UNIV_INTERN
+
 void
 recv_scan_log_seg_for_backup(
 /*=========================*/
@@ -81,7 +81,7 @@ recv_recovery_is_on(void);
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool. */
-UNIV_INTERN
+
 void
 recv_recover_page_func(
 /*===================*/
@@ -118,7 +118,7 @@ to start processing of new user transactions, but the function
 recv_recovery_from_checkpoint_finish should be called later to complete
 the recovery and free the resources used in it.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 recv_recovery_from_checkpoint_start(
 /*================================*/
@@ -128,13 +128,13 @@ recv_recovery_from_checkpoint_start(
 					 data files */
 /********************************************************//**
 Completes recovery from a checkpoint. */
-UNIV_INTERN
+
 void
 recv_recovery_from_checkpoint_finish(void);
 /*======================================*/
 /********************************************************//**
 Initiates the rollback of active transactions. */
-UNIV_INTERN
+
 void
 recv_recovery_rollback_active(void);
 /*===============================*/
@@ -145,7 +145,7 @@ UNIV_HOTBACKUP is defined, this function will apply log records
 automatically when the hash table becomes full.
 @return TRUE if limit_lsn has been reached, or not able to scan any
 more in this log group */
-UNIV_INTERN
+
 ibool
 recv_scan_log_recs(
 /*===============*/
@@ -166,7 +166,7 @@ recv_scan_log_recs(
 					this lsn */
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
-UNIV_INTERN
+
 void
 recv_reset_logs(
 /*============*/
@@ -178,7 +178,7 @@ recv_reset_logs(
 #ifdef UNIV_HOTBACKUP
 /******************************************************//**
 Creates new log files after a backup has been restored. */
-UNIV_INTERN
+
 void
 recv_reset_log_files_for_backup(
 /*============================*/
@@ -190,25 +190,25 @@ recv_reset_log_files_for_backup(
 #endif /* UNIV_HOTBACKUP */
 /********************************************************//**
 Creates the recovery system. */
-UNIV_INTERN
+
 void
 recv_sys_create(void);
 /*=================*/
 /**********************************************************//**
 Release recovery system mutexes. */
-UNIV_INTERN
+
 void
 recv_sys_close(void);
 /*================*/
 /********************************************************//**
 Frees the recovery system memory. */
-UNIV_INTERN
+
 void
 recv_sys_mem_free(void);
 /*===================*/
 /********************************************************//**
 Inits the recovery system for a recovery operation. */
-UNIV_INTERN
+
 void
 recv_sys_init(
 /*==========*/
@@ -216,7 +216,7 @@ recv_sys_init(
 #ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Reset the state of the recovery system variables. */
-UNIV_INTERN
+
 void
 recv_sys_var_init(void);
 /*===================*/
@@ -224,7 +224,7 @@ recv_sys_var_init(void);
 /*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */
-UNIV_INTERN
+
 void
 recv_apply_hashed_log_recs(
 /*=======================*/
@@ -238,7 +238,7 @@ recv_apply_hashed_log_recs(
 #ifdef UNIV_HOTBACKUP
 /*******************************************************************//**
 Applies log records in the hash table to a backup. */
-UNIV_INTERN
+
 void
 recv_apply_log_recs_for_backup(void);
 /*================================*/

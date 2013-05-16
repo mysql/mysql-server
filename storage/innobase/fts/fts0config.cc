@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -69,7 +69,7 @@ fts_config_fetch_value(
 Get value from the config table. The caller must ensure that enough
 space is allocated for value to hold the column contents.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_get_value(
 /*=================*/
@@ -132,7 +132,7 @@ fts_config_get_value(
 /*********************************************************************//**
 Create the config table name for retrieving index specific value.
 @return index config parameter name */
-UNIV_INTERN
+
 char*
 fts_config_create_index_param_name(
 /*===============================*/
@@ -161,7 +161,7 @@ Get value specific to an FTS index from the config table. The caller
 must ensure that enough space is allocated for value to hold the
 column contents.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_get_index_value(
 /*=======================*/
@@ -192,7 +192,7 @@ fts_config_get_index_value(
 /******************************************************************//**
 Set the value in the config table for name.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_set_value(
 /*=================*/
@@ -261,7 +261,7 @@ fts_config_set_value(
 /******************************************************************//**
 Set the value specific to an FTS index in the config table.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_set_index_value(
 /*=======================*/
@@ -292,7 +292,7 @@ fts_config_set_index_value(
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_get_index_ulint(
 /*=======================*/
@@ -328,7 +328,7 @@ fts_config_get_index_ulint(
 /******************************************************************//**
 Set an ulint value in the config table.
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_set_index_ulint(
 /*=======================*/
@@ -368,7 +368,7 @@ fts_config_set_index_ulint(
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_get_ulint(
 /*=================*/
@@ -405,7 +405,7 @@ fts_config_get_ulint(
 /******************************************************************//**
 Set an ulint value in the config table.
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_set_ulint(
 /*=================*/
@@ -446,7 +446,7 @@ fts_config_set_ulint(
 /******************************************************************//**
 Increment the value in the config table for column name.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_increment_value(
 /*=======================*/
@@ -532,7 +532,7 @@ fts_config_increment_value(
 /******************************************************************//**
 Increment the per index value in the config table for column name.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_increment_index_value(
 /*=============================*/
