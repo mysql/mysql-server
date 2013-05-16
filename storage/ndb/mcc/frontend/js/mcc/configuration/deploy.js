@@ -1110,7 +1110,7 @@ function getStopCommand(process) {
         stopCommand.procCtrl = {
             hup: false,
             getStd: false,
-            waitForCompletion: false
+            waitForCompletion: true
         };
 
         // Add process specific options
@@ -1393,6 +1393,12 @@ function stopCluster() {
     var procNames = ["SQL", "Cluster"];
     var currseq = 0;
 
+    function onError(errMsg, errReply) {
+        mcc.util.dbg("stopCluster failed: "+errMsg);
+        alert("Error occured while stopping cluster: `"+errMsg+"' (Press OK to continue)");
+        updateProgressAndStopNext();
+    }
+
     function onReply() {
         mcc.util.dbg("Wait for " + procNames[currseq-1] + " processes to be stopped");  
         mcc.storage.processTreeStorage().getItems({name: layers[currseq-1]}).then(function (pfam) {
@@ -1421,7 +1427,7 @@ function stopCluster() {
                     "Stopping " + procNames[currseq] +
                     " processes", {maximum: 3, progress: 1 + currseq});
             mcc.server.startClusterReq([commands[currseq]], 
-                onReply, onReply);       
+                onReply, onError);       
             currseq++;        
         } else {
             mcc.util.dbg("Cluster stopped");

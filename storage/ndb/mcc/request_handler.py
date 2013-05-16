@@ -282,7 +282,7 @@ from util import _parse_until_delim, parse_properties
 
 def parse_reply(ctx):
     """Return False unless ctx['str'] is an mgmd reply. Assign first line to ctx['reply_type], parse property list and return True otherwise."""
-    return _parse_until_delim(ctx, 'reply_type', '\n') and parse_properties(ctx,':')
+    return _parse_until_delim(ctx, 'reply_type', '\n') and parse_properties(ctx,': ')
 
 
 class mgmd_reply(dict):
