@@ -60,7 +60,7 @@ introduced where a call to log_free_check() is bypassed. */
 /********************************************************************//**
 Creates a purge node to a query graph.
 @return	own: purge node */
-UNIV_INTERN
+
 purge_node_t*
 row_purge_node_create(
 /*==================*/
@@ -234,7 +234,7 @@ However, in that case, the user transaction would also re-insert the
 secondary index entry after purge has removed it and released the leaf
 page latch.
 @return	true if the secondary index record can be purged */
-UNIV_INTERN
+
 bool
 row_purge_poss_sec(
 /*===============*/
@@ -929,7 +929,7 @@ row_purge_end(
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
 @return	query thread to run next or NULL */
-UNIV_INTERN
+
 que_thr_t*
 row_purge_step(
 /*===========*/

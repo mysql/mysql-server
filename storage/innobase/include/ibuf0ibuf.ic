@@ -93,7 +93,7 @@ Sets the free bit of the page in the ibuf bitmap. This is done in a separate
 mini-transaction, hence this operation does not restrict further work to only
 ibuf bitmap operations, which would result if the latch to the bitmap page
 were kept. */
-UNIV_INTERN
+
 void
 ibuf_set_free_bits_func(
 /*====================*/

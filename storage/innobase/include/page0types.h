@@ -38,6 +38,7 @@ using namespace std;
 #define page_t	   ib_page_t
 /** Type of the index page */
 typedef	byte		page_t;
+#ifndef UNIV_INNOCHECKSUM
 /** Index page cursor */
 struct page_cur_t;
 
@@ -122,7 +123,7 @@ extern mysql_pfs_key_t				page_zip_stat_per_index_mutex_key;
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
-UNIV_INTERN
+
 void
 page_zip_rec_set_deleted(
 /*=====================*/
@@ -134,7 +135,7 @@ page_zip_rec_set_deleted(
 /**********************************************************************//**
 Write the "owned" flag of a record on a compressed page.  The n_owned field
 must already have been written on the uncompressed page. */
-UNIV_INTERN
+
 void
 page_zip_rec_set_owned(
 /*===================*/
@@ -151,7 +152,7 @@ page_zip_rec_set_owned(
 @param[in]	data_size	user data size of rec, in bytes
 @param[in]	extra_size	header size of rec, in bytes
 @param[in]	n_ext		number of externally stored fields */
-UNIV_INTERN
+
 void
 page_zip_dir_delete(
 	page_zip_des_t*		page_zip,
@@ -164,7 +165,7 @@ page_zip_dir_delete(
 
 /**********************************************************************//**
 Add a slot to the dense page directory. */
-UNIV_INTERN
+
 void
 page_zip_dir_add_slot(
 /*==================*/
@@ -172,4 +173,5 @@ page_zip_dir_add_slot(
 	ulint		is_clustered)	/*!< in: nonzero for clustered index,
 					zero for others */
 	__attribute__((nonnull));
+#endif /* !UNIV_INNOCHECKSUM */
 #endif

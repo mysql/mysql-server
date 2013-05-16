@@ -27,6 +27,8 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "univ.i"
 
+#include "ha_prototypes.h"
+
 #include "btr0btr.h" /* btr_get_size() */
 #include "btr0cur.h" /* btr_estimate_number_of_different_key_vals() */
 #include "dict0dict.h" /* dict_table_get_first_index(), dict_fs2utf8() */
@@ -400,7 +402,7 @@ dict_stats_table_clone_create(
 
 	t->corrupted = table->corrupted;
 
-	UT_LIST_INIT(t->indexes);
+	UT_LIST_INIT(t->indexes, &dict_index_t::indexes);
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
@@ -438,13 +440,17 @@ dict_stats_table_clone_create(
 			heap, idx->n_uniq * sizeof(idx->fields[0]));
 
 		for (ulint i = 0; i < idx->n_uniq; i++) {
-			UNIV_MEM_ASSERT_RW_ABORT(index->fields[i].name, strlen(index->fields[i].name) + 1);
+
+			UNIV_MEM_ASSERT_RW_ABORT(
+				index->fields[i].name,
+				strlen(index->fields[i].name) + 1);
+
 			idx->fields[i].name = (char*) mem_heap_strdup(
 				heap, index->fields[i].name);
 		}
 
 		/* hook idx into t->indexes */
-		UT_LIST_ADD_LAST(indexes, t->indexes, idx);
+		UT_LIST_ADD_LAST(t->indexes, idx);
 
 		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_alloc(
 			heap,
@@ -831,7 +837,7 @@ is relatively quick and is used to calculate transient statistics that
 are not saved on disk.
 This was the only way to calculate statistics before the
 Persistent Statistics feature was introduced. */
-UNIV_INTERN
+
 void
 dict_stats_update_transient(
 /*========================*/
@@ -2072,7 +2078,6 @@ dict_stats_update_persistent(
 	return(DB_SUCCESS);
 }
 
-#include "mysql_com.h"
 /*********************************************************************//**
 Save an individual index's statistic into the persistent statistics
 storage.
@@ -2838,7 +2843,7 @@ dict_stats_fetch_from_ps(
 
 /*********************************************************************//**
 Fetches or calculates new estimates for index statistics. */
-UNIV_INTERN
+
 void
 dict_stats_update_for_index(
 /*========================*/
@@ -2882,7 +2887,7 @@ dict_stats_update_for_index(
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_update(
 /*==============*/
@@ -3118,7 +3123,7 @@ marko: If ibuf merges are not disabled, we need to scan the *.ibd files.
 But we shouldn't open *.ibd files before we have rolled back dict
 transactions and opened the SYS_* records for the *.ibd files.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_drop_index(
 /*==================*/
@@ -3280,7 +3285,7 @@ Removes the statistics for a table and all of its indexes from the
 persistent statistics storage if it exists and if there is data stored for
 the table. This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_drop_table(
 /*==================*/
@@ -3448,7 +3453,7 @@ dict_stats_rename_table_in_index_stats(
 Renames a table in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_rename_table(
 /*====================*/
@@ -3606,7 +3611,7 @@ Renames an index in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
 if the persistent stats do not exist. */
-UNIV_INTERN
+
 dberr_t
 dict_stats_rename_index(
 /*====================*/

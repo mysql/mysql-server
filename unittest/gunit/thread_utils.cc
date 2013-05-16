@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ void assert_false(int arg, int line)
 
 Thread::~Thread()
 {
-#ifdef __WIN__
+#ifdef _WIN32
   if (m_thread_handle != NULL)
     CloseHandle(m_thread_handle);
 #endif
@@ -88,7 +88,7 @@ int Thread::start()
   }
 
   start_arg.m_thread_started.wait_for_notification();
-#ifdef __WIN__
+#ifdef _WIN32
   m_thread_handle= OpenThread(SYNCHRONIZE, FALSE, m_thread_id);
   if (m_thread_handle == NULL)
   {
@@ -105,7 +105,7 @@ int Thread::start()
 }
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 void Thread::join()
 {
   DWORD ret= WaitForSingleObject(m_thread_handle, INFINITE);

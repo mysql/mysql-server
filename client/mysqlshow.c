@@ -237,7 +237,7 @@ static struct my_option my_long_options[] =
    &opt_mysql_port,
    &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -320,7 +320,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       tty_password=1;
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
@@ -657,7 +657,7 @@ list_table_status(MYSQL *mysql,const char *db,const char *wild)
   len= sizeof(query);
   len-= my_snprintf(query, len, "show table status from `%s`", db);
   if (wild && wild[0] && len)
-    strxnmov(query + strlen(query), len, " like '", wild, "'", NullS);
+    strxnmov(query + strlen(query), len - 1, " like '", wild, "'", NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
   {
     fprintf(stderr,"%s: Cannot get status for db: %s, table: %s: %s\n",
@@ -720,7 +720,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   len-= my_snprintf(query, len, "show /*!32332 FULL */ columns from `%s`",
                     table);
   if (wild && wild[0] && len)
-    strxnmov(query + strlen(query), len, " like '", wild, "'", NullS);
+    strxnmov(query + strlen(query), len - 1, " like '", wild, "'", NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
   {
     fprintf(stderr,"%s: Cannot list columns in db: %s, table: %s: %s\n",

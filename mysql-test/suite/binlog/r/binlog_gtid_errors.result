@@ -187,8 +187,13 @@ SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14';
 ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13. Ownership is released on COMMIT or ROLLBACK.
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+ROLLBACK;
+# can't set while owning a GTID
+SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13. Ownership is released on COMMIT or ROLLBACK.
 ROLLBACK;
+SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14';
 # can't do implicit commit while gtid_next=SID:GNO
 BEGIN;
 CREATE TABLE t2 (a INT);

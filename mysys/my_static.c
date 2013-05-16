@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,9 +65,6 @@ int volatile my_have_got_alarm=0;	/* declare variable to reset */
 ulong my_time_to_wait_for_lock=2;	/* In seconds */
 
 	/* from errors.c */
-#ifdef SHARED_LIBRARY
-const char *globerrs[GLOBERRS];		/* my_error_messages is here */
-#endif
 void (*my_abort_hook)(int) = (void(*)(int)) exit;
 void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=
   my_message_stderr;
@@ -96,7 +93,7 @@ void (*proc_info_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
 void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-#ifdef __WIN__
+#ifdef _WIN32
 /* from my_getsystime.c */
 ulonglong query_performance_frequency, query_performance_offset;
 #endif

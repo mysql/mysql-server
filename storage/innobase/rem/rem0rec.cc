@@ -144,7 +144,7 @@ A record is a complete-field prefix of another record, if
 the corresponding canonical strings have the same property. */
 
 /* this is used to fool compiler in rec_validate */
-UNIV_INTERN ulint	rec_dummy;
+ulint	rec_dummy;
 
 /***************************************************************//**
 Validates the consistency of an old-style physical record.
@@ -159,7 +159,7 @@ rec_validate_old(
 Determine how many of the first n columns in a compact
 physical record are stored externally.
 @return	number of externally stored columns */
-UNIV_INTERN
+
 ulint
 rec_get_n_extern_new(
 /*=================*/
@@ -367,7 +367,7 @@ fields 1..n_fields+1.  When the high-order bit of the offset at [i+1]
 is set (REC_OFFS_SQL_NULL), the field i is NULL.  When the second
 high-order bit of the offset at [i+1] is set (REC_OFFS_EXTERNAL), the
 field i is being stored externally. */
-UNIV_INTERN
+
 void
 rec_init_offsets(
 /*=============*/
@@ -525,7 +525,7 @@ resolved:
 The following function determines the offsets to each field
 in the record.	It can reuse a previously returned array.
 @return	the new offsets */
-UNIV_INTERN
+
 ulint*
 rec_get_offsets_func(
 /*=================*/
@@ -603,7 +603,7 @@ rec_get_offsets_func(
 /******************************************************//**
 The following function determines the offsets to each field
 in the record.  It can reuse a previously allocated array. */
-UNIV_INTERN
+
 void
 rec_get_offsets_reverse(
 /*====================*/
@@ -725,7 +725,7 @@ resolved:
 The following function is used to get the offset to the nth
 data field in an old-style record.
 @return	offset to the field */
-UNIV_INTERN
+
 ulint
 rec_get_nth_field_offs_old(
 /*=======================*/
@@ -781,7 +781,7 @@ rec_get_nth_field_offs_old(
 @param[out]	extra	length of the record header, in bytes
 @param[out]	n_ext	in: 0, out: number of externally stored columns
 @return	data size, in bytes */
-UNIV_INTERN
+
 ulint
 rec_get_size_comp(
 	const rec_t*		rec,
@@ -984,7 +984,7 @@ rec_get_converted_size_comp_prefix_low(
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return	total size */
-UNIV_INTERN
+
 ulint
 rec_get_converted_size_comp_prefix(
 /*===============================*/
@@ -1001,7 +1001,7 @@ rec_get_converted_size_comp_prefix(
 /**********************************************************//**
 Determines the size of a data tuple in ROW_FORMAT=COMPACT.
 @return	total size */
-UNIV_INTERN
+
 ulint
 rec_get_converted_size_comp(
 /*========================*/
@@ -1046,7 +1046,7 @@ rec_get_converted_size_comp(
 
 /***********************************************************//**
 Sets the value of the ith field SQL null bit of an old-style record. */
-UNIV_INTERN
+
 void
 rec_set_nth_field_null_bit(
 /*=======================*/
@@ -1085,7 +1085,7 @@ rec_set_nth_field_null_bit(
 /***********************************************************//**
 Sets an old-style record field to SQL null.
 The physical size of the field is not changed. */
-UNIV_INTERN
+
 void
 rec_set_nth_field_sql_null(
 /*=======================*/
@@ -1411,7 +1411,7 @@ rec_convert_dtuple_to_rec_new(
 Builds a physical record out of a data tuple and
 stores it beginning from the start of the given buffer.
 @return	pointer to the origin of physical record */
-UNIV_INTERN
+
 rec_t*
 rec_convert_dtuple_to_rec(
 /*======================*/
@@ -1465,7 +1465,7 @@ rec_convert_dtuple_to_rec(
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return	total size */
-UNIV_INTERN
+
 ulint
 rec_get_converted_size_temp(
 /*========================*/
@@ -1481,7 +1481,7 @@ rec_get_converted_size_temp(
 /******************************************************//**
 Determine the offset to each field in temporary file.
 @see rec_convert_dtuple_to_temp() */
-UNIV_INTERN
+
 void
 rec_init_offsets_temp(
 /*==================*/
@@ -1496,7 +1496,7 @@ rec_init_offsets_temp(
 /*********************************************************//**
 Builds a temporary file record out of a data tuple.
 @see rec_init_offsets_temp() */
-UNIV_INTERN
+
 void
 rec_convert_dtuple_to_temp(
 /*=======================*/
@@ -1512,7 +1512,7 @@ rec_convert_dtuple_to_temp(
 /**************************************************************//**
 Copies the first n fields of a physical record to a data tuple. The fields
 are copied to the memory heap. */
-UNIV_INTERN
+
 void
 rec_copy_prefix_to_dtuple(
 /*======================*/
@@ -1602,7 +1602,7 @@ rec_copy_prefix_to_buf_old(
 Copies the first n fields of a physical record to a new physical record in
 a buffer.
 @return	own: copied record */
-UNIV_INTERN
+
 rec_t*
 rec_copy_prefix_to_buf(
 /*===================*/
@@ -1784,7 +1784,7 @@ rec_validate_old(
 /***************************************************************//**
 Validates the consistency of a physical record.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 rec_validate(
 /*=========*/
@@ -1850,7 +1850,7 @@ rec_validate(
 
 /***************************************************************//**
 Prints an old-style physical record. */
-UNIV_INTERN
+
 void
 rec_print_old(
 /*==========*/
@@ -1904,7 +1904,7 @@ rec_print_old(
 /***************************************************************//**
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
 record header. */
-UNIV_INTERN
+
 void
 rec_print_comp(
 /*===========*/
@@ -1949,7 +1949,7 @@ rec_print_comp(
 
 /***************************************************************//**
 Prints a physical record. */
-UNIV_INTERN
+
 void
 rec_print_new(
 /*==========*/
@@ -1977,7 +1977,7 @@ rec_print_new(
 
 /***************************************************************//**
 Prints a physical record. */
-UNIV_INTERN
+
 void
 rec_print(
 /*======*/
@@ -2004,11 +2004,65 @@ rec_print(
 	}
 }
 
+# ifndef DBUG_OFF
+/***************************************************************//**
+Prints a physical record. */
+
+void
+rec_print(
+/*======*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const rec_t*	rec,	/*!< in: physical record */
+	ulint		info,	/*!< in: rec_get_info_bits(rec) */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+{
+	const ulint	comp	= rec_offs_comp(offsets);
+	const ulint	n	= rec_offs_n_fields(offsets);
+
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
+
+	o << (comp ? "COMPACT RECORD" : "RECORD")
+	  << "(info_bits=" << info << ", " << n << " fields): {";
+
+	for (ulint i = 0; i < n; i++) {
+		const byte*	data;
+		ulint		len;
+
+		if (i) {
+			o << ',';
+		}
+
+		data = rec_get_nth_field(rec, offsets, i, &len);
+
+		if (len == UNIV_SQL_NULL) {
+			o << "NULL";
+			continue;
+		}
+
+		if (rec_offs_nth_extern(offsets, i)) {
+			ulint	local_len = len - BTR_EXTERN_FIELD_REF_SIZE;
+			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+			o << '['
+			  << local_len
+			  << '+' << BTR_EXTERN_FIELD_REF_SIZE << ']';
+			ut_print_buf(o, data, local_len);
+			ut_print_buf_hex(o, data + local_len,
+					 BTR_EXTERN_FIELD_REF_SIZE);
+		} else {
+			o << '[' << len << ']';
+			ut_print_buf(o, data, len);
+		}
+	}
+
+	o << "}";
+}
+# endif /* !DBUG_OFF */
 # ifdef UNIV_DEBUG
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
 @return	the value of DB_TRX_ID */
-UNIV_INTERN
+
 trx_id_t
 rec_get_trx_id(
 /*===========*/

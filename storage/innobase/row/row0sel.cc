@@ -36,6 +36,8 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0sel.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "dict0dict.h"
 #include "dict0boot.h"
 #include "trx0undo.h"
@@ -56,11 +58,6 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "read0read.h"
 #include "buf0lru.h"
-#include "ha_prototypes.h"
-#include "m_string.h" /* for my_sys.h */
-#include "my_sys.h" /* DEBUG_SYNC_C */
-
-#include "my_compare.h" /* enum icp_result */
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -264,7 +261,7 @@ func_exit:
 /*********************************************************************//**
 Creates a select node struct.
 @return	own: select node struct */
-UNIV_INTERN
+
 sel_node_t*
 sel_node_create(
 /*============*/
@@ -286,7 +283,7 @@ sel_node_create(
 /*********************************************************************//**
 Frees the memory private to a select node when a query graph is freed,
 does not free the heap where the node was originally created. */
-UNIV_INTERN
+
 void
 sel_node_free_private(
 /*==================*/
@@ -518,7 +515,7 @@ sel_col_prefetch_buf_alloc(
 /*********************************************************************//**
 Frees a prefetch buffer for a column, including the dynamically allocated
 memory for data stored there. */
-UNIV_INTERN
+
 void
 sel_col_prefetch_buf_free(
 /*======================*/
@@ -2034,7 +2031,7 @@ func_exit:
 Performs a select step. This is a high-level function used in SQL execution
 graphs.
 @return	query thread to run next or NULL */
-UNIV_INTERN
+
 que_thr_t*
 row_sel_step(
 /*=========*/
@@ -2140,7 +2137,7 @@ row_sel_step(
 /**********************************************************************//**
 Performs a fetch for a cursor.
 @return	query thread to run next or NULL */
-UNIV_INTERN
+
 que_thr_t*
 fetch_step(
 /*=======*/
@@ -2203,7 +2200,7 @@ fetch_step(
 /****************************************************************//**
 Sample callback function for fetch that prints each row.
 @return	always returns non-NULL */
-UNIV_INTERN
+
 void*
 row_fetch_print(
 /*============*/
@@ -2245,7 +2242,7 @@ row_fetch_print(
 /***********************************************************//**
 Prints a row in a select result.
 @return	query thread to run next or NULL */
-UNIV_INTERN
+
 que_thr_t*
 row_printf_step(
 /*============*/
@@ -2312,7 +2309,7 @@ the parameter key_len. But currently we do not allow search keys where the
 last field is only a prefix of the full key field len and print a warning if
 such appears. A counterpart of this function is
 ha_innobase::store_key_val_for_row() in ha_innodb.cc. */
-UNIV_INTERN
+
 void
 row_sel_convert_mysql_key_to_innobase(
 /*==================================*/
@@ -3605,7 +3602,7 @@ from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-UNIV_INTERN
+
 dberr_t
 row_search_for_mysql(
 /*=================*/
@@ -3742,7 +3739,7 @@ row_search_for_mysql(
 		calls from MySQL */
 
 		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
+		trx->has_search_latch = false;
 
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 	}
@@ -3894,7 +3891,7 @@ row_search_for_mysql(
 
 			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
-				trx->has_search_latch = TRUE;
+				trx->has_search_latch = true;
 			}
 
 			switch (row_sel_try_search_shortcut_for_mysql(
@@ -3962,7 +3959,7 @@ release_search_latch_if_needed:
 					trx->search_latch_timeout--;
 
 					rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = FALSE;
+					trx->has_search_latch = false;
 				}
 
 				/* NOTE that we do NOT store the cursor
@@ -3986,7 +3983,7 @@ release_search_latch_if_needed:
 
 	if (trx->has_search_latch) {
 		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
+		trx->has_search_latch = false;
 	}
 
 	/* The state of a running trx can only be changed by the
@@ -5102,7 +5099,7 @@ func_exit:
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
 @return	TRUE if storing or retrieving from the query cache is permitted */
-UNIV_INTERN
+
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
@@ -5262,7 +5259,7 @@ row_search_autoinc_get_rec(
 Read the max AUTOINC value from an index.
 @return DB_SUCCESS if all OK else error code, DB_RECORD_NOT_FOUND if
 column name can't be found in index */
-UNIV_INTERN
+
 dberr_t
 row_search_max_autoinc(
 /*===================*/

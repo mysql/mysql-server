@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,9 +39,9 @@ Created 8/22/1994 Heikki Tuuri
 Creates a hash table with at least n array cells.  The actual number
 of cells is chosen to be a prime number slightly bigger than n.
 @return	own: created table */
-UNIV_INTERN
+
 hash_table_t*
-ha_create_func(
+ib_create_func(
 /*===========*/
 	ulint	n,		/*!< in: number of array cells */
 #ifdef UNIV_SYNC_DEBUG
@@ -100,7 +100,7 @@ ha_create_func(
 
 /*************************************************************//**
 Empties a hash table and frees the memory heaps. */
-UNIV_INTERN
+
 void
 ha_clear(
 /*=====*/
@@ -161,7 +161,7 @@ is found, its node is updated to point to the new data, and no new node
 is inserted. If btr_search_enabled is set to FALSE, we will only allow
 updating existing nodes, but no new node is allowed to be added.
 @return	TRUE if succeed, FALSE if no more memory could be allocated */
-UNIV_INTERN
+
 ibool
 ha_insert_for_fold_func(
 /*====================*/
@@ -264,7 +264,7 @@ ha_insert_for_fold_func(
 
 /***********************************************************//**
 Deletes a hash node. */
-UNIV_INTERN
+
 void
 ha_delete_hash_node(
 /*================*/
@@ -292,7 +292,7 @@ ha_delete_hash_node(
 Looks for an element when we know the pointer to the data, and updates
 the pointer to data, if found.
 @return TRUE if found */
-UNIV_INTERN
+
 ibool
 ha_search_and_update_if_found_func(
 /*===============================*/
@@ -343,7 +343,7 @@ ha_search_and_update_if_found_func(
 /*****************************************************************//**
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */
-UNIV_INTERN
+
 void
 ha_remove_all_nodes_to_page(
 /*========================*/
@@ -393,7 +393,7 @@ ha_remove_all_nodes_to_page(
 /*************************************************************//**
 Validates a given range of the cells in hash table.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 ha_validate(
 /*========*/
@@ -439,7 +439,7 @@ ha_validate(
 
 /*************************************************************//**
 Prints info of a hash table. */
-UNIV_INTERN
+
 void
 ha_print_info(
 /*==========*/

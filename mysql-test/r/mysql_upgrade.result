@@ -402,5 +402,13 @@ Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 DROP USER 'bug13586336'@'localhost';
+#
+# WL#7010: Remove unused --basedir and --datadir options
+#   from mysql_upgrade
+#
+Run mysql_upgrade with --datadir : should fail
+mysql_upgrade: unknown variable 'datadir=somedir'
+Run mysql_upgrade with --basedir : should fail
+mysql_upgrade: unknown variable 'basedir=somedir'
 
 End of tests

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,7 +31,7 @@ Created Aug 10, 2011 Vasil Dimov
 /********************************************************************//**
 Initializes the data structures used by ut_crc32(). Does not do any
 allocations, would not hurt if called twice, but would be pointless. */
-UNIV_INTERN
+
 void
 ut_crc32_init();
 /*===========*/

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,7 @@ Created July 16, 2007 Vasil Dimov
 #define LOCK_MODULE_IMPLEMENTATION
 
 #include "univ.i"
+#include "dict0mem.h"
 #include "lock0iter.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
@@ -42,7 +43,7 @@ record is stored. It can be undefined (ULINT_UNDEFINED) in two cases:
    bit_no is calculated in this function by using
    lock_rec_find_set_bit(). There is exactly one bit set in the bitmap
    of a wait lock. */
-UNIV_INTERN
+
 void
 lock_queue_iterator_reset(
 /*======================*/
@@ -79,7 +80,7 @@ Gets the previous lock in the lock queue, returns NULL if there are no
 more locks (i.e. the current lock is the first one). The iterator is
 receded (if not-NULL is returned).
 @return	previous lock or NULL */
-UNIV_INTERN
+
 const lock_t*
 lock_queue_iterator_get_prev(
 /*=========================*/

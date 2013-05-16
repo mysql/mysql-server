@@ -19,11 +19,6 @@
 
 /* This is the include file that should be included 'first' in every C file. */
 
-/* Client library users on Windows need this macro defined here. */
-#if !defined(__WIN__) && defined(_WIN32)
-#define __WIN__
-#endif
-
 /*
   InnoDB depends on some MySQL internals which other plugins should not
   need.  This is because of InnoDB's foreign key support, "safe" binlog
@@ -60,7 +55,7 @@
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 /* Make it easier to add conditional code in _expressions_ */
-#ifdef __WIN__
+#ifdef _WIN32
 #define IF_WIN(A,B) A
 #else
 #define IF_WIN(A,B) B
@@ -218,7 +213,7 @@
 #endif
 #endif
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
@@ -229,7 +224,7 @@
 #define _THREAD_SAFE            /* Required for OSF1 */
 #endif
 #include <pthread.h>
-#endif /* !defined(__WIN__) */
+#endif /* !defined(_WIN32) */
 
 #if defined(_lint) && !defined(lint)
 #define lint
@@ -453,12 +448,12 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
 /* additional file share flags for win32 */
-#ifdef __WIN__
+#ifdef _WIN32
 #define _SH_DENYRWD     0x110    /* deny read/write mode & delete */
 #define _SH_DENYWRD     0x120    /* deny write mode & delete      */
 #define _SH_DENYRDD     0x130    /* deny read mode & delete       */
 #define _SH_DENYDEL     0x140    /* deny delete only              */
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
 /* General constants */
@@ -550,15 +545,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define KEY_CACHE_BLOCK_SIZE	(uint) 1024
 
 
-	/* Some things that this system doesn't have */
-
-#ifdef _WIN32
-#define NO_DIR_LIBRARY		/* Not standard dir-library */
-#endif
-
 /* Some defines of functions for portability */
 
-#ifndef __WIN__
+#ifndef _WIN32
 #define closesocket(A)	close(A)
 #endif
 
@@ -738,9 +727,7 @@ typedef long long	my_ptrdiff_t;
 
 /* Typdefs for easyier portability */
 
-#ifndef HAVE_UCHAR
 typedef unsigned char	uchar;	/* Short for unsigned char */
-#endif
 
 #ifndef HAVE_INT8
 typedef signed char int8;       /* Signed integer >= 8  bits */
@@ -796,9 +783,7 @@ typedef longlong int64;
 typedef ulonglong uint64;
 #endif
 
-#if defined(NO_CLIENT_LONG_LONG)
-typedef unsigned long my_ulonglong;
-#elif defined (__WIN__)
+#if defined (_WIN32)
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
@@ -835,7 +820,7 @@ typedef unsigned long my_off_t;
 typedef ulonglong table_map;          /* Used for table bits in join */
 typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
@@ -985,8 +970,6 @@ typedef char		my_bool; /* Small bool */
 #  else
 #    define __func__ __FUNCTION__
 #  endif
-#elif defined(__BORLANDC__)
-#  define __func__ __FUNC__
 #else
 #  define __func__ "<unknown>"
 #endif

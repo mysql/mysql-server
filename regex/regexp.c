@@ -61,7 +61,7 @@
 #include "my_global.h"
 #include <ctype.h>
 #include "regexp.h"
-#ifdef	__WIN__
+#ifdef	_WIN32
 #include <string.h>
 #else
 #include "memory.h"
@@ -172,7 +172,7 @@
  * Utility definitions.
  */
 
-#ifdef	__WIN__
+#ifdef	_WIN32
 #define error(X,Y) fprintf(stderr, X, Y)
 #endif
 #define regerror(X) error("Regexp: %s\n",X);
@@ -207,7 +207,7 @@
 #define	SIMPLE		02	/* Simple enough to be STAR operand. */
 #define	SPSTART		04	/* Starts with * */
 #define	WORST		0	/* Worst case. */
-#ifdef __WIN__
+#ifdef _WIN32
 #define	STRCHR(A,B)	strchr(A,B)
 #endif
 

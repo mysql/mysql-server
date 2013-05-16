@@ -188,7 +188,7 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
   }
   mp->thread= 0;
   mp->count--;
-#ifdef __WIN__
+#ifdef _WIN32
   pthread_mutex_unlock(&mp->mutex);
   error=0;
 #else
@@ -199,7 +199,7 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
     fflush(stderr);
     abort();
   }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
   pthread_mutex_unlock(&mp->global);
   return error;
 }
@@ -312,7 +312,7 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
     fflush(stderr);
     abort();
   }
-#ifdef __WIN__ 
+#ifdef _WIN32 
   pthread_mutex_destroy(&mp->global);
   pthread_mutex_destroy(&mp->mutex);
 #else

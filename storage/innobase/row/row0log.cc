@@ -59,16 +59,6 @@ enum row_op {
 	ROW_OP_DELETE
 };
 
-#ifdef UNIV_DEBUG
-/** Write information about the applied record to the error log */
-# define ROW_LOG_APPLY_PRINT
-#endif /* UNIV_DEBUG */
-
-#ifdef ROW_LOG_APPLY_PRINT
-/** When set, write information about the applied record to the error log */
-static bool row_log_apply_print;
-#endif /* ROW_LOG_APPLY_PRINT */
-
 /** Size of the modification log entry header, in bytes */
 #define ROW_LOG_HEADER_SIZE 2/*op, extra_size*/
 
@@ -198,7 +188,7 @@ struct row_log_t {
 
 /******************************************************//**
 Logs an operation to a secondary index that is (or was) being created. */
-UNIV_INTERN
+
 void
 row_log_online_op(
 /*==============*/
@@ -324,7 +314,7 @@ write_failed:
 /******************************************************//**
 Gets the error status of the online index rebuild log.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 row_log_table_get_error(
 /*====================*/
@@ -432,7 +422,7 @@ write_failed:
 /******************************************************//**
 Logs a delete operation to a table that is being rebuilt.
 This will be merged in row_log_table_apply_delete(). */
-UNIV_INTERN
+
 void
 row_log_table_delete(
 /*=================*/
@@ -848,7 +838,7 @@ row_log_table_low(
 /******************************************************//**
 Logs an update to a table that is being rebuilt.
 This will be merged in row_log_table_apply_update(). */
-UNIV_INTERN
+
 void
 row_log_table_update(
 /*=================*/
@@ -955,7 +945,7 @@ Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
 of a table that is being rebuilt.
 @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
 or NULL if the PRIMARY KEY definition does not change */
-UNIV_INTERN
+
 const dtuple_t*
 row_log_table_get_pk(
 /*=================*/
@@ -1105,7 +1095,7 @@ func_exit:
 /******************************************************//**
 Logs an insert to a table that is being rebuilt.
 This will be merged in row_log_table_apply_insert(). */
-UNIV_INTERN
+
 void
 row_log_table_insert(
 /*=================*/
@@ -1120,7 +1110,7 @@ row_log_table_insert(
 
 /******************************************************//**
 Notes that a BLOB is being freed during online ALTER TABLE. */
-UNIV_INTERN
+
 void
 row_log_table_blob_free(
 /*====================*/
@@ -1165,7 +1155,7 @@ row_log_table_blob_free(
 
 /******************************************************//**
 Notes that a BLOB is being allocated during online ALTER TABLE. */
-UNIV_INTERN
+
 void
 row_log_table_blob_alloc(
 /*=====================*/
@@ -1214,10 +1204,6 @@ row_log_table_apply_convert_mrec(
 {
 	dtuple_t*	row;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
-
 	/* This is based on row_build(). */
 	if (log->add_cols) {
 		row = dtuple_copy(log->add_cols, heap);
@@ -1263,6 +1249,8 @@ row_log_table_apply_convert_mrec(
 
 		if (rec_offs_nth_extern(offsets, i)) {
 			ut_ad(rec_offs_any_extern(offsets));
+			rw_lock_x_lock(dict_index_get_lock(index));
+
 			if (const page_no_map* blobs = log->blobs) {
 				data = rec_get_nth_field(
 					mrec, offsets, i, &len);
@@ -1278,15 +1266,22 @@ row_log_table_apply_convert_mrec(
 					/* This BLOB has been freed.
 					We must not access the row. */
 					row = NULL;
-					goto func_exit;
 				}
 			}
 
-			data = btr_rec_copy_externally_stored_field(
-				mrec, offsets,
-				dict_table_zip_size(index->table),
-				i, &len, heap);
-			ut_a(data);
+			if (row) {
+				data = btr_rec_copy_externally_stored_field(
+					mrec, offsets,
+					dict_table_zip_size(index->table),
+					i, &len, heap);
+				ut_a(data);
+			}
+
+			rw_lock_x_unlock(dict_index_get_lock(index));
+
+			if (!row) {
+				goto func_exit;
+			}
 		} else {
 			data = rec_get_nth_field(mrec, offsets, i, &len);
 		}
@@ -1351,14 +1346,10 @@ row_log_table_apply_insert_low(
 	ut_ad(dtuple_validate(row));
 	ut_ad(trx_id);
 
-#ifdef ROW_LOG_APPLY_PRINT
-	if (row_log_apply_print) {
-		fprintf(stderr, "table apply insert "
-			IB_ID_FMT " " IB_ID_FMT "\n",
-			index->table->id, index->id);
-		dtuple_print(stderr, row);
-	}
-#endif /* ROW_LOG_APPLY_PRINT */
+	DBUG_PRINT("ib_alter_table",
+		   ("insert table " IB_ID_FMT "(index " IB_ID_FMT "): %s",
+		    index->table->id, index->id,
+		    rec_printer(row).str().c_str()));
 
 	static const ulint	flags
 		= (BTR_CREATE_FLAG
@@ -1464,14 +1455,12 @@ row_log_table_apply_delete_low(
 
 	ut_ad(dict_index_is_clust(index));
 
-#ifdef ROW_LOG_APPLY_PRINT
-	if (row_log_apply_print) {
-		fprintf(stderr, "table apply delete "
-			IB_ID_FMT " " IB_ID_FMT "\n",
-			index->table->id, index->id);
-		rec_print_new(stderr, btr_pcur_get_rec(pcur), offsets);
-	}
-#endif /* ROW_LOG_APPLY_PRINT */
+	DBUG_PRINT("ib_alter_table",
+		   ("delete table " IB_ID_FMT "(index " IB_ID_FMT "): %s",
+		    index->table->id, index->id,
+		    rec_printer(btr_pcur_get_rec(pcur),
+				offsets).str().c_str()));
+
 	if (dict_table_get_next_index(index)) {
 		/* Build a row template for purging secondary index entries. */
 		row = row_build(
@@ -1820,15 +1809,13 @@ delete_insert:
 			ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
 			cur_offsets, NULL, NULL, NULL, &old_ext, heap);
 		ut_ad(old_row);
-#ifdef ROW_LOG_APPLY_PRINT
-		if (row_log_apply_print) {
-			fprintf(stderr, "table apply update "
-				IB_ID_FMT " " IB_ID_FMT "\n",
-				index->table->id, index->id);
-			dtuple_print(stderr, old_row);
-			dtuple_print(stderr, row);
-		}
-#endif /* ROW_LOG_APPLY_PRINT */
+
+		DBUG_PRINT("ib_alter_table",
+			   ("update table " IB_ID_FMT
+			    "(index " IB_ID_FMT "): %s to %s",
+			    index->table->id, index->id,
+			    rec_printer(old_row).str().c_str(),
+			    rec_printer(row).str().c_str()));
 	} else {
 		old_row = NULL;
 		old_ext = NULL;
@@ -2547,7 +2534,7 @@ func_exit:
 /******************************************************//**
 Apply the row_log_table log to a table upon completing rebuild.
 @return DB_SUCCESS, or error code on failure */
-UNIV_INTERN
+
 dberr_t
 row_log_table_apply(
 /*================*/
@@ -2598,7 +2585,7 @@ row_log_table_apply(
 Allocate the row log for an index and flag the index
 for online creation.
 @retval true if success, false if not */
-UNIV_INTERN
+
 bool
 row_log_allocate(
 /*=============*/
@@ -2616,6 +2603,7 @@ row_log_allocate(
 	byte*		buf;
 	row_log_t*	log;
 	ulint		size;
+	DBUG_ENTER("row_log_allocate");
 
 	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(dict_index_is_clust(index) == !!table);
@@ -2629,7 +2617,7 @@ row_log_allocate(
 	size = 2 * srv_sort_buf_size + sizeof *log;
 	buf = (byte*) os_mem_alloc_large(&size);
 	if (!buf) {
-		return(false);
+		DBUG_RETURN(false);
 	}
 
 	log = (row_log_t*) &buf[2 * srv_sort_buf_size];
@@ -2637,7 +2625,7 @@ row_log_allocate(
 	log->fd = row_merge_file_create_low();
 	if (log->fd < 0) {
 		os_mem_free_large(buf, size);
-		return(false);
+		DBUG_RETURN(false);
 	}
 	mutex_create(index_online_log_key, &log->mutex,
 		     SYNC_INDEX_ONLINE_LOG);
@@ -2662,12 +2650,12 @@ row_log_allocate(
 	atomic operations in both cases. */
 	MONITOR_ATOMIC_INC(MONITOR_ONLINE_CREATE_INDEX);
 
-	return(true);
+	DBUG_RETURN(true);
 }
 
 /******************************************************//**
 Free the row log for an index that was being created online. */
-UNIV_INTERN
+
 void
 row_log_free(
 /*=========*/
@@ -2686,7 +2674,7 @@ row_log_free(
 Get the latest transaction ID that has invoked row_log_online_op()
 during online creation.
 @return latest transaction ID, or 0 if nothing was logged */
-UNIV_INTERN
+
 trx_id_t
 row_log_get_max_trx(
 /*================*/
@@ -2730,6 +2718,13 @@ row_log_apply_op_low(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!dict_index_is_corrupted(index));
 	ut_ad(trx_id != 0 || op == ROW_OP_DELETE);
+
+	DBUG_PRINT("ib_create_index",
+		   ("%s %s index " IB_ID_FMT "," TRX_ID_FMT ": %s",
+		    op == ROW_OP_INSERT ? "insert" : "delete",
+		    has_index_lock ? "locked" : "unlocked",
+		    index->id, trx_id,
+		    rec_printer(entry).str().c_str()));
 
 	mtr_start(&mtr);
 
@@ -3006,17 +3001,7 @@ corrupted:
 	/* Online index creation is only implemented for secondary
 	indexes, which never contain off-page columns. */
 	ut_ad(n_ext == 0);
-#ifdef ROW_LOG_APPLY_PRINT
-	if (row_log_apply_print) {
-		fprintf(stderr, "apply " IB_ID_FMT " " TRX_ID_FMT " %u %u ",
-			index->id, trx_id,
-			unsigned (op), unsigned (has_index_lock));
-		for (const byte* m = mrec - data_size; m < mrec; m++) {
-			fprintf(stderr, "%02x", *m);
-		}
-		putc('\n', stderr);
-	}
-#endif /* ROW_LOG_APPLY_PRINT */
+
 	row_log_apply_op_low(index, dup, error, offsets_heap,
 			     has_index_lock, op, trx_id, entry);
 	return(mrec);
@@ -3333,7 +3318,7 @@ func_exit:
 /******************************************************//**
 Apply the row log to the index upon completing index creation.
 @return DB_SUCCESS, or error code on failure */
-UNIV_INTERN
+
 dberr_t
 row_log_apply(
 /*==========*/

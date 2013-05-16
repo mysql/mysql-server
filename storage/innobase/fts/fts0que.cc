@@ -24,6 +24,8 @@ Created 2007/03/27 Sunny Bains
 Completed 2011/7/10 Sunny and Jimmy Yang
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "dict0dict.h" /* dict_table_get_n_rows() */
 #include "ut0rbt.h"
 #include "row0sel.h"
@@ -32,8 +34,6 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0ast.h"
 #include "fts0pars.h"
 #include "fts0types.h"
-#include "ha_prototypes.h"
-#include <ctype.h>
 
 #ifndef UNIV_NONINL
 #include "fts0types.ic"
@@ -2691,7 +2691,7 @@ Process (nested) sub-expression, create a new result set to store the
 sub-expression result by processing nodes under current sub-expression
 list. Merge the sub-expression result with that of parent expression list.
 @return DB_SUCCESS if all went well */
-UNIV_INTERN
+
 dberr_t
 fts_ast_visit_sub_exp(
 /*==================*/
@@ -3402,7 +3402,7 @@ fts_query_parse(
 /*******************************************************************//**
 FTS Query entry point.
 @return DB_SUCCESS if successful otherwise error code */
-UNIV_INTERN
+
 dberr_t
 fts_query(
 /*======*/
