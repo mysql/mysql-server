@@ -1,7 +1,7 @@
 SET @save_foreign_key_checks=@@foreign_key_checks;
 SET foreign_key_checks=0;
-CREATE TABLE t1 (id int primary key, foreign key (id) references t2(id)) ENGINE=NDB;
-CREATE TABLE t2 (id int primary key, foreign key (id) references t1(id)) ENGINE=NDB;
+CREATE TABLE t1 (id int primary key, foreign key (id) references t2(id)) ENGINE=engine;
+CREATE TABLE t2 (id int primary key, foreign key (id) references t1(id)) ENGINE=engine;
 SET foreign_key_checks=1;
 SELECT COUNT(*) FROM information_schema.key_column_usage
 WHERE REFERENCED_TABLE_NAME in ('t1', 't2');
