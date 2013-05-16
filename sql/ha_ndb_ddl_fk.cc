@@ -631,8 +631,41 @@ public:
     DBUG_RETURN(buf);
   }
 
+
+  // Adaptor function for calling create() with List<key_part_spec>
   bool create(NDBDICT *dict, const char* dummy_name, const char* child_name,
-              List<Key_part_spec> col_names, const NDBCOL * col_types[])
+              List<Key_part_spec> key_part_list, const NDBCOL * col_types[])
+  {
+    // Convert List<Key_part_spec> into null terminated const char* array
+    const char* col_names[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+    {
+      unsigned i = 0;
+      Key_part_spec* key = 0;
+      List_iterator<Key_part_spec> it1(key_part_list);
+      while ((key= it1++))
+      {
+        char col_name_buf[FN_REFLEN];
+        const char* col_name = lex2str(key->field_name, col_name_buf, sizeof(col_name_buf));
+        col_names[i++] = strdup(col_name);
+      }
+      col_names[i] = 0;
+    }
+
+    const bool ret = create(dict, dummy_name, child_name, col_names, col_types);
+
+    // Free the strings in col_names array
+    for (unsigned i = 0; col_names[i] != 0; i++)
+    {
+      const char* col_name = col_names[i];
+      free(const_cast<char*>(col_name));
+    }
+
+    return ret;
+  }
+
+
+  bool create(NDBDICT *dict, const char* dummy_name, const char* child_name,
+              const char* col_names[], const NDBCOL * col_types[])
   {
     NDBTAB dummy_tab;
 
@@ -647,14 +680,11 @@ public:
     dummy_tab.setLogging(FALSE);
 
     unsigned i = 0;
-    Key_part_spec* key= 0;
-    List_iterator<Key_part_spec> it1(col_names);
-    while ((key= it1++))
+    while (col_names[i])
     {
       NDBCOL dummy_col;
 
-      char col_name_buf[FN_REFLEN];
-      const char* col_name = lex2str(key->field_name, col_name_buf, sizeof(col_name_buf));
+      const char* col_name = col_names[i];
       DBUG_PRINT("info", ("name: %s", col_name));
       if (dummy_col.setName(col_name))
       {
