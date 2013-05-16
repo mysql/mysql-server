@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h> // For HAVE_REPLICATION
+#ifdef HAVE_REPLICATION
+#include <my_global.h>
 #include "sql_priv.h"
 #include <my_dir.h>
 #include "unireg.h"                             // REQUIRED by other includes
@@ -22,8 +23,6 @@
 
 using std::min;
 using std::max;
-
-#ifdef HAVE_REPLICATION
 
 enum {
   LINES_IN_MASTER_INFO_WITH_SSL= 14,

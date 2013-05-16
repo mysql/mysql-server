@@ -67,11 +67,6 @@
 #define IF_PURIFY(A,B) B
 #endif
 
-#ifndef EMBEDDED_LIBRARY
-#define HAVE_REPLICATION
-#define HAVE_EXTERNAL_CLIENT
-#endif
-
 #if defined (_WIN32)
 /*
  off_t is 32 bit long. We do not use C runtime functions
