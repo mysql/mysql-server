@@ -1,6 +1,8 @@
 call mtr.add_suppression("Unable to truncate FTS index for table");
 call mtr.add_suppression("Unable to assign a new identifier to table "
 			 "\".*\"\.\".*\" after truncating it");
+call mtr.add_suppression("Flagged corruption of .* in table "
+			 "\".*\"\.\".*\" in TRUNCATE TABLE");
 set global innodb_file_per_table = on;
 "1. Error in assigning undo logs for truncate action."
 use test;
@@ -167,6 +169,8 @@ set global innodb_file_per_table = 1;
 call mtr.add_suppression("Unable to truncate FTS index for table");
 call mtr.add_suppression("Unable to assign a new identifier to table "
 			 "\".*\"\.\".*\" after truncating it");
+call mtr.add_suppression("Flagged corruption of .* in table "
+			 "\".*\"\.\".*\" in TRUNCATE TABLE");
 set global innodb_file_per_table = on;
 "1. Error in assigning undo logs for truncate action."
 use test;
@@ -333,6 +337,8 @@ set global innodb_file_per_table = 1;
 call mtr.add_suppression("Unable to truncate FTS index for table");
 call mtr.add_suppression("Unable to assign a new identifier to table "
 			 "\".*\"\.\".*\" after truncating it");
+call mtr.add_suppression("Flagged corruption of .* in table "
+			 "\".*\"\.\".*\" in TRUNCATE TABLE");
 set global innodb_file_per_table = on;
 "1. Error in assigning undo logs for truncate action."
 use test;
@@ -499,6 +505,8 @@ set global innodb_file_per_table = 1;
 call mtr.add_suppression("Unable to truncate FTS index for table");
 call mtr.add_suppression("Unable to assign a new identifier to table "
 			 "\".*\"\.\".*\" after truncating it");
+call mtr.add_suppression("Flagged corruption of .* in table "
+			 "\".*\"\.\".*\" in TRUNCATE TABLE");
 set global innodb_file_per_table = on;
 "1. Error in assigning undo logs for truncate action."
 use test;
@@ -615,29 +623,6 @@ select * from t;
 ERROR HY000: Index t is corrupted
 drop table t;
 "4. Error while completing truncate of table involving FTS."
-use test;
-set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-create  table t (i int, f float, c char(100),
-primary key pk(i), index fk(f), fulltext index ck(c))
-engine=innodb row_format=compressed
-key_block_size=4;
-insert into t values (1, 1.1, 'mysql is now oracle company'),
-(2, 2.2, 'innodb is part of mysql'),
-(3, 3.3, 'innodb is default storage engine of mysql');
-select * from t;
-i	f	c
-1	1.1	mysql is now oracle company
-2	2.2	innodb is part of mysql
-3	3.3	innodb is default storage engine of mysql
-set session debug = "+d,ib_err_trunc_during_fts_trunc";
-truncate table t;
-ERROR HY000: Got error -1 from storage engine
-set session debug = "-d,ib_err_trunc_during_fts_trunc";
-select * from t;
-ERROR HY000: Index t is corrupted
-drop table t;
-"5. Error while updating sys-tables."
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
@@ -648,6 +633,29 @@ key_block_size=4;
 insert into t values (1, 1.1, 'mysql is now oracle company'),
 (2, 2.2, 'innodb is part of mysql'),
 (3, 3.3, 'innodb is default storage engine of mysql');
+select * from t;
+i	f	c
+1	1.1	mysql is now oracle company
+2	2.2	innodb is part of mysql
+3	3.3	innodb is default storage engine of mysql
+set session debug = "+d,ib_err_trunc_during_fts_trunc";
+truncate table t;
+ERROR HY000: Got error -1 from storage engine
+set session debug = "-d,ib_err_trunc_during_fts_trunc";
+select * from t;
+ERROR HY000: Index t is corrupted
+drop table t;
+"5. Error while updating sys-tables."
+use test;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Barracuda';
+create  table t (i int, f float, c char(100),
+primary key pk(i), index fk(f), fulltext index ck(c))
+engine=innodb row_format=compressed
+key_block_size=4;
+insert into t values (1, 1.1, 'mysql is now oracle company'),
+(2, 2.2, 'innodb is part of mysql'),
+(3, 3.3, 'innodb is default storage engine of mysql');
 select * from t order by i;
 i	f	c
 1	1.1	mysql is now oracle company
@@ -665,6 +673,8 @@ set global innodb_file_per_table = 1;
 call mtr.add_suppression("Unable to truncate FTS index for table");
 call mtr.add_suppression("Unable to assign a new identifier to table "
 			 "\".*\"\.\".*\" after truncating it");
+call mtr.add_suppression("Flagged corruption of .* in table "
+			 "\".*\"\.\".*\" in TRUNCATE TABLE");
 set global innodb_file_per_table = on;
 "1. Error in assigning undo logs for truncate action."
 use test;

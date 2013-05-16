@@ -16,6 +16,8 @@
 call mtr.add_suppression("Unable to truncate FTS index for table");
 call mtr.add_suppression("Unable to assign a new identifier to table "
 			 "\".*\"\.\".*\" after truncating it");
+call mtr.add_suppression("Flagged corruption of .* in table "
+			 "\".*\"\.\".*\" in TRUNCATE TABLE");
 
 ################################################################################
 #
