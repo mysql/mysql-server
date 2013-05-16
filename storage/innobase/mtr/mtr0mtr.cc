@@ -41,7 +41,7 @@ Created 11/26/1995 Heikki Tuuri
 /***************************************************//**
 Checks if a mini-transaction is dirtying a clean page.
 @return TRUE if the mtr is dirtying a clean page. */
-UNIV_INTERN
+
 ibool
 mtr_block_dirtied(
 /*==============*/
@@ -300,7 +300,7 @@ mtr_log_reserve_and_write(
 
 /***************************************************************//**
 Commits a mini-transaction. */
-UNIV_INTERN
+
 void
 mtr_commit(
 /*=======*/
@@ -345,7 +345,7 @@ mtr_commit(
 /***************************************************//**
 Releases an object in the memo stack.
 @return true if released */
-UNIV_INTERN
+
 bool
 mtr_memo_release(
 /*=============*/
@@ -387,7 +387,7 @@ mtr_memo_release(
 /********************************************************//**
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
 @return	value read */
-UNIV_INTERN
+
 ulint
 mtr_read_ulint(
 /*===========*/
@@ -408,7 +408,7 @@ mtr_read_ulint(
 /**********************************************************//**
 Checks if memo contains the given page.
 @return	TRUE if contains */
-UNIV_INTERN
+
 ibool
 mtr_memo_contains_page(
 /*===================*/
@@ -421,7 +421,7 @@ mtr_memo_contains_page(
 
 /*********************************************************//**
 Prints info of an mtr handle. */
-UNIV_INTERN
+
 void
 mtr_print(
 /*======*/
