@@ -414,7 +414,7 @@ Rewrite the checksum for the page.
 @retval FALSE : skip the rewrite as checksum stored match with
 		calculated or page is doublwrite buffer.
 */
-UNIV_INTERN
+
 bool
 update_checksum(
 	byte*	page,

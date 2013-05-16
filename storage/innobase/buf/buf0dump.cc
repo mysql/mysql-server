@@ -73,7 +73,7 @@ Wakes up the buffer pool dump/load thread and instructs it to start
 a dump. This function is called by MySQL code via buffer_pool_dump_now()
 and it should return immediately because the whole MySQL is frozen during
 its execution. */
-UNIV_INTERN
+
 void
 buf_dump_start()
 /*============*/
@@ -87,7 +87,7 @@ Wakes up the buffer pool dump/load thread and instructs it to start
 a load. This function is called by MySQL code via buffer_pool_load_now()
 and it should return immediately because the whole MySQL is frozen during
 its execution. */
-UNIV_INTERN
+
 void
 buf_load_start()
 /*============*/
@@ -504,7 +504,7 @@ buf_load()
 Aborts a currently running buffer pool load. This function is called by
 MySQL code via buffer_pool_load_abort() and it should return immediately
 because the whole MySQL is frozen during its execution. */
-UNIV_INTERN
+
 void
 buf_load_abort()
 /*============*/
@@ -517,7 +517,7 @@ This is the main thread for buffer pool dump/load. It waits for an
 event and when waked up either performs a dump or load and sleeps
 again.
 @return this function does not return, it calls os_thread_exit() */
-extern "C" UNIV_INTERN
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(buf_dump_thread)(
 /*============================*/

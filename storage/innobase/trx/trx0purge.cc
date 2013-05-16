@@ -48,30 +48,30 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0space.h"
 
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
-UNIV_INTERN ulong		srv_max_purge_lag = 0;
+ulong		srv_max_purge_lag = 0;
 
 /** Max DML user threads delay in micro-seconds. */
-UNIV_INTERN ulong		srv_max_purge_lag_delay = 0;
+ulong		srv_max_purge_lag_delay = 0;
 
 /** The global data structure coordinating a purge */
-UNIV_INTERN trx_purge_t*	purge_sys = NULL;
+trx_purge_t*	purge_sys = NULL;
 
 /** A dummy undo record used as a return value when we have a whole undo log
 which needs no purge */
-UNIV_INTERN trx_undo_rec_t	trx_purge_dummy_rec;
+trx_undo_rec_t	trx_purge_dummy_rec;
 
 #ifdef UNIV_PFS_RWLOCK
 /* Key to register trx_purge_latch with performance schema */
-UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
+mysql_pfs_key_t	trx_purge_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register purge_sys_pq_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	purge_sys_pq_mutex_key;
+mysql_pfs_key_t	purge_sys_pq_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
-UNIV_INTERN my_bool		srv_purge_view_update_only_debug;
+my_bool		srv_purge_view_update_only_debug;
 #endif /* UNIV_DEBUG */
 
 /** Sentinel value */
@@ -214,7 +214,7 @@ trx_purge_graph_build(
 /********************************************************************//**
 Creates the global purge system control structure and inits the history
 mutex. */
-UNIV_INTERN
+
 void
 trx_purge_sys_create(
 /*=================*/
@@ -272,7 +272,7 @@ trx_purge_sys_create(
 
 /************************************************************************
 Frees the global purge system control structure. */
-UNIV_INTERN
+
 void
 trx_purge_sys_close(void)
 /*======================*/
@@ -316,7 +316,7 @@ trx_purge_sys_close(void)
 /********************************************************************//**
 Adds the update undo log as the first log in the history list. Removes the
 update undo log segment from the rseg slot if it is too big for reuse. */
-UNIV_INTERN
+
 void
 trx_purge_add_update_undo_to_history(
 /*=================================*/
@@ -1235,7 +1235,7 @@ trx_purge_truncate(void)
 /*******************************************************************//**
 This function runs a purge batch.
 @return	number of undo log pages handled in the batch */
-UNIV_INTERN
+
 ulint
 trx_purge(
 /*======*/
@@ -1337,7 +1337,7 @@ run_synchronously:
 /*******************************************************************//**
 Get the purge state.
 @return purge state. */
-UNIV_INTERN
+
 purge_state_t
 trx_purge_state(void)
 /*=================*/
@@ -1355,7 +1355,7 @@ trx_purge_state(void)
 
 /*******************************************************************//**
 Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
-UNIV_INTERN
+
 void
 trx_purge_stop(void)
 /*================*/
@@ -1422,7 +1422,7 @@ trx_purge_stop(void)
 
 /*******************************************************************//**
 Resume purge, move to PURGE_STATE_RUN. */
-UNIV_INTERN
+
 void
 trx_purge_run(void)
 /*===============*/

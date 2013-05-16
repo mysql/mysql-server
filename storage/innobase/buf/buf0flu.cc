@@ -57,14 +57,14 @@ is set to TRUE by the page_cleaner thread when it is spawned and is set
 back to FALSE at shutdown by the page_cleaner as well. Therefore no
 need to protect it by a mutex. It is only ever read by the thread
 doing the shutdown */
-UNIV_INTERN ibool buf_page_cleaner_is_active = FALSE;
+ibool buf_page_cleaner_is_active = FALSE;
 
 /** LRU flush batch is further divided into this chunk size to
 reduce the wait time for the threads waiting for a clean block */
 #define PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE	100
 
 #ifdef UNIV_PFS_THREAD
-UNIV_INTERN mysql_pfs_key_t page_cleaner_thread_key;
+mysql_pfs_key_t page_cleaner_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /** If LRU list of a buf_pool is less than this size then LRU eviction
@@ -291,7 +291,7 @@ buf_flush_block_cmp(
 Initialize the red-black tree to speed up insertions into the flush_list
 during recovery process. Should be called at the start of recovery
 process before any page has been read/written. */
-UNIV_INTERN
+
 void
 buf_flush_init_flush_rbt(void)
 /*==========================*/
@@ -315,7 +315,7 @@ buf_flush_init_flush_rbt(void)
 
 /********************************************************************//**
 Frees up the red-black tree. */
-UNIV_INTERN
+
 void
 buf_flush_free_flush_rbt(void)
 /*==========================*/
@@ -342,7 +342,7 @@ buf_flush_free_flush_rbt(void)
 
 /********************************************************************//**
 Inserts a modified block into the flush list. */
-UNIV_INTERN
+
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
@@ -400,7 +400,7 @@ buf_flush_insert_into_flush_list(
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
 necessarily come in the order of lsn's. */
-UNIV_INTERN
+
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
@@ -493,7 +493,7 @@ buf_flush_insert_sorted_into_flush_list(
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., the transition FILE_PAGE => NOT_USED allowed.
 @return	TRUE if can replace immediately */
-UNIV_INTERN
+
 ibool
 buf_flush_ready_for_replace(
 /*========================*/
@@ -524,7 +524,7 @@ buf_flush_ready_for_replace(
 /********************************************************************//**
 Returns true if the block is modified and ready for flushing.
 @return	true if can flush immediately */
-UNIV_INTERN
+
 bool
 buf_flush_ready_for_flush(
 /*======================*/
@@ -571,7 +571,7 @@ buf_flush_ready_for_flush(
 
 /********************************************************************//**
 Remove a block from the flush list of modified blocks. */
-UNIV_INTERN
+
 void
 buf_flush_remove(
 /*=============*/
@@ -641,7 +641,7 @@ use the current list node (bpage) to do the list manipulation because
 the list pointers could have changed between the time that we copied
 the contents of bpage to the dpage and the flush list manipulation
 below. */
-UNIV_INTERN
+
 void
 buf_flush_relocate_on_flush_list(
 /*=============================*/
@@ -705,7 +705,7 @@ buf_flush_relocate_on_flush_list(
 
 /********************************************************************//**
 Updates the flush system data structures when a write is completed. */
-UNIV_INTERN
+
 void
 buf_flush_write_complete(
 /*=====================*/
@@ -735,7 +735,7 @@ buf_flush_write_complete(
 
 /********************************************************************//**
 Calculate the checksum of a page from compressed table and update the page. */
-UNIV_INTERN
+
 void
 buf_flush_update_zip_checksum(
 /*==========================*/
@@ -756,7 +756,7 @@ buf_flush_update_zip_checksum(
 
 /********************************************************************//**
 Initializes a page for writing to the tablespace. */
-UNIV_INTERN
+
 void
 buf_flush_init_for_writing(
 /*=======================*/
@@ -984,7 +984,7 @@ os_aio_simulated_wake_handler_threads after we have posted a batch of
 writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
 held upon entering this function, and they will be released by this
 function. */
-UNIV_INTERN
+
 void
 buf_flush_page(
 /*===========*/
@@ -1098,7 +1098,7 @@ NOTE: buf_pool->mutex and block->mutex must be held upon entering this
 function, and they will be released by this function after flushing.
 This is loosely based on buf_flush_batch() and buf_flush_page().
 @return TRUE if the page was flushed and the mutexes released */
-UNIV_INTERN
+
 ibool
 buf_flush_page_try(
 /*===============*/
@@ -1787,7 +1787,7 @@ buf_flush_end(
 
 /******************************************************************//**
 Waits until a flush batch of the given type ends */
-UNIV_INTERN
+
 void
 buf_flush_wait_batch_end(
 /*=====================*/
@@ -1865,7 +1865,7 @@ NOTE: The calling thread is not allowed to own any latches on pages!
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
-UNIV_INTERN
+
 bool
 buf_flush_list(
 /*===========*/
@@ -1952,7 +1952,7 @@ unable to find a replaceable page at the tail of the LRU list i.e.:
 when the background LRU flushing in the page_cleaner thread is not
 fast enough to keep pace with the workload.
 @return TRUE if success. */
-UNIV_INTERN
+
 ibool
 buf_flush_single_page_from_LRU(
 /*===========================*/
@@ -2043,7 +2043,7 @@ Clears up tail of the LRU lists:
 The depth to which we scan each buffer pool is controlled by dynamic
 config parameter innodb_LRU_scan_depth.
 @return total pages flushed */
-UNIV_INTERN
+
 ulint
 buf_flush_LRU_tail(void)
 /*====================*/
@@ -2108,7 +2108,7 @@ buf_flush_LRU_tail(void)
 
 /*********************************************************************//**
 Wait for any possible LRU flushes that are in progress to end. */
-UNIV_INTERN
+
 void
 buf_flush_wait_LRU_batch_end(void)
 /*==============================*/
@@ -2359,7 +2359,7 @@ page_cleaner_sleep_if_needed(
 page_cleaner thread tasked with flushing dirty pages from the buffer
 pools. As of now we'll have only one instance of this thread.
 @return a dummy parameter */
-extern "C" UNIV_INTERN
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 /*==========================================*/
@@ -2496,7 +2496,7 @@ thread_exit:
 Synchronously flush dirty blocks from the end of the flush list of all buffer
 pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages! */
-UNIV_INTERN
+
 void
 buf_flush_sync_all_buf_pools(void)
 /*==============================*/
@@ -2584,7 +2584,7 @@ buf_flush_validate_low(
 /******************************************************************//**
 Validates the flush list.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 buf_flush_validate(
 /*===============*/
@@ -2608,7 +2608,7 @@ buf_flush_validate(
 Check if there are any dirty pages that belong to a space id in the flush
 list in a particular buffer pool.
 @return	number of dirty pages present in a single buffer pool */
-UNIV_INTERN
+
 ulint
 buf_pool_get_dirty_pages_count(
 /*===========================*/
@@ -2645,7 +2645,7 @@ buf_pool_get_dirty_pages_count(
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
 @return	number of dirty pages present in all the buffer pools */
-UNIV_INTERN
+
 ulint
 buf_flush_get_dirty_pages_count(
 /*============================*/
