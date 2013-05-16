@@ -276,9 +276,9 @@ static MYSQL_THDVAR_UINT(
 );
 
 static MYSQL_THDVAR_BOOL(
-  show_foreign_key_dummies,          /* name */
+  show_foreign_key_mock_tables,          /* name */
   PLUGIN_VAR_OPCMDARG,
-  "Show the dummy tables which is used to support foreign_key_checks= 0. "
+  "Show the mock tables which is used to support foreign_key_checks= 0. "
   "Extra info warnings are shown when creating and dropping the tables. "
   "The real table name is show in SHOW CREATE TABLE",
   NULL,                              /* check func. */
@@ -311,9 +311,9 @@ bool ndb_index_stat_get_enable(THD *thd)
   return value;
 }
 
-bool ndb_show_foreign_key_dummies_enabled(THD* thd)
+bool ndb_show_foreign_key_mock_tables(THD* thd)
 {
-  const bool value = THDVAR(thd, show_foreign_key_dummies);
+  const bool value = THDVAR(thd, show_foreign_key_mock_tables);
   return value;
 }
 
@@ -10534,11 +10534,11 @@ do_drop:
 
 
 // Declare adapter functions for Dummy_table_util function
-extern bool ndb_dummy_build_list(THD*, NdbDictionary::Dictionary*,
-                                 const NdbDictionary::Table*, List<char>&);
-extern void ndb_dummy_drop_list(THD*, NdbDictionary::Dictionary*, List<char>&);
-extern bool ndb_dummy_drop_table(THD*, NdbDictionary::Dictionary*,
-                                 const NdbDictionary::Table*);
+extern bool ndb_fk_util_build_list(THD*, NdbDictionary::Dictionary*,
+                                   const NdbDictionary::Table*, List<char>&);
+extern void ndb_fk_util_drop_list(THD*, NdbDictionary::Dictionary*, List<char>&);
+extern bool ndb_fk_util_drop_table(THD*, NdbDictionary::Dictionary*,
+                                   const NdbDictionary::Table*);
 
 bool
 ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
@@ -10549,7 +10549,7 @@ ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
 
   // Build list of objects which should be dropped after the table
   List<char> drop_list;
-  if (!ndb_dummy_build_list(thd, dict, table, drop_list))
+  if (!ndb_fk_util_build_list(thd, dict, table, drop_list))
   {
     DBUG_RETURN(false);
   }
@@ -10564,11 +10564,11 @@ ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
       /*
         Drop was not allowed because table is still referenced by
         foreign key(s). Since foreign_key_checks=0 the problem is
-        worked around by creating a dummy table, recreating the foreign
-        key(s) to point at the dummy table and finally dropping
+        worked around by creating a mock table, recreating the foreign
+        key(s) to point at the mock table and finally dropping
         the requested table.
       */
-      if (!ndb_dummy_drop_table(thd, dict, table))
+      if (!ndb_fk_util_drop_table(thd, dict, table))
       {
         DBUG_RETURN(false);
       }
@@ -10580,7 +10580,7 @@ ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
   }
 
   // Drop objects which should be dropped after table
-  ndb_dummy_drop_list(thd, dict, drop_list);
+  ndb_fk_util_drop_list(thd, dict, drop_list);
 
   DBUG_RETURN(true);
 }
@@ -18260,7 +18260,7 @@ static struct st_mysql_sys_var* system_variables[]= {
 #endif
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(version_string),
-  MYSQL_SYSVAR(show_foreign_key_dummies),
+  MYSQL_SYSVAR(show_foreign_key_mock_tables),
   NULL
 };
 
