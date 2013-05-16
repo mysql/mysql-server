@@ -171,7 +171,7 @@ NdbConnection.prototype.close = function(userCallback) {
       apiCall.ndb_cluster_connection = self.ndb_cluster_connection;
       apiCall.run = function() {
         this.ndb_cluster_connection.delete(this.callback);
-      }
+      };
       apiCall.enqueue();
     }
   }

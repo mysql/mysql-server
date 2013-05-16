@@ -46,7 +46,7 @@ NdbAutoIncrementCache.prototype = {
   impl          : null,
   execQueue     : null,
   batch_size    : 1
-}
+};
 
 NdbAutoIncrementCache.prototype.prefetch = function(n) {
   this.batch_size += n;
@@ -63,7 +63,7 @@ NdbAutoIncrementCache.prototype.getValue = function(callback) {
     adapter.impl.getAutoIncrementValue(cache.impl, cache.table, this.batch_size,
                                        this.callback);
     cache.batch_size--;
-  }
+  };
   apiCall.enqueue();
 };
 
@@ -104,7 +104,7 @@ NdbAutoIncrementHandler.prototype = {
   autoinc_op_list : null,
   final_callback  : null,
   errors          : 0
-}
+};
 
 
 function makeOperationCallback(handler, op) {
@@ -122,7 +122,7 @@ function makeOperationCallback(handler, op) {
     if(handler.values_needed === 0) {
       handler.dispatchFinalCallback();
     }
-  }
+  };
 }
 
 

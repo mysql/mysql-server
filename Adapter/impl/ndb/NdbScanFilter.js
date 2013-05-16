@@ -220,10 +220,10 @@ function prepareFilterSpec(queryHandler) {
 
   /* Assembly */
   if(bufferManager.paramBufferSize === 0) {
-    var filterBuildingVisitor = new FilterBuildingVisitor(this, null);
-    this.predicate.visit(filterBuildingVisitor);
-    this.constFilter.ndbScanFilter = filterBuildingVisitor.ndbScanFilter;
-    this.constFilter.ndbInterpretedCode = filterBuildingVisitor.ndbInterpretedCode;
+    var filterBuildingVisitor = new FilterBuildingVisitor(queryHandler, null);
+    queryHandler.predicate.visit(filterBuildingVisitor);
+    queryHandler.constFilter.ndbScanFilter = filterBuildingVisitor.ndbScanFilter;
+    queryHandler.constFilter.ndbInterpretedCode = filterBuildingVisitor.ndbInterpretedCode;
   }
   else {
     spec.isConst         = false;

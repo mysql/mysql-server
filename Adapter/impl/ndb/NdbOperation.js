@@ -217,9 +217,9 @@ ScanHelperSpec.prototype.clear = function() {
   this[ScanHelper.batch_size]   = null;
   this[ScanHelper.parallel]     = null;
   this[ScanHelper.filter_code]  = null;
-}
+};
 
-var scanSpec = new ScanHelperSpec;
+var scanSpec = new ScanHelperSpec();
 
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
@@ -268,7 +268,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   this.ndbop = 
     adapter.impl.DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
   this.state = doc.OperationStates[1];  // PREPARED
-}
+};
 
 
 /* Prepare a scan operation.
@@ -301,7 +301,9 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   if(typeof this.keys.order !== 'undefined') {
     var flags = constants.Scan.flags.SF_OrderBy;
-    if(this.keys.order == 'desc') flags |= constants.Scan.flags.SF_Descending;
+    if(this.keys.order == 'desc') {
+      flags |= constants.Scan.flags.SF_Descending;
+    }
     scanSpec[ScanHelper.flags] = flags;  
   }
 
@@ -318,14 +320,14 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   apiCall.description = "DBScanHelper.prepareScan";
   apiCall.run = function() {
     scanHelper.prepareScan(this.callback);
-  }
+  };
   apiCall.enqueue();
-}
+};
 
 
 DBOperation.prototype.isScanOperation = function() {
   return (this.opcode >= 32);
-}
+};
 
 
 function readResultRow(op) {
@@ -398,6 +400,7 @@ function buildValueObject(op) {
 
 function getScanResults(scanop, userCallback) {
   var buffer;
+  var results;
   var dbSession = scanop.transaction.dbSession;
   var ResultConstructor = scanop.tableHandler.ValueObject;
   var postScanCallback = {
@@ -422,14 +425,19 @@ function getScanResults(scanop, userCallback) {
     apiCall.buffer = buffer;
     apiCall.run = function runFetchResults() {
       this.ndb_scan_op.fetchResults(this.buffer, force_send, this.callback);
-    }
+    };
     apiCall.enqueue();
+  }
+
+  function fetch() {
+    buffer = new Buffer(recordSize);
+    results.push(new ResultConstructor(buffer));  // Optimistic
+    fetchResults(dbSession, scanop.ndbop, buffer);
   }
 
   /* <0: ERROR, 0: RESULTS_READY, 1: SCAN_FINISHED, 2: CACHE_EMPTY */
   /* gather runs as a preCallback */
-  function gather(error, status) {
-    
+  function gather(error, status) {    
     if(status !== 0) {
       results.pop();  // remove the optimistic result 
     }
@@ -471,14 +479,8 @@ function getScanResults(scanop, userCallback) {
     }    
   }
 
-  function fetch() {
-    buffer = new Buffer(recordSize);
-    results.push(new ResultConstructor(buffer));  // Optimistic
-    fetchResults(dbSession, scanop.ndbop, buffer);
-  }
-
   /* start here */
-  var results = [];
+  results = [];
   fetch();
 }
 
