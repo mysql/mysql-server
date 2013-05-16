@@ -629,6 +629,10 @@ function ndbd_setup(processItem, processFamilyItem, host, waitCondition) {
 
                         // Use overridden indexMemory for dataMemory calc
                         var realIndexMemory = getRealValue("IndexMemory");
+                        // May not have been set yet
+                        if (isNaN(realIndexMemory)) { 
+                            realIndexMemory = indexMemory; 
+                        }
 
                         // Set DataMemory
                         var dataMemory= Math.floor(multiplier * 
