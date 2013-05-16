@@ -80,22 +80,22 @@ enum btr_op_t {
 };
 
 /** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
-UNIV_INTERN ulint	btr_cur_n_non_sea	= 0;
+ulint	btr_cur_n_non_sea	= 0;
 /** Number of successful adaptive hash index lookups in
 btr_cur_search_to_nth_level(). */
-UNIV_INTERN ulint	btr_cur_n_sea		= 0;
+ulint	btr_cur_n_sea		= 0;
 /** Old value of btr_cur_n_non_sea.  Copied by
 srv_refresh_innodb_monitor_stats().  Referenced by
 srv_printf_innodb_monitor(). */
-UNIV_INTERN ulint	btr_cur_n_non_sea_old	= 0;
+ulint	btr_cur_n_non_sea_old	= 0;
 /** Old value of btr_cur_n_sea.  Copied by
 srv_refresh_innodb_monitor_stats().  Referenced by
 srv_printf_innodb_monitor(). */
-UNIV_INTERN ulint	btr_cur_n_sea_old	= 0;
+ulint	btr_cur_n_sea_old	= 0;
 
 #ifdef UNIV_DEBUG
 /* Flag to limit optimistic insert records */
-UNIV_INTERN uint	btr_cur_limit_optimistic_insert_debug = 0;
+uint	btr_cur_limit_optimistic_insert_debug = 0;
 #endif /* UNIV_DEBUG */
 
 /** In the optimistic insert, if the insert does not fit, but this much space
@@ -348,7 +348,7 @@ If mode is PAGE_CUR_LE , cursor is left at the place where an insert of the
 search tuple should be performed in the B-tree. InnoDB does an insert
 immediately after the cursor. Thus, the cursor may end up on a user record,
 or on a page infimum record. */
-UNIV_INTERN
+
 void
 btr_cur_search_to_nth_level(
 /*========================*/
@@ -836,7 +836,7 @@ func_exit:
 
 /*****************************************************************//**
 Opens a cursor at either end of an index. */
-UNIV_INTERN
+
 void
 btr_cur_open_at_index_side_func(
 /*============================*/
@@ -998,7 +998,7 @@ btr_cur_open_at_index_side_func(
 
 /**********************************************************************//**
 Positions a cursor at a randomly chosen position within a B-tree. */
-UNIV_INTERN
+
 void
 btr_cur_open_at_rnd_pos_func(
 /*=========================*/
@@ -1209,7 +1209,7 @@ not succeed if there is too little space on the page. If there is just
 one record on the page, the insert will always succeed; this is to
 prevent trying to split a page with just one record.
 @return	DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
-UNIV_INTERN
+
 dberr_t
 btr_cur_optimistic_insert(
 /*======================*/
@@ -1495,7 +1495,7 @@ holds an x-latch on the tree and on the cursor page. If the insert is
 made on the leaf level, to avoid deadlocks, mtr must also own x-latches
 to brothers of page, if those brothers exist.
 @return	DB_SUCCESS or error number */
-UNIV_INTERN
+
 dberr_t
 btr_cur_pessimistic_insert(
 /*=======================*/
@@ -1737,7 +1737,7 @@ btr_cur_update_in_place_log(
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 btr_cur_parse_update_in_place(
 /*==========================*/
@@ -1825,7 +1825,7 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE if this is
 a secondary index leaf page. This has to be done either within the
 same mini-transaction, or by invoking ibuf_reset_free_bits() before
 mtr_commit(mtr). */
-UNIV_INTERN
+
 bool
 btr_cur_update_alloc_zip_func(
 /*==========================*/
@@ -1905,7 +1905,7 @@ We assume here that the ordering fields of the record do not change.
 @retval DB_SUCCESS on success
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-UNIV_INTERN
+
 dberr_t
 btr_cur_update_in_place(
 /*====================*/
@@ -2056,7 +2056,7 @@ fields of the record do not change.
 @retval DB_UNDERFLOW if the page would become too empty
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-UNIV_INTERN
+
 dberr_t
 btr_cur_optimistic_update(
 /*======================*/
@@ -2341,7 +2341,7 @@ update is made on the leaf level, to avoid deadlocks, mtr must also
 own x-latches to brothers of page, if those brothers exist. We assume
 here that the ordering fields of the record do not change.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 btr_cur_pessimistic_update(
 /*=======================*/
@@ -2770,7 +2770,7 @@ btr_cur_del_mark_set_clust_rec_log(
 Parses the redo log record for delete marking or unmarking of a clustered
 index record.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 btr_cur_parse_del_mark_set_clust_rec(
 /*=================================*/
@@ -2854,7 +2854,7 @@ undo log on this delete marking. Writes in the trx id field the id
 of the deleting transaction, and in the roll ptr field pointer to the
 undo log record created.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
-UNIV_INTERN
+
 dberr_t
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
@@ -2974,7 +2974,7 @@ btr_cur_del_mark_set_sec_rec_log(
 Parses the redo log record for delete marking or unmarking of a secondary
 index record.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 btr_cur_parse_del_mark_set_sec_rec(
 /*===============================*/
@@ -3018,7 +3018,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 /***********************************************************//**
 Sets a secondary index record delete mark to TRUE or FALSE.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
-UNIV_INTERN
+
 dberr_t
 btr_cur_del_mark_set_sec_rec(
 /*=========================*/
@@ -3067,7 +3067,7 @@ btr_cur_del_mark_set_sec_rec(
 /***********************************************************//**
 Sets a secondary index record's delete mark to the given value. This
 function is only used by the insert buffer merge mechanism. */
-UNIV_INTERN
+
 void
 btr_cur_set_deleted_flag_for_ibuf(
 /*==============================*/
@@ -3099,7 +3099,7 @@ deadlocks, mtr must also own x-latches to brothers of page, if those
 brothers exist. NOTE: it is assumed that the caller has reserved enough
 free extents so that the compression will always succeed if done!
 @return	TRUE if compression occurred */
-UNIV_INTERN
+
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
@@ -3125,7 +3125,7 @@ Removes the record on which the tree cursor is positioned on a leaf page.
 It is assumed that the mtr has an x-latch on the page where the cursor is
 positioned, but no latch on the whole tree.
 @return	TRUE if success, i.e., the page did not become too empty */
-UNIV_INTERN
+
 ibool
 btr_cur_optimistic_delete_func(
 /*===========================*/
@@ -3228,7 +3228,7 @@ an x-latch on the tree and on the cursor page. To avoid deadlocks,
 mtr must also own x-latches to brothers of page, if those brothers
 exist.
 @return	TRUE if compression occurred */
-UNIV_INTERN
+
 ibool
 btr_cur_pessimistic_delete(
 /*=======================*/
@@ -3592,7 +3592,7 @@ inexact:
 /*******************************************************************//**
 Estimates the number of rows in a given index range.
 @return	estimated number of rows */
-UNIV_INTERN
+
 ib_int64_t
 btr_estimate_n_rows_in_range(
 /*=========================*/
@@ -3797,7 +3797,7 @@ index->stat_n_sample_sizes[].
 If innodb_stats_method is nulls_ignored, we also record the number of
 non-null values for each prefix and stored the estimates in
 array index->stat_n_non_null_key_vals. */
-UNIV_INTERN
+
 void
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
@@ -4142,7 +4142,7 @@ Marks non-updated off-page fields as disowned by this record. The ownership
 must be transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
 to free the field. */
-UNIV_INTERN
+
 void
 btr_cur_disown_inherited_fields(
 /*============================*/
@@ -4210,7 +4210,7 @@ Flags the data tuple fields that are marked as extern storage in the
 update vector.  We use this function to remember which fields we must
 mark as extern storage in a record inserted for an update.
 @return	number of flagged external columns */
-UNIV_INTERN
+
 ulint
 btr_push_update_extern_fields(
 /*==========================*/
@@ -4358,7 +4358,7 @@ them in rec.  The extern flags in rec will have to be set beforehand.
 The fields are stored on pages allocated from leaf node
 file segment of the index tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-UNIV_INTERN
+
 dberr_t
 btr_store_big_rec_extern_fields(
 /*============================*/
@@ -4887,7 +4887,7 @@ Frees the space in an externally stored field to the file space
 management if the field in data is owned by the externally stored field,
 in a rollback we may have the additional condition that the field must
 not be inherited. */
-UNIV_INTERN
+
 void
 btr_free_externally_stored_field(
 /*=============================*/
@@ -5426,7 +5426,7 @@ Copies the prefix of an externally stored field of a record.  The
 clustered index record must be protected by a lock or a page latch.
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
-UNIV_INTERN
+
 ulint
 btr_copy_externally_stored_field_prefix(
 /*====================================*/
@@ -5484,7 +5484,7 @@ btr_copy_externally_stored_field_prefix(
 Copies an externally stored field of a record to mem heap.  The
 clustered index record must be protected by a lock or a page latch.
 @return	the whole field copied to heap */
-UNIV_INTERN
+
 byte*
 btr_copy_externally_stored_field(
 /*=============================*/
@@ -5535,7 +5535,7 @@ btr_copy_externally_stored_field(
 /*******************************************************************//**
 Copies an externally stored field of a record to mem heap.
 @return	the field copied to heap, or NULL if the field is incomplete */
-UNIV_INTERN
+
 byte*
 btr_rec_copy_externally_stored_field(
 /*=================================*/

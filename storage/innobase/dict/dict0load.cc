@@ -94,7 +94,7 @@ dict_load_table_one(
 
 /* If this flag is TRUE, then we will load the cluster index's (and tables')
 metadata even if it is marked as "corrupted". */
-UNIV_INTERN my_bool     srv_load_corrupted = FALSE;
+my_bool     srv_load_corrupted = FALSE;
 
 #ifdef UNIV_DEBUG
 /****************************************************************//**
@@ -121,7 +121,7 @@ name_of_col_is(
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free
 the memory in the string! */
-UNIV_INTERN
+
 char*
 dict_get_first_table_name_in_db(
 /*============================*/
@@ -204,7 +204,7 @@ loop:
 /********************************************************************//**
 Prints to the standard output information on all tables found in the data
 dictionary system table. */
-UNIV_INTERN
+
 void
 dict_print(void)
 /*============*/
@@ -296,7 +296,7 @@ dict_getnext_system_low(
 /********************************************************************//**
 This function opens a system table, and returns the first record.
 @return	first record of the system table */
-UNIV_INTERN
+
 const rec_t*
 dict_startscan_system(
 /*==================*/
@@ -326,7 +326,7 @@ dict_startscan_system(
 /********************************************************************//**
 This function gets the next system table record as it scans the table.
 @return	the next record if found, NULL if end of scan */
-UNIV_INTERN
+
 const rec_t*
 dict_getnext_system(
 /*================*/
@@ -350,7 +350,7 @@ This function processes one SYS_TABLES record and populate the dict_table_t
 struct for the table. Extracted out of dict_print() to be used by
 both monitor table output and information schema innodb_sys_tables output.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_process_sys_tables_rec_and_mtr_commit(
 /*=======================================*/
@@ -408,7 +408,7 @@ This function parses a SYS_INDEXES record and populate a dict_index_t
 structure with the information from the record. For detail information
 about SYS_INDEXES fields, please refer to dict_boot() function.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_process_sys_indexes_rec(
 /*=========================*/
@@ -435,7 +435,7 @@ dict_process_sys_indexes_rec(
 This function parses a SYS_COLUMNS record and populate a dict_column_t
 structure with the information from the record.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_process_sys_columns_rec(
 /*=========================*/
@@ -458,7 +458,7 @@ dict_process_sys_columns_rec(
 This function parses a SYS_FIELDS record and populates a dict_field_t
 structure with the information from the record.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_process_sys_fields_rec(
 /*========================*/
@@ -493,7 +493,7 @@ This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
 about SYS_FOREIGN fields, please refer to dict_load_foreign() function.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_process_sys_foreign_rec(
 /*=========================*/
@@ -574,7 +574,7 @@ err_len:
 This function parses a SYS_FOREIGN_COLS record and extract necessary
 information from the record and return to caller.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_process_sys_foreign_col_rec(
 /*=============================*/
@@ -644,7 +644,7 @@ err_len:
 This function parses a SYS_TABLESPACES record, extracts necessary
 information from the record and returns to caller.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_process_sys_tablespaces(
 /*=========================*/
@@ -711,7 +711,7 @@ err_len:
 This function parses a SYS_DATAFILES record, extracts necessary
 information from the record and returns it to the caller.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_process_sys_datafiles(
 /*=======================*/
@@ -814,7 +814,7 @@ This function can return NULL if the space ID is not found in SYS_DATAFILES,
 then the caller will assume that the ibd file is in the normal datadir.
 @return	own: A copy of the first datafile found in SYS_DATAFILES.PATH for
 the given space ID. NULL if space ID is zero or not found. */
-UNIV_INTERN
+
 char*
 dict_get_first_path(
 /*================*/
@@ -884,7 +884,7 @@ dict_get_first_path(
 /********************************************************************//**
 Update the record for space_id in SYS_TABLESPACES to this filepath.
 @return	DB_SUCCESS if OK, dberr_t if the insert failed */
-UNIV_INTERN
+
 dberr_t
 dict_update_filepath(
 /*=================*/
@@ -941,7 +941,7 @@ dict_update_filepath(
 /********************************************************************//**
 Insert records into SYS_TABLESPACES and SYS_DATAFILES.
 @return	DB_SUCCESS if OK, dberr_t if the insert failed */
-UNIV_INTERN
+
 dberr_t
 dict_insert_tablespace_and_filepath(
 /*================================*/
@@ -989,7 +989,7 @@ to what we already read with fil_load_single_table_tablespaces().
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
 We also scan the biggest space id, and store it to fil_system. */
-UNIV_INTERN
+
 void
 dict_check_tablespaces_and_store_max_id(
 /*====================================*/
@@ -1207,7 +1207,7 @@ next_tablespace:
 Loads a table column definition from a SYS_COLUMNS record to
 dict_table_t.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_load_column_low(
 /*=================*/
@@ -1456,7 +1456,7 @@ static const char* dict_load_field_del = "delete-marked record in SYS_FIELDS";
 Loads an index field definition from a SYS_FIELDS record to
 dict_index_t.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_load_field_low(
 /*================*/
@@ -1660,7 +1660,7 @@ If allocate=TRUE, we will create a dict_index_t structure and fill it
 accordingly. If allocated=FALSE, the dict_index_t will be supplied by
 the caller and filled with information read from the record.  @return
 error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_load_index_low(
 /*================*/
@@ -2052,7 +2052,7 @@ func_exit:
 Loads a table definition from a SYS_TABLES record to dict_table_t.
 Does not load any columns or indexes.
 @return error message, or NULL on success */
-UNIV_INTERN
+
 const char*
 dict_load_table_low(
 /*================*/
@@ -2204,7 +2204,7 @@ table->data_dir_path and replace the 'databasename/tablename.ibd'
 portion with 'tablename'.
 This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
 Make this data directory path only if it has not yet been saved. */
-UNIV_INTERN
+
 void
 dict_save_data_dir_path(
 /*====================*/
@@ -2238,7 +2238,7 @@ dict_save_data_dir_path(
 /*****************************************************************//**
 Make sure the data_file_name is saved in dict_table_t if needed. Try to
 read it from the file dictionary first, then from SYS_DATAFILES. */
-UNIV_INTERN
+
 void
 dict_get_and_save_data_dir_path(
 /*============================*/
@@ -2273,7 +2273,7 @@ dict_get_and_save_data_dir_path(
 Loads the given table and the set of tables referenced (foreign key) by the
 given table.
 @return same as dict_load_table_one() function */
-UNIV_INTERN
+
 dict_table_t*
 dict_load_table(
 /*============*/
@@ -2612,7 +2612,7 @@ func_exit:
 /***********************************************************************//**
 Loads a table object based on the table id.
 @return	table; NULL if table does not exist */
-UNIV_INTERN
+
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
@@ -2711,7 +2711,7 @@ check_rec:
 This function is called when the database is booted. Loads system table
 index definitions except for the clustered index which is added to the
 dictionary cache at booting before calling this function. */
-UNIV_INTERN
+
 void
 dict_load_sys_table(
 /*================*/
@@ -3028,7 +3028,7 @@ in the dictionary cache.  If the referenced table is not in dictionary
 cache, then it is added to the output parameter (fk_tables).
 
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_load_foreigns(
 /*===============*/

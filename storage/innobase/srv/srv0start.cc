@@ -95,20 +95,20 @@ Created 2/16/1996 Heikki Tuuri
 # include "ut0crc32.h"
 
 /** Log sequence number immediately after startup */
-UNIV_INTERN lsn_t	srv_start_lsn;
+lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
-UNIV_INTERN lsn_t	srv_shutdown_lsn;
+lsn_t	srv_shutdown_lsn;
 
 /** TRUE if a raw partition is in use */
-UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
+ibool	srv_start_raw_disk_in_use = FALSE;
 
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
-UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
+ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
 /** TRUE if the server is being started */
-UNIV_INTERN ibool	srv_is_being_started = FALSE;
+ibool	srv_is_being_started = FALSE;
 /** TRUE if the server was successfully started */
-UNIV_INTERN ibool	srv_was_started = FALSE;
+ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
 static ibool		srv_start_has_been_called = FALSE;
 
@@ -132,7 +132,7 @@ static ulint	srv_start_state;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
-UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
+enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
@@ -163,16 +163,16 @@ static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
-UNIV_INTERN mysql_pfs_key_t	io_ibuf_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_log_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_read_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_write_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_handler_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_lock_timeout_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_error_monitor_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
+mysql_pfs_key_t	io_ibuf_thread_key;
+mysql_pfs_key_t	io_log_thread_key;
+mysql_pfs_key_t	io_read_thread_key;
+mysql_pfs_key_t	io_write_thread_key;
+mysql_pfs_key_t	io_handler_thread_key;
+mysql_pfs_key_t	srv_lock_timeout_thread_key;
+mysql_pfs_key_t	srv_error_monitor_thread_key;
+mysql_pfs_key_t	srv_monitor_thread_key;
+mysql_pfs_key_t	srv_master_thread_key;
+mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /*********************************************************************//**
@@ -236,7 +236,7 @@ srv_file_check_mode(
 /********************************************************************//**
 I/o-handler thread function.
 @return	OS_THREAD_DUMMY_RETURN */
-extern "C" UNIV_INTERN
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(io_handler_thread)(
 /*==============================*/
@@ -295,7 +295,7 @@ DECLARE_THREAD(io_handler_thread)(
 
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
-UNIV_INTERN
+
 void
 srv_normalize_path_for_win(
 /*=======================*/
@@ -997,7 +997,7 @@ srv_start_state_is_set(
 
 /****************************************************************//**
 Shutdown all background threads created by InnoDB. */
-UNIV_INTERN
+
 void
 srv_shutdown_all_bg_threads()
 /*=========================*/
@@ -1109,7 +1109,7 @@ srv_init_abort_low(
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 innobase_start_or_create_for_mysql(void)
 /*====================================*/
@@ -2383,7 +2383,7 @@ srv_fts_close(void)
 /****************************************************************//**
 Shuts down the InnoDB database.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 innobase_shutdown_for_mysql(void)
 /*=============================*/
@@ -2529,7 +2529,7 @@ innobase_shutdown_for_mysql(void)
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-UNIV_INTERN
+
 void
 srv_shutdown_table_bg_threads(void)
 /*===============================*/
@@ -2605,7 +2605,7 @@ srv_shutdown_table_bg_threads(void)
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
-UNIV_INTERN
+
 void
 srv_get_meta_data_filename(
 /*=======================*/

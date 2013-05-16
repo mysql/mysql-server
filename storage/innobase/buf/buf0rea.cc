@@ -240,7 +240,7 @@ the OS does not support asynchronous i/o.
 pages, it may happen that the page at the given page number does not
 get read even if we return a positive value!
 @return	number of page read requests issued */
-UNIV_INTERN
+
 ulint
 buf_read_ahead_random(
 /*==================*/
@@ -392,7 +392,7 @@ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
-UNIV_INTERN
+
 ibool
 buf_read_page(
 /*==========*/
@@ -432,7 +432,7 @@ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
-UNIV_INTERN
+
 ibool
 buf_read_page_async(
 /*================*/
@@ -493,7 +493,7 @@ NOTE 3: the calling thread must want access to the page given: this rule is
 set to prevent unintended read-aheads performed by ibuf routines, a situation
 which could result in a deadlock if the OS does not support asynchronous io.
 @return	number of page read requests issued */
-UNIV_INTERN
+
 ulint
 buf_read_ahead_linear(
 /*==================*/
@@ -750,7 +750,7 @@ buf_read_ahead_linear(
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
 a read-ahead function. */
-UNIV_INTERN
+
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
@@ -824,7 +824,7 @@ tablespace_deleted:
 
 /********************************************************************//**
 Issues read requests for pages which recovery wants to read in. */
-UNIV_INTERN
+
 void
 buf_read_recv_pages(
 /*================*/
