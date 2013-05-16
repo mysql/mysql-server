@@ -218,7 +218,7 @@ mtr_start(
 	__attribute__((nonnull));
 /***************************************************************//**
 Commits a mini-transaction. */
-UNIV_INTERN
+
 void
 mtr_commit(
 /*=======*/
@@ -266,7 +266,7 @@ mtr_set_log_mode(
 /********************************************************//**
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
 @return	value read */
-UNIV_INTERN
+
 ulint
 mtr_read_ulint(
 /*===========*/
@@ -276,7 +276,7 @@ mtr_read_ulint(
 /********************************************************//**
 Reads 8 bytes from a file page buffered in the buffer pool.
 @return	value read */
-UNIV_INTERN
+
 ib_id_t
 mtr_read_ull(
 /*=========*/
@@ -319,7 +319,7 @@ mtr_x_lock_func(
 /***************************************************//**
 Releases an object in the memo stack.
 @return true if released */
-UNIV_INTERN
+
 bool
 mtr_memo_release(
 /*=============*/
@@ -344,7 +344,7 @@ mtr_memo_contains(
 /**********************************************************//**
 Checks if memo contains the given page.
 @return	TRUE if contains */
-UNIV_INTERN
+
 ibool
 mtr_memo_contains_page(
 /*===================*/
@@ -353,7 +353,7 @@ mtr_memo_contains_page(
 	ulint		type);	/*!< in: type of object */
 /*********************************************************//**
 Prints info of an mtr handle. */
-UNIV_INTERN
+
 void
 mtr_print(
 /*======*/

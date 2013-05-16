@@ -135,13 +135,13 @@ extern mysql_pfs_key_t  zip_pad_mutex_key;
 
 /******************************************************************//**
 Initializes the synchronization data structures. */
-UNIV_INTERN
+
 void
 sync_init(void);
 /*===========*/
 /******************************************************************//**
 Frees the resources in synchronization data structures. */
-UNIV_INTERN
+
 void
 sync_close(void);
 /*===========*/
@@ -227,7 +227,7 @@ Creates, or rather, initializes a mutex object in a specified memory
 location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
-UNIV_INTERN
+
 void
 mutex_create_func(
 /*==============*/
@@ -246,7 +246,7 @@ NOTE! Use the corresponding macro mutex_free(), not directly this function!
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
 is checked to be in the reset state. */
-UNIV_INTERN
+
 void
 mutex_free_func(
 /*============*/
@@ -275,7 +275,7 @@ NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
 acquired immediately, returns with return value 1.
 @return	0 if succeed, 1 if not */
-UNIV_INTERN
+
 ulint
 mutex_enter_nowait_func(
 /*====================*/
@@ -369,7 +369,7 @@ pfs_mutex_free_func(
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version.
 @return	TRUE if no mutexes and rw-locks reserved */
-UNIV_INTERN
+
 ibool
 sync_all_freed(void);
 /*================*/
@@ -378,14 +378,14 @@ sync_all_freed(void);
 FUNCTION PROTOTYPES FOR DEBUGGING */
 /*******************************************************************//**
 Prints wait info of the sync system. */
-UNIV_INTERN
+
 void
 sync_print_wait_info(
 /*=================*/
 	FILE*	file);		/*!< in: file where to print */
 /*******************************************************************//**
 Prints info of the sync system. */
-UNIV_INTERN
+
 void
 sync_print(
 /*=======*/
@@ -394,7 +394,7 @@ sync_print(
 /******************************************************************//**
 Checks that the mutex has been initialized.
 @return	TRUE */
-UNIV_INTERN
+
 ibool
 mutex_validate(
 /*===========*/
@@ -403,7 +403,7 @@ mutex_validate(
 Checks that the current thread owns the mutex. Works only
 in the debug version.
 @return	TRUE if owns */
-UNIV_INTERN
+
 ibool
 mutex_own(
 /*======*/
@@ -415,7 +415,7 @@ mutex_own(
 Adds a latch and its level in the thread level array. Allocates the memory
 for the array if called first time for this OS thread. Makes the checks
 against other latch levels stored in the array for this thread. */
-UNIV_INTERN
+
 void
 sync_thread_add_level(
 /*==================*/
@@ -429,7 +429,7 @@ Removes a latch from the thread level array if it is found there.
 @return TRUE if found in the array; it is no error if the latch is
 not found, as we presently are not able to determine the level for
 every latch reservation the program does */
-UNIV_INTERN
+
 ibool
 sync_thread_reset_level(
 /*====================*/
@@ -438,7 +438,7 @@ sync_thread_reset_level(
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @return	a matching latch, or NULL if not found */
-UNIV_INTERN
+
 void*
 sync_thread_levels_contains(
 /*========================*/
@@ -447,7 +447,7 @@ sync_thread_levels_contains(
 /******************************************************************//**
 Checks that the level array for the current thread is empty.
 @return	a latch, or NULL if empty except the exceptions specified below */
-UNIV_INTERN
+
 void*
 sync_thread_levels_nonempty_gen(
 /*============================*/
@@ -463,7 +463,7 @@ except for data dictionary latches. */
 Checks if the level array for the current thread is empty,
 except for the btr_search_latch.
 @return	a latch, or NULL if empty except the exceptions specified below */
-UNIV_INTERN
+
 void*
 sync_thread_levels_nonempty_trx(
 /*============================*/
@@ -474,7 +474,7 @@ sync_thread_levels_nonempty_trx(
 
 /******************************************************************//**
 Gets the debug information for a reserved mutex. */
-UNIV_INTERN
+
 void
 mutex_get_debug_info(
 /*=================*/
@@ -486,7 +486,7 @@ mutex_get_debug_info(
 /******************************************************************//**
 Counts currently reserved mutexes. Works only in the debug version.
 @return	number of reserved mutexes */
-UNIV_INTERN
+
 ulint
 mutex_n_reserved(void);
 /*==================*/

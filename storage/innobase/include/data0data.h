@@ -295,7 +295,7 @@ dtuple_create(
 /*********************************************************************//**
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
-UNIV_INTERN
+
 void
 dtuple_set_n_fields(
 /*================*/
@@ -338,7 +338,7 @@ dtuple_get_n_ext(
 Compare two data tuples, respecting the collation of character fields.
 @return 1, 0 , -1 if tuple1 is greater, equal, less, respectively,
 than tuple2 */
-UNIV_INTERN
+
 int
 dtuple_coll_cmp(
 /*============*/
@@ -379,7 +379,7 @@ dtuple_contains_null(
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 dfield_check_typed(
 /*===============*/
@@ -388,7 +388,7 @@ dfield_check_typed(
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 dtuple_check_typed(
 /*===============*/
@@ -397,7 +397,7 @@ dtuple_check_typed(
 /**********************************************************//**
 Checks that a data tuple is typed.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 dtuple_check_typed_no_assert(
 /*=========================*/
@@ -408,7 +408,7 @@ dtuple_check_typed_no_assert(
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 dtuple_validate(
 /*============*/
@@ -417,7 +417,7 @@ dtuple_validate(
 #endif /* UNIV_DEBUG */
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. */
-UNIV_INTERN
+
 void
 dfield_print(
 /*=========*/
@@ -426,7 +426,7 @@ dfield_print(
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */
-UNIV_INTERN
+
 void
 dfield_print_also_hex(
 /*==================*/
@@ -434,7 +434,7 @@ dfield_print_also_hex(
 	__attribute__((nonnull));
 /**********************************************************//**
 The following function prints the contents of a tuple. */
-UNIV_INTERN
+
 void
 dtuple_print(
 /*=========*/
@@ -446,7 +446,7 @@ dtuple_print(
 @param o	output stream
 @param field	array of data fields
 @param n	number of data fields */
-UNIV_INTERN
+
 void
 dfield_print(
 	std::ostream&	o,
@@ -455,7 +455,7 @@ dfield_print(
 /** Print the contents of a tuple.
 @param o	output stream
 @param tuple	data tuple */
-UNIV_INTERN
+
 void
 dtuple_print(
 /*=========*/
@@ -470,7 +470,7 @@ to determine uniquely the insertion place of the tuple in the index.
 @return own: created big record vector, NULL if we are not able to
 shorten the entry enough, i.e., if there are too many fixed-length or
 short fields in entry or the index is clustered */
-UNIV_INTERN
+
 big_rec_t*
 dtuple_convert_big_rec(
 /*===================*/
@@ -483,7 +483,7 @@ dtuple_convert_big_rec(
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created
 from entry with dtuple_convert_big_rec. */
-UNIV_INTERN
+
 void
 dtuple_convert_back_big_rec(
 /*========================*/

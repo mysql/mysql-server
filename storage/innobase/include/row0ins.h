@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_foreign_key_check_lock.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or
 DB_ROW_IS_REFERENCED */
-UNIV_INTERN
+
 dberr_t
 row_ins_check_foreign_constraint(
 /*=============================*/
@@ -57,7 +57,7 @@ row_ins_check_foreign_constraint(
 /*********************************************************************//**
 Creates an insert node struct.
 @return	own: insert node struct */
-UNIV_INTERN
+
 ins_node_t*
 ins_node_create(
 /*============*/
@@ -68,7 +68,7 @@ ins_node_create(
 Sets a new row to insert for an INS_DIRECT node. This function is only used
 if we have constructed the row separately, which is a rare case; this
 function is quite slow. */
-UNIV_INTERN
+
 void
 ins_node_set_new_row(
 /*=================*/
@@ -85,7 +85,7 @@ the delete marked record.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-UNIV_INTERN
+
 dberr_t
 row_ins_clust_index_entry_low(
 /*==========================*/
@@ -107,7 +107,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-UNIV_INTERN
+
 dberr_t
 row_ins_sec_index_entry_low(
 /*========================*/
@@ -128,7 +128,7 @@ row_ins_sec_index_entry_low(
 Tries to insert the externally stored fields (off-page columns)
 of a clustered index entry.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-UNIV_INTERN
+
 dberr_t
 row_ins_index_entry_big_rec_func(
 /*=============================*/
@@ -156,7 +156,7 @@ then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-UNIV_INTERN
+
 dberr_t
 row_ins_clust_index_entry(
 /*======================*/
@@ -171,7 +171,7 @@ then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-UNIV_INTERN
+
 dberr_t
 row_ins_sec_index_entry(
 /*====================*/
@@ -183,7 +183,7 @@ row_ins_sec_index_entry(
 Inserts a row to a table. This is a high-level function used in
 SQL execution graphs.
 @return	query thread to run next or NULL */
-UNIV_INTERN
+
 que_thr_t*
 row_ins_step(
 /*=========*/

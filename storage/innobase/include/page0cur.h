@@ -201,7 +201,7 @@ Inserts a record next to page cursor on an uncompressed page.
 Returns pointer to inserted record if succeed, i.e., enough
 space available, NULL otherwise. The cursor stays at the same position.
 @return	pointer to record if succeed, NULL otherwise */
-UNIV_INTERN
+
 rec_t*
 page_cur_insert_rec_low(
 /*====================*/
@@ -224,7 +224,7 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return	pointer to record if succeed, NULL otherwise */
-UNIV_INTERN
+
 rec_t*
 page_cur_insert_rec_zip(
 /*====================*/
@@ -242,7 +242,7 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if this is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-UNIV_INTERN
+
 void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
@@ -253,7 +253,7 @@ page_copy_rec_list_end_to_created_page(
 /***********************************************************//**
 Deletes a record at the page cursor. The cursor is moved to the
 next record after the deleted one. */
-UNIV_INTERN
+
 void
 page_cur_delete_rec(
 /*================*/
@@ -279,7 +279,7 @@ page_cur_search(
 	page_cur_t*		cursor);/*!< out: page cursor */
 /****************************************************************//**
 Searches the right position for a page cursor. */
-UNIV_INTERN
+
 void
 page_cur_search_with_match(
 /*=======================*/
@@ -307,7 +307,7 @@ page_cur_search_with_match(
 /***********************************************************//**
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */
-UNIV_INTERN
+
 void
 page_cur_open_on_rnd_user_rec(
 /*==========================*/
@@ -317,7 +317,7 @@ page_cur_open_on_rnd_user_rec(
 /***********************************************************//**
 Parses a log record of a record insert on a page.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 page_cur_parse_insert_rec(
 /*======================*/
@@ -330,7 +330,7 @@ page_cur_parse_insert_rec(
 /**********************************************************//**
 Parses a log record of copying a record list end to a new created page.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 page_parse_copy_rec_list_to_created_page(
 /*=====================================*/
@@ -342,7 +342,7 @@ page_parse_copy_rec_list_to_created_page(
 /***********************************************************//**
 Parses log record of a record delete on a page.
 @return	pointer to record end or NULL */
-UNIV_INTERN
+
 byte*
 page_cur_parse_delete_rec(
 /*======================*/
@@ -355,7 +355,7 @@ page_cur_parse_delete_rec(
 Removes the record from a leaf page. This function does not log
 any changes. It is used by the IMPORT tablespace functions.
 @return	true if success, i.e., the page did not become too empty */
-UNIV_INTERN
+
 bool
 page_delete_rec(
 /*============*/

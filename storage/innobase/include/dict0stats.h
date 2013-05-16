@@ -60,7 +60,7 @@ is relatively quick and is used to calculate transient statistics that
 are not saved on disk.
 This was the only way to calculate statistics before the
 Persistent Statistics feature was introduced. */
-UNIV_INTERN
+
 void
 dict_stats_update_transient(
 /*========================*/
@@ -133,7 +133,7 @@ dict_stats_deinit(
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization.
 @return DB_* error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 dict_stats_update(
 /*==============*/
@@ -148,7 +148,7 @@ Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
 This function creates its own trx and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_drop_index(
 /*==================*/
@@ -163,7 +163,7 @@ Removes the statistics for a table and all of its indexes from the
 persistent storage if it exists and if there is data stored for the table.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_drop_table(
 /*==================*/
@@ -174,7 +174,7 @@ dict_stats_drop_table(
 
 /*********************************************************************//**
 Fetches or calculates new estimates for index statistics. */
-UNIV_INTERN
+
 void
 dict_stats_update_for_index(
 /*========================*/
@@ -185,7 +185,7 @@ dict_stats_update_for_index(
 Renames a table in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_rename_table(
 /*====================*/
@@ -200,7 +200,7 @@ Renames an index in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
 if the persistent stats do not exist. */
-UNIV_INTERN
+
 dberr_t
 dict_stats_rename_index(
 /*====================*/
