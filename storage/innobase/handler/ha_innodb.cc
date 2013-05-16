@@ -322,6 +322,8 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  endif /* UNIV_SYNC_DEBUG */
 	PSI_KEY(buf_dblwr_mutex),
 	PSI_KEY(trx_undo_mutex),
+	PSI_KEY(trx_pool_mutex),
+	PSI_KEY(trx_pools_mutex),
 	PSI_KEY(srv_sys_mutex),
 	PSI_KEY(lock_mutex),
 	PSI_KEY(lock_wait_mutex),
@@ -1300,16 +1302,8 @@ convert_error_code_to_mysql(
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ut_ad(thd);
-		push_warning_printf(thd, Sql_condition::SL_WARNING,
-				    HA_ERR_ROW_IS_REFERENCED,
-				    "InnoDB: Cannot delete/update "
-				    "rows with cascading foreign key "
-				    "constraints that exceed max "
-				    "depth of %d. Please "
-				    "drop extra constraints and try "
-				    "again", DICT_FK_MAX_RECURSIVE_LOAD);
-
-		/* fall through */
+		my_error(ER_FK_DEPTH_EXCEEDED, MYF(0), FK_MAX_CASCADE_DEL);
+		return(HA_ERR_FK_DEPTH_EXCEEDED);
 
 	case DB_ERROR:
 	default:
@@ -3436,9 +3430,9 @@ retry:
 		trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
 		/* Don't do write + flush right now. For group commit
 		to work we want to do the flush later. */
-		trx->flush_log_later = TRUE;
+		trx->flush_log_later = true;
 		innobase_commit_low(trx);
-		trx->flush_log_later = FALSE;
+		trx->flush_log_later = false;
 
 		if (innobase_commit_concurrency > 0) {
 			mysql_mutex_lock(&commit_cond_m);
@@ -13509,7 +13503,7 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
+	thd_get_xid(thd, (MYSQL_XID*) trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys->mutex, we have to release the search system

@@ -436,14 +436,20 @@ trx_t*
 trx_rw_is_active(
 /*=============*/
 	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
-	ibool*		corrupt)	/*!< in: NULL or pointer to a flag
+	ibool*		corrupt,	/*!< in: NULL or pointer to a flag
 					that will be set if corrupt */
+	bool		do_ref_count)	/*!< in: if true then increment the
+					trx_t::n_ref_count */
 {
 	trx_t*		trx;
 
 	mutex_enter(&trx_sys->mutex);
 
 	trx = trx_rw_is_active_low(trx_id, corrupt);
+
+	if (trx != 0) {
+		trx = trx_reference(trx, do_ref_count);
+	}
 
 	mutex_exit(&trx_sys->mutex);
 
