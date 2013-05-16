@@ -161,6 +161,11 @@ TEST(Mysys, Vsnprintf)
   test1("Hello string `I am a string`",
         "Hello string %`s", "I am a string");
 #endif
+#ifndef MCP_BUG16813006
+#if !defined (__GNUC__)
+  test1("ok", "ok"); // Dummy test for keeping planned test count
+#endif
+#endif
   test1("Hello TEST",
         "Hello %05s", "TEST");
   test1("My `Q` test",
