@@ -14,11 +14,11 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
+#ifdef HAVE_REPLICATION
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_parse.h"                          // check_access
 #include "global_threads.h"
-#ifdef HAVE_REPLICATION
 
 #include "auth_common.h"                        // SUPER_ACL
 #include "log_event.h"
