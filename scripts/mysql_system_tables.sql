@@ -1670,7 +1670,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_status_by_channel("
     "Source_UUID varchar(36) not null,"
-    "Thread_Id bigint not null,"
+    "Thread_Id char(21) not null,"
     "Service_State enum('Yes','No','Connecting') not null,"
     "Received_Transaction_Set text not null,"
     "Last_Error_Number bigint not null,"
@@ -1715,7 +1715,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordinator("
-    "Thread_Id bigint not null,"
+    "Thread_Id char(21) not null,"
     "Service_State ENUM('Yes','No') not null,"
     "Last_Error_Number bigint not null,"
     "Last_Error_Message varchar(1024) not null,"
@@ -1732,8 +1732,9 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_executor("
-    "Thread_Id bigint not null,"
-    "Service_State ENUM('Yes','No') not null,"
+    "Worker_Id bigint not null,"
+    "Thread_Id char(21) not null,"
+    "Service_State ENUM('On','Off') not null,"
     "Last_Executed_Transaction char(57) not null,"
     "Last_Error_Number bigint not null,"
     "Last_Error_Message varchar(1024) not null,"

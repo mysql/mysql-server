@@ -1447,6 +1447,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
                              va_list args) const
 {
   c_rli->va_report(level, err_code, msg, args);
+  va_report(level, err_code, msg, args);
 }
 
 /**

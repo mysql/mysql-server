@@ -38,7 +38,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     {C_STRING_WITH_LEN("Thread_Id")},
-    {C_STRING_WITH_LEN("bigint")},
+    {C_STRING_WITH_LEN("char(21)")},
     {NULL, 0}
   },
   {
@@ -92,7 +92,7 @@ PFS_engine_table* table_replication_execute_status_by_coordinator::create(void)
 //TODO: some values hard-coded below, replace them --shiv
 static ST_STATUS_FIELD_INFO slave_field_info[]=
 {
-  {"Thread_Id", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
+  {"Thread_Id", 21, MYSQL_TYPE_STRING, FALSE},
   {"Service_State", sizeof(ulonglong), MYSQL_TYPE_ENUM, FALSE},
   {"Last_Error_Number", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
   {"Last_Error_Message", MAX_SLAVE_ERRMSG, MYSQL_TYPE_STRING, FALSE},
@@ -203,7 +203,15 @@ void table_replication_execute_status_by_coordinator::fill_rows(Master_info *mi)
   mysql_mutex_lock(&mi->rli->err_lock);
 
   /*TODO: COORDINATOR_THREAD_ID, COORDINATOR_SERVICE_STATE to be implemented*/
-  int_store(COORDINATOR_THREAD_ID, 5);
+  if (mi->rli->slave_running)
+  {  
+    char thread_id_null_str[21];
+    sprintf(thread_id_null_str, "%llu", (ulonglong) mi->rli->info_thd->thread_id);
+    str_store(COORDINATOR_THREAD_ID, thread_id_null_str);
+  }
+  else
+    str_store(COORDINATOR_THREAD_ID, "NULL");
+  
   enum_store(COORDINATOR_SERVICE_STATE, mi->rli->slave_running ? PS_RPL_YES : PS_RPL_NO);
   int_store(RPL_COORDINATOR_LAST_ERROR_NUMBER, (long int) mi->rli->last_error().number);
   str_store(RPL_COORDINATOR_LAST_ERROR_MESSAGE, mi->rli->last_error().message);
@@ -249,6 +257,7 @@ int table_replication_execute_status_by_coordinator::read_row_values(TABLE *tabl
         set_field_enum(f, m_fields[f->field_index].u.n);
         break;
 
+      case COORDINATOR_THREAD_ID:
       case RPL_COORDINATOR_LAST_ERROR_MESSAGE:
       case RPL_COORDINATOR_LAST_ERROR_TIMESTAMP:
 
@@ -257,7 +266,6 @@ int table_replication_execute_status_by_coordinator::read_row_values(TABLE *tabl
                                m_fields[f->field_index].u.s.length);
         break;
 
-      case COORDINATOR_THREAD_ID:
       case RPL_COORDINATOR_LAST_ERROR_NUMBER:
 
         set_field_ulonglong(f, m_fields[f->field_index].u.n);

@@ -27,6 +27,7 @@
 #include "pfs_engine_table.h"
 #include "rpl_mi.h"
 #include "mysql_com.h"
+#include "rpl_rli_pdb.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -71,7 +72,8 @@ typedef struct st_rpl_status_field_info
 #endif
 
 enum enum_rpl_execute_field_names {
-  RPL_EXECUTE_THREAD_ID= 0,
+  RPL_WORKER_ID= 0,
+  RPL_EXECUTE_THREAD_ID,
   RPL_EXECUTE_SERVICE_STATE,
   RPL_LAST_EXECUTED_TRANSACTION,
   RPL_EXECUTE_LAST_ERROR_NUMBER,
@@ -80,11 +82,16 @@ enum enum_rpl_execute_field_names {
   _RPL_EXECUTE_LAST_FIELD_= RPL_EXECUTE_LAST_ERROR_TIMESTAMP
 };
 
+struct st_worker_row
+{
+  ST_STATUS_FIELD_DATA m_fields[_RPL_EXECUTE_LAST_FIELD_ + 1];
+};
+
 /** Table PERFORMANCE_SCHEMA.replication_execute_status_per_executor */
 class table_replication_execute_status_by_executor: public PFS_engine_table
 {
 private:
-  void fill_rows(Master_info *);
+  void fill_rows(Slave_worker *);
   void drop_null(enum enum_rpl_execute_field_names f_name);
   void set_null(enum enum_rpl_execute_field_names f_name);
   void str_store(enum enum_rpl_execute_field_names f_name, const char * val);
@@ -98,10 +105,11 @@ private:
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-  /** Current only row is represented by array of fields */
-  ST_STATUS_FIELD_DATA m_fields[_RPL_EXECUTE_LAST_FIELD_ + 1];
-  /** True is the table is filled up */
+  /** current row*/
+  st_worker_row m_row;
+
   bool m_filled;
+
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -129,7 +137,7 @@ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
-
+  static ha_rows get_row_count();
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
