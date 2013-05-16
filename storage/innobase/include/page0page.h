@@ -845,15 +845,16 @@ page_create_zip(
 	ulint			zip_level,
 	trx_id_t		max_trx_id,
 	mtr_t*			mtr);
-/**********************************************************//**
-Empty a previously created B-tree index page. */
+/** Empty a previously created B-tree index page.
+@param[in/out]	block	B-tree page
+@param[in]	index	index B-tree
+@param[in/out]	mtr	mini-transaction, or NULL to suppress redo logging */
 
 void
 page_create_empty(
-/*==============*/
-	buf_block_t*	block,	/*!< in/out: B-tree block */
-	dict_index_t*	index,	/*!< in: the index of the page */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	buf_block_t*		block,
+	const dict_index_t*	index,
+	mtr_t*			mtr)
 	__attribute__((nonnull(1,2)));
 /** Copies records from block to new_block, from rec onwards, including rec.
 The infimum and supremum records are not copied. The records are

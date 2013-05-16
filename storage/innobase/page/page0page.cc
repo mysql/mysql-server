@@ -522,15 +522,16 @@ page_create_zip(
 	return(page);
 }
 
-/**********************************************************//**
-Empty a previously created B-tree index page. */
+/** Empty a previously created B-tree index page.
+@param[in/out]	block	B-tree page
+@param[in]	index	index B-tree
+@param[in/out]	mtr	mini-transaction, or NULL to suppress redo logging */
 
 void
 page_create_empty(
-/*==============*/
-	buf_block_t*	block,	/*!< in/out: B-tree block */
-	dict_index_t*	index,	/*!< in: the index of the page */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	buf_block_t*		block,
+	const dict_index_t*	index,
+	mtr_t*			mtr)
 {
 	trx_id_t	max_trx_id = 0;
 	const page_t*	page	= buf_block_get_frame(block);
