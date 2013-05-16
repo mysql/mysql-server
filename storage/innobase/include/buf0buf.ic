@@ -179,6 +179,12 @@ buf_page_peek_if_too_old(
 	} else if (buf_LRU_old_threshold_ms && bpage->old) {
 		unsigned	access_time = buf_page_is_accessed(bpage);
 
+		/* It is possible that the below comparison returns an
+		unexpected result. 2^32 milliseconds pass in about 50 days,
+		so if the difference between ut_time_ms() and access_time
+		is e.g. 50 days + 15 ms, then the below will behave as if
+		it is 15 ms. This is known and fixing it would require to
+		increase buf_page_t::access_time from 32 to 64 bits. */
 		if (access_time > 0
 		    && ((ib_uint32_t) (ut_time_ms() - access_time))
 		    >= buf_LRU_old_threshold_ms) {
