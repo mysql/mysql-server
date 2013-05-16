@@ -164,11 +164,11 @@ FROM V AS table1
 WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM I as table1s)
 ;
 pk	col_int_key
-24	13
+10	3
+17	6
 20	13
 23	4
-17	6
-10	3
+24	13
 set optimizer_switch= default;
 DROP TABLE IF EXISTS I,V;
 End of 5.6 tests
