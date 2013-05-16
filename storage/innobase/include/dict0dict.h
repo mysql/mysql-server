@@ -42,6 +42,10 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 #include "row0types.h"
+#include <deque>
+
+/** A stack of table names related through foreign key constraints */
+typedef std::deque<const char*> dict_names_t;
 
 #ifndef UNIV_HOTBACKUP
 # include "sync0sync.h"
@@ -551,20 +555,20 @@ Returns a table object and increments its open handle count.
 NOTE! This is a high-level function to be used mainly from outside the
 'dict' directory. Inside this directory dict_table_get_low
 is usually the appropriate function.
+@param[in]  table_name		Table name
+@param[in]  dict_locked		TRUE=data dictionary locked
+@param[in]  try_drop		TRUE=try to drop any orphan indexes after
+				an aborted online index creation
+@param[in]  ignore_err		error to be ignored when loading the table
 @return	table, NULL if does not exist */
 UNIV_INTERN
 dict_table_t*
 dict_table_open_on_name(
-/*====================*/
-	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
-	ibool		try_drop,	/*!< in: TRUE=try to drop any orphan
-					indexes after an aborted online
-					index creation */
-	dict_err_ignore_t
-			ignore_err)	/*!< in: error to be ignored when
-					loading the table */
-	__attribute__((nonnull, warn_unused_result));
+	const char*		table_name,
+	ibool			dict_locked,
+	ibool			try_drop,
+	dict_err_ignore_t	ignore_err)
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Tries to find an index whose first fields are the columns in the array,
