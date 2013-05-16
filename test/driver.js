@@ -171,7 +171,7 @@ var usageMessage =
   "   --test=<n,m,...>: only run tests numbered n, m, etc. in <file>\n " +
   "--adapter=<adapter>: only run on the named adapter/engine (e.g. ndb or mysql)\n" +
   "                     optionally add engine (e.g. mysql/ndb or mysql/innodb\n" +
-  "     --timeout=<ms>: set timeout (in msec); set to 0 to disable timeout.\n" +
+  "     --timeout=<ms>: set timeout in msec.\n" +
   "--set <var>=<value>: set a global variable\n" +
   "       --skip-smoke: do not run SmokeTest\n" +
   "       --skip-clear: do not run ClearSmokeTest\n" +
@@ -221,9 +221,12 @@ for(i = 2; i < process.argv.length ; i++) {
     break;
   case '--failed':
     driver.result.listener = new harness.FailOnlyListener();
+    // --failed and -q both imply 10 sec. timeout:
+    timeoutMillis = 10000;
     break;
   case '-q':
     driver.result.listener = new harness.QuietListener();
+    timeoutMillis = 10000;
     break;
   case '--stats':
     driver.doStats = true;
