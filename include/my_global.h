@@ -727,9 +727,7 @@ typedef long long	my_ptrdiff_t;
 
 /* Typdefs for easyier portability */
 
-#ifndef HAVE_UCHAR
 typedef unsigned char	uchar;	/* Short for unsigned char */
-#endif
 
 #ifndef HAVE_INT8
 typedef signed char int8;       /* Signed integer >= 8  bits */
