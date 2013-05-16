@@ -314,6 +314,41 @@ fts_update_sync_doc_id(
 	doc_id_t		doc_id,		/*!< in: last document id */
 	trx_t*			trx)		/*!< in: update trx, or NULL */
 	__attribute__((nonnull(1)));
+
+/** Get a character set based on precise type.
+@param prtype	precise type
+@return the corresponding character set */
+UNIV_INLINE
+CHARSET_INFO*
+fts_get_charset(ulint prtype)
+{
+#ifdef UNIV_DEBUG
+	switch (prtype & DATA_MYSQL_TYPE_MASK) {
+	case MYSQL_TYPE_BIT:
+	case MYSQL_TYPE_STRING:
+	case MYSQL_TYPE_VAR_STRING:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_VARCHAR:
+		break;
+	default:
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
+
+	uint cs_num = dtype_get_charset_coll(prtype);
+
+	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
+		return(cs);
+	}
+
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Unable to find charset-collation %u", cs_num);
+	return(NULL);
+}
+
 /********************************************************************
 Check if we should stop. */
 UNIV_INLINE
@@ -353,9 +388,9 @@ fts_load_default_stopword(
 	heap = static_cast<mem_heap_t*>(allocator->arg);
 
 	if (!stopword_info->cached_stopword) {
-		/* For default stopword, we always use fts_utf8_string_cmp() */
-		stopword_info->cached_stopword = rbt_create(
-			sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
+		stopword_info->cached_stopword = rbt_create_arg_cmp(
+			sizeof(fts_tokenizer_word_t), innobase_fts_text_cmp,
+			&my_charset_latin1);
 	}
 
 	stop_words = stopword_info->cached_stopword;
@@ -955,9 +990,7 @@ fts_index_get_charset(
 	field = dict_index_get_nth_field(index, 0);
 	prtype = field->col->prtype;
 
-	charset = innobase_get_fts_charset(
-		(int) (prtype & DATA_MYSQL_TYPE_MASK),
-		(uint) dtype_get_charset_coll(prtype));
+	charset = fts_get_charset(prtype);
 
 #ifdef FTS_DEBUG
 	/* Set up charset info for this index. Please note all
@@ -968,9 +1001,7 @@ fts_index_get_charset(
 		field = dict_index_get_nth_field(index, i);
 		prtype = field->col->prtype;
 
-		fld_charset = innobase_get_fts_charset(
-			(int)(prtype & DATA_MYSQL_TYPE_MASK),
-			(uint) dtype_get_charset_coll(prtype));
+		fld_charset = fts_get_charset(prtype);
 
 		/* All FTS columns should have the same charset */
 		if (charset) {
@@ -1847,17 +1878,12 @@ fts_create_one_index_table(
 	new_table = dict_mem_table_create(table_name, 0, 5, 1, 0);
 
 	field = dict_index_get_nth_field(index, 0);
-	charset = innobase_get_fts_charset(
-		(int)(field->col->prtype & DATA_MYSQL_TYPE_MASK),
-		(uint) dtype_get_charset_coll(field->col->prtype));
+	charset = fts_get_charset(field->col->prtype);
 
-	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
-		dict_mem_table_add_col(new_table, heap, "word", DATA_VARCHAR,
-				       field->col->prtype, FTS_MAX_WORD_LEN);
-	} else {
-		dict_mem_table_add_col(new_table, heap, "word", DATA_VARMYSQL,
-				       field->col->prtype, FTS_MAX_WORD_LEN);
-	}
+	dict_mem_table_add_col(new_table, heap, "word",
+			       charset == &my_charset_latin1
+			       ? DATA_VARCHAR : DATA_VARMYSQL,
+			       field->col->prtype, FTS_MAX_WORD_LEN);
 
 	dict_mem_table_add_col(new_table, heap, "first_doc_id", DATA_INT,
 			       DATA_NOT_NULL | DATA_UNSIGNED,
@@ -3167,10 +3193,7 @@ fts_query_expansion_fetch_doc(
 		}
 
 		if (!doc_charset) {
-			ulint   prtype = dfield->type.prtype;
-			doc_charset = innobase_get_fts_charset(
-					(int)(prtype & DATA_MYSQL_TYPE_MASK),
-					(uint) dtype_get_charset_coll(prtype));
+			doc_charset = fts_get_charset(dfield->type.prtype);
 		}
 
 		doc.charset = doc_charset;
@@ -3255,12 +3278,8 @@ fts_fetch_doc_from_rec(
 		clust_pos = dict_col_get_clust_pos(col, clust_index);
 
 		if (!get_doc->index_cache->charset) {
-			ulint   prtype = ifield->col->prtype;
-
-			get_doc->index_cache->charset =
-				innobase_get_fts_charset(
-					(int) (prtype & DATA_MYSQL_TYPE_MASK),
-					(uint) dtype_get_charset_coll(prtype));
+			get_doc->index_cache->charset = fts_get_charset(
+				ifield->col->prtype);
 		}
 
 		if (rec_offs_nth_extern(offsets, clust_pos)) {
@@ -6046,7 +6065,7 @@ Caller is responsible to hold dictionary locks.
 CHARSET_INFO*
 fts_valid_stopword_table(
 /*=====================*/
-	 const char*	stopword_table_name)	/*!< in: Stopword table
+	const char*	stopword_table_name)	/*!< in: Stopword table
 						name */
 {
 	dict_table_t*	table;
@@ -6093,9 +6112,7 @@ fts_valid_stopword_table(
 
 	ut_ad(col);
 
-	return(innobase_get_fts_charset(
-		static_cast<int>(col->prtype & DATA_MYSQL_TYPE_MASK),
-		static_cast<ulint>(dtype_get_charset_coll(col->prtype))));
+	return(fts_get_charset(col->prtype));
 }
 
 /**********************************************************************//**
@@ -6218,8 +6235,9 @@ cleanup:
 	}
 
 	if (!cache->stopword_info.cached_stopword) {
-		cache->stopword_info.cached_stopword = rbt_create(
-			sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
+		cache->stopword_info.cached_stopword = rbt_create_arg_cmp(
+			sizeof(fts_tokenizer_word_t), innobase_fts_text_cmp,
+			&my_charset_latin1);
 	}
 
 	return(error == DB_SUCCESS);
@@ -6316,12 +6334,8 @@ fts_init_recover_doc(
 		ut_ad(get_doc);
 
 		if (!get_doc->index_cache->charset) {
-			ulint   prtype = dfield->type.prtype;
-
-			get_doc->index_cache->charset =
-				innobase_get_fts_charset(
-				(int)(prtype & DATA_MYSQL_TYPE_MASK),
-				(uint) dtype_get_charset_coll(prtype));
+			get_doc->index_cache->charset = fts_get_charset(
+				dfield->type.prtype);
 		}
 
 		doc.charset = get_doc->index_cache->charset;
