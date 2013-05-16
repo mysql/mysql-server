@@ -342,10 +342,10 @@ class Dummy_table_util
 
 
   bool
-  resolve_dummy_fk(NdbDictionary::Dictionary* dict, NdbDictionary::ForeignKey& fk,
+  copy_fk_to_new_parent(NdbDictionary::Dictionary* dict, NdbDictionary::ForeignKey& fk,
                    const char* new_parent_name, const char* column_names[]) const
   {
-    DBUG_ENTER("resolve_dummy_fk");
+    DBUG_ENTER("copy_fk_to_new_parent");
     DBUG_PRINT("info", ("new_parent_name: %s", new_parent_name));
 
     // Load up the new parent table
@@ -508,7 +508,7 @@ class Dummy_table_util
         }
       }
 
-      if (!resolve_dummy_fk(dict, fk, new_parent_name, col_names))
+      if (!copy_fk_to_new_parent(dict, fk, new_parent_name, col_names))
         continue;
 
       // New fk has been created between child and new parent, drop the dummy
