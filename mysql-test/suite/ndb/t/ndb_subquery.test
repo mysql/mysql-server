@@ -157,6 +157,7 @@ SELECT pk, col_int_key
   FROM V AS table1 
   WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM I as table1s)
 ;
+--sorted_result
 SELECT pk, col_int_key
   FROM V AS table1 
   WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM I as table1s)
