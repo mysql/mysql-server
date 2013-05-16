@@ -47,7 +47,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Thread_Id")},
-    {C_STRING_WITH_LEN("bigint")},
+    {C_STRING_WITH_LEN("char(21)")},
     {NULL, 0}
   },
   {
@@ -106,7 +106,7 @@ PFS_engine_table* table_replication_connection_status_by_channel::create(void)
 static ST_STATUS_FIELD_INFO slave_field_info[]=
 {
   {"Source_UUID", HOSTNAME_LENGTH, MYSQL_TYPE_STRING, FALSE},
-  {"Thread_Id", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
+  {"Thread_Id", 21, MYSQL_TYPE_STRING, FALSE},
   {"Service_State", sizeof(ulonglong), MYSQL_TYPE_ENUM, FALSE},
   {"Received_Transsaction_Set", 300, MYSQL_TYPE_STRING, FALSE},
   {"Last_Error_Number", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
@@ -227,7 +227,8 @@ void table_replication_connection_status_by_channel::fill_rows(Master_info *mi)
     }
     global_sid_lock->unlock();
   }
-
+  
+  //TODO: get rid of mutexes that are not needed.
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
   mysql_mutex_lock(&mi->err_lock);
@@ -236,7 +237,14 @@ void table_replication_connection_status_by_channel::fill_rows(Master_info *mi)
   str_store(SOURCE_UUID, mi->master_uuid);
 
   //TODO: thread-id code pending, hardcoded below
-  int_store(IO_THREAD_ID, 5);
+  if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
+  {
+    char thread_id_null_str[21];
+    sprintf(thread_id_null_str, "%llu", (ulonglong) mi->info_thd->thread_id);
+    str_store(IO_THREAD_ID, thread_id_null_str);
+  }
+  else
+    str_store(IO_THREAD_ID, "NULL");
 
   enum_store(RPL_CONNECT_SERVICE_STATE, mi->slave_running == MYSQL_SLAVE_RUN_CONNECT ?
              PS_RPL_CONNECT_SERVICE_STATE_YES:
@@ -283,6 +291,7 @@ int table_replication_connection_status_by_channel::read_row_values(TABLE *table
 
       switch(f->field_index)
       {
+      case IO_THREAD_ID:
       case RPL_CONNECT_LAST_ERROR_MESSAGE:
       case RPL_CONNECT_LAST_ERROR_TIMESTAMP:
       case SOURCE_UUID:
@@ -292,7 +301,6 @@ int table_replication_connection_status_by_channel::read_row_values(TABLE *table
                                m_fields[f->field_index].u.s.length);
         break;
 
-      case IO_THREAD_ID:
       case RPL_CONNECT_LAST_ERROR_NUMBER:
 
         set_field_ulonglong(f, m_fields[f->field_index].u.n);
