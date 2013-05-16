@@ -43,7 +43,8 @@ mystart=/etc/init.d/mysql
 # Check: Is this a first installation, or an upgrade ?
 
 if [ -d "$mydatadir/mysql" ] ; then
-  :   # If the directory for system table files exists, we assume an upgrade.
+   # If the directory for system table files exists, we assume an upgrade.
+  INSTALL=upgrade
 else
   INSTALL=new  # This is a new installation, the directory will soon be created.
 fi
@@ -58,7 +59,7 @@ fi
 
 chown -R $myuser:$mygroup $mydatadir
 
-if [ -n "$INSTALL" ] ; then
+if [ "$INSTALL" -eq "new" ] ; then
   # We install/update the system tables
   (
     cd "$mybasedir"
