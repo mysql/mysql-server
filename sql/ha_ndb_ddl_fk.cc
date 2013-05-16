@@ -579,7 +579,7 @@ class Dummy_table_util
     NdbDictionary::Dictionary::List list;
     if (dict->listDependentObjects(list, *table) != 0)
     {
-      error(dict, "Failed to list dependent objects for dummy table '%s'", table->getName());
+      error(dict, "Failed to list dependent objects for table '%s'", table->getName());
       DBUG_RETURN(false);
     }
 
@@ -877,6 +877,7 @@ public:
     NdbDictionary::Dictionary::List list;
     if (dict->listDependentObjects(list, *table) != 0)
     {
+      error(dict, "Failed to list dependent objects for table '%s'", table->getName());
       DBUG_RETURN(false);
     }
 
