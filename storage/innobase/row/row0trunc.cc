@@ -289,7 +289,16 @@ row_truncate_rollback(
 		SysIndexIterator().for_each(dropIndex);
 		dict_table_x_unlock_indexes(table);
 
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			dict_set_corrupted(index, trx, "TRUNCATE TABLE");
+		}
+
 	} else if (corrupted && dict_table_is_temporary(table)) {
+
+		dict_table_x_lock_indexes(table);
 
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index != NULL;
@@ -300,6 +309,7 @@ row_truncate_rollback(
 			index->page = FIL_NULL;
 		}
 
+		dict_table_x_unlock_indexes(table);
 	}
 
 	table->corrupted = corrupted;
@@ -338,11 +348,18 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 
 		DBUG_EXECUTE_IF("ib_trunc_crash_after_log_checkpoint",
 				DBUG_SUICIDE(););
+	}
 
-		if (!Tablespace::is_system_tablespace(table->space)) {
-			err = truncate_t::truncate(
-				table->space, table->name,
-				table->data_dir_path, flags, false);
+	if (!dict_table_is_temporary(table)
+	    && flags != ULINT_UNDEFINED
+	    && !Tablespace::is_system_tablespace(table->space)) {
+		/* This function will reset back the stop_new_ops
+		and is_being_truncated so that fil-ops can re-start. */
+		dberr_t err2 = truncate_t::truncate(
+			table->space, table->name,
+			table->data_dir_path, flags, false);
+		if (err2 != DB_SUCCESS) {
+			return(err2);
 		}
 	}
 
