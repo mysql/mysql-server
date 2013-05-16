@@ -122,8 +122,9 @@ UNIV_INTERN
 void
 trx_rseg_mem_free(
 /*==============*/
-	trx_rseg_t*	rseg);		/*!< in, own: instance to free */
-
+	trx_rseg_t*	rseg,		/*!< in, own: instance to free */
+	trx_rseg_t**	rseg_array);	/*!< out: add rseg reference to this
+					central array. */
 /*********************************************************************
 Creates a rollback segment. */
 UNIV_INTERN
