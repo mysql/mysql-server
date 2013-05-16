@@ -498,7 +498,6 @@ public:
 	pointer	allocate(size_type n, const_pointer hint = 0) {
 		DBUG_ENTER("mem_heap_allocator::allocate");
 
-		DBUG_PRINT("info", ("bytes: '%lu'", n*sizeof(T)));
 #ifdef UNIV_DEBUG
 		DBUG_ASSERT(mem_heap_check(heap));
 #endif /* UNIV_DEBUG */
@@ -507,11 +506,6 @@ public:
 	}
 
 	void deallocate(pointer p, size_type n) {
-		DBUG_ENTER("mem_heap_allocator::deallocate");
-
-		DBUG_PRINT("info", ("pointer: '%p' size: %lu", p, n));
-
-		DBUG_VOID_RETURN;
 	}
 
 	pointer address (reference r) const {
@@ -523,19 +517,11 @@ public:
 	}
 
 	void construct(pointer p, const_reference t) {
-		DBUG_ENTER("mem_heap_allocator::construct");
-
 		new (reinterpret_cast<void*>(p)) T(t);
-
-		DBUG_VOID_RETURN;
 	}
 
 	void destroy(pointer p) {
-		DBUG_ENTER("mem_heap_allocator::destroy");
-
 		(reinterpret_cast<T*>(p))->~T();
-
-		DBUG_VOID_RETURN;
 	}
 
 	/** Allocators are required to supply the below template class member
