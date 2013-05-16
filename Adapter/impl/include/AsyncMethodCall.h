@@ -78,7 +78,6 @@ class AsyncCall {
 
   public:
     AsyncCall(Local<Value> callbackFunc) {
-      // FIXME: raise an error if you use the wrong type as a callback
       callback = Persistent<Function>::New(Local<Function>::Cast(callbackFunc));
     }
 
@@ -96,9 +95,14 @@ class AsyncCall {
 
     /* Base Class Fixed Methods */
     void runAsync() {
-      uv_work_t * req = new uv_work_t;
-      req->data = (void *) this;
-      uv_queue_work(uv_default_loop(), req, work_thd_run, ASYNC_COMMON_MAIN_THD_CALLBACK);
+      if (callback->IsCallable()) {
+        uv_work_t * req = new uv_work_t;
+        req->data = (void *) this;
+        uv_queue_work(uv_default_loop(), req, work_thd_run, ASYNC_COMMON_MAIN_THD_CALLBACK);
+      }
+      else {
+        ThrowException(Exception::TypeError(String::New("Uncallable Callback")));
+      }
     }
 };
 
@@ -154,8 +158,6 @@ public:
   */
   void doAsyncCallback(Local<Object> context) {
     HandleScope scope;
-    //String::Utf8Value cbname(callback->GetName());
-    //DEBUG_PRINT("doAsyncCallback() [%s]", *cbname);
     Handle<Value> cb_args[2];
 
     if(error) cb_args[0] = error->toJS();

@@ -144,11 +144,9 @@ Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
 
 Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
-  
-  REQUIRE_ARGS_LENGTH(0);  
-  Ndb_cluster_connection *c = unwrapPointer<Ndb_cluster_connection *>(args.Holder());
-
-  delete c;
+  typedef NativeDestructorCall<Ndb_cluster_connection *> MCALL;
+  MCALL * mcallptr = new MCALL(args);
+  mcallptr->runAsync();
   return Undefined();
 }
 

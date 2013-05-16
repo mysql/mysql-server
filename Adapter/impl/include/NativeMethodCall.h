@@ -29,6 +29,22 @@
  * for non-const methods.
  */
 
+
+template <typename C> 
+class NativeDestructorCall : public NativeVoidMethodCall<C> {
+public:
+  /* Constructor */
+  NativeDestructorCall<C>(const Arguments &args) :
+    NativeVoidMethodCall<C>(args, 0)
+  { }
+
+  /* Method */
+  void run() {
+    delete NativeVoidMethodCall<C>::native_obj;
+  }
+};
+
+
 /** Template class with:
  * wrapped class C
  * no arguments & void return
@@ -42,7 +58,7 @@ public:
   
   /* Constructors */
    NativeVoidMethodCall_0_<C>(Method_T m, const Arguments &args) :
-    NativeVoidMethodCall<C>(args, 1),
+    NativeVoidMethodCall<C>(args, 0),
     method(m)
   {  } 
   

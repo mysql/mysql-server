@@ -98,16 +98,35 @@ function releaseNdbConnection(connectString, msecToLinger, userCallback) {
 }
 
 
-exports.closeNdbSession = function(ndbPool, ndbSession) {
-  if(ndbPool.ndbConnection.isDisconnecting  ||
-      ( ndbPool.ndbSessionFreeList.length > 
-        ndbPool.properties.ndb_session_pool_max))
+exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
+  var ndbConn = ndbPool.ndbConnection;
+  var apiCall;
+
+  if(! ndbConn.isConnected) 
   {
-    ndbSession.impl.close();
+    /* The parent connection is already gone. */
+    userCallback();
+  }
+  else if( ndbConn.isDisconnecting ||
+           ( ndbPool.ndbSessionFreeList.length > 
+             ndbPool.properties.ndb_session_pool_max))
+  {
+    /* (A) The connection is going to close, or (B) The freelist is full. 
+       Either way, enqueue a close call.
+    */
+    apiCall = new QueuedAsyncCall(ndbConn.execQueue, userCallback);
+    apiCall.description = "closeNdb";
+    apiCall.ndb = ndbSession.impl;
+    apiCall.run = function() {
+      this.ndb.close(this.callback);
+    }
+    apiCall.enqueue();
   }
   else 
   { 
+    /* Do not actually close; just put the session on the freelist */
     ndbPool.ndbSessionFreeList.push(ndbSession);
+    userCallback();
   }
 };
 
@@ -120,13 +139,17 @@ function prefetchSession(ndbPool) {
       pool_min = ndbPool.properties.ndb_session_pool_min,
       ndbSession;
 
+  function closeCallback(x) {
+    return; 
+  }
+
   function onFetch(err, ndbSessionImpl) {
     if(err) {
       stats.incr(["ndbSession","prefetch","errors"]);
       udebug.log("prefetchSession onFetch ERROR", err);
     }
     else if(ndbPool.ndbConnection.isDisconnecting) {
-      ndbSessionImpl.close();
+      ndbSessionImpl.close(closeCallback);
     }
     else {
       stats.incr(["ndbSession","prefetch","success"]);
@@ -242,18 +265,35 @@ DBConnectionPool.prototype.isConnected = function() {
    ASYNC.
 */
 DBConnectionPool.prototype.close = function(userCallback) {
-  var i, table;
+  var session, table, properties, nclose;
+  nclose = this.ndbSessionFreeList.length + this.openTables.length;
+  properties = this.properties;
+  udebug.log("DBConnectionPool.close()", nclose);
+
+  function onNdbClose() {
+    nclose--;
+    udebug.log("nclose", nclose);
+    if(nclose === 0) {
+      releaseNdbConnection(properties.ndb_connectstring,
+                           properties.linger_on_close_msec,
+                           userCallback);    
+    }  
+  }
+  
+  /* Special case: nothing to close */
+  if(nclose === 0) {
+    nclose = 1; onNdbClose();
+  }
+  
   /* Close the NDB on open tables */
   while(table = this.openTables.pop()) {
-    table.per_table_ndb.close();
+    table.per_table_ndb.close(onNdbClose);
   }
 
-  for(i = 0 ; i < this.ndbSessionFreeList.length ; i++) {
-    this.ndbSessionFreeList[i].impl.close();
-  }
-  releaseNdbConnection(this.properties.ndb_connectstring,
-                       this.properties.linger_on_close_msec,
-                       userCallback);
+  /* Close the NDBs from the session pool */
+  while(session = this.ndbSessionFreeList.pop()) {
+    session.impl.close(onNdbClose);
+  }  
 };
 
 
@@ -263,23 +303,19 @@ DBConnectionPool.prototype.close = function(userCallback) {
    Users's callback receives (error, DBSession)
 */
 DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
-  udebug.log("getDBSession");
-  assert(this.impl);
-  assert(user_callback);
-  var db   = this.properties.database,
-      self = this,
-      user_session;
+  var self, user_session, apiCall;
+  self = this;
 
   function private_callback(err, sessImpl) {
     udebug.log("getDBSession private_callback");
+    var userSession;
 
-    var user_session;
     if(err) {
       user_callback(err, null);
     }
     else {  
-      user_session = ndbsession.newDBSession(self, sessImpl);
-      user_callback(null, user_session);
+      userSession = ndbsession.newDBSession(self, sessImpl);
+      user_callback(null, userSession);
     }
   }
 
@@ -289,8 +325,16 @@ DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
     user_callback(null, user_session);
   }
   else {
+    // NOTE: It may not be necessary to serialize these.
     stats.incr( [ "ndbSession","pool","misses" ] );
-    adapter.ndb.impl.create_ndb(this.impl, db, private_callback);
+    apiCall = new QueuedAsyncCall(this.ndbConnection.execQueue, private_callback);
+    apiCall.description = "newNdb";
+    apiCall.impl = this.ndbConnection.ndb_cluster_connection;
+    apiCall.db = this.properties.database;
+    apiCall.run = function() {
+      adapter.ndb.impl.create_ndb(this.impl, this.db, this.callback);
+    }
+    apiCall.enqueue();
   }
 };
 

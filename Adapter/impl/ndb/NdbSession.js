@@ -152,13 +152,11 @@ NdbSession.prototype.getConnectionPool = function() {
    ASYNC. Optional callback.
 */
 NdbSession.prototype.close = function(userCallback) {
-  udebug.log("close");
-  
-  ndbconnection.closeNdbSession(this.parentPool, this);
+  var callback;
+  function defaultCallback() { }
+  callback = typeof userCallback === 'function' ? userCallback : defaultCallback;
 
-  if(userCallback) {
-    userCallback(null, null);
-  }
+  ndbconnection.closeNdbSession(this.parentPool, this, callback);
 };
 
 
