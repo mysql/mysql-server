@@ -126,7 +126,9 @@ UNIV_INTERN
 void
 trx_rseg_mem_free(
 /*==============*/
-	trx_rseg_t*	rseg)	/* in, own: instance to free */
+	trx_rseg_t*	rseg,		/* in, own: instance to free */
+	trx_rseg_t**	rseg_array)	/*!< out: add rseg reference to this
+					central array. */
 {
 	trx_undo_t*	undo;
 	trx_undo_t*	next_undo;
@@ -163,11 +165,8 @@ trx_rseg_mem_free(
 		trx_undo_mem_free(undo);
 	}
 
-	/* const_cast<trx_rseg_t*>() because this function is
-	like a constructor.  */
-	ut_a(trx_sys->rseg_array[rseg->id] == rseg);
-
-	*((trx_rseg_t**) trx_sys->rseg_array + rseg->id) = NULL;
+	ut_a(*((trx_rseg_t**) rseg_array + rseg->id) == rseg);
+	*((trx_rseg_t**) rseg_array + rseg->id) = NULL;
 
 	mem_free(rseg);
 }
