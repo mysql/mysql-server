@@ -398,20 +398,25 @@ ulint
 page_rec_get_n_recs_before(
 /*=======================*/
 	const rec_t*	rec);	/*!< in: the physical record */
-/*************************************************************//**
-Gets the number of records in the heap.
-@return	number of user records */
+/** Get the number of records in the heap.
+@param[in]	page	B-tree page
+@return	number of records in the heap
+(user records, infimum and supremum, and records in the PAGE_FREE list) */
 UNIV_INLINE
 ulint
 page_dir_get_n_heap(
-/*================*/
-	const page_t*	page);	/*!< in: index page */
-/*************************************************************//**
-Sets the number of records in the heap. */
+	const page_t*	page)
+	__attribute__((nonnull, pure));
+
+/** Set the number of records in the heap.
+@param[in/out]	page		B-tree page
+@param[in/out]	page_zip	compressed page whose uncompressed part
+will be updated, or NULL. Note that the size of the dense page directory
+in the compressed page trailer is n_heap * PAGE_ZIP_DIR_SLOT_SIZE.
+@param[in]	n_heap		number of records */
 UNIV_INLINE
 void
 page_dir_set_n_heap(
-/*================*/
 	page_t*		page,	/*!< in/out: index page */
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
 				uncompressed part will be updated, or NULL.
