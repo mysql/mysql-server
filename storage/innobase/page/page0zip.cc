@@ -841,7 +841,7 @@ page_zip_compress_node_ptrs(
 	do {
 		const rec_t*	rec	= *recs++;
 		ulint		extra;
-		ulint		n_ext;
+		ulint		n_ext	= 0;
 		const ulint	data	= rec_get_size_comp(
 			rec, index, extra, &n_ext);
 
@@ -2211,7 +2211,7 @@ page_zip_decompress_node_ptrs(
 		heap_status += 1 << REC_HEAP_NO_SHIFT;
 
 		ulint	extra;
-		ulint	n_ext;
+		ulint	n_ext	= 0;
 		ulint	data	= rec_get_size_comp(
 			rec, index, extra, &n_ext);
 
