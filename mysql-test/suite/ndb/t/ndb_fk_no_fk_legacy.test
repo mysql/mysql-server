@@ -1,0 +1,26 @@
+SET @save_foreign_key_checks=@@foreign_key_checks;
+
+#
+# Test legacy compatibility of no fk foreign key support in NDB
+#  - snippets of other tests converted to use different engines
+#    for quick and easy compatibility test
+#
+let $engine= NDB;
+
+SET foreign_key_checks=0;
+eval CREATE TABLE t1 (id int primary key, foreign key (id) references t2(id)) ENGINE=$engine;
+eval CREATE TABLE t2 (id int primary key, foreign key (id) references t1(id)) ENGINE=$engine;
+SET foreign_key_checks=1;
+SELECT COUNT(*) FROM information_schema.key_column_usage
+  WHERE REFERENCED_TABLE_NAME in ('t1', 't2');
+SET foreign_key_checks=0;
+#Changed drop order, dropping in reverse order fails with "Ndb error 4238 'Trigger not found'"
+#DROP TABLE t1, t2;
+DROP TABLE t2, t1;
+
+
+
+# Cleanup
+SET @@foreign_key_checks = @save_foreign_key_checks;
+
+
