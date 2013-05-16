@@ -798,6 +798,8 @@ innobase_get_foreign_key_info(
 	ulint		num_fk = 0;
 	Alter_info*	alter_info = ha_alter_info->alter_info;
 
+	DBUG_ENTER("innobase_get_foreign_key_info");
+
 	*n_add_fk = 0;
 
 	List_iterator<Key> key_iterator(alter_info->key_list);
@@ -999,7 +1001,7 @@ innobase_get_foreign_key_info(
 
 	*n_add_fk = num_fk;
 
-	return(true);
+	DBUG_RETURN(true);
 err_exit:
 	for (ulint i = 0; i <= num_fk; i++) {
 		if (add_fk[i]) {
@@ -1007,7 +1009,7 @@ err_exit:
 		}
 	}
 
-	return(false);
+	DBUG_RETURN(false);
 }
 
 /*************************************************************//**
@@ -4996,8 +4998,11 @@ innobase_update_foreign_cache(
 	ha_innobase_inplace_ctx*	ctx)
 {
 	dict_table_t*	user_table;
+	dberr_t		err = DB_SUCCESS;
 
 	DBUG_ENTER("innobase_update_foreign_cache");
+
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	user_table = ctx->old_table;
 
@@ -5030,9 +5035,16 @@ innobase_update_foreign_cache(
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
-	DBUG_RETURN(dict_load_foreigns(user_table->name,
-				       ctx->col_names, false, true,
-				       DICT_ERR_IGNORE_NONE));
+	dict_names_t	fk_tables;
+
+	err = dict_load_foreigns(user_table->name,
+				 ctx->col_names, false, true,
+				 DICT_ERR_IGNORE_NONE,
+				 fk_tables);
+
+	ut_ad(fk_tables.empty());
+
+	DBUG_RETURN(err);
 }
 
 /** Commit the changes made during prepare_inplace_alter_table()
@@ -5957,6 +5969,9 @@ ha_innobase::commit_inplace_alter_table(
 			because WL#6049 (FK MDL) has not been
 			implemented yet. */
 			ctx->old_table->to_be_dropped = true;
+
+			DBUG_PRINT("to_be_dropped",
+				   ("table: %s", ctx->old_table->name));
 
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);

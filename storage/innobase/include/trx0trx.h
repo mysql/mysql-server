@@ -477,6 +477,16 @@ trx_assign_rseg(
 	trx_t*		trx);		/*!< transaction that involves write
 					to temp-table. */
 
+/** Create the trx_t pool */
+UNIV_INTERN
+void
+trx_pool_init();
+
+/** Destroy the trx_t pool */
+UNIV_INTERN
+void
+trx_pool_close();
+
 /*************************************************************//**
 Set the transaction as a read-write transaction if it is not already
 tagged as such. */
@@ -486,6 +496,31 @@ trx_set_rw_mode(
 /*============*/
 	trx_t*		trx);		/*!< in/out: transaction that is RW */
 
+/**
+Increase the reference count. If the transaction is in state
+TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered
+committed and the reference count is not incremented.
+@param trx		Transaction that is being referenced
+@param do_ref_count	Increment the reference iff this is true
+@return transaction instance if it is not committed */
+UNIV_INLINE
+trx_t*
+trx_reference(
+	trx_t*		trx,
+	bool		do_ref_count);
+
+/**
+Release the transaction. Decrease the reference count.
+@param trx	Transaction that is being released */
+UNIV_INLINE
+void
+trx_release_reference(
+	trx_t*		trx);
+
+/**
+Check if the transaction is being referenced. */
+#define trx_is_referenced(t)	((t)->n_ref > 0)
+
 /*******************************************************************//**
 Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
@@ -493,9 +528,9 @@ wait timeout to 0 instead of the user configured value that comes
 from innodb_lock_wait_timeout via trx_t::mysql_thd.
 @param trx	transaction
 @return		lock wait timeout in seconds */
-#define trx_lock_wait_timeout_get(trx)					\
-	((trx)->mysql_thd != NULL					\
-	 ? thd_lock_wait_timeout((trx)->mysql_thd)			\
+#define trx_lock_wait_timeout_get(t)					\
+	((t)->mysql_thd != NULL						\
+	 ? thd_lock_wait_timeout((t)->mysql_thd)			\
 	 : 0)
 
 /*******************************************************************//**
@@ -732,12 +767,22 @@ enum trx_rseg_type_t {
 };
 
 struct trx_t{
-	ulint		magic_n;
+	UT_LIST_NODE_T(trx_t)
+			trx_list;	/*!< list of transactions;
+					protected by trx_sys->mutex.
+					The same node is used for both
+					trx_sys_t::ro_trx_list and
+					trx_sys_t::rw_trx_list */
 
-	ib_mutex_t	mutex;		/*!< Mutex protecting the fields
-					state and lock
-					(except some fields of lock, which
-					are protected by lock_sys->mutex) */
+	trx_id_t	id;		/*!< transaction id */
+
+	trx_id_t	no;		/*!< transaction serialization number:
+					max trx id shortly before the
+					transaction is moved to
+					COMMITTED_IN_MEMORY state.
+					Protected by trx_sys_t::mutex
+					when trx->in_rw_trx_list. Initially
+					set to TRX_ID_MAX. */
 
 	/** State of the trx from the point of view of concurrency control
 	and the valid state transitions.
@@ -805,11 +850,16 @@ struct trx_t{
 
 	trx_state_t	state;
 
+	ib_mutex_t	mutex;		/*!< Mutex protecting the fields
+					state and lock
+					(except some fields of lock, which
+					are protected by lock_sys->mutex) */
+
 	trx_lock_t	lock;		/*!< Information about the transaction
 					locks and state. Protected by
 					trx->mutex or lock_sys->mutex
 					or both */
-	ulint		is_recovered;	/*!< 0=normal transaction,
+	bool		is_recovered;	/*!< 0=normal transaction,
 					1=recovered, must be rolled back,
 					protected by trx_sys->mutex when
 					trx->in_rw_trx_list holds */
@@ -819,7 +869,7 @@ struct trx_t{
 					current operation, or an empty
 					string */
 	ulint		isolation_level;/*!< TRX_ISO_REPEATABLE_READ, ... */
-	ulint		check_foreigns;	/*!< normally TRUE, but if the user
+	bool		check_foreigns;	/*!< normally TRUE, but if the user
 					wants to suppress foreign key checks,
 					(in table imports, for example) we
 					set this FALSE */
@@ -834,32 +884,32 @@ struct trx_t{
 					is set to false  after commit or
 					rollback. */
 	/*------------------------------*/
-	ulint		check_unique_secondary;
+	bool		check_unique_secondary;
 					/*!< normally TRUE, but if the user
 					wants to speed up inserts by
 					suppressing unique key checks
 					for secondary indexes when we decide
 					if we can use the insert buffer for
 					them, we set this FALSE */
-	ulint		support_xa;	/*!< normally we do the XA two-phase
+	bool		support_xa;	/*!< normally we do the XA two-phase
 					commit steps, but by setting this to
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
 					we skip XA steps */
-	ulint		flush_log_later;/* In 2PC, we hold the
+	bool		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we
 					defer flush of the logs to disk
 					until after we release the
 					mutex. */
-	ulint		must_flush_log_later;/*!< this flag is set to TRUE in
+	bool		must_flush_log_later;/*!< this flag is set to TRUE in
 					trx_commit() if flush_log_later was
 					TRUE, and there were modifications by
 					the transaction; in that case we must
 					flush the log in
 					trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
-	ulint		has_search_latch;
+	bool		has_search_latch;
 					/*!< TRUE if this trx has latched the
 					search system latch in S-mode */
 	ulint		search_latch_timeout;
@@ -875,37 +925,25 @@ struct trx_t{
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
 
 	/* Fields protected by the srv_conc_mutex. */
-	ulint		declared_to_be_inside_innodb;
+	bool		declared_to_be_inside_innodb;
 					/*!< this is TRUE if we have declared
 					this transaction in
 					srv_conc_enter_innodb to be inside the
 					InnoDB engine */
-	ulint		n_tickets_to_enter_innodb;
+	ib_uint32_t	n_tickets_to_enter_innodb;
 					/*!< this can be > 0 only when
 					declared_to_... is TRUE; when we come
 					to srv_conc_innodb_enter, if the value
 					here is > 0, we decrement this by 1 */
-	ulint		dict_operation_lock_mode;
+	ib_uint32_t	dict_operation_lock_mode;
 					/*!< 0, RW_S_LATCH, or RW_X_LATCH:
 					the latch mode trx currently holds
 					on dict_operation_lock. Protected
 					by dict_operation_lock. */
 
-	trx_id_t	no;		/*!< transaction serialization number:
-					max trx id shortly before the
-					transaction is moved to
-					COMMITTED_IN_MEMORY state.
-					Protected by trx_sys_t::mutex
-					when trx->in_rw_trx_list. Initially
-					set to TRX_ID_MAX. */
-
 	time_t		start_time;	/*!< time the trx object was created
 					or the state last time became
 					TRX_STATE_ACTIVE */
-	trx_id_t	id;		/*!< transaction id */
-	XID		xid;		/*!< X/Open XA transaction
-					identification to identify a
-					transaction branch */
 	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
 					== TRX_DICT_OP_TABLE, or 0. */
@@ -922,20 +960,14 @@ struct trx_t{
 					field contains the end offset of the
 					binlog entry */
 	/*------------------------------*/
-	ulint		n_mysql_tables_in_use; /*!< number of Innobase tables
+	ib_uint32_t	n_mysql_tables_in_use; /*!< number of Innobase tables
 					used in the processing of the current
 					SQL statement in MySQL */
-	ulint		mysql_n_tables_locked;
+	ib_uint32_t	mysql_n_tables_locked;
 					/*!< how many tables the current SQL
 					statement uses, except those
 					in consistent read */
 	/*------------------------------*/
-	UT_LIST_NODE_T(trx_t)
-			trx_list;	/*!< list of transactions;
-					protected by trx_sys->mutex.
-					The same node is used for both
-					trx_sys_t::ro_trx_list and
-					trx_sys_t::rw_trx_list */
 #ifdef UNIV_DEBUG
 	/** The following two fields are mutually exclusive. */
 	/* @{ */
@@ -1030,7 +1062,7 @@ struct trx_t{
 					read-only transaction will not be on
 					either list. */
 	bool		auto_commit;	/*!< true if it is an autocommit */
-	ulint		will_lock;	/*!< Will acquire some locks. Increment
+	ib_uint32_t	will_lock;	/*!< Will acquire some locks. Increment
 					each time we determine that a lock will
 					be acquired by the MySQL layer. */
 	/*------------------------------*/
@@ -1039,7 +1071,7 @@ struct trx_t{
 					with FTS indexes (yet). */
 	doc_id_t	fts_next_doc_id;/* The document id used for updates */
 	/*------------------------------*/
-	ulint		flush_tables;	/*!< if "covering" the FLUSH TABLES",
+	ib_uint32_t	flush_tables;	/*!< if "covering" the FLUSH TABLES",
 					count of tables being flushed. */
 
 	/*------------------------------*/
@@ -1056,9 +1088,22 @@ struct trx_t{
 	const char*	start_file;	/*!< Filename where it was started */
 #endif /* UNIV_DEBUG */
 
+	lint		n_ref;		/*!< Count of references, protected
+					by trx_t::mutex. We can't release the
+					locks nor commit the transaction until
+					this reference is 0.  We can change
+					the state to COMMITTED_IN_MEMORY to
+					signify that it is no longer
+					"active". */
+
+	XID*		xid;		/*!< X/Open XA transaction
+					identification to identify a
+					transaction branch */
 	/*------------------------------*/
-	char detailed_error[256];	/*!< detailed error message for last
+	char*		detailed_error;	/*!< detailed error message for last
 					error, or empty. */
+
+	ulint		magic_n;
 };
 
 /* Transaction isolation levels (trx->isolation_level) */
@@ -1101,20 +1146,6 @@ Multiple flags can be combined with bitwise OR. */
 #define TRX_DUP_IGNORE	1	/* duplicate rows are to be updated */
 #define TRX_DUP_REPLACE	2	/* duplicate rows are to be replaced */
 
-
-/* Types of a trx signal */
-#define TRX_SIG_NO_SIGNAL		0
-#define TRX_SIG_TOTAL_ROLLBACK		1
-#define TRX_SIG_ROLLBACK_TO_SAVEPT	2
-#define TRX_SIG_COMMIT			3
-#define TRX_SIG_BREAK_EXECUTION		5
-
-/* Sender types of a signal */
-#define TRX_SIG_SELF		0	/* sent by the session itself, or
-					by an error occurring within this
-					session */
-#define TRX_SIG_OTHER_SESS	1	/* sent by another session (which
-					must hold rights to this) */
 
 /** Commit node states */
 enum commit_node_state {

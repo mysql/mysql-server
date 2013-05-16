@@ -6882,7 +6882,7 @@ ER_READ_ONLY_MODE
         eng "Running in read-only mode"
 
 ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
-  eng "When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it again after a COMMIT or ROLLBACK. If you see this error message in the slave SQL thread, it means that a table in the current transaction is transactional on the master and non-transactional on the slave. In a client connection, it means that you executed SET @@SESSION.GTID_NEXT before a transaction and forgot to set @@SESSION.GTID_NEXT to a different identifier or to 'AUTOMATIC' after COMMIT or ROLLBACK. Current @@SESSION.GTID_NEXT is '%s'."
+  eng "When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK. Please check GTID_NEXT variable manual page for detailed explanation. Current @@SESSION.GTID_NEXT is '%s'."
 
 ER_VARIABLE_NOT_SETTABLE_IN_SP
   eng "The system variable %.200s cannot be set in stored procedures."
@@ -7045,6 +7045,9 @@ ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
 
 ER_CANNOT_DISCARD_TEMPORARY_TABLE
   eng "Cannot DISCARD/IMPORT tablespace associated with temporary table"
+
+ER_FK_DEPTH_EXCEEDED
+  eng "Foreign key cascade delete/update exceeds max depth of %d."
 
 #
 #  End of 5.7 error messages.

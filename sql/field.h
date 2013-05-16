@@ -22,6 +22,7 @@
 #include "my_decimal.h"                         /* my_decimal */
 #include "sql_error.h"                          /* Sql_condition */
 #include "mysql_version.h"                      /* FRM_VER */
+#include "mysqld_error.h"
 
 /*
 
@@ -3621,6 +3622,7 @@ public:
     if (value.copy((char*) tmp, get_length(), charset()))
     {
       Field_blob::reset();
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), get_length());
       return 1;
     }
     tmp=(uchar*) value.ptr();
