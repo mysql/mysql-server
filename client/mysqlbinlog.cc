@@ -2648,7 +2648,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       stdin in binary mode. Errors on setting this mode result in 
       halting the function and printing an error message to stderr.
     */
-#if defined (__WIN__) || (_WIN64)
+#if defined(_WIN32)
     if (_setmode(fileno(stdin), O_BINARY) == -1)
     {
       error("Could not set binary mode on stdin.");
@@ -3038,3 +3038,4 @@ int main(int argc, char** argv)
 #include "uuid.cc"
 #include "rpl_gtid_set.cc"
 #include "rpl_gtid_specification.cc"
+#include "rpl_tblmap.cc"

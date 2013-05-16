@@ -66,8 +66,10 @@ typedef	byte	fil_faddr_t;	/*!< 'type' definition in C: an address
 				stored in a file page is a string of bytes */
 #define FIL_ADDR_PAGE	0	/* first in address is the page offset */
 #define	FIL_ADDR_BYTE	4	/* then comes 2-byte byte offset within page*/
-
+#endif /* !UNIV_INNOCHECKSUM */
 #define	FIL_ADDR_SIZE	6	/* address size is 6 bytes */
+
+#ifndef UNIV_INNOCHECKSUM
 
 /** File space address */
 struct fil_addr_t{
@@ -137,8 +139,6 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_DATA_END	8	/*!< size of the page trailer */
 /* @} */
 
-#ifndef UNIV_INNOCHECKSUM
-
 /** File page types (values of FIL_PAGE_TYPE) @{ */
 #define FIL_PAGE_INDEX		17855	/*!< B-tree node */
 #define FIL_PAGE_UNDO_LOG	2	/*!< Undo log page */
@@ -157,6 +157,8 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB2
 					/*!< Last page type */
 /* @} */
+
+#ifndef UNIV_INNOCHECKSUM
 
 /** Space types @{ */
 #define FIL_TABLESPACE		501	/*!< tablespace */
@@ -179,7 +181,7 @@ extern ulint	fil_n_file_opened;
 Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
 memory cache */
-UNIV_INTERN
+
 ib_int64_t
 fil_space_get_version(
 /*==================*/
@@ -187,7 +189,7 @@ fil_space_get_version(
 /*******************************************************************//**
 Returns the latch of a file space.
 @return	latch protecting storage allocation */
-UNIV_INTERN
+
 rw_lock_t*
 fil_space_get_latch(
 /*================*/
@@ -197,7 +199,7 @@ fil_space_get_latch(
 /*******************************************************************//**
 Returns the type of a file space.
 @return	FIL_TABLESPACE or FIL_LOG */
-UNIV_INTERN
+
 ulint
 fil_space_get_type(
 /*===============*/
@@ -206,7 +208,7 @@ fil_space_get_type(
 /*******************************************************************//**
 Appends a new file to the chain of files of a space. File must be closed.
 @return pointer to the file name, or NULL on error */
-UNIV_INTERN
+
 char*
 fil_node_create(
 /*============*/
@@ -221,7 +223,7 @@ fil_node_create(
 Creates a space memory object and puts it to the 'fil system' hash table.
 If there is an error, prints an error message to the .err log.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 fil_space_create(
 /*=============*/
@@ -235,7 +237,7 @@ Assigns a new space id for a new single-table tablespace. This works simply by
 incrementing the global counter. If 4 billion id's is not enough, we may need
 to recycle id's.
 @return	TRUE if assigned, FALSE if not */
-UNIV_INTERN
+
 ibool
 fil_assign_new_space_id(
 /*====================*/
@@ -245,7 +247,7 @@ Returns the path from the first fil_node_t found for the space ID sent.
 The caller is responsible for freeing the memory allocated here for the
 value returned.
 @return	a copy of fil_node_t::path, NULL if space is zero or not found. */
-UNIV_INTERN
+
 char*
 fil_space_get_first_path(
 /*=====================*/
@@ -254,7 +256,7 @@ fil_space_get_first_path(
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache.
 @return	space size, 0 if space not found */
-UNIV_INTERN
+
 ulint
 fil_space_get_size(
 /*===============*/
@@ -263,7 +265,7 @@ fil_space_get_size(
 Returns the flags of the space. The tablespace must be cached
 in the memory cache.
 @return	flags, ULINT_UNDEFINED if space not found */
-UNIV_INTERN
+
 ulint
 fil_space_get_flags(
 /*================*/
@@ -272,7 +274,7 @@ fil_space_get_flags(
 Returns the compressed page size of the space, or 0 if the space
 is not compressed. The tablespace must be cached in the memory cache.
 @return	compressed page size, ULINT_UNDEFINED if space not found */
-UNIV_INTERN
+
 ulint
 fil_space_get_zip_size(
 /*===================*/
@@ -281,7 +283,7 @@ fil_space_get_zip_size(
 Checks if the pair space, page_no refers to an existing page in a tablespace
 file space. The tablespace must be cached in the memory cache.
 @return	TRUE if the address is meaningful */
-UNIV_INTERN
+
 ibool
 fil_check_adress_in_tablespace(
 /*===========================*/
@@ -289,7 +291,7 @@ fil_check_adress_in_tablespace(
 	ulint	page_no);/*!< in: page number */
 /****************************************************************//**
 Initializes the tablespace memory cache. */
-UNIV_INTERN
+
 void
 fil_init(
 /*=====*/
@@ -297,7 +299,7 @@ fil_init(
 	ulint	max_n_open);	/*!< in: max number of open files */
 /*******************************************************************//**
 Initializes the tablespace memory cache. */
-UNIV_INTERN
+
 void
 fil_close(void);
 /*===========*/
@@ -307,21 +309,21 @@ database server shutdown. This should be called at a server startup after the
 space objects for the log and the system tablespace have been created. The
 purpose of this operation is to make sure we never run out of file descriptors
 if we need to read from the insert buffer or to write to the log. */
-UNIV_INTERN
+
 void
 fil_open_log_and_system_tablespace_files(void);
 /*==========================================*/
 /*******************************************************************//**
 Closes all open files. There must not be any pending i/o's or not flushed
 modifications in the files. */
-UNIV_INTERN
+
 void
 fil_close_all_files(void);
 /*=====================*/
 /*******************************************************************//**
 Closes the redo log files. There must not be any pending i/o's or not
 flushed modifications in the files. */
-UNIV_INTERN
+
 void
 fil_close_log_files(
 /*================*/
@@ -329,7 +331,7 @@ fil_close_log_files(
 /*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
-UNIV_INTERN
+
 void
 fil_set_max_space_id_if_bigger(
 /*===========================*/
@@ -339,7 +341,7 @@ fil_set_max_space_id_if_bigger(
 Writes the flushed lsn and the latest archived log number to the page
 header of the first page of each data file in the system tablespace.
 @return	DB_SUCCESS or error number */
-UNIV_INTERN
+
 dberr_t
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
@@ -350,7 +352,7 @@ Reads the flushed lsn and tablespace flag fields from a data
 file at database startup.
 @retval NULL on success, or if innodb_force_recovery is set
 @return pointer to an error message string */
-UNIV_INTERN
+
 const char*
 fil_read_first_page(
 /*================*/
@@ -368,14 +370,14 @@ fil_read_first_page(
 /*******************************************************************//**
 Increments the count of pending operation, if space is not being deleted.
 @return	TRUE if being deleted, and operation should be skipped */
-UNIV_INTERN
+
 ibool
 fil_inc_pending_ops(
 /*================*/
 	ulint	id);	/*!< in: space id */
 /*******************************************************************//**
 Decrements the count of pending operations. */
-UNIV_INTERN
+
 void
 fil_decr_pending_ops(
 /*=================*/
@@ -395,7 +397,7 @@ Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
 datadir that we should use in replaying the file operations.
 @return end of log record, or NULL if the record was not completely
 contained between ptr and end_ptr */
-UNIV_INTERN
+
 byte*
 fil_op_log_parse_or_replay(
 /*=======================*/
@@ -413,7 +415,7 @@ fil_op_log_parse_or_replay(
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.
 @return	TRUE if success */
-UNIV_INTERN
+
 dberr_t
 fil_delete_tablespace(
 /*==================*/
@@ -425,7 +427,7 @@ fil_delete_tablespace(
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
 @return	DB_SUCCESS or error */
-UNIV_INTERN
+
 dberr_t
 fil_close_tablespace(
 /*=================*/
@@ -446,7 +448,7 @@ memory cache. Discarding is like deleting a tablespace, but
 
  4. Free all the pages in use by the tablespace if rename=TRUE.
 @return	DB_SUCCESS or error */
-UNIV_INTERN
+
 dberr_t
 fil_discard_tablespace(
 /*===================*/
@@ -457,7 +459,7 @@ fil_discard_tablespace(
 Renames a single-table tablespace. The tablespace must be cached in the
 tablespace memory cache.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 fil_rename_tablespace(
 /*==================*/
@@ -479,7 +481,7 @@ fil_rename_tablespace(
 Allocates a file name for a single-table tablespace. The string must be freed
 by caller with mem_free().
 @return	own: file name */
-UNIV_INTERN
+
 char*
 fil_make_ibd_name(
 /*==============*/
@@ -489,7 +491,7 @@ fil_make_ibd_name(
 Allocates a file name for a tablespace ISL file (InnoDB Symbolic Link).
 The string must be freed by caller with mem_free().
 @return	own: file name */
-UNIV_INTERN
+
 char*
 fil_make_isl_name(
 /*==============*/
@@ -499,7 +501,7 @@ Creates a new InnoDB Symbolic Link (ISL) file.  It is always created
 under the 'datadir' of MySQL. The datadir is the directory of a
 running mysqld program. We can refer to it by simply using the path '.'.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fil_create_link_file(
 /*=================*/
@@ -507,7 +509,7 @@ fil_create_link_file(
 	const char*	filepath);	/*!< in: pathname of tablespace */
 /*******************************************************************//**
 Deletes an InnoDB Symbolic Link (ISL) file. */
-UNIV_INTERN
+
 void
 fil_delete_link_file(
 /*==================*/
@@ -519,7 +521,7 @@ form {databasename}/{tablename}. and the isl file is expected to be in a
 '{databasename}' directory called '{tablename}.isl'. The caller must free
 the memory of the null-terminated path returned if it is not null.
 @return	own: filepath found in link file, NULL if not found. */
-UNIV_INTERN
+
 char*
 fil_read_link_file(
 /*===============*/
@@ -531,7 +533,7 @@ directory of a running mysqld program. We can refer to it by simply the
 path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
 dir of the mysqld server.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fil_create_new_single_table_tablespace(
 /*===================================*/
@@ -568,7 +570,7 @@ If the fix_dict boolean is set, then it is safe to use an internal SQL
 statement to update the dictionary tables if they are incorrect.
 
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fil_open_single_table_tablespace(
 /*=============================*/
@@ -590,7 +592,7 @@ we know into which file we should look to check the contents of a page stored
 in the doublewrite buffer, also to know where to apply log records where the
 space id is != 0.
 @return	DB_SUCCESS or error number */
-UNIV_INTERN
+
 dberr_t
 fil_load_single_table_tablespaces(void);
 /*===================================*/
@@ -598,7 +600,7 @@ fil_load_single_table_tablespaces(void);
 Returns TRUE if a single-table tablespace does not exist in the memory cache,
 or is being deleted there.
 @return	TRUE if does not exist or is being deleted */
-UNIV_INTERN
+
 ibool
 fil_tablespace_deleted_or_being_deleted_in_mem(
 /*===========================================*/
@@ -609,7 +611,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 /*******************************************************************//**
 Returns TRUE if a single-table tablespace exists in the memory cache.
 @return	TRUE if exists */
-UNIV_INTERN
+
 ibool
 fil_tablespace_exists_in_mem(
 /*=========================*/
@@ -620,7 +622,7 @@ Returns TRUE if a matching tablespace exists in the InnoDB tablespace memory
 cache. Note that if we have not done a crash recovery at the database startup,
 there may be many tablespaces which are not yet in the memory cache.
 @return	TRUE if a matching tablespace exists in the memory cache */
-UNIV_INTERN
+
 ibool
 fil_space_for_table_exists_in_mem(
 /*==============================*/
@@ -642,7 +644,7 @@ Extends all tablespaces to the size stored in the space header. During the
 ibbackup --apply-log phase we extended the spaces on-demand so that log records
 could be appllied, but that may have left spaces still too small compared to
 the size stored in the space header. */
-UNIV_INTERN
+
 void
 fil_extend_tablespaces_to_stored_len(void);
 /*======================================*/
@@ -652,7 +654,7 @@ Tries to extend a data file so that it would accommodate the number of pages
 given. The tablespace must be cached in the memory cache. If the space is big
 enough already, does nothing.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 fil_extend_space_to_desired_size(
 /*=============================*/
@@ -666,7 +668,7 @@ fil_extend_space_to_desired_size(
 /*******************************************************************//**
 Tries to reserve free extents in a file space.
 @return	TRUE if succeed */
-UNIV_INTERN
+
 ibool
 fil_space_reserve_free_extents(
 /*===========================*/
@@ -675,7 +677,7 @@ fil_space_reserve_free_extents(
 	ulint	n_to_reserve);	/*!< in: how many one wants to reserve */
 /*******************************************************************//**
 Releases free extents in a file space. */
-UNIV_INTERN
+
 void
 fil_space_release_free_extents(
 /*===========================*/
@@ -684,7 +686,7 @@ fil_space_release_free_extents(
 /*******************************************************************//**
 Gets the number of reserved extents. If the database is silent, this number
 should be zero. */
-UNIV_INTERN
+
 ulint
 fil_space_get_n_reserved_extents(
 /*=============================*/
@@ -693,7 +695,7 @@ fil_space_get_n_reserved_extents(
 Reads or writes data. This operation is asynchronous (aio).
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
-UNIV_INTERN
+
 dberr_t
 fil_io(
 /*===*/
@@ -728,7 +730,7 @@ Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
 into segments (see os0file.cc for more info). The thread specifies which
 segment it wants to wait for. */
-UNIV_INTERN
+
 void
 fil_aio_wait(
 /*=========*/
@@ -737,7 +739,7 @@ fil_aio_wait(
 /**********************************************************************//**
 Flushes to disk possible writes cached by the OS. If the space does not exist
 or is being dropped, does not do anything. */
-UNIV_INTERN
+
 void
 fil_flush(
 /*======*/
@@ -746,7 +748,7 @@ fil_flush(
 /**********************************************************************//**
 Flushes to disk writes in file spaces of the given type possibly cached by
 the OS. */
-UNIV_INTERN
+
 void
 fil_flush_file_spaces(
 /*==================*/
@@ -754,14 +756,14 @@ fil_flush_file_spaces(
 /******************************************************************//**
 Checks the consistency of the tablespace cache.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 fil_validate(void);
 /*==============*/
 /********************************************************************//**
 Returns TRUE if file address is undefined.
 @return	TRUE if undefined */
-UNIV_INTERN
+
 ibool
 fil_addr_is_null(
 /*=============*/
@@ -769,7 +771,7 @@ fil_addr_is_null(
 /********************************************************************//**
 Get the predecessor of a file page.
 @return	FIL_PAGE_PREV */
-UNIV_INTERN
+
 ulint
 fil_page_get_prev(
 /*==============*/
@@ -777,14 +779,14 @@ fil_page_get_prev(
 /********************************************************************//**
 Get the successor of a file page.
 @return	FIL_PAGE_NEXT */
-UNIV_INTERN
+
 ulint
 fil_page_get_next(
 /*==============*/
 	const byte*	page);	/*!< in: file page */
 /*********************************************************************//**
 Sets the file page type. */
-UNIV_INTERN
+
 void
 fil_page_set_type(
 /*==============*/
@@ -794,7 +796,7 @@ fil_page_set_type(
 Gets the file page type.
 @return type; NOTE that if the type has not been written to page, the
 return value not defined */
-UNIV_INTERN
+
 ulint
 fil_page_get_type(
 /*==============*/
@@ -803,7 +805,7 @@ fil_page_get_type(
 /*******************************************************************//**
 Returns TRUE if a single-table tablespace is being deleted.
 @return TRUE if being deleted */
-UNIV_INTERN
+
 ibool
 fil_tablespace_is_being_deleted(
 /*============================*/
@@ -812,7 +814,7 @@ fil_tablespace_is_being_deleted(
 /********************************************************************//**
 Delete the tablespace file and any related files like .cfg.
 This should not be called for temporary tables. */
-UNIV_INTERN
+
 void
 fil_delete_file(
 /*============*/
@@ -910,7 +912,7 @@ Iterate over all the pages in the tablespace.
 @param n_io_buffers - number of blocks to read and write together
 @param callback - functor that will do the page updates
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fil_tablespace_iterate(
 /*===================*/
@@ -923,7 +925,7 @@ fil_tablespace_iterate(
 Checks if a single-table tablespace for a given table name exists in the
 tablespace memory cache.
 @return	space id, ULINT_UNDEFINED if not found */
-UNIV_INTERN
+
 ulint
 fil_get_space_id_for_table(
 /*=======================*/
@@ -935,7 +937,7 @@ Iterate over all the spaces in the space list and fetch the
 tablespace names. It will return a copy of the name that must be
 freed by the caller using: delete[].
 @return DB_SUCCESS if all OK. */
-UNIV_INTERN
+
 dberr_t
 fil_get_space_names(
 /*================*/
@@ -945,7 +947,7 @@ fil_get_space_names(
 
 /****************************************************************//**
 Generate redo logs for swapping two .ibd files */
-UNIV_INTERN
+
 void
 fil_mtr_rename_log(
 /*===============*/

@@ -30,6 +30,7 @@ Created 7/1/1994 Heikki Tuuri
 #endif
 
 #include "ha_prototypes.h"
+
 #include "handler0alter.h"
 #include "srv0srv.h"
 
@@ -83,7 +84,7 @@ This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
 must be a copy of the one in ha_innobase.cc!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-UNIV_INTERN
+
 int
 innobase_mysql_cmp(
 /*===============*/
@@ -100,7 +101,7 @@ This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
 must be a copy of the one in ha_innobase.cc!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-UNIV_INTERN
+
 int
 innobase_mysql_cmp_prefix(
 /*======================*/
@@ -129,7 +130,7 @@ cmp_collate(
 /*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
 @return	TRUE if the columns are considered equal in comparisons */
-UNIV_INTERN
+
 ibool
 cmp_cols_are_equal(
 /*===============*/
@@ -309,7 +310,7 @@ cmp_whole_field(
 /*****************************************************************
 This function is used to compare two dfields where at least the first
 has its data type field set. */
-UNIV_INTERN
+
 int
 cmp_dfield_dfield_like_prefix(
 /*==========================*/
@@ -348,7 +349,7 @@ cmp_dfield_dfield_like_prefix(
 This function is used to compare two data fields for which we know the
 data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
-UNIV_INTERN
+
 int
 cmp_data_data(
 /*==========*/
@@ -459,7 +460,7 @@ next_byte:
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type to be VARCHAR */
-UNIV_INTERN
+
 int
 cmp_data_data_slow_varchar(
 /*=======================*/
@@ -513,7 +514,7 @@ cmp_data_data_slow_varchar(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. The comparison is done for the LIKE operator.*/
-UNIV_INTERN
+
 int
 cmp_data_data_slow_like_prefix(
 /*===========================*/
@@ -567,7 +568,7 @@ cmp_data_data_slow_like_prefix(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. The comparison is done for the LIKE operator.*/
-UNIV_INTERN
+
 int
 cmp_data_data_slow_like_suffix(
 /*===========================*/
@@ -592,7 +593,7 @@ cmp_data_data_slow_like_suffix(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. The comparison is done for the LIKE operator.*/
-UNIV_INTERN
+
 int
 cmp_data_data_slow_like_substr(
 /*===========================*/
@@ -623,7 +624,7 @@ made.
 @return 1, 0, -1, if dtuple is greater, equal, less than rec,
 respectively, when only the common first fields are compared, or until
 the first externally stored field in rec */
-UNIV_INTERN
+
 int
 cmp_dtuple_rec_with_match_low(
 /*==========================*/
@@ -865,7 +866,7 @@ order_resolved:
 Compares a data tuple to a physical record.
 @see cmp_dtuple_rec_with_match
 @return 1, 0, -1, if dtuple is greater, equal, less than rec, respectively */
-UNIV_INTERN
+
 int
 cmp_dtuple_rec(
 /*===========*/
@@ -885,7 +886,7 @@ cmp_dtuple_rec(
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record.
 @return	TRUE if prefix */
-UNIV_INTERN
+
 ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
@@ -1026,7 +1027,7 @@ none of which are stored externally.
 @retval 1 if rec1 (including non-ordering columns) is greater than rec2
 @retval -1 if rec1 (including non-ordering columns) is less than rec2
 @retval 0 if rec1 is a duplicate of rec2 */
-UNIV_INTERN
+
 int
 cmp_rec_rec_simple(
 /*===============*/
@@ -1114,7 +1115,7 @@ or innodb_stats_method=nulls_ignored
 within the first field not completely matched
 @return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than
 rec2; only the common first fields are compared */
-UNIV_INTERN
+
 int
 cmp_rec_rec_with_match(
 	const rec_t*		rec1,

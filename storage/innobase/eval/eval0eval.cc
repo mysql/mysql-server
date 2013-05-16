@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -61,7 +61,7 @@ freed. If the node already has an allocated buffer, that buffer is freed
 here. NOTE that this is the only function where dynamic memory should be
 allocated for a query node val field.
 @return	pointer to allocated buffer */
-UNIV_INTERN
+
 byte*
 eval_node_alloc_val_buf(
 /*====================*/
@@ -101,7 +101,7 @@ eval_node_alloc_val_buf(
 Free the buffer from global dynamic memory for a value of a que_node,
 if it has been allocated in the above function. The freeing for pushed
 column values is done in sel_col_prefetch_buf_free. */
-UNIV_INTERN
+
 void
 eval_node_free_val_buf(
 /*===================*/
@@ -870,7 +870,7 @@ eval_predefined(
 
 /*****************************************************************//**
 Evaluates a function node. */
-UNIV_INTERN
+
 void
 eval_func(
 /*======*/

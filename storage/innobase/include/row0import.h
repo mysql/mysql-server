@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ struct row_prebuilt_t;
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 row_import_for_mysql(
 /*=================*/
@@ -51,7 +51,7 @@ row_import_for_mysql(
 /*****************************************************************//**
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
 @return DB_SUCCESS or error code. */
-UNIV_INTERN
+
 dberr_t
 row_import_update_discarded_flag(
 /*=============================*/
@@ -70,7 +70,7 @@ row_import_update_discarded_flag(
 Update the (space, root page) of a table's indexes from the values
 in the data dictionary.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 row_import_update_index_root(
 /*=========================*/

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,12 +36,12 @@
 #ifdef	__cplusplus
 extern "C" {					// Because of SCO 3.2V4.2
 #endif
-#if !defined( __WIN__)
+#if !defined(_WIN32)
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
 #include <sys/utsname.h>
-#endif // __WIN__
+#endif // _WIN32
 #ifdef	__cplusplus
 }
 #endif

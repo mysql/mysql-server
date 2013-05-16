@@ -55,7 +55,7 @@ Created 9/20/1997 Heikki Tuuri
 /** This is set to FALSE if the backup was originally taken with the
 ibbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
-UNIV_INTERN ibool	recv_replay_file_ops	= TRUE;
+ibool	recv_replay_file_ops	= TRUE;
 #endif /* !UNIV_HOTBACKUP */
 
 /** Log records are stored in the hash table in chunks at most of this size;
@@ -66,25 +66,25 @@ this must be less than UNIV_PAGE_SIZE as it is stored in the buffer pool */
 #define RECV_READ_AHEAD_AREA	32
 
 /** The recovery system */
-UNIV_INTERN recv_sys_t*	recv_sys = NULL;
+recv_sys_t*	recv_sys = NULL;
 /** TRUE when applying redo log records during crash recovery; FALSE
 otherwise.  Note that this is FALSE while a background thread is
 rolling back incomplete transactions. */
-UNIV_INTERN ibool	recv_recovery_on;
+ibool	recv_recovery_on;
 
 #ifndef UNIV_HOTBACKUP
 /** TRUE when recv_init_crash_recovery() has been called. */
-UNIV_INTERN ibool	recv_needed_recovery;
+ibool	recv_needed_recovery;
 # ifdef UNIV_DEBUG
 /** TRUE if writing to the redo log (mtr_commit) is forbidden.
 Protected by log_sys->mutex. */
-UNIV_INTERN ibool	recv_no_log_write = FALSE;
+ibool	recv_no_log_write = FALSE;
 # endif /* UNIV_DEBUG */
 
 /** TRUE if buf_page_is_corrupted() should check if the log sequence
 number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
 recv_recovery_from_checkpoint_start_func(). */
-UNIV_INTERN ibool	recv_lsn_checks_on;
+ibool	recv_lsn_checks_on;
 
 /** There are two conditions under which we scan the logs, the first
 is normal startup and the second is when we do a recovery from an
@@ -105,7 +105,7 @@ buffer pool before the pages have been recovered to the up-to-date state.
 
 TRUE means that recovery is running and no operations on the log files
 are allowed yet: the variable name is misleading. */
-UNIV_INTERN ibool	recv_no_ibuf_operations;
+ibool	recv_no_ibuf_operations;
 /** TRUE when the redo log is being backed up */
 # define recv_is_making_a_backup		FALSE
 /** TRUE when recovering from a backed up redo log file */
@@ -113,9 +113,9 @@ UNIV_INTERN ibool	recv_no_ibuf_operations;
 #else /* !UNIV_HOTBACKUP */
 # define recv_needed_recovery			FALSE
 /** TRUE when the redo log is being backed up */
-UNIV_INTERN ibool	recv_is_making_a_backup	= FALSE;
+ibool	recv_is_making_a_backup	= FALSE;
 /** TRUE when recovering from a backed up redo log file */
-UNIV_INTERN ibool	recv_is_from_backup	= FALSE;
+ibool	recv_is_from_backup	= FALSE;
 # define buf_pool_get_curr_size() (5 * 1024 * 1024)
 #endif /* !UNIV_HOTBACKUP */
 /** The following counter is used to decide when to print info on
@@ -130,7 +130,7 @@ static ulint	recv_previous_parsed_rec_offset;
 static ulint	recv_previous_parsed_rec_is_multi;
 
 /** Maximum page number encountered in the redo log */
-UNIV_INTERN ulint	recv_max_parsed_page_no;
+ulint	recv_max_parsed_page_no;
 
 /** This many frames must be left free in the buffer pool when we scan
 the log and store the scanned log records in the buffer pool: we will
@@ -138,32 +138,32 @@ use these free frames to read in pages when we start applying the
 log records to the database.
 This is the default value. If the actual size of the buffer pool is
 larger than 10 MB we'll set this value to 512. */
-UNIV_INTERN ulint	recv_n_pool_free_frames;
+ulint	recv_n_pool_free_frames;
 
 /** The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
-UNIV_INTERN lsn_t	recv_max_page_lsn;
+lsn_t	recv_max_page_lsn;
 
 #ifdef UNIV_PFS_THREAD
-UNIV_INTERN mysql_pfs_key_t	trx_rollback_clean_thread_key;
+mysql_pfs_key_t	trx_rollback_clean_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	recv_sys_mutex_key;
+mysql_pfs_key_t	recv_sys_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_PFS_THREAD
-UNIV_INTERN mysql_pfs_key_t	recv_writer_thread_key;
+mysql_pfs_key_t	recv_writer_thread_key;
 # endif /* UNIV_PFS_THREAD */
 
 # ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	recv_writer_mutex_key;
+mysql_pfs_key_t	recv_writer_mutex_key;
 # endif /* UNIV_PFS_MUTEX */
 
 /** Flag indicating if recv_writer thread is active. */
-UNIV_INTERN bool		recv_writer_thread_active = false;
+bool		recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
@@ -180,7 +180,7 @@ recv_init_crash_recovery(void);
 
 /********************************************************//**
 Creates the recovery system. */
-UNIV_INTERN
+
 void
 recv_sys_create(void)
 /*=================*/
@@ -205,7 +205,7 @@ recv_sys_create(void)
 
 /********************************************************//**
 Release recovery system mutexes. */
-UNIV_INTERN
+
 void
 recv_sys_close(void)
 /*================*/
@@ -241,7 +241,7 @@ recv_sys_close(void)
 
 /********************************************************//**
 Frees the recovery system memory. */
-UNIV_INTERN
+
 void
 recv_sys_mem_free(void)
 /*===================*/
@@ -271,7 +271,7 @@ recv_sys_mem_free(void)
 #ifndef UNIV_HOTBACKUP
 /************************************************************
 Reset the state of the recovery system variables. */
-UNIV_INTERN
+
 void
 recv_sys_var_init(void)
 /*===================*/
@@ -309,7 +309,7 @@ recv_sys_var_init(void)
 recv_writer thread tasked with flushing dirty pages from the buffer
 pools.
 @return a dummy parameter */
-extern "C" UNIV_INTERN
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(recv_writer_thread)(
 /*===============================*/
@@ -360,7 +360,7 @@ DECLARE_THREAD(recv_writer_thread)(
 
 /************************************************************
 Inits the recovery system for a recovery operation. */
-UNIV_INTERN
+
 void
 recv_sys_init(
 /*==========*/
@@ -586,20 +586,15 @@ recv_find_max_checkpoint(
 			log_group_read_checkpoint_info(group, field);
 
 			if (!recv_check_cp_is_consistent(buf)) {
-#ifdef UNIV_DEBUG
-				if (log_debug_writes) {
-					fprintf(stderr,
-						"InnoDB: Checkpoint in group"
-						" %lu at %lu invalid, %lu\n",
-						(ulong) group->id,
-						(ulong) field,
-						(ulong) mach_read_from_4(
-							buf
-							+ LOG_CHECKPOINT_CHECKSUM_1));
-
-				}
-#endif /* UNIV_DEBUG */
-				goto not_consistent;
+				DBUG_PRINT("ib_log",
+					   ("invalid checkpoint, "
+					    "group %u at %u, checksum %#x",
+					    (unsigned) group->id,
+					    (unsigned) field,
+					    (unsigned) mach_read_from_4(
+						    LOG_CHECKPOINT_CHECKSUM_1
+						    + buf)));
+				continue;
 			}
 
 			group->state = LOG_GROUP_OK;
@@ -613,41 +608,32 @@ recv_find_max_checkpoint(
 			checkpoint_no = mach_read_from_8(
 				buf + LOG_CHECKPOINT_NO);
 
-#ifdef UNIV_DEBUG
-			if (log_debug_writes) {
-				fprintf(stderr,
-					"InnoDB: Checkpoint number %lu"
-					" found in group %lu\n",
-					(ulong) checkpoint_no,
-					(ulong) group->id);
-			}
-#endif /* UNIV_DEBUG */
+			DBUG_PRINT("ib_log",
+				   ("checkpoint %u found in group %u",
+				    unsigned(checkpoint_no),
+				    unsigned(group->id)));
 
 			if (checkpoint_no >= max_no) {
 				*max_group = group;
 				*max_field = field;
 				max_no = checkpoint_no;
 			}
-
-not_consistent:
-			;
 		}
 
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
 	if (*max_group == NULL) {
-
-		fprintf(stderr,
-			"InnoDB: No valid checkpoint found.\n"
-			"InnoDB: If this error appears when you are"
-			" creating an InnoDB database,\n"
-			"InnoDB: the problem may be that during"
-			" an earlier attempt you managed\n"
-			"InnoDB: to create the InnoDB data files,"
-			" but log file creation failed.\n"
-			"InnoDB: If that is the case, please refer to\n"
-			"InnoDB: " REFMAN "error-creating-innodb.html\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"No valid checkpoint found."
+			" If this error appears when you are"
+			" creating an InnoDB database,"
+			" the problem may be that during"
+			" an earlier attempt you managed"
+			" to create the InnoDB data files,"
+			" but log file creation failed."
+			" If that is the case, please refer to"
+			" " REFMAN "error-creating-innodb.html");
 		return(DB_ERROR);
 	}
 
@@ -657,7 +643,7 @@ not_consistent:
 /*******************************************************************//**
 Reads the checkpoint info needed in hot backup.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 recv_read_checkpoint_info_for_backup(
 /*=================================*/
@@ -749,7 +735,7 @@ log_block_checksum_is_ok_or_old_format(
 /*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
-UNIV_INTERN
+
 void
 recv_scan_log_seg_for_backup(
 /*=========================*/
@@ -1290,7 +1276,7 @@ recv_add_to_hash_table(
 		recv_addr->page_no = page_no;
 		recv_addr->state = RECV_NOT_PROCESSED;
 
-		UT_LIST_INIT(recv_addr->rec_list);
+		UT_LIST_INIT(recv_addr->rec_list, &recv_t::rec_list);
 
 		HASH_INSERT(recv_addr_t, addr_hash, recv_sys->addr_hash,
 			    recv_fold(space, page_no), recv_addr);
@@ -1301,7 +1287,7 @@ recv_add_to_hash_table(
 #endif
 	}
 
-	UT_LIST_ADD_LAST(rec_list, recv_addr->rec_list, recv);
+	UT_LIST_ADD_LAST(recv_addr->rec_list, recv);
 
 	prev_field = &(recv->data);
 
@@ -1369,7 +1355,7 @@ recv_data_copy_to_buf(
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool. */
-UNIV_INTERN
+
 void
 recv_recover_page_func(
 /*===================*/
@@ -1636,7 +1622,7 @@ recv_read_in_area(
 /*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */
-UNIV_INTERN
+
 void
 recv_apply_hashed_log_recs(
 /*=======================*/
@@ -1793,7 +1779,7 @@ loop:
 #else /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Applies log records in the hash table to a backup. */
-UNIV_INTERN
+
 void
 recv_apply_log_recs_for_backup(void)
 /*================================*/
@@ -2456,7 +2442,7 @@ UNIV_HOTBACKUP is defined, this function will apply log records
 automatically when the hash table becomes full.
 @return TRUE if limit_lsn has been reached, or not able to scan any
 more in this log group */
-UNIV_INTERN
+
 ibool
 recv_scan_log_recs(
 /*===============*/
@@ -2729,15 +2715,8 @@ recv_group_scan_log_recs(
 		start_lsn = end_lsn;
 	}
 
-#ifdef UNIV_DEBUG
-	if (log_debug_writes) {
-		fprintf(stderr,
-			"InnoDB: Scanned group %lu up to"
-			" log sequence number " LSN_PF "\n",
-			(ulong) group->id,
-			*group_scanned_lsn);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_log", ("scan " LSN_PF " completed for log group %u",
+			      *group_scanned_lsn, unsigned(group->id)));
 }
 
 /*******************************************************//**
@@ -2787,7 +2766,7 @@ to start processing of new user transactions, but the function
 recv_recovery_from_checkpoint_finish should be called later to complete
 the recovery and free the resources used in it.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 recv_recovery_from_checkpoint_start(
 /*================================*/
@@ -3041,7 +3020,7 @@ recv_recovery_from_checkpoint_start(
 
 /********************************************************//**
 Completes recovery from a checkpoint. */
-UNIV_INTERN
+
 void
 recv_recovery_from_checkpoint_finish(void)
 /*======================================*/
@@ -3118,7 +3097,7 @@ recv_recovery_from_checkpoint_finish(void)
 
 /********************************************************//**
 Initiates the rollback of active transactions. */
-UNIV_INTERN
+
 void
 recv_recovery_rollback_active(void)
 /*===============================*/
@@ -3159,7 +3138,7 @@ recv_recovery_rollback_active(void)
 
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
-UNIV_INTERN
+
 void
 recv_reset_logs(
 /*============*/
@@ -3212,7 +3191,7 @@ recv_reset_logs(
 #ifdef UNIV_HOTBACKUP
 /******************************************************//**
 Creates new log files after a backup has been restored. */
-UNIV_INTERN
+
 void
 recv_reset_log_files_for_backup(
 /*============================*/

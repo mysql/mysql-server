@@ -31,6 +31,10 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0types.h"
 #include "mtr0types.h"
 #include "page0types.h"
+#ifndef DBUG_OFF
+# include <ostream>
+# include <sstream>
+#endif /* !DBUG_OFF */
 
 /* Info bit denoting the predefined minimum record: this bit is set
 if and only if the record is the first user record on a non-leaf
@@ -414,7 +418,7 @@ rec_2_is_field_extern(
 Determine how many of the first n columns in a compact
 physical record are stored externally.
 @return	number of externally stored columns */
-UNIV_INTERN
+
 ulint
 rec_get_n_extern_new(
 /*=================*/
@@ -437,7 +441,7 @@ fields 1..n_fields+1.  When the high-order bit of the offset at [i+1]
 is set (REC_OFFS_SQL_NULL), the field i is NULL.  When the second
 high-order bit of the offset at [i+1] is set (REC_OFFS_EXTERNAL), the
 field i is being stored externally. */
-UNIV_INTERN
+
 void
 rec_init_offsets(
 /*=============*/
@@ -450,7 +454,7 @@ rec_init_offsets(
 The following function determines the offsets to each field
 in the record.	It can reuse a previously allocated array.
 @return	the new offsets */
-UNIV_INTERN
+
 ulint*
 rec_get_offsets_func(
 /*=================*/
@@ -474,7 +478,7 @@ rec_get_offsets_func(
 /******************************************************//**
 The following function determines the offsets to each field
 in the record.  It can reuse a previously allocated array. */
-UNIV_INTERN
+
 void
 rec_get_offsets_reverse(
 /*====================*/
@@ -521,7 +525,7 @@ rec_offs_make_valid(
 The following function is used to get the offset to the nth
 data field in an old-style record.
 @return	offset to the field */
-UNIV_INTERN
+
 ulint
 rec_get_nth_field_offs_old(
 /*=======================*/
@@ -795,7 +799,7 @@ rec_get_size_old(
 @param[out]	extra	length of the record header, in bytes
 @param[out]	n_ext	in: 0, out: number of externally stored columns
 @return	data size, in bytes */
-UNIV_INTERN
+
 ulint
 rec_get_size_comp(
 	const rec_t*		rec,
@@ -808,7 +812,7 @@ rec_get_size_comp(
 /**********************************************************//**
 Determines the size of a data tuple prefix in a temporary file.
 @return	total size */
-UNIV_INTERN
+
 ulint
 rec_get_converted_size_temp(
 /*========================*/
@@ -821,7 +825,7 @@ rec_get_converted_size_temp(
 /******************************************************//**
 Determine the offset to each field in temporary file.
 @see rec_convert_dtuple_to_temp() */
-UNIV_INTERN
+
 void
 rec_init_offsets_temp(
 /*==================*/
@@ -834,7 +838,7 @@ rec_init_offsets_temp(
 /*********************************************************//**
 Builds a temporary file record out of a data tuple.
 @see rec_init_offsets_temp() */
-UNIV_INTERN
+
 void
 rec_convert_dtuple_to_temp(
 /*=======================*/
@@ -848,7 +852,7 @@ rec_convert_dtuple_to_temp(
 Copies the first n fields of a physical record to a new physical record in
 a buffer.
 @return	own: copied record */
-UNIV_INTERN
+
 rec_t*
 rec_copy_prefix_to_buf(
 /*===================*/
@@ -882,7 +886,7 @@ rec_fold(
 Builds a physical record out of a data tuple and
 stores it into the given buffer.
 @return	pointer to the origin of physical record */
-UNIV_INTERN
+
 rec_t*
 rec_convert_dtuple_to_rec(
 /*======================*/
@@ -908,7 +912,7 @@ rec_get_converted_extra_size(
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return	total size */
-UNIV_INTERN
+
 ulint
 rec_get_converted_size_comp_prefix(
 /*===============================*/
@@ -920,7 +924,7 @@ rec_get_converted_size_comp_prefix(
 /**********************************************************//**
 Determines the size of a data tuple in ROW_FORMAT=COMPACT.
 @return	total size */
-UNIV_INTERN
+
 ulint
 rec_get_converted_size_comp(
 /*========================*/
@@ -950,7 +954,7 @@ rec_get_converted_size(
 /**************************************************************//**
 Copies the first n fields of a physical record to a data tuple.
 The fields are copied to the memory heap. */
-UNIV_INTERN
+
 void
 rec_copy_prefix_to_dtuple(
 /*======================*/
@@ -965,7 +969,7 @@ rec_copy_prefix_to_dtuple(
 /***************************************************************//**
 Validates the consistency of a physical record.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 rec_validate(
 /*=========*/
@@ -974,7 +978,7 @@ rec_validate(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints an old-style physical record. */
-UNIV_INTERN
+
 void
 rec_print_old(
 /*==========*/
@@ -985,7 +989,7 @@ rec_print_old(
 /***************************************************************//**
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
 record header. */
-UNIV_INTERN
+
 void
 rec_print_comp(
 /*===========*/
@@ -995,7 +999,7 @@ rec_print_comp(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints a physical record. */
-UNIV_INTERN
+
 void
 rec_print_new(
 /*==========*/
@@ -1005,7 +1009,7 @@ rec_print_new(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints a physical record. */
-UNIV_INTERN
+
 void
 rec_print(
 /*======*/
@@ -1014,11 +1018,73 @@ rec_print(
 	const dict_index_t*	index)	/*!< in: record descriptor */
 	__attribute__((nonnull));
 
+# ifndef DBUG_OFF
+/***************************************************************//**
+Prints a physical record. */
+
+void
+rec_print(
+/*======*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const rec_t*	rec,	/*!< in: physical record */
+	ulint		info,	/*!< in: rec_get_info_bits(rec) */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+	__attribute__((nonnull));
+
+/** Pretty-printer of records and tuples */
+class rec_printer : public std::ostringstream {
+public:
+	/** Construct a pretty-printed record.
+	@param rec	record with header
+	@param offsets	rec_get_offsets(rec, ...) */
+	rec_printer(const rec_t* rec, const ulint* offsets) : ostringstream ()
+	{
+		rec_print(*this, rec,
+			  rec_get_info_bits(rec, rec_offs_comp(offsets)),
+			  offsets);
+	}
+
+	/** Construct a pretty-printed record.
+	@param rec	record, possibly lacking header
+	@param info	rec_get_info_bits(rec)
+	@param offsets	rec_get_offsets(rec, ...) */
+	rec_printer(const rec_t* rec, ulint info, const ulint* offsets)
+	: std::ostringstream ()
+	{
+		rec_print(*this, rec, info, offsets);
+	}
+
+	/** Construct a pretty-printed tuple.
+	@param tuple	data tuple */
+	rec_printer(const dtuple_t* tuple) : std::ostringstream ()
+	{
+		dtuple_print(*this, tuple);
+	}
+
+	/** Construct a pretty-printed tuple.
+	@param field	array of data tuple fields
+	@param n	number of fields */
+	rec_printer(const dfield_t* field, ulint n) : std::ostringstream ()
+	{
+		dfield_print(*this, field, n);
+	}
+
+	/** Destructor */
+	virtual ~rec_printer() {}
+
+private:
+	/** Copy constructor */
+	rec_printer(const rec_printer& other);
+	/** Assignment operator */
+	rec_printer& operator=(const rec_printer& other);
+};
+# endif /* !DBUG_OFF */
+
 # ifdef UNIV_DEBUG
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
 @return	the value of DB_TRX_ID */
-UNIV_INTERN
+
 trx_id_t
 rec_get_trx_id(
 /*===========*/

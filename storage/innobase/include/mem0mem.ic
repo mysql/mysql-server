@@ -32,7 +32,7 @@ Created 6/8/1994 Heikki Tuuri
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
 for MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
@@ -45,7 +45,7 @@ mem_heap_create_block(
 	ulint		line);	/*!< in: line where created */
 /******************************************************************//**
 Frees a block from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_block_free(
 /*================*/
@@ -54,7 +54,7 @@ mem_heap_block_free(
 #ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_free_block_free(
 /*=====================*/
@@ -64,7 +64,7 @@ mem_heap_free_block_free(
 Adds a new block to a memory heap.
 @return created block, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
 mem_heap_add_block(
 /*===============*/
@@ -537,15 +537,13 @@ mem_heap_create_func(
 		return(NULL);
 	}
 
-	UT_LIST_INIT(block->base);
+	UT_LIST_INIT(block->base, &mem_block_t::list);
 
 	/* Add the created block itself as the first block in the list */
-	UT_LIST_ADD_FIRST(list, block->base, block);
+	UT_LIST_ADD_FIRST(block->base, block);
 
 #ifdef UNIV_MEM_DEBUG
-
 	mem_hash_insert(block, file_name, line);
-
 #endif
 
 	return(block);

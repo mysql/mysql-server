@@ -111,7 +111,6 @@
 
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine GWINSZ_IN_SYS_IOCTL 1
-#cmakedefine TIOCSTAT_IN_SYS_IOCTL 1
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
 
 /* Functions we may want to use. */
@@ -257,8 +256,6 @@
 #cmakedefine HAVE_SOCKADDR_IN_SIN_LEN 1
 #cmakedefine HAVE_SOCKADDR_IN6_SIN6_LEN 1
 #cmakedefine HAVE_TIMESPEC_TS_SEC 1
-#cmakedefine STRUCT_DIRENT_HAS_D_INO 1
-#cmakedefine STRUCT_DIRENT_HAS_D_NAMLEN 1
 #cmakedefine SPRINTF_RETURNS_INT 1
 
 #cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
@@ -292,13 +289,11 @@
   #endif
   #define SIZEOF_VOIDP   SIZEOF_LONG
   #define SIZEOF_CHARP   SIZEOF_LONG
-  #define SIZEOF_SIZE_T  SIZEOF_LONG
 #else
 /* No indentation, to fetch the lines from verification scripts */
 #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
 #cmakedefine SIZEOF_VOIDP  @SIZEOF_VOIDP@
 #cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
-#cmakedefine SIZEOF_SIZE_T @SIZEOF_CHARP@
 #endif
 
 #cmakedefine SIZEOF_CHAR @SIZEOF_CHAR@
@@ -314,9 +309,6 @@
 #cmakedefine SIZEOF_OFF_T @SIZEOF_OFF_T@
 #cmakedefine HAVE_OFF_T 1
 #cmakedefine SIZEOF_SIGSET_T @SIZEOF_SIGSET_T@
-#cmakedefine HAVE_SIZE_T 1
-#cmakedefine SIZEOF_UCHAR @SIZEOF_UCHAR@
-#cmakedefine HAVE_UCHAR 1
 #cmakedefine SIZEOF_UINT @SIZEOF_UINT@
 #cmakedefine HAVE_UINT 1
 #cmakedefine SIZEOF_ULONG @SIZEOF_ULONG@
@@ -339,8 +331,6 @@
 #cmakedefine HAVE_INT64 1
 #cmakedefine SIZEOF_UINT64 @SIZEOF_UINT64@
 #cmakedefine HAVE_UINT64 1
-#cmakedefine SIZEOF_BOOL @SIZEOF_BOOL@
-#cmakedefine HAVE_BOOL 1
 
 #cmakedefine SOCKET_SIZE_TYPE @SOCKET_SIZE_TYPE@
 
@@ -448,7 +438,7 @@
 #define setenv(a,b,c) _putenv_s(a,b)
 #endif
 /* We don't want the min/max macros */
-#ifdef __WIN__
+#ifdef _WIN32
 #define NOMINMAX
 #endif
 

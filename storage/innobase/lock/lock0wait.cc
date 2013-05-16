@@ -25,12 +25,13 @@ Created 25/5/2010 Sunny Bains
 
 #define LOCK_MODULE_IMPLEMENTATION
 
+#include "ha_prototypes.h"
+
 #include "srv0mon.h"
 #include "que0que.h"
 #include "lock0lock.h"
 #include "row0mysql.h"
 #include "srv0start.h"
-#include "ha_prototypes.h"
 #include "lock0priv.h"
 
 /*********************************************************************//**
@@ -189,7 +190,7 @@ occurs during the wait trx->error_state associated with thr is
 != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
 are possible errors. DB_DEADLOCK is returned if selective deadlock
 resolution chose this transaction as a victim. */
-UNIV_INTERN
+
 void
 lock_wait_suspend_thread(
 /*=====================*/
@@ -389,7 +390,7 @@ lock_wait_suspend_thread(
 /********************************************************************//**
 Releases a user OS thread waiting for a lock to be released, if the
 thread is already suspended. */
-UNIV_INTERN
+
 void
 lock_wait_release_thread_if_suspended(
 /*==================================*/
@@ -474,7 +475,7 @@ lock_wait_check_and_cancel(
 /*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.
 @return	a dummy parameter */
-extern "C" UNIV_INTERN
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(lock_wait_timeout_thread)(
 /*=====================================*/
