@@ -275,6 +275,17 @@ static MYSQL_THDVAR_UINT(
   0                                  /* block */
 );
 
+static MYSQL_THDVAR_BOOL(
+  show_foreign_key_mock_tables,          /* name */
+  PLUGIN_VAR_OPCMDARG,
+  "Show the mock tables which is used to support foreign_key_checks= 0. "
+  "Extra info warnings are shown when creating and dropping the tables. "
+  "The real table name is show in SHOW CREATE TABLE",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0                                  /* default */
+);
+
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define DEFAULT_NDB_JOIN_PUSHDOWN FALSE
 #else
@@ -297,6 +308,12 @@ static MYSQL_THDVAR_BOOL(
 bool ndb_index_stat_get_enable(THD *thd)
 {
   const bool value = THDVAR(thd, index_stat_enable);
+  return value;
+}
+
+bool ndb_show_foreign_key_mock_tables(THD* thd)
+{
+  const bool value = THDVAR(thd, show_foreign_key_mock_tables);
   return value;
 }
 
@@ -10531,6 +10548,60 @@ do_drop:
   DBUG_VOID_RETURN;
 }
 
+
+// Declare adapter functions for Dummy_table_util function
+extern bool ndb_fk_util_build_list(THD*, NdbDictionary::Dictionary*,
+                                   const NdbDictionary::Table*, List<char>&);
+extern void ndb_fk_util_drop_list(THD*, NdbDictionary::Dictionary*, List<char>&);
+extern bool ndb_fk_util_drop_table(THD*, NdbDictionary::Dictionary*,
+                                   const NdbDictionary::Table*);
+
+bool
+ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
+                                      const NdbDictionary::Table* table,
+                                      int drop_flags)
+{
+  DBUG_ENTER("drop_table_and_related");
+
+  // Build list of objects which should be dropped after the table
+  List<char> drop_list;
+  if (!ndb_fk_util_build_list(thd, dict, table, drop_list))
+  {
+    DBUG_RETURN(false);
+  }
+
+  // Drop the table
+  if (dict->dropTableGlobal(*table, drop_flags) != 0)
+  {
+    const NdbError& ndb_err = dict->getNdbError();
+    if (ndb_err.code == 21080 &&
+        thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+    {
+      /*
+        Drop was not allowed because table is still referenced by
+        foreign key(s). Since foreign_key_checks=0 the problem is
+        worked around by creating a mock table, recreating the foreign
+        key(s) to point at the mock table and finally dropping
+        the requested table.
+      */
+      if (!ndb_fk_util_drop_table(thd, dict, table))
+      {
+        DBUG_RETURN(false);
+      }
+    }
+    else
+    {
+      DBUG_RETURN(false);
+    }
+  }
+
+  // Drop objects which should be dropped after table
+  ndb_fk_util_drop_list(thd, dict, drop_list);
+
+  DBUG_RETURN(true);
+}
+
+
 /* static version which does not need a handler */
 
 int
@@ -10573,7 +10644,7 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   if (h && h->m_table)
   {
 retry_temporary_error1:
-    if (dict->dropTableGlobal(*h->m_table, drop_flags) == 0)
+    if (drop_table_and_related(thd, dict, h->m_table, drop_flags))
     {
       ndb_table_id= h->m_table->getObjectId();
       ndb_table_version= h->m_table->getObjectVersion();
@@ -10604,7 +10675,7 @@ retry_temporary_error1:
       if (ndbtab_g.get_table())
       {
     retry_temporary_error2:
-        if (dict->dropTableGlobal(*ndbtab_g.get_table(), drop_flags) == 0)
+        if (drop_table_and_related(thd, dict, ndbtab_g.get_table(), drop_flags))
         {
           ndb_table_id= ndbtab_g.get_table()->getObjectId();
           ndb_table_version= ndbtab_g.get_table()->getObjectVersion();
@@ -18205,6 +18276,7 @@ static struct st_mysql_sys_var* system_variables[]= {
 #endif
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(version_string),
+  MYSQL_SYSVAR(show_foreign_key_mock_tables),
   NULL
 };
 
