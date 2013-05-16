@@ -17,7 +17,6 @@
 #define MY_CONFIG_H
 #cmakedefine DOT_FRM_VERSION @DOT_FRM_VERSION@
 /* Headers we may want to use. */
-#cmakedefine STDC_HEADERS 1
 #cmakedefine _GNU_SOURCE 1
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
@@ -33,15 +32,12 @@
 #cmakedefine HAVE_EXECINFO_H 1
 #cmakedefine HAVE_FCNTL_H 1
 #cmakedefine HAVE_FENV_H 1
-#cmakedefine HAVE_FLOAT_H 1
 #cmakedefine HAVE_FNMATCH_H 1
 #cmakedefine HAVE_FPU_CONTROL_H 1
 #cmakedefine HAVE_GRP_H 1
 #cmakedefine HAVE_IA64INTRIN_H 1
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_INTTYPES_H 1
-#cmakedefine HAVE_LIMITS_H 1
-#cmakedefine HAVE_LOCALE_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_MEMORY_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
@@ -51,11 +47,9 @@
 #cmakedefine HAVE_SCHED_H 1
 #cmakedefine HAVE_SELECT_H 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
-#cmakedefine HAVE_STDDEF_H 1
 #cmakedefine HAVE_STDLIB_H 1
 #cmakedefine HAVE_STDARG_H 1
 #cmakedefine HAVE_STRINGS_H 1
-#cmakedefine HAVE_STRING_H 1
 #cmakedefine HAVE_STDINT_H 1
 #cmakedefine HAVE_SYNCH_H 1
 #cmakedefine HAVE_SYSENT_H 1
@@ -83,7 +77,6 @@
 #cmakedefine HAVE_TERMIOS_H 1
 #cmakedefine HAVE_TERMIO_H 1
 #cmakedefine HAVE_TERMCAP_H 1
-#cmakedefine HAVE_TIME_H 1
 #cmakedefine HAVE_UNISTD_H 1
 #cmakedefine HAVE_UTIME_H 1
 #cmakedefine HAVE_VIS_H 1
@@ -99,9 +92,7 @@
 #cmakedefine HAVE_LIBSOCKET 1
 #cmakedefine HAVE_LIBNSL 1
 #cmakedefine HAVE_LIBCRYPT 1
-#cmakedefine HAVE_LIBMTMALLOC 1
 #cmakedefine HAVE_LIBWRAP 1
-#cmakedefine HAVE_LIBRESOLV 1
 /* Does "struct timespec" have a "sec" and "nsec" field? */
 #cmakedefine HAVE_TIMESPEC_TS_SEC 1
 
@@ -116,7 +107,6 @@
 /* Functions we may want to use. */
 #cmakedefine HAVE_ALIGNED_MALLOC 1
 #cmakedefine HAVE_ALARM 1
-#cmakedefine HAVE_ALLOCA 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CRYPT 1
@@ -188,16 +178,12 @@
 #cmakedefine HAVE_RDTSCLL 1
 #cmakedefine HAVE_PTHREAD_ATTR_CREATE 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
-#cmakedefine HAVE_PTHREAD_ATTR_SETPRIO 1
-#cmakedefine HAVE_PTHREAD_ATTR_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSCOPE 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
-#cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KILL 1
 #cmakedefine HAVE_PTHREAD_RWLOCK_RDLOCK 1
-#cmakedefine HAVE_PTHREAD_SETPRIO_NP 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
 #cmakedefine HAVE_PTHREAD_YIELD_NP 1
@@ -236,7 +222,6 @@
 #cmakedefine HAVE_THR_SETCONCURRENCY 1
 #cmakedefine HAVE_THR_YIELD 1
 #cmakedefine HAVE_TIMES 1
-#define HAVE_VIO_READ_BUFF 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_VSNPRINTF 1
 #cmakedefine HAVE_FTRUNCATE 1
@@ -256,7 +241,6 @@
 #cmakedefine HAVE_SOCKADDR_IN_SIN_LEN 1
 #cmakedefine HAVE_SOCKADDR_IN6_SIN6_LEN 1
 #cmakedefine HAVE_TIMESPEC_TS_SEC 1
-#cmakedefine SPRINTF_RETURNS_INT 1
 
 #cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine HAVE_EPOLL 1
@@ -367,7 +351,6 @@
 
 #cmakedefine TARGET_OS_LINUX 1
 
-#cmakedefine HAVE_WCHAR_H 1
 #cmakedefine HAVE_LANGINFO_H 1
 #cmakedefine HAVE_WCSDUP
 #cmakedefine HAVE_WCHAR_T 1
@@ -397,7 +380,6 @@
 #cmakedefine HAVE_LARGE_PAGES 1
 #cmakedefine HUGETLB_USE_PROC_MEMINFO 1
 #cmakedefine NO_FCNTL_NONBLOCK 1
-#cmakedefine NO_ALARM 1
 
 #cmakedefine _LARGE_FILES 1
 #cmakedefine _LARGEFILE_SOURCE 1

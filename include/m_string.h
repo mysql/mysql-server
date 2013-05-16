@@ -30,9 +30,7 @@
 #if defined(HAVE_STRINGS_H)
 #include <strings.h>
 #endif
-#if defined(HAVE_STRING_H)
 #include <string.h>
-#endif
 
 /* need by my_vsnprintf */
 #include <stdarg.h> 
