@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,14 +53,14 @@ struct mem_area_t{
 /********************************************************************//**
 Creates a memory pool.
 @return	memory pool */
-UNIV_INTERN
+
 mem_pool_t*
 mem_pool_create(
 /*============*/
 	ulint	size);	/*!< in: pool size in bytes */
 /********************************************************************//**
 Frees a memory pool. */
-UNIV_INTERN
+
 void
 mem_pool_free(
 /*==========*/
@@ -69,7 +69,7 @@ mem_pool_free(
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*!
 @return	own: allocated memory buffer */
-UNIV_INTERN
+
 void*
 mem_area_alloc(
 /*===========*/
@@ -81,7 +81,7 @@ mem_area_alloc(
 	mem_pool_t*	pool);	/*!< in: memory pool */
 /********************************************************************//**
 Frees memory to a pool. */
-UNIV_INTERN
+
 void
 mem_area_free(
 /*==========*/
@@ -91,7 +91,7 @@ mem_area_free(
 /********************************************************************//**
 Returns the amount of reserved memory.
 @return	reserved mmeory in bytes */
-UNIV_INTERN
+
 ulint
 mem_pool_get_reserved(
 /*==================*/
@@ -99,14 +99,14 @@ mem_pool_get_reserved(
 /********************************************************************//**
 Validates a memory pool.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 mem_pool_validate(
 /*==============*/
 	mem_pool_t*	pool);	/*!< in: memory pool */
 /********************************************************************//**
 Prints info of a memory pool. */
-UNIV_INTERN
+
 void
 mem_pool_print_info(
 /*================*/

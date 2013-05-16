@@ -257,7 +257,7 @@ read_view_clone(
 /*********************************************************************//**
 Insert the view in the proper order into the trx_sys->view_list. The
 read view list is ordered by read_view_t::low_limit_no in descending order. */
-UNIV_INTERN
+
 void
 read_view_add(
 /*==========*/
@@ -386,7 +386,7 @@ read_view_open_now_low(
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
 @return	own: read view struct */
-UNIV_INTERN
+
 read_view_t*
 read_view_open_now(
 /*===============*/
@@ -414,7 +414,7 @@ the creating trx of the oldest view is set as not visible in the 'copied'
 view. Opens a new view if no views currently exist. The view must be closed
 with ..._close. This is used in purge.
 @return	own: read view struct */
-UNIV_INTERN
+
 read_view_t*
 read_view_purge_open(
 /*=================*/
@@ -509,7 +509,7 @@ read_view_purge_open(
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
-UNIV_INTERN
+
 void
 read_view_close_for_mysql(
 /*======================*/

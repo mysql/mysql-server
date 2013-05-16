@@ -65,7 +65,7 @@ struct fts_string_t;
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.
 @return	number of bytes copied to 'to' */
-UNIV_INTERN
+
 ulint
 innobase_convert_string(
 /*====================*/
@@ -89,7 +89,7 @@ The result is always NUL-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
 terminating NUL).
 @return	number of bytes that were written */
-UNIV_INTERN
+
 ulint
 innobase_raw_format(
 /*================*/
@@ -103,7 +103,7 @@ innobase_raw_format(
 
 /*****************************************************************//**
 Invalidates the MySQL query cache for the table. */
-UNIV_INTERN
+
 void
 innobase_invalidate_query_cache(
 /*============================*/
@@ -121,7 +121,7 @@ innobase_invalidate_query_cache(
 Convert a table or index name to the MySQL system_charset_info (UTF-8)
 and quote it if needed.
 @return	pointer to the end of buf */
-UNIV_INTERN
+
 char*
 innobase_convert_name(
 /*==================*/
@@ -140,7 +140,7 @@ should be allowed to enter InnoDB - the replication thread is treated
 differently than other threads. Also used in
 srv_conc_force_exit_innodb().
 @return	true if thd is the replication thread */
-UNIV_INTERN
+
 ibool
 thd_is_replication_slave_thread(
 /*============================*/
@@ -151,7 +151,7 @@ Gets information on the durability property requested by thread.
 Used when writing either a prepare or commit record to the log
 buffer.
 @return the durability property. */
-UNIV_INTERN
+
 enum durability_properties
 thd_requested_durability(
 /*=====================*/
@@ -164,7 +164,7 @@ non-transactional tables. Used by the deadlock detector when deciding
 which transaction to rollback in case of a deadlock - we try to avoid
 rolling back transactions that have edited non-transactional tables.
 @return	true if non-transactional tables have been edited */
-UNIV_INTERN
+
 ibool
 thd_has_edited_nontrans_tables(
 /*===========================*/
@@ -172,7 +172,7 @@ thd_has_edited_nontrans_tables(
 
 /*************************************************************//**
 Prints info of a THD object (== user session thread) to the given file. */
-UNIV_INTERN
+
 void
 innobase_mysql_print_thd(
 /*=====================*/
@@ -185,7 +185,7 @@ innobase_mysql_print_thd(
 InnoDB uses this function to compare two data fields for which the data type
 is such that we must use MySQL code to compare them.
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-UNIV_INTERN
+
 int
 innobase_mysql_cmp(
 /*===============*/
@@ -203,7 +203,7 @@ Converts a MySQL type to an InnoDB type. Note that this function returns
 the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1
 VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
 @return	DATA_BINARY, DATA_VARCHAR, ... */
-UNIV_INTERN
+
 ulint
 get_innobase_type_from_mysql_type(
 /*==============================*/
@@ -217,7 +217,7 @@ get_innobase_type_from_mysql_type(
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
-UNIV_INTERN
+
 void
 innobase_get_cset_width(
 /*====================*/
@@ -228,7 +228,7 @@ innobase_get_cset_width(
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively.
 @return	0 if a=b, <0 if a<b, >1 if a>b */
-UNIV_INTERN
+
 int
 innobase_strcasecmp(
 /*================*/
@@ -239,7 +239,7 @@ innobase_strcasecmp(
 Compares NUL-terminated UTF-8 strings case insensitively. The
 second string contains wildcards.
 @return 0 if a match is found, 1 if not */
-UNIV_INTERN
+
 int
 innobase_wildcasecmp(
 /*=================*/
@@ -249,7 +249,7 @@ innobase_wildcasecmp(
 /******************************************************************//**
 Strip dir name from a full path name and return only its file name.
 @return file name or "null" if no file name */
-UNIV_INTERN
+
 const char*
 innobase_basename(
 /*==============*/
@@ -258,7 +258,7 @@ innobase_basename(
 /******************************************************************//**
 Returns true if the thread is executing a SELECT statement.
 @return	true if thd is executing SELECT */
-UNIV_INTERN
+
 ibool
 thd_is_select(
 /*==========*/
@@ -266,7 +266,7 @@ thd_is_select(
 
 /******************************************************************//**
 Converts an identifier to a table name. */
-UNIV_INTERN
+
 void
 innobase_convert_from_table_id(
 /*===========================*/
@@ -277,7 +277,7 @@ innobase_convert_from_table_id(
 					be at least 5 * strlen(to) + 1 */
 /******************************************************************//**
 Converts an identifier to UTF-8. */
-UNIV_INTERN
+
 void
 innobase_convert_from_id(
 /*=====================*/
@@ -288,7 +288,7 @@ innobase_convert_from_id(
 					should be at least 3 * strlen(to) + 1 */
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
-UNIV_INTERN
+
 void
 innobase_casedn_str(
 /*================*/
@@ -297,7 +297,7 @@ innobase_casedn_str(
 /**********************************************************************//**
 Determines the connection character set.
 @return	connection character set */
-UNIV_INTERN
+
 struct charset_info_st*
 innobase_get_charset(
 /*=================*/
@@ -305,7 +305,7 @@ innobase_get_charset(
 /**********************************************************************//**
 Determines the current SQL statement.
 @return	SQL statement string */
-UNIV_INTERN
+
 const char*
 innobase_get_stmt(
 /*==============*/
@@ -318,7 +318,7 @@ characters for prefix indexes using a multibyte character set. The function
 finds charset information and returns length of prefix_len characters in the
 index field in bytes.
 @return	number of bytes occupied by the first n characters */
-UNIV_INTERN
+
 ulint
 innobase_get_at_most_n_mbchars(
 /*===========================*/
@@ -332,7 +332,7 @@ innobase_get_at_most_n_mbchars(
 /*************************************************************//**
 InnoDB index push-down condition check
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
-UNIV_INTERN
+
 enum icp_result
 innobase_index_cond(
 /*================*/
@@ -342,7 +342,7 @@ innobase_index_cond(
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
 @return	true if thd supports XA */
-UNIV_INTERN
+
 ibool
 thd_supports_xa(
 /*============*/
@@ -352,7 +352,7 @@ thd_supports_xa(
 /******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return	the lock wait timeout, in seconds */
-UNIV_INTERN
+
 ulong
 thd_lock_wait_timeout(
 /*==================*/
@@ -360,7 +360,7 @@ thd_lock_wait_timeout(
 			the global innodb_lock_wait_timeout */
 /******************************************************************//**
 Add up the time waited for the lock for the current query. */
-UNIV_INTERN
+
 void
 thd_set_lock_wait_time(
 /*===================*/
@@ -372,7 +372,7 @@ Get the current setting of the table_cache_size global parameter. We do
 a dirty read because for one there is no synchronization object and
 secondly there is little harm in doing so even if we get a torn read.
 @return	SQL statement string */
-UNIV_INTERN
+
 ulint
 innobase_get_table_cache_size(void);
 /*===============================*/
@@ -383,7 +383,7 @@ mysqld.cc. We do a dirty read because for one there is no synchronization
 object and secondly there is little harm in doing so even if we get a torn
 read.
 @return	value of lower_case_table_names */
-UNIV_INTERN
+
 ulint
 innobase_get_lower_case_table_names(void);
 /*=====================================*/
@@ -391,7 +391,7 @@ innobase_get_lower_case_table_names(void);
 /*****************************************************************//**
 Frees a possible InnoDB trx object associated with the current THD.
 @return 0 or error number */
-UNIV_INTERN
+
 int
 innobase_close_thd(
 /*===============*/
@@ -399,7 +399,7 @@ innobase_close_thd(
 				which to close the connection */
 /*************************************************************//**
 Get the next token from the given string and store it in *token. */
-UNIV_INTERN
+
 ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
@@ -414,7 +414,7 @@ innobase_mysql_fts_get_token(
 
 /******************************************************************//**
 compare two character string case insensitively according to their charset. */
-UNIV_INTERN
+
 int
 innobase_fts_text_case_cmp(
 /*=======================*/
@@ -424,7 +424,7 @@ innobase_fts_text_case_cmp(
 
 /******************************************************************//**
 compare two character string according to their charset. */
-UNIV_INTERN
+
 int
 innobase_fts_string_cmp(
 /*====================*/
@@ -435,7 +435,7 @@ innobase_fts_string_cmp(
 /****************************************************************//**
 Get FTS field charset info from the field's prtype
 @return charset info */
-UNIV_INTERN
+
 CHARSET_INFO*
 innobase_get_fts_charset(
 /*=====================*/
@@ -444,7 +444,7 @@ innobase_get_fts_charset(
 /******************************************************************//**
 Returns true if transaction should be flagged as read-only.
 @return	true if the thd is marked as read-only */
-UNIV_INTERN
+
 bool
 thd_trx_is_read_only(
 /*=================*/
@@ -454,7 +454,7 @@ thd_trx_is_read_only(
 Check if the transaction is an auto-commit transaction. TRUE also
 implies that it is a SELECT (read-only) transaction.
 @return	true if the transaction is an auto commit read-only transaction. */
-UNIV_INTERN
+
 ibool
 thd_trx_is_auto_commit(
 /*===================*/
@@ -464,7 +464,7 @@ thd_trx_is_auto_commit(
 A wrapper function of innobase_convert_name(), convert a table or
 index name to the MySQL system_charset_info (UTF-8) and quote it if needed.
 @return	pointer to the end of buf */
-UNIV_INTERN
+
 void
 innobase_format_name(
 /*==================*/
@@ -495,7 +495,7 @@ void push_warning_printf(
 	THD *thd, Sql_condition::enum_warning_level level,
 	uint code, const char *format, ...);
 */
-UNIV_INTERN
+
 void
 ib_errf(
 /*====*/
@@ -516,7 +516,7 @@ void push_warning_printf(
 	THD *thd, Sql_condition::enum_warning_level level,
 	uint code, const char *format, ...);
 */
-UNIV_INTERN
+
 void
 ib_senderrf(
 /*========*/
@@ -528,7 +528,7 @@ ib_senderrf(
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: ".
 Wrapper around sql_print_information() */
-UNIV_INTERN
+
 void
 ib_logf(
 /*====*/
@@ -540,7 +540,7 @@ ib_logf(
 /******************************************************************//**
 Returns the NUL terminated value of glob_hostname.
 @return	pointer to glob_hostname. */
-UNIV_INTERN
+
 const char*
 server_get_hostname();
 /*=================*/
@@ -548,7 +548,7 @@ server_get_hostname();
 /******************************************************************//**
 Get the error message format string.
 @return the format string or 0 if not found. */
-UNIV_INTERN
+
 const char*
 innobase_get_err_msg(
 /*=================*/
@@ -572,7 +572,7 @@ innobase_next_autoinc() will be called with increment set to 3 where
 autoinc_lock_mode != TRADITIONAL because we want to reserve 3 values for
 the multi-value INSERT above.
 @return	the next value */
-UNIV_INTERN
+
 ulonglong
 innobase_next_autoinc(
 /*==================*/
@@ -587,7 +587,7 @@ innobase_next_autoinc(
 Check if the length of the identifier exceeds the maximum allowed.
 The input to this function is an identifier in charset my_charset_filename.
 return true when length of identifier is too long. */
-UNIV_INTERN
+
 my_bool
 innobase_check_identifier_length(
 /*=============================*/

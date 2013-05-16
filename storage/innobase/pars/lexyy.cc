@@ -916,7 +916,7 @@ char *yytext;
 #line 1 "pars0lex.l"
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3115,7 +3115,7 @@ void yyfree (void * ptr )
 
 /**********************************************************************
 Release any resources used by the lexer. */
-UNIV_INTERN
+
 void
 pars_lexer_close(void)
 /*==================*/
