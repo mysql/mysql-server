@@ -839,17 +839,19 @@ zip_reorganize:
 	return(ret);
 }
 
-/**********************************************************//**
-Writes a log record of a record list end or start deletion. */
+/** Write a log record of a record list end or start deletion.
+
+@param[in]	rec	limit record
+@param[in]	index	B-tree index
+@param[in]	type	redo log entry type
+@param[in/out]	mtr	mini-transaction */
 UNIV_INLINE
 void
 page_delete_rec_list_write_log(
-/*===========================*/
-	rec_t*		rec,	/*!< in: record on page */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	byte		type,	/*!< in: operation type:
-				MLOG_LIST_END_DELETE, ... */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	byte			type,
+	mtr_t*			mtr)
 {
 	byte*	log_ptr;
 	ut_ad(type == MLOG_LIST_END_DELETE
@@ -1098,29 +1100,23 @@ delete_all:
 			      (ulint)(page_get_n_recs(page) - n_recs));
 }
 
-/*************************************************************//**
-Deletes records from page, up to the given record, NOT including
-that record. Infimum and supremum records are not deleted. */
+/** Delete all user records up to the given record, excluding that
+record. Infimum and supremum records are not deleted.
+
+@param[in]	rec	record up to which to delete
+@param[in/out]	block	B-tree page
+@param[in]	index	B-tree index
+@param[in/out]	mtr	mini-transaction, or NULL to suppress redo logging */
 
 void
 page_delete_rec_list_start(
-/*=======================*/
-	rec_t*		rec,	/*!< in: record on page */
-	buf_block_t*	block,	/*!< in: buffer block of the page */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const rec_t*		rec,
+	buf_block_t*		block,
+	const dict_index_t*	index,
+	mtr_t*			mtr)
 {
-	page_cur_t	cur1;
-	ulint		log_mode;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	mem_heap_t*	heap		= NULL;
-	byte		type;
+	ut_ad(page_align(rec) == buf_block_get_frame(block));
 
-	rec_offs_init(offsets_);
-
-	ut_ad((ibool) !!page_rec_is_comp(rec)
-	      == dict_table_is_comp(index->table));
 	/* page_zip_validate() would detect a min_rec_mark mismatch
 	in btr_page_split_and_insert()
 	between btr_attach_half_pages() and insert_page = ...
@@ -1130,43 +1126,33 @@ page_delete_rec_list_start(
 					buf_block_get_frame(block), index);
 
 	if (page_rec_is_infimum(rec)) {
-		return;
-	}
-
-	if (page_rec_is_supremum(rec)) {
-		/* We are deleting all records. */
+		/* Nothing to delete. */
+	} else if (page_rec_is_supremum(rec)) {
+		/* Delete all records. */
 		page_create_empty(block, index, mtr);
-		return;
-	}
-
-	if (page_rec_is_comp(rec)) {
-		type = MLOG_COMP_LIST_START_DELETE;
 	} else {
-		type = MLOG_LIST_START_DELETE;
+		/* Individual deletes are not logged */
+		PageCur cur(NULL, index, block);
+
+		if (mtr) {
+			page_delete_rec_list_write_log(
+				rec, index, cur.isComp()
+				? MLOG_COMP_LIST_START_DELETE
+				: MLOG_LIST_START_DELETE, mtr);
+		}
+
+		if (!cur.next()) {
+			/* If the page were empty, then rec should
+			either be the page infimum or supremum. */
+			ut_error;
+		}
+
+		while (cur.getRec() != rec) {
+			cur.purge();
+		}
+
+		ut_ad(cur.getRec() == rec);
 	}
-
-	page_delete_rec_list_write_log(rec, index, type, mtr);
-
-	page_cur_set_before_first(block, &cur1);
-	page_cur_move_to_next(&cur1);
-
-	/* Individual deletes are not logged */
-
-	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
-
-	while (page_cur_get_rec(&cur1) != rec) {
-		offsets = rec_get_offsets(page_cur_get_rec(&cur1), index,
-					  offsets, ULINT_UNDEFINED, &heap);
-		page_cur_delete_rec(&cur1, index, offsets, mtr);
-	}
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-
-	/* Restore log mode */
-
-	mtr_set_log_mode(mtr, log_mode);
 }
 
 #ifndef UNIV_HOTBACKUP

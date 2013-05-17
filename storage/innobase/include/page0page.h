@@ -942,18 +942,20 @@ page_delete_rec_list_end(
 				delete, or ULINT_UNDEFINED if not known */
 	mtr_t*		mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
-/*************************************************************//**
-Deletes records from page, up to the given record, NOT including
-that record. Infimum and supremum records are not deleted. */
+/** Delete all user records up to the given record, excluding that
+record. Infimum and supremum records are not deleted.
+
+@param[in]	rec	record up to which to delete
+@param[in/out]	block	B-tree page
+@param[in]	index	B-tree index
+@param[in/out]	mtr	mini-transaction, or NULL to suppress redo logging */
 
 void
 page_delete_rec_list_start(
-/*=======================*/
-	rec_t*		rec,	/*!< in: record on page */
-	buf_block_t*	block,	/*!< in: buffer block of the page */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	mtr_t*		mtr)	/*!< in: mtr */
-	__attribute__((nonnull));
+	const rec_t*		rec,
+	buf_block_t*		block,
+	const dict_index_t*	index,
+	mtr_t*			mtr);
 /*************************************************************//**
 Moves record list end to another page. Moved records include
 split_rec.
