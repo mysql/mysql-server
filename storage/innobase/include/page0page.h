@@ -453,9 +453,9 @@ page_dir_get_nth_slot(
 	const page_t*	page,	/*!< in: index page */
 	ulint		n);	/*!< in: position */
 #else /* UNIV_DEBUG */
-# define page_dir_get_nth_slot(page, n)		\
-	((page) + UNIV_PAGE_SIZE - PAGE_DIR	\
-	 - (n + 1) * PAGE_DIR_SLOT_SIZE)
+# define page_dir_get_nth_slot(page, n)			\
+	((page) + (UNIV_PAGE_SIZE - PAGE_DIR		\
+		   - (n + 1) * PAGE_DIR_SLOT_SIZE))
 #endif /* UNIV_DEBUG */
 /**************************************************************//**
 Used to check the consistency of a record on a page.
