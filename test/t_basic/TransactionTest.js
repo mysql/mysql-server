@@ -155,32 +155,42 @@ t4.run = function() {
   });
 };
 
-/***** Test commit without begin ***/
+/***** Test commit without begin with and without callback ***/
 var t5 = new harness.ConcurrentTest("testCommitWithoutBegin");
 t5.run = function() {
   var testCase = this;
+  var t5OnCommit = function(err) {
+    if (err) {
+      // so far so good
+      try {
+        tx.commit();
+        testCase.fail(new Error('t5 Commit without begin and without callback should throw.'));
+      } catch (err) {
+        testCase.pass();
+      }
+    } else {
+      // failed to signal an error
+      testCase.fail(new Error('t5 Commit without begin should fail.'));
+    }
+  };
+
   fail_openSession(testCase, function(session) {
     var tx = session.currentTransaction();
-    try {
-      tx.commit();
-      testCase.fail(new Error('t5 Commit without begin should fail.'));
-    } catch (err) {
-      testCase.pass();
-    }
+    tx.commit(t5OnCommit);
   });
 };
 
-/***** Test rollback without begin ***/
+/***** Test rollback without begin with and without callback ***/
 var t6 = new harness.ConcurrentTest("testRollbackWithoutBegin");
 t6.run = function() {
   var tx;
   var testCase = this;
   var t6OnRollback = function(err) {
     if (err) {
-      // good
+      // so far so good
       try {
         tx.rollback();
-        testCase.fail(new Error('t6 Rollback without begin should fail.'));
+        testCase.fail(new Error('t6 Rollback without begin and without callback should throw.'));
       } catch (ex) {
         testCase.pass();
       }
@@ -203,11 +213,12 @@ t7.run = function() {
   var testCase = this;
   var t7OnCommit = function(err) {
     if (err) {
-      // good
+      // so far so good
       try {
-        tx.rollback();
-        testCase.fail(new Error('t7 Commit with RollbackOnly and no callback should throw.'));
+        tx.commit();
+        testCase.fail(new Error('t7 SetRollbackOnly, Commit with callback, Commit with no callback should throw.'));
       } catch (ex) {
+        tx.rollback();
         testCase.pass();
       }
     } else {
