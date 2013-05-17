@@ -208,22 +208,6 @@ page_cur_insert_rec_zip(
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
 	__attribute__((nonnull(1,2,3,4), warn_unused_result));
-/*************************************************************//**
-Copies records from page to a newly created page, from a given record onward,
-including that record. Infimum and supremum records are not copied.
-
-IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
-if this is a compressed leaf page in a secondary index.
-This has to be done either within the same mini-transaction,
-or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-
-void
-page_copy_rec_list_end_to_created_page(
-/*===================================*/
-	page_t*		new_page,	/*!< in/out: index page to copy to */
-	rec_t*		rec,		/*!< in: first record to copy */
-	dict_index_t*	index,		/*!< in: record descriptor */
-	mtr_t*		mtr);		/*!< in: mtr */
 /***********************************************************//**
 Deletes a record at the page cursor. The cursor is moved to the
 next record after the deleted one. */
@@ -532,6 +516,12 @@ public:
 		return(m_offsets);
 	}
 
+	/** Free the offsets if they had been computed. */
+	void clearOffsets() {
+		delete[] m_offsets;
+		m_offsets = NULL;
+	}
+
 	/** Determine if the cursor is positioned on a user record. */
 	bool isUser() const { return(page_rec_is_user_rec(m_rec)); }
 	/** Determine if the cursor is before the first user record. */
@@ -678,6 +668,63 @@ public:
 		ulint		extra_size,
 		ulint		data_size) {
 		return(insertNoReorganize(rec, extra_size, data_size, NULL));
+	}
+
+	/** Insert all records from a cursor to an empty page,
+	not updating the compressed page.
+
+	NOTE: The cursor must be positioned on the page infimum,
+	and at the end it will be positioned on the page supremum.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+	if this is a compressed leaf page in a secondary index.
+	This has to be done either within the same mini-transaction,
+	or by invoking ibuf_reset_free_bits() before mtr_commit().
+
+	@param[in/out]	cursor		cursor pointing to the first record
+	to insert; will be advanced to the page supremum */
+	void appendEmptyNoZip(PageCur& cursor);
+
+	/** Insert all records from a cursor after the current cursor position,
+	not updating the compressed page.
+
+	The cursor position on the destination page will be preserved.
+
+	IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+	if this is a compressed leaf page in a secondary index.
+	This has to be done either within the same mini-transaction,
+	or by invoking ibuf_reset_free_bits() before mtr_commit().
+
+	@param[in/out]	cursor		cursor pointing to the first record
+	to insert; will be advanced to the page supremum */
+	void appendNoZip(PageCur& cursor) {
+		ut_ad(isMutable());
+		ut_ad(cursor.m_index == m_index);
+		ut_ad(cursor.m_block != m_block);
+		ut_ad(cursor.isUser());
+		ut_ad(!isAfterLast());
+		ut_ad(isComp() == cursor.isComp());
+		ut_ad(page_is_leaf(getPage())
+		      == page_is_leaf(cursor.getPage()));
+
+		clearOffsets();
+		cursor.clearOffsets();
+
+		if (page_dir_get_n_heap(getPage())
+		    == PAGE_HEAP_NO_USER_LOW) {
+empty:
+			ut_ad(isBeforeFirst());
+			appendEmptyNoZip(cursor);
+		} else if (page_is_empty(getPage())) {
+			page_create_empty(m_block, m_index, m_mtr);
+			goto empty;
+		} else {
+			do {
+				if (!insertNoZip(cursor) || !next()) {
+					ut_error;
+				}
+			} while (cursor.next());
+		}
 	}
 
 	/** Insert an entry after the current cursor position.

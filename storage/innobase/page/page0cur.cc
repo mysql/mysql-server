@@ -1329,35 +1329,6 @@ use_heap:
 	return(insert_rec);
 }
 
-#ifndef UNIV_HOTBACKUP
-/**********************************************************//**
-Writes a log record of copying a record list end to a new created page.
-@return 4-byte field where to write the log data length, or NULL if
-logging is disabled */
-UNIV_INLINE
-byte*
-page_copy_rec_list_to_created_page_write_log(
-/*=========================================*/
-	page_t*		page,	/*!< in: index page */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	mtr_t*		mtr)	/*!< in: mtr */
-{
-	byte*	log_ptr;
-
-	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
-
-	log_ptr = mlog_open_and_write_index(mtr, page, index,
-					    page_is_comp(page)
-					    ? MLOG_COMP_LIST_END_COPY_CREATED
-					    : MLOG_LIST_END_COPY_CREATED, 4);
-	if (UNIV_LIKELY(log_ptr != NULL)) {
-		mlog_close(mtr, log_ptr + 4);
-	}
-
-	return(log_ptr);
-}
-#endif /* !UNIV_HOTBACKUP */
-
 /**********************************************************//**
 Parses a log record of copying a record list end to a new created page.
 @return	end of log record or NULL */
@@ -1415,191 +1386,6 @@ page_parse_copy_rec_list_to_created_page(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************//**
-Copies records from page to a newly created page, from a given record onward,
-including that record. Infimum and supremum records are not copied.
-
-IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
-if this is a compressed leaf page in a secondary index.
-This has to be done either within the same mini-transaction,
-or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-
-void
-page_copy_rec_list_end_to_created_page(
-/*===================================*/
-	page_t*		new_page,	/*!< in/out: index page to copy to */
-	rec_t*		rec,		/*!< in: first record to copy */
-	dict_index_t*	index,		/*!< in: record descriptor */
-	mtr_t*		mtr)		/*!< in: mtr */
-{
-	page_dir_slot_t* slot = 0; /* remove warning */
-	byte*	heap_top;
-	rec_t*	insert_rec = 0; /* remove warning */
-	rec_t*	prev_rec;
-	ulint	count;
-	ulint	n_recs;
-	ulint	slot_index;
-	ulint	log_mode;
-	byte*	log_ptr;
-	ulint	log_data_len;
-
-	ut_ad(page_dir_get_n_heap(new_page) == PAGE_HEAP_NO_USER_LOW);
-	ut_ad(page_align(rec) != new_page);
-	ut_ad(page_rec_is_comp(rec) == page_is_comp(new_page));
-
-	if (page_rec_is_infimum(rec)) {
-
-		rec = page_rec_get_next(rec);
-	}
-
-	if (page_rec_is_supremum(rec)) {
-
-		return;
-	}
-
-#ifdef UNIV_DEBUG
-	/* To pass the debug tests we have to set these dummy values
-	in the debug version */
-	page_dir_set_n_slots(new_page, NULL, UNIV_PAGE_SIZE / 2);
-	page_header_set_ptr(new_page, NULL, PAGE_HEAP_TOP,
-			    new_page + UNIV_PAGE_SIZE - 1);
-#endif
-
-	log_ptr = page_copy_rec_list_to_created_page_write_log(new_page,
-							       index, mtr);
-
-	log_data_len = dyn_array_get_data_size(&(mtr->log));
-
-	/* Individual inserts are logged in a shorter form */
-	if (!dict_table_is_temporary(index->table)) {
-		log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
-	} else {
-		log_mode = mtr_get_log_mode(mtr);
-	}
-
-	prev_rec = page_get_infimum_rec(new_page);
-	if (page_is_comp(new_page)) {
-		heap_top = new_page + PAGE_NEW_SUPREMUM_END;
-	} else {
-		heap_top = new_page + PAGE_OLD_SUPREMUM_END;
-	}
-	count = 0;
-	slot_index = 0;
-	n_recs = 0;
-
-	do {
-		ulint	extra_size;
-		ulint	data_size;
-
-		if (page_is_comp(new_page)) {
-			data_size = rec_get_size_comp(rec, index, extra_size);
-
-			memcpy(heap_top, rec - extra_size,
-			       extra_size + data_size);
-
-			insert_rec = heap_top + extra_size;
-
-			rec_set_next_offs_new(prev_rec,
-					      page_offset(insert_rec));
-
-			rec_set_n_owned_new(insert_rec, NULL, 0);
-			rec_set_heap_no_new(insert_rec,
-					    PAGE_HEAP_NO_USER_LOW + n_recs);
-		} else {
-			data_size = rec_get_size_old(rec, extra_size);
-
-			memcpy(heap_top, rec - extra_size,
-			       extra_size + data_size);
-
-			insert_rec = heap_top + extra_size;
-
-			rec_set_next_offs_old(prev_rec,
-					      page_offset(insert_rec));
-
-			rec_set_n_owned_old(insert_rec, 0);
-			rec_set_heap_no_old(insert_rec,
-					    PAGE_HEAP_NO_USER_LOW + n_recs);
-		}
-
-		count++;
-		n_recs++;
-
-		if (UNIV_UNLIKELY
-		    (count == (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2)) {
-
-			slot_index++;
-
-			slot = page_dir_get_nth_slot(new_page, slot_index);
-
-			page_dir_slot_set_rec(slot, insert_rec);
-			page_dir_slot_set_n_owned(slot, NULL, count);
-
-			count = 0;
-		}
-
-		ut_ad(heap_top < new_page + UNIV_PAGE_SIZE);
-
-		const ulint	rec_size = extra_size + data_size;
-
-		heap_top += rec_size;
-
-		page_cur_insert_rec_write_log(insert_rec, rec_size, prev_rec,
-					      index, mtr);
-		prev_rec = insert_rec;
-		rec = page_rec_get_next(rec);
-	} while (!page_rec_is_supremum(rec));
-
-	if ((slot_index > 0) && (count + 1
-				 + (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2
-				 <= PAGE_DIR_SLOT_MAX_N_OWNED)) {
-		/* We can merge the two last dir slots. This operation is
-		here to make this function imitate exactly the equivalent
-		task made using page_cur_insert_rec, which we use in database
-		recovery to reproduce the task performed by this function.
-		To be able to check the correctness of recovery, it is good
-		that it imitates exactly. */
-
-		count += (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2;
-
-		page_dir_slot_set_n_owned(slot, NULL, 0);
-
-		slot_index--;
-	}
-
-	log_data_len = dyn_array_get_data_size(&(mtr->log)) - log_data_len;
-
-	ut_a(log_data_len < 100 * UNIV_PAGE_SIZE);
-
-	if (UNIV_LIKELY(log_ptr != NULL)) {
-		mach_write_to_4(log_ptr, log_data_len);
-	}
-
-	if (page_is_comp(new_page)) {
-		rec_set_next_offs_new(insert_rec, PAGE_NEW_SUPREMUM);
-	} else {
-		rec_set_next_offs_old(insert_rec, PAGE_OLD_SUPREMUM);
-	}
-
-	slot = page_dir_get_nth_slot(new_page, 1 + slot_index);
-
-	page_dir_slot_set_rec(slot, page_get_supremum_rec(new_page));
-	page_dir_slot_set_n_owned(slot, NULL, count + 1);
-
-	page_dir_set_n_slots(new_page, NULL, 2 + slot_index);
-	page_header_set_ptr(new_page, NULL, PAGE_HEAP_TOP, heap_top);
-	page_dir_set_n_heap(new_page, NULL, PAGE_HEAP_NO_USER_LOW + n_recs);
-	page_header_set_field(new_page, NULL, PAGE_N_RECS, n_recs);
-
-	page_header_set_ptr(new_page, NULL, PAGE_LAST_INSERT, NULL);
-	page_header_set_field(new_page, NULL, PAGE_DIRECTION,
-							PAGE_NO_DIRECTION);
-	page_header_set_field(new_page, NULL, PAGE_N_DIRECTION, 0);
-
-	/* Restore the log mode */
-
-	mtr_set_log_mode(mtr, log_mode);
-}
-
 /***********************************************************//**
 Writes log record of a record delete on a page. */
 UNIV_INLINE
@@ -2256,6 +2042,166 @@ use_heap:
 
 	return(insertBuf(rec, extra_size, data_size, page_zip,
 			 insert_buf, free_rec, heap_no));
+}
+
+/** Insert all records from a cursor to an empty page,
+not updating the compressed page.
+
+NOTE: The cursor must be positioned on the page infimum,
+and at the end it will be positioned on the page supremum.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
+@param[in/out]	cursor		cursor pointing to first record to insert */
+
+void
+PageCur::appendEmptyNoZip(PageCur& cursor)
+{
+	ut_ad(isMutable());
+	ut_ad(isBeforeFirst());
+	ut_ad(cursor.isUser());
+	ut_ad(cursor.m_index == m_index);
+	ut_ad(cursor.m_block != m_block);
+	ut_ad(!getOffsetsIfExist());
+	ut_ad(!cursor.getOffsetsIfExist());
+	ut_ad(isComp() == cursor.isComp());
+	ut_ad(page_is_leaf(getPage()) == page_is_leaf(cursor.getPage()));
+
+	page_t*	page	= getPage();
+
+	ut_ad(page_is_empty(page));
+
+	byte*	log_ptr	= (m_mtr && !dict_table_is_temporary(m_index->table))
+		? mlog_open_and_write_index(
+			m_mtr, page, m_index, isComp()
+			? MLOG_COMP_LIST_END_COPY_CREATED
+			: MLOG_LIST_END_COPY_CREATED, 4)
+		: NULL;
+
+	ulint	log_mode;
+
+	if (log_ptr) {
+		mlog_close(m_mtr, log_ptr + 4);
+		mach_write_to_4(log_ptr, dyn_array_get_data_size(&m_mtr->log));
+		log_mode = mtr_set_log_mode(m_mtr, MTR_LOG_SHORT_INSERTS);
+	} else {
+		log_mode = 0; /* remove warning */
+	}
+
+	byte*			heap_top= page
+		+ (isComp() ? PAGE_NEW_SUPREMUM_END : PAGE_OLD_SUPREMUM_END);
+	ulint			n_owned	= 0;
+	page_dir_slot_t*	slot	= page_dir_get_nth_slot(page, 0);
+	ulint			heap_no	= PAGE_HEAP_NO_USER_LOW;
+
+	ut_ad(heap_top == page + page_header_get_field(page, PAGE_HEAP_TOP));
+	ut_ad(heap_no == page_dir_get_n_heap(page));
+
+	do {
+		ulint	extra_size;
+		ulint	data_size;
+
+		if (isComp()) {
+			data_size	= rec_get_size_comp(
+				cursor.getRec(), m_index, extra_size);
+			memcpy(heap_top, cursor.getRec() - extra_size,
+			       extra_size + data_size);
+
+			heap_top += extra_size;
+			rec_set_next_offs_new(m_rec, page_offset(heap_top));
+
+			rec_set_n_owned_new(heap_top, NULL, 0);
+			rec_set_heap_no_new(heap_top, heap_no++);
+		} else {
+			data_size = rec_get_size_old(
+				cursor.getRec(), extra_size);
+			memcpy(heap_top, cursor.getRec() - extra_size,
+			       extra_size + data_size);
+
+			heap_top += extra_size;
+			rec_set_next_offs_old(m_rec, page_offset(heap_top));
+
+			rec_set_n_owned_old(heap_top, 0);
+			rec_set_heap_no_old(heap_top, heap_no++);
+		}
+
+		ut_ad(page_align(heap_top) == page);
+
+		if (++n_owned == (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2) {
+			slot -= PAGE_DIR_SLOT_SIZE;
+			mach_write_to_2(slot, page_offset(heap_top));
+
+			if (isComp()) {
+				rec_set_n_owned_new(heap_top, NULL, n_owned);
+			} else {
+				rec_set_n_owned_old(heap_top, n_owned);
+			}
+
+			n_owned = 0;
+		}
+
+		if (log_ptr) {
+			logInsert(heap_top, extra_size, data_size);
+		}
+
+		m_rec = heap_top;
+		heap_top += data_size;
+	} while (cursor.next());
+
+	if (++n_owned <= PAGE_DIR_SLOT_MAX_N_OWNED / 2
+	    && slot != page_dir_get_nth_slot(page, 0)) {
+		/* Merge the last two page directory slots in order
+		to imitate exactly page_cur_parse_insert_rec() in
+		page_parse_copy_rec_list_to_created_page(). */
+		n_owned += (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2;
+		page_dir_slot_set_n_owned(slot, NULL, 0);
+	} else {
+		slot -= PAGE_DIR_SLOT_SIZE;
+	}
+
+	if (log_ptr) {
+		ulint	log_data_len = dyn_array_get_data_size(&m_mtr->log)
+			- mach_read_from_4(log_ptr);
+		/* The MTR_LOG_SHORT_INSERTS should save redo log
+		volume by omitting common bytes between successive
+		records.  Ideally, we should never write more log than
+		the total size of the copied records (even if the
+		first byte is always different, but there is some
+		overhead in the format. */
+		ut_ad(log_data_len < 3 * UNIV_PAGE_SIZE);
+		mach_write_to_4(log_ptr, log_data_len);
+		mtr_set_log_mode(m_mtr, log_mode);
+	}
+
+	if (isComp()) {
+		mach_write_to_2(slot, PAGE_NEW_SUPREMUM);
+		rec_set_next_offs_new(m_rec, PAGE_NEW_SUPREMUM);
+		m_rec = page + PAGE_NEW_SUPREMUM;
+		rec_set_n_owned_new(m_rec, NULL, n_owned);
+	} else {
+		mach_write_to_2(slot, PAGE_OLD_SUPREMUM);
+		rec_set_next_offs_old(m_rec, PAGE_OLD_SUPREMUM);
+		m_rec = page + PAGE_OLD_SUPREMUM;
+		rec_set_n_owned_old(m_rec, n_owned);
+	}
+
+	ut_ad(heap_top > page + page_header_get_field(page, PAGE_HEAP_TOP));
+	ut_ad(heap_no > PAGE_HEAP_NO_USER_LOW);
+
+	page_dir_set_n_slots(page, NULL, 1
+			     + (page_dir_get_nth_slot(page, 0) - slot)
+			     / PAGE_DIR_SLOT_SIZE);
+	page_header_set_ptr(page, NULL, PAGE_HEAP_TOP, heap_top);
+	page_dir_set_n_heap(page, NULL, heap_no);
+	page_header_set_field(page, NULL, PAGE_N_RECS,
+			      heap_no - PAGE_HEAP_NO_USER_LOW);
+
+	page_header_set_ptr(page, NULL, PAGE_LAST_INSERT, NULL);
+	page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
+	page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
 }
 
 /** Insert an entry after the current cursor position.

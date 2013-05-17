@@ -678,27 +678,14 @@ page_copy_rec_list_end(
 		return(dst.getRec());
 	}
 
-	const ulint	log_mode = dst.isZip()
+	const ulint	log_mode= dst.isZip()
 		? mtr_set_log_mode(mtr, MTR_LOG_NONE)
-		: mtr_get_log_mode(mtr);
-
-	if (page_dir_get_n_heap(buf_block_get_frame(new_block))
-		   == PAGE_HEAP_NO_USER_LOW) {
-		page_copy_rec_list_end_to_created_page(
-			buf_block_get_frame(new_block), rec, index, mtr);
-	} else {
-		const rec_t*	ret = dst.getRec();
-
-		dst.setBeforeFirst();
-
-		do {
-			if (!dst.insertNoZip(src) || !dst.next()) {
-				ut_error;
-			}
-		} while (src.next());
-
-		dst.setRec(ret);
-	}
+		: 0;
+	const rec_t*	ret	= dst.getRec();
+	dst.setBeforeFirst();
+	dst.appendNoZip(src);
+	dst.setRec(ret);
+	ut_ad(!log_mode == !dst.isZip());
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
@@ -715,10 +702,12 @@ page_copy_rec_list_end(
 			page_get_max_trx_id(buf_block_get_frame(block)), mtr);
 	}
 
-	mtr_set_log_mode(mtr, log_mode);
+	if (log_mode) {
+		mtr_set_log_mode(mtr, log_mode);
 
-	if (dst.isZip() && !dst.compress(page_zip_level)) {
-		return(NULL);
+		if (!dst.compress(page_zip_level)) {
+			return(NULL);
+		}
 	}
 
 	/* Update the lock table and possible hash index */
