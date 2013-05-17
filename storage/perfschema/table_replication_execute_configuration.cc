@@ -15,12 +15,12 @@
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file storage/perfschema/table_replication_execute_config_by_channel.cc
-  Table replication_execute_config_by_channel(implementation).
+  @file storage/perfschema/table_replication_execute_configuration.cc
+  Table replication_execute_configuration (implementation).
 */
 
 #include "sql_priv.h"
-#include "table_replication_execute_config_by_channel.h"
+#include "table_replication_execute_configuration.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "rpl_slave.h"
@@ -29,7 +29,7 @@
 #include "rpl_mi.h"
 #include "sql_parse.h"
 
-THR_LOCK table_replication_execute_config_by_channel::m_table_lock;
+THR_LOCK table_replication_execute_configuration::m_table_lock;
 
 /*
   numbers in varchar count utf8 characters.
@@ -44,15 +44,15 @@ static const TABLE_FIELD_TYPE field_types[]=
 };
 
 TABLE_FIELD_DEF
-table_replication_execute_config_by_channel::m_field_def=
+table_replication_execute_configuration::m_field_def=
 { 1, field_types };
 
 PFS_engine_table_share
-table_replication_execute_config_by_channel::m_share=
+table_replication_execute_configuration::m_share=
 {
-  { C_STRING_WITH_LEN("replication_execute_config_by_channel") },
+  { C_STRING_WITH_LEN("replication_execute_configuration") },
   &pfs_readonly_acl,
-  &table_replication_execute_config_by_channel::create,
+  &table_replication_execute_configuration::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   NULL,    
@@ -63,9 +63,9 @@ table_replication_execute_config_by_channel::m_share=
   false /* checked */
 };
 
-PFS_engine_table* table_replication_execute_config_by_channel::create(void)
+PFS_engine_table* table_replication_execute_configuration::create(void)
 {
-  return new table_replication_execute_config_by_channel();
+  return new table_replication_execute_configuration();
 }
 
 static ST_STATUS_FIELD_INFO slave_field_info[]=
@@ -73,7 +73,7 @@ static ST_STATUS_FIELD_INFO slave_field_info[]=
   {"Desired_Delay", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
 };
 
-table_replication_execute_config_by_channel::table_replication_execute_config_by_channel()
+table_replication_execute_configuration::table_replication_execute_configuration()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
 {
@@ -86,7 +86,7 @@ table_replication_execute_config_by_channel::table_replication_execute_config_by
   }
 }
 
-table_replication_execute_config_by_channel::~table_replication_execute_config_by_channel()
+table_replication_execute_configuration::~table_replication_execute_configuration()
 {
   for (int i= DESIRED_DELAY; i <= _RPL_EXECUTE_CONFIG_LAST_FIELD_; i++)
   {
@@ -96,13 +96,13 @@ table_replication_execute_config_by_channel::~table_replication_execute_config_b
   }
 }
 
-void table_replication_execute_config_by_channel::reset_position(void)
+void table_replication_execute_configuration::reset_position(void)
 {
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
 }
 #ifndef MYSQL_CLIENT
-int table_replication_execute_config_by_channel::rnd_next(void)
+int table_replication_execute_configuration::rnd_next(void)
 {
   Master_info *mi= active_mi;
 
@@ -122,7 +122,7 @@ int table_replication_execute_config_by_channel::rnd_next(void)
   return 0;
 }
 #endif
-int table_replication_execute_config_by_channel::rnd_pos(const void *pos)
+int table_replication_execute_configuration::rnd_pos(const void *pos)
 {
   Master_info *mi= active_mi;
   set_position(pos);
@@ -134,19 +134,19 @@ int table_replication_execute_config_by_channel::rnd_pos(const void *pos)
 }
 
 
-void table_replication_execute_config_by_channel::drop_null(enum enum_rpl_execute_config_field_names name)
+void table_replication_execute_configuration::drop_null(enum enum_rpl_execute_config_field_names name)
 {
   if (slave_field_info[name].can_be_null)
     m_fields[name].is_null= false;
 }
 
-void table_replication_execute_config_by_channel::set_null(enum enum_rpl_execute_config_field_names name)
+void table_replication_execute_configuration::set_null(enum enum_rpl_execute_config_field_names name)
 {
   DBUG_ASSERT(slave_field_info[name].can_be_null);
   m_fields[name].is_null= true;
 }
 
-void table_replication_execute_config_by_channel::str_store(enum enum_rpl_execute_config_field_names name, const char* val)
+void table_replication_execute_configuration::str_store(enum enum_rpl_execute_config_field_names name, const char* val)
 {
   m_fields[name].u.s.length= strlen(val);
   DBUG_ASSERT(m_fields[name].u.s.length <= slave_field_info[name].max_size);
@@ -163,13 +163,13 @@ void table_replication_execute_config_by_channel::str_store(enum enum_rpl_execut
   drop_null(name);
 }
 
-void table_replication_execute_config_by_channel::int_store(enum enum_rpl_execute_config_field_names name, longlong val)
+void table_replication_execute_configuration::int_store(enum enum_rpl_execute_config_field_names name, longlong val)
 {
   m_fields[name].u.n= val;
   drop_null(name);
 }
 
-void table_replication_execute_config_by_channel::fill_rows(Master_info *mi)
+void table_replication_execute_configuration::fill_rows(Master_info *mi)
 {
   char *slave_sql_running_state= NULL;
 
@@ -188,7 +188,7 @@ void table_replication_execute_config_by_channel::fill_rows(Master_info *mi)
   m_filled= true;
 }
 
-int table_replication_execute_config_by_channel::read_row_values(TABLE *table,
+int table_replication_execute_configuration::read_row_values(TABLE *table,
                                        unsigned char *,
                                        Field **fields,
                                        bool read_all)

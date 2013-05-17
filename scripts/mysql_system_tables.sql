@@ -1637,10 +1637,10 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE replication_connection_config_by_channel
+-- TABLE replication_connection_configuration
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_connection_config_by_channel("
+SET @cmd="CREATE TABLE performance_schema.replication_connection_configuration("
     "Host varchar(60) not null,"
     "Port bigint not null,"
     "User varchar(16) not null,"
@@ -1665,13 +1665,13 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE replication_connection_status_by_channel
+-- TABLE replication_connection_status
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_connection_status_by_channel("
+SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
     "Source_UUID varchar(36) not null,"
     "Thread_Id char(21) not null,"
-    "Service_State enum('Yes','No','Connecting') not null,"
+    "Service_State enum('On','Off','Connecting') not null,"
     "Received_Transaction_Set text not null,"
     "Last_Error_Number bigint not null,"
     "Last_Error_Message varchar(1024) not null,"
@@ -1684,10 +1684,10 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE replication_execute_config_by_channel
+-- TABLE replication_execute_configuration
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_execute_config_by_channel("
+SET @cmd="CREATE TABLE performance_schema.replication_execute_configuration("
     "Desired_Delay bigint not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1697,11 +1697,11 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE replication_execute_status_by_channel
+-- TABLE replication_execute_status
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_channel("
-    "Service_State ENUM('Yes','No') not null,"
+SET @cmd="CREATE TABLE performance_schema.replication_execute_status("
+    "Service_State ENUM('On','Off') not null,"
     "Remaining_Delay varchar(11) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1716,7 +1716,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordinator("
     "Thread_Id char(21) not null,"
-    "Service_State ENUM('Yes','No') not null,"
+    "Service_State ENUM('On','Off') not null,"
     "Last_Error_Number bigint not null,"
     "Last_Error_Message varchar(1024) not null,"
     "Last_Error_Timestamp varchar(16) not null"
@@ -1728,10 +1728,10 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE replication_execute_status_by_executor
+-- TABLE replication_execute_status_by_worker
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_executor("
+SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_worker("
     "Worker_Id bigint not null,"
     "Thread_Id char(21) not null,"
     "Service_State ENUM('On','Off') not null,"

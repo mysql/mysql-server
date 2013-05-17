@@ -43,7 +43,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Service_State")},
-    {C_STRING_WITH_LEN("enum('Yes','No')")},
+    {C_STRING_WITH_LEN("enum('On','Off')")},
     {NULL, 0}
   },
   {

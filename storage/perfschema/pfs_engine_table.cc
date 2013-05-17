@@ -73,12 +73,12 @@
 #include "table_session_connect_attrs.h"
 #include "table_session_account_connect_attrs.h"
 
-#include "table_replication_connection_config_by_channel.h"
-#include "table_replication_connection_status_by_channel.h"
-#include "table_replication_execute_config_by_channel.h"
-#include "table_replication_execute_status_by_channel.h"
+#include "table_replication_connection_configuration.h"
+#include "table_replication_connection_status.h"
+#include "table_replication_execute_configuration.h"
+#include "table_replication_execute_status.h"
 #include "table_replication_execute_status_by_coordinator.h"
-#include "table_replication_execute_status_by_executor.h"
+#include "table_replication_execute_status_by_worker.h"
 
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
@@ -154,12 +154,12 @@ static PFS_engine_table_share *all_shares[]=
   &table_socket_summary_by_event_name::m_share,
   &table_session_connect_attrs::m_share,
   &table_session_account_connect_attrs::m_share,
-  &table_replication_connection_config_by_channel::m_share,
-  &table_replication_connection_status_by_channel::m_share,
-  &table_replication_execute_config_by_channel::m_share,
-  &table_replication_execute_status_by_channel::m_share,
+  &table_replication_connection_configuration::m_share,
+  &table_replication_connection_status::m_share,
+  &table_replication_execute_configuration::m_share,
+  &table_replication_execute_status::m_share,
   &table_replication_execute_status_by_coordinator::m_share,
-  &table_replication_execute_status_by_executor::m_share,
+  &table_replication_execute_status_by_worker::m_share,
   NULL
 };
 

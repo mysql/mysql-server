@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#ifndef TABLE_REPLICATION_CONFIG_BY_CHANNEL_H
-#define TABLE_REPLICATION_CONFIG_BY_CHANNEL_H 
+#ifndef TABLE_REPLICATION_CONFIGURATION_H
+#define TABLE_REPLICATION_CONFIGURATION_H 
 
 /**
-  @file storage/perfschema/table_replication_connection_config_by_channel.h
-  Table replication_connection_config_by_channel (declarations).
+  @file storage/perfschema/table_replication_connection_configuration.h
+  Table replication_connection_configuration (declarations).
 */
 
 #include "pfs_column_types.h"
@@ -96,8 +96,8 @@ enum enum_rpl_connect_config_field_names {
   _RPL_CONNECT_CONFIG_LAST_FIELD_= CONNECTION_RETRY_COUNT
 };
 
-/** Table PERFORMANCE_SCHEMA.TABLE_REPLICATION_CONFIG_BY_CHANNEL. */
-class table_replication_connection_config_by_channel: public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.TABLE_REPLICATION_CONNECTION_CONFIGURATION. */
+class table_replication_connection_configuration: public PFS_engine_table
 {
 private:
   void fill_rows(Master_info *);
@@ -137,10 +137,10 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_replication_connection_config_by_channel();
+  table_replication_connection_configuration();
 
 public:
-  ~table_replication_connection_config_by_channel();
+  ~table_replication_connection_configuration();
 
   /** Table share. */
   static PFS_engine_table_share m_share;
@@ -154,4 +154,3 @@ public:
 
 /** @} */
 #endif
-
