@@ -529,8 +529,12 @@ function checkOperation(err, dbOperation) {
   if (err) {
     return err;
   } else if (!dbOperation.result.success) {
-    var code = dbOperation.result.error.sqlstate;
-    return new Error('Operation error: ' + code);
+    var sqlstate = dbOperation.result.error.sqlstate;
+    var message = dbOperation.result.error.message || 'Operation error';
+    var result = new Error(message);
+    result.code = dbOperation.result.error.code;
+    result.sqlstate = sqlstate;
+    return result;
   } else {
     return null;
   }
