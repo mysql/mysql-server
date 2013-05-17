@@ -1,50 +1,84 @@
-cmake_minimum_required(VERSION 2.6)
-project(MySQL_NodeJS_Adapter)
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.  
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-set(MYSQL_HOME c:\\Users\\jdd.win7\\mysql\\mysql-cluster-gpl-7.2.10-winx64)
-set(NODE_GYP c:\\Users\\jdd.win7\\.node-gyp\\0.8.16)
+# Install rule for source distribution
+
+INSTALL(
+  DIRECTORY . 
+  DESTINATION ${INSTALL_MYSQLSHAREDIR}/nodejs
+  COMPONENT nodejs)
+
+
+# Build rules.
+#
+# The build environment depends on NDB_NODEJS_PATH and NDB_NODEJS_EXTRA_PATH
+
+IF(NDB_NODEJS_EXTRA_PATH)
+  MESSAGE(STATUS "Building mysql-js using " ${NDB_NODEJS_EXTRA_PATH})
+ELSE()
+  MESSAGE(STATUS "Skipping mysql-js")
+  RETURN()
+ENDIF()
+
+set(NODE_GYP ${NDB_NODEJS_EXTRA_PATH}/node-gyp/0.10.4)
 set(NODE_INCLUDES ${NODE_GYP}/src ${NODE_GYP}/deps/uv/include ${NODE_GYP}/deps/v8/include)
 
 include_directories(${NODE_INCLUDES})
-
-include_directories(${MYSQL_HOME}/include)
-include_directories(${MYSQL_HOME}/include/mysql)
-include_directories(${MYSQL_HOME}/include/storage/ndb)
-include_directories(${MYSQL_HOME}/include/storage/ndb/ndbapi)
-include_directories(${MYSQL_HOME}/include/mysql/storage/ndb)
-include_directories(${MYSQL_HOME}/include/mysql/storage/ndb/ndbapi)
-
 include_directories(Adapter/impl/include)
 
-link_directories(${MYSQL_HOME}/lib)
+link_directories(
+  ${NDB_SOURCE_DIR}/src
+  ${MYSQL_HOME}/lib)
 
 add_definitions(-D_BUILDING_V8_SHARED=1 -DBUILDING_UV_SHARED=1)
 add_definitions(-D_BUILDING_NODE_EXTENSION)
 
 set(ADAPTER_SOURCE_FILES
+  Adapter/impl/src/async_common.cpp
+  Adapter/impl/src/AsyncNdbContext.cpp
+  Adapter/impl/src/AsyncNdbContext_wrapper.cpp
+  Adapter/impl/src/ColumnHandler.cpp
+  Adapter/impl/src/ColumnProxy.cpp
   Adapter/impl/src/DBDictionaryImpl.cpp
   Adapter/impl/src/DBOperationHelper.cpp
-  Adapter/impl/src/DBSessionImpl.cpp
-  Adapter/impl/src/NdbError_wrapper.cpp
-  Adapter/impl/src/NdbOperation_wrapper.cpp
-  Adapter/impl/src/NdbTransaction_wrapper.cpp
+  Adapter/impl/src/DBScanHelper.cpp
+  Adapter/impl/src/EncoderCharset.cpp
+  Adapter/impl/src/IndexBoundHelper.cpp
   Adapter/impl/src/Ndb_cluster_connection_wrapper.cpp
   Adapter/impl/src/Ndb_init_wrapper.cpp
   Adapter/impl/src/Ndb_util_wrapper.cpp
   Adapter/impl/src/Ndb_wrapper.cpp
-  Adapter/impl/src/Operation.cpp
-  Adapter/impl/src/Operation_wrapper.cpp
+  Adapter/impl/src/NdbError_wrapper.cpp
+  Adapter/impl/src/NdbInterpretedCode_wrapper.cpp
+  Adapter/impl/src/NdbOperation_wrapper.cpp
+  Adapter/impl/src/NdbRecordObject.cpp
+  Adapter/impl/src/NdbScanFilter_wrapper.cpp
+  Adapter/impl/src/NdbTransaction_wrapper.cpp
+  Adapter/impl/src/NdbTypeEncoders.cpp
+  Adapter/impl/src/node_module.cpp
   Adapter/impl/src/Recode.cpp
   Adapter/impl/src/Record.cpp
   Adapter/impl/src/Record_wrapper.cpp
-  Adapter/impl/src/async_common.cpp
-  Adapter/impl/src/node_module.cpp
+  Adapter/impl/src/ScanImpl.cpp
   Adapter/impl/src/unified_debug.cpp
-  Adapter/impl/src/Native_encoders.cpp
+  Adapter/impl/src/ValueObject.cpp
 )
 
-set(ADAPTER_REQUIRED_LIBS 
-  ndbclient_static
+## TODO: Windows needs ndbclient_static but Mac needs ndbclient
+set(ADAPTER_REQUIRED_LIBS
+  ndbclient
   mysqlclient
 )
 
@@ -73,5 +107,3 @@ set_target_properties(ndb_adapter PROPERTIES
                       SUFFIX ".node"
                       LINK_FLAGS "${FINAL_LINK_FLAGS}")
 
-
-  
