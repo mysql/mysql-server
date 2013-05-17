@@ -390,3 +390,62 @@ select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 # Turn off ndb_show_foreign_key_mock_tables again
 set @@ndb_show_foreign_key_mock_tables= 0;
+
+
+--echo #
+--echo # Test mock tables in different databases, mock table
+--echo # should be created in same database as the real parent would.
+--echo #
+
+set @@ndb_show_foreign_key_mock_tables= 1;
+
+create database mydb0;
+create database mydb1;
+
+# Create child referencing parent in different db
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+create table mydb1.t1 (
+  a int primary key,
+  constraint fk1 foreign key(a) references mydb0.t2(a)
+) engine = ndb;
+
+--source ndb_show_tables_result.inc
+let $id_t1 = `select id from ndb_show_tables_results
+  where _database = "'mydb1'" and name = "'t1'"`;
+--echo # There should be 1 mock table created for t1
+--replace_result $id_t1 <id>
+eval select type, _database, name from ndb_show_tables_results
+  where name like "'NDB\$FKM_$id_t1%'";
+
+# Drop child table, should also remove the mock table
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+drop table mydb1.t1;
+
+--source ndb_show_tables_result.inc
+--echo # There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+# Create child again
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+create table mydb1.t1 (
+  a int primary key,
+  constraint fk1 foreign key(a) references mydb0.t2(a)
+) engine = ndb;
+
+# And the parent
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+create table mydb0.t2 (
+  a int primary key
+) engine = ndb;
+
+--source ndb_show_tables_result.inc
+--echo # There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+--echo # Drop child then parent
+drop table mydb1.t1;
+drop table mydb0.t2;
+
+--echo # Drop the databases
+drop database mydb0;
+drop database mydb1;

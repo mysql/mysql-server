@@ -407,3 +407,58 @@ select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
 set @@ndb_show_foreign_key_mock_tables= 0;
+#
+# Test mock tables in different databases, mock table
+# should be created in same database as the real parent would.
+#
+set @@ndb_show_foreign_key_mock_tables= 1;
+create database mydb0;
+create database mydb1;
+create table mydb1.t1 (
+a int primary key,
+constraint fk1 foreign key(a) references mydb0.t2(a)
+) engine = ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+
+ndb_show_tables completed.....
+
+# There should be 1 mock table created for t1
+select type, _database, name from ndb_show_tables_results
+where name like "'NDB$FKM_<id>%'";
+type	_database	name
+'UserTable'	'mydb0'	'NDB$FKM_<id>_0_t2'
+drop table mydb1.t1;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+create table mydb1.t1 (
+a int primary key,
+constraint fk1 foreign key(a) references mydb0.t2(a)
+) engine = ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+create table mydb0.t2 (
+a int primary key
+) engine = ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+# Drop child then parent
+drop table mydb1.t1;
+drop table mydb0.t2;
+# Drop the databases
+drop database mydb0;
+drop database mydb1;

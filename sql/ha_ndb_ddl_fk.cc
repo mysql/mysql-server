@@ -902,21 +902,25 @@ public:
       if (!Fk_util::is_mock_name(name))
         continue;
 
-      mock_list.push_back(thd_strdup(m_thd, name));
+      mock_list.push_back(thd_strdup(m_thd, fk.getParentTable()));
     }
     DBUG_RETURN(true);
   }
 
 
   void
-  drop_mock_list(NdbDictionary::Dictionary* dict, List<char> &drop_list)
+  drop_mock_list(Ndb* ndb, NdbDictionary::Dictionary* dict, List<char> &drop_list)
   {
-    const char* tabname;
+    const char* full_name;
     List_iterator_fast<char> it(drop_list);
-    while ((tabname=it++))
+    while ((full_name=it++))
     {
-      DBUG_PRINT("info", ("drop table: %s", tabname));
-      Ndb_table_guard mocktab_g(dict, tabname);
+      DBUG_PRINT("info", ("drop table: '%s'", full_name));
+      char db_name[FN_LEN + 1];
+      const char * table_name = fk_split_name(db_name, full_name);
+      Ndb_db_guard db_guard(ndb);
+      setDbName(ndb, db_name);
+      Ndb_table_guard mocktab_g(dict, table_name);
       if (!mocktab_g.get_table())
       {
        // Could not open the mock table
@@ -932,7 +936,7 @@ public:
         DBUG_ASSERT(false);
         continue;
       }
-      info("Dropped mock table '%s' - referencing table dropped", tabname);
+      info("Dropped mock table '%s' - referencing table dropped", table_name);
     }
   }
 
@@ -977,10 +981,10 @@ bool ndb_fk_util_build_list(THD* thd, NdbDictionary::Dictionary* dict,
 }
 
 
-void ndb_fk_util_drop_list(THD* thd, NdbDictionary::Dictionary* dict, List<char> &drop_list)
+void ndb_fk_util_drop_list(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict, List<char> &drop_list)
 {
   Fk_util fk_util(thd);
-  fk_util.drop_mock_list(dict, drop_list);
+  fk_util.drop_mock_list(ndb, dict, drop_list);
 }
 
 

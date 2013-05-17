@@ -10552,12 +10552,12 @@ do_drop:
 // Declare adapter functions for Dummy_table_util function
 extern bool ndb_fk_util_build_list(THD*, NdbDictionary::Dictionary*,
                                    const NdbDictionary::Table*, List<char>&);
-extern void ndb_fk_util_drop_list(THD*, NdbDictionary::Dictionary*, List<char>&);
+extern void ndb_fk_util_drop_list(THD*, Ndb* ndb, NdbDictionary::Dictionary*, List<char>&);
 extern bool ndb_fk_util_drop_table(THD*, NdbDictionary::Dictionary*,
                                    const NdbDictionary::Table*);
 
 bool
-ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
+ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
                                       const NdbDictionary::Table* table,
                                       int drop_flags)
 {
@@ -10596,7 +10596,7 @@ ha_ndbcluster::drop_table_and_related(THD* thd, NdbDictionary::Dictionary* dict,
   }
 
   // Drop objects which should be dropped after table
-  ndb_fk_util_drop_list(thd, dict, drop_list);
+  ndb_fk_util_drop_list(thd, ndb, dict, drop_list);
 
   DBUG_RETURN(true);
 }
@@ -10644,7 +10644,7 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   if (h && h->m_table)
   {
 retry_temporary_error1:
-    if (drop_table_and_related(thd, dict, h->m_table, drop_flags))
+    if (drop_table_and_related(thd, ndb, dict, h->m_table, drop_flags))
     {
       ndb_table_id= h->m_table->getObjectId();
       ndb_table_version= h->m_table->getObjectVersion();
@@ -10675,7 +10675,7 @@ retry_temporary_error1:
       if (ndbtab_g.get_table())
       {
     retry_temporary_error2:
-        if (drop_table_and_related(thd, dict, ndbtab_g.get_table(), drop_flags))
+        if (drop_table_and_related(thd, ndb, dict, ndbtab_g.get_table(), drop_flags))
         {
           ndb_table_id= ndbtab_g.get_table()->getObjectId();
           ndb_table_version= ndbtab_g.get_table()->getObjectVersion();
