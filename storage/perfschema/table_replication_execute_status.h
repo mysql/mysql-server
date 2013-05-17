@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#ifndef TABLE_REPLICATION_EXECUTE_CONFIG_BY_CHANNEL_H
-#define TABLE_REPLICATION_EXECUTE_CONFIG_BY_CHANNEL_H
+#ifndef TABLE_REPLICATION_EXECUTE_STATUS_H
+#define TABLE_REPLICATION_EXECUTE_STATUS_H
 
 /**
-  @file storage/perfschema/table_replication_execute_config_by_channel.h
-  Table replication_execute_config_by_channel (declarations).
+  @file storage/perfschema/table_replication_execute_status.h
+  Table replication_execute_status (declarations).
 */
 
 #include "pfs_column_types.h"
@@ -70,27 +70,31 @@ typedef struct st_rpl_status_field_info
 } ST_STATUS_FIELD_INFO;
 #endif
 
-enum enum_rpl_execute_config_field_names {
-  DESIRED_DELAY= 0,
-  _RPL_EXECUTE_CONFIG_LAST_FIELD_= DESIRED_DELAY
+enum enum_rpl_execution_channel_status_field_names {
+  RPL_EXECUTION_CHANNEL_SERVICE_STATE= 0,
+  REMAINING_DELAY,
+  _RPL_EXECUTION_CHANNEL_LAST_FIELD_= REMAINING_DELAY
 };
 
-/** Table PERFORMANCE_SCHEMA.replication_execute_config_by_channel */
-class table_replication_execute_config_by_channel: public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.replication_execute_status */
+class table_replication_execute_status: public PFS_engine_table
 {
 private:
   void fill_rows(Master_info *);
-  void drop_null(enum enum_rpl_execute_config_field_names f_name);
-  void set_null(enum enum_rpl_execute_config_field_names f_name);
-  void int_store(enum enum_rpl_execute_config_field_names f_name, longlong val);
-  void str_store(enum enum_rpl_execute_config_field_names f_name, const char * val);
-
+  void drop_null(enum enum_rpl_execution_channel_status_field_names f_name);
+  void set_null(enum enum_rpl_execution_channel_status_field_names f_name);
+  void str_store(enum enum_rpl_execution_channel_status_field_names f_name, const char * val);
+  void int_store(enum enum_rpl_execution_channel_status_field_names f_name, longlong val);
+  void enum_store(enum enum_rpl_execution_channel_status_field_names f_name, longlong val)
+  {
+    int_store(f_name, val);
+  }
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
   /** Current only row is represented by array of fields */
-  ST_STATUS_FIELD_DATA m_fields[_RPL_EXECUTE_CONFIG_LAST_FIELD_ + 1];
+  ST_STATUS_FIELD_DATA m_fields[_RPL_EXECUTION_CHANNEL_LAST_FIELD_ + 1];
   /** True is the table is filled up */
   bool m_filled;
   /** Current position. */
@@ -112,10 +116,10 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_replication_execute_config_by_channel();
+  table_replication_execute_status();
 
 public:
-  ~table_replication_execute_config_by_channel();
+  ~table_replication_execute_status();
 
   /** Table share. */
   static PFS_engine_table_share m_share;
