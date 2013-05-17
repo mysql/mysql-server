@@ -568,7 +568,7 @@ class Fk_util
 
 
   bool
-  create_mock_tables_and_drop(NdbDictionary::Dictionary* dict,
+  create_mock_tables_and_drop(Ndb* ndb, NdbDictionary::Dictionary* dict,
                               const NdbDictionary::Table* table)
   {
     DBUG_ENTER("create_mock_tables_and_drop");
@@ -608,7 +608,8 @@ class Fk_util
       char parent_db_and_name[FN_LEN + 1];
       const char * parent_name = fk_split_name(parent_db_and_name, fk.getParentTable());
 
-      if (strcmp(parent_name, table->getName()) != 0)
+      if (strcmp(parent_db_and_name, ndb->getDatabaseName()) != 0 ||
+          strcmp(parent_name, table->getName()) != 0)
       {
         DBUG_PRINT("info", ("fk is not parent, skip"));
         continue;
@@ -619,6 +620,8 @@ class Fk_util
       const char * child_name = fk_split_name(child_db_and_name, fk.getChildTable());
 
       // Open child table
+      Ndb_db_guard db_guard(ndb);
+      setDbName(ndb, child_db_and_name);
       Ndb_table_guard child_tab(dict, child_name);
       if (child_tab.get_table() == 0)
       {
@@ -942,7 +945,7 @@ public:
 
 
   bool
-  drop(NdbDictionary::Dictionary* dict,
+  drop(Ndb* ndb, NdbDictionary::Dictionary* dict,
        const NdbDictionary::Table* table)
   {
     DBUG_ENTER("drop");
@@ -955,7 +958,7 @@ public:
     }
 
     bool result = true;
-    if (!create_mock_tables_and_drop(dict, table))
+    if (!create_mock_tables_and_drop(ndb, dict, table))
     {
       // Operation failed, set flag to abort when ending trans
       result = false;
@@ -988,11 +991,11 @@ void ndb_fk_util_drop_list(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict, 
 }
 
 
-bool ndb_fk_util_drop_table(THD* thd, NdbDictionary::Dictionary* dict,
+bool ndb_fk_util_drop_table(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
                             const NdbDictionary::Table* table)
 {
   Fk_util fk_util(thd);
-  return fk_util.drop(dict, table);
+  return fk_util.drop(ndb, dict, table);
 }
 
 

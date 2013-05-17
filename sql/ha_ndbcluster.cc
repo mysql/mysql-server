@@ -10553,7 +10553,7 @@ do_drop:
 extern bool ndb_fk_util_build_list(THD*, NdbDictionary::Dictionary*,
                                    const NdbDictionary::Table*, List<char>&);
 extern void ndb_fk_util_drop_list(THD*, Ndb* ndb, NdbDictionary::Dictionary*, List<char>&);
-extern bool ndb_fk_util_drop_table(THD*, NdbDictionary::Dictionary*,
+extern bool ndb_fk_util_drop_table(THD*, Ndb* ndb, NdbDictionary::Dictionary*,
                                    const NdbDictionary::Table*);
 
 bool
@@ -10584,7 +10584,7 @@ ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Diction
         key(s) to point at the mock table and finally dropping
         the requested table.
       */
-      if (!ndb_fk_util_drop_table(thd, dict, table))
+      if (!ndb_fk_util_drop_table(thd, ndb, dict, table))
       {
         DBUG_RETURN(false);
       }

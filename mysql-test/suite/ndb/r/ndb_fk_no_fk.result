@@ -459,6 +459,39 @@ count(*)
 # Drop child then parent
 drop table mydb1.t1;
 drop table mydb0.t2;
+create table mydb1.t1 (
+a int primary key,
+constraint fk1 foreign key(a) references mydb0.t2(a)
+) engine = ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+create table mydb0.t2 (
+a int primary key
+) engine = ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+# Drop parent then child(creates mock which is then dropped)
+drop table mydb0.t2;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+drop table mydb1.t1;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+set @@ndb_show_foreign_key_mock_tables= 0;
 # Drop the databases
 drop database mydb0;
 drop database mydb1;
