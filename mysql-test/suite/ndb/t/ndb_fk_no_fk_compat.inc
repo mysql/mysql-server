@@ -9,9 +9,6 @@ if (!$engine)
   die Missing parameter $engine;
 }
 
-# Setup
-SET @save_foreign_key_checks=@@foreign_key_checks;
-
 #
 # Test 1
 #
@@ -47,8 +44,5 @@ DROP TABLE t2, t1;
 #
 # Test n
 #
-
-# Cleanup
-SET @@foreign_key_checks = @save_foreign_key_checks;
 
 

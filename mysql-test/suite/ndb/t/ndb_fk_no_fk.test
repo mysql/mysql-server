@@ -15,7 +15,6 @@ CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
 --echo # Create child tables before parents
 --echo # by turning off foreign_key_checks for this session
 --echo #
-set @save_foreign_key_checks = @@foreign_key_checks;
 select @@foreign_key_checks;
 set @@foreign_key_checks=0;
 
