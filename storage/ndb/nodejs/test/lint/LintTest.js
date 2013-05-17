@@ -23,38 +23,87 @@
 "use strict";
 
 var skipTests = false;
-var linter, lintName;
+var jslint, linter, lintName;
+var haveJsLint = false;
+var ignoredErrors = {};
 
-try      { lintName = "jslint"; linter = require("jslint/lib/linter").lint;  }
-catch(e) { try       { lintName = "jshint"; linter = require("jshint").JSHINT; }
-           catch(f)  { skipTests = true;  }
-         }
+try { jslint = require("jslint/lib/linter").lint; haveJsLint = true; }
+catch(e) {}
+
+ if(haveJsLint) { 
+  linter=jslint; 
+  lintName = "jslint"; 
+}
+else { 
+  skipTests = true;
+}
 
 var jslintOptions = {
   "vars"      : true,     // allow multiple var declarations
-  "plusplus"  : true,     // ++ operators
+  "plusplus"  : true,     // allow ++ and -- operators
   "white"     : true,     // misc. white space
   "stupid"    : true,     // sync methods
   "node"      : true,     // node.js globals
   "nomen"     : true,     // allow dangling underscore
+  "eqeq"      : true,     // allow ==
+  "bitwise"   : true,
+  "predef"    :  
+    [ /* globals, from Adapter/adapter_config.js */
+      "path" , "fs" , "assert" , "util"  , "unified_debug" , 
+      "adapter_dir" , "parent_dir" , "api_dir" , "spi_dir" , 
+      "spi_doc_dir" , "api_doc_dir", "build_dir", "converters_dir", 
+      "spi_module", "api_module", "udebug_module", 
+      /* globals from test/driver.js */
+      "suites_dir", "harness", "mynode", "adapter",
+      /* globals commonly defined in test suites: */
+      "fail_openSession"      
+    ]
 };
 
-var jshintOptions = {
-  "node"      : true,     // node.js globals
-  "latedef"   : true      // check for variables used before defined
-};
+var lintOptions = jslintOptions;
 
-var lintOptions = lintName === "jslint" ? jslintOptions : jshintOptions;
+var ignoreAlways = "Expected \'{\' and instead saw";
 
-function lintTest(basePath, sourceFile, ignoreLines) {
-  var t = new harness.SerialTest(path.basename(sourceFile));
-  var ignore;
+function ignore(file, pos, msg, count) { 
+  var i;
+  var list = ignoredErrors[file];
+  if(! list) {
+    list = []; ignoredErrors[file] = list;
+  }
+  if(typeof count === 'undefined') {
+    list.push({ 'pos': pos, 'msg': msg});
+  }
+  else {
+    for(i = 0 ; i < count ; i++) {
+      list.push({ 'pos': pos, 'msg': msg});
+    }
+  }
+}
+
+
+function isIgnored(file, pos, msg) {
+  var list;
+  list = ignoredErrors[file];
+  if(list && list[0] && (list[0].pos === pos) && (list[0].msg == msg)) {
+    list.shift();
+    return true;
+  }
+  if(msg.indexOf(ignoreAlways) == 0) {
+    return true;
+  }
+  return false;
+}
+
+function lintTest(basePath, sourceFile) {
+  var name = path.basename(basePath) + "/" + path.basename(sourceFile);
+  var t = new harness.SerialTest(name);
+  t.sourceFileName = path.basename(sourceFile);
   t.sourceFile = path.join(basePath, sourceFile);
 
   t.run = function runLintTest() {
     if(skipTests) { return this.skip("jslint not avaliable"); }
 
-    var e, i, n=0;
+    var e, i, n=0, line;
     var data = fs.readFileSync(this.sourceFile, "utf8");  
     var result = linter(data, lintOptions);
     var ok, errors, msg = "";
@@ -66,6 +115,7 @@ function lintTest(basePath, sourceFile, ignoreLines) {
       errors = linter.errors;
     }
     else {
+      /* jslint */
       ok = result.ok;
       errors = result.errors;
     }
@@ -73,8 +123,7 @@ function lintTest(basePath, sourceFile, ignoreLines) {
     if(! ok) {
       for (i = 0; i < errors.length; i += 1) {
         e = errors[i];
-        ignore = -1 !== ignoreLines.indexOf(e.line);
-        if(e && !ignore) {
+        if(e && ! isIgnored(this.sourceFileName, e.character, e.reason)) {
           n += 1;
           msg += util.format('\n * Line %d[%d]: %s', e.line, e.character, e.reason);
         }
@@ -90,23 +139,35 @@ function lintTest(basePath, sourceFile, ignoreLines) {
   return t;
 }
 
-function checkSource(file) {
-  var ignoreLines = Array.prototype.slice.call(arguments);
-  ignoreLines.shift(); // remove the file name
-  exports.tests.push(lintTest(adapter_dir, file, ignoreLines));
+var skipFilePatterns = [
+  /^\./,        // skip files starting with .
+  /~[1-9]~$/,   // bzr leaves these around
+];
+
+function checkDirectory(base, dir) {
+  var dirname, files, file, i, useFile;
+  dirname = path.join(base, dir);
+  files = fs.readdirSync(dirname);
+  while(file = files.pop()) {
+    useFile = false;
+    for(i = 0 ; i < skipFilePatterns.length ; i++) {
+      if( (file.match(/\.js$/) 
+         && (! file.match(skipFilePatterns[i]))))
+      {
+        useFile = true;
+      }
+    }
+    if(useFile) {
+      exports.tests.push(lintTest(dirname, file));
+    }
+  }
 }
 
-function checkTest(file) {
-  var ignoreLines = Array.prototype.slice.call(arguments);
-  ignoreLines.shift(); // remove the file name
-  exports.tests.push(lintTest(suites_dir, file, ignoreLines));
+function checkFile(base, mid, file) {
+  var dirname = path.join(base, mid);
+  exports.tests.push(lintTest(dirname, file));
 }
 
-function checkSpiDoc(file) {
-  var ignoreLines = Array.prototype.slice.call(arguments);
-  ignoreLines.shift(); // remove the file name
-  exports.tests.push(lintTest(spi_doc_dir, file, ignoreLines));
-}
 
 /// ******** SMOKE TEST FOR THIS SUITE ******* ///
 exports.tests = [];
@@ -125,48 +186,62 @@ exports.tests.push(smokeTest);
 
 // ****** SOURCES FILES TO CHECK ********** //
 
-checkSource("impl/common/DBTableHandler.js");
-//checkSource("impl/common/UserContext.js");
+checkDirectory(adapter_dir, "impl/common");
+checkDirectory(adapter_dir, "impl/mysql");
+checkDirectory(adapter_dir, "impl/ndb");
+checkDirectory(adapter_dir, "api");
 
-checkSource("impl/mysql/mysql_service_provider.js");
-checkSource("impl/mysql/MySQLConnectionPool.js");
-checkSource("impl/mysql/MySQLConnection.js");
-checkSource("impl/mysql/MySQLDictionary.js",
-    166); // Line 166[7]: Missing 'break' after 'case'
+checkFile(suites_dir, "lint", "LintTest.js");
+checkFile(suites_dir, "", "driver.js");
+checkFile(suites_dir, "lib", "harness.js");
+checkDirectory(suites_dir, "spi");
+checkDirectory(suites_dir, "integraltypes");
+checkDirectory(suites_dir, "stringtypes");
+checkDirectory(suites_dir, "autoincrement");
+// checkDirectory(suites_dir, "multidb");  
+checkDirectory(suites_dir, "t_basic");
 
-checkSource("impl/ndb/ndb_service_provider.js");
-checkSource("impl/ndb/NdbConnection.js");
-checkSource("impl/ndb/NdbConnectionPool.js",
-   270 // Line 270[15]: Expected a conditional expression and instead saw an assignment.
-);
-checkSource("impl/ndb/NdbSession.js");
-checkSource("impl/ndb/NdbOperation.js",
-  92, //Line 92[7]: 'encodeRowBuffer' was used before it was defined.
-  294 //Line 294[12]: Expected a conditional expression and instead saw an assignment.
-);
-checkSource("impl/ndb/NdbTransactionHandler.js");
-checkSource("impl/ndb/NdbTypeEncoders.js");
 
-checkSpiDoc("DBOperation");
+/**** ERRORS TO IGNORE:
+   ignore(filename, startpos, message) 
+   Ignores error in <filename> starting at character <startpos> of any line
+   and matching <message>.
+   If multiple errors are declared for one file, they must match in the order declared.
+***/
 
-checkSource("api/unified_debug.js");
-checkSource("api/SessionFactory.js");
-checkSource("api/Session.js");
-checkSource("api/TableMapping.js",
- 121 // Line 121[3]: The body of a for in should be wrapped in an ...
-);
-checkSource("api/mynode.js");
+// Adapter/impl/ndb
+ignore("NdbOperation.js",5,"\'storeNativeConstructorInMapping\' was used before it was defined.");
+ignore("NdbOperation.js",27,"\'gather\' was used before it was defined.");
+ignore("NdbOperation.js",7,"Empty block.");
+ignore("NdbConnectionPool.js",15,"Expected a conditional expression and instead saw an assignment.");
+ignore("NdbConnectionPool.js",17,"Expected a conditional expression and instead saw an assignment.");
 
-// ****** TEST FILES TO CHECK ********** //
-checkTest("lint/LintTest.js");
+ignore("LintTest.js",14,"Expected a conditional expression and instead saw an assignment.");
+ignore("NdbOperation.js",12,"Expected a conditional expression and instead saw an assignment.");
+ignore("TableMapping.js",3,"The body of a for in should be wrapped in an if statement to filter unwanted properties from the prototype.");
+ignore("stats.js",13,"Expected '{' and instead saw 'r'.");
+ignore("MySQLDictionary.js",7,"Missing 'break' after 'case'.");
+ignore("UserContext.js", 33, "Unexpected \'\\.\'.");
+ignore("UserContext.js", 5, "Unexpected \'else\' after \'return\'.");
+ignore("UserContext.js", 5, "Unexpected \'else\' after \'return\'.");
+ignore("UserContext.js", 7, "Confusing use of \'!\'.");
+ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
+ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
+ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
+ignore("NdbTransactionHandler.js", 32, "Expected \'{\' and instead saw \'scans\'.");
+ignore("NdbScanFilter.js", 34, "Expected \'{\' and instead saw \'return\'.");
 
-checkTest("driver.js");
-checkTest("lib/harness.js");
-checkTest("lib/test_properties.js");
-checkTest("spi/SmokeTest.js");
-checkTest("spi/DBServiceProviderTest.js");
-checkTest("spi/DBConnectionPoolTest.js");
-checkTest("spi/DBDictionaryTest.js");
-checkTest("spi/InsertAndDeleteIntTest.js");
-checkTest("spi/ClearSmokeTest.js");
-checkTest("spi/BasicVarcharTest.js");
+// spi
+ignore("BasicVarcharTest.js", 19, "Expected \'{\' and instead saw \'onSession\'.");
+ignore("BasicVarcharTest.js", 10, "Expected \'{\' and instead saw \'connection\'.");
+ignore("SmokeTest.js", 13, "Expected \'{\' and instead saw \'test\'.");
+ignore("SmokeTest.js", 10, "Expected \'{\' and instead saw \'test\'.");
+
+//stringtypes
+ignore("CharsetTest.js", 27, "Missing \'new\'.");
+ignore("CharsetTest.js", 26, "Missing \'new\'.", 14);
+
+//integraltypes
+ignore("QueryKeywordTest.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
+ignore("lib.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
+

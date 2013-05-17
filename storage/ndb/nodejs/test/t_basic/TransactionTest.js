@@ -17,6 +17,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
+/*jslint newcap: true */
+/*global t_basic, verify_t_basic, fail_verify_t_basic */
 
 var udebug = unified_debug.getLogger("TransactionTest.js");
 
@@ -25,7 +28,7 @@ if(! global.t_basic) {
 }
 
 /***** Test idle state ***/
-t1 = new harness.ConcurrentTest("testIdle");
+var t1 = new harness.ConcurrentTest("testIdle");
 t1.run = function() {
   var testCase = this;
   // idle state
@@ -67,7 +70,7 @@ t1.run = function() {
 };
 
 /***** Test active state ***/
-t2 = new harness.ConcurrentTest("testActive");
+var t2 = new harness.ConcurrentTest("testActive");
 t2.run = function() {
   var testCase = this;
   // idle state
@@ -98,7 +101,7 @@ t2.run = function() {
 };
 
 /***** Test rollback only state ***/
-t3 = new harness.ConcurrentTest("testRollbackOnly");
+var t3 = new harness.ConcurrentTest("testRollbackOnly");
 t3.run = function() {
   var testCase = this;
   // rollback only state
@@ -137,7 +140,7 @@ t3.run = function() {
 
 
 /***** Test begin with begin ***/
-t4 = new harness.ConcurrentTest("testBeginBegin");
+var t4 = new harness.ConcurrentTest("testBeginBegin");
 t4.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -153,7 +156,7 @@ t4.run = function() {
 };
 
 /***** Test commit without begin ***/
-t5 = new harness.ConcurrentTest("testCommitWithoutBegin");
+var t5 = new harness.ConcurrentTest("testCommitWithoutBegin");
 t5.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -168,8 +171,9 @@ t5.run = function() {
 };
 
 /***** Test rollback without begin ***/
-t6 = new harness.ConcurrentTest("testRollbackWithoutBegin");
+var t6 = new harness.ConcurrentTest("testRollbackWithoutBegin");
 t6.run = function() {
+  var tx;
   var testCase = this;
   var t6OnRollback = function(err) {
     if (err) {
@@ -177,7 +181,7 @@ t6.run = function() {
       try {
         tx.rollback();
         testCase.fail(new Error('t6 Rollback without begin should fail.'));
-      } catch (err) {
+      } catch (ex) {
         testCase.pass();
       }
     } else {
@@ -186,15 +190,16 @@ t6.run = function() {
     }
   };
   fail_openSession(testCase, function(session) {
-    var tx = session.currentTransaction();
+    tx = session.currentTransaction();
     tx.rollback(t6OnRollback);
   });
 };
 
 
 /***** Test commit with rollback only ***/
-t7 = new harness.ConcurrentTest("testCommitWithRollbackOnly");
+var t7 = new harness.ConcurrentTest("testCommitWithRollbackOnly");
 t7.run = function() {
+  var tx;
   var testCase = this;
   var t7OnCommit = function(err) {
     if (err) {
@@ -202,7 +207,7 @@ t7.run = function() {
       try {
         tx.rollback();
         testCase.fail(new Error('t7 Commit with RollbackOnly and no callback should throw.'));
-      } catch (err) {
+      } catch (ex) {
         testCase.pass();
       }
     } else {
@@ -211,7 +216,7 @@ t7.run = function() {
     }
   };
   fail_openSession(testCase, function(session) {
-    var tx = session.currentTransaction();
+    tx = session.currentTransaction();
     tx.begin();
     tx.setRollbackOnly();
     tx.commit(t7OnCommit);
@@ -220,7 +225,7 @@ t7.run = function() {
 
 
 /***** Test begin with rollback only ***/
-t8 = new harness.ConcurrentTest("testBeginWithRollbackOnly");
+var t8 = new harness.ConcurrentTest("testBeginWithRollbackOnly");
 t8.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -238,7 +243,7 @@ t8.run = function() {
 
 
 /***** Test setRollbackOnly without begin ***/
-t9 = new harness.ConcurrentTest("testSetRollbackOnlyWithoutBegin");
+var t9 = new harness.ConcurrentTest("testSetRollbackOnlyWithoutBegin");
 t9.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -252,7 +257,7 @@ t9.run = function() {
   });
 };
 
-t10 = new harness.SerialTest("testCommit");
+var t10 = new harness.SerialTest("testCommit");
 t10.run = function() {
   udebug.log("t10 run");
   var testCase = this;
@@ -286,7 +291,7 @@ t10.run = function() {
   fail_openSession(testCase, t10OnSession);
 };
 
-t11 = new harness.SerialTest("testRollback");
+var t11 = new harness.SerialTest("testRollback");
 t11.run = function() {
   var testCase = this;
   

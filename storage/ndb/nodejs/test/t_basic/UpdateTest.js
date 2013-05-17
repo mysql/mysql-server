@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
 
 /***** Update ***/
 var t1 = new harness.ConcurrentTest("testUpdate");
@@ -62,6 +63,7 @@ t2.run = function() {
   // create objects
   
   fail_openSession(testCase, function(session) {
+    var i;
     var batch = session.createBatch();
     for (i = start_number; i < start_number + number_of_objects; ++i) {
       batch.persist(new global.t_basic(i, 'Employee ' + (i + 100), i + 100, i + 100), function(err) {
@@ -146,6 +148,7 @@ t4.run = function() {
   // create objects
   
   fail_openSession(testCase, function(session) {
+    var i;
     var batch = session.createBatch();
     for (i = start_number; i < start_number + number_of_objects; ++i) {
       batch.persist(new global.t_basic(i, 'Employee ' + (i + 100), i, i), function(err) {
@@ -231,6 +234,7 @@ t6.run = function() {
   // create objects
   
   fail_openSession(testCase, function(session) {
+    var i;
     var batch = session.createBatch();
     for (i = start_number; i < start_number + number_of_objects; ++i) {
       batch.persist(new global.t_basic(i, 'Employee ' + (i + 100), i + 100, i + 100), function(err) {
@@ -310,6 +314,7 @@ t8.run = function() {
   var testCase = this;
   var start_number = 5250;
   var number_of_objects = 10;
+  var i;
   // create objects
   
   fail_openSession(testCase, function(session) {

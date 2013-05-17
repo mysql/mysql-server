@@ -17,9 +17,13 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
+/*jslint newcap: true */
+/*global t_basic, verify_t_basic, t_basic_key, fail_verify_t_basic */
+
 
 /***** Find with domain object and primitive primary key ***/
-t1 = new harness.ConcurrentTest("testFindDomainObjectPrimitive");
+var t1 = new harness.ConcurrentTest("testFindDomainObjectPrimitive");
 t1.run = function() {
   var testCase = this;
   // use the domain object and primitive to find an instance
@@ -32,7 +36,7 @@ t1.run = function() {
 };
 
 /***** Find with domain object and javascript primary key literal ***/
-t2 = new harness.ConcurrentTest("testFindDomainObjectLiteral");
+var t2 = new harness.ConcurrentTest("testFindDomainObjectLiteral");
 t2.run = function() {
   var testCase = this;
   // use the domain object and literal to find an instance
@@ -45,7 +49,7 @@ t2.run = function() {
 };
 
 /***** Find with domain object and javascript primary key object ***/
-t3 = new harness.ConcurrentTest("testFindDomainObjectObject");
+var t3 = new harness.ConcurrentTest("testFindDomainObjectObject");
 t3.run = function() {
   var testCase = this;
   // use the domain object and key object to find an instance
@@ -58,7 +62,7 @@ t3.run = function() {
 };
 
 /***** Find with table name and primitive primary key ***/
-t4 = new harness.ConcurrentTest("testFindTableNamePrimitive");
+var t4 = new harness.ConcurrentTest("testFindTableNamePrimitive");
 t4.run = function() {
   var testCase = this;
   var from = 't_basic';
@@ -70,7 +74,7 @@ t4.run = function() {
 };
 
 /***** Find with table name and javascript primary key literal ***/
-t5 = new harness.ConcurrentTest("testFindTableNameLiteral");
+var t5 = new harness.ConcurrentTest("testFindTableNameLiteral");
 t5.run = function() {
   var testCase = this;
   // use table name and literal to find an instance
@@ -83,7 +87,7 @@ t5.run = function() {
 };
 
 /***** Find with table name and javascript primary key object ***/
-t6 = new harness.ConcurrentTest("testFindTableNameObject");
+var t6 = new harness.ConcurrentTest("testFindTableNameObject");
 t6.run = function() {
   var testCase = this;
   var from = 't_basic';
@@ -95,7 +99,7 @@ t6.run = function() {
 };
 
 /***** Find with domain object and javascript unique key literal ***/
-t7 = new harness.ConcurrentTest("testFindDomainObjectUniqueKeyLiteral");
+var t7 = new harness.ConcurrentTest("testFindDomainObjectUniqueKeyLiteral");
 t7.run = function() {
   var testCase = this;
   // use the domain object and literal to find an instance
@@ -108,7 +112,7 @@ t7.run = function() {
 };
 
 /***** Find with domain object and javascript unique key object ***/
-t8 = new harness.ConcurrentTest("testFindDomainObjectUniqueKeyObject");
+var t8 = new harness.ConcurrentTest("testFindDomainObjectUniqueKeyObject");
 t8.run = function() {
   var testCase = this;
   // use the domain object and literal to find an instance
@@ -121,7 +125,7 @@ t8.run = function() {
 };
 
 /***** Find with table name and javascript unique key literal ***/
-t9 = new harness.ConcurrentTest("testFindTableNameUniqueKeyLiteral");
+var t9 = new harness.ConcurrentTest("testFindTableNameUniqueKeyLiteral");
 t9.run = function() {
   var testCase = this;
   // use the table name and literal to find an instance
@@ -134,7 +138,7 @@ t9.run = function() {
 };
 
 /***** Find with table name and javascript unique key object ***/
-t0 = new harness.ConcurrentTest("testFindTableNameUniqueKeyObject");
+var t0 = new harness.ConcurrentTest("testFindTableNameUniqueKeyObject");
 t0.run = function() {
   var testCase = this;
   // use the table name and object to find an instance

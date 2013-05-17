@@ -4,7 +4,7 @@ The mynode test harness allows developers to test mynode implementations
 by writing test cases that follow a pattern.
 
 After building mynode, change to the test directory and execute
-"node Driver <options>". The default is to run all tests.
+"node driver <options>". The default is to run all tests.
 
 Tests are organized by suites. Each suite is a directory under the
 test directory. Suites typically contain the following:

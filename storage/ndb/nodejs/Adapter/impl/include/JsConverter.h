@@ -31,6 +31,9 @@ typedef Handle<Object> jsobject;
 /*****************************************************************
  JsValueConverter 
  Value conversion from JavaScript to C
+ 
+ Some additional NDB-Specific specializations are in NdBJsConverters.h
+ 
 ******************************************************************/
 
 /* Generic (for pointers).

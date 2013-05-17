@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
 
 /***** Failed find should not set rollback only ***/
 var t1 = new harness.ConcurrentTest("testFindRollbackOnly");

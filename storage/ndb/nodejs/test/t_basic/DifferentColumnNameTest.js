@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
 
 /*global udebug_module */
 
@@ -24,7 +25,7 @@ var udebug = unified_debug.getLogger("t_basic/DifferentColumnName.js");
 
 // Map a domain class with field names different from column names
 var Different = function(id, name, age, magic) {
-  this.getId = function() {return fid;};
+  this.getId = function() {return this.fid;};
   if (typeof(id) !== 'undefined') this.fid = id;
   if (typeof(name) !== 'undefined') this.fname = name;
   if (typeof(age) !== 'undefined') this.fage = age;
@@ -32,7 +33,7 @@ var Different = function(id, name, age, magic) {
 };
 
 /** Verify the instance or fail the test case */
-fail_verify_Different = function(err, instance, id, testCase, domainObject) {
+var fail_verify_Different = function(err, instance, id, testCase, domainObject) {
   if (err) {
     testCase.fail(err);
     return;

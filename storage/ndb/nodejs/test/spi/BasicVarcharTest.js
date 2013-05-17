@@ -21,7 +21,6 @@
 /*global mynode, unified_debug, path, fs, assert, spi_module, harness, 
          adapter_dir, spi_dir, api_dir
 */
-
 "use strict";
 
 try {
@@ -85,7 +84,8 @@ function prepare(testCase, testObj) {
   function onConnect(err, conn) {
     udebug.log("prepare onConnect");
     connection = conn;
-    connection.getDBSession(0, onSession);
+    if(dbSession) onSession(null, dbSession);
+    else connection.getDBSession(spi_lib.allocateSessionSlot(), onSession);
   }
   
   spi_lib.getConnectionPool(onConnect);

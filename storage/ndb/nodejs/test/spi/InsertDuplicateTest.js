@@ -18,10 +18,6 @@
  02110-1301  USA
  */
 
-/*global mynode, unified_debug, path, fs, assert, spi_module, harness, 
-         adapter_dir, spi_dir 
-*/
-
 "use strict";
 
 try {
@@ -84,7 +80,7 @@ function prepare(testCase, runTestMethod, testObj) {
   function onConnect(err, conn) {
     udebug.log("prepare onConnect");
     connection = conn;
-    connection.getDBSession(0, onSession);
+    connection.getDBSession(spi_lib.allocateSessionSlot(), onSession);
   }
   
   spi_lib.getConnectionPool(onConnect);

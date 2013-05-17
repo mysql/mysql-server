@@ -17,6 +17,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
+/*jslint newcap: true */
+/*global t_basic, verify_t_basic, fail_verify_t_basic */
 
 /***** Load by primary key ***/
 var t1 = new harness.ConcurrentTest("testLoad");
@@ -38,6 +41,7 @@ t2.run = function() {
   // create objects
   
   fail_openSession(testCase, function(session) {
+    var i, object;
     var batch = session.createBatch();
     for (i = 0; i < number_of_objects; ++i) {
       object = new global.t_basic(i);

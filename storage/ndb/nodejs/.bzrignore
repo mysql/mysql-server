@@ -5,3 +5,6 @@ mysql_pref.sh
 Adapter/impl/dev-checklist.plist
 test/test_connection.js
 perftest/jscrund.config
+test/disabled-tests.conf
+config.gypi
+config.waf

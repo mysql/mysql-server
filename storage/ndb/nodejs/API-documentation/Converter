@@ -10,9 +10,11 @@
     - To convert between MySQL BIGINT types and a user's preferred JavaScript 
       big number utility library
     - To serialize arbitrary application objects into character or binary columns
- 
-   In the NDB backend (but not the MySQL backend), Converters are also used 
-   to support SET and ENUM columns.
+    - The NDB adapter supplies default converters for DATETIME and TIME columns,
+      which provide an easy conversion to JavaScript date, but allow you to 
+      override them when higher precision is required.
+    - The NDB adapter (but not the MySQL adapter) also requries Converters 
+      for dealing with SET and ENUM columns.
  
    A converter class implements two functions: 
       toDB(obj)  : convert obj, an application object, into a simple form 

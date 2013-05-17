@@ -30,6 +30,7 @@ global.api_dir         = path.join(adapter_dir, "api");
 global.spi_dir         = path.join(adapter_dir, "impl");
 global.spi_doc_dir     = path.join(spi_dir, "SPI-documentation");
 global.api_doc_dir     = path.join(parent_dir, "API-documentation");
+global.converters_dir  = path.join(parent_dir, "Converters");
 
 global.spi_module      = path.join(spi_dir, "SPI.js");
 global.api_module      = path.join(api_dir, "mynode.js");

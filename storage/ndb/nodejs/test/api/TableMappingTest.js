@@ -18,9 +18,11 @@
  02110-1301  USA
  */
 
+"use strict";
+
 var doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
 
-domainClass = function(id, name, age, magic) {
+var domainClass = function(id, name, age, magic) {
   this.id = id;
   this.name = name;
   this.age = age;

@@ -30,6 +30,8 @@
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #define snprintf _snprintf
+#define strtoll _strtoi64
+#define strtoull _strtoui64
 
 #else
 #include <unistd.h>

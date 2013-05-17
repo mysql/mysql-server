@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-/*global assert, unified_debug, path, build_dir, api_dir, spi_doc_dir  */
-
 "use strict";
 
 var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
@@ -38,15 +36,23 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     AO_ABORT        = adapter.ndbapi.AbortOnError,
     AO_IGNORE       = adapter.ndbapi.AO_IgnoreError,
     AO_DEFAULT      = adapter.ndbapi.DefaultAbortOption,
+    modeNames       = [],
     serial          = 1;
+
+modeNames[COMMIT] = 'commit';
+modeNames[NOCOMMIT] = 'noCommit';
+modeNames[ROLLBACK] = 'rollback';
 
 function DBTransactionHandler(dbsession) {
   this.dbSession          = dbsession;
   this.autocommit         = true;
   this.ndbtx              = null;
+  this.sentNdbStartTx     = false;
   this.execCount          = 0;   // number of execute calls 
-  this.pendingOpsLists    = [];
-  this.executedOperations = [];
+  this.nTxRecords         = 1;   // 1 for non-scan, 2 for scan
+  this.pendingOpsLists    = [];  // [ execCallNumber : dbOperationList, ... ]
+  this.executedOperations = [];  // All finished operations 
+  this.execAfterOpenQueue = [];  // exec calls waiting on startTransaction()
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
   this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
   this.serial             = serial++;
@@ -63,16 +69,13 @@ function onAsyncSent(a,b) {
 /* NdbTransactionHandler internal run():
    Create a QueuedAsyncCall on the Ndb's execQueue.
 */
-function run(self, execId, execMode, abortFlag, callback) {
+function run(self, execMode, abortFlag, callback) {
   var qpos;
-  var idCallback = function(err) {
-    callback(err, execId);
-  }
-  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, idCallback);
+  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback, null);
   apiCall.tx = self;
   apiCall.execMode = execMode;
   apiCall.abortFlag = abortFlag;
-  apiCall.description = "NdbTransactionHandler execute";
+  apiCall.description = "execute_" + modeNames[execMode];
   apiCall.run = function runExecCall() {
     /* NDB Execute.
        "Sync" execute is an async operation for the JavaScript user,
@@ -90,13 +93,24 @@ function run(self, execId, execMode, abortFlag, callback) {
                                          onAsyncSent);
     }
     else {
-      stats.incr(["run","async"]);
+      stats.incr(["run","sync"]);
       this.tx.ndbtx.execute(this.execMode, this.abortFlag, force_send, this.callback);
     }
   };
 
   qpos = apiCall.enqueue();
   udebug.log("run()", self.moniker, "queue position:", qpos);
+}
+
+/* runExecAfterOpenQueue()
+*/
+function runExecAfterOpenQueue(dbTxHandler) {
+  var queue = dbTxHandler.execAfterOpenQueue;
+  var item = queue.shift();
+  if(item) {
+    udebug.log("runExecAfterOpenQueue - remaining", queue.length);
+    dbTxHandler.execute(item.dbOperationList, item.callback);
+  }  
 }
 
 /* Error handling after NdbTransaction.execute() 
@@ -115,10 +129,29 @@ function attachErrorToTransaction(dbTxHandler, err) {
   }
 }
 
-var modeNames = [];
-modeNames[COMMIT] = 'commit';
-modeNames[NOCOMMIT] = 'noCommit';
-modeNames[ROLLBACK] = 'rollback';
+/* EXECUTE PATH FOR KEY OPERATIONS
+   -------------------------------
+   Start NdbTransaction 
+   Fetch needed auto-increment values
+   Prepare each operation (synchronous)
+   Execute the NdbTransaction
+   Close the NdbTransaction
+   Attach results to operations, and run operation callbacks
+   Run the transaction callback
+   
+   EXECUTE PATH FOR SCAN OPERATIONS
+   --------------------------------
+   Start NdbTransaction 
+   Prepare the NdbScanOperation (async)
+   Execute NdbTransaction NoCommit
+   Fetch results from scan
+   Execute the NdbTransaction (commit or rollback)
+   Close the NdbTransaction
+   Attach results to query operation
+   Run query operation callback
+   Run the transaction callback
+*/
+
 
 /* Common callback for execute, commit, and rollback 
 */
@@ -132,15 +165,14 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
      and register the DBTransactionHandler as closed with DBSession
   */
   if(execMode === COMMIT || execMode === ROLLBACK) {
-    ndbsession.txIsClosed(dbTxHandler);
     if(dbTxHandler.ndbtx) {       // May not exist on "stub" commit/rollback
       dbTxHandler.ndbtx.close();
+      ndbsession.closeNdbTransaction(dbTxHandler, dbTxHandler.nTxRecords);
     }
   }
 
-  /* NdbSession may have queued transactions waiting to execute;
-     send the next one on its way */
-  ndbsession.runQueuedTransaction(dbTxHandler);
+  /* send the next exec call on its way */
+  runExecAfterOpenQueue(dbTxHandler);
 
   /* Attach results to their operations */
   ndboperation.completeExecutedOps(dbTxHandler, execMode, 
@@ -159,45 +191,129 @@ function getExecIdForOperationList(self, operationList) {
   return execId;
 }
 
-/* Internal execute()
-*/ 
-function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
-  function onCompleteExec(err, execId) {
-    onExecute(self, execMode, err, execId, callback);
+/* NOTE: Until we have a Batch.createQuery() API, there will only ever be
+   one scan in an operationList.  And there will never be key operations
+   and scans combined in a single operationList.
+*/
+
+function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
+  var op = dbOperationList[0];
+  var execId = getExecIdForOperationList(self, dbOperationList);
+
+  /* Execute NdbTransaction after reading from scan */
+  function executeNdbTransaction() {
+    udebug.log("executeScan executeNdbTransaction");
+
+    function onCompleteExec(err) {
+      onExecute(self, execMode, err, execId, callback);
+    }
+    
+    run(self, execMode, abortFlag, onCompleteExec);
   }
 
-  function prepareOperationsAndExecute() {
-    udebug.log("execute prepareOperationsAndExecute", self.moniker);
-    var i, op, execId, fatalError;
-    execId = getExecIdForOperationList(self, dbOperationList);
+  /* Fetch is complete. */
+  function onFetchComplete(err) {
+    if(execMode == NOCOMMIT) {
+      onExecute(self, execMode, err, execId, callback);
+    }
+    else {
+      executeNdbTransaction();
+    }
+  }
+  
+  /* Fetch results */
+  function getScanResults(err) {
+    udebug.log("executeScan getScanResults");
+    if(err) {
+      onFetchComplete(err);
+    }
+    else {
+      ndboperation.getScanResults(op, onFetchComplete);
+    }
+  }
+  
+  /* Execute NoCommit so that you can start reading from scans */
+  function executeScanNoCommit(err, ndbop) {
+    var fatalError;
+    udebug.log("executeScan executeScanNoCommit");
+    if(! ndbop) {
+      fatalError = self.ndbtx.getNdbError();
+      callback(new ndboperation.DBOperationError(fatalError), self);
+      return;  /* is that correct? */
+    }
+
+    op.ndbop = ndbop;
+    run(self, NOCOMMIT, AO_IGNORE, getScanResults);
+  }
+
+  /* executeScan() starts here */
+  udebug.log("executeScan");
+  op.prepareScan(self.ndbtx, executeScanNoCommit);
+}
+
+
+function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
+
+  function executeNdbTransaction() {
+    var execId = getExecIdForOperationList(self, dbOperationList);
+
+    function onCompleteExec(err) {
+      onExecute(self, execMode, err, execId, callback);
+    }
+    
+    run(self, execMode, abortFlag, onCompleteExec);
+  }
+
+  function prepareOperations() {
+    udebug.log("executeNonScan prepareOperations", self.moniker);
+    var i, op, fatalError;
     for(i = 0 ; i < dbOperationList.length; i++) {
       op = dbOperationList[i];
       op.prepare(self.ndbtx);
       if(! op.ndbop) {
         fatalError = self.ndbtx.getNdbError();
         callback(new ndboperation.DBOperationError(fatalError), self);
-        return;
+        return;  /* is that correct? */
       }
     }
-
-    run(self, execId, execMode, abortFlag, onCompleteExec);
+    executeNdbTransaction();
   }
 
   function getAutoIncrementValues() {
     var autoIncHandler = new AutoIncHandler(dbOperationList);
     if(autoIncHandler.values_needed > 0) {
-      udebug.log("execute getAutoIncrementValues", autoIncHandler.values_needed);
-      autoIncHandler.getAllValues(prepareOperationsAndExecute);
+      udebug.log("executeNonScan getAutoIncrementValues", autoIncHandler.values_needed);
+      autoIncHandler.getAllValues(prepareOperations);
     }
     else {
-      prepareOperationsAndExecute();
+      prepareOperations();
     }  
+  }
+
+  getAutoIncrementValues();
+}
+
+
+/* Internal execute()
+*/ 
+function execute(self, execMode, abortFlag, dbOperationList, callback) {
+  var startTxCall, queueItem;
+  var isScan = dbOperationList[0].isScanOperation();
+  self.nTxRecords = isScan ? 2 : 1;
+
+  function executeSpecific() {
+   if(isScan) {
+      executeScan(self, execMode, abortFlag, dbOperationList, callback);
+    }
+    else {
+      executeNonScan(self, execMode, abortFlag, dbOperationList, callback);
+    }
   }
 
   function onStartTx(err, ndbtx) {
     if(err) {
-      ndbsession.txIsClosed(self);
+      ndbsession.closeNdbTransaction(self, self.nTxRecords);
       udebug.log("execute onStartTx [ERROR].", err);
       if(callback) {
         err = new ndboperation.DBOperationError(err.ndb_error);
@@ -210,38 +326,29 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     udebug.log("execute onStartTx. ", self.moniker, 
                " TC node:", ndbtx.getConnectedNodeId(),
                "operations:",  dbOperationList.length);
-    getAutoIncrementValues();    
+    executeSpecific();
   }
 
-  /* execute() starts here */
-  var table = null; 
-
-  /* The initial execute() call must start the NDB transaction. 
-     Up until startTransaction() returns, additional execute() calls are queued 
-     up behind it by NdbSession, and will be resent after openTransaction() 
-     returns.
-  */
-  if(self.ndbtx) {  /* startTransaction has returned */
-    getAutoIncrementValues();
+  if(self.ndbtx) {                   /* startTransaction has returned */
+    executeSpecific();
   }
-  else {
-    /* We are allowed to run.  Call ndb.startTransaction().
-       TODO: The logic and naming here are confusing and can be improved.
-    */
-   if(ndbsession.txCanRunImmediately(self)) {
-      table = dbOperationList[0].tableHandler.dbTable;
+  else if(self.sentNdbStartTx) {     /* startTransaction has not yet returned */
+    queueItem = { dbOperationList: dbOperationList, callback: callback };
+    self.execAfterOpenQueue.push(queueItem);
+  }
+  else {                             /* call startTransaction */
+    self.sentNdbStartTx = true;
+    startTxCall = new QueuedAsyncCall(self.dbSession.execQueue, onStartTx);
+    startTxCall.table = dbOperationList[0].tableHandler.dbTable;
+    startTxCall.ndb = self.dbSession.impl;
+    startTxCall.description = "startNdbTransaction";
+    startTxCall.nTxRecords = self.nTxRecords;
+    startTxCall.run = function() {
       // TODO: partitionKey
-      stats.incr(["start","immediate"]);
-      ndbsession.txIsOpen(self);
-      self.dbSession.impl.startTransaction(table, 0, 0, onStartTx); 
-    }
-    else {
-      /* Queued up behind something.  NdbSession will resend the call
-         when we are able to run.
-      */
-      stats.incr(["start","queued"]);
-      ndbsession.enqueueTransaction(self, dbOperationList, callback);
-    }
+      this.ndb.startTransaction(this.table, 0, 0, this.callback);
+    };
+    
+    ndbsession.queueStartNdbTransaction(self, startTxCall);
   }
 }
 
@@ -294,7 +401,7 @@ proto.commit = function commit(userCallback) {
   udebug.log("commit");
   ndbsession.closeActiveTransaction(this);
   if(self.ndbtx) {  
-    run(self, execId, COMMIT, AO_IGNORE, onNdbCommit);
+    run(self, COMMIT, AO_IGNORE, onNdbCommit);
   }
   else {
     udebug.log("commit STUB COMMIT (no underlying NdbTransaction)");
@@ -324,7 +431,7 @@ proto.rollback = function rollback(callback) {
   udebug.log("rollback");
 
   if(self.ndbtx) {
-    run(self, execId, ROLLBACK, AO_DEFAULT, onNdbRollback);
+    run(self, ROLLBACK, AO_DEFAULT, onNdbRollback);
   }
   else {
     udebug.log("rollback STUB ROLLBACK (no underlying NdbTransaction)");

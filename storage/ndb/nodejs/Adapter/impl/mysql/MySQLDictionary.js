@@ -97,6 +97,8 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     udebug.log_detail('parseCreateTable: ', statement);
     var columns = [];
     var indexes = [];
+    // PRIMARY unique index must be the first index
+    indexes.push({'name': 'PRIMARY PLACEHOLDER'});
     var index, indexName, usingHash;
     var result = {'name' : tableName,
         'database' : databaseName,
@@ -153,7 +155,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
                              columns[columnNumber].name);
           column.isInPrimaryKey = true;
         }
-        indexes.push(index);
+        indexes[0] =index;
         break;
 
       case 'UNIQUE':
@@ -215,7 +217,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         columnTypeAndSizeSplit = columnTypeAndSize.split('(');
         columnType = columnTypeAndSizeSplit[0];
         udebug.log_detail('parseCreateTable for: ', columnName, ': columnType: ', columnType);
-        column.columnType = columnType;
+        column.columnType = columnType.toLocaleUpperCase();
         if (columnTypeAndSizeSplit.length > 1) {
           columnSize = columnTypeAndSizeSplit[1].split(')')[0];
           udebug.log_detail('parseCreateTable for: ', columnName, ': columnSize: ', columnSize);
@@ -308,6 +310,24 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         // add the column description metadata
         columns.push(column);
         break;
+      }
+    }
+    // for each index that is both unique and ordered, make one ordered and a second index unique
+    var ordered;
+    for (i = 0; i < result.indexes.length; ++i) {
+      index = result.indexes[i];
+      if (index.isUnique && index.isOrdered) {
+        index.isOrdered = false;
+        ordered = {};
+        ordered.isOrdered = true;
+        ordered.isUnique = false;
+        ordered.name = index.name;
+        ordered.columnNames = index.columnNames;
+        ordered.indexColumnNames = index.indexColumnNames;
+        ordered.indexColumnNumbers = index.indexColumnNumbers;
+        ordered.columnNumbers = index.columnNumbers;
+        udebug.log_detail('MySQLDictionary creating second ordered index from unique btree index', index.name);
+        indexes.push(ordered);
       }
     }
 

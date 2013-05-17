@@ -2,13 +2,13 @@
 {
   "name"        : "mysql-js"
   ,
-  "version"     : "0.0.165-alpha"
+  "version"     : "0.0.424-dmr"
   ,  
   "description" : "Lightweight object mapping layer for MySQL and MySQL Cluster"
   ,
   "keywords"    : ["mysql", "cluster", "mysql cluster", "ndb", "mapping" ]
   ,
-  "homepage"    : ""
+  "homepage"    : "http://github.com/mysql/mysql-js/"
   ,
   "bugs"        : {}
   ,
@@ -17,11 +17,14 @@
   ,
   "main"        : "Adapter/api/mynode"
   ,
-  "scripts"     : {"preinstall" : "setup/build.sh" }
+  "scripts"     : {
+                  "preinstall" : "node configure && node-gyp rebuild -d",
+                  "test" : "cd test && node driver" 
+                  }
   ,
   "dependencies": []
   ,
   "repository"  : {}
-  ,
-  "os"          : [ "!win32" ]
 }
+
+

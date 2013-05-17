@@ -17,16 +17,18 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
+
+var udebug = unified_debug.getLogger("ParallelOperationTest.js");
 
 /** Dummy test */
-t0 = new harness.SerialTest('dummy');
+var t0 = new harness.SerialTest('dummy');
 t0.run = function() {
   this.pass();
 };
 
-udebug      = unified_debug.getLogger("ParallelOperationTest.js");
-
 function findParallel(start_value, number, session, testCase) {
+  var i, found_i;
   for (i = start_value; i < start_value + number; ++i) {
     session.find(global.t_basic, i, function(err, found, callback_i, session, testCase) {
       udebug.log('ParallelOperationTest.testParallelFind find callback for ', i);
@@ -57,10 +59,10 @@ function findParallel(start_value, number, session, testCase) {
       }
     }, i, session, testCase);
   }
-};
+}
 
 /***** Parallel Find Autocommit ***/
-t1 = new harness.ConcurrentTest('testParallelFindAutocommit');
+var t1 = new harness.ConcurrentTest('testParallelFindAutocommit');
 t1.run = function() {
   var testCase = this;
   var start_value = 0;
@@ -73,7 +75,7 @@ t1.run = function() {
 
 
 /***** Parallel Find Begin Commit ***/
-t2 = new harness.ConcurrentTest('testParallelFindBeginCommit');
+var t2 = new harness.ConcurrentTest('testParallelFindBeginCommit');
 t2.run = function() {
   var testCase = this;
   var start_value = 0;

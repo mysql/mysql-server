@@ -17,9 +17,8 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
 
-/** This is the clear smoke test for the t_basic suite.
- */
 var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
 test.run = function() {

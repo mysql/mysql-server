@@ -1,4 +1,5 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.  #
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.  
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -12,8 +13,97 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+# Install rule for source distribution
+
 INSTALL(
   DIRECTORY . 
   DESTINATION ${INSTALL_MYSQLSHAREDIR}/nodejs
   COMPONENT nodejs)
+
+
+# Build rules.
+#
+# The build environment depends on NDB_NODEJS_PATH and NDB_NODEJS_EXTRA_PATH
+
+IF(NDB_NODEJS_EXTRA_PATH)
+  MESSAGE(STATUS "Building mysql-js using " ${NDB_NODEJS_EXTRA_PATH})
+ELSE()
+  MESSAGE(STATUS "Skipping mysql-js")
+  RETURN()
+ENDIF()
+
+set(NODE_GYP ${NDB_NODEJS_EXTRA_PATH}/node-gyp/0.10.4)
+set(NODE_INCLUDES ${NODE_GYP}/src ${NODE_GYP}/deps/uv/include ${NODE_GYP}/deps/v8/include)
+
+include_directories(${NODE_INCLUDES})
+include_directories(Adapter/impl/include)
+
+link_directories(
+  ${NDB_SOURCE_DIR}/src
+  ${MYSQL_HOME}/lib)
+
+add_definitions(-D_BUILDING_V8_SHARED=1 -DBUILDING_UV_SHARED=1)
+add_definitions(-D_BUILDING_NODE_EXTENSION)
+
+set(ADAPTER_SOURCE_FILES
+  Adapter/impl/src/async_common.cpp
+  Adapter/impl/src/AsyncNdbContext.cpp
+  Adapter/impl/src/AsyncNdbContext_wrapper.cpp
+  Adapter/impl/src/ColumnHandler.cpp
+  Adapter/impl/src/ColumnProxy.cpp
+  Adapter/impl/src/DBDictionaryImpl.cpp
+  Adapter/impl/src/DBOperationHelper.cpp
+  Adapter/impl/src/DBScanHelper.cpp
+  Adapter/impl/src/EncoderCharset.cpp
+  Adapter/impl/src/IndexBoundHelper.cpp
+  Adapter/impl/src/Ndb_cluster_connection_wrapper.cpp
+  Adapter/impl/src/Ndb_init_wrapper.cpp
+  Adapter/impl/src/Ndb_util_wrapper.cpp
+  Adapter/impl/src/Ndb_wrapper.cpp
+  Adapter/impl/src/NdbError_wrapper.cpp
+  Adapter/impl/src/NdbInterpretedCode_wrapper.cpp
+  Adapter/impl/src/NdbOperation_wrapper.cpp
+  Adapter/impl/src/NdbRecordObject.cpp
+  Adapter/impl/src/NdbScanFilter_wrapper.cpp
+  Adapter/impl/src/NdbTransaction_wrapper.cpp
+  Adapter/impl/src/NdbTypeEncoders.cpp
+  Adapter/impl/src/node_module.cpp
+  Adapter/impl/src/Recode.cpp
+  Adapter/impl/src/Record.cpp
+  Adapter/impl/src/Record_wrapper.cpp
+  Adapter/impl/src/ScanImpl.cpp
+  Adapter/impl/src/unified_debug.cpp
+  Adapter/impl/src/ValueObject.cpp
+)
+
+## TODO: Windows needs ndbclient_static but Mac needs ndbclient
+set(ADAPTER_REQUIRED_LIBS
+  ndbclient
+  mysqlclient
+)
+
+if(WIN32) 
+  add_definitions(-DWIN32)
+  add_definitions(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
+  set(ADAPTER_REQUIRED_LIBS ${ADAPTER_REQUIRED_LIBS} node)
+  link_directories(${NODE_GYP}/x64/)
+else()
+  add_definitions(-D_GNU_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64)
+endif()
+ 
+
+add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
+
+target_link_libraries(ndb_adapter ${ADAPTER_REQUIRED_LIBS})
+
+if(APPLE) 
+  set(FINAL_LINK_FLAGS "-undefined dynamic_lookup")
+elseif(WIN32)
+  set(FINAL_LINK_FLAGS "/NODEFAULTLIB:LIBCMT /FORCE:MULTIPLE")
+endif()
+
+set_target_properties(ndb_adapter PROPERTIES
+                      PREFIX ""
+                      SUFFIX ".node"
+                      LINK_FLAGS "${FINAL_LINK_FLAGS}")
 

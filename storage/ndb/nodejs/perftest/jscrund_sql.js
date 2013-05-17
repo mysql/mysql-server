@@ -62,14 +62,14 @@ implementation.prototype.initialize = function(options, callback) {
   JSCRUND.udebug.log_detail('jscrund_sql.initialize', this);
   var impl = this;
   // set up the session
-  var properties = options.properties;
-  // set up default properties
-  if (!properties) {
-    properties = {};
-    properties.host = 'localhost';
-    properties.port = 3306;
-    properties.database = options.database;
-  }
+  var properties = {};
+  // set up mysql properties
+  properties.host = options.properties.mysql_host || 'localhost';
+  properties.port = options.properties.mysql_port || 3306;
+  properties.user = options.properties.mysql_user;
+  properties.password = options.properties.mysql_password;
+  properties.database = options.properties.database;
+  
   JSCRUND.udebug.log_detail('jscrund_sql.initialize calling mysql.createConnection', properties);
   this.connection = mysql.createConnection(properties);
   this.connection.connect(function(err) {

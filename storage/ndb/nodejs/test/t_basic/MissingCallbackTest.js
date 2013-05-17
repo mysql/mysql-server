@@ -17,6 +17,10 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
+/*jslint newcap: true */
+/*global t_basic, verify_t_basic, fail_verify_t_basic */
+
 
 /***** Persist with domain object ***/
 var t1 = new harness.SerialTest("testPersistDomainObjectAutocommit");
