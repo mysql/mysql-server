@@ -446,6 +446,35 @@ select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 drop table mydb1.t1;
 drop table mydb0.t2;
 
+# Create child again
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+create table mydb1.t1 (
+  a int primary key,
+  constraint fk1 foreign key(a) references mydb0.t2(a)
+) engine = ndb;
+
+# And the parent
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+create table mydb0.t2 (
+  a int primary key
+) engine = ndb;
+
+--source ndb_show_tables_result.inc
+--echo # There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+--echo # Drop parent then child(creates mock which is then dropped)
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+drop table mydb0.t2;
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+drop table mydb1.t1;
+
+--source ndb_show_tables_result.inc
+--echo # There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+set @@ndb_show_foreign_key_mock_tables= 0;
+
 --echo # Drop the databases
 drop database mydb0;
 drop database mydb1;
