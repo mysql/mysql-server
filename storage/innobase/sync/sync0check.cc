@@ -898,10 +898,10 @@ sync_latch_meta_init()
 		  SYNC_TRX_UNDO, trx_undo_mutex_key);
 
 	LATCH_ADD(SrvLatches, "trx_pool",
-		  SYNC_POOL, trx_pool_key);
+		  SYNC_POOL, trx_pool_mutex_key);
 
 	LATCH_ADD(SrvLatches, "trx_pool_manager",
-		  SYNC_POOL_MANAGER, trx_pool_manager_key);
+		  SYNC_POOL_MANAGER, trx_pool_manager_mutex_key);
 
 	LATCH_ADD(SrvLatches, "trx",
 		  SYNC_TRX, trx_mutex_key);
