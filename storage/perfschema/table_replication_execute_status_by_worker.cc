@@ -15,12 +15,12 @@
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file storage/perfschema/table_replication_execute_status_by_executor.cc
-  Table replication_execute_status_by_executor (implementation).
+  @file storage/perfschema/table_replication_execute_status_by_worker.cc
+  Table replication_execute_status_by_worker (implementation).
 */
 
 #include "sql_priv.h"
-#include "table_replication_execute_status_by_executor.h"
+#include "table_replication_execute_status_by_worker.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "rpl_slave.h"
@@ -30,7 +30,7 @@
 #include "sql_parse.h"
 #include "rpl_rli_pdb.h"
 
-THR_LOCK table_replication_execute_status_by_executor::m_table_lock;
+THR_LOCK table_replication_execute_status_by_worker::m_table_lock;
 
 /*
   numbers in varchar count utf8 characters.
@@ -75,18 +75,18 @@ static const TABLE_FIELD_TYPE field_types[]=
 };
 
 TABLE_FIELD_DEF
-table_replication_execute_status_by_executor::m_field_def=
+table_replication_execute_status_by_worker::m_field_def=
 { 7, field_types };
 
 PFS_engine_table_share
-table_replication_execute_status_by_executor::m_share=
+table_replication_execute_status_by_worker::m_share=
 {
-  { C_STRING_WITH_LEN("replication_execute_status_by_executor") },
+  { C_STRING_WITH_LEN("replication_execute_status_by_worker") },
   &pfs_readonly_acl,
-  &table_replication_execute_status_by_executor::create,
+  &table_replication_execute_status_by_worker::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  table_replication_execute_status_by_executor::get_row_count, /*TODO: get_row_count()*/   
+  table_replication_execute_status_by_worker::get_row_count, /*TODO: get_row_count()*/   
   1000, /*records- used by optimizer*/
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
@@ -94,9 +94,9 @@ table_replication_execute_status_by_executor::m_share=
   false /* checked */
 };
 
-PFS_engine_table* table_replication_execute_status_by_executor::create(void)
+PFS_engine_table* table_replication_execute_status_by_worker::create(void)
 {
-  return new table_replication_execute_status_by_executor();
+  return new table_replication_execute_status_by_worker();
 }
 
 //TODO: some values hard-coded below, replace them --shiv
@@ -111,7 +111,7 @@ static ST_STATUS_FIELD_INFO slave_field_info[]=
   {"Last_Error_Timestamp", 11, MYSQL_TYPE_STRING, FALSE}
 };
 
-table_replication_execute_status_by_executor::table_replication_execute_status_by_executor()
+table_replication_execute_status_by_worker::table_replication_execute_status_by_worker()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
 {
@@ -124,7 +124,7 @@ table_replication_execute_status_by_executor::table_replication_execute_status_b
   }
 }
 
-table_replication_execute_status_by_executor::~table_replication_execute_status_by_executor()
+table_replication_execute_status_by_worker::~table_replication_execute_status_by_worker()
 {
   for (int i= RPL_WORKER_ID; i <= _RPL_EXECUTE_LAST_FIELD_; i++)
   {
@@ -134,13 +134,13 @@ table_replication_execute_status_by_executor::~table_replication_execute_status_
   }
 }
 
-void table_replication_execute_status_by_executor::reset_position(void)
+void table_replication_execute_status_by_worker::reset_position(void)
 {
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
 }
 #ifndef MYSQL_CLIENT
-int table_replication_execute_status_by_executor::rnd_next(void)
+int table_replication_execute_status_by_worker::rnd_next(void)
 {
   Master_info *mi= active_mi;
   Slave_worker *w;
@@ -170,11 +170,11 @@ int table_replication_execute_status_by_executor::rnd_next(void)
 }
 #endif
 
-ha_rows table_replication_execute_status_by_executor::get_row_count()
+ha_rows table_replication_execute_status_by_worker::get_row_count()
 {
   return active_mi->rli->workers.elements; 
 }
-int table_replication_execute_status_by_executor::rnd_pos(const void *pos)
+int table_replication_execute_status_by_worker::rnd_pos(const void *pos)
 {
   Master_info *mi= active_mi;
   Slave_worker *w;
@@ -192,19 +192,19 @@ int table_replication_execute_status_by_executor::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_replication_execute_status_by_executor::drop_null(enum enum_rpl_execute_field_names name)
+void table_replication_execute_status_by_worker::drop_null(enum enum_rpl_execute_field_names name)
 {
   if (slave_field_info[name].can_be_null)
     m_row.m_fields[name].is_null= false;
 }
 
-void table_replication_execute_status_by_executor::set_null(enum enum_rpl_execute_field_names name)
+void table_replication_execute_status_by_worker::set_null(enum enum_rpl_execute_field_names name)
 {
   DBUG_ASSERT(slave_field_info[name].can_be_null);
   m_row.m_fields[name].is_null= true;
 }
 
-void table_replication_execute_status_by_executor::str_store(enum enum_rpl_execute_field_names name, const char* val)
+void table_replication_execute_status_by_worker::str_store(enum enum_rpl_execute_field_names name, const char* val)
 {
   m_row.m_fields[name].u.s.length= strlen(val);
   DBUG_ASSERT(m_row.m_fields[name].u.s.length <= slave_field_info[name].max_size);
@@ -221,13 +221,13 @@ void table_replication_execute_status_by_executor::str_store(enum enum_rpl_execu
   drop_null(name);
 }
 
-void table_replication_execute_status_by_executor::int_store(enum enum_rpl_execute_field_names name, longlong val)
+void table_replication_execute_status_by_worker::int_store(enum enum_rpl_execute_field_names name, longlong val)
 {
   m_row.m_fields[name].u.n= val;
   drop_null(name);
 }
 
-void table_replication_execute_status_by_executor::fill_rows(Slave_worker *w)
+void table_replication_execute_status_by_worker::fill_rows(Slave_worker *w)
 {
   //mysql_mutex_lock(&mi->data_lock);
   //mysql_mutex_lock(&mi->rli->data_lock);
@@ -263,7 +263,7 @@ void table_replication_execute_status_by_executor::fill_rows(Slave_worker *w)
 }
 
 
-int table_replication_execute_status_by_executor::read_row_values(TABLE *table,
+int table_replication_execute_status_by_worker::read_row_values(TABLE *table,
                                        unsigned char *,
                                        Field **fields,
                                        bool read_all)

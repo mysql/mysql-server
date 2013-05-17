@@ -15,18 +15,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#ifndef TABLE_REPLICATION_CONNECTION_STATUS_BY_CHANNEL_H
-#define TABLE_REPLICATION_CONNECTION_STATUS_BY_CHANNEL_H 
+#ifndef TABLE_REPLICATION_EXECUTE_STATUS_BY_EXECUTOR_H
+#define TABLE_REPLICATION_EXECUTE_STATUS_BY_EXECUTOR_H
 
 /**
-  @file storage/perfschema/table_replication_connection_status_by_channel.h
-  Table replication_connection_status_by_channel (declarations).
+  @file storage/perfschema/table_replication_execute_status_by_worker.h
+  Table replication_execute_status_by_worker (declarations).
 */
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "rpl_mi.h"
 #include "mysql_com.h"
+#include "rpl_rli_pdb.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -40,12 +41,6 @@ enum enum_rpl_yes_no {
   PS_RPL_NO
 };
 #endif
-
-enum enum_service_state {
-  PS_RPL_CONNECT_SERVICE_STATE_YES= 1,
-  PS_RPL_CONNECT_SERVICE_STATE_NO,
-  PS_RPL_CONNECT_SERVICE_STATE_CONNECTING
-};
 
 #ifndef ST_RPL_STATUS_FIELD
 #define ST_RPL_STATUS_FIELD
@@ -76,27 +71,32 @@ typedef struct st_rpl_status_field_info
 } ST_STATUS_FIELD_INFO;
 #endif
 
-enum enum_rpl_connect_status_field_names {
-  SOURCE_UUID= 0,
-  IO_THREAD_ID,
-  RPL_CONNECT_SERVICE_STATE,
-  RECEIVED_TRANSACTION_SET,
-  RPL_CONNECT_LAST_ERROR_NUMBER,
-  RPL_CONNECT_LAST_ERROR_MESSAGE,
-  RPL_CONNECT_LAST_ERROR_TIMESTAMP,
-  _RPL_CONNECT_STATUS_LAST_FIELD_= RPL_CONNECT_LAST_ERROR_TIMESTAMP
+enum enum_rpl_execute_field_names {
+  RPL_WORKER_ID= 0,
+  RPL_EXECUTE_THREAD_ID,
+  RPL_EXECUTE_SERVICE_STATE,
+  RPL_LAST_EXECUTED_TRANSACTION,
+  RPL_EXECUTE_LAST_ERROR_NUMBER,
+  RPL_EXECUTE_LAST_ERROR_MESSAGE,
+  RPL_EXECUTE_LAST_ERROR_TIMESTAMP, 
+  _RPL_EXECUTE_LAST_FIELD_= RPL_EXECUTE_LAST_ERROR_TIMESTAMP
 };
 
-/** Table PERFORMANCE_SCHEMA.REPLICATION_RECEIVE_STATUS. */
-class table_replication_connection_status_by_channel: public PFS_engine_table
+struct st_worker_row
+{
+  ST_STATUS_FIELD_DATA m_fields[_RPL_EXECUTE_LAST_FIELD_ + 1];
+};
+
+/** Table PERFORMANCE_SCHEMA.replication_execute_status_by_worker */
+class table_replication_execute_status_by_worker: public PFS_engine_table
 {
 private:
-  void fill_rows(Master_info *);
-  void drop_null(enum enum_rpl_connect_status_field_names f_name);
-  void set_null(enum enum_rpl_connect_status_field_names f_name);
-  void str_store(enum enum_rpl_connect_status_field_names f_name, const char * val);
-  void int_store(enum enum_rpl_connect_status_field_names f_name, longlong val);
-  void enum_store(enum enum_rpl_connect_status_field_names f_name, longlong val)
+  void fill_rows(Slave_worker *);
+  void drop_null(enum enum_rpl_execute_field_names f_name);
+  void set_null(enum enum_rpl_execute_field_names f_name);
+  void str_store(enum enum_rpl_execute_field_names f_name, const char * val);
+  void int_store(enum enum_rpl_execute_field_names f_name, longlong val);
+  void enum_store(enum enum_rpl_execute_field_names f_name, longlong val)
   {
     int_store(f_name, val);
   }
@@ -105,10 +105,11 @@ private:
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-  /** Current only row is represented by array of fields */
-  ST_STATUS_FIELD_DATA m_fields[_RPL_CONNECT_STATUS_LAST_FIELD_ + 1];
-  /** True is the table is filled up */
+  /** current row*/
+  st_worker_row m_row;
+
   bool m_filled;
+
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -128,15 +129,15 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_replication_connection_status_by_channel();
+  table_replication_execute_status_by_worker();
 
 public:
-  ~table_replication_connection_status_by_channel();
+  ~table_replication_execute_status_by_worker();
 
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
-
+  static ha_rows get_row_count();
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
@@ -145,5 +146,3 @@ public:
 
 /** @} */
 #endif
-
-
