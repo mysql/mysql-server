@@ -1,0 +1,19 @@
+-- source include/have_query_cache.inc
+-- source include/have_ucs2.inc
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # Bug#MDEV-4518 Server crashes in is_white_space when it's run
+--echo # with query cache, charset ucs2 and collation ucs2_unicode_ci
+--echo #
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

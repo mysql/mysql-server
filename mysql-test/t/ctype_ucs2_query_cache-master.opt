@@ -1,0 +1,1 @@
+--collation-server=ucs2_unicode_ci --character-set-server=ucs2,latin1 --query-cache-size=1048576

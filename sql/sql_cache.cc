@@ -466,6 +466,8 @@ static void make_base_query(String *new_query,
   /* The following is guaranteed by the query_cache interface */
   DBUG_ASSERT(query[query_length] == 0);
   DBUG_ASSERT(!is_white_space(query[0]));
+  /* We do not support UCS2, UTF16, UTF32 as a client character set */
+  DBUG_ASSERT(current_thd->variables.character_set_client->mbminlen == 1);
 
   new_query->length(0);           // Don't copy anything from old buffer
   if (new_query->realloc(query_length + additional_length))
@@ -2430,7 +2432,28 @@ void Query_cache::init()
   m_cache_status= Query_cache::OK;
   m_requests_in_progress= 0;
   initialized = 1;
-  query_state_map= default_charset_info->state_map;
+  /*
+    Using state_map from latin1 should be fine in all cases:
+    1. We do not support UCS2, UTF16, UTF32 as a client character set.
+    2. The other character sets are compatible on the lower ASCII-range
+    0x00-0x20, and have the following characters marked as spaces:
+    
+    0x09 TAB
+    0x0A LINE FEED
+    0x0B VERTICAL TAB
+    0x0C FORM FEED
+    0x0D CARRIAGE RETUR
+    0x20 SPACE
+    
+    Additionally, only some of the ASCII-compatible character sets
+    (including latin1) can have 0xA0 mapped to "NON-BREAK SPACE"
+    and thus marked as space.
+    That should not be a problem for those charsets that map 0xA0
+    to something else: the parser will just return syntax error
+    if this character appears straight in the query
+    (i.e. not inside a string literal or comment).
+  */
+  query_state_map= my_charset_latin1.state_map;
   /*
     If we explicitly turn off query cache from the command line query
     cache will be disabled for the reminder of the server life

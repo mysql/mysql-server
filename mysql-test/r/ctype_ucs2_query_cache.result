@@ -1,0 +1,19 @@
+#
+# Start of 5.5 tests
+#
+#
+# Bug#MDEV-4518 Server crashes in is_white_space when it's run
+# with query cache, charset ucs2 and collation ucs2_unicode_ci
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#
