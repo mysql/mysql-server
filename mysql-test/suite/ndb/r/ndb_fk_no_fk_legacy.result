@@ -1,4 +1,3 @@
-SET @save_foreign_key_checks=@@foreign_key_checks;
 SET foreign_key_checks=0;
 CREATE TABLE t1 (id int primary key, foreign key (id) references t2(id)) ENGINE=engine;
 CREATE TABLE t2 (id int primary key, foreign key (id) references t1(id)) ENGINE=engine;
@@ -19,4 +18,3 @@ COUNT(*)
 2
 SET foreign_key_checks=0;
 DROP TABLE t2, t1;
-SET @@foreign_key_checks = @save_foreign_key_checks;
