@@ -160,6 +160,7 @@ create table t2 (
 show create table t1;
 
 set @@ndb_show_foreign_key_mock_tables= 1;
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 show create table t1;
 set @@ndb_show_foreign_key_mock_tables= 0;
 
@@ -227,18 +228,21 @@ set @@ndb_show_foreign_key_mock_tables= 1;
 --echo #
 --echo # Test where FK goes from t1->t2->t3->t4 and tables are created in that order
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t1 (
   pk11 int not null primary key,
   b int,
   foreign key (b) references t2(pk21)
 ) engine=ndb;
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t2 (
   pk21 int not null primary key,
   b int, c int,
   foreign key (b, c) references t3(pk31, pk32)
 ) engine=ndb;
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t3 (
   pk31 int not null,
   pk32 int not null,
@@ -247,6 +251,7 @@ create table t3 (
   foreign key (d,e,f) references t4(pk41, pk42, pk43)
 ) engine=ndb;
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t4 (
   pk41 int not null,
   pk42 int not null,
@@ -266,6 +271,7 @@ drop table t1, t2, t3, t4;
 --echo #
 --echo # Test where FK 'fans out' t1->t2 t1->t3 t1->t4, create t1 first
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t1 (
   pk11 int not null primary key,
   b int,
@@ -276,12 +282,14 @@ create table t1 (
   foreign key (h, i, j) references t4(k, l, m)
 ) engine=ndb;
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t2 (
   pk21 int not null primary key,
   c int,
   unique(c)
 ) engine=ndb;
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t3 (
   pk31 int not null,
   pk32 int not null,
@@ -290,6 +298,7 @@ create table t3 (
   unique(f, g)
 ) engine=ndb;
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t4 (
   pk41 int not null,
   pk42 int not null,
@@ -309,6 +318,7 @@ drop table t1, t2, t3, t4;
 --echo #
 --echo # Test where FK refers to 2+ different indices in parent t1->t2(1) t1->t2(2)
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t1 (
   pk11 int not null primary key,
   foreign key (pk11) references t2(pk21),
@@ -320,6 +330,7 @@ create table t1 (
   foreign key (h, i, j) references t2(k, l, m)
 ) engine=ndb;
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t2 (
   pk21 int not null primary key,
   c int,
@@ -342,12 +353,14 @@ drop table t1, t2;
 --echo # Test drop of referenced table(mock table should be created)
 --echo #
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t1 (
   pk1 int not null primary key,
   foreign key (pk1) references t2(pk2),
   a varchar(255)
 ) engine=ndb;
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 create table t2 (
   pk2 int not null primary key,
   b datetime
@@ -358,6 +371,7 @@ create table t2 (
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table t2;
 
 --source ndb_show_tables_result.inc
@@ -368,9 +382,12 @@ let $id_t1 = `select id from ndb_show_tables_results where name = "'t1'"`;
 eval select type, name from ndb_show_tables_results
   where name like "'NDB\$FKM_$id_t1%'";
 
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table t1;
 
 --source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
+# Turn off ndb_show_foreign_key_mock_tables again
+set @@ndb_show_foreign_key_mock_tables= 0;
