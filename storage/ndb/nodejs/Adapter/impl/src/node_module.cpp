@@ -30,8 +30,7 @@ using namespace v8;
 typedef void LOADER_FUNCTION(Handle<Object>);
 
 extern LOADER_FUNCTION Ndb_init_initOnLoad;
-// extern LOADER_FUNCTION Ndb_util_initOnLoad;
-extern LOADER_FUNCTION Native_encoders_initOnLoad;
+extern LOADER_FUNCTION Ndb_util_initOnLoad;
 extern LOADER_FUNCTION Ndb_cluster_connection_initOnLoad;
 extern LOADER_FUNCTION NdbTransaction_initOnLoad;
 extern LOADER_FUNCTION DBDictionaryImpl_initOnLoad;
@@ -39,11 +38,19 @@ extern LOADER_FUNCTION DBOperationHelper_initOnLoad;
 extern LOADER_FUNCTION udebug_initOnLoad;
 extern LOADER_FUNCTION AsyncNdbContext_initOnLoad;
 extern LOADER_FUNCTION NdbWrapper_initOnLoad;
+extern LOADER_FUNCTION NdbTypeEncoders_initOnLoad;
+extern LOADER_FUNCTION ValueObject_initOnLoad;
+extern LOADER_FUNCTION IndexBound_initOnLoad;
+extern LOADER_FUNCTION NdbInterpretedCode_initOnLoad;
+extern LOADER_FUNCTION NdbScanFilter_initOnLoad;
+extern LOADER_FUNCTION ScanHelper_initOnLoad;
 
 void init_ndbapi(Handle<Object> target) {
   Ndb_cluster_connection_initOnLoad(target);
   Ndb_init_initOnLoad(target);
   NdbTransaction_initOnLoad(target);
+  NdbInterpretedCode_initOnLoad(target);
+  NdbScanFilter_initOnLoad(target);
 }
 
 
@@ -52,6 +59,9 @@ void init_impl(Handle<Object> target) {
   DBOperationHelper_initOnLoad(target);
   AsyncNdbContext_initOnLoad(target);
   NdbWrapper_initOnLoad(target);
+  ValueObject_initOnLoad(target);
+  IndexBound_initOnLoad(target);
+  ScanHelper_initOnLoad(target);
 }
 
 
@@ -60,25 +70,21 @@ void initModule(Handle<Object> target) {
   Persistent<Object> ndb_obj    = Persistent<Object>(Object::New());
   Persistent<Object> ndbapi_obj = Persistent<Object>(Object::New());
   Persistent<Object> impl_obj   = Persistent<Object>(Object::New());
-  // Persistent<Object> util_obj   = Persistent<Object>(Object::New());  
-  Persistent<Object> debug_obj   = Persistent<Object>(Object::New());
-  // Persistent<Object> mysql_obj   = Persistent<Object>(Object::New());
-  Persistent<Object> encoders_obj   = Persistent<Object>(Object::New());
+  Persistent<Object> util_obj   = Persistent<Object>(Object::New());
+  Persistent<Object> debug_obj  = Persistent<Object>(Object::New());
   
   init_ndbapi(ndbapi_obj);
   init_impl(impl_obj);
+  Ndb_util_initOnLoad(util_obj);
+  NdbTypeEncoders_initOnLoad(impl_obj);
   udebug_initOnLoad(debug_obj);
-  Native_encoders_initOnLoad(encoders_obj);
-  // mysqlclient_initOnLoad(mysql_obj);
-  // Ndb_util_initOnLoad(util_obj);
-
+  
   target->Set(Persistent<String>(String::NewSymbol("debug")), debug_obj);
   target->Set(Persistent<String>(String::NewSymbol("ndb")), ndb_obj);
 
   ndb_obj->Set(Persistent<String>(String::NewSymbol("ndbapi")), ndbapi_obj);
   ndb_obj->Set(Persistent<String>(String::NewSymbol("impl")), impl_obj);
-  // ndb_obj->Set(Persistent<String>(String::NewSymbol("util")), util_obj);
-  ndb_obj->Set(Persistent<String>(String::NewSymbol("encoders")), encoders_obj);
+  ndb_obj->Set(Persistent<String>(String::NewSymbol("util")), util_obj);
 }
 
 V8BINDER_LOADABLE_MODULE(ndb_adapter, initModule)

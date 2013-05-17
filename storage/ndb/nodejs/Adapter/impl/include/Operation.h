@@ -19,6 +19,8 @@
  */
 #pragma once
 
+#include <string.h>
+
 #include <NdbApi.hpp>
 
 #include "Record.h"
@@ -30,7 +32,10 @@ public:
   char *key_buffer;  
   const Record *row_record;
   const Record *key_record;
-  uint8_t row_mask[4];
+  union {
+    uint8_t row_mask[4];
+    uint32_t maskvalue;
+  } u;
   uint8_t * read_mask_ptr;
   NdbOperation::LockMode lmode;
   NdbOperation::OperationOptions *options;
@@ -43,6 +48,7 @@ public:
   void useSelectedColumns();
   void useAllColumns();
   void useColumn(int id);
+  void setRowMask(uint32_t);
   
   /* NdbTransaction method wrappers */
   // startTransaction
@@ -69,10 +75,16 @@ public:
 
 /* ================= Inline methods ================= */
 
+inline Operation::Operation(): 
+  row_buffer(0), key_buffer(0), row_record(0), key_record(0),
+  read_mask_ptr(0), lmode(NdbOperation::LM_SimpleRead), options(0)
+{
+  u.maskvalue = 0;
+}
+ 
 /* Select columns for reading */
-
 inline void Operation::useSelectedColumns() {
-  read_mask_ptr = row_mask;
+  read_mask_ptr = u.row_mask;
 }
 
 inline void Operation::useAllColumns() {
@@ -80,10 +92,12 @@ inline void Operation::useAllColumns() {
 }
 
 inline void Operation::useColumn(int col_id) {
-  row_mask[col_id >> 3] |= (1 << (col_id & 7));
+  u.row_mask[col_id >> 3] |= (1 << (col_id & 7));
 }
 
-
+inline void Operation::setRowMask(const uint32_t newMaskValue) {
+  u.maskvalue = newMaskValue;
+}
 /* NdbTransaction method wrappers */
 
 inline const NdbOperation * 
@@ -100,26 +114,37 @@ inline const NdbOperation *
 
 inline const NdbOperation * Operation::writeTuple(NdbTransaction *tx) { 
   return tx->writeTuple(key_record->getNdbRecord(), key_buffer,
-                        row_record->getNdbRecord(), row_buffer, row_mask);
+                        row_record->getNdbRecord(), row_buffer, u.row_mask);
 }
 
 inline const NdbOperation * 
   Operation::insertTuple(NdbTransaction *tx) { 
     return tx->insertTuple(row_record->getNdbRecord(), row_buffer,
-                           row_mask, options);
+                           u.row_mask, options);
 }
 
 inline const NdbOperation * 
   Operation::updateTuple(NdbTransaction *tx) { 
     return tx->updateTuple(key_record->getNdbRecord(), key_buffer,
                            row_record->getNdbRecord(), row_buffer,
-                           row_mask, options);
+                           u.row_mask, options);
 }
 
 inline NdbScanOperation * 
   Operation::scanTable(NdbTransaction *tx) {
     return tx->scanTable(row_record->getNdbRecord(), lmode,
                          read_mask_ptr, scan_options, 0);
+}
+
+inline NdbIndexScanOperation * 
+  Operation::scanIndex(NdbTransaction *tx,
+                       NdbIndexScanOperation::IndexBound *bound = 0) {
+    return tx->scanIndex(key_record->getNdbRecord(),    // scan key    
+                         row_record->getNdbRecord(),    // row record  
+                         lmode,                         // lock mode   
+                         read_mask_ptr,                 // result mask 
+                         bound,                         // bound       
+                         scan_options, 0);
 }
 
 inline const NdbOperation * 

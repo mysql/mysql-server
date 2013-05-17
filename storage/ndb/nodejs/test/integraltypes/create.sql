@@ -9,9 +9,11 @@ create table if not exists integraltypes (
   tbigint bigint not null default 0,
   
   unique key(tint),
+  unique key(ttinyint) using hash,
+  key (tsmallint),
   primary key(id)
 
-) ENGINE=ndbcluster;
+);
 
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(0, 0, 0, 0, 0, 0);
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(1, 1, 1, 1, 1, 1);

@@ -37,6 +37,10 @@ Record::Record(NdbDictionary::Dictionary *d, int ncol) :
   ndb_record(0), 
   specs(new NdbDictionary::RecordSpecification[ncol])                      {};
 
+Record::~Record() {
+  // dict->releaseRecord(ndb_record);  // causes crashes due to dict==0. ??
+  delete[] specs;
+}
 
 /*
  * add a column to a Record

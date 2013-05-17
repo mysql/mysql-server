@@ -20,7 +20,8 @@
 
 "use strict";
 
-var udebug = unified_debug.getLogger("QueuedAsyncCall.js");
+var udebug = unified_debug.getLogger("QueuedAsyncCall.js"),
+    serial = 1;
 
 /* Sometimes, some set of async calls have to be serialized, in some context.
    The dictionary calls on an NdbSession,
@@ -37,27 +38,55 @@ var udebug = unified_debug.getLogger("QueuedAsyncCall.js");
 
 /* Public constructor.
    The queue is simply an array.
-   The callback will be wrapped.
+   The callbacks will be wrapped.
+   The preCallback will be run while still holding exclusive accesss to the
+   exec queue. 
+   The mainCallback will be run after advancing the queue.
+   The preCallback may return a postCallback, containing members 
+   "fn", "arg0", and "arg1".  
+   If so, fn(arg0, arg1) will be run after advancing the queue.
 */
-function QueuedAsyncCall(queue, callback) {
+function QueuedAsyncCall(queue, mainCallback) {
   this.queue = queue;
+  this.serial = serial++;
 
   /* Function Generator */
-  function wrapCallback(queue, callback) {
+  function wrapCallbacks(queue, mainCallback) {
     return function wrappedCallback(err, obj) {
-      var thisCall, next;
+      //
+      var thisCall, nextCall, postCallback;
       thisCall = queue.shift();  // Our own QueuedAsyncCall
-      udebug.log("wrappedCallback", thisCall.description);
+      udebug.log(thisCall.description, "has returned");
+ 
+      /* Note the next queued async call.
+         This must be done before the preCallback, because recursion is tricky.
+      */
       if(queue.length) {
-        udebug.log("Run from queue");
-        queue[0].run();
+        udebug.log("Next queued:", queue[0].description);
+        nextCall = queue[0];
+      }      
+      /* Run the user's pre-callback function */
+      if(typeof thisCall.preCallback === 'function') {
+        postCallback = thisCall.preCallback(err, obj);
+      }      
+
+      /* Advance the queue */
+      if(nextCall) {
+        nextCall.run();
       }
-      /* Run the user's callback function */
-      if(typeof callback === 'function') {  callback(err, obj);  }
-    }
+
+       /* The preCallback may have returned a postCallback */
+      if(postCallback && postCallback.fn) {
+       postCallback.fn(postCallback.arg0, postCallback.arg1);
+      }
+      /* Run the user's main callback function */
+      else if(typeof mainCallback === 'function') {  
+        mainCallback(err, obj);  
+      }
+    };
   }
   
-  this.callback = wrapCallback(queue, callback);
+  this.callback = wrapCallbacks(queue, mainCallback);
 }
 
 
@@ -71,11 +100,11 @@ QueuedAsyncCall.prototype.enqueue = function() {
   this.queue.push(this);
   var pos = this.queue.length - 1;
   if(pos === 0) {
-    udebug.log("enqueue", this.description, "- run immediate");
+    udebug.log("enqueue #", this.serial, this.description, "- run immediate");
     this.run();
   }
   else {
-    udebug.log("enqueue", this.description, "- deferred, position", pos);
+    udebug.log("enqueue #", this.serial, this.description, "- position", pos);
   }
   return pos;
 };

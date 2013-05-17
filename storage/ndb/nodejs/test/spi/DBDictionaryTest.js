@@ -88,7 +88,7 @@ t2.run = function() {
   function onConnect(err, connection) {
     udebug.log("onConnect");
     conn = connection;
-    conn.getDBSession(0, onSession);
+    conn.getDBSession(spi_lib.allocateSessionSlot(), onSession);
   }
   
   spi_lib.getConnectionPool(onConnect);

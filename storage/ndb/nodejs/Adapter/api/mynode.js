@@ -43,9 +43,29 @@ var Connection = function(connectionKey) {
   this.waitingForConnection = [];
 };
 
-exports.ConnectionProperties = function(name) {
-  var sp = spi.getDBServiceProvider(name);
-  return sp.getDefaultConnectionProperties();
+/*jslint forin: true */
+exports.ConnectionProperties = function(nameOrProperties) {
+  var serviceProvider, newProperties, key, value;
+  if(typeof nameOrProperties === 'string') {
+    udebug.log("ConnectionProperties [default for " + nameOrProperties + "]");
+    serviceProvider = spi.getDBServiceProvider(nameOrProperties);
+    newProperties = serviceProvider.getDefaultConnectionProperties();
+  }
+  else if(typeof nameOrProperties === 'object' && 
+          typeof nameOrProperties.implementation === 'string') {
+    udebug.log("ConnectionProperties [copy constructor]");
+    newProperties = {};
+    for(key in nameOrProperties) {
+      value = nameOrProperties[key];
+      if(typeof value === 'string' || typeof value === 'number') {
+        newProperties[key] = value;
+      }
+      else {
+        udebug.log(" .. not copying property:",  key);
+      }
+    }
+  }
+  return newProperties;
 };
 
 exports.connect = function(properties, annotations, user_callback) {

@@ -481,6 +481,46 @@ function ReadOperation(dbTableHandler, sql, keys, callback) {
   };
 }
 
+function ScanOperation(dbTableHandler, sql, parameters, callback) {
+  udebug.log_detail('dbSession.ScanOperation with sql', sql, '\nparameters', parameters);
+  var op = this;
+  this.type = 'scan';
+  this.sql = sql;
+  this.parameters = parameters;
+  this.callback = callback;
+  this.result = {};
+  op_stats.incr( [ "created","scan" ]);
+
+  function onScan(err, rows) {
+    var i;
+    if (err) {
+      udebug.log('dbSession.ScanOperation err callback:', err);
+      op.result.error = new DBOperationError(err);
+      op.result.value = null;
+      op.result.success = false;
+      if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
+        op.callback(err, op);
+      }
+    } else {
+      op.result.value = rows;
+      op.result.success = true;
+      // convert the felix result into the user result
+      for (i = 0; i < rows.length; ++i) {
+        rows[i] = dbTableHandler.applyMappingToResult(rows[i]);
+      }
+      op.callback(err, op);
+    }
+    // now call the transaction operation complete callback
+    op.operationCompleteCallback(op);
+  }
+
+  this.execute = function(connection, operationCompleteCallback) {
+    op.operationCompleteCallback = operationCompleteCallback;
+    connection.query(this.sql, this.parameters, onScan);
+  };
+}
+
 function UpdateOperation(sql, keys, values, callback) {
   udebug.log('dbSession.UpdateOperation with', sql, values, keys);
   var op = this;
@@ -559,20 +599,28 @@ function createInsertSQL(dbTableHandler) {
 
 function createDeleteSQL(dbTableHandler, index) {
   // create the delete SQL statement from the table metadata for the named index
-  var deleteSQL = 'DELETE FROM ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' WHERE ';
-  // find the index metadata from the dbTableHandler index section
-  // loop over the columns in the index and extract the column name
-  var indexMetadatas = dbTableHandler.dbTable.indexes;
-  var columns = dbTableHandler.getColumnMetadata();
-  var separator = '';
-  var i, j, indexMetadata;
-  for (i = 0; i < indexMetadatas.length; ++i) {
-    if (indexMetadatas[i].name === index) {
-      indexMetadata = indexMetadatas[i];
-      udebug.log_detail('createDeleteSQL indexMetadata: ', indexMetadata);
-      for (j = 0; j < indexMetadata.columnNumbers.length; ++j) {
-        deleteSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ?';
-        separator = ' AND ';
+  var deleteSQL;
+  if (!index) {
+    deleteSQL = 'DELETE FROM ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name;
+    // return non-index delete statement
+  } else {
+    deleteSQL = dbTableHandler.mysql.deleteTableScanSQL + ' WHERE ';
+    // find the index metadata from the dbTableHandler index section
+    // loop over the columns in the index and extract the column name
+    var indexMetadatas = dbTableHandler.dbTable.indexes;
+    var columns = dbTableHandler.getColumnMetadata();
+    var separator = '';
+    var i, j, indexMetadata;
+    for (i = 0; i < indexMetadatas.length; ++i) {
+      if (indexMetadatas[i].name === index) {
+        indexMetadata = indexMetadatas[i];
+        udebug.log_detail('createDeleteSQL indexMetadata: ', indexMetadata);
+        for (j = 0; j < indexMetadata.columnNumbers.length; ++j) {
+          deleteSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ?';
+          separator = ' AND ';
+        }
+        // for unique btree indexes the first one is the unique index we are interested in
+        break;
       }
     }
   }
@@ -581,36 +629,46 @@ function createDeleteSQL(dbTableHandler, index) {
 }
 
 function createSelectSQL(dbTableHandler, index) {
-  // create the select SQL statement from the table metadata for the named index
-  var selectSQL = 'SELECT ';
-  var whereSQL =   ' FROM ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' WHERE ';
-  // loop over the mapped column names in order
+  var selectSQL;
+  var whereSQL;
   var separator = '';
   var i, j, columns, column, fields, field;
   columns = dbTableHandler.getColumnMetadata();
   fields = dbTableHandler.fieldNumberToFieldMap;
-  for (i = 0; i < fields.length; ++i) {
-    field = fields[i].fieldName;
-    column = fields[i].columnName;
-    selectSQL += separator + column + ' AS \'' + field + '\'';
-    separator = ', ';
-  }
+  if (!index) {
+    selectSQL = 'SELECT ';
+    var fromSQL =   ' FROM ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name;
+    // loop over the mapped column names in order
+    for (i = 0; i < fields.length; ++i) {
+      field = fields[i].fieldName;
+      column = fields[i].columnName;
+      selectSQL += separator + column + ' AS \'' + field + '\'';
+      separator = ', ';
+    }
+    selectSQL += fromSQL;
+  } else {
+    // create the select SQL statement from the table metadata for the named index
+    selectSQL = dbTableHandler.mysql.selectTableScanSQL;
+    whereSQL = ' WHERE ';
 
-  // loop over the index columns
-  // find the index metadata from the dbTableHandler index section
-  // loop over the columns in the index and extract the column name
-  var indexMetadatas = dbTableHandler.dbTable.indexes;
-  separator = '';
-  for (i = 0; i < indexMetadatas.length; ++i) {
-    if (indexMetadatas[i].name === index) {
-      var indexMetadata = indexMetadatas[i];
-      for (j = 0; j < indexMetadata.columnNumbers.length; ++j) {
-        whereSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ? ';
-        separator = ' AND ';
+    // loop over the index columns
+    // find the index metadata from the dbTableHandler index section
+    // loop over the columns in the index and extract the column name
+    var indexMetadatas = dbTableHandler.dbTable.indexes;
+    separator = '';
+    for (i = 0; i < indexMetadatas.length; ++i) {
+      if (indexMetadatas[i].name === index) {
+        var indexMetadata = indexMetadatas[i];
+        for (j = 0; j < indexMetadata.columnNumbers.length; ++j) {
+          whereSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ? ';
+          separator = ' AND ';
+        }
+        // for unique btree indexes the first one is the unique index we are interested in
+        break;
       }
     }
+    selectSQL += whereSQL;
   }
-  selectSQL += whereSQL;
   udebug.log_detail('getMetadata selectSQL for', index +':', selectSQL);
   return selectSQL;
 }
@@ -623,7 +681,10 @@ function getMetadata(dbTableHandler) {
   dbTableHandler.mysql = {};
   dbTableHandler.mysql.indexes = {};
   dbTableHandler.mysql.deleteSQL = {};
+  dbTableHandler.mysql.deleteTableScanSQL= createDeleteSQL(dbTableHandler);
   dbTableHandler.mysql.selectSQL = {};
+  dbTableHandler.mysql.selectTableScanSQL = createSelectSQL(dbTableHandler);
+  
   createInsertSQL(dbTableHandler);
   var i, indexes, index;
   // create a delete statement and select statement per index
@@ -663,44 +724,28 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
 };
 
 
-//exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, object, transaction, callback) {
-//udebug.log_detail('dbSession.buildUpdateOperation with indexHandler:', dbIndexHandler, object);
-//var dbTableHandler = dbIndexHandler.tableHandler;
-//var keyFields = dbIndexHandler.getFields(object);
-//// build the SQL Update statement along with the data values
-//var updateSetSQL = 'UPDATE ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' SET ';
-//var updateWhereSQL = ' WHERE ';
-//var separatorWhereSQL = '';
-//var separatorUpdateSetSQL = '';
-//var updateFields = [];
-//// get an array of key field names
-//var keyFieldNames = [];
-//var j;
-//for(j = 0 ; j < dbIndexHandler.fieldNumberToFieldMap.length ; j++) {
-//keyFieldNames.push(dbIndexHandler.fieldNumberToFieldMap[j].fieldName);
-//}
-//var x, columnName;
-//for (x in object) {
-//if (object.hasOwnProperty(x)) {
-//  if (keyFieldNames.indexOf(x) !== -1) {
-//    // add the key field to the WHERE clause
-//    columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
-//    updateWhereSQL += separatorWhereSQL + columnName + ' = ? ';
-//    separatorWhereSQL = 'AND ';
-//  } else {
-//    // add the value in the object to the updateFields
-//    updateFields.push(object[x]);
-//    // add the value field to the SET clause
-//    columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
-//    updateSetSQL += separatorUpdateSetSQL + columnName + ' = ?';
-//    separatorUpdateSetSQL = ', ';
-//  }
-//}
-//}
-//updateSetSQL += updateWhereSQL;
-//udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
-//return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
-//};
+exports.DBSession.prototype.buildScanOperation = function(queryDomainType, parameterValues, transaction, callback) {
+  udebug.log_detail('dbSession.buildScanOperation with queryDomainType:', queryDomainType,
+      'parameterValues', parameterValues);
+  var dbTableHandler = queryDomainType.mynode_query_domain_type.dbTableHandler;
+  getMetadata(dbTableHandler);
+  // add the WHERE clause to the sql
+  var whereSQL = ' WHERE ' + queryDomainType.mynode_query_domain_type.predicate.getSQL().sqlText;
+  var scanSQL = dbTableHandler.mysql.selectTableScanSQL + whereSQL;
+  udebug.log_detail('dbSession.buildScanOperation sql', scanSQL, 'parameter values', parameterValues);
+  // resolve parameters
+  var sql = queryDomainType.mynode_query_domain_type.predicate.getSQL();
+  var formalParameters = sql.formalParameters;
+  var sqlParameters = [];
+  udebug.log_detail('MySQLConnection.DBSession.buildScanOperation formalParameters:', formalParameters);
+  var i;
+  for (i = 0; i < formalParameters.length; ++i) {
+    var parameterName = formalParameters[i].name;
+    var value = parameterValues[parameterName];
+    sqlParameters.push(value);
+  }
+  return new ScanOperation(dbTableHandler, scanSQL, sqlParameters, callback);
+};
 
 
 exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys, values, transaction, callback) {
@@ -826,10 +871,9 @@ exports.DBSession.prototype.close = function(callback) {
   if (dbSession.pooledConnection) {
     dbSession.pooledConnection.end(function(err) {
       udebug.log('close dbSession', dbSession);
-      dbSession.pooledConnection = null;
-      dbSession.connectionPool.openConnections[dbSession.index] = null;
     });
   }
+  dbSession.connectionPool.openConnections[dbSession.index] = null;
   // always make the callback
   if (typeof(callback) === 'function') {
     callback(null);

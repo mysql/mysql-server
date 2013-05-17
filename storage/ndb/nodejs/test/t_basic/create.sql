@@ -9,7 +9,7 @@ create table if not exists t_basic (
 
   unique key idx_unique_hash_magic (magic) using hash,
   key idx_btree_age (age)
-) ENGINE=ndbcluster;
+);
 insert into t_basic values(0, 'Employee 0', 0, 0);
 insert into t_basic values(1, 'Employee 1', 1, 1);
 insert into t_basic values(2, 'Employee 2', 2, 2);

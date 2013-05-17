@@ -20,6 +20,8 @@
 
 /** This is the clear smoke test for the integraltypes suite.
  */
+"use strict";
+
 var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
 test.run = function() {

@@ -55,7 +55,8 @@ FieldMapping = {
  *  2:  TableMapping(tableMappingLiteral) : Create a new TableMapping from 
  *      an existing object or object literal. 
  *
- * @class TableMapping @constructor
+ * @class TableMapping
+ * @constructor
  * @param {String} [tableName] 
  * @param {TableMapping} [tableMappingLiteral]
  */

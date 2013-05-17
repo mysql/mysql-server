@@ -19,7 +19,7 @@
  */
 
 /*global mynode, unified_debug, path, fs, assert, spi_module, harness, 
-         adapter_dir, spi_dir 
+         adapter_dir, spi_dir, api_dir, util
 */
 
 "use strict";
@@ -76,7 +76,7 @@ function prepare(testCase, runTestMethod, testObj) {
   function onConnect(err, conn) {
     udebug.log("prepare onConnect");
     connection = conn;
-    connection.getDBSession(0, onSession);
+    connection.getDBSession(spi_lib.allocateSessionSlot(), onSession);
   }
   
   spi_lib.getConnectionPool(onConnect);
@@ -166,7 +166,7 @@ function checkSuccess(testCase) {
     }
     testCase.failOnError();
   };
-};
+}
 
 
 var 

@@ -1,9 +1,10 @@
-Session extends Context
+
 
   /** Get mappings for a table or class. 
    * The result is a fully resolved TableMapping
    * The parameter may be a table name, a mapped constructor function, or
    * a domain object. 
+   * @method getMapping
    * @param table the table name or constructor of a mapped class
    * @param callback function to be called when mapping has been resolved, with parameters:
    *   err: the node.js Error object
@@ -13,13 +14,12 @@ Session extends Context
    */
   getMapping(Object domainObjectTableNameOrConstructor, Function(Object err, Object mapping [,...]) callback[,...]);
 
-    /** getQueryBuilder(): not part of this version.
-     *
+    /** Create a query object that can be used to query the database.
+     * The first parameter is an object of a type whose constructor has been annotated;
+     * a constructor that has been annotated; or the name of a table.
+     * The returned query object implements the behavior of Query. 
      */
-    
-    /** createQuery(): not part of this version. 
-     *
-     */
+    createQuery(Object domainObjectConstructorOrTableName, Function(Object error, Object query) callback);
 
     /** Create an empty batch.
      *
@@ -32,6 +32,7 @@ Session extends Context
     Array listBatches();
 
     /** Get the current Transaction. 
+     * @method currentTransaction
      * @return the transaction
      */
     Transaction currentTransaction();
@@ -39,18 +40,22 @@ Session extends Context
     /** Close this session. This must be called when the session is
      * no longer needed.
      * 
+     * @method close
+     * @param callback
+     @ async
      */
     void close(Function(Object error) callback);
 
     /** Is this session closed?
      *
-     * @return true if the session is closed
+     * @method isClosed
+     * @return {Boolean} true if the session is closed
      */
     boolean isClosed();
 
     /** Set the partition key for the next transaction.
      *
-     * Normally, this is not needed. Clusterj will automatically set
+     * Normally, this is not needed. Mysql-js will automatically set
      * the partition key based on the first operation in the transaction.
      * If the user needs explicit control over the partition key,
      * this is the way to do it.
@@ -59,6 +64,7 @@ Session extends Context
      * The values of the partition key will be taken from the values
      * in the instance.
      * 
+     * @method setPartitionKey
      * @param instance the object with all partition key properties set
      * @return an Error object or null if no error
      */
@@ -66,14 +72,14 @@ Session extends Context
 
     /** Set the partition key for the next transaction.
      *
-     * Normally, this is not needed. Clusterj will automatically set
+     * Normally, this is not needed. Mysql-js will automatically set
      * the partition key based on the first operation in the transaction.
      * If the user needs explicit control over the partition key,
      * this is the way to do it.
      * 
      * The mapping is an object obtained from a class after the
      * class has been annotated. 
-     * The parameter "keys" may be of any type. Keys must uniquely identify
+     * The parameter "keys" may be of a type that can uniquely identify
      * a single row in the database. If keys is a simple type
      * (number or string), then the parameter type must be the 
      * same type as or compatible with the primary key type of the mapped object.

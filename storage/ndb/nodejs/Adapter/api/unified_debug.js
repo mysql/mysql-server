@@ -121,7 +121,7 @@ exports.register_receiver = function(rFunc) {
 exports.set_file_level = function(filename, level) {
   var i;
   if(fileLoggers[filename]) {
-    fileLoggers[filename].set_level(level);
+    fileLoggers[filename].set_file_level(level);
   }
   else {
     /* Maybe a JavaScript file not yet registered */

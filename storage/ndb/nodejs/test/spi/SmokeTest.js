@@ -37,13 +37,15 @@ test.run = function() {
   var lib = require("./lib.js"),
       test = this;  
 
-  function onCreate() {
-    test.pass();
+  function onCreate(err) {
+    if(err) test.fail("create.sql failed");
+    else test.pass();
   }
 
   function onConnected(err, connection) {
     if(err) {
       test.fail("Connection error");
+      return;
     }
     harness.SQL.create(test.suite, onCreate);  
   }

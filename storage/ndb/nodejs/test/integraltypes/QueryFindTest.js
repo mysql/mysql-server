@@ -17,7 +17,8 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
-
+"use strict";
+/*global fail_verify_integraltypes_array */
 /* TODO: replace qint.mynode_query_domain_type.queryType with appropriate EXPLAIN once EXPLAIN is implemented */
 
 /***** Query by primary key id ***/

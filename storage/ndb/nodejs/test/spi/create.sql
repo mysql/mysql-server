@@ -1,6 +1,8 @@
 use test;
-create table IF NOT EXISTS tbl1 (i int primary key not null, j int) engine = ndb;
+drop table if exists tbl1;
+create table IF NOT EXISTS tbl1 (i int primary key not null, j int);
 
+drop table if exists tbl2;
 create table IF NOT EXISTS tbl2 (
   colbit bit(9),
   coltinyint tinyint,
@@ -48,16 +50,18 @@ create table IF NOT EXISTS tbl2 (
   unique key idxcoltinyintusinghash (coltinyint) using hash,
   unique key idxcolsmallintboth (colsmallint),
   key idxcolintunsignedcoldateusingbtree (colintunsigned, coldate)
-  ) engine = ndb;
+  );
 
+drop table if exists tbl3;
 create table IF NOT EXISTS tbl3 (
   i int primary key not null,
   c varchar(120) 
-  ) engine = ndb;
+  );
 
+drop table if exists tbl4;
 create table IF NOT EXISTS tbl4 (
   i int primary key not null,
   k int,
   c varchar(120),
   unique key (k)
-  ) engine = ndb;
+  );

@@ -18,13 +18,13 @@ var NdbDefaultConnectionProperties = {
   "ndb_connect_delay"   : 5,         // full seconds between connection retries
   "ndb_connect_verbose" : 0,         // enable extra console output
 
-  "linger_on_close_msec": 1500,      /* When a client closes a DBConnectionPool,
+  "linger_on_close_msec": 500,       /* When a client closes a DBConnectionPool,
                                         the underlying connection is kept open 
                                         for this many milliseconds in case 
                                         another client tries to re-open it.
                                      */
 
-  "use_ndb_async_api"   : true,      /* If true, some operations will be
+  "use_ndb_async_api"   : false,    /* If true, some operations will be
                                         executed using asynchronous calls for
                                         improved concurrency. If false, the
                                         number of operations in transit will be

@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+"use strict";
 
 var mindb = 1;
 var maxdb = 8;
@@ -71,7 +72,7 @@ var properties = mynode.ConnectionProperties(global.adapter);
 // make a local copy of the properties
 var propertiesList = [];
 for (var p = mindb; p < mindb + numberOfDBs; ++p) {
-  props = {};
+  var x, props = {};
   for (x in properties) {
     if (properties.hasOwnProperty(x)) {
       props[x] = properties[x];

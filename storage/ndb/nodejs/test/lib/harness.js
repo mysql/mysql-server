@@ -31,6 +31,11 @@ var udebug = unified_debug.getLogger("harness.js");
 var exec = require("child_process").exec;
 var re_matching_test_case = /Test\.js$/;
 var SQL = {};
+var disabledTests = {};
+try {
+  disabledTests = require("../disabled-tests.conf").disabledTests;
+}
+catch(e) {}
 
 /* Test  
 */
@@ -84,6 +89,7 @@ Test.prototype.test = function(result) {
   udebug.log_detail('test starting:', this.suite.name, this.name);
   this.result = result;
   result.listener.startTest(this);
+  var runReturnCode;
 
   /* If a concurrent test has a proxy, then it is considered to be an async 
      test incorporated into some larger test, and it will pass or fail while 
@@ -92,29 +98,33 @@ Test.prototype.test = function(result) {
     return;
   }
 
+  udebug.log_detail('test.run:', this.suite.name, this.name);
   try {
-    udebug.log_detail('test.run:', this.suite.name, this.name);
-    if (!this.run()) {
-      udebug.log_detail(this.name, 'started.');
-      // async test must call Test.pass or Test.fail when done
-      return;
-    }
-    // fail if any error messages have been reported
-    if(! this.skipped) {
-      if (this.errorMessages === '') {
-        udebug.log_detail(this.name, this.suite.name, 'result.pass');
-        result.pass(this);
-      } else {
-        this.failed = true;
-        udebug.log_detail(this.name, this.suite.name, 'result.fail');
-        result.fail(this, this.errorMessages);
-      }
-    }
+    runReturnCode = this.run();
   }
   catch(e) {
-    udebug.log_detail('result.fail');
+    console.log(this.name, 'threw exception & failed');
     this.failed = true;
     result.fail(this, e);
+    return;
+  }
+
+  if(! runReturnCode) {
+    // async test must call Test.pass or Test.fail when done
+    udebug.log(this.name, 'started.');
+    return;
+  }
+
+  // Test ran synchronously.  Fail if any error messages have been reported.
+  if(! this.skipped) {
+    if (this.errorMessages === '') {
+      udebug.log_detail(this.name, 'passed');
+      result.pass(this);
+    } else {
+      this.failed = true;
+      udebug.log_detail(this.name, 'failed');
+      result.fail(this, this.errorMessages);
+    }
   }
 };
 
@@ -177,7 +187,14 @@ Test.prototype.run = function() {
 };
 
 Test.prototype.errorIfNotEqual = function(message, o1, o2) {
-	if (o1 !== o2) {
+	if (o1 != o2) {
+    message += ': expected ' + o1 + '; actual ' + o2 + '\n';
+		this.errorMessages += message;
+	}
+};
+
+Test.prototype.errorIfNotStrictEqual = function(message, o1, o2) {
+  if(o1 !== o2) {
     message += ': expected ' + o1 + '; actual ' + o2 + '\n';
 		this.errorMessages += message;
 	}
@@ -216,6 +233,16 @@ Test.prototype.errorIfError = function(val) {
   }
 };
 
+/* Value must be defined and not-null 
+   Function returns true if there was no error; false on error 
+*/
+Test.prototype.errorIfUnset = function(message, value) {
+  var r = (typeof value === 'undefined' || value === null); 
+  if(r) {
+    this.errorMessages += message;
+  }
+  return ! r;
+};
 
 /** Suite
   *  A suite consists of all tests in all test programs in a directory 
@@ -250,7 +277,12 @@ Suite.prototype.addTest = function(filename, test) {
   udebug.log_detail('Suite', this.name, 'adding test', test.name, 'from', this.filename);
   test.filename = filename;
   test.suite = this;
-  this.tests.push(test);
+  if(disabledTests && disabledTests[this.filename]) {
+    udebug.log("Skipping ", this.filename, "[DISABLED]");
+  }
+  else {
+    this.tests.push(test);
+  }
   return test;
 };
 
@@ -502,30 +534,30 @@ function Listener() {
   this.started = 0;
   this.ended   = 0;
   this.printStackTraces = false;
-  this.running = [];
+  this.runningTests = {};
 }
 
 Listener.prototype.startTest = function(t) { 
   this.started++;
-  this.running[t.index] = t.fullName();
+  this.runningTests[t.fullName()] = 1;
 };
 
 Listener.prototype.pass = function(t) {
   this.ended++;
-  delete this.running[t.index];
+  delete this.runningTests[t.fullName()];
   console.log("[pass]", t.fullName() );
 };
 
 Listener.prototype.skip = function(t, message) {
   this.skipped++;
-  delete this.running[t.index];
+  delete this.runningTests[t.fullName()];
   console.log("[skipped]", t.fullName(), "\t", message);
 };
 
 Listener.prototype.fail = function(t, e) {
   var message = "";
   this.ended++;
-  delete this.running[t.index];
+  delete this.runningTests[t.fullName()];
   if(e) {
     message = e.toString();
     if (typeof(e.message) !== 'undefined') {
@@ -535,15 +567,17 @@ Listener.prototype.fail = function(t, e) {
   if ((this.printStackTraces) && typeof(e.stack) !== 'undefined') {
     message = e.stack;
   }
-  
-  console.log("[FAIL]", t.fullName(), "\t", message);
+
+  if(t.phase === 0) {
+    console.log("[FailSmokeTest]", t.fullName());
+  }
+  else {
+    console.log("[FAIL]", t.fullName(), "\t", message);
+  }
 };
 
 Listener.prototype.listRunningTests = function() {
-  function listElement(e) {
-    console.log("  " + e);
-  }
-  this.running.forEach(listElement);
+  console.log(this.runningTests);
 };
 
 
@@ -551,14 +585,14 @@ Listener.prototype.listRunningTests = function() {
 function QuietListener() {
   this.started = 0;
   this.ended   = 0;
-  this.running = [];
+  this.runningTests = {};
 }
 
 QuietListener.prototype.startTest = Listener.prototype.startTest;
 
 QuietListener.prototype.pass = function(t) {
   this.ended++;
-  delete this.running[t.index];
+  delete this.runningTests[t.fullName()];
 };
 
 QuietListener.prototype.skip = QuietListener.prototype.pass;
@@ -590,7 +624,9 @@ Result.prototype.pass = function(t) {
 };
 
 Result.prototype.fail = function(t, e) {
-  this.failed.push(t.name);
+  if(t.phase > 0) {  // i.e. not a SmokeTest
+    this.failed.push(t.name);
+  }
   this.listener.fail(t, e);
   this.driver.testCompleted(t);
 };
@@ -610,7 +646,7 @@ var runSQL = function(sqlPath, source, callback) {
     udebug.log_detail(source + ' stdout: ' + stdout);
     udebug.log_detail(source + ' stderr: ' + stderr);
     if (error !== null) {
-      console.log(source + 'exec error: ' + error);
+      udebug.log(source + 'exec error: ' + error);
     } else {
       udebug.log_detail(source + ' exec OK');
     }
@@ -619,8 +655,10 @@ var runSQL = function(sqlPath, source, callback) {
     }
   }
 
+///work here
+  var cmd = 'cat ./' + global.engine + '.sql ' + sqlPath + ' | mysql';
+  
   var p = test_conn_properties;
-  var cmd = 'mysql';
   if(p) {
     if(p.mysql_socket)     { cmd += " --socket=" + p.mysql_socket; }
     else if(p.mysql_port)  { cmd += " --port=" + p.mysql_port; }
@@ -628,7 +666,6 @@ var runSQL = function(sqlPath, source, callback) {
     if(p.mysql_user)     { cmd += " -u " + p.mysql_user; }
     if(p.mysql_password) { cmd += " --password=" + p.mysql_password; }
   }
-  cmd += ' <' + sqlPath; 
   udebug.log_detail('harness runSQL forking process...' + cmd);
   var child = exec(cmd, childProcess);
 };

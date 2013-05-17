@@ -61,7 +61,7 @@ t1.prepare = function prepare(testObj) {
   function onConnect(err, conn) {
     udebug.log("prepare onConnect");
     connection = conn;
-    connection.getDBSession(0, onSession);
+    connection.getDBSession(spi_lib.allocateSessionSlot(), onSession);
   }
   
   spi_lib.getConnectionPool(onConnect);

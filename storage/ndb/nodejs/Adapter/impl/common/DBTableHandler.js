@@ -39,7 +39,6 @@ var DBIndexHandler;
    These are the structural parts of a DBT: 
      * mapping, an API TableMapping, either created explicitly or by default.
      * A TableMetadata object, obtained from the data dictionary.
-     * The stubFields - a set of FieldMappings created implicitly by default rules. 
      * An internal set of maps between Fields and Columns
      
     The mapping and TableMetadata are supplied as arguments to the 
@@ -54,8 +53,9 @@ var DBIndexHandler;
 var proto = {
   dbTable                : {},    // TableMetadata 
   mapping                : {},    // TableMapping
-  newObjectConstructor   : null,  // constructor for mapped class  
-  stubFields             : null,  // FieldMappings constructed by default rules
+  resolvedMapping        : null,
+  newObjectConstructor   : null,  // Domain Object Constructor
+  ValueObject            : null,  // Value Object Constructor
 
   fieldNameToFieldMap    : {},
   columnNumberToFieldMap : {},
@@ -110,6 +110,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       c,               // a ColumnMetadata
       n,               // a field or column number
       index,           // a DBIndex
+      stubFields,      // fields created through default mapping
       nMappedFields;
 
   stats.incr("constructor_calls");
@@ -138,7 +139,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
   
   /* New Arrays */
-  this.stubFields             = [];
   this.columnNumberToFieldMap = [];  
   this.fieldNumberToColumnMap = [];
   this.fieldNumberToFieldMap  = [];
@@ -167,12 +167,13 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
 
   /* Now build the implicitly mapped fields and add them to the map */
+  stubFields = [];
   if(this.mapping.mapAllColumns) {
     for(i = 0 ; i < this.dbTable.columns.length ; i++) {
       if(! this.columnNumberToFieldMap[i]) {
         c = this.dbTable.columns[i];
         f = new FieldMapping(c.name);
-        this.stubFields.push(f);
+        stubFields.push(f);
         this.columnNumberToFieldMap[i] = f;
         f.columnNumber = i;
         f.defaultValue = c.defaultValue;
@@ -181,7 +182,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
 
   /* Total number of mapped fields */
-  nMappedFields = this.mapping.fields.length + this.stubFields.length;
+  nMappedFields = this.mapping.fields.length + stubFields.length;
          
   /* Create the resolved mapping to be returned by getMapping() */
   this.resolvedMapping = {};
@@ -197,10 +198,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     f = this.columnNumberToFieldMap[i];
     if(c.isAutoincrement) { 
       this.autoIncColumnNumber = i;
-      if(! (f || c.isNullable)) {
-        this.appendErrorMessage("Non-nullable auto-increment column " + c.name
-                                + " must be part of mapping.");
-      }
     }      
     this.resolvedMapping.fields[i] = {};
     if(f) {
@@ -282,26 +279,30 @@ DBTableHandler.prototype.newResultObject = function(values) {
  * @return the object to return to the user
  */
 DBTableHandler.prototype.applyMappingToResult = function(obj) {
-  var i, f, fieldName, value, convertedValue;
   if (this.newObjectConstructor) {
     // create the domain object from the result
-    return this.newResultObject(obj);
+    obj = this.newResultObject(obj);
   }
-  // apply user column converters to result columns
-  for (i = 0; i < this.fieldNumberToFieldMap.length; ++i) {
+  this.applyFieldConverters(obj);
+  return obj;
+};
+
+
+/** applyFieldConverters(object) 
+ *  IMMEDIATE
+ *  Apply the field converters to an existing object
+ */ 
+DBTableHandler.prototype.applyFieldConverters = function(obj) {
+  var i, f, value, convertedValue;
+
+  for (i = 0; i < this.fieldNumberToFieldMap.length; i++) {
     f = this.fieldNumberToFieldMap[i];
-    fieldName = f.fieldName;
-    value = obj[fieldName];
-    if (value && f.converter) {
-      // replace the value with the converted value
+    if(f.converter) {
+      value = obj[f.fieldName];
       convertedValue = f.converter.fromDB(value);
-      udebug.log_detail('for field', fieldName, 
-          'applying column converter to value', value,
-          'returns', convertedValue);
-      obj[fieldName] = convertedValue;
+      obj[f.fieldName] = convertedValue;
     }
   }
-  return obj;
 };
 
 
