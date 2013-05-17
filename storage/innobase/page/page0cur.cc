@@ -1851,6 +1851,7 @@ PageCur::logInsert(
 	ut_ad(isMutable());
 	ut_ad(extra_size < UNIV_PAGE_SIZE);
 	ut_ad(data_size < UNIV_PAGE_SIZE);
+	ut_ad(rec != m_rec);
 
 	if (!m_mtr) {
 		return;
@@ -1922,10 +1923,15 @@ PageCur::logInsert(
 		log_end = &log_ptr[5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
 	}
 
-	const ulint	i = ins_ptr - (rec - extra_size);
-	ulint		length_info = (extra_size + data_size - i) << 1;
+	const ulint	i		= ins_ptr - (rec - extra_size);
+	ulint		length_info	= (extra_size + data_size - i) << 1;
 
-	ut_ad(i <= extra_size + data_size);
+	/* The adjacent records should differ at least in the last byte.
+	Inserting fully duplicate records does not make any sense.
+	In the internal ordering, records have to differ at least in
+	the last fields (child page number in node pointers, or primary
+	key values in secondary index leaf page records). */
+	ut_ad(i < extra_size + data_size);
 
 	if (extra_size != cur_extra_size || data_size != cur_data_size) {
 		length_info |= 1;
