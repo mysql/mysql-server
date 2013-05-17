@@ -12,7 +12,6 @@ name VARCHAR(255)
 # Create child tables before parents
 # by turning off foreign_key_checks for this session
 #
-set @save_foreign_key_checks = @@foreign_key_checks;
 select @@foreign_key_checks;
 @@foreign_key_checks
 1
