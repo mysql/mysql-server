@@ -18,14 +18,13 @@
  02110-1301  USA
  */
 
-/*global path, build_dir, api_dir, unified_debug */
-
 "use strict";
 
 var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
     udebug           = unified_debug.getLogger("NdbConnection.js"),
     stats_module     = require(path.join(api_dir,"stats.js")),
     stats            = stats_module.getWriter(["spi","ndb","NdbConnection"]),
+    QueuedAsyncCall  = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     logReadyNodes;
 
 
@@ -45,6 +44,7 @@ function NdbConnection(connectString) {
   this.pendingConnections      = [];
   this.isConnected             = false;
   this.isDisconnecting         = false;
+  this.execQueue               = [];
   this.ndb_cluster_connection.set_name("nodejs");
 }
 
@@ -154,20 +154,25 @@ NdbConnection.prototype.getAsyncContext = function() {
 
 NdbConnection.prototype.close = function(userCallback) {
   var self = this;
+  var nodeId = self.ndb_cluster_connection.node_id();
+  var apiCall;
 
   function disconnect() {
     if(self.asyncNdbContext) { 
       self.asyncNdbContext.delete();  // C++ Destructor
       self.asyncNdbContext = null;    
     }
-    udebug.log("Disconnecting cluster");
-    if(self.ndb_cluster_connection) {
-      self.ndb_cluster_connection.delete();  // C++ Destructor
-      self.ndb_cluster_connection = null;
-    }
+    udebug.log_notice("Node", nodeId, "disconnecting.");
+
     self.isConnected = false;
-    if(typeof userCallback === 'function') {
-      userCallback();
+    if(self.ndb_cluster_connection) {
+      apiCall = new QueuedAsyncCall(self.execQueue, userCallback);
+      apiCall.description = "DeleteNdbClusterConnection";
+      apiCall.ndb_cluster_connection = self.ndb_cluster_connection;
+      apiCall.run = function() {
+        this.ndb_cluster_connection.delete(this.callback);
+      };
+      apiCall.enqueue();
     }
   }
 

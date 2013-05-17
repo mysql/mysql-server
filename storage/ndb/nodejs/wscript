@@ -1,6 +1,4 @@
 import os
-import readline
-import setup.completion
 import string
 
 srcdir = 'Adapter/impl'
@@ -9,18 +7,16 @@ VERSION = '0.35'
 
 def set_options(opt):
   opt.tool_options('compiler_cxx')
-  opt.add_option('--mysql', action='store', default='/usr/local/mysql/')
-  opt.add_option('--interactive', action='store_true', dest='interactive')
+  opt.add_option('--mysql', action='store')
 
 def configure(conf):
   import Options
   
-  if(Options.options.interactive or Options.options.mysql == '-interactive-'):
-    comp = setup.completion.Completer()
-    readline.set_completer(comp.complete)
-    mysql_path = raw_input("mysql location: ")
-  else:
+  if(Options.options.mysql):
     mysql_path = Options.options.mysql
+  else:
+    infile = open('./config.waf', 'r')
+    mysql_path = infile.read()
  
   mysql_path = string.rstrip(mysql_path)     
   my_lib = mysql_path + "/lib/"

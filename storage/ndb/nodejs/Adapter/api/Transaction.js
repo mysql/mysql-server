@@ -51,17 +51,17 @@ var userContext    = require('../impl/common/UserContext.js');
 
 function Idle() {
   this.name = 'Idle';
-};
+}
 var idle = new Idle();
 
 function Active() {
   this.name = 'Active';
-};
+}
 var active = new Active();
 
 function RollbackOnly() {
   this.name = 'RollbackOnly';
-};
+}
 var rollbackOnly = new RollbackOnly();
 
 /** An error occurred. If there is a callback defined, signal the error via the callback,
@@ -105,7 +105,7 @@ Idle.prototype.rollback = function(session, user_arguments) {
 };
 
 Idle.prototype.isActive = function() {
-  udebug.log('Idle isActive');
+  udebug.log_detail('Idle isActive');
   return false;
 };
 
@@ -141,7 +141,7 @@ Active.prototype.rollback = function(session, user_arguments) {
 };
 
 Active.prototype.isActive = function() {
-  udebug.log('Active isActive');
+  udebug.log_detail('Active isActive');
   return true;
 };
 
@@ -175,7 +175,7 @@ RollbackOnly.prototype.rollback = function(session, user_arguments) {
 };
 
 RollbackOnly.prototype.isActive = function() {
-  udebug.log('RollbackOnly isActive');
+  udebug.log_detail('RollbackOnly isActive');
   return true;
 };
 
@@ -214,7 +214,7 @@ Transaction.prototype.rollback = function() {
 };
 
 Transaction.prototype.isActive = function() {
-  udebug.log('Transaction.isActive');
+  udebug.log_detail('Transaction.isActive');
   return this.state.isActive();
 };
 

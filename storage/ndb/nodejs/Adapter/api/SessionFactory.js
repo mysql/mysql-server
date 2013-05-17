@@ -148,4 +148,10 @@ SessionFactory.prototype.getOpenSessions = function() {
   return result;
 };
 
+
+SessionFactory.prototype.registerTypeConverter = function(type, converter) {
+  return this.dbConnectionPool.registerTypeConverter(type, converter);
+};
+
+
 exports.SessionFactory = SessionFactory;

@@ -36,11 +36,16 @@ class Envelope {
 public:
   /* Instance variables */
   int magic;                            // for safety when unwrapping 
+  int class_id;                         // for checking type of wrapped object
   const char * classname;               // for debugging output
   Persistent<ObjectTemplate> stencil;   // for creating JavaScript objects
   
   /* Constructor */
-  Envelope(const char *name) : magic(0xF00D), classname(name) {
+  Envelope(const char *name, int id = 0) : 
+    magic(0xF00D), 
+    class_id(id),
+    classname(name)
+  {
     HandleScope scope; 
     Handle<ObjectTemplate> proto = ObjectTemplate::New();
     proto->SetInternalFieldCount(2);
@@ -54,12 +59,34 @@ public:
 };
 
 
+/*****************************************************************
+ Create a weak handle for a wrapped object.
+ Use it to delete the wrapped object 
+ when the GC wants to reclaim the handle.
+ We do not use this on any "const PTR" type.  For example,
+ the "const NdbDictionary::Column *" you get from the dictionary
+ is not a wrapped object you would want to delete, and because
+ the NDBAPI declares it as const the compiler won't let you do it.
+******************************************************************/
+template<typename PTR> 
+void onGcReclaim(Persistent<Value> notifier, void * param) {
+  PTR ptr = static_cast<PTR>(param);
+  delete ptr;
+  notifier.Dispose();
+}
+
+template<typename PTR> 
+void freeFromGC(PTR ptr, Handle<Object> obj) {
+  Persistent<Object> notifier = Persistent<Object>::New(obj);
+  notifier.MarkIndependent();
+  notifier.MakeWeak(ptr, onGcReclaim<PTR>);
+}
 
 /*****************************************************************
  Construct a wrapped object. 
- arg1: pointer to the object to be wrapped.
- arg2: an Envelope reference
- arg3: a reference to a v8 object, which must have already been 
+ arg0: pointer to the object to be wrapped.
+ arg1: an Envelope reference
+ arg2: a reference to a v8 object, which must have already been 
        initialized from a proper ObjectTemplate.
 ******************************************************************/
 template <typename PTR>
@@ -75,10 +102,10 @@ void wrapPointerInObject(PTR ptr,
 
 /*****************************************************************
  Unwrap a native pointer from a JavaScript object
- arg1: pointer to the object to be wrapped.
- arg2: an Envelope reference
- arg3: a reference to a v8 object, which must have already been 
+ arg0: a reference to a v8 object, which must have already been 
        initialized from a proper ObjectTemplate.
+TODO: Find a way to prevent wrapping a pointer as one
+      type and unwrapping it as another.
 ******************************************************************/
 template <typename PTR> 
 PTR unwrapPointer(Local<Object> obj) {

@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+"use strict";
+
 var tbl1A = function(i, j) {
   if (i) {this.i = i;}
   if (j) {this.j = j;}
@@ -37,7 +39,7 @@ t1.run = function() {
         testCase.pass();
       } else {
         testCase.fail('Bad mapping should not succeed.');
-      };
+      }
     });
   });
 };

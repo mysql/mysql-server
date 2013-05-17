@@ -42,8 +42,14 @@ Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
   JsValueConverter<const char *> arg0(args[0]);
   
   Ndb_cluster_connection * c = new Ndb_cluster_connection(arg0.toC());
+
+  /* We do not expose set_max_adaptive_send_time() to JavaScript nor even
+     consider using the default value of 10 ms.
+  */
+  c->set_max_adaptive_send_time(1);
   
   wrapPointerInObject(c, NdbccEnvelope, args.This());
+  freeFromGC(c, args.This());
   return args.This();
 }
 
@@ -138,11 +144,9 @@ Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
 
 Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
-  
-  REQUIRE_ARGS_LENGTH(0);  
-  Ndb_cluster_connection *c = unwrapPointer<Ndb_cluster_connection *>(args.Holder());
-
-  delete c;
+  typedef NativeDestructorCall<Ndb_cluster_connection *> MCALL;
+  MCALL * mcallptr = new MCALL(args);
+  mcallptr->runAsync();
   return Undefined();
 }
 

@@ -22,19 +22,29 @@ def build(ctx):
   "src/unified_debug.cpp " +\
   \
   "src/Record.cpp " +\
-  "src/Operation.cpp " +\
   "src/DBOperationHelper.cpp " +\
+  "src/IndexBoundHelper.cpp " +\
+  "src/DBScanHelper.cpp " +\
   "src/DBDictionaryImpl.cpp " +\
   "src/Record_wrapper.cpp " +\
   "src/Ndb_init_wrapper.cpp " +\
+  "src/Ndb_util_wrapper.cpp " +\
   "src/Ndb_cluster_connection_wrapper.cpp " + \
   "src/Ndb_wrapper.cpp " +\
   "src/NdbError_wrapper.cpp " +\
   "src/NdbTransaction_wrapper.cpp " +\
   "src/NdbOperation_wrapper.cpp " +\
-  "src/Native_encoders.cpp " +\
+  "src/NdbInterpretedCode_wrapper.cpp " +\
+  "src/NdbScanFilter_wrapper.cpp " +\
   "src/AsyncNdbContext.cpp " +\
   "src/AsyncNdbContext_wrapper.cpp " +\
+  "src/NdbTypeEncoders.cpp " +\
+  "src/NdbRecordObject.cpp " +\
+  "src/ColumnProxy.cpp " +\
+  "src/ColumnHandler.cpp " +\
+  "src/ValueObject.cpp " +\
+  "src/ScanImpl.cpp " +\
+  "src/EncoderCharset.cpp " +\
   \
   "src/mysqlclient_wrapper.cpp " +\
   ""

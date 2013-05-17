@@ -14,4 +14,8 @@ def build(bld):
   dlopen.target = 'debug_dlopen'
   dlopen.source = 'debug_dlopen.cpp'
 
+  jscons = bld.new_task_gen('cxx', 'shlib', 'node_addon')
+  jscons.target = 'jscons'
+  jscons.source = 'js-constructor.cpp'
+
 

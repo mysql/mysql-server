@@ -34,10 +34,12 @@ Handle<Value> Ndb_Wrapper(Ndb *);
 Handle<Value> NdbError_Wrapper(const NdbError &);
 Handle<Value> NdbOperation_Wrapper(const NdbOperation *);
 Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *);
-Handle<Value> NdbIndexScanOperation_Wrapper(NdbIndexScanOperation *);
 
 
 /* Not actual wrapper functions, but functions that provide an envelope */
 
 Envelope * getNdbTransactionEnvelope(void);
-
+Envelope * getNdbInterpretedCodeEnvelope(void);
+Envelope * getConstNdbInterpretedCodeEnvelope(void);
+Envelope * getNdbDictTableEnvelope(void);
+Envelope * getNdbScanOperationEnvelope(void);

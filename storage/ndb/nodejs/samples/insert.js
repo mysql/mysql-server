@@ -138,5 +138,5 @@ var onSession = function(err, session) {
 };
 
 // connect to the database
-nosql.openSession(dbProperties, annotations, onSession);
+nosql.openSession(dbProperties, lib.Tweet, onSession);
 

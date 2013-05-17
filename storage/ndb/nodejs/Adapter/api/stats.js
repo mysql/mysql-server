@@ -18,6 +18,9 @@
  02110-1301  USA
 */
 
+"use strict";
+
+/*global assert, util */
 var global_stats;
 var running_servers = {};
 var unified_debug = require("./unified_debug");
@@ -193,7 +196,11 @@ exports.startStatsServer = function(port, host, callback) {
 exports.stopStatsServers = function() {
   var key;
   for(key in running_servers) {
-    running_servers[key].close();
+    if(running_servers.hasOwnProperty(key)) {
+      running_servers[key].close();
+    }
   }
-}
+};
+
+
 

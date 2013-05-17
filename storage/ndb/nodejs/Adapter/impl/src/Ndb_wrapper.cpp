@@ -158,8 +158,10 @@ Handle<Value> getConnectionStatistics(const Arguments &args) {
 }
 
 Handle<Value> closeNdb(const Arguments &args) {
-  Ndb *ndb =  unwrapPointer<Ndb *>(args.Holder());
-  delete ndb;
+  DEBUG_MARKER(UDEB_DETAIL);
+  typedef NativeDestructorCall<Ndb *> MCALL;
+  MCALL * mcallptr = new MCALL(args);
+  mcallptr->runAsync();
   return Undefined();
 }
 

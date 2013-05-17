@@ -4,12 +4,17 @@
  * IMMEDIATE
  * CONSTRUCTOR
  *
- * This constructor returns a complete set of default connection
- * properties for "impl"
- *
- * @return The default set of connection properties for adapter "impl"
+ * If implName_or_connectionProperties is the name of a backend adapter,
+ * (i.e. either "mysql" or "ndb"), this constructor returns the default
+ * ConnectionProperties for that adapter.
+ * 
+ * If implName_or_connectionProperties is a ConnectionProperties object, 
+ * then this works as a copy constructor, copying it to and returning a new 
+ * ConnectionProperties object.
+ * 
+ * Otherwise, returns undefined.
  */
-ConnectionProperties(String impl);
+ConnectionProperties(implName_or_connectionProperties);
 
 
 /***
