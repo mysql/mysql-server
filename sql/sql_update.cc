@@ -597,9 +597,10 @@ int mysql_update(THD *thd,
         goto exit_without_my_ok;
 
       /* If quick select is used, initialize it before retrieving rows. */
-      if (select && select->quick && select->quick->reset())
+      if (select && select->quick && (error= select->quick->reset()))
       {
         close_cached_file(&tempfile);
+        table->file->print_error(error, MYF(0));
         goto exit_without_my_ok;
       }
       table->file->try_semi_consistent_read(1);
@@ -621,7 +622,10 @@ int mysql_update(THD *thd,
         error= init_read_record_idx(&info, thd, table, 1, used_index, reverse);
 
       if (error)
+      {
+        close_cached_file(&tempfile);
         goto exit_without_my_ok;
+      }
 
       THD_STAGE_INFO(thd, stage_searching_rows_for_update);
       ha_rows tmp_limit= limit;
@@ -692,8 +696,11 @@ int mysql_update(THD *thd,
   if (ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   
-  if (select && select->quick && select->quick->reset())
+  if (select && select->quick && (error= select->quick->reset()))
+  {
+    table->file->print_error(error, MYF(0));
     goto exit_without_my_ok;
+  }
   table->file->try_semi_consistent_read(1);
   if ((error= init_read_record(&info, thd, table, select, 0, 1, FALSE)))
     goto exit_without_my_ok;
