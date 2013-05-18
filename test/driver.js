@@ -18,10 +18,6 @@
  02110-1301  USA
  */
 
-/*global api_dir, build_dir, path, fs, suites_dir, api_module, harness, 
-         unified_debug, mynode 
-*/
-
 "use strict";
 
 // Setup globals:

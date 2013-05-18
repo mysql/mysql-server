@@ -102,6 +102,9 @@ Handle<Value> buildNdbOperation(Operation &op, int opcode, NdbTransaction *tx) {
     case 16:  // OP_DELETE:
       ndbop = op.deleteTuple(tx);
       break;
+    default:
+      assert("Unhandled opcode" == 0);
+      return Undefined();
   }
 
   return NdbOperation_Wrapper(ndbop);
