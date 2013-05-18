@@ -78,7 +78,7 @@ set(ADAPTER_SOURCE_FILES
 
 ## TODO: Windows needs ndbclient_static but Mac needs ndbclient
 set(ADAPTER_REQUIRED_LIBS
-  ndbclient
+  ndbclient_so
   mysqlclient
 )
 
