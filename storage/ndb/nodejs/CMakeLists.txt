@@ -25,6 +25,11 @@ INSTALL(
 #
 # The build environment depends on NDB_NODEJS_PATH and NDB_NODEJS_EXTRAS_PATH
 
+IF(NOT NDB_NODEJS_PATH)
+  MESSAGE(STATUS "Skipping mysql-js")
+  RETURN()
+ENDIF()
+
 IF(NDB_NODEJS_EXTRAS_PATH)
   MESSAGE(STATUS "Building mysql-js using " ${NDB_NODEJS_EXTRAS_PATH})
 ELSE()
