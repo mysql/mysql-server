@@ -21,6 +21,7 @@
 
 #include <mysql/plugin_audit.h>
 #include "sql_class.h"
+#include "sql_rewrite.h"
 
 extern unsigned long mysql_global_audit_mask[];
 
@@ -114,7 +115,14 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 
     if (thd)
     {
-      query= thd->query_string;
+      if (!thd->rewritten_query.length())
+        mysql_rewrite_query(thd);
+      if (thd->rewritten_query.length())
+        query= CSET_STRING((char *) thd->rewritten_query.ptr(),
+                           thd->rewritten_query.length(),
+                           thd->rewritten_query.charset());
+      else
+        query= thd->query_string;
       user= user_buff;
       userlen= make_user_name(thd, user_buff);
       rows= thd->get_stmt_da()->current_row_for_warning();
