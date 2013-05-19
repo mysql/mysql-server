@@ -637,6 +637,7 @@
       </Component>
      <?if $(var.HaveUpgradeWizard) != "0" ?>
      <ComponentRef Id='C.bin.mysql_upgrade_wizard.exe'/>
+     <!--
      <Component Id="c.shortcuts.upgrade_wizard"  Guid="*"  Directory="ShortcutFolder" Transitive="yes">
        <RegistryValue
        Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall"
@@ -649,6 +650,7 @@
        Description="Upgrades older instances of MariaDB/MySQL services to version @MAJOR_VERSION@.@MINOR_VERSION@"  
        Advertise="no"/>
      </Component>
+     -->
      <?endif?>
     </Feature>
 
