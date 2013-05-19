@@ -560,6 +560,7 @@ exports.UserContext.prototype.find = function() {
       }
       userContext.applyCallback(err, null);
     } else {
+      udebug.log_detail('findOnResult returning ', dbOperation.result.value);
       userContext.applyCallback(null, dbOperation.result.value);      
     }
   }
