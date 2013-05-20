@@ -90,10 +90,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innodb.h"
 #include "i_s.h"
 
-# ifndef MYSQL_PLUGIN_IMPORT
-#  define MYSQL_PLUGIN_IMPORT /* nothing */
-# endif /* MYSQL_PLUGIN_IMPORT */
-
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -3118,18 +3114,6 @@ innobase_change_buffering_inited_ok:
 
 	data_mysql_default_charset_coll = (ulint) default_charset_info->number;
 
-	ut_a(DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL ==
-					my_charset_latin1.number);
-	ut_a(DATA_MYSQL_BINARY_CHARSET_COLL == my_charset_bin.number);
-
-	/* Store the latin1_swedish_ci character ordering table to InnoDB. For
-	non-latin1_swedish_ci charsets we use the MySQL comparison functions,
-	and consequently we do not need to know the ordering internally in
-	InnoDB. */
-
-	ut_a(0 == strcmp(my_charset_latin1.name, "latin1_swedish_ci"));
-	srv_latin1_ordering = my_charset_latin1.sort_order;
-
 	innobase_commit_concurrency_init_default();
 
 #ifdef HAVE_PSI_INTERFACE
@@ -4951,170 +4935,6 @@ get_field_offset(
 	return((uint) (field->ptr - table->record[0]));
 }
 
-/*************************************************************//**
-InnoDB uses this function to compare two data fields for which the data type
-is such that we must use MySQL code to compare them. NOTE that the prototype
-of this function is in rem0cmp.cc in InnoDB source code! If you change this
-function, remember to update the prototype there!
-@return	1, 0, -1, if a is greater, equal, less than b, respectively */
-
-int
-innobase_mysql_cmp(
-/*===============*/
-	int		mysql_type,	/*!< in: MySQL type */
-	uint		charset_number,	/*!< in: number of the charset */
-	const unsigned char* a,		/*!< in: data field */
-	unsigned int	a_length,	/*!< in: data field length,
-					not UNIV_SQL_NULL */
-	const unsigned char* b,		/*!< in: data field */
-	unsigned int	b_length)	/*!< in: data field length,
-					not UNIV_SQL_NULL */
-{
-	CHARSET_INFO*		charset;
-	enum_field_types	mysql_tp;
-	int			ret;
-
-	DBUG_ASSERT(a_length != UNIV_SQL_NULL);
-	DBUG_ASSERT(b_length != UNIV_SQL_NULL);
-
-	mysql_tp = (enum_field_types) mysql_type;
-
-	switch (mysql_tp) {
-
-	case MYSQL_TYPE_BIT:
-	case MYSQL_TYPE_STRING:
-	case MYSQL_TYPE_VAR_STRING:
-	case MYSQL_TYPE_TINY_BLOB:
-	case MYSQL_TYPE_MEDIUM_BLOB:
-	case MYSQL_TYPE_BLOB:
-	case MYSQL_TYPE_GEOMETRY:
-	case MYSQL_TYPE_LONG_BLOB:
-	case MYSQL_TYPE_VARCHAR:
-		/* Use the charset number to pick the right charset struct for
-		the comparison. Since the MySQL function get_charset may be
-		slow before Bar removes the mutex operation there, we first
-		look at 2 common charsets directly. */
-
-		if (charset_number == default_charset_info->number) {
-			charset = default_charset_info;
-		} else if (charset_number == my_charset_latin1.number) {
-			charset = &my_charset_latin1;
-		} else {
-			charset = get_charset(charset_number, MYF(MY_WME));
-
-			if (charset == NULL) {
-			  sql_print_error("InnoDB needs charset %lu for doing "
-					  "a comparison, but MySQL cannot "
-					  "find that charset.",
-					  (ulong) charset_number);
-				ut_a(0);
-			}
-		}
-
-		/* Starting from 4.1.3, we use strnncollsp() in comparisons of
-		non-latin1_swedish_ci strings. NOTE that the collation order
-		changes then: 'b\0\0...' is ordered BEFORE 'b  ...'. Users
-		having indexes on such data need to rebuild their tables! */
-
-		ret = charset->coll->strnncollsp(
-			charset, a, a_length, b, b_length, 0);
-
-		if (ret < 0) {
-			return(-1);
-		} else if (ret > 0) {
-			return(1);
-		} else {
-			return(0);
-		}
-	default:
-		ut_error;
-	}
-
-	return(0);
-}
-
-
-/*************************************************************//**
-Get the next token from the given string and store it in *token. */
-
-CHARSET_INFO*
-innobase_get_fts_charset(
-/*=====================*/
-	int		mysql_type,	/*!< in: MySQL type */
-	uint		charset_number)	/*!< in: number of the charset */
-{
-	enum_field_types	mysql_tp;
-	CHARSET_INFO*		charset;
-
-	mysql_tp = (enum_field_types) mysql_type;
-
-	switch (mysql_tp) {
-
-	case MYSQL_TYPE_BIT:
-	case MYSQL_TYPE_STRING:
-	case MYSQL_TYPE_VAR_STRING:
-	case MYSQL_TYPE_TINY_BLOB:
-	case MYSQL_TYPE_MEDIUM_BLOB:
-	case MYSQL_TYPE_BLOB:
-	case MYSQL_TYPE_LONG_BLOB:
-	case MYSQL_TYPE_VARCHAR:
-		/* Use the charset number to pick the right charset struct for
-		the comparison. Since the MySQL function get_charset may be
-		slow before Bar removes the mutex operation there, we first
-		look at 2 common charsets directly. */
-
-		if (charset_number == default_charset_info->number) {
-			charset = default_charset_info;
-		} else if (charset_number == my_charset_latin1.number) {
-			charset = &my_charset_latin1;
-		} else {
-			charset = get_charset(charset_number, MYF(MY_WME));
-
-			if (charset == NULL) {
-			  sql_print_error("InnoDB needs charset %lu for doing "
-					  "a comparison, but MySQL cannot "
-					  "find that charset.",
-					  (ulong) charset_number);
-				ut_a(0);
-			}
-		}
-		break;
-	default:
-		ut_error;
-	}
-
-	return(charset);
-}
-
-/*************************************************************//**
-InnoDB uses this function to compare two data fields for which the data type
-is such that we must use MySQL code to compare them. NOTE that the prototype
-of this function is in rem0cmp.c in InnoDB source code! If you change this
-function, remember to update the prototype there!
-@return	1, 0, -1, if a is greater, equal, less than b, respectively */
-
-int
-innobase_mysql_cmp_prefix(
-/*======================*/
-	int		mysql_type,	/*!< in: MySQL type */
-	uint		charset_number,	/*!< in: number of the charset */
-	const unsigned char* a,		/*!< in: data field */
-	unsigned int	a_length,	/*!< in: data field length,
-					not UNIV_SQL_NULL */
-	const unsigned char* b,		/*!< in: data field */
-	unsigned int	b_length)	/*!< in: data field length,
-					not UNIV_SQL_NULL */
-{
-	CHARSET_INFO*		charset;
-	int			result;
-
-	charset = innobase_get_fts_charset(mysql_type, charset_number);
-
-	result = ha_compare_text(charset, (uchar*) a, a_length,
-				 (uchar*) b, b_length, 1, 0);
-
-	return(result);
-}
 /******************************************************************//**
 compare two character string according to their charset. */
 
@@ -7155,19 +6975,6 @@ convert_search_mode_to_innobase(
 		return(PAGE_CUR_LE);
 	case HA_READ_PREFIX_LAST_OR_PREV:
 		return(PAGE_CUR_LE);
-		/* In MySQL-4.0 HA_READ_PREFIX and HA_READ_PREFIX_LAST always
-		pass a complete-field prefix of a key value as the search
-		tuple. I.e., it is not allowed that the last field would
-		just contain n first bytes of the full field value.
-		MySQL uses a 'padding' trick to convert LIKE 'abc%'
-		type queries so that it can use as a search tuple
-		a complete-field-prefix of a key value. Thus, the InnoDB
-		search mode PAGE_CUR_LE_OR_EXTENDS is never used.
-		TODO: when/if MySQL starts to use also partial-field
-		prefixes, we have to deal with stripping of spaces
-		and comparison of non-latin1 char type fields in
-		innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
-		work correctly. */
 	case HA_READ_MBR_CONTAIN:
 	case HA_READ_MBR_INTERSECT:
 	case HA_READ_MBR_WITHIN:

@@ -156,16 +156,11 @@ extern char *my_strndup(const char *from, size_t length,
   Switch to my_malloc() if the memory block to be allocated is bigger than
   max_alloca_sz.
 */
-#ifndef HAVE_ALLOCA
-#define my_safe_alloca(size, max_alloca_sz) my_alloca(size)
-#define my_safe_afree(ptr, size, max_alloca_sz) my_afree(ptr)
-#else
 #define my_safe_alloca(size, max_alloca_sz) ((size <= max_alloca_sz) ? \
                                              my_alloca(size) : \
                                              my_malloc(size, MYF(0)))
 #define my_safe_afree(ptr, size, max_alloca_sz) if (size > max_alloca_sz) \
                                                my_free(ptr)
-#endif                                          /* #ifndef HAVE_ALLOCA */
 
 #if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
 /**
@@ -208,16 +203,11 @@ extern void my_large_free(uchar *ptr);
 #define my_large_free(A) my_free((A))
 #endif /* HAVE_LARGE_PAGES */
 
-#ifdef HAVE_ALLOCA
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
 #endif /* GNUC */
 #define my_alloca(SZ) alloca((size_t) (SZ))
 #define my_afree(PTR) {}
-#else
-#define my_alloca(SZ) my_malloc(SZ,MYF(MY_FAE))
-#define my_afree(PTR) my_free(PTR)
-#endif /* HAVE_ALLOCA */
 
 #include <errno.h>			/* errno is a define */
 
