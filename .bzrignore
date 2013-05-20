@@ -41,12 +41,9 @@
 *.vcproj
 *.vcproj.cmake
 *.dsp
-*.Po
-*.Plo
 *.vcxproj
 *.vcxproj.filters
 */*.dir/*
-*.dir
 Debug
 MySql.sdf
 Win32
@@ -1917,7 +1914,6 @@ mysql-test/bug36522.tar
 mysql-test/t.log
 mysql-test/tps.log
 libmysqld/event_parse_data.cc
-autom4te.cache
 sql/share/czech
 sql/share/danish
 sql/share/dutch
@@ -1972,8 +1968,6 @@ storage/maria/aria_log_control
 scripts/mytop
 CPackConfig.cmake
 CPackSourceConfig.cmake
-win/nmake_cache.txt
-*.manifest
 *.resource.txt
 plugin/handler_socket/perl-Net-HandlerSocket/HandlerSocket.c
 plugin/handler_socket/perl-Net-HandlerSocket/blib
@@ -1983,3 +1977,4 @@ plugin/handler_socket/perl-Net-HandlerSocket/Makefile.PL
 libmysqld/gcalc_slicescan.cc
 libmysqld/gcalc_tools.cc
 sql-bench/test-table-elimination
+sql/sql_yacc.hh

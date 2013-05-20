@@ -392,7 +392,7 @@ typedef struct st_maria_share
   /* End scan */
   void (*scan_end)(MARIA_HA *);
   int (*scan_remember_pos)(MARIA_HA *, MARIA_RECORD_POS*);
-  void (*scan_restore_pos)(MARIA_HA *, MARIA_RECORD_POS);
+  int (*scan_restore_pos)(MARIA_HA *, MARIA_RECORD_POS);
   /* Pre-write of row (some handlers may do the actual write here) */
   MARIA_RECORD_POS (*write_record_init)(MARIA_HA *, const uchar *);
   /* Write record (or accept write_record_init) */
@@ -569,6 +569,7 @@ typedef struct st_maria_block_scan
   ulonglong bits;
   uint number_of_rows, bit_pos;
   MARIA_RECORD_POS row_base_page;
+  ulonglong row_changes;
 } MARIA_BLOCK_SCAN;
 
 typedef ICP_RESULT (*index_cond_func_t)(void *param);
@@ -611,6 +612,7 @@ struct st_maria_handler
   int (*read_record)(MARIA_HA *, uchar*, MARIA_RECORD_POS);
   invalidator_by_filename invalidator;	/* query cache invalidator */
   ulonglong last_auto_increment;        /* auto value at start of statement */
+  ulonglong row_changes;                /* Incremented for each change */
   ulong this_unique;			/* uniq filenumber or thread */
   ulong last_unique;			/* last unique number */
   ulong this_loop;			/* counter for this open */
@@ -1271,7 +1273,7 @@ my_bool _ma_check_status(void *param);
 void _ma_restore_status(void *param);
 void _ma_reset_status(MARIA_HA *maria);
 int _ma_def_scan_remember_pos(MARIA_HA *info, MARIA_RECORD_POS *lastpos);
-void _ma_def_scan_restore_pos(MARIA_HA *info, MARIA_RECORD_POS lastpos);
+int _ma_def_scan_restore_pos(MARIA_HA *info, MARIA_RECORD_POS lastpos);
 
 #include "ma_commit.h"
 

@@ -1937,7 +1937,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
                           const char *str_create)
 {
   uint i;
-  my_bool body_found= 0;
+  my_bool body_found __attribute__((unused)) = 0;
   char *create_stmt_ptr= NULL;
   ulong create_stmt_len= 0;
   MYSQL_FIELD *field;

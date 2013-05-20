@@ -26,4 +26,4 @@ ELSE()
   MYSQL_ADD_EXECUTABLE(my_safe_process safe_process.cc ${INSTALL_ARGS})
 ENDIF()
 
-INSTALL(FILES safe_process.pl Base.pm DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test)
+INSTALL(FILES Base.pm DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test)

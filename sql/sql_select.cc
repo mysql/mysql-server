@@ -19240,7 +19240,8 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     if (!found)
       break;					// End of file
     /* Restart search on saved row */
-    error=file->restart_rnd_next(record);
+    if ((error= file->restart_rnd_next(record)))
+      goto err;
   }
 
   file->extra(HA_EXTRA_NO_CACHE);
