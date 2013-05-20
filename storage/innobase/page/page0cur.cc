@@ -2177,13 +2177,18 @@ PageCur::appendEmptyNoZip(PageCur& cursor)
 	}
 
 	if (isComp()) {
-		mach_write_to_2(slot, PAGE_NEW_SUPREMUM);
+		/* The next-record offset is relative. It must be adjusted,
+		because the last user record offset (m_rec) ought to differ
+		between this and cursor. */
 		rec_set_next_offs_new(m_rec, PAGE_NEW_SUPREMUM);
+		mach_write_to_2(slot, PAGE_NEW_SUPREMUM);
 		m_rec = page + PAGE_NEW_SUPREMUM;
 		rec_set_n_owned_new(m_rec, NULL, n_owned);
 	} else {
+		/* The next-record offset is absolute in ROW_FORMAT=REDUNDANT;
+		it must stay at the same offset. */
+		ut_ad(rec_get_next_offs(m_rec, FALSE) == PAGE_OLD_SUPREMUM);
 		mach_write_to_2(slot, PAGE_OLD_SUPREMUM);
-		rec_set_next_offs_old(m_rec, PAGE_OLD_SUPREMUM);
 		m_rec = page + PAGE_OLD_SUPREMUM;
 		rec_set_n_owned_old(m_rec, n_owned);
 	}
