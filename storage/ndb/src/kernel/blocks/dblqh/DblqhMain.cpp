@@ -4685,6 +4685,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->tcHashKeyHi = 0;
   regTcPtr->storedProcId = ZNIL;
   regTcPtr->lqhKeyReqId = cTotalLqhKeyReqCount;
+  regTcPtr->commitAckMarker = RNIL;
   regTcPtr->m_flags= 0;
   if (isLongReq)
   {
@@ -4710,13 +4711,16 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->tcBlockref = sig5;
 
   const Uint8 op = LqhKeyReq::getOperation(Treqinfo);
-  if ((op == ZREAD || op == ZREAD_EX) && !getAllowRead()){
+  if (ERROR_INSERTED(5080) ||
+      ((op == ZREAD || op == ZREAD_EX) && !getAllowRead()))
+  {
     releaseSections(handle);
     earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_SHUTDOWN_IN_PROGESS);
     return;
   }
 
-  if (unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
+  if (ERROR_INSERTED(5081) ||
+      unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
   {
     releaseSections(handle);
     earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_FAILURE_ERROR);
@@ -4748,7 +4752,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->applRef = sig3;
   regTcPtr->applOprec = sig4;
 
-  regTcPtr->commitAckMarker = RNIL;
   if (LqhKeyReq::getMarkerFlag(Treqinfo))
   {
     struct CommitAckMarker check;
@@ -4773,8 +4776,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     }
     else
     {
-      m_commitAckMarkerHash.seize(markerPtr);
-      if (markerPtr.i == RNIL)
+      if (ERROR_INSERTED(5082) ||
+          unlikely(!m_commitAckMarkerHash.seize(markerPtr)))
       {
         releaseSections(handle);
         earlyKeyReqAbort(signal, lqhKeyReq, isLongReq,
@@ -23041,6 +23044,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   jamEntry();
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
   Uint32 arg= dumpState->args[0];
+
   if(dumpState->args[0] == DumpStateOrd::CommitAckMarkersSize){
     infoEvent("LQH: m_commitAckMarkerPool: %d free size: %d",
 	      m_commitAckMarkerPool.getNoOfFree(),
@@ -23793,7 +23797,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    for(Uint32 i = 0; i<4; i++)
+    for(Uint32 i = 0; i < clogPartFileSize; i++)
     {
       logPartPtr.i = i;
       ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
@@ -23807,7 +23811,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
       Uint64 total = logPartPtr.p->noLogFiles * Uint64(clogFileSize);
       signal->theData[0] = NDB_LE_RedoStatus;
-      signal->theData[1] = i;
+      signal->theData[1] = logPartPtr.p->logPartNo;
       signal->theData[2] = head.m_file_no;
       signal->theData[3] = head.m_mbyte;
       signal->theData[4] = tail.m_file_no;
@@ -23882,6 +23886,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
               "Shutting down node due to lack of LCP fragment scan progress");  
   }
 
+
+  if (arg == 4003)
+  {
+    ndbrequire(m_commitAckMarkerPool.getNoOfFree() ==
+               m_commitAckMarkerPool.getSize());
+  }
   if (arg == 5050)
   {
 #ifdef ERROR_INSERT
