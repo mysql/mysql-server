@@ -28,6 +28,7 @@ Created 2012-Feb-26 Sunny Bains
 
 #include <vector>
 #include <queue>
+#include <functional>
 
 /** Allocate the memory for the object in blocks. We keep the objects sorted
 on pointer so that they are closer together in case they have to be iterated
