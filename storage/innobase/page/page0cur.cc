@@ -419,6 +419,7 @@ page_cur_insert_rec_write_log(
 	/* Avoid REDO logging to save on costly IO because
 	temporary tables are not recovered during crash recovery. */
 	if (dict_table_is_temporary(index->table)) {
+		mtr->modifications = TRUE;
 		return;
 	}
 
@@ -1643,6 +1644,8 @@ PageCur::logInsert(
 		return;
 	}
 
+	m_mtr->modifications = TRUE;
+
 	switch (mtr_get_log_mode(m_mtr)) {
 	case MTR_LOG_NONE:
 	case MTR_LOG_NO_REDO:
@@ -2074,12 +2077,19 @@ PageCur::appendEmptyNoZip(PageCur& cursor)
 
 	ut_ad(page_is_empty(page));
 
-	byte*	log_ptr	= (m_mtr && !dict_table_is_temporary(m_index->table))
-		? mlog_open_and_write_index(
+	byte*	log_ptr;
+
+	if (!m_mtr) {
+		log_ptr = NULL;
+	} else if (dict_table_is_temporary(m_index->table)) {
+		m_mtr->modifications = TRUE;
+		log_ptr = NULL;
+	} else {
+		log_ptr = mlog_open_and_write_index(
 			m_mtr, page, m_index, isComp()
 			? MLOG_COMP_LIST_END_COPY_CREATED
-			: MLOG_LIST_END_COPY_CREATED, 4)
-		: NULL;
+			: MLOG_LIST_END_COPY_CREATED, 4);
+	}
 
 	ulint	log_mode;
 
