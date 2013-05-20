@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+#ifndef NDBJSCONVERTERS_H
+#define NDBJSCONVERTERS_H
 #pragma once
 
 #include <NdbApi.hpp>
@@ -113,4 +115,5 @@ template <>
 inline Local<Value> toJS<NdbTransaction::CommitStatusType>(NdbTransaction::CommitStatusType cval){ 
   return Number::New(static_cast<int>(cval));
 };
+#endif // NDBJSCONVERTERS_H
 

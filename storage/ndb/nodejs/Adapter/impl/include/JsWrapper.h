@@ -18,7 +18,8 @@
  02110-1301  USA
  */
 
-
+#ifndef JSWRAPPER_H
+#define JSWRAPPER_H
 #pragma once
 #include <node.h>
 #include "unified_debug.h"
@@ -138,4 +139,5 @@ public:
     return scope.Close(Exception::Error(String::New(message)));
   }
 };
+#endif // JSWRAPPER_H
 

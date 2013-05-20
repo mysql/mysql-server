@@ -18,6 +18,8 @@
  02110-1301  USA
 */
 
+#ifndef NDBWRAPPERERRORS_H
+#define NDBWRAPPERERRORS_H
 #pragma once
 
 #include "NdbWrappers.h"
@@ -75,4 +77,5 @@ Handle<Value> getNdbError(const Arguments &args) {
   const NdbError & ndberr = ndbApiObject->getNdbError();
   return NdbError_Wrapper(ndberr);
 };
+#endif // NDBWRAPPERERRORS_H
 

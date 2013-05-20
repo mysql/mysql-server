@@ -17,6 +17,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+
+#ifndef OPERATION_H
+#define OPERATION_H
 #pragma once
 
 #include <string.h>
@@ -153,4 +156,5 @@ inline const NdbOperation *
     return scanop->deleteCurrentTuple(tx, row_record->getNdbRecord(), row_buffer, 
                                       read_mask_ptr, options);
 }
+#endif // OPERATION_H
 

@@ -19,6 +19,8 @@
  02110-1301  USA
  */
 
+#ifndef ASYNCMETHODCALL_H
+#define ASYNCMETHODCALL_H
 #pragma once
 
 #include <assert.h>
@@ -451,4 +453,5 @@ public:
     arg0 = arg0converter.toC();
   }
 };
+#endif // ASYNCMETHODCALL_H
 
