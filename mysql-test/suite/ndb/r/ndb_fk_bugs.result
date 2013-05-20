@@ -494,3 +494,92 @@ key (a,b),
 foreign key fk1 (a,b) references t1 (a,b)
 ) engine ndb;
 drop table t2, t1;
+# child-part-key
+create table t1 (
+a int not null,
+primary key using hash (a)
+) engine ndb;
+insert into t1 values (1),(2);
+create table t2 (
+a int not null,
+b int not null,
+c int not null,
+primary key using hash (a),
+key xbc (b,c),
+foreign key fk1 (b) references t1 (a)
+) engine ndb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `xbc` (`b`,`c`),
+ CONSTRAINT `fk1` FOREIGN KEY(`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+insert into t2 (a,b,c) values (1,1,11),(2,2,21),(3,2,22);
+insert into t2 (a,b,c) values (4,3,33);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+delete from t1 where a = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+drop table t2;
+create table t2 (
+a int not null,
+b int not null,
+c int not null,
+primary key using hash (a),
+key xbc (b,c),
+foreign key fk1 (c) references t1 (a)
+) engine ndb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `xbc` (`b`,`c`),
+  KEY `fk1` (`c`),
+ CONSTRAINT `fk1` FOREIGN KEY(`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
+insert into t2 (a,c,b) values (4,3,33);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+delete from t1 where a = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+drop table t2;
+create table t2 (
+a int not null,
+b int not null,
+c int not null,
+primary key using hash (a),
+unique key xbc (b,c) using hash,
+foreign key fk1 (b) references t1 (a)
+) engine ndb;
+ERROR HY000: Cannot add foreign key constraint
+create table t2 (
+a int not null,
+b int not null,
+c int not null,
+primary key using hash (a),
+unique key xbc (b,c) using hash,
+foreign key fk1 (c) references t1 (a)
+) engine ndb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`) USING HASH,
+  UNIQUE KEY `xbc` (`b`,`c`) USING HASH,
+  KEY `fk1` (`c`),
+ CONSTRAINT `fk1` FOREIGN KEY(`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
+insert into t2 (a,c,b) values (4,3,33);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+delete from t1 where a = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+drop table t2, t1;

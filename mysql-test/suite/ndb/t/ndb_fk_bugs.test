@@ -564,3 +564,84 @@ create table t2 (
 ) engine ndb;
 
 drop table t2, t1;
+
+--echo # child-part-key
+
+create table t1 (
+  a int not null,
+  primary key using hash (a)
+) engine ndb;
+
+insert into t1 values (1),(2);
+
+create table t2 (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key using hash (a),
+  key xbc (b,c),
+  foreign key fk1 (b) references t1 (a)
+) engine ndb;
+
+# uses index xbc
+show create table t2;
+
+insert into t2 (a,b,c) values (1,1,11),(2,2,21),(3,2,22);
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 (a,b,c) values (4,3,33);
+--error ER_ROW_IS_REFERENCED_2
+delete from t1 where a = 1;
+
+drop table t2;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key using hash (a),
+  key xbc (b,c),
+  foreign key fk1 (c) references t1 (a)
+) engine ndb;
+
+# creates index fk1 (c)
+show create table t2;
+
+insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 (a,c,b) values (4,3,33);
+--error ER_ROW_IS_REFERENCED_2
+delete from t1 where a = 1;
+
+drop table t2;
+
+# partial hash key does not work
+# XXX maybe should create index fk1 (b)
+--error ER_CANNOT_ADD_FOREIGN
+create table t2 (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key using hash (a),
+  unique key xbc (b,c) using hash,
+  foreign key fk1 (b) references t1 (a)
+) engine ndb;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key using hash (a),
+  unique key xbc (b,c) using hash,
+  foreign key fk1 (c) references t1 (a)
+) engine ndb;
+
+# creates index fk1 (c)
+show create table t2;
+
+insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 (a,c,b) values (4,3,33);
+--error ER_ROW_IS_REFERENCED_2
+delete from t1 where a = 1;
+
+drop table t2, t1;

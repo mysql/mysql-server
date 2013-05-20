@@ -24879,7 +24879,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       jam();
       TableRecordPtr childIndexPtr;
       ndbrequire(find_object(childIndexPtr, fk.ChildIndexId));
-      if (childIndexPtr.p->noOfAttributes != colCount + 1)
+      if (DictTabInfo::isUniqueIndex(childIndexEntry->m_tableType) &&
+          childIndexPtr.p->noOfAttributes != colCount + 1)
       {
         jam();
         setError(error, CreateFKRef::InvalidFormat, __LINE__);
