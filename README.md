@@ -26,12 +26,12 @@ needed source code from github and build everything.
 
 To build MySQL with TokuDB 7.0.1:
 ```sh
-scripts/make.mysql.bash --git_tag=tokudb-7.0.1
+scripts/make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.1-linux-x86_64
 ```
 
 To build MariaDB with TokuDB 7.0.1:
 ```sh
-scripts/make.mysql.bash --git_tag=tokudb-7.0.1 --mysql=mariadb-5.5.30
+scripts/make.mysql.bash --mysqlbuild=mariadb-5.5.30-tokudb-7.0.1-linux-x86_64
 ```
 
 Before you start, make sure you have a C++11-compatible compiler (GCC >=
