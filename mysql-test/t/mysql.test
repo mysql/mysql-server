@@ -224,7 +224,7 @@ drop table t17583;
 --exec $MYSQL test -e "connect test invalid_hostname" 2>&1
 
 --echo The commands reported in the bug report
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([0-9|-]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "\r\r\n\r\n cyril\ has\ found\ a\ bug\ :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 2>&1
 

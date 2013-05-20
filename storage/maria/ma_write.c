@@ -288,6 +288,7 @@ int maria_write(MARIA_HA *info, uchar *record)
   info->state->records++;
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_WRITTEN |
 		 HA_STATE_ROW_CHANGED);
+  info->row_changes++;
   share->state.changed|= STATE_NOT_MOVABLE | STATE_NOT_ZEROFILLED;
   info->state->changed= 1;
 
