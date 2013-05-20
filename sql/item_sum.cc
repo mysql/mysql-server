@@ -65,7 +65,15 @@ ulonglong Item_sum::ram_limitation(THD *thd)
  
 bool Item_sum::init_sum_func_check(THD *thd)
 {
-  if (!thd->lex->allow_sum_func)
+  SELECT_LEX *curr_sel= thd->lex->current_select;
+  if (!curr_sel->name_visibility_map)
+  {
+    for (SELECT_LEX *sl= curr_sel; sl; sl= sl->context.outer_select())
+    {
+      curr_sel->name_visibility_map|= (1 << sl-> nest_level);
+    }
+  }
+  if (!(thd->lex->allow_sum_func & curr_sel->name_visibility_map))
   {
     my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
                MYF(0));
@@ -136,8 +144,11 @@ bool Item_sum::init_sum_func_check(THD *thd)
  
 bool Item_sum::check_sum_func(THD *thd, Item **ref)
 {
+  SELECT_LEX *curr_sel= thd->lex->current_select;
+  nesting_map allow_sum_func= (thd->lex->allow_sum_func &
+                               curr_sel->name_visibility_map);
   bool invalid= FALSE;
-  nesting_map allow_sum_func= thd->lex->allow_sum_func;
+  DBUG_ASSERT(curr_sel->name_visibility_map); // should be set already
   /*  
     The value of max_arg_level is updated if an argument of the set function
     contains a column reference resolved  against a subquery whose level is
@@ -172,7 +183,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
   if (!invalid && aggr_level < 0)
   {
     aggr_level= nest_level;
-    aggr_sel= thd->lex->current_select;
+    aggr_sel= curr_sel;
   }
   /*
     By this moment we either found a subquery where the set function is
@@ -309,9 +320,9 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
 {
   SELECT_LEX *sl;
   nesting_map allow_sum_func= thd->lex->allow_sum_func;
-  for (sl= thd->lex->current_select->master_unit()->outer_select() ;
+  for (sl= thd->lex->current_select->context.outer_select() ;
        sl && sl->nest_level > max_arg_level;
-       sl= sl->master_unit()->outer_select() )
+       sl= sl->context.outer_select())
   {
     if (aggr_level < 0 &&
         (allow_sum_func & ((nesting_map)1 << sl->nest_level)))

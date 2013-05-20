@@ -1129,6 +1129,7 @@ cmd-line-utils/libedit/emacs.h
 mysql-test/collections/default.release
 support-files/plugins.files
 client/mysql_plugin
+*.resource.txt
 plugin/handler_socket/perl-Net-HandlerSocket/HandlerSocket.c
 plugin/handler_socket/perl-Net-HandlerSocket/blib
 plugin/handler_socket/perl-Net-HandlerSocket/pm_to_blib
@@ -1145,3 +1146,4 @@ sql/db.opt
 ./install_manifest_*.txt
 typescript
 mysql-test/collections/default.release.done
+sql/sql_yacc.hh

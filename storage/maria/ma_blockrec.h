@@ -167,8 +167,8 @@ my_bool _ma_scan_init_block_record(MARIA_HA *info);
 void _ma_scan_end_block_record(MARIA_HA *info);
 int _ma_scan_remember_block_record(MARIA_HA *info,
                                    MARIA_RECORD_POS *lastpos);
-void _ma_scan_restore_block_record(MARIA_HA *info,
-                                   MARIA_RECORD_POS lastpos);
+int _ma_scan_restore_block_record(MARIA_HA *info,
+                                  MARIA_RECORD_POS lastpos);
 
 MARIA_RECORD_POS _ma_write_init_block_record(MARIA_HA *info,
                                              const uchar *record);

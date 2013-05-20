@@ -1380,7 +1380,30 @@ insert into t1 values (1, '2008-10-02'), (2, '2010-12-12');
 select avg(export_set( 3, 'y', sha(i))), group_concat(d) from t1 group by d order by i;
 drop table t1;
 
-#### End of 5.3 tests
+--echo #
+--echo # MDEV-4290: crash in st_select_lex::mark_as_dependent
+--echo #
+create table `t1`(`a` int);
+
+--error ER_INVALID_GROUP_FUNC_USE
+select 1 from t1 v1 right join t1 on count(*);
+--error ER_INVALID_GROUP_FUNC_USE
+select 1 from t1 order by
+(
+	select 1 from 
+	(
+		select 1 from t1 v1 right join t1 on count(*)
+	) v   
+);
+insert into t1 values (1),(1),(2),(2);
+select count(*) from t1;
+select z from (select count(*) as z from t1) v; 
+--echo # next is how it implemented now (may be changed in case of dependent
+--echo # derived tables)
+select z from (select count(*) as z from t1) v group by 1; 
+drop table t1;
+
+--echo # end of 5.3 tests
 
 --echo #
 --echo # Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),

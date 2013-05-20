@@ -8301,6 +8301,12 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
     cs->coll->hash_sort(cs, (uchar*) sctx->user, strlen(sctx->user), &nr1, &nr2);
 
     mysql_mutex_lock(&acl_cache->lock);
+    if (!acl_users.elements)
+    {
+      mysql_mutex_unlock(&acl_cache->lock);
+      login_failed_error(mpvio->thd);
+      DBUG_RETURN(1);
+    }
     uint i= nr1 % acl_users.elements;
     ACL_USER *acl_user_tmp= dynamic_element(&acl_users, i, ACL_USER*);
     mpvio->acl_user= acl_user_tmp->copy(mpvio->thd->mem_root);
