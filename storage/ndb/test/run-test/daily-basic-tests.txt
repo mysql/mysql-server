@@ -1848,10 +1848,6 @@ cmd: testScan
 args: -nScanFragRecExhaust T1
 
 max-time: 300
-cmd: testNodeRestart
-args: -n Bug13464664 T1
-
-max-time: 300
 cmd: testDict
 args: -n Bug13416603 I2
 
