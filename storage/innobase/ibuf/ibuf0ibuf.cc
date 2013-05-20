@@ -4616,12 +4616,6 @@ loop:
 		/* Check if the entry is for this index page */
 		if (ibuf_rec_get_page_no(&mtr, rec) != page_no
 		    || ibuf_rec_get_space(&mtr, rec) != space) {
-
-			if (block) {
-				page_header_reset_last_insert(
-					block->frame, page_zip, &mtr);
-			}
-
 			goto reset_bit;
 		}
 
@@ -4752,6 +4746,13 @@ loop:
 	}
 
 reset_bit:
+	if (block && (mops[IBUF_OP_INSERT] || mops[IBUF_OP_DELETE])) {
+		/* Reset PAGE_LAST_INSERT if anything was inserted or
+		purged, so that a search shortcut will not be
+		incorrectly attempted. */
+		page_header_reset_last_insert(block->frame, page_zip, &mtr);
+	}
+
 	if (UNIV_LIKELY(update_ibuf_bitmap)) {
 		page_t*	bitmap_page;
 
