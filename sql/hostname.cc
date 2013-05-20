@@ -359,6 +359,14 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   err_code= vio_getnameinfo(ip, hostname_buffer, NI_MAXHOST, NULL, 0,
                             NI_NAMEREQD);
 
+  /* BEGIN : DEBUG */
+  DBUG_EXECUTE_IF("addr_fake_ipv4",
+                  {
+                    strcpy(hostname_buffer, "santa.claus.ipv4.example.com");
+                    err_code= 0;
+                  };);
+  /* END   : DEBUG */
+
   if (err_code == EAI_NONAME)
   {
     /*

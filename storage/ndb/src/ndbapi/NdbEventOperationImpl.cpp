@@ -2322,6 +2322,10 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
 void
 NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
 {
+  assert(node_id < 32 * m_alive_node_bit_mask.Size); // only data-nodes
+  if (! (node_id < 32 * m_alive_node_bit_mask.Size))
+    return;
+
   m_alive_node_bit_mask.clear(node_id);
 
   NdbEventOperation* op= m_ndb->getEventOperation(0);
