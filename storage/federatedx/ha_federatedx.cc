@@ -525,7 +525,7 @@ static int parse_url_error(FEDERATEDX_SHARE *share, TABLE *table, int error_num)
   buf_len= min(table->s->connect_string.length,
                FEDERATEDX_QUERY_BUFFER_SIZE-1);
   strmake(buf, table->s->connect_string.str, buf_len);
-  my_error(error_num, MYF(0), buf);
+  my_error(error_num, MYF(0), buf, 14);
   DBUG_RETURN(error_num);
 }
 

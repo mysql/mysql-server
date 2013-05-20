@@ -2157,6 +2157,13 @@ DROP TABLE federated.t1;
 End of 5.1 tests
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
+CREATE TABLE t1 (a INT) ENGINE=FEDERATED CONNECTION='non_existing';
+ERROR HY000: Can't create/write to file 'server name: 'non_existing' doesn't exist!' (Errcode: 16)
+SHOW WARNINGS;
+Level	Code	Message
+Error	1	Can't create/write to file 'server name: 'non_existing' doesn't exist!' (Errcode: 16)
+Error	1	Can't create/write to file 'non_existing' (Errcode: 14)
+Error	1005	Can't create table 'test.t1' (errno: 1)
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
