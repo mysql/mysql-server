@@ -4780,11 +4780,13 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       ; // Allow this ALTER to continue in the function
     }
     else
-#endif
     {
-      my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
-      DBUG_RETURN(TRUE);
+#endif
+    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+#ifndef MCP_WL6244
     }
+#endif
   }
   /* Remove partitioning on a not partitioned table is not possible */
   if (!table->part_info && (alter_info->flags &
