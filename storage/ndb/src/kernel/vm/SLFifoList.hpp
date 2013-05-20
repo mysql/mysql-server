@@ -38,7 +38,7 @@ public:
     Uint32 firstItem;
     Uint32 lastItem;
 
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     bool in_use;
 #endif
     void init();
@@ -52,7 +52,7 @@ public:
     Head& operator=(const HeadPOD& src) {
       this->firstItem = src.firstItem;
       this->lastItem = src.lastItem;
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
       this->in_use = src.in_use;
 #endif
       return *this;
@@ -130,14 +130,14 @@ public:
     : SLFifoListImpl<P,T,U>(thePool), src(_src)
   {
     this->head = src;
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     assert(src.in_use == false);
     src.in_use = true;
 #endif
   }
   
   ~LocalSLFifoListImpl(){
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     assert(src.in_use == true);
 #endif
     src = this->head;
@@ -160,7 +160,7 @@ SLFifoListImpl<P,T,U>::HeadPOD::init()
 {
   this->firstItem = RNIL;
   this->lastItem = RNIL;
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
   this->in_use = false;
 #endif
 }

@@ -3073,9 +3073,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
           tmp.p->transid2      = tcKeyReq->transId2;
           tmp.p->apiNodeId     = refToNode(regApiPtr->ndbapiBlockref);
           tmp.p->apiConnectPtr = TapiIndex;
-          CommitAckMarkerBuffer::DataBufferPool & pool =
-            c_theCommitAckMarkerBufferPool;
-          LocalDataBuffer<5> head(pool, tmp.p->theDataBuffer);
 #if defined VM_TRACE || defined ERROR_INSERT
 	  {
 	    CommitAckMarkerPtr check;
@@ -5598,7 +5595,6 @@ Dbtc::sendApiCommit(Signal* signal)
   {
     if (ERROR_INSERTED(8054))
     {
-      CLEAR_ERROR_INSERT_VALUE;
       signal->theData[0] = 9999;
       sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 5000, 1);
     }
@@ -5626,9 +5622,12 @@ Dbtc::sendApiCommit(Signal* signal)
     commitConf->gci_hi = Uint32(regApiPtr.p->globalcheckpointid >> 32);
     commitConf->gci_lo = Uint32(regApiPtr.p->globalcheckpointid);
 
-    sendSignal(regApiPtr.p->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
-	       TcCommitConf::SignalLength, JBB);
-  } 
+    if (!ERROR_INSERTED(8054))
+    {
+      sendSignal(regApiPtr.p->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
+                 TcCommitConf::SignalLength, JBB);
+    }
+  }
   else if (regApiPtr.p->returnsignal == RS_NO_RETURN) 
   {
     jam();
@@ -6238,6 +6237,7 @@ void Dbtc::execCOMPLETED(Signal* signal)
   }//if
   apiConnectptr = localApiConnectptr;
   releaseTransResources(signal);
+  CRASH_INSERTION(8054);
 }//Dbtc::execCOMPLETED()
 
 /*---------------------------------------------------------------------------*/
@@ -9983,9 +9983,6 @@ void Dbtc::initApiConnectFail(Signal* signal)
     tmp.p->transid2      = ttransid2;
     tmp.p->apiNodeId     = refToNode(tapplRef);
     tmp.p->apiConnectPtr = apiConnectptr.i;
-    CommitAckMarkerBuffer::DataBufferPool & pool =
-      c_theCommitAckMarkerBufferPool;
-    LocalDataBuffer<5> head(pool, tmp.p->theDataBuffer);
     ndbrequire(tmp.p->insert_in_commit_ack_marker_all(this, tnodeid));
 
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -10151,9 +10148,6 @@ void Dbtc::updateApiStateFail(Signal* signal)
       tmp.p->transid2      = ttransid2;
       tmp.p->apiNodeId     = refToNode(tapplRef);
       tmp.p->apiConnectPtr = apiConnectptr.i;
-      CommitAckMarkerBuffer::DataBufferPool & pool =
-        c_theCommitAckMarkerBufferPool;
-      LocalDataBuffer<5> head(pool, tmp.p->theDataBuffer);
 #if defined VM_TRACE || defined ERROR_INSERT
       {
 	CommitAckMarkerPtr check;
@@ -13781,7 +13775,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 #ifdef ERROR_INSERT
-  if (arg == 2552 || arg == 4002)
+  if (arg == 2552 || arg == 4002 || arg == 4003)
   {
     ndbrequire(m_commitAckMarkerPool.getNoOfFree() == m_commitAckMarkerPool.getSize());
     return;
