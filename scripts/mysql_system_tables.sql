@@ -1684,8 +1684,6 @@ CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NUL
 -- Remember for later if proxies_priv table already existed
 set @had_proxies_priv_table= @@warning_count != 0;
 
-
-
 #
 # SQL commands for creating the tables in MySQL Server which
 # are used by the NDBINFO storage engine to access system
