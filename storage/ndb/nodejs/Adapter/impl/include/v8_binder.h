@@ -28,6 +28,8 @@
  abstraction over it.
  ******************************************************************/
 
+#ifndef V8_BINDER_H
+#define V8_BINDER_H
 #pragma once
 
 /* Choose a binder framework:
@@ -47,3 +49,5 @@
 
 
 #endif
+#endif // V8_BINDER_H
+
