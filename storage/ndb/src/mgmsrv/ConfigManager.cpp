@@ -34,6 +34,13 @@ extern EventLogger * g_eventLogger;
 extern "C" const char* opt_ndb_connectstring;
 extern "C" int opt_ndb_nodeid;
 
+#if defined VM_TRACE || defined ERROR_INSERT
+extern int g_errorInsert;
+#define ERROR_INSERTED(x) (g_errorInsert == x)
+#else
+#define ERROR_INSERTED(x) false
+#endif
+
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
                              const char* configdir) :
   MgmtThread("ConfigManager"),
@@ -1351,6 +1358,12 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
 
   Uint32 generation = m_config->getGeneration();
 
+  if (ERROR_INSERTED(100) && nodeId != ss.getOwnNodeId())
+  {
+    g_eventLogger->debug("execCONFIG_CHECK_REQ() ERROR_INSERTED(100) => exit()");
+    exit(0);
+  }
+
   // checksum
   Uint32 checksum = config_check_checksum(m_config);
   Uint32 other_checksum = req->checksum;
@@ -1933,7 +1946,7 @@ ConfigManager::run()
         CAST_CONSTPTR(NFCompleteRep, sig->getDataPtr());
       NodeId nodeId= rep->failedNodeId;
 
-      if (m_all_mgm.get(nodeId)) // Not mgm node
+      if (!m_all_mgm.get(nodeId)) // Not mgm node
         break;
 
       ndbout_c("Node %d failed", nodeId);
