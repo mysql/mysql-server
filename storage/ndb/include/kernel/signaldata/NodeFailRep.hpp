@@ -38,7 +38,17 @@ struct NodeFailRep {
   Uint32 masterNodeId;
 
   Uint32 noOfNodes;
-  Uint32 theNodes[NdbNodeBitmask::Size];
+  union
+  {
+    Uint32 theNodes[NdbNodeBitmask::Size];
+    Uint32 theAllNodes[NodeBitmask::Size];
+  };
+
+  static Uint32 getNodeMaskLength(Uint32 signalLength) {
+    assert(signalLength == SignalLength ||
+           signalLength == SignalLengthLong);
+    return signalLength - 3;
+  }
 };
 
 #endif

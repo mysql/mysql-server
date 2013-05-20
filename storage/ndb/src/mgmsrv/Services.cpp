@@ -2074,6 +2074,13 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     int decoded_len= ndb_base64_decode(buf64, len64-1, decoded, NULL);
     delete[] buf64;
 
+    if (decoded_len == -1)
+    {
+      result.assfmt("Failed to unpack config");
+      delete[] decoded;
+      goto done;
+    }
+
     ConfigValuesFactory cvf;
     if(!cvf.unpack(decoded, decoded_len))
     {
