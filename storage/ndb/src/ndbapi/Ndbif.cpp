@@ -213,11 +213,14 @@ Ndb::report_node_failure(Uint32 node_id)
    * 
    * This method is only called by ClusterMgr (via lots of methods)
    */
-
-  theImpl->the_release_ind[node_id] = 1;
-  // must come after
-  theImpl->the_release_ind[0] = 1;
-  theImpl->theWaiter.nodeFail(node_id);
+  assert(node_id < NDB_ARRAY_SIZE(theImpl->the_release_ind));
+  if (node_id < NDB_ARRAY_SIZE(theImpl->the_release_ind))
+  {
+    theImpl->the_release_ind[node_id] = 1;
+    // must come after
+    theImpl->the_release_ind[0] = 1;
+    theImpl->theWaiter.nodeFail(node_id);
+  }
   return;
 }//Ndb::report_node_failure()
 
@@ -913,11 +916,17 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   {
     const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
                                            aSignal->getDataPtr());
-    for (Uint32 i = NdbNodeBitmask::find_first(rep->theNodes);
-         i != NdbNodeBitmask::NotFound;
-         i = NdbNodeBitmask::find_next(rep->theNodes, i + 1))
+    Uint32 len = NodeFailRep::getNodeMaskLength(aSignal->getLength());
+    assert(len == NodeBitmask::Size); // only full length in ndbapi
+    for (Uint32 i = BitmaskImpl::find_first(len, rep->theAllNodes);
+         i != BitmaskImpl::NotFound;
+         i = BitmaskImpl::find_next(len, rep->theAllNodes, i + 1))
     {
-      report_node_failure(i);
+      if (i <= MAX_DATA_NODE_ID)
+      {
+        // Ndbif only cares about data-nodes (so far??)
+        report_node_failure(i);
+      }
     }
 
     NdbDictInterface::execSignal(&theDictionary->m_receiver, aSignal, ptr);
