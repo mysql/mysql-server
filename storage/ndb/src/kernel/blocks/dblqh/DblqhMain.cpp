@@ -23036,6 +23036,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   jamEntry();
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
   Uint32 arg= dumpState->args[0];
+
   if(dumpState->args[0] == DumpStateOrd::CommitAckMarkersSize){
     infoEvent("LQH: m_commitAckMarkerPool: %d free size: %d",
 	      m_commitAckMarkerPool.getNoOfFree(),
@@ -23877,6 +23878,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
               "Shutting down node due to lack of LCP fragment scan progress");  
   }
 
+
+  if (arg == 4003)
+  {
+    ndbrequire(m_commitAckMarkerPool.getNoOfFree() ==
+               m_commitAckMarkerPool.getSize());
+  }
   if (arg == 5050)
   {
 #ifdef ERROR_INSERT

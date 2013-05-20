@@ -5138,6 +5138,55 @@ runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
+int
+runBug16834416(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 2)
+  {
+    g_err << "Insufficient nodes for test." << endl;
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  int loops = ctx->getNumLoops();
+  for (int i = 0; i < loops; i++)
+  {
+    ndbout_c("running big trans");
+    HugoOperations ops(* ctx->getTab());
+    ops.startTransaction(pNdb);
+    ops.pkInsertRecord(0, 1024); // 1024 rows
+    ops.execute_NoCommit(pNdb, AO_IgnoreError);
+
+    // TC node id
+    Uint32 nodeId = ops.getTransaction()->getConnectedNodeId();
+
+    int errcode = 8054;
+    ndbout_c("TC: %u => kill kill kill (error: %u)", nodeId, errcode);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    restarter.dumpStateOneNode(nodeId, val2, 2);
+    restarter.insertErrorInNode(nodeId, errcode);
+
+    ops.execute_Commit(pNdb, AO_IgnoreError);
+
+    int victim = (int)nodeId;
+    restarter.waitNodesNoStart(&victim, 1);
+    restarter.startAll();
+    restarter.waitClusterStarted();
+
+    ops.closeTransaction(pNdb);
+    ops.clearTable(pNdb);
+
+    int val3[] = { 4003 }; // Check TC/LQH CommitAckMarker leak
+    restarter.dumpStateAllNodes(val3, 1);
+  }
+
+  restarter.insertErrorInAllNodes(0);
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -5706,7 +5755,10 @@ TESTCASE("LCPScanFragWatchdog",
   STEP(runPkUpdateUntilStopped);
   STEP(runTestScanFragWatchdog);
 }
-
+TESTCASE("Bug16834416", "")
+{
+  INITIALIZER(runBug16834416);
+}
 NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){
