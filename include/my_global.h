@@ -229,20 +229,12 @@
 #include <stdio.h>
 #endif
 #include <stdarg.h>
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>
-#endif
 
 #include <math.h>
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
-#ifdef HAVE_FLOAT_H
 #include <float.h>
-#endif
 #ifdef HAVE_FENV_H
 #include <fenv.h> /* For fesetround() */
 #endif
