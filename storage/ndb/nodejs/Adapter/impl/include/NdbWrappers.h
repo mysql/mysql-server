@@ -18,6 +18,8 @@
  02110-1301  USA
 */
 
+#ifndef NDBWRAPPERS_H
+#define NDBWRAPPERS_H
 #pragma once
 
 
@@ -43,3 +45,5 @@ Envelope * getNdbInterpretedCodeEnvelope(void);
 Envelope * getConstNdbInterpretedCodeEnvelope(void);
 Envelope * getNdbDictTableEnvelope(void);
 Envelope * getNdbScanOperationEnvelope(void);
+#endif // NDBWRAPPERS_H
+

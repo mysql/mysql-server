@@ -18,6 +18,8 @@
  02110-1301  USA
 */
 
+#ifndef RECORD_H
+#define RECORD_H
 #include "NdbApi.hpp"
 
 #pragma once
@@ -95,5 +97,7 @@ inline uint32_t Record::isNull(int idx, char * data) const {
     return (*(data + specs[idx].nullbit_byte_offset) &
              (1 << specs[idx].nullbit_bit_in_byte));
   }
-  else return 0;
 }
+#endif // RECORD_H
+
+
