@@ -23789,7 +23789,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    for(Uint32 i = 0; i<4; i++)
+    for(Uint32 i = 0; i < clogPartFileSize; i++)
     {
       logPartPtr.i = i;
       ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
@@ -23803,7 +23803,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
       Uint64 total = logPartPtr.p->noLogFiles * Uint64(clogFileSize);
       signal->theData[0] = NDB_LE_RedoStatus;
-      signal->theData[1] = i;
+      signal->theData[1] = logPartPtr.p->logPartNo;
       signal->theData[2] = head.m_file_no;
       signal->theData[3] = head.m_mbyte;
       signal->theData[4] = tail.m_file_no;
