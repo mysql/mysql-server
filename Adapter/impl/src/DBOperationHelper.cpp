@@ -24,10 +24,9 @@
 
 #include "adapter_global.h"
 #include "Operation.h"
-#include "JsWrapper.h"
+#include "NdbWrappers.h"
 #include "v8_binder.h"
 #include "js_wrapper_macros.h"
-#include "NdbWrappers.h"
 #include "NdbRecordObject.h"
 
 enum {

@@ -20,13 +20,11 @@
 
 #include <string.h>
 
-#include <node.h>
-#include <NdbApi.hpp>
+#include "NdbApi.hpp"
 
 #include "adapter_global.h"
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"
-#include "Record.h"
 #include "NdbWrappers.h"
 
 using namespace v8;

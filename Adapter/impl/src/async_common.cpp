@@ -20,13 +20,10 @@
 
 #include <stdio.h>
 
-#include <node.h>
 #include "v8_binder.h"
 
 #include "adapter_global.h"
 #include "AsyncMethodCall.h"
-#include "async_common.h"
-#include "unified_debug.h"
 
 using namespace v8;
 

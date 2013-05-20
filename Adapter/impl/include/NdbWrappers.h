@@ -18,14 +18,11 @@
  02110-1301  USA
 */
 
-#pragma once
-
-
 /***  This file includes public wrapper functions exported to C++ code 
 ***/
 
 #include "Record.h"
-#include "Operation.h"
+#include "JsWrapper.h"
 
 using namespace v8;
 

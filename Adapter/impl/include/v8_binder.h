@@ -28,8 +28,6 @@
  abstraction over it.
  ******************************************************************/
 
-#pragma once
-
 /* Choose a binder framework:
 */
 #define V8BINDER_FOR_NODE

@@ -18,9 +18,12 @@
  02110-1301  USA
 */
 
+#ifndef NODEJS_ADAPTER_INCLUDE_RECORD_H
+#define NODEJS_ADAPTER_INCLUDE_RECORD_H
+
 #include "NdbApi.hpp"
 
-#pragma once
+#include "node.h"
 
 class Record {
 private:
@@ -97,3 +100,5 @@ inline uint32_t Record::isNull(int idx, char * data) const {
   }
   else return 0;
 }
+
+#endif

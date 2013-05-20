@@ -23,8 +23,6 @@
 
 #include <assert.h>
 
-#include <node.h>
-
 #include "v8_binder.h"
 #include "JsConverter.h"
 #include "async_common.h"
