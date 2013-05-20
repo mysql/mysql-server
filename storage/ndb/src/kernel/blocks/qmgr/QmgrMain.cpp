@@ -3078,12 +3078,18 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
   if (is_empty_failconf_block(failedNodePtr))
   {
     jam();
-    failedNodePtr.p->failState = NORMAL;
-
     /**
      * When we set this state, connection will later be opened
      *   in checkStartInterface
      */
+    failedNodePtr.p->failState = NORMAL;
+
+    /**
+     * Reset m_version only after all blocks has responded with API_FAILCONF
+     *   so that no block risks reading 0 as node-version
+     */
+    setNodeInfo(failedNodePtr.i).m_version = 0;
+    recompute_version_info(getNodeInfo(failedNodePtr.i).m_type);
   }
   return;
 }//Qmgr::execAPI_FAILCONF()
@@ -3208,6 +3214,13 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
     
     CRASH_INSERTION(936);
   }
+
+  /**
+   * Reset node version only after all blocks has handled the failure
+   *   so that no block risks reading 0 as node version
+   */
+  setNodeInfo(failedNodePtr.i).m_version = 0;
+  recompute_version_info(NodeInfo::DB);
 
   /** 
    * Prepare a NFCompleteRep and send to all connected API's
@@ -3450,9 +3463,7 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
   failedNodePtr.p->failState = initialState;
   failedNodePtr.p->phase = ZFAIL_CLOSING;
   set_hb_count(failedNodePtr.i) = 0;
-  setNodeInfo(failedNodePtr.i).m_version = 0;
-  recompute_version_info(getNodeInfo(failedNodePtr.i).m_type);
-  
+
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
   closeCom->xxxBlockRef = reference();
   closeCom->requestType = CloseComReqConf::RT_API_FAILURE;
@@ -4529,10 +4540,9 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
       nodePtr.p->phase = ZFAIL_CLOSING;
       nodePtr.p->failState = WAITING_FOR_NDB_FAILCONF;
       set_hb_count(nodePtr.i) = 0;
-      setNodeInfo(nodePtr.i).m_version = 0;
       c_clusterNodes.clear(nodePtr.i);
     }//for
-    recompute_version_info(NodeInfo::DB);
+
     /*----------------------------------------------------------------------*/
     /*       WE INFORM THE API'S WE HAVE CONNECTED ABOUT THE FAILED NODES.  */
     /*----------------------------------------------------------------------*/
