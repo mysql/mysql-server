@@ -176,14 +176,14 @@ public:
     : DLCFifoList<T, U>(thePool), src(_src)
   {
     this->head = src;
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     assert(src.in_use == false);
     src.in_use = true;
 #endif
   }
   
   ~LocalDLCFifoList() {
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     assert(src.in_use == true);
 #endif
     src = this->head;
