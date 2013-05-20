@@ -20,7 +20,6 @@
 
 
 #include <node.h>
-#include <NdbApi.hpp>
 
 #include "Record.h"
 #include "NdbTypeEncoders.h"

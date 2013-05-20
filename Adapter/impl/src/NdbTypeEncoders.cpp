@@ -24,12 +24,13 @@
 #include <string.h>
 
 #include "adapter_global.h"
-#include "unified_debug.h"
 #include "NdbTypeEncoders.h"
 #include "js_wrapper_macros.h"
 #include "JsWrapper.h"
 #include "ndb_util/CharsetMap.hpp"
 #include "EncoderCharset.h"
+
+#include "node_buffer.h"
 
 using namespace v8;
 

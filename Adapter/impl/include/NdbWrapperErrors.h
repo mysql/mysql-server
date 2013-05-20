@@ -18,8 +18,7 @@
  02110-1301  USA
 */
 
-#pragma once
-
+#include "JsWrapper.h"
 #include "NdbWrappers.h"
 
 class NdbNativeCodeError : public NativeCodeError {

@@ -17,11 +17,13 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
-#pragma once
+
+#ifndef NODEJS_ADAPTER_INCLUDE_OPERATION_H
+#define NODEJS_ADAPTER_INCLUDE_OPERATION_H
 
 #include <string.h>
 
-#include <NdbApi.hpp>
+#include "node.h"
 
 #include "Record.h"
 
@@ -153,4 +155,6 @@ inline const NdbOperation *
     return scanop->deleteCurrentTuple(tx, row_record->getNdbRecord(), row_buffer, 
                                       read_mask_ptr, options);
 }
+
+#endif
 
