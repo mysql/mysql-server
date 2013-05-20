@@ -3281,6 +3281,46 @@ runRefreshLocking(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug16834333(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+
+  ndbout_c("restart initial");
+  restarter.restartAll(true, /* initial */
+                       true, /* nostart */
+                       true  /* abort */ );
+
+  ndbout_c("wait nostart");
+  restarter.waitClusterNoStart();
+  ndbout_c("startAll");
+  restarter.startAll();
+  ndbout_c("wait started");
+  restarter.waitClusterStarted();
+
+  int codes[] = { 5080, 5081 };
+  for (int i = 0, j = 0; i < restarter.getNumDbNodes(); i++, j++)
+  {
+    int code = codes[j % NDB_ARRAY_SIZE(codes)];
+    int nodeId = restarter.getDbNodeId(i);
+    ndbout_c("error %d node: %d", code, nodeId);
+    restarter.insertErrorInNode(nodeId, code);
+  }
+
+  ndbout_c("create tab");
+  pNdb->getDictionary()->createTable(* ctx->getTab());
+
+  ndbout_c("running big trans");
+  HugoOperations ops(* ctx->getTab());
+  ops.startTransaction(pNdb);
+  ops.pkReadRecord(0, 16384);
+  ops.execute_Commit(pNdb, AO_IgnoreError);
+  ops.closeTransaction(pNdb);
+
+  restarter.insertErrorInAllNodes(0);
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
@@ -3660,6 +3700,11 @@ TESTCASE("RefreshLocking",
          "Test Refresh locking properties")
 {
   INITIALIZER(runRefreshLocking);
+}
+TESTCASE("Bug16834333",
+         "Test Refresh locking properties")
+{
+  INITIALIZER(runBug16834333);
 }
 NDBT_TESTSUITE_END(testBasic);
 
