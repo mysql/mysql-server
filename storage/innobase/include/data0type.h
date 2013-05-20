@@ -29,7 +29,6 @@ Created 1/16/1996 Heikki Tuuri
 #include "univ.i"
 
 extern ulint	data_mysql_default_charset_coll;
-#define DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL 8
 #define DATA_MYSQL_BINARY_CHARSET_COLL 63
 
 /* SQL data type struct */

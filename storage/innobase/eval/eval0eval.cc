@@ -162,22 +162,6 @@ eval_cmp_like(
 			que_node_get_val(arg4));
 		break;
 
-	case	IB_LIKE_SUFFIX:
-
-		arg4 = que_node_get_next(arg3);
-		res = cmp_dfield_dfield_like_suffix(
-			que_node_get_val(arg1),
-			que_node_get_val(arg4));
-		break;
-
-	case	IB_LIKE_SUBSTR:
-
-		arg4 = que_node_get_next(arg3);
-		res = cmp_dfield_dfield_like_substr(
-			que_node_get_val(arg1),
-			que_node_get_val(arg4));
-		break;
-
 	case	IB_LIKE_EXACT:
 		res = cmp_dfield_dfield(
 			que_node_get_val(arg1),
