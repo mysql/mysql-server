@@ -104,7 +104,7 @@ mem_field_header_set_len(byte* field, ulint len)
 
 
 ulint
-mem_field_header_get_len(byte* field)
+mem_field_header_get_len(const byte* field)
 {
 	return(mach_read_from_4(field - 2 * sizeof(ulint)));
 }
@@ -248,8 +248,7 @@ void
 mem_field_erase(
 /*============*/
 	byte*	buf,	/*!< in: memory field */
-	ulint	n __attribute__((unused)))
-			/*!< in: how many bytes the user requested */
+	ulint	n)	/*!< in: how many bytes the user requested */
 {
 	mutex_enter(&mem_hash_mutex);
 	mem_current_allocated_memory	-= n;
