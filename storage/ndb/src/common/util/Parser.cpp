@@ -65,6 +65,22 @@ ParseInputStream::push_back(const char * str){
   buffer = strdup(str);
 }
 
+
+void
+ParserImpl::check_parser_rows(const DummyRow* rows) const
+{
+  // Simple validation of rows definitions
+  while(rows->name)
+  {
+    assert(rows->type < rows->End);
+    rows++;
+  }
+
+  // Check that last row has type End
+  assert(rows->type == rows->End);
+}
+
+
 ParserImpl::ParserImpl(const DummyRow * rows, InputStream & in,
 		       bool b_cmd, bool b_empty, bool b_iarg) 
   : m_rows(rows), input(* new ParseInputStream(in))
@@ -72,6 +88,10 @@ ParserImpl::ParserImpl(const DummyRow * rows, InputStream & in,
   m_breakOnCmd = b_cmd;
   m_breakOnEmpty = b_empty;
   m_breakOnInvalidArg = b_iarg;
+
+#ifndef NDEBUG
+  check_parser_rows(rows);
+#endif
 }
 
 ParserImpl::~ParserImpl(){

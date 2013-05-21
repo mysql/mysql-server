@@ -112,7 +112,7 @@ private:
 template<class T>
 struct ParserRow {
 public:
-  enum Type { Cmd, Arg, CmdAlias, ArgAlias };
+  enum Type { Cmd, Arg, CmdAlias, ArgAlias, End }; // Put new types before end
   enum ArgType { String, Int, Properties };
   enum ArgRequired { Mandatory, Optional };
   enum ArgMinMax { CheckMinMax, IgnoreMinMax };
@@ -157,6 +157,8 @@ private:
   bool m_breakOnEmpty;
   bool m_breakOnCmd;
   bool m_breakOnInvalidArg;
+
+  void check_parser_rows(const DummyRow* rows) const;
 };
 
 template<class T>
