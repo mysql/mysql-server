@@ -181,3 +181,68 @@ exec $mgm_cmd -e "1 DUMP 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 2
 --exec $mgm_cmd -e "1 report eventlog" >> $NDB_TOOLS_OUTPUT
 --exec $mgm_cmd -e "2 report eventlog" >> $NDB_TOOLS_OUTPUT
 --exec $mgm_cmd -e "all report eventlog" >> $NDB_TOOLS_OUTPUT
+
+#
+# Test CLUSTERLOG command
+#
+echo Missing argument;
+--error 255
+exec $mgm_cmd -e "CLUSTERLOG";
+
+echo # Unknown argument;
+--error 255
+exec $mgm_cmd -e "CLUSTERLOG unknown_argument";
+
+echo # CLUSTERLOG INFO;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # CLUSTERLOG OFF;
+exec $mgm_cmd -e "CLUSTERLOG OFF";
+
+echo # Should be OFF now;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # CLUSTERLOG ON;
+exec $mgm_cmd -e "CLUSTERLOG ON";
+
+echo # Should be ON now;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # CLUSTERLOG TOGGLE;
+exec $mgm_cmd -e "CLUSTERLOG TOGGLE";
+
+echo # Should be OFF now;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # CLUSTERLOG TOGGLE;
+exec $mgm_cmd -e "CLUSTERLOG TOGGLE";
+
+echo # Should be ON now;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # Turn off severity INFO, ERROR and ALERT;
+exec $mgm_cmd -e "CLUSTERLOG FILTER ALERT INFO ERROR";
+
+echo # Should not list ALERT, INFO or ERROR;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # Turn off reaining severities;
+exec $mgm_cmd -e "CLUSTERLOG FILTER WARNING CRITICAL";
+
+echo # Should not list anything;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # Back to default severity;
+exec $mgm_cmd -e "CLUSTERLOG FILTER WARNING CRITICAL ALERT INFO ERROR";
+
+echo # Should list default;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # Bogus severity;
+--error 255
+exec $mgm_cmd -e "CLUSTERLOG FILTER bogus1";
+
+echo # Should list default;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+

@@ -76,7 +76,7 @@
 #define CPCD_END() \
  { 0, \
    0, \
-   ParserRow<CPCDAPISession>::Arg, \
+   ParserRow<CPCDAPISession>::End, \
    ParserRow<CPCDAPISession>::Int, \
    ParserRow<CPCDAPISession>::Optional, \
    ParserRow<CPCDAPISession>::IgnoreMinMax, \
