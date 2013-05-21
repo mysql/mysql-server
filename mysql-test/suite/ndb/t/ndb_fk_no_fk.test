@@ -576,3 +576,34 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 --source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+
+--echo #
+--echo # ALTER a table which references mock parent
+--echo #
+
+create table t1 (
+  pk int not null primary key,
+  b int,
+  foreign key (b) references t2(pk1)
+) engine=ndb;
+
+--source ndb_show_tables_result.inc
+--echo # There should be one mock table in place of t2
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+alter table t1 add column c int;
+
+--source ndb_show_tables_result.inc
+--echo # There should be one mock table still
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+drop table t1;
+
+--source ndb_show_tables_result.inc
+--echo # There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+
