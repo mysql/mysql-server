@@ -10,7 +10,7 @@ i	f
 1	1.1
 2	2.2
 3	3.3
-set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start2";
+set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start";
 truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query
 select * from t1;

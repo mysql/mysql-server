@@ -336,10 +336,7 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 
 		/* Waiting for MLOG_FILE_TRUNCATE record is written into
 		redo log before the crash. */
-		DBUG_EXECUTE_IF("ib_trunc_crash_before_log_checkpoint1",
-				DBUG_SUICIDE(););
-
-		DBUG_EXECUTE_IF("ib_trunc_crash_before_log_checkpoint2",
+		DBUG_EXECUTE_IF("ib_trunc_crash_before_log_checkpoint",
 				log_buffer_flush_to_disk();
 				os_thread_sleep(2000000);
 				DBUG_SUICIDE(););
@@ -604,9 +601,6 @@ row_truncate_update_system_tables(
 
 			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 
-			/* TODO: Revist the flow. As per existing flow trx
-			that is used for dropping of fts table is committed so
-			that action of dropping FTS table is committed. */
 			trx_commit_for_mysql(trx);
 		}
 
@@ -620,6 +614,8 @@ row_truncate_update_system_tables(
 		}
 
 		DBUG_EXECUTE_IF("ib_trunc_crash_after_fts_drop",
+				log_buffer_flush_to_disk();
+				os_thread_sleep(2000000);
 				DBUG_SUICIDE(););
 
 		dict_table_change_id_in_cache(table, new_id);
@@ -990,10 +986,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		logger.log();
 	}
 
-	DBUG_EXECUTE_IF("ib_trunc_crash_after_redo_log_write_complete1",
-			DBUG_SUICIDE(););
-
-	DBUG_EXECUTE_IF("ib_trunc_crash_after_redo_log_write_complete2",
+	DBUG_EXECUTE_IF("ib_trunc_crash_after_redo_log_write_complete",
 			log_buffer_flush_to_disk();
 			os_thread_sleep(3000000);
 			DBUG_SUICIDE(););
@@ -1042,9 +1035,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			table->indexes.count + FIL_IBD_FILE_INITIAL_SIZE + 1);
 	}
 
-	DBUG_EXECUTE_IF("ib_trunc_crash_drop_reinit_done_create_to_start1",
-			DBUG_SUICIDE(););
-	DBUG_EXECUTE_IF("ib_trunc_crash_drop_reinit_done_create_to_start2",
+	DBUG_EXECUTE_IF("ib_trunc_crash_drop_reinit_done_create_to_start",
 			log_buffer_flush_to_disk();
 			os_thread_sleep(2000000);
 			DBUG_SUICIDE(););
@@ -1097,9 +1088,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		}
 	}
 
-	DBUG_EXECUTE_IF("ib_trunc_crash_on_updating_dict_sys_info1",
-			DBUG_SUICIDE(););
-	DBUG_EXECUTE_IF("ib_trunc_crash_on_updating_dict_sys_info2",
+	DBUG_EXECUTE_IF("ib_trunc_crash_on_updating_dict_sys_info",
 			log_buffer_flush_to_disk();
 			os_thread_sleep(2000000);
 			DBUG_SUICIDE(););
