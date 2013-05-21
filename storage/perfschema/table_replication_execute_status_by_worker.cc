@@ -99,46 +99,20 @@ PFS_engine_table* table_replication_execute_status_by_worker::create(void)
   return new table_replication_execute_status_by_worker();
 }
 
-//TODO: some values hard-coded below, replace them --shiv
-static ST_STATUS_FIELD_INFO slave_field_info[]=
-{
-  {"Worker_Id", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
-  {"Thread_Id", 21, MYSQL_TYPE_STRING, FALSE},
-  {"Service_State", sizeof(ulonglong), MYSQL_TYPE_ENUM, FALSE},
-  {"Last_Executed_Transaction", 57, MYSQL_TYPE_STRING, FALSE},
-  {"Last_Error_Number", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
-  {"Last_Error_Message", MAX_SLAVE_ERRMSG, MYSQL_TYPE_STRING, FALSE},
-  {"Last_Error_Timestamp", 11, MYSQL_TYPE_STRING, FALSE}
-};
-
 table_replication_execute_status_by_worker::table_replication_execute_status_by_worker()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
-{
-  for (int i= RPL_WORKER_ID; i <= _RPL_EXECUTE_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING)
-      m_row.m_fields[i].u.s.str= NULL;  // str_store() makes allocation
-    if (slave_field_info[i].can_be_null)
-      m_row.m_fields[i].is_null= false;
-  }
-}
+{}
 
 table_replication_execute_status_by_worker::~table_replication_execute_status_by_worker()
-{
-  for (int i= RPL_WORKER_ID; i <= _RPL_EXECUTE_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING &&
-        m_row.m_fields[i].u.s.str != NULL)
-      my_free(m_row.m_fields[i].u.s.str);
-  }
-}
+{}
 
 void table_replication_execute_status_by_worker::reset_position(void)
 {
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
 }
+
 #ifndef MYSQL_CLIENT
 int table_replication_execute_status_by_worker::rnd_next(void)
 {
@@ -192,41 +166,6 @@ int table_replication_execute_status_by_worker::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_replication_execute_status_by_worker::drop_null(enum enum_rpl_execute_field_names name)
-{
-  if (slave_field_info[name].can_be_null)
-    m_row.m_fields[name].is_null= false;
-}
-
-void table_replication_execute_status_by_worker::set_null(enum enum_rpl_execute_field_names name)
-{
-  DBUG_ASSERT(slave_field_info[name].can_be_null);
-  m_row.m_fields[name].is_null= true;
-}
-
-void table_replication_execute_status_by_worker::str_store(enum enum_rpl_execute_field_names name, const char* val)
-{
-  m_row.m_fields[name].u.s.length= strlen(val);
-  DBUG_ASSERT(m_row.m_fields[name].u.s.length <= slave_field_info[name].max_size);
-  if (m_row.m_fields[name].u.s.str == NULL)
-    m_row.m_fields[name].u.s.str= (char *) my_malloc(m_row.m_fields[name].u.s.length, MYF(0));
-
-  /*
-    \0 may be stripped off since there is no need for \0-termination of
-    m_row.m_fields[name].u.s.str
-  */
-  memcpy(m_row.m_fields[name].u.s.str, val, m_row.m_fields[name].u.s.length);
-  m_row.m_fields[name].u.s.length= m_row.m_fields[name].u.s.length;
-
-  drop_null(name);
-}
-
-void table_replication_execute_status_by_worker::int_store(enum enum_rpl_execute_field_names name, longlong val)
-{
-  m_row.m_fields[name].u.n= val;
-  drop_null(name);
-}
-
 void table_replication_execute_status_by_worker::fill_rows(Slave_worker *w)
 {
   //mysql_mutex_lock(&mi->data_lock);
@@ -234,25 +173,44 @@ void table_replication_execute_status_by_worker::fill_rows(Slave_worker *w)
   //mysql_mutex_lock(&mi->err_lock);
   //mysql_mutex_lock(&mi->rli->err_lock);
   
-  int_store(RPL_WORKER_ID, w->id);
+  m_row.Worker_Id= w->id;
  
   mysql_mutex_lock(&w->jobs_lock);
   if (w->running_status == Slave_worker::RUNNING)
   {
-    char thread_id_null_str[21];
-    sprintf(thread_id_null_str, "%llu", (ulonglong) w->info_thd->thread_id);
-    str_store(RPL_EXECUTE_THREAD_ID, thread_id_null_str);
+    char thread_id_str[21];
+    sprintf(thread_id_str, "%u", (uint) w->info_thd->thread_id);
+    m_row.Thread_Id_length= strlen(thread_id_str);
+    memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
   }
   else
-    str_store(RPL_EXECUTE_THREAD_ID, "NULL");
+  {
+    m_row.Thread_Id_length= strlen("NULL");
+    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length+1);
+  }
 
-  enum_store(RPL_EXECUTE_SERVICE_STATE, w->running_status == Slave_worker::RUNNING ? PS_RPL_YES: PS_RPL_NO);
+  if (w->running_status == Slave_worker::RUNNING)
+    m_row.Service_State= PS_RPL_YES;
+  else
+    m_row.Service_State= PS_RPL_NO;
   mysql_mutex_unlock(&w->jobs_lock);
 
-  str_store(RPL_LAST_EXECUTED_TRANSACTION, "need to modify --shiv");
-  int_store(RPL_EXECUTE_LAST_ERROR_NUMBER, (long int) w->last_error().number);
-  str_store(RPL_EXECUTE_LAST_ERROR_MESSAGE, w->last_error().message);
-  str_store(RPL_EXECUTE_LAST_ERROR_TIMESTAMP, w->last_error().timestamp);
+  m_row.Last_Executed_Transaction_length= strlen("need to modify --shiv");
+  memcpy(m_row.Last_Executed_Transaction, "need to modify --shiv", m_row.Last_Executed_Transaction_length);
+
+  m_row.Last_Error_Number= (unsigned int) w->last_error().number;
+
+  m_row.Last_Error_Message_length= 0;
+  m_row.Last_Error_Timestamp_length= 0;
+  if (m_row.Last_Error_Number)
+  {
+    char * temp_store= (char*)w->last_error().message;
+    m_row.Last_Error_Message_length= strlen(temp_store) + 1;
+    memcpy(m_row.Last_Error_Message, w->last_error().message, m_row.Last_Error_Message_length);
+    temp_store= (char*)w->last_error().timestamp;
+    m_row.Last_Error_Timestamp_length= strlen(temp_store) + 1;
+    memcpy(m_row.Last_Error_Timestamp, w->last_error().timestamp, m_row.Last_Error_Timestamp_length);
+  }
 
   //mysql_mutex_unlock(&mi->rli->err_lock);
   //mysql_mutex_unlock(&mi->err_lock);
@@ -261,7 +219,6 @@ void table_replication_execute_status_by_worker::fill_rows(Slave_worker *w)
   
   //m_filled= true;
 }
-
 
 int table_replication_execute_status_by_worker::read_row_values(TABLE *table,
                                        unsigned char *,
@@ -276,40 +233,29 @@ int table_replication_execute_status_by_worker::read_row_values(TABLE *table,
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      if (slave_field_info[f->field_index].can_be_null)
-      {
-        if (m_row.m_fields[f->field_index].is_null)
-        {
-          f->set_null();
-          continue;
-        }
-        else
-          f->set_notnull();
-      }
-
       switch(f->field_index)
       {
-      case RPL_EXECUTE_SERVICE_STATE:
-
-        set_field_enum(f, m_row.m_fields[f->field_index].u.n);
+      case 0: /*Worker_Id*/
+        set_field_ulong(f, m_row.Worker_Id);
         break;
-
-      case RPL_EXECUTE_THREAD_ID:
-      case RPL_EXECUTE_LAST_ERROR_MESSAGE:
-      case RPL_EXECUTE_LAST_ERROR_TIMESTAMP:
-      case RPL_LAST_EXECUTED_TRANSACTION:
-
-        set_field_varchar_utf8(f,
-                               m_row.m_fields[f->field_index].u.s.str,
-                               m_row.m_fields[f->field_index].u.s.length);
+      case 1: /*Thread_Id*/
+        set_field_varchar_utf8(f, m_row.Thread_Id, m_row.Thread_Id_length);
         break;
-
-      case RPL_WORKER_ID:
-      case RPL_EXECUTE_LAST_ERROR_NUMBER:
-
-        set_field_ulonglong(f, m_row.m_fields[f->field_index].u.n);
+      case 2: /*Service_State*/
+        set_field_enum(f, m_row.Service_State);
         break;
-
+      case 3: /*Last_Executed_Transaction*/
+        set_field_char_utf8(f, m_row.Last_Executed_Transaction, m_row.Last_Executed_Transaction_length);
+        break;
+      case 4: /*Last_Error_Number*/
+        set_field_ulong(f, m_row.Last_Error_Number);
+        break;
+      case 5: /*Last_Error_Message*/
+        set_field_varchar_utf8(f, m_row.Last_Error_Message, m_row.Last_Error_Message_length);
+        break;
+      case 6: /*Last_Error_Timestamp*/
+        set_field_varchar_utf8(f, m_row.Last_Error_Timestamp, m_row.Last_Error_Timestamp_length);
+        break;       
       default:
         DBUG_ASSERT(false);
       }

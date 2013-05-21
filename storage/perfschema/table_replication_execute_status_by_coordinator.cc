@@ -89,38 +89,13 @@ PFS_engine_table* table_replication_execute_status_by_coordinator::create(void)
   return new table_replication_execute_status_by_coordinator();
 }
 
-//TODO: some values hard-coded below, replace them --shiv
-static ST_STATUS_FIELD_INFO slave_field_info[]=
-{
-  {"Thread_Id", 21, MYSQL_TYPE_STRING, FALSE},
-  {"Service_State", sizeof(ulonglong), MYSQL_TYPE_ENUM, FALSE},
-  {"Last_Error_Number", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
-  {"Last_Error_Message", MAX_SLAVE_ERRMSG, MYSQL_TYPE_STRING, FALSE},
-  {"Last_Error_Timestamp", 11, MYSQL_TYPE_STRING, FALSE}
-};
-
 table_replication_execute_status_by_coordinator::table_replication_execute_status_by_coordinator()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
-{
-  for (int i= COORDINATOR_THREAD_ID; i <= _RPL_COORDINATOR_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING)
-      m_fields[i].u.s.str= NULL;  // str_store() makes allocation
-    if (slave_field_info[i].can_be_null)
-      m_fields[i].is_null= false;
-  }
-}
+{}
 
 table_replication_execute_status_by_coordinator::~table_replication_execute_status_by_coordinator()
-{
-  for (int i= COORDINATOR_THREAD_ID; i <= _RPL_COORDINATOR_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING &&
-        m_fields[i].u.s.str != NULL)
-      my_free(m_fields[i].u.s.str);
-  }
-}
+{}
 
 void table_replication_execute_status_by_coordinator::reset_position(void)
 {
@@ -159,42 +134,6 @@ int table_replication_execute_status_by_coordinator::rnd_pos(const void *pos)
   return 0;
 }
 
-
-void table_replication_execute_status_by_coordinator::drop_null(enum enum_rpl_coordinator_field_names name)
-{
-  if (slave_field_info[name].can_be_null)
-    m_fields[name].is_null= false;
-}
-
-void table_replication_execute_status_by_coordinator::set_null(enum enum_rpl_coordinator_field_names name)
-{
-  DBUG_ASSERT(slave_field_info[name].can_be_null);
-  m_fields[name].is_null= true;
-}
-
-void table_replication_execute_status_by_coordinator::str_store(enum enum_rpl_coordinator_field_names name, const char* val)
-{
-  m_fields[name].u.s.length= strlen(val);
-  DBUG_ASSERT(m_fields[name].u.s.length <= slave_field_info[name].max_size);
-  if (m_fields[name].u.s.str == NULL)
-    m_fields[name].u.s.str= (char *) my_malloc(m_fields[name].u.s.length, MYF(0));
-
-  /*
-    \0 may be stripped off since there is no need for \0-termination of
-    m_fields[name].u.s.str
-  */
-  memcpy(m_fields[name].u.s.str, val, m_fields[name].u.s.length);
-  m_fields[name].u.s.length= m_fields[name].u.s.length;
-
-  drop_null(name);
-}
-
-void table_replication_execute_status_by_coordinator::int_store(enum enum_rpl_coordinator_field_names name, longlong val)
-{
-  m_fields[name].u.n= val;
-  drop_null(name);
-}
-
 void table_replication_execute_status_by_coordinator::fill_rows(Master_info *mi)
 {
   mysql_mutex_lock(&mi->data_lock);
@@ -202,20 +141,35 @@ void table_replication_execute_status_by_coordinator::fill_rows(Master_info *mi)
   mysql_mutex_lock(&mi->err_lock);
   mysql_mutex_lock(&mi->rli->err_lock);
 
-  /*TODO: COORDINATOR_THREAD_ID, COORDINATOR_SERVICE_STATE to be implemented*/
   if (mi->rli->slave_running)
   {  
-    char thread_id_null_str[21];
-    sprintf(thread_id_null_str, "%llu", (ulonglong) mi->rli->info_thd->thread_id);
-    str_store(COORDINATOR_THREAD_ID, thread_id_null_str);
+    char thread_id_str[21];
+    sprintf(thread_id_str, "%u", (uint) mi->rli->info_thd->thread_id);
+    m_row.Thread_Id_length= strlen(thread_id_str);
+    memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
   }
   else
-    str_store(COORDINATOR_THREAD_ID, "NULL");
-  
-  enum_store(COORDINATOR_SERVICE_STATE, mi->rli->slave_running ? PS_RPL_YES : PS_RPL_NO);
-  int_store(RPL_COORDINATOR_LAST_ERROR_NUMBER, (long int) mi->rli->last_error().number);
-  str_store(RPL_COORDINATOR_LAST_ERROR_MESSAGE, mi->rli->last_error().message);
-  str_store(RPL_COORDINATOR_LAST_ERROR_TIMESTAMP, mi->rli->last_error().timestamp);
+  {
+    m_row.Thread_Id_length= strlen("NULL");
+    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length+1);
+  }
+ 
+  if (mi->rli->slave_running)
+    m_row.Service_State= PS_RPL_YES;
+  else
+    m_row.Service_State= PS_RPL_NO;
+
+  m_row.Last_Error_Number= (long int) mi->rli->last_error().number;
+
+  if (m_row.Last_Error_Number)
+  {
+    char *temp_store= (char*) mi->rli->last_error().message;
+    m_row.Last_Error_Message_length= strlen(temp_store) + 1;
+    memcpy(m_row.Last_Error_Message, temp_store, m_row.Last_Error_Message_length);
+    temp_store= (char*) mi->rli->last_error().timestamp;
+    m_row.Last_Error_Timestamp_length= strlen(temp_store) + 1;
+    memcpy(m_row.Last_Error_Timestamp, temp_store, m_row.Last_Error_Timestamp_length);
+  }
 
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->err_lock);
@@ -225,7 +179,6 @@ void table_replication_execute_status_by_coordinator::fill_rows(Master_info *mi)
   m_filled= true;
 }
 
-/*TODO: COORDINATOR_THREAD_ID, COORDINATOR_SERVICE_STATE to be implemented*/
 int table_replication_execute_status_by_coordinator::read_row_values(TABLE *table,
                                        unsigned char *,
                                        Field **fields,
@@ -239,38 +192,23 @@ int table_replication_execute_status_by_coordinator::read_row_values(TABLE *tabl
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      if (slave_field_info[f->field_index].can_be_null)
-      {
-        if (m_fields[f->field_index].is_null)
-        {
-          f->set_null();
-          continue;
-        }
-        else
-          f->set_notnull();
-      }
-
       switch(f->field_index)
       {
-      case COORDINATOR_SERVICE_STATE:
-
-        set_field_enum(f, m_fields[f->field_index].u.n);
+      case 0: /*Thread_Id*/
+        set_field_varchar_utf8(f, m_row.Thread_Id, m_row.Thread_Id_length);
         break;
-
-      case COORDINATOR_THREAD_ID:
-      case RPL_COORDINATOR_LAST_ERROR_MESSAGE:
-      case RPL_COORDINATOR_LAST_ERROR_TIMESTAMP:
-
-        set_field_varchar_utf8(f,
-                               m_fields[f->field_index].u.s.str,
-                               m_fields[f->field_index].u.s.length);
+      case 1: /*Service_State*/
+        set_field_enum(f, m_row.Service_State);
         break;
-
-      case RPL_COORDINATOR_LAST_ERROR_NUMBER:
-
-        set_field_ulonglong(f, m_fields[f->field_index].u.n);
+      case 2: /*Last_Error_Number*/
+        set_field_ulong(f, m_row.Last_Error_Number);
         break;
-
+      case 3: /*Last_Error_Message*/
+        set_field_varchar_utf8(f, m_row.Last_Error_Message, m_row.Last_Error_Message_length);
+        break;
+      case 4: /*Last_Error_Timestamp*/
+        set_field_varchar_utf8(f, m_row.Last_Error_Timestamp, m_row.Last_Error_Timestamp_length);
+        break;
       default:
         DBUG_ASSERT(false);
       }

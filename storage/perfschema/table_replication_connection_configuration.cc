@@ -31,13 +31,6 @@
 
 THR_LOCK table_replication_connection_configuration::m_table_lock;
 
-/* 
-   Number of bytes for buffers holding the values for user and host.
-*/
-#define HOST_MAX_LEN  HOSTNAME_LENGTH * SYSTEM_CHARSET_MBMAXLEN
-#define USER_MAX_LEN  USERNAME_CHAR_LENGTH * SYSTEM_CHARSET_MBMAXLEN
-
-//TODO : consider replacing with std::max
 #define max(x, y) ((x) > (y) ? (x) : (y))
 
 /*
@@ -153,48 +146,13 @@ PFS_engine_table* table_replication_connection_configuration::create(void)
   return new table_replication_connection_configuration();
 }
 
-static ST_STATUS_FIELD_INFO slave_field_info[]=
-{
-  {"Host", HOST_MAX_LEN, MYSQL_TYPE_STRING, FALSE},
-  {"Port", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
-  {"User", USER_MAX_LEN, MYSQL_TYPE_STRING, FALSE},
-  {"Network_Interface", 60, MYSQL_TYPE_STRING, FALSE},
-  {"Auto_Position", 1, MYSQL_TYPE_LONG, FALSE},
-  {"SSL_Allowed",  sizeof(ulonglong), MYSQL_TYPE_ENUM, FALSE},
-  {"SSL_CA_File", FN_REFLEN, MYSQL_TYPE_STRING, FALSE},
-  {"SSL_CA_Path", FN_REFLEN, MYSQL_TYPE_STRING, FALSE},
-  {"SSL_Certificate", FN_REFLEN, MYSQL_TYPE_STRING, FALSE},
-  {"SSL_Cipher", FN_REFLEN, MYSQL_TYPE_STRING, FALSE},
-  {"SSL_Key", FN_REFLEN, MYSQL_TYPE_STRING, FALSE},
-  {"SSL_Verify_Server_Certificate", sizeof(ulonglong), MYSQL_TYPE_ENUM, FALSE},
-  {"SSL_Crl_File", FN_REFLEN, MYSQL_TYPE_STRING, FALSE},
-  {"SSL_Crl_Path", FN_REFLEN, MYSQL_TYPE_STRING, FALSE},
-  {"Connect_Retry_Interval", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
-  {"Connection_Retry_Count", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
-};
-
 table_replication_connection_configuration::table_replication_connection_configuration()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
-{
-  for (int i= HOST; i <= _RPL_CONNECT_CONFIG_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING)
-      m_fields[i].u.s.str= NULL;  // str_store() makes allocation
-    if (slave_field_info[i].can_be_null)
-      m_fields[i].is_null= false;
-  }
-}
+{}
 
 table_replication_connection_configuration::~table_replication_connection_configuration()
-{
-  for (int i= HOST; i <= _RPL_CONNECT_CONFIG_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING &&
-        m_fields[i].u.s.str != NULL)
-      my_free(m_fields[i].u.s.str);
-  }
-}
+{}
 
 void table_replication_connection_configuration::reset_position(void)
 {
@@ -233,70 +191,78 @@ int table_replication_connection_configuration::rnd_pos(const void *pos)
   return 0;
 }
 
-void table_replication_connection_configuration::drop_null(enum enum_rpl_connect_config_field_names name)
-{
-  if (slave_field_info[name].can_be_null)
-    m_fields[name].is_null= false;
-}
-
-void table_replication_connection_configuration::set_null(enum enum_rpl_connect_config_field_names name)
-{
-  DBUG_ASSERT(slave_field_info[name].can_be_null);
-  m_fields[name].is_null= true;
-}
-
-void table_replication_connection_configuration::str_store(enum enum_rpl_connect_config_field_names name, const char* val)
-{
-  m_fields[name].u.s.length= strlen(val);
-  DBUG_ASSERT(m_fields[name].u.s.length <= slave_field_info[name].max_size);
-  if (m_fields[name].u.s.str == NULL)
-    m_fields[name].u.s.str= (char *) my_malloc(m_fields[name].u.s.length, MYF(0));
-
-  /*
-    \0 may be stripped off since there is no need for \0-termination of
-    m_fields[name].u.s.str
-  */
-  memcpy(m_fields[name].u.s.str, val, m_fields[name].u.s.length);
-  m_fields[name].u.s.length= m_fields[name].u.s.length;
-
-  drop_null(name);
-}
-
-void table_replication_connection_configuration::int_store(enum enum_rpl_connect_config_field_names name, longlong val)
-{
-  m_fields[name].u.n= val;
-  drop_null(name);
-}
-
 void table_replication_connection_configuration::fill_rows(Master_info *mi)
 {
+  char * temp_store;
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
   
-  str_store(HOST, mi->host);
-  int_store(PORT, (long int) mi->port);
-  str_store(USER, mi->get_user());
-  str_store(NETWORK_INTERFACE, mi->bind_addr);
-  int_store(AUTO_POSITION, mi->is_auto_position() ? 1 : 0);
+  m_row.Host_length= strlen(mi->host) + 1;
+  memcpy(m_row.Host, mi->host, m_row.Host_length);
+
+  m_row.Port= (unsigned int) mi->port;
+
+  temp_store= (char*)mi->get_user();
+  m_row.User_length= strlen(temp_store) + 1;
+  memcpy(m_row.User, temp_store, m_row.User_length);
+
+  temp_store= (char*)mi->bind_addr;
+  m_row.Network_Interface_length= strlen(temp_store) + 1;
+  memcpy(m_row.Network_Interface, temp_store, m_row.Network_Interface_length);
+
+  if (mi->is_auto_position())
+    m_row.Auto_Position= 1;
+  else
+    m_row.Auto_Position= 0;
+
 #ifdef HAVE_OPENSSL
-  enum_store(SSL_ALLOWED, mi->ssl ? 
-             PS_SSL_ALLOWED_YES : PS_SSL_ALLOWED_NO);
+  if (mi->ssl)
+    m_row.SSL_Allowed= PS_SSL_ALLOWED_YES
+  else
+    m_row.SSL_Allowed= PS_SSL_ALLOWED_NO;
 #else
-  enum_store(SSL_ALLOWED, mi->ssl ?
-            PS_SSL_ALLOWED_IGNORED : PS_SSL_ALLOWED_NO);
+  if (mi->ssl)
+    m_row.SSL_Allowed= PS_SSL_ALLOWED_IGNORED;
+  else 
+    m_row.SSL_Allowed= PS_SSL_ALLOWED_NO;
 #endif
-  str_store(SSL_CA_FILE, mi->ssl_ca);
-  str_store(SSL_CA_PATH, mi->ssl_capath);
-  str_store(SSL_CERTIFICATE, mi->ssl_cert);
-  str_store(SSL_CIPHER, mi->ssl_cipher);
-  str_store(SSL_KEY, mi->ssl_key);
+
+  temp_store= (char*)mi->ssl_ca;
+  m_row.SSL_CA_File_length= strlen(temp_store) + 1;
+  memcpy(m_row.SSL_CA_File, temp_store, m_row.SSL_CA_File_length);
+
+  temp_store= (char*)mi->ssl_capath;
+  m_row.SSL_CA_Path_length= strlen(temp_store) + 1;
+  memcpy(m_row.SSL_CA_Path, temp_store, m_row.SSL_CA_Path_length);
+
+  temp_store= (char*)mi->ssl_cert;
+  m_row.SSL_Certificate_length= strlen(temp_store) + 1;
+  memcpy(m_row.SSL_Certificate, temp_store, m_row.SSL_Certificate_length);
+
+  temp_store= (char*)mi->ssl_cipher;
+  m_row.SSL_Cipher_length= strlen(temp_store) + 1;
+  memcpy(m_row.SSL_Cipher, temp_store, m_row.SSL_Cipher_length);
+
+  temp_store= (char*)mi->ssl_key;
+  m_row.SSL_Key_length= strlen(temp_store) + 1;
+  memcpy(m_row.SSL_Key, temp_store, m_row.SSL_Key_length);
   
-  enum_store(SSL_VERIFY_SERVER_CERTIFICATE, mi->ssl_verify_server_cert ?
-             PS_RPL_YES : PS_RPL_NO);
-  str_store(SSL_CRL_FILE, mi->ssl_ca);
-  str_store(SSL_CRL_PATH, mi->ssl_capath);
-  int_store(CONNECTION_RETRY_INTERVAL, (long int) mi->connect_retry);
-  int_store(CONNECTION_RETRY_COUNT, (ulonglong) mi->retry_count);
+  if (mi->ssl_verify_server_cert)
+    m_row.SSL_Verify_Server_Certificate= PS_RPL_YES;
+  else
+    m_row.SSL_Verify_Server_Certificate= PS_RPL_NO;
+
+  temp_store= (char*)mi->ssl_ca;
+  m_row.SSL_Crl_File_length= strlen(temp_store) + 1;
+  memcpy(m_row.SSL_Crl_File, temp_store, m_row.SSL_Crl_File_length);
+
+  temp_store= (char*)mi->ssl_capath;
+  m_row.SSL_Crl_Path_length= strlen(temp_store) + 1;
+  memcpy(m_row.SSL_Crl_Path, m_row.SSL_Crl_Path, m_row.SSL_Crl_Path_length);
+
+  m_row.Connection_Retry_Interval= (unsigned int) mi->connect_retry;  
+
+  m_row.Connection_Retry_Count= (ulong) mi->retry_count;  
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
@@ -318,49 +284,62 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      if (slave_field_info[f->field_index].can_be_null)
-      {
-        if (m_fields[f->field_index].is_null)
-        {
-          f->set_null();
-          continue;
-        }
-        else
-          f->set_notnull();
-      }
-
       switch(f->field_index)
       {
-      case HOST:
-      case USER:
-      case NETWORK_INTERFACE:
-      case SSL_CA_FILE:
-      case SSL_CA_PATH:
-      case SSL_CERTIFICATE:
-      case SSL_CIPHER:
-      case SSL_KEY:
-      case SSL_CRL_FILE:
-      case SSL_CRL_PATH:       
-
-        set_field_varchar_utf8(f,
-                               m_fields[f->field_index].u.s.str,
-                               m_fields[f->field_index].u.s.length);
+      case 0: /** Host */
+        set_field_varchar_utf8(f, m_row.Host, m_row.Host_length);
         break;
-
-      case PORT:
-      case CONNECTION_RETRY_COUNT:
-      case CONNECTION_RETRY_INTERVAL:
-      case AUTO_POSITION:
-
-        set_field_ulonglong(f, m_fields[f->field_index].u.n);
+      case 1: /** Port */
+        set_field_ulong(f, m_row.Port);
         break;
-
-      case SSL_ALLOWED:
-      case SSL_VERIFY_SERVER_CERTIFICATE:
-
-        set_field_enum(f, m_fields[f->field_index].u.n);
+      case 2: /** User */
+        set_field_varchar_utf8(f, m_row.User, m_row.User_length);
         break;
-
+      case 3: /** Network_Interface */
+        set_field_varchar_utf8(f, m_row.Network_Interface,
+                               m_row.Network_Interface_length);
+        break;
+      case 4: /** Auto_Position */
+        set_field_ulong(f, m_row.Auto_Position);
+        break;
+      case 5: /** SSL_Allowed */
+        set_field_enum(f, m_row. SSL_Allowed);
+        break;
+      case 6: /**SSL_CA_File */
+        set_field_varchar_utf8(f, m_row.SSL_CA_File,
+                               m_row.SSL_CA_File_length);
+        break;
+      case 7: /** SSL_CA_Path */
+        set_field_varchar_utf8(f, m_row.SSL_CA_Path,
+                               m_row.SSL_CA_Path_length);
+        break;
+      case 8: /** SSL_Certificate */
+        set_field_varchar_utf8(f, m_row.SSL_Certificate,
+                                m_row.SSL_Certificate_length);
+        break;
+      case 9: /** SSL_Cipher */
+        set_field_varchar_utf8(f, m_row.SSL_Cipher, m_row.SSL_Cipher_length);
+        break;
+      case 10: /** SSL_Key */
+        set_field_varchar_utf8(f, m_row.SSL_Key, m_row.SSL_Key_length);
+        break;
+      case 11: /** SSL_Verify_Server_Certificate */
+        set_field_enum(f, m_row.SSL_Verify_Server_Certificate);
+        break;
+      case 12: /** SSL_Crl_File */
+        set_field_varchar_utf8(f, m_row.SSL_Crl_File,
+                               m_row.SSL_Crl_File_length);
+        break;
+      case 13: /** SSL_Crl_Path */
+        set_field_varchar_utf8(f, m_row.SSL_Crl_Path,
+                               m_row.SSL_Crl_Path_length);
+        break;
+      case 14: /** Connection_Retry_Interval */
+        set_field_ulong(f, m_row.Connection_Retry_Interval);
+        break;
+      case 15: /** Connect_Retry_Count */
+        set_field_ulong(f, m_row.Connection_Retry_Count);
+        break;
       default:
         DBUG_ASSERT(false);
       }

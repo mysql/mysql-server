@@ -41,50 +41,25 @@ enum enum_rpl_yes_no {
 };
 #endif
 
-enum enum_service_state {
+enum enum_rpl_connect_status_service_state {
   PS_RPL_CONNECT_SERVICE_STATE_YES= 1,
   PS_RPL_CONNECT_SERVICE_STATE_NO,
   PS_RPL_CONNECT_SERVICE_STATE_CONNECTING
 };
 
-#ifndef ST_RPL_STATUS_FIELD
-#define ST_RPL_STATUS_FIELD
-typedef struct st_rpl_status_field {
-  union {
-    LEX_STRING  s;
-    ulonglong   n;
-  } u;
-  bool is_null;
-} ST_STATUS_FIELD_DATA;
-
-typedef struct st_rpl_status_field_info
-{
-  /** 
-      the column name
-  */
-  const char* name;
-  /**
-     size in bytes of a buffer capable to keep internal representation
-     of an attribute
-  */
-  uint max_size;
-  /**
-     mysql data type
-  */
-  enum enum_field_types type;
-  bool can_be_null;
-} ST_STATUS_FIELD_INFO;
-#endif
-
-enum enum_rpl_connect_status_field_names {
-  SOURCE_UUID= 0,
-  IO_THREAD_ID,
-  RPL_CONNECT_SERVICE_STATE,
-  RECEIVED_TRANSACTION_SET,
-  RPL_CONNECT_LAST_ERROR_NUMBER,
-  RPL_CONNECT_LAST_ERROR_MESSAGE,
-  RPL_CONNECT_LAST_ERROR_TIMESTAMP,
-  _RPL_CONNECT_STATUS_LAST_FIELD_= RPL_CONNECT_LAST_ERROR_TIMESTAMP
+//TODO: some values hard-coded below, replace them /Shiv
+struct st_row_connect_status {
+  char Source_UUID[UUID_LENGTH+1];
+  char Thread_Id[21];
+  uint Thread_Id_length;
+  enum_rpl_connect_status_service_state Service_State;
+  char *Received_Transaction_Set; //modify this, this is just an estimate. /Shiv
+  uint Received_Transaction_Set_length;
+  uint Last_Error_Number;
+  char Last_Error_Message[MAX_SLAVE_ERRMSG];
+  uint Last_Error_Message_length;
+  char Last_Error_Timestamp[11];
+  uint Last_Error_Timestamp_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_STATUS. */
@@ -92,21 +67,13 @@ class table_replication_connection_status: public PFS_engine_table
 {
 private:
   void fill_rows(Master_info *);
-  void drop_null(enum enum_rpl_connect_status_field_names f_name);
-  void set_null(enum enum_rpl_connect_status_field_names f_name);
-  void str_store(enum enum_rpl_connect_status_field_names f_name, const char * val);
-  void int_store(enum enum_rpl_connect_status_field_names f_name, longlong val);
-  void enum_store(enum enum_rpl_connect_status_field_names f_name, longlong val)
-  {
-    int_store(f_name, val);
-  }
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-  /** Current only row is represented by array of fields */
-  ST_STATUS_FIELD_DATA m_fields[_RPL_CONNECT_STATUS_LAST_FIELD_ + 1];
+  /** Current row */
+  st_row_connect_status m_row;
   /** True is the table is filled up */
   bool m_filled;
   /** Current position. */

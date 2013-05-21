@@ -42,49 +42,18 @@ enum enum_rpl_yes_no {
 };
 #endif
 
-#ifndef ST_RPL_STATUS_FIELD
-#define ST_RPL_STATUS_FIELD
-typedef struct st_rpl_status_field {
-  union {
-    LEX_STRING  s;
-    ulonglong   n;
-  } u;
-  bool is_null;
-} ST_STATUS_FIELD_DATA;
-
-typedef struct st_rpl_status_field_info
-{
-  /** 
-      the column name
-  */
-  const char* name;
-  /**
-     size in bytes of a buffer capable to keep internal representation
-     of an attribute
-  */
-  uint max_size;
-  /**
-     mysql data type
-  */
-  enum enum_field_types type;
-  bool can_be_null;
-} ST_STATUS_FIELD_INFO;
-#endif
-
-enum enum_rpl_execute_field_names {
-  RPL_WORKER_ID= 0,
-  RPL_EXECUTE_THREAD_ID,
-  RPL_EXECUTE_SERVICE_STATE,
-  RPL_LAST_EXECUTED_TRANSACTION,
-  RPL_EXECUTE_LAST_ERROR_NUMBER,
-  RPL_EXECUTE_LAST_ERROR_MESSAGE,
-  RPL_EXECUTE_LAST_ERROR_TIMESTAMP, 
-  _RPL_EXECUTE_LAST_FIELD_= RPL_EXECUTE_LAST_ERROR_TIMESTAMP
-};
-
-struct st_worker_row
-{
-  ST_STATUS_FIELD_DATA m_fields[_RPL_EXECUTE_LAST_FIELD_ + 1];
+struct st_row_worker {
+  ulonglong Worker_Id;
+  char Thread_Id[21];
+  uint Thread_Id_length;
+  enum_rpl_yes_no Service_State;
+  char Last_Executed_Transaction[57];
+  uint Last_Executed_Transaction_length;
+  uint Last_Error_Number;
+  char Last_Error_Message[MAX_SLAVE_ERRMSG];
+  uint Last_Error_Message_length;
+  char Last_Error_Timestamp[11];
+  uint Last_Error_Timestamp_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_execute_status_by_worker */
@@ -92,21 +61,13 @@ class table_replication_execute_status_by_worker: public PFS_engine_table
 {
 private:
   void fill_rows(Slave_worker *);
-  void drop_null(enum enum_rpl_execute_field_names f_name);
-  void set_null(enum enum_rpl_execute_field_names f_name);
-  void str_store(enum enum_rpl_execute_field_names f_name, const char * val);
-  void int_store(enum enum_rpl_execute_field_names f_name, longlong val);
-  void enum_store(enum enum_rpl_execute_field_names f_name, longlong val)
-  {
-    int_store(f_name, val);
-  }
-
+  
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
   /** current row*/
-  st_worker_row m_row;
+  st_row_worker m_row;
 
   bool m_filled;
 

@@ -163,7 +163,17 @@ void Relay_log_info::init_workers(ulong n_workers)
 
   //check for initialization before destroying memory.
   if (workers_array_initialized)
-    deinit_workers();
+  {
+    for (int i= this->workers.elements - 1; i >= 0; i--)
+    {
+      Slave_worker *w= NULL;
+      get_dynamic((DYNAMIC_ARRAY*)&this->workers, (uchar*) &w, i);
+      delete_dynamic_element(&this->workers, i);
+      delete w; 
+    }
+
+     deinit_workers();
+  }
   workers_array_initialized= true; //set before init
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
 }

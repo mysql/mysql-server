@@ -1446,8 +1446,11 @@ void Slave_committed_queue::free_dynamic_items()
 void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
                              va_list args) const
 {
-  c_rli->va_report(level, err_code, msg, args);
-  va_report(level, err_code, msg, args);
+    va_list args_copy;
+    va_copy(args_copy, args);  
+    c_rli->va_report(level, err_code, msg, args);
+    this->va_report(level, err_code, msg, args_copy);
+    va_end(args_copy);
 }
 
 /**
