@@ -82,6 +82,7 @@ SELECT * FROM information_schema.innodb_cmp_per_index;
 
 DROP USER 'tuser01'@'localhost';
 
+-- replace_result 42 43  45 65
 SELECT
 database_name,
 table_name,
@@ -101,6 +102,7 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 SELECT COUNT(*) FROM t;
 
+-- replace_result 6 9
 SELECT
 database_name,
 table_name,
