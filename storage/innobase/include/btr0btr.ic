@@ -216,41 +216,64 @@ btr_page_set_prev(
 	}
 }
 
-/**************************************************************//**
-Gets the child node file address in a node pointer.
-NOTE: the offsets array must contain all offsets for the record since
-we read the last field according to offsets and assume that it contains
-the child page number. In other words offsets must have been retrieved
-with rec_get_offsets(n_fields=ULINT_UNDEFINED).
-@return	child node address */
+/** Get the data size of a node pointer.
+@param[in]	node_ptr	node pointer record
+@param[in]	index		index B-tree
+@return	child page number */
+UNIV_INLINE
+ulint
+btr_node_ptr_get_data_size(
+	const rec_t*		node_ptr,
+	const dict_index_t*	index)
+{
+	ulint	extra_size;
+	ulint	data_size;
+
+	ut_ad(!page_is_leaf(page_align(node_ptr)));
+
+	if (page_rec_is_comp(node_ptr)) {
+		ut_ad(rec_get_node_ptr_flag(node_ptr));
+		data_size = rec_get_size_comp(node_ptr, index, extra_size);
+		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
+	} else {
+		data_size = rec_get_size_old(node_ptr, extra_size);
+		ut_ad(extra_size >= REC_N_OLD_EXTRA_BYTES);
+	}
+
+	ut_ad(data_size >= REC_NODE_PTR_SIZE);
+	return(data_size);
+}
+
+/** Gets the child page number in a node pointer.
+@param[in]	node_ptr	node pointer record
+@param[in]	index		index B-tree
+@return	child page number */
 UNIV_INLINE
 ulint
 btr_node_ptr_get_child_page_no(
-/*===========================*/
-	const rec_t*	rec,	/*!< in: node pointer record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+	const rec_t*		node_ptr,
+	const dict_index_t*	index)
 {
-	const byte*	field;
-	ulint		len;
-	ulint		page_no;
+#if REC_NODE_PTR_SIZE != 4
+# error REC_NODE_PTR_SIZE != 4
+#endif
+	ulint	page_no	= mach_read_from_4(
+		+ btr_node_ptr_get_data_size(node_ptr, index)
+		- REC_NODE_PTR_SIZE + node_ptr);
 
-	ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
+	if (page_no <= FSP_FIRST_INODE_PAGE_NO || page_no == FIL_NULL) {
+		const page_t*	page = page_align(node_ptr);
 
-	/* The child address is in the last field */
-	field = rec_get_nth_field(rec, offsets,
-				  rec_offs_n_fields(offsets) - 1, &len);
-
-	ut_ad(len == 4);
-
-	page_no = mach_read_from_4(field);
-
-	if (page_no == 0) {
-		fprintf(stderr,
-			"InnoDB: a nonsensical page number 0"
-			" in a node ptr record at offset %lu\n",
-			(ulong) page_offset(rec));
-		buf_page_print(page_align(rec), 0, 0);
-		ut_ad(0);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"invalid page number %u in a node pointer record"
+			" page %u:%u offset %u, "
+			"index " IB_ID_FMT " ('%s' of '%s')",
+			(unsigned) page_no,
+			(unsigned) page_get_space_id(page),
+			(unsigned) page_get_page_no(page),
+			(unsigned) (node_ptr - page),
+			index->id, index->name, index->table_name);
+		buf_page_print(page, 0, 0);
 	}
 
 	return(page_no);
