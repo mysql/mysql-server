@@ -67,7 +67,12 @@ onFailOpenSession = function(session, testCase) {
 
 t1.mappings = Town;
 t1.run = function() {
-  fail_openSession(t1, onFailOpenSession);
+  if(global.adapter === 'ndb') {
+    fail_openSession(t1, onFailOpenSession);
+  }
+  else {
+    this.skip("Test is for NDB only");
+  }
 }
 
 
