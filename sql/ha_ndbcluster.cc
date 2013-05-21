@@ -14184,6 +14184,8 @@ bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
   THD *thd= current_thd;
   NDB_INDEX_TYPE key_type= get_index_type(keyno);
 
+  get_read_set(true, keyno);
+
   /* Disable MRR on blob read and on NULL lookup in unique index. */
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
       uses_blob_value(table->read_set) ||
@@ -14504,7 +14506,6 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
         NdbOperation::GetValueSpec gets[2];
         if (table_share->primary_key == MAX_KEY)
           get_hidden_fields_scan(&options, gets);
-        get_read_set(true, active_index);
 
         if (m_cond && m_cond->generate_scan_filter(&code, &options))
           ERR_RETURN(code.getNdbError());
