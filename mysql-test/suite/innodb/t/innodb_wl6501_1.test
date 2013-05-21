@@ -213,8 +213,8 @@ while ($cnt) {
 	}
 	if ($cnt == 5)
 	{
-		set session debug="+d,ib_trunc_crash_drop_reinit_done_create_to_start2";
-		--echo "---debug ib_trunc_crash_drop_reinit_done_create_to_start2---"
+		set session debug="+d,ib_trunc_crash_drop_reinit_done_create_to_start";
+		--echo "---debug ib_trunc_crash_drop_reinit_done_create_to_start---"
 	}
 
 	if ($cnt >= 5) {
@@ -251,8 +251,8 @@ while ($cnt) {
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
-		--echo "---debug ib_trunc_crash_before_log_checkpoint2 point---"
+		set session debug="+d,ib_trunc_crash_before_log_checkpoint";
+		--echo "---debug ib_trunc_crash_before_log_checkpoint point---"
 	}
 	if ($cnt == 3)
 	{
@@ -266,8 +266,8 @@ while ($cnt) {
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
-		--echo "---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
+		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete";
+		--echo "---debug ib_trunc_crash_after_redo_log_write_complete point---"
 	}
 
 	--echo # Write file to make mysql-test-run.pl expect crash and restart
@@ -301,8 +301,8 @@ while ($cnt) {
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
-		--echo "---debug ib_trunc_crash_before_log_checkpoint2 point---"
+		set session debug="+d,ib_trunc_crash_before_log_checkpoint";
+		--echo "---debug ib_trunc_crash_before_log_checkpoint point---"
 	}
 	if ($cnt == 3)
 	{
@@ -316,8 +316,8 @@ while ($cnt) {
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
-		--echo "---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
+		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete";
+		--echo "---debug ib_trunc_crash_after_redo_log_write_complete point---"
 	}
 
 
@@ -352,8 +352,8 @@ while ($cnt) {
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
-		--echo "---debug ib_trunc_crash_before_log_checkpoint2 point---"
+		set session debug="+d,ib_trunc_crash_before_log_checkpoint";
+		--echo "---debug ib_trunc_crash_before_log_checkpoint point---"
 	}
 	if ($cnt == 3)
 	{
@@ -367,8 +367,8 @@ while ($cnt) {
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
-		--echo "---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
+		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete";
+		--echo "---debug ib_trunc_crash_after_redo_log_write_complete point---"
 	}
 
 
@@ -404,8 +404,8 @@ while ($cnt) {
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
-		--echo "---debug ib_trunc_crash_before_log_checkpoint2 point---"
+		set session debug="+d,ib_trunc_crash_before_log_checkpoint";
+		--echo "---debug ib_trunc_crash_before_log_checkpoint point---"
 	}
 	if ($cnt == 3)
 	{
@@ -419,8 +419,8 @@ while ($cnt) {
 	}
 	if ($cnt == 1)
 	{
-		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
-		--echo "---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
+		set session debug="+d,ib_trunc_crash_after_redo_log_write_complete";
+		--echo "---debug ib_trunc_crash_after_redo_log_write_complete point---"
 	}
 
 	--echo # Write file to make mysql-test-run.pl expect crash and restart

@@ -307,8 +307,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_trunc_crash_drop_reinit_done_create_to_start2";
-"---debug ib_trunc_crash_drop_reinit_done_create_to_start2---"
+set session debug="+d,ib_trunc_crash_drop_reinit_done_create_to_start";
+"---debug ib_trunc_crash_drop_reinit_done_create_to_start---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t5;
@@ -514,8 +514,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
-"---debug ib_trunc_crash_before_log_checkpoint2 point---"
+set session debug="+d,ib_trunc_crash_before_log_checkpoint";
+"---debug ib_trunc_crash_before_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -538,8 +538,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
-"---debug ib_trunc_crash_before_log_checkpoint2 point---"
+set session debug="+d,ib_trunc_crash_before_log_checkpoint";
+"---debug ib_trunc_crash_before_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -562,8 +562,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
-"---debug ib_trunc_crash_before_log_checkpoint2 point---"
+set session debug="+d,ib_trunc_crash_before_log_checkpoint";
+"---debug ib_trunc_crash_before_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -586,8 +586,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_trunc_crash_before_log_checkpoint2";
-"---debug ib_trunc_crash_before_log_checkpoint2 point---"
+set session debug="+d,ib_trunc_crash_before_log_checkpoint";
+"---debug ib_trunc_crash_before_log_checkpoint point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;
@@ -1063,8 +1063,8 @@ count(*)
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
-"---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
+set session debug="+d,ib_trunc_crash_after_redo_log_write_complete";
+"---debug ib_trunc_crash_after_redo_log_write_complete point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t1;
@@ -1087,8 +1087,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
-"---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
+set session debug="+d,ib_trunc_crash_after_redo_log_write_complete";
+"---debug ib_trunc_crash_after_redo_log_write_complete point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t2;
@@ -1111,8 +1111,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
-"---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
+set session debug="+d,ib_trunc_crash_after_redo_log_write_complete";
+"---debug ib_trunc_crash_after_redo_log_write_complete point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t3;
@@ -1135,8 +1135,8 @@ ERROR 42S02: Table 'test.t5' doesn't exist
 select count(*) from t6;
 count(*)
 3
-set session debug="+d,ib_trunc_crash_after_redo_log_write_complete2";
-"---debug ib_trunc_crash_after_redo_log_write_complete2 point---"
+set session debug="+d,ib_trunc_crash_after_redo_log_write_complete";
+"---debug ib_trunc_crash_after_redo_log_write_complete point---"
 # Write file to make mysql-test-run.pl expect crash and restart
 # Run the crashing query
 truncate table t4;

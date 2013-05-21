@@ -46,43 +46,7 @@ i
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete1";
-truncate table t;
-ERROR HY000: Lost connection to MySQL server during query
-check table t;
-Table	Op	Msg_type	Msg_text
-test.t	check	status	OK
-select * from t;
-i
-1
-2
-3
-insert into t values (1), (2), (3);
-select * from t;
-i
-1
-2
-3
-1
-2
-3
-drop table t;
-use test;
-set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-create  table t (i int)
-engine = innodb row_format = compressed
-key_block_size = 8;
-insert into t values (1), (2), (3);
-select * from t;
-i
-1
-2
-3
-check table t;
-Table	Op	Msg_type	Msg_text
-test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete2";
+set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
 check table t;
@@ -213,36 +177,7 @@ i	f	c
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start1";
-truncate table t;
-ERROR HY000: Lost connection to MySQL server during query
-check table t;
-Table	Op	Msg_type	Msg_text
-test.t	check	status	OK
-select * from t;
-i	f	c
-1	1.1	a
-2	2.2	b
-3	3.3	c
-drop table t;
-use test;
-set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-create  table t (
-i int, f float, c char,
-primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compressed
-key_block_size = 8;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-i	f	c
-1	1.1	a
-2	2.2	b
-3	3.3	c
-check table t;
-Table	Op	Msg_type	Msg_text
-test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start2";
+set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
 check table t;
@@ -373,36 +308,7 @@ i	f	c
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info1";
-truncate table t;
-ERROR HY000: Lost connection to MySQL server during query
-check table t;
-Table	Op	Msg_type	Msg_text
-test.t	check	status	OK
-select * from t;
-i	f	c
-1	1.1	a
-2	2.2	b
-3	3.3	c
-drop table t;
-use test;
-set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-create  table t (
-i int, f float, c char,
-primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compressed
-key_block_size = 8;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-i	f	c
-1	1.1	a
-2	2.2	b
-3	3.3	c
-check table t;
-Table	Op	Msg_type	Msg_text
-test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info2";
+set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
 check table t;
@@ -435,33 +341,7 @@ i	f	c
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint1";
-truncate table t;
-ERROR HY000: Lost connection to MySQL server during query
-check table t;
-Table	Op	Msg_type	Msg_text
-test.t	check	status	OK
-select * from t;
-i	f	c
-drop table t;
-use test;
-set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-create  table t (
-i int, f float, c char,
-primary key pk(i), unique findex(f), index ck(c))
-engine = innodb row_format = compressed
-key_block_size = 8;
-insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-select * from t;
-i	f	c
-1	1.1	a
-2	2.2	b
-3	3.3	c
-check table t;
-Table	Op	Msg_type	Msg_text
-test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint2";
+set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
 check table t;
