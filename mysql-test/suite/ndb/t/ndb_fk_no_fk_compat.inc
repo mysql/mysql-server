@@ -41,6 +41,17 @@ SET foreign_key_checks=0;
 # Check dropping in both order
 DROP TABLE t2, t1;
 
+SET foreign_key_checks=1;
+
+#
+# Test foreign key referencing table in db which does not exist
+#
+SET foreign_key_checks=0;
+--replace_result $engine engine
+eval CREATE TABLE t1 (id int primary key, foreign key (id) references no_such_db.t2(id)) ENGINE=$engine;
+drop table t1;
+SET foreign_key_checks=1;
+
 #
 # Test n
 #
