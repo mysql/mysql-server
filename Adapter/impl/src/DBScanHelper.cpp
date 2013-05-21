@@ -18,6 +18,7 @@
  02110-1301  USA
 */
 
+#include <NdbApi.hpp>
 
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"

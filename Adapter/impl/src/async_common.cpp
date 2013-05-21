@@ -20,8 +20,6 @@
 
 #include <stdio.h>
 
-#include "v8_binder.h"
-
 #include "adapter_global.h"
 #include "AsyncMethodCall.h"
 

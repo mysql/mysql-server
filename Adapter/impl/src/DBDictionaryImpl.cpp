@@ -20,9 +20,10 @@
 
 #include <string.h>
 
-#include "NdbApi.hpp"
+#include <NdbApi.hpp>
 
 #include "adapter_global.h"
+#include "Record.h"
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"
 #include "NdbWrappers.h"

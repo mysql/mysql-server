@@ -18,7 +18,6 @@
  02110-1301  USA
  */
 
-#include <node.h>
 #include <NdbApi.hpp>
 
 #include "ndb_util/NdbWaitGroup.hpp"

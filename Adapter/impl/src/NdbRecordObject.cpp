@@ -23,7 +23,6 @@
 #include <NdbApi.hpp>
 
 #include "adapter_global.h"
-#include "unified_debug.h"
 #include "JsWrapper.h"
 #include "NdbRecordObject.h"
 

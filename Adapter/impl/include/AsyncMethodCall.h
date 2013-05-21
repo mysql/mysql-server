@@ -19,11 +19,10 @@
  02110-1301  USA
  */
 
-#pragma once
-
+#ifndef NODEJS_ADAPTER_INCLUDE_ASYNCMETHODCALL_H
+#define NODEJS_ADAPTER_INCLUDE_ASYNCMETHODCALL_H
 #include <assert.h>
 
-#include "v8_binder.h"
 #include "JsConverter.h"
 #include "async_common.h"
 
@@ -450,3 +449,4 @@ public:
   }
 };
 
+#endif
