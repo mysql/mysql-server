@@ -10555,6 +10555,7 @@ extern bool ndb_fk_util_build_list(THD*, NdbDictionary::Dictionary*,
 extern void ndb_fk_util_drop_list(THD*, Ndb* ndb, NdbDictionary::Dictionary*, List<char>&);
 extern bool ndb_fk_util_drop_table(THD*, Ndb* ndb, NdbDictionary::Dictionary*,
                                    const NdbDictionary::Table*);
+extern bool ndb_fk_util_is_mock_name(const char* table_name);
 
 bool
 ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
@@ -11593,7 +11594,8 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
     // Ignore Blob part tables - they are deleted when their table
     // is deleted.
     if (my_strcasecmp(system_charset_info, elmt.database, dbname) ||
-        IS_NDB_BLOB_PREFIX(elmt.name))
+        IS_NDB_BLOB_PREFIX(elmt.name) ||
+        ndb_fk_util_is_mock_name(elmt.name))
       continue;
     DBUG_PRINT("info", ("%s must be dropped", elmt.name));     
     drop_list.push_back(thd->strdup(elmt.name));
