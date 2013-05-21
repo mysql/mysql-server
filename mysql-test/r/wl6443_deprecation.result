@@ -223,3 +223,12 @@ Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+# End of 5.6 tests
+#
+# WL#6802: Deprecate the INFORMATION_SCHEMA.PROFILING table
+#
+SELECT * FROM INFORMATION_SCHEMA.profiling;
+QUERY_ID	SEQ	STATE	DURATION	CPU_USER	CPU_SYSTEM	CONTEXT_VOLUNTARY	CONTEXT_INVOLUNTARY	BLOCK_OPS_IN	BLOCK_OPS_OUT	MESSAGES_SENT	MESSAGES_RECEIVED	PAGE_FAULTS_MAJOR	PAGE_FAULTS_MINOR	SWAPS	SOURCE_FUNCTION	SOURCE_FILE	SOURCE_LINE
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROFILING' is deprecated and will be removed in a future release. Please use Performance Schema instead
+# End of 5.7 tests
