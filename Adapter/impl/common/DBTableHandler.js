@@ -271,8 +271,6 @@ DBTableHandler.prototype.newResultObject = function(values) {
  * has properties corresponding to field names whose values came
  * from the database. If a domain object is needed, a new domain
  * object is created and values are copied from the result object.
- * If a domain object is not needed, the result object simply
- * needs to have column converters applied.
  * The result (either the original result object or a new domain
  * object) is returned.
  * @param obj the object to which to apply mapping
@@ -283,7 +281,6 @@ DBTableHandler.prototype.applyMappingToResult = function(obj) {
     // create the domain object from the result
     obj = this.newResultObject(obj);
   }
-  this.applyFieldConverters(obj);
   return obj;
 };
 
