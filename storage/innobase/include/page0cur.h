@@ -475,9 +475,9 @@ public:
 		if (!getOffsetsIfExist()) {
 			m_rec = const_cast<rec_t*>(rec);
 		} else if (page_rec_is_user_rec(rec)) {
-			bool wasSentinel = !isUser();
+			const rec_t*	old_rec = m_rec;
 			m_rec = const_cast<rec_t*>(rec);
-			adjustOffsets(wasSentinel);
+			adjustOffsets(old_rec);
 		} else {
 			m_rec = const_cast<rec_t*>(rec);
 			adjustSentinelOffsets();
@@ -488,13 +488,11 @@ public:
 	void setUserRec(const rec_t* rec) {
 		ut_ad(page_align(rec) == buf_block_get_frame(m_block));
 		ut_ad(page_rec_is_user_rec(rec));
+		const rec_t*	old_rec = m_rec;
+		m_rec = const_cast<rec_t*>(rec);
 
-		if (!getOffsetsIfExist()) {
-			m_rec = const_cast<rec_t*>(rec);
-		} else {
-			bool wasSentinel = !isUser();
-			m_rec = const_cast<rec_t*>(rec);
-			adjustOffsets(wasSentinel);
+		if (m_offsets) {
+			adjustOffsets(old_rec);
 		}
 	}
 
@@ -532,7 +530,7 @@ public:
 	/** Move to the next record.
 	@return true if the next record is a user record */
 	bool next() {
-		bool wasSentinel = isBeforeFirst();
+		const rec_t*	old_rec = m_rec;
 		ut_ad(!isAfterLast());
 		m_rec = page_rec_get_next(m_rec);
 
@@ -542,7 +540,7 @@ public:
 			adjustSentinelOffsets();
 			return(false);
 		} else {
-			adjustOffsets(wasSentinel);
+			adjustOffsets(old_rec);
 			return(true);
 		}
 	}
@@ -550,7 +548,7 @@ public:
 	/** Move to the previous record.
 	@return true if the previous record is a user record */
 	bool prev() {
-		bool wasSentinel = isAfterLast();
+		const rec_t*	old_rec = m_rec;
 		ut_ad(!isBeforeFirst());
 		m_rec = page_rec_get_prev(m_rec);
 
@@ -560,7 +558,7 @@ public:
 			adjustSentinelOffsets();
 			return(false);
 		} else {
-			adjustOffsets(wasSentinel);
+			adjustOffsets(old_rec);
 			return(true);
 		}
 	}
@@ -954,26 +952,38 @@ private:
 		ulint&		low_match_bytes);
 #endif /* PAGE_CUR_ADAPT */
 
-	/** Adjust rec_get_offsets() after moving the cursor. */
-	void adjustOffsets(bool wasSentinel) {
+	/** Adjust rec_get_offsets() after moving the cursor
+	@param[in]	old_rec		old position of the cursor */
+	void adjustOffsets(const rec_t* old_rec) {
 		ut_ad(isUser());
-		ut_ad(m_offsets);
+		ut_ad(rec_offs_validate(old_rec, m_index, m_offsets));
 		ut_ad(dict_table_is_comp(m_index->table));
 
-		if (wasSentinel) {
-			rec_offs_set_n_fields(m_offsets, getNumFields());
-recalc:
-			ut_ad(rec_offs_n_fields(m_offsets)
-			      + (1 + REC_OFFS_HEADER_SIZE)
-			      == rec_offs_get_n_alloc(m_offsets));
-			rec_init_offsets(m_rec, m_index, m_offsets);
-		} else {
+		if (page_rec_is_user_rec(old_rec)) {
+			ulint	extra_size = rec_offs_extra_size(m_offsets);
+			ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
+
+			if (!memcmp(old_rec - extra_size, m_rec - extra_size,
+				    extra_size - REC_N_NEW_EXTRA_BYTES)) {
+				/* The record header is unchanged, so
+				the field lengths and null bits must
+				be unchanged as well. There is no need
+				to update the offsets. */
+				rec_offs_make_valid(m_rec, m_index, m_offsets);
+				return;
+			}
+
 			ut_ad(rec_offs_n_fields(m_offsets) == getNumFields());
 			/* TODO: optimize.
 			(remove index->trx_id_offset,
 			add ifield->fixed_offset) */
-			goto recalc;
+		} else {
+			rec_offs_set_n_fields(m_offsets, getNumFields());
 		}
+
+		ut_ad(rec_offs_n_fields(m_offsets) + (1 + REC_OFFS_HEADER_SIZE)
+		      == rec_offs_get_n_alloc(m_offsets));
+		rec_init_offsets(m_rec, m_index, m_offsets);
 	}
 
 	/** Adjust rec_get_offsets() after moving the cursor to the
