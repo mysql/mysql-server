@@ -22,9 +22,27 @@
 #include <Properties.hpp>
 
 
+void
+ParserImpl::check_parser_rows(const DummyRow* rows) const
+{
+  // Simple validation of rows definitions
+  while(rows->name)
+  {
+    assert(rows->type < rows->End);
+    rows++;
+  }
+
+  // Check that last row has type End
+  assert(rows->type == rows->End);
+}
+
+
 ParserImpl::ParserImpl(const DummyRow * rows, InputStream & in)
  : m_rows(rows), input(in)
 {
+#ifndef NDEBUG
+  check_parser_rows(rows);
+#endif
 }
 
 ParserImpl::~ParserImpl(){
