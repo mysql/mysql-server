@@ -585,9 +585,8 @@ int get_connection(MEM_ROOT *mem_root, FEDERATEDX_SHARE *share)
   DBUG_RETURN(0);
 
 error:
-  sprintf(error_buffer, "server name: '%s' doesn't exist!",
-          share->connection_string);
-  my_error(error_num, MYF(0), error_buffer);
+  my_printf_error(error_num, "server name: '%s' doesn't exist!",
+                  MYF(0), share->connection_string);
   DBUG_RETURN(error_num);
 }
 

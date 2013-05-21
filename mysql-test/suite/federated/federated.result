@@ -1,0 +1,13 @@
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+CREATE TABLE t1 (a INT) ENGINE=FEDERATED CONNECTION='non_existing';
+ERROR HY000: server name: 'non_existing' doesn't exist!
+SHOW WARNINGS;
+Level	Code	Message
+Error	1	server name: 'non_existing' doesn't exist!
+Error	1	Can't create/write to file 'non_existing' (Errcode: 14)
+Error	1005	Can't create table 'test.t1' (errno: 1)
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;

@@ -1,0 +1,12 @@
+source include/federated.inc;
+
+
+#
+# MDEV-388 Creating a federated table with a non-existing server returns a random error code
+#
+--error 1
+CREATE TABLE t1 (a INT) ENGINE=FEDERATED CONNECTION='non_existing';
+SHOW WARNINGS;
+
+source include/federated_cleanup.inc;
+
