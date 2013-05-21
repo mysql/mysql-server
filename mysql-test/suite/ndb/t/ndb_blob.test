@@ -684,3 +684,26 @@ commit;
 
 connection con1;
 drop table t1;
+
+--echo 5.6 tests
+
+# Bug#16749788 
+#   ASSERTION: !USES_BLOB_VALUE(TABLE->READ_SET) IN MULTI_RANGE_START_RETRIEVALS
+#   table->read_set was calculated to late to detect Blob read.
+
+create table `t1` (`a` int,`b` blob,primary key (`a`)) engine=ndbcluster;
+insert into t1 values (2, 'Hei og hopp! ');
+
+update t1 set b=concat(b,b,b,b,b);
+update t1 set b=concat(b,b,b,b,b);
+update t1 set b=concat(b,b,b,b,b);
+
+#Expect use of (default) MRR implementation for update
+
+explain update `t1` set `a`=1 where `a`!= 1;
+update `t1` set `a`=1 where `a`!= 1;
+select * from t1;
+
+drop table t1;
+
+--echo End of 5.6 tests
