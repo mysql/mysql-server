@@ -491,7 +491,134 @@ ndb_show_tables completed.....
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
-set @@ndb_show_foreign_key_mock_tables= 0;
-# Drop the databases
+#
+# Create spagetthi foreign keys between tables in three different databases
+#
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references mydb1.t2(pk1),
+c int,
+unique(c),
+j int,
+foreign key (j) references mydb0.t3(pk2),
+k int,
+foreign key (k) references mydb0.t1(pk5),
+l int,
+foreign key (l) references mydb1.t1(pk6),
+y int,
+foreign key (y) references mydb1.t1(z)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+create table mydb1.t2 (
+pk1 int not null primary key,
+d int,
+foreign key (d) references mydb0.t3(pk2)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+create table mydb0.t3 (
+pk2 int not null primary key,
+e int,
+foreign key (e) references test.t1(c)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - resolved by 't3'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - resolved by 't3'
+create table mydb0.t4 (
+pk3 int not null primary key,
+f int,
+foreign key (f) references t3(pk2)
+) engine=ndb;
+create table mydb0.t5 (
+pk4 int not null primary key,
+g int,
+foreign key (g) references test.t1(pk),
+h int,
+foreign key (h) references mydb1.t2(pk1),
+i int,
+foreign key (i) references mydb0.t3(pk2)
+) engine=ndb;
+create table mydb0.t1 (
+pk5 int not null primary key,
+m int,
+foreign key (m) references test.t1(pk),
+n int,
+foreign key (n) references mydb1.t2(pk1),
+o int,
+foreign key (o) references mydb0.t3(pk2)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
+create table mydb1.t1 (
+pk6 int not null primary key,
+p int,
+foreign key (p) references test.t1(pk),
+q int,
+foreign key (q) references mydb1.t2(pk1),
+x int,
+foreign key (x) references mydb0.t3(pk2),
+z int,
+unique(z)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+# Drop the database mydb0 with all tables still there
 drop database mydb0;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't2'
+
+ndb_show_tables completed.....
+
+# There should be 4 mock tables created by dropping mydb0
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+4
+# Drop also database mydb1
 drop database mydb1;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
+
+ndb_show_tables completed.....
+
+# There should be 5 mock tables all referenced by test.t1
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+5
+# Drop t1 and the 5 remaining mocks
+drop table t1;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
+set @@ndb_show_foreign_key_mock_tables= 0;
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
