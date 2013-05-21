@@ -32,6 +32,8 @@
   @addtogroup Performance_schema_tables
   @{
 */
+#define HOST_MAX_LEN  HOSTNAME_LENGTH * SYSTEM_CHARSET_MBMAXLEN
+#define USER_MAX_LEN  USERNAME_CHAR_LENGTH * SYSTEM_CHARSET_MBMAXLEN
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
@@ -47,53 +49,33 @@ enum enum_ssl_allowed {
     PS_SSL_ALLOWED_IGNORED
 };
 
-#ifndef ST_RPL_STATUS_FIELD
-#define ST_RPL_STATUS_FIELD
-typedef struct st_rpl_status_field {
-  union {
-    LEX_STRING  s;
-    ulonglong   n;
-  } u;
-  bool is_null;
-} ST_STATUS_FIELD_DATA;
-
-typedef struct st_rpl_status_field_info
-{
-  /** 
-      the column name
-  */
-  const char* name;
-  /**
-     size in bytes of a buffer capable to keep internal representation
-     of an attribute
-  */
-  uint max_size;
-  /**
-     mysql data type
-  */
-  enum enum_field_types type;
-  bool can_be_null;
-} ST_STATUS_FIELD_INFO;
-#endif
-
-enum enum_rpl_connect_config_field_names {
-  HOST= 0,
-  PORT,
-  USER,
-  NETWORK_INTERFACE,
-  AUTO_POSITION,
-  SSL_ALLOWED,
-  SSL_CA_FILE,
-  SSL_CA_PATH,
-  SSL_CERTIFICATE,
-  SSL_CIPHER,
-  SSL_KEY,
-  SSL_VERIFY_SERVER_CERTIFICATE,
-  SSL_CRL_FILE,
-  SSL_CRL_PATH,
-  CONNECTION_RETRY_INTERVAL,
-  CONNECTION_RETRY_COUNT,
-  _RPL_CONNECT_CONFIG_LAST_FIELD_= CONNECTION_RETRY_COUNT
+struct st_row_connect_config {
+  char Host[HOST_MAX_LEN];
+  uint Host_length;  
+  uint Port;
+  char User[USER_MAX_LEN];
+  uint User_length;
+  char Network_Interface[60];
+  uint Network_Interface_length;
+  bool Auto_Position;
+  enum_ssl_allowed SSL_Allowed;
+  char SSL_CA_File[FN_REFLEN];
+  uint SSL_CA_File_length; 
+  char SSL_CA_Path[FN_REFLEN];
+  uint SSL_CA_Path_length;
+  char SSL_Certificate[FN_REFLEN];
+  uint SSL_Certificate_length;
+  char SSL_Cipher[FN_REFLEN];
+  uint SSL_Cipher_length;
+  char SSL_Key[FN_REFLEN];
+  uint SSL_Key_length;
+  enum_rpl_yes_no SSL_Verify_Server_Certificate;
+  char SSL_Crl_File[FN_REFLEN];
+  uint SSL_Crl_File_length;
+  char SSL_Crl_Path[FN_REFLEN];
+  uint SSL_Crl_Path_length;
+  uint Connection_Retry_Interval;
+  ulong Connection_Retry_Count;
 };
 
 /** Table PERFORMANCE_SCHEMA.TABLE_REPLICATION_CONNECTION_CONFIGURATION. */
@@ -101,21 +83,13 @@ class table_replication_connection_configuration: public PFS_engine_table
 {
 private:
   void fill_rows(Master_info *);
-  void drop_null(enum enum_rpl_connect_config_field_names f_name);
-  void set_null(enum enum_rpl_connect_config_field_names f_name);
-  void str_store(enum enum_rpl_connect_config_field_names f_name, const char * val);
-  void int_store(enum enum_rpl_connect_config_field_names f_name, longlong val);
-  void enum_store(enum enum_rpl_connect_config_field_names f_name, longlong val)
-  {
-    int_store(f_name, val);
-  }
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-  /** Current only row is represented by array of fields */
-  ST_STATUS_FIELD_DATA m_fields[_RPL_CONNECT_CONFIG_LAST_FIELD_ + 1];
+  /** Current row */
+  st_row_connect_config m_row;
   /** True is the table is filled up */
   bool m_filled;
   /** Current position. */

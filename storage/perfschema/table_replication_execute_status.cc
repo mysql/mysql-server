@@ -74,35 +74,13 @@ PFS_engine_table* table_replication_execute_status::create(void)
   return new table_replication_execute_status();
 }
 
-//TODO: some values hard-coded below, replace them --shiv
-static ST_STATUS_FIELD_INFO slave_field_info[]=
-{
-  {"Service_State", sizeof(ulonglong), MYSQL_TYPE_ENUM, FALSE},
-  {"Remaining_Delay", 11, MYSQL_TYPE_STRING, 1},
-};
-
 table_replication_execute_status::table_replication_execute_status()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
-{
-  for (int i= RPL_EXECUTION_CHANNEL_SERVICE_STATE; i <= _RPL_EXECUTION_CHANNEL_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING)
-      m_fields[i].u.s.str= NULL;  // str_store() makes allocation
-    if (slave_field_info[i].can_be_null)
-      m_fields[i].is_null= false;
-  }
-}
+{}
 
 table_replication_execute_status::~table_replication_execute_status()
-{
-  for (int i= RPL_EXECUTION_CHANNEL_SERVICE_STATE; i <= _RPL_EXECUTION_CHANNEL_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING &&
-        m_fields[i].u.s.str != NULL)
-      my_free(m_fields[i].u.s.str);
-  }
-}
+{}
 
 void table_replication_execute_status::reset_position(void)
 {
@@ -141,42 +119,6 @@ int table_replication_execute_status::rnd_pos(const void *pos)
   return 0;
 }
 
-
-void table_replication_execute_status::drop_null(enum enum_rpl_execution_channel_status_field_names name)
-{
-  if (slave_field_info[name].can_be_null)
-    m_fields[name].is_null= false;
-}
-
-void table_replication_execute_status::set_null(enum enum_rpl_execution_channel_status_field_names name)
-{
-  DBUG_ASSERT(slave_field_info[name].can_be_null);
-  m_fields[name].is_null= true;
-}
-
-void table_replication_execute_status::str_store(enum enum_rpl_execution_channel_status_field_names name, const char* val)
-{
-  m_fields[name].u.s.length= strlen(val);
-  DBUG_ASSERT(m_fields[name].u.s.length <= slave_field_info[name].max_size);
-  if (m_fields[name].u.s.str == NULL)
-    m_fields[name].u.s.str= (char *) my_malloc(m_fields[name].u.s.length, MYF(0));
-
-  /*
-    \0 may be stripped off since there is no need for \0-termination of
-    m_fields[name].u.s.str
-  */
-  memcpy(m_fields[name].u.s.str, val, m_fields[name].u.s.length);
-  m_fields[name].u.s.length= m_fields[name].u.s.length;
-
-  drop_null(name);
-}
-
-void table_replication_execute_status::int_store(enum enum_rpl_execution_channel_status_field_names name, longlong val)
-{
-  m_fields[name].u.n= val;
-  drop_null(name);
-}
-
 void table_replication_execute_status::fill_rows(Master_info *mi)
 {
   char *slave_sql_running_state= NULL;
@@ -189,20 +131,27 @@ void table_replication_execute_status::fill_rows(Master_info *mi)
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
   
-  enum_store(RPL_EXECUTION_CHANNEL_SERVICE_STATE, mi->rli->slave_running ? PS_RPL_YES : PS_RPL_NO);
+  if (mi->rli->slave_running)
+    m_row.Service_State= PS_RPL_YES;
+  else
+    m_row.Service_State= PS_RPL_NO;
   
   // Remaining_Delay
-  long int remaining_delay_int;
+  ulong remaining_delay_int;
   char remaining_delay_str[11];
     if (slave_sql_running_state == stage_sql_thd_waiting_until_delay.m_name)
     {
       time_t t= my_time(0), sql_delay_end= mi->rli->get_sql_delay_end();
       remaining_delay_int= (long int)(t < sql_delay_end ? sql_delay_end - t : 0);
-      sprintf(remaining_delay_str, "%ld", remaining_delay_int);
-      str_store(REMAINING_DELAY, remaining_delay_str);
+      sprintf(remaining_delay_str, "%lu", remaining_delay_int);
+      m_row.Remaining_Delay_length= strlen(remaining_delay_str) + 1;
+      memcpy(m_row.Remaining_Delay, remaining_delay_str, m_row.Remaining_Delay_length);
     }
     else
-      set_null(REMAINING_DELAY);
+    {
+      m_row.Remaining_Delay_length= strlen("NULL") + 1;
+      memcpy(m_row.Remaining_Delay, "NULL", m_row.Remaining_Delay_length);
+    }
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
@@ -224,33 +173,14 @@ int table_replication_execute_status::read_row_values(TABLE *table,
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      if (slave_field_info[f->field_index].can_be_null)
-      {
-        if (m_fields[f->field_index].is_null)
-        {
-          if (f->field_index == REMAINING_DELAY)
-            set_field_varchar_utf8(f, "NULL", 4);
-          f->set_null();
-          continue;
-        }
-        else
-          f->set_notnull();
-      }
-
       switch(f->field_index)
       {
-      case REMAINING_DELAY:
-
-        set_field_varchar_utf8(f,
-                               m_fields[f->field_index].u.s.str,
-                               m_fields[f->field_index].u.s.length);
+      case 0: /* Service_State */
+        set_field_enum(f, m_row.Service_State);
         break;
-
-      case RPL_EXECUTION_CHANNEL_SERVICE_STATE:
-
-        set_field_enum(f, m_fields[f->field_index].u.n);
-        break;
-        
+      case 1: /* Remaining_Delay */
+        set_field_varchar_utf8(f, m_row.Remaining_Delay, m_row.Remaining_Delay_length);
+        break;    
       default:
         DBUG_ASSERT(false);
       }
