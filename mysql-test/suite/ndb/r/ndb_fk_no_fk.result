@@ -622,3 +622,36 @@ ndb_show_tables completed.....
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
+#
+# ALTER a table which references mock parent
+#
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references t2(pk1)
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+# There should be one mock table in place of t2
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_t2'
+alter table t1 add column c int;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+
+ndb_show_tables completed.....
+
+# There should be one mock table still
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_t2'
+drop table t1;
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
