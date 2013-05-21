@@ -387,6 +387,18 @@ mem_heap_is_top(
 	presumed_start_of_buf = first_free_byte - MEM_SPACE_NEEDED(buf_sz);
 
 #ifdef UNIV_MEM_DEBUG
+	mem_block_t*	block = UT_LIST_GET_LAST(heap->base);
+	/* Imitate the calc done by mem_heap_free_top()->mem_field_erase().
+	In UNIV_MEM_DEBUG the size of the top element is also checked in
+	addition to checking that the pointer matches. */
+	ulint		sz = mem_field_header_get_len(
+		reinterpret_cast<byte*>(block)
+		+ mem_block_get_free(block) - MEM_SPACE_NEEDED(buf_sz)
+		+ MEM_FIELD_HEADER_SIZE);
+
+	if (buf_sz != sz) {
+		return(false);
+	}
 	presumed_start_of_buf += MEM_FIELD_HEADER_SIZE;
 #endif /* UNIV_MEM_DEBUG */
 
