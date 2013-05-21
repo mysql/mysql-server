@@ -1,6 +1,6 @@
 source include/federated.inc;
 
-
+connection master;
 #
 # MDEV-388 Creating a federated table with a non-existing server returns a random error code
 #
