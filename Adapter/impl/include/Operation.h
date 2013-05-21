@@ -18,9 +18,6 @@
  02110-1301  USA
  */
 
-#ifndef NODEJS_ADAPTER_INCLUDE_OPERATION_H
-#define NODEJS_ADAPTER_INCLUDE_OPERATION_H
-
 #include <string.h>
 
 #include "node.h"
@@ -155,6 +152,3 @@ inline const NdbOperation *
     return scanop->deleteCurrentTuple(tx, row_record->getNdbRecord(), row_buffer, 
                                       read_mask_ptr, options);
 }
-
-#endif
-

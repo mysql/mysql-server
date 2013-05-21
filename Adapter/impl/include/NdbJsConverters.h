@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-#pragma once
-
 #include <NdbApi.hpp>
 
 #include "JsConverter.h"

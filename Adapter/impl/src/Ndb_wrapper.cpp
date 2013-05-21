@@ -18,16 +18,14 @@
  02110-1301  USA
 */
 
-
 #include <NdbApi.hpp>
 
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
+#include "Record.h"
 #include "NativeMethodCall.h"
 #include "NativeCFunctionCall.h"
-#include "JsWrapper.h"
 #include "NdbWrapperErrors.h"
-#include "NdbWrappers.h"
 
 using namespace v8;
 

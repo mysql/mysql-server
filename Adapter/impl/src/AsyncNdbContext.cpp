@@ -19,9 +19,9 @@
  */
 
 #include "adapter_global.h"
+#include "NdbWrapperErrors.h"
 #include "AsyncNdbContext.h"
 #include "AsyncMethodCall.h"
-#include "NdbWrapperErrors.h"
 
 /* Thread starter, for pthread_create()
 */

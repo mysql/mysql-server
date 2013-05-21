@@ -18,8 +18,9 @@
  02110-1301  USA
 */
 
-#include "JsWrapper.h"
 #include "NdbWrappers.h"
+
+using v8::Arguments;
 
 class NdbNativeCodeError : public NativeCodeError {
 public:
