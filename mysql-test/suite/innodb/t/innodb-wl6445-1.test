@@ -77,7 +77,7 @@ SELECT * FROM otherlocation ORDER BY id;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -170,7 +170,7 @@ UNLOCK TABLES;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -233,7 +233,7 @@ SELECT COUNT(*) FROM testdb_wl6445.t1;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -371,7 +371,7 @@ UNLOCK TABLES;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -435,7 +435,7 @@ SELECT * FROM t3;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -479,7 +479,7 @@ UNLOCK TABLES;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -525,7 +525,7 @@ let $innodb_print_all_deadlocks_orig = `select @@innodb_print_all_deadlocks`;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -584,7 +584,7 @@ eval SET GLOBAL innodb_print_all_deadlocks = $innodb_print_all_deadlocks_orig;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -617,7 +617,7 @@ SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -641,7 +641,7 @@ GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -668,7 +668,7 @@ GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -706,7 +706,7 @@ EOF
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -735,7 +735,7 @@ SELECT i FROM t1 ORDER BY i;
 # clean-up
 #------------------------------------------------------------------------------
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -789,7 +789,7 @@ check table t1 extended;
 #
 --echo "restarting server in read-only-mode"
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 30
 --source include/wait_until_disconnected.inc
 --enable_reconnect
 --exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
