@@ -244,8 +244,14 @@ drop table t;
 #
 # restart the server so that error messages are not carried fwd to other tcs.
 #
---source include/shutdown_mysqld.inc
---source include/start_mysqld.inc
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 60 
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
 
 #-----------------------------------------------------------------------------
 #
