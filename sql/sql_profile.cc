@@ -35,6 +35,7 @@
 #include "my_sys.h"
 #include "sql_show.h"                     // schema_table_store_record
 #include "sql_class.h"                    // THD
+#include "log.h"
 
 #include <algorithm>
 
@@ -55,6 +56,12 @@ int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables,
                                        Item *cond)
 {
 #if defined(ENABLED_PROFILING)
+  const char *old= thd->lex->sql_command == SQLCOM_SHOW_PROFILE ?
+                     "SHOW PROFILE" : "INFORMATION_SCHEMA.PROFILING";
+
+  DBUG_ASSERT(thd->lex->sql_command != SQLCOM_SHOW_PROFILES);
+
+  WARN_DEPRECATED(thd, old, "Performance Schema");
   return(thd->profiling.fill_statistics_info(thd, tables, cond));
 #else
   my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILE", "enable-profiling");
