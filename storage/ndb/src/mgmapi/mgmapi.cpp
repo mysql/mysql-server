@@ -64,7 +64,7 @@
 #define MGM_END() \
  { 0, \
    0, \
-   ParserRow<ParserDummy>::Arg, \
+   ParserRow<ParserDummy>::End, \
    ParserRow<ParserDummy>::Int, \
    ParserRow<ParserDummy>::Optional, \
    ParserRow<ParserDummy>::IgnoreMinMax, \
@@ -1456,6 +1456,7 @@ ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle,
     MGM_ARG(clusterlog_severity_names[4], Int, Mandatory, ""),
     MGM_ARG(clusterlog_severity_names[5], Int, Mandatory, ""),
     MGM_ARG(clusterlog_severity_names[6], Int, Mandatory, ""),
+    MGM_END()
   };
   CHECK_CONNECTED(handle, -1);
 
@@ -1488,6 +1489,7 @@ ndb_mgm_get_clusterlog_severity_filter_old(NdbMgmHandle handle)
     MGM_ARG(clusterlog_severity_names[4], Int, Mandatory, ""),
     MGM_ARG(clusterlog_severity_names[5], Int, Mandatory, ""),
     MGM_ARG(clusterlog_severity_names[6], Int, Mandatory, ""),
+    MGM_END()
   };
   CHECK_CONNECTED(handle, NULL);
 
@@ -1616,6 +1618,7 @@ ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle,
     MGM_ARG(clusterlog_names[9], Int, Mandatory, ""),
     MGM_ARG(clusterlog_names[10], Int, Mandatory, ""),
     MGM_ARG(clusterlog_names[11], Int, Mandatory, ""),
+    MGM_END()
   };
   CHECK_CONNECTED(handle, -1);
 
@@ -1653,6 +1656,7 @@ ndb_mgm_get_clusterlog_loglevel_old(NdbMgmHandle handle)
     MGM_ARG(clusterlog_names[9], Int, Mandatory, ""),
     MGM_ARG(clusterlog_names[10], Int, Mandatory, ""),
     MGM_ARG(clusterlog_names[11], Int, Mandatory, ""),
+    MGM_END()
   };
   CHECK_CONNECTED(handle, NULL);
 
