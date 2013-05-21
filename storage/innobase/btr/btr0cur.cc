@@ -407,10 +407,6 @@ btr_cur_search_to_nth_level(
 #ifdef BTR_CUR_ADAPT
 	btr_search_t*	info;
 #endif
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 	/* Currently, PAGE_CUR_LE is the only search mode used for searches
 	ending to upper levels */
 
@@ -763,11 +759,8 @@ retry_page_get:
 
 		node_ptr = page_cur_get_rec(page_cursor);
 
-		offsets = rec_get_offsets(
-			node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
-
 		/* Go to the child node */
-		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
+		page_no = btr_node_ptr_get_child_page_no(node_ptr, index);
 
 		if (UNIV_UNLIKELY(height == 0 && dict_index_is_ibuf(index))) {
 			/* We're doing a search on an ibuf tree and we're one
@@ -815,10 +808,6 @@ retry_page_get:
 
 func_exit:
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-
 	if (has_search_latch) {
 
 		rw_lock_s_lock(&btr_search_latch);
@@ -850,13 +839,8 @@ btr_cur_open_at_index_side_func(
 	ulint		zip_size;
 	ulint		height;
 	ulint		root_height = 0; /* remove warning */
-	rec_t*		node_ptr;
 	ulint		estimate;
 	ulint		savepoint;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
 	estimate = latch_mode & BTR_ESTIMATE;
 	latch_mode &= ~BTR_ESTIMATE;
@@ -977,15 +961,9 @@ btr_cur_open_at_index_side_func(
 
 		height--;
 
-		node_ptr = page_cur_get_rec(page_cursor);
-		offsets = rec_get_offsets(node_ptr, cursor->index, offsets,
-					  ULINT_UNDEFINED, &heap);
 		/* Go to the child node */
-		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
-	}
-
-	if (heap) {
-		mem_heap_free(heap);
+		page_no = btr_node_ptr_get_child_page_no(
+			page_cur_get_rec(page_cursor), index);
 	}
 }
 
@@ -1007,11 +985,6 @@ btr_cur_open_at_rnd_pos_func(
 	ulint		space;
 	ulint		zip_size;
 	ulint		height;
-	rec_t*		node_ptr;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
 	switch (latch_mode) {
 	case BTR_MODIFY_TREE:
@@ -1066,15 +1039,9 @@ btr_cur_open_at_rnd_pos_func(
 
 		height--;
 
-		node_ptr = page_cur_get_rec(page_cursor);
-		offsets = rec_get_offsets(node_ptr, cursor->index, offsets,
-					  ULINT_UNDEFINED, &heap);
 		/* Go to the child node */
-		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
-	}
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
+		page_no = btr_node_ptr_get_child_page_no(
+			page_cur_get_rec(page_cursor), index);
 	}
 }
 
