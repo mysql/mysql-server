@@ -18,6 +18,8 @@ call mtr.add_suppression("Unable to assign a new identifier to table "
 			 "\".*\"\.\".*\" after truncating it");
 call mtr.add_suppression("Flagged corruption of .* in table "
 			 "\".*\"\.\".*\" in TRUNCATE TABLE");
+call mtr.add_suppression("Parent table of FTS auxiliary table "
+			 ".*\/.* not found");
 
 ################################################################################
 #
@@ -236,6 +238,14 @@ set session debug = "-d,ib_err_trunc_during_sys_table_update";
 --error ER_INDEX_CORRUPT
 select * from t order by i;
 drop table t;
+
+
+#-----------------------------------------------------------------------------
+#
+# restart the server so that error messages are not carried fwd to other tcs.
+#
+--source include/shutdown_mysqld.inc
+--source include/start_mysqld.inc
 
 #-----------------------------------------------------------------------------
 #
