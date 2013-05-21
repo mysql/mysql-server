@@ -755,38 +755,35 @@ btr_page_free(
 	btr_page_free_low(index, block, level, mtr);
 }
 
-/**************************************************************//**
-Sets the child node file address in a node pointer. */
+/** Sets the child node file address in a node pointer.
+@param[in/out]	node_ptr	node pointer
+@param[in]	data_size	data size of the node_ptr record, in bytes
+@param[in/out]	page_zip	compressed page whose uncompressed part
+will be updated, or NULL
+@param[in]	page_no		child node address
+@param[in/out]	mtr		mini-transaction */
 UNIV_INLINE
 void
 btr_node_ptr_set_child_page_no(
-/*===========================*/
-	rec_t*		rec,	/*!< in: node pointer record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
-				part will be updated, or NULL */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		page_no,/*!< in: child node address */
-	mtr_t*		mtr)	/*!< in: mtr */
+	rec_t*		node_ptr,
+	ulint		data_size,
+	page_zip_des_t*	page_zip,
+	ulint		page_no,
+	mtr_t*		mtr)
 {
-	byte*	field;
-	ulint	len;
-
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	ut_ad(!page_is_leaf(page_align(rec)));
-	ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
-
-	/* The child address is in the last field */
-	field = rec_get_nth_field(rec, offsets,
-				  rec_offs_n_fields(offsets) - 1, &len);
-
-	ut_ad(len == REC_NODE_PTR_SIZE);
+	ut_ad(data_size >= REC_NODE_PTR_SIZE);
+#if REC_NODE_PTR_SIZE != 4
+# error REC_NODE_PTR_SIZE != 4
+#endif
+	ut_ad(!page_is_leaf(page_align(node_ptr)));
+	ut_ad(!page_rec_is_comp(node_ptr) || rec_get_node_ptr_flag(node_ptr));
 
 	if (page_zip) {
-		page_zip_write_node_ptr(page_zip, rec,
-					rec_offs_data_size(offsets),
+		page_zip_write_node_ptr(page_zip, node_ptr, data_size,
 					page_no, mtr);
 	} else {
-		mlog_write_ulint(field, page_no, MLOG_4BYTES, mtr);
+		mlog_write_ulint(node_ptr + data_size - REC_NODE_PTR_SIZE,
+				 page_no, MLOG_4BYTES, mtr);
 	}
 }
 
@@ -799,40 +796,38 @@ btr_node_ptr_get_child(
 /*===================*/
 	const rec_t*	node_ptr,/*!< in: node pointer */
 	dict_index_t*	index,	/*!< in: index */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	page_no;
 	ulint	space;
 
-	ut_ad(rec_offs_validate(node_ptr, index, offsets));
 	space = page_get_space_id(page_align(node_ptr));
-	page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
+	page_no = btr_node_ptr_get_child_page_no(node_ptr, index);
 
 	return(btr_block_get(space, dict_table_zip_size(index->table),
 			     page_no, RW_X_LATCH, index, mtr));
 }
 
-/************************************************************//**
-Returns the upper level node pointer to a page. It is assumed that mtr holds
-an x-latch on the tree.
-@return	rec_get_offsets() of the node pointer record */
+/** Positions the cursor on the upper level node pointer to a page.
+@param[in/out]	heap	memory heap
+@param[in/out]	cursor	in: B-tree cursor on user record;
+out: node pointer pointing to the child page in the parent page
+@param[in]	file	source file name of caller
+@param[in]	line	source line number of caller
+@param[in/out]	mtr	mini-transaction holding an X-latch on index->lock
+@return	data size of the node pointer */
 static
-ulint*
+ulint
 btr_page_get_father_node_ptr_func(
-/*==============================*/
-	ulint*		offsets,/*!< in: work area for the return value */
-	mem_heap_t*	heap,	/*!< in: memory heap to use */
-	btr_cur_t*	cursor,	/*!< in: cursor pointing to user record,
-				out: cursor on node pointer record,
-				its page x-latched */
-	const char*	file,	/*!< in: file name */
-	ulint		line,	/*!< in: line where called */
-	mtr_t*		mtr)	/*!< in: mtr */
+	mem_heap_t*	heap,
+	btr_cur_t*	cursor,
+	const char*	file,
+	ulint		line,
+	mtr_t*		mtr)
 {
 	dtuple_t*	tuple;
-	rec_t*		user_rec;
-	rec_t*		node_ptr;
+	const rec_t*	user_rec;
+	const rec_t*	node_ptr;
 	ulint		level;
 	ulint		page_no;
 	dict_index_t*	index;
@@ -859,11 +854,15 @@ btr_page_get_father_node_ptr_func(
 	node_ptr = btr_cur_get_rec(cursor);
 	ut_ad(!page_rec_is_comp(node_ptr)
 	      || rec_get_status(node_ptr) == REC_STATUS_NODE_PTR);
-	offsets = rec_get_offsets(node_ptr, index, offsets,
-				  ULINT_UNDEFINED, &heap);
 
-	if (btr_node_ptr_get_child_page_no(node_ptr, offsets) != page_no) {
-		rec_t*	print_rec;
+	ulint	data_size = btr_node_ptr_get_data_size(node_ptr, index);
+#if REC_NODE_PTR_SIZE != 4
+# error REC_NODE_PTR_SIZE != 4
+#endif
+	ulint	child_page_no = mach_read_from_4(
+		node_ptr + data_size - REC_NODE_PTR_SIZE);
+
+	if (UNIV_UNLIKELY(child_page_no != page_no)) {
 		fputs("InnoDB: Dump of the child page:\n", stderr);
 		buf_page_print(page_align(user_rec), 0,
 			       BUF_PAGE_PRINT_NO_CRASH);
@@ -877,18 +876,7 @@ btr_page_get_father_node_ptr_func(
 		ut_print_name(stderr, NULL, FALSE, index->name);
 		fprintf(stderr, ",\n"
 			"InnoDB: father ptr page no %lu, child page no %lu\n",
-			(ulong)
-			btr_node_ptr_get_child_page_no(node_ptr, offsets),
-			(ulong) page_no);
-		print_rec = page_rec_get_next(
-			page_get_infimum_rec(page_align(user_rec)));
-		offsets = rec_get_offsets(print_rec, index,
-					  offsets, ULINT_UNDEFINED, &heap);
-		page_rec_print(print_rec, offsets);
-		offsets = rec_get_offsets(node_ptr, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		page_rec_print(node_ptr, offsets);
-
+			(ulong) child_page_no, (ulong) page_no);
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"You should dump + drop + reimport the table to"
 			" fix the corruption. If the crash happens at"
@@ -897,21 +885,25 @@ btr_page_get_father_node_ptr_func(
 			" recovery. Then dump + drop + reimport.");
 	}
 
-	return(offsets);
+	return(data_size);
 }
 
-#define btr_page_get_father_node_ptr(of,heap,cur,mtr)			\
-	btr_page_get_father_node_ptr_func(of,heap,cur,__FILE__,__LINE__,mtr)
+#define btr_page_get_father_node_ptr(heap,cur,mtr)			\
+	btr_page_get_father_node_ptr_func(heap,cur,__FILE__,__LINE__,mtr)
 
-/************************************************************//**
-Returns the upper level node pointer to a page. It is assumed that mtr holds
-an x-latch on the tree.
-@return	rec_get_offsets() of the node pointer record */
+/** Positions the cursor on the upper level node pointer to a page.
+@param[in/out]	heap	memory heap
+@param[in/out] cursor B-tree cursor on user record on x-latched page;
+will be positioned on the node pointer pointing to the page in the
+parent page
+@param[in]	file	source file name of caller
+@param[in]	line	source line number of caller
+@param[in/out]	mtr	mini-transaction holding an X-latch on index->lock
+@return	data size of the node pointer */
 static
-ulint*
+ulint
 btr_page_get_father_block(
 /*======================*/
-	ulint*		offsets,/*!< in: work area for the return value */
 	mem_heap_t*	heap,	/*!< in: memory heap to use */
 	dict_index_t*	index,	/*!< in: b-tree index */
 	buf_block_t*	block,	/*!< in: child page in the index */
@@ -923,7 +915,7 @@ btr_page_get_father_block(
 		= page_rec_get_next(page_get_infimum_rec(buf_block_get_frame(
 								 block)));
 	btr_cur_position(index, rec, block, cursor);
-	return(btr_page_get_father_node_ptr(offsets, heap, cursor, mtr));
+	return(btr_page_get_father_node_ptr(heap, cursor, mtr));
 }
 
 /************************************************************//**
@@ -946,7 +938,7 @@ btr_page_get_father(
 	btr_cur_position(index, rec, block, cursor);
 
 	heap = mem_heap_create(100);
-	btr_page_get_father_node_ptr(NULL, heap, cursor, mtr);
+	btr_page_get_father_node_ptr(heap, cursor, mtr);
 	mem_heap_free(heap);
 }
 
@@ -2094,7 +2086,6 @@ btr_attach_half_pages(
 	if (direction == FSP_DOWN) {
 
 		btr_cur_t	cursor;
-		ulint*		offsets;
 
 		lower_page = buf_block_get_frame(new_block);
 		lower_page_no = buf_block_get_page_no(new_block);
@@ -2104,17 +2095,16 @@ btr_attach_half_pages(
 		upper_page_zip = buf_block_get_page_zip(block);
 
 		/* Look up the index for the node pointer to page */
-		offsets = btr_page_get_father_block(NULL, heap, index,
-						    block, mtr, &cursor);
+		ulint	data_size = btr_page_get_father_block(
+			heap, index, block, mtr, &cursor);
+		mem_heap_empty(heap);
 
 		/* Replace the address of the old child node (= page) with the
 		address of the new lower half */
 
 		btr_node_ptr_set_child_page_no(
-			btr_cur_get_rec(&cursor),
-			btr_cur_get_page_zip(&cursor),
-			offsets, lower_page_no, mtr);
-		mem_heap_empty(heap);
+			btr_cur_get_rec(&cursor), data_size,
+			btr_cur_get_page_zip(&cursor), lower_page_no, mtr);
 	} else {
 		lower_page = buf_block_get_frame(block);
 		lower_page_no = buf_block_get_page_no(block);
@@ -2830,14 +2820,10 @@ btr_lift_page_up(
 
 	{
 		btr_cur_t	cursor;
-		ulint*		offsets	= NULL;
-		mem_heap_t*	heap	= mem_heap_create(
-			sizeof(*offsets)
-			* (REC_OFFS_HEADER_SIZE + 1 + 1 + index->n_fields));
+		mem_heap_t*	heap	= mem_heap_create(100);
 		buf_block_t*	b;
 
-		offsets = btr_page_get_father_block(offsets, heap, index,
-						    block, mtr, &cursor);
+		btr_page_get_father_block(heap, index, block, mtr, &cursor);
 		father_block = btr_cur_get_block(&cursor);
 		father_page_zip = buf_block_get_page_zip(father_block);
 		father_page = buf_block_get_frame(father_block);
@@ -2853,9 +2839,8 @@ btr_lift_page_up(
 		     buf_block_get_page_no(b) != root_page_no; ) {
 			ut_a(n_blocks < BTR_MAX_LEVELS);
 
-			offsets = btr_page_get_father_block(offsets, heap,
-							    index, b,
-							    mtr, &cursor);
+			btr_page_get_father_block(
+				heap, index, b, mtr, &cursor);
 
 			blocks[n_blocks++] = b = btr_cur_get_block(&cursor);
 		}
@@ -2980,7 +2965,7 @@ btr_compress(
 	page_t*		page;
 	btr_cur_t	father_cursor;
 	mem_heap_t*	heap;
-	ulint*		offsets;
+	ulint		node_ptr_size;
 	ulint		data_size;
 	ulint		n_recs;
 	ulint		nth_rec = 0; /* remove bogus warning */
@@ -3008,8 +2993,8 @@ btr_compress(
 #endif
 
 	heap = mem_heap_create(100);
-	offsets = btr_page_get_father_block(NULL, heap, index, block, mtr,
-					    &father_cursor);
+	node_ptr_size = btr_page_get_father_block(
+		heap, index, block, mtr, &father_cursor);
 
 	if (adjust) {
 		nth_rec = page_rec_get_n_recs_before(btr_cur_get_rec(cursor));
@@ -3196,9 +3181,9 @@ err_exit:
 		address of the merge page to the right */
 
 		btr_node_ptr_set_child_page_no(
-			btr_cur_get_rec(&father_cursor),
+			btr_cur_get_rec(&father_cursor), node_ptr_size,
 			btr_cur_get_page_zip(&father_cursor),
-			offsets, right_page_no, mtr);
+			right_page_no, mtr);
 		btr_node_ptr_delete(index, merge_block, mtr);
 
 		lock_update_merge_right(merge_block, orig_succ, block);
@@ -3493,8 +3478,6 @@ btr_print_recursive(
 	buf_block_t*	block,	/*!< in: index page */
 	ulint		width,	/*!< in: print this many entries from start
 				and end */
-	mem_heap_t**	heap,	/*!< in/out: heap for rec_get_offsets() */
-	ulint**		offsets,/*!< in/out: buffer for rec_get_offsets() */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	const page_t*	page	= buf_block_get_frame(block);
@@ -3529,14 +3512,10 @@ btr_print_recursive(
 
 			node_ptr = page_cur_get_rec(&cursor);
 
-			*offsets = rec_get_offsets(node_ptr, index, *offsets,
-						   ULINT_UNDEFINED, heap);
-			btr_print_recursive(index,
-					    btr_node_ptr_get_child(node_ptr,
-								   index,
-								   *offsets,
-								   &mtr2),
-					    width, heap, offsets, &mtr2);
+			btr_print_recursive(
+				index,
+				btr_node_ptr_get_child(node_ptr, index, &mtr2),
+				width, &mtr2);
 			mtr_commit(&mtr2);
 		}
 
@@ -3557,10 +3536,6 @@ btr_print_index(
 {
 	mtr_t		mtr;
 	buf_block_t*	root;
-	mem_heap_t*	heap	= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets	= offsets_;
-	rec_offs_init(offsets_);
 
 	fputs("--------------------------\n"
 	      "INDEX TREE PRINT\n", stderr);
@@ -3569,10 +3544,7 @@ btr_print_index(
 
 	root = btr_root_block_get(index, RW_X_LATCH, &mtr);
 
-	btr_print_recursive(index, root, width, &heap, &offsets, &mtr);
-	if (heap) {
-		mem_heap_free(heap);
-	}
+	btr_print_recursive(index, root, width, &mtr);
 
 	mtr_commit(&mtr);
 
@@ -3594,7 +3566,6 @@ btr_check_node_ptr(
 {
 	mem_heap_t*	heap;
 	dtuple_t*	tuple;
-	ulint*		offsets;
 	btr_cur_t	cursor;
 	page_t*		page = buf_block_get_frame(block);
 
@@ -3604,9 +3575,8 @@ btr_check_node_ptr(
 		return(TRUE);
 	}
 
-	heap = mem_heap_create(256);
-	offsets = btr_page_get_father_block(NULL, heap, index, block, mtr,
-					    &cursor);
+	heap = mem_heap_create(100);
+	btr_page_get_father_block(heap, index, block, mtr, &cursor);
 
 	if (page_is_leaf(page)) {
 
@@ -3617,7 +3587,10 @@ btr_check_node_ptr(
 		index, page_rec_get_next(page_get_infimum_rec(page)), 0, heap,
 		btr_page_get_level(page, mtr));
 
-	ut_a(!cmp_dtuple_rec(tuple, btr_cur_get_rec(&cursor), offsets));
+	ut_ad(!cmp_dtuple_rec(tuple, btr_cur_get_rec(&cursor),
+			      rec_get_offsets(
+				      btr_cur_get_rec(&cursor), index, NULL,
+				      ULINT_UNDEFINED, &heap)));
 func_exit:
 	mem_heap_free(heap);
 
@@ -3920,9 +3893,7 @@ btr_validate_level(
 		page_cur_move_to_next(&cursor);
 
 		node_ptr = page_cur_get_rec(&cursor);
-		offsets = rec_get_offsets(node_ptr, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		block = btr_node_ptr_get_child(node_ptr, index, offsets, &mtr);
+		block = btr_node_ptr_get_child(node_ptr, index, &mtr);
 		page = buf_block_get_frame(block);
 	}
 
@@ -4056,20 +4027,18 @@ loop:
 
 		rec_t*	node_ptr;
 
-		offsets = btr_page_get_father_block(offsets, heap, index,
-						    block, &mtr, &node_cur);
+		btr_page_get_father_block(heap, index, block, &mtr, &node_cur);
 		father_page = btr_cur_get_page(&node_cur);
 		node_ptr = btr_cur_get_rec(&node_cur);
 
 		btr_cur_position(
 			index, page_rec_get_prev(page_get_supremum_rec(page)),
 			block, &node_cur);
-		offsets = btr_page_get_father_node_ptr(offsets, heap,
-						       &node_cur, &mtr);
+		btr_page_get_father_node_ptr(heap, &node_cur, &mtr);
 
 		if (node_ptr != btr_cur_get_rec(&node_cur)
-		    || btr_node_ptr_get_child_page_no(node_ptr, offsets)
-				     != buf_block_get_page_no(block)) {
+		    || btr_node_ptr_get_child_page_no(node_ptr, index)
+		    != buf_block_get_page_no(block)) {
 
 			btr_validate_report1(index, level, block);
 
@@ -4086,10 +4055,10 @@ loop:
 			fprintf(stderr, "\n"
 				"InnoDB: node ptr child page n:o %lu\n",
 				(ulong) btr_node_ptr_get_child_page_no(
-					rec, offsets));
+					rec, index));
 
 			fputs("InnoDB: record on page ", stderr);
-			rec_print_new(stderr, rec, offsets);
+			rec_print(stderr, rec, index);
 			putc('\n', stderr);
 			ret = false;
 
@@ -4141,8 +4110,8 @@ loop:
 			const rec_t*	right_node_ptr
 				= page_rec_get_next(node_ptr);
 
-			offsets = btr_page_get_father_block(
-				offsets, heap, index, right_block,
+			btr_page_get_father_block(
+				heap, index, right_block,
 				&mtr, &right_node_cur);
 			if (right_node_ptr
 			    != page_get_supremum_rec(father_page)) {

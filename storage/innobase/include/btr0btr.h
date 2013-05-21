@@ -277,19 +277,25 @@ btr_leaf_page_release(
 					BTR_MODIFY_LEAF */
 	mtr_t*		mtr)		/*!< in: mtr */
 	__attribute__((nonnull));
-/**************************************************************//**
-Gets the child node file address in a node pointer.
-NOTE: the offsets array must contain all offsets for the record since
-we read the last field according to offsets and assume that it contains
-the child page number. In other words offsets must have been retrieved
-with rec_get_offsets(n_fields=ULINT_UNDEFINED).
-@return	child node address */
+/** Get the data size of a node pointer.
+@param[in]	node_ptr	node pointer record
+@param[in]	index		index B-tree
+@return	child page number */
+UNIV_INLINE
+ulint
+btr_node_ptr_get_data_size(
+	const rec_t*		node_ptr,
+	const dict_index_t*	index)
+	__attribute__((nonnull, pure, warn_unused_result));
+/** Get the child page number in a node pointer.
+@param[in]	node_ptr	node pointer record
+@param[in]	index		index B-tree
+@return	child page number */
 UNIV_INLINE
 ulint
 btr_node_ptr_get_child_page_no(
-/*===========================*/
-	const rec_t*	rec,	/*!< in: node pointer record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+	const rec_t*		node_ptr,
+	const dict_index_t*	index)
 	__attribute__((nonnull, pure, warn_unused_result));
 /************************************************************//**
 Creates the root node for a new index tree.

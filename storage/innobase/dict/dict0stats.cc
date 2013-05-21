@@ -1428,10 +1428,7 @@ dict_stats_analyze_index_below_cur(
 
 	rec = btr_cur_get_rec(cur);
 
-	offsets_rec = rec_get_offsets(rec, index, offsets1,
-				      ULINT_UNDEFINED, &heap);
-
-	page_no = btr_node_ptr_get_child_page_no(rec, offsets_rec);
+	page_no = btr_node_ptr_get_child_page_no(rec, index);
 
 	/* descend to the leaf level on the B-tree */
 	for (;;) {
@@ -1476,7 +1473,7 @@ dict_stats_analyze_index_below_cur(
 
 		/* we have a non-boring record in rec, descend below it */
 
-		page_no = btr_node_ptr_get_child_page_no(rec, offsets_rec);
+		page_no = btr_node_ptr_get_child_page_no(rec, index);
 	}
 
 	/* make sure we got a leaf page as a result from the above loop */
