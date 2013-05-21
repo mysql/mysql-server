@@ -47,7 +47,7 @@
 #define CPC_END() \
  { 0, \
    0, \
-   ParserRow_t::Arg, \
+   ParserRow_t::End, \
    ParserRow_t::Int, \
    ParserRow_t::Optional, \
    ParserRow_t::IgnoreMinMax, \
