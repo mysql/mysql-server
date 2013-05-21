@@ -90,7 +90,7 @@ extern EventLogger * g_eventLogger;
 #define MGM_END() \
  { 0, \
    0, \
-   ParserRow<MgmApiSession>::Arg, \
+   ParserRow<MgmApiSession>::End, \
    ParserRow<MgmApiSession>::Int, \
    ParserRow<MgmApiSession>::Optional, \
    ParserRow<MgmApiSession>::IgnoreMinMax, \
