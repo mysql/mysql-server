@@ -41,39 +41,10 @@ enum enum_rpl_yes_no {
 };
 #endif
 
-#ifndef ST_RPL_STATUS_FIELD
-#define ST_RPL_STATUS_FIELD
-typedef struct st_rpl_status_field {
-  union {
-    LEX_STRING  s;
-    ulonglong   n;
-  } u;
-  bool is_null;
-} ST_STATUS_FIELD_DATA;
-
-typedef struct st_rpl_status_field_info
-{
-  /** 
-      the column name
-  */
-  const char* name;
-  /**
-     size in bytes of a buffer capable to keep internal representation
-     of an attribute
-  */
-  uint max_size;
-  /**
-     mysql data type
-  */
-  enum enum_field_types type;
-  bool can_be_null;
-} ST_STATUS_FIELD_INFO;
-#endif
-
-enum enum_rpl_execution_channel_status_field_names {
-  RPL_EXECUTION_CHANNEL_SERVICE_STATE= 0,
-  REMAINING_DELAY,
-  _RPL_EXECUTION_CHANNEL_LAST_FIELD_= REMAINING_DELAY
+struct st_row_execute_status {
+  enum_rpl_yes_no Service_State;
+  char Remaining_Delay[11];
+  uint Remaining_Delay_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_execute_status */
@@ -81,20 +52,13 @@ class table_replication_execute_status: public PFS_engine_table
 {
 private:
   void fill_rows(Master_info *);
-  void drop_null(enum enum_rpl_execution_channel_status_field_names f_name);
-  void set_null(enum enum_rpl_execution_channel_status_field_names f_name);
-  void str_store(enum enum_rpl_execution_channel_status_field_names f_name, const char * val);
-  void int_store(enum enum_rpl_execution_channel_status_field_names f_name, longlong val);
-  void enum_store(enum enum_rpl_execution_channel_status_field_names f_name, longlong val)
-  {
-    int_store(f_name, val);
-  }
+
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-  /** Current only row is represented by array of fields */
-  ST_STATUS_FIELD_DATA m_fields[_RPL_EXECUTION_CHANNEL_LAST_FIELD_ + 1];
+  /** Current row */
+  st_row_execute_status m_row;
   /** True is the table is filled up */
   bool m_filled;
   /** Current position. */

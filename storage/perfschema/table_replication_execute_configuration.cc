@@ -68,33 +68,13 @@ PFS_engine_table* table_replication_execute_configuration::create(void)
   return new table_replication_execute_configuration();
 }
 
-static ST_STATUS_FIELD_INFO slave_field_info[]=
-{
-  {"Desired_Delay", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
-};
-
 table_replication_execute_configuration::table_replication_execute_configuration()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
-{
-  for (int i= DESIRED_DELAY; i <= _RPL_EXECUTE_CONFIG_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING)
-      m_fields[i].u.s.str= NULL;  // str_store() makes allocation
-    if (slave_field_info[i].can_be_null)
-      m_fields[i].is_null= false;
-  }
-}
+{}
 
 table_replication_execute_configuration::~table_replication_execute_configuration()
-{
-  for (int i= DESIRED_DELAY; i <= _RPL_EXECUTE_CONFIG_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING &&
-        m_fields[i].u.s.str != NULL)
-      my_free(m_fields[i].u.s.str);
-  }
-}
+{}
 
 void table_replication_execute_configuration::reset_position(void)
 {
@@ -133,42 +113,6 @@ int table_replication_execute_configuration::rnd_pos(const void *pos)
   return 0;
 }
 
-
-void table_replication_execute_configuration::drop_null(enum enum_rpl_execute_config_field_names name)
-{
-  if (slave_field_info[name].can_be_null)
-    m_fields[name].is_null= false;
-}
-
-void table_replication_execute_configuration::set_null(enum enum_rpl_execute_config_field_names name)
-{
-  DBUG_ASSERT(slave_field_info[name].can_be_null);
-  m_fields[name].is_null= true;
-}
-
-void table_replication_execute_configuration::str_store(enum enum_rpl_execute_config_field_names name, const char* val)
-{
-  m_fields[name].u.s.length= strlen(val);
-  DBUG_ASSERT(m_fields[name].u.s.length <= slave_field_info[name].max_size);
-  if (m_fields[name].u.s.str == NULL)
-    m_fields[name].u.s.str= (char *) my_malloc(m_fields[name].u.s.length, MYF(0));
-
-  /*
-    \0 may be stripped off since there is no need for \0-termination of
-    m_fields[name].u.s.str
-  */
-  memcpy(m_fields[name].u.s.str, val, m_fields[name].u.s.length);
-  m_fields[name].u.s.length= m_fields[name].u.s.length;
-
-  drop_null(name);
-}
-
-void table_replication_execute_configuration::int_store(enum enum_rpl_execute_config_field_names name, longlong val)
-{
-  m_fields[name].u.n= val;
-  drop_null(name);
-}
-
 void table_replication_execute_configuration::fill_rows(Master_info *mi)
 {
   char *slave_sql_running_state= NULL;
@@ -180,7 +124,7 @@ void table_replication_execute_configuration::fill_rows(Master_info *mi)
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
   
-  int_store(DESIRED_DELAY, (long int) mi->rli->get_sql_delay());
+  m_row.Desired_Delay= (long int) mi->rli->get_sql_delay();
   
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
@@ -201,25 +145,11 @@ int table_replication_execute_configuration::read_row_values(TABLE *table,
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      if (slave_field_info[f->field_index].can_be_null)
-      {
-        if (m_fields[f->field_index].is_null)
-        {
-          f->set_null();
-          continue;
-        }
-        else
-          f->set_notnull();
-      }
-
       switch(f->field_index)
       {
-
-      case DESIRED_DELAY:
-
-        set_field_ulonglong(f, m_fields[f->field_index].u.n);
+      case 0: /** Desired_Delay */
+        set_field_ulong(f, m_row.Desired_Delay);
         break;
-
       default:
         DBUG_ASSERT(false);
       }

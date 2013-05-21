@@ -102,40 +102,13 @@ PFS_engine_table* table_replication_connection_status::create(void)
   return new table_replication_connection_status();
 }
 
-//TODO: some values hard-coded below, replace them --shiv
-static ST_STATUS_FIELD_INFO slave_field_info[]=
-{
-  {"Source_UUID", HOSTNAME_LENGTH, MYSQL_TYPE_STRING, FALSE},
-  {"Thread_Id", 21, MYSQL_TYPE_STRING, FALSE},
-  {"Service_State", sizeof(ulonglong), MYSQL_TYPE_ENUM, FALSE},
-  {"Received_Transsaction_Set", 300, MYSQL_TYPE_STRING, FALSE},
-  {"Last_Error_Number", sizeof(ulonglong), MYSQL_TYPE_LONG, FALSE},
-  {"Last_Error_Message", MAX_SLAVE_ERRMSG, MYSQL_TYPE_STRING, FALSE},
-  {"Last_Error_Timestamp", 16, MYSQL_TYPE_STRING, FALSE},
-};
-
 table_replication_connection_status::table_replication_connection_status()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
-{
-  for (int i= SOURCE_UUID; i <= _RPL_CONNECT_STATUS_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING)
-      m_fields[i].u.s.str= NULL;  // str_store() makes allocation
-    if (slave_field_info[i].can_be_null)
-      m_fields[i].is_null= false;
-  }
-}
+{}
 
 table_replication_connection_status::~table_replication_connection_status()
-{
-  for (int i= SOURCE_UUID; i <= _RPL_CONNECT_STATUS_LAST_FIELD_; i++)
-  {
-    if (slave_field_info[i].type == MYSQL_TYPE_STRING &&
-        m_fields[i].u.s.str != NULL)
-      my_free(m_fields[i].u.s.str);
-  }
-}
+{}
 
 void table_replication_connection_status::reset_position(void)
 {
@@ -174,54 +147,17 @@ int table_replication_connection_status::rnd_pos(const void *pos)
   return 0;
 }
 
-void table_replication_connection_status::drop_null(enum enum_rpl_connect_status_field_names name)
-{
-  if (slave_field_info[name].can_be_null)
-    m_fields[name].is_null= false;
-}
-
-void table_replication_connection_status::set_null(enum enum_rpl_connect_status_field_names name)
-{
-  DBUG_ASSERT(slave_field_info[name].can_be_null);
-  m_fields[name].is_null= true;
-}
-
-void table_replication_connection_status::str_store(enum enum_rpl_connect_status_field_names name, const char* val)
-{
-  m_fields[name].u.s.length= strlen(val);
-  DBUG_ASSERT(m_fields[name].u.s.length <= slave_field_info[name].max_size);
-  if (m_fields[name].u.s.str == NULL)
-    m_fields[name].u.s.str= (char *) my_malloc(m_fields[name].u.s.length, MYF(0));
-
-  /*
-    \0 may be stripped off since there is no need for \0-termination of
-    m_fields[name].u.s.str
-  */
-  memcpy(m_fields[name].u.s.str, val, m_fields[name].u.s.length);
-  m_fields[name].u.s.length= m_fields[name].u.s.length;
-
-  drop_null(name);
-}
-
-void table_replication_connection_status::int_store(enum enum_rpl_connect_status_field_names name, longlong val)
-{
-  m_fields[name].u.n= val;
-  drop_null(name);
-}
-
 void table_replication_connection_status::fill_rows(Master_info *mi)
 {
-  char *io_gtid_set_buffer= NULL;
-  int io_gtid_set_size= 0;
-  
   if (mi != NULL)
   {
     global_sid_lock->wrlock();
 
     const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
-    if ((io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
+    if ((m_row.Received_Transaction_Set_length= io_gtid_set->to_string(&m_row.Received_Transaction_Set)) < 0)
     {
-      my_free(io_gtid_set_buffer);
+      my_free(m_row.Received_Transaction_Set);
+      m_row.Received_Transaction_Set_length= 0;
       global_sid_lock->unlock();
       return;
     }
@@ -234,27 +170,45 @@ void table_replication_connection_status::fill_rows(Master_info *mi)
   mysql_mutex_lock(&mi->err_lock);
   mysql_mutex_lock(&mi->rli->err_lock);
   
-  str_store(SOURCE_UUID, mi->master_uuid);
+  memcpy(m_row.Source_UUID, mi->master_uuid, UUID_LENGTH+1);
 
-  //TODO: thread-id code pending, hardcoded below
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
   {
-    char thread_id_null_str[21];
-    sprintf(thread_id_null_str, "%llu", (ulonglong) mi->info_thd->thread_id);
-    str_store(IO_THREAD_ID, thread_id_null_str);
+    char thread_id_str[21];
+    sprintf(thread_id_str, "%llu", (ulonglong) mi->info_thd->thread_id);
+    m_row.Thread_Id_length= strlen(thread_id_str) + 1;
+    memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
   }
   else
-    str_store(IO_THREAD_ID, "NULL");
+  {
+    m_row.Thread_Id_length= strlen("NULL");
+    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length+1);
+  }
 
-  enum_store(RPL_CONNECT_SERVICE_STATE, mi->slave_running == MYSQL_SLAVE_RUN_CONNECT ?
-             PS_RPL_CONNECT_SERVICE_STATE_YES:
-             (mi->slave_running == MYSQL_SLAVE_RUN_NOT_CONNECT ?
-              PS_RPL_CONNECT_SERVICE_STATE_CONNECTING :PS_RPL_CONNECT_SERVICE_STATE_NO));
+  if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
+    m_row.Service_State= PS_RPL_CONNECT_SERVICE_STATE_YES;
+  else
+  {
+    if (mi->slave_running == MYSQL_SLAVE_RUN_NOT_CONNECT)
+      m_row.Service_State= PS_RPL_CONNECT_SERVICE_STATE_CONNECTING;
+    else
+      m_row.Service_State= PS_RPL_CONNECT_SERVICE_STATE_NO;
+  }  
 
-  str_store(RECEIVED_TRANSACTION_SET, io_gtid_set_buffer);
-  int_store(RPL_CONNECT_LAST_ERROR_NUMBER, (long int) mi->last_error().number);
-  str_store(RPL_CONNECT_LAST_ERROR_MESSAGE, mi->last_error().message);
-  str_store(RPL_CONNECT_LAST_ERROR_TIMESTAMP, mi->last_error().timestamp);
+  m_row.Last_Error_Number= (unsigned int) mi->last_error().number;
+  
+  m_row.Last_Error_Message_length= 0;
+  m_row.Last_Error_Timestamp_length= 0;
+  if (m_row.Last_Error_Number)
+  {
+    char* temp_store= (char*)mi->last_error().message;
+    m_row.Last_Error_Message_length= strlen(temp_store) + 1;
+    memcpy(m_row.Last_Error_Message, temp_store, m_row.Last_Error_Message_length);
+
+    temp_store= (char*)mi->last_error().timestamp;
+    m_row.Last_Error_Timestamp_length= strlen(temp_store) + 1;
+    memcpy(m_row.Last_Error_Timestamp, temp_store, m_row.Last_Error_Timestamp_length);
+  }
 
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->err_lock);
@@ -278,46 +232,31 @@ int table_replication_connection_status::read_row_values(TABLE *table,
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      if (slave_field_info[f->field_index].can_be_null)
-      {
-        if (m_fields[f->field_index].is_null)
-        {
-          f->set_null();
-          continue;
-        }
-        else
-          f->set_notnull();
-      }
-
       switch(f->field_index)
       {
-      case IO_THREAD_ID:
-      case RPL_CONNECT_LAST_ERROR_MESSAGE:
-      case RPL_CONNECT_LAST_ERROR_TIMESTAMP:
-      case SOURCE_UUID:
-
-        set_field_varchar_utf8(f,
-                               m_fields[f->field_index].u.s.str,
-                               m_fields[f->field_index].u.s.length);
+      case 0: /** Source_UUID */
+        set_field_char_utf8(f, m_row.Source_UUID, UUID_LENGTH+1);
         break;
-
-      case RPL_CONNECT_LAST_ERROR_NUMBER:
-
-        set_field_ulonglong(f, m_fields[f->field_index].u.n);
+      case 1: /** Thread_id */
+        set_field_varchar_utf8(f, m_row.Thread_Id, m_row.Thread_Id_length);
         break;
-
-      case RPL_CONNECT_SERVICE_STATE:
-
-        set_field_enum(f, m_fields[f->field_index].u.n);
+      case 2: /** Service_State */
+        set_field_enum(f, m_row.Service_State);
         break;
-
-      case RECEIVED_TRANSACTION_SET:
-
-        set_field_longtext_utf8(f,
-                               m_fields[f->field_index].u.s.str,
-                               m_fields[f->field_index].u.s.length);
+      case 3: /** Received_Transaction_Set */
+        set_field_longtext_utf8(f, m_row.Received_Transaction_Set,
+                                m_row.Received_Transaction_Set_length);
+      case 4: /*Last_Error_Number*/
+        set_field_ulong(f, m_row.Last_Error_Number);
         break;
-        
+      case 5: /*Last_Error_Message*/
+        set_field_varchar_utf8(f, m_row.Last_Error_Message,
+                               m_row.Last_Error_Message_length);
+        break;
+      case 6: /*Last_Error_Timestamp*/
+        set_field_varchar_utf8(f, m_row.Last_Error_Timestamp,
+                               m_row.Last_Error_Timestamp_length);
+        break;      
       default:
         DBUG_ASSERT(false);
       }
