@@ -123,3 +123,48 @@ ERROR: Too many arguments, max 25 allowed
 
 test all report eventlog
 note: test within quotes...
+Missing argument
+ERROR: Missing argument(s).
+# Unknown argument
+Invalid argument.
+# CLUSTERLOG INFO
+Severities enabled: INFO WARNING ERROR CRITICAL ALERT 
+# CLUSTERLOG OFF
+Cluster logging is disabled
+# Should be OFF now
+Cluster logging is disabled.
+# CLUSTERLOG ON
+Cluster logging is enabled.
+# Should be ON now
+Severities enabled: INFO WARNING ERROR CRITICAL ALERT 
+# CLUSTERLOG TOGGLE
+Cluster logging is disabled
+# Should be OFF now
+Cluster logging is disabled.
+# CLUSTERLOG TOGGLE
+Cluster logging is enabled.
+# Should be ON now
+Severities enabled: INFO WARNING ERROR CRITICAL ALERT 
+# Turn off severity INFO, ERROR and ALERT
+ALERT disabled
+INFO disabled
+ERROR disabled
+# Should not list ALERT, INFO or ERROR
+Severities enabled: WARNING CRITICAL 
+# Turn off reaining severities
+WARNING disabled
+CRITICAL disabled
+# Should not list anything
+Severities enabled: 
+# Back to default severity
+WARNING enabled
+CRITICAL enabled
+ALERT enabled
+INFO enabled
+ERROR enabled
+# Should list default
+Severities enabled: INFO WARNING ERROR CRITICAL ALERT 
+# Bogus severity
+Invalid severity level: bogus1
+# Should list default
+Severities enabled: INFO WARNING ERROR CRITICAL ALERT 
