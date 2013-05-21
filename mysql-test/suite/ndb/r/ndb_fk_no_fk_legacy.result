@@ -18,3 +18,8 @@ COUNT(*)
 2
 SET foreign_key_checks=0;
 DROP TABLE t2, t1;
+SET foreign_key_checks=1;
+SET foreign_key_checks=0;
+CREATE TABLE t1 (id int primary key, foreign key (id) references no_such_db.t2(id)) ENGINE=engine;
+drop table t1;
+SET foreign_key_checks=1;
