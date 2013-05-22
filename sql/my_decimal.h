@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +111,31 @@ class my_decimal :public decimal_t
 #endif
 
 public:
+  my_decimal(const my_decimal &rhs) : decimal_t(rhs)
+  {
+#if !defined(DBUG_OFF)
+    foo1= test_value;
+    foo2= test_value;
+#endif
+    for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
+      buffer[i]= rhs.buffer[i];
+    fix_buffer_pointer();
+  }
+
+  my_decimal& operator=(const my_decimal &rhs)
+  {
+#if !defined(DBUG_OFF)
+    foo1= test_value;
+    foo2= test_value;
+#endif
+    if (this == &rhs)
+      return *this;
+    decimal_t::operator=(rhs);
+    for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
+      buffer[i]= rhs.buffer[i];
+    fix_buffer_pointer();
+    return *this;
+  }
 
   void init()
   {
@@ -147,8 +172,6 @@ public:
   void swap(my_decimal &rhs)
   {
     swap_variables(my_decimal, *this, rhs);
-    /* Swap the buffer pointers back */
-    swap_variables(decimal_digit_t *, buf, rhs.buf);
   }
 };
 

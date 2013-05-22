@@ -2877,7 +2877,7 @@ fi
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/strings/Makefile dnl
- unittest/examples/Makefile dnl
+ unittest/examples/Makefile unittest/my_decimal/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile libmysql_r/Makefile client/Makefile dnl

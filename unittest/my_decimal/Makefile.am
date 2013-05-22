@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,18 +13,20 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SUBDIRS      = mytap . mysys examples strings my_decimal
+AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include 
+AM_CPPFLAGS     += -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
+AM_CPPFLAGS     += -I$(top_srcdir)/sql
 
-EXTRA_DIST = unit.pl
-CLEANFILES = unit
+LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
+		  $(top_builddir)/mysys/libmysys.a \
+		  $(top_builddir)/strings/libmystrings.a \
+		  $(top_builddir)/dbug/libdbug.a \
+		  $(top_builddir)/mysys/libmysys.a \
+		  $(top_builddir)/strings/libmystrings.a
 
-unittests = mytap mysys strings my_decimal @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@
+my_decimal_t_SOURCES = my_decimal-t.cc
 
-test:
-	perl unit.pl run $(unittests)
-
-test-verbose:
-	HARNESS_VERBOSE=1 perl unit.pl run $(unittests)
+noinst_PROGRAMS  = my_decimal-t
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
