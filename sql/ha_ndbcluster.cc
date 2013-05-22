@@ -14010,14 +14010,17 @@ static char *
 multi_range_get_custom(HANDLER_BUFFER *buffer, int range_no)
 {
   DBUG_ASSERT(range_no < MRR_MAX_RANGES);
-  return ((char **)(buffer->buffer))[range_no];
+  char* res;
+  memcpy(&res, buffer->buffer + range_no*sizeof(char*), sizeof(char*));
+  return res;
 }
 
 static void
 multi_range_put_custom(HANDLER_BUFFER *buffer, int range_no, char *custom)
 {
   DBUG_ASSERT(range_no < MRR_MAX_RANGES);
-  ((char **)(buffer->buffer))[range_no]= custom;
+  // memcpy() required for unaligned access.
+  memcpy(buffer->buffer + range_no*sizeof(char*), &custom, sizeof(char*));
 }
 
 /*
