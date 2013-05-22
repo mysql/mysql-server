@@ -135,27 +135,27 @@ page_cur_try_search_shortcut(
 	up_match = low_match;
 	up_bytes = low_bytes;
 
-	if (page_cmp_dtuple_rec_with_match(tuple, rec, offsets,
-					   &low_match, &low_bytes) < 0) {
+	if (cmp_dtuple_rec_with_match(tuple, rec, offsets,
+				      &low_match, &low_bytes) < 0) {
 		goto exit_func;
 	}
 
 	next_rec = page_rec_get_next_const(rec);
-	offsets = rec_get_offsets(next_rec, index, offsets,
-				  dtuple_get_n_fields(tuple), &heap);
-
-	if (page_cmp_dtuple_rec_with_match(tuple, next_rec, offsets,
-					   &up_match, &up_bytes) >= 0) {
-		goto exit_func;
-	}
-
-	page_cur_position(rec, block, cursor);
 
 	if (!page_rec_is_supremum(next_rec)) {
+		offsets = rec_get_offsets(next_rec, index, offsets,
+					  dtuple_get_n_fields(tuple), &heap);
+
+		if (cmp_dtuple_rec_with_match(tuple, next_rec, offsets,
+					      &up_match, &up_bytes) >= 0) {
+			goto exit_func;
+		}
 
 		*iup_matched_fields = up_match;
 		*iup_matched_bytes = up_bytes;
 	}
+
+	page_cur_position(rec, block, cursor);
 
 	*ilow_matched_fields = low_match;
 	*ilow_matched_bytes = low_bytes;
@@ -2640,13 +2640,13 @@ PageCur::searchShortcut(
 
 	const rec_t*	rec = getRec();
 
-	if (page_cmp_dtuple_rec_with_match(tuple, rec, getOffsets(),
-					   &low_match_f, &low_match_b) < 0) {
+	if (cmp_dtuple_rec_with_match(tuple, rec, getOffsets(),
+				      &low_match_f, &low_match_b) < 0) {
 		return(false);
 	}
 
 	if (next()) {
-		bool match = page_cmp_dtuple_rec_with_match(
+		bool match = cmp_dtuple_rec_with_match(
 			tuple, getRec(), getOffsets(),
 			&up_match_f, &up_match_b) >= 0;
 		setUserRec(rec);

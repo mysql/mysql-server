@@ -735,8 +735,7 @@ btr_search_check_guess(
 
 	offsets = rec_get_offsets(rec, cursor->index, offsets,
 				  n_unique, &heap);
-	cmp = page_cmp_dtuple_rec_with_match(tuple, rec,
-					     offsets, &match, &bytes);
+	cmp = cmp_dtuple_rec_with_match(tuple, rec, offsets, &match, &bytes);
 
 	if (mode == PAGE_CUR_GE) {
 		if (cmp == 1) {
@@ -791,8 +790,8 @@ btr_search_check_guess(
 
 		offsets = rec_get_offsets(prev_rec, cursor->index, offsets,
 					  n_unique, &heap);
-		cmp = page_cmp_dtuple_rec_with_match(tuple, prev_rec,
-						     offsets, &match, &bytes);
+		cmp = cmp_dtuple_rec_with_match(tuple, prev_rec,
+						offsets, &match, &bytes);
 		if (mode == PAGE_CUR_GE) {
 			success = cmp == 1;
 		} else {
@@ -820,8 +819,8 @@ btr_search_check_guess(
 
 		offsets = rec_get_offsets(next_rec, cursor->index, offsets,
 					  n_unique, &heap);
-		cmp = page_cmp_dtuple_rec_with_match(tuple, next_rec,
-						     offsets, &match, &bytes);
+		cmp = cmp_dtuple_rec_with_match(tuple, next_rec,
+						offsets, &match, &bytes);
 		if (mode == PAGE_CUR_LE) {
 			success = cmp == -1;
 			cursor->up_match = match;
