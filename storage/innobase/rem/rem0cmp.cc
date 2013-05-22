@@ -317,38 +317,35 @@ cmp_whole_field(
 	return(0);
 }
 
-/*************************************************************//**
-This function is used to compare two data fields for which we know the
-data type.
-@return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
-
+/** Compare two data fields.
+@param[in]	mtype	main type
+@param[in]	prtype	precise type
+@param[in]	data1	data field
+@param[in]	len1	length of data1 in bytes, or UNIV_SQL_NULL
+@param[in]	data2	data field
+@param[in]	len2	length of data2 in bytes, or UNIV_SQL_NULL
+@return	the comparison result of data1 and data2
+@retval	0 if data1 is equal to data2
+@retval	-1 if data1 is less than data2
+@retval	1 if data1 is greater than data2 */
+inline
 int
-cmp_data_data(
-/*==========*/
-	ulint		mtype,	/*!< in: main type */
-	ulint		prtype,	/*!< in: precise type */
-	const byte*	data1,	/*!< in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len1,	/*!< in: data field length or UNIV_SQL_NULL */
-	const byte*	data2,	/*!< in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len2)	/*!< in: data field length or UNIV_SQL_NULL */
+cmp_data(
+	ulint		mtype,
+	ulint		prtype,
+	const byte*	data1,
+	ulint		len1,
+	const byte*	data2,
+	ulint		len2)
 {
 	if (len1 == UNIV_SQL_NULL || len2 == UNIV_SQL_NULL) {
-
 		if (len1 == len2) {
-
 			return(0);
 		}
 
-		if (len1 == UNIV_SQL_NULL) {
-			/* We define the SQL null to be the smallest possible
-			value of a field in the alphabetical order */
-
-			return(-1);
-		}
-
-		return(1);
+		/* We define the SQL null to be the smallest possible
+		value of a field. */
+		return(len1 == UNIV_SQL_NULL ? -1 : 1);
 	}
 
 	switch (mtype) {
@@ -402,6 +399,26 @@ cmp_data_data(
 	}
 
 	return(0);
+}
+
+/*************************************************************//**
+This function is used to compare two data fields for which we know the
+data type.
+@return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
+
+int
+cmp_data_data(
+/*==========*/
+	ulint		mtype,	/*!< in: main type */
+	ulint		prtype,	/*!< in: precise type */
+	const byte*	data1,	/*!< in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len1,	/*!< in: data field length or UNIV_SQL_NULL */
+	const byte*	data2,	/*!< in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len2)	/*!< in: data field length or UNIV_SQL_NULL */
+{
+	return(cmp_data(mtype, prtype, data1, len1, data2, len2));
 }
 
 /*************************************************************//**
@@ -479,10 +496,6 @@ cmp_dtuple_rec_with_match_low(
 				dfield_get_data(dtuple_field));
 		const dtype_t*	type
 			= dfield_get_type(dtuple_field);
-		const ulint	mtype
-			= type->mtype;
-		const ulint	prtype
-			= type->prtype;
 		ulint		dtuple_f_len
 			= dfield_get_len(dtuple_field);
 		ulint		rec_f_len;
@@ -499,102 +512,92 @@ cmp_dtuple_rec_with_match_low(
 
 		ut_ad(!dfield_is_ext(dtuple_field));
 
-		if (UNIV_LIKELY(cur_bytes == 0)) {
-			if (dtuple_f_len == UNIV_SQL_NULL) {
-				if (rec_f_len == UNIV_SQL_NULL) {
-
-					continue;
-				}
-
-				ret = -1;
-				goto order_resolved;
-			} else if (rec_f_len == UNIV_SQL_NULL) {
-				/* We define the SQL null to be the
-				smallest possible value of a field
-				in the alphabetical order */
-
-				ret = 1;
-				goto order_resolved;
-			}
-		}
-
-		switch (mtype) {
-		case DATA_FIXBINARY:
-		case DATA_BINARY:
-		case DATA_INT:
-		case DATA_SYS_CHILD:
-		case DATA_SYS:
-			break;
-		case DATA_BLOB:
-			if (prtype & DATA_BINARY_TYPE) {
+		if (cur_bytes) {
+			/* We got a partial match on the previous
+			round. Compare from those bytes on. */
+			ut_ad(dtuple_f_len != UNIV_SQL_NULL);
+			ut_ad(rec_f_len != UNIV_SQL_NULL);
+#ifdef UNIV_DEBUG
+			switch (type->mtype) {
+			case DATA_FIXBINARY:
+			case DATA_BINARY:
+			case DATA_INT:
+			case DATA_SYS_CHILD:
+			case DATA_SYS:
 				break;
+			case DATA_BLOB:
+				if (type->prtype & DATA_BINARY_TYPE) {
+					break;
+				}
+				/* fall through */
+			default:
+				/* We should have tried
+				cmp_whole_field() on the previous
+				round, not gotten a partial match. */
+				ut_error;
 			}
-			/* fall through */
-		default:
-			ret = cmp_whole_field(
-				mtype, prtype, dtuple_b_ptr,
-				(unsigned) dtuple_f_len,
-				rec_b_ptr, (unsigned) rec_f_len);
+#endif /* UNIV_DEBUG */
 
-			if (!ret) {
+			ulint len = min(dtuple_f_len, rec_f_len);
+
+			if (len < cur_bytes) {
+				ut_ad(dtype_get_pad_char(
+					      type->mtype, type->prtype)
+				      != ULINT_UNDEFINED);
+				goto whole_cmp;
+			}
+
+			/* These bytes should already have been compared,
+			or the index tree must be corrupted. */
+			ut_ad(!memcmp(dtuple_b_ptr, rec_b_ptr, cur_bytes));
+
+			ret = memcmp(dtuple_b_ptr + cur_bytes,
+				     rec_b_ptr + cur_bytes,
+				     len - cur_bytes);
+
+			if (ret) {
+				ret = ret < 0 ? -1 : 1;
+				goto order_resolved;
+			} else if (dtuple_f_len == rec_f_len) {
 				continue;
 			}
 
-			cur_bytes = 0;
-			goto order_resolved;
+			const ulint pad = dtype_get_pad_char(
+				type->mtype, type->prtype);
+
+			if (pad == ULINT_UNDEFINED) {
+				ret = len < dtuple_f_len ? 1 : -1;
+				goto order_resolved;
+			}
+
+			if (len < dtuple_f_len) {
+				do {
+					byte	b = dtuple_b_ptr[len++];
+					if (b != pad) {
+						ret = b < pad ? -1 : 1;
+						goto order_resolved;
+					}
+				} while (len < dtuple_f_len);
+			} else {
+				ut_ad(len < rec_f_len);
+
+				do {
+					byte	b = rec_b_ptr[len++];
+					if (b != pad) {
+						ret = pad < b ? -1 : 1;
+						goto order_resolved;
+					}
+				} while (len < rec_f_len);
+			}
 		}
 
-		/* Set the pointers at the current byte */
-
-		ulint len = min(dtuple_f_len, rec_f_len);
-
-		/* These bytes should already have been compared,
-		or the index tree must be corrupted. */
-		ut_ad(!memcmp(dtuple_b_ptr, rec_b_ptr,
-			      min(cur_bytes, len)));
-
-		if (len < cur_bytes) {
-			ut_ad(dtype_get_pad_char(mtype, prtype)
-			      != ULINT_UNDEFINED);
-			/* For simplicity, compare the whole prefix. */
-			cur_bytes = 0;
-		}
-
-		ret = memcmp(dtuple_b_ptr + cur_bytes, rec_b_ptr + cur_bytes,
-			     len - cur_bytes);
-
+whole_cmp:
+		ret = cmp_data(type->mtype, type->prtype,
+			       dtuple_b_ptr, dtuple_f_len,
+			       rec_b_ptr, rec_f_len);
 		if (ret) {
-			ret = ret < 0 ? -1 : 1;
+			cur_bytes = 0;
 			goto order_resolved;
-		} else if (dtuple_f_len == rec_f_len) {
-			continue;
-		}
-
-		const ulint pad = dtype_get_pad_char(mtype, prtype);
-
-		if (pad == ULINT_UNDEFINED) {
-			ret = len < dtuple_f_len ? 1 : -1;
-			goto order_resolved;
-		}
-
-		if (len < dtuple_f_len) {
-			do {
-				byte	b = dtuple_b_ptr[len++];
-				if (b != pad) {
-					ret = b < pad ? -1 : 1;
-					goto order_resolved;
-				}
-			} while (len < dtuple_f_len);
-		} else {
-			ut_ad(len < rec_f_len);
-
-			do {
-				byte	b = rec_b_ptr[len++];
-				if (b != pad) {
-					ret = pad < b ? -1 : 1;
-					goto order_resolved;
-				}
-			} while (len < rec_f_len);
 		}
 	}
 
@@ -703,66 +706,8 @@ cmp_rec_rec_simple_field(
 	rec1_b_ptr = rec_get_nth_field(rec1, offsets1, n, &rec1_f_len);
 	rec2_b_ptr = rec_get_nth_field(rec2, offsets2, n, &rec2_f_len);
 
-	if (rec1_f_len == UNIV_SQL_NULL || rec2_f_len == UNIV_SQL_NULL) {
-		if (rec1_f_len == rec2_f_len) {
-			return(0);
-		}
-		/* We define the SQL null to be the smallest possible
-		value of a field in the alphabetical order */
-		return(rec1_f_len == UNIV_SQL_NULL ? -1 : 1);
-	}
-
-	switch (col->mtype) {
-	case DATA_FIXBINARY:
-	case DATA_BINARY:
-	case DATA_INT:
-	case DATA_SYS_CHILD:
-	case DATA_SYS:
-		break;
-	case DATA_BLOB:
-		if (col->prtype & DATA_BINARY_TYPE) {
-			break;
-		}
-		/* fall through */
-	default:
-		return(cmp_whole_field(col->mtype, col->prtype,
-				       rec1_b_ptr, (unsigned) rec1_f_len,
-				       rec2_b_ptr, (unsigned) rec2_f_len));
-	}
-
-	ulint len = min(rec1_f_len, rec2_f_len);
-
-	if (int ret = memcmp(rec1_b_ptr, rec2_b_ptr, len)) {
-		return(ret < 0 ? -1 : 1);
-	} else if (rec1_f_len == rec2_f_len) {
-		return(0);
-	}
-
-	const ulint pad = dtype_get_pad_char(col->mtype, col->prtype);
-
-	if (pad == ULINT_UNDEFINED) {
-		return(len < rec1_f_len ? 1 : -1);
-	}
-
-	if (len < rec1_f_len) {
-		do {
-			byte	b = rec1_b_ptr[len++];
-			if (b != pad) {
-				return(b < pad ? -1 : 1);
-			}
-		} while (len < rec1_f_len);
-	} else {
-		ut_ad(len < rec2_f_len);
-
-		do {
-			byte	b = rec2_b_ptr[len++];
-			if (b != pad) {
-				return(pad < b ? -1 : 1);
-			}
-		} while (++len < rec2_f_len);
-	}
-
-	return(0);
+	return(cmp_data(col->mtype, col->prtype,
+			rec1_b_ptr, rec1_f_len, rec2_b_ptr, rec2_f_len));
 }
 
 /*************************************************************//**
@@ -939,92 +884,18 @@ cmp_rec_rec_with_match(
 		rec2_b_ptr = rec_get_nth_field(rec2, offsets2,
 					       cur_field, &rec2_f_len);
 
-		if (rec1_f_len == UNIV_SQL_NULL
-		    || rec2_f_len == UNIV_SQL_NULL) {
-
-			if (rec1_f_len == rec2_f_len) {
-				/* This is limited to stats collection,
-				cannot use it for regular search */
-				if (nulls_unequal) {
-					ret = -1;
-				} else {
-					continue;
-				}
-			} else if (rec2_f_len == UNIV_SQL_NULL) {
-
-				/* We define the SQL null to be the
-				smallest possible value of a field
-				in the alphabetical order */
-
-				ret = 1;
-			} else {
-				ret = -1;
-			}
-
+		if (nulls_unequal
+		    && rec1_f_len == UNIV_SQL_NULL
+		    && rec2_f_len == UNIV_SQL_NULL) {
+			ret = -1;
 			goto order_resolved;
 		}
 
-		switch (mtype) {
-		case DATA_FIXBINARY:
-		case DATA_BINARY:
-		case DATA_INT:
-		case DATA_SYS_CHILD:
-		case DATA_SYS:
-			break;
-		case DATA_BLOB:
-			if (prtype & DATA_BINARY_TYPE) {
-				break;
-			}
-			/* fall through */
-		default:
-			ret = cmp_whole_field(mtype, prtype,
-					      rec1_b_ptr,
-					      (unsigned) rec1_f_len,
-					      rec2_b_ptr,
-					      (unsigned) rec2_f_len);
-			if (!ret) {
-				continue;
-			}
-
-			goto order_resolved;
-		}
-
-		ulint len = min(rec1_f_len, rec2_f_len);
-
-		ret = memcmp(rec1_b_ptr, rec2_b_ptr, len);
-
+		ret = cmp_data(mtype, prtype,
+			       rec1_b_ptr, rec1_f_len,
+			       rec2_b_ptr, rec2_f_len);
 		if (ret) {
-			ret = ret < 0 ? -1 : 1;
 			goto order_resolved;
-		} else if (rec1_f_len == rec2_f_len) {
-			continue;
-		}
-
-		const ulint pad = dtype_get_pad_char(mtype, prtype);
-
-		if (pad == ULINT_UNDEFINED) {
-			ret = (len < rec1_f_len) ? 1 : -1;
-			goto order_resolved;
-		}
-
-		if (len < rec1_f_len) {
-			do {
-				byte	b = rec1_b_ptr[len++];
-				if (b != pad) {
-					ret = b < pad ? -1 : 1;
-					goto order_resolved;
-				}
-			} while (len < rec1_f_len);
-		} else {
-			ut_ad(len < rec2_f_len);
-
-			do {
-				byte	b = rec2_b_ptr[len++];
-				if (b != pad) {
-					ret = pad < b ? -1 : 1;
-					goto order_resolved;
-				}
-			} while (++len < rec2_f_len);
 		}
 	}
 
