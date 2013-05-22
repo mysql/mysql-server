@@ -147,11 +147,19 @@ fts_ast_create_node_text(
 	ulint		len = strlen(ptr);
 	fts_ast_node_t*	node = NULL;
 
-	ut_ad(len >= 2);
 
-	if (len == 2) {
+	ut_ad(len >= 1);
+
+	if (len <= 2) {
+		/* There is a way to directly supply null terminator
+		in the query string (by using 0x220022) and get here,
+		and certainly it would not make a valid query text */
 		ut_ad(ptr[0] == '\"');
-		ut_ad(ptr[1] == '\"');
+
+		if (len == 2) {
+			ut_ad(ptr[1] == '\"');
+		}
+
 		return(NULL);
 	}
 
