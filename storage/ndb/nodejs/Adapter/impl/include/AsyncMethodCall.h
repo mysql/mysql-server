@@ -19,15 +19,10 @@
  02110-1301  USA
  */
 
-#ifndef ASYNCMETHODCALL_H
-#define ASYNCMETHODCALL_H
-#pragma once
-
+#ifndef NODEJS_ADAPTER_INCLUDE_ASYNCMETHODCALL_H
+#define NODEJS_ADAPTER_INCLUDE_ASYNCMETHODCALL_H
 #include <assert.h>
 
-#include <node.h>
-
-#include "v8_binder.h"
 #include "JsConverter.h"
 #include "async_common.h"
 
@@ -453,5 +448,5 @@ public:
     arg0 = arg0converter.toC();
   }
 };
-#endif // ASYNCMETHODCALL_H
 
+#endif

@@ -21,12 +21,10 @@
 
 #include <NdbApi.hpp>
 
-#include <node.h>
 #include <node_buffer.h>
 
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
-#include "unified_debug.h"
 #include "JsWrapper.h"
 
 using namespace v8;

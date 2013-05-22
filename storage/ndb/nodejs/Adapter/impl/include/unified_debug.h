@@ -18,9 +18,8 @@
  02110-1301  USA
  */
 
-#ifndef UNIFIED_DEBUG_H
-#define UNIFIED_DEBUG_H
-#pragma once
+#ifndef NODEJS_ADAPTER_INCLUDE_UNIFIED_DEBUG_H
+#define NODEJS_ADAPTER_INCLUDE_UNIFIED_DEBUG_H
 
 #include <assert.h>
 
@@ -130,5 +129,6 @@ public:
 /* Maximum size of a debug message */
 #define UDEB_MSG_BUF 8000
 
-#endif // UNIFIED_DEBUG_H
+#endif
+
 

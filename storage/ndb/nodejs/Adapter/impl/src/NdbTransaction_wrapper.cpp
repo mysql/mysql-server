@@ -23,12 +23,10 @@
 
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
+#include "Record.h"
 #include "NativeMethodCall.h"
-#include "unified_debug.h"
-
-#include "NdbJsConverters.h"
-#include "NdbWrappers.h"
 #include "NdbWrapperErrors.h"
+#include "NdbJsConverters.h"
 
 using namespace v8;
 

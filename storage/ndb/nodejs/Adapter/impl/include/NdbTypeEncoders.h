@@ -19,7 +19,6 @@
  */
 
 #include <node.h>
-#include <node_buffer.h>
 #include <NdbApi.hpp>
 
 typedef v8::Handle<v8::Value> EncoderReader(const NdbDictionary::Column *, 

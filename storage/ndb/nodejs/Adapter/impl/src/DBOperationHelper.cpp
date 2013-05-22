@@ -24,10 +24,9 @@
 
 #include "adapter_global.h"
 #include "Operation.h"
-#include "JsWrapper.h"
+#include "NdbWrappers.h"
 #include "v8_binder.h"
 #include "js_wrapper_macros.h"
-#include "NdbWrappers.h"
 #include "NdbRecordObject.h"
 
 enum {
@@ -102,6 +101,9 @@ Handle<Value> buildNdbOperation(Operation &op, int opcode, NdbTransaction *tx) {
     case 16:  // OP_DELETE:
       ndbop = op.deleteTuple(tx);
       break;
+    default:
+      assert("Unhandled opcode" == 0);
+      return Undefined();
   }
 
   return NdbOperation_Wrapper(ndbop);

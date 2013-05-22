@@ -18,10 +18,6 @@
  02110-1301  USA
  */
 
-
-#include <node.h>
-#include <NdbApi.hpp>
-
 #include "ColumnHandler.h"
 
 using namespace v8;
