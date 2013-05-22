@@ -370,48 +370,39 @@ cmp_data_data(
 				       data2, (unsigned) len2));
 	}
 
-	/* Compare then the fields */
-	const ulint	pad = dtype_get_pad_char(mtype, prtype);
+	ulint len = std::min(len1, len2);
 
-	for (ulint cur_bytes = 0;; cur_bytes++) {
-		ulint	data1_byte;
-		ulint	data2_byte;
-
-		if (len1 <= cur_bytes) {
-			if (len2 <= cur_bytes) {
-
-				return(0);
-			}
-
-			data1_byte = pad;
-
-			if (data1_byte == ULINT_UNDEFINED) {
-
-				return(-1);
-			}
-		} else {
-			data1_byte = *data1++;
-		}
-
-		if (len2 <= cur_bytes) {
-			data2_byte = pad;
-
-			if (data2_byte == ULINT_UNDEFINED) {
-
-				return(1);
-			}
-		} else {
-			data2_byte = *data2++;
-		}
-
-		if (data1_byte > data2_byte) {
-			return(1);
-		} else if (data1_byte < data2_byte) {
-			return(-1);
-		}
+	if (int ret = memcmp(data1, data2, len)) {
+		return(ret < 0 ? -1 : 1);
+	} else if (len1 == len2) {
+		return(0);
 	}
 
-	return(0);		/* Not reached */
+	const ulint	pad = dtype_get_pad_char(mtype, prtype);
+
+	if (pad == ULINT_UNDEFINED) {
+		return(len < len1 ? 1 : -1);
+	}
+
+	if (len < len1) {
+		do {
+			byte	b = data1[len++];
+			if (b != pad) {
+				return(b < pad ? -1 : 1);
+			}
+		} while (len < len1);
+	} else {
+		ut_ad(len < len2);
+
+		do {
+			byte	b = data2[len++];
+			if (b != pad) {
+				return(pad < b ? -1 : 1);
+			}
+		} while (len < len2);
+	}
+
+	return(0);
 }
 
 /*************************************************************//**
