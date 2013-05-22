@@ -34,6 +34,10 @@ Created 7/1/1994 Heikki Tuuri
 #include "handler0alter.h"
 #include "srv0srv.h"
 
+#include <algorithm>
+
+using std::min;
+
 /*		ALPHABETICAL ORDER
 		==================
 
@@ -882,12 +886,11 @@ are treated as equal.
 @param[in]	rec2		B-tree record
 @param[in]	offsets1	rec_get_offsets(rec1, index)
 @param[in]	offsets2	rec_get_offsets(rec2, index)
+@param[in]	index		B-tree index
 @param[in]	nulls_unequal	true if this is for index cardinality
 statistics estimation, and innodb_stats_method=nulls_unequal
 or innodb_stats_method=nulls_ignored
-@param[in/out]	matched_fields	number of already completely matched fields
-@param[in/out]	matched_bytes	number of already matched bytes
-within the first field not completely matched
+@param[out]	matched_fields	number of completely matched fields
 @return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than
 rec2; only the common first fields are compared */
 
@@ -899,24 +902,17 @@ cmp_rec_rec_with_match(
 	const ulint*		offsets2,
 	const dict_index_t*	index,
 	bool			nulls_unequal,
-	ulint*			matched_fields,
-	ulint*			matched_bytes)
+	ulint*			matched_fields)
 {
 	ulint		rec1_n_fields;	/* the number of fields in rec */
 	ulint		rec1_f_len;	/* length of current field in rec */
 	const byte*	rec1_b_ptr;	/* pointer to the current byte
 					in rec field */
-	ulint		rec1_byte;	/* value of current byte to be
-					compared in rec */
 	ulint		rec2_n_fields;	/* the number of fields in rec */
 	ulint		rec2_f_len;	/* length of current field in rec */
 	const byte*	rec2_b_ptr;	/* pointer to the current byte
 					in rec field */
-	ulint		rec2_byte;	/* value of current byte to be
-					compared in rec */
 	ulint		cur_field;	/* current field number */
-	ulint		cur_bytes;	/* number of already matched
-					bytes in current field */
 	int		ret = 0;	/* return value */
 	ulint		comp;
 
@@ -929,12 +925,26 @@ cmp_rec_rec_with_match(
 	rec1_n_fields = rec_offs_n_fields(offsets1);
 	rec2_n_fields = rec_offs_n_fields(offsets2);
 
-	cur_field = *matched_fields;
-	cur_bytes = *matched_bytes;
+	/* Test if rec is the predefined minimum record */
+	if (UNIV_UNLIKELY(rec_get_info_bits(rec1, comp)
+			  & REC_INFO_MIN_REC_FLAG)) {
+		/* There should only be one such record. */
+		ut_ad(!(rec_get_info_bits(rec2, comp)
+			& REC_INFO_MIN_REC_FLAG));
+		ret = -1;
+		goto order_resolved;
+	} else if (UNIV_UNLIKELY
+		   (rec_get_info_bits(rec2, comp)
+		    & REC_INFO_MIN_REC_FLAG)) {
+		ret = 1;
+		goto order_resolved;
+	}
 
 	/* Match fields in a loop */
 
-	while ((cur_field < rec1_n_fields) && (cur_field < rec2_n_fields)) {
+	for (cur_field = 0;
+	     cur_field < rec1_n_fields && cur_field < rec2_n_fields;
+	     cur_field++) {
 
 		ulint	mtype;
 		ulint	prtype;
@@ -951,67 +961,42 @@ cmp_rec_rec_with_match(
 			prtype = col->prtype;
 		}
 
+		/* We should never encounter an externally stored field.
+		Externally stored fields only exist in clustered index
+		leaf page records. These fields should already differ
+		in the primary key columns already, before DB_TRX_ID,
+		DB_ROLL_PTR, and any externally stored columns. */
+		ut_ad(!rec_offs_nth_extern(offsets1, cur_field));
+		ut_ad(!rec_offs_nth_extern(offsets2, cur_field));
+
 		rec1_b_ptr = rec_get_nth_field(rec1, offsets1,
 					       cur_field, &rec1_f_len);
 		rec2_b_ptr = rec_get_nth_field(rec2, offsets2,
 					       cur_field, &rec2_f_len);
 
-		if (cur_bytes == 0) {
-			if (cur_field == 0) {
-				/* Test if rec is the predefined minimum
-				record */
-				if (UNIV_UNLIKELY(rec_get_info_bits(rec1, comp)
-						  & REC_INFO_MIN_REC_FLAG)) {
+		if (rec1_f_len == UNIV_SQL_NULL
+		    || rec2_f_len == UNIV_SQL_NULL) {
 
-					if (!(rec_get_info_bits(rec2, comp)
-					      & REC_INFO_MIN_REC_FLAG)) {
-						ret = -1;
-					}
-
-					goto order_resolved;
-
-				} else if (UNIV_UNLIKELY
-					   (rec_get_info_bits(rec2, comp)
-					    & REC_INFO_MIN_REC_FLAG)) {
-
-					ret = 1;
-
-					goto order_resolved;
-				}
-			}
-
-			if (rec_offs_nth_extern(offsets1, cur_field)
-			    || rec_offs_nth_extern(offsets2, cur_field)) {
-				/* We do not compare to an externally
-				stored field */
-
-				goto order_resolved;
-			}
-
-			if (rec1_f_len == UNIV_SQL_NULL
-			    || rec2_f_len == UNIV_SQL_NULL) {
-
-				if (rec1_f_len == rec2_f_len) {
-					/* This is limited to stats collection,
-					cannot use it for regular search */
-					if (nulls_unequal) {
-						ret = -1;
-					} else {
-						goto next_field;
-					}
-				} else if (rec2_f_len == UNIV_SQL_NULL) {
-
-					/* We define the SQL null to be the
-					smallest possible value of a field
-					in the alphabetical order */
-
-					ret = 1;
-				} else {
+			if (rec1_f_len == rec2_f_len) {
+				/* This is limited to stats collection,
+				cannot use it for regular search */
+				if (nulls_unequal) {
 					ret = -1;
+				} else {
+					continue;
 				}
+			} else if (rec2_f_len == UNIV_SQL_NULL) {
 
-				goto order_resolved;
+				/* We define the SQL null to be the
+				smallest possible value of a field
+				in the alphabetical order */
+
+				ret = 1;
+			} else {
+				ret = -1;
 			}
+
+			goto order_resolved;
 		}
 
 		switch (mtype) {
@@ -1033,65 +1018,50 @@ cmp_rec_rec_with_match(
 					      rec2_b_ptr,
 					      (unsigned) rec2_f_len);
 			if (!ret) {
-				goto next_field;
+				continue;
 			}
 
-			cur_bytes = 0;
 			goto order_resolved;
 		}
 
-		/* Set the pointers at the current byte */
-		rec1_b_ptr = rec1_b_ptr + cur_bytes;
-		rec2_b_ptr = rec2_b_ptr + cur_bytes;
+		ulint len = std::min(rec1_f_len, rec2_f_len);
 
-		/* Compare then the fields */
-		for (const ulint pad = dtype_get_pad_char(mtype, prtype);;
-		     cur_bytes++) {
-			if (rec2_f_len <= cur_bytes) {
+		ret = memcmp(rec1_b_ptr, rec2_b_ptr, len);
 
-				if (rec1_f_len <= cur_bytes) {
-
-					goto next_field;
-				}
-
-				rec2_byte = pad;
-
-				if (rec2_byte == ULINT_UNDEFINED) {
-					ret = 1;
-
-					goto order_resolved;
-				}
-			} else {
-				rec2_byte = *rec2_b_ptr++;
-			}
-
-			if (rec1_f_len <= cur_bytes) {
-				rec1_byte = pad;
-
-				if (rec1_byte == ULINT_UNDEFINED) {
-					ret = -1;
-
-					goto order_resolved;
-				}
-			} else {
-				rec1_byte = *rec1_b_ptr++;
-			}
-
-			if (rec1_byte < rec2_byte) {
-				ret = -1;
-				goto order_resolved;
-			} else if (rec1_byte > rec2_byte) {
-				ret = 1;
-				goto order_resolved;
-			}
+		if (ret) {
+			ret = ret < 0 ? -1 : 1;
+			goto order_resolved;
+		} else if (rec1_f_len == rec2_f_len) {
+			continue;
 		}
 
-next_field:
-		cur_field++;
-		cur_bytes = 0;
-	}
+		const ulint pad = dtype_get_pad_char(mtype, prtype);
 
-	ut_ad(cur_bytes == 0);
+		if (pad == ULINT_UNDEFINED) {
+			ret = (len < rec1_f_len) ? 1 : -1;
+			goto order_resolved;
+		}
+
+		if (len < rec1_f_len) {
+			do {
+				byte	b = rec1_b_ptr[len++];
+				if (b != pad) {
+					ret = b < pad ? -1 : 1;
+					goto order_resolved;
+				}
+			} while (len < rec1_f_len);
+		} else {
+			ut_ad(len < rec2_f_len);
+
+			do {
+				byte	b = rec2_b_ptr[len++];
+				if (b != pad) {
+					ret = pad < b ? -1 : 1;
+					goto order_resolved;
+				}
+			} while (++len < rec2_f_len);
+		}
+	}
 
 	/* If we ran out of fields, rec1 was equal to rec2 up
 	to the common fields */
@@ -1101,8 +1071,6 @@ order_resolved:
 	ut_ad((ret >= - 1) && (ret <= 1));
 
 	*matched_fields = cur_field;
-	*matched_bytes = cur_bytes;
-
 	return(ret);
 }
 
