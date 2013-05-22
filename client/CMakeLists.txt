@@ -62,6 +62,7 @@ MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
 TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
+SET_SOURCE_FILES_PROPERTIES(mysqlbinlog.cc PROPERTIES COMPILE_FLAGS "-DHAVE_REPLICATION")
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
