@@ -1,5 +1,5 @@
 //
-// $Id: snippets_udf.cc 3087 2012-01-30 23:07:35Z shodan $
+// $Id: snippets_udf.cc 3508 2012-11-05 11:48:48Z kevg $
 //
 
 //
@@ -17,12 +17,19 @@
 #include <string.h>
 #include <assert.h>
 
+#ifndef __WIN__
 #include <sys/un.h>
 #include <netdb.h>
+#else
+#include <winsock2.h>
+#endif
 
 #include <mysql_version.h>
 
-#if MYSQL_VERSION_ID>50100
+#if MYSQL_VERSION_ID>=50515
+#include "sql_class.h"
+#include "sql_array.h"
+#elif MYSQL_VERSION_ID>50100
 #include "mysql_priv.h"
 #include <mysql/plugin.h>
 #else
@@ -84,9 +91,9 @@ void sphUnalignedWrite ( void * pPtr, const T & tVal )
 #define SafeDeleteArray(_arg)	{ if ( _arg ) delete [] ( _arg );	(_arg) = NULL; }
 
 #define Min(a,b) ((a)<(b)?(a):(b))
-
+#ifndef __WIN__
 typedef unsigned int DWORD;
-
+#endif
 inline DWORD sphF2DW ( float f ) { union { float f; uint32 d; } u; u.f = f; return u.d; }
 
 static char * sphDup ( const char * sSrc, int iLen=-1 )
@@ -158,7 +165,7 @@ enum
 
 	SEARCHD_COMMAND_EXCERPT		= 1,
 
-	VER_COMMAND_EXCERPT		= 0x103,
+	VER_COMMAND_EXCERPT		= 0x104,
 };
 
 /// known answers
@@ -380,23 +387,44 @@ int CSphUrl::Connect()
 		else
 		{
 			int tmp_errno;
+			bool bError = false;
+
+#if MYSQL_VERSION_ID>=50515
+			struct addrinfo *hp = NULL;
+			tmp_errno = getaddrinfo ( m_sHost, NULL, NULL, &hp );
+			if ( !tmp_errno || !hp || !hp->ai_addr )
+			{
+				bError = true;
+				if ( hp )
+					freeaddrinfo ( hp );
+			}
+#else
 			struct hostent tmp_hostent, *hp;
 			char buff2 [ GETHOSTBYNAME_BUFF_SIZE ];
-
 			hp = my_gethostbyname_r ( m_sHost, &tmp_hostent, buff2, sizeof(buff2), &tmp_errno );
 			if ( !hp )
 			{
 				my_gethostbyname_r_free();
+				bError = true;
+			}
+#endif
 
+			if ( bError )
+			{
 				char sError[256];
-				snprintf ( sError, sizeof(sError), "failed to resolve searchd host (name=%s)", m_sHost );
+				my_snprintf ( sError, sizeof(sError), "failed to resolve searchd host (name=%s)", m_sHost );
 
 				my_error ( ER_CONNECT_TO_FOREIGN_DATA_SOURCE, MYF(0), sError );
 				return -1;
 			}
 
+#if MYSQL_VERSION_ID>=50515
+			memcpy ( &sin.sin_addr, hp->ai_addr, Min ( sizeof(sin.sin_addr), (size_t)hp->ai_addrlen ) );
+			freeaddrinfo ( hp );
+#else
 			memcpy ( &sin.sin_addr, hp->h_addr, Min ( sizeof(sin.sin_addr), (size_t)hp->h_length ) );
 			my_gethostbyname_r_free();
+#endif
 		}
 	} else
 	{
@@ -534,12 +562,16 @@ CSphResponse::Read ( int iSocket, int iClientVersion )
 }
 
 /// udf
-
+#ifdef _MSC_VER
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT 
+#endif
 extern "C"
 {
-	my_bool sphinx_snippets_init ( UDF_INIT * pUDF, UDF_ARGS * pArgs, char * sMessage );
-	void sphinx_snippets_deinit ( UDF_INIT * pUDF );
-	char * sphinx_snippets ( UDF_INIT * pUDF, UDF_ARGS * pArgs, char * sResult, unsigned long * pLength, char * pIsNull, char * sError );
+	DLLEXPORT my_bool sphinx_snippets_init ( UDF_INIT * pUDF, UDF_ARGS * pArgs, char * sMessage );
+	DLLEXPORT void sphinx_snippets_deinit ( UDF_INIT * pUDF );
+	DLLEXPORT char * sphinx_snippets ( UDF_INIT * pUDF, UDF_ARGS * pArgs, char * sResult, unsigned long * pLength, char * pIsNull, char * sError );
 };
 
 #define MAX_MESSAGE_LENGTH 255
@@ -608,7 +640,7 @@ struct CSphSnippets
 	}
 
 #define STRING CHECK_TYPE(STRING_RESULT)
-#define INT CHECK_TYPE(INT_RESULT); int iValue = *(long long *)pArgs->args[i]
+#define INT CHECK_TYPE(INT_RESULT); int iValue =(int) *(long long *)pArgs->args[i]
 
 my_bool sphinx_snippets_init ( UDF_INIT * pUDF, UDF_ARGS * pArgs, char * sMessage )
 {
@@ -662,6 +694,7 @@ my_bool sphinx_snippets_init ( UDF_INIT * pUDF, UDF_ARGS * pArgs, char * sMessag
 		KEYWORD("load_files")		{ INT; if ( iValue ) pOpts->m_iFlags |= 128; }
 		KEYWORD("allow_empty")		{ INT; if ( iValue ) pOpts->m_iFlags |= 256; }
 		KEYWORD("emit_zones")		{ INT; if ( iValue ) pOpts->m_iFlags |= 512; }
+		KEYWORD("load_files_scattered") { INT; if ( iValue ) pOpts->m_iFlags |= 1024; }
 		else
 		{
 			snprintf ( sMessage, MAX_MESSAGE_LENGTH, "unrecognized argument: %.*s",
@@ -787,5 +820,5 @@ void sphinx_snippets_deinit ( UDF_INIT * pUDF )
 }
 
 //
-// $Id: snippets_udf.cc 3087 2012-01-30 23:07:35Z shodan $
+// $Id: snippets_udf.cc 3508 2012-11-05 11:48:48Z kevg $
 //
