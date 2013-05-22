@@ -51,6 +51,7 @@ SELECT * FROM t1
 WHERE MATCH (a,b)
 AGAINST ('"request docteam@oraclehelp.com"@10' IN BOOLEAN MODE);
 id	a	b
+4	MySQL Tutorial	request docteam@oraclehelp.com ...
 SELECT * FROM t1
 WHERE MATCH (a,b)
 AGAINST ('"1255 minute"@1' IN BOOLEAN MODE);
