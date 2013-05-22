@@ -1033,8 +1033,6 @@ dict_stats_analyze_index_level(
 	     btr_pcur_is_on_user_rec(&pcur);
 	     btr_pcur_move_to_next_user_rec(&pcur, mtr)) {
 
-		ulint	matched_fields = 0;
-		ulint	matched_bytes = 0;
 		bool	rec_is_last_on_page;
 
 		rec = btr_pcur_get_rec(&pcur);
@@ -1094,6 +1092,8 @@ dict_stats_analyze_index_level(
 		(*total_recs)++;
 
 		if (prev_rec != NULL) {
+			ulint	matched_fields;
+
 			prev_rec_offsets = rec_get_offsets(
 				prev_rec, index, prev_rec_offsets,
 				n_uniq, &heap);
@@ -1104,8 +1104,7 @@ dict_stats_analyze_index_level(
 					       prev_rec_offsets,
 					       index,
 					       false,
-					       &matched_fields,
-					       &matched_bytes);
+					       &matched_fields);
 
 			for (i = matched_fields; i < n_uniq; i++) {
 
@@ -1318,8 +1317,7 @@ dict_stats_scan_page(
 
 	while (!page_rec_is_supremum(next_rec)) {
 
-		ulint	matched_fields = 0;
-		ulint	matched_bytes = 0;
+		ulint	matched_fields;
 
 		offsets_next_rec = rec_get_offsets(next_rec, index,
 						   offsets_next_rec,
@@ -1330,8 +1328,7 @@ dict_stats_scan_page(
 		the first n_prefix fields */
 		cmp_rec_rec_with_match(rec, next_rec,
 				       offsets_rec, offsets_next_rec,
-				       index, false, &matched_fields,
-				       &matched_bytes);
+				       index, false, &matched_fields);
 
 		if (matched_fields < n_prefix) {
 			/* rec != next_rec, => rec is non-boring */
