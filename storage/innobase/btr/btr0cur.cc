@@ -3746,8 +3746,6 @@ btr_estimate_number_of_different_key_vals(
 	page_t*		page;
 	rec_t*		rec;
 	ulint		n_cols;
-	ulint		matched_fields;
-	ulint		matched_bytes;
 	ib_uint64_t*	n_diff;
 	ib_uint64_t*	n_not_null;
 	bool		stats_null_not_equal;
@@ -3839,6 +3837,7 @@ btr_estimate_number_of_different_key_vals(
 		}
 
 		while (!page_rec_is_supremum(rec)) {
+			ulint	matched_fields;
 			rec_t*	next_rec = page_rec_get_next(rec);
 			if (page_rec_is_supremum(next_rec)) {
 				total_external_size +=
@@ -3847,8 +3846,6 @@ btr_estimate_number_of_different_key_vals(
 				break;
 			}
 
-			matched_fields = 0;
-			matched_bytes = 0;
 			offsets_next_rec = rec_get_offsets(next_rec, index,
 							   offsets_next_rec,
 							   ULINT_UNDEFINED,
@@ -3857,8 +3854,7 @@ btr_estimate_number_of_different_key_vals(
 			cmp_rec_rec_with_match(rec, next_rec,
 					       offsets_rec, offsets_next_rec,
 					       index, stats_null_not_equal,
-					       &matched_fields,
-					       &matched_bytes);
+					       &matched_fields);
 
 			for (j = matched_fields; j < n_cols; j++) {
 				/* We add one if this index record has

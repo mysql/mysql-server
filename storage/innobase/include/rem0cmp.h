@@ -156,11 +156,11 @@ are treated as equal.
 @param[in]	rec2		B-tree record
 @param[in]	offsets1	rec_get_offsets(rec1, index)
 @param[in]	offsets2	rec_get_offsets(rec2, index)
+@param[in]	index		B-tree index
 @param[in]	nulls_unequal	true if this is for index cardinality
 statistics estimation, and innodb_stats_method=nulls_unequal
 or innodb_stats_method=nulls_ignored
-@param[in/out]	matched_fields	number of already completely matched fields
-@param[in/out]	matched_bytes	number of already matched bytes
+@param[out]	matched_fields	number of completely matched fields
 within the first field not completely matched
 @return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than
 rec2; only the common first fields are compared */
@@ -173,8 +173,7 @@ cmp_rec_rec_with_match(
 	const ulint*		offsets2,
 	const dict_index_t*	index,
 	bool			nulls_unequal,
-	ulint*			matched_fields,
-	ulint*			matched_bytes)
+	ulint*			matched_fields)
 	__attribute__((nonnull));
 /** Compare two B-tree records.
 Only the common first fields are compared, and externally stored field
