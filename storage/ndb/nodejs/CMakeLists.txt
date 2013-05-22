@@ -23,21 +23,17 @@ INSTALL(
 
 # Build rules.
 #
-# The build environment depends on NDB_NODEJS_PATH and NDB_NODEJS_EXTRAS_PATH
+# The build environment depends on NDB_NODEJS_PATH and NDB_NODEJS_EXTRA_PATH
 
-IF(NOT NDB_NODEJS_PATH)
-  MESSAGE(STATUS "Skipping mysql-js")
-  RETURN()
-ENDIF()
-
-IF(NDB_NODEJS_EXTRAS_PATH)
-  MESSAGE(STATUS "Building mysql-js using " ${NDB_NODEJS_EXTRAS_PATH})
+IF(NDB_NODEJS_EXTRA_PATH)
+  MESSAGE(STATUS "Building mysql-js using " ${NDB_NODEJS_EXTRA_PATH})
 ELSE()
   MESSAGE(STATUS "Skipping mysql-js")
   RETURN()
 ENDIF()
 
-set(NODE_GYP ${NDB_NODEJS_EXTRAS_PATH}/node-gyp/0.10.4)
+set(NODE_VERSION 0.10.4)
+set(NODE_GYP ${NDB_NODEJS_EXTRA_PATH}/node-gyp/${NODE_VERSION})
 set(NODE_INCLUDES ${NODE_GYP}/src ${NODE_GYP}/deps/uv/include ${NODE_GYP}/deps/v8/include)
 
 include_directories(${NODE_INCLUDES})
@@ -82,7 +78,7 @@ set(ADAPTER_SOURCE_FILES
 
 ## TODO: Windows needs ndbclient_static but Mac needs ndbclient
 set(ADAPTER_REQUIRED_LIBS
-  ndbclient_so
+  ndbclient
   mysqlclient
 )
 
@@ -90,7 +86,11 @@ if(WIN32)
   add_definitions(-DWIN32)
   add_definitions(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
   set(ADAPTER_REQUIRED_LIBS ${ADAPTER_REQUIRED_LIBS} node)
-  link_directories(${NODE_GYP}/x64/)
+  if(CMAKE_CL_64)
+    link_directories(${NODE_GYP}/x64)
+  else()
+    link_directories(${NODE_GYP}/ia32) 
+  endif()
 else()
   add_definitions(-D_GNU_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64)
 endif()
