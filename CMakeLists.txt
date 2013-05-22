@@ -68,7 +68,6 @@ set(ADAPTER_SOURCE_FILES
   Adapter/impl/src/NdbTransaction_wrapper.cpp
   Adapter/impl/src/NdbTypeEncoders.cpp
   Adapter/impl/src/node_module.cpp
-  Adapter/impl/src/Recode.cpp
   Adapter/impl/src/Record.cpp
   Adapter/impl/src/Record_wrapper.cpp
   Adapter/impl/src/ScanImpl.cpp

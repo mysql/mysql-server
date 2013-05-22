@@ -237,7 +237,7 @@ public:
 
   /* Constructor */
   NativeCVoidFunctionCall_0_(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<int>(args[1]) /*callback*/,                   
+    AsyncCall_Returning<int>(args[1], 1) /*callback*/,
     function(f)
   { }
 
@@ -266,7 +266,7 @@ public:
 
   /* Constructor */
   NativeCVoidFunctionCall_1_<A0>(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<int>(args[1]), // callback
+    AsyncCall_Returning<int>(args[1], 1), // callback
     Call_1_<A0>(args),
     function(f)
   { }
