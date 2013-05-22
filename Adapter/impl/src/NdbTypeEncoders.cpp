@@ -675,6 +675,10 @@ int writeGeneric(const NdbDictionary::Column *col,
     writeRecode(col, strval, buffer, pad);
 }
 
+/* We have two versions of writeRecode().
+   One for non-Microsoft that recodes onto the stack.
+   One for Microsoft where "char recode_stack[localInt]" is illegal.
+*/
 int writeRecode(const NdbDictionary::Column *col, 
                 Handle<String> strval, char * buffer, bool pad) {
   stats.recode_writes++;
@@ -683,9 +687,14 @@ int writeRecode(const NdbDictionary::Column *col,
   int columnSizeInBytes = col->getLength();
   int utf8bufferSize = getUtf8BufferSizeForColumn(columnSizeInBytes, csinfo);
  
+#ifdef WIN32
+  /* Write to the heap */
+  char * recode_stack = new char[utf8bufferSize];
+#else
   /* Write the JavaScript string onto the stack as UTF-8 */
   char recode_stack[utf8bufferSize];
-  int recodeSz = strval->WriteUtf8(recode_stack, utf8bufferSize, 
+#endif
+  int recodeSz = strval->WriteUtf8(recode_stack, utf8bufferSize,
                                    NULL, String::NO_NULL_TERMINATION);
   if(pad) {
     /* Pad all the way to the end of the recode buffer */
@@ -697,6 +706,9 @@ int writeRecode(const NdbDictionary::Column *col,
   csmap.recode(lengths, csmap.getUTF8CharsetNumber(),
                col->getCharsetNumber(), recode_stack, buffer);
   int bytesWritten = lengths[1];
+#ifdef WIN32
+  delete[] recode_stack;
+#endif
   return bytesWritten; 
 }
 
@@ -740,7 +752,11 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
     stats.read_strings_recoded++;
     CharsetMap csmap;
     size_t recode_size = getUtf8BufferSizeForColumn(len, csinfo);
+#ifdef WIN32
+    char * recode_buffer = new char[recode_size];
+#else
     char recode_buffer[recode_size];
+#endif
 
     /* Recode from the buffer into the UTF8 stack */
     int32_t lengths[2] = { len, recode_size } ;
@@ -753,7 +769,11 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
 
     /* Create a new JS String from the UTF-8 recode buffer */
     string = String::New(recode_buffer, len);
-    
+
+#ifdef WIN32
+    delete[] recode_buffer;
+#endif
+
     //DEBUG_PRINT("(D.2): Recode to UTF-8 and create new");
   }
 
