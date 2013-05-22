@@ -752,43 +752,39 @@ cmp_rec_rec_simple_field(
 				       rec2_b_ptr, (unsigned) rec2_f_len));
 	}
 
-	/* Compare the fields */
+	ulint len = std::min(rec1_f_len, rec2_f_len);
+
+	if (int ret = memcmp(rec1_b_ptr, rec2_b_ptr, len)) {
+		return(ret < 0 ? -1 : 1);
+	} else if (rec1_f_len == rec2_f_len) {
+		return(0);
+	}
+
 	const ulint pad = dtype_get_pad_char(col->mtype, col->prtype);
 
-	for (ulint cur_bytes = 0;; cur_bytes++) {
-		ulint	rec1_byte;
-		ulint	rec2_byte;
-
-		if (rec2_f_len <= cur_bytes) {
-			if (rec1_f_len <= cur_bytes) {
-				return(0);
-			}
-
-			rec2_byte = pad;
-
-			if (rec2_byte == ULINT_UNDEFINED) {
-				return(1);
-			}
-		} else {
-			rec2_byte = *rec2_b_ptr++;
-		}
-
-		if (rec1_f_len <= cur_bytes) {
-			rec1_byte = pad;
-
-			if (rec1_byte == ULINT_UNDEFINED) {
-				return(-1);
-			}
-		} else {
-			rec1_byte = *rec1_b_ptr++;
-		}
-
-		if (rec1_byte < rec2_byte) {
-			return(-1);
-		} else if (rec1_byte > rec2_byte) {
-			return(1);
-		}
+	if (pad == ULINT_UNDEFINED) {
+		return(len < rec1_f_len ? 1 : -1);
 	}
+
+	if (len < rec1_f_len) {
+		do {
+			byte	b = rec1_b_ptr[len++];
+			if (b != pad) {
+				return(b < pad ? -1 : 1);
+			}
+		} while (len < rec1_f_len);
+	} else {
+		ut_ad(len < rec2_f_len);
+
+		do {
+			byte	b = rec2_b_ptr[len++];
+			if (b != pad) {
+				return(pad < b ? -1 : 1);
+			}
+		} while (++len < rec2_f_len);
+	}
+
+	return(0);
 }
 
 /*************************************************************//**
