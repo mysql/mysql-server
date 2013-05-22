@@ -160,6 +160,9 @@ TEST(Mysys, Vsnprintf)
 #if defined (__GNUC__)
   test1("Hello string `I am a string`",
         "Hello string %`s", "I am a string");
+#else
+  test1("Hello string `I am a string`",
+        "Hello string %s", "I am a string");
 #endif
   test1("Hello TEST",
         "Hello %05s", "TEST");
