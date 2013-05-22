@@ -7,8 +7,6 @@ def configure(conf):
   conf.env.append_unique("LIBPATH", conf.env.my_lib)
   conf.recurse("test")
 
-# note: removed src/Recode.cpp
-#       removed src/Ndb_util_wrapper.cpp
 def build(ctx):  
   obj = ctx.new_task_gen("cxx", "shlib", "node_addon")
   obj.target = "ndb_adapter"
