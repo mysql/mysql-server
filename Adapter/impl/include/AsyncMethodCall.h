@@ -128,8 +128,7 @@ public:
     AsyncCall(callback), returnValueEnvelope(0), error(0)  {}
 
   AsyncCall_Returning<RETURN_TYPE>(Local<Value> callback, RETURN_TYPE rv) :
-    AsyncCall(callback), returnValueEnvlope(0), error(0),
-    return_val(rv)                                         {}
+    AsyncCall(callback), returnValueEnvelope(0), error(0), return_val(rv)    {}
 
   /* Destructor */
   virtual ~AsyncCall_Returning<RETURN_TYPE>() {
