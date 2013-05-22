@@ -600,6 +600,13 @@ alter table t1 add column c int;
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
+alter table t1 algorithm = copy, add column d int not null;
+
+--source ndb_show_tables_result.inc
+--echo # There should be one mock table still
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
 drop table t1;
 
 --source ndb_show_tables_result.inc
