@@ -2077,7 +2077,6 @@ void Item_func_interval::fix_length_and_dec()
             if (dec != &range->dec)
             {
               range->dec= *dec;
-              range->dec.fix_buffer_pointer();
             }
           }
           else
