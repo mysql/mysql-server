@@ -974,6 +974,28 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), voi
     return r;
 }
 
+static void UU() get_key_after_bytes_callback(const DBT *UU(end_key), uint64_t UU(skipped), void *UU(extra)) {
+    // nothing
+}
+
+static int UU() get_key_after_bytes_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
+    // Pick a random DB, do a get_key_after_bytes operation.
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
+    DB* db = arg->dbp[db_index];
+
+    int r = 0;
+    uint8_t keybuf[arg->cli->key_size];
+
+    DBT start_key, end_key;
+    dbt_init(&start_key, keybuf, sizeof keybuf);
+    fill_key_buf_random(arg->random_data, keybuf, arg);
+    uint64_t skip_len = myrandom_r(arg->random_data) % (2<<30);
+    dbt_init(&end_key, nullptr, 0);
+
+    r = db->get_key_after_bytes(db, txn, &start_key, skip_len, get_key_after_bytes_callback, nullptr, 0);
+    return r;
+}
+
 static int verify_progress_callback(void *UU(extra), float UU(progress)) {
     if (!run_test) {
         return -1;

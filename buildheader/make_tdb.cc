@@ -508,6 +508,7 @@ static void print_db_struct (void) {
     STRUCT_SETUP(DB, verify,         "int (*%s) (DB *, const char *, const char *, FILE *, uint32_t)");
     const char *extra[]={
                          "int (*key_range64)(DB*, DB_TXN *, DBT *, uint64_t *less, uint64_t *equal, uint64_t *greater, int *is_exact)",
+                         "int (*get_key_after_bytes)(DB *, DB_TXN *, const DBT *, uint64_t, void (*callback)(const DBT *, uint64_t, void *), void *, uint32_t); /* given start_key and skip_len, find largest end_key such that the elements in [start_key,end_key) sum to <= skip_len bytes */",
                          "int (*keys_range64)(DB*, DB_TXN *, DBT *keyleft, DBT *keyright, uint64_t *less, uint64_t *left, uint64_t *between, uint64_t *right, uint64_t *greater, bool *middle_3_exact)",
 			 "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
 			 "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",

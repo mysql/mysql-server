@@ -746,6 +746,12 @@ toku_db_key_range64(DB* db, DB_TXN* txn, DBT* key, uint64_t* less_p, uint64_t* e
     return 0;
 }
 
+static int toku_db_get_key_after_bytes(DB *db, DB_TXN *txn, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *end_key, uint64_t actually_skipped, void *extra), void *cb_extra, uint32_t UU(flags)) {
+    HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
+    return toku_ft_get_key_after_bytes(db->i->ft_handle, start_key, skip_len, callback, cb_extra);
+}
+
 // needed by loader.c
 int 
 toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
@@ -1019,6 +1025,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     USDB(pre_acquire_fileops_lock);
     USDB(key_range64);
     USDB(keys_range64);
+    USDB(get_key_after_bytes);
     USDB(hot_optimize);
     USDB(stat64);
     USDB(get_fractal_tree_info64);

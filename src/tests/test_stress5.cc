@@ -132,16 +132,17 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     // make the guy that updates the db
     myargs[2].operation = loader_op;
     myargs[3].operation = keyrange_op;
+    myargs[4].operation = get_key_after_bytes_op;
 
     struct update_op_args uoe = get_update_op_args(cli_args, NULL);
     // make the guy that updates the db
-    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
+    for (int i = 5; i < 5 + cli_args->num_update_threads; ++i) {
         myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
     }
 
     // make the guy that does point queries
-    for (int i = 4 + cli_args->num_update_threads; i < num_threads; i++) {
+    for (int i = 5 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].operation = ptquery_op;
     }
     run_workers(myargs, num_threads, cli_args->num_seconds, false, cli_args);

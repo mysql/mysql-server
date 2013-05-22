@@ -840,8 +840,8 @@ static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) 
 static inline void fill_bfe_for_keymatch(
     struct ftnode_fetch_extra *bfe,
     FT h,
-    DBT *left,
-    DBT *right,
+    const DBT *left,
+    const DBT *right,
     bool disable_prefetching,
     bool read_all_partitions
     )
@@ -880,8 +880,8 @@ static inline void fill_bfe_for_subset_read(
     struct ftnode_fetch_extra *bfe,
     FT h,
     ft_search_t* search,
-    DBT *left,
-    DBT *right,
+    const DBT *left,
+    const DBT *right,
     bool left_is_neg_infty,
     bool right_is_pos_infty,
     bool disable_prefetching,
