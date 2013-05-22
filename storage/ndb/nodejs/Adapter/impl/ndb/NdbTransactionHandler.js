@@ -393,7 +393,7 @@ proto.commit = function commit(userCallback) {
   var self = this;
   var execId = getExecIdForOperationList(self, []);
 
-  function onNdbCommit(err, execId) {
+  function onNdbCommit(err) {
     onExecute(self, COMMIT, err, execId, userCallback);
   }
 
@@ -423,7 +423,7 @@ proto.rollback = function rollback(callback) {
 
   ndbsession.closeActiveTransaction(this);
 
-  function onNdbRollback(err, execId) {
+  function onNdbRollback(err) {
     onExecute(self, ROLLBACK, err, execId, callback);
   }
 
