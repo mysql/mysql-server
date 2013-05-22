@@ -358,6 +358,8 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         the MIME type and set the Content-Type accordingly."""
         try:
             log_thread_name()
+            if self.path == '/':
+               self.path = '/index.html'
             self.server.logger.debug(rt+' fdir='+self.server.opts['fdir']+ " path="+os.path.normpath(self.path))
             fn = os.path.join(self.server.opts['fdir'], os.path.normpath(self.path[1:]))
             try:
