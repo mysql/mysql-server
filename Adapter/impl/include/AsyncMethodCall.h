@@ -123,9 +123,13 @@ public:
   NativeCodeError *error;
   RETURN_TYPE return_val;
 
-  /* Constructor */
+  /* Constructors */
   AsyncCall_Returning<RETURN_TYPE>(Local<Value> callback) :
     AsyncCall(callback), returnValueEnvelope(0), error(0)  {}
+
+  AsyncCall_Returning<RETURN_TYPE>(Local<Value> callback, RETURN_TYPE rv) :
+    AsyncCall(callback), returnValueEnvlope(0), error(0),
+    return_val(rv)                                         {}
 
   /* Destructor */
   virtual ~AsyncCall_Returning<RETURN_TYPE>() {
@@ -233,7 +237,7 @@ public:
   
   /* Constructor */
   NativeVoidMethodCall<C>(const Arguments &args, int callback_idx) :
-    AsyncCall_Returning<int>(args[callback_idx])  /*callback*/
+    AsyncCall_Returning<int>(args[callback_idx], 1)  /*callback*/
   {
     native_obj = unwrapPointer<C *>(args.Holder());
     DEBUG_ASSERT(native_obj != NULL);
