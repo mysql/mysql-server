@@ -827,12 +827,19 @@ Handle<Value> varcharReader(const NdbDictionary::Column *col,
     stats.read_strings_recoded++;
     CharsetMap csmap;
     size_t recode_size = getUtf8BufferSizeForColumn(length, csinfo);
+#ifdef WIN32
+    char * recode_buffer = new char[recode_size];
+#else
     char recode_buffer[recode_size];
+#endif
     int32_t lengths[2] = { length, recode_size } ;
     csmap.recode(lengths, 
                  col->getCharsetNumber(), csmap.getUTF8CharsetNumber(),
                  str, recode_buffer);
     string = String::New(recode_buffer, lengths[1]);
+#ifdef WIN32
+    delete[] recode_buffer;
+#endif
     //DEBUG_PRINT("(D.2): Recode to UTF-8 and create new [size %d]", length);
   }
   return scope.Close(string);
