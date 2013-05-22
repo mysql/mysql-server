@@ -84,7 +84,6 @@ cmp_debug_dtuple_rec_with_match(
 	__attribute__((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
 
-
 /*************************************************************//**
 Compare two data fields.
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
@@ -370,7 +369,7 @@ cmp_data_data(
 				       data2, (unsigned) len2));
 	}
 
-	ulint len = std::min(len1, len2);
+	ulint len = min(len1, len2);
 
 	if (int ret = memcmp(data1, data2, len)) {
 		return(ret < 0 ? -1 : 1);
@@ -436,18 +435,6 @@ cmp_dtuple_rec_with_match_low(
 				matched; when function returns, contains the
 				value for current comparison */
 {
-	const dfield_t*	dtuple_field;	/* current field in logical record */
-	ulint		dtuple_f_len;	/* the length of the current field
-					in the logical record */
-	const byte*	dtuple_b_ptr;	/* pointer to the current byte in
-					logical field data */
-	ulint		dtuple_byte;	/* value of current byte to be compared
-					in dtuple*/
-	ulint		rec_f_len;	/* length of current field in rec */
-	const byte*	rec_b_ptr;	/* pointer to the current byte in
-					rec field */
-	ulint		rec_byte;	/* value of current byte to be
-					compared in rec */
 	ulint		cur_field;	/* current field number */
 	ulint		cur_bytes;	/* number of already matched bytes
 					in current field */
@@ -481,47 +468,42 @@ cmp_dtuple_rec_with_match_low(
 		}
 	}
 
-	/* Match fields in a loop; stop if we run out of fields in dtuple
-	or find an externally stored field */
+	/* Match fields in a loop */
 
-	while (cur_field < n_cmp) {
+	for (; cur_field < n_cmp; cur_field++, cur_bytes = 0) {
+		const byte*	rec_b_ptr;
+		const dfield_t*	dtuple_field
+			= dtuple_get_nth_field(dtuple, cur_field);
+		const byte*	dtuple_b_ptr
+			= static_cast<const byte*>(
+				dfield_get_data(dtuple_field));
+		const dtype_t*	type
+			= dfield_get_type(dtuple_field);
+		const ulint	mtype
+			= type->mtype;
+		const ulint	prtype
+			= type->prtype;
+		ulint		dtuple_f_len
+			= dfield_get_len(dtuple_field);
+		ulint		rec_f_len;
 
-		ulint	mtype;
-		ulint	prtype;
-
-		dtuple_field = dtuple_get_nth_field(dtuple, cur_field);
-		{
-			const dtype_t*	type
-				= dfield_get_type(dtuple_field);
-
-			mtype = type->mtype;
-			prtype = type->prtype;
+		if (rec_get_nth_field_ext(rec, offsets, cur_field,
+					  rec_b_ptr, rec_f_len)) {
+			/* We should never compare against an
+			externally stored field.  Only clustered index
+			records can contain externally stored fields,
+			and the first fields (primary key fields)
+			should already differ. */
+			ut_error;
 		}
 
-		dtuple_f_len = dfield_get_len(dtuple_field);
-
-		ulint	ext = rec_get_nth_field_ext(rec, offsets, cur_field,
-						    rec_b_ptr, rec_f_len);
-
-		/* If we have matched yet 0 bytes, it may be that one or
-		both the fields are SQL null, or the record or dtuple may be
-		the predefined minimum record, or the field is externally
-		stored */
+		ut_ad(!dfield_is_ext(dtuple_field));
 
 		if (UNIV_LIKELY(cur_bytes == 0)) {
-			if (ext) {
-				/* We do not compare to an externally
-				stored field */
-
-				ret = 0;
-
-				goto order_resolved;
-			}
-
 			if (dtuple_f_len == UNIV_SQL_NULL) {
 				if (rec_f_len == UNIV_SQL_NULL) {
 
-					goto next_field;
+					continue;
 				}
 
 				ret = -1;
@@ -534,10 +516,6 @@ cmp_dtuple_rec_with_match_low(
 				ret = 1;
 				goto order_resolved;
 			}
-		} else {
-			/* We should not have any partial match against
-			an externally stored field. */
-			ut_ad(!ext);
 		}
 
 		switch (mtype) {
@@ -554,14 +532,12 @@ cmp_dtuple_rec_with_match_low(
 			/* fall through */
 		default:
 			ret = cmp_whole_field(
-				mtype, prtype,
-				static_cast<const byte*>(
-					dfield_get_data(dtuple_field)),
+				mtype, prtype, dtuple_b_ptr,
 				(unsigned) dtuple_f_len,
 				rec_b_ptr, (unsigned) rec_f_len);
 
 			if (!ret) {
-				goto next_field;
+				continue;
 			}
 
 			cur_bytes = 0;
@@ -570,54 +546,56 @@ cmp_dtuple_rec_with_match_low(
 
 		/* Set the pointers at the current byte */
 
-		rec_b_ptr = rec_b_ptr + cur_bytes;
-		dtuple_b_ptr = static_cast<const byte*>(
-			dfield_get_data(dtuple_field)) + cur_bytes;
-		/* Compare then the fields */
+		ulint len = min(dtuple_f_len, rec_f_len);
 
-		for (const ulint pad = dtype_get_pad_char(mtype, prtype);;
-		     cur_bytes++) {
-			if (UNIV_UNLIKELY(rec_f_len <= cur_bytes)) {
-				if (dtuple_f_len <= cur_bytes) {
+		/* These bytes should already have been compared,
+		or the index tree must be corrupted. */
+		ut_ad(!memcmp(dtuple_b_ptr, rec_b_ptr,
+			      min(cur_bytes, len)));
 
-					goto next_field;
-				}
-
-				rec_byte = pad;
-
-				if (rec_byte == ULINT_UNDEFINED) {
-					ret = 1;
-
-					goto order_resolved;
-				}
-			} else {
-				rec_byte = *rec_b_ptr++;
-			}
-
-			if (UNIV_UNLIKELY(dtuple_f_len <= cur_bytes)) {
-				dtuple_byte = pad;
-
-				if (dtuple_byte == ULINT_UNDEFINED) {
-					ret = -1;
-
-					goto order_resolved;
-				}
-			} else {
-				dtuple_byte = *dtuple_b_ptr++;
-			}
-
-			if (dtuple_byte < rec_byte) {
-				ret = -1;
-				goto order_resolved;
-			} else if (dtuple_byte > rec_byte) {
-				ret = 1;
-				goto order_resolved;
-			}
+		if (len < cur_bytes) {
+			ut_ad(dtype_get_pad_char(mtype, prtype)
+			      != ULINT_UNDEFINED);
+			/* For simplicity, compare the whole prefix. */
+			cur_bytes = 0;
 		}
 
-next_field:
-		cur_field++;
-		cur_bytes = 0;
+		ret = memcmp(dtuple_b_ptr + cur_bytes, rec_b_ptr + cur_bytes,
+			     len - cur_bytes);
+
+		if (ret) {
+			ret = ret < 0 ? -1 : 1;
+			goto order_resolved;
+		} else if (dtuple_f_len == rec_f_len) {
+			continue;
+		}
+
+		const ulint pad = dtype_get_pad_char(mtype, prtype);
+
+		if (pad == ULINT_UNDEFINED) {
+			ret = len < dtuple_f_len ? 1 : -1;
+			goto order_resolved;
+		}
+
+		if (len < dtuple_f_len) {
+			do {
+				byte	b = dtuple_b_ptr[len++];
+				if (b != pad) {
+					ret = b < pad ? -1 : 1;
+					goto order_resolved;
+				}
+			} while (len < dtuple_f_len);
+		} else {
+			ut_ad(len < rec_f_len);
+
+			do {
+				byte	b = rec_b_ptr[len++];
+				if (b != pad) {
+					ret = pad < b ? -1 : 1;
+					goto order_resolved;
+				}
+			} while (len < rec_f_len);
+		}
 	}
 
 	ut_ad(cur_bytes == 0);
@@ -752,7 +730,7 @@ cmp_rec_rec_simple_field(
 				       rec2_b_ptr, (unsigned) rec2_f_len));
 	}
 
-	ulint len = std::min(rec1_f_len, rec2_f_len);
+	ulint len = min(rec1_f_len, rec2_f_len);
 
 	if (int ret = memcmp(rec1_b_ptr, rec2_b_ptr, len)) {
 		return(ret < 0 ? -1 : 1);
@@ -1011,7 +989,7 @@ cmp_rec_rec_with_match(
 			goto order_resolved;
 		}
 
-		ulint len = std::min(rec1_f_len, rec2_f_len);
+		ulint len = min(rec1_f_len, rec2_f_len);
 
 		ret = memcmp(rec1_b_ptr, rec2_b_ptr, len);
 
