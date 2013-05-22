@@ -27,10 +27,12 @@
 #include "NdbTypeEncoders.h"
 #include "js_wrapper_macros.h"
 #include "JsWrapper.h"
+
+#include "node.h"
+#include "node_buffer.h"
+
 #include "ndb_util/CharsetMap.hpp"
 #include "EncoderCharset.h"
-
-#include "node_buffer.h"
 
 using namespace v8;
 
