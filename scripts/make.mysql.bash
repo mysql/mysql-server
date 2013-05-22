@@ -140,7 +140,13 @@ fi
 
 # prints a cmake command to eval
 function generate_cmake_cmd () {
-    local ft_revision=0x$(git ls-remote https://github.com/Tokutek/ft-index.git $git_tag | cut -c-7)
+    local ls_remote # dont combine this with the following line
+    ls_remote=$(git ls-remote https://github.com/Tokutek/ft-index.git $git_tag)
+    if [ $? != 0 ] ; then
+        echo 1>&2 "git ls-remote https://github.com/Tokutek/ft-index.git $git_tag failed $?"
+        test 0 = 1; return
+    fi
+    local ft_revision=0x$(echo $ls_remote | cut -c-7)
 
     echo -n CC=$cc CXX=$cxx cmake \
         -D BUILD_CONFIG=mysql_release \
@@ -193,7 +199,7 @@ function generate_cmake_cmd_rpm() {
         echo -n " " -D RPM=$linux_distro
     elif [ $system = linux -a $mysql_distro != mariadb ] ; then
         echo 1>&2 "I don't know how to build rpms for mysql yet."
-        exit 1
+        test 0 = 1; return
     fi
 }
 
@@ -204,7 +210,9 @@ if [ $build_tgz != 0 ] ; then
     pushd build.$cmake_build_type
 
     # actually build
-    eval $(generate_cmake_cmd) ..
+    cmd=$(generate_cmake_cmd)
+    if [ $? != 0 ] ; then exit 1; fi
+    eval $cmd ..
     if [ $package_source_done = 0 ] ; then
         make package_source
         package_source_done=1
@@ -219,7 +227,9 @@ if [ $build_rpm != 0 ] ; then
     pushd build.rpm.$cmake_build_type
 
     # actually build
-    eval $(generate_cmake_cmd; generate_cmake_cmd_rpm) ..
+    cmd=$(generate_cmake_cmd; generate_cmake_cmd_rpm)
+    if [ $? != 0 ] ; then exit 1; fi
+    eval $cmd ..
     if [ $package_source_done = 0 ] ; then
         make package_source
         package_source_done=1
