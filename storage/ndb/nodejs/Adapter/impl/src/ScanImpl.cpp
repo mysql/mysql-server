@@ -20,14 +20,13 @@
 
 #include <string.h>
 
-#include <node.h>
 #include <NdbApi.hpp>
 
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
-#include "NativeMethodCall.h"
-#include "NdbWrappers.h"
+
 #include "NdbWrapperErrors.h"
+#include "NativeMethodCall.h"
 
 using namespace v8;
 

@@ -84,6 +84,10 @@ EncodedValue.prototype = {
 };
 
 
+/* A point holds a value (either EncodedValue or plain JavaScript value), and, 
+   as the endpoint of a range, is either inclusive of the point itself
+   or not
+*/
 function Point(value, inclusive) {
   this.value     = value;
   this.inclusive = inclusive;
@@ -280,6 +284,7 @@ NumberLine.prototype.toString = function() {
   return str;
 };
 
+// FIXME
 /* A NumberLineIterator can iterate over the segments of a NumberLine 
 */
 function NumberLineIterator(numberLine) {

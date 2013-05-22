@@ -24,7 +24,6 @@
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
 #include "NativeMethodCall.h"
-#include "unified_debug.h"
 
 using namespace v8;
 

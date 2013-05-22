@@ -18,14 +18,13 @@
  02110-1301  USA
  */
 
-
-#include <node.h>
-#include <NdbApi.hpp>
-
-#include "Record.h"
 #include "NdbTypeEncoders.h"
+#include "unified_debug.h"
 
-using namespace v8;
+using v8::Persistent;
+using v8::Handle;
+using v8::Value;
+using v8::Object;
 
 class ColumnHandler {
 public:

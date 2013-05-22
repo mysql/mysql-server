@@ -24,12 +24,13 @@
 #include <string.h>
 
 #include "adapter_global.h"
-#include "unified_debug.h"
 #include "NdbTypeEncoders.h"
 #include "js_wrapper_macros.h"
 #include "JsWrapper.h"
 #include "ndb_util/CharsetMap.hpp"
 #include "EncoderCharset.h"
+
+#include "node_buffer.h"
 
 using namespace v8;
 
@@ -674,6 +675,10 @@ int writeGeneric(const NdbDictionary::Column *col,
     writeRecode(col, strval, buffer, pad);
 }
 
+/* We have two versions of writeRecode().
+   One for non-Microsoft that recodes onto the stack.
+   One for Microsoft where "char recode_stack[localInt]" is illegal.
+*/
 int writeRecode(const NdbDictionary::Column *col, 
                 Handle<String> strval, char * buffer, bool pad) {
   stats.recode_writes++;
@@ -682,9 +687,14 @@ int writeRecode(const NdbDictionary::Column *col,
   int columnSizeInBytes = col->getLength();
   int utf8bufferSize = getUtf8BufferSizeForColumn(columnSizeInBytes, csinfo);
  
+#ifdef WIN32
+  /* Write to the heap */
+  char * recode_stack = new char[utf8bufferSize];
+#else
   /* Write the JavaScript string onto the stack as UTF-8 */
   char recode_stack[utf8bufferSize];
-  int recodeSz = strval->WriteUtf8(recode_stack, utf8bufferSize, 
+#endif
+  int recodeSz = strval->WriteUtf8(recode_stack, utf8bufferSize,
                                    NULL, String::NO_NULL_TERMINATION);
   if(pad) {
     /* Pad all the way to the end of the recode buffer */
@@ -696,6 +706,9 @@ int writeRecode(const NdbDictionary::Column *col,
   csmap.recode(lengths, csmap.getUTF8CharsetNumber(),
                col->getCharsetNumber(), recode_stack, buffer);
   int bytesWritten = lengths[1];
+#ifdef WIN32
+  delete[] recode_stack;
+#endif
   return bytesWritten; 
 }
 
@@ -713,7 +726,7 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
   if(csinfo->isAscii || 
      (! csinfo->isMultibyte && stringIsAscii((const unsigned char *) str, len))) {
     stats.read_strings_externalized++;
-    while(str[--len] == ' ');  // skip past space padding
+    while(str[--len] == ' ') ;  // skip past space padding
     len++;  // undo 1 place
     ExternalizedAsciiString *ext = new ExternalizedAsciiString(str, len);
     string = String::NewExternal(ext);   
@@ -723,14 +736,14 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
     len /= 2;
     stats.read_strings_externalized++;
     uint16_t * buf = (uint16_t *) str;
-    while(buf[--len] == ' '); len++;  // skip padding, then undo 1
+    while(buf[--len] == ' ') ; len++;  // skip padding, then undo 1
     ExternalizedUnicodeString * ext = new ExternalizedUnicodeString(buf, len);
     string = String::NewExternal(ext);
     //DEBUG_PRINT("(B): External UTF-16-LE");
   }
   else if(csinfo->isUtf8) {
     stats.read_strings_created++;
-    while(str[--len] == ' '); len++; // skip padding, then undo 1
+    while(str[--len] == ' ') ; len++; // skip padding, then undo 1
     string = String::New(str, len);
     //DEBUG_PRINT("(C): New From UTF-8");
   }
@@ -739,7 +752,11 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
     stats.read_strings_recoded++;
     CharsetMap csmap;
     size_t recode_size = getUtf8BufferSizeForColumn(len, csinfo);
+#ifdef WIN32
+    char * recode_buffer = new char[recode_size];
+#else
     char recode_buffer[recode_size];
+#endif
 
     /* Recode from the buffer into the UTF8 stack */
     int32_t lengths[2] = { len, recode_size } ;
@@ -748,11 +765,15 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
                  csmap.getUTF8CharsetNumber(),
                  str, recode_buffer);
     len = lengths[1];
-    while(recode_buffer[--len] == ' '); len++; // skip padding, then undo 1
+    while(recode_buffer[--len] == ' ') ; len++; // skip padding, then undo 1
 
     /* Create a new JS String from the UTF-8 recode buffer */
     string = String::New(recode_buffer, len);
-    
+
+#ifdef WIN32
+    delete[] recode_buffer;
+#endif
+
     //DEBUG_PRINT("(D.2): Recode to UTF-8 and create new");
   }
 
@@ -806,12 +827,19 @@ Handle<Value> varcharReader(const NdbDictionary::Column *col,
     stats.read_strings_recoded++;
     CharsetMap csmap;
     size_t recode_size = getUtf8BufferSizeForColumn(length, csinfo);
+#ifdef WIN32
+    char * recode_buffer = new char[recode_size];
+#else
     char recode_buffer[recode_size];
+#endif
     int32_t lengths[2] = { length, recode_size } ;
     csmap.recode(lengths, 
                  col->getCharsetNumber(), csmap.getUTF8CharsetNumber(),
                  str, recode_buffer);
     string = String::New(recode_buffer, lengths[1]);
+#ifdef WIN32
+    delete[] recode_buffer;
+#endif
     //DEBUG_PRINT("(D.2): Recode to UTF-8 and create new [size %d]", length);
   }
   return scope.Close(string);

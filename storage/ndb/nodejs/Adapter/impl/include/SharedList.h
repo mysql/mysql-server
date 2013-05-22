@@ -85,7 +85,7 @@ public:
   void produce(ListNode<T> * node) {
     /* Find the tail */
     ListNode<T> * tail;
-    for(tail = node; tail->next; tail = tail->next);
+    for(tail = node; tail->next; tail = tail->next) {};
     
     uv_mutex_lock(& lock);
     tail->next = head;

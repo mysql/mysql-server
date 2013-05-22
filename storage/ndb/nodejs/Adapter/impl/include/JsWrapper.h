@@ -18,12 +18,21 @@
  02110-1301  USA
  */
 
-#ifndef JSWRAPPER_H
-#define JSWRAPPER_H
-#pragma once
+#ifndef NODEJS_ADAPTER_INCLUDE_JSWRAPPER_H
+#define NODEJS_ADAPTER_INCLUDE_JSWRAPPER_H
+
 #include <node.h>
 #include "unified_debug.h"
-using namespace v8;
+
+using v8::Persistent;
+using v8::ObjectTemplate;
+using v8::HandleScope;
+using v8::Handle;
+using v8::Local;
+using v8::Object;
+using v8::Value;
+using v8::Exception;
+using v8::String;
 
 
 /*****************************************************************
@@ -96,8 +105,8 @@ void wrapPointerInObject(PTR ptr,
                          Local<Object> obj) {
   DEBUG_PRINT("Constructor wrapping %s: %p", env.classname, ptr);
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
-  obj->SetInternalField(0, External::Wrap((void *) & env));
-  obj->SetInternalField(1, External::Wrap((void *) ptr));
+  obj->SetInternalField(0, v8::External::Wrap((void *) & env));
+  obj->SetInternalField(1, v8::External::Wrap((void *) ptr));
 }
 
 
@@ -139,5 +148,7 @@ public:
     return scope.Close(Exception::Error(String::New(message)));
   }
 };
-#endif // JSWRAPPER_H
+
+
+#endif
 

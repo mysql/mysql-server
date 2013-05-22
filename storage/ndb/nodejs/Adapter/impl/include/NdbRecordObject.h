@@ -18,8 +18,7 @@
  02110-1301  USA
 */
 
-#include <node.h>
-
+#include "Record.h"
 #include "ColumnProxy.h"
 
 class NdbRecordObject {

@@ -18,9 +18,8 @@
  02110-1301  USA
  */
 
-#ifndef JSCONVERTER_H
-#define JSCONVERTER_H
-#pragma once
+#ifndef NODEJS_ADAPTER_INCLUDE_JSCONVERTER_H
+#define NODEJS_ADAPTER_INCLUDE_JSCONVERTER_H
 
 #include "JsWrapper.h"
 #include "v8_binder.h"
@@ -274,4 +273,5 @@ template <> inline bool isWrappedPointer(const char * typ)     { return false; }
 template <> inline bool isWrappedPointer(const bool * typ)     { return false; }
 template <> inline bool isWrappedPointer(char * typ)           { return false; }
 template <> inline bool isWrappedPointer(Persistent<Function> typ) { return false; }
-#endif // JSCONVERTER_H
+
+#endif
