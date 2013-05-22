@@ -13,53 +13,51 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-macro(SETIFUNDEF_ var val)
-  if(NOT DEFINED ${var})
-    set(${var} "${val}")
-  endif(NOT DEFINED ${var})
-endmacro(SETIFUNDEF_)
-
-set(MCC_SCRIPT_BASE "ndb_setup")
-set(MCC_SCRIPT_NAME "${MCC_SCRIPT_BASE}.py")
-set(MCC_SCRIPT_IN "${MCC_SCRIPT_BASE}.py.in")
-
-# Write the script to the source tree (without .py ext) for so that
-# make install is not required when testing. We do it here before 
-# MCC_INSTALL_X have been set
-set(MCC_INSTALL_SUBDIR ".")
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
-  "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}")
-
-set(MCC_LAUNCH_BASE "setup")
-
 # Check if we are running cmake standalone, or as part of Cluster
 if(NOT DEFAULT_MYSQL_HOME)
   PROJECT(mcc)
   cmake_minimum_required(VERSION 2.6)
   enable_testing()
+endif()
 
-  set(WITH_MCC_DEFAULT "ON")
-  set(MCC_INSTALL_SUBDIR ".")
-  set(MCC_INSTALL_BINDIR "bin")
-
-  SETIFUNDEF_(MCC_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/install")
-  set(CMAKE_INSTALL_PREFIX "${MCC_INSTALL_PREFIX}")
-else(NOT DEFAULT_MYSQL_HOME)
-  set(WITH_MCC_DEFAULT "ON") # For testing in PB2
-  set(MCC_INSTALL_SUBDIR "${INSTALL_MYSQLSHAREDIR}/mcc")
-  set(MCC_INSTALL_BINDIR "${INSTALL_BINDIR}")
-endif(NOT DEFAULT_MYSQL_HOME)
-
-option(WITH_MCC "Include MySQL Cluster Configurator" ${WITH_MCC_DEFAULT})
+option(WITH_MCC "Include MySQL Cluster Configurator" ON)
 
 if(NOT WITH_MCC)
   message(STATUS "Skipping mcc")
   return()
 endif(NOT WITH_MCC) 
 
+function(SETIFUNDEF_ var val)
+  if(NOT DEFINED ${var})
+    set(${var} "${val}")
+  endif(NOT DEFINED ${var})
+endfunction(SETIFUNDEF_)
+
+set(MCC_SCRIPT_BASE "ndb_setup")
+set(MCC_SCRIPT_NAME "${MCC_SCRIPT_BASE}.py")
+set(MCC_SCRIPT_IN "${MCC_SCRIPT_BASE}.py.in")
+
+set(MCC_LAUNCH_BASE "setup")
+
 macro(SHOW_VAR_ var)
   message("${var}=${${var}}")
 endmacro(SHOW_VAR_)
+
+# Write setup script for running out of the source tree so that
+# make install is not required when testing mcc only.
+set(MCC_ABS_INSTALL_BINDIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(MCC_INSTALL_SUBDIR ".")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_BASE}_in_source.py")
+unset(MCC_ABS_INSTALL_BINDIR)
+
+if(NOT DEFAULT_MYSQL_HOME)
+  # Don't have the MYSQL variables in this case
+  set(MCC_INSTALL_BINDIR "bin")
+  set(MCC_INSTALL_SUBDIR "share/mcc")
+else(NOT DEFAULT_MYSQL_HOME)
+  set(MCC_INSTALL_BINDIR "${INSTALL_BINDIR}")
+  set(MCC_INSTALL_SUBDIR "${INSTALL_MYSQLSHAREDIR}/mcc")
+endif(NOT DEFAULT_MYSQL_HOME)
 
 add_subdirectory("host_info")
 add_subdirectory("frontend")
@@ -126,16 +124,8 @@ CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/post-install.py.in"
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
   "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}")
 
-add_custom_target(punit python "${CMAKE_CURRENT_SOURCE_DIR}/tst/tst_main.py" VERBATIM)
-
-
 install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}"  
   DESTINATION "${MCC_INSTALL_BINDIR}"
-  COMPONENT ClusterTools)
-
-# Install script without .py extension
-install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}"  
-  DESTINATION "${MCC_INSTALL_BINDIR}" RENAME "${MCC_SCRIPT_BASE}"
   COMPONENT ClusterTools)
 
 if(NOT WIN32)
@@ -149,6 +139,10 @@ install(FILES clusterhost.py remote_clusterhost.py request_handler.py
 
 install(DIRECTORY tst DESTINATION "${MCC_INSTALL_SUBDIR}"  
   COMPONENT ClusterTools)
+
+add_custom_target(run_mcc python "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_BINDIR}/${MCC_SCRIPT_NAME}" -d DEBUG -o mcc_log.txt VERBATIM)
+add_custom_target(run_mcc_in_source python "${MCC_SCRIPT_BASE}_in_source.py" -d DEBUG -o mcc_in_source_log.txt VERBATIM)
+add_custom_target(punit python "${CMAKE_CURRENT_SOURCE_DIR}/tst/tst_main.py" VERBATIM)
 
 if(NOT DEFAULT_MYSQL_HOME)
   if(WIN32)
