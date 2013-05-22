@@ -489,50 +489,6 @@ page_get_middle_rec(
 
 	return(page_rec_get_nth(page, middle));
 }
-
-/** Compare a data tuple to a physical record.
-Differs from the function cmp_dtuple_rec_with_match
-in the way that the record must reside on an
-index page, and also page infimum and supremum records can be given in
-the parameter rec. These are considered as the negative infinity and
-the positive infinity in the alphabetical order.
-@param[in]	dtuple		data tuple
-@param[in]	rec		record in a B-tree page
-(may also be page infimum or supremum)
-@param[in]	offsets		rec_get_offsets(rec, index),
-can be NULL if the index page is in ROW_FORMAT=REDUNDANT
-@param[in/out]	matched_fields	number of completely matched fields
-@param[in/out]	matched_bytes	number of already matched bytes
-within the first field not completely matched
-@return 1, 0, -1, if dtuple is greater, equal, less than rec,
-respectively, when only the common first fields are compared */
-UNIV_INLINE
-int
-page_cmp_dtuple_rec_with_match(
-	const dtuple_t*	dtuple,
-	const rec_t*	rec,
-	const ulint*	offsets,
-	ulint*		matched_fields,
-	ulint*		matched_bytes)
-{
-	ut_ad(dtuple_check_typed(dtuple));
-	ut_ad(!offsets || rec_offs_validate(rec, NULL, offsets));
-	ut_ad((!offsets || !rec_offs_comp(offsets))
-	      == !page_rec_is_comp(rec));
-
-	switch (page_offset(rec)) {
-	case PAGE_NEW_INFIMUM:
-	case PAGE_OLD_INFIMUM:
-		return(1);
-	case PAGE_NEW_SUPREMUM:
-	case PAGE_OLD_SUPREMUM:
-		return(-1);
-	}
-
-	return(cmp_dtuple_rec_with_match(dtuple, rec, offsets,
-					 matched_fields,
-					 matched_bytes));
-}
 #endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************//**
