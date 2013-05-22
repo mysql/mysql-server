@@ -20,9 +20,6 @@
 
 #include <assert.h>
 
-#include <NdbApi.hpp>
-#include <node.h>
-
 #include "adapter_global.h"
 #include "Record.h"
 

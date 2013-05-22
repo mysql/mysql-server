@@ -18,13 +18,9 @@
  02110-1301  USA
  */
 
-#ifndef OPERATION_H
-#define OPERATION_H
-#pragma once
-
 #include <string.h>
 
-#include <NdbApi.hpp>
+#include "node.h"
 
 #include "Record.h"
 
@@ -156,5 +152,3 @@ inline const NdbOperation *
     return scanop->deleteCurrentTuple(tx, row_record->getNdbRecord(), row_buffer, 
                                       read_mask_ptr, options);
 }
-#endif // OPERATION_H
-

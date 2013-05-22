@@ -28,10 +28,6 @@
  abstraction over it.
  ******************************************************************/
 
-#ifndef V8_BINDER_H
-#define V8_BINDER_H
-#pragma once
-
 /* Choose a binder framework:
 */
 #define V8BINDER_FOR_NODE
@@ -49,5 +45,3 @@
 
 
 #endif
-#endif // V8_BINDER_H
-

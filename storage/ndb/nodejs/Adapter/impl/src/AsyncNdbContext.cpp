@@ -18,16 +18,10 @@
  02110-1301  USA
  */
 
-#include <node.h>
-#include <uv.h>
-
-#include <NdbApi.hpp>
-
 #include "adapter_global.h"
+#include "NdbWrapperErrors.h"
 #include "AsyncNdbContext.h"
 #include "AsyncMethodCall.h"
-#include "NdbWrapperErrors.h"
-
 
 /* Thread starter, for pthread_create()
 */

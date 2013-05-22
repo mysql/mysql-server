@@ -19,7 +19,6 @@
  */
 
 #include "adapter_global.h"
-#include "unified_debug.h"
 
 #include "ColumnHandler.h"
 

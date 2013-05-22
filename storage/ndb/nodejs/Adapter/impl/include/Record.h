@@ -18,11 +18,14 @@
  02110-1301  USA
 */
 
-#ifndef RECORD_H
-#define RECORD_H
-#include "NdbApi.hpp"
+#ifndef NODEJS_ADAPTER_INCLUDE_RECORD_H
+#define NODEJS_ADAPTER_INCLUDE_RECORD_H
 
-#pragma once
+// NOTE WHAT IS FRAGILE ABOUT THIS FILE:
+// NdbApi uses Uint32 as a uint32_t, but v8 uses Uint32 as a class.
+// Record.h must generally be included *before* node.h
+
+#include "NdbApi.hpp"
 
 class Record {
 private:
@@ -47,14 +50,14 @@ public:
   bool completeIndexRecord(const NdbDictionary::Index *); 
   
   const NdbRecord * getNdbRecord() const;
-  uint32_t getNoOfColumns() const;
+  Uint32 getNoOfColumns() const;
   size_t getColumnOffset(int idx) const;
   const NdbDictionary::Column * getColumn(int idx) const;
   size_t getBufferSize() const;
 
   void setNull(int idx, char *data) const;
   void setNotNull(int idx, char *data) const;
-  uint32_t isNull(int idx, char * data) const;
+  Uint32 isNull(int idx, char * data) const;
 };
 
 
@@ -62,7 +65,7 @@ inline const NdbRecord * Record::getNdbRecord() const {
   return ndb_record;
 }
 
-inline uint32_t Record::getNoOfColumns() const {
+inline Uint32 Record::getNoOfColumns() const {
   return ncolumns;
 }
 
@@ -92,12 +95,12 @@ inline void Record::setNotNull(int idx, char * data) const {
   }
 }
 
-inline uint32_t Record::isNull(int idx, char * data) const {
+inline Uint32 Record::isNull(int idx, char * data) const {
   if(specs[idx].column->getNullable()) {
     return (*(data + specs[idx].nullbit_byte_offset) &
              (1 << specs[idx].nullbit_bit_in_byte));
   }
+  else return 0;
 }
-#endif // RECORD_H
 
-
+#endif

@@ -18,18 +18,11 @@
  02110-1301  USA
 */
 
-#ifndef NDBWRAPPERS_H
-#define NDBWRAPPERS_H
-#pragma once
-
-
 /***  This file includes public wrapper functions exported to C++ code 
 ***/
 
 #include "Record.h"
-#include "Operation.h"
-
-using namespace v8;
+#include "JsWrapper.h"
 
 Handle<Value> Record_Wrapper(Record *);
 Handle<Value> Ndb_Wrapper(Ndb *);
@@ -45,5 +38,3 @@ Envelope * getNdbInterpretedCodeEnvelope(void);
 Envelope * getConstNdbInterpretedCodeEnvelope(void);
 Envelope * getNdbDictTableEnvelope(void);
 Envelope * getNdbScanOperationEnvelope(void);
-#endif // NDBWRAPPERS_H
-
