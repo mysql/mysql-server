@@ -453,7 +453,7 @@ my $innochecksum = $ENV{'INNOCHECKSUM'};
 my $mysqltest_vardir = $ENV{'MYSQLTEST_VARDIR'};
 my $mysqld_datadir = $ENV{'MYSQLD_DATADIR'};
 my $pid = fork();
-open(STDOUT, ">", "out.txt") or die "Err: $!";
+open(STDOUT, ">", "$mysqltest_vardir/tmp/out.txt") or die "Err: $!";
 open(STDERR, ">&STDOUT");
 die "fork failed" unless defined $pid;
 if ($pid == 0)
@@ -472,6 +472,7 @@ EOF
 --error 2013
 select * from tab1;
 --remove_file $MYSQLTEST_VARDIR/tmp/dummy_file
+--remove_file $MYSQLTEST_VARDIR/tmp/out.txt
 --source include/wait_until_disconnected.inc
 
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
