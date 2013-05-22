@@ -10560,15 +10560,26 @@ extern bool ndb_fk_util_is_mock_name(const char* table_name);
 bool
 ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
                                       const NdbDictionary::Table* table,
-                                      int drop_flags)
+                                      bool cascade_constraints)
 {
   DBUG_ENTER("drop_table_and_related");
+  DBUG_PRINT("enter", ("cascade_constraints: %d", cascade_constraints));
 
-  // Build list of objects which should be dropped after the table
+  /*
+    Build list of objects which should be dropped after the table
+    unless cascade constraint is used and they will be dropped anyway
+  */
   List<char> drop_list;
-  if (!ndb_fk_util_build_list(thd, dict, table, drop_list))
+  if (!cascade_constraints &&
+      !ndb_fk_util_build_list(thd, dict, table, drop_list))
   {
     DBUG_RETURN(false);
+  }
+
+  int drop_flags = 0;
+  if (cascade_constraints)
+  {
+    drop_flags|= NDBDICT::DropTableCascadeConstraints;
   }
 
   // Drop the table
@@ -10629,23 +10640,22 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
                              share->key, share->use_count));
   }
 
-  /* Drop the table from NDB */
-
-  int drop_flags= 0;
-
   /* Copying alter can leave #sql table which is parent of old FKs */
+  bool cascade_constraints = false;
   if (thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
       strncmp(table_name, "#sql", 4) == 0)
   {
-    DBUG_PRINT("info", ("set DropTableCascadeConstraints"));
-    drop_flags|= NDBDICT::DropTableCascadeConstraints;
+    DBUG_PRINT("info", ("Using cascade constraints for ALTER of temp table"));
+    cascade_constraints = true;
   }
-  
+
+  /* Drop the table from NDB */
   int res= 0;
   if (h && h->m_table)
   {
 retry_temporary_error1:
-    if (drop_table_and_related(thd, ndb, dict, h->m_table, drop_flags))
+    if (drop_table_and_related(thd, ndb, dict, h->m_table,
+                               cascade_constraints))
     {
       ndb_table_id= h->m_table->getObjectId();
       ndb_table_version= h->m_table->getObjectVersion();
@@ -10676,7 +10686,8 @@ retry_temporary_error1:
       if (ndbtab_g.get_table())
       {
     retry_temporary_error2:
-        if (drop_table_and_related(thd, ndb, dict, ndbtab_g.get_table(), drop_flags))
+        if (drop_table_and_related(thd, ndb, dict, ndbtab_g.get_table(),
+                                   cascade_constraints))
         {
           ndb_table_id= ndbtab_g.get_table()->getObjectId();
           ndb_table_version= ndbtab_g.get_table()->getObjectVersion();
