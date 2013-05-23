@@ -340,7 +340,7 @@ Dbtup::createTrigger(Tablerec* table,
     ndbrequire(tmp[i].list != NULL);
 
     TriggerPtr tptr;
-    if (!tmp[i].list->seize(tptr))
+    if (!tmp[i].list->seizeFirst(tptr))
     {
       jam();
       goto err;
