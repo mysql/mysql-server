@@ -302,18 +302,16 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
 }
 
 
-/*
-  Allocate a setup TABLE_SHARE structure
+/**
+  Allocate and setup a TABLE_SHARE structure
 
-  SYNOPSIS
-    alloc_table_share()
-    TABLE_LIST		Take database and table name from there
-    key			Table cache key (db \0 table_name \0...)
-    key_length		Length of key
+  @param table_list  structure from which database and table 
+                     name can be retrieved
+  @param key         table cache key (db \0 table_name \0...)
+  @param key_length  length of the key
 
-  RETURN
-    0  Error (out of memory)
-    #  Share
+  @return            pointer to allocated table share
+    @retval NULL     error (out of memory, too long path name)
 */
 
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
@@ -322,16 +320,35 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
   MEM_ROOT mem_root;
   TABLE_SHARE *share;
   char *key_buff, *path_buff;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   uint path_length;
   Table_cache_element **cache_element_array;
+  bool was_truncated= false;
   DBUG_ENTER("alloc_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'",
                        table_list->db, table_list->table_name));
 
-  path_length= build_table_filename(path, sizeof(path) - 1,
+  /*
+    There are FN_REFLEN - reg_ext_length bytes available for the 
+    file path and the trailing '\0', which may be padded to the right 
+    of the length indicated by the length parameter. The returned 
+    path length does not include the trailing '\0'.
+  */
+  path_length= build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
                                     table_list->db,
-                                    table_list->table_name, "", 0);
+                                    table_list->table_name, "", 0,
+                                    &was_truncated);
+
+  /*
+    The path now misses extension, but includes '\0'. Unless it was
+    truncated, everything should be ok. 
+  */
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path) - 1, path);
+    DBUG_RETURN(NULL);
+  }
+
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if (multi_alloc_root(&mem_root,
                        &share, sizeof(*share),
@@ -638,7 +655,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   bool error_given;
   File file;
   uchar head[64];
-  char	path[FN_REFLEN];
+  char	path[FN_REFLEN + 1];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
   DBUG_PRINT("enter", ("table: '%s'.'%s'  path: '%s'", share->db.str,
@@ -647,7 +664,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   error= 1;
   error_given= 0;
 
-  strxmov(path, share->normalized_path.str, reg_ext, NullS);
+  strxnmov(path, sizeof(path) - 1, share->normalized_path.str, reg_ext, NullS);
   if ((file= mysql_file_open(key_file_frm,
                              path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
