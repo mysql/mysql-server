@@ -43,8 +43,6 @@ case 2: strcpy(tmp_string, "ZPOS_NO_ELEM_IN_PAGE"); \
 break; \
 case 3: strcpy(tmp_string, "ZPOS_CHECKSUM    "); \
 break; \
-case 4: strcpy(tmp_string, "ZPOS_OVERFLOWREC  "); \
-break; \
 case 5: strcpy(tmp_string, "ZPOS_FREE_AREA_IN_PAGE"); \
 break; \
 case 6: strcpy(tmp_string, "ZPOS_LAST_INDEX   "); \
@@ -91,7 +89,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZPOS_EMPTY_LIST Page8::EMPTY_LIST
 #define ZPOS_ALLOC_CONTAINERS Page8::ALLOC_CONTAINERS
 #define ZPOS_CHECKSUM Page8::CHECKSUM
-#define ZPOS_OVERFLOWREC Page8::OVERFLOWREC
 #define ZPOS_NO_ELEM_IN_PAGE 2
 #define ZPOS_FREE_AREA_IN_PAGE Page8::FREE_AREA_IN_PAGE
 #define ZPOS_LAST_INDEX Page8::LAST_INDEX
@@ -121,7 +118,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 //#define ZNOT_EMPTY_FRAGMENT 1
 #define ZOP_HEAD_INFO_LN 3
 #define ZOPRECSIZE 740
-#define ZOVERFLOWRECSIZE 5
 #define ZPAGE8_BASE_ADD 1
 #define ZPAGESIZE 128
 #define ZPARALLEL_QUEUE 1
@@ -154,7 +150,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZREL_ROOT_FRAG 5
 #define ZREL_FRAG 6
 #define ZREL_DIR 7
-#define ZREL_ODIR 8
 
 /* ------------------------------------------------------------------------- */
 /* ERROR CODES                                                               */
@@ -327,6 +322,48 @@ enum State {
 // Records
 
 /* --------------------------------------------------------------------------------- */
+/* PAGE8                                                                             */
+/* --------------------------------------------------------------------------------- */
+struct Page8 {
+  Uint32 word32[2048];
+  enum Page_variables {
+    PAGE_ID = 0,
+    EMPTY_LIST = 1,
+    ALLOC_CONTAINERS = 2,
+    CHECKSUM = 3,
+    FREE_AREA_IN_PAGE = 5,
+    LAST_INDEX = 6,
+    INSERT_INDEX = 7,
+    ARRAY_POS = 8,
+    NEXT_FREE_INDEX = 9,
+    NEXT_PAGE = 10,
+    PREV_PAGE = 11
+  };
+}; /* p2c: size = 8192 bytes */
+
+  typedef Ptr<Page8> Page8Ptr;
+
+struct Page8SLinkMethods
+{
+  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
+  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
+  static void setPrev(Page8& /* item */, Uint32 /* prev */) { /* no op for single linked list */ }
+};
+
+struct ContainerPageLinkMethods
+{
+  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
+  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
+  static Uint32 getPrev(Page8 const& item) { return item.word32[Page8::PREV_PAGE]; }
+  static void setPrev(Page8& item, Uint32 prev) { item.word32[Page8::PREV_PAGE] = prev; }
+};
+
+typedef SLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> Page8List;
+typedef LocalSLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> LocalPage8List;
+typedef DLCFifoListImpl<Dbacc,Page8,Page8,ContainerPageLinkMethods> ContainerPageList;
+typedef LocalDLCFifoListImpl<Dbacc,Page8,Page8,ContainerPageLinkMethods> LocalContainerPageList;
+
+/* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
 /*         REC  A POINTER TO FRAGMENT RECORD IS SAVED IN ROOTFRAGMENTREC FRAGMENT    */
 /* --------------------------------------------------------------------------------- */
@@ -373,8 +410,6 @@ struct Fragmentrec {
 // bucket pages.
 //-----------------------------------------------------------------------------
   DynArr256::Head directory;
-  DynArr256::Head overflowdir;
-  Uint32 lastOverIndex;
 
 //-----------------------------------------------------------------------------
 // We have a list of overflow pages with free areas. We have a special record,
@@ -384,9 +419,8 @@ struct Fragmentrec {
 // data in them). These are put in the firstFreeDirIndexRec-list.
 // An overflow record representing a page can only be in one of these lists.
 //-----------------------------------------------------------------------------
-  Uint32 firstOverflowRec;
-  Uint32 lastOverflowRec;
-  Uint32 firstFreeDirindexRec;
+  ContainerPageList::Head fullpages; // For pages where only containers on page are allowed to overflow (word32[ZPOS_ALLOC_CONTAINERS] > ZFREE_LIMIT)
+  ContainerPageList::Head sparsepages; // For pages that other pages are still allowed to overflow into (0 < word32[ZPOS_ALLOC_CONTAINERS] <= ZFREE_LIMIT)
 
 //-----------------------------------------------------------------------------
 // Counter keeping track of how many times we have expanded. We need to ensure
@@ -561,54 +595,6 @@ struct Operationrec {
   typedef Ptr<Operationrec> OperationrecPtr;
 
 /* --------------------------------------------------------------------------------- */
-/* OVERFLOW_RECORD                                                                   */
-/* --------------------------------------------------------------------------------- */
-struct OverflowRecord {
-  Uint32 dirindex;
-  Uint32 nextOverRec;
-  Uint32 nextOverList;
-  Uint32 prevOverRec;
-  Uint32 prevOverList;
-  Uint32 overpage;
-  Uint32 nextfreeoverrec;
-};
-
-  typedef Ptr<OverflowRecord> OverflowRecordPtr;
-
-/* --------------------------------------------------------------------------------- */
-/* PAGE8                                                                             */
-/* --------------------------------------------------------------------------------- */
-struct Page8 {
-  Uint32 word32[2048];
-  enum Page_variables {
-    PAGE_ID = 0,
-    EMPTY_LIST = 1,
-    ALLOC_CONTAINERS = 2,
-    CHECKSUM = 3,
-    OVERFLOWREC = 4,
-    FREE_AREA_IN_PAGE = 5,
-    LAST_INDEX = 6,
-    INSERT_INDEX = 7,
-    ARRAY_POS = 8,
-    NEXT_FREE_INDEX = 9,
-    NEXT_PAGE = 10,
-    PREV_PAGE = 11
-  };
-}; /* p2c: size = 8192 bytes */
-
-  typedef Ptr<Page8> Page8Ptr;
-
-struct Page8SLinkMethods
-{
-  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
-  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
-  static void setPrev(Page8& /* item */, Uint32 /* prev */) { /* no op for single linked list */ }
-};
-
-typedef SLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> Page8List;
-typedef LocalSLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> LocalPage8List;
-
-/* --------------------------------------------------------------------------------- */
 /* SCAN_REC                                                                          */
 /* --------------------------------------------------------------------------------- */
 struct ScanRec {
@@ -726,8 +712,6 @@ private:
                                  Uint32 dirIndex,
                                  Uint32 startIndex,
                                  Uint32 directoryIndex);
-  void releaseOverflowResources(Signal* signal, FragmentrecPtr regFragPtr);
-  void releaseDirIndexResources(Signal* signal, FragmentrecPtr regFragPtr);
   void releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr);
   void initScanFragmentPart(Signal* signal);
   Uint32 checkScanExpand(Signal* signal, Uint32 splitBucket);
@@ -736,7 +720,6 @@ private:
   void initialiseFsConnectionRec(Signal* signal);
   void initialiseFsOpRec(Signal* signal);
   void initialiseOperationRec(Signal* signal);
-  void initialiseOverflowRec(Signal* signal);
   void initialisePageRec(Signal* signal);
   void initialiseRootfragRec(Signal* signal);
   void initialiseScanRec(Signal* signal);
@@ -837,12 +820,9 @@ private:
   void initPage(Signal* signal);
   void initRootfragrec(Signal* signal);
   void putOpInFragWaitQue(Signal* signal);
-  void putOverflowRecInFrag(Signal* signal);
-  void putRecInFreeOverdir(Signal* signal);
   void releaseFsConnRec(Signal* signal);
   void releaseFsOpRec(Signal* signal);
   void releaseOpRec(Signal* signal);
-  void releaseOverflowRec(Signal* signal);
   void releaseOverpage(Signal* signal);
   void releasePage(Signal* signal);
   void seizeDirectory(Signal* signal);
@@ -850,13 +830,10 @@ private:
   void seizeFsConnectRec(Signal* signal);
   void seizeFsOpRec(Signal* signal);
   void seizeOpRec(Signal* signal);
-  void seizeOverRec(Signal* signal);
   void seizePage(Signal* signal);
   void seizeRootfragrec(Signal* signal);
   void seizeScanRec(Signal* signal);
   void sendSystemerror(Signal* signal, int line);
-  void takeRecOutOfFreeOverdir(Signal* signal);
-  void takeRecOutOfFreeOverpage(Signal* signal);
 
   void addFragRefuse(Signal* signal, Uint32 errorCode);
   void ndbsttorryLab(Signal* signal);
@@ -925,19 +902,6 @@ private:
   OperationrecPtr readWriteOpPtr;
   Uint32 cfreeopRec;
   Uint32 coprecsize;
-/* --------------------------------------------------------------------------------- */
-/* OVERFLOW_RECORD                                                                   */
-/* --------------------------------------------------------------------------------- */
-  OverflowRecord *overflowRecord;
-  OverflowRecordPtr iopOverflowRecPtr;
-  OverflowRecordPtr tfoOverflowRecPtr;
-  OverflowRecordPtr porOverflowRecPtr;
-  OverflowRecordPtr priOverflowRecPtr;
-  OverflowRecordPtr rorOverflowRecPtr;
-  OverflowRecordPtr sorOverflowRecPtr;
-  OverflowRecordPtr troOverflowRecPtr;
-  Uint32 cfirstfreeoverrec;
-  Uint32 coverflowrecsize;
 
 /* --------------------------------------------------------------------------------- */
 /* PAGE8                                                                             */
@@ -1021,7 +985,7 @@ private:
   Uint32 tancBufType;
   Uint32 tancContainerptr;
   Uint32 tancPageindex;
-  Uint32 tancPageid;
+  Uint32 tancPagei;
   Uint32 tidrResult;
   Uint32 tidrElemhead;
   Uint32 tidrForward;
@@ -1038,7 +1002,6 @@ private:
   Uint32 tdelContainerptr;
   Uint32 tdelElementptr;
   Uint32 tdelForward;
-  Uint32 tiopPageId;
   Uint32 tipPageId;
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
@@ -1097,7 +1060,6 @@ private:
   Uint32 tholdMore;
   Uint32 tgdiPageindex;
   Uint32 tiopIndex;
-  Uint32 tnciTmp;
   Uint32 tullIndex;
   Uint32 turlIndex;
   Uint32 tlfrTmp1;
