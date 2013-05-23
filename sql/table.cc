@@ -1107,7 +1107,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   strpos=disk_buff+6;  
 
-  use_extended_sk= (legacy_db_type == DB_TYPE_INNODB);
+  use_extended_sk=
+    ha_check_storage_engine_flag(share->db_type(),
+                                 HTON_SUPPORTS_EXTENDED_KEYS);
 
   uint total_key_parts;
   if (use_extended_sk)
@@ -1181,12 +1183,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       key_part->store_length=key_part->length;
     }
     /*
-      Add PK parts if engine supports PK extension for secondary keys.
-      Atm it works for Innodb only. Here we add unique first key parts
-      to the end of secondary key parts array and increase actual number
-      of key parts. Note that primary key is always first if exists.
-      Later if there is no PK in the table then number of actual keys parts
-      is set to user defined key parts.
+      Add primary key parts if engine supports primary key extension for
+      secondary keys. Here we add unique first key parts to the end of
+      secondary key parts array and increase actual number of key parts.
+      Note that primary key is always first if exists. Later if there is no
+      primary key in the table then number of actual keys parts is set to
+      user defined key parts.
     */
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->actual_flags= keyinfo->flags;
