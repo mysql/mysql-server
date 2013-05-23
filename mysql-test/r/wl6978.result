@@ -1,0 +1,19 @@
+#
+# WL#6951: Deprecare unique option prefixes
+#
+# Suppress server warning
+call mtr.add_suppression("Using unique option prefix .* instead");
+# Test unique option prefixes with server
+# Should return 100k, as specified in the -master file
+select @@sort_buffer_size;
+@@sort_buffer_size
+102400
+# Test unique option prefixes in client
+# should not fail due to wrong option, but must return a warning
+Warning: Using unique option prefix init-comman instead of init-command is deprecated and will be removed in a future release. Please use the full name instead.
+CMD
+1
+# table must exist
+SELECT * FROM wl6951;
+a
+DROP TABLE wl6951;

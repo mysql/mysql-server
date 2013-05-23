@@ -1,0 +1,24 @@
+# This test should work in embedded server after we fix mysqltest
+-- source include/not_embedded.inc
+
+--echo #
+--echo # WL#6951: Deprecare unique option prefixes
+--echo #
+
+--echo # Suppress server warning
+call mtr.add_suppression("Using unique option prefix .* instead");
+
+--echo # Test unique option prefixes with server
+
+--echo # Should return 100k, as specified in the -master file
+select @@sort_buffer_size;
+
+--echo # Test unique option prefixes in client
+
+--echo # should not fail due to wrong option, but must return a warning
+--exec $MYSQL test --init-comman="CREATE TABLE wl6951(a int)" -e "SELECT 1 AS CMD" 2>&1
+
+--echo # table must exist
+SELECT * FROM wl6951;
+
+DROP TABLE wl6951;
