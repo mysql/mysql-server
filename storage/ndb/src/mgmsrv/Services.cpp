@@ -90,7 +90,7 @@ extern EventLogger * g_eventLogger;
 #define MGM_END() \
  { 0, \
    0, \
-   ParserRow<MgmApiSession>::Arg, \
+   ParserRow<MgmApiSession>::End, \
    ParserRow<MgmApiSession>::Int, \
    ParserRow<MgmApiSession>::Optional, \
    ParserRow<MgmApiSession>::IgnoreMinMax, \
@@ -2073,6 +2073,13 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     char* decoded = new char[base64_needed_decoded_length((size_t)len64 - 1)];
     int decoded_len= ndb_base64_decode(buf64, len64-1, decoded, NULL);
     delete[] buf64;
+
+    if (decoded_len == -1)
+    {
+      result.assfmt("Failed to unpack config");
+      delete[] decoded;
+      goto done;
+    }
 
     ConfigValuesFactory cvf;
     if(!cvf.unpack(decoded, decoded_len))

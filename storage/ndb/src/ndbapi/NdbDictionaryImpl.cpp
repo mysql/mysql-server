@@ -2283,11 +2283,17 @@ NdbDictInterface::execSignal(void* dictImpl,
   {
     const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
                                            signal->getDataPtr());
-    for (Uint32 i = NdbNodeBitmask::find_first(rep->theNodes);
-         i != NdbNodeBitmask::NotFound;
-         i = NdbNodeBitmask::find_next(rep->theNodes, i + 1))
+    Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
+    assert(len == NodeBitmask::Size); // only full length in ndbapi
+    for (Uint32 i = BitmaskImpl::find_first(len, rep->theAllNodes);
+         i != BitmaskImpl::NotFound;
+         i = BitmaskImpl::find_next(len, rep->theAllNodes, i + 1))
     {
-      tmp->m_impl->theWaiter.nodeFail(i);
+      if (i <= MAX_DATA_NODE_ID)
+      {
+        // NdbDictInterface only cares about data-nodes (so far??)
+        tmp->m_impl->theWaiter.nodeFail(i);
+      }
     }
     break;
   }
