@@ -986,6 +986,26 @@ public:
 
     DBUG_RETURN(result);
   }
+
+  bool count_fks(NdbDictionary::Dictionary* dict,
+                 const NdbDictionary::Table* table, uint& count) const
+  {
+    DBUG_ENTER("count_fks");
+
+    NdbDictionary::Dictionary::List list;
+    if (dict->listDependentObjects(list, *table) != 0)
+    {
+      error(dict, "Failed to list dependent objects for table '%s'", table->getName());
+      DBUG_RETURN(false);
+    }
+    for (unsigned i = 0; i < list.count; i++)
+    {
+      if (list.elements[i].type == NdbDictionary::Object::ForeignKey)
+        count++;
+    }
+    DBUG_PRINT("exit", ("count: %u", count));
+    DBUG_RETURN(true);
+  }
 };
 
 bool ndb_fk_util_build_list(THD* thd, NdbDictionary::Dictionary* dict,
@@ -1028,7 +1048,6 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
   assert(thd->lex != 0);
   Key * key= 0;
-  uint fk_index = 0;
   List_iterator<Key> key_iterator(thd->lex->alter_info.key_list);
   while ((key=key_iterator++))
   {
@@ -1135,12 +1154,20 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
        DBUG_PRINT("info", ("No parent and foreign_key_checks=0"));
 
+       Fk_util fk_util(thd);
+
+       /* Count the number of existing fks on table */
+       uint existing = 0;
+       if(!fk_util.count_fks(dict, child_tab.get_table(), existing))
+       {
+         DBUG_RETURN(err_default);
+       }
+
        /* Format mock table name */
        char mock_name[FN_REFLEN];
-       Fk_util fk_util(thd);
        if (!fk_util.format_name(mock_name, sizeof(mock_name),
                                 child_tab.get_table()->getObjectId(),
-                                fk_index, parent_name))
+                                existing, parent_name))
        {
          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                              ER_CANNOT_ADD_FOREIGN,
@@ -1320,8 +1347,6 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     {
       ERR_RETURN(dict->getNdbError());
     }
-
-    fk_index++;
   }
 
   Fk_util::resolve_mock_tables(thd, ndb->getDictionary(), m_dbname, m_tabname);

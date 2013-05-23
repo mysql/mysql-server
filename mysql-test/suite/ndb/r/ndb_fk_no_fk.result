@@ -663,3 +663,41 @@ ndb_show_tables completed.....
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
+#
+# Alter table to add foreign keys referencing non existing parents. One
+# new mock should be created per fk
+#
+create table child (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)
+) engine = ndb;
+alter table child algorithm=inplace, add constraint fk1 foreign key (a) references parent(a);
+alter table child algorithm=inplace, add constraint fk2 foreign key (b) references parent(col1);
+alter table child algorithm=inplace, add constraint fk3 foreign key (c) references parent(col2);
+alter table child algorithm=inplace,
+add constraint fk4 foreign key (c) references parent(col3),
+add constraint fk5 foreign key (c) references parent(col4),
+add constraint fk6 foreign key (c) references parent(col5);
+
+ndb_show_tables completed.....
+
+# There should be 6 mock tables
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+drop table child;
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
