@@ -5008,7 +5008,7 @@ void Dbacc::allocOverflowPage(Signal* signal)
   Uint32 taopTmp1;
 
   tresult = 0;
-  if (cfirstfreepage == RNIL)
+  if (cfreepages.isEmpty())
   {
     jam();  
     zpagesize_error("Dbacc::allocOverflowPage");
@@ -5208,8 +5208,9 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
       return;
     }//if
   }//if
-  if (cfirstfreepage == RNIL)
+  if (cfreepages.isEmpty())
   {
+    jam();
     /*--------------------------------------------------------------*/
     /* WE HAVE TO STOP THE EXPAND PROCESS SINCE THERE ARE NO FREE   */
     /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
@@ -5818,7 +5819,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       return;
     }//if
   }//if
-  if (cfirstfreepage == RNIL)
+  if (cfreepages.isEmpty())
   {
     jam();
     /*--------------------------------------------------------------*/
@@ -8001,26 +8002,14 @@ extern Uint32 g_acc_pages_used[MAX_NDBMT_LQH_WORKERS];
 /* ------------------------------------------------------------------------- */
 void Dbacc::releasePage(Signal* signal) 
 {
+  jam();
+  LocalPage8List list(*this, cfreepages);
 #ifdef VM_TRACE
-  bool inList = false;
-  Uint32 numInList = 0;
-  Page8Ptr tmpPagePtr;
-  tmpPagePtr.i = cfirstfreepage;
-  while (tmpPagePtr.i != RNIL){
-    ptrCheckGuard(tmpPagePtr, cpagesize, page8);
-    if (tmpPagePtr.i == rpPageptr.i){
-      jam(); inList = true; 
-      break;
-    }    
-    numInList++;
-    tmpPagePtr.i = tmpPagePtr.p->word32[0];    
-  }
-  ndbrequire(inList == false);
-  //  ndbrequire(numInList == cnoOfAllocatedPages);
+//  ndbrequire(!list.find(rpPageptr));
 #endif
-  rpPageptr.p->word32[0] = cfirstfreepage;
-  cfirstfreepage = rpPageptr.i;
+  list.addFirst(rpPageptr);
   cnoOfAllocatedPages--;
+  ndbassert(list.count() + cnoOfAllocatedPages == cpageCount);
 
   g_acc_pages_used[instance()] = cnoOfAllocatedPages;
 
@@ -8073,7 +8062,7 @@ void Dbacc::seizeOverRec(Signal* signal) {
 void Dbacc::zpagesize_error(const char* where){
   DEBUG(where << endl
 	<< "  ZPAGESIZE_ERROR" << endl
-	<< "  cfirstfreepage=" << cfirstfreepage << endl
+        << "  cfreepages.count()=" << cfreepages.getCount() << endl
 	<< "  cpagesize=" <<cpagesize<<endl
 	<< "  cnoOfAllocatedPages="<<cnoOfAllocatedPages);
 }
@@ -8084,8 +8073,9 @@ void Dbacc::zpagesize_error(const char* where){
 /* --------------------------------------------------------------------------------- */
 void Dbacc::seizePage(Signal* signal) 
 {
+  jam();
   tresult = 0;
-  if (cfirstfreepage == RNIL || m_oom)
+  if (cfreepages.isEmpty() || m_oom)
   {
     jam();
     zpagesize_error("Dbacc::seizePage");
@@ -8094,10 +8084,10 @@ void Dbacc::seizePage(Signal* signal)
   else
   {
     jam();
-    spPageptr.i = cfirstfreepage;
-    ptrCheckGuard(spPageptr, cpagesize, page8);
-    cfirstfreepage = spPageptr.p->word32[0];
+    LocalPage8List list(*this, cfreepages);
+    list.removeFirst(spPageptr);
     cnoOfAllocatedPages++;
+    ndbassert(list.count() + cnoOfAllocatedPages == cpageCount);
 
     if (cnoOfAllocatedPages >= m_maxAllocPages)
       m_oom = true;

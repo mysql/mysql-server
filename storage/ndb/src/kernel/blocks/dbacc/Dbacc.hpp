@@ -26,6 +26,7 @@
 #include <DynArr256.hpp>
 #include <SimulatedBlock.hpp>
 #include <LHLevel.hpp>
+#include <IntrusiveList.hpp>
 
 #ifdef DBACC_C
 // Debug Macros
@@ -84,21 +85,21 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 /* ------------------------------------------------------------------------- */
 /*  THESE CONSTANTS DEFINE THE USE OF THE PAGE HEADER IN THE INDEX PAGES.    */
 /* ------------------------------------------------------------------------- */
-#define ZPOS_PAGE_ID 0
+#define ZPOS_PAGE_ID Page8::PAGE_ID
 #define ZPOS_PAGE_TYPE 1
 #define ZPOS_PAGE_TYPE_BIT 14
-#define ZPOS_EMPTY_LIST 1
-#define ZPOS_ALLOC_CONTAINERS 2
-#define ZPOS_CHECKSUM 3
-#define ZPOS_OVERFLOWREC 4
+#define ZPOS_EMPTY_LIST Page8::EMPTY_LIST
+#define ZPOS_ALLOC_CONTAINERS Page8::ALLOC_CONTAINERS
+#define ZPOS_CHECKSUM Page8::CHECKSUM
+#define ZPOS_OVERFLOWREC Page8::OVERFLOWREC
 #define ZPOS_NO_ELEM_IN_PAGE 2
-#define ZPOS_FREE_AREA_IN_PAGE 5
-#define ZPOS_LAST_INDEX 6
-#define ZPOS_INSERT_INDEX 7
-#define ZPOS_ARRAY_POS 8
-#define ZPOS_NEXT_FREE_INDEX 9
-#define ZPOS_NEXT_PAGE 10
-#define ZPOS_PREV_PAGE 11
+#define ZPOS_FREE_AREA_IN_PAGE Page8::FREE_AREA_IN_PAGE
+#define ZPOS_LAST_INDEX Page8::LAST_INDEX
+#define ZPOS_INSERT_INDEX Page8::INSERT_INDEX
+#define ZPOS_ARRAY_POS Page8::ARRAY_POS
+#define ZPOS_NEXT_FREE_INDEX Page8::NEXT_FREE_INDEX
+#define ZPOS_NEXT_PAGE Page8::NEXT_PAGE
+#define ZPOS_PREV_PAGE Page8::PREV_PAGE
 #define ZNORMAL_PAGE_TYPE 0
 #define ZOVERFLOW_PAGE_TYPE 1
 #define ZDEFAULT_LIST 3
@@ -579,9 +580,33 @@ struct OverflowRecord {
 /* --------------------------------------------------------------------------------- */
 struct Page8 {
   Uint32 word32[2048];
+  enum Page_variables {
+    PAGE_ID = 0,
+    EMPTY_LIST = 1,
+    ALLOC_CONTAINERS = 2,
+    CHECKSUM = 3,
+    OVERFLOWREC = 4,
+    FREE_AREA_IN_PAGE = 5,
+    LAST_INDEX = 6,
+    INSERT_INDEX = 7,
+    ARRAY_POS = 8,
+    NEXT_FREE_INDEX = 9,
+    NEXT_PAGE = 10,
+    PREV_PAGE = 11
+  };
 }; /* p2c: size = 8192 bytes */
 
   typedef Ptr<Page8> Page8Ptr;
+
+struct Page8SLinkMethods
+{
+  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
+  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
+  static void setPrev(Page8& /* item */, Uint32 /* prev */) { /* no op for single linked list */ }
+};
+
+typedef SLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> Page8List;
+typedef LocalSLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> LocalPage8List;
 
 /* --------------------------------------------------------------------------------- */
 /* SCAN_REC                                                                          */
@@ -867,6 +892,9 @@ private:
   void debug_lh_vars(const char* where) {}
 #endif
 
+public:
+  void getPtr(Ptr<Page8>& page) const;
+private:
   // Variables
 /* --------------------------------------------------------------------------------- */
 /* DIRECTORY                                                                         */
@@ -949,7 +977,7 @@ private:
   Page8Ptr rpPageptr;
   Page8Ptr slPageptr;
   Page8Ptr spPageptr;
-  Uint32 cfirstfreepage;
+  Page8List::Head cfreepages;
   Uint32 cpagesize;
   Uint32 cpageCount;
   Uint32 cnoOfAllocatedPages;
@@ -1124,6 +1152,11 @@ inline bool Dbacc::Fragmentrec::enough_valid_bits(LHBits16 const& reduced_hash_v
   // Forte C 5.0 needs use of intermediate constant
   int const bits = MIN_HASH_COMPARE_BITS;
   return level.getNeededValidBits(bits) <= reduced_hash_value.valid_bits();
+}
+
+inline void Dbacc::getPtr(Ptr<Page8>& page) const
+{
+  ptrCheckGuard(page, cpagesize, page8);
 }
 
 #endif

@@ -127,6 +127,8 @@ struct Ptr
   typedef Uint32 I;
   T * p;
   Uint32 i;
+
+  static Ptr get(T* _p, Uint32 _i) { Ptr x; x.p = _p; x.i = _i; return x; }
   inline bool isNull() const { return i == RNIL; }
   inline void setNull() { i = RNIL; }
 };
@@ -136,6 +138,8 @@ struct ConstPtr
 {
   const T * p;
   Uint32 i;
+
+  static ConstPtr get(T const* _p, Uint32 _i) { ConstPtr x; x.p = _p; x.i = _i; return x; }
   inline bool isNull() const { return i == RNIL; }
   inline void setNull() { i = RNIL; }
 };
