@@ -3165,7 +3165,7 @@ TESTCASE("Stress2",
   STEPS(runTestGetVersionUntilStopped, 5);
   STEP(runSleepAndStop);
 }
-TESTCASE("Bug45497",
+X_TESTCASE("Bug45497",
          "Connect to ndb_mgmd until it can't handle more connections"){
   STEP(runTestBug45497);
 }
