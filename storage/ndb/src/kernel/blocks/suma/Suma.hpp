@@ -23,9 +23,7 @@
 
 #include <NodeBitmask.hpp>
 
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLCFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <KeyTable.hpp>
 #include <DataBuffer.hpp>
 #include <SignalCounter.hpp>

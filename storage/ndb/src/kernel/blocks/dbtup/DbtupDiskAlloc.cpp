@@ -310,7 +310,7 @@ Dbtup::update_extent_pos(Disk_alloc_info& alloc,
       Local_extent_info_list old_list(c_extent_pool, alloc.m_free_extents[old]);
       Local_extent_info_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
       old_list.remove(extentPtr);
-      new_list.add(extentPtr);
+      new_list.addFirst(extentPtr);
       extentPtr.p->m_free_matrix_pos= pos;
     }
   }
@@ -436,7 +436,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
   {
     if (!alloc.m_dirty_pages[i].isEmpty())
     {
-      ptrI= alloc.m_dirty_pages[i].firstItem;
+      ptrI= alloc.m_dirty_pages[i].getFirst();
       Ptr<GlobalPage> gpage;
       m_global_page_pool.getPtr(gpage, ptrI);
       
@@ -462,7 +462,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
   {
     if (!alloc.m_page_requests[i].isEmpty())
     {
-      ptrI= alloc.m_page_requests[i].firstItem;
+      ptrI= alloc.m_page_requests[i].getFirst();
       Ptr<Page_request> req;
       c_page_request_pool.getPtr(req, ptrI);
 
@@ -520,7 +520,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       Uint32 pos= alloc.calc_extent_pos(ext.p);
       ext.p->m_free_matrix_pos = pos;
       Local_extent_info_list list(c_extent_pool, alloc.m_free_extents[pos]);
-      list.add(ext);
+      list.addFirst(ext);
     }
   }
   
@@ -620,7 +620,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       c_extent_hash.add(ext);
 
       Local_fragment_extent_list list1(c_extent_pool, alloc.m_extent_list);
-      list1.add(ext);
+      list1.addFirst(ext);
     }      
     
     alloc.m_curr_extent_info_ptr_i= ext.i;
@@ -665,7 +665,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
     Local_page_request_list list(c_page_request_pool, 
 				 alloc.m_page_requests[idx]);
     
-    list.add(req);
+    list.addLast(req);
   }
   req.p->m_list_index= idx;
   req.p->m_extent_info_ptr= ext.i;
@@ -825,7 +825,7 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
     pagePtr.p->list_index = real_idx;
     ArrayPool<Page> *cheat_pool= (ArrayPool<Page>*)&m_global_page_pool;
     LocalDLList<Page> list(* cheat_pool, alloc.m_dirty_pages[real_idx]);
-    list.add(pagePtr);
+    list.addFirst(pagePtr);
   }
 
   {
@@ -853,7 +853,7 @@ Dbtup::disk_page_move_dirty_page(Disk_alloc_info& alloc,
   LocalDLList<Page> new_list(*pool, alloc.m_dirty_pages[new_idx]);
   LocalDLList<Page> old_list(*pool, alloc.m_dirty_pages[old_idx]);
   old_list.remove(pagePtr);
-  new_list.add(pagePtr);
+  new_list.addFirst(pagePtr);
   pagePtr.p->list_index = new_idx;
 }
 
@@ -867,7 +867,7 @@ Dbtup::disk_page_move_page_request(Disk_alloc_info& alloc,
   Local_page_request_list old_list(c_page_request_pool, lists[old_idx]);
   Local_page_request_list new_list(c_page_request_pool, lists[new_idx]);
   old_list.remove(req);
-  new_list.add(req);
+  new_list.addLast(req);
 
   ddassert(extentPtr.p->m_free_page_count[old_idx]);
   extentPtr.p->m_free_page_count[old_idx]--;
@@ -944,7 +944,7 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
      */
     ArrayPool<Page> *cheat_pool= (ArrayPool<Page>*)&m_global_page_pool;
     LocalDLList<Page> list(* cheat_pool, alloc.m_dirty_pages[idx]);
-    list.add(pagePtr);
+    list.addFirst(pagePtr);
   }
 
   {
@@ -1019,7 +1019,7 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
   pagePtr.p->list_index = idx;
   ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
   LocalDLList<Page> list(*pool, alloc.m_dirty_pages[idx]);
-  list.add(pagePtr);
+  list.addFirst(pagePtr);
   
   // Make sure no one will allocate it...
   tsman.unmap_page(&key, MAX_FREE_LIST - 1);
@@ -1080,7 +1080,7 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
     LocalDLList<Page> list(*pool, alloc.m_dirty_pages[idx]);
     LocalDLList<Page> list2(*pool, alloc.m_unmap_pages);
     list.remove(pagePtr);
-    list2.add(pagePtr);
+    list2.addFirst(pagePtr);
 
     if (dirty_count == 0)
     {
@@ -1955,7 +1955,7 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
 	ndbassert(old.p->m_free_matrix_pos == RNIL);
 	Uint32 pos= alloc.calc_extent_pos(old.p);
 	Local_extent_info_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
-	new_list.add(old);
+        new_list.addFirst(old);
 	old.p->m_free_matrix_pos= pos;
       }
       
@@ -1964,7 +1964,7 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
       c_extent_hash.add(ext);
 
       Local_fragment_extent_list list1(c_extent_pool, alloc.m_extent_list);
-      list1.add(ext);
+      list1.addFirst(ext);
       return 0;
     }
   }
