@@ -959,6 +959,7 @@ void writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {
   if(prec > 0) {
     register int bufsz = (1 + prec) / 2;
     while(prec < 5) usec /= 100, prec += 2;
+    if(prec % 2) usec = (usec / 10) * 10;
     pack_bigendian(usec, buf, bufsz);
   }
 }
@@ -994,7 +995,7 @@ Handle<Value> Timestamp2Reader(const NdbDictionary::Column *col,
   HandleScope scope;
   uint32_t timeSeconds = unpack_bigendian(buffer+offset, 4);
   int timeMilliseconds = readFraction(col, buffer+offset+4) / 1000;
-  double jsdate = (timeSeconds * 1000) + timeMilliseconds;
+  double jsdate = ((double) timeSeconds * 1000) + timeMilliseconds;
   return scope.Close(Date::New(jsdate));
 }
  
@@ -1004,9 +1005,9 @@ Handle<Value> Timestamp2Writer(const NdbDictionary::Column * col,
   bool valid = value->IsDate();
   if(valid) {
     double jsdate = Date::Cast(*value)->NumberValue();
-    uint32_t timeSeconds = jsdate / 1000;
-    jsdate -= (timeSeconds * 1000);
-    int timeMilliseconds = jsdate;
+    int64_t timeMilliseconds = (int64_t) jsdate;
+    int64_t timeSeconds = timeMilliseconds / 1000;
+    timeMilliseconds %= 1000;
     pack_bigendian(timeSeconds, buffer+offset, 4);
     writeFraction(col, timeMilliseconds * 1000, buffer+offset+4);
   }
