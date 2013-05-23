@@ -76,11 +76,11 @@ void Dbtc::initRecords()
   // Init all fired triggers
   DLFifoList<TcFiredTriggerData> triggers(c_theFiredTriggerPool);
   FiredTriggerPtr tptr;
-  while(triggers.seize(tptr) == true) {
+  while (triggers.seizeLast(tptr) == true) {
     p= tptr.p;
     new (p) TcFiredTriggerData();
   }
-  triggers.release();
+  while (triggers.releaseFirst());
 
   /*
   // Init all index records
@@ -95,11 +95,11 @@ void Dbtc::initRecords()
   // Init all index operation records
   SLList<TcIndexOperation> indexOps(c_theIndexOperationPool);
   TcIndexOperationPtr ioptr;
-  while(indexOps.seize(ioptr) == true) {
+  while (indexOps.seizeFirst(ioptr) == true) {
     p= ioptr.p;
     new (p) TcIndexOperation(); // TODO : Modify alloc size of c_theAttributeBufferPool
   }
-  indexOps.release();
+  while (indexOps.releaseFirst());
 
   c_apiConTimer = (UintR*)allocRecord("ApiConTimer",
 				      sizeof(UintR),
@@ -134,13 +134,13 @@ void Dbtc::initRecords()
   {
     ScanFragRecPtr ptr;
     SLList<ScanFragRec> tmp(c_scan_frag_pool);
-    while(tmp.seize(ptr)) {
+    while (tmp.seizeFirst(ptr)) {
       new (ptr.p) ScanFragRec();
     }
-    tmp.release();
+    while (tmp.releaseFirst());
   }
 
-  indexOps.release();
+  while (indexOps.releaseFirst());
   
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 

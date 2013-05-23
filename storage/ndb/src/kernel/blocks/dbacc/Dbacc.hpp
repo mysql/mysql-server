@@ -1,4 +1,4 @@
-/* Copyright (c) 2003-2007 MySQL AB
+/* Copyright (c) 2003-2013 Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,8 @@
 #include <DynArr256.hpp>
 #include <SimulatedBlock.hpp>
 #include <LHLevel.hpp>
+#include <IntrusiveList.hpp>
+#include "Container.hpp"
 
 #ifdef DBACC_C
 // Debug Macros
@@ -41,8 +43,6 @@ break; \
 case 2: strcpy(tmp_string, "ZPOS_NO_ELEM_IN_PAGE"); \
 break; \
 case 3: strcpy(tmp_string, "ZPOS_CHECKSUM    "); \
-break; \
-case 4: strcpy(tmp_string, "ZPOS_OVERFLOWREC  "); \
 break; \
 case 5: strcpy(tmp_string, "ZPOS_FREE_AREA_IN_PAGE"); \
 break; \
@@ -71,11 +71,7 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
  *   OTHER CONSTANTS WHICH ARE CHANGED WHEN THE BUFFER SIZE IS CHANGED. 
  * ----------------------------------------------------------------------- */
 #define ZHEAD_SIZE 32
-#define ZCON_HEAD_SIZE 2
 #define ZBUF_SIZE 28
-#define ZEMPTYLIST 72
-#define ZUP_LIMIT 14
-#define ZDOWN_LIMIT 12
 #define ZSHIFT_PLUS 5
 #define ZSHIFT_MINUS 2
 #define ZFREE_LIMIT 65
@@ -84,21 +80,20 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 /* ------------------------------------------------------------------------- */
 /*  THESE CONSTANTS DEFINE THE USE OF THE PAGE HEADER IN THE INDEX PAGES.    */
 /* ------------------------------------------------------------------------- */
-#define ZPOS_PAGE_ID 0
+#define ZPOS_PAGE_ID Page8::PAGE_ID
 #define ZPOS_PAGE_TYPE 1
 #define ZPOS_PAGE_TYPE_BIT 14
-#define ZPOS_EMPTY_LIST 1
-#define ZPOS_ALLOC_CONTAINERS 2
-#define ZPOS_CHECKSUM 3
-#define ZPOS_OVERFLOWREC 4
+#define ZPOS_EMPTY_LIST Page8::EMPTY_LIST
+#define ZPOS_ALLOC_CONTAINERS Page8::ALLOC_CONTAINERS
+#define ZPOS_CHECKSUM Page8::CHECKSUM
 #define ZPOS_NO_ELEM_IN_PAGE 2
-#define ZPOS_FREE_AREA_IN_PAGE 5
-#define ZPOS_LAST_INDEX 6
-#define ZPOS_INSERT_INDEX 7
-#define ZPOS_ARRAY_POS 8
-#define ZPOS_NEXT_FREE_INDEX 9
-#define ZPOS_NEXT_PAGE 10
-#define ZPOS_PREV_PAGE 11
+#define ZPOS_FREE_AREA_IN_PAGE Page8::FREE_AREA_IN_PAGE
+#define ZPOS_LAST_INDEX Page8::LAST_INDEX
+#define ZPOS_INSERT_INDEX Page8::INSERT_INDEX
+#define ZPOS_ARRAY_POS Page8::ARRAY_POS
+#define ZPOS_NEXT_FREE_INDEX Page8::NEXT_FREE_INDEX
+#define ZPOS_NEXT_PAGE Page8::NEXT_PAGE
+#define ZPOS_PREV_PAGE Page8::PREV_PAGE
 #define ZNORMAL_PAGE_TYPE 0
 #define ZOVERFLOW_PAGE_TYPE 1
 #define ZDEFAULT_LIST 3
@@ -120,7 +115,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 //#define ZNOT_EMPTY_FRAGMENT 1
 #define ZOP_HEAD_INFO_LN 3
 #define ZOPRECSIZE 740
-#define ZOVERFLOWRECSIZE 5
 #define ZPAGE8_BASE_ADD 1
 #define ZPAGESIZE 128
 #define ZPARALLEL_QUEUE 1
@@ -153,7 +147,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZREL_ROOT_FRAG 5
 #define ZREL_FRAG 6
 #define ZREL_DIR 7
-#define ZREL_ODIR 8
 
 /* ------------------------------------------------------------------------- */
 /* ERROR CODES                                                               */
@@ -290,6 +283,8 @@ ElementHeader::setReducedHashValue(Uint32 header, LHBits16 const& reducedHashVal
   return (Uint32(reducedHashValue.pack()) << 16) | (header & 0xffff);
 }
 
+typedef Container::Header ContainerHeader;
+
 class Dbacc: public SimulatedBlock {
   friend class DbaccProxy;
 
@@ -324,6 +319,48 @@ enum State {
 };
 
 // Records
+
+/* --------------------------------------------------------------------------------- */
+/* PAGE8                                                                             */
+/* --------------------------------------------------------------------------------- */
+struct Page8 {
+  Uint32 word32[2048];
+  enum Page_variables {
+    PAGE_ID = 0,
+    EMPTY_LIST = 1,
+    ALLOC_CONTAINERS = 2,
+    CHECKSUM = 3,
+    FREE_AREA_IN_PAGE = 5,
+    LAST_INDEX = 6,
+    INSERT_INDEX = 7,
+    ARRAY_POS = 8,
+    NEXT_FREE_INDEX = 9,
+    NEXT_PAGE = 10,
+    PREV_PAGE = 11
+  };
+}; /* p2c: size = 8192 bytes */
+
+  typedef Ptr<Page8> Page8Ptr;
+
+struct Page8SLinkMethods
+{
+  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
+  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
+  static void setPrev(Page8& /* item */, Uint32 /* prev */) { /* no op for single linked list */ }
+};
+
+struct ContainerPageLinkMethods
+{
+  static Uint32 getNext(Page8 const& item) { return item.word32[Page8::NEXT_PAGE]; }
+  static void setNext(Page8& item, Uint32 next) { item.word32[Page8::NEXT_PAGE] = next; }
+  static Uint32 getPrev(Page8 const& item) { return item.word32[Page8::PREV_PAGE]; }
+  static void setPrev(Page8& item, Uint32 prev) { item.word32[Page8::PREV_PAGE] = prev; }
+};
+
+typedef SLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> Page8List;
+typedef LocalSLCFifoListImpl<Dbacc,Page8,Page8,Page8SLinkMethods> LocalPage8List;
+typedef DLCFifoListImpl<Dbacc,Page8,Page8,ContainerPageLinkMethods> ContainerPageList;
+typedef LocalDLCFifoListImpl<Dbacc,Page8,Page8,ContainerPageLinkMethods> LocalContainerPageList;
 
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
@@ -372,8 +409,6 @@ struct Fragmentrec {
 // bucket pages.
 //-----------------------------------------------------------------------------
   DynArr256::Head directory;
-  DynArr256::Head overflowdir;
-  Uint32 lastOverIndex;
 
 //-----------------------------------------------------------------------------
 // We have a list of overflow pages with free areas. We have a special record,
@@ -383,9 +418,8 @@ struct Fragmentrec {
 // data in them). These are put in the firstFreeDirIndexRec-list.
 // An overflow record representing a page can only be in one of these lists.
 //-----------------------------------------------------------------------------
-  Uint32 firstOverflowRec;
-  Uint32 lastOverflowRec;
-  Uint32 firstFreeDirindexRec;
+  ContainerPageList::Head fullpages; // For pages where only containers on page are allowed to overflow (word32[ZPOS_ALLOC_CONTAINERS] > ZFREE_LIMIT)
+  ContainerPageList::Head sparsepages; // For pages that other pages are still allowed to overflow into (0 < word32[ZPOS_ALLOC_CONTAINERS] <= ZFREE_LIMIT)
 
 //-----------------------------------------------------------------------------
 // Counter keeping track of how many times we have expanded. We need to ensure
@@ -560,30 +594,6 @@ struct Operationrec {
   typedef Ptr<Operationrec> OperationrecPtr;
 
 /* --------------------------------------------------------------------------------- */
-/* OVERFLOW_RECORD                                                                   */
-/* --------------------------------------------------------------------------------- */
-struct OverflowRecord {
-  Uint32 dirindex;
-  Uint32 nextOverRec;
-  Uint32 nextOverList;
-  Uint32 prevOverRec;
-  Uint32 prevOverList;
-  Uint32 overpage;
-  Uint32 nextfreeoverrec;
-};
-
-  typedef Ptr<OverflowRecord> OverflowRecordPtr;
-
-/* --------------------------------------------------------------------------------- */
-/* PAGE8                                                                             */
-/* --------------------------------------------------------------------------------- */
-struct Page8 {
-  Uint32 word32[2048];
-}; /* p2c: size = 8192 bytes */
-
-  typedef Ptr<Page8> Page8Ptr;
-
-/* --------------------------------------------------------------------------------- */
 /* SCAN_REC                                                                          */
 /* --------------------------------------------------------------------------------- */
 struct ScanRec {
@@ -701,8 +711,6 @@ private:
                                  Uint32 dirIndex,
                                  Uint32 startIndex,
                                  Uint32 directoryIndex);
-  void releaseOverflowResources(Signal* signal, FragmentrecPtr regFragPtr);
-  void releaseDirIndexResources(Signal* signal, FragmentrecPtr regFragPtr);
   void releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr);
   void initScanFragmentPart(Signal* signal);
   Uint32 checkScanExpand(Signal* signal, Uint32 splitBucket);
@@ -711,7 +719,6 @@ private:
   void initialiseFsConnectionRec(Signal* signal);
   void initialiseFsOpRec(Signal* signal);
   void initialiseOperationRec(Signal* signal);
-  void initialiseOverflowRec(Signal* signal);
   void initialisePageRec(Signal* signal);
   void initialiseRootfragRec(Signal* signal);
   void initialiseScanRec(Signal* signal);
@@ -745,14 +752,14 @@ private:
   
   void expandcontainer(Signal* signal);
   void shrinkcontainer(Signal* signal);
-  void nextcontainerinfoExp(Signal* signal);
+  void nextcontainerinfoExp(Signal* signal, ContainerHeader const containerhead);
   void releaseAndCommitActiveOps(Signal* signal);
   void releaseAndCommitQueuedOps(Signal* signal);
   void releaseAndAbortLockedOps(Signal* signal);
-  void containerinfo(Signal* signal);
+  void containerinfo(Signal* signal, ContainerHeader& containerhead);
   bool getScanElement(Signal* signal);
   void initScanOpRec(Signal* signal);
-  void nextcontainerinfo(Signal* signal);
+  void nextcontainerinfo(Signal* signal, ContainerHeader const containerhead);
   void putActiveScanOp(Signal* signal);
   void putOpScanLockQue();
   void putReadyScanQueue(Signal* signal, Uint32 scanRecIndex);
@@ -766,7 +773,7 @@ private:
   void takeOutScanLockQueue(Uint32 scanRecIndex);
   void takeOutReadyScanQueue(Signal* signal);
   void insertElement(Signal* signal);
-  void insertContainer(Signal* signal);
+  void insertContainer(Signal* signal, ContainerHeader& containerhead);
   void addnewcontainer(Signal* signal);
   void getfreelist(Signal* signal);
   void increaselistcont(Signal* signal);
@@ -784,7 +791,7 @@ private:
   void getdirindex(Signal* signal);
   void commitdelete(Signal* signal);
   void deleteElement(Signal* signal);
-  void getLastAndRemove(Signal* signal);
+  void getLastAndRemove(Signal* signal, ContainerHeader& containerhead);
   void releaseLeftlist(Signal* signal);
   void releaseRightlist(Signal* signal);
   void checkoverfreelist(Signal* signal);
@@ -812,12 +819,9 @@ private:
   void initPage(Signal* signal);
   void initRootfragrec(Signal* signal);
   void putOpInFragWaitQue(Signal* signal);
-  void putOverflowRecInFrag(Signal* signal);
-  void putRecInFreeOverdir(Signal* signal);
   void releaseFsConnRec(Signal* signal);
   void releaseFsOpRec(Signal* signal);
   void releaseOpRec(Signal* signal);
-  void releaseOverflowRec(Signal* signal);
   void releaseOverpage(Signal* signal);
   void releasePage(Signal* signal);
   void seizeDirectory(Signal* signal);
@@ -825,13 +829,10 @@ private:
   void seizeFsConnectRec(Signal* signal);
   void seizeFsOpRec(Signal* signal);
   void seizeOpRec(Signal* signal);
-  void seizeOverRec(Signal* signal);
   void seizePage(Signal* signal);
   void seizeRootfragrec(Signal* signal);
   void seizeScanRec(Signal* signal);
   void sendSystemerror(Signal* signal, int line);
-  void takeRecOutOfFreeOverdir(Signal* signal);
-  void takeRecOutOfFreeOverpage(Signal* signal);
 
   void addFragRefuse(Signal* signal, Uint32 errorCode);
   void ndbsttorryLab(Signal* signal);
@@ -867,6 +868,9 @@ private:
   void debug_lh_vars(const char* where) {}
 #endif
 
+public:
+  void getPtr(Ptr<Page8>& page) const;
+private:
   // Variables
 /* --------------------------------------------------------------------------------- */
 /* DIRECTORY                                                                         */
@@ -897,19 +901,6 @@ private:
   OperationrecPtr readWriteOpPtr;
   Uint32 cfreeopRec;
   Uint32 coprecsize;
-/* --------------------------------------------------------------------------------- */
-/* OVERFLOW_RECORD                                                                   */
-/* --------------------------------------------------------------------------------- */
-  OverflowRecord *overflowRecord;
-  OverflowRecordPtr iopOverflowRecPtr;
-  OverflowRecordPtr tfoOverflowRecPtr;
-  OverflowRecordPtr porOverflowRecPtr;
-  OverflowRecordPtr priOverflowRecPtr;
-  OverflowRecordPtr rorOverflowRecPtr;
-  OverflowRecordPtr sorOverflowRecPtr;
-  OverflowRecordPtr troOverflowRecPtr;
-  Uint32 cfirstfreeoverrec;
-  Uint32 coverflowrecsize;
 
 /* --------------------------------------------------------------------------------- */
 /* PAGE8                                                                             */
@@ -949,7 +940,7 @@ private:
   Page8Ptr rpPageptr;
   Page8Ptr slPageptr;
   Page8Ptr spPageptr;
-  Uint32 cfirstfreepage;
+  Page8List::Head cfreepages;
   Uint32 cpagesize;
   Uint32 cpageCount;
   Uint32 cnoOfAllocatedPages;
@@ -981,8 +972,6 @@ private:
   Uint32 ctablesize;
   Uint32 tgseElementptr;
   Uint32 tgseContainerptr;
-  Uint32 trlHead;
-  Uint32 trlRelCon;
   Uint32 trlNextused;
   Uint32 trlPrevused;
   Uint32 tlcnChecksum;
@@ -993,24 +982,21 @@ private:
   Uint32 tancBufType;
   Uint32 tancContainerptr;
   Uint32 tancPageindex;
-  Uint32 tancPageid;
+  Uint32 tancPagei;
   Uint32 tidrResult;
   Uint32 tidrElemhead;
   Uint32 tidrForward;
   Uint32 tidrPageindex;
   Uint32 tidrContainerptr;
-  Uint32 tidrContainerhead;
   Uint32 tlastForward;
   Uint32 tlastPageindex;
   Uint32 tlastContainerlen;
   Uint32 tlastElementptr;
   Uint32 tlastContainerptr;
-  Uint32 tlastContainerhead;
   Uint32 trlPageindex;
   Uint32 tdelContainerptr;
   Uint32 tdelElementptr;
   Uint32 tdelForward;
-  Uint32 tiopPageId;
   Uint32 tipPageId;
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
@@ -1028,8 +1014,6 @@ private:
   Uint32 tciContainerlen;
   Uint32 trscContainerlen;
   Uint32 tsscContainerlen;
-  Uint32 tciContainerhead;
-  Uint32 tnciContainerhead;
   Uint32 tslElementptr;
   Uint32 tisoElementptr;
   Uint32 tsscElementptr;
@@ -1061,7 +1045,6 @@ private:
   Uint32 tnciPageindex;
   Uint32 tlastPrevconptr;
   Uint32 tresult;
-  Uint32 tslUpdateHeader;
   Uint32 tuserptr;
   BlockReference tuserblockref;
   Uint32 tlqhPointer;
@@ -1069,7 +1052,6 @@ private:
   Uint32 tholdMore;
   Uint32 tgdiPageindex;
   Uint32 tiopIndex;
-  Uint32 tnciTmp;
   Uint32 tullIndex;
   Uint32 turlIndex;
   Uint32 tlfrTmp1;
@@ -1089,7 +1071,6 @@ private:
   Uint32 cexcForward;
   Uint32 cexcPageindex;
   Uint32 cexcContainerptr;
-  Uint32 cexcContainerhead;
   Uint32 cexcContainerlen;
   Uint32 cexcElementptr;
   Uint32 cexcPrevconptr;
@@ -1124,6 +1105,11 @@ inline bool Dbacc::Fragmentrec::enough_valid_bits(LHBits16 const& reduced_hash_v
   // Forte C 5.0 needs use of intermediate constant
   int const bits = MIN_HASH_COMPARE_BITS;
   return level.getNeededValidBits(bits) <= reduced_hash_value.valid_bits();
+}
+
+inline void Dbacc::getPtr(Ptr<Page8>& page) const
+{
+  ptrCheckGuard(page, cpagesize, page8);
 }
 
 #endif
