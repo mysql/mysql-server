@@ -4579,7 +4579,7 @@ void xid_cache_delete(XID_STATE *xid_state)
 int THD::decide_logging_format(TABLE_LIST *tables)
 {
   DBUG_ENTER("THD::decide_logging_format");
-  DBUG_PRINT("info", ("query: %s", query()));
+  DBUG_PRINT("info", ("Query: %s", query()));
   DBUG_PRINT("info", ("variables.binlog_format: %lu",
                       variables.binlog_format));
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
