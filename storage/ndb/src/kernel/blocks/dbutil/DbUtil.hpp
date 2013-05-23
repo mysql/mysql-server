@@ -23,9 +23,7 @@
 #include <NodeBitmask.hpp>
 
 #include <ArrayPool.hpp>
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <DataBuffer.hpp>
 #include <KeyTable.hpp>
 

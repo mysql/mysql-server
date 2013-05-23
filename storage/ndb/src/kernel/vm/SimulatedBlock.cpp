@@ -3356,7 +3356,7 @@ SimulatedBlock::sendFragmentedSignal(BlockReference ref,
 				     Uint32 messageSize){
   bool res = true;
   Ptr<FragmentSendInfo> tmp;
-  res = c_segmentedFragmentSendList.seize(tmp);
+  res = c_segmentedFragmentSendList.seizeFirst(tmp);
   ndbrequire(res);
   
   res = sendFirstFragment(* tmp.p,
@@ -3400,7 +3400,7 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
 				     Uint32 messageSize){
   bool res = true;
   Ptr<FragmentSendInfo> tmp;
-  res = c_segmentedFragmentSendList.seize(tmp);
+  res = c_segmentedFragmentSendList.seizeFirst(tmp);
   ndbrequire(res);
   
   res = sendFirstFragment(* tmp.p,
@@ -3452,7 +3452,7 @@ SimulatedBlock::sendFragmentedSignal(BlockReference ref,
 				     Uint32 messageSize){
   bool res = true;
   Ptr<FragmentSendInfo> tmp;
-  res = c_linearFragmentSendList.seize(tmp);
+  res = c_linearFragmentSendList.seizeFirst(tmp);
   ndbrequire(res);
 
   res = sendFirstFragment(* tmp.p, 
@@ -3497,7 +3497,7 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
 				     Uint32 messageSize){
   bool res = true;
   Ptr<FragmentSendInfo> tmp;
-  res = c_linearFragmentSendList.seize(tmp);
+  res = c_linearFragmentSendList.seizeFirst(tmp);
   ndbrequire(res);
 
   res = sendFirstFragment(* tmp.p, 

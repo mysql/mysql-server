@@ -23,9 +23,7 @@
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
 #include <SectionReader.hpp>
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <DLHashTable.hpp>
 
 #include <NodeBitmask.hpp>

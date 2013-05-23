@@ -10790,7 +10790,7 @@ error_handler2:
   else
   {
     jam();
-    m_reserved_scans.add(scanptr);
+    m_reserved_scans.addFirst(scanptr);
   }
 error_handler:
   ref = (ScanFragRef*)&signal->theData[0];
@@ -12048,7 +12048,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
 				      tupScan == 0 ? 
                                       fragptr.p->m_queuedScans :
                                       fragptr.p->m_queuedTupScans);
-    queue.add(scanptr);
+    queue.addLast(scanptr);
     return ZOK;
   }
   
@@ -12056,7 +12056,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   tFragPtr.p->m_scanNumberMask.clear(free);// Update mask  
   
   LocalDLList<ScanRecord> active(c_scanRecordPool, fragptr.p->m_activeScans);
-  active.add(scanptr);
+  active.addFirst(scanptr);
   if(scanptr.p->scanKeyinfoFlag){
     jam();
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -12149,7 +12149,7 @@ void Dblqh::finishScanrec(Signal* signal)
     {
       jam();
       queue.remove(scanptr);
-      m_reserved_scans.add(scanptr);
+      m_reserved_scans.addFirst(scanptr);
     }
 
     return;
@@ -12175,7 +12175,7 @@ void Dblqh::finishScanrec(Signal* signal)
   {
     jam();
     scans.remove(scanptr);
-    m_reserved_scans.add(scanptr);
+    m_reserved_scans.addFirst(scanptr);
   }
   
   FragrecordPtr tFragPtr;
@@ -12211,7 +12211,7 @@ void Dblqh::finishScanrec(Signal* signal)
   restart.p->scanNumber = scanNumber;
 
   queue.remove(restart);
-  scans.add(restart);
+  scans.addFirst(restart);
   if(restart.p->scanKeyinfoFlag){
     jam();
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -12599,7 +12599,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
   ndbrequire(m_reserved_scans.first(scanptr));
   m_reserved_scans.remove(scanptr);
-  scans.add(scanptr);
+  scans.addFirst(scanptr);
 
 /* ------------------------------------------------------------------------- */
 // We keep track of how many operation records in ACC that has been booked.
@@ -17291,7 +17291,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
      * Or this is not "first" fragment in table
      *   RESTORE_LCP_REQ will currently restore all fragments
      */
-    c_lcp_complete_fragments.add(fragptr);
+    c_lcp_complete_fragments.addLast(fragptr);
 
     c_tup->disk_restart_lcp_id(tabptr.i, fragId, RNIL);
     jamEntry();
@@ -17315,7 +17315,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     c_lcpId = (c_lcpId < lcpId ? c_lcpId : lcpId);
   }
 
-  c_lcp_waiting_fragments.add(fragptr);
+  c_lcp_waiting_fragments.addLast(fragptr);
   if(c_lcp_restoring_fragments.isEmpty())
     send_restore_lcp(signal);
 }//Dblqh::execSTART_FRAGREQ()
@@ -17325,7 +17325,7 @@ Dblqh::send_restore_lcp(Signal * signal)
 {
   c_lcp_waiting_fragments.first(fragptr);
   c_lcp_waiting_fragments.remove(fragptr);
-  c_lcp_restoring_fragments.add(fragptr);
+  c_lcp_restoring_fragments.addLast(fragptr);
 
   if (fragptr.p->srChkpnr != Z8NIL)
   {
@@ -17443,7 +17443,7 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
   c_fragment_pool.getPtr(fragptr);
 
   c_lcp_restoring_fragments.remove(fragptr);
-  c_lcp_complete_fragments.add(fragptr);
+  c_lcp_complete_fragments.addLast(fragptr);
 
   tabptr.i = fragptr.p->tabRef;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
@@ -20796,7 +20796,7 @@ void Dblqh::initialiseFragrec(Signal* signal)
 {
   
   SLList<Fragrecord> tmp(c_fragment_pool);
-  while(tmp.seize(fragptr))
+  while (tmp.seizeFirst(fragptr))
   {
     refresh_watch_dog();
     new (fragptr.p) Fragrecord();
@@ -20804,7 +20804,7 @@ void Dblqh::initialiseFragrec(Signal* signal)
     fragptr.p->execSrStatus = Fragrecord::IDLE;
     fragptr.p->srStatus = Fragrecord::SS_IDLE;
   }
-  tmp.release();
+  while (tmp.releaseFirst());
 }//Dblqh::initialiseFragrec()
 
 /* ========================================================================= */
@@ -21068,7 +21068,7 @@ void Dblqh::initialiseScanrec(Signal* signal)
 {
   ndbrequire(cscanrecFileSize > 1);
   DLList<ScanRecord> tmp(c_scanRecordPool);
-  while (tmp.seize(scanptr)){
+  while (tmp.seizeFirst(scanptr)){
     //new (scanptr.p) ScanRecord();
     refresh_watch_dog();
     scanptr.p->scanType = ScanRecord::ST_IDLE;
@@ -21080,15 +21080,15 @@ void Dblqh::initialiseScanrec(Signal* signal)
     scanptr.p->scan_acc_segments= 0;
     scanptr.p->m_reserved = 0;
   }
-  tmp.release();
+  while (tmp.releaseFirst());
 
   /**
    * just seize records from pool and put into
    *   dedicated list
    */
-  m_reserved_scans.seize(scanptr); // LCP
+  m_reserved_scans.seizeFirst(scanptr); // LCP
   scanptr.p->m_reserved = 1;
-  m_reserved_scans.seize(scanptr); // NR
+  m_reserved_scans.seizeFirst(scanptr); // NR
   scanptr.p->m_reserved = 1;
 
 }//Dblqh::initialiseScanrec()

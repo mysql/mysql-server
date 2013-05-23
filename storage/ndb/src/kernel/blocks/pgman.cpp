@@ -384,7 +384,7 @@ Pgman::set_page_state(Ptr<Page_entry> ptr, Page_state new_state)
       if (old_list_no != new_list_no)
       {
         Page_sublist& new_list = *m_page_sublist[new_list_no];
-        new_list.add(ptr);
+        new_list.addLast(ptr);
       }
     }
     ptr.p->m_state = new_state;
@@ -639,7 +639,7 @@ Pgman::lirs_stack_pop()
   if (state & Page_entry::BOUND)
   {
     jam();
-    pl_queue.add(ptr);
+    pl_queue.addLast(ptr);
     state |= Page_entry::ONQUEUE;
   }
   else
@@ -679,7 +679,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
       ndbrequire(state & Page_entry::ONSTACK);
       bool at_bottom = ! pl_stack.hasPrev(ptr);
       pl_stack.remove(ptr);
-      pl_stack.add(ptr);
+      pl_stack.addLast(ptr);
       if (at_bottom)
       {
         jam();
@@ -696,7 +696,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
         jam();
         lirs_stack_pop();
       }
-      pl_stack.add(ptr);
+      pl_stack.addLast(ptr);
       state |= Page_entry::HOT;
       if (state & Page_entry::ONQUEUE)
       {
@@ -710,7 +710,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
     {
       // case 2b 3b
       jam();
-      pl_stack.add(ptr);
+      pl_stack.addLast(ptr);
       state |= Page_entry::ONSTACK;
       /*
        * bug#48910.  Using hot page count (not total page count)
@@ -728,7 +728,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
       if (state & Page_entry::BOUND)
       {
         jam();
-        pl_queue.add(ptr);
+        pl_queue.addLast(ptr);
         state |= Page_entry::ONQUEUE;
       }
       else
@@ -755,7 +755,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
         lirs_stack_prune();
       }
     }
-    pl_stack.add(ptr);
+    pl_stack.addLast(ptr);
     state |= Page_entry::ONSTACK;
     state |= Page_entry::HOT;
     // it could be on queue already
@@ -962,7 +962,7 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
     jam();
 
     D(ptr << " : add to queue at bind");
-    pl_queue.add(ptr);
+    pl_queue.addLast(ptr);
     state |= Page_entry::ONQUEUE;
   }
 
@@ -1077,7 +1077,7 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
 	ptr.p->m_dirty_count --;
       }
 
-      req_list.releaseFirst(req_ptr);
+      req_list.releaseFirst(/* req_ptr */);
     }
     ndbrequire(state & Page_entry::BOUND);
     ndbrequire(state & Page_entry::MAPPED);

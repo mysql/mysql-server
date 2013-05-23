@@ -43,7 +43,7 @@ SafeCounterManager::getNoOfFree() const {
 
 bool
 SafeCounterManager::seize(ActiveCounterPtr& ptr){
-  return m_activeCounters.seize(ptr);
+  return m_activeCounters.seizeFirst(ptr);
 }
 
 void
