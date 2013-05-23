@@ -3055,7 +3055,7 @@ void Dbdih::execSTART_TOREQ(Signal* signal)
     jam();
     TakeOverRecordPtr takeOverPtr;
     
-    c_activeTakeOverList.seize(takeOverPtr);
+    c_activeTakeOverList.seizeFirst(takeOverPtr);
     takeOverPtr.p->toStartingNode = req.startingNodeId;
     takeOverPtr.p->m_senderRef = req.senderRef;
     takeOverPtr.p->m_senderData = req.senderData;
@@ -3639,7 +3639,7 @@ void Dbdih::startTakeOver(Signal* signal,
   jam();
 
   TakeOverRecordPtr takeOverPtr;
-  ndbrequire(c_activeTakeOverList.seize(takeOverPtr));
+  ndbrequire(c_activeTakeOverList.seizeFirst(takeOverPtr));
   takeOverPtr.p->startGci = SYSFILE->lastCompletedGCI[startNode];
   takeOverPtr.p->restorableGci = SYSFILE->lastCompletedGCI[startNode];
   takeOverPtr.p->toStartingNode = startNode;
@@ -18963,7 +18963,7 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
       list = &c_waitEpochMasterList;
     }
 
-    if(list->seize(ptr) == false)
+    if (list->seizeFirst(ptr) == false)
     {
       jam();
       errorCode = WaitGCPRef::NoWaitGCPRecords;
@@ -18989,7 +18989,7 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
      */
     jam();
     WaitGCPProxyPtr ptr;
-    if (c_waitGCPProxyList.seize(ptr) == false)
+    if (c_waitGCPProxyList.seizeFirst(ptr) == false)
     {
       jam();
       errorCode = WaitGCPRef::NoWaitGCPRecords;

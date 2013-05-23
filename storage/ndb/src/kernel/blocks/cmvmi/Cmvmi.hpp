@@ -21,7 +21,7 @@
 #include <SimulatedBlock.hpp>
 #include <LogLevel.hpp>
 
-#include <DLList.hpp>
+#include <IntrusiveList.hpp>
 
 /**
  * Cmvmi class

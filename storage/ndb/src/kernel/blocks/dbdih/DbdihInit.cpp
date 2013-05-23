@@ -45,7 +45,7 @@ void Dbdih::initData()
   c_takeOverPool.setSize(MAX_NDB_NODES);
   {
     Ptr<TakeOverRecord> ptr;
-    while (c_activeTakeOverList.seize(ptr))
+    while (c_activeTakeOverList.seizeFirst(ptr))
     {
       new (ptr.p) TakeOverRecord;
     }
