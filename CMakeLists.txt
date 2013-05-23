@@ -23,17 +23,22 @@ INSTALL(
 
 # Build rules.
 #
-# The build environment depends on NDB_NODEJS_PATH and NDB_NODEJS_EXTRA_PATH
+# The build environment depends on NDB_NODEJS_PATH and NDB_NODEJS_EXTRAS_PATH
 
-IF(NDB_NODEJS_EXTRA_PATH)
-  MESSAGE(STATUS "Building mysql-js using " ${NDB_NODEJS_EXTRA_PATH})
+IF(NOT NDB_NODEJS_PATH)
+  MESSAGE(STATUS "Skipping mysql-js (No NDB_NODEJS_PATH)")
+  RETURN()
+ENDIF()
+
+IF(NDB_NODEJS_EXTRAS_PATH)
+  MESSAGE(STATUS "Building mysql-js using " ${NDB_NODEJS_EXTRAS_PATH})
 ELSE()
-  MESSAGE(STATUS "Skipping mysql-js")
+  MESSAGE(STATUS "Skipping mysql-js (NO NDB_NODEJS_EXTRAS_PATH)")
   RETURN()
 ENDIF()
 
 set(NODE_VERSION 0.10.4)
-set(NODE_GYP ${NDB_NODEJS_EXTRA_PATH}/node-gyp/${NODE_VERSION})
+set(NODE_GYP ${NDB_NODEJS_EXTRAS_PATH}/node-gyp/${NODE_VERSION})
 set(NODE_INCLUDES ${NODE_GYP}/src ${NODE_GYP}/deps/uv/include ${NODE_GYP}/deps/v8/include)
 
 include_directories(${NODE_INCLUDES})
@@ -78,7 +83,7 @@ set(ADAPTER_SOURCE_FILES
 
 ## TODO: Windows needs ndbclient_static but Mac needs ndbclient
 set(ADAPTER_REQUIRED_LIBS
-  ndbclient
+  ndbclient_so
   mysqlclient
 )
 
