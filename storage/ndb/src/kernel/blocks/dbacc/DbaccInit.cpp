@@ -68,11 +68,12 @@ void Dbacc::initRecords()
 
     /**
      * 1) Build free-list per chunk
-     * 2) Add chunks to cfirstfreepage-list
+     * 2) Add chunks to cfreepages-list
      */
-    cfirstfreepage = RNIL;
+    cfreepages.init();
     cpagesize = 0;
     cpageCount = 0;
+    LocalPage8List freelist(*this, cfreepages);
     for (Int32 i = chunkcnt - 1; i >= 0; i--)
     {
       Ptr<GlobalPage> pagePtr;
@@ -81,18 +82,16 @@ void Dbacc::initRecords()
       Page8* base = (Page8*)pagePtr.p;
       ndbrequire(base >= page8);
       const Uint32 ptrI = Uint32(base - page8);
+      if (ptrI + cnt > cpagesize)
+        cpagesize = ptrI + cnt;
       for (Uint32 j = 0; j < cnt; j++)
       {
         refresh_watch_dog();
-        base[j].word32[0] = ptrI + j + 1;
+        freelist.addFirst(Page8Ptr::get(&base[j], ptrI + j));
       }
 
-      base[cnt-1].word32[0] = cfirstfreepage;
-      cfirstfreepage = ptrI;
-
       cpageCount += cnt;
-      if (ptrI + cnt > cpagesize)
-        cpagesize = ptrI + cnt;
+      ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
     }
     m_maxAllocPages = cpagesize;
   }
