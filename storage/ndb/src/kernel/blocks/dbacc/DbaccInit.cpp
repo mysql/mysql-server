@@ -28,7 +28,6 @@ void Dbacc::initData()
   cpagesize = ZPAGESIZE;
   ctablesize = ZTABLESIZE;
   cfragmentsize = ZFRAGMENTSIZE;
-  coverflowrecsize = ZOVERFLOWRECSIZE;
   cscanRecSize = ZSCAN_REC_SIZE;
 
   Pool_context pc;
@@ -37,7 +36,6 @@ void Dbacc::initData()
 
   fragmentrec = 0;
   operationrec = 0;
-  overflowRecord = 0;
   page8 = 0;
   scanRec = 0;
   tabrec = 0;
@@ -104,10 +102,6 @@ void Dbacc::initRecords()
 					  sizeof(Fragmentrec), 
 					  cfragmentsize);
 
-  overflowRecord = (OverflowRecord*)allocRecord("OverflowRecord",
-						sizeof(OverflowRecord),
-						coverflowrecsize);
-
   scanRec = (ScanRec*)allocRecord("ScanRec",
 				  sizeof(ScanRec), 
 				  cscanRecSize);
@@ -162,13 +156,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
                     &mlpqOperPtr,
                     &queOperPtr,
                     &readWriteOpPtr,
-                    &iopOverflowRecPtr,
-                    &tfoOverflowRecPtr,
-                    &porOverflowRecPtr,
-                    &priOverflowRecPtr,
-                    &rorOverflowRecPtr,
-                    &sorOverflowRecPtr,
-                    &troOverflowRecPtr,
                     &ancPageptr,
                     &colPageptr,
                     &ccoPageptr,
@@ -220,10 +207,6 @@ Dbacc::~Dbacc()
 		sizeof(Operationrec),
 		coprecsize);
   
-  deallocRecord((void **)&overflowRecord, "OverflowRecord",
-		sizeof(OverflowRecord),
-		coverflowrecsize);
-
   deallocRecord((void **)&scanRec, "ScanRec",
 		sizeof(ScanRec), 
 		cscanRecSize);
