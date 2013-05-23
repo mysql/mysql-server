@@ -71,11 +71,7 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
  *   OTHER CONSTANTS WHICH ARE CHANGED WHEN THE BUFFER SIZE IS CHANGED. 
  * ----------------------------------------------------------------------- */
 #define ZHEAD_SIZE 32
-#define ZCON_HEAD_SIZE 2
 #define ZBUF_SIZE 28
-#define ZEMPTYLIST 72
-#define ZUP_LIMIT 14
-#define ZDOWN_LIMIT 12
 #define ZSHIFT_PLUS 5
 #define ZSHIFT_MINUS 2
 #define ZFREE_LIMIT 65
@@ -756,14 +752,14 @@ private:
   
   void expandcontainer(Signal* signal);
   void shrinkcontainer(Signal* signal);
-  void nextcontainerinfoExp(Signal* signal);
+  void nextcontainerinfoExp(Signal* signal, ContainerHeader const containerhead);
   void releaseAndCommitActiveOps(Signal* signal);
   void releaseAndCommitQueuedOps(Signal* signal);
   void releaseAndAbortLockedOps(Signal* signal);
-  void containerinfo(Signal* signal);
+  void containerinfo(Signal* signal, ContainerHeader& containerhead);
   bool getScanElement(Signal* signal);
   void initScanOpRec(Signal* signal);
-  void nextcontainerinfo(Signal* signal);
+  void nextcontainerinfo(Signal* signal, ContainerHeader const containerhead);
   void putActiveScanOp(Signal* signal);
   void putOpScanLockQue();
   void putReadyScanQueue(Signal* signal, Uint32 scanRecIndex);
@@ -777,7 +773,7 @@ private:
   void takeOutScanLockQueue(Uint32 scanRecIndex);
   void takeOutReadyScanQueue(Signal* signal);
   void insertElement(Signal* signal);
-  void insertContainer(Signal* signal);
+  void insertContainer(Signal* signal, ContainerHeader& containerhead);
   void addnewcontainer(Signal* signal);
   void getfreelist(Signal* signal);
   void increaselistcont(Signal* signal);
@@ -795,7 +791,7 @@ private:
   void getdirindex(Signal* signal);
   void commitdelete(Signal* signal);
   void deleteElement(Signal* signal);
-  void getLastAndRemove(Signal* signal);
+  void getLastAndRemove(Signal* signal, ContainerHeader& containerhead);
   void releaseLeftlist(Signal* signal);
   void releaseRightlist(Signal* signal);
   void checkoverfreelist(Signal* signal);
@@ -992,13 +988,11 @@ private:
   Uint32 tidrForward;
   Uint32 tidrPageindex;
   Uint32 tidrContainerptr;
-  Uint32 tidrContainerhead;
   Uint32 tlastForward;
   Uint32 tlastPageindex;
   Uint32 tlastContainerlen;
   Uint32 tlastElementptr;
   Uint32 tlastContainerptr;
-  Uint32 tlastContainerhead;
   Uint32 trlPageindex;
   Uint32 tdelContainerptr;
   Uint32 tdelElementptr;
@@ -1020,8 +1014,6 @@ private:
   Uint32 tciContainerlen;
   Uint32 trscContainerlen;
   Uint32 tsscContainerlen;
-  Uint32 tciContainerhead;
-  Uint32 tnciContainerhead;
   Uint32 tslElementptr;
   Uint32 tisoElementptr;
   Uint32 tsscElementptr;
@@ -1080,7 +1072,6 @@ private:
   Uint32 cexcForward;
   Uint32 cexcPageindex;
   Uint32 cexcContainerptr;
-  Uint32 cexcContainerhead;
   Uint32 cexcContainerlen;
   Uint32 cexcElementptr;
   Uint32 cexcPrevconptr;
