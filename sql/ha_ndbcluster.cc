@@ -16891,7 +16891,7 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   if (alter_flags & Alter_inplace_info::DROP_FOREIGN_KEY)
   {
     const NDBTAB* tab= alter_data->old_table;
-    if ((error= drop_fk_for_online_alter(thd, dict, tab)) != 0)
+    if ((error= drop_fk_for_online_alter(thd, thd_ndb->ndb, dict, tab)) != 0)
     {
       print_error(error, MYF(0));
       goto abort;
