@@ -388,6 +388,7 @@ public:
   bool timerIsOn();
 
   int addTest(NDBT_TestCase* pTest);
+  int addExplicitTest(NDBT_TestCase* pTest);
 
   // Table create tweaks
   int createHook(Ndb*, NdbDictionary::Table&, int when);
@@ -415,6 +416,8 @@ private:
   void execute(Ndb_cluster_connection&,
 	       const NdbDictionary::Table*, const char* testname = NULL);
 
+  void execute(Ndb_cluster_connection&, NDBT_TestCase*);
+
   int report(const char* _tcname = NULL);
   int reportAllTables(const char* );
   const char* name;
@@ -423,6 +426,9 @@ private:
   int numTestsFail;
   int numTestsExecuted;
   Vector<NDBT_TestCase*> tests;
+  Vector<NDBT_TestCase*> explicitTests;
+  NDBT_TestCase * findTest(const char * name, bool explicitOK = true);
+
   NDBT_Context* ctx;
   int records;
   int loops;
@@ -460,6 +466,10 @@ C##suitname():NDBT_TestSuite(#suitname){ \
 #define TESTCASE(testname, comment) \
   pt = new NDBT_TestCaseImpl1(this, testname, comment); \
   addTest(pt);
+
+#define X_TESTCASE(testname, comment) \
+  pt = new NDBT_TestCaseImpl1(this, testname, comment); \
+  addExplicitTest(pt);
 
 // The driver type to use for a particular testcase
 #define TESTCASE_DRIVER(type) \
