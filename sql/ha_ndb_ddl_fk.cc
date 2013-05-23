@@ -1006,6 +1006,58 @@ public:
     DBUG_PRINT("exit", ("count: %u", count));
     DBUG_RETURN(true);
   }
+
+
+  bool drop_fk(Ndb* ndb, NdbDictionary::Dictionary* dict, const char* fk_name)
+  {
+    DBUG_ENTER("drop_fk");
+
+    NdbDictionary::ForeignKey fk;
+    if (dict->getForeignKey(fk, fk_name) != 0)
+    {
+      error(dict, "Could not find fk '%s'", fk_name);
+      DBUG_ASSERT(false);
+      DBUG_RETURN(false);
+    }
+
+    char parent_db_and_name[FN_LEN + 1];
+    const char * parent_name = fk_split_name(parent_db_and_name,fk.getParentTable());
+    if (Fk_util::is_mock_name(parent_name))
+    {
+      // Fk is referencing a mock table, drop the table
+      // and the constraint at the same time
+      Ndb_db_guard db_guard(ndb);
+      setDbName(ndb, parent_db_and_name);
+      Ndb_table_guard mocktab_g(dict, parent_name);
+      if (mocktab_g.get_table())
+      {
+        const int drop_flags= NDBDICT::DropTableCascadeConstraints;
+        if (dict->dropTableGlobal(*mocktab_g.get_table(), drop_flags) != 0)
+        {
+          error(dict, "Failed to drop fk mock table '%s'", parent_name);
+          DBUG_ASSERT(false);
+          DBUG_RETURN(false);
+        }
+        // table and fk dropped
+        DBUG_RETURN(true);
+      }
+      else
+      {
+        warn("Could not open the fk mock table '%s', ignoring it...",
+             parent_name);
+        DBUG_ASSERT(false);
+        // fallthrough and try to drop only the fk,
+      }
+    }
+
+    if (dict->dropForeignKey(fk) != 0)
+    {
+      error(dict, "Failed to drop fk '%s'", fk_name);
+      DBUG_ASSERT(false);
+      DBUG_RETURN(false);
+    }
+    DBUG_RETURN(true);
+  }
 };
 
 bool ndb_fk_util_build_list(THD* thd, NdbDictionary::Dictionary* dict,
@@ -2282,7 +2334,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 }
 
 int
-ha_ndbcluster::drop_fk_for_online_alter(THD * thd, NDBDICT * dict,
+ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
                                         const NDBTAB* tab)
 {
   DBUG_ENTER("drop_fk_for_online");
@@ -2338,12 +2390,8 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, NDBDICT * dict,
       if (strcmp(drop_item->name, name) == 0)
       {
         found= true;
-        NdbDictionary::ForeignKey fk;
-        if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
-        {
-          ERR_RETURN(dict->getNdbError());
-        }
-        if (dict->dropForeignKey(fk) != 0)
+        Fk_util fk_util(thd);
+        if (!fk_util.drop_fk(ndb, dict, obj_list.elements[i].name))
         {
           ERR_RETURN(dict->getNdbError());
         }

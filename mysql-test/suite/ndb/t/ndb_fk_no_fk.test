@@ -640,6 +640,23 @@ alter table child algorithm=inplace,
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
+alter table child algorithm=inplace, drop foreign key fk1;
+
+--source ndb_show_tables_result.inc
+--echo # There should be 5 mock tables
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+alter table child algorithm=inplace,
+  drop foreign key fk3,
+  drop foreign key fk4,
+  drop foreign key fk6;
+
+--source ndb_show_tables_result.inc
+--echo # There should be 2 mock tables left
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
 drop table child;
 
 --source ndb_show_tables_result.inc
