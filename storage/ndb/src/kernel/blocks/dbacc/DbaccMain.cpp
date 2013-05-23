@@ -1,4 +1,4 @@
-/* Copyright (c) 2003-2008 MySQL AB
+/* Copyright (c) 2003, 2008, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -2868,7 +2868,6 @@ void Dbacc::increaselistcont(Signal* signal)
 void Dbacc::seizeLeftlist(Signal* signal) 
 {
   Uint32 tsllTmp1;
-  Uint32 tsllNewHead;
   Uint32 tsllHeadIndex;
   Uint32 tsllTmp;
 
@@ -2902,42 +2901,15 @@ void Dbacc::seizeLeftlist(Signal* signal)
     jam();
   }//if
   /* --------------------------------------------------------------------------------- */
-  /*       IF WE ARE UPDATING THE HEADER WE ARE CREATING A NEW CONTAINER IN THE PAGE.  */
-  /*       TO BE ABLE TO FIND ALL LOCKED ELEMENTS WE KEEP ALL CONTAINERS IN LINKED     */
-  /*       LISTS IN THE PAGE.                                                          */
-  /*                                                                                   */
-  /*       ZPOS_EMPTY_LIST CONTAINS A NEXT POINTER IN BIT 16-22 THAT REFERS TO THE     */
-  /*       FIRST CONTAINER IN A LIST OF USED RIGHT CONTAINERS IN THE PAGE.             */
-  /*       ZPOS_EMPTY_LIST CONTAINS A NEXT POINTER IN BIT 23-29 THAT REFERS TO THE     */
-  /*       FIRST CONTAINER IN A LIST OF USED LEFT CONTAINERS IN THE PAGE.              */
-  /*       EACH CONTAINER IN THE LIST CONTAINS A NEXT POINTER IN BIT 11-17 AND IT      */
-  /*       CONTAINS A PREVIOUS POINTER IN BIT 18-24.                                   */
-  /*	WE ALSO SET BIT 25 TO INDICATE THAT IT IS A CONTAINER HEADER.               */
+  /*  Initialize container header if new container allocated.                          */
+  /*  This is skipped if this left container should be used by the right container.    */
   /* --------------------------------------------------------------------------------- */
   if (tslUpdateHeader == ZTRUE) {
     jam();
-    tslNextfree = (slPageptr.p->word32[ZPOS_EMPTY_LIST] >> 23) & 0x7f;
-    tsllNewHead = ZCON_HEAD_SIZE;
-    tsllNewHead = ((tsllNewHead << 8) + ZEMPTYLIST) + (1 << 7);
-    tsllNewHead = (tsllNewHead << 7) + tslNextfree;
-    tsllNewHead = tsllNewHead << 11;
+    ContainerHeader tsllNewHead;
+    tsllNewHead.initInUse();
     dbgWord32(slPageptr, tsllHeadIndex, tsllNewHead);
     slPageptr.p->word32[tsllHeadIndex] = tsllNewHead;
-    tsllTmp = slPageptr.p->word32[ZPOS_EMPTY_LIST] & 0xc07fffff;
-    tsllTmp = tsllTmp | (tslPageindex << 23);
-    dbgWord32(slPageptr, ZPOS_EMPTY_LIST, tsllTmp);
-    slPageptr.p->word32[ZPOS_EMPTY_LIST] = tsllTmp;
-    if (tslNextfree < ZEMPTYLIST) {
-      jam();
-      tsllTmp = mul_ZBUF_SIZE(tslNextfree) + ZHEAD_SIZE;
-      tsllTmp1 = slPageptr.p->word32[tsllTmp] & 0xfe03ffff;
-      tsllTmp1 = tsllTmp1 | (tslPageindex << 18);
-      dbgWord32(slPageptr, tsllTmp, tsllTmp1);
-      slPageptr.p->word32[tsllTmp] = tsllTmp1;
-    } else {
-      ndbrequire(tslNextfree == ZEMPTYLIST);
-      jam();
-    }//if
   }//if
   ilcPageptr = slPageptr;
   increaselistcont(signal);
@@ -2953,7 +2925,6 @@ void Dbacc::seizeLeftlist(Signal* signal)
 void Dbacc::seizeRightlist(Signal* signal) 
 {
   Uint32 tsrlTmp1;
-  Uint32 tsrlNewHead;
   Uint32 tsrlHeadIndex;
   Uint32 tsrlTmp;
 
@@ -2983,39 +2954,15 @@ void Dbacc::seizeRightlist(Signal* signal)
     jam();
   }//if
   /* --------------------------------------------------------------------------------- */
-  /*       IF WE ARE UPDATING THE HEADER WE ARE CREATING A NEW CONTAINER IN THE PAGE.  */
-  /*       TO BE ABLE TO FIND ALL LOCKED ELEMENTS WE KEEP ALL CONTAINERS IN LINKED     */
-  /*       LISTS IN THE PAGE.                                                          */
-  /*                                                                                   */
-  /*       ZPOS_EMPTY_LIST CONTAINS A NEXT POINTER IN BIT 16-22 THAT REFERS TO THE     */
-  /*       FIRST CONTAINER IN A LIST OF USED RIGHT CONTAINERS IN THE PAGE.             */
-  /*       ZPOS_EMPTY_LIST CONTAINS A NEXT POINTER IN BIT 23-29 THAT REFERS TO THE     */
-  /*       FIRST CONTAINER IN A LIST OF USED LEFT CONTAINERS IN THE PAGE.              */
-  /*       EACH CONTAINER IN THE LIST CONTAINS A NEXT POINTER IN BIT 11-17 AND IT      */
-  /*       CONTAINS A PREVIOUS POINTER IN BIT 18-24.                                   */
+  /*  Initialize container header if new container allocated.                          */
+  /*  This is skipped if this right container should be used by the left container.    */
   /* --------------------------------------------------------------------------------- */
   if (tslUpdateHeader == ZTRUE) {
     jam();
-    tslNextfree = (slPageptr.p->word32[ZPOS_EMPTY_LIST] >> 16) & 0x7f;
-    tsrlNewHead = ZCON_HEAD_SIZE;
-    tsrlNewHead = ((tsrlNewHead << 8) + ZEMPTYLIST) + (1 << 7);
-    tsrlNewHead = (tsrlNewHead << 7) + tslNextfree;
-    tsrlNewHead = tsrlNewHead << 11;
+    ContainerHeader tsrlNewHead;
+    tsrlNewHead.initInUse();
     dbgWord32(slPageptr, tsrlHeadIndex, tsrlNewHead);
     slPageptr.p->word32[tsrlHeadIndex] = tsrlNewHead;
-    tsrlTmp = slPageptr.p->word32[ZPOS_EMPTY_LIST] & 0xff80ffff;
-    dbgWord32(slPageptr, ZPOS_EMPTY_LIST, tsrlTmp | (tslPageindex << 16));
-    slPageptr.p->word32[ZPOS_EMPTY_LIST] = tsrlTmp | (tslPageindex << 16);
-    if (tslNextfree < ZEMPTYLIST) {
-      jam();
-      tsrlTmp = mul_ZBUF_SIZE(tslNextfree) + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
-      tsrlTmp1 = slPageptr.p->word32[tsrlTmp] & 0xfe03ffff;
-      dbgWord32(slPageptr, tsrlTmp, tsrlTmp1 | (tslPageindex << 18));
-      slPageptr.p->word32[tsrlTmp] = tsrlTmp1 | (tslPageindex << 18);
-    } else {
-      ndbrequire(tslNextfree == ZEMPTYLIST);
-      jam();
-    }//if
   }//if
   ilcPageptr = slPageptr;
   increaselistcont(signal);
@@ -3584,7 +3531,6 @@ void Dbacc::getLastAndRemove(Signal* signal)
       /*       SIDE OF THE BUFFER.                                                         */
       /* --------------------------------------------------------------------------------- */
       tlastContainerhead = tlastContainerhead ^ (1 << 10);
-      trlRelCon = ZFALSE;
       if (tlastForward == ZTRUE) {
         jam();
         turlIndex = tlastContainerptr + (ZBUF_SIZE - ZCON_HEAD_SIZE);
@@ -3609,7 +3555,7 @@ void Dbacc::getLastAndRemove(Signal* signal)
       tglrTmp = lastPrevpageptr.p->word32[tlastPrevconptr] >> 9;
       dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp << 9);
       lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp << 9;
-      trlRelCon = ZTRUE;
+      ndbrequire(ContainerHeader(rlPageptr.p->word32[tlastContainerptr]).isInUse());
       if (tlastForward == ZTRUE) {
         jam();
         tullIndex = tlastContainerptr;
@@ -3650,45 +3596,6 @@ void Dbacc::releaseLeftlist(Signal* signal)
   Uint32 tullTmp;
   Uint32 tullTmp1;
 
-  /* --------------------------------------------------------------------------------- */
-  /*       IF A CONTAINER IS RELEASED AND NOT ONLY A PART THEN WE HAVE TO REMOVE IT    */
-  /*       FROM THE LIST OF USED CONTAINERS IN THE PAGE. THIS IN ORDER TO ENSURE THAT  */
-  /*       WE CAN FIND ALL LOCKED ELEMENTS DURING LOCAL CHECKPOINT.                    */
-  /* --------------------------------------------------------------------------------- */
-  if (trlRelCon == ZTRUE) {
-    arrGuard(tullIndex, 2048);
-    trlHead = rlPageptr.p->word32[tullIndex];
-    trlNextused = (trlHead >> 11) & 0x7f;
-    trlPrevused = (trlHead >> 18) & 0x7f;
-    if (trlNextused < ZEMPTYLIST) {
-      jam();
-      tullTmp1 = mul_ZBUF_SIZE(trlNextused);
-      tullTmp1 = tullTmp1 + ZHEAD_SIZE;
-      tullTmp = rlPageptr.p->word32[tullTmp1] & 0xfe03ffff;
-      dbgWord32(rlPageptr, tullTmp1, tullTmp | (trlPrevused << 18));
-      rlPageptr.p->word32[tullTmp1] = tullTmp | (trlPrevused << 18);
-    } else {
-      ndbrequire(trlNextused == ZEMPTYLIST);
-      jam();
-    }//if
-    if (trlPrevused < ZEMPTYLIST) {
-      jam();
-      tullTmp1 = mul_ZBUF_SIZE(trlPrevused);
-      tullTmp1 = tullTmp1 + ZHEAD_SIZE;
-      tullTmp = rlPageptr.p->word32[tullTmp1] & 0xfffc07ff;
-      dbgWord32(rlPageptr, tullTmp1, tullTmp | (trlNextused << 11));
-      rlPageptr.p->word32[tullTmp1] = tullTmp | (trlNextused << 11);
-    } else {
-      ndbrequire(trlPrevused == ZEMPTYLIST);
-      jam();
-      /* --------------------------------------------------------------------------------- */
-      /*       WE ARE FIRST IN THE LIST AND THUS WE NEED TO UPDATE THE FIRST POINTER.      */
-      /* --------------------------------------------------------------------------------- */
-      tullTmp = rlPageptr.p->word32[ZPOS_EMPTY_LIST] & 0xc07fffff;
-      dbgWord32(rlPageptr, ZPOS_EMPTY_LIST, tullTmp | (trlNextused << 23));
-      rlPageptr.p->word32[ZPOS_EMPTY_LIST] = tullTmp | (trlNextused << 23);
-    }//if
-  }//if
   dbgWord32(rlPageptr, tullIndex + 1, ZEMPTYLIST);
   arrGuard(tullIndex + 1, 2048);
   rlPageptr.p->word32[tullIndex + 1] = ZEMPTYLIST;
@@ -3741,47 +3648,6 @@ void Dbacc::releaseRightlist(Signal* signal)
   Uint32 turlTmp1;
   Uint32 turlTmp;
 
-  /* --------------------------------------------------------------------------------- */
-  /*       IF A CONTAINER IS RELEASED AND NOT ONLY A PART THEN WE HAVE TO REMOVE IT    */
-  /*       FROM THE LIST OF USED CONTAINERS IN THE PAGE. THIS IN ORDER TO ENSURE THAT  */
-  /*       WE CAN FIND ALL LOCKED ELEMENTS DURING LOCAL CHECKPOINT.                    */
-  /* --------------------------------------------------------------------------------- */
-  if (trlRelCon == ZTRUE) {
-    jam();
-    arrGuard(turlIndex, 2048);
-    trlHead = rlPageptr.p->word32[turlIndex];
-    trlNextused = (trlHead >> 11) & 0x7f;
-    trlPrevused = (trlHead >> 18) & 0x7f;
-    if (trlNextused < ZEMPTYLIST) {
-      jam();
-      turlTmp1 = mul_ZBUF_SIZE(trlNextused);
-      turlTmp1 = turlTmp1 + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
-      turlTmp = rlPageptr.p->word32[turlTmp1] & 0xfe03ffff;
-      dbgWord32(rlPageptr, turlTmp1, turlTmp | (trlPrevused << 18));
-      rlPageptr.p->word32[turlTmp1] = turlTmp | (trlPrevused << 18);
-    } else {
-      ndbrequire(trlNextused == ZEMPTYLIST);
-      jam();
-    }//if
-    if (trlPrevused < ZEMPTYLIST) {
-      jam();
-      turlTmp1 = mul_ZBUF_SIZE(trlPrevused);
-      turlTmp1 = turlTmp1 + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
-      turlTmp = rlPageptr.p->word32[turlTmp1] & 0xfffc07ff;
-      dbgWord32(rlPageptr, turlTmp1, turlTmp | (trlNextused << 11));
-      rlPageptr.p->word32[turlTmp1] = turlTmp | (trlNextused << 11);
-    } else {
-      ndbrequire(trlPrevused == ZEMPTYLIST);
-      jam();
-      /* --------------------------------------------------------------------------------- */
-      /*       WE ARE FIRST IN THE LIST AND THUS WE NEED TO UPDATE THE FIRST POINTER       */
-      /*       OF THE RIGHT CONTAINER LIST.                                                */
-      /* --------------------------------------------------------------------------------- */
-      turlTmp = rlPageptr.p->word32[ZPOS_EMPTY_LIST] & 0xff80ffff;
-      dbgWord32(rlPageptr, ZPOS_EMPTY_LIST, turlTmp | (trlNextused << 16));
-      rlPageptr.p->word32[ZPOS_EMPTY_LIST] = turlTmp | (trlNextused << 16);
-    }//if
-  }//if
   dbgWord32(rlPageptr, turlIndex + 1, ZEMPTYLIST);
   arrGuard(turlIndex + 1, 2048);
   rlPageptr.p->word32[turlIndex + 1] = ZEMPTYLIST;
@@ -5783,7 +5649,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     jam();
     rlPageptr = excPageptr;
     trlPageindex = cexcPageindex;
-    trlRelCon = ZFALSE;
     turlIndex = cexcContainerptr + (ZBUF_SIZE - ZCON_HEAD_SIZE);
     releaseRightlist(signal);
   }//if
@@ -5833,22 +5698,20 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       jam();
       if (((cexcContainerhead >> 10) & 1) == 1) {
         jam();
-        trlRelCon = ZFALSE;
         turlIndex = cexcContainerptr + (ZBUF_SIZE - ZCON_HEAD_SIZE);
         releaseRightlist(signal);
       }//if
-      trlRelCon = ZTRUE;
+      ndbrequire(ContainerHeader(rlPageptr.p->word32[cexcContainerptr]).isInUse());
       tullIndex = cexcContainerptr;
       releaseLeftlist(signal);
     } else {
       jam();
       if (((cexcContainerhead >> 10) & 1) == 1) {
         jam();
-        trlRelCon = ZFALSE;
         tullIndex = cexcContainerptr - (ZBUF_SIZE - ZCON_HEAD_SIZE);
         releaseLeftlist(signal);
       }//if
-      trlRelCon = ZTRUE;
+      ndbrequire(ContainerHeader(rlPageptr.p->word32[cexcContainerptr]).isInUse());
       turlIndex = cexcContainerptr;
       releaseRightlist(signal);
     }//if
@@ -7496,7 +7359,6 @@ bool Dbacc::getfragmentrec(Signal* signal, FragmentrecPtr& rootPtr, Uint32 fid)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::initOverpage(Signal* signal) 
 {
-  Uint32 tiopTmp;
   Uint32 tiopPrevFree;
   Uint32 tiopNextFree;
 
@@ -7508,9 +7370,7 @@ void Dbacc::initOverpage(Signal* signal)
   iopPageptr.p->word32[Page8::NEXT_PAGE] = nextPage;
   iopPageptr.p->word32[Page8::PREV_PAGE] = prevPage;
 
-  tiopTmp = ZEMPTYLIST;
-  tiopTmp = (tiopTmp << 16) + (tiopTmp << 23);
-  iopPageptr.p->word32[ZPOS_EMPTY_LIST] = tiopTmp + (1 << ZPOS_PAGE_TYPE_BIT);
+  iopPageptr.p->word32[Page8::EMPTY_LIST] = (1 << ZPOS_PAGE_TYPE_BIT);
   /* --------------------------------------------------------------------------------- */
   /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR LEFT CONTAINERS.         */
   /* --------------------------------------------------------------------------------- */
@@ -7557,7 +7417,6 @@ void Dbacc::initOverpage(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::initPage(Signal* signal) 
 {
-  Uint32 tinpTmp1;
   Uint32 tinpIndex;
   Uint32 tinpTmp;
   Uint32 tinpPrevFree;
@@ -7575,8 +7434,8 @@ void Dbacc::initPage(Signal* signal)
   /*       PREPARE CONTAINER HEADERS INDICATING EMPTY CONTAINERS WITHOUT NEXT.         */
   /* --------------------------------------------------------------------------------- */
   inpPageptr.p->word32[ZPOS_PAGE_ID] = tipPageId;
-  tinpTmp1 = ZCON_HEAD_SIZE;
-  tinpTmp1 = tinpTmp1 << 26;
+  ContainerHeader tinpTmp1;
+  tinpTmp1.initInUse();
   /* --------------------------------------------------------------------------------- */
   /*       INITIALISE ZNO_CONTAINERS PREDEFINED HEADERS ON LEFT SIZE.                  */
   /* --------------------------------------------------------------------------------- */
@@ -7593,13 +7452,10 @@ void Dbacc::initPage(Signal* signal)
   /*--------------------------------------- */
   /* --------------------------------------------------------------------------------- */
   /*       INITIALISE FIRST POINTER TO DOUBLY LINKED LIST OF FREE CONTAINERS.          */
-  /*       INITIALISE EMPTY LISTS OF USED CONTAINERS.                                  */
   /*       INITIALISE LEFT FREE LIST TO 64 AND RIGHT FREE LIST TO ZERO.                */
   /*       ALSO INITIALISE PAGE TYPE TO NOT OVERFLOW PAGE.                             */
   /* --------------------------------------------------------------------------------- */
-  tinpTmp = ZEMPTYLIST;
-  tinpTmp = (tinpTmp << 16) + (tinpTmp << 23);
-  tinpTmp = tinpTmp + (ZNO_CONTAINERS << 7);
+  tinpTmp = (ZNO_CONTAINERS << 7);
   inpPageptr.p->word32[ZPOS_EMPTY_LIST] = tinpTmp;
   /* --------------------------------------------------------------------------------- */
   /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS.        */
