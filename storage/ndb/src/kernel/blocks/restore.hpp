@@ -21,8 +21,7 @@
 
 #include <SimulatedBlock.hpp>
 
-#include <SLList.hpp>
-#include <DLList.hpp>
+#include <IntrusiveList.hpp>
 #include <KeyTable.hpp>
 #include <DLHashTable.hpp>
 #include <DataBuffer.hpp>

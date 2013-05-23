@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -622,7 +621,7 @@ Lgman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
     }
     
     m_logfile_group_hash.add(ptr);
-    m_logfile_group_list.add(ptr);
+    m_logfile_group_list.addLast(ptr);
 
     if ((getNodeState().getNodeRestartInProgress() &&
          getNodeState().starting.restartType !=
@@ -739,7 +738,7 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
   {
     jam();
     metalist.remove(file_ptr);
-    list.add(file_ptr);
+    list.addLast(file_ptr);
     file_ptr.p->m_create.m_senderRef = ref;
     file_ptr.p->m_create.m_senderData = data;
     create_file_abort(signal, ptr, file_ptr);
@@ -851,7 +850,7 @@ Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
     new (file_ptr.p) Undofile(req, ptr.i);
 
     Local_undofile_list tmp(m_file_pool, ptr.p->m_meta_files);
-    tmp.add(file_ptr);
+    tmp.addLast(file_ptr);
     
     open_file(signal, file_ptr, req->requestInfo, &handle);
     return;
@@ -1041,9 +1040,9 @@ Lgman::create_file_commit(Signal* signal,
       Ptr<Undofile> curr;
       m_file_pool.getPtr(curr, lg_ptr.p->m_file_pos[HEAD].m_ptr_i);
       if(free.next(curr))
-	free.insert(ptr, curr); // inserts before (that's why the extra next)
+        free.insertBefore(ptr, curr);
       else
-	free.add(ptr);
+        free.addLast(ptr);
 
       ptr.p->m_state = Undofile::FS_ONLINE | Undofile::FS_EMPTY;
     }
@@ -1052,7 +1051,7 @@ Lgman::create_file_commit(Signal* signal,
       /**
        * First file isn't empty as it can be written to at any time
        */
-      free.add(ptr);
+      free.addLast(ptr);
       ptr.p->m_state = Undofile::FS_ONLINE;
       lg_ptr.p->m_state |= Logfile_group::LG_FLUSH_THREAD;
       signal->theData[0] = LgmanContinueB::FLUSH_LOG;
@@ -1409,7 +1408,7 @@ Logfile_client::sync_lsn(Signal* signal,
 	list(m_lgman->m_log_waiter_pool, ptr.p->m_log_sync_waiters);
       
       empty= list.isEmpty();
-      if(!list.seize(wait))
+      if (!list.seizeLast(wait))
 	return -1;
       
       wait.p->m_block= m_block;
@@ -1521,7 +1520,7 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     CallbackPtr & callback = waiter.p->m_callback;
     sendCallbackConf(signal, block, callback, logfile_group_id);
     
-    list.releaseFirst(waiter);
+    list.releaseFirst(/* waiter */);
   }
   
   if(removed && !list.isEmpty())
@@ -1644,7 +1643,7 @@ Logfile_client::get_log_buffer(Signal* signal, Uint32 sz,
 	list(m_lgman->m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
       
       empty= list.isEmpty();
-      if(!list.seize(wait))
+      if (!list.seizeFirst(wait))
       {
 	return -1;
       }      
@@ -1912,7 +1911,7 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     ptr.p->m_callback_buffer_words += sz;
     sendCallbackConf(signal, block, callback, logfile_group_id);
 
-    list.releaseFirst(waiter);
+    list.releaseFirst(/* waiter */);
   }
   
   if (removed && !list.isEmpty())
@@ -2688,14 +2687,14 @@ Lgman::execFSREADCONF(Signal* signal)
        * File has highest lsn, add last
        */
       jam();
-      files.add(ptr);
+      files.addLast(ptr);
     }
     else
     {
       /**
        * Insert file in correct position in file list
        */
-      files.insert(ptr, loop);
+      files.insertBefore(ptr, loop);
     }
   }
   find_log_head(signal, lg_ptr);
@@ -2853,70 +2852,74 @@ Lgman::init_run_undo_log(Signal* signal)
    */
   Ptr<Logfile_group> group;
   Logfile_group_list& list= m_logfile_group_list;
-  Logfile_group_list tmp(m_logfile_group_pool);
-
+  Logfile_group_list::Head tmpHead;
   bool found_any = false;
-
-  list.first(group);
-  while(!group.isNull())
   {
-    Ptr<Logfile_group> ptr= group;
-    list.next(group);
-    list.remove(ptr);
+    Logfile_group_list::Local tmp(m_logfile_group_pool, tmpHead);
 
-    if (ptr.p->m_state & Logfile_group::LG_ONLINE)
-    {
-      /**
-       * No logfiles in group
-       */
-      jam();
-      tmp.addLast(ptr);
-      continue;
-    }
-    
-    found_any = true;
 
+    list.first(group);
+    while (!group.isNull())
     {
+      Ptr<Logfile_group> ptr= group;
+      list.next(group);
+      list.remove(ptr);
+
+      if (ptr.p->m_state & Logfile_group::LG_ONLINE)
+      {
+        /**
+         * No logfiles in group
+         */
+        jam();
+        tmp.addLast(ptr);
+        continue;
+      }
+
+      found_any = true;
+
+      {
+        /**
+         * Init buffer pointers
+         */
+        ptr.p->m_free_buffer_words -= File_formats::UNDO_PAGE_WORDS;
+        ptr.p->m_pos[CONSUMER].m_current_page.m_idx = 0; // 0 more pages read
+        ptr.p->m_pos[PRODUCER].m_current_page.m_idx = 0; // 0 more pages read
+
+        Uint32 page = ptr.p->m_pos[CONSUMER].m_current_pos.m_ptr_i;
+        File_formats::Undofile::Undo_page* pageP =
+          (File_formats::Undofile::Undo_page*)m_shared_page_pool.getPtr(page);
+
+        ptr.p->m_pos[CONSUMER].m_current_pos.m_idx = pageP->m_words_used;
+        ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = 1;
+        ptr.p->m_last_read_lsn++;
+      }
+
       /**
-       * Init buffer pointers
+       * Start producer thread
        */
-      ptr.p->m_free_buffer_words -= File_formats::UNDO_PAGE_WORDS;
-      ptr.p->m_pos[CONSUMER].m_current_page.m_idx = 0; // 0 more pages read
-      ptr.p->m_pos[PRODUCER].m_current_page.m_idx = 0; // 0 more pages read
-      
-      Uint32 page = ptr.p->m_pos[CONSUMER].m_current_pos.m_ptr_i;
-      File_formats::Undofile::Undo_page* pageP = 
-	(File_formats::Undofile::Undo_page*)m_shared_page_pool.getPtr(page);
-      
-      ptr.p->m_pos[CONSUMER].m_current_pos.m_idx = pageP->m_words_used;
-      ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = 1;
-      ptr.p->m_last_read_lsn++;
+      signal->theData[0] = LgmanContinueB::READ_UNDO_LOG;
+      signal->theData[1] = ptr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    
+      /**
+       * Insert in correct position in list of logfile_group's
+       */
+      Ptr<Logfile_group> pos;
+      for (tmp.first(pos); !pos.isNull(); tmp.next(pos))
+        if (ptr.p->m_last_read_lsn >= pos.p->m_last_read_lsn)
+          break;
+    
+      if (pos.isNull())
+        tmp.addLast(ptr);
+      else
+        tmp.insertBefore(ptr, pos);
+    
+      ptr.p->m_state =
+        Logfile_group::LG_EXEC_THREAD | Logfile_group::LG_READ_THREAD;
     }
-    
-    /**
-     * Start producer thread
-     */
-    signal->theData[0] = LgmanContinueB::READ_UNDO_LOG;
-    signal->theData[1] = ptr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-    
-    /**
-     * Insert in correct position in list of logfile_group's
-     */
-    Ptr<Logfile_group> pos;
-    for(tmp.first(pos); !pos.isNull(); tmp.next(pos))
-      if(ptr.p->m_last_read_lsn >= pos.p->m_last_read_lsn)
-	break;
-    
-    if(pos.isNull())
-      tmp.add(ptr);
-    else
-      tmp.insert(ptr, pos);
-    
-    ptr.p->m_state = 
-      Logfile_group::LG_EXEC_THREAD | Logfile_group::LG_READ_THREAD;
   }
-  list = tmp;
+  ndbassert(list.isEmpty());
+  list.appendList(tmpHead);
 
   if (found_any == false)
   {
@@ -3309,9 +3312,9 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
     {
       m_logfile_group_list.remove(ptr);
       if(sort.isNull())
-	m_logfile_group_list.add(ptr);
+        m_logfile_group_list.addLast(ptr);
       else
-	m_logfile_group_list.insert(ptr, sort);
+        m_logfile_group_list.insertBefore(ptr, sort);
     }
   }
   return record;
