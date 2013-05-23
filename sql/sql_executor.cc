@@ -951,9 +951,10 @@ do_select(JOIN *join)
       sort_tab= join_tab + const_tables;
     }
     if (sort_tab->filesort &&
+        join->select_options & OPTION_FOUND_ROWS &&
+        sort_tab->filesort->sortorder &&
         sort_tab->filesort->limit != HA_POS_ERROR)
     {
-      DBUG_ASSERT(sort_tab->filesort->sortorder);
       join->thd->limit_found_rows= sort_tab->records;
     }
   }
@@ -2816,7 +2817,6 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 	  /* Join over all rows in table;  Return number of found rows */
 	  TABLE *table=jt->table;
 
-	  join->select_options ^= OPTION_FOUND_ROWS;
 	  if (table->sort.record_pointers ||
 	      (table->sort.io_cache && my_b_inited(table->sort.io_cache)))
 	  {
