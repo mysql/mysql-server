@@ -81,13 +81,9 @@ set(ADAPTER_SOURCE_FILES
   Adapter/impl/src/ValueObject.cpp
 )
 
-## TODO: Windows needs ndbclient_static but Mac needs ndbclient
-set(ADAPTER_REQUIRED_LIBS
-  ndbclient_so
-  mysqlclient
-)
 
 if(WIN32) 
+  set(ADAPTER_REQUIRED_LIBS ndbclient_static mysqlclient)
   add_definitions(-DWIN32)
   add_definitions(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
   set(ADAPTER_REQUIRED_LIBS ${ADAPTER_REQUIRED_LIBS} node)
@@ -97,6 +93,7 @@ if(WIN32)
     link_directories(${NODE_GYP}/ia32) 
   endif()
 else()
+  set(ADAPTER_REQUIRED_LIBS ndbclient_so mysqlclient)
   add_definitions(-D_GNU_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64)
 endif()
  
