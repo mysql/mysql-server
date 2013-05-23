@@ -444,25 +444,17 @@ cmp_dtuple_rec_with_match_low(
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets();
 				may be NULL for ROW_FORMAT=REDUNDANT */
 	ulint		n_cmp,	/*!< in: number of fields to compare */
-	ulint*		matched_fields, /*!< in/out: number of already completely
+	ulint*		matched_fields) /*!< in/out: number of already completely
 				matched fields; when function returns,
 				contains the value for current comparison */
-	ulint*		matched_bytes) /*!< in/out: number of already matched
-				bytes within the first field not completely
-				matched; when function returns, contains the
-				value for current comparison */
 {
 	ulint		cur_field;	/* current field number */
-	ulint		cur_bytes;	/* number of already matched bytes
-					in current field */
 	int		ret;		/* return value */
 
-	ut_ad(dtuple && rec && matched_fields && matched_bytes);
 	ut_ad(dtuple_check_typed(dtuple));
 	ut_ad(!offsets || rec_offs_validate(rec, NULL, offsets));
 
 	cur_field = *matched_fields;
-	cur_bytes = *matched_bytes;
 
 	ut_ad(n_cmp > 0);
 	ut_ad(n_cmp <= dtuple_get_n_fields(dtuple));
@@ -471,7 +463,7 @@ cmp_dtuple_rec_with_match_low(
 			    ? rec_offs_n_fields(offsets)
 			    : rec_get_n_fields_old(rec)));
 
-	if (cur_bytes == 0 && cur_field == 0) {
+	if (cur_field == 0) {
 		ulint	rec_info = rec_get_info_bits(
 			rec, offsets && rec_offs_comp(offsets));
 		ulint	tup_info = dtuple_get_info_bits(dtuple);
@@ -487,7 +479,7 @@ cmp_dtuple_rec_with_match_low(
 
 	/* Match fields in a loop */
 
-	for (; cur_field < n_cmp; cur_field++, cur_bytes = 0) {
+	for (; cur_field < n_cmp; cur_field++) {
 		const byte*	rec_b_ptr;
 		const dfield_t*	dtuple_field
 			= dtuple_get_nth_field(dtuple, cur_field);
@@ -512,96 +504,13 @@ cmp_dtuple_rec_with_match_low(
 
 		ut_ad(!dfield_is_ext(dtuple_field));
 
-		if (cur_bytes) {
-			/* We got a partial match on the previous
-			round. Compare from those bytes on. */
-			ut_ad(dtuple_f_len != UNIV_SQL_NULL);
-			ut_ad(rec_f_len != UNIV_SQL_NULL);
-#ifdef UNIV_DEBUG
-			switch (type->mtype) {
-			case DATA_FIXBINARY:
-			case DATA_BINARY:
-			case DATA_INT:
-			case DATA_SYS_CHILD:
-			case DATA_SYS:
-				break;
-			case DATA_BLOB:
-				if (type->prtype & DATA_BINARY_TYPE) {
-					break;
-				}
-				/* fall through */
-			default:
-				/* We should have tried
-				cmp_whole_field() on the previous
-				round, not gotten a partial match. */
-				ut_error;
-			}
-#endif /* UNIV_DEBUG */
-
-			ulint len = min(dtuple_f_len, rec_f_len);
-
-			if (len < cur_bytes) {
-				ut_ad(dtype_get_pad_char(
-					      type->mtype, type->prtype)
-				      != ULINT_UNDEFINED);
-				goto whole_cmp;
-			}
-
-			/* These bytes should already have been compared,
-			or the index tree must be corrupted. */
-			ut_ad(!memcmp(dtuple_b_ptr, rec_b_ptr, cur_bytes));
-
-			ret = memcmp(dtuple_b_ptr + cur_bytes,
-				     rec_b_ptr + cur_bytes,
-				     len - cur_bytes);
-
-			if (ret) {
-				ret = ret < 0 ? -1 : 1;
-				goto order_resolved;
-			} else if (dtuple_f_len == rec_f_len) {
-				continue;
-			}
-
-			const ulint pad = dtype_get_pad_char(
-				type->mtype, type->prtype);
-
-			if (pad == ULINT_UNDEFINED) {
-				ret = len < dtuple_f_len ? 1 : -1;
-				goto order_resolved;
-			}
-
-			if (len < dtuple_f_len) {
-				do {
-					byte	b = dtuple_b_ptr[len++];
-					if (b != pad) {
-						ret = b < pad ? -1 : 1;
-						goto order_resolved;
-					}
-				} while (len < dtuple_f_len);
-			} else {
-				ut_ad(len < rec_f_len);
-
-				do {
-					byte	b = rec_b_ptr[len++];
-					if (b != pad) {
-						ret = pad < b ? -1 : 1;
-						goto order_resolved;
-					}
-				} while (len < rec_f_len);
-			}
-		}
-
-whole_cmp:
 		ret = cmp_data(type->mtype, type->prtype,
 			       dtuple_b_ptr, dtuple_f_len,
 			       rec_b_ptr, rec_f_len);
 		if (ret) {
-			cur_bytes = 0;
 			goto order_resolved;
 		}
 	}
-
-	ut_ad(cur_bytes == 0);
 
 	ret = 0;	/* If we ran out of fields, dtuple was equal to rec
 			up to the common fields */
@@ -613,7 +522,6 @@ order_resolved:
 					     above cmp_debug_... sets
 					     *matched_fields to a value */
 	*matched_fields = cur_field;
-	*matched_bytes = cur_bytes;
 
 	return(ret);
 }
@@ -631,11 +539,10 @@ cmp_dtuple_rec(
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ulint	matched_fields	= 0;
-	ulint	matched_bytes	= 0;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	return(cmp_dtuple_rec_with_match(dtuple, rec, offsets,
-					 &matched_fields, &matched_bytes));
+					 &matched_fields));
 }
 
 /**************************************************************//**
@@ -652,30 +559,17 @@ cmp_dtuple_is_prefix_of_rec(
 {
 	ulint	n_fields;
 	ulint	matched_fields	= 0;
-	ulint	matched_bytes	= 0;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	n_fields = dtuple_get_n_fields(dtuple);
 
 	if (n_fields > rec_offs_n_fields(offsets)) {
-
+		ut_ad(0);
 		return(FALSE);
 	}
 
-	cmp_dtuple_rec_with_match(dtuple, rec, offsets,
-				  &matched_fields, &matched_bytes);
-	if (matched_fields == n_fields) {
-
-		return(TRUE);
-	}
-
-	if (matched_fields == n_fields - 1
-	    && matched_bytes == dfield_get_len(
-		    dtuple_get_nth_field(dtuple, n_fields - 1))) {
-		return(TRUE);
-	}
-
-	return(FALSE);
+	cmp_dtuple_rec_with_match(dtuple, rec, offsets, &matched_fields);
+	return(matched_fields == n_fields);
 }
 
 /*************************************************************//**

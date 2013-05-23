@@ -1840,7 +1840,6 @@ row_ins_dupl_error_with_rec(
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
 	ulint	matched_fields;
-	ulint	matched_bytes;
 	ulint	n_unique;
 	ulint	i;
 
@@ -1849,10 +1848,8 @@ row_ins_dupl_error_with_rec(
 	n_unique = dict_index_get_n_unique(index);
 
 	matched_fields = 0;
-	matched_bytes = 0;
 
-	cmp_dtuple_rec_with_match(entry, rec, offsets,
-				  &matched_fields, &matched_bytes);
+	cmp_dtuple_rec_with_match(entry, rec, offsets, &matched_fields);
 
 	if (matched_fields < n_unique) {
 
@@ -2042,7 +2039,6 @@ row_ins_duplicate_online(
 	ulint*		offsets)/*!< in/out: rec_get_offsets(rec) */
 {
 	ulint	fields	= 0;
-	ulint	bytes	= 0;
 
 	/* During rebuild, there should not be any delete-marked rows
 	in the new table. */
@@ -2052,7 +2048,7 @@ row_ins_duplicate_online(
 	/* Compare the PRIMARY KEY fields and the
 	DB_TRX_ID, DB_ROLL_PTR. */
 	cmp_dtuple_rec_with_match_low(
-		entry, rec, offsets, n_uniq + 2, &fields, &bytes);
+		entry, rec, offsets, n_uniq + 2, &fields);
 
 	if (fields < n_uniq) {
 		/* Not a duplicate. */
@@ -2061,7 +2057,6 @@ row_ins_duplicate_online(
 
 	if (fields == n_uniq + 2) {
 		/* rec is an exact match of entry. */
-		ut_ad(bytes == 0);
 		return(DB_SUCCESS_LOCKED_REC);
 	}
 

@@ -247,17 +247,9 @@ page_cur_search_with_match(
 	ulint*			iup_matched_fields,
 					/*!< in/out: already matched
 					fields in upper limit record */
-	ulint*			iup_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	ulint*			ilow_matched_fields,
 					/*!< in/out: already matched
 					fields in lower limit record */
-	ulint*			ilow_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	page_cur_t*		cursor);/*!< out: page cursor */
 /***********************************************************//**
 Positions a page cursor on a randomly chosen user record on a page. If there
@@ -940,16 +932,12 @@ private:
 	/** Try a search shortcut based on the last insert.
 	@param[in]	tuple		entry to search for
 	@param[in/out]	up_fields	matched fields in upper limit record
-	@param[in/out]	up_bytes	matched bytes in upper limit record
 	@param[in/out]	low_fields	matched fields in lower limit record
-	@param[in/out]	low_bytes	matched bytes in lower limit record
 	@return	whether tuple matches the current record */
 	inline bool searchShortcut(
 		const dtuple_t*	tuple,
-		ulint&		up_match_fields,
-		ulint&		up_match_bytes,
-		ulint&		low_match_fields,
-		ulint&		low_match_bytes);
+		ulint&		up_fields,
+		ulint&		low_fields);
 #endif /* PAGE_CUR_ADAPT */
 
 	/** Adjust rec_get_offsets() after moving the cursor

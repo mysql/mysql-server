@@ -199,20 +199,14 @@ page_cur_search(
 	const dtuple_t*		tuple,	/*!< in: data tuple */
 	page_cur_t*		cursor)	/*!< out: page cursor */
 {
-	ulint		low_matched_fields = 0;
-	ulint		low_matched_bytes = 0;
-	ulint		up_matched_fields = 0;
-	ulint		up_matched_bytes = 0;
+	ulint		low_match = 0;
+	ulint		up_match = 0;
 
 	ut_ad(dtuple_check_typed(tuple));
 
 	page_cur_search_with_match(block, index, tuple, PAGE_CUR_LE,
-				   &up_matched_fields,
-				   &up_matched_bytes,
-				   &low_matched_fields,
-				   &low_matched_bytes,
-				   cursor);
-	return(low_matched_fields);
+				   &up_match, &low_match, cursor);
+	return(low_match);
 }
 
 /***********************************************************//**
