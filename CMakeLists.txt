@@ -302,6 +302,7 @@ ENDIF()
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mysys)
+  ADD_SUBDIRECTORY(unittest/my_decimal)
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)
