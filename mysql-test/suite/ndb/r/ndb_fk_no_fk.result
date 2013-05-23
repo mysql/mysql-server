@@ -693,6 +693,30 @@ name
 'NDB$FKM_<child_id>_<id>_parent'
 'NDB$FKM_<child_id>_<id>_parent'
 'NDB$FKM_<child_id>_<id>_parent'
+alter table child algorithm=inplace, drop foreign key fk1;
+
+ndb_show_tables completed.....
+
+# There should be 5 mock tables
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+alter table child algorithm=inplace,
+drop foreign key fk3,
+drop foreign key fk4,
+drop foreign key fk6;
+
+ndb_show_tables completed.....
+
+# There should be 2 mock tables left
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
 drop table child;
 
 ndb_show_tables completed.....
