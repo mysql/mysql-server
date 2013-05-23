@@ -9,3 +9,15 @@ create table if not exists mysql56strings (
   str_var_utf8mb3 VARCHAR(20) character set utf8mb3
 );
 
+create table if not exists mysql56times ( 
+  id int not null primary key,
+  a time(1) null,
+  b datetime(2) null,
+  c timestamp(3) null,
+  d time(4) null,
+  e datetime(5) null,
+  f timestamp(6) null
+);
+
+delete from mysql56strings;
+delete from mysql56times;
