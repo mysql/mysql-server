@@ -20,7 +20,7 @@
 #define BLOCK_MUTEX_IMPL_HPP
 
 #include "ArrayPool.hpp"
-#include "DLFifoList.hpp"
+#include "IntrusiveList.hpp"
 #include "KeyTable.hpp"
 #include <signaldata/UtilLock.hpp>
 
