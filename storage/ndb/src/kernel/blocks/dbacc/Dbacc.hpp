@@ -1045,7 +1045,6 @@ private:
   Uint32 tnciPageindex;
   Uint32 tlastPrevconptr;
   Uint32 tresult;
-  Uint32 tslUpdateHeader;
   Uint32 tuserptr;
   BlockReference tuserblockref;
   Uint32 tlqhPointer;

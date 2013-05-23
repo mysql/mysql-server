@@ -2578,16 +2578,21 @@ void Dbacc::insertElement(Signal* signal)
     inrNewPageptr = idrPageptr;
     tancNext = 1;
   }//if
-  tslUpdateHeader = ZTRUE;
   tslPageindex = tgflPageindex;
   slPageptr = inrNewPageptr;
+  Uint32 containerptr;
   if (tgflBufType == ZLEFT) {
     seizeLeftlist(signal);
     tidrForward = ZTRUE;
+    containerptr = mul_ZBUF_SIZE(tgflPageindex) + ZHEAD_SIZE;
   } else {
     seizeRightlist(signal);
     tidrForward = cminusOne;
+    containerptr = mul_ZBUF_SIZE(tgflPageindex) + ZHEAD_SIZE + ZBUF_SIZE - Container::HEADER_SIZE;
   }//if
+  ContainerHeader containerhead;
+  containerhead.initInUse();
+  inrNewPageptr.p->word32[containerptr] = containerhead;
   tancPageindex = tgflPageindex;
   tancPagei = inrNewPageptr.i;
   tancBufType = tgflBufType;
@@ -2597,7 +2602,6 @@ void Dbacc::insertElement(Signal* signal)
 
   idrPageptr = inrNewPageptr;
   tidrPageindex = tgflPageindex;
-  ContainerHeader containerhead;
   insertContainer(signal, containerhead);
   ndbrequire(tidrResult == ZTRUE);
 }//Dbacc::insertElement()
@@ -2616,7 +2620,7 @@ void Dbacc::insertElement(Signal* signal)
 /*               IDR_OPERATION_REC_PTR                                               */
 /*           OUTPUT:                                                                 */
 /*               TIDR_RESULT (ZTRUE FOR SUCCESS AND ZFALSE OTHERWISE)                */
-/*               TIDR_CONTAINERHEAD (HEADER OF CONTAINER)                            */
+/*               containerhead (HEADER OF CONTAINER)                            */
 /*               TIDR_CONTAINERPTR (POINTER TO CONTAINER HEADER)                     */
 /*                                                                                   */
 /*           DESCRIPTION:                                                            */
@@ -2704,7 +2708,6 @@ void Dbacc::insertContainer(Signal* signal, ContainerHeader& containerhead)
       conthead.setUsingBothEnds();
       dbgWord32(idrPageptr, tidrContainerptr, conthead);
       idrPageptr.p->word32[tidrContainerptr] = conthead;
-      tslUpdateHeader = ZFALSE;
       tslPageindex = tidrPageindex;
       slPageptr = idrPageptr;
       if (tidrForward == ZTRUE) {
@@ -2893,17 +2896,6 @@ void Dbacc::seizeLeftlist(Signal* signal)
     ndbrequire(tslNextfree == Container::NO_CONTAINER_INDEX);
     jam();
   }//if
-  /* --------------------------------------------------------------------------------- */
-  /*  Initialize container header if new container allocated.                          */
-  /*  This is skipped if this left container should be used by the right container.    */
-  /* --------------------------------------------------------------------------------- */
-  if (tslUpdateHeader == ZTRUE) {
-    jam();
-    ContainerHeader tsllNewHead;
-    tsllNewHead.initInUse();
-    dbgWord32(slPageptr, tsllHeadIndex, tsllNewHead);
-    slPageptr.p->word32[tsllHeadIndex] = tsllNewHead;
-  }//if
   ilcPageptr = slPageptr;
   increaselistcont(signal);
 }//Dbacc::seizeLeftlist()
@@ -2944,17 +2936,6 @@ void Dbacc::seizeRightlist(Signal* signal)
   } else {
     ndbrequire(tslNextfree == Container::NO_CONTAINER_INDEX);
     jam();
-  }//if
-  /* --------------------------------------------------------------------------------- */
-  /*  Initialize container header if new container allocated.                          */
-  /*  This is skipped if this right container should be used by the left container.    */
-  /* --------------------------------------------------------------------------------- */
-  if (tslUpdateHeader == ZTRUE) {
-    jam();
-    ContainerHeader tsrlNewHead;
-    tsrlNewHead.initInUse();
-    dbgWord32(slPageptr, tsrlHeadIndex, tsrlNewHead);
-    slPageptr.p->word32[tsrlHeadIndex] = tsrlNewHead;
   }//if
   ilcPageptr = slPageptr;
   increaselistcont(signal);
