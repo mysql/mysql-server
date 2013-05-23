@@ -856,6 +856,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    (noOfLocalScanRecords * noBatchSize) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
     
+    /* TODO: remove. CFG_ACC_OVERFLOW_RECS obsoleted ... */
     cfg.put(CFG_ACC_OVERFLOW_RECS,
 	    noOfIndexPages + 
 	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);

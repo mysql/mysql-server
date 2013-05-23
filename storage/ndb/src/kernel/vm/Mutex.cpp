@@ -37,7 +37,7 @@ SimulatedBlock::MutexManager::getSize() const {
 
 bool
 SimulatedBlock::MutexManager::seize(ActiveMutexPtr& ptr){
-  return m_activeMutexes.seize(ptr);
+  return m_activeMutexes.seizeFirst(ptr);
 }
 
 void

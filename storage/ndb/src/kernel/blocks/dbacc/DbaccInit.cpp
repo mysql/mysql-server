@@ -28,7 +28,6 @@ void Dbacc::initData()
   cpagesize = ZPAGESIZE;
   ctablesize = ZTABLESIZE;
   cfragmentsize = ZFRAGMENTSIZE;
-  coverflowrecsize = ZOVERFLOWRECSIZE;
   cscanRecSize = ZSCAN_REC_SIZE;
 
   Pool_context pc;
@@ -37,7 +36,6 @@ void Dbacc::initData()
 
   fragmentrec = 0;
   operationrec = 0;
-  overflowRecord = 0;
   page8 = 0;
   scanRec = 0;
   tabrec = 0;
@@ -68,11 +66,12 @@ void Dbacc::initRecords()
 
     /**
      * 1) Build free-list per chunk
-     * 2) Add chunks to cfirstfreepage-list
+     * 2) Add chunks to cfreepages-list
      */
-    cfirstfreepage = RNIL;
+    cfreepages.init();
     cpagesize = 0;
     cpageCount = 0;
+    LocalPage8List freelist(*this, cfreepages);
     for (Int32 i = chunkcnt - 1; i >= 0; i--)
     {
       Ptr<GlobalPage> pagePtr;
@@ -81,18 +80,16 @@ void Dbacc::initRecords()
       Page8* base = (Page8*)pagePtr.p;
       ndbrequire(base >= page8);
       const Uint32 ptrI = Uint32(base - page8);
+      if (ptrI + cnt > cpagesize)
+        cpagesize = ptrI + cnt;
       for (Uint32 j = 0; j < cnt; j++)
       {
         refresh_watch_dog();
-        base[j].word32[0] = ptrI + j + 1;
+        freelist.addFirst(Page8Ptr::get(&base[j], ptrI + j));
       }
 
-      base[cnt-1].word32[0] = cfirstfreepage;
-      cfirstfreepage = ptrI;
-
       cpageCount += cnt;
-      if (ptrI + cnt > cpagesize)
-        cpagesize = ptrI + cnt;
+      ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
     }
     m_maxAllocPages = cpagesize;
   }
@@ -104,10 +101,6 @@ void Dbacc::initRecords()
   fragmentrec = (Fragmentrec*)allocRecord("Fragmentrec",
 					  sizeof(Fragmentrec), 
 					  cfragmentsize);
-
-  overflowRecord = (OverflowRecord*)allocRecord("OverflowRecord",
-						sizeof(OverflowRecord),
-						coverflowrecsize);
 
   scanRec = (ScanRec*)allocRecord("ScanRec",
 				  sizeof(ScanRec), 
@@ -163,13 +156,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
                     &mlpqOperPtr,
                     &queOperPtr,
                     &readWriteOpPtr,
-                    &iopOverflowRecPtr,
-                    &tfoOverflowRecPtr,
-                    &porOverflowRecPtr,
-                    &priOverflowRecPtr,
-                    &rorOverflowRecPtr,
-                    &sorOverflowRecPtr,
-                    &troOverflowRecPtr,
                     &ancPageptr,
                     &colPageptr,
                     &ccoPageptr,
@@ -221,10 +207,6 @@ Dbacc::~Dbacc()
 		sizeof(Operationrec),
 		coprecsize);
   
-  deallocRecord((void **)&overflowRecord, "OverflowRecord",
-		sizeof(OverflowRecord),
-		coverflowrecsize);
-
   deallocRecord((void **)&scanRec, "ScanRec",
 		sizeof(ScanRec), 
 		cscanRecSize);
