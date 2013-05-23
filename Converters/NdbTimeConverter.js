@@ -36,6 +36,8 @@
       
 ************************/
 
+// TODO:  default values?  undefined?
+
 var MySQLTime = require("./MySQLTime.js"),
     unified_debug = require(path.join(api_dir, "unified_debug")),
     udebug = unified_debug.getLogger("NdbTimeConverter.js");
