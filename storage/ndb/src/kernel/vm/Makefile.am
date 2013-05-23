@@ -114,6 +114,11 @@ DynArr256_t_SOURCES = DynArr256.cpp
 DynArr256_t_LDFLAGS = @ndb_bin_am_ldflags@
 DynArr256_t_LDADD = $(test_ldadd)
 
+IntrusiveList_t_CXXFLAGS = -DTAP_TEST
+IntrusiveList_t_SOURCES = IntrusiveList.cpp
+IntrusiveList_t_LDFLAGS = @ndb_bin_am_ldflags@
+IntrusiveList_t_LDADD = $(test_ldadd)
+
 LHLevel_t_CXXFLAGS = -DTAP_TEST
 LHLevel_t_SOURCES = LHLevel.cpp
 LHLevel_t_LDFLAGS = @ndb_bin_am_ldflags@
@@ -149,7 +154,7 @@ mt_thr_config_t_LDADD = \
 	$(top_builddir)/storage/ndb/src/common/util/libgeneral.la \
 	$(top_builddir)/mysys/libmysyslt.la
 
-noinst_PROGRAMS = mt_thr_config-t CountingPool-t DynArr256-t LHLevel-t
+noinst_PROGRAMS = mt_thr_config-t CountingPool-t DynArr256-t IntrusiveList-t LHLevel-t
 
 mt_send_t_CXXFLAGS = -DTAP_TEST
 mt_send_t_SOURCES = mt-send-t.cpp

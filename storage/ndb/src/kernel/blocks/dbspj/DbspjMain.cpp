@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2000, 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1879,7 +1879,7 @@ Dbspj::registerActiveCursor(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
     }
   }
 #endif
-  list.add(treeNodePtr);
+  list.addFirst(treeNodePtr);
 }
 
 void
@@ -2229,15 +2229,8 @@ Dbspj::releaseRequestBuffers(Ptr<Request> requestPtr)
     {
       LocalDLFifoList<RowPage> list(m_page_pool,
                                     requestPtr.p->m_rowBuffer.m_page_list);
-      if (!list.isEmpty())
-      {
-        jam();
-        Ptr<RowPage> first, last;
-        list.first(first);
-        list.last(last);
-        releasePages(first.i, last);
-        list.remove();
-      }
+      LocalSLList<RowPage> freelist(m_page_pool, m_free_page_list);
+      freelist.prependList(requestPtr.p->m_rowBuffer.m_page_list);
     }
     requestPtr.p->m_rowBuffer.reset();
   }
@@ -2421,17 +2414,14 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
   {
     Ptr<TreeNode> nodePtr;
     Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
-    for (list.first(nodePtr); !nodePtr.isNull(); )
+    while (list.removeFirst(nodePtr))
     {
       jam();
       ndbrequire(nodePtr.p->m_info != 0 && nodePtr.p->m_info->m_cleanup != 0);
       (this->*(nodePtr.p->m_info->m_cleanup))(requestPtr, nodePtr);
 
-      Ptr<TreeNode> tmp = nodePtr;
-      list.next(nodePtr);
-      m_treenode_pool.release(tmp);
+      m_treenode_pool.release(nodePtr);
     }
-    list.remove();
   }
   if (requestPtr.p->isScan())
   {
@@ -3215,7 +3205,7 @@ Dbspj::rowAlloc(RowBuffer& rowBuffer, RowRef& dst, Uint32 sz)
 bool
 Dbspj::allocPage(Ptr<RowPage> & ptr)
 {
-  if (m_free_page_list.firstItem == RNIL)
+  if (m_free_page_list.isEmpty())
   {
     jam();
     if (ERROR_INSERTED_CLEAR(17003))
@@ -3239,7 +3229,7 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
   {
     jam();
     LocalSLList<RowPage> list(m_page_pool, m_free_page_list);
-    bool ret = list.remove_front(ptr);
+    bool ret = list.removeFirst(ptr);
     ndbrequire(ret);
     return ret;
   }
@@ -3249,14 +3239,7 @@ void
 Dbspj::releasePage(Ptr<RowPage> ptr)
 {
   LocalSLList<RowPage> list(m_page_pool, m_free_page_list);
-  list.add(ptr);
-}
-
-void
-Dbspj::releasePages(Uint32 first, Ptr<RowPage> last)
-{
-  LocalSLList<RowPage> list(m_page_pool, m_free_page_list);
-  list.add(first, last);
+  list.addFirst(ptr);
 }
 
 void
@@ -3264,7 +3247,7 @@ Dbspj::releaseGlobal(Signal * signal)
 {
   Uint32 delay = 100;
   LocalSLList<RowPage> list(m_page_pool, m_free_page_list);
-  if (list.empty())
+  if (list.isEmpty())
   {
     jam();
     delay = 300;
@@ -3272,7 +3255,7 @@ Dbspj::releaseGlobal(Signal * signal)
   else
   {
     Ptr<RowPage> ptr;
-    list.remove_front(ptr);
+    list.removeFirst(ptr);
     m_ctx.m_mm.release_page(RT_SPJ_DATABUFFER, ptr.i);
   }
 
@@ -7362,10 +7345,10 @@ Dbspj::scanIndex_cleanup(Ptr<Request> requestPtr,
    */
   scanIndex_release_rangekeys(requestPtr,treeNodePtr);
 
-  {
-    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
-    list.remove();
-  }
+  // Clear fragments list head.
+  // TODO: is this needed, all elements should already be removed and released
+  data.m_fragments.init();
+
   if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
   {
     jam();

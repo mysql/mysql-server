@@ -86,7 +86,7 @@
 #include <signaldata/ApiBroadcast.hpp>
 #include <signaldata/DictLock.hpp>
 #include <signaldata/BackupLockTab.hpp>
-#include <SLList.hpp>
+#include <IntrusiveList.hpp>
 
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
@@ -2810,9 +2810,9 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   {
     DictObjectPtr ptr;
     DictObject_list objs(c_obj_pool);
-    while(objs.seize(ptr))
+    while (objs.seizeFirst(ptr))
       new (ptr.p) DictObject();
-    objs.release();
+    while (objs.releaseFirst());
   }
 
   unsigned trace = 0;
@@ -5264,7 +5264,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       }
     }
 
-    list.seize(attrPtr);
+    list.seizeLast(attrPtr);
     if(attrPtr.i == RNIL){
       jam();
       parseP->errorCode = CreateTableRef::NoMoreAttributeRecords;
@@ -6296,7 +6296,7 @@ Dbdict::execCREATE_TAB_CONF(Signal* signal)
   TableRecordPtr tabPtr;
   bool ok = find_object(tabPtr, createTabPtr.p->m_request.tableId);
   ndbrequire(ok);
-  sendLQHADDATTRREQ(signal, op_ptr, tabPtr.p->m_attributes.firstItem);
+  sendLQHADDATTRREQ(signal, op_ptr, tabPtr.p->m_attributes.getFirst());
 }
 
 
@@ -6924,7 +6924,7 @@ Dbdict::createTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     ndbrequire(ok);
 
     LocalTableRecord_list list(c_tableRecordPool_, basePtr.p->m_indexes);
-    list.add(tabPtr);
+    list.addLast(tabPtr);
   }
 }
 
@@ -7247,7 +7247,7 @@ void Dbdict::releaseTableObject(Uint32 table_ptr_i, bool removeFromHash)
     name.erase();
     def.erase();
   }
-  list.release();
+  while (list.releaseFirst());
 
   {
     if (tablePtr.p->m_upgrade_trigger_handling.m_upgrade)
@@ -21302,7 +21302,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   {
     jam();
     Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
-    list.add(filePtr);
+    list.addFirst(filePtr);
     break;
   }
   default:
@@ -22956,7 +22956,7 @@ Dbdict::dropFilegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
 
       release_object(objPtr.i, objPtr.p);
     }
-    list.release();
+    while (list.releaseFirst());
   }
   else if(fg_ptr.p->m_type == DictTabInfo::Tablespace)
   {
