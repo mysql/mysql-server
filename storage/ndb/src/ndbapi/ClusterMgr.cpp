@@ -387,7 +387,7 @@ ClusterMgr::threadMain()
     NodeFailRep * nodeFailRep = CAST_PTR(NodeFailRep,
                                          nodeFail_signal.getDataPtrSend());
     nodeFailRep->noOfNodes = 0;
-    NodeBitmask::clear(nodeFailRep->theNodes);
+    NodeBitmask::clear(nodeFailRep->theAllNodes);
 
     lock();
     for (int i = 1; i < MAX_NODES; i++){
@@ -449,7 +449,7 @@ ClusterMgr::threadMain()
       if (cm_node.hbMissed == 4 && cm_node.hbFrequency > 0)
       {
         nodeFailRep->noOfNodes++;
-        NodeBitmask::set(nodeFailRep->theNodes, nodeId);
+        NodeBitmask::set(nodeFailRep->theAllNodes, nodeId);
       }
     }
     flush_send_buffers();
@@ -997,8 +997,8 @@ ClusterMgr::execDISCONNECT_REP(const NdbApiSignal* sig,
     rep->failNo = 0;
     rep->masterNodeId = 0;
     rep->noOfNodes = 1;
-    NodeBitmask::clear(rep->theNodes);
-    NodeBitmask::set(rep->theNodes, nodeId);
+    NodeBitmask::clear(rep->theAllNodes);
+    NodeBitmask::set(rep->theAllNodes, nodeId);
     execNODE_FAILREP(&signal, 0);
   }
 }
@@ -1008,22 +1008,30 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
                              const LinearSectionPtr ptr[])
 {
   const NodeFailRep * rep = CAST_CONSTPTR(NodeFailRep, sig->getDataPtr());
+  NodeBitmask mask;
+  if (sig->getLength() == NodeFailRep::SignalLengthLong)
+  {
+    mask.assign(NodeBitmask::Size, rep->theAllNodes);
+  }
+  else
+  {
+    mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+  }
 
   NdbApiSignal signal(sig->theSendersBlockRef);
   signal.theVerId_signalNumber = GSN_NODE_FAILREP;
   signal.theReceiversBlockNumber = API_CLUSTERMGR;
   signal.theTrace  = 0;
   signal.theLength = NodeFailRep::SignalLengthLong;
-  
+
   NodeFailRep * copy = CAST_PTR(NodeFailRep, signal.getDataPtrSend());
   copy->failNo = 0;
   copy->masterNodeId = 0;
   copy->noOfNodes = 0;
-  NodeBitmask::clear(copy->theNodes);
+  NodeBitmask::clear(copy->theAllNodes);
 
-  for (Uint32 i = NdbNodeBitmask::find_first(rep->theNodes);
-       i != NdbNodeBitmask::NotFound;
-       i = NdbNodeBitmask::find_next(rep->theNodes, i + 1))
+  for (Uint32 i = mask.find_first(); i != NodeBitmask::NotFound;
+       i = mask.find_next(i + 1))
   {
     Node & cm_node = theNodes[i];
     trp_node & theNode = cm_node;
@@ -1035,7 +1043,7 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
     if (node_failrep == false)
     {
       theNode.m_node_fail_rep = true;
-      NodeBitmask::set(copy->theNodes, i);
+      NodeBitmask::set(copy->theAllNodes, i);
       copy->noOfNodes++;
     }
 

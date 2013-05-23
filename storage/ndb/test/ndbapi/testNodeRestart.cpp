@@ -4001,11 +4001,18 @@ runBug57767(NDBT_Context* ctx, NDBT_Step* step)
   res.restartOneDbNode(node0, false, true, true);
   res.waitNodesNoStart(&node0, 1);
   res.insertErrorInNode(node0, 1000);
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  res.dumpStateOneNode(node0, val2, 2);
 
   HugoTransactions hugoTrans(*ctx->getTab());
   hugoTrans.scanUpdateRecords(GETNDB(step), 0);
 
   res.insertErrorInNode(node1, 5060);
+  res.startNodes(&node0, 1);
+  NdbSleep_SecSleep(3);
+  res.waitNodesNoStart(&node0, 1);
+
+  res.insertErrorInNode(node1, 0);
   res.startNodes(&node0, 1);
   res.waitClusterStarted();
   return NDBT_OK;
@@ -4883,67 +4890,6 @@ runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int
-runBug13464664(NDBT_Context* ctx, NDBT_Step* step)
-{
-  NdbRestarter res;
-  if (res.getNumDbNodes() < 4)
-    return NDBT_OK;
-
-  /**
-   * m = master
-   * o = node in other node-group than next master
-   * p = not master and node o
-   *
-   * o error 7230 - responde to MASTER_LCPREQ quickly and die
-   * p error 7231 - responde slowly to MASTER_LCPREQ
-   * m error 7025 - die during LCP_FRAG_REP
-   * m dump 7099  - force LCP
-   *
-   */
-loop:
-  int m = res.getMasterNodeId();
-  int n = res.getNextMasterNodeId(m);
-  int o = res.getRandomNodeOtherNodeGroup(n, rand());
-  ndbout_c("m: %u n: %u o: %u", m, n, o);
-  if (res.getNodeGroup(o) == res.getNodeGroup(m))
-  {
-    ndbout_c("=> restart n(%u)", n);
-    res.restartOneDbNode(n,
-                         /** initial */ false, 
-                         /** nostart */ true,
-                         /** abort   */ true);
-    res.waitNodesNoStart(&n, 1);
-    res.startNodes(&n, 1);
-    res.waitClusterStarted();
-    goto loop;
-  }
-
-  ndbout_c("search p");
-loop2:
-  int p = res.getNode(NdbRestarter::NS_RANDOM);
-  while (p == n || p == o || p == m)
-    goto loop2;
-  ndbout_c("p: %u\n", p);
-
-  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
-  res.dumpStateOneNode(o, val2, 2);
-  res.dumpStateOneNode(m, val2, 2);
-
-  res.insertErrorInNode(o, 7230);
-  res.insertErrorInNode(p, 7231);
-  res.insertErrorInNode(m, 7025);
-  int val1[] = { 7099 };
-  res.dumpStateOneNode(m, val1, 1);
-
-  int list[2] = { m, o };
-  res.waitNodesNoStart(list, 2);
-  res.startNodes(list, 2);
-  res.waitClusterStarted();
-
-  return NDBT_OK;
-}
-
 int master_err[] =
 {
   7025, // LCP_FRG_REP in DIH
@@ -5138,6 +5084,55 @@ runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
+int
+runBug16834416(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 2)
+  {
+    g_err << "Insufficient nodes for test." << endl;
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  int loops = ctx->getNumLoops();
+  for (int i = 0; i < loops; i++)
+  {
+    ndbout_c("running big trans");
+    HugoOperations ops(* ctx->getTab());
+    ops.startTransaction(pNdb);
+    ops.pkInsertRecord(0, 1024); // 1024 rows
+    ops.execute_NoCommit(pNdb, AO_IgnoreError);
+
+    // TC node id
+    Uint32 nodeId = ops.getTransaction()->getConnectedNodeId();
+
+    int errcode = 8054;
+    ndbout_c("TC: %u => kill kill kill (error: %u)", nodeId, errcode);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    restarter.dumpStateOneNode(nodeId, val2, 2);
+    restarter.insertErrorInNode(nodeId, errcode);
+
+    ops.execute_Commit(pNdb, AO_IgnoreError);
+
+    int victim = (int)nodeId;
+    restarter.waitNodesNoStart(&victim, 1);
+    restarter.startAll();
+    restarter.waitClusterStarted();
+
+    ops.closeTransaction(pNdb);
+    ops.clearTable(pNdb);
+
+    int val3[] = { 4003 }; // Check TC/LQH CommitAckMarker leak
+    restarter.dumpStateAllNodes(val3, 1);
+  }
+
+  restarter.insertErrorInAllNodes(0);
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -5687,10 +5682,6 @@ TESTCASE("ClusterSplitLatency",
   INITIALIZER(analyseDynamicOrder);
   INITIALIZER(runSplitLatency25PctFail);
 }
-TESTCASE("Bug13464664", "")
-{
-  INITIALIZER(runBug13464664);
-}
 TESTCASE("LCPTakeOver", "")
 {
   INITIALIZER(runCheckAllNodesStarted);
@@ -5706,7 +5697,10 @@ TESTCASE("LCPScanFragWatchdog",
   STEP(runPkUpdateUntilStopped);
   STEP(runTestScanFragWatchdog);
 }
-
+TESTCASE("Bug16834416", "")
+{
+  INITIALIZER(runBug16834416);
+}
 NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){

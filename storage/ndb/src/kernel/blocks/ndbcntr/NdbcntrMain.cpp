@@ -297,6 +297,7 @@ struct ddentry
  */
 Vector<ddentry> f_dd;
 
+static
 Uint64
 parse_size(const char * src)
 {
