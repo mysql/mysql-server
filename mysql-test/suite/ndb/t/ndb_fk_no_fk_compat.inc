@@ -53,6 +53,35 @@ drop table t1;
 SET foreign_key_checks=1;
 
 #
+# Test adding multiple fks with same name
+#
+--replace_result $engine engine
+eval create table t1(pk1 int primary key auto_increment,
+  a int,
+  b int
+) engine=$engine;
+--replace_result $engine engine
+eval create table t2(pk2 int primary key auto_increment,
+  c int not null,
+  unique(c),
+  d int not null,
+  unique(d)
+) engine=$engine;
+--error ER_DUP_KEYNAME
+alter table t1
+  add constraint fk3 foreign key (a) references t2(c),
+  add constraint fk3 foreign key (b) references t2(d);
+# Try same alter without foreign_key_checks
+SET foreign_key_checks=0;
+--error ER_DUP_KEYNAME
+alter table t1
+  add constraint fk3 foreign key (a) references t2(c),
+  add constraint fk3 foreign key (b) references t2(d);
+SET foreign_key_checks=1;
+drop table t1, t2;
+
+
+#
 # Test n
 #
 
