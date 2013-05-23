@@ -1,4 +1,4 @@
-/* Copyright (c) 2003-2007 MySQL AB
+/* Copyright (c) 2003-2013 Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -27,6 +27,7 @@
 #include <SimulatedBlock.hpp>
 #include <LHLevel.hpp>
 #include <IntrusiveList.hpp>
+#include "Container.hpp"
 
 #ifdef DBACC_C
 // Debug Macros
@@ -285,6 +286,8 @@ ElementHeader::setReducedHashValue(Uint32 header, LHBits16 const& reducedHashVal
   assert(getUnlocked(header));
   return (Uint32(reducedHashValue.pack()) << 16) | (header & 0xffff);
 }
+
+typedef Container::Header ContainerHeader;
 
 class Dbacc: public SimulatedBlock {
   friend class DbaccProxy;
@@ -973,8 +976,6 @@ private:
   Uint32 ctablesize;
   Uint32 tgseElementptr;
   Uint32 tgseContainerptr;
-  Uint32 trlHead;
-  Uint32 trlRelCon;
   Uint32 trlNextused;
   Uint32 trlPrevused;
   Uint32 tlcnChecksum;
