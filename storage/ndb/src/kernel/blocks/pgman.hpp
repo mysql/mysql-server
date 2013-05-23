@@ -21,7 +21,7 @@
 #include <SimulatedBlock.hpp>
 
 #include <DLCHashTable.hpp>
-#include <DLCFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <NodeBitmask.hpp>
 #include <signaldata/LCP.hpp>
 #include "lgman.hpp"

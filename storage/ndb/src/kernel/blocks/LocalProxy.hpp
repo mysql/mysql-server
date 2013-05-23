@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 #include <Bitmask.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <signaldata/ReadConfig.hpp>
 #include <signaldata/NdbSttor.hpp>
 #include <signaldata/ReadNodesConf.hpp>

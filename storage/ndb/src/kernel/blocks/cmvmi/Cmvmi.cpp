@@ -603,7 +603,7 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
     /**
      * Create a new one
      */
-    if(subscribers.seize(ptr) == false){
+    if (subscribers.seizeFirst(ptr) == false){
       sendSignal(senderRef, GSN_EVENT_SUBSCRIBE_REF, signal, 1, JBB);
       return;
     }
