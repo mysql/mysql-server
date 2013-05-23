@@ -95,19 +95,14 @@ cmp_dtuple_rec_with_match_low(
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets();
 				may be NULL for ROW_FORMAT=REDUNDANT */
 	ulint		n_cmp,	/*!< in: number of fields to compare */
-	ulint*		matched_fields,
+	ulint*		matched_fields)
 				/*!< in/out: number of already completely
 				matched fields; when function returns,
 				contains the value for current comparison */
-	ulint*		matched_bytes)
-				/*!< in/out: number of already matched
-				bytes within the first field not completely
-				matched; when function returns, contains the
-				value for current comparison */
-	__attribute__((nonnull(1,2,5,6)));
-#define cmp_dtuple_rec_with_match(tuple,rec,offsets,fields,bytes)	\
+	__attribute__((nonnull(1,2,5)));
+#define cmp_dtuple_rec_with_match(tuple,rec,offsets,fields)		\
 	cmp_dtuple_rec_with_match_low(					\
-		tuple,rec,offsets,dtuple_get_n_fields_cmp(tuple),fields,bytes)
+		tuple,rec,offsets,dtuple_get_n_fields_cmp(tuple),fields)
 /**************************************************************//**
 Compares a data tuple to a physical record.
 @see cmp_dtuple_rec_with_match
