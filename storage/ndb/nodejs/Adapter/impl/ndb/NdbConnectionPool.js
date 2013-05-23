@@ -425,6 +425,7 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
   /* Customize Column read from dictionary */
   function drColumn(c) {
     /* Set TypeConverter for column */
+    // TODO: c.ndb.typeConverter ??? 
     c.typeConverter = ndbConnectionPool.typeConverters[c.columnType];
 
     /* Set defaultValue for column */
