@@ -2227,8 +2227,6 @@ Dbspj::releaseRequestBuffers(Ptr<Request> requestPtr)
    */
   {
     {
-      LocalDLFifoList<RowPage> list(m_page_pool,
-                                    requestPtr.p->m_rowBuffer.m_page_list);
       LocalSLList<RowPage> freelist(m_page_pool, m_free_page_list);
       freelist.prependList(requestPtr.p->m_rowBuffer.m_page_list);
     }
