@@ -237,7 +237,7 @@ Restore::execRESTORE_LCP_REQ(Signal* signal){
   do
   {
     FilePtr file_ptr;
-    if(!m_file_list.seize(file_ptr))
+    if (!m_file_list.seizeFirst(file_ptr))
     {
       err= RestoreLcpRef::NoFileRecord;
       break;

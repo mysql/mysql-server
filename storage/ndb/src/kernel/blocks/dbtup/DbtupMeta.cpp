@@ -2084,7 +2084,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
 	  list(c_extent_pool, alloc_info.m_free_extents[0]);
 	Ptr<Extent_info> ext_ptr;
 	c_extent_pool.getPtr(ext_ptr, alloc_info.m_curr_extent_info_ptr_i);
-	list.add(ext_ptr);
+        list.addFirst(ext_ptr);
 	alloc_info.m_curr_extent_info_ptr_i= RNIL;
       }
       
@@ -2206,8 +2206,7 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
     for(pos= 0; pos<MAX_FREE_LIST; pos++)
     {
       ndbrequire(alloc_info.m_page_requests[pos].isEmpty());
-      LocalDLList<Page> list(* cheat_pool, alloc_info.m_dirty_pages[pos]);
-      list.remove();
+      alloc_info.m_dirty_pages[pos].init(); // Clear dirty page list head
     }
   }
   
@@ -2432,10 +2431,7 @@ done:
     ndbassert(fragPtr.p->free_var_page_array[i].isEmpty());
   }
   
-  {
-    LocalDLFifoList<Page> tmp(c_page_pool, fragPtr.p->thFreeFirst);
-    tmp.remove();
-  }
+  fragPtr.p->thFreeFirst.init(); // Clear free list head
   
   /**
    * Finish
