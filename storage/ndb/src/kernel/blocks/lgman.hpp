@@ -20,9 +20,7 @@
 
 #include <SimulatedBlock.hpp>
 
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <KeyTable.hpp>
 #include <DLHashTable.hpp>
 #include <NodeBitmask.hpp>
@@ -30,7 +28,6 @@
 #include <signaldata/GetTabInfo.hpp>
 
 #include <WOPool.hpp>
-#include <SLFifoList.hpp>
 #include <SafeMutex.hpp>
 
 class Lgman : public SimulatedBlock
