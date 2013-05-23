@@ -41,6 +41,10 @@ Created 10/4/1994 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "rem0cmp.h"
 
+#include <algorithm>
+
+using std::min;
+
 #ifdef PAGE_CUR_ADAPT
 # ifdef UNIV_SEARCH_PERF_STAT
 static ulint	page_cur_short_succ	= 0;
@@ -93,25 +97,15 @@ page_cur_try_search_shortcut(
 	ulint*			iup_matched_fields,
 					/*!< in/out: already matched
 					fields in upper limit record */
-	ulint*			iup_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	ulint*			ilow_matched_fields,
 					/*!< in/out: already matched
 					fields in lower limit record */
-	ulint*			ilow_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	page_cur_t*		cursor) /*!< out: page cursor */
 {
 	const rec_t*	rec;
 	const rec_t*	next_rec;
 	ulint		low_match;
-	ulint		low_bytes;
 	ulint		up_match;
-	ulint		up_bytes;
 	ibool		success		= FALSE;
 	const page_t*	page		= buf_block_get_frame(block);
 	mem_heap_t*	heap		= NULL;
@@ -128,15 +122,10 @@ page_cur_try_search_shortcut(
 	ut_ad(rec);
 	ut_ad(page_rec_is_user_rec(rec));
 
-	ut_pair_min(&low_match, &low_bytes,
-		    *ilow_matched_fields, *ilow_matched_bytes,
-		    *iup_matched_fields, *iup_matched_bytes);
-
-	up_match = low_match;
-	up_bytes = low_bytes;
+	low_match = up_match = min(*ilow_matched_fields, *iup_matched_fields);
 
 	if (cmp_dtuple_rec_with_match(tuple, rec, offsets,
-				      &low_match, &low_bytes) < 0) {
+				      &low_match) < 0) {
 		goto exit_func;
 	}
 
@@ -147,18 +136,16 @@ page_cur_try_search_shortcut(
 					  dtuple_get_n_fields(tuple), &heap);
 
 		if (cmp_dtuple_rec_with_match(tuple, next_rec, offsets,
-					      &up_match, &up_bytes) >= 0) {
+					      &up_match) >= 0) {
 			goto exit_func;
 		}
 
 		*iup_matched_fields = up_match;
-		*iup_matched_bytes = up_bytes;
 	}
 
 	page_cur_position(rec, block, cursor);
 
 	*ilow_matched_fields = low_match;
-	*ilow_matched_bytes = low_bytes;
 
 #ifdef UNIV_SEARCH_PERF_STAT
 	page_cur_short_succ++;
@@ -188,17 +175,9 @@ page_cur_search_with_match(
 	ulint*			iup_matched_fields,
 					/*!< in/out: already matched
 					fields in upper limit record */
-	ulint*			iup_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	ulint*			ilow_matched_fields,
 					/*!< in/out: already matched
 					fields in lower limit record */
-	ulint*			ilow_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	page_cur_t*		cursor)	/*!< out: page cursor */
 {
 	ulint		up;
@@ -210,19 +189,14 @@ page_cur_search_with_match(
 	const rec_t*	low_rec;
 	const rec_t*	mid_rec;
 	ulint		up_matched_fields;
-	ulint		up_matched_bytes;
 	ulint		low_matched_fields;
-	ulint		low_matched_bytes;
 	ulint		cur_matched_fields;
-	ulint		cur_matched_bytes;
 	int		cmp;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	ut_ad(block && tuple && iup_matched_fields && iup_matched_bytes
-	      && ilow_matched_fields && ilow_matched_bytes && cursor);
 	ut_ad(dtuple_validate(tuple));
 #ifdef UNIV_DEBUG
 	switch (mode) {
@@ -249,8 +223,8 @@ mode_ok:
 
 		if (page_cur_try_search_shortcut(
 			    block, index, tuple,
-			    iup_matched_fields, iup_matched_bytes,
-			    ilow_matched_fields, ilow_matched_bytes,
+			    iup_matched_fields,
+			    ilow_matched_fields,
 			    cursor)) {
 			return;
 		}
@@ -264,9 +238,7 @@ mode_ok:
 	satisfies the condition. */
 
 	up_matched_fields  = *iup_matched_fields;
-	up_matched_bytes   = *iup_matched_bytes;
 	low_matched_fields = *ilow_matched_fields;
-	low_matched_bytes  = *ilow_matched_bytes;
 
 	/* Perform binary search. First the search is done through the page
 	directory, after that as a linear search in the list of records
@@ -283,28 +255,24 @@ mode_ok:
 		slot = page_dir_get_nth_slot(page, mid);
 		mid_rec = page_dir_slot_get_rec(slot);
 
-		ut_pair_min(&cur_matched_fields, &cur_matched_bytes,
-			    low_matched_fields, low_matched_bytes,
-			    up_matched_fields, up_matched_bytes);
+		cur_matched_fields = min(low_matched_fields,
+					 up_matched_fields);
 
 		offsets = rec_get_offsets(mid_rec, index, offsets,
 					  dtuple_get_n_fields_cmp(tuple),
 					  &heap);
 
 		cmp = cmp_dtuple_rec_with_match(tuple, mid_rec, offsets,
-						&cur_matched_fields,
-						&cur_matched_bytes);
+						&cur_matched_fields);
 		if (UNIV_LIKELY(cmp > 0)) {
 low_slot_match:
 			low = mid;
 			low_matched_fields = cur_matched_fields;
-			low_matched_bytes = cur_matched_bytes;
 
 		} else if (UNIV_EXPECT(cmp, -1)) {
 up_slot_match:
 			up = mid;
 			up_matched_fields = cur_matched_fields;
-			up_matched_bytes = cur_matched_bytes;
 
 		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE) {
 
@@ -327,28 +295,23 @@ up_slot_match:
 
 		mid_rec = page_rec_get_next_const(low_rec);
 
-		ut_pair_min(&cur_matched_fields, &cur_matched_bytes,
-			    low_matched_fields, low_matched_bytes,
-			    up_matched_fields, up_matched_bytes);
+		cur_matched_fields = min(low_matched_fields,
+					 up_matched_fields);
 
 		offsets = rec_get_offsets(mid_rec, index, offsets,
 					  dtuple_get_n_fields_cmp(tuple),
 					  &heap);
 
 		cmp = cmp_dtuple_rec_with_match(tuple, mid_rec, offsets,
-						&cur_matched_fields,
-						&cur_matched_bytes);
+						&cur_matched_fields);
 		if (UNIV_LIKELY(cmp > 0)) {
 low_rec_match:
 			low_rec = mid_rec;
 			low_matched_fields = cur_matched_fields;
-			low_matched_bytes = cur_matched_bytes;
-
 		} else if (UNIV_EXPECT(cmp, -1)) {
 up_rec_match:
 			up_rec = mid_rec;
 			up_matched_fields = cur_matched_fields;
-			up_matched_bytes = cur_matched_bytes;
 		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE) {
 
 			goto low_rec_match;
@@ -365,9 +328,7 @@ up_rec_match:
 	}
 
 	*iup_matched_fields  = up_matched_fields;
-	*iup_matched_bytes   = up_matched_bytes;
 	*ilow_matched_fields = low_matched_fields;
-	*ilow_matched_bytes  = low_matched_bytes;
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -2610,56 +2571,43 @@ PageCur::update(const upd_t* update)
 /** Try a search shortcut.
 @param[in]	tuple		entry to search for
 @param[in/out]	up_fields	matched fields in upper limit record
-@param[in/out]	up_bytes	matched bytes in upper limit record
 @param[in/out]	low_fields	matched fields in lower limit record
-@param[in/out]	low_bytes	matched bytes in lower limit record
 @return	whether tuple matches the current record */
 inline
 bool
 PageCur::searchShortcut(
 	const dtuple_t*	tuple,
 	ulint&		up_fields,
-	ulint&		up_bytes,
-	ulint&		low_fields,
-	ulint&		low_bytes)
+	ulint&		low_fields)
 {
-	ulint		low_match_f;
-	ulint		low_match_b;
-	ulint		up_match_f;
-	ulint		up_match_b;
+	ulint		low_match;
+	ulint		up_match;
 
 	ut_ad(dtuple_check_typed(tuple));
 	ut_ad(dtuple_get_n_fields(tuple) <= getNumFields());
 	ut_ad(isUser());
 
-	ut_pair_min(&low_match_f, &low_match_b,
-		    low_fields, low_bytes, up_fields, up_bytes);
-
-	up_match_f = low_match_f;
-	up_match_b = low_match_b;
+	low_match = up_match = min(low_fields, up_fields);
 
 	const rec_t*	rec = getRec();
 
-	if (cmp_dtuple_rec_with_match(tuple, rec, getOffsets(),
-				      &low_match_f, &low_match_b) < 0) {
+	if (cmp_dtuple_rec_with_match(tuple, rec, getOffsets(), &low_match)
+	    < 0) {
 		return(false);
 	}
 
 	if (next()) {
 		bool match = cmp_dtuple_rec_with_match(
-			tuple, getRec(), getOffsets(),
-			&up_match_f, &up_match_b) >= 0;
+			tuple, getRec(), getOffsets(), &up_match) >= 0;
 		setUserRec(rec);
 		if (match) {
 			return(false);
 		} else {
-			up_fields = up_match_f;
-			up_bytes = up_match_b;
+			up_fields = up_match;
 		}
 	} else {
 		setUserRec(rec);
-		low_fields = low_match_f;
-		low_bytes = low_match_b;
+		low_fields = low_match;
 	}
 
 # ifdef UNIV_SEARCH_PERF_STAT
@@ -2683,10 +2631,8 @@ PageCur::search(const dtuple_t* tuple)
 	the input parameter, and X denotes an arbitrary physical record on
 	the page. We want to position the cursor on the first X which
 	satisfies the condition. */
-	ulint		up_match_f	= 0;
-	ulint		up_match_b	= 0;
-	ulint		low_match_f	= 0;
-	ulint		low_match_b	= 0;
+	ulint		up_match	= 0;
+	ulint		low_match	= 0;
 
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_check_typed(tuple));
@@ -2708,10 +2654,8 @@ PageCur::search(const dtuple_t* tuple)
 		    = page_header_get_ptr(page, PAGE_LAST_INSERT)) {
 			setUserRec(rec);
 
-			if (searchShortcut(tuple,
-					   up_match_f, up_match_b,
-					   low_match_f, low_match_b)) {
-				return(low_match_f
+			if (searchShortcut(tuple, up_match, low_match)) {
+				return(low_match
 				       == dtuple_get_n_fields(tuple));
 			}
 		}
@@ -2727,27 +2671,19 @@ PageCur::search(const dtuple_t* tuple)
 		ulint			mid	= (low + up) / 2;
 		const page_dir_slot_t*	slot	= page_dir_get_nth_slot(
 			page, mid);
-		ulint			cur_match_f;
-		ulint			cur_match_b;
-
-		ut_pair_min(&cur_match_f, &cur_match_b,
-			    low_match_f, low_match_b,
-			    up_match_f, up_match_b);
+		ulint			match	= min(low_match, up_match);
 
 		setRec(page_dir_slot_get_rec(slot));
 		int cmp = cmp_dtuple_rec_with_match(
-			tuple, getRec(), getOffsets(),
-			&cur_match_f, &cur_match_b);
+			tuple, getRec(), getOffsets(), &match);
 		if (cmp > 0) {
 low_slot_match:
 			low = mid;
-			low_match_f = cur_match_f;
-			low_match_b = cur_match_b;
+			low_match = match;
 		} else if (cmp) {
 up_slot_match:
 			up = mid;
-			up_match_f = cur_match_f;
-			up_match_b = cur_match_b;
+			up_match = match;
 		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE) {
 			goto low_slot_match;
 		} else {
@@ -2766,31 +2702,23 @@ up_slot_match:
 	setRec(low_rec);
 
 	for (;;) {
-		ulint	cur_match_f;
-		ulint	cur_match_b;
-
 		if (!next() || getRec() == up_rec) {
 			ut_ad(getRec() == up_rec);
 			setRec(low_rec);
 			break;
 		}
 
-		ut_pair_min(&cur_match_f, &cur_match_b,
-			    low_match_f, low_match_b,
-			    up_match_f, up_match_b);
+		ulint	match = min(low_match, up_match);
 
 		int cmp = cmp_dtuple_rec_with_match(
-			tuple, getRec(), getOffsets(),
-			&cur_match_f, &cur_match_b);
+			tuple, getRec(), getOffsets(), &match);
 		if (cmp > 0) {
 low_rec_match:
 			low_rec = getRec();
-			low_match_f = cur_match_f;
-			low_match_b = cur_match_b;
+			low_match = match;
 		} else if (cmp) {
 up_rec_match:
-			up_match_f = cur_match_f;
-			up_match_b = cur_match_b;
+			up_match = match;
 			if (mode > PAGE_CUR_GE) {
 				setRec(low_rec);
 			}
@@ -2802,7 +2730,7 @@ up_rec_match:
 		}
 	}
 
-	return(low_match_f == dtuple_get_n_fields(tuple));
+	return(low_match == dtuple_get_n_fields(tuple));
 }
 
 /** Delete the current record.

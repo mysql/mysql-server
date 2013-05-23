@@ -354,8 +354,6 @@ dtuple_fold(
 /*========*/
 	const dtuple_t*	tuple,	/*!< in: the tuple */
 	ulint		n_fields,/*!< in: number of complete fields to fold */
-	ulint		n_bytes,/*!< in: number of bytes to fold in an
-				incomplete last field */
 	index_id_t	tree_id)/*!< in: index tree id */
 	__attribute__((nonnull, pure, warn_unused_result));
 /*******************************************************************//**
