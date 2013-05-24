@@ -957,9 +957,9 @@ int readFraction(const NdbDictionary::Column *col, char *buf) {
 void writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {  
   int prec  = col->getPrecision();
   if(prec > 0) {
-    register int bufsz = (1 + prec) / 2;
+    register int bufsz = (1 + prec) / 2; // {1,1,2,2,3,3}
     while(prec < 5) usec /= 100, prec += 2;
-    if(prec % 2) usec = (usec / 10) * 10;
+    if(prec % 2) usec -= (usec % 10); // forced loss of precision
     pack_bigendian(usec, buf, bufsz);
   }
 }
