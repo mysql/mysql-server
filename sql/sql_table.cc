@@ -4917,12 +4917,15 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
 {
   bool result;
   bool is_trans= FALSE;
+  uint not_used;
   DBUG_ENTER("mysql_create_table");
 
   /*
-    Open or obtain an exclusive metadata lock on table being created.
+    Open or obtain "X" MDL lock on the table being created.
+    To check the existence of table, lock of type "S" is obtained on the table
+    and then it is upgraded to "X" if table does not exists.
   */
-  if (open_and_lock_tables(thd, thd->lex->query_tables, FALSE, 0))
+  if (open_tables(thd, &thd->lex->query_tables, &not_used, 0))
   {
     result= TRUE;
     goto end;
@@ -5221,12 +5224,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     goto err;
 
   /*
-    Ensure that we have an exclusive lock on target table if we are creating
-    non-temporary table. In LOCK TABLES mode the only way the table is locked,
-    is if it already exists (since you cannot LOCK TABLE a non-existing table).
-    And the only way we then can end up here is if IF EXISTS was used.
+    Ensure that table or view does not exist and we have an exclusive lock on
+    target table if we are creating non-temporary table. In LOCK TABLES mode
+    the only way the table is locked, is if it already exists (since you cannot
+    LOCK TABLE a non-existing table). And the only way we then can end up here
+    is if IF EXISTS was used.
   */
-  DBUG_ASSERT((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+  DBUG_ASSERT(table->table || table->view ||
+              (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
               (thd->locked_tables_mode != LTM_LOCK_TABLES &&
                thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                               table->table_name,
