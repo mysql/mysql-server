@@ -2454,6 +2454,78 @@ int runTestBug45497(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+  int loops = ctx->getNumLoops();
+  int result = NDBT_FAILED;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int filter[] = {
+    15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+    15, NDB_MGM_EVENT_CATEGORY_STARTUP,
+    15, NDB_MGM_EVENT_CATEGORY_NODE_RESTART,
+    15, NDB_MGM_EVENT_CATEGORY_CONNECTION,
+    15, NDB_MGM_EVENT_CATEGORY_STATISTIC,
+    15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT,
+    0
+  };
+  NdbLogEventHandle le_handle =
+    ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
+  if (!le_handle)
+    return NDBT_FAILED;
+ 
+  for(int l=0; l<loops; l++)
+  {
+    g_info << "Calling ndb_log_event_get_next" << endl;
+  
+    struct ndb_logevent le_event;
+    int r = ndb_logevent_get_next(le_handle,
+                                  &le_event,
+                                  2000);
+    g_info << "ndb_log_event_get_next returned " << r << endl;
+  
+    result = NDBT_FAILED;
+    if (r == 0)
+    {
+      // Got timeout
+      g_info << "ndb_logevent_get_next returned timeout" << endl;
+      result = NDBT_OK;
+    }
+    else
+    {
+      if(r>0)
+      {
+        switch(le_event.category)
+        {
+          case NDB_MGM_EVENT_CATEGORY_BACKUP:
+          case NDB_MGM_EVENT_CATEGORY_STARTUP:
+          case NDB_MGM_EVENT_CATEGORY_NODE_RESTART:
+          case NDB_MGM_EVENT_CATEGORY_CONNECTION:
+          case NDB_MGM_EVENT_CATEGORY_STATISTIC:
+          case NDB_MGM_EVENT_CATEGORY_CHECKPOINT:
+            result = NDBT_OK;
+            break;
+          default:
+            g_err << "ERROR: invalid logevent category" << endl;
+            break;
+        };
+      }
+      if(r<0) 
+        g_err << "ERROR: ndb_logevent_get_next returned error: "
+              << r << endl;
+    }
+    if(result == NDBT_FAILED)
+      break;
+  }
+  ndb_mgm_destroy_logevent_handle(&le_handle);
+
+  return result;
+}
+
+
 static int
 runTestGetVersion(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -3144,6 +3216,11 @@ TESTCASE("Bug40922",
 	 "Make sure that ndb_logevent_get_next returns when "
          "called with a timeout"){
   INITIALIZER(runTestBug40922);
+}
+TESTCASE("Bug16723708",
+	 "Check that ndb_logevent_get_next returns events "
+         "which have valid category values"){
+  INITIALIZER(runTestBug16723708);
 }
 TESTCASE("Stress",
 	 "Run everything while changing config"){
