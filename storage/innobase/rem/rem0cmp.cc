@@ -716,7 +716,7 @@ cmp_rec_rec_with_match(
 	ulint		rec2_f_len;	/* length of current field in rec */
 	const byte*	rec2_b_ptr;	/* pointer to the current byte
 					in rec field */
-	ulint		cur_field;	/* current field number */
+	ulint		cur_field = 0;	/* current field number */
 	int		ret = 0;	/* return value */
 	ulint		comp;
 
@@ -746,8 +746,7 @@ cmp_rec_rec_with_match(
 
 	/* Match fields in a loop */
 
-	for (cur_field = 0;
-	     cur_field < rec1_n_fields && cur_field < rec2_n_fields;
+	for (; cur_field < rec1_n_fields && cur_field < rec2_n_fields;
 	     cur_field++) {
 
 		ulint	mtype;
