@@ -915,6 +915,7 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
   }
   else
   {
+    NdbDictionary::Table * pTab = 0;
     if (_testname == NULL)
     {
       for (unsigned i = 0; i < tests.size(); i++)
@@ -922,21 +923,23 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
         if (opt_stop_on_error != 0 && numTestsFail > 0)
           break;
 
-        execute(con, tests[i]);
+        execute(con, tests[i], pTab);
       }
     }
     else
     {
       NDBT_TestCase * pt = findTest(_testname);
       if (pt != 0)
-        execute(con, pt);
+        execute(con, pt, pTab);
     }
   }
   return reportAllTables(_testname);
 }
 
 void
-NDBT_TestSuite::execute(Ndb_cluster_connection& con, NDBT_TestCase * pTest)
+NDBT_TestSuite::execute(Ndb_cluster_connection& con,
+                        NDBT_TestCase * pTest,
+                        const NdbDictionary::Table *pTab)
 {
   pTest->initBeforeTest();
   ctx = new NDBT_Context(con);
@@ -945,6 +948,10 @@ NDBT_TestSuite::execute(Ndb_cluster_connection& con, NDBT_TestCase * pTest)
   ctx->setNumLoops(loops);
   ctx->setSuite(this);
   ctx->setProperty("NoDDL", (Uint32) m_noddl);
+  if (pTab)
+  {
+    ctx->setTab(pTab);
+  }
   int result = pTest->execute(ctx);
   pTest->saveTestResult("", result);
   if (result != NDBT_OK)
@@ -1016,7 +1023,7 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
         if (opt_stop_on_error != 0 && numTestsFail > 0)
           break;
 
-        execute(con, tests[t]);
+        execute(con, tests[t], ptab);
       }
 
       if (numTestsFail > 0)
@@ -1027,7 +1034,7 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
       NDBT_TestCase * pt = findTest(_testname);
       if (pt != NULL)
       {
-        execute(con, pt);
+        execute(con, pt, ptab);
       }
     }
   } while(0);
@@ -1084,7 +1091,7 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
         continue;
       }
 
-      execute(con, tests[t]);
+      execute(con, tests[t], pTab);
     }
   }
   else
@@ -1101,7 +1108,7 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
       if (pt->isVerify(pTab) == false)
         break;
 
-      execute(con, pt);
+      execute(con, pt, pTab);
 
     } while(0);
   }
