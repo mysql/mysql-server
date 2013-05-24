@@ -83,10 +83,9 @@ set(ADAPTER_SOURCE_FILES
 
 
 if(WIN32) 
-  set(ADAPTER_REQUIRED_LIBS ndbclient_static mysqlclient)
+  set(ADAPTER_REQUIRED_LIBS ndbclient_static mysqlclient node)
   add_definitions(-DWIN32)
   add_definitions(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
-  set(ADAPTER_REQUIRED_LIBS ${ADAPTER_REQUIRED_LIBS} node)
   if(CMAKE_CL_64)
     link_directories(${NODE_GYP}/x64)
   else()
@@ -105,7 +104,7 @@ target_link_libraries(ndb_adapter ${ADAPTER_REQUIRED_LIBS})
 if(APPLE) 
   set(FINAL_LINK_FLAGS "-undefined dynamic_lookup")
 elseif(WIN32)
-  set(FINAL_LINK_FLAGS "/NODEFAULTLIB:LIBCMT /FORCE:MULTIPLE")
+  set(FINAL_LINK_FLAGS "/FORCE:MULTIPLE")
 endif()
 
 set_target_properties(ndb_adapter PROPERTIES
