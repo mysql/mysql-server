@@ -82,6 +82,57 @@ drop table t1, t2;
 
 
 #
+# Test TRUNCATE of table referenced by fk
+#
+--replace_result $engine engine
+eval create table t2 (
+  pk2 int not null primary key,
+  c int
+) engine=$engine;
+--replace_result $engine engine
+eval create table t1 (
+  pk1 int not null primary key,
+  b int,
+  foreign key (b) references t2(pk2)
+) engine=$engine;
+
+--replace_regex /\(.*\)/(<fk_def>)/
+--error ER_TRUNCATE_ILLEGAL_FK
+truncate table t2;
+
+set foreign_key_checks=1;
+--replace_regex /\(.*\)/(<fk_def>)/
+--error ER_TRUNCATE_ILLEGAL_FK
+truncate table t2;
+set foreign_key_checks=0;
+
+drop table t1, t2;
+
+#
+# Test TRUNCATE of referencing table in fk
+#
+--replace_result $engine engine
+eval create table t2 (
+  pk2 int not null primary key,
+  c int
+) engine=$engine;
+--replace_result $engine engine
+eval create table t1 (
+  pk1 int not null primary key,
+  b int,
+  foreign key (b) references t2(pk2)
+) engine=$engine;
+
+truncate table t1;
+
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+
+drop table t1, t2;
+
+
+#
 # Test n
 #
 

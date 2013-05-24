@@ -785,3 +785,89 @@ select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
 drop table t3, t1;
+#
+# Truncating table which references mock table
+#
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+set @@ndb_show_foreign_key_mock_tables= 1;
+truncate table t1;
+set @@ndb_show_foreign_key_mock_tables= 0;
+drop table t1;
+#
+# Truncating referenced table -> not allowed
+#
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=ndb;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+set foreign_key_checks=1;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+set foreign_key_checks=0;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+drop table t1, t2;
+#
+# Truncating referenced table which references
+# another table -> not allowed
+#
+create table t3 (
+pk3 int not null primary key,
+d int
+) engine=ndb;
+create table t2 (
+pk2 int not null primary key,
+c int,
+foreign key (c) references t3(pk3)
+) engine=ndb;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+set foreign_key_checks=1;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+set foreign_key_checks=0;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+drop table t1, t2, t3;
+#
+# Truncating referencing table
+#
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=ndb;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+set @@ndb_show_foreign_key_mock_tables= 1;
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+truncate table t1;
+set @@ndb_show_foreign_key_mock_tables= 0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk1`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table t1, t2;

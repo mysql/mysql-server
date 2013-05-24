@@ -713,3 +713,104 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table t3, t1;
+
+
+--echo #
+--echo # Truncating table which references mock table
+--echo #
+create table t1 (
+  pk1 int not null primary key,
+  b int,
+  foreign key (b) references t2(pk2)
+) engine=ndb;
+
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+
+set @@ndb_show_foreign_key_mock_tables= 1;
+truncate table t1;
+set @@ndb_show_foreign_key_mock_tables= 0;
+
+drop table t1;
+
+
+--echo #
+--echo # Truncating referenced table -> not allowed
+--echo #
+create table t2 (
+  pk2 int not null primary key,
+  c int
+) engine=ndb;
+create table t1 (
+  pk1 int not null primary key,
+  b int,
+  foreign key (b) references t2(pk2)
+) engine=ndb;
+
+set foreign_key_checks=1;
+--error ER_TRUNCATE_ILLEGAL_FK
+truncate table t2;
+set foreign_key_checks=0;
+
+--error ER_TRUNCATE_ILLEGAL_FK
+truncate table t2;
+
+drop table t1, t2;
+
+
+--echo #
+--echo # Truncating referenced table which references
+--echo # another table -> not allowed
+--echo #
+create table t3 (
+  pk3 int not null primary key,
+  d int
+) engine=ndb;
+create table t2 (
+  pk2 int not null primary key,
+  c int,
+  foreign key (c) references t3(pk3)
+) engine=ndb;
+create table t1 (
+  pk1 int not null primary key,
+  b int,
+  foreign key (b) references t2(pk2)
+) engine=ndb;
+
+set foreign_key_checks=1;
+--error ER_TRUNCATE_ILLEGAL_FK
+truncate table t2;
+set foreign_key_checks=0;
+
+--error ER_TRUNCATE_ILLEGAL_FK
+truncate table t2;
+
+drop table t1, t2, t3;
+
+
+--echo #
+--echo # Truncating referencing table
+--echo #
+create table t2 (
+  pk2 int not null primary key,
+  c int
+) engine=ndb;
+create table t1 (
+  pk1 int not null primary key,
+  b int,
+  foreign key (b) references t2(pk2)
+) engine=ndb;
+
+set @@ndb_show_foreign_key_mock_tables= 1;
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+
+truncate table t1;
+set @@ndb_show_foreign_key_mock_tables= 0;
+
+show create table t1;
+
+drop table t1, t2;
+
