@@ -35,11 +35,8 @@ Created 9/5/1995 Heikki Tuuri
 #define sync0sync_h
 
 #include "univ.i"
-#include "sync0types.h"
-#include "ut0lst.h"
 #include "ut0mem.h"
 #include "os0thread.h"
-#include "os0sync.h"
 #include "sync0arr.h"
 
 #if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)

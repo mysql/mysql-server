@@ -23,7 +23,8 @@ Full Text Search parser helper file.
 Created 2007/3/16 Sunny Bains.
 ***********************************************************************/
 
-#include "mem0mem.h"
+#include "ha_prototypes.h"
+
 #include "fts0ast.h"
 #include "fts0pars.h"
 #include "fts0fts.h"

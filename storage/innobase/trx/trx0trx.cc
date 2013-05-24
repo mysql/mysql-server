@@ -23,32 +23,32 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "trx0trx.h"
 
 #ifdef UNIV_NONINL
 #include "trx0trx.ic"
 #endif
 
-#include "ha_prototypes.h"
-
-#include "trx0undo.h"
-#include "trx0rseg.h"
-#include "log0log.h"
-#include "que0que.h"
+#include "btr0sea.h"
 #include "lock0lock.h"
-#include "trx0roll.h"
-#include "usr0sess.h"
+#include "log0log.h"
+#include "os0proc.h"
+#include "que0que.h"
 #include "read0read.h"
+#include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "btr0sea.h"
-#include "os0proc.h"
-#include "trx0xa.h"
-#include "trx0rec.h"
 #include "trx0purge.h"
-#include "srv0mon.h"
-#include "ut0vec.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0undo.h"
+#include "trx0xa.h"
+#include "usr0sess.h"
 #include "ut0pool.h"
+#include "ut0vec.h"
 
 #include <set>
 

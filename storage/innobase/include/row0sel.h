@@ -27,6 +27,7 @@ Created 12/19/1997 Heikki Tuuri
 #define row0sel_h
 
 #include "univ.i"
+#include <my_icp.h>
 #include "data0data.h"
 #include "que0types.h"
 #include "dict0types.h"
@@ -401,6 +402,17 @@ enum row_sel_match_mode {
 				field in prefix may be just a prefix
 				of a fixed length column) */
 };
+
+/*************************************************************//**
+InnoDB index push-down condition check defined in ha_innodb.cc
+@return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
+
+ICP_RESULT
+innobase_index_cond(
+/*================*/
+	void*	file)	/*!< in/out: pointer to ha_innobase */
+	__attribute__((nonnull, warn_unused_result));
+
 
 #ifndef UNIV_NONINL
 #include "row0sel.ic"

@@ -23,6 +23,8 @@ SQL data field and tuple
 Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "data0data.h"
 
 #ifdef UNIV_NONINL
@@ -37,7 +39,6 @@ Created 5/30/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "btr0cur.h"
 
-#include <ctype.h>
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

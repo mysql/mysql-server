@@ -21,46 +21,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Prototypes for global functions in ha_innodb.cc that are called by
 InnoDB C code.
 
-This also includes all necessary server level include files used in InnoDB.
-
-Created 5/11/2006 Osku Salerma
+NOTE: This header is intended to insulate InnoDB from SQL names and functions.
+Do not include any headers other than univ.i into this.  A change to any header
+included here will cause a recompile of everything that includes this header.
 ************************************************************************/
 
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
-#include <debug_sync.h>
-#include <gstream.h>
-#include <hash.h>
-#include <log.h>
-#include <my_base.h>
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_compare.h>
-#include <my_dbug.h>
-#include <my_sys.h>
-#include <myisampack.h>
-#include <mysql/innodb_priv.h>
-#include <mysql/plugin.h>
-#include <mysql/service_thd_wait.h>
-#include <mysql_com.h>
-#include <mysqld.h>
-#include <mysqld_error.h>
-#include <mysys_err.h>
-#include <spatial.h>
-#include <sql_acl.h>
-#include <sql_alter.h>
-#include <sql_class.h>
-#include <sql_plugin.h>
-#include <sql_table.h>
-#include <strfunc.h>
-#include <unireg.h>
+#include "univ.i"
 
-#include "trx0types.h"
+#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
 
 /* Forward declarations */
+class THD;
 class Field;
 struct fts_string_t;
+typedef struct charset_info_st CHARSET_INFO;
 
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.
@@ -253,22 +230,22 @@ Converts an identifier to a table name. */
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	struct charset_info_st*	cs,	/*!< in: the 'from' character set */
-	char*			to,	/*!< out: converted identifier */
-	const char*		from,	/*!< in: identifier to convert */
-	ulint			len);	/*!< in: length of 'to', in bytes; should
-					be at least 5 * strlen(to) + 1 */
+	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*		to,	/*!< out: converted identifier */
+	const char*	from,	/*!< in: identifier to convert */
+	ulint		len);	/*!< in: length of 'to', in bytes; should
+				be at least 5 * strlen(to) + 1 */
 /******************************************************************//**
 Converts an identifier to UTF-8. */
 
 void
 innobase_convert_from_id(
 /*=====================*/
-	struct charset_info_st*	cs,	/*!< in: the 'from' character set */
-	char*			to,	/*!< out: converted identifier */
-	const char*		from,	/*!< in: identifier to convert */
-	ulint			len);	/*!< in: length of 'to', in bytes;
-					should be at least 3 * strlen(to) + 1 */
+	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*		to,	/*!< out: converted identifier */
+	const char*	from,	/*!< in: identifier to convert */
+	ulint		len);	/*!< in: length of 'to', in bytes;
+				should be at least 3 * strlen(to) + 1 */
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 
@@ -281,7 +258,7 @@ innobase_casedn_str(
 Determines the connection character set.
 @return	connection character set */
 
-struct charset_info_st*
+CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	thd);	/*!< in: MySQL thread handle */
@@ -312,15 +289,6 @@ innobase_get_at_most_n_mbchars(
 	ulint data_len,		/*!< in: length of the string in bytes */
 	const char* str);	/*!< in: character string */
 
-/*************************************************************//**
-InnoDB index push-down condition check
-@return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
-
-enum icp_result
-innobase_index_cond(
-/*================*/
-	void*	file)	/*!< in/out: pointer to ha_innobase */
-	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
@@ -587,5 +555,6 @@ innobase_convert_to_filename_charset(
 	const char*     from,   /* in: identifier to convert */
 	ulint           len);   /* in: length of 'to', in bytes */
 
+#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
 
 #endif /* HA_INNODB_PROTOTYPES_H */

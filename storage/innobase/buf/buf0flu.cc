@@ -23,13 +23,14 @@ The database buffer buf_pool flush algorithm
 Created 11/11/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+#include <mysql/plugin.h>
+
 #include "buf0flu.h"
 
 #ifdef UNIV_NONINL
 #include "buf0flu.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "buf0buf.h"
 #include "buf0checksum.h"
@@ -38,7 +39,6 @@ Created 11/11/1995 Heikki Tuuri
 #include "page0zip.h"
 #ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
-#include "ut0lst.h"
 #include "page0page.h"
 #include "fil0fil.h"
 #include "buf0lru.h"
