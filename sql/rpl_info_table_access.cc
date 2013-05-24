@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -155,14 +155,25 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
     if (error)
       ha_rollback_trans(thd, FALSE);
     else
-      ha_commit_trans(thd, FALSE);
-
+    {
+      /*
+        To make the commit not to block with global read lock set
+        "ignore_global_read_lock" flag to true.
+       */
+      ha_commit_trans(thd, FALSE, TRUE);
+    }
     if (saved_current_thd != current_thd)
     {
       if (error)
         ha_rollback_trans(thd, TRUE);
       else
-        ha_commit_trans(thd, TRUE);
+      {
+        /*
+          To make the commit not to block with global read lock set
+          "ignore_global_read_lock" flag to true.
+         */
+        ha_commit_trans(thd, TRUE, TRUE);
+      }
     }
     /*
       In order not to break execution of current statement we have to
