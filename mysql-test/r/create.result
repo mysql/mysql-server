@@ -878,9 +878,10 @@ ERROR HY000: Table 't2' was not locked with LOCK TABLES
 unlock tables;
 lock table t1 read, t2 read;
 create table t2 select * from t1;
-ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+ERROR 42S01: Table 't2' already exists
 create table if not exists t2 select * from t1;
-ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+Warnings:
+Note	1050	Table 't2' already exists
 unlock tables;
 lock table t1 read, t2 write;
 create table t2 select * from t1;
