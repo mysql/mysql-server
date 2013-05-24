@@ -106,7 +106,7 @@ mkdir $mysql/build.debug
 if [ $? != 0 ] ; then exit 1; fi
 pushd $mysql/build.debug
 if [ $? != 0 ] ; then exit 1; fi
-CC=$cc CXX=$cxx cmake .. -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF
+CC=$cc CXX=$cxx cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF
 if [ $? != 0 ] ; then exit 1; fi
 make -j4 install
 if [ $? != 0 ] ; then exit 1; fi
