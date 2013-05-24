@@ -29046,8 +29046,6 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
 
   Uint32 objId = RNIL;
   Uint32 objVersion = RNIL;
-  Uint32 errCode = 0;
-  Uint32 errLine = 0;
   DictObjectPtr obj_ptr; obj_ptr.setNull();
   HashMapRecordPtr hm_ptr; hm_ptr.setNull();
   Ptr<Hash2FragmentMap> map_ptr; map_ptr.setNull();
@@ -29068,8 +29066,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     if (objId == RNIL)
     {
       jam();
-      errCode = CreateTableRef::NoMoreTableRecords;
-      errLine = __LINE__;
+      setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
       goto error;
     }
 
@@ -29096,8 +29093,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   if(!c_obj_pool.seize(obj_ptr))
   {
     jam();
-    errCode = CreateTableRef::NoMoreTableRecords;
-    errLine = __LINE__;
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
     goto error;
   }
 
@@ -29120,8 +29116,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   if (!g_hash_map.seize(map_ptr))
   {
     jam();
-    errCode = CreateTableRef::NoMoreTableRecords;
-    errLine = __LINE__;
+    setError(error, CreateTableRef::NoMoreHashmapRecords, __LINE__);
     goto error;
   }
 
@@ -29136,8 +29131,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   if(!c_hash_map_pool.seize(hm_ptr))
   {
     jam();
-    errCode = CreateTableRef::NoMoreTableRecords;
-    errLine = __LINE__;
+    setError(error, CreateTableRef::NoMoreHashmapRecords, __LINE__);
     goto error;
   }
 
