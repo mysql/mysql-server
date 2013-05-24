@@ -407,7 +407,8 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
                 err.code != 904 && // Out of fragment records..
                 err.code != 905 && // Out of attribute records..
                 err.code != 707 && // No more table metadata records..
-                err.code != 708)   // No more attribute metadata records..
+                err.code != 708 && // No more attribute metadata records..
+                err.code != 712)   // No more hashmap metadata records..
             {
               result = NDBT_FAILED;
               break;
@@ -943,6 +944,7 @@ runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
              << pDic->getNdbError() << endl;
       if (pDic->getNdbError().code == 707 ||
           pDic->getNdbError().code == 708 ||
+          pDic->getNdbError().code == 712 ||
           pDic->getNdbError().code == 826 ||
           pDic->getNdbError().code == 827)
         break;
