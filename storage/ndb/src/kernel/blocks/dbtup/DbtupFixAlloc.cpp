@@ -73,7 +73,7 @@ Dbtup::alloc_fix_rec(Uint32 * err,
 /*       FAILED. TRY ALLOCATING FROM NORMAL PAGE.                   */
 /* ---------------------------------------------------------------- */
   PagePtr pagePtr;
-  pagePtr.i = regFragPtr->thFreeFirst.firstItem;
+  pagePtr.i = regFragPtr->thFreeFirst.getFirst();
   if (pagePtr.i == RNIL) {
 /* ---------------------------------------------------------------- */
 // No prepared tuple header page with free entries exists.

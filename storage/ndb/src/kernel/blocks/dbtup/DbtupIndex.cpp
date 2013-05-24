@@ -428,7 +428,7 @@ Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
     (const BuildIndxImplReq*)signal->getDataPtr();
   // get new operation
   BuildIndexPtr buildPtr;
-  if (ERROR_INSERTED(4031) || ! c_buildIndexList.seize(buildPtr)) {
+  if (ERROR_INSERTED(4031) || ! c_buildIndexList.seizeFirst(buildPtr)) {
     jam();
     BuildIndexRec buildRec;
     buildRec.m_request = *req;

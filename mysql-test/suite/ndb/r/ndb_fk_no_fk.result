@@ -1,0 +1,873 @@
+# Init for ndb_show_tables result
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+id INT,
+type VARCHAR(20),
+state VARCHAR(20),
+logging VARCHAR(20),
+_database VARCHAR(255),
+_schema VARCHAR(20),
+name VARCHAR(255)
+);
+#
+# Create child tables before parents
+# by turning off foreign_key_checks for this session
+#
+select @@foreign_key_checks;
+@@foreign_key_checks
+1
+set @@foreign_key_checks=0;
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references t2(pk1)
+) engine=ndb;
+create table t3 (
+pk int not null primary key,
+b int, c int,
+d int, e int, f int,
+g int, h int, i int, j int,
+foreign key (b, c) references t4(pk1, pk2),
+foreign key (d, e, f) references t5(uk1, uk2, uk3),
+foreign key (g, h, i, j) references t6(oi1, oi2, oi3, oi4)
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+# There should be 4 mock tables created
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+4
+# There should be 1 mock table created for t1
+select type, name from ndb_show_tables_results
+where name like "'NDB$FKM_<id>%'";
+type	name
+'UserTable'	'NDB$FKM_<id>_0_t2'
+# There should be 3 mock tables created for t3
+select type, name from ndb_show_tables_results
+where name like "'NDB$FKM_<id>%'" order by name;
+type	name
+'UserTable'	'NDB$FKM_<id>_0_t4'
+'UserTable'	'NDB$FKM_<id>_1_t5'
+'UserTable'	'NDB$FKM_<id>_2_t6'
+drop table t3;
+
+ndb_show_tables completed.....
+
+# There should be 1 mock table
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+1
+# Only t1 should have 1 mock table
+select type, name from ndb_show_tables_results
+where name like "'NDB$FKM_<id>%'";
+type	name
+'UserTable'	'NDB$FKM_<id>_0_t2'
+drop table t1;
+# There should be 0 mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+1
+#
+# Create child table before parent
+# by turning off foreign_key_checks for this session
+#
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references t2(pk1)
+) engine=ndb;
+create table t2 (
+pk1 int not null primary key,
+c int
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+# There should be 0 mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+# Verify that fk is working now when parent has been resolved
+set foreign_key_checks=1;
+insert into t1 values(1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+set foreign_key_checks=0;
+drop table t1, t2;
+#
+# Exceed table name when creating the mock table by referencing
+# a not yet created table with really long name
+#
+# 1) By blowing the mock_tabname buffer(currently 512 bytes)
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_(pk1)
+) engine=ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1215	Failed to create mock parent table, too long mock name
+Error	1215	Cannot add foreign key constraint
+#
+# show create of table with mock table references
+#
+create table t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a),
+unique key (b) using hash,
+key (c),
+constraint fk1 foreign key(a) references t2 (a),
+constraint fk2 foreign key(b) references t3 (a),
+constraint fk3 foreign key(c) references t4 (a),
+constraint fk4 foreign key(a) references t2 (b),
+constraint fk5 foreign key(b) references t3 (b),
+constraint fk6 foreign key(c) references t4 (b)
+) engine=ndbcluster;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`),
+ CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `t4` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk4` FOREIGN KEY(`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `t3` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+create table t2 (
+a int primary key,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)
+) engine = ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`),
+ CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `t4` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `t3` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk4` FOREIGN KEY(`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+set @@ndb_show_foreign_key_mock_tables= 1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`),
+ CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `NDB$FKM_<child_id>_<id>_t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `NDB$FKM_<child_id>_<id>_t4` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `NDB$FKM_<child_id>_<id>_t3` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `NDB$FKM_<child_id>_<id>_t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk4` FOREIGN KEY(`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+set @@ndb_show_foreign_key_mock_tables= 0;
+drop table t1, t2;
+#
+# Create child table and then the parent
+# which does not match the fk
+#
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references t2(pk1)
+) engine=ndb;
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=ndb;
+Warnings:
+Warning	1215	Could not resolve 't2' as fk parent for 'test/def/t1' since it didn't have all the referenced columns
+
+ndb_show_tables completed.....
+
+# There should be 1 mock table still
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+1
+drop table t1, t2;
+#
+# Create child table and then the parent
+# which does not match any index
+#
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references t2(c)
+) engine=ndb;
+create table t2 (
+pk1 int not null primary key,
+c int
+) engine=ndb;
+Warnings:
+Warning	1215	Could not resolve 't2' as fk parent for 'test/def/t1' since no matching index could be found
+
+ndb_show_tables completed.....
+
+# There should be 1 mock table still
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+1
+drop table t1, t2;
+set @@ndb_show_foreign_key_mock_tables= 1;
+#
+# Test where FK goes from t1->t2->t3->t4 and tables are created in that order
+create table t1 (
+pk11 int not null primary key,
+b int,
+foreign key (b) references t2(pk21)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+create table t2 (
+pk21 int not null primary key,
+b int, c int,
+foreign key (b, c) references t3(pk31, pk32)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+create table t3 (
+pk31 int not null,
+pk32 int not null,
+primary key(pk31, pk32),
+d int, e int,f int,
+foreign key (d,e,f) references t4(pk41, pk42, pk43)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t4' referenced by 't3'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - resolved by 't3'
+create table t4 (
+pk41 int not null,
+pk42 int not null,
+pk43 int not null,
+primary key(pk41, pk42, pk43),
+m varchar(55)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t4' - resolved by 't4'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+drop table t1, t2, t3, t4;
+#
+# Test where FK 'fans out' t1->t2 t1->t3 t1->t4, create t1 first
+create table t1 (
+pk11 int not null primary key,
+b int,
+foreign key (b) references t2(c),
+d int, e int,
+foreign key (d, e) references t3(f, g),
+h varchar(55), i int, j datetime,
+foreign key (h, i, j) references t4(k, l, m)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t4' referenced by 't1'
+create table t2 (
+pk21 int not null primary key,
+c int,
+unique(c)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+create table t3 (
+pk31 int not null,
+pk32 int not null,
+primary key(pk31, pk32),
+g int, f int,
+unique(f, g)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - resolved by 't3'
+create table t4 (
+pk41 int not null,
+pk42 int not null,
+pk43 int not null,
+primary key(pk41, pk42, pk43),
+m varchar(55), l int, k datetime,
+unique(k, l, m)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t4' - resolved by 't4'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+drop table t1, t2, t3, t4;
+#
+# Test where FK refers to 2+ different indices in parent t1->t2(1) t1->t2(2)
+create table t1 (
+pk11 int not null primary key,
+foreign key (pk11) references t2(pk21),
+b int,
+foreign key (b) references t2(c),
+d int, e int,
+foreign key (d, e) references t2(f, g),
+h varchar(55), i int, j datetime,
+foreign key (h, i, j) references t2(k, l, m)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+create table t2 (
+pk21 int not null primary key,
+c int,
+unique(c),
+g int, f int,
+unique(f, g),
+m varchar(55), l int, k datetime,
+unique(k, l, m)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+drop table t1, t2;
+#
+# Test drop of referenced table(mock table should be created)
+#
+create table t1 (
+pk1 int not null primary key,
+foreign key (pk1) references t2(pk2),
+a varchar(255)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+create table t2 (
+pk2 int not null primary key,
+b datetime
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+drop table t2;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+
+ndb_show_tables completed.....
+
+# There should be 1 mock table created for t1
+select type, name from ndb_show_tables_results
+where name like "'NDB$FKM_<id>%'";
+type	name
+'UserTable'	'NDB$FKM_<id>_0_t2'
+drop table t1;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+set @@ndb_show_foreign_key_mock_tables= 0;
+#
+# Test mock tables in different databases, mock table
+# should be created in same database as the real parent would.
+#
+set @@ndb_show_foreign_key_mock_tables= 1;
+create database mydb0;
+create database mydb1;
+create table mydb1.t1 (
+a int primary key,
+constraint fk1 foreign key(a) references mydb0.t2(a)
+) engine = ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+
+ndb_show_tables completed.....
+
+# There should be 1 mock table created for t1
+select type, _database, name from ndb_show_tables_results
+where name like "'NDB$FKM_<id>%'";
+type	_database	name
+'UserTable'	'mydb0'	'NDB$FKM_<id>_0_t2'
+drop table mydb1.t1;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+create table mydb1.t1 (
+a int primary key,
+constraint fk1 foreign key(a) references mydb0.t2(a)
+) engine = ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+create table mydb0.t2 (
+a int primary key
+) engine = ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+# Drop child then parent
+drop table mydb1.t1;
+drop table mydb0.t2;
+create table mydb1.t1 (
+a int primary key,
+constraint fk1 foreign key(a) references mydb0.t2(a)
+) engine = ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+create table mydb0.t2 (
+a int primary key
+) engine = ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+# Drop parent then child(creates mock which is then dropped)
+drop table mydb0.t2;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+drop table mydb1.t1;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+#
+# Create spagetthi foreign keys between tables in three different databases
+#
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references mydb1.t2(pk1),
+c int,
+unique(c),
+j int,
+foreign key (j) references mydb0.t3(pk2),
+k int,
+foreign key (k) references mydb0.t1(pk5),
+l int,
+foreign key (l) references mydb1.t1(pk6),
+y int,
+foreign key (y) references mydb1.t1(z)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+create table mydb1.t2 (
+pk1 int not null primary key,
+d int,
+foreign key (d) references mydb0.t3(pk2)
+) engine=ndb;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't2'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+create table mydb0.t3 (
+pk2 int not null primary key,
+e int,
+foreign key (e) references test.t1(c)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - resolved by 't3'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - resolved by 't3'
+create table mydb0.t4 (
+pk3 int not null primary key,
+f int,
+foreign key (f) references t3(pk2)
+) engine=ndb;
+create table mydb0.t5 (
+pk4 int not null primary key,
+g int,
+foreign key (g) references test.t1(pk),
+h int,
+foreign key (h) references mydb1.t2(pk1),
+i int,
+foreign key (i) references mydb0.t3(pk2)
+) engine=ndb;
+create table mydb0.t1 (
+pk5 int not null primary key,
+m int,
+foreign key (m) references test.t1(pk),
+n int,
+foreign key (n) references mydb1.t2(pk1),
+o int,
+foreign key (o) references mydb0.t3(pk2)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
+create table mydb1.t1 (
+pk6 int not null primary key,
+p int,
+foreign key (p) references test.t1(pk),
+q int,
+foreign key (q) references mydb1.t2(pk1),
+x int,
+foreign key (x) references mydb0.t3(pk2),
+z int,
+unique(z)
+) engine=ndb;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+# Drop the database mydb0 with all tables still there
+drop database mydb0;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't2'
+
+ndb_show_tables completed.....
+
+# There should be 4 mock tables created by dropping mydb0
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+4
+# Drop also database mydb1
+drop database mydb1;
+Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
+
+ndb_show_tables completed.....
+
+# There should be 5 mock tables all referenced by test.t1
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+5
+# Drop t1 and the 5 remaining mocks
+drop table t1;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
+set @@ndb_show_foreign_key_mock_tables= 0;
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+#
+# ALTER a table which references mock parent
+#
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references t2(pk1)
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+# There should be one mock table in place of t2
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_t2'
+alter table t1 add column c int;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+
+ndb_show_tables completed.....
+
+# There should be one mock table still
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_t2'
+alter table t1 algorithm = copy, add column d int not null;
+
+ndb_show_tables completed.....
+
+# There should be one mock table still
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_t2'
+drop table t1;
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+#
+# Alter table to add foreign keys referencing non existing parents. One
+# new mock should be created per fk
+#
+create table child (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)
+) engine = ndb;
+alter table child algorithm=inplace, add constraint fk1 foreign key (a) references parent(a);
+alter table child algorithm=inplace, add constraint fk2 foreign key (b) references parent(col1);
+alter table child algorithm=inplace, add constraint fk3 foreign key (c) references parent(col2);
+alter table child algorithm=inplace,
+add constraint fk4 foreign key (c) references parent(col3),
+add constraint fk5 foreign key (c) references parent(col4),
+add constraint fk6 foreign key (c) references parent(col5);
+
+ndb_show_tables completed.....
+
+# There should be 6 mock tables
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+alter table child algorithm=inplace, drop foreign key fk1;
+
+ndb_show_tables completed.....
+
+# There should be 5 mock tables
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+alter table child algorithm=inplace,
+drop foreign key fk3,
+drop foreign key fk4,
+drop foreign key fk6;
+
+ndb_show_tables completed.....
+
+# There should be 2 mock tables left
+select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
+name
+'NDB$FKM_<child_id>_<id>_parent'
+'NDB$FKM_<child_id>_<id>_parent'
+drop table child;
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+#
+# Alter table into place(i.e rename) as new parent, should remove
+# the mock table
+#
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+create table t3 (
+pk2 int not null primary key,
+b int
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+# There should be one mock table for t1
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+1
+set @@ndb_show_foreign_key_mock_tables= 1;
+alter table t3 rename t2;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+set @@ndb_show_foreign_key_mock_tables= 0;
+alter table t2 rename t3;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk1`),
+  KEY `b` (`b`),
+ CONSTRAINT `FK_<child_id>_<id>` FOREIGN KEY(`b`) REFERENCES `t3` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table t3;
+create table t2 (
+pk2 int not null primary key,
+b int
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+# There should be one mock table for t1
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+1
+set @@ndb_show_foreign_key_mock_tables= 1;
+alter table t2 algorithm=inplace, rename t3;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - resolved by 't3'
+set @@ndb_show_foreign_key_mock_tables= 0;
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+drop table t3, t1;
+#
+# Truncating table which references mock table
+#
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+set @@ndb_show_foreign_key_mock_tables= 1;
+truncate table t1;
+set @@ndb_show_foreign_key_mock_tables= 0;
+drop table t1;
+#
+# Truncating referenced table -> not allowed
+#
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=ndb;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+set foreign_key_checks=1;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+set foreign_key_checks=0;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+drop table t1, t2;
+#
+# Truncating referenced table which references
+# another table -> not allowed
+#
+create table t3 (
+pk3 int not null primary key,
+d int
+) engine=ndb;
+create table t2 (
+pk2 int not null primary key,
+c int,
+foreign key (c) references t3(pk3)
+) engine=ndb;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+set foreign_key_checks=1;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+set foreign_key_checks=0;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+drop table t1, t2, t3;
+#
+# Truncating referencing table
+#
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=ndb;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+set @@ndb_show_foreign_key_mock_tables= 1;
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+truncate table t1;
+set @@ndb_show_foreign_key_mock_tables= 0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk1`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table t1, t2;
