@@ -24,13 +24,11 @@ synchronization primitives.
 Created 9/6/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "os0sync.h"
 #ifdef UNIV_NONINL
 #include "os0sync.ic"
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
 #endif
 
 #include "ut0mem.h"

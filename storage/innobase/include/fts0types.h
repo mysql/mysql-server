@@ -26,11 +26,13 @@ Created 2007-03-27 Sunny Bains
 #ifndef INNOBASE_FTS0TYPES_H
 #define INNOBASE_FTS0TYPES_H
 
+#include "univ.i"
+#include "fts0fts.h"
+#include "fut0fut.h"
+#include "pars0pars.h"
 #include "que0types.h"
 #include "ut0byte.h"
-#include "fut0fut.h"
 #include "ut0rbt.h"
-#include "fts0fts.h"
 
 /** Types used within FTS. */
 struct fts_que_t;

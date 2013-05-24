@@ -31,7 +31,6 @@ Created July 17, 2007 Vasil Dimov
 #include "univ.i"
 #include "trx0types.h"
 #include "dict0types.h"
-#include "ut0ut.h"
 
 /** The maximum amount of memory that can be consumed by innodb_trx,
 innodb_locks and innodb_lock_waits information schema tables. */
@@ -138,9 +137,7 @@ struct i_s_trx_row_t {
 	ulint		trx_mysql_thread_id; /*!< thd_get_thread_id() */
 	const char*	trx_query;	/*!< MySQL statement being
 					executed in the transaction */
-	struct charset_info_st*	trx_query_cs;
-					/*!< charset encode the MySQL
-					statement */
+	CHARSET_INFO*	trx_query_cs;	/*!< the charset of trx_query */
 	const char*	trx_operation_state; /*!< trx_t::op_info */
 	ulint		trx_tables_in_use;/*!< n_mysql_tables_in_use in
 					 trx_t */

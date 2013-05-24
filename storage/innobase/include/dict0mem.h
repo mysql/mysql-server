@@ -40,7 +40,6 @@ Created 1/8/1996 Heikki Tuuri
 # include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "ut0mem.h"
-#include "ut0lst.h"
 #include "ut0rnd.h"
 #include "ut0byte.h"
 #include "hash0hash.h"

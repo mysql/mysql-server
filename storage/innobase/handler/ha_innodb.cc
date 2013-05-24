@@ -34,10 +34,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
+#include "univ.i"
+
+/* Include necessary SQL headers */
 #include "ha_prototypes.h"
+#include <debug_sync.h>
+#include <gstream.h>
+#include <log.h>
+#include <mysys_err.h>
+#include <strfunc.h>
+#include <sql_acl.h>
+#include <sql_show.h>
+#include <sql_table.h>
 
 /* Include necessary InnoDB headers */
-#include "univ.i"
 #include "buf0dump.h"
 #include "buf0lru.h"
 #include "buf0flu.h"
@@ -1519,10 +1529,10 @@ Converts an identifier to a table name. */
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	struct charset_info_st*	cs,	/*!< in: the 'from' character set */
-	char*			to,	/*!< out: converted identifier */
-	const char*		from,	/*!< in: identifier to convert */
-	ulint			len)	/*!< in: length of 'to', in bytes */
+	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*		to,	/*!< out: converted identifier */
+	const char*	from,	/*!< in: identifier to convert */
+	ulint		len)	/*!< in: length of 'to', in bytes */
 {
 	uint	errors;
 
@@ -1560,10 +1570,10 @@ Converts an identifier to UTF-8. */
 void
 innobase_convert_from_id(
 /*=====================*/
-	struct charset_info_st*	cs,	/*!< in: the 'from' character set */
-	char*			to,	/*!< out: converted identifier */
-	const char*		from,	/*!< in: identifier to convert */
-	ulint			len)	/*!< in: length of 'to', in bytes */
+	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*		to,	/*!< out: converted identifier */
+	const char*	from,	/*!< in: identifier to convert */
+	ulint		len)	/*!< in: length of 'to', in bytes */
 {
 	uint	errors;
 
@@ -1636,7 +1646,7 @@ innobase_casedn_str(
 Determines the connection character set.
 @return	connection character set */
 
-struct charset_info_st*
+CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	mysql_thd)	/*!< in: MySQL thread handle */
@@ -16327,7 +16337,7 @@ ha_innobase::multi_range_read_info(
 InnoDB index push-down condition check
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
 
-enum icp_result
+ICP_RESULT
 innobase_index_cond(
 /*================*/
 	void*	file)	/*!< in/out: pointer to ha_innobase */

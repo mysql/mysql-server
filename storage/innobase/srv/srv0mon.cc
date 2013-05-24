@@ -25,16 +25,16 @@ Created 12/9/2009 Jimmy Yang
 *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
-#include "os0file.h"
+#include "buf0buf.h"
+#include "dict0mem.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
 #include "mach0data.h"
+#include "os0file.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
-#include "buf0buf.h"
-#include "trx0sys.h"
 #include "trx0rseg.h"
-#include "dict0mem.h"
-#include "lock0lock.h"
-#include "ibuf0ibuf.h"
+#include "trx0sys.h"
 #ifdef UNIV_NONINL
 #include "srv0mon.ic"
 #endif

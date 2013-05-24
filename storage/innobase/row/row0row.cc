@@ -23,13 +23,13 @@ General row routines
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0row.h"
 
 #ifdef UNIV_NONINL
 #include "row0row.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "data0type.h"
 #include "dict0dict.h"
@@ -1036,8 +1036,6 @@ row_raw_format(
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
-
-#include "ut0dbg.h"
 
 void
 test_row_raw_format_int()

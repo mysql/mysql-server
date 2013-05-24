@@ -26,6 +26,8 @@ Created 11/19/1996 Heikki Tuuri
 /* Historical note: Innobase executed its first SQL string (CREATE TABLE)
 on 1/27/1998 */
 
+#include "ha_prototypes.h"
+
 #include "pars0pars.h"
 
 #ifdef UNIV_NONINL

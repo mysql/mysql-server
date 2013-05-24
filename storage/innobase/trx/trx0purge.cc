@@ -23,6 +23,8 @@ Purge old versions
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "trx0purge.h"
 
 #ifdef UNIV_NONINL
@@ -30,21 +32,21 @@ Created 3/26/1996 Heikki Tuuri
 #endif
 
 #include "fsp0fsp.h"
-#include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "read0read.h"
 #include "fut0fut.h"
+#include "mach0data.h"
+#include "mtr0log.h"
+#include "os0thread.h"
 #include "que0que.h"
+#include "read0read.h"
 #include "row0purge.h"
 #include "row0upd.h"
-#include "trx0rec.h"
+#include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "os0thread.h"
-#include "srv0mon.h"
-#include "mtr0log.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
 
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 ulong		srv_max_purge_lag = 0;

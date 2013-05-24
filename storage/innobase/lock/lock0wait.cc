@@ -26,6 +26,7 @@ Created 25/5/2010 Sunny Bains
 #define LOCK_MODULE_IMPLEMENTATION
 
 #include "ha_prototypes.h"
+#include <mysql/plugin.h>
 
 #include "srv0mon.h"
 #include "que0que.h"

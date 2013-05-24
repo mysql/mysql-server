@@ -24,7 +24,9 @@ Data dictionary system
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
-#include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str() */
+#include "ha_prototypes.h"
+#include <mysqld.h>
+#include <strfunc.h>
 
 #include "dict0dict.h"
 #include "fts0fts.h"
@@ -68,10 +70,7 @@ dict_index_t*	dict_ind_compact;
 #include "row0mysql.h"
 #include "row0merge.h"
 #include "row0log.h"
-#include "ut0ut.h" /* ut_format_name() */
 #include "srv0space.h"
-
-#include <ctype.h>
 
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
@@ -3531,7 +3530,7 @@ static
 const char*
 dict_accept(
 /*========*/
-	struct charset_info_st*	cs,/*!< in: the character set of ptr */
+	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
 	const char*	ptr,	/*!< in: scan from this */
 	const char*	string,	/*!< in: accept only this string as the next
 				non-whitespace string */
@@ -3567,7 +3566,7 @@ static
 const char*
 dict_scan_id(
 /*=========*/
-	struct charset_info_st*	cs,/*!< in: the character set of ptr */
+	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
 	const char*	ptr,	/*!< in: scanned to */
 	mem_heap_t*	heap,	/*!< in: heap where to allocate the id
 				(NULL=id will not be allocated, but it
@@ -3689,7 +3688,7 @@ static
 const char*
 dict_scan_col(
 /*==========*/
-	struct charset_info_st*	cs,	/*!< in: the character set of ptr */
+	CHARSET_INFO*		cs,	/*!< in: the character set of ptr */
 	const char*		ptr,	/*!< in: scanned to */
 	ibool*			success,/*!< out: TRUE if success */
 	dict_table_t*		table,	/*!< in: table in which the column is */
@@ -3801,7 +3800,7 @@ static
 const char*
 dict_scan_table_name(
 /*=================*/
-	struct charset_info_st*	cs,/*!< in: the character set of ptr */
+	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
 	const char*	ptr,	/*!< in: scanned to */
 	dict_table_t**	table,	/*!< out: table object or NULL */
 	const char*	name,	/*!< in: foreign key table name */
@@ -3876,7 +3875,7 @@ static
 const char*
 dict_skip_word(
 /*===========*/
-	struct charset_info_st*	cs,/*!< in: the character set of ptr */
+	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
 	const char*	ptr,	/*!< in: scanned to */
 	ibool*		success)/*!< out: TRUE if success, FALSE if just spaces
 				left in string or a syntax error */
@@ -4095,7 +4094,7 @@ dict_create_foreign_constraints_low(
 /*================================*/
 	trx_t*		trx,	/*!< in: transaction */
 	mem_heap_t*	heap,	/*!< in: memory heap */
-	struct charset_info_st*	cs,/*!< in: the character set of sql_string */
+	CHARSET_INFO*	cs,	/*!< in: the character set of sql_string */
 	const char*	sql_string,
 				/*!< in: CREATE TABLE or ALTER TABLE statement
 				where foreign keys are declared like:
@@ -4678,8 +4677,8 @@ dict_str_starts_with_keyword(
 	const char*	str,		/*!< in: string to scan for keyword */
 	const char*	keyword)	/*!< in: keyword to look for */
 {
-	struct charset_info_st*	cs = innobase_get_charset(thd);
-	ibool			success;
+	CHARSET_INFO*	cs = innobase_get_charset(thd);
+	ibool		success;
 
 	dict_accept(cs, str, keyword, &success);
 	return(success);
@@ -4756,7 +4755,7 @@ dict_foreign_parse_drop_constraints(
 	size_t			len;
 	const char*		ptr;
 	const char*		id;
-	struct charset_info_st*	cs;
+	CHARSET_INFO*		cs;
 
 	ut_a(trx);
 	ut_a(trx->mysql_thd);

@@ -31,8 +31,6 @@ Created July 16, 2007 Vasil Dimov
 #include "lock0iter.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
-#include "ut0dbg.h"
-#include "ut0lst.h"
 
 /*******************************************************************//**
 Initialize lock queue iterator so that it starts to iterate from
