@@ -150,10 +150,10 @@ Trix::execREAD_CONFIG_REQ(Signal* signal)
 
   DLList<SubscriptionRecord> subscriptions(c_theSubscriptionRecPool);
   SubscriptionRecPtr subptr;
-  while(subscriptions.seize(subptr) == true) {
+  while (subscriptions.seizeFirst(subptr) == true) {
     new (subptr.p) SubscriptionRecord(c_theAttrOrderBufferPool);
   }
-  subscriptions.release();
+  while (subscriptions.releaseFirst());
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -228,7 +228,8 @@ void Trix::execREAD_NODESCONF(Signal* signal)
     if(NdbNodeBitmask::get(readNodes->allNodes, i)) {
       // Node is defined
       jam();
-      ndbrequire(c_theNodes.seizeId(nodeRecPtr, i));
+      ndbrequire(c_theNodes.getPool().seizeId(nodeRecPtr, i));
+      c_theNodes.addFirst(nodeRecPtr);
       nodeRecPtr.p->trixRef = calcTrixBlockRef(i);
       if (i == c_masterNodeId) {
         c_masterTrixRef = nodeRecPtr.p->trixRef;
@@ -590,7 +591,7 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
     DBUG_VOID_RETURN;
   }
 
-  if (!c_theSubscriptions.seizeId(subRecPtr, buildIndxReq->buildId)) {
+  if (!c_theSubscriptions.getPool().seizeId(subRecPtr, buildIndxReq->buildId)) {
     jam();
     // Failed to allocate subscription record
     BuildIndxRef* buildIndxRef = (BuildIndxRef*)signal->getDataPtrSend();
@@ -601,6 +602,7 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
                BuildIndxRef::SignalLength, JBB);
     DBUG_VOID_RETURN;
   }
+  c_theSubscriptions.addFirst(subRecPtr);
 
   subRec = subRecPtr.p;
   subRec->errorCode = BuildIndxRef::NoError;
@@ -1511,7 +1513,7 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
   SubscriptionRecPtr subRecPtr;
   SectionHandle handle(this, signal);
 
-  if (!c_theSubscriptions.seize(subRecPtr))
+  if (!c_theSubscriptions.seizeFirst(subRecPtr))
   {
     jam();
     // Failed to allocate subscription record
@@ -1641,7 +1643,7 @@ Trix::execBUILD_FK_IMPL_REQ(Signal* signal)
   SubscriptionRecPtr subRecPtr;
   SectionHandle handle(this, signal);
 
-  if (!c_theSubscriptions.seize(subRecPtr))
+  if (!c_theSubscriptions.seizeFirst(subRecPtr))
   {
     jam();
     // Failed to allocate subscription record
@@ -1823,7 +1825,7 @@ Trix::statOpSeize(Uint32& statPtrI)
 
   SubscriptionRecPtr subRecPtr;
   if (ERROR_INSERTED(18002) ||
-      !c_theSubscriptions.seize(subRecPtr))
+      !c_theSubscriptions.seizeFirst(subRecPtr))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;

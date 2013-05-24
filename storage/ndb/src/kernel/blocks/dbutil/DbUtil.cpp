@@ -158,7 +158,7 @@ DbUtil::releaseTransaction(TransactionPtr transPtr){
       }
     }
   }
-  transPtr.p->operations.release();
+  while (transPtr.p->operations.releaseFirst());
   c_runningTransactions.release(transPtr);
 }
 
@@ -186,31 +186,31 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
   {
     SLList<Prepare> tmp(c_preparePool);
     PreparePtr ptr;
-    while(tmp.seize(ptr))
+    while (tmp.seizeFirst(ptr))
       new (ptr.p) Prepare(c_pagePool);
-    tmp.release();
+    while (tmp.releaseFirst());
   }
   {
     SLList<Operation> tmp(c_operationPool);
     OperationPtr ptr;
-    while(tmp.seize(ptr))
+    while (tmp.seizeFirst(ptr))
       new (ptr.p) Operation(c_dataBufPool, c_dataBufPool, c_dataBufPool);
-    tmp.release();
+    while (tmp.releaseFirst());
   }
   {
     SLList<PreparedOperation> tmp(c_preparedOperationPool);
     PreparedOperationPtr ptr;
-    while(tmp.seize(ptr))
+    while (tmp.seizeFirst(ptr))
       new (ptr.p) PreparedOperation(c_attrMappingPool, 
 				    c_dataBufPool, c_dataBufPool);
-    tmp.release();
+    while (tmp.releaseFirst());
   }
   {
     SLList<Transaction> tmp(c_transactionPool);
     TransactionPtr ptr;
-    while(tmp.seize(ptr))
+    while (tmp.seizeFirst(ptr))
       new (ptr.p) Transaction(c_pagePool, c_operationPool);
-    tmp.release();
+    while (tmp.releaseFirst());
   }
 
   c_lockQueuePool.setSize(5);
@@ -312,7 +312,7 @@ void
 DbUtil::connectTc(Signal* signal){
   
   TransactionPtr ptr;
-  while(c_seizingTransactions.seize(ptr)){
+  while (c_seizingTransactions.seizeFirst(ptr)){
     signal->theData[0] = ptr.i << 1; // See TcCommitConf
     signal->theData[1] = reference();
     sendSignal(DBTC_REF, GSN_TCSEIZEREQ, signal, 2, JBB);
@@ -1006,7 +1006,7 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   SectionHandle handle(this, signal);
   
   jam();
-  if(!c_runningPrepares.seize(prepPtr)) {
+  if (!c_runningPrepares.seizeFirst(prepPtr)) {
     jam();
     releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_SEIZE_ERROR,
@@ -1812,10 +1812,10 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
    * 1 Transaction with 1 operation
    */
   TransactionPtr transPtr;
-  ndbrequire(c_runningTransactions.seize(transPtr));
+  ndbrequire(c_runningTransactions.seizeFirst(transPtr));
   
   OperationPtr opPtr;
-  ndbrequire(transPtr.p->operations.seize(opPtr));
+  ndbrequire(transPtr.p->operations.seizeFirst(opPtr));
   
   ndbrequire(opPtr.p->keyInfo.seize(1));
 
@@ -2082,13 +2082,13 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   /************************************************************
    * Seize Transaction record
    ************************************************************/
-  ndbrequire(c_runningTransactions.seize(transPtr));
+  ndbrequire(c_runningTransactions.seizeFirst(transPtr));
   transPtr.p->gci_hi = 0;
   transPtr.p->gci_lo = 0;
   transPtr.p->gsn        = GSN_UTIL_EXECUTE_REQ;
   transPtr.p->clientRef  = clientRef;
   transPtr.p->clientData = clientData;
-  ndbrequire(transPtr.p->operations.seize(opPtr));
+  ndbrequire(transPtr.p->operations.seizeFirst(opPtr));
   opPtr.p->prepOp   = prepOpPtr.p;
   opPtr.p->prepOp_i = prepOpPtr.i;
   opPtr.p->m_scanTakeOver = scanTakeOver;

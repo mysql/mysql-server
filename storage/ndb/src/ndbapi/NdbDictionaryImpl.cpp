@@ -4037,7 +4037,69 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
   if ((res = listDependentObjects(list, impl.m_id)) == -1){
     ERR_RETURN(getNdbError(), -1);
   }
-  for (unsigned i = 0; i < list.count; i++) {
+
+  const bool cascade_constraints = (flags & DropTableCascadeConstraints);
+
+  if (!cascade_constraints)
+  {
+    /**
+     * To keep this method atomic...
+     *   we first iterate the list and perform checks...
+     *   before doing any drops
+     *
+     * Otherwise, some drops might have been performed and then we return error
+     *   the semantics is a bit unclear for this situation but new code
+     *   trying to handle foreign_key_checks relies to this
+     *   being possible
+     */
+    for (unsigned i = 0; i < list.count; i++)
+    {
+      const List::Element& element = list.elements[i];
+
+      if (DictTabInfo::isForeignKey(element.type))
+      {
+        NdbDictionary::ForeignKey fk;
+        if ((res = getForeignKey(fk, element.name)) != 0)
+        {
+          ERR_RETURN(getNdbError(), -1);
+        }
+        if (!dropTableAllowDropChildFK(impl, fk, cascade_constraints))
+        {
+          m_receiver.m_error.code = 21080;
+          ERR_RETURN(getNdbError(), -1);
+        }
+      }
+    }
+  }
+
+  /**
+   * Need to drop all FK first...as they might depend on indexes
+   * No need to call dropTableAllowDropChildFK again...
+   */
+  for (unsigned i = 0; i < list.count; i++)
+  {
+    const List::Element& element = list.elements[i];
+
+    if (DictTabInfo::isForeignKey(element.type))
+    {
+      NdbDictionary::ForeignKey fk;
+      if ((res = getForeignKey(fk, element.name)) != 0)
+      {
+        ERR_RETURN(getNdbError(), -1);
+      }
+
+      if ((res = dropForeignKey(fk)) != 0)
+      {
+        ERR_RETURN(getNdbError(), -1);
+      }
+    }
+  }
+
+  /**
+   * And then drop the indexes
+   */
+  for (unsigned i = 0; i < list.count; i++)
+  {
     const List::Element& element = list.elements[i];
     if (DictTabInfo::isIndex(element.type))
     {
@@ -4057,24 +4119,6 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
         ERR_RETURN(getNdbError(), -1);
       }
       releaseIndexGlobal(*idx, 1);
-    }
-    else if (DictTabInfo::isForeignKey(element.type))
-    {
-      NdbDictionary::ForeignKey fk;
-      if ((res = getForeignKey(fk, element.name)) != 0)
-      {
-        ERR_RETURN(getNdbError(), -1);
-      }
-      const bool cascade_constraints = (flags & DropTableCascadeConstraints);
-      if (!dropTableAllowDropChildFK(impl, fk, cascade_constraints))
-      {
-        m_receiver.m_error.code = 21080;
-        ERR_RETURN(getNdbError(), -1);
-      }
-      if ((res = dropForeignKey(fk)) != 0)
-      {
-        ERR_RETURN(getNdbError(), -1);
-      }
     }
   }
 

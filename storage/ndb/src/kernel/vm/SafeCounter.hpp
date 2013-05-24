@@ -49,7 +49,7 @@
  */
 
 #include <NodeBitmask.hpp>
-#include "DLList.hpp"
+#include "IntrusiveList.hpp"
 #include "VMSignal.hpp"
 
 class SimulatedBlock;

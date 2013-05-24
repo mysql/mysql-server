@@ -4222,7 +4222,10 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
   req->length = buf.length();
 
   NodeBitmask mgm_nodes;
-  m_local_config->get_nodemask(mgm_nodes, NDB_MGM_NODE_TYPE_MGM);
+  {
+    Guard g(m_local_config_mutex);
+    m_local_config->get_nodemask(mgm_nodes, NDB_MGM_NODE_TYPE_MGM);
+  }
 
   NodeId nodeId= ss.find_confirmed_node(mgm_nodes);
   if (nodeId == 0)

@@ -23,6 +23,7 @@
 
 #define CFG_ACC_FRAGMENT      (PRIVATE_BASE +  3)
 #define CFG_ACC_OP_RECS       (PRIVATE_BASE +  4)
+/* TODO: remove. CFG_ACC_OVERFLOW_RECS obsoleted ... */
 #define CFG_ACC_OVERFLOW_RECS (PRIVATE_BASE +  5)
 #define CFG_ACC_PAGE8         (PRIVATE_BASE +  6)
 #define CFG_ACC_ROOT_FRAG     (PRIVATE_BASE +  7)
