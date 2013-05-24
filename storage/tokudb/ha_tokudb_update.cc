@@ -5,7 +5,6 @@
 // Restrictions:
 //   No triggers
 //   Statement or mixed replication
-//   Does not support row based replication
 //   Primary key must be defined
 //   Simple and compound primary key
 //   Int, char and varchar primary key types
@@ -14,10 +13,10 @@
 //   Integer and char field updates
 //   Update expressions:
 //       x = constant
-//       x = x+constant
-//       x = x-constant
-//      x = if(x=0,0,x-1)
-//   Session variable enables fast updates and fast upserts
+//       x = x + constant
+//       x = x - constant
+//       x = if (x=0,0,x-1)
+//       x = x + values(x)
 //   Session variable disables slow updates and slow upserts
 
 // Future features:
@@ -72,7 +71,14 @@ static void dump_item(Item *item) {
         fprintf(stderr, ")\n");
         break;
     }
+    case Item::INSERT_VALUE_ITEM: {
+        Item_insert_value *value_item = static_cast<Item_insert_value*>(item);
+        fprintf(stderr, ":insert_value");
+        dump_item(value_item->arg);
+        break;
+    }
     default:
+        fprintf(stderr, ":unsupported\n");
         break;
     }
 }
@@ -197,9 +203,9 @@ return_error:
 // Return true if an expression is a simple int expression or a simple function of +- int expression.
 static bool check_int_result(Item *item) {
     Item::Type t = item->type();
-    if (t == Item::INT_ITEM)
+    if (t == Item::INT_ITEM) {
         return true;
-    else if (t == Item::FUNC_ITEM) {
+    } else if (t == Item::FUNC_ITEM) {
         Item_func *item_func = static_cast<Item_func*>(item);
         if (strcmp(item_func->func_name(), "+") != 0 && strcmp(item_func->func_name(), "-") != 0)
             return false;
@@ -213,8 +219,21 @@ static bool check_int_result(Item *item) {
         return false;
 }
 
+// check that an item is an insert value item with the same field name
+static bool check_insert_value(Item *item, const char *field_name) {
+    if (item->type() != Item::INSERT_VALUE_ITEM)
+        return false;
+    Item_insert_value *value_item = static_cast<Item_insert_value*>(item);
+    if (value_item->arg->type() != Item::FIELD_ITEM)
+        return false;
+    Item_field *arg = static_cast<Item_field*>(value_item->arg);
+    if (strcmp(field_name, arg->field_name) != 0)
+        return false;
+    return true;
+}
+
 // Return true if an expression looks like field_name op constant.
-static bool check_x_op_constant(const char *field_name, Item *item, const char *op, Item **item_constant) {
+static bool check_x_op_constant(const char *field_name, Item *item, const char *op, Item **item_constant, bool allow_insert_value) {
     if (item->type() != Item::FUNC_ITEM)
         return false;
     Item_func *item_func = static_cast<Item_func*>(item);
@@ -230,7 +249,8 @@ static bool check_x_op_constant(const char *field_name, Item *item, const char *
     if (strcmp(field_name, arg0->field_name) != 0)
         return false;
     if (!check_int_result(arguments[1]))
-        return false;
+        if (!(allow_insert_value && check_insert_value(arguments[1], field_name)))
+            return false;
     *item_constant = arguments[1];
     return true;
 }
@@ -238,9 +258,9 @@ static bool check_x_op_constant(const char *field_name, Item *item, const char *
 // Return true if an expression looks like field_name = constant
 static bool check_x_equal_0(const char *field_name, Item *item) {
     Item *item_constant;
-    if (!check_x_op_constant(field_name, item, "=", &item_constant))
+    if (!check_x_op_constant(field_name, item, "=", &item_constant, false))
         return false;
-    if (item_constant->val_int() != 0)
+    if (item_constant->type() != Item::INT_ITEM || item_constant->val_int() != 0)
         return false;
     return true;
 }
@@ -248,9 +268,9 @@ static bool check_x_equal_0(const char *field_name, Item *item) {
 // Return true if an expression looks like fieldname - 1
 static bool check_x_minus_1(const char *field_name, Item *item) {
     Item *item_constant;
-    if (!check_x_op_constant(field_name, item, "-", &item_constant))
+    if (!check_x_op_constant(field_name, item, "-", &item_constant, false))
         return false;
-    if (item_constant->val_int() != 1)
+    if (item_constant->type() != Item::INT_ITEM || item_constant->val_int() != 1)
         return false;
     return true;
 }
@@ -279,7 +299,7 @@ static bool check_decr_floor_expression(Field *lhs_field, Item *item) {
 }
 
 // Check if lhs = rhs expression is simple.  Return true if it is.
-static bool check_update_expression(Item *lhs_item, Item *rhs_item, TABLE *table) {
+static bool check_update_expression(Item *lhs_item, Item *rhs_item, TABLE *table, bool allow_insert_value) {
     Field *lhs_field = find_field_by_name(table, lhs_item);
     if (lhs_field == NULL)
         return false;
@@ -296,9 +316,9 @@ static bool check_update_expression(Item *lhs_item, Item *rhs_item, TABLE *table
         if (check_int_result(rhs_item))
             return true;
         Item *item_constant;
-        if (check_x_op_constant(lhs_field->field_name, rhs_item, "+", &item_constant))
+        if (check_x_op_constant(lhs_field->field_name, rhs_item, "+", &item_constant, allow_insert_value))
             return true;
-        if (check_x_op_constant(lhs_field->field_name, rhs_item, "-", &item_constant))
+        if (check_x_op_constant(lhs_field->field_name, rhs_item, "-", &item_constant, allow_insert_value))
             return true;
         if (check_decr_floor_expression(lhs_field, rhs_item))
             return true;
@@ -319,7 +339,7 @@ static bool check_update_expression(Item *lhs_item, Item *rhs_item, TABLE *table
 }
 
 // Check that all update expressions are simple.  Return true if they are.
-static bool check_all_update_expressions(List<Item> &fields, List<Item> &values, TABLE *table) {
+static bool check_all_update_expressions(List<Item> &fields, List<Item> &values, TABLE *table, bool allow_insert_value) {
     List_iterator<Item> lhs_i(fields);
     List_iterator<Item> rhs_i(values);
     while (1) {
@@ -327,9 +347,8 @@ static bool check_all_update_expressions(List<Item> &fields, List<Item> &values,
         if (lhs_item == NULL)
             break;
         Item *rhs_item = rhs_i++;
-        if (rhs_item == NULL)
-            assert(0); // can not happen
-        if (!check_update_expression(lhs_item, rhs_item, table))
+        assert(rhs_item != NULL);
+        if (!check_update_expression(lhs_item, rhs_item, table, allow_insert_value))
             return false;
     }
     return true;
@@ -472,7 +491,7 @@ bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &valu
     if (clustering_keys_exist(table))
         return false;
 
-    if (!check_all_update_expressions(fields, values, table))
+    if (!check_all_update_expressions(fields, values, table, false))
         return false;
 
     if (!check_point_update(conds, table))
@@ -503,7 +522,17 @@ static void marshall_blobs_descriptor(tokudb::buffer &b, TABLE *table, KEY_AND_C
 
 static inline uint32_t get_null_bit_position(uint32_t null_bit);
 
-// Marshall update operatins to a buffer.
+// evaluate the int value of an item
+static longlong item_val_int(Item *item) {
+    Item::Type t = item->type();
+    if (t == Item::INSERT_VALUE_ITEM) {
+        Item_insert_value *value_item = static_cast<Item_insert_value*>(item);
+        return value_item->arg->val_int();
+    } else 
+        return item->val_int();
+}
+
+// Marshall update operations to a buffer.
 static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item, TABLE *table, TOKUDB_SHARE *share) {
     // figure out the update operation type (again)
     Field *lhs_field = find_field_by_name(table, lhs_item);
@@ -544,14 +573,14 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item, T
             Item_func *rhs_func = static_cast<Item_func*>(rhs_item);
             Item **arguments = rhs_func->arguments();
             if (strcmp(rhs_func->func_name(), "if") == 0) {
-                update_operation = '-'; // we only support one if function for now, and it is a descrement with floor.
+                update_operation = '-'; // we only support one if function for now, and it is a decrement with floor.
                 v_ll = 1;
             } else if (rhs_func->argument_count() == 1) {
                 update_operation = '=';
                 v_ll = rhs_func->val_int();
             } else {
                 update_operation = rhs_func->func_name()[0];
-                v_ll = arguments[1]->val_int();
+                v_ll = item_val_int(arguments[1]);
             }
             v_length = lhs_field->pack_length();
             v_ptr = &v_ll;
@@ -712,8 +741,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
         if (lhs_item == NULL)
             break;
         Item *rhs_item = rhs_i++;
-        if (rhs_item == NULL)
-            assert(0); // can not happen
+        assert(rhs_item != NULL);
         marshall_update(update_message, lhs_item, rhs_item, table, share);
     }
 
@@ -801,7 +829,7 @@ bool ha_tokudb::check_upsert(THD *thd, List<Item> &update_fields, List<Item> &up
         !(thd->variables.binlog_format == BINLOG_FORMAT_STMT || thd->variables.binlog_format == BINLOG_FORMAT_MIXED))
         return false;
 
-    if (!check_all_update_expressions(update_fields, update_values, table))
+    if (!check_all_update_expressions(update_fields, update_values, table, true))
         return false;
 
     return true;
