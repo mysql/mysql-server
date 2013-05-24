@@ -45,11 +45,19 @@
 #endif
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  #define MYSQL_DROP_SP(STATE) \
-    inline_mysql_drop_sp(STATE)
+  #define MYSQL_DROP_SP(OT, SN, SNL, ON, ONL) \
+    inline_mysql_drop_sp(OT, SN, SNL, ON, ONL)
 #else
-  #define MYSQL_DROP_SP(STATE) \
+  #define MYSQL_DROP_SP(OT, SN, SNL, ON, ONL) \
     do {} while (0)
+#endif
+
+#ifdef HAVE_PSI_SP_INTERFACE
+  #define MYSQL_GET_SP_SHARE(OT, SN, SNL, ON, ONL) \
+    inline_mysql_get_sp_share(OT, SN, SNL, ON, ONL)
+#else
+  #define MYSQL_GET_SP_SHARE(OT, SN, SNL, ON, ONL) \
+    NULL
 #endif
 
 /**
@@ -57,15 +65,15 @@
 */
 enum enum_sp_object_type
 {
-  SP_OBJECT_TYPE_TABLE= 1,
-  SP_OBJECT_TYPE_EVENT= 2,
-  SP_OBJECT_TYPE_FUNCTION= 3,
-  SP_OBJECT_TYPE_PROCEDURE= 4,
+  SP_OBJECT_TYPE_EVENT= 1,
+  SP_OBJECT_TYPE_FUNCTION= 2,
+  SP_OBJECT_TYPE_PROCEDURE= 3,
+  SP_OBJECT_TYPE_TABLE= 4,
   SP_OBJECT_TYPE_TRIGGER= 5,
   SP_OBJECT_TYPE_TEMPORARY_TABLE= 6
 };
 
-static inline struct PSI_sp_locker *
+static inline struct PSI_sp_locker*
 inline_mysql_start_sp(PSI_sp_locker_state *state)
 {
   PSI_sp_locker *locker;
@@ -82,9 +90,23 @@ static inline void inline_mysql_end_sp(PSI_sp_locker *locker)
     PSI_SP_CALL(end_sp)(locker);
 }
 
-static inline void inline_mysql_drop_sp(PSI_sp_locker_state *state)
+static inline void 
+inline_mysql_drop_sp(uint object_type,
+                     const char* schema_name, uint shcema_name_length,
+                     const char* object_name, uint object_name_length)
 {
-  if (likely(state != NULL))
-    PSI_SP_CALL(drop_sp)(state);
+  PSI_SP_CALL(drop_sp)(object_type,
+                       schema_name, shcema_name_length,
+                       object_name, object_name_length);
+}
+
+static inline PSI_sp_share*
+inline_mysql_get_sp_share(uint object_type,
+                          const char* schema_name, uint shcema_name_length,
+                          const char* object_name, uint object_name_length)
+{
+  return PSI_SP_CALL(get_sp_share)(object_type,
+                                   schema_name, shcema_name_length,
+                                   object_name, object_name_length);
 }
 #endif

@@ -661,7 +661,21 @@ static void pfs_end_sp_noop(PSI_sp_locker *locker NNN)
   return;
 }
 
-static void pfs_drop_sp_noop(PSI_sp_locker_state *state NNN)
+static void pfs_drop_sp_noop(uint object_type NNN,
+   const char *schema_name NNN, uint schema_name_length NNN,
+   const char *object_name NNN, uint object_name_length NNN)
+{
+  return;
+}
+
+static PSI_sp_share* pfs_get_sp_share_noop(uint object_type NNN,
+   const char *schema_name NNN, uint schema_name_length NNN,
+   const char *object_name NNN, uint object_name_length NNN)
+{
+  return NULL;
+}
+
+static void pfs_release_sp_share_noop(PSI_sp_share *sp_share NNN)
 {
   return;
 }
@@ -775,7 +789,9 @@ static PSI PSI_noop=
   pfs_start_sp_noop,
   pfs_end_sp_noop,
   pfs_get_thread_sp_locker_noop,
-  pfs_drop_sp_noop
+  pfs_drop_sp_noop,
+  pfs_get_sp_share_noop,
+  pfs_release_sp_share_noop
 };
 
 /**

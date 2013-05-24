@@ -151,15 +151,15 @@ performance_schema.events_statements_history WHERE
 CURRENT_SCHEMA='sub_programs';
 EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
 statement/sql/call_procedure	call simple_procedure5(@a)	sub_programs	NULL	NULL	NULL	NULL	0
-statement/sp/sp_instr_stmt	INSERT INTO t1 values('1')	sub_programs	PROCEDURE	sub_programs	simple_procedure3	STATEMENT	1
+statement/sp/stmt	INSERT INTO t1 values('1')	sub_programs	PROCEDURE	sub_programs	simple_procedure3	STATEMENT	1
 statement/sql/call_procedure	call simple_procedure3(@a)	sub_programs	NULL	NULL	NULL	NULL	0
-statement/sp/sp_instr_stmt	SELECT COUNT(*) INTO PARAM1 FROM t1	sub_programs	PROCEDURE	sub_programs	simple_procedure4	STATEMENT	1
-statement/sp/sp_instr_stmt	insert into t2 values('2')	sub_programs	TRIGGER	sub_programs	simple_trigger1	STATEMENT	2
-statement/sp/sp_instr_stmt	INSERT INTO t1 values('1')	sub_programs	PROCEDURE	sub_programs	simple_procedure4	STATEMENT	1
+statement/sp/stmt	SELECT COUNT(*) INTO PARAM1 FROM t1	sub_programs	PROCEDURE	sub_programs	simple_procedure4	STATEMENT	1
+statement/sp/stmt	insert into t2 values('2')	sub_programs	TRIGGER	sub_programs	simple_trigger1	STATEMENT	2
+statement/sp/stmt	INSERT INTO t1 values('1')	sub_programs	PROCEDURE	sub_programs	simple_procedure4	STATEMENT	1
 statement/sql/call_procedure	call simple_procedure4(@a)	sub_programs	NULL	NULL	NULL	NULL	0
-statement/sp/sp_instr_stmt	SELECT COUNT(*) INTO PARAM1 FROM t1	sub_programs	PROCEDURE	sub_programs	simple_procedure5	STATEMENT	1
-statement/sp/sp_instr_stmt	insert into t2 values('2')	sub_programs	TRIGGER	sub_programs	simple_trigger1	STATEMENT	2
-statement/sp/sp_instr_stmt	INSERT INTO t1 values('1')	sub_programs	PROCEDURE	sub_programs	simple_procedure5	STATEMENT	1
+statement/sp/stmt	SELECT COUNT(*) INTO PARAM1 FROM t1	sub_programs	PROCEDURE	sub_programs	simple_procedure5	STATEMENT	1
+statement/sp/stmt	insert into t2 values('2')	sub_programs	TRIGGER	sub_programs	simple_trigger1	STATEMENT	2
+statement/sp/stmt	INSERT INTO t1 values('1')	sub_programs	PROCEDURE	sub_programs	simple_procedure5	STATEMENT	1
 show status like "%performance_schema_program_lost%";
 Variable_name	Value
 Performance_schema_program_lost	4

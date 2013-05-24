@@ -277,7 +277,7 @@ def	performance_schema	events_statements_summary_by_host_by_event_name	SUM_SORT_
 def	performance_schema	events_statements_summary_by_host_by_event_name	SUM_SORT_SCAN	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_host_by_event_name	SUM_NO_INDEX_USED	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_host_by_event_name	SUM_NO_GOOD_INDEX_USED	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_summary_by_program	OBJECT_TYPE	1	NULL	YES	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TABLE','EVENT','FUNCTION','PROCEDURE','TRIGGER')			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_program	OBJECT_TYPE	1	NULL	YES	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('EVENT','FUNCTION','PROCEDURE','TABLE','TRIGGER')			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_program	OBJECT_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_program	OBJECT_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_program	COUNT_STAR	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
@@ -285,11 +285,11 @@ def	performance_schema	events_statements_summary_by_program	SUM_TIMER_WAIT	5	NUL
 def	performance_schema	events_statements_summary_by_program	MIN_TIMER_WAIT	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_program	AVG_TIMER_WAIT	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_program	MAX_TIMER_WAIT	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_summary_by_program	COUNT_SUB_STATEMENTS	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_summary_by_program	SUM_SUB_STATEMENTS_WAIT	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_summary_by_program	MIN_SUB_STATEMENTS_WAIT	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_summary_by_program	AVG_SUB_STATEMENTS_WAIT	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_summary_by_program	MAX_SUB_STATEMENTS_WAIT	13	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_program	COUNT_STATEMENTS	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_program	SUM_STATEMENTS_WAIT	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_program	MIN_STATEMENTS_WAIT	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_program	AVG_STATEMENTS_WAIT	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_program	MAX_STATEMENTS_WAIT	13	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_program	SUM_LOCK_TIME	14	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_program	SUM_ERRORS	15	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_program	SUM_WARNINGS	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
@@ -603,7 +603,7 @@ def	performance_schema	setup_consumers	ENABLED	2	NULL	NO	enum	3	9	NULL	NULL	NULL
 def	performance_schema	setup_instruments	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	setup_instruments	ENABLED	2	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
 def	performance_schema	setup_instruments	TIMED	3	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
-def	performance_schema	setup_objects	OBJECT_TYPE	1	TABLE	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TABLE','EVENT','FUNCTION','PROCEDURE','TRIGGER')			select,insert,update,references	
+def	performance_schema	setup_objects	OBJECT_TYPE	1	TABLE	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('EVENT','FUNCTION','PROCEDURE','TABLE','TRIGGER')			select,insert,update,references	
 def	performance_schema	setup_objects	OBJECT_SCHEMA	2	%	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	setup_objects	OBJECT_NAME	3	%	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	setup_objects	ENABLED	4	YES	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
