@@ -268,7 +268,6 @@ void testConcat(ArrayPool<T>& pool)
   DLCFifoList<T, DL>::Head dlchead;
 
   Ptr<T> p;
-  Ptr<T> q;
 
   Uint32 c_seized = 0;
 
