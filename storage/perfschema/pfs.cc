@@ -4686,12 +4686,15 @@ void pfs_set_statement_text_v1(PSI_statement_locker *locker,
 }
 
 static void set_statement_parent_v1(PSI_statement_locker *locker,              
-                                    const void *head)                          
+                                    PSI_sp_share *sp_share)                          
 {                                                                              
   PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
-  const sp_head *parent_sp= reinterpret_cast<const sp_head*> (head);           
+  PFS_program *parent_sp= reinterpret_cast<PFS_program *> (sp_share);           
   DBUG_ASSERT(state != NULL);                                                  
-  DBUG_ASSERT(parent_sp != NULL);                                              
+
+  /* sp_share could be NULL */
+  if(!parent_sp)
+    return;
                                                                                
   if (state->m_discarded)                                                      
     return;                                                                    
@@ -4700,25 +4703,12 @@ static void set_statement_parent_v1(PSI_statement_locker *locker,
   {                                                                            
     PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
     DBUG_ASSERT(pfs != NULL);                                                  
-    switch(parent_sp->m_type)
-    {
-      case SP_TYPE_FUNCTION:
-        pfs->m_sp_type= OBJECT_TYPE_FUNCTION;
-      break;
-      case SP_TYPE_PROCEDURE:
-        pfs->m_sp_type= OBJECT_TYPE_PROCEDURE;
-      break;
-      case SP_TYPE_TRIGGER:
-        pfs->m_sp_type= OBJECT_TYPE_TRIGGER;
-      break;
-      case SP_TYPE_EVENT:
-        pfs->m_sp_type= OBJECT_TYPE_EVENT;
-      break;
-    }
-    memcpy(pfs->m_schema_name, parent_sp->m_db.str, parent_sp->m_db.length);   
-    pfs->m_schema_name_length= parent_sp->m_db.length;                         
-    memcpy(pfs->m_object_name, parent_sp->m_name.str, parent_sp->m_name.length);
-    pfs->m_object_name_length= parent_sp->m_name.length;                       
+
+    pfs->m_sp_type= parent_sp->m_type;
+    memcpy(pfs->m_schema_name, parent_sp->m_schema_name, parent_sp->m_schema_name_length);   
+    pfs->m_schema_name_length= parent_sp->m_schema_name_length;                         
+    memcpy(pfs->m_object_name, parent_sp->m_object_name, parent_sp->m_object_name_length);
+    pfs->m_object_name_length= parent_sp->m_object_name_length;                       
   }                                                                            
                                                                                
   return;                                                                      

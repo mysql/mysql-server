@@ -137,7 +137,7 @@ get_table_share_noop(my_bool temporary NNN, struct TABLE_SHARE *share NNN)
 }
 
 static void set_statement_parent_noop(PSI_statement_locker *locker NNN,        
-                                      const void *head NNN)                    
+                                      PSI_sp_share *sp_share NNN)                    
 {                                                                              
   return;                                                                      
 }                                                                              

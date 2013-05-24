@@ -489,7 +489,7 @@ typedef void (*set_statement_text_v1_t)
    const char *text, uint text_len);
 typedef void (*set_statement_parent_v1_t)
   (struct PSI_statement_locker *locker,
-   const void * head);
+   PSI_sp_share *sp_share);
 typedef void (*set_statement_lock_time_t)
   (struct PSI_statement_locker *locker, ulonglong lock_time);
 typedef void (*set_statement_rows_sent_t)
