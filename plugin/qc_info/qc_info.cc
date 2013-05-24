@@ -83,7 +83,7 @@ static int qc_info_fill_table(THD *thd, TABLE_LIST *tables,
     return 0;
 
   if (qc->try_lock(thd))
-    return status;
+    return 0; // QC is or is being disabled
 
   /* loop through all queries in the query cache */
   for (uint i= 0; i < queries->records; i++)

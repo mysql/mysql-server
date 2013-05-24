@@ -4,5 +4,8 @@ drop table t1;
 # the query was invalidated
 select statement_schema, statement_text, result_blocks_count, result_blocks_size from information_schema.query_cache_info;
 
+set global query_cache_size = 0;
+select * from information_schema.query_cache_info;
+
 set global query_cache_size= default;
 

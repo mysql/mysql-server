@@ -12,4 +12,7 @@ test	select * from t1	1	512
 drop table t1;
 select statement_schema, statement_text, result_blocks_count, result_blocks_size from information_schema.query_cache_info;
 statement_schema	statement_text	result_blocks_count	result_blocks_size
+set global query_cache_size = 0;
+select * from information_schema.query_cache_info;
+STATEMENT_SCHEMA	STATEMENT_TEXT	RESULT_BLOCKS_COUNT	RESULT_BLOCKS_SIZE	RESULT_BLOCKS_SIZE_USED
 set global query_cache_size= default;
