@@ -1186,6 +1186,7 @@ int writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {
   if(prec > 0) {
     bufsz = (1 + prec) / 2;
     while(prec < 5) usec /= 100, prec += 2;
+    if(prec % 2) usec -= (usec % 10);
     pack_bigendian(usec, buf, bufsz);
   }
   return bufsz;
