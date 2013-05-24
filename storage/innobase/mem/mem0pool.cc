@@ -658,7 +658,9 @@ mem_pool_validate(
 		}
 	}
 
-	ut_a(free + pool->reserved == pool->size);
+	free += pool->reserved;
+
+	ut_a(free + !free == pool->size);
 
 	mem_pool_mutex_exit(pool);
 
