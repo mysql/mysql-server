@@ -7369,6 +7369,57 @@ end:
 // end FAIL create hashmap
 
 int
+runCreateHashmaps(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  int nodeId = restarter.getMasterNodeId();
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+
+  const int loops = ctx->getNumLoops();
+  int result = NDBT_OK;
+
+  NdbDictionary::HashMap hm;
+
+  int created = 0;
+  for (int i = 1; i <= NDB_DEFAULT_HASHMAP_BUCKETS && created < loops ; i++)
+  {
+    pDic->initDefaultHashMap(hm, i);
+    int res = pDic->getHashMap(hm, hm.getName());
+    if (res == -1)
+    {
+      const NdbError err = pDic->getNdbError();
+      if (err.code != 723)
+      {
+        g_err << "getHashMap: " << hm.getName() << ": " << err << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+      int res = pDic->createHashMap(hm);
+      if (res == -1)
+      {
+        const NdbError err = pDic->getNdbError();
+        if (err.code != 707 && err.code != 712)
+        {
+          g_err << "createHashMap: " << hm.getName() << ": " << err << endl;
+          result = NDBT_FAILED;
+        }
+        break;
+      }
+      created++;
+    }
+  }
+
+  // Drop all hashmaps (and everything else) with initial restart
+  ndbout << "Restarting cluster" << endl;
+  restarter.restartAll(/* initial */ true);
+  restarter.waitClusterStarted();
+
+  return result;
+}
+// end FAIL create hashmap
+
+int
 runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
 {
   static int lst[] = { 7211, 7212, 4050, 12008, 6212, 6124, 6213, 6214, 0 };
@@ -9725,6 +9776,11 @@ TESTCASE("IndexStatCreate", "")
 TESTCASE("Bug14645319", "")
 {
   STEP(runBug14645319);
+}
+TESTCASE("CreateHashmaps",
+         "Create (default) hashmaps")
+{
+  INITIALIZER(runCreateHashmaps);
 }
 NDBT_TESTSUITE_END(testDict);
 
