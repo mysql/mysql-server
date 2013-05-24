@@ -93,7 +93,7 @@ void
 mem_field_header_set_len(byte* field, ulint len);
 
 ulint
-mem_field_header_get_len(byte* field);
+mem_field_header_get_len(const byte* field);
 
 void
 mem_field_header_set_check(byte* field, ulint check);

@@ -4884,14 +4884,13 @@ bool mysql_create_table_no_lock(THD *thd,
   else
   {
     bool was_truncated;
-    int length;
     const char *alias= table_case_name(create_info, table_name);
-    length= build_table_filename(path, sizeof(path) - 1, db, alias,
-                                 "", 0, &was_truncated);
-    // Check if we hit FN_REFLEN bytes along with file extension.
-    if (was_truncated || length+reg_ext_length > FN_REFLEN)
+    build_table_filename(path, sizeof(path) - 1 - reg_ext_length, 
+                         db, alias, "", 0, &was_truncated);
+    // Check truncation, will lead to overflow when adding extension
+    if (was_truncated)
     {
-      my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path)-1, path);
+      my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path) - 1, path);
       return true;
     }
   }
