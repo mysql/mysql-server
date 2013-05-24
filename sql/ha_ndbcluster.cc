@@ -275,6 +275,17 @@ static MYSQL_THDVAR_UINT(
   0                                  /* block */
 );
 
+static MYSQL_THDVAR_BOOL(
+  show_foreign_key_mock_tables,          /* name */
+  PLUGIN_VAR_OPCMDARG,
+  "Show the mock tables which is used to support foreign_key_checks= 0. "
+  "Extra info warnings are shown when creating and dropping the tables. "
+  "The real table name is show in SHOW CREATE TABLE",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0                                  /* default */
+);
+
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define DEFAULT_NDB_JOIN_PUSHDOWN FALSE
 #else
@@ -297,6 +308,12 @@ static MYSQL_THDVAR_BOOL(
 bool ndb_index_stat_get_enable(THD *thd)
 {
   const bool value = THDVAR(thd, index_stat_enable);
+  return value;
+}
+
+bool ndb_show_foreign_key_mock_tables(THD* thd)
+{
+  const bool value = THDVAR(thd, show_foreign_key_mock_tables);
   return value;
 }
 
@@ -9313,6 +9330,12 @@ adjusted_frag_count(Ndb* ndb,
 }
 
 
+extern bool ndb_fk_util_truncate_allowed(THD* thd,
+                                         NdbDictionary::Dictionary* dict,
+                                         const char* db,
+                                         const NdbDictionary::Table* tab,
+                                         bool& allow);
+
 /**
   Create a table in NDB Cluster
 */
@@ -9429,9 +9452,27 @@ int ha_ndbcluster::create(const char *name,
   {
     Ndb_table_guard ndbtab_g(dict);
     ndbtab_g.init(m_tabname);
-    if (!(m_table= ndbtab_g.get_table()))
+    if (!ndbtab_g.get_table())
       ERR_RETURN(dict->getNdbError());
-    m_table= NULL;
+
+    /*
+      Don't allow truncate on table which is foreign key parent.
+      This is kind of a kludge to get legacy compatibility behaviour
+      but it also reduces the complexity involved in rewriting
+      fks during this "recreate".
+     */
+    bool allow;
+    if (!ndb_fk_util_truncate_allowed(thd, dict, m_dbname,
+                                      ndbtab_g.get_table(), allow))
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+    if (!allow)
+    {
+      my_error(ER_TRUNCATE_ILLEGAL_FK, MYF(0), "");
+      DBUG_RETURN(1);
+    }
+
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
     if ((my_errno= delete_table(name)))
       DBUG_RETURN(my_errno);
@@ -10251,6 +10292,12 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
   DBUG_RETURN(error);
 }
 
+
+extern void ndb_fk_util_resolve_mock_tables(THD* thd,
+                                            NdbDictionary::Dictionary* dict,
+                                            const char* new_parent_db,
+                                            const char* new_parent_name);
+
 /**
   Rename a table in NDB Cluster.
 */
@@ -10374,6 +10421,9 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     }
     ERR_RETURN(ndb_error);
   }
+
+  ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(),
+                                  new_dbname, new_tabname);
 
   // Rename .ndb file
   if ((result= handler::rename_table(from, to)))
@@ -10531,6 +10581,72 @@ do_drop:
   DBUG_VOID_RETURN;
 }
 
+
+// Declare adapter functions for Dummy_table_util function
+extern bool ndb_fk_util_build_list(THD*, NdbDictionary::Dictionary*,
+                                   const NdbDictionary::Table*, List<char>&);
+extern void ndb_fk_util_drop_list(THD*, Ndb* ndb, NdbDictionary::Dictionary*, List<char>&);
+extern bool ndb_fk_util_drop_table(THD*, Ndb* ndb, NdbDictionary::Dictionary*,
+                                   const NdbDictionary::Table*);
+extern bool ndb_fk_util_is_mock_name(const char* table_name);
+
+bool
+ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
+                                      const NdbDictionary::Table* table,
+                                      bool cascade_constraints)
+{
+  DBUG_ENTER("drop_table_and_related");
+  DBUG_PRINT("enter", ("cascade_constraints: %d", cascade_constraints));
+
+  /*
+    Build list of objects which should be dropped after the table
+    unless cascade constraint is used and they will be dropped anyway
+  */
+  List<char> drop_list;
+  if (!cascade_constraints &&
+      !ndb_fk_util_build_list(thd, dict, table, drop_list))
+  {
+    DBUG_RETURN(false);
+  }
+
+  int drop_flags = 0;
+  if (cascade_constraints)
+  {
+    drop_flags|= NDBDICT::DropTableCascadeConstraints;
+  }
+
+  // Drop the table
+  if (dict->dropTableGlobal(*table, drop_flags) != 0)
+  {
+    const NdbError& ndb_err = dict->getNdbError();
+    if (ndb_err.code == 21080 &&
+        thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+    {
+      /*
+        Drop was not allowed because table is still referenced by
+        foreign key(s). Since foreign_key_checks=0 the problem is
+        worked around by creating a mock table, recreating the foreign
+        key(s) to point at the mock table and finally dropping
+        the requested table.
+      */
+      if (!ndb_fk_util_drop_table(thd, ndb, dict, table))
+      {
+        DBUG_RETURN(false);
+      }
+    }
+    else
+    {
+      DBUG_RETURN(false);
+    }
+  }
+
+  // Drop objects which should be dropped after table
+  ndb_fk_util_drop_list(thd, ndb, dict, drop_list);
+
+  DBUG_RETURN(true);
+}
+
+
 /* static version which does not need a handler */
 
 int
@@ -10557,23 +10673,22 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
                              share->key, share->use_count));
   }
 
-  /* Drop the table from NDB */
-
-  int drop_flags= 0;
-
   /* Copying alter can leave #sql table which is parent of old FKs */
+  bool cascade_constraints = false;
   if (thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
       strncmp(table_name, "#sql", 4) == 0)
   {
-    DBUG_PRINT("info", ("set DropTableCascadeConstraints"));
-    drop_flags|= NDBDICT::DropTableCascadeConstraints;
+    DBUG_PRINT("info", ("Using cascade constraints for ALTER of temp table"));
+    cascade_constraints = true;
   }
-  
+
+  /* Drop the table from NDB */
   int res= 0;
   if (h && h->m_table)
   {
 retry_temporary_error1:
-    if (dict->dropTableGlobal(*h->m_table, drop_flags) == 0)
+    if (drop_table_and_related(thd, ndb, dict, h->m_table,
+                               cascade_constraints))
     {
       ndb_table_id= h->m_table->getObjectId();
       ndb_table_version= h->m_table->getObjectVersion();
@@ -10604,7 +10719,8 @@ retry_temporary_error1:
       if (ndbtab_g.get_table())
       {
     retry_temporary_error2:
-        if (dict->dropTableGlobal(*ndbtab_g.get_table(), drop_flags) == 0)
+        if (drop_table_and_related(thd, ndb, dict, ndbtab_g.get_table(),
+                                   cascade_constraints))
         {
           ndb_table_id= ndbtab_g.get_table()->getObjectId();
           ndb_table_version= ndbtab_g.get_table()->getObjectVersion();
@@ -11522,7 +11638,8 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
     // Ignore Blob part tables - they are deleted when their table
     // is deleted.
     if (my_strcasecmp(system_charset_info, elmt.database, dbname) ||
-        IS_NDB_BLOB_PREFIX(elmt.name))
+        IS_NDB_BLOB_PREFIX(elmt.name) ||
+        ndb_fk_util_is_mock_name(elmt.name))
       continue;
     DBUG_PRINT("info", ("%s must be dropped", elmt.name));     
     drop_list.push_back(thd->strdup(elmt.name));
@@ -16811,7 +16928,7 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   if (alter_flags & Alter_inplace_info::DROP_FOREIGN_KEY)
   {
     const NDBTAB* tab= alter_data->old_table;
-    if ((error= drop_fk_for_online_alter(thd, dict, tab)) != 0)
+    if ((error= drop_fk_for_online_alter(thd, thd_ndb->ndb, dict, tab)) != 0)
     {
       print_error(error, MYF(0));
       goto abort;
@@ -18209,6 +18326,7 @@ static struct st_mysql_sys_var* system_variables[]= {
 #endif
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(version_string),
+  MYSQL_SYSVAR(show_foreign_key_mock_tables),
   NULL
 };
 
