@@ -69,6 +69,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       env_startup
       execute-updates
       filesize
+      get_key_after_bytes_unit
       helgrind1
       helgrind2
       helgrind3

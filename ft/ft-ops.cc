@@ -5654,8 +5654,8 @@ toku_ft_cursor_delete(FT_CURSOR cursor, int flags, TOKUTXN txn) {
 
 
 struct keyrange_compare_s {
-    FT_HANDLE ft_handle;
-    DBT *key;
+    FT ft;
+    const DBT *key;
 };
 
 static int
@@ -5667,8 +5667,8 @@ keyrange_compare (OMTVALUE lev, void *extra) {
     toku_fill_dbt(&omt_dbt, key, keylen);
     struct keyrange_compare_s *CAST_FROM_VOIDP(s, extra);
     // TODO: maybe put a const fake_db in the header
-    FAKE_DB(db, &s->ft_handle->ft->cmp_descriptor);
-    return s->ft_handle->ft->compare_fun(&db, &omt_dbt, s->key);
+    FAKE_DB(db, &s->ft->cmp_descriptor);
+    return s->ft->compare_fun(&db, &omt_dbt, s->key);
 }
 
 static void
@@ -5689,7 +5689,7 @@ keysrange_in_leaf_partition (FT_HANDLE brt, FTNODE node,
     if (BP_STATE(node, left_child_number) == PT_AVAIL) {
         int r;
         // The partition is in main memory then get an exact count.
-        struct keyrange_compare_s s_left = {brt, key_left};
+        struct keyrange_compare_s s_left = {brt->ft, key_left};
         BASEMENTNODE bn = BLB(node, left_child_number);
         OMTVALUE datav;
         uint32_t idx_left = 0;
@@ -5702,7 +5702,7 @@ keysrange_in_leaf_partition (FT_HANDLE brt, FTNODE node,
         uint32_t idx_right = size;
         r = -1;
         if (single_basement && key_right) {
-            struct keyrange_compare_s s_right = {brt, key_right};
+            struct keyrange_compare_s s_right = {brt->ft, key_right};
             r = toku_omt_find_zero(bn->buffer, keyrange_compare, &s_right, &datav, &idx_right);
         }
         *middle = idx_right - idx_left - *equal_left;
@@ -5925,6 +5925,167 @@ try_again:
         *equal_right_p = equal_right;
         *greater_p     = greater;
         *middle_3_exact_p = single_basement_node;
+    }
+}
+
+struct get_key_after_bytes_iterate_extra {
+    uint64_t skip_len;
+    uint64_t *skipped;
+    void (*callback)(const DBT *, uint64_t, void *);
+    void *cb_extra;
+};
+
+static int get_key_after_bytes_iterate(OMTVALUE lev, uint32_t UU(idx), void *extra) {
+    struct get_key_after_bytes_iterate_extra *CAST_FROM_VOIDP(e, extra);
+    LEAFENTRY CAST_FROM_VOIDP(le, lev);
+    uint32_t keylen;
+    void *key = le_key_and_len(le, &keylen);
+    // only checking the latest val, mvcc will make this inaccurate
+    uint64_t pairlen = keylen + le_latest_vallen(le);
+    if (*e->skipped + pairlen > e->skip_len) {
+        // found our key!
+        DBT end_key;
+        toku_fill_dbt(&end_key, key, keylen);
+        e->callback(&end_key, *e->skipped, e->cb_extra);
+        return 1;
+    } else {
+        *e->skipped += pairlen;
+        return 0;
+    }
+}
+
+static int get_key_after_bytes_in_basementnode(FT ft, BASEMENTNODE bn, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
+    int r;
+    uint32_t idx_left = 0;
+    if (start_key != nullptr) {
+        struct keyrange_compare_s cmp = {ft, start_key};
+        OMTVALUE v;
+        r = toku_omt_find_zero(bn->buffer, keyrange_compare, &cmp, &v, &idx_left);
+        assert(r == 0 || r == DB_NOTFOUND);
+    }
+    struct get_key_after_bytes_iterate_extra iter_extra = {skip_len, skipped, callback, cb_extra};
+    r = toku_omt_iterate_on_range(bn->buffer, idx_left, toku_omt_size(bn->buffer), get_key_after_bytes_iterate, &iter_extra);
+    // Invert the sense of r == 0 (meaning the iterate finished, which means we didn't find what we wanted)
+    if (r == 1) {
+        r = 0;
+    } else {
+        r = DB_NOTFOUND;
+    }
+    return r;
+}
+
+static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search_t *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped);
+
+static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search_t *search, int childnum, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
+    int r;
+    struct ancestors next_ancestors = {node, childnum, ancestors};
+    BLOCKNUM childblocknum = BP_BLOCKNUM(node, childnum);
+    uint32_t fullhash = compute_child_fullhash(ft->cf, node, childnum);
+    FTNODE child;
+    bool msgs_applied = false;
+    r = toku_pin_ftnode_batched(ft_h, childblocknum, fullhash, unlockers, &next_ancestors, bounds, bfe, PL_READ, false, &child, &msgs_applied);
+    paranoid_invariant(!msgs_applied);
+    if (r == TOKUDB_TRY_AGAIN) {
+        return r;
+    }
+    assert_zero(r);
+    struct unlock_ftnode_extra unlock_extra = {ft_h, child, false};
+    struct unlockers next_unlockers = {true, unlock_ftnode_fun, (void *) &unlock_extra, unlockers};
+    const struct pivot_bounds next_bounds = next_pivot_keys(node, childnum, bounds);
+    return get_key_after_bytes_in_subtree(ft_h, ft, child, &next_unlockers, &next_ancestors, &next_bounds, bfe, search, subtree_bytes, start_key, skip_len, callback, cb_extra, skipped);
+}
+
+static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search_t *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
+    int r;
+    int childnum = toku_ft_search_which_child(&ft->cmp_descriptor, ft->compare_fun, node, search);
+    const uint64_t child_subtree_bytes = subtree_bytes / node->n_children;
+    if (node->height == 0) {
+        r = DB_NOTFOUND;
+        for (int i = childnum; r == DB_NOTFOUND && i < node->n_children; ++i) {
+            // The theory here is that a leaf node could only be very
+            // unbalanced if it's dirty, which means all its basements are
+            // available.  So if a basement node is available, we should
+            // check it as carefully as possible, but if it's compressed
+            // or on disk, then it should be fairly well balanced so we
+            // can trust the fanout calculation.
+            if (BP_STATE(node, i) == PT_AVAIL) {
+                r = get_key_after_bytes_in_basementnode(ft, BLB(node, i), (i == childnum) ? start_key : nullptr, skip_len, callback, cb_extra, skipped);
+            } else {
+                *skipped += child_subtree_bytes;
+                if (*skipped >= skip_len && i < node->n_children - 1) {
+                    callback(&node->childkeys[i], *skipped, cb_extra);
+                    r = 0;
+                }
+                // Otherwise, r is still DB_NOTFOUND.  If this is the last
+                // basement node, we'll return DB_NOTFOUND and that's ok.
+                // Some ancestor in the call stack will check the next
+                // node over and that will call the callback, or if no
+                // such node exists, we're at the max key and we should
+                // return DB_NOTFOUND up to the top.
+            }
+        }
+    } else {
+        r = get_key_after_bytes_in_child(ft_h, ft, node, unlockers, ancestors, bounds, bfe, search, childnum, child_subtree_bytes, start_key, skip_len, callback, cb_extra, skipped);
+        for (int i = childnum + 1; r == DB_NOTFOUND && i < node->n_children; ++i) {
+            if (*skipped + child_subtree_bytes < skip_len) {
+                *skipped += child_subtree_bytes;
+            } else {
+                r = get_key_after_bytes_in_child(ft_h, ft, node, unlockers, ancestors, bounds, bfe, search, i, child_subtree_bytes, nullptr, skip_len, callback, cb_extra, skipped);    
+            }
+        }
+    }
+
+    if (r != TOKUDB_TRY_AGAIN) {
+        assert(unlockers->locked);
+        toku_unpin_ftnode_read_only(ft, node);
+        unlockers->locked = false;
+    }
+    return r;
+}
+
+int toku_ft_get_key_after_bytes(FT_HANDLE ft_h, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *end_key, uint64_t actually_skipped, void *extra), void *cb_extra)
+// Effect:
+//  Call callback with end_key set to the largest key such that the sum of the sizes of the key/val pairs in the range [start_key, end_key) is <= skip_len.
+//  Call callback with actually_skipped set to the sum of the sizes of the key/val pairs in the range [start_key, end_key).
+// Notes:
+//  start_key == nullptr is interpreted as negative infinity.
+//  end_key == nullptr is interpreted as positive infinity.
+//  Only the latest val is counted toward the size, in the case of MVCC data.
+// Implementation:
+//  This is an estimated calculation.  We assume for a node that each of its subtrees have equal size.  If the tree is a single basement node, then we will be accurate, but otherwise we could be quite off.
+// Returns:
+//  0 on success
+//  an error code otherwise
+{
+    FT ft = ft_h->ft;
+    struct ftnode_fetch_extra bfe;
+    fill_bfe_for_min_read(&bfe, ft);
+    while (true) {
+        FTNODE root;
+        {
+            uint32_t fullhash;
+            CACHEKEY root_key;
+            toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
+            toku_pin_ftnode_off_client_thread_batched(ft, root_key, fullhash, &bfe, PL_READ, 0, nullptr, &root);
+        }
+        struct unlock_ftnode_extra unlock_extra = {ft_h, root, false};
+        struct unlockers unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, (UNLOCKERS) nullptr};
+        ft_search_t search;
+        ft_search_init(&search, (start_key == nullptr ? ft_cursor_compare_one : ft_cursor_compare_set_range), FT_SEARCH_LEFT, start_key, ft_h);
+        
+        int r;
+        paranoid_invariant(ft->in_memory_stats.numbytes >= 0);
+        uint64_t numbytes = (uint64_t) ft->in_memory_stats.numbytes;
+        uint64_t skipped = 0;
+        r = get_key_after_bytes_in_subtree(ft_h, ft, root, &unlockers, nullptr, &infinite_bounds, &bfe, &search, numbytes, start_key, skip_len, callback, cb_extra, &skipped);
+        assert(!unlockers.locked);
+        if (r != TOKUDB_TRY_AGAIN) {
+            if (r == DB_NOTFOUND) {
+                callback(nullptr, skipped, cb_extra);
+                r = 0;
+            }
+            return r;
+        }
     }
 }
 

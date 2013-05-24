@@ -291,6 +291,8 @@ enum ft_flags {
 void toku_ft_keyrange(FT_HANDLE brt, DBT *key, uint64_t *less,  uint64_t *equal,  uint64_t *greater);
 void toku_ft_keysrange(FT_HANDLE brt, DBT* key_left, DBT* key_right, uint64_t *less_p, uint64_t* equal_left_p, uint64_t* middle_p, uint64_t* equal_right_p, uint64_t* greater_p, bool* middle_3_exact_p);
 
+int toku_ft_get_key_after_bytes(FT_HANDLE ft_h, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *end_key, uint64_t actually_skipped, void *extra), void *cb_extra);
+
 struct ftstat64_s {
     uint64_t nkeys; /* estimate how many unique keys (even when flattened this may be an estimate)     */
     uint64_t ndata; /* estimate the number of pairs (exact when flattened and committed)               */
