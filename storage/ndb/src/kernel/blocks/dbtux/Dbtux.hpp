@@ -24,7 +24,7 @@
 #include <AttributeHeader.hpp>
 #include <ArrayPool.hpp>
 #include <DataBuffer.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <md5_hash.hpp>
 
 // big brother

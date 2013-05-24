@@ -11161,7 +11161,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   for (Uint32 i = 0; i < scanParallel; i++) {
     jam();
     ScanFragRecPtr ptr;
-    if (unlikely((list.seize(ptr) == false) ||
+    if (unlikely((list.seizeFirst(ptr) == false) ||
                  ERROR_INSERTED(8093)))
     {
       jam();
@@ -11178,7 +11178,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
       &c_counters.c_scan_count))++;
   return 0;
 errout:
-  list.release();
+  while (list.releaseFirst());
   return ZSCAN_FRAGREC_ERROR;
 }//Dbtc::initScanrec()
 
@@ -11470,7 +11470,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
       tmp.p = ptr.p;
       list.next(ptr);
       list.remove(tmp);
-      queued.add(tmp);
+      queued.addFirst(tmp);
       scanptr.p->m_queued_count++;
     }
   }
@@ -11633,8 +11633,8 @@ void Dbtc::releaseScanResources(Signal* signal,
     jam();
     ScanFragList run(c_scan_frag_pool, scanPtr.p->m_running_scan_frags);
     ScanFragList queue(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
-    run.release();
-    queue.release();
+    while (run.releaseFirst());
+    while (queue.releaseFirst());
   }
 
   if (scanPtr.p->scanKeyInfoPtr != RNIL)
@@ -12196,7 +12196,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     ScanFragList queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
     
     run.remove(scanFragptr);
-    queued.add(scanFragptr);
+    queued.addFirst(scanFragptr);
     scanptr.p->m_queued_count++;
   }
 
@@ -12410,7 +12410,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
 		 ScanFragNextReq::SignalLength, JBB);
     }
     delivered.remove(scanFragptr);
-    running.add(scanFragptr);
+    running.addFirst(scanFragptr);
   }//for
   
 }//Dbtc::execSCAN_NEXTREQ()
@@ -12494,7 +12494,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       if (curr.p->m_scan_frag_conf_status == 0)
       {
 	jam();
-	running.add(curr);
+        running.addFirst(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
 	curr.p->startFragTimer(ctcTimer);
 	nextReq->senderData = curr.i;
@@ -12526,7 +12526,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       if (curr.p->m_scan_frag_conf_status == 0)
       {
 	jam();
-	running.add(curr);
+        running.addFirst(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
 	curr.p->startFragTimer(ctcTimer);
 	nextReq->senderData = curr.i;
@@ -12828,7 +12828,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 
       queued.remove(curr); 
       if(!done){
-	delivered.add(curr);
+        delivered.addFirst(curr);
 	curr.p->scanFragState = ScanFragRec::DELIVERED;
 	curr.p->stopFragTimer();
       } else {
@@ -14700,7 +14700,7 @@ void Dbtc::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 
   triggerPtr.i = req->triggerId;
   if (ERROR_INSERTED(8033) ||
-      !c_theDefinedTriggers.seizeId(triggerPtr, req->triggerId)) {
+      !c_theDefinedTriggers.getPool().seizeId(triggerPtr, req->triggerId)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to allocate trigger record
@@ -14715,6 +14715,7 @@ ref:
                signal, CreateTrigImplRef::SignalLength, JBB);
     return;
   }
+  c_theDefinedTriggers.addFirst(triggerPtr);
 
   triggerData = triggerPtr.p;
   triggerData->triggerId = req->triggerId;
@@ -14754,20 +14755,22 @@ ref:
     DefinedTriggerPtr insertPtr = triggerPtr;
     DefinedTriggerPtr updatePtr;
     DefinedTriggerPtr deletePtr;
-    if (c_theDefinedTriggers.seizeId(updatePtr, req->upgradeExtra[1]) == false)
+    if (c_theDefinedTriggers.getPool().seizeId(updatePtr, req->upgradeExtra[1]) == false)
     {
       jam();
       c_theDefinedTriggers.release(insertPtr);
       goto ref;
     }
+    c_theDefinedTriggers.addFirst(updatePtr);
 
-    if (c_theDefinedTriggers.seizeId(deletePtr, req->upgradeExtra[2]) == false)
+    if (c_theDefinedTriggers.getPool().seizeId(deletePtr, req->upgradeExtra[2]) == false)
     {
       jam();
       c_theDefinedTriggers.release(insertPtr);
       c_theDefinedTriggers.release(updatePtr);
       goto ref;
     }
+    c_theDefinedTriggers.addFirst(deletePtr);
 
     insertPtr.p->triggerEvent = TriggerEvent::TE_INSERT;
 
@@ -14872,7 +14875,7 @@ void Dbtc::execCREATE_INDX_IMPL_REQ(Signal* signal)
 
   SectionHandle handle(this, signal);
   if (ERROR_INSERTED(8034) ||
-      !c_theIndexes.seizeId(indexPtr, req->indexId)) {
+      !c_theIndexes.getPool().seizeId(indexPtr, req->indexId)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to allocate index record
@@ -14888,6 +14891,7 @@ void Dbtc::execCREATE_INDX_IMPL_REQ(Signal* signal)
                 signal, CreateIndxImplRef::SignalLength, JBB);
      return;
   }
+  c_theIndexes.addFirst(indexPtr);
   indexData = indexPtr.p;
   // Indexes always start in state IS_BUILDING
   // Will become IS_ONLINE in execALTER_INDX_IMPL_REQ
@@ -15238,7 +15242,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
       {
         LocalDLFifoList<TcFiredTriggerData>
           list(c_theFiredTriggerPool, opPtr.p->thePendingTriggers);
-        list.add(trigPtr);
+        list.addLast(trigPtr);
       }
 
       if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers ||
@@ -16526,7 +16530,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
 bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
 			       TcIndexOperationPtr& indexOpPtr)
 {
-  if (regApiPtr->theSeizedIndexOperations.seize(indexOpPtr))
+  if (regApiPtr->theSeizedIndexOperations.seizeFirst(indexOpPtr))
   {
     ndbassert(indexOpPtr.p->pendingKeyInfo == 0);
     ndbassert(indexOpPtr.p->keyInfoSectionIVal == RNIL);
@@ -16580,7 +16584,7 @@ void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
     indexOp->transIdAISectionIVal = RNIL;
     regApiPtr->theSeizedIndexOperations.next(seizedIndexOpPtr);    
   }
-  regApiPtr->theSeizedIndexOperations.release();
+  while (regApiPtr->theSeizedIndexOperations.releaseFirst());
 }
 
 void Dbtc::saveTriggeringOpState(Signal* signal, TcConnectRecord* trigOp)
@@ -18179,7 +18183,7 @@ void Dbtc::releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers)
     
     triggers->next(trigPtr);
   }
-  triggers->release();
+  while (triggers->releaseFirst());
 }
 
 void Dbtc::releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>*

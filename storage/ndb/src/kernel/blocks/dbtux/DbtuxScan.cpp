@@ -68,7 +68,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     }
     // seize from pool and link to per-fragment list
     if (ERROR_INSERTED(12008) ||
-        ! frag.m_scanList.seize(scanPtr)) {
+        ! frag.m_scanList.seizeFirst(scanPtr)) {
       CLEAR_ERROR_INSERT_VALUE;
       jam();
       // should never happen but can be used to test error handling
@@ -1240,7 +1240,7 @@ Dbtux::addAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp)
     list.next(lockPtr);
   }
 #endif
-  bool ok = list.seize(lockPtr);
+  bool ok = list.seizeLast(lockPtr);
   ndbrequire(ok);
   ndbrequire(accLockOp != RNIL);
   lockPtr.p->m_accLockOp = accLockOp;

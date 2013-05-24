@@ -27,9 +27,7 @@
 #include <NodeBitmask.hpp>
 #include <SimpleProperties.hpp>
 
-#include <SLList.hpp>
-#include <DLFifoList.hpp>
-#include <DLCFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <SignalCounter.hpp>
 #include <blocks/mutexes.hpp>
 

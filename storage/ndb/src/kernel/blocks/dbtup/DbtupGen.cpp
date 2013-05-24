@@ -35,7 +35,7 @@
 #include <signaldata/NodeStateSignalData.hpp>
 
 #include <signaldata/DropTab.hpp>
-#include <SLList.hpp>
+#include <IntrusiveList.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -807,21 +807,21 @@ Dbtup::initTab(Tablerec* const regTabPtr)
 
   // Clear trigger data
   if (!regTabPtr->afterInsertTriggers.isEmpty())
-    regTabPtr->afterInsertTriggers.release();
+    while (regTabPtr->afterInsertTriggers.releaseFirst());
   if (!regTabPtr->afterDeleteTriggers.isEmpty())
-    regTabPtr->afterDeleteTriggers.release();
+    while (regTabPtr->afterDeleteTriggers.releaseFirst());
   if (!regTabPtr->afterUpdateTriggers.isEmpty())
-    regTabPtr->afterUpdateTriggers.release();
+    while (regTabPtr->afterUpdateTriggers.releaseFirst());
   if (!regTabPtr->subscriptionInsertTriggers.isEmpty())
-    regTabPtr->subscriptionInsertTriggers.release();
+    while (regTabPtr->subscriptionInsertTriggers.releaseFirst());
   if (!regTabPtr->subscriptionDeleteTriggers.isEmpty())
-    regTabPtr->subscriptionDeleteTriggers.release();
+    while (regTabPtr->subscriptionDeleteTriggers.releaseFirst());
   if (!regTabPtr->subscriptionUpdateTriggers.isEmpty())
-    regTabPtr->subscriptionUpdateTriggers.release();
+    while (regTabPtr->subscriptionUpdateTriggers.releaseFirst());
   if (!regTabPtr->constraintUpdateTriggers.isEmpty())
-    regTabPtr->constraintUpdateTriggers.release();
+    while (regTabPtr->constraintUpdateTriggers.releaseFirst());
   if (!regTabPtr->tuxCustomTriggers.isEmpty())
-    regTabPtr->tuxCustomTriggers.release();
+    while (regTabPtr->tuxCustomTriggers.releaseFirst());
 }//Dbtup::initTab()
 
 void Dbtup::initializeTabDescr() 

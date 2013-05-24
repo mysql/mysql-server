@@ -68,7 +68,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     {
       // seize from pool and link to per-fragment list
       LocalDLList<ScanOp> list(c_scanOpPool, frag.m_scanList);
-      if (! list.seize(scanPtr)) {
+      if (! list.seizeFirst(scanPtr)) {
 	jam();
 	break;
       }
@@ -649,12 +649,12 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   } else {
     Disk_alloc_info& alloc = frag.m_disk_alloc_info;
     // for now must check disk part explicitly
-    if (alloc.m_extent_list.firstItem == RNIL) {
+    if (alloc.m_extent_list.isEmpty()) {
       jam();
       scan.m_state = ScanOp::Last;
       return;
     }
-    pos.m_extent_info_ptr_i = alloc.m_extent_list.firstItem;
+    pos.m_extent_info_ptr_i = alloc.m_extent_list.getFirst();
     Extent_info* ext = c_extent_pool.getPtr(pos.m_extent_info_ptr_i);
     key.m_file_no = ext->m_key.m_file_no;
     key.m_page_no = ext->m_first_page_no;
@@ -1233,7 +1233,7 @@ Dbtup::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
     list.next(lockPtr);
   }
 #endif
-  bool ok = list.seize(lockPtr);
+  bool ok = list.seizeLast(lockPtr);
   ndbrequire(ok);
   lockPtr.p->m_accLockOp = accLockOp;
 }
