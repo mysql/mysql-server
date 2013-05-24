@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,7 +44,7 @@ InnoDB Native API
 /*********************************************************************//**
 Sets a lock on a table.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 ib_trx_lock_table_with_retry(
 /*=========================*/
@@ -120,7 +120,7 @@ run_again:
 Handles user errors and lock waits detected by the database engine.
 @return TRUE if it was a lock wait and we should continue running
 the query thread */
-UNIV_INTERN
+
 ibool
 ib_handle_errors(
 /*=============*/

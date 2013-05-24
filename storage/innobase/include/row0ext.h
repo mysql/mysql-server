@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,7 +35,7 @@ Created September 2006 Marko Makela
 /********************************************************************//**
 Creates a cache of column prefixes of externally stored columns.
 @return	own: column prefix cache */
-UNIV_INTERN
+
 row_ext_t*
 row_ext_create(
 /*===========*/

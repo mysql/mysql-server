@@ -24,9 +24,7 @@
 #include "sql_priv.h"
 #include "filesort.h"
 #include "unireg.h"                      // REQUIRED by other includes
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>			/* for macro offsetof */
-#endif
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"

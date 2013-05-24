@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,9 +61,6 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   DBUG_ENTER("vio_init");
   DBUG_PRINT("enter", ("type: %d  sd: %d  flags: %d", type, sd, flags));
 
-#ifndef HAVE_VIO_READ_BUFF
-  flags&= ~VIO_BUFFERED_READ;
-#endif
   memset(vio, 0, sizeof(*vio));
   vio->type= type;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;

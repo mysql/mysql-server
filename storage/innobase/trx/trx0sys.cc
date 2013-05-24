@@ -54,17 +54,17 @@ struct file_format_t {
 };
 
 /** The transaction system */
-UNIV_INTERN trx_sys_t*		trx_sys		= NULL;
+trx_sys_t*		trx_sys		= NULL;
 
 /** In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. */
 /* @{ */
 /** Master binlog file name */
-UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 /** Master binlog file position.  We have successfully got the updates
 up to this position.  -1 means that no crash recovery was needed, or
 there was no master log position info inside InnoDB.*/
-UNIV_INTERN ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
+ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
 /* @} */
 
 /** If this MySQL server uses binary logging, after InnoDB has been inited
@@ -72,9 +72,9 @@ and if it has done a crash recovery, we store the binlog file name and position
 here. */
 /* @{ */
 /** Binlog file name */
-UNIV_INTERN char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 /** Binlog file position, or -1 if unknown */
-UNIV_INTERN ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
+ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
 /* @} */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -114,14 +114,14 @@ static const ulint	FILE_FORMAT_NAME_N
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register the mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	trx_sys_mutex_key;
+mysql_pfs_key_t	file_format_max_mutex_key;
+mysql_pfs_key_t	trx_sys_mutex_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
-UNIV_INTERN uint	trx_rseg_n_slots_debug = 0;
+uint	trx_rseg_n_slots_debug = 0;
 #endif
 
 /** This is used to track the maximum file format id known to InnoDB. It's
@@ -133,7 +133,7 @@ static	file_format_t	file_format_max;
 /****************************************************************//**
 Checks whether a trx is in one of rw_trx_list or ro_trx_list.
 @return	TRUE if is in */
-UNIV_INTERN
+
 ibool
 trx_in_trx_list(
 /*============*/
@@ -170,7 +170,7 @@ trx_in_trx_list(
 
 /*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */
-UNIV_INTERN
+
 void
 trx_sys_flush_max_trx_id(void)
 /*==========================*/
@@ -198,7 +198,7 @@ Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
 replication slave updates the latest master binlog position up to which
 replication has proceeded. */
-UNIV_INTERN
+
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
@@ -257,7 +257,7 @@ trx_sys_update_mysql_binlog_offset(
 /*****************************************************************//**
 Stores the MySQL binlog offset info in the trx system header if
 the magic number shows it valid, and print the info to stderr */
-UNIV_INTERN
+
 void
 trx_sys_print_mysql_binlog_offset(void)
 /*===================================*/
@@ -307,7 +307,7 @@ trx_sys_print_mysql_binlog_offset(void)
 /*****************************************************************//**
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */
-UNIV_INTERN
+
 void
 trx_sys_print_mysql_master_log_pos(void)
 /*====================================*/
@@ -361,7 +361,7 @@ trx_sys_print_mysql_master_log_pos(void)
 /****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
 @return	slot index or ULINT_UNDEFINED if not found */
-UNIV_INTERN
+
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
@@ -489,7 +489,7 @@ trx_rseg_compare_last_trx_no(
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
-UNIV_INTERN
+
 ib_bh_t*
 trx_sys_init_at_db_start(void)
 /*==========================*/
@@ -582,7 +582,7 @@ trx_sys_init_at_db_start(void)
 
 /*****************************************************************//**
 Creates the trx_sys instance and initializes ib_bh and mutex. */
-UNIV_INTERN
+
 void
 trx_sys_create(void)
 /*================*/
@@ -601,7 +601,7 @@ trx_sys_create(void)
 
 /*****************************************************************//**
 Creates and initializes the transaction system at the database creation. */
-UNIV_INTERN
+
 void
 trx_sys_create_sys_pages(void)
 /*==========================*/
@@ -692,7 +692,7 @@ trx_sys_file_format_max_read(void)
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the name */
-UNIV_INTERN
+
 const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
@@ -707,7 +707,7 @@ trx_sys_file_format_id_to_name(
 Check for the max file format tag stored on disk. Note: If max_format_id
 is == UNIV_FORMAT_MAX + 1 then we only print a warning.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 trx_sys_file_format_max_check(
 /*==========================*/
@@ -758,7 +758,7 @@ trx_sys_file_format_max_check(
 Set the file format id unconditionally except if it's already the
 same value.
 @return	TRUE if value updated */
-UNIV_INTERN
+
 ibool
 trx_sys_file_format_max_set(
 /*========================*/
@@ -788,7 +788,7 @@ Tags the system table space with minimum format id if it has not been
 tagged yet.
 WARNING: This function is only called during the startup and AFTER the
 redo log application during recovery has finished. */
-UNIV_INTERN
+
 void
 trx_sys_file_format_tag_init(void)
 /*==============================*/
@@ -807,7 +807,7 @@ trx_sys_file_format_tag_init(void)
 Update the file format tag in the system tablespace only if the given
 format id is greater than the known max id.
 @return	TRUE if format_id was bigger than the known max id */
-UNIV_INTERN
+
 ibool
 trx_sys_file_format_max_upgrade(
 /*============================*/
@@ -835,7 +835,7 @@ trx_sys_file_format_max_upgrade(
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the max format name */
-UNIV_INTERN
+
 const char*
 trx_sys_file_format_max_get(void)
 /*=============================*/
@@ -845,7 +845,7 @@ trx_sys_file_format_max_get(void)
 
 /*****************************************************************//**
 Initializes the tablespace tag system. */
-UNIV_INTERN
+
 void
 trx_sys_file_format_init(void)
 /*==========================*/
@@ -863,7 +863,7 @@ trx_sys_file_format_init(void)
 
 /*****************************************************************//**
 Closes the tablespace tag system. */
-UNIV_INTERN
+
 void
 trx_sys_file_format_close(void)
 /*===========================*/
@@ -874,7 +874,7 @@ trx_sys_file_format_close(void)
 /*********************************************************************
 Creates the rollback segments.
 @return number of rollback segments that are active. */
-UNIV_INTERN
+
 ulint
 trx_sys_create_rsegs(
 /*=================*/
@@ -940,7 +940,7 @@ trx_sys_create_rsegs(
 /*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
-UNIV_INTERN
+
 void
 trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
@@ -976,7 +976,7 @@ Even if the call succeeds and returns TRUE, the returned format id
 may be ULINT_UNDEFINED signalling that the format id was not present
 in the data file.
 @return TRUE if call succeeds */
-UNIV_INTERN
+
 ibool
 trx_sys_read_file_format_id(
 /*========================*/
@@ -1056,7 +1056,7 @@ trx_sys_read_file_format_id(
 /*****************************************************************//**
 Reads the file format id from the given per-table data file.
 @return TRUE if call succeeds */
-UNIV_INTERN
+
 ibool
 trx_sys_read_pertable_file_format_id(
 /*=================================*/
@@ -1138,7 +1138,7 @@ trx_sys_read_pertable_file_format_id(
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the name */
-UNIV_INTERN
+
 const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
@@ -1157,7 +1157,7 @@ trx_sys_file_format_id_to_name(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Shutdown/Close the transaction system. */
-UNIV_INTERN
+
 void
 trx_sys_close(void)
 /*===============*/
@@ -1245,7 +1245,7 @@ trx_sys_close(void)
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
-UNIV_INTERN
+
 ulint
 trx_sys_any_active_transactions(void)
 /*=================================*/
@@ -1296,7 +1296,7 @@ trx_sys_validate_trx_list_low(
 /*************************************************************//**
 Validate the trx_sys_t::rw_trx_list.
 @return true if the list is valid. */
-UNIV_INTERN
+
 bool
 trx_sys_validate_trx_list()
 /*=======================*/

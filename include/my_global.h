@@ -67,11 +67,6 @@
 #define IF_PURIFY(A,B) B
 #endif
 
-#ifndef EMBEDDED_LIBRARY
-#define HAVE_REPLICATION
-#define HAVE_EXTERNAL_CLIENT
-#endif
-
 #if defined (_WIN32)
 /*
  off_t is 32 bit long. We do not use C runtime functions
@@ -234,20 +229,12 @@
 #include <stdio.h>
 #endif
 #include <stdarg.h>
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>
-#endif
 
 #include <math.h>
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
-#ifdef HAVE_FLOAT_H
 #include <float.h>
-#endif
 #ifdef HAVE_FENV_H
 #include <fenv.h> /* For fesetround() */
 #endif
@@ -727,9 +714,7 @@ typedef long long	my_ptrdiff_t;
 
 /* Typdefs for easyier portability */
 
-#ifndef HAVE_UCHAR
 typedef unsigned char	uchar;	/* Short for unsigned char */
-#endif
 
 #ifndef HAVE_INT8
 typedef signed char int8;       /* Signed integer >= 8  bits */
