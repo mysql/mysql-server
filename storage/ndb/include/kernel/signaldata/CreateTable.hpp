@@ -59,6 +59,7 @@ struct CreateTableRef {
     Inconsistency = 706,
     NoMoreTableRecords = 707,
     NoMoreAttributeRecords = 708,
+    NoMoreHashmapRecords = 712,
     AttributeNameTwice = 720,
     TableAlreadyExist = 721,
     InvalidArraySize = 736,
