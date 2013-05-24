@@ -4777,7 +4777,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     {
       // We have received all data
       jam();
-      regApiPtr.p->theFiredTriggers.append(regTcPtr->thePendingTriggers);
+      regApiPtr.p->theFiredTriggers.appendList(regTcPtr->thePendingTriggers);
       executeTriggers(signal, &regApiPtr);
     }
     // else wait for more trigger data
@@ -15249,7 +15249,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
           transPtr.p->isExecutingDeferredTriggers())
       {
         jam();
-        transPtr.p->theFiredTriggers.append(opPtr.p->thePendingTriggers);
+        transPtr.p->theFiredTriggers.appendList(opPtr.p->thePendingTriggers);
 	executeTriggers(signal, &transPtr);
       }
       return;
@@ -18192,7 +18192,8 @@ void Dbtc::releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>*
   FiredTriggerPtr trigPtr;
 
   triggers->first(trigPtr);
-  while (trigPtr.i != RNIL) {
+  while (trigPtr.i != RNIL)
+  {
     jam();
     // Release trigger records
 
@@ -18203,9 +18204,10 @@ void Dbtc::releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>*
     tmp2.release();
     LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
     tmp3.release();
+    FiredTriggerPtr save = trigPtr;
     triggers->next(trigPtr);
+    triggers->release(save);
   }
-  triggers->release();
 }
 
 /**
