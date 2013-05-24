@@ -9330,6 +9330,12 @@ adjusted_frag_count(Ndb* ndb,
 }
 
 
+extern bool ndb_fk_util_truncate_allowed(THD* thd,
+                                         NdbDictionary::Dictionary* dict,
+                                         const char* db,
+                                         const NdbDictionary::Table* tab,
+                                         bool& allow);
+
 /**
   Create a table in NDB Cluster
 */
@@ -9446,9 +9452,27 @@ int ha_ndbcluster::create(const char *name,
   {
     Ndb_table_guard ndbtab_g(dict);
     ndbtab_g.init(m_tabname);
-    if (!(m_table= ndbtab_g.get_table()))
+    if (!ndbtab_g.get_table())
       ERR_RETURN(dict->getNdbError());
-    m_table= NULL;
+
+    /*
+      Don't allow truncate on table which is foreign key parent.
+      This is kind of a kludge to get legacy compatibility behaviour
+      but it also reduces the complexity involved in rewriting
+      fks during this "recreate".
+     */
+    bool allow;
+    if (!ndb_fk_util_truncate_allowed(thd, dict, m_dbname,
+                                      ndbtab_g.get_table(), allow))
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+    if (!allow)
+    {
+      my_error(ER_TRUNCATE_ILLEGAL_FK, MYF(0), "");
+      DBUG_RETURN(1);
+    }
+
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
     if ((my_errno= delete_table(name)))
       DBUG_RETURN(my_errno);

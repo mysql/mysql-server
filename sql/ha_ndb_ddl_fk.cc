@@ -1050,6 +1050,53 @@ public:
 
     DBUG_VOID_RETURN;
   }
+
+
+  bool truncate_allowed(NdbDictionary::Dictionary* dict, const char* db,
+                        const NdbDictionary::Table* table, bool& allow) const
+  {
+    DBUG_ENTER("truncate_allowed");
+
+    NdbDictionary::Dictionary::List list;
+    if (dict->listDependentObjects(list, *table) != 0)
+    {
+      error(dict, "Failed to list dependent objects for table '%s'", table->getName());
+      DBUG_RETURN(false);
+    }
+    allow = true;
+    for (unsigned i = 0; i < list.count; i++)
+    {
+      const NdbDictionary::Dictionary::List::Element& element = list.elements[i];
+      if (element.type != NdbDictionary::Object::ForeignKey)
+        continue;
+
+      DBUG_PRINT("info", ("fk: %s", element.name));
+
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, element.name) != 0)
+      {
+        error(dict, "Could not find the listed fk '%s'", element.name);
+        DBUG_ASSERT(false);
+        continue;
+      }
+
+      // Refuse if table is parent of fk
+      char parent_db_and_name[FN_LEN + 1];
+      const char * parent_name = fk_split_name(parent_db_and_name,
+                                               fk.getParentTable());
+      if (strcmp(db, parent_db_and_name) != 0 ||
+          strcmp(parent_name, table->getName()) != 0)
+      {
+        // Not parent of the fk, skip
+        continue;
+      }
+
+      allow = false;
+      break;
+    }
+    DBUG_PRINT("exit", ("allow: %u", allow));
+    DBUG_RETURN(true);
+  }
 };
 
 bool ndb_fk_util_build_list(THD* thd, NdbDictionary::Dictionary* dict,
@@ -1088,6 +1135,18 @@ ndb_fk_util_resolve_mock_tables(THD* thd, NdbDictionary::Dictionary* dict,
 {
   Fk_util fk_util(thd);
   fk_util.resolve_mock_tables(dict, new_parent_db, new_parent_name);
+}
+
+
+bool ndb_fk_util_truncate_allowed(THD* thd, NdbDictionary::Dictionary* dict,
+                                  const char* db,
+                                  const NdbDictionary::Table* table,
+                                  bool& allowed)
+{
+  Fk_util fk_util(thd);
+  if (!fk_util.truncate_allowed(dict, db, table, allowed))
+    return false;
+  return true;
 }
 
 

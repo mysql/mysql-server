@@ -44,3 +44,33 @@ add constraint fk3 foreign key (b) references t2(d);
 ERROR 42000: Duplicate key name 'fk3'
 SET foreign_key_checks=1;
 drop table t1, t2;
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=engine;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=engine;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (<fk_def>)
+set foreign_key_checks=1;
+truncate table t2;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (<fk_def>)
+set foreign_key_checks=0;
+drop table t1, t2;
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=engine;
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=engine;
+truncate table t1;
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+drop table t1, t2;
