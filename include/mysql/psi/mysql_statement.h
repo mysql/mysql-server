@@ -198,11 +198,11 @@ inline_mysql_set_statement_text(PSI_statement_locker *locker,
 
 static inline void
 inline_mysql_set_statement_parent(PSI_statement_locker *locker,
-                                  const void *head)
+                                  PSI_sp_share *sp_share)
 {
   if (likely(PSI_server && locker))
   {
-    PSI_server->set_statement_parent(locker, head);
+    PSI_server->set_statement_parent(locker, sp_share);
   }
 }
 

@@ -704,7 +704,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
     if (thd->m_statement_psi != NULL)
     {
-      MYSQL_SET_STATEMENT_PARENT(thd->m_statement_psi, this);
+      MYSQL_SET_STATEMENT_PARENT(thd->m_statement_psi, this->m_sp_share);
     }
 #endif
 
