@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1199,11 +1199,11 @@ static monitor_info_t	innodb_counter_info[] =
 };
 
 /* The "innodb_counter_value" array stores actual counter values */
-UNIV_INTERN monitor_value_t	innodb_counter_value[NUM_MONITOR];
+monitor_value_t	innodb_counter_value[NUM_MONITOR];
 
 /* monitor_set_tbl is used to record and determine whether a monitor
 has been turned on/off. */
-UNIV_INTERN ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
+ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 						- 1) / NUM_BITS_ULINT];
 
 #ifndef HAVE_ATOMIC_BUILTINS_64
@@ -1212,11 +1212,11 @@ built-in operations for atomic memory access */
 ib_mutex_t	monitor_mutex;
 
 /** Key to register monitor_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	monitor_mutex_key;
+mysql_pfs_key_t	monitor_mutex_key;
 
 /****************************************************************//**
 Initialize the monitor subsystem. */
-UNIV_INTERN
+
 void
 srv_mon_create(void)
 /*================*/
@@ -1225,7 +1225,7 @@ srv_mon_create(void)
 }
 /****************************************************************//**
 Close the monitor subsystem. */
-UNIV_INTERN
+
 void
 srv_mon_free(void)
 /*==============*/
@@ -1239,7 +1239,7 @@ Get a monitor's "monitor_info" by its monitor id (index into the
 innodb_counter_info array.
 @return	Point to corresponding monitor_info_t, or NULL if no such
 monitor */
-UNIV_INTERN
+
 monitor_info_t*
 srv_mon_get_info(
 /*=============*/
@@ -1258,7 +1258,7 @@ Get monitor's name by its monitor id (indexing into the
 innodb_counter_info array.
 @return	corresponding monitor name, or NULL if no such
 monitor */
-UNIV_INTERN
+
 const char*
 srv_mon_get_name(
 /*=============*/
@@ -1276,7 +1276,7 @@ srv_mon_get_name(
 Turn on/off, reset monitor counters in a module. If module_id
 is MONITOR_ALL_COUNTER then turn on all monitor counters.
 turned on because it has already been turned on. */
-UNIV_INTERN
+
 void
 srv_mon_set_module_control(
 /*=======================*/
@@ -1413,7 +1413,7 @@ corresponding monitors are turned on/off/reset, and do appropriate
 mathematics to deduct the actual value. Please also refer to
 srv_export_innodb_status() for related global counters used by
 the existing status variables.*/
-UNIV_INTERN
+
 void
 srv_mon_process_existing_counter(
 /*=============================*/
@@ -1620,7 +1620,7 @@ srv_mon_process_existing_counter(
 		break;
 
 	case MONITOR_OVLD_RWLOCK_X_SPIN_WAITS:
-		value = rw_lock_stats.rw_x_os_wait_count;
+		value = rw_lock_stats.rw_x_spin_wait_count;
 		break;
 
 	case MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS:
@@ -1842,7 +1842,7 @@ srv_mon_process_existing_counter(
 /*************************************************************//**
 Reset a monitor, create a new base line with the current monitor
 value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
-UNIV_INTERN
+
 void
 srv_mon_reset(
 /*==========*/
@@ -1890,7 +1890,7 @@ srv_mon_reset(
 
 /*************************************************************//**
 Turn on monitor counters that are marked as default ON. */
-UNIV_INTERN
+
 void
 srv_mon_default_on(void)
 /*====================*/

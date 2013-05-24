@@ -78,58 +78,56 @@ cmp_debug_dtuple_rec_with_match(
 				comparison */
 	__attribute__((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
+
+
 /*************************************************************//**
-This function is used to compare two data fields for which the data type
-is such that we must use MySQL code to compare them. The prototype here
-must be a copy of the one in ha_innobase.cc!
+Compare two data fields.
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-UNIV_INTERN
+UNIV_INLINE
 int
 innobase_mysql_cmp(
 /*===============*/
-	int		mysql_type,	/*!< in: MySQL type */
-	uint		charset_number,	/*!< in: number of the charset */
-	const unsigned char* a,		/*!< in: data field */
+	ulint		prtype,		/*!< in: precise type */
+	const byte*	a,		/*!< in: data field */
 	unsigned int	a_length,	/*!< in: data field length,
 					not UNIV_SQL_NULL */
-	const unsigned char* b,		/*!< in: data field */
-	unsigned int	b_length);	/*!< in: data field length,
+	const byte*	b,		/*!< in: data field */
+	unsigned int	b_length)	/*!< in: data field length,
 					not UNIV_SQL_NULL */
-/*************************************************************//**
-This function is used to compare two data fields for which the data type
-is such that we must use MySQL code to compare them. The prototype here
-must be a copy of the one in ha_innobase.cc!
-@return	1, 0, -1, if a is greater, equal, less than b, respectively */
-UNIV_INTERN
-int
-innobase_mysql_cmp_prefix(
-/*======================*/
-	int		mysql_type,	/*!< in: MySQL type */
-	uint		charset_number,	/*!< in: number of the charset */
-	const unsigned char* a,		/*!< in: data field */
-	unsigned int	a_length,	/*!< in: data field length,
-					not UNIV_SQL_NULL */
-	const unsigned char* b,		/*!< in: data field */
-	unsigned int	b_length);	/*!< in: data field length,
-					not UNIV_SQL_NULL */
-/*********************************************************************//**
-Transforms the character code so that it is ordered appropriately for the
-language. This is only used for the latin1 char set. MySQL does the
-comparisons for other char sets.
-@return	collation order position */
-UNIV_INLINE
-ulint
-cmp_collate(
-/*========*/
-	ulint	code)	/*!< in: code of a character stored in database record */
 {
-	return((ulint) srv_latin1_ordering[code]);
+#ifdef UNIV_DEBUG
+	switch (prtype & DATA_MYSQL_TYPE_MASK) {
+	case MYSQL_TYPE_BIT:
+	case MYSQL_TYPE_STRING:
+	case MYSQL_TYPE_VAR_STRING:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_VARCHAR:
+		break;
+	default:
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
+
+	uint cs_num = dtype_get_charset_coll(prtype);
+
+	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
+		int cmp = cs->coll->strnncollsp(
+			cs, a, a_length, b, b_length, 0);
+		return(cmp < 0 ? -1 : !!cmp);
+	}
+
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Unable to find charset-collation %u", cs_num);
+	return(0);
 }
 
 /*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
 @return	TRUE if the columns are considered equal in comparisons */
-UNIV_INTERN
+
 ibool
 cmp_cols_are_equal(
 /*===============*/
@@ -203,6 +201,7 @@ cmp_whole_field(
 	int		swap_flag	= 1;
 
 	switch (mtype) {
+		int	cmp;
 
 	case DATA_DECIMAL:
 		/* Remove preceding spaces */
@@ -279,22 +278,30 @@ cmp_whole_field(
 		}
 
 		return(0);
+	case DATA_VARCHAR:
+	case DATA_CHAR:
+		cmp = my_charset_latin1.coll->strnncollsp(
+			&my_charset_latin1, a, a_length, b, b_length, 0);
+
+		if (cmp < 0) {
+			return(-1);
+		} else if (cmp) {
+			return(1);
+		} else {
+			return(0);
+		}
 	case DATA_BLOB:
 		if (prtype & DATA_BINARY_TYPE) {
-
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Error: comparing a binary BLOB"
-				" with a character set sensitive\n"
-				"InnoDB: comparison!\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"comparing a binary BLOB"
+				" using a character set collation!");
+			ut_ad(0);
 		}
 		/* fall through */
 	case DATA_VARMYSQL:
 	case DATA_MYSQL:
-		return(innobase_mysql_cmp(
-			       (int)(prtype & DATA_MYSQL_TYPE_MASK),
-			       (uint) dtype_get_charset_coll(prtype),
-			       a, a_length, b, b_length));
+		return(innobase_mysql_cmp(prtype,
+					  a, a_length, b, b_length));
 	case DATA_GEOMETRY:
 		return(0);
 	default:
@@ -306,49 +313,11 @@ cmp_whole_field(
 	return(0);
 }
 
-/*****************************************************************
-This function is used to compare two dfields where at least the first
-has its data type field set. */
-UNIV_INTERN
-int
-cmp_dfield_dfield_like_prefix(
-/*==========================*/
-				/* out: 1, 0, -1, if dfield1 is greater, equal,
-				less than dfield2, respectively */
-	dfield_t*	dfield1,/* in: data field; must have type field set */
-	dfield_t*	dfield2)/* in: data field */
-{
-	const dtype_t*  type;
-	ulint           ret;
-
-	ut_ad(dfield_check_typed(dfield1));
-
-	type = dfield_get_type(dfield1);
-
-	if (type->mtype >= DATA_FLOAT) {
-		ret = innobase_mysql_cmp_prefix(
-			(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
-			(uint) dtype_get_charset_coll(type->prtype),
-			static_cast<byte*>(dfield_get_data(dfield1)),
-			dfield_get_len(dfield1),
-                        static_cast<byte*>(dfield_get_data(dfield2)),
-                        dfield_get_len(dfield2));
-        } else {
-                ret = (cmp_data_data_like_prefix(
-                        static_cast<byte*>(dfield_get_data(dfield1)),
-                        dfield_get_len(dfield1),
-                        static_cast<byte*>(dfield_get_data(dfield2)),
-                        dfield_get_len(dfield2)));
-        }
-
-        return(ret);
-}
-
 /*************************************************************//**
 This function is used to compare two data fields for which we know the
 data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
-UNIV_INTERN
+
 int
 cmp_data_data(
 /*==========*/
@@ -361,10 +330,6 @@ cmp_data_data(
 				buffer) */
 	ulint		len2)	/*!< in: data field length or UNIV_SQL_NULL */
 {
-	ulint	data1_byte;
-	ulint	data2_byte;
-	ulint	cur_bytes;
-
 	if (len1 == UNIV_SQL_NULL || len2 == UNIV_SQL_NULL) {
 
 		if (len1 == len2) {
@@ -382,236 +347,68 @@ cmp_data_data(
 		return(1);
 	}
 
-	if (mtype >= DATA_FLOAT
-	    || (mtype == DATA_BLOB
-		&& 0 == (prtype & DATA_BINARY_TYPE)
-		&& dtype_get_charset_coll(prtype)
-		!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
-
+	switch (mtype) {
+	case DATA_FIXBINARY:
+	case DATA_BINARY:
+	case DATA_INT:
+	case DATA_SYS_CHILD:
+	case DATA_SYS:
+		break;
+	case DATA_BLOB:
+		if (prtype & DATA_BINARY_TYPE) {
+			break;
+		}
+		/* fall through */
+	default:
 		return(cmp_whole_field(mtype, prtype,
 				       data1, (unsigned) len1,
 				       data2, (unsigned) len2));
 	}
 
 	/* Compare then the fields */
+	const ulint	pad = dtype_get_pad_char(mtype, prtype);
 
-	cur_bytes = 0;
+	for (ulint cur_bytes = 0;; cur_bytes++) {
+		ulint	data1_byte;
+		ulint	data2_byte;
 
-	for (;;) {
 		if (len1 <= cur_bytes) {
 			if (len2 <= cur_bytes) {
 
 				return(0);
 			}
 
-			data1_byte = dtype_get_pad_char(mtype, prtype);
+			data1_byte = pad;
 
 			if (data1_byte == ULINT_UNDEFINED) {
 
 				return(-1);
 			}
 		} else {
-			data1_byte = *data1;
+			data1_byte = *data1++;
 		}
 
 		if (len2 <= cur_bytes) {
-			data2_byte = dtype_get_pad_char(mtype, prtype);
+			data2_byte = pad;
 
 			if (data2_byte == ULINT_UNDEFINED) {
 
 				return(1);
 			}
 		} else {
-			data2_byte = *data2;
-		}
-
-		if (data1_byte == data2_byte) {
-			/* If the bytes are equal, they will remain such even
-			after the collation transformation below */
-
-			goto next_byte;
-		}
-
-		if (mtype <= DATA_CHAR
-		    || (DATA_LARGE_BINARY(mtype, prtype))) {
-
-			data1_byte = cmp_collate(data1_byte);
-			data2_byte = cmp_collate(data2_byte);
+			data2_byte = *data2++;
 		}
 
 		if (data1_byte > data2_byte) {
-
 			return(1);
 		} else if (data1_byte < data2_byte) {
-
 			return(-1);
 		}
-next_byte:
-		/* Next byte */
-		cur_bytes++;
-		data1++;
-		data2++;
 	}
 
 	return(0);		/* Not reached */
 }
 
-/*****************************************************************
-This function is used to compare two data fields for which we know the
-data type to be VARCHAR */
-UNIV_INTERN
-int
-cmp_data_data_slow_varchar(
-/*=======================*/
-				/* out: 1, 0, -1, if lhs is greater, equal,
-				less than rhs, respectively */
-	const byte*	lhs,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		lhs_len,/* in: data field length or UNIV_SQL_NULL */
-	const byte*	rhs,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		rhs_len)/* in: data field length or UNIV_SQL_NULL */
-{
-	ulint	i;
-
-	ut_a(rhs_len != UNIV_SQL_NULL);
-
-	if (lhs_len == UNIV_SQL_NULL) {
-
-		/* We define the SQL null to be the smallest possible
-		value of a field in the alphabetical order */
-
-		return(-1);
-	}
-
-	/* Compare the values.*/
-
-	for (i = 0; i < lhs_len && i < rhs_len; ++i, ++rhs, ++lhs) {
-		ulint	lhs_byte = *lhs;
-		ulint	rhs_byte = *rhs;
-
-		if (lhs_byte != rhs_byte) {
-			/* If the bytes are equal, they will remain such even
-			after the collation transformation below */
-
-			lhs_byte = cmp_collate(lhs_byte);
-			rhs_byte = cmp_collate(rhs_byte);
-
-			if (lhs_byte > rhs_byte) {
-
-				return(1);
-			} else if (lhs_byte < rhs_byte) {
-
-				return(-1);
-			}
-		}
-	}
-
-	return(i == lhs_len && i == rhs_len) ? 0 : rhs_len - lhs_len;
-}
-
-/*****************************************************************
-This function is used to compare two data fields for which we know the
-data type. The comparison is done for the LIKE operator.*/
-UNIV_INTERN
-int
-cmp_data_data_slow_like_prefix(
-/*===========================*/
-				/* out: 1, 0, -1, if lhs is greater, equal,
-				less than rhs, respectively */
-	const byte*	lhs,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
-	const byte*	rhs,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len2)	/* in: data field length or UNIV_SQL_NULL */
-{
-	ulint	i;
-
-	ut_a(len2 != UNIV_SQL_NULL);
-
-	if (len1 == UNIV_SQL_NULL) {
-
-		/* We define the SQL null to be the smallest possible
-		value of a field in the alphabetical order */
-
-		return(-1);
-	}
-
-	/* Compare the values.*/
-
-	for (i = 0; i < len1 && i < len2; ++i, ++rhs, ++lhs) {
-		ulint	lhs_byte = *lhs;
-		ulint	rhs_byte = *rhs;
-
-		if (lhs_byte != rhs_byte) {
-			/* If the bytes are equal, they will remain such even
-			after the collation transformation below */
-
-			lhs_byte = cmp_collate(lhs_byte);
-			rhs_byte = cmp_collate(rhs_byte);
-
-			if (lhs_byte > rhs_byte) {
-
-				return(1);
-			} else if (lhs_byte < rhs_byte) {
-
-				return(-1);
-			}
-		}
-	}
-
-	return(i == len2 ? 0 : 1);
-}
-
-/*****************************************************************
-This function is used to compare two data fields for which we know the
-data type. The comparison is done for the LIKE operator.*/
-UNIV_INTERN
-int
-cmp_data_data_slow_like_suffix(
-/*===========================*/
-				/* out: 1, 0, -1, if data1 is greater, equal,
-				less than data2, respectively */
-				/* in: data field (== a pointer to a
-				memory buffer) */
-	const byte*	data1 UNIV_UNUSED,
-				/* in: data field length or UNIV_SQL_NULL */
-	ulint		len1 UNIV_UNUSED,
-				/* in: data field (== a pointer to a memory
-				buffer) */
-	const byte*	data2 UNIV_UNUSED,
-				/* in: data field length or UNIV_SQL_NULL */
-	ulint		len2 UNIV_UNUSED)
-
-{
-	ut_error;	// FIXME:
-	return(1);
-}
-
-/*****************************************************************
-This function is used to compare two data fields for which we know the
-data type. The comparison is done for the LIKE operator.*/
-UNIV_INTERN
-int
-cmp_data_data_slow_like_substr(
-/*===========================*/
-				/* out: 1, 0, -1, if data1 is greater, equal,
-				less than data2, respectively */
-				/* in: data field (== a pointer to a
-				memory buffer) */
-	const byte*	data1 UNIV_UNUSED,
-				/* in: data field length or UNIV_SQL_NULL */
-	ulint		len1 UNIV_UNUSED,
-				/* in: data field (== a pointer to a memory
-				buffer) */
-	const byte*	data2 UNIV_UNUSED,
-				/* in: data field length or UNIV_SQL_NULL */
-	ulint		len2 UNIV_UNUSED)
-{
-	ut_error;	// FIXME:
-	return(1);
-}
 /*************************************************************//**
 This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for
@@ -623,7 +420,7 @@ made.
 @return 1, 0, -1, if dtuple is greater, equal, less than rec,
 respectively, when only the common first fields are compared, or until
 the first externally stored field in rec */
-UNIV_INTERN
+
 int
 cmp_dtuple_rec_with_match_low(
 /*==========================*/
@@ -740,12 +537,19 @@ cmp_dtuple_rec_with_match_low(
 			}
 		}
 
-		if (mtype >= DATA_FLOAT
-		    || (mtype == DATA_BLOB
-			&& 0 == (prtype & DATA_BINARY_TYPE)
-			&& dtype_get_charset_coll(prtype)
-			!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
-
+		switch (mtype) {
+		case DATA_FIXBINARY:
+		case DATA_BINARY:
+		case DATA_INT:
+		case DATA_SYS_CHILD:
+		case DATA_SYS:
+			break;
+		case DATA_BLOB:
+			if (prtype & DATA_BINARY_TYPE) {
+				break;
+			}
+			/* fall through */
+		default:
 			ret = cmp_whole_field(
 				mtype, prtype,
 				static_cast<const byte*>(
@@ -753,13 +557,12 @@ cmp_dtuple_rec_with_match_low(
 				(unsigned) dtuple_f_len,
 				rec_b_ptr, (unsigned) rec_f_len);
 
-			if (ret != 0) {
-				cur_bytes = 0;
-
-				goto order_resolved;
-			} else {
+			if (!ret) {
 				goto next_field;
 			}
+
+			cur_bytes = 0;
+			goto order_resolved;
 		}
 
 		/* Set the pointers at the current byte */
@@ -769,14 +572,15 @@ cmp_dtuple_rec_with_match_low(
 			+ cur_bytes;
 		/* Compare then the fields */
 
-		for (;;) {
+		for (const ulint pad = dtype_get_pad_char(mtype, prtype);;
+		     cur_bytes++) {
 			if (UNIV_UNLIKELY(rec_f_len <= cur_bytes)) {
 				if (dtuple_f_len <= cur_bytes) {
 
 					goto next_field;
 				}
 
-				rec_byte = dtype_get_pad_char(mtype, prtype);
+				rec_byte = pad;
 
 				if (rec_byte == ULINT_UNDEFINED) {
 					ret = 1;
@@ -784,12 +588,11 @@ cmp_dtuple_rec_with_match_low(
 					goto order_resolved;
 				}
 			} else {
-				rec_byte = *rec_b_ptr;
+				rec_byte = *rec_b_ptr++;
 			}
 
 			if (UNIV_UNLIKELY(dtuple_f_len <= cur_bytes)) {
-				dtuple_byte = dtype_get_pad_char(mtype,
-								 prtype);
+				dtuple_byte = pad;
 
 				if (dtuple_byte == ULINT_UNDEFINED) {
 					ret = -1;
@@ -797,39 +600,16 @@ cmp_dtuple_rec_with_match_low(
 					goto order_resolved;
 				}
 			} else {
-				dtuple_byte = *dtuple_b_ptr;
+				dtuple_byte = *dtuple_b_ptr++;
 			}
 
-			if (dtuple_byte == rec_byte) {
-				/* If the bytes are equal, they will
-				remain such even after the collation
-				transformation below */
-
-				goto next_byte;
+			if (dtuple_byte < rec_byte) {
+				ret = -1;
+				goto order_resolved;
+			} else if (dtuple_byte > rec_byte) {
+				ret = 1;
+				goto order_resolved;
 			}
-
-			if (mtype <= DATA_CHAR
-			    || (DATA_LARGE_BINARY(mtype, prtype))) {
-
-				rec_byte = cmp_collate(rec_byte);
-				dtuple_byte = cmp_collate(dtuple_byte);
-			}
-
-			ret = (int) (dtuple_byte - rec_byte);
-			if (UNIV_LIKELY(ret)) {
-				if (ret < 0) {
-					ret = -1;
-					goto order_resolved;
-				} else {
-					ret = 1;
-					goto order_resolved;
-				}
-			}
-next_byte:
-			/* Next byte */
-			cur_bytes++;
-			rec_b_ptr++;
-			dtuple_b_ptr++;
 		}
 
 next_field:
@@ -858,7 +638,7 @@ order_resolved:
 Compares a data tuple to a physical record.
 @see cmp_dtuple_rec_with_match
 @return 1, 0, -1, if dtuple is greater, equal, less than rec, respectively */
-UNIV_INTERN
+
 int
 cmp_dtuple_rec(
 /*===========*/
@@ -878,7 +658,7 @@ cmp_dtuple_rec(
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record.
 @return	TRUE if prefix */
-UNIV_INTERN
+
 ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
@@ -951,58 +731,53 @@ cmp_rec_rec_simple_field(
 		return(rec1_f_len == UNIV_SQL_NULL ? -1 : 1);
 	}
 
-	if (col->mtype >= DATA_FLOAT
-	    || (col->mtype == DATA_BLOB
-		&& !(col->prtype & DATA_BINARY_TYPE)
-		&& dtype_get_charset_coll(col->prtype)
-		!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
+	switch (col->mtype) {
+	case DATA_FIXBINARY:
+	case DATA_BINARY:
+	case DATA_INT:
+	case DATA_SYS_CHILD:
+	case DATA_SYS:
+		break;
+	case DATA_BLOB:
+		if (col->prtype & DATA_BINARY_TYPE) {
+			break;
+		}
+		/* fall through */
+	default:
 		return(cmp_whole_field(col->mtype, col->prtype,
 				       rec1_b_ptr, (unsigned) rec1_f_len,
 				       rec2_b_ptr, (unsigned) rec2_f_len));
 	}
 
 	/* Compare the fields */
-	for (ulint cur_bytes = 0;; cur_bytes++, rec1_b_ptr++, rec2_b_ptr++) {
-		ulint		rec1_byte;
-		ulint		rec2_byte;
+	const ulint pad = dtype_get_pad_char(col->mtype, col->prtype);
+
+	for (ulint cur_bytes = 0;; cur_bytes++) {
+		ulint	rec1_byte;
+		ulint	rec2_byte;
 
 		if (rec2_f_len <= cur_bytes) {
 			if (rec1_f_len <= cur_bytes) {
 				return(0);
 			}
 
-			rec2_byte = dtype_get_pad_char(
-				col->mtype, col->prtype);
+			rec2_byte = pad;
 
 			if (rec2_byte == ULINT_UNDEFINED) {
 				return(1);
 			}
 		} else {
-			rec2_byte = *rec2_b_ptr;
+			rec2_byte = *rec2_b_ptr++;
 		}
 
 		if (rec1_f_len <= cur_bytes) {
-			rec1_byte = dtype_get_pad_char(
-				col->mtype, col->prtype);
+			rec1_byte = pad;
 
 			if (rec1_byte == ULINT_UNDEFINED) {
 				return(-1);
 			}
 		} else {
-			rec1_byte = *rec1_b_ptr;
-		}
-
-		if (rec1_byte == rec2_byte) {
-			/* If the bytes are equal, they will remain such
-			even after the collation transformation below */
-			continue;
-		}
-
-		if (col->mtype <= DATA_CHAR
-		    || DATA_LARGE_BINARY(col->mtype, col->prtype)) {
-
-			rec1_byte = cmp_collate(rec1_byte);
-			rec2_byte = cmp_collate(rec2_byte);
+			rec1_byte = *rec1_b_ptr++;
 		}
 
 		if (rec1_byte < rec2_byte) {
@@ -1019,7 +794,7 @@ none of which are stored externally.
 @retval 1 if rec1 (including non-ordering columns) is greater than rec2
 @retval -1 if rec1 (including non-ordering columns) is less than rec2
 @retval 0 if rec1 is a duplicate of rec2 */
-UNIV_INTERN
+
 int
 cmp_rec_rec_simple(
 /*===============*/
@@ -1097,7 +872,7 @@ This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is
 encountered, then 0 is returned.
 @return 1, 0, -1 if rec1 is greater, equal, less, respectively */
-UNIV_INTERN
+
 int
 cmp_rec_rec_with_match(
 /*===================*/
@@ -1231,24 +1006,30 @@ cmp_rec_rec_with_match(
 			}
 		}
 
-		if (mtype >= DATA_FLOAT
-		    || (mtype == DATA_BLOB
-			&& 0 == (prtype & DATA_BINARY_TYPE)
-			&& dtype_get_charset_coll(prtype)
-			!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
-
+		switch (mtype) {
+		case DATA_FIXBINARY:
+		case DATA_BINARY:
+		case DATA_INT:
+		case DATA_SYS_CHILD:
+		case DATA_SYS:
+			break;
+		case DATA_BLOB:
+			if (prtype & DATA_BINARY_TYPE) {
+				break;
+			}
+			/* fall through */
+		default:
 			ret = cmp_whole_field(mtype, prtype,
 					      rec1_b_ptr,
 					      (unsigned) rec1_f_len,
 					      rec2_b_ptr,
 					      (unsigned) rec2_f_len);
-			if (ret != 0) {
-				cur_bytes = 0;
-
-				goto order_resolved;
-			} else {
+			if (!ret) {
 				goto next_field;
 			}
+
+			cur_bytes = 0;
+			goto order_resolved;
 		}
 
 		/* Set the pointers at the current byte */
@@ -1256,7 +1037,8 @@ cmp_rec_rec_with_match(
 		rec2_b_ptr = rec2_b_ptr + cur_bytes;
 
 		/* Compare then the fields */
-		for (;;) {
+		for (const ulint pad = dtype_get_pad_char(mtype, prtype);;
+		     cur_bytes++) {
 			if (rec2_f_len <= cur_bytes) {
 
 				if (rec1_f_len <= cur_bytes) {
@@ -1264,7 +1046,7 @@ cmp_rec_rec_with_match(
 					goto next_field;
 				}
 
-				rec2_byte = dtype_get_pad_char(mtype, prtype);
+				rec2_byte = pad;
 
 				if (rec2_byte == ULINT_UNDEFINED) {
 					ret = 1;
@@ -1272,11 +1054,11 @@ cmp_rec_rec_with_match(
 					goto order_resolved;
 				}
 			} else {
-				rec2_byte = *rec2_b_ptr;
+				rec2_byte = *rec2_b_ptr++;
 			}
 
 			if (rec1_f_len <= cur_bytes) {
-				rec1_byte = dtype_get_pad_char(mtype, prtype);
+				rec1_byte = pad;
 
 				if (rec1_byte == ULINT_UNDEFINED) {
 					ret = -1;
@@ -1284,22 +1066,7 @@ cmp_rec_rec_with_match(
 					goto order_resolved;
 				}
 			} else {
-				rec1_byte = *rec1_b_ptr;
-			}
-
-			if (rec1_byte == rec2_byte) {
-				/* If the bytes are equal, they will remain
-				such even after the collation transformation
-				below */
-
-				goto next_byte;
-			}
-
-			if (mtype <= DATA_CHAR
-			    || (DATA_LARGE_BINARY(mtype, prtype))) {
-
-				rec1_byte = cmp_collate(rec1_byte);
-				rec2_byte = cmp_collate(rec2_byte);
+				rec1_byte = *rec1_b_ptr++;
 			}
 
 			if (rec1_byte < rec2_byte) {
@@ -1309,12 +1076,6 @@ cmp_rec_rec_with_match(
 				ret = 1;
 				goto order_resolved;
 			}
-next_byte:
-			/* Next byte */
-
-			cur_bytes++;
-			rec1_b_ptr++;
-			rec2_b_ptr++;
 		}
 
 next_field:

@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (C) 2009, 2010 Facebook, Inc. All Rights Reserved.
-Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -92,7 +92,7 @@ static ib_uint32_t	ut_crc32_slice8_table[8][256];
 static ibool		ut_crc32_slice8_table_initialized = FALSE;
 
 /* Flag that tells whether the CPU supports CRC32 or not */
-UNIV_INTERN bool	ut_crc32_sse2_enabled = false;
+bool	ut_crc32_sse2_enabled = false;
 
 /********************************************************************//**
 Initializes the table that is used to generate the CRC32 if the CPU does
@@ -271,7 +271,7 @@ ut_crc32_slice8(
 /********************************************************************//**
 Initializes the data structures used by ut_crc32(). Does not do any
 allocations, would not hurt if called twice, but would be pointless. */
-UNIV_INTERN
+
 void
 ut_crc32_init()
 /*===========*/

@@ -37,14 +37,14 @@ this MySQL installation to this global variable. If we have < 4.1.2 format
 column definitions, or records in the insert buffer, we use this
 charset-collation code for them. */
 
-UNIV_INTERN ulint	data_mysql_default_charset_coll;
+ulint	data_mysql_default_charset_coll;
 
 /*********************************************************************//**
 Determine how many bytes the first n characters of the given string occupy.
 If the string is shorter than n characters, returns the number of bytes
 the characters in the string occupy.
 @return	length of the prefix, in bytes */
-UNIV_INTERN
+
 ulint
 dtype_get_at_most_n_mbchars(
 /*========================*/
@@ -85,7 +85,7 @@ dtype_get_at_most_n_mbchars(
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type.
 @return	TRUE if string type */
-UNIV_INTERN
+
 ibool
 dtype_is_string_type(
 /*=================*/
@@ -106,7 +106,7 @@ Checks if a type is a binary string type. Note that for tables created with
 < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
 those DATA_BLOB columns this function currently returns FALSE.
 @return	TRUE if binary string type */
-UNIV_INTERN
+
 ibool
 dtype_is_binary_string_type(
 /*========================*/
@@ -129,7 +129,7 @@ TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
 with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
 For those DATA_BLOB columns this function currently returns TRUE.
 @return	TRUE if non-binary string type */
-UNIV_INTERN
+
 ibool
 dtype_is_non_binary_string_type(
 /*============================*/
@@ -149,7 +149,7 @@ dtype_is_non_binary_string_type(
 Forms a precise type from the < 4.1.2 format precise type plus the
 charset-collation code.
 @return precise type, including the charset-collation code */
-UNIV_INTERN
+
 ulint
 dtype_form_prtype(
 /*==============*/
@@ -166,7 +166,7 @@ dtype_form_prtype(
 /*********************************************************************//**
 Validates a data type structure.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 dtype_validate(
 /*===========*/
@@ -190,7 +190,7 @@ dtype_validate(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Prints a data type structure. */
-UNIV_INTERN
+
 void
 dtype_print(
 /*========*/
