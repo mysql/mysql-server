@@ -2302,14 +2302,15 @@ create:
             lex->sql_command= SQLCOM_CREATE_TABLE;
             if (!lex->select_lex->add_table_to_list(thd, $5, NULL,
                                                     TL_OPTION_UPDATING,
-                                                    TL_WRITE, MDL_EXCLUSIVE))
+                                                    TL_WRITE, MDL_SHARED))
               MYSQL_YYABORT;
             /*
-              For CREATE TABLE, an non-existing table is not an error.
-              Instruct open_tables() to just take an MDL lock if the
-              table does not exist.
+              Instruct open_table() to acquire SHARED lock to check the
+              existance of table. If the table does not exist then
+              it will be upgraded EXCLUSIVE MDL lock. If table exist
+              then open_table() will return with an error or warning.
             */
-            lex->query_tables->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+            lex->query_tables->open_strategy= TABLE_LIST::OPEN_FOR_CREATE;
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->change=NullS;
