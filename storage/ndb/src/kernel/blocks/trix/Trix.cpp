@@ -1643,7 +1643,7 @@ Trix::execBUILD_FK_IMPL_REQ(Signal* signal)
   SubscriptionRecPtr subRecPtr;
   SectionHandle handle(this, signal);
 
-  if (!c_theSubscriptions.seize(subRecPtr))
+  if (!c_theSubscriptions.seizeFirst(subRecPtr))
   {
     jam();
     // Failed to allocate subscription record
