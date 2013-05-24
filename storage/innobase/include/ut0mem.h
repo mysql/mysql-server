@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -72,7 +72,7 @@ ut_memcmp(const void* str1, const void* str2, ulint n);
 
 /**********************************************************************//**
 Initializes the mem block list at database startup. */
-UNIV_INTERN
+
 void
 ut_mem_init(void);
 /*=============*/
@@ -80,7 +80,7 @@ ut_mem_init(void);
 /**********************************************************************//**
 Allocates memory.
 @return	own: allocated memory */
-UNIV_INTERN
+
 void*
 ut_malloc_low(
 /*==========*/
@@ -94,7 +94,7 @@ Allocates memory. */
 /**********************************************************************//**
 Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
 a nop. */
-UNIV_INTERN
+
 void
 ut_free(
 /*====*/
@@ -125,7 +125,7 @@ RETURN VALUE
        original	 block	is  left  untouched  - it is not freed or
        moved.
 @return	own: pointer to new mem block or NULL */
-UNIV_INTERN
+
 void*
 ut_realloc(
 /*=======*/
@@ -133,7 +133,7 @@ ut_realloc(
 	ulint	size);	/*!< in: desired size */
 /**********************************************************************//**
 Frees in shutdown all allocated memory not freed yet. */
-UNIV_INTERN
+
 void
 ut_free_all_mem(void);
 /*=================*/
@@ -168,7 +168,7 @@ Copies up to size - 1 characters from the NUL-terminated string src to
 dst, NUL-terminating the result. Returns strlen(src), so truncation
 occurred if the return value >= size.
 @return	strlen(src) */
-UNIV_INTERN
+
 ulint
 ut_strlcpy(
 /*=======*/
@@ -180,7 +180,7 @@ ut_strlcpy(
 Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
 (size - 1) bytes of src, not the first.
 @return	strlen(src) */
-UNIV_INTERN
+
 ulint
 ut_strlcpy_rev(
 /*===========*/
@@ -192,7 +192,7 @@ ut_strlcpy_rev(
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once.
 @return	the number of times s2 occurs in s1 */
-UNIV_INTERN
+
 ulint
 ut_strcount(
 /*========*/
@@ -203,7 +203,7 @@ ut_strcount(
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once.
 @return	own: modified string, must be freed with mem_free() */
-UNIV_INTERN
+
 char*
 ut_strreplace(
 /*==========*/

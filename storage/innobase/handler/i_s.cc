@@ -744,7 +744,7 @@ static struct st_mysql_information_schema	i_s_info =
 	MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
 };
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
+struct st_mysql_plugin	i_s_innodb_trx =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1007,7 +1007,7 @@ innodb_locks_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_locks =
+struct st_mysql_plugin	i_s_innodb_locks =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1194,7 +1194,7 @@ innodb_lock_waits_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
+struct st_mysql_plugin	i_s_innodb_lock_waits =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1531,7 +1531,7 @@ i_s_cmp_reset_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp =
+struct st_mysql_plugin	i_s_innodb_cmp =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1584,7 +1584,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp =
 	STRUCT_FLD(flags, 0UL),
 };
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
+struct st_mysql_plugin	i_s_innodb_cmp_reset =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1889,7 +1889,7 @@ i_s_cmp_per_index_reset_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_per_index =
+struct st_mysql_plugin	i_s_innodb_cmp_per_index =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1942,7 +1942,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_per_index =
 	STRUCT_FLD(flags, 0UL),
 };
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_per_index_reset =
+struct st_mysql_plugin	i_s_innodb_cmp_per_index_reset =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -2188,7 +2188,7 @@ i_s_cmpmem_reset_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem =
+struct st_mysql_plugin	i_s_innodb_cmpmem =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -2241,7 +2241,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem =
 	STRUCT_FLD(flags, 0UL),
 };
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
+struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -2770,7 +2770,7 @@ innodb_metrics_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
+struct st_mysql_plugin	i_s_innodb_metrics =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -2887,7 +2887,7 @@ i_s_stopword_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_default_stopword =
+struct st_mysql_plugin	i_s_innodb_ft_default_stopword =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -3059,7 +3059,7 @@ i_s_fts_deleted_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_deleted =
+struct st_mysql_plugin	i_s_innodb_ft_deleted =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -3146,7 +3146,7 @@ i_s_fts_being_deleted_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_being_deleted =
+struct st_mysql_plugin	i_s_innodb_ft_being_deleted =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -3413,7 +3413,7 @@ i_s_fts_index_cache_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_index_cache =
+struct st_mysql_plugin	i_s_innodb_ft_index_cache =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -3718,7 +3718,7 @@ i_s_fts_index_table_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_index_table =
+struct st_mysql_plugin	i_s_innodb_ft_index_table =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -3916,7 +3916,7 @@ i_s_fts_config_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_config =
+struct st_mysql_plugin	i_s_innodb_ft_config =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -4200,7 +4200,7 @@ i_s_innodb_temp_table_info_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_temp_table_info =
+struct st_mysql_plugin	i_s_innodb_temp_table_info =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -4724,7 +4724,7 @@ i_s_innodb_buffer_pool_stats_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_stats =
+struct st_mysql_plugin	i_s_innodb_buffer_stats =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -5427,7 +5427,7 @@ i_s_innodb_buffer_page_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_page =
+struct st_mysql_plugin	i_s_innodb_buffer_page =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -5975,7 +5975,7 @@ i_s_innodb_buffer_page_lru_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_page_lru =
+struct st_mysql_plugin	i_s_innodb_buffer_page_lru =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -6272,7 +6272,7 @@ innodb_sys_tables_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tables =
+struct st_mysql_plugin	i_s_innodb_sys_tables =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -6566,7 +6566,7 @@ innodb_sys_tablestats_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tablestats =
+struct st_mysql_plugin	i_s_innodb_sys_tablestats =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -6822,7 +6822,7 @@ innodb_sys_indexes_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_indexes =
+struct st_mysql_plugin	i_s_innodb_sys_indexes =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -7063,7 +7063,7 @@ innodb_sys_columns_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_columns =
+struct st_mysql_plugin	i_s_innodb_sys_columns =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -7277,7 +7277,7 @@ innodb_sys_fields_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_fields =
+struct st_mysql_plugin	i_s_innodb_sys_fields =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -7506,7 +7506,7 @@ innodb_sys_foreign_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign =
+struct st_mysql_plugin	i_s_innodb_sys_foreign =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -7727,7 +7727,7 @@ innodb_sys_foreign_cols_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
+struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -7995,7 +7995,7 @@ innodb_sys_tablespaces_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tablespaces =
+struct st_mysql_plugin	i_s_innodb_sys_tablespaces =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -8188,7 +8188,7 @@ innodb_sys_datafiles_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_datafiles =
+struct st_mysql_plugin	i_s_innodb_sys_datafiles =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */

@@ -24,6 +24,7 @@
   replication slave.
 */
 
+#ifdef HAVE_REPLICATION
 #include "sql_priv.h"
 #include "my_global.h"
 #include "rpl_slave.h"
@@ -54,8 +55,6 @@
 #include "dynamic_ids.h"
 #include "rpl_rli_pdb.h"
 #include "global_threads.h"
-
-#ifdef HAVE_REPLICATION
 
 #include "rpl_tblmap.h"
 #include "debug_sync.h"
@@ -488,6 +487,13 @@ int init_recovery(Master_info* mi, const char** errmsg)
     rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
   }
 
+  /*
+    Clear the retrieved GTID set so that events that are written partially
+    will be fetched again.
+    */
+  global_sid_lock->wrlock();
+  (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
+  global_sid_lock->unlock();
   DBUG_RETURN(error);
 }
 

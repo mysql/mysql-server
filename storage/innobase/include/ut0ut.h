@@ -200,7 +200,7 @@ ut_2_exp(
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
 @return	first power of 2 which is >= n */
-UNIV_INTERN
+
 ulint
 ut_2_power_up(
 /*==========*/
@@ -217,7 +217,7 @@ store the given number of bits.
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime.
 @return	system time */
-UNIV_INTERN
+
 ib_time_t
 ut_time(void);
 /*=========*/
@@ -228,7 +228,7 @@ Upon successful completion, the value 0 is returned; otherwise the
 value -1 is returned and the global variable errno is set to indicate the
 error.
 @return	0 on success, -1 otherwise */
-UNIV_INTERN
+
 int
 ut_usectime(
 /*========*/
@@ -240,7 +240,7 @@ Returns the number of microseconds since epoch. Similar to
 time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
 @return	us since epoch */
-UNIV_INTERN
+
 ullint
 ut_time_us(
 /*=======*/
@@ -250,7 +250,7 @@ Returns the number of milliseconds since some epoch.  The
 value may wrap around.  It should only be used for heuristic
 purposes.
 @return	ms since epoch */
-UNIV_INTERN
+
 ulint
 ut_time_ms(void);
 /*============*/
@@ -261,7 +261,7 @@ Returns the number of milliseconds since some epoch.  The
 value may wrap around.  It should only be used for heuristic
 purposes.
 @return ms since epoch */
-UNIV_INTERN
+
 ulint
 ut_time_ms(void);
 /*============*/
@@ -269,7 +269,7 @@ ut_time_ms(void);
 /**********************************************************//**
 Returns the difference of two times in seconds.
 @return	time2 - time1 expressed in seconds */
-UNIV_INTERN
+
 double
 ut_difftime(
 /*========*/
@@ -280,7 +280,7 @@ ut_difftime(
 
 /**********************************************************//**
 Prints a timestamp to a file. */
-UNIV_INTERN
+
 void
 ut_print_timestamp(
 /*===============*/
@@ -291,7 +291,7 @@ ut_print_timestamp(
 
 /**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
-UNIV_INTERN
+
 void
 ut_sprintf_timestamp(
 /*=================*/
@@ -300,14 +300,14 @@ ut_sprintf_timestamp(
 /**********************************************************//**
 Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'. */
-UNIV_INTERN
+
 void
 ut_sprintf_timestamp_without_extra_chars(
 /*=====================================*/
 	char*	buf); /*!< in: buffer where to sprintf */
 /**********************************************************//**
 Returns current year, month, day. */
-UNIV_INTERN
+
 void
 ut_get_year_month_day(
 /*==================*/
@@ -319,7 +319,7 @@ ut_get_year_month_day(
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++.
 @return	dummy value */
-UNIV_INTERN
+
 ulint
 ut_delay(
 /*=====*/
@@ -327,7 +327,7 @@ ut_delay(
 #endif /* UNIV_HOTBACKUP */
 /*************************************************************//**
 Prints the contents of a memory buffer in hex and ascii. */
-UNIV_INTERN
+
 void
 ut_print_buf(
 /*=========*/
@@ -338,7 +338,7 @@ ut_print_buf(
 #ifndef DBUG_OFF
 /*************************************************************//**
 Prints the contents of a memory buffer in hex. */
-UNIV_INTERN
+
 void
 ut_print_buf_hex(
 /*=============*/
@@ -348,7 +348,7 @@ ut_print_buf_hex(
 	__attribute__((nonnull));
 /*************************************************************//**
 Prints the contents of a memory buffer in hex and ascii. */
-UNIV_INTERN
+
 void
 ut_print_buf(
 /*=========*/
@@ -360,7 +360,7 @@ ut_print_buf(
 
 /**********************************************************************//**
 Outputs a NUL-terminated file name, quoted with apostrophes. */
-UNIV_INTERN
+
 void
 ut_print_filename(
 /*==============*/
@@ -376,7 +376,7 @@ Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier. */
-UNIV_INTERN
+
 void
 ut_print_name(
 /*==========*/
@@ -391,7 +391,7 @@ Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier. */
-UNIV_INTERN
+
 void
 ut_print_namel(
 /*===========*/
@@ -407,7 +407,7 @@ Formats a table or index name, quoted as an SQL identifier. If the name
 contains a slash '/', the result will contain two identifiers separated by
 a period (.), as in SQL database_name.identifier.
 @return pointer to 'formatted' */
-UNIV_INTERN
+
 char*
 ut_format_name(
 /*===========*/
@@ -422,7 +422,7 @@ ut_format_name(
 
 /**********************************************************************//**
 Catenate files. */
-UNIV_INTERN
+
 void
 ut_copy_file(
 /*=========*/
@@ -438,7 +438,7 @@ characters that would have been printed if the buffer was unlimited because
 VC's _vsnprintf() returns -1 in this case and we would need to call
 _vscprintf() in addition to estimate that but we would need another copy
 of "ap" for that and VC does not provide va_copy(). */
-UNIV_INTERN
+
 void
 ut_vsnprintf(
 /*=========*/
@@ -452,7 +452,7 @@ A substitute for snprintf(3), formatted output conversion into
 a limited buffer.
 @return number of characters that would have been printed if the size
 were unlimited, not including the terminating '\0'. */
-UNIV_INTERN
+
 int
 ut_snprintf(
 /*========*/
@@ -480,7 +480,7 @@ a limited buffer. */
 Convert an error number to a human readable text message. The
 returned string is static and should not be freed or modified.
 @return	string, describing the error */
-UNIV_INTERN
+
 const char*
 ut_strerr(
 /*======*/

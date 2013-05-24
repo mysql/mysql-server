@@ -229,10 +229,10 @@ struct fts_msg_t {
 };
 
 /** The number of words to read and optimize in a single pass. */
-UNIV_INTERN ulong	fts_num_word_optimize;
+ulong	fts_num_word_optimize;
 
 // FIXME
-UNIV_INTERN char	fts_enable_diag_print;
+char	fts_enable_diag_print;
 
 /** ZLib compressed block size.*/
 static ulint FTS_ZIP_BLOCK_SIZE	= 1024;
@@ -335,7 +335,7 @@ fts_zip_init(
 /**********************************************************************//**
 Create a fts_optimizer_word_t instance.
 @return new instance */
-UNIV_INTERN
+
 fts_word_t*
 fts_word_init(
 /*==========*/
@@ -420,7 +420,7 @@ fts_optimize_read_node(
 /**********************************************************************//**
 Callback function to fetch the rows in an FTS INDEX record.
 @return always returns non-NULL */
-UNIV_INTERN
+
 ibool
 fts_optimize_index_fetch_node(
 /*==========================*/
@@ -461,7 +461,7 @@ fts_optimize_index_fetch_node(
 /**********************************************************************//**
 Read the rows from the FTS inde.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_index_fetch_nodes(
 /*==================*/
@@ -957,7 +957,7 @@ fts_fetch_doc_ids(
 /**********************************************************************//**
 Read the rows from a FTS common auxiliary table.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_table_fetch_doc_ids(
 /*====================*/
@@ -1024,7 +1024,7 @@ fts_table_fetch_doc_ids(
 Do a binary search for a doc id in the array
 @return +ve index if found -ve index where it should be inserted
         if not found */
-UNIV_INTERN
+
 int
 fts_bsearch(
 /*========*/
@@ -1509,7 +1509,7 @@ fts_optimize_write_word(
 
 /**********************************************************************//**
 Free fts_optimizer_word_t instanace.*/
-UNIV_INTERN
+
 void
 fts_word_free(
 /*==========*/
@@ -2423,7 +2423,7 @@ fts_optimize_table_bk(
 /*********************************************************************//**
 Run OPTIMIZE on the given table.
 @return DB_SUCCESS if all OK */
-UNIV_INTERN
+
 dberr_t
 fts_optimize_table(
 /*===============*/
@@ -2545,7 +2545,7 @@ fts_optimize_create_msg(
 
 /**********************************************************************//**
 Add the table to add to the OPTIMIZER's list. */
-UNIV_INTERN
+
 void
 fts_optimize_add_table(
 /*===================*/
@@ -2567,7 +2567,7 @@ fts_optimize_add_table(
 
 /**********************************************************************//**
 Optimize a table. */
-UNIV_INTERN
+
 void
 fts_optimize_do_table(
 /*==================*/
@@ -2588,7 +2588,7 @@ fts_optimize_do_table(
 /**********************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
 acknowledgement from the consumer of the message. */
-UNIV_INTERN
+
 void
 fts_optimize_remove_table(
 /*======================*/
@@ -2913,7 +2913,7 @@ fts_optimize_need_sync(
 /**********************************************************************//**
 Optimize all FTS tables.
 @return Dummy return */
-UNIV_INTERN
+
 os_thread_ret_t
 fts_optimize_thread(
 /*================*/
@@ -3093,7 +3093,7 @@ fts_optimize_thread(
 
 /**********************************************************************//**
 Startup the optimize thread and create the work queue. */
-UNIV_INTERN
+
 void
 fts_optimize_init(void)
 /*===================*/
@@ -3113,7 +3113,7 @@ fts_optimize_init(void)
 /**********************************************************************//**
 Check whether the work queue is initialized.
 @return TRUE if optimze queue is initialized. */
-UNIV_INTERN
+
 ibool
 fts_optimize_is_init(void)
 /*======================*/
@@ -3123,7 +3123,7 @@ fts_optimize_is_init(void)
 
 /**********************************************************************//**
 Signal the optimize thread to prepare for shutdown. */
-UNIV_INTERN
+
 void
 fts_optimize_start_shutdown(void)
 /*=============================*/
@@ -3162,7 +3162,7 @@ fts_optimize_start_shutdown(void)
 
 /**********************************************************************//**
 Reset the work queue. */
-UNIV_INTERN
+
 void
 fts_optimize_end(void)
 /*==================*/

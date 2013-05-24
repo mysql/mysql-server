@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,7 +46,7 @@ record is stored. It can be undefined (ULINT_UNDEFINED) in two cases:
    bit_no is calculated in this function by using
    lock_rec_find_set_bit(). There is exactly one bit set in the bitmap
    of a wait lock. */
-UNIV_INTERN
+
 void
 lock_queue_iterator_reset(
 /*======================*/

@@ -53,7 +53,7 @@ struct os_mutex_t{
 
 /** Mutex protecting counts and the event and OS 'slow' mutex lists
 as well as the win_thread_map. */
-UNIV_INTERN os_ib_mutex_t	os_sync_mutex;
+os_ib_mutex_t	os_sync_mutex;
 /** TRUE if os_sync_mutex has been initialized */
 static ibool		os_sync_mutex_inited	= FALSE;
 /** TRUE when os_sync_free() is being executed */
@@ -61,7 +61,7 @@ static ibool		os_sync_free_called	= FALSE;
 
 /** This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
-UNIV_INTERN ulint	os_thread_count		= 0;
+ulint	os_thread_count		= 0;
 
 /** The list of all events created */
 static UT_LIST_BASE_NODE_T(os_event)		os_event_list;
@@ -69,16 +69,16 @@ static UT_LIST_BASE_NODE_T(os_event)		os_event_list;
 /** The list of all OS 'slow' mutexes */
 static UT_LIST_BASE_NODE_T(os_mutex_t)		os_mutex_list;
 
-UNIV_INTERN ulint	os_event_count		= 0;
-UNIV_INTERN ulint	os_mutex_count		= 0;
-UNIV_INTERN ulint	os_fast_mutex_count	= 0;
+ulint	os_event_count		= 0;
+ulint	os_mutex_count		= 0;
+ulint	os_fast_mutex_count	= 0;
 
 /* The number of microsecnds in a second. */
 static const ulint MICROSECS_IN_A_SECOND = 1000000;
 
 #ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	event_os_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	os_mutex_key;
+mysql_pfs_key_t	event_os_mutex_key;
+mysql_pfs_key_t	os_mutex_key;
 #endif
 
 /* Because a mutex is embedded inside an event and there is an
@@ -304,7 +304,7 @@ os_cond_module_init(void)
 
 /*********************************************************//**
 Initializes global event and OS 'slow' mutex lists. */
-UNIV_INTERN
+
 void
 os_sync_init(void)
 /*==============*/
@@ -325,7 +325,7 @@ os_sync_init(void)
 
 /*********************************************************//**
 Frees created events and OS 'slow' mutexes. */
-UNIV_INTERN
+
 void
 os_sync_free(void)
 /*==============*/
@@ -364,7 +364,7 @@ Creates an event semaphore, i.e., a semaphore which may just have two
 states: signaled and nonsignaled. The created event is manual reset: it
 must be reset explicitly by calling sync_os_reset_event.
 @return	the event handle */
-UNIV_INTERN
+
 os_event_t
 os_event_create(void)
 /*==================*/
@@ -429,7 +429,7 @@ os_event_create(void)
 /**********************************************************//**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
-UNIV_INTERN
+
 void
 os_event_set(
 /*=========*/
@@ -465,7 +465,7 @@ that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low().
 @return	current signal_count. */
-UNIV_INTERN
+
 ib_int64_t
 os_event_reset(
 /*===========*/
@@ -528,7 +528,7 @@ os_event_free_internal(
 
 /**********************************************************//**
 Frees an event object. */
-UNIV_INTERN
+
 void
 os_event_free(
 /*==========*/
@@ -576,7 +576,7 @@ thread C calls os_event_wait()  [infinite wait!]
 Where such a scenario is possible, to avoid infinite wait, the
 value returned by os_event_reset() should be passed in as
 reset_sig_count. */
-UNIV_INTERN
+
 void
 os_event_wait_low(
 /*==============*/
@@ -622,7 +622,7 @@ os_event_wait_low(
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded.
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-UNIV_INTERN
+
 ulint
 os_event_wait_time_low(
 /*===================*/
@@ -734,7 +734,7 @@ os_event_wait_time_low(
 Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (ib_mutex_t) should be used where possible.
 @return	the mutex handle */
-UNIV_INTERN
+
 os_ib_mutex_t
 os_mutex_create(void)
 /*=================*/
@@ -771,7 +771,7 @@ os_mutex_create(void)
 
 /**********************************************************//**
 Acquires ownership of a mutex semaphore. */
-UNIV_INTERN
+
 void
 os_mutex_enter(
 /*===========*/
@@ -786,7 +786,7 @@ os_mutex_enter(
 
 /**********************************************************//**
 Releases ownership of a mutex. */
-UNIV_INTERN
+
 void
 os_mutex_exit(
 /*==========*/
@@ -802,7 +802,7 @@ os_mutex_exit(
 
 /**********************************************************//**
 Frees a mutex object. */
-UNIV_INTERN
+
 void
 os_mutex_free(
 /*==========*/
@@ -833,7 +833,7 @@ os_mutex_free(
 
 /*********************************************************//**
 Initializes an operating system fast mutex semaphore. */
-UNIV_INTERN
+
 void
 os_fast_mutex_init_func(
 /*====================*/
@@ -862,7 +862,7 @@ os_fast_mutex_init_func(
 
 /**********************************************************//**
 Acquires ownership of a fast mutex. */
-UNIV_INTERN
+
 void
 os_fast_mutex_lock_func(
 /*====================*/
@@ -877,7 +877,7 @@ os_fast_mutex_lock_func(
 
 /**********************************************************//**
 Releases ownership of a fast mutex. */
-UNIV_INTERN
+
 void
 os_fast_mutex_unlock_func(
 /*======================*/
@@ -892,7 +892,7 @@ os_fast_mutex_unlock_func(
 
 /**********************************************************//**
 Frees a mutex object. */
-UNIV_INTERN
+
 void
 os_fast_mutex_free_func(
 /*====================*/

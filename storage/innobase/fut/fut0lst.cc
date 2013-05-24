@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -70,7 +70,7 @@ flst_add_to_empty(
 
 /********************************************************************//**
 Adds a node as the last node in a list. */
-UNIV_INTERN
+
 void
 flst_add_last(
 /*==========*/
@@ -113,7 +113,7 @@ flst_add_last(
 
 /********************************************************************//**
 Adds a node as the first node in a list. */
-UNIV_INTERN
+
 void
 flst_add_first(
 /*===========*/
@@ -156,7 +156,7 @@ flst_add_first(
 
 /********************************************************************//**
 Inserts a node after another in a list. */
-UNIV_INTERN
+
 void
 flst_insert_after(
 /*==============*/
@@ -211,7 +211,7 @@ flst_insert_after(
 
 /********************************************************************//**
 Inserts a node before another in a list. */
-UNIV_INTERN
+
 void
 flst_insert_before(
 /*===============*/
@@ -265,7 +265,7 @@ flst_insert_before(
 
 /********************************************************************//**
 Removes a node. */
-UNIV_INTERN
+
 void
 flst_remove(
 /*========*/
@@ -342,7 +342,7 @@ flst_remove(
 Cuts off the tail of the list, including the node given. The number of
 nodes which will be removed must be provided by the caller, as this function
 does not measure the length of the tail. */
-UNIV_INTERN
+
 void
 flst_cut_end(
 /*=========*/
@@ -399,7 +399,7 @@ flst_cut_end(
 Cuts off the tail of the list, not including the given node. The number of
 nodes which will be removed must be provided by the caller, as this function
 does not measure the length of the tail. */
-UNIV_INTERN
+
 void
 flst_truncate_end(
 /*==============*/
@@ -439,7 +439,7 @@ flst_truncate_end(
 /********************************************************************//**
 Validates a file-based list.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 flst_validate(
 /*==========*/
@@ -505,7 +505,7 @@ flst_validate(
 
 /********************************************************************//**
 Prints info of a file-based list. */
-UNIV_INTERN
+
 void
 flst_print(
 /*=======*/

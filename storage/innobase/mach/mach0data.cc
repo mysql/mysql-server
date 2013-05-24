@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,7 +33,7 @@ Created 11/28/1995 Heikki Tuuri
 /*********************************************************//**
 Reads a ulint in a compressed form if the log record fully contains it.
 @return	pointer to end of the stored field, NULL if not complete */
-UNIV_INTERN
+
 byte*
 mach_parse_compressed(
 /*==================*/

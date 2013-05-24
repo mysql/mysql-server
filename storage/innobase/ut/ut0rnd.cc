@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,13 +37,13 @@ Created 5/11/1994 Heikki Tuuri
 /*@}*/
 
 /** Seed value of ut_rnd_gen_ulint(). */
-UNIV_INTERN ulint	ut_rnd_ulint_counter = 65654363;
+ulint	ut_rnd_ulint_counter = 65654363;
 
 /***********************************************************//**
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.
 @return	prime */
-UNIV_INTERN
+
 ulint
 ut_find_prime(
 /*==========*/
