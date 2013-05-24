@@ -1806,7 +1806,7 @@ typedef void (*set_statement_text_v1_t)
 */
 typedef void (*set_statement_parent_v1_t)
   (struct PSI_statement_locker *locker,
-   const void * head);
+   PSI_sp_share *sp_share);
 
 /**
   Set a statement event lock time.
