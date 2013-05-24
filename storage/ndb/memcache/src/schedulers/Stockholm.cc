@@ -205,17 +205,16 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
     case op_not_supported:
       response_code = ENGINE_ENOTSUP;
       break;
-   case op_overflow:
-      response_code = ENGINE_E2BIG;  // ENGINE_FAILED ?
-      break;
-    case op_bad_key:
-      response_code = ENGINE_EINVAL;
-      break;
     case op_failed:
-    default:
       response_code = ENGINE_FAILED;
       break;
-   }
+    case op_overflow:
+      response_code = ENGINE_E2BIG;  // ENGINE_FAILED ?
+      break;
+    default:
+      DEBUG_PRINT("UNEXPECTED: op_status is %d", op_status);
+      response_code = ENGINE_FAILED;
+  }
 
   return response_code;
 }
