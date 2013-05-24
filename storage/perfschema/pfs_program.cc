@@ -185,8 +185,6 @@ static void set_program_key(PFS_program_key *key,
 
 void PFS_program::reset_data()
 {
-  m_object_name_length= 0;
-  m_schema_name_length= 0;
   m_sp_stat.reset();
   m_stmt_stat.reset();
 }
@@ -198,17 +196,11 @@ void reset_esms_by_program()
   if (program_array == NULL)
     return;
 
-  /* Reset program_array. */
+  /* Reset statistics in program_array. */
   for (index= 0; index < program_max; index++)
   {
     program_array[index].reset_data();
   }
-
-  /*
-    Reset index which indicates where the next program information
-    to be inserted in event_stat_array.
-  */
-  program_index= 0;
 }
 
 static LF_PINS* get_program_hash_pins(PFS_thread *thread)

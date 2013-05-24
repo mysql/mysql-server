@@ -186,15 +186,15 @@ enum enum_operation_type
 */
 enum enum_object_type
 {
-  OBJECT_TYPE_TABLE= 1,
-  OBJECT_TYPE_EVENT= 2,
-  OBJECT_TYPE_FUNCTION= 3,
-  OBJECT_TYPE_PROCEDURE= 4,
+  OBJECT_TYPE_EVENT= 1,
+  OBJECT_TYPE_FUNCTION= 2,
+  OBJECT_TYPE_PROCEDURE= 3,
+  OBJECT_TYPE_TABLE= 4,
   OBJECT_TYPE_TRIGGER= 5,
   OBJECT_TYPE_TEMPORARY_TABLE= 6
 };
 /** Integer, first value of @sa enum_object_type. */
-#define FIRST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_TABLE))
+#define FIRST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_EVENT))
 /** Integer, last value of @sa enum_object_type. */
 #define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_TEMPORARY_TABLE))
 /** Integer, number of values of @sa enum_object_type. */

@@ -36,7 +36,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'TABLE\',\'EVENT\',\'FUNCTION\',\'PROCEDURE\',\'TRIGGER\')") },
+    { C_STRING_WITH_LEN("enum(\'EVENT\',\'FUNCTION\',\'PROCEDURE\',\'TABLE\',\'TRIGGER\')") },
     { NULL, 0}
   },
   {
@@ -75,27 +75,27 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("COUNT_SUB_STATEMENTS") },
+    { C_STRING_WITH_LEN("COUNT_STATEMENTS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("SUM_SUB_STATEMENTS_WAIT") },
+    { C_STRING_WITH_LEN("SUM_STATEMENTS_WAIT") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("MIN_SUB_STATEMENTS_WAIT") },
+    { C_STRING_WITH_LEN("MIN_STATEMENTS_WAIT") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("AVG_SUB_STATEMENTS_WAIT") },
+    { C_STRING_WITH_LEN("AVG_STATEMENTS_WAIT") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("MAX_SUB_STATEMENTS_WAIT") },
+    { C_STRING_WITH_LEN("MAX_STATEMENTS_WAIT") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -252,7 +252,7 @@ int table_esms_by_program::rnd_next(void)
        m_pos.next())
   {
     program= &program_array[m_pos.m_index];
-    if (program->m_object_name_length > 0)
+    if (program->m_lock.is_populated())
     {
       make_row(program);
       m_next_pos.set_after(&m_pos);
@@ -274,7 +274,7 @@ table_esms_by_program::rnd_pos(const void *pos)
   set_position(pos);
   program= &program_array[m_pos.m_index];
 
-  if (program->m_object_name_length > 0)
+  if (program->m_lock.is_populated())
   {
     make_row(program);
     return 0;

@@ -148,6 +148,13 @@ struct PSI_digest_locker;
 typedef struct PSI_digest_locker PSI_digest_locker;
 
 /**
+  Interface for an instrumented stored procedure share.
+  This is an opaque structure.
+*/
+struct PSI_sp_share;
+typedef struct PSI_sp_share PSI_sp_share;
+
+/**
   Interface for an instrumented stored program.
   This is an opaque structure.
 */
@@ -1139,14 +1146,8 @@ struct PSI_sp_locker_state_v1
   ulonglong m_timer_start;
   /** Timer function. */
   ulonglong (*m_timer)(void);
-  /** Object type. */
-  uint m_object_type;
-  /** Schema name. */
-  const char* m_schema_name;
-  uint m_schema_name_length;
-  /** Object name. */
-  const char* m_object_name;
-  uint m_object_name_length;
+  /** Stored Procedure share. */
+  PSI_sp_share* m_sp_share;
   /** Is enabled. */
   my_bool m_enabled;
   /** Is timed. */
@@ -2022,10 +2023,31 @@ typedef void (*end_sp_v1_t)
   (struct PSI_sp_locker *locker);
 
 typedef void (*drop_sp_v1_t)
-  (struct PSI_sp_locker_state_v1 *state);
+  (uint object_type,
+   const char *schema_name, uint schema_name_length,
+   const char *object_name, uint object_name_length);
 
 typedef struct PSI_sp_locker* (*get_thread_sp_locker_v1_t)
   (struct PSI_sp_locker_state_v1 *state);
+
+/**
+  Acquire a sp share instrumentation.
+  @param type of stored program
+  @param schema name of stored program
+  @param name of stored program
+  @return a stored program share instrumentation, or NULL
+*/
+typedef struct PSI_sp_share* (*get_sp_share_v1_t)
+  (uint object_type,
+   const char *schema_name, uint schema_name_length,
+   const char *object_name, uint object_name_length);
+
+/**
+  Release a stored program share.
+  @param info the stored program share to release
+*/
+typedef void (*release_sp_share_v1_t)(struct PSI_sp_share *share);
+
 
 /**
   Stores an array of connection attributes
@@ -2251,6 +2273,10 @@ struct PSI_v1
   get_thread_sp_locker_v1_t get_thread_sp_locker;
   /** @sa drop_sp_v1_t. */
   drop_sp_v1_t drop_sp;
+  /** @sa get_sp_share_v1_t. */
+  get_sp_share_v1_t get_sp_share;
+  /** @sa release_sp_share_v1_t. */
+  release_sp_share_v1_t release_sp_share;
 };
 
 /** @} (end of group Group_PSI_v1) */

@@ -494,6 +494,11 @@ public:
   uint m_flags;
 
   /**
+    Instrumentation interface for SP.
+  */
+  PSI_sp_share *m_sp_share;
+
+  /**
     Definition of the RETURN-field (from the RETURNS-clause).
     It's used (and valid) for stored functions only.
   */
