@@ -1056,7 +1056,7 @@ int dth_decode_date(const NdbDictionary::Column *, char * &str, const void *buf)
   tm.month = (encoded_date >> 5 & 15); // four bits
   tm.year  = (encoded_date >> 9);
   
-  return sprintf(str, "%04du-%02du-%02du",tm.year, tm.month, tm.day);
+  return sprintf(str, "%04d-%02d-%02d",tm.year, tm.month, tm.day);
 }
 
 size_t dth_length_date(const NdbDictionary::Column *col, const void *buf) {
@@ -1192,12 +1192,36 @@ int writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {
   return bufsz;
 }
 
+class FractionPrinter {
+private:
+  int fsp;
+  char str[8];
+  int microsec;
+public:
+  FractionPrinter(const NdbDictionary::Column *col, int _usec) :
+    fsp(col->getPrecision()),
+    microsec(_usec)
+  {};
+  const char * print(void);
+};
+
+const char * FractionPrinter::print() {
+  if(fsp) {
+    str[0] = '.';
+    snprintf(& str[1], 7, "%06d", microsec);
+    str[fsp + 1] = '\0';
+  }
+  else {
+    str[0] = '\0';
+  }
+  return str;
+}
 
 /***** TIMESTAMP2 *****/
 
 int dth_decode_timestamp2(const NdbDictionary::Column *col, char * &str, 
                           const void *buf) {
-  unsigned int whole, fraction, len;
+  unsigned int whole, fraction;
   const char * fspbuf = (char *) buf + 4;
   
   /* Get the whole number part */
@@ -1206,13 +1230,9 @@ int dth_decode_timestamp2(const NdbDictionary::Column *col, char * &str,
   /* Get the fractional part */
   fraction = readFraction(col, fspbuf);
 
-  if(fraction) {
-    len = sprintf(str, "%d.%d", whole, fraction);
-  }
-  else {
-    len = printf(str, "%d", whole);
-  }
-  return len;
+  FractionPrinter fptr(col, fraction);
+
+  return sprintf(str, "%d%s", whole, fptr.print());
 }
 
 size_t dth_length_timestamp2(const NdbDictionary::Column *col, const void *buf) {
@@ -1222,10 +1242,8 @@ size_t dth_length_timestamp2(const NdbDictionary::Column *col, const void *buf) 
   unsigned int whole = unpack_bigendian((const char *)buf, 4);
   for( ; whole > 0 ; len++) whole = whole / 10;
   
-  len = dth_length_u<Uint32>(col, buf);
   if(prec > 0) {
-    len += 1;     /* for decimal point */
-    len += prec;  
+    len += 1 + prec;
   }
 
   return len;
@@ -1233,8 +1251,18 @@ size_t dth_length_timestamp2(const NdbDictionary::Column *col, const void *buf) 
 
 int dth_encode_timestamp2(const NdbDictionary::Column *col, size_t len,
                           const char *str, void *buf) {
-  /* TODO: Implement this */
-  return len;
+  Uint32 int_timestamp;
+  char * buffer = (char *) buf;
+
+  /* Make a safe (null-terminated) copy */
+  DateTime_CopyBuffer copybuff(len, str);
+
+  if(! safe_strtoul(copybuff.ptr, &int_timestamp))
+    return DTH_NUMERIC_OVERFLOW;
+
+  pack_bigendian(int_timestamp, buffer, 4);
+  int nwritten = 4 + writeFraction(col, copybuff.microsec, buffer+4);
+  return nwritten;
 }
 
 /* Read a timestamp into an int32.
@@ -1273,11 +1301,11 @@ int dth_decode_time2(const NdbDictionary::Column *col, char * &str, const void *
   tm.hour   = (packedValue & 0x03FF);     packedValue >>= 10;
   tm.is_negative = (packedValue < 0);
   const char * fspbuf = (const char *) buf + 3;
-   int microsec = readFraction(col, fspbuf);
+  FractionPrinter fptr(col, readFraction(col, fspbuf));
   
   /* Stringify it */
-  return sprintf(str, "%s%02du:%02du:%02du.%du", tm.is_negative ? "-" : "" ,
-                 tm.hour, tm.minute, tm.second, microsec);
+  return sprintf(str, "%s%02d:%02d:%02d%s", tm.is_negative ? "-" : "" ,
+                 tm.hour, tm.minute, tm.second, fptr.print());
 }
 
 size_t dth_length_time2(const NdbDictionary::Column *col, const void *buf) {
@@ -1331,12 +1359,12 @@ int dth_decode_datetime2(const NdbDictionary::Column *col,
   tm.month = yrMo % 13;
 
   const char * fspbuf = buffer + 5;
-  int microsec = readFraction(col, fspbuf);
+  FractionPrinter fptr(col, readFraction(col, fspbuf));
   
   /* Stringify it */
-  return sprintf(str, "%04du-%02du-%02du %02du:%02du:%02du.%du",
+  return sprintf(str, "%04d-%02d-%02d %02d:%02d:%02d%s",
                  tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second,
-                 microsec);
+                 fptr.print());
 }
 
 size_t dth_length_datetime2(const NdbDictionary::Column *col, const void *buf) {
