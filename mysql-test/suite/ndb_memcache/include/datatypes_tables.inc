@@ -33,6 +33,14 @@ CREATE TABLE tt019 (mkey smallint not null primary key, sval smallint);
 CREATE TABLE tt020 (mkey mediumint not null primary key, sval mediumint);
 CREATE TABLE tt021 (mkey int not null primary key, sval int);
 CREATE TABLE tt022 (mkey bigint not null primary key, sval bigint);
+CREATE TABLE tt023 (mkey int not null primary key, sval timestamp);
+CREATE TABLE tt024 (mkey int not null primary key, sval timestamp(4));
+CREATE TABLE tt025 (mkey int not null primary key, sval datetime);
+CREATE TABLE tt026 (mkey int not null primary key, sval datetime(4));
+CREATE TABLE tt027 (mkey int not null primary key, sval date);
+CREATE TABLE tt028 (mkey int not null primary key, sval time);
+CREATE TABLE tt029 (mkey int not null primary key, sval time(4));
+
 
 CREATE VIEW tv_tablist AS SELECT TABLE_NAME 
   FROM INFORMATION_SCHEMA.TABLES 
