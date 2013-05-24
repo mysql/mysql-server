@@ -5,7 +5,7 @@
 #include "blocks/diskpage.hpp"
 #include "blocks/dbtup/tuppage.hpp"
 #include "ndbd_malloc_impl.hpp"
-#include "DLList.hpp"
+#include "IntrusiveList.hpp"
 #include "Pool.hpp"
 
 #ifndef UINT32_MAX

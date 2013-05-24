@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -214,9 +214,9 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   {
     SLList<SyncRecord> tmp(c_syncPool);
     Ptr<SyncRecord> ptr;
-    while(tmp.seize(ptr))
+    while (tmp.seizeFirst(ptr))
       new (ptr.p) SyncRecord(* this, c_dataBufferPool);
-    tmp.release();
+    while (tmp.releaseFirst());
   }
 
   // Suma
@@ -1123,7 +1123,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
 
   LocalDLFifoList<SubOpRecord> list(c_subOpPool, iter.curr.p->m_stop_req);
   bool empty = list.isEmpty();
-  list.add(subOpPtr);
+  list.addLast(subOpPtr);
 
   if (empty)
   {
@@ -2171,7 +2171,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   Ptr<SubOpRecord> subOpPtr;
   LocalDLFifoList<SubOpRecord> subOpList(c_subOpPool, subPtr.p->m_create_req);
   if ((ERROR_INSERTED(13044) && found == false) ||
-      subOpList.seize(subOpPtr) == false)
+      subOpList.seizeLast(subOpPtr) == false)
   {
     jam();
     if (found == false)
@@ -2241,7 +2241,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     c_subscriptions.add(subPtr);
     LocalDLList<Subscription> list(c_subscriptionPool,
                                    tabPtr.p->m_subscriptions);
-    list.add(subPtr);
+    list.addFirst(subPtr);
     subPtr.p->m_table_ptrI = tabPtr.i;
   }
 
@@ -2361,7 +2361,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
 
   Ptr<SyncRecord> syncPtr;
   LocalDLList<SyncRecord> list(c_syncPool, subPtr.p->m_syncRecords);
-  if(!list.seize(syncPtr))
+  if (!list.seizeFirst(syncPtr))
   {
     jam();
     releaseSections(handle);
@@ -3252,7 +3252,7 @@ Suma::execSUB_START_REQ(Signal* signal){
 
   {
     LocalDLFifoList<SubOpRecord> subOpList(c_subOpPool, subPtr.p->m_start_req);
-    subOpList.add(subOpPtr);
+    subOpList.addLast(subOpPtr);
   }
 
   /**
@@ -3496,7 +3496,7 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
         send_sub_start_stop_event(signal, ptr,NdbDictionary::Event::_TE_ACTIVE,
                                   report, list);
         
-        list.add(ptr);
+        list.addFirst(ptr);
         c_subscriber_nodes.set(refToNode(ptr.p->m_senderRef));
         c_subscriber_per_node[refToNode(ptr.p->m_senderRef)]++;
       }
@@ -3791,7 +3791,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
   Ptr<SubOpRecord> subOpPtr;
   LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_stop_req);
   bool empty = list.isEmpty();
-  if (list.seize(subOpPtr) == false)
+  if (list.seizeLast(subOpPtr) == false)
   {
     jam();
     sendSubStopRef(signal,
@@ -4933,7 +4933,7 @@ found:
 	       SubGcpCompleteRep::SignalLength, JBB);
     
     Ptr<Gcp_record> gcp;
-    if(c_gcp_list.seize(gcp))
+    if (c_gcp_list.seizeLast(gcp))
     {
       gcp.p->m_gci = gci;
       gcp.p->m_subscribers = c_subscriber_nodes;
@@ -5587,7 +5587,7 @@ Suma::copySubscription(Signal* signal, DLHashTable<Subscription>::Iterator it)
 
     LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_stop_req);
     bool empty = list.isEmpty();
-    list.add(subOpPtr);
+    list.addLast(subOpPtr);
 
     if (!empty)
     {

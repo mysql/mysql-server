@@ -144,7 +144,7 @@ Backup::execREAD_NODESCONF(Signal* signal)
       count++;
 
       NodePtr node;
-      ndbrequire(c_nodes.seize(node));
+      ndbrequire(c_nodes.seizeFirst(node));
       
       node.p->nodeId = i;
       if(NdbNodeBitmask::get(conf->inactiveNodes, i)) {
@@ -1424,7 +1424,7 @@ Backup::execBACKUP_REQ(Signal* signal)
    * Seize a backup record
    */
   BackupRecordPtr ptr;
-  c_backups.seize(ptr);
+  c_backups.seizeFirst(ptr);
   if (ptr.i == RNIL)
   {
     jam();
@@ -1843,7 +1843,7 @@ Backup::sendCreateTrig(Signal* signal,
     jam();
 
     TriggerPtr trigPtr;
-    if(!ptr.p->triggers.seize(trigPtr)) {
+    if (!ptr.p->triggers.seizeFirst(trigPtr)) {
       jam();
       ptr.p->m_gsn = GSN_START_BACKUP_REF;
       StartBackupRef* ref = (StartBackupRef*)signal->getDataPtrSend();
@@ -3061,10 +3061,11 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
 #ifdef DEBUG_ABORT
     dumpUsedResources();
 #endif
-    if(!c_backups.seizeId(ptr, ptrI)) {
+    if (!c_backups.getPool().seizeId(ptr, ptrI)) {
       jam();
       ndbrequire(false); // If master has succeeded slave should succed
     }//if
+    c_backups.addFirst(ptr);
   }//if
 
   CRASH_INSERTION((10014));
@@ -3148,7 +3149,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
       files[i].i = RNIL;
       continue;
     }
-    if(!ptr.p->files.seize(files[i])) {
+    if (!ptr.p->files.seizeFirst(files[i])) {
       jam();
       defineBackupRef(signal, ptr, 
 		      DefineBackupRef::FailedToAllocateFileRecord);
@@ -3300,7 +3301,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
       }
 
       TablePtr tabPtr;
-      ptr.p->tables.seize(tabPtr);
+      ptr.p->tables.seizeLast(tabPtr);
       if(tabPtr.i == RNIL) {
         jam();
         defineBackupRef(signal, ptr, DefineBackupRef::FailedToAllocateTables);
@@ -5659,9 +5660,9 @@ Backup::cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr)
     filePtr.p->pages.release();
   }//for
 
-  ptr.p->files.release();
-  ptr.p->tables.release();
-  ptr.p->triggers.release();
+  while (ptr.p->files.releaseFirst());
+  while (ptr.p->tables.releaseFirst());
+  while (ptr.p->triggers.releaseFirst());
   ptr.p->backupId = ~0;
   
   /*
@@ -5770,16 +5771,16 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     {
       jam();
       tabPtr.p->fragments.release();
-      ptr.p->tables.release();
+      while (ptr.p->tables.releaseFirst());
       ptr.p->errorCode = 0;
       // fall-through
     }
   }
   
-  if(!ptr.p->tables.seize(tabPtr) || !tabPtr.p->fragments.seize(1))
+  if (!ptr.p->tables.seizeLast(tabPtr) || !tabPtr.p->fragments.seize(1))
   {
     if(!tabPtr.isNull())
-      ptr.p->tables.release();
+      while (ptr.p->tables.releaseFirst());
     ndbrequire(false); // TODO
   }
   tabPtr.p->tableId = req.tableId;
@@ -5827,7 +5828,7 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
   Uint32 fragmentId = fragPtr.p->fragmentId;
   
   tabPtr.p->fragments.release();
-  ptr.p->tables.release();
+  while (ptr.p->tables.releaseFirst());
   ptr.p->errorCode = 0;
   
   BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
@@ -5942,7 +5943,7 @@ Backup::execEND_LCPREQ(Signal* signal)
     TablePtr tabPtr;
     ptr.p->tables.first(tabPtr);
     tabPtr.p->fragments.release();
-    ptr.p->tables.release();
+    while (ptr.p->tables.releaseFirst());
     ptr.p->errorCode = 0;
   }
 

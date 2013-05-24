@@ -39,7 +39,7 @@
 #include <ErrorReporter.hpp>
 #include <ErrorHandlingMacros.hpp>
 
-#include "DLList.hpp"
+#include "IntrusiveList.hpp"
 #include "ArrayPool.hpp"
 #include "DLHashTable.hpp"
 #include "WOPool.hpp"

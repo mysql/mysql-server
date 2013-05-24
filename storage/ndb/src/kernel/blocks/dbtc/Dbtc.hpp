@@ -23,9 +23,7 @@
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 #include <DLHashTable.hpp>
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <DataBuffer.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>

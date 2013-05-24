@@ -214,7 +214,7 @@ void
 LockQueue::clear(Pool& thePool)
 {
   LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
-  queue.release();
+  while (queue.releaseFirst());
 }
 
 #include "SimulatedBlock.hpp"
