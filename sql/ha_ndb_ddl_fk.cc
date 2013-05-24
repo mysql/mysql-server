@@ -526,57 +526,6 @@ class Fk_util
   }
 
 
-  void
-  resolve_mock_tables(NdbDictionary::Dictionary* dict,
-                      const char* new_parent_db, const char* new_parent_name) const
-  {
-    DBUG_ENTER("resolve_mock_tables");
-    DBUG_PRINT("enter", ("new_parent_db: %s, new_parent_name: %s",
-                         new_parent_db, new_parent_name));
-
-    /*
-      List all tables in NDB and look for mock tables which could
-      potentially be resolved to the new table
-    */
-    NdbDictionary::Dictionary::List table_list;
-    if (dict->listObjects(table_list, NdbDictionary::Object::UserTable, true) != 0)
-    {
-      DBUG_ASSERT(false);
-      DBUG_VOID_RETURN;
-    }
-
-    for (unsigned i = 0; i < table_list.count; i++)
-    {
-      const NdbDictionary::Dictionary::List::Element& el = table_list.elements[i];
-
-      DBUG_ASSERT(el.type == NdbDictionary::Object::UserTable);
-
-      // Check if table is in same database as the potential new parent
-      if (strcmp(new_parent_db, el.database) != 0)
-      {
-        DBUG_PRINT("info", ("Skip, '%s.%s' is in different database",
-                            el.database, el.name));
-        continue;
-      }
-
-      const char* parent_name;
-      if (!Fk_util::split_mock_name(el.name, NULL, NULL, &parent_name))
-        continue;
-
-      // Check if this mock table should reference the new table
-      if (strcmp(parent_name, new_parent_name) != 0)
-      {
-        DBUG_PRINT("info", ("Skip, parent of this mock table is not the new table"));
-        continue;
-      }
-
-      resolve_mock(dict, new_parent_name, el.name);
-    }
-
-    DBUG_VOID_RETURN;
-  }
-
-
   bool
   create_mock_tables_and_drop(Ndb* ndb, NdbDictionary::Dictionary* dict,
                               const NdbDictionary::Table* table)
@@ -875,15 +824,6 @@ public:
     DBUG_RETURN(true);
   }
 
-  static
-  void resolve_mock_tables(THD* thd, NdbDictionary::Dictionary* dict,
-                           const char* new_parent_db, const char* new_parent_name)
-  {
-    Fk_util fk_util(thd);
-    fk_util.resolve_mock_tables(dict, new_parent_db, new_parent_name);
-  }
-
-
   bool
   build_mock_list(NdbDictionary::Dictionary* dict,
                   const NdbDictionary::Table* table, List<char> &mock_list)
@@ -1058,6 +998,58 @@ public:
     }
     DBUG_RETURN(true);
   }
+
+
+  void
+  resolve_mock_tables(NdbDictionary::Dictionary* dict,
+                      const char* new_parent_db,
+                      const char* new_parent_name) const
+  {
+    DBUG_ENTER("resolve_mock_tables");
+    DBUG_PRINT("enter", ("new_parent_db: %s, new_parent_name: %s",
+                         new_parent_db, new_parent_name));
+
+    /*
+      List all tables in NDB and look for mock tables which could
+      potentially be resolved to the new table
+    */
+    NdbDictionary::Dictionary::List table_list;
+    if (dict->listObjects(table_list, NdbDictionary::Object::UserTable, true) != 0)
+    {
+      DBUG_ASSERT(false);
+      DBUG_VOID_RETURN;
+    }
+
+    for (unsigned i = 0; i < table_list.count; i++)
+    {
+      const NdbDictionary::Dictionary::List::Element& el = table_list.elements[i];
+
+      DBUG_ASSERT(el.type == NdbDictionary::Object::UserTable);
+
+      // Check if table is in same database as the potential new parent
+      if (strcmp(new_parent_db, el.database) != 0)
+      {
+        DBUG_PRINT("info", ("Skip, '%s.%s' is in different database",
+                            el.database, el.name));
+        continue;
+      }
+
+      const char* parent_name;
+      if (!Fk_util::split_mock_name(el.name, NULL, NULL, &parent_name))
+        continue;
+
+      // Check if this mock table should reference the new table
+      if (strcmp(parent_name, new_parent_name) != 0)
+      {
+        DBUG_PRINT("info", ("Skip, parent of this mock table is not the new table"));
+        continue;
+      }
+
+      resolve_mock(dict, new_parent_name, el.name);
+    }
+
+    DBUG_VOID_RETURN;
+  }
 };
 
 bool ndb_fk_util_build_list(THD* thd, NdbDictionary::Dictionary* dict,
@@ -1086,6 +1078,16 @@ bool ndb_fk_util_drop_table(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
 bool ndb_fk_util_is_mock_name(const char* table_name)
 {
   return Fk_util::is_mock_name(table_name);
+}
+
+
+void
+ndb_fk_util_resolve_mock_tables(THD* thd, NdbDictionary::Dictionary* dict,
+                                const char* new_parent_db,
+                                const char* new_parent_name)
+{
+  Fk_util fk_util(thd);
+  fk_util.resolve_mock_tables(dict, new_parent_db, new_parent_name);
 }
 
 
@@ -1401,7 +1403,8 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     }
   }
 
-  Fk_util::resolve_mock_tables(thd, ndb->getDictionary(), m_dbname, m_tabname);
+  ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(),
+                                  m_dbname, m_tabname);
 
   DBUG_RETURN(0);
 }

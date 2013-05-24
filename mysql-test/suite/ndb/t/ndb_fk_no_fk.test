@@ -663,3 +663,53 @@ drop table child;
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
+--echo #
+--echo # Alter table into place(i.e rename) as new parent, should remove
+--echo # the mock table
+--echo #
+
+create table t1 (
+  pk1 int not null primary key,
+  b int,
+  foreign key (b) references t2(pk2)
+) engine=ndb;
+
+create table t3 (
+  pk2 int not null primary key,
+  b int
+) engine=ndb;
+
+--source ndb_show_tables_result.inc
+--echo # There should be one mock table for t1
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+set @@ndb_show_foreign_key_mock_tables= 1;
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+alter table t3 rename t2;
+set @@ndb_show_foreign_key_mock_tables= 0;
+
+# Rename table referenced by foreign key -> t1 references t3
+alter table t2 rename t3;
+--replace_regex /FK_[0-9]+_[0-9]+/FK_<child_id>_<id>/
+show create table t1;
+
+drop table t3;
+create table t2 (
+  pk2 int not null primary key,
+  b int
+) engine=ndb;
+
+--source ndb_show_tables_result.inc
+--echo # There should be one mock table for t1
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+set @@ndb_show_foreign_key_mock_tables= 1;
+--replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
+alter table t2 algorithm=inplace, rename t3;
+set @@ndb_show_foreign_key_mock_tables= 0;
+
+--source ndb_show_tables_result.inc
+--echo # There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+
+drop table t3, t1;

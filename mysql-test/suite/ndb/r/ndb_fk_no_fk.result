@@ -725,3 +725,63 @@ ndb_show_tables completed.....
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
+#
+# Alter table into place(i.e rename) as new parent, should remove
+# the mock table
+#
+create table t1 (
+pk1 int not null primary key,
+b int,
+foreign key (b) references t2(pk2)
+) engine=ndb;
+create table t3 (
+pk2 int not null primary key,
+b int
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+# There should be one mock table for t1
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+1
+set @@ndb_show_foreign_key_mock_tables= 1;
+alter table t3 rename t2;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
+set @@ndb_show_foreign_key_mock_tables= 0;
+alter table t2 rename t3;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk1`),
+  KEY `b` (`b`),
+ CONSTRAINT `FK_<child_id>_<id>` FOREIGN KEY(`b`) REFERENCES `t3` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table t3;
+create table t2 (
+pk2 int not null primary key,
+b int
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+# There should be one mock table for t1
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+1
+set @@ndb_show_foreign_key_mock_tables= 1;
+alter table t2 algorithm=inplace, rename t3;
+Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - resolved by 't3'
+set @@ndb_show_foreign_key_mock_tables= 0;
+
+ndb_show_tables completed.....
+
+# There should be no mock tables
+select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
+count(*)
+0
+drop table t3, t1;

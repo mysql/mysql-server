@@ -10268,6 +10268,12 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
   DBUG_RETURN(error);
 }
 
+
+extern void ndb_fk_util_resolve_mock_tables(THD* thd,
+                                            NdbDictionary::Dictionary* dict,
+                                            const char* new_parent_db,
+                                            const char* new_parent_name);
+
 /**
   Rename a table in NDB Cluster.
 */
@@ -10391,6 +10397,9 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     }
     ERR_RETURN(ndb_error);
   }
+
+  ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(),
+                                  new_dbname, new_tabname);
 
   // Rename .ndb file
   if ((result= handler::rename_table(from, to)))
