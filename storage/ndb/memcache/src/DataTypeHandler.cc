@@ -70,7 +70,7 @@ impl_readFromNdb dth_decode_unsupported;
 impl_readFromNdb dth_decode_varchar; 
 impl_readFromNdb dth_decode_longvarchar; 
 impl_readFromNdb dth_decode_char; 
-impl_readFromNdb dth_decode_enum; 
+impl_readFromNdb dth_decode_enum;
 impl_readFromNdb dth_decode_tinyint; 
 impl_readFromNdb dth_decode_smallint; 
 impl_readFromNdb dth_decode_mediumint; 
@@ -88,8 +88,9 @@ impl_readFromNdb dth_decode_datetime;
 impl_readFromNdb dth_decode_float; 
 impl_readFromNdb dth_decode_double; 
 impl_readFromNdb dth_decode_decimal; 
+impl_readFromNdb dth_decode_time2;
+impl_readFromNdb dth_decode_datetime2;
 impl_readFromNdb dth_decode_timestamp2;
-
 
 /* Implementations for impl_getStringifiedLength() */
 // declaring it this way causes gcc to crash:
@@ -110,6 +111,8 @@ impl_getStringifiedLength dth_length_datetime;
 impl_getStringifiedLength dth_length_float;
 impl_getStringifiedLength dth_length_double;
 impl_getStringifiedLength dth_length_decimal;
+impl_getStringifiedLength dth_length_time2;
+impl_getStringifiedLength dth_length_datetime2;
 impl_getStringifiedLength dth_length_timestamp2;
 
 /* Implementations for writeToNdb() */
@@ -134,7 +137,10 @@ impl_writeToNdb dth_encode_time;
 impl_writeToNdb dth_encode_datetime;
 template<typename T> int dth_encode_fp(ENCODE_ARGS);
 impl_writeToNdb dth_encode_decimal;
+impl_writeToNdb dth_encode_time2;
+impl_writeToNdb dth_encode_datetime2;
 impl_writeToNdb dth_encode_timestamp2;
+
 
 /* Native Numeric Handlers */
 NumericHandler dth_native_int8   = { dth_read32<Int8>,  dth_write32<Int8>  };
@@ -147,7 +153,7 @@ NumericHandler dth_native_year   = { dth_read32_year, dth_write32_year };
 NumericHandler dth_native_medium = { dth_read32_medium, dth_write32_medium };
 NumericHandler dth_native_medium_unsigned = 
                  { dth_read32_medium_unsigned, dth_write32_medium_unsigned };
-NumericHandler dth_native_timestamp2 = 
+NumericHandler dth_native_timestamp2 =
                   { dth_read32_timestamp2, dth_write32_timestamp2};
 
 
@@ -328,13 +334,30 @@ DataTypeHandler Handler_Decimal = {
   false
 };
 
-DataTypeHandler Handler_Timestamp2 = { 
+DataTypeHandler Handler_Time2 = {
+  dth_decode_time2,
+  dth_length_time2,
+  dth_encode_time2,
+  0, 
+  false
+};
+
+DataTypeHandler Handler_Datetime2 = {
+  dth_decode_datetime2,
+  dth_length_datetime2,
+  dth_encode_datetime2,
+  0, 
+  false
+};
+
+DataTypeHandler Handler_Timestamp2 = {
   dth_decode_timestamp2,
   dth_length_timestamp2,
   dth_encode_timestamp2,
   & dth_native_timestamp2,
   false
 };
+
 
 /*
  * getDataTypeHandlerForColumn() 
@@ -396,9 +419,6 @@ DataTypeHandler * getDataTypeHandlerForColumn(const NdbDictionary::Column *col) 
     case NdbDictionary::Column::Datetime:
       return & Handler_Datetime;
 
-    case NdbDictionary::Column::Timestamp2:
-      return & Handler_Timestamp2;
-      
     case NdbDictionary::Column::Float:
       return & Handler_Float;
 
@@ -408,6 +428,15 @@ DataTypeHandler * getDataTypeHandlerForColumn(const NdbDictionary::Column *col) 
     case NdbDictionary::Column::Decimal:
     case NdbDictionary::Column::Decimalunsigned:
       return & Handler_Decimal;
+
+    case NdbDictionary::Column::Time2:
+      return & Handler_Time2;
+
+    case NdbDictionary::Column::Datetime2:
+      return & Handler_Datetime2;
+    
+    case NdbDictionary::Column::Timestamp2:
+      return & Handler_Timestamp2;
 
     default:
       return & Handler_unsupported;
@@ -927,19 +956,33 @@ inline void factor_YYYYMMDD(time_helper *tm, Int32 int_date) {
   tm->day   = int_date % 100;  
 }
 
+inline void    factor_YYYYYMMDDHHMMSS(time_helper *tm, Uint64 datetime) {
+  tm->year   = datetime / 10000000000 % 10000;
+  tm->month  = datetime /   100000000 % 100;
+  tm->day    = datetime /     1000000 % 100;
+  tm->hour   = datetime /       10000 % 100;
+  tm->minute = datetime /         100 % 100;
+  tm->second = datetime % 100;
+}
+
 class DateTime_CopyBuffer {
 public:
   DateTime_CopyBuffer(size_t len, const char *str);
   const char *ptr;
   bool too_long;
+  int microsec;
 private:
   char copy_buffer[64];
+  char * decimal;
 };
 
 /* Make a safe copy of a supplied date, time, or datetime,
-   insuring null termination and skipping separators 
+   insuring null termination and skipping separators other than decimal point
 */
-DateTime_CopyBuffer::DateTime_CopyBuffer(size_t len, const char *str) {
+DateTime_CopyBuffer::DateTime_CopyBuffer(size_t len, const char *str) :
+  microsec(0),
+  decimal(0)
+{
   const char *c = str;
   char * buf = copy_buffer;
   ptr = copy_buffer;
@@ -948,13 +991,56 @@ DateTime_CopyBuffer::DateTime_CopyBuffer(size_t len, const char *str) {
   if(! too_long) {
     if(*c == '-' || *c == '+') *buf++ = *c++;  // tolerate initial + or -
 
-    for(register unsigned int i = 0 ; i < len && *c != 0 ; c++, i++ )
-      if(isdigit(*c))
-        *buf++ = *c; 
+    for(register unsigned int i = 0 ; i < len && *c != 0 ; c++, i++ ) {
+      if(isdigit(*c)) {
+        *buf++ = *c;
+      }
+      else if(*c == '.') {
+        decimal = buf;
+        *buf++ = *c;
+      }
+    }
     *buf = 0;
+  }
+  
+  /* Figure microseconds */
+  if(decimal) {
+    *decimal = 0;
+    size_t dl = c - decimal;  // length of fractional part as written
+    safe_strtol(decimal+1, & microsec);
+    while(dl < 6) dl++, microsec *= 10;
+    while(dl > 6) dl--, microsec /= 10;
   }
 }
 
+/* bigendian utilities, used with the wl#946 temporal types.
+   Derived from ndb/src/comon/util/NdbSqlUtil.cpp
+*/
+static Uint64 unpack_bigendian(const char * buf, unsigned int len) {
+  Uint64 val = 0;
+  unsigned int i = len;
+  int shift = 0;
+  while (i != 0) {
+    i--;
+    Uint64 v = (Uint8) buf[i];
+    val += (v << shift);
+    shift += 8;
+  }
+  return val;
+}
+
+void pack_bigendian(Uint64 val, char * buf, unsigned int len) {
+  Uint8 b[8];
+  unsigned int i = 0, j = 0;
+  while (i  < len) {
+    b[i] = (Uint8)(val & 255);
+    val >>= 8;
+    i++;
+  }
+  while (i != 0) {
+    buf[--i] = b[j++];
+  }
+}
 
 /***** DATE *****/
 
@@ -1081,66 +1167,29 @@ int dth_encode_datetime(const NdbDictionary::Column *, size_t len,
 
 /***** wl#946 MySQL 5.6: sub-second temporal types ******/
 
-/* buf points to the fractional part */
-int getFraction(const NdbDictionary::Column *col, const void *buf) {
+/* readFraction() returns value in microseconds
+*/
+int readFraction(const NdbDictionary::Column *col, const char *buf) {
   int prec  = col->getPrecision();
-  int r = 0;
-  
-  switch(prec) {
-    case 0:
-      break;
-    case 1:
-      dth_read32<Uint8>(r, buf, col);
-      r /= 10;
-      break;
-    case 2:
-      dth_read32<Uint8>(r, buf, col);
-      break;
-    case 3:
-      dth_read32<Uint16>(r, buf, col);
-      r /= 10;
-      break;
-    case 4:
-      dth_read32<Uint16>(r, buf, col);
-      break;
-    case 5:
-      dth_read32_medium_unsigned(r, buf, col);
-      r /= 10;
-      break;
-    case 6:
-      dth_read32_medium_unsigned(r, buf, col);
-      break;
+  int usec = 0;
+  if(prec > 0) {  
+    register int bufsz = (1 + prec) / 2;
+    usec = unpack_bigendian(buf, bufsz);
+    while(prec < 5) usec *= 100, prec += 2;
   }
-    
-  return r;
+  return usec;
 }
 
-
-void setFraction(const NdbDictionary::Column *col, int microsec, void *buf) {
-  int val = 0;
+int writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {
   int prec  = col->getPrecision();
-  
-  switch(prec) {
-    case 6:
-    case 5:
-      val = microsec;
-      dth_write32_medium_unsigned(val, buf, col);
-      break;
-    case 4:
-    case 3:
-      val = microsec / 100;
-      dth_write32<Uint16>(val, buf, col);
-      break;
-    case 2:
-    case 1:
-      val = microsec / 10000;
-      dth_write32<Uint8>(val, buf, col);
-      break;      
-    case 0:
-      break; 
+  register int bufsz;
+  if(prec > 0) {
+    bufsz = (1 + prec) / 2;
+    while(prec < 5) usec /= 100, prec += 2;
+    if(prec % 2) usec -= (usec % 10);
+    pack_bigendian(usec, buf, bufsz);
   }
-
-  return;
+  return bufsz;
 }
 
 
@@ -1148,14 +1197,14 @@ void setFraction(const NdbDictionary::Column *col, int microsec, void *buf) {
 
 int dth_decode_timestamp2(const NdbDictionary::Column *col, char * &str, 
                           const void *buf) {
-  int whole, fraction, len;
+  unsigned int whole, fraction, len;
   const char * fspbuf = (char *) buf + 4;
   
   /* Get the whole number part */
-  dth_read32<Uint32>(whole, buf, col);
+  whole = unpack_bigendian((char *) buf, 4);
   
   /* Get the fractional part */
-  fraction = getFraction(col, fspbuf);
+  fraction = readFraction(col, fspbuf);
 
   if(fraction) {
     len = sprintf(str, "%d.%d", whole, fraction);
@@ -1167,8 +1216,11 @@ int dth_decode_timestamp2(const NdbDictionary::Column *col, char * &str,
 }
 
 size_t dth_length_timestamp2(const NdbDictionary::Column *col, const void *buf) {
-  size_t len;
+  size_t len = 1;
   int prec = col->getPrecision();
+
+  unsigned int whole = unpack_bigendian((const char *)buf, 4);
+  for( ; whole > 0 ; len++) whole = whole / 10;
   
   len = dth_length_u<Uint32>(col, buf);
   if(prec > 0) {
@@ -1179,7 +1231,7 @@ size_t dth_length_timestamp2(const NdbDictionary::Column *col, const void *buf) 
   return len;
 }
 
-int dth_encode_timestamp2(const NdbDictionary::Column *col, size_t len, 
+int dth_encode_timestamp2(const NdbDictionary::Column *col, size_t len,
                           const char *str, void *buf) {
   /* TODO: Implement this */
   return len;
@@ -1190,7 +1242,7 @@ int dth_encode_timestamp2(const NdbDictionary::Column *col, size_t len,
 */
 int dth_read32_timestamp2(int &result, const void * const buf,
                           const NdbDictionary::Column *) {
-  LOAD_ALIGNED_DATA(unsigned int, i, buf);
+  unsigned int i = unpack_bigendian((const char *)buf, 4);
   result = (Int32) i;
   return 1;
 }
@@ -1200,11 +1252,126 @@ int dth_read32_timestamp2(int &result, const void * const buf,
 */   
 int dth_write32_timestamp2(Int32 value, void *buf, 
                            const NdbDictionary::Column *col) {
-  int r = dth_write32<unsigned int>(value, buf, col);
+  pack_bigendian(value, (char *)buf, 4);
   char * fspbuf = (char *) buf + 4;
-  setFraction(col, 0, fspbuf);
-  return r;
+  int nwritten = 4 + writeFraction(col, 0, fspbuf);
+  return nwritten;
 }                           
+
+
+
+/***** TIME2 *****/
+
+int dth_decode_time2(const NdbDictionary::Column *col, char * &str, const void *buf) {
+  time_helper tm = { 0,0,0,0,0,0,0, false };
+  /* Read the integer time from the buffer */
+  int packedValue = (int) unpack_bigendian((const char *)buf, 3);
+
+  /* Factor it out */
+  tm.second = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.minute = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.hour   = (packedValue & 0x03FF);     packedValue >>= 10;
+  tm.is_negative = (packedValue < 0);
+  const char * fspbuf = (const char *) buf + 3;
+   int microsec = readFraction(col, fspbuf);
+  
+  /* Stringify it */
+  return sprintf(str, "%s%02du:%02du:%02du.%du", tm.is_negative ? "-" : "" ,
+                 tm.hour, tm.minute, tm.second, microsec);
+}
+
+size_t dth_length_time2(const NdbDictionary::Column *col, const void *buf) {
+  int prec = col->getPrecision();
+  return prec ? 17 + (prec / 2) : 16;
+}
+
+int dth_encode_time2(const NdbDictionary::Column * col, size_t len,
+                     const char *str, void *buf) {
+  Int32  int_time, packedValue;
+  char * buffer = (char *) buf;
+  time_helper tm = { 0,0,0,0,0,0,0, false };
+
+  /* Make a safe (null-terminated) copy */
+  DateTime_CopyBuffer copybuff(len, str);
+  if(copybuff.too_long) return DTH_VALUE_TOO_LONG;
+
+  if(! safe_strtol(copybuff.ptr, &int_time))
+    return DTH_NUMERIC_OVERFLOW;
+      
+  /* Factor it out */
+  factor_HHMMSS(& tm,int_time);
+
+  packedValue = (tm.is_negative ? 0 : 1);      packedValue <<= 11;
+  packedValue |= tm.hour;                      packedValue <<= 6;
+  packedValue |= tm.minute;                    packedValue <<= 6;
+  packedValue |= tm.second;
+
+  pack_bigendian(packedValue, buffer, 3);
+  int nwritten = 3 + writeFraction(col, copybuff.microsec, buffer+3);
+  return nwritten;
+}
+
+
+/***** DATETIME2 *****/
+int dth_decode_datetime2(const NdbDictionary::Column *col,
+                         char * &str, const void *buf) {
+  time_helper tm = { 0,0,0,0,0,0,0, false };
+  const char * buffer = (const char *) buf;
+
+  /* Read the datetime from the buffer */
+  Uint64 packedValue = unpack_bigendian(buffer, 5);
+
+  /* Factor it out */
+  tm.second = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.minute = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.hour   = (packedValue & 0x1F);       packedValue >>= 5;
+  tm.day    = (packedValue & 0x1F);       packedValue >>= 5;
+  int yrMo  = (packedValue & 0x01FFFF);  
+  tm.year = yrMo / 13;
+  tm.month = yrMo % 13;
+
+  const char * fspbuf = buffer + 5;
+  int microsec = readFraction(col, fspbuf);
+  
+  /* Stringify it */
+  return sprintf(str, "%04du-%02du-%02du %02du:%02du:%02du.%du",
+                 tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second,
+                 microsec);
+}
+
+size_t dth_length_datetime2(const NdbDictionary::Column *col, const void *buf) {
+  int prec = col->getPrecision();
+  return prec ? 21 + (prec / 2) : 20;
+}
+
+int dth_encode_datetime2(const NdbDictionary::Column *col,
+                         size_t len, const char *str, void *buf) {
+  uint64_t int_datetime, packedValue;
+  time_helper tm = { 0,0,0,0,0,0,0, false };
+  char * buffer = (char *) buf;
+  
+  /* Make a safe (null-terminated) copy */
+  DateTime_CopyBuffer copybuff(len, str);
+  
+  /* Turn the safe copy into an int */
+  if(copybuff.too_long) return DTH_VALUE_TOO_LONG;
+  if(! safe_strtoull(copybuff.ptr, &int_datetime))
+   return DTH_NUMERIC_OVERFLOW;
+  factor_YYYYYMMDDHHMMSS(& tm, int_datetime);
+  
+  /* Store it */
+  packedValue = 1;                            packedValue <<= 17;
+  packedValue |= (tm.year * 13 + tm.month);   packedValue <<= 5;
+  packedValue |= tm.day;                      packedValue <<= 5;
+  packedValue |= tm.hour;                     packedValue <<= 6;
+  packedValue |= tm.minute;                   packedValue <<= 6;
+  packedValue |= tm.second;
+
+  pack_bigendian(packedValue, buffer, 5);
+  writeFraction(col, copybuff.microsec, buffer+5);
+
+  return 1;
+}
 
 
 /***** FLOAT and DOUBLE *****/
