@@ -33,7 +33,6 @@ Created 6/9/1994 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "sync0sync.h"
 #endif /* UNIV_HOTBACKUP */
-#include "ut0lst.h"
 #include "mach0data.h"
 
 /* -------------------- MEMORY HEAPS ----------------------------- */

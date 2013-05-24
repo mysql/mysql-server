@@ -24,13 +24,16 @@ Contains also create table and other data dictionary operations.
 Created 9/17/2000 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+#include <debug_sync.h>
+#include <gstream.h>
+#include <spatial.h>
+
 #include "row0mysql.h"
 
 #ifdef UNIV_NONINL
 #include "row0mysql.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "row0ins.h"
 #include "row0merge.h"

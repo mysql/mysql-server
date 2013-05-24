@@ -27,7 +27,8 @@ Created 9/17/2000 Heikki Tuuri
 #ifndef row0mysql_h
 #define row0mysql_h
 
-#include "univ.i"
+#include "ha_prototypes.h"
+
 #include "data0data.h"
 #include "que0types.h"
 #include "dict0types.h"
