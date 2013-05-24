@@ -425,9 +425,11 @@ private:
   void release_fk_data(THD *thd);
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
-  int drop_fk_for_online_alter(THD*, NdbDictionary::Dictionary*,
+  int drop_fk_for_online_alter(THD*, Ndb*, NdbDictionary::Dictionary*,
                                const NdbDictionary::Table*);
-
+  static bool drop_table_and_related(THD*, Ndb*, NdbDictionary::Dictionary*,
+                                     const NdbDictionary::Table*,
+                                     bool cascade_constraints);
   int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const char* path);
   void release_metadata(THD *thd, Ndb *ndb);
