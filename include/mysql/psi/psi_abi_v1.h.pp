@@ -26,6 +26,8 @@ struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;
 typedef struct PSI_digest_locker PSI_digest_locker;
+struct PSI_sp_share;
+typedef struct PSI_sp_share PSI_sp_share;
 struct PSI_sp_locker;
 typedef struct PSI_sp_locker PSI_sp_locker;
 struct PSI_bootstrap
@@ -320,11 +322,7 @@ struct PSI_sp_locker_state_v1
   struct PSI_thread *m_thread;
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
-  uint m_object_type;
-  const char* m_schema_name;
-  uint m_schema_name_length;
-  const char* m_object_name;
-  uint m_object_name_length;
+  PSI_sp_share* m_sp_share;
   my_bool m_enabled;
   my_bool m_timed;
 };
@@ -550,9 +548,16 @@ typedef void (*start_sp_v1_t)
 typedef void (*end_sp_v1_t)
   (struct PSI_sp_locker *locker);
 typedef void (*drop_sp_v1_t)
-  (struct PSI_sp_locker_state_v1 *state);
+   (uint object_type,
+   const char *schema_name, uint schema_name_length,
+   const char *object_name, uint object_name_length);
 typedef struct PSI_sp_locker* (*get_thread_sp_locker_v1_t)
   (struct PSI_sp_locker_state_v1 *state);
+typedef struct PSI_sp_share* (*get_sp_share_v1_t)
+   (uint object_type,
+   const char *schema_name, uint schema_name_length,
+   const char *object_name, uint object_name_length);
+typedef void (*release_sp_share_v1_t)(struct PSI_sp_share *share);
 typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer, uint length,
                                              const void *from_cs);
 struct PSI_v1
@@ -660,6 +665,8 @@ struct PSI_v1
   end_sp_v1_t end_sp;
   get_thread_sp_locker_v1_t get_thread_sp_locker;
   drop_sp_v1_t drop_sp;
+  get_sp_share_v1_t get_sp_share;
+  release_sp_share_v1_t release_sp_share;
 };
 typedef struct PSI_v1 PSI;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;

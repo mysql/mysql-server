@@ -1,5 +1,6 @@
 # -----------------------------------------------------------------------
-# Tests for the performance schema statement instrumentation.
+# Tests for the performance schema stored program's sub statements'
+# instrumentation.
 # -----------------------------------------------------------------------
 
 --source include/not_embedded.inc

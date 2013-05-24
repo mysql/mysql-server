@@ -34,7 +34,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'TABLE\',\'EVENT\',\'FUNCTION\',\'PROCEDURE\',\'TRIGGER\'") },
+    { C_STRING_WITH_LEN("enum(\'EVENT\',\'FUNCTION\',\'PROCEDURE\',\'TABLE\',\'TRIGGER\'") },
     { NULL, 0}
   },
   {

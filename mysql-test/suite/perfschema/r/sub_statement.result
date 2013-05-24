@@ -35,18 +35,18 @@ performance_schema.events_statements_history WHERE
 CURRENT_SCHEMA='sub_statements';
 EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
 statement/sql/select	SELECT simple_function('Hello')	sub_statements	NULL	NULL	NULL	NULL	0
-statement/sp/sp_instr_stmt	INSERT INTO
+statement/sp/stmt	INSERT INTO
 t2 VALUES('12')	sub_statements	TRIGGER	sub_statements	simple_trigger	STATEMENT	1
 statement/sql/insert	INSERT INTO t1 VALUES('1')	sub_statements	NULL	NULL	NULL	NULL	0
-statement/sp/sp_instr_stmt	SELECT COUNT(*) INTO PARAM1 FROM t1	sub_statements	PROCEDURE	sub_statements	simple_procedure	STATEMENT	1
-statement/sp/sp_instr_stmt	INSERT INTO
+statement/sp/stmt	SELECT COUNT(*) INTO PARAM1 FROM t1	sub_statements	PROCEDURE	sub_statements	simple_procedure	STATEMENT	1
+statement/sp/stmt	INSERT INTO
 t2 VALUES('12')	sub_statements	TRIGGER	sub_statements	simple_trigger	STATEMENT	2
-statement/sp/sp_instr_stmt	INSERT INTO t1 values('2')	sub_statements	PROCEDURE	sub_statements	simple_procedure	STATEMENT	1
+statement/sp/stmt	INSERT INTO t1 values('2')	sub_statements	PROCEDURE	sub_statements	simple_procedure	STATEMENT	1
 statement/sql/call_procedure	CALL simple_procedure(@a)	sub_statements	NULL	NULL	NULL	NULL	0
-statement/sp/sp_instr_stmt	INSERT INTO
+statement/sp/stmt	INSERT INTO
 t2 VALUES('12')	sub_statements	TRIGGER	sub_statements	simple_trigger	STATEMENT	2
-statement/sp/sp_instr_stmt	INSERT INTO t1 values('3')	sub_statements	FUNCTION	sub_statements	simple_function	STATEMENT	1
-statement/sp/sp_instr_freturn	NULL	sub_statements	FUNCTION	sub_statements	simple_function	STATEMENT	1
+statement/sp/stmt	INSERT INTO t1 values('3')	sub_statements	FUNCTION	sub_statements	simple_function	STATEMENT	1
+statement/sp/freturn	NULL	sub_statements	FUNCTION	sub_statements	simple_function	STATEMENT	1
 ####################################
 # CLEANUP
 ####################################

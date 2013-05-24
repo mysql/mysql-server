@@ -49,14 +49,6 @@ void install_default_setup(PSI_bootstrap *boot)
   String PS_db("performance_schema", 18, &my_charset_utf8_bin);
   String IS_db("information_schema", 18, &my_charset_utf8_bin);
 
-  /* Disable system tables by default */
-  insert_setup_object(OBJECT_TYPE_TABLE, &mysql_db, &percent, false, false);
-  /* Disable performance/information schema tables. */
-  insert_setup_object(OBJECT_TYPE_TABLE, &PS_db, &percent, false, false);
-  insert_setup_object(OBJECT_TYPE_TABLE, &IS_db, &percent, false, false);
-  /* Enable every other tables */
-  insert_setup_object(OBJECT_TYPE_TABLE, &percent, &percent, true, true);
-
   /* Disable sp by default in mysql. */
   insert_setup_object(OBJECT_TYPE_EVENT, &mysql_db, &percent, false, false);
   /* Disable sp in performance/information schema. */
@@ -80,6 +72,14 @@ void install_default_setup(PSI_bootstrap *boot)
   insert_setup_object(OBJECT_TYPE_PROCEDURE, &IS_db, &percent, false, false);
   /* Enable every other sp. */
   insert_setup_object(OBJECT_TYPE_PROCEDURE, &percent, &percent, true, true);
+
+  /* Disable system tables by default */
+  insert_setup_object(OBJECT_TYPE_TABLE, &mysql_db, &percent, false, false);
+  /* Disable performance/information schema tables. */
+  insert_setup_object(OBJECT_TYPE_TABLE, &PS_db, &percent, false, false);
+  insert_setup_object(OBJECT_TYPE_TABLE, &IS_db, &percent, false, false);
+  /* Enable every other tables */
+  insert_setup_object(OBJECT_TYPE_TABLE, &percent, &percent, true, true);
 
   /* Disable sp by default in mysql. */
   insert_setup_object(OBJECT_TYPE_TRIGGER, &mysql_db, &percent, false, false);

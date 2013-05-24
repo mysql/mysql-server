@@ -5128,26 +5128,69 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
 /**                                                                             
   Implementation of the stored program instrumentation interface.                         
+  @sa PSI_v1::get_sp_share.                                      
+*/                                                                              
+PSI_sp_share *pfs_get_sp_share_v1(uint object_type,
+                                  const char* schema_name,
+                                  uint schema_name_length,
+                                  const char* object_name,
+                                  uint object_name_length)
+{
+
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
+  if (unlikely(pfs_thread == NULL))                                             
+    return NULL;
+
+  PFS_program *pfs_program;
+  pfs_program= find_or_create_program(pfs_thread,
+                                      (enum_object_type)object_type,
+                                      object_name,
+                                      object_name_length,
+                                      schema_name,
+                                      schema_name_length, true);
+
+  return reinterpret_cast<PSI_sp_share *>(pfs_program);
+}
+
+void pfs_release_sp_share_v1(PSI_sp_share* sp_share)
+{
+  //TODO: 
+  return;
+}
+
+/**                                                                             
+  Implementation of the stored program instrumentation interface.                         
   @sa PSI_v1::get_thread_sp_locker.                                      
 */                                                                              
-PSI_sp_locker*                                                                
+PSI_sp_locker*
 pfs_get_thread_sp_locker_v1(PSI_sp_locker_state *state)
 {
-  DBUG_ASSERT(state != NULL);
   bool m_enabled;
   bool m_timed;
-  enum enum_object_type object_type= (enum_object_type)state->m_object_type;
+
+  DBUG_ASSERT(state != NULL);
   
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
   if (unlikely(pfs_thread == NULL))                                             
     return NULL;
   state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
 
+  PFS_program *pfs_program= reinterpret_cast<PFS_program*>(state->m_sp_share);
+
+  /* 
+    sp share might be null in case when stat array is full and no new
+    stored program stats are being inserted into it.
+  */
+  if(!pfs_program)
+    return NULL;
+
   /* Call lookup_setup_object to find out if its enabled/timed. */
   lookup_setup_object(pfs_thread,
-                      object_type,
-                      state->m_schema_name, state->m_schema_name_length,
-                      state->m_object_name, state->m_object_name_length,
+                      pfs_program->m_type,
+                      pfs_program->m_schema_name,
+                      pfs_program->m_schema_name_length,
+                      pfs_program->m_object_name,
+                      pfs_program->m_object_name_length,
                       &m_enabled, &m_timed);
 
   state->m_enabled= m_enabled;
@@ -5165,7 +5208,8 @@ void pfs_start_sp_v1(PSI_sp_locker *locker)
 
   if (state->m_enabled && state->m_timed)
   {
-    timer_start= get_timer_raw_value_and_function(statement_timer, & state->m_timer);
+    timer_start= get_timer_raw_value_and_function(statement_timer, 
+                                                  & state->m_timer);
     state->m_timer_start= timer_start;
   }
 }
@@ -5184,17 +5228,9 @@ void pfs_end_sp_v1(PSI_sp_locker *locker)
     wait_time= timer_end - state->m_timer_start;
   }
 
-  /* Now use this timer_end and wait_time for timing information. */
-  PFS_program *pfs_program= NULL;
-  PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
-  enum enum_object_type object_type= (enum_object_type)state->m_object_type;
+  PFS_program *pfs_program= reinterpret_cast<PFS_program *>(state->m_sp_share);
 
-  pfs_program= find_or_create_program(thread,
-                                       object_type,
-                                       state->m_object_name,
-                                       state->m_object_name_length,
-                                       state->m_schema_name,
-                                       state->m_schema_name_length, true);
+  /* Now use this timer_end and wait_time for timing information. */
   if(pfs_program != NULL)
   {
     PFS_sp_stat *stat= &pfs_program->m_sp_stat;
@@ -5209,21 +5245,22 @@ void pfs_end_sp_v1(PSI_sp_locker *locker)
   }
 }
 
-void pfs_drop_sp_v1(PSI_sp_locker_state *state)
+void pfs_drop_sp_v1(uint object_type,
+                    const char* schema_name,
+                    uint schema_name_length,
+                    const char* object_name,
+                    uint object_name_length)
 {
-  DBUG_ASSERT(state != NULL);
-
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
   if (unlikely(pfs_thread == NULL))                                             
     return;
-  enum enum_object_type object_type= (enum_object_type)state->m_object_type;
 
   int res= find_and_drop_program(pfs_thread,
-                                 object_type,
-                                 state->m_object_name,
-                                 state->m_object_name_length,
-                                 state->m_schema_name,
-                                 state->m_schema_name_length);
+                                 (enum_object_type)object_type,
+                                 object_name,
+                                 object_name_length,
+                                 schema_name,
+                                 schema_name_length);
   if(res != 0)
   {
     /* TODO : Do we need to check return value? */
@@ -5506,7 +5543,9 @@ PSI_v1 PFS_v1=
   pfs_start_sp_v1,
   pfs_end_sp_v1,
   pfs_get_thread_sp_locker_v1,
-  pfs_drop_sp_v1
+  pfs_drop_sp_v1,
+  pfs_get_sp_share_v1,
+  pfs_release_sp_share_v1
 };
 
 static void* get_interface(int version)

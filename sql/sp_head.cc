@@ -317,6 +317,32 @@ void sp_head::init_sp_name(THD *thd, sp_name *spname)
   m_qname.str= (char*) memdup_root(thd->mem_root,
                                    spname->m_qname.str,
                                    spname->m_qname.length + 1);
+#ifdef HAVE_PSI_SP_INTERFACE
+  enum_sp_object_type sp_object_type;
+  switch(m_type)
+  {
+    case SP_TYPE_EVENT:
+        sp_object_type= SP_OBJECT_TYPE_EVENT;
+      break;
+    case SP_TYPE_FUNCTION:
+        sp_object_type= SP_OBJECT_TYPE_FUNCTION;
+      break;
+    case SP_TYPE_PROCEDURE:
+        sp_object_type= SP_OBJECT_TYPE_PROCEDURE;
+      break;
+    case SP_TYPE_TRIGGER:
+        sp_object_type= SP_OBJECT_TYPE_TRIGGER;
+      break;
+    default:
+        DBUG_ASSERT(0);
+      break;
+  }
+
+  m_sp_share= MYSQL_GET_SP_SHARE(sp_object_type,
+                                 m_db.str, m_db.length,
+                                 m_name.str, m_name.length);
+#endif
+
 }
 
 
@@ -968,11 +994,7 @@ bool sp_head::execute_trigger(THD *thd,
   PSI_sp_locker_state state;
   PSI_sp_locker *locker;
 
-  state.m_object_type= (uint)SP_OBJECT_TYPE_TRIGGER;
-  state.m_schema_name= m_db.str;
-  state.m_schema_name_length= m_db.length;
-  state.m_object_name= m_name.str;
-  state.m_object_name_length= m_name.length;
+  state.m_sp_share= m_sp_share;
   locker= MYSQL_START_SP(&state);
 #endif
   err_status= execute(thd, FALSE);
@@ -1181,11 +1203,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   PSI_sp_locker_state state;
   PSI_sp_locker *locker;
 
-  state.m_object_type= (uint)SP_OBJECT_TYPE_FUNCTION;
-  state.m_schema_name= m_db.str;
-  state.m_schema_name_length= m_db.length;
-  state.m_object_name= m_name.str;
-  state.m_object_name_length= m_name.length;
+  state.m_sp_share= m_sp_share;
   locker= MYSQL_START_SP(&state);
 #endif
   err_status= execute(thd, TRUE);
@@ -1412,11 +1430,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   PSI_sp_locker_state state;
   PSI_sp_locker *locker;
 
-  state.m_object_type= (uint)SP_OBJECT_TYPE_PROCEDURE;
-  state.m_schema_name= m_db.str;
-  state.m_schema_name_length= m_db.length;
-  state.m_object_name= m_name.str;
-  state.m_object_name_length= m_name.length;
+  state.m_sp_share= m_sp_share;
   locker= MYSQL_START_SP(&state);
 #endif
   if (!err_status)

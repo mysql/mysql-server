@@ -3756,15 +3756,10 @@ end_with_restore_list:
                                   lex->drop_if_exists)))
       {
 #ifdef HAVE_PSI_SP_INTERFACE
-        PSI_sp_locker_state state;
-
-        state.m_object_type= SP_OBJECT_TYPE_EVENT;
-        state.m_schema_name= lex->spname->m_db.str;
-        state.m_schema_name_length= lex->spname->m_db.length;
-        state.m_object_name= lex->spname->m_name.str;
-        state.m_object_name_length= lex->spname->m_name.length;
         /* Drop statistics for this stored program from performance schema. */
-        MYSQL_DROP_SP(&state);
+        MYSQL_DROP_SP(SP_OBJECT_TYPE_EVENT,
+                      lex->spname->m_db.str, lex->spname->m_db.length,
+                      lex->spname->m_name.str, lex->spname->m_name.length);
 #endif
         my_ok(thd);
       }
@@ -4468,17 +4463,11 @@ end_with_restore_list:
       switch (sp_result) {
       case SP_OK:
 #ifdef HAVE_PSI_SP_INTERFACE
-        PSI_sp_locker_state state;
-
-        state.m_object_type= (sp_type == SP_TYPE_PROCEDURE) ? 
-                              SP_OBJECT_TYPE_PROCEDURE : 
-                              SP_OBJECT_TYPE_FUNCTION;
-        state.m_schema_name= lex->spname->m_db.str;
-        state.m_schema_name_length= lex->spname->m_db.length;
-        state.m_object_name= lex->spname->m_name.str;
-        state.m_object_name_length= lex->spname->m_name.length;
         /* Drop statistics for this stored program from performance schema. */
-        MYSQL_DROP_SP(&state);
+        MYSQL_DROP_SP((sp_type == SP_TYPE_PROCEDURE) ?
+                      SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
+                      lex->spname->m_db.str, lex->spname->m_db.length,
+                      lex->spname->m_name.str, lex->spname->m_name.length);
 #endif
 	my_ok(thd);
 	break;
@@ -4584,15 +4573,10 @@ end_with_restore_list:
 #ifdef HAVE_PSI_SP_INTERFACE
     if(!res)
     {
-        PSI_sp_locker_state state;
-
-        state.m_object_type= SP_OBJECT_TYPE_TRIGGER;
-        state.m_schema_name= lex->spname->m_db.str;
-        state.m_schema_name_length= lex->spname->m_db.length;
-        state.m_object_name= lex->spname->m_name.str;
-        state.m_object_name_length= lex->spname->m_name.length;
-        /* Drop statistics for this stored program from performance schema. */
-        MYSQL_DROP_SP(&state);
+      /* Drop statistics for this stored program from performance schema. */
+      MYSQL_DROP_SP(SP_OBJECT_TYPE_TRIGGER,
+                    lex->spname->m_db.str, lex->spname->m_db.length,
+                    lex->spname->m_name.str, lex->spname->m_name.length);
     }
 #endif
     break;
