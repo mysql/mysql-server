@@ -254,29 +254,29 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   { // Init all tables
     SLList<Table> tables(c_tablePool);
     TablePtr ptr;
-    while(tables.seize(ptr)){
+    while (tables.seizeFirst(ptr)){
       new (ptr.p) Table(c_fragmentPool);
     }
-    tables.release();
+    while (tables.releaseFirst());
   }
 
   {
     SLList<BackupFile> ops(c_backupFilePool);
     BackupFilePtr ptr;
-    while(ops.seize(ptr)){
+    while (ops.seizeFirst(ptr)){
       new (ptr.p) BackupFile(* this, c_pagePool);
     }
-    ops.release();
+    while (ops.releaseFirst());
   }
   
   {
     SLList<BackupRecord> recs(c_backupPool);
     BackupRecordPtr ptr;
-    while(recs.seize(ptr)){
+    while (recs.seizeFirst(ptr)){
       new (ptr.p) BackupRecord(* this, c_tablePool, 
 			       c_backupFilePool, c_triggerPool);
     }
-    recs.release();
+    while (recs.releaseFirst());
   }
 
   // Initialize BAT for interface to file system

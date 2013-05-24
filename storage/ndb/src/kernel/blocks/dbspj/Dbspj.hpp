@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,9 +22,7 @@
 #include <signaldata/LqhKey.hpp>
 #include <signaldata/ScanFrag.hpp>
 #include <AttributeHeader.hpp>
-#include <SLFifoList.hpp>
-#include <DLFifoList.hpp>
-#include <SLList.hpp>
+#include <IntrusiveList.hpp>
 #include <ArenaPool.hpp>
 #include <DataBuffer2.hpp>
 #include <Bitmask.hpp>
