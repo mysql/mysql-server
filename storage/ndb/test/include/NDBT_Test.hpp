@@ -416,7 +416,8 @@ private:
   void execute(Ndb_cluster_connection&,
 	       const NdbDictionary::Table*, const char* testname = NULL);
 
-  void execute(Ndb_cluster_connection&, NDBT_TestCase*);
+  void execute(Ndb_cluster_connection&, NDBT_TestCase*,
+               const NdbDictionary::Table * pTab);
 
   int report(const char* _tcname = NULL);
   int reportAllTables(const char* );
