@@ -35,7 +35,7 @@ Created 7/1/1994 Heikki Tuuri
 /*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
 @return	TRUE if the columns are considered equal in comparisons */
-UNIV_INTERN
+
 ibool
 cmp_cols_are_equal(
 /*===============*/
@@ -47,7 +47,7 @@ cmp_cols_are_equal(
 This function is used to compare two data fields for which we know the
 data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
-UNIV_INTERN
+
 int
 cmp_data_data(
 /*==========*/
@@ -61,62 +61,6 @@ cmp_data_data(
 	ulint		len2)	/*!< in: data field length or UNIV_SQL_NULL */
 	__attribute__((nonnull, warn_unused_result));
 
-/*****************************************************************
-This function is used to compare two data fields for which we know the
-data type to be VARCHAR.
-@return	1, 0, -1, if lhs is greater, equal, less than rhs, respectively */
-UNIV_INTERN
-int
-cmp_data_data_slow_varchar(
-/*=======================*/
-	const byte*	lhs,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		lhs_len,/* in: data field length or UNIV_SQL_NULL */
-	const byte*	rhs,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		rhs_len);/* in: data field length or UNIV_SQL_NULL */
-/*****************************************************************
-This function is used to compare two varchar/char fields. The comparison
-is for the LIKE operator.
-@return	1, 0, -1, if lhs is greater, equal, less than rhs, respectively */
-UNIV_INTERN
-int
-cmp_data_data_slow_like_prefix(
-/*===========================*/
-	const byte*	data1,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
-	const byte*	data2,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
-/*****************************************************************
-This function is used to compare two varchar/char fields. The comparison
-is for the LIKE operator.
-@return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
-UNIV_INTERN
-int
-cmp_data_data_slow_like_suffix(
-/*===========================*/
-	const byte*	data1,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
-	const byte*	data2,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
-/*****************************************************************
-This function is used to compare two varchar/char fields. The comparison
-is for the LIKE operator.
-@return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
-UNIV_INTERN
-int
-cmp_data_data_slow_like_substr(
-/*===========================*/
-	const byte*	data1,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
-	const byte*	data2,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
 /*************************************************************//**
 This function is used to compare two dfields where at least the first
 has its data type field set.
@@ -139,7 +83,7 @@ made.
 @return 1, 0, -1, if dtuple is greater, equal, less than rec,
 respectively, when only the common first fields are compared, or until
 the first externally stored field in rec */
-UNIV_INTERN
+
 int
 cmp_dtuple_rec_with_match_low(
 /*==========================*/
@@ -167,7 +111,7 @@ cmp_dtuple_rec_with_match_low(
 Compares a data tuple to a physical record.
 @see cmp_dtuple_rec_with_match
 @return 1, 0, -1, if dtuple is greater, equal, less than rec, respectively */
-UNIV_INTERN
+
 int
 cmp_dtuple_rec(
 /*===========*/
@@ -178,7 +122,7 @@ cmp_dtuple_rec(
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record.
 @return	TRUE if prefix */
-UNIV_INTERN
+
 ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
@@ -191,7 +135,7 @@ none of which are stored externally.
 @retval 1 if rec1 (including non-ordering columns) is greater than rec2
 @retval -1 if rec1 (including non-ordering columns) is less than rec2
 @retval 0 if rec1 is a duplicate of rec2 */
-UNIV_INTERN
+
 int
 cmp_rec_rec_simple(
 /*===============*/
@@ -209,7 +153,7 @@ This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is
 encountered, then 0 is returned.
 @return 1, 0, -1 if rec1 is greater, equal, less, respectively */
-UNIV_INTERN
+
 int
 cmp_rec_rec_with_match(
 /*===================*/
@@ -248,36 +192,14 @@ cmp_rec_rec(
 /*****************************************************************
 This function is used to compare two dfields where at least the first
 has its data type field set. */
-UNIV_INTERN
+UNIV_INLINE
 int
 cmp_dfield_dfield_like_prefix(
 /*==========================*/
 				/* out: 1, 0, -1, if dfield1 is greater, equal,
 				less than dfield2, respectively */
-	dfield_t*	dfield1,/* in: data field; must have type field set */
-	dfield_t*	dfield2);/* in: data field */
-/*****************************************************************
-This function is used to compare two dfields where at least the first
-has its data type field set. */
-UNIV_INLINE
-int
-cmp_dfield_dfield_like_substr(
-/*==========================*/
-				/* out: 1, 0, -1, if dfield1 is greater, equal,
-				less than dfield2, respectively */
-	dfield_t*	dfield1,/* in: data field; must have type field set */
-	dfield_t*	dfield2);/* in: data field */
-/*****************************************************************
-This function is used to compare two dfields where at least the first
-has its data type field set. */
-UNIV_INLINE
-int
-cmp_dfield_dfield_like_suffix(
-/*==========================*/
-				/* out: 1, 0, -1, if dfield1 is greater, equal,
-				less than dfield2, respectively */
-	dfield_t*	dfield1,/* in: data field; must have type field set */
-	dfield_t*	dfield2);/* in: data field */
+	const dfield_t*	dfield1,/* in: data field; must have type field set */
+	const dfield_t*	dfield2);/* in: data field */
 
 #ifndef UNIV_NONINL
 #include "rem0cmp.ic"

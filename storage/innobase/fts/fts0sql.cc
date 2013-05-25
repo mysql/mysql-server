@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,7 @@ Created 2007-03-27 Sunny Bains
 #include "fts0types.h"
 #include "fts0priv.h"
 
-#ifndef UNIV_NONINL
+#ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif
@@ -50,7 +50,7 @@ static const char* fts_sql_end=
 /******************************************************************//**
 Get the table id.
 @return number of bytes written */
-UNIV_INTERN
+
 int
 fts_get_table_id(
 /*=============*/
@@ -91,7 +91,7 @@ fts_get_table_id(
 /******************************************************************//**
 Construct the prefix name of an FTS table.
 @return own: table name, must be freed with mem_free() */
-UNIV_INTERN
+
 char*
 fts_get_table_name_prefix(
 /*======================*/
@@ -131,7 +131,7 @@ fts_get_table_name_prefix(
 /******************************************************************//**
 Construct the name of an ancillary FTS table.
 @return own: table name, must be freed with mem_free() */
-UNIV_INTERN
+
 char*
 fts_get_table_name(
 /*===============*/
@@ -162,7 +162,7 @@ fts_get_table_name(
 /******************************************************************//**
 Parse an SQL string. %s is replaced with the table's id.
 @return query graph */
-UNIV_INTERN
+
 que_t*
 fts_parse_sql(
 /*==========*/
@@ -217,7 +217,7 @@ fts_parse_sql(
 /******************************************************************//**
 Parse an SQL string. %s is replaced with the table's id.
 @return query graph */
-UNIV_INTERN
+
 que_t*
 fts_parse_sql_no_dict_lock(
 /*=======================*/
@@ -261,7 +261,7 @@ fts_parse_sql_no_dict_lock(
 /******************************************************************//**
 Evaluate an SQL query graph.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_eval_sql(
 /*=========*/
@@ -295,7 +295,7 @@ Two indexed columns named "subject" and "content":
  "$sel0, $sel1",
  info/ids: sel0 -> "subject", sel1 -> "content",
 @return heap-allocated WHERE string */
-UNIV_INTERN
+
 const char*
 fts_get_select_columns_str(
 /*=======================*/
@@ -326,7 +326,7 @@ fts_get_select_columns_str(
 /******************************************************************//**
 Commit a transaction.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_sql_commit(
 /*===========*/
@@ -345,7 +345,7 @@ fts_sql_commit(
 /******************************************************************//**
 Rollback a transaction.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_sql_rollback(
 /*=============*/

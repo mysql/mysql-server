@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,7 +32,7 @@ Created 12/9/1995 Heikki Tuuri
 /******************************************************//**
 Checks by parsing that the catenated log segment for a single mtr is
 consistent. */
-UNIV_INTERN
+
 ibool
 log_check_log_recs(
 /*===============*/

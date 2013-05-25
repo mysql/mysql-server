@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -96,7 +96,7 @@ trx_rseg_get_on_id(
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.
 @return	page number of the created segment, FIL_NULL if fail */
-UNIV_INTERN
+
 ulint
 trx_rseg_header_create(
 /*===================*/
@@ -109,7 +109,7 @@ trx_rseg_header_create(
 /*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
 rseg array in trx_sys at a database startup. */
-UNIV_INTERN
+
 void
 trx_rseg_array_init(
 /*================*/
@@ -118,7 +118,7 @@ trx_rseg_array_init(
 	mtr_t*		mtr);		/*!< in/out: mtr */
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */
-UNIV_INTERN
+
 void
 trx_rseg_mem_free(
 /*==============*/
@@ -126,7 +126,7 @@ trx_rseg_mem_free(
 
 /*********************************************************************
 Creates a rollback segment. */
-UNIV_INTERN
+
 trx_rseg_t*
 trx_rseg_create(
 /*============*/
@@ -138,7 +138,7 @@ The last space id will be the sentinel value ULINT_UNDEFINED. The array
 will be sorted on space id. Note: space_ids should have have space for
 TRX_SYS_N_RSEGS + 1 elements.
 @return number of unique rollback tablespaces in use. */
-UNIV_INTERN
+
 ulint
 trx_rseg_get_n_undo_tablespaces(
 /*============================*/

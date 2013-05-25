@@ -47,7 +47,7 @@
 using std::min;
 using std::max;
 
-#if defined(USE_LIBEDIT_INTERFACE) && defined(HAVE_LOCALE_H)
+#if defined(USE_LIBEDIT_INTERFACE)
 #include <locale.h>
 #endif
 
@@ -2756,9 +2756,7 @@ static void initialize_readline (char *name)
 
   rl_add_defun("magic-space", (rl_command_func_t *)&fake_magic_space, -1);
 #elif defined(USE_LIBEDIT_INTERFACE)
-#ifdef HAVE_LOCALE_H
   setlocale(LC_ALL,""); /* so as libedit use isprint */
-#endif
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= &no_completion;
   rl_add_defun("magic-space", (Function*)&fake_magic_space, -1);

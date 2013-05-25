@@ -31,6 +31,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0types.h"
 #include "mtr0types.h"
 #include "page0types.h"
+#include "trx0types.h"
 #ifndef DBUG_OFF
 # include <ostream>
 # include <sstream>
@@ -418,7 +419,7 @@ rec_2_is_field_extern(
 Determine how many of the first n columns in a compact
 physical record are stored externally.
 @return	number of externally stored columns */
-UNIV_INTERN
+
 ulint
 rec_get_n_extern_new(
 /*=================*/
@@ -431,7 +432,7 @@ rec_get_n_extern_new(
 The following function determines the offsets to each field
 in the record.	It can reuse a previously allocated array.
 @return	the new offsets */
-UNIV_INTERN
+
 ulint*
 rec_get_offsets_func(
 /*=================*/
@@ -455,7 +456,7 @@ rec_get_offsets_func(
 /******************************************************//**
 The following function determines the offsets to each field
 in the record.  It can reuse a previously allocated array. */
-UNIV_INTERN
+
 void
 rec_get_offsets_reverse(
 /*====================*/
@@ -502,7 +503,7 @@ rec_offs_make_valid(
 The following function is used to get the offset to the nth
 data field in an old-style record.
 @return	offset to the field */
-UNIV_INTERN
+
 ulint
 rec_get_nth_field_offs_old(
 /*=======================*/
@@ -746,7 +747,7 @@ rec_copy(
 /**********************************************************//**
 Determines the size of a data tuple prefix in a temporary file.
 @return	total size */
-UNIV_INTERN
+
 ulint
 rec_get_converted_size_temp(
 /*========================*/
@@ -759,7 +760,7 @@ rec_get_converted_size_temp(
 /******************************************************//**
 Determine the offset to each field in temporary file.
 @see rec_convert_dtuple_to_temp() */
-UNIV_INTERN
+
 void
 rec_init_offsets_temp(
 /*==================*/
@@ -772,7 +773,7 @@ rec_init_offsets_temp(
 /*********************************************************//**
 Builds a temporary file record out of a data tuple.
 @see rec_init_offsets_temp() */
-UNIV_INTERN
+
 void
 rec_convert_dtuple_to_temp(
 /*=======================*/
@@ -786,7 +787,7 @@ rec_convert_dtuple_to_temp(
 Copies the first n fields of a physical record to a new physical record in
 a buffer.
 @return	own: copied record */
-UNIV_INTERN
+
 rec_t*
 rec_copy_prefix_to_buf(
 /*===================*/
@@ -820,7 +821,7 @@ rec_fold(
 Builds a physical record out of a data tuple and
 stores it into the given buffer.
 @return	pointer to the origin of physical record */
-UNIV_INTERN
+
 rec_t*
 rec_convert_dtuple_to_rec(
 /*======================*/
@@ -846,7 +847,7 @@ rec_get_converted_extra_size(
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return	total size */
-UNIV_INTERN
+
 ulint
 rec_get_converted_size_comp_prefix(
 /*===============================*/
@@ -858,7 +859,7 @@ rec_get_converted_size_comp_prefix(
 /**********************************************************//**
 Determines the size of a data tuple in ROW_FORMAT=COMPACT.
 @return	total size */
-UNIV_INTERN
+
 ulint
 rec_get_converted_size_comp(
 /*========================*/
@@ -887,7 +888,7 @@ rec_get_converted_size(
 /**************************************************************//**
 Copies the first n fields of a physical record to a data tuple.
 The fields are copied to the memory heap. */
-UNIV_INTERN
+
 void
 rec_copy_prefix_to_dtuple(
 /*======================*/
@@ -902,7 +903,7 @@ rec_copy_prefix_to_dtuple(
 /***************************************************************//**
 Validates the consistency of a physical record.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 rec_validate(
 /*=========*/
@@ -911,7 +912,7 @@ rec_validate(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints an old-style physical record. */
-UNIV_INTERN
+
 void
 rec_print_old(
 /*==========*/
@@ -922,7 +923,7 @@ rec_print_old(
 /***************************************************************//**
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
 record header. */
-UNIV_INTERN
+
 void
 rec_print_comp(
 /*===========*/
@@ -932,7 +933,7 @@ rec_print_comp(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints a physical record. */
-UNIV_INTERN
+
 void
 rec_print_new(
 /*==========*/
@@ -942,7 +943,7 @@ rec_print_new(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints a physical record. */
-UNIV_INTERN
+
 void
 rec_print(
 /*======*/
@@ -954,7 +955,7 @@ rec_print(
 # ifndef DBUG_OFF
 /***************************************************************//**
 Prints a physical record. */
-UNIV_INTERN
+
 void
 rec_print(
 /*======*/
@@ -1024,7 +1025,7 @@ private:
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
 @return	the value of DB_TRX_ID */
-UNIV_INTERN
+
 trx_id_t
 rec_get_trx_id(
 /*===========*/

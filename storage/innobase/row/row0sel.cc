@@ -30,13 +30,13 @@ Select
 Created 12/19/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0sel.h"
 
 #ifdef UNIV_NONINL
 #include "row0sel.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "dict0dict.h"
 #include "dict0boot.h"
@@ -261,7 +261,7 @@ func_exit:
 /*********************************************************************//**
 Creates a select node struct.
 @return	own: select node struct */
-UNIV_INTERN
+
 sel_node_t*
 sel_node_create(
 /*============*/
@@ -283,7 +283,7 @@ sel_node_create(
 /*********************************************************************//**
 Frees the memory private to a select node when a query graph is freed,
 does not free the heap where the node was originally created. */
-UNIV_INTERN
+
 void
 sel_node_free_private(
 /*==================*/
@@ -515,7 +515,7 @@ sel_col_prefetch_buf_alloc(
 /*********************************************************************//**
 Frees a prefetch buffer for a column, including the dynamically allocated
 memory for data stored there. */
-UNIV_INTERN
+
 void
 sel_col_prefetch_buf_free(
 /*======================*/
@@ -2038,7 +2038,7 @@ func_exit:
 Performs a select step. This is a high-level function used in SQL execution
 graphs.
 @return	query thread to run next or NULL */
-UNIV_INTERN
+
 que_thr_t*
 row_sel_step(
 /*=========*/
@@ -2144,7 +2144,7 @@ row_sel_step(
 /**********************************************************************//**
 Performs a fetch for a cursor.
 @return	query thread to run next or NULL */
-UNIV_INTERN
+
 que_thr_t*
 fetch_step(
 /*=======*/
@@ -2207,7 +2207,7 @@ fetch_step(
 /****************************************************************//**
 Sample callback function for fetch that prints each row.
 @return	always returns non-NULL */
-UNIV_INTERN
+
 void*
 row_fetch_print(
 /*============*/
@@ -2249,7 +2249,7 @@ row_fetch_print(
 /***********************************************************//**
 Prints a row in a select result.
 @return	query thread to run next or NULL */
-UNIV_INTERN
+
 que_thr_t*
 row_printf_step(
 /*============*/
@@ -2316,7 +2316,7 @@ the parameter key_len. But currently we do not allow search keys where the
 last field is only a prefix of the full key field len and print a warning if
 such appears. A counterpart of this function is
 ha_innobase::store_key_val_for_row() in ha_innodb.cc. */
-UNIV_INTERN
+
 void
 row_sel_convert_mysql_key_to_innobase(
 /*==================================*/
@@ -3538,7 +3538,7 @@ row_sel_try_search_shortcut_for_mysql(
 Check a pushed-down index condition.
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
 static
-enum icp_result
+ICP_RESULT
 row_search_idx_cond_check(
 /*======================*/
 	byte*			mysql_rec,	/*!< out: record
@@ -3550,7 +3550,7 @@ row_search_idx_cond_check(
 	const rec_t*		rec,		/*!< in: InnoDB record */
 	const ulint*		offsets)	/*!< in: rec_get_offsets() */
 {
-	enum icp_result result;
+	ICP_RESULT	result;
 	ulint		i;
 
 	ut_ad(rec_offs_validate(rec, prebuilt->index, offsets));
@@ -3622,7 +3622,7 @@ from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-UNIV_INTERN
+
 dberr_t
 row_search_for_mysql(
 /*=================*/
@@ -5160,7 +5160,7 @@ func_exit:
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
 @return	TRUE if storing or retrieving from the query cache is permitted */
-UNIV_INTERN
+
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
@@ -5320,7 +5320,7 @@ row_search_autoinc_get_rec(
 Read the max AUTOINC value from an index.
 @return DB_SUCCESS if all OK else error code, DB_RECORD_NOT_FOUND if
 column name can't be found in index */
-UNIV_INTERN
+
 dberr_t
 row_search_max_autoinc(
 /*===================*/

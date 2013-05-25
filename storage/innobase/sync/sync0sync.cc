@@ -36,15 +36,15 @@ Created 9/5/1995 Heikki Tuuri
 
 /** The number of iterations in the mutex_spin_wait() spin loop.
 Intended for performance monitoring. */
-UNIV_INTERN mutex_counter_t	mutex_spin_round_count;
+mutex_counter_t	mutex_spin_round_count;
 
 /** The number of mutex_spin_wait() calls.  Intended for
 performance monitoring. */
-UNIV_INTERN mutex_counter_t	mutex_spin_wait_count;
+mutex_counter_t	mutex_spin_wait_count;
 
 /** The number of OS waits in mutex_spin_wait().  Intended for
 performance monitoring. */
-UNIV_INTERN mutex_counter_t	mutex_os_wait_count;
+mutex_counter_t	mutex_os_wait_count;
 
 /**
 Prints wait info of the sync system.
@@ -86,7 +86,7 @@ sync_print_wait_info(FILE* file)
 /**
 Prints info of the sync system.
 @param file - where to print */
-UNIV_INTERN
+
 void
 sync_print(FILE* file)
 {
@@ -101,7 +101,7 @@ sync_print(FILE* file)
 
 /**
 @return total number of spin rounds since startup. */
-UNIV_INTERN
+
 ib_uint64_t
 mutex_spin_round_count_get()
 {
@@ -110,21 +110,18 @@ mutex_spin_round_count_get()
 
 /**
 @return total number of spin wait calls since startup. */
-UNIV_INTERN
+
 ib_uint64_t
 mutex_spin_wait_count_get()
-/*=======================*/
 {
 	return(mutex_spin_wait_count);
 }
 
 /**
 @return total number of OS waits since startup. */
-UNIV_INTERN
+
 ib_uint64_t
 mutex_os_wait_count_get()
-/*=====================*/
 {
 	return(mutex_os_wait_count);
 }
-

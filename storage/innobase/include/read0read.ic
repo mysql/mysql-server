@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -149,7 +149,7 @@ read_view_remove(
 /*********************************************************************//**
 Insert the view in the proper order into the trx_sys->view_list. The
 read view list is ordered by read_view_t::low_limit_no in descending order. */
-UNIV_INTERN
+
 void
 read_view_add(
 /*==========*/

@@ -30,6 +30,8 @@ The wait array used in synchronization primitives
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "sync0arr.h"
 #ifdef UNIV_NONINL
 #include "sync0arr.ic"
@@ -135,17 +137,17 @@ struct sync_array_t {
 };
 
 /** User configured sync array size */
-UNIV_INTERN ulong		srv_sync_array_size = 1;
+ulong	srv_sync_array_size = 1;
 
 /** Locally stored copy of srv_sync_array_size */
-UNIV_INTERN ulint		sync_array_size;
+ulint	sync_array_size;
 
 /** The global array of wait cells for implementation of the database's own
 mutexes and read-write locks */
-UNIV_INTERN sync_array_t**	sync_wait_array;
+sync_array_t**	sync_wait_array;
 
 #ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	sync_array_mutex_key;
+mysql_pfs_key_t	sync_array_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /** count of how many times an object has been signalled */
@@ -242,7 +244,7 @@ sync_array_free(
 /********************************************************************//**
 Validates the integrity of the wait array. Checks
 that the number of reserved cells equals the count variable. */
-UNIV_INTERN
+
 void
 sync_array_validate(
 /*================*/
@@ -291,7 +293,7 @@ sync_cell_get_event(
 Reserves a wait array cell for waiting for an object.
 The event of the cell is reset to nonsignalled state.
 @return sync cell to wait on */
-UNIV_INTERN
+
 sync_cell_t*
 sync_array_reserve_cell(
 /*====================*/
@@ -364,7 +366,7 @@ sync_array_reserve_cell(
 /******************************************************************//**
 Frees the cell. NOTE! sync_array_wait_event frees the cell
 automatically! */
-UNIV_INTERN
+
 void
 sync_array_free_cell(
 /*=================*/
@@ -410,7 +412,7 @@ This function should be called when a thread starts to wait on
 a wait array cell. In the debug version this function checks
 if the wait for a semaphore will result in a deadlock, in which
 case prints info and asserts. */
-UNIV_INTERN
+
 void
 sync_array_wait_event(
 /*==================*/
@@ -807,7 +809,7 @@ sync_arr_cell_can_wake_up(
 
 /**********************************************************************//**
 Increments the signalled count. */
-UNIV_INTERN
+
 void
 sync_array_object_signalled(void)
 /*=============================*/
@@ -856,7 +858,7 @@ function should be called about every 1 second in the server.
 Note that there's a race condition between this thread and mutex_exit
 changing the lock_word and calling signal_object, so sometimes this finds
 threads to wake up even when nothing has gone wrong. */
-UNIV_INTERN
+
 void
 sync_arr_wake_threads_if_sema_free(void)
 /*====================================*/
@@ -943,7 +945,7 @@ sync_array_print_long_waits_low(
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
 @return	TRUE if fatal semaphore wait threshold was exceeded */
-UNIV_INTERN
+
 ibool
 sync_array_print_long_waits(
 /*========================*/
@@ -1050,7 +1052,7 @@ sync_array_print_info(
 
 /**********************************************************************//**
 Create the primary system wait array(s), they are protected by an OS mutex */
-UNIV_INTERN
+
 void
 sync_array_init(
 /*============*/
@@ -1080,7 +1082,7 @@ sync_array_init(
 
 /**********************************************************************//**
 Close sync array wait sub-system. */
-UNIV_INTERN
+
 void
 sync_array_close(void)
 /*==================*/
@@ -1095,7 +1097,7 @@ sync_array_close(void)
 
 /**********************************************************************//**
 Print info about the sync array(s). */
-UNIV_INTERN
+
 void
 sync_array_print(
 /*=============*/
@@ -1109,4 +1111,3 @@ sync_array_print(
 		"OS WAIT ARRAY INFO: signal count %ld\n", (long) sg_count);
 
 }
-
