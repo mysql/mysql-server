@@ -963,7 +963,7 @@ void writeFraction(const NdbDictionary::Column *col, int usec, char *buf, bool n
     register int bufsz = (1 + prec) / 2; // {1,1,2,2,3,3}
     while(prec < 5) usec /= 100, prec += 2;
     if(prec % 2) usec -= (usec % 10); // forced loss of precision
-    if(neg) {
+    if(neg && usec) {
       usec = (~usec) + 1;  // two's complement
     }
     pack_bigendian(usec, buf, bufsz);
