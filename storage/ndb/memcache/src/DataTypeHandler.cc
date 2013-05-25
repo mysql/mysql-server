@@ -989,9 +989,13 @@ DateTime_CopyBuffer::DateTime_CopyBuffer(size_t len, const char *str) :
   
   too_long = ( len > 60);  
   if(! too_long) {
-    if(*c == '-' || *c == '+') *buf++ = *c++;  // tolerate initial + or -
+    register unsigned int i = 0;
+    if(*c == '-' || *c == '+') {
+      *buf++ = *c++;  // tolerate initial + or -
+      i++;
+    }
 
-    for(register unsigned int i = 0 ; i < len && *c != 0 ; c++, i++ ) {
+    for( ; i < len && *c != 0 ; c++, i++ ) {
       if(isdigit(*c)) {
         *buf++ = *c;
       }
@@ -1006,7 +1010,7 @@ DateTime_CopyBuffer::DateTime_CopyBuffer(size_t len, const char *str) :
   /* Figure microseconds */
   if(decimal) {
     *decimal = 0;
-    size_t dl = c - decimal;  // length of fractional part as written
+    size_t dl = (buf-1) - decimal;  // length of fractional part as written
     safe_strtol(decimal+1, & microsec);
     while(dl < 6) dl++, microsec *= 10;
     while(dl > 6) dl--, microsec /= 10;
@@ -1292,18 +1296,34 @@ int dth_write32_timestamp2(Int32 value, void *buf,
 
 int dth_decode_time2(const NdbDictionary::Column *col, char * &str, const void *buf) {
   time_helper tm = { 0,0,0,0,0,0,0, false };
+  int prec = col->getPrecision();
+  int fsp_size = (1 + prec) / 2;
+  int buf_size = 3 + fsp_size;
+  int fsp_bits = fsp_size * 8;
+  int fsp_mask = (1UL << fsp_bits) - 1;
+  int sign_pos = fsp_bits + 23;
+  uint64_t sign_val = 1ULL << sign_pos;
+
   /* Read the integer time from the buffer */
-  int packedValue = (int) unpack_bigendian((const char *)buf, 3);
+  uint64_t packedValue = unpack_bigendian((const char *) buf, buf_size);
 
   /* Factor it out */
+  if((packedValue & sign_val) == sign_val) {
+    tm.is_negative = false;
+  }
+  else {
+    tm.is_negative = true;
+    packedValue = sign_val - packedValue;   // two's complement
+  }
+  int usec  = (packedValue & fsp_mask);   packedValue >>= fsp_bits;
   tm.second = (packedValue & 0x3F);       packedValue >>= 6;
   tm.minute = (packedValue & 0x3F);       packedValue >>= 6;
   tm.hour   = (packedValue & 0x03FF);     packedValue >>= 10;
-  tm.is_negative = (packedValue < 0);
-  const char * fspbuf = (const char *) buf + 3;
-  FractionPrinter fptr(col, readFraction(col, fspbuf));
-  
+
+  while(prec < 5) usec *= 100, prec += 2;
+
   /* Stringify it */
+  FractionPrinter fptr(col, usec);
   return sprintf(str, "%s%02d:%02d:%02d%s", tm.is_negative ? "-" : "" ,
                  tm.hour, tm.minute, tm.second, fptr.print());
 }
@@ -1315,9 +1335,15 @@ size_t dth_length_time2(const NdbDictionary::Column *col, const void *buf) {
 
 int dth_encode_time2(const NdbDictionary::Column * col, size_t len,
                      const char *str, void *buf) {
-  Int32  int_time, packedValue;
+  Int32  int_time;
   char * buffer = (char *) buf;
   time_helper tm = { 0,0,0,0,0,0,0, false };
+  int prec = col->getPrecision();
+  int fsp_size = (1 + prec) / 2;
+  int buf_size = 3 + fsp_size;
+  int fsp_bits = fsp_size * 8;
+  uint64_t sign_val = 1ULL << (23 + fsp_bits);
+  Uint64 packedValue = 0;
 
   /* Make a safe (null-terminated) copy */
   DateTime_CopyBuffer copybuff(len, str);
@@ -1329,14 +1355,23 @@ int dth_encode_time2(const NdbDictionary::Column * col, size_t len,
   /* Factor it out */
   factor_HHMMSS(& tm,int_time);
 
-  packedValue = (tm.is_negative ? 0 : 1);      packedValue <<= 11;
-  packedValue |= tm.hour;                      packedValue <<= 6;
-  packedValue |= tm.minute;                    packedValue <<= 6;
-  packedValue |= tm.second;
+  int fsec = copybuff.microsec;
+  if(fsec) {
+    while(prec < 5) fsec /= 100, prec += 2;
+    if(prec % 2) fsec -= (fsec % 10); // forced loss of precision
+  }
 
-  pack_bigendian(packedValue, buffer, 3);
-  int nwritten = 3 + writeFraction(col, copybuff.microsec, buffer+3);
-  return nwritten;
+  packedValue = (tm.is_negative ? 0 : 1);  packedValue <<= 11;
+  packedValue |= tm.hour;                  packedValue <<= 6;
+  packedValue |= tm.minute;                packedValue <<= 6;
+  packedValue |= tm.second;                packedValue <<= fsp_bits;
+  packedValue |= fsec;
+
+  if(tm.is_negative)
+    packedValue = sign_val - packedValue;    // two's complement
+
+  pack_bigendian(packedValue, buffer, buf_size);
+  return buf_size;
 }
 
 

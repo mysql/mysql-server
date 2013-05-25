@@ -54,8 +54,8 @@ print "tt029:3  time(2)      " . $mc->get("tt029:3") . "\n";
 
 EOF
 
-SELECT * FROM tt023 order by mkey;
-SELECT * FROM tt024 order by mkey;
+SELECT mkey, unix_timestamp(sval) FROM tt023 order by mkey;
+SELECT mkey, unix_timestamp(sval) FROM tt024 order by mkey;
 SELECT * FROM tt025 order by mkey;
 SELECT * FROM tt026 order by mkey;
 SELECT * FROM tt027 order by mkey;
