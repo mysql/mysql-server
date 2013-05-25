@@ -147,8 +147,8 @@ t7.run = function() {
 var t8 = new harness.ConcurrentTest("t8_time_fractional_negative");
 t8.run = function() {
   var data = new TestData(8);
-  data.Time4 = -1111.6222;
-  this.verifier = new ValueVerifier(this, "Time4", -1111.6);
+  data.Time4 = -210150;
+  this.verifier = new ValueVerifier(this, "Time4", -210150);
   fail_openSession(this, InsertFunction(data));
 }
 
