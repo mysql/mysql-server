@@ -36,32 +36,32 @@ Created 2012-08-21 Sunny Bains
 
 /**
 Initializes the synchronization data structures. */
-UNIV_INTERN
+
 void
 sync_check_init();
 
 /**
 Enable sync order checking. */
-UNIV_INTERN
+
 void
 sync_check_enable();
 
 /**
 Frees the resources in synchronization data structures. */
-UNIV_INTERN
+
 void
 sync_check_close();
 
 /**
 Prints info of the sync system.
 @param file - where to print */
-//UNIV_INTERN
+//
 //void sync_check_print(Writer* writer);
 
 /**
 Check if it is OK to acquire the latch. 
 @param latch - latch type */
-UNIV_INTERN
+
 void
 sync_check_lock(const latch_t* latch);
 
@@ -69,20 +69,20 @@ sync_check_lock(const latch_t* latch);
 Check if it is OK to acquire the latch. 
 @param latch - latch type
 @param level - the level of the mutex */
-UNIV_INTERN
+
 void
 sync_check_lock(const latch_t* latch, latch_level_t level);
 
 /**
 Check if it is OK to re-acquire the lock. */
-UNIV_INTERN
+
 void
 sync_check_relock(const latch_t* latch);
 
 /**
 Removes a latch from the thread level array if it is found there.
 @param latch - to unlock */
-UNIV_INTERN
+
 void
 sync_check_unlock(const latch_t* latch);
 
@@ -91,7 +91,7 @@ Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @param level - to find
 @return	a matching latch, or NULL if not found */
-UNIV_INTERN
+
 const latch_t*
 sync_check_find(latch_level_t level);
 
@@ -100,7 +100,7 @@ Checks that the level array for the current thread is empty. Terminate
 iteration if the functor returns true.
 @param functor - called for each element.
 @return true if the functor returns true */
-UNIV_INTERN
+
 bool
 sync_check_iterate(sync_check_functor_t& functor);
 
@@ -108,7 +108,7 @@ sync_check_iterate(sync_check_functor_t& functor);
 Get the sync level for a latch name.
 @param name - latch name
 @return SYNC_UNKNOWN - if not found. */
-UNIV_INTERN
+
 latch_level_t
 sync_latch_get_level(const char* name);
 
@@ -116,7 +116,7 @@ sync_latch_get_level(const char* name);
 Get the latch name from a sync level.
 @param level - latch level to look for
 @return 0 if not found. */
-UNIV_INTERN
+
 const char*
 sync_latch_get_name(latch_level_t level) __attribute__((warn_unused_result));
 
@@ -125,7 +125,7 @@ sync_latch_get_name(latch_level_t level) __attribute__((warn_unused_result));
 Get the sync level for a latch name.
 @param name - latch name to look for
 @return SYNC_UNKNOWN - if not found. */
-UNIV_INTERN
+
 mysql_pfs_key_t
 sync_latch_get_pfs_key(const char* name);
 #endif /* UNIV_PFS_MUTEX */

@@ -37,8 +37,8 @@ Created 2012-09-23 Sunny Bains
 static const ulint MICROSECS_IN_A_SECOND = 1000000;
 
 #ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	event_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	event_manager_mutex_key;
+mysql_pfs_key_t	event_mutex_key;
+mysql_pfs_key_t	event_manager_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef __WIN__
@@ -56,7 +56,7 @@ performance killer causing calling thread to context switch. Besides, InnoDB
 is preallocating large number (often millions) of os_events. With kernel event
 objects it takes a big chunk out of non-paged pool, which is better suited
 for tasks like IO than for storing idle event objects. */
-UNIV_INTERN bool	srv_use_native_conditions;
+bool	srv_use_native_conditions;
 
 /** Native condition variable. */
 typedef CONDITION_VARIABLE	os_cond_t;
@@ -615,7 +615,7 @@ Creates an event semaphore, i.e., a semaphore which may just have two
 states: signaled and nonsignaled. The created event is manual reset: it
 must be reset explicitly by calling sync_os_reset_event.
 @return	the event handle */
-UNIV_INTERN
+
 os_event_t
 os_event_create(
 /*============*/
@@ -629,7 +629,7 @@ os_event_create(
 /**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
-UNIV_INTERN
+
 bool
 os_event_is_set(
 /*============*/
@@ -641,7 +641,7 @@ os_event_is_set(
 /**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
-UNIV_INTERN
+
 void
 os_event_set(
 /*=========*/
@@ -658,7 +658,7 @@ that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low().
 @return	current signal_count. */
-UNIV_INTERN
+
 ib_int64_t
 os_event_reset(
 /*===========*/
@@ -671,7 +671,7 @@ os_event_reset(
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded.
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-UNIV_INTERN
+
 ulint
 os_event_wait_time_low(
 /*===================*/
@@ -692,7 +692,7 @@ Waits for an event object until it is in the signaled state.
 Where such a scenario is possible, to avoid infinite wait, the
 value returned by os_event_reset() should be passed in as
 reset_sig_count. */
-UNIV_INTERN
+
 void
 os_event_wait_low(
 /*==============*/
@@ -706,7 +706,7 @@ os_event_wait_low(
 
 /**
 Frees an event object. */
-UNIV_INTERN
+
 void
 os_event_destroy(
 /*=============*/
@@ -721,7 +721,7 @@ os_event_destroy(
 
 /**
 Initialise the event sub-system. */
-UNIV_INTERN
+
 void
 os_event_init()
 {

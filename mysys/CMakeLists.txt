@@ -28,7 +28,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				my_isnan.c
 				my_lib.c my_lock.c my_malloc.c my_mess.c
 				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c my_pthread.c
-				my_quick.c my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
+				my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
 				my_write.c ptr_cmp.c queues.c stacktrace.c
 				string.c thr_alarm.c thr_lock.c thr_mutex.c

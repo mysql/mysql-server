@@ -26,8 +26,8 @@ Created 2007/03/16/03 Sunny Bains
 #ifndef INNOBASE_FST0AST_H
 #define INNOBASE_FST0AST_H
 
+#include "univ.i"
 #include "mem0mem.h"
-#include "ha_prototypes.h"
 
 /* The type of AST Node */
 enum fts_ast_type_t {
@@ -143,7 +143,7 @@ fts_ast_term_set_distance(
 /********************************************************************//**
 Free a fts_ast_node_t instance.
 @return next node to free */
-UNIV_INTERN
+
 fts_ast_node_t*
 fts_ast_free_node(
 /*==============*/
@@ -182,7 +182,7 @@ fts_ast_state_free(
 /******************************************************************//**
 Traverse the AST - in-order traversal.
 @return DB_SUCCESS if all went well */
-UNIV_INTERN
+
 dberr_t
 fts_ast_visit(
 /*==========*/
@@ -200,7 +200,7 @@ Process (nested) sub-expression, create a new result set to store the
 sub-expression result by processing nodes under current sub-expression
 list. Merge the sub-expression result with that of parent expression list.
 @return DB_SUCCESS if all went well */
-UNIV_INTERN
+
 dberr_t
 fts_ast_visit_sub_exp(
 /*==================*/
@@ -210,7 +210,7 @@ fts_ast_visit_sub_exp(
 	__attribute__((nonnull, warn_unused_result));
 /********************************************************************
 Create a lex instance.*/
-UNIV_INTERN
+
 fts_lexer_t*
 fts_lexer_create(
 /*=============*/
@@ -220,7 +220,7 @@ fts_lexer_create(
 	__attribute__((nonnull, malloc, warn_unused_result));
 /********************************************************************
 Free an fts_lexer_t instance.*/
-UNIV_INTERN
+
 void
 fts_lexer_free(
 /*===========*/

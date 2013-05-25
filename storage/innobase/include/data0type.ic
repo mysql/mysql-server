@@ -23,8 +23,6 @@ Data types
 Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
-#include <string.h> /* strlen() */
-
 #include "mach0data.h"
 #ifndef UNIV_HOTBACKUP
 # include "ha_prototypes.h"

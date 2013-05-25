@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -61,7 +61,7 @@ Outputs the sum of sizes of buffers given to the user (only in
 the debug version), the physical size of the heap and the number of
 blocks in the heap. In case of error returns 0 as sizes and number
 of blocks. */
-UNIV_INTERN
+
 void
 mem_heap_validate_or_print(
 /*=======================*/
@@ -87,7 +87,7 @@ mem_heap_validate_or_print(
 /**************************************************************//**
 Validates the contents of a memory heap.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 mem_heap_validate(
 /*==============*/
@@ -97,7 +97,7 @@ mem_heap_validate(
 /**************************************************************//**
 Checks that an object is a memory heap (or a block of it)
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 mem_heap_check(
 /*===========*/
@@ -107,21 +107,21 @@ mem_heap_check(
 /*****************************************************************//**
 TRUE if no memory is currently allocated.
 @return	TRUE if no heaps exist */
-UNIV_INTERN
+
 ibool
 mem_all_freed(void);
 /*===============*/
 /*****************************************************************//**
 Validates the dynamic memory
 @return	TRUE if error */
-UNIV_INTERN
+
 ibool
 mem_validate_no_assert(void);
 /*=========================*/
 /************************************************************//**
 Validates the dynamic memory
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 mem_validate(void);
 /*===============*/
@@ -129,7 +129,7 @@ mem_validate(void);
 /************************************************************//**
 Tries to find neigboring memory allocation blocks and dumps to stderr
 the neighborhood of a given pointer. */
-UNIV_INTERN
+
 void
 mem_analyze_corruption(
 /*===================*/
@@ -137,14 +137,14 @@ mem_analyze_corruption(
 /*****************************************************************//**
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers. Can only be used in the debug version. */
-UNIV_INTERN
+
 void
 mem_print_info(void);
 /*================*/
 /*****************************************************************//**
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers since the last ..._print_info or..._print_new_info. */
-UNIV_INTERN
+
 void
 mem_print_new_info(void);
 /*====================*/

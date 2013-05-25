@@ -23,6 +23,8 @@ Undo modify of a row
 Created 2/27/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0umod.h"
 
 #ifdef UNIV_NONINL
@@ -1065,7 +1067,7 @@ row_undo_mod_parse_undo_rec(
 /***********************************************************//**
 Undoes a modify operation on a row of a table.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 row_undo_mod(
 /*=========*/

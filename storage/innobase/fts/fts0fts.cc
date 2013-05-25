@@ -44,20 +44,20 @@ Full Text Search interface
 
 /** This is maximum FTS cache for each table and would be
 a configurable variable */
-UNIV_INTERN ulong	fts_max_cache_size;
+ulong	fts_max_cache_size;
 
 /** Whether the total memory used for FTS cache is exhausted, and we will
 need a sync to free some memory */
-UNIV_INTERN bool	fts_need_sync = false;
+bool	fts_need_sync = false;
 
 /** Variable specifying the total memory allocated for FTS cache */
-UNIV_INTERN ulong	fts_max_total_cache_size;
+ulong	fts_max_total_cache_size;
 
 /** Variable specifying the maximum FTS max token size */
-UNIV_INTERN ulong	fts_max_token_size;
+ulong	fts_max_token_size;
 
 /** Variable specifying the minimum FTS max token size */
-UNIV_INTERN ulong	fts_min_token_size;
+ulong	fts_min_token_size;
 
 
 // FIXME: testing
@@ -77,20 +77,20 @@ static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
 
 #ifdef UNIV_PFS_RWLOCK
-UNIV_INTERN mysql_pfs_key_t	fts_cache_rw_lock_key;
-UNIV_INTERN mysql_pfs_key_t	fts_cache_init_rw_lock_key;
+mysql_pfs_key_t	fts_cache_rw_lock_key;
+mysql_pfs_key_t	fts_cache_init_rw_lock_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	fts_delete_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	fts_optimize_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	fts_bg_threads_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	fts_doc_id_mutex_key;
+mysql_pfs_key_t	fts_delete_mutex_key;
+mysql_pfs_key_t	fts_optimize_mutex_key;
+mysql_pfs_key_t	fts_bg_threads_mutex_key;
+mysql_pfs_key_t	fts_doc_id_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /** variable to record innodb_fts_internal_tbl_name for information
 schema table INNODB_FTS_INSERTED etc. */
-UNIV_INTERN char* fts_internal_tbl_name		= NULL;
+char* fts_internal_tbl_name		= NULL;
 
 /** InnoDB default stopword list:
 There are different versions of stopwords, the stop words listed
@@ -314,6 +314,41 @@ fts_update_sync_doc_id(
 	doc_id_t		doc_id,		/*!< in: last document id */
 	trx_t*			trx)		/*!< in: update trx, or NULL */
 	__attribute__((nonnull(1)));
+
+/** Get a character set based on precise type.
+@param prtype	precise type
+@return the corresponding character set */
+UNIV_INLINE
+CHARSET_INFO*
+fts_get_charset(ulint prtype)
+{
+#ifdef UNIV_DEBUG
+	switch (prtype & DATA_MYSQL_TYPE_MASK) {
+	case MYSQL_TYPE_BIT:
+	case MYSQL_TYPE_STRING:
+	case MYSQL_TYPE_VAR_STRING:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_VARCHAR:
+		break;
+	default:
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
+
+	uint cs_num = dtype_get_charset_coll(prtype);
+
+	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
+		return(cs);
+	}
+
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Unable to find charset-collation %u", cs_num);
+	return(NULL);
+}
+
 /********************************************************************
 Check if we should stop. */
 UNIV_INLINE
@@ -353,9 +388,9 @@ fts_load_default_stopword(
 	heap = static_cast<mem_heap_t*>(allocator->arg);
 
 	if (!stopword_info->cached_stopword) {
-		/* For default stopword, we always use fts_utf8_string_cmp() */
-		stopword_info->cached_stopword = rbt_create(
-			sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
+		stopword_info->cached_stopword = rbt_create_arg_cmp(
+			sizeof(fts_tokenizer_word_t), innobase_fts_text_cmp,
+			&my_charset_latin1);
 	}
 
 	stop_words = stopword_info->cached_stopword;
@@ -579,7 +614,7 @@ fts_index_cache_init(
 
 /*********************************************************************//**
 Initialize FTS cache. */
-UNIV_INTERN
+
 void
 fts_cache_init(
 /*===========*/
@@ -610,7 +645,7 @@ fts_cache_init(
 
 /****************************************************************//**
 Create a FTS cache. */
-UNIV_INTERN
+
 fts_cache_t*
 fts_cache_create(
 /*=============*/
@@ -668,7 +703,7 @@ fts_cache_create(
 
 /*******************************************************************//**
 Add a newly create index into FTS cache */
-UNIV_INTERN
+
 void
 fts_add_index(
 /*==========*/
@@ -784,7 +819,7 @@ fts_in_index_cache(
 Check indexes in the fts->indexes is also present in index cache and
 table->indexes list
 @return TRUE if all indexes match */
-UNIV_INTERN
+
 ibool
 fts_check_cached_index(
 /*===================*/
@@ -820,7 +855,7 @@ fts_check_cached_index(
 /*******************************************************************//**
 Drop auxiliary tables related to an FTS index
 @return DB_SUCCESS or error number */
-UNIV_INTERN
+
 dberr_t
 fts_drop_index(
 /*===========*/
@@ -901,7 +936,7 @@ fts_drop_index(
 /****************************************************************//**
 Free the query graph but check whether dict_sys->mutex is already
 held */
-UNIV_INTERN
+
 void
 fts_que_graph_free_check_lock(
 /*==========================*/
@@ -938,7 +973,7 @@ fts_que_graph_free_check_lock(
 
 /****************************************************************//**
 Create an FTS index cache. */
-UNIV_INTERN
+
 CHARSET_INFO*
 fts_index_get_charset(
 /*==================*/
@@ -951,9 +986,7 @@ fts_index_get_charset(
 	field = dict_index_get_nth_field(index, 0);
 	prtype = field->col->prtype;
 
-	charset = innobase_get_fts_charset(
-		(int) (prtype & DATA_MYSQL_TYPE_MASK),
-		(uint) dtype_get_charset_coll(prtype));
+	charset = fts_get_charset(prtype);
 
 #ifdef FTS_DEBUG
 	/* Set up charset info for this index. Please note all
@@ -964,9 +997,7 @@ fts_index_get_charset(
 		field = dict_index_get_nth_field(index, i);
 		prtype = field->col->prtype;
 
-		fld_charset = innobase_get_fts_charset(
-			(int)(prtype & DATA_MYSQL_TYPE_MASK),
-			(uint) dtype_get_charset_coll(prtype));
+		fld_charset = fts_get_charset(prtype);
 
 		/* All FTS columns should have the same charset */
 		if (charset) {
@@ -983,7 +1014,7 @@ fts_index_get_charset(
 /****************************************************************//**
 Create an FTS index cache.
 @return Index Cache */
-UNIV_INTERN
+
 fts_index_cache_t*
 fts_cache_index_cache_create(
 /*=========================*/
@@ -1070,7 +1101,7 @@ fts_words_free(
 Clear cache. If the shutdown flag is TRUE then the cache can contain
 data that needs to be freed. For regular clear as part of normal
 working we assume the caller has freed all resources. */
-UNIV_INTERN
+
 void
 fts_cache_clear(
 /*============*/
@@ -1197,7 +1228,7 @@ fts_get_index_get_doc(
 
 /**********************************************************************//**
 Free the FTS cache. */
-UNIV_INTERN
+
 void
 fts_cache_destroy(
 /*==============*/
@@ -1278,7 +1309,7 @@ fts_tokenizer_word_get(
 
 /**********************************************************************//**
 Add the given doc_id/word positions to the given node's ilist. */
-UNIV_INTERN
+
 void
 fts_cache_node_add_positions(
 /*=========================*/
@@ -1553,7 +1584,7 @@ fts_drop_common_tables(
 Since we do a horizontal split on the index table, we need to drop
 all the split tables.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_drop_index_split_tables(
 /*========================*/
@@ -1591,7 +1622,7 @@ fts_drop_index_split_tables(
 /****************************************************************//**
 Drops FTS auxiliary tables for an FTS index
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_drop_index_tables(
 /*==================*/
@@ -1678,7 +1709,7 @@ Drops the ancillary tables needed for supporting an FTS index on a
 given table. row_mysql_lock_data_dictionary must have been called before
 this.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_drop_tables(
 /*============*/
@@ -1726,7 +1757,7 @@ Creates the common ancillary tables needed for supporting an FTS index
 on the given table. row_mysql_lock_data_dictionary must have been called
 before this.
 @return DB_SUCCESS if succeed */
-UNIV_INTERN
+
 dberr_t
 fts_create_common_tables(
 /*=====================*/
@@ -1843,17 +1874,12 @@ fts_create_one_index_table(
 	new_table = dict_mem_table_create(table_name, 0, 5, 1, 0);
 
 	field = dict_index_get_nth_field(index, 0);
-	charset = innobase_get_fts_charset(
-		(int)(field->col->prtype & DATA_MYSQL_TYPE_MASK),
-		(uint) dtype_get_charset_coll(field->col->prtype));
+	charset = fts_get_charset(field->col->prtype);
 
-	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
-		dict_mem_table_add_col(new_table, heap, "word", DATA_VARCHAR,
-				       field->col->prtype, FTS_MAX_WORD_LEN);
-	} else {
-		dict_mem_table_add_col(new_table, heap, "word", DATA_VARMYSQL,
-				       field->col->prtype, FTS_MAX_WORD_LEN);
-	}
+	dict_mem_table_add_col(new_table, heap, "word",
+			       charset == &my_charset_latin1
+			       ? DATA_VARCHAR : DATA_VARMYSQL,
+			       field->col->prtype, FTS_MAX_WORD_LEN);
 
 	dict_mem_table_add_col(new_table, heap, "first_doc_id", DATA_INT,
 			       DATA_NOT_NULL | DATA_UNSIGNED,
@@ -1888,7 +1914,7 @@ fts_create_one_index_table(
 Wrapper function of fts_create_index_tables_low(), create auxiliary
 tables for an FTS index
 @return: DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_create_index_tables_low(
 /*========================*/
@@ -1970,7 +1996,7 @@ Creates the column specific ancillary tables needed for supporting an
 FTS index on the given table. row_mysql_lock_data_dictionary must have
 been called before this.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_create_index_tables(
 /*====================*/
@@ -2312,7 +2338,7 @@ fts_trx_table_add_op(
 
 /******************************************************************//**
 Notify the FTS system about an operation on an FTS-indexed table. */
-UNIV_INTERN
+
 void
 fts_trx_add_op(
 /*===========*/
@@ -2447,7 +2473,7 @@ fts_get_max_cache_size(
 /*********************************************************************//**
 Get the total number of words in the FTS for a particular FTS index.
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 fts_get_total_word_count(
 /*=====================*/
@@ -2489,7 +2515,7 @@ fts_get_total_word_count(
 Update the next and last Doc ID in the CONFIG table to be the input
 "doc_id" value (+ 1). We would do so after each FTS index build or
 table truncate */
-UNIV_INTERN
+
 void
 fts_update_next_doc_id(
 /*===================*/
@@ -2511,7 +2537,7 @@ fts_update_next_doc_id(
 /*********************************************************************//**
 Get the next available document id.
 @return DB_SUCCESS if OK */
-UNIV_INTERN
+
 dberr_t
 fts_get_next_doc_id(
 /*================*/
@@ -2738,7 +2764,7 @@ fts_update_sync_doc_id(
 /*********************************************************************//**
 Create a new fts_doc_ids_t.
 @return new fts_doc_ids_t */
-UNIV_INTERN
+
 fts_doc_ids_t*
 fts_doc_ids_create(void)
 /*====================*/
@@ -2922,7 +2948,7 @@ fts_modify(
 /*********************************************************************//**
 Create a new document id.
 @return DB_SUCCESS if all went well else error */
-UNIV_INTERN
+
 dberr_t
 fts_create_doc_id(
 /*==============*/
@@ -3029,7 +3055,7 @@ fts_commit_table(
 The given transaction is about to be committed; do whatever is necessary
 from the FTS system's POV.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_commit(
 /*=======*/
@@ -3060,7 +3086,7 @@ fts_commit(
 
 /*********************************************************************//**
 Initialize a document. */
-UNIV_INTERN
+
 void
 fts_doc_init(
 /*=========*/
@@ -3075,7 +3101,7 @@ fts_doc_init(
 
 /*********************************************************************//**
 Free document. */
-UNIV_INTERN
+
 void
 fts_doc_free(
 /*=========*/
@@ -3098,7 +3124,7 @@ fts_doc_free(
 Callback function for fetch that stores a row id to the location pointed.
 The column's type must be DATA_FIXBINARY, DATA_BINARY_TYPE, length = 8.
 @return always returns NULL */
-UNIV_INTERN
+
 void*
 fts_fetch_row_id(
 /*=============*/
@@ -3124,7 +3150,7 @@ fts_fetch_row_id(
 Callback function for fetch that stores the text of an FTS document,
 converting each column to UTF-16.
 @return always FALSE */
-UNIV_INTERN
+
 ibool
 fts_query_expansion_fetch_doc(
 /*==========================*/
@@ -3163,10 +3189,7 @@ fts_query_expansion_fetch_doc(
 		}
 
 		if (!doc_charset) {
-			ulint   prtype = dfield->type.prtype;
-			doc_charset = innobase_get_fts_charset(
-					(int)(prtype & DATA_MYSQL_TYPE_MASK),
-					(uint) dtype_get_charset_coll(prtype));
+			doc_charset = fts_get_charset(dfield->type.prtype);
 		}
 
 		doc.charset = doc_charset;
@@ -3251,12 +3274,8 @@ fts_fetch_doc_from_rec(
 		clust_pos = dict_col_get_clust_pos(col, clust_index);
 
 		if (!get_doc->index_cache->charset) {
-			ulint   prtype = ifield->col->prtype;
-
-			get_doc->index_cache->charset =
-				innobase_get_fts_charset(
-					(int) (prtype & DATA_MYSQL_TYPE_MASK),
-					(uint) dtype_get_charset_coll(prtype));
+			get_doc->index_cache->charset = fts_get_charset(
+				ifield->col->prtype);
 		}
 
 		if (rec_offs_nth_extern(offsets, clust_pos)) {
@@ -3501,7 +3520,7 @@ fts_read_ulint(
 /*********************************************************************//**
 Get maximum Doc ID in a table if index "FTS_DOC_ID_INDEX" exists
 @return max Doc ID or 0 if index "FTS_DOC_ID_INDEX" does not exist */
-UNIV_INTERN
+
 doc_id_t
 fts_get_max_doc_id(
 /*===============*/
@@ -3571,7 +3590,7 @@ func_exit:
 /*********************************************************************//**
 Fetch document with the given document id.
 @return DB_SUCCESS if OK else error */
-UNIV_INTERN
+
 dberr_t
 fts_doc_fetch_by_doc_id(
 /*====================*/
@@ -3700,7 +3719,7 @@ fts_doc_fetch_by_doc_id(
 /*********************************************************************//**
 Write out a single word's data as new entry/entries in the INDEX table.
 @return DB_SUCCESS if all OK. */
-UNIV_INTERN
+
 dberr_t
 fts_write_node(
 /*===========*/
@@ -4369,7 +4388,7 @@ fts_sync(
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end. */
-UNIV_INTERN
+
 void
 fts_sync_table(
 /*===========*/
@@ -4478,7 +4497,7 @@ fts_process_token(
 
 /******************************************************************//**
 Tokenize a document. */
-UNIV_INTERN
+
 void
 fts_tokenize_document(
 /*==================*/
@@ -4503,7 +4522,7 @@ fts_tokenize_document(
 
 /******************************************************************//**
 Continue to tokenize a document. */
-UNIV_INTERN
+
 void
 fts_tokenize_document_next(
 /*=======================*/
@@ -4526,7 +4545,7 @@ fts_tokenize_document_next(
 
 /********************************************************************
 Create the vector of fts_get_doc_t instances. */
-UNIV_INTERN
+
 ib_vector_t*
 fts_get_docs_create(
 /*================*/
@@ -4598,7 +4617,7 @@ fts_get_docs_clear(
 /*********************************************************************//**
 Get the initial Doc ID by consulting the CONFIG table
 @return initial Doc ID */
-UNIV_INTERN
+
 doc_id_t
 fts_init_doc_id(
 /*============*/
@@ -4673,7 +4692,7 @@ fts_is_index_updated(
 /*********************************************************************//**
 Fetch COUNT(*) from specified table.
 @return the number of rows in the table */
-UNIV_INTERN
+
 ulint
 fts_get_rows_count(
 /*===============*/
@@ -4853,7 +4872,7 @@ fts_savepoint_free(
 
 /*********************************************************************//**
 Free an FTS trx. */
-UNIV_INTERN
+
 void
 fts_trx_free(
 /*=========*/
@@ -4897,7 +4916,7 @@ fts_trx_free(
 /*********************************************************************//**
 Extract the doc id from the FTS hidden column.
 @return doc id that was extracted from rec */
-UNIV_INTERN
+
 doc_id_t
 fts_get_doc_id_from_row(
 /*====================*/
@@ -4924,7 +4943,7 @@ fts_get_doc_id_from_row(
 /*********************************************************************//**
 Extract the doc id from the FTS hidden column.
 @return doc id that was extracted from rec */
-UNIV_INTERN
+
 doc_id_t
 fts_get_doc_id_from_rec(
 /*====================*/
@@ -4966,7 +4985,7 @@ fts_get_doc_id_from_rec(
 /*********************************************************************//**
 Search the index specific cache for a particular FTS index.
 @return the index specific cache else NULL */
-UNIV_INTERN
+
 fts_index_cache_t*
 fts_find_index_cache(
 /*=================*/
@@ -4982,7 +5001,7 @@ fts_find_index_cache(
 /*********************************************************************//**
 Search cache for word.
 @return the word node vector if found else NULL */
-UNIV_INTERN
+
 const ib_vector_t*
 fts_cache_find_word(
 /*================*/
@@ -5013,7 +5032,7 @@ fts_cache_find_word(
 /*********************************************************************//**
 Check cache for deleted doc id.
 @return TRUE if deleted */
-UNIV_INTERN
+
 ibool
 fts_cache_is_deleted_doc_id(
 /*========================*/
@@ -5043,7 +5062,7 @@ fts_cache_is_deleted_doc_id(
 
 /*********************************************************************//**
 Append deleted doc ids to vector. */
-UNIV_INTERN
+
 void
 fts_cache_append_deleted_doc_ids(
 /*=============================*/
@@ -5071,7 +5090,7 @@ Wait for the background thread to start. We poll to detect change
 of state, which is acceptable, since the wait should happen only
 once during startup.
 @return true if the thread started else FALSE (i.e timed out) */
-UNIV_INTERN
+
 ibool
 fts_wait_for_background_thread_to_start(
 /*====================================*/
@@ -5131,7 +5150,7 @@ fts_wait_for_background_thread_to_start(
 
 /*********************************************************************//**
 Add the FTS document id hidden column. */
-UNIV_INTERN
+
 void
 fts_add_doc_id_column(
 /*==================*/
@@ -5152,7 +5171,7 @@ fts_add_doc_id_column(
 /*********************************************************************//**
 Update the query graph with a new document id.
 @return Doc ID used */
-UNIV_INTERN
+
 doc_id_t
 fts_update_doc_id(
 /*==============*/
@@ -5199,7 +5218,7 @@ fts_update_doc_id(
 Check if the table has an FTS index. This is the non-inline version
 of dict_table_has_fts_index().
 @return TRUE if table has an FTS index */
-UNIV_INTERN
+
 ibool
 fts_dict_table_has_fts_index(
 /*=========================*/
@@ -5211,7 +5230,7 @@ fts_dict_table_has_fts_index(
 /*********************************************************************//**
 Create an instance of fts_t.
 @return instance of fts_t */
-UNIV_INTERN
+
 fts_t*
 fts_create(
 /*=======*/
@@ -5244,7 +5263,7 @@ fts_create(
 
 /*********************************************************************//**
 Free the FTS resources. */
-UNIV_INTERN
+
 void
 fts_free(
 /*=====*/
@@ -5269,7 +5288,7 @@ fts_free(
 
 /*********************************************************************//**
 Signal FTS threads to initiate shutdown. */
-UNIV_INTERN
+
 void
 fts_start_shutdown(
 /*===============*/
@@ -5287,7 +5306,7 @@ fts_start_shutdown(
 
 /*********************************************************************//**
 Wait for FTS threads to shutdown. */
-UNIV_INTERN
+
 void
 fts_shutdown(
 /*=========*/
@@ -5332,7 +5351,7 @@ fts_savepoint_copy(
 
 /*********************************************************************//**
 Take a FTS savepoint. */
-UNIV_INTERN
+
 void
 fts_savepoint_take(
 /*===============*/
@@ -5392,7 +5411,7 @@ fts_savepoint_lookup(
 Release the savepoint data identified by  name. All savepoints created
 after the named savepoint are also released.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 void
 fts_savepoint_release(
 /*==================*/
@@ -5467,7 +5486,7 @@ fts_savepoint_release(
 
 /**********************************************************************//**
 Refresh last statement savepoint. */
-UNIV_INTERN
+
 void
 fts_savepoint_laststmt_refresh(
 /*===========================*/
@@ -5543,7 +5562,7 @@ fts_undo_last_stmt(
 /**********************************************************************//**
 Rollback to savepoint indentified by name.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 void
 fts_savepoint_rollback_last_stmt(
 /*=============================*/
@@ -5593,7 +5612,7 @@ fts_savepoint_rollback_last_stmt(
 /**********************************************************************//**
 Rollback to savepoint indentified by name.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 void
 fts_savepoint_rollback(
 /*===================*/
@@ -5896,7 +5915,7 @@ fts_check_and_drop_orphaned_tables(
 /**********************************************************************//**
 Drop all orphaned FTS auxiliary tables, those that don't have a parent
 table or FTS index defined on them. */
-UNIV_INTERN
+
 void
 fts_drop_orphaned_tables(void)
 /*==========================*/
@@ -6036,11 +6055,11 @@ fts_drop_orphaned_tables(void)
 Check whether user supplied stopword table is of the right format.
 Caller is responsible to hold dictionary locks.
 @return the stopword column charset if qualifies */
-UNIV_INTERN
+
 CHARSET_INFO*
 fts_valid_stopword_table(
 /*=====================*/
-	 const char*	stopword_table_name)	/*!< in: Stopword table
+	const char*	stopword_table_name)	/*!< in: Stopword table
 						name */
 {
 	dict_table_t*	table;
@@ -6087,9 +6106,7 @@ fts_valid_stopword_table(
 
 	ut_ad(col);
 
-	return(innobase_get_fts_charset(
-		static_cast<int>(col->prtype & DATA_MYSQL_TYPE_MASK),
-		static_cast<ulint>(dtype_get_charset_coll(col->prtype))));
+	return(fts_get_charset(col->prtype));
 }
 
 /**********************************************************************//**
@@ -6098,7 +6115,7 @@ records/fetches stopword configuration to/from FTS configure
 table, depending on whether we are creating or reloading the
 FTS.
 @return TRUE if load operation is successful */
-UNIV_INTERN
+
 ibool
 fts_load_stopword(
 /*==============*/
@@ -6212,8 +6229,9 @@ cleanup:
 	}
 
 	if (!cache->stopword_info.cached_stopword) {
-		cache->stopword_info.cached_stopword = rbt_create(
-			sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
+		cache->stopword_info.cached_stopword = rbt_create_arg_cmp(
+			sizeof(fts_tokenizer_word_t), innobase_fts_text_cmp,
+			&my_charset_latin1);
 	}
 
 	return(error == DB_SUCCESS);
@@ -6310,12 +6328,8 @@ fts_init_recover_doc(
 		ut_ad(get_doc);
 
 		if (!get_doc->index_cache->charset) {
-			ulint   prtype = dfield->type.prtype;
-
-			get_doc->index_cache->charset =
-				innobase_get_fts_charset(
-				(int)(prtype & DATA_MYSQL_TYPE_MASK),
-				(uint) dtype_get_charset_coll(prtype));
+			get_doc->index_cache->charset = fts_get_charset(
+				dfield->type.prtype);
 		}
 
 		doc.charset = get_doc->index_cache->charset;
@@ -6368,7 +6382,7 @@ used. There are documents that have not yet sync-ed to auxiliary
 tables from last server abnormally shutdown, we will need to bring
 such document into FTS cache before any further operations
 @return TRUE if all OK */
-UNIV_INTERN
+
 ibool
 fts_init_index(
 /*===========*/

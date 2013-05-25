@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ Created 2/17/1996 Heikki Tuuri
 
 /*********************************************************************//**
 Updates the search info. */
-UNIV_INTERN
+
 void
 btr_search_info_update_slow(
 /*========================*/

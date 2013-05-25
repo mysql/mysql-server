@@ -23,13 +23,11 @@ The interface to the operating system thread control primitives
 Created 9/8/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "os0thread.h"
 #ifdef UNIV_NONINL
 #include "os0thread.ic"
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
 #endif
 
 #ifndef UNIV_HOTBACKUP
@@ -40,14 +38,14 @@ Created 9/8/1995 Heikki Tuuri
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register server_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	thread_mutex_key;
+mysql_pfs_key_t	thread_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /** Mutex that tracks the thread count. */
 static SysMutex	thread_mutex;
 
 /** Number of threads active. */
-UNIV_INTERN	ulint	os_thread_count;
+ulint	os_thread_count;
 
 #ifdef _WIN32
 typedef std::map<DWORD, HANDLE> WinThreadMap;
@@ -59,7 +57,7 @@ static WinThreadMap win_thread_map;
 /***************************************************************//**
 Compares two thread ids for equality.
 @return	TRUE if equal */
-UNIV_INTERN
+
 ibool
 os_thread_eq(
 /*=========*/
@@ -85,7 +83,7 @@ os_thread_eq(
 Converts an OS thread id to a ulint. It is NOT guaranteed that the ulint is
 unique for the thread though!
 @return	thread identifier as a number */
-UNIV_INTERN
+
 ulint
 os_thread_pf(
 /*=========*/
@@ -99,7 +97,7 @@ Returns the thread identifier of current thread. Currently the thread
 identifier in Unix is the thread handle itself. Note that in HP-UX
 pthread_t is a struct of 3 fields.
 @return	current thread identifier */
-UNIV_INTERN
+
 os_thread_id_t
 os_thread_get_curr_id(void)
 /*=======================*/
@@ -118,7 +116,7 @@ NOTE: We count the number of threads in os_thread_exit(). A created
 thread should always use that to exit so thatthe thread count will be
 decremented.
 We do not return an error code because if there is one, we crash here. */
-UNIV_INTERN
+
 void
 os_thread_create_func(
 /*==================*/
@@ -193,7 +191,7 @@ os_thread_create_func(
 
 /*****************************************************************//**
 Exits the current thread. */
-UNIV_INTERN
+
 void
 os_thread_exit(
 /*===========*/
@@ -232,7 +230,7 @@ os_thread_exit(
 
 /*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */
-UNIV_INTERN
+
 void
 os_thread_yield(void)
 /*=================*/
@@ -253,7 +251,7 @@ os_thread_yield(void)
 
 /*****************************************************************//**
 The thread sleeps at least the time given in microseconds. */
-UNIV_INTERN
+
 void
 os_thread_sleep(
 /*============*/
@@ -274,7 +272,7 @@ os_thread_sleep(
 /*****************************************************************//**
 Check if there are threads active.
 @return true if the thread count > 0. */
-UNIV_INTERN
+
 bool
 os_thread_active()
 /*==============*/
@@ -298,7 +296,7 @@ os_thread_active()
 
 /**
 Initializes OS thread management data structures. */
-UNIV_INTERN
+
 void
 os_thread_init()
 /*============*/
@@ -308,7 +306,7 @@ os_thread_init()
 
 /**
 Frees OS thread management data structures. */
-UNIV_INTERN
+
 void
 os_thread_free()
 /*============*/

@@ -24,6 +24,8 @@ The page cursor
 Created 10/4/1994 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "page0cur.h"
 #ifdef UNIV_NONINL
 #include "page0cur.ic"
@@ -33,7 +35,6 @@ Created 10/4/1994 Heikki Tuuri
 #include "btr0btr.h"
 #include "mtr0log.h"
 #include "log0recv.h"
-#include "ut0ut.h"
 #ifndef UNIV_HOTBACKUP
 #include "rem0cmp.h"
 
@@ -244,7 +245,7 @@ page_cur_rec_field_extends(
 
 /****************************************************************//**
 Searches the right position for a page cursor. */
-UNIV_INTERN
+
 void
 page_cur_search_with_match(
 /*=======================*/
@@ -543,7 +544,7 @@ up_rec_match:
 /***********************************************************//**
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */
-UNIV_INTERN
+
 void
 page_cur_open_on_rnd_user_rec(
 /*==========================*/
@@ -766,7 +767,7 @@ need_extra_info:
 /***********************************************************//**
 Parses a log record of a record insert on a page.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 page_cur_parse_insert_rec(
 /*======================*/
@@ -959,7 +960,7 @@ Inserts a record next to page cursor on an uncompressed page.
 Returns pointer to inserted record if succeed, i.e., enough
 space available, NULL otherwise. The cursor stays at the same position.
 @return	pointer to record if succeed, NULL otherwise */
-UNIV_INTERN
+
 rec_t*
 page_cur_insert_rec_low(
 /*====================*/
@@ -1183,7 +1184,7 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return	pointer to record if succeed, NULL otherwise */
-UNIV_INTERN
+
 rec_t*
 page_cur_insert_rec_zip(
 /*====================*/
@@ -1659,7 +1660,7 @@ page_copy_rec_list_to_created_page_write_log(
 /**********************************************************//**
 Parses a log record of copying a record list end to a new created page.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 page_parse_copy_rec_list_to_created_page(
 /*=====================================*/
@@ -1721,7 +1722,7 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if this is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-UNIV_INTERN
+
 void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
@@ -1934,7 +1935,7 @@ page_cur_delete_rec_write_log(
 /***********************************************************//**
 Parses log record of a record delete on a page.
 @return	pointer to record end or NULL */
-UNIV_INTERN
+
 byte*
 page_cur_parse_delete_rec(
 /*======================*/
@@ -1983,7 +1984,7 @@ page_cur_parse_delete_rec(
 /***********************************************************//**
 Deletes a record at the page cursor. The cursor is moved to the next
 record after the deleted one. */
-UNIV_INTERN
+
 void
 page_cur_delete_rec(
 /*================*/

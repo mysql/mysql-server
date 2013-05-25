@@ -32,7 +32,7 @@ Created 6/8/1994 Heikki Tuuri
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
 for MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
@@ -45,7 +45,7 @@ mem_heap_create_block(
 	ulint		line);	/*!< in: line where created */
 /******************************************************************//**
 Frees a block from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_block_free(
 /*================*/
@@ -54,7 +54,7 @@ mem_heap_block_free(
 #ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_free_block_free(
 /*=====================*/
@@ -64,7 +64,7 @@ mem_heap_free_block_free(
 Adds a new block to a memory heap.
 @return created block, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
 mem_heap_add_block(
 /*===============*/
@@ -387,6 +387,18 @@ mem_heap_is_top(
 	presumed_start_of_buf = first_free_byte - MEM_SPACE_NEEDED(buf_sz);
 
 #ifdef UNIV_MEM_DEBUG
+	mem_block_t*	block = UT_LIST_GET_LAST(heap->base);
+	/* Imitate the calc done by mem_heap_free_top()->mem_field_erase().
+	In UNIV_MEM_DEBUG the size of the top element is also checked in
+	addition to checking that the pointer matches. */
+	ulint		sz = mem_field_header_get_len(
+		reinterpret_cast<byte*>(block)
+		+ mem_block_get_free(block) - MEM_SPACE_NEEDED(buf_sz)
+		+ MEM_FIELD_HEADER_SIZE);
+
+	if (buf_sz != sz) {
+		return(false);
+	}
 	presumed_start_of_buf += MEM_FIELD_HEADER_SIZE;
 #endif /* UNIV_MEM_DEBUG */
 

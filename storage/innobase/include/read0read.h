@@ -30,7 +30,6 @@ Created 2/16/1997 Heikki Tuuri
 
 
 #include "ut0byte.h"
-#include "ut0lst.h"
 #include "trx0trx.h"
 #include "read0types.h"
 
@@ -38,7 +37,7 @@ Created 2/16/1997 Heikki Tuuri
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
 @return	own: read view struct */
-UNIV_INTERN
+
 read_view_t*
 read_view_open_now(
 /*===============*/
@@ -50,7 +49,7 @@ read_view_open_now(
 Makes a copy of the oldest existing read view, or opens a new. The view
 must be closed with ..._close.
 @return	own: read view struct */
-UNIV_INTERN
+
 read_view_t*
 read_view_purge_open(
 /*=================*/
@@ -68,7 +67,7 @@ read_view_remove(
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
-UNIV_INTERN
+
 void
 read_view_close_for_mysql(
 /*======================*/

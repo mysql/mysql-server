@@ -23,7 +23,8 @@ Full Text Search parser helper file.
 Created 2007/3/16 Sunny Bains.
 ***********************************************************************/
 
-#include "mem0mem.h"
+#include "ha_prototypes.h"
+
 #include "fts0ast.h"
 #include "fts0pars.h"
 #include "fts0fts.h"
@@ -47,7 +48,7 @@ fts_ast_node_create(void)
 /******************************************************************//**
 Create a operator fts_ast_node_t.
 @return new node */
-UNIV_INTERN
+
 fts_ast_node_t*
 fts_ast_create_node_oper(
 /*=====================*/
@@ -68,7 +69,7 @@ fts_ast_create_node_oper(
 This function takes ownership of the ptr and is responsible
 for free'ing it
 @return new node or a node list with tokenized words */
-UNIV_INTERN
+
 fts_ast_node_t*
 fts_ast_create_node_term(
 /*=====================*/
@@ -137,7 +138,7 @@ fts_ast_create_node_term(
 This function takes ownership of the ptr and is responsible
 for free'ing it.
 @return new node */
-UNIV_INTERN
+
 fts_ast_node_t*
 fts_ast_create_node_text(
 /*=====================*/
@@ -147,11 +148,19 @@ fts_ast_create_node_text(
 	ulint		len = strlen(ptr);
 	fts_ast_node_t*	node = NULL;
 
-	ut_ad(len >= 2);
 
-	if (len == 2) {
+	ut_ad(len >= 1);
+
+	if (len <= 2) {
+		/* There is a way to directly supply null terminator
+		in the query string (by using 0x220022) and get here,
+		and certainly it would not make a valid query text */
 		ut_ad(ptr[0] == '\"');
-		ut_ad(ptr[1] == '\"');
+
+		if (len == 2) {
+			ut_ad(ptr[1] == '\"');
+		}
+
 		return(NULL);
 	}
 
@@ -177,7 +186,7 @@ fts_ast_create_node_text(
 This function takes ownership of the expr and is responsible
 for free'ing it.
 @return new node */
-UNIV_INTERN
+
 fts_ast_node_t*
 fts_ast_create_node_list(
 /*=====================*/
@@ -198,7 +207,7 @@ fts_ast_create_node_list(
 Create a sub-expression list node. This function takes ownership of
 expr and is responsible for deleting it.
 @return new node */
-UNIV_INTERN
+
 fts_ast_node_t*
 fts_ast_create_node_subexp_list(
 /*============================*/
@@ -237,7 +246,7 @@ fts_ast_free_list(
 /********************************************************************//**
 Free a fts_ast_node_t instance.
 @return next node to free */
-UNIV_INTERN
+
 fts_ast_node_t*
 fts_ast_free_node(
 /*==============*/
@@ -285,7 +294,7 @@ fts_ast_free_node(
 This AST takes ownership of the expr and is responsible
 for free'ing it.
 @return in param "list" */
-UNIV_INTERN
+
 fts_ast_node_t*
 fts_ast_add_node(
 /*=============*/
@@ -317,7 +326,7 @@ fts_ast_add_node(
 /******************************************************************//**
 For tracking node allocations, in case there is an error during
 parsing. */
-UNIV_INTERN
+
 void
 fts_ast_state_add_node(
 /*===================*/
@@ -336,7 +345,7 @@ fts_ast_state_add_node(
 
 /******************************************************************//**
 Set the wildcard attribute of a term. */
-UNIV_INTERN
+
 void
 fts_ast_term_set_wildcard(
 /*======================*/
@@ -361,7 +370,7 @@ fts_ast_term_set_wildcard(
 
 /******************************************************************//**
 Set the proximity attribute of a text node. */
-UNIV_INTERN
+
 void
 fts_ast_term_set_distance(
 /*======================*/
@@ -377,7 +386,7 @@ fts_ast_term_set_distance(
 
 /******************************************************************//**
 Free node and expr allocations. */
-UNIV_INTERN
+
 void
 fts_ast_state_free(
 /*===============*/
@@ -406,7 +415,7 @@ fts_ast_state_free(
 
 /******************************************************************//**
 Print an ast node. */
-UNIV_INTERN
+
 void
 fts_ast_node_print(
 /*===============*/
@@ -453,7 +462,7 @@ Traverse the AST - in-order traversal, except for the FTS_IGNORE
 nodes, which will be ignored in the first pass of each level, and
 visited in a second pass after all other nodes in the same level are visited.
 @return DB_SUCCESS if all went well */
-UNIV_INTERN
+
 dberr_t
 fts_ast_visit(
 /*==========*/

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,8 @@ The lowest-level memory management
 Created 5/12/1997 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "mem0pool.h"
 #ifdef UNIV_NONINL
 #include "mem0pool.ic"
@@ -31,7 +33,6 @@ Created 5/12/1997 Heikki Tuuri
 #include "srv0srv.h"
 #include "sync0mutex.h"
 #include "ut0mem.h"
-#include "ut0lst.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "srv0start.h"
@@ -113,18 +114,18 @@ struct mem_pool_t{
 };
 
 /** The common memory pool */
-UNIV_INTERN mem_pool_t*	mem_comm_pool	= NULL;
+mem_pool_t*	mem_comm_pool	= NULL;
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register mutex in mem_pool_t with performance schema */
-UNIV_INTERN mysql_pfs_key_t	mem_pool_mutex_key;
+mysql_pfs_key_t	mem_pool_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /* We use this counter to check that the mem pool mutex does not leak;
 this is to track a strange assertion failure reported at
 mysql@lists.mysql.com */
 
-UNIV_INTERN ulint	mem_n_threads_inside		= 0;
+ulint	mem_n_threads_inside		= 0;
 
 /********************************************************************//**
 Reserves the mem pool mutex if we are not in server shutdown. Use
@@ -215,7 +216,7 @@ mem_area_set_free(
 /********************************************************************//**
 Creates a memory pool.
 @return	memory pool */
-UNIV_INTERN
+
 mem_pool_t*
 mem_pool_create(
 /*============*/
@@ -274,7 +275,7 @@ mem_pool_create(
 
 /********************************************************************//**
 Frees a memory pool. */
-UNIV_INTERN
+
 void
 mem_pool_free(
 /*==========*/
@@ -360,7 +361,7 @@ mem_pool_fill_free_list(
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*!
 @return	own: allocated memory buffer */
-UNIV_INTERN
+
 void*
 mem_area_alloc(
 /*===========*/
@@ -499,7 +500,7 @@ mem_area_get_buddy(
 
 /********************************************************************//**
 Frees memory to a pool. */
-UNIV_INTERN
+
 void
 mem_area_free(
 /*==========*/
@@ -625,7 +626,7 @@ mem_area_free(
 /********************************************************************//**
 Validates a memory pool.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 mem_pool_validate(
 /*==============*/
@@ -660,7 +661,9 @@ mem_pool_validate(
 		}
 	}
 
-	ut_a(free + pool->reserved == pool->size);
+	free += pool->reserved;
+
+	ut_a(free + !free == pool->size);
 
 	mem_pool_mutex_exit(pool);
 
@@ -669,7 +672,7 @@ mem_pool_validate(
 
 /********************************************************************//**
 Prints info of a memory pool. */
-UNIV_INTERN
+
 void
 mem_pool_print_info(
 /*================*/
@@ -703,7 +706,7 @@ mem_pool_print_info(
 /********************************************************************//**
 Returns the amount of reserved memory.
 @return	reserved memory in bytes */
-UNIV_INTERN
+
 ulint
 mem_pool_get_reserved(
 /*==================*/

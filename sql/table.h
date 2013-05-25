@@ -1832,6 +1832,11 @@ public:
     OPEN_NORMAL= 0,
     /* Associate a table share only if the the table exists. */
     OPEN_IF_EXISTS,
+    /*
+      Associate a table share only if the the table exists.
+      Also upgrade metadata lock to exclusive if table doesn't exist.
+    */
+    OPEN_FOR_CREATE,
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy;
