@@ -115,16 +115,17 @@ t4.run = function() {
 
 // Datetime5 without a Column Converter.
 // 
-var t5 = new harness.ConcurrentTest("TimestampZero");
+var t5 = new harness.ConcurrentTest("t5_datetime_odd");
 t5.run = function() {
+  this.skip("Test requires API changes");
   var data = new TestData(5);
   //data.Datetime5 = new Date("
   // this.verifier = new ValueVerifier(this, "Datetime5", ... );
-  fail_openSession(this, InsertFunction(data));
+  //fail_openSession(this, InsertFunction(data));
 }
 
 // Timestamp6.  Precision will be lost.
-var t6 = new harness.ConcurrentTest("Timestamp1969");
+var t6 = new harness.ConcurrentTest("t6_timestamp_even");
 t6.run = function() {
   var data = new TestData(6);
   data.Timestamp6 = new Date("Thu, 09 Nov 1989 17:00:00.111116");
@@ -133,5 +134,23 @@ t6.run = function() {
   fail_openSession(this, InsertFunction(data));
 }
 
+// Time1. Tenths of a second.  Negative
+var t7 = new harness.ConcurrentTest("t7_time_negative");
+t7.run = function() {
+  var data = new TestData(7);
+  data.Time1 = -210000;
+  this.verifier = new ValueVerifier(this, "Time1", -210000);
+  fail_openSession(this, InsertFunction(data));
+}
 
-module.exports.tests = [t1, t2, t3, t4, t6];
+// Time4.  Negative.
+var t8 = new harness.ConcurrentTest("t8_time_fractional_negative");
+t8.run = function() {
+  var data = new TestData(8);
+  data.Time4 = -210150;
+  this.verifier = new ValueVerifier(this, "Time4", -210150);
+  fail_openSession(this, InsertFunction(data));
+}
+
+
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];
