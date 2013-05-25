@@ -40,7 +40,6 @@ Created 1/8/1996 Heikki Tuuri
 # include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "ut0mem.h"
-#include "ut0lst.h"
 #include "ut0rnd.h"
 #include "ut0byte.h"
 #include "hash0hash.h"
@@ -239,7 +238,7 @@ before proceeds. */
 /**********************************************************************//**
 Creates a table memory object.
 @return	own: table object */
-UNIV_INTERN
+
 dict_table_t*
 dict_mem_table_create(
 /*==================*/
@@ -251,14 +250,14 @@ dict_mem_table_create(
 	ulint		flags2);	/*!< in: table flags2 */
 /****************************************************************//**
 Free a table memory object. */
-UNIV_INTERN
+
 void
 dict_mem_table_free(
 /*================*/
 	dict_table_t*	table);		/*!< in: table */
 /**********************************************************************//**
 Adds a column definition to a table. */
-UNIV_INTERN
+
 void
 dict_mem_table_add_col(
 /*===================*/
@@ -271,7 +270,7 @@ dict_mem_table_add_col(
 	__attribute__((nonnull(1)));
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
-UNIV_INTERN
+
 void
 dict_mem_table_col_rename(
 /*======================*/
@@ -283,7 +282,7 @@ dict_mem_table_col_rename(
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
-UNIV_INTERN
+
 void
 dict_mem_fill_column_struct(
 /*========================*/
@@ -313,7 +312,7 @@ dict_mem_fill_index_struct(
 /**********************************************************************//**
 Creates an index memory object.
 @return	own: index object */
-UNIV_INTERN
+
 dict_index_t*
 dict_mem_index_create(
 /*==================*/
@@ -329,7 +328,7 @@ dict_mem_index_create(
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
 by the column name may be released only after publishing the index. */
-UNIV_INTERN
+
 void
 dict_mem_index_add_field(
 /*=====================*/
@@ -340,7 +339,7 @@ dict_mem_index_add_field(
 					INDEX (textcol(25)) */
 /**********************************************************************//**
 Frees an index memory object. */
-UNIV_INTERN
+
 void
 dict_mem_index_free(
 /*================*/
@@ -348,7 +347,7 @@ dict_mem_index_free(
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return	own: foreign constraint struct */
-UNIV_INTERN
+
 dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
@@ -358,7 +357,7 @@ Sets the foreign_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
 will point to foreign_table_name.  If 2, then another string is
 allocated from the heap and set to lower case. */
-UNIV_INTERN
+
 void
 dict_mem_foreign_table_name_lookup_set(
 /*===================================*/
@@ -370,7 +369,7 @@ Sets the referenced_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
 will point to referenced_table_name.  If 2, then another string is
 allocated from the heap and set to lower case. */
-UNIV_INTERN
+
 void
 dict_mem_referenced_table_name_lookup_set(
 /*======================================*/
@@ -386,7 +385,7 @@ Note that both numbers are needed to achieve a unique name since it is
 possible for two threads to call this while the LSN is the same.
 But these two threads will not be working on the same table.
 @return A unique temporary tablename suitable for InnoDB use */
-UNIV_INTERN __attribute__((nonnull, warn_unused_result))
+__attribute__((nonnull, warn_unused_result))
 char*
 dict_mem_create_temporary_tablename(
 /*================================*/
@@ -1010,7 +1009,7 @@ struct dict_table_t{
 
 /*******************************************************************//**
 Initialise the table lock list. */
-UNIV_INTERN
+
 void
 lock_table_lock_list_init(
 /*======================*/

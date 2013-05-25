@@ -32,7 +32,7 @@ call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Request shutdown
--- send_shutdown
+--shutdown_server 60
 
 # Call script that will poll the server waiting for it to disapear
 -- source include/wait_until_disconnected.inc
@@ -58,7 +58,7 @@ call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Send a shutdown request to the server
--- send_shutdown
+--shutdown_server 60
 
 # Call script that will poll the server waiting for it to disapear
 -- source include/wait_until_disconnected.inc
@@ -104,7 +104,7 @@ COMMIT;
 SELECT COUNT(*) IN (0,4) yes FROM t1;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---send_shutdown
+--shutdown_server 60
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart:--innodb-force-recovery=5" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

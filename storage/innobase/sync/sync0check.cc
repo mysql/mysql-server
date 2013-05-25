@@ -60,7 +60,7 @@ extern	ulint	srv_max_n_threads;
 #endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	sync_thread_mutex_key;
+mysql_pfs_key_t	sync_thread_mutex_key;
 # endif /* UNIV_PFS_MUTEX */
 
 static bool sync_check_initialised = false;
@@ -1033,7 +1033,7 @@ sync_latch_meta_init()
 
 /**
 Initializes the synchronization data structures. */
-UNIV_INTERN
+
 void
 sync_check_init()
 {
@@ -1068,7 +1068,7 @@ sync_check_init()
 /**
 Frees the resources in InnoDB's own synchronization data structures. Use
 os_sync_free() after calling this. */
-UNIV_INTERN
+
 void
 sync_check_close()
 {
@@ -1093,7 +1093,7 @@ sync_check_close()
 /**
 Get the sync level for a latch name.
 @return SYNC_UNKNOWN - if not found. */
-UNIV_INTERN
+
 latch_level_t
 sync_latch_get_level(
 	const char*	name)			/*!< in: Latch name */
@@ -1108,7 +1108,7 @@ sync_latch_get_level(
 /**
 Get the latch name from a sync level.
 @return 0 if not found. */
-UNIV_INTERN
+
 const char*
 sync_latch_get_name(
 	latch_level_t	level)			/*!< in: Latch level */
@@ -1132,7 +1132,7 @@ sync_latch_get_name(
 /**
 Get the sync level for a latch name.
 @return SYNC_UNKNOWN - if not found. */
-UNIV_INTERN
+
 mysql_pfs_key_t
 sync_latch_get_pfs_key(
 	const char*	name)			/*!< Latch name */
@@ -1149,7 +1149,7 @@ sync_latch_get_pfs_key(
 /**
 Check if it is OK to acquire the latch. 
 @param latch - latch type */
-UNIV_INTERN
+
 void
 sync_check_lock(const latch_t* latch)
 {
@@ -1160,7 +1160,7 @@ sync_check_lock(const latch_t* latch)
 Check if it is OK to acquire the latch. 
 @param latch - latch type
 @param level - latch order */
-UNIV_INTERN
+
 void
 sync_check_lock(const latch_t* latch, latch_level_t level)
 {
@@ -1169,7 +1169,7 @@ sync_check_lock(const latch_t* latch, latch_level_t level)
 
 /**
 Check if it is OK to re-acquire the lock. */
-UNIV_INTERN
+
 void
 sync_check_relock(const latch_t* latch)
 {
@@ -1179,7 +1179,7 @@ sync_check_relock(const latch_t* latch)
 /**
 Removes a latch from the thread level array if it is found there.
 @param latch - to unlock */
-UNIV_INTERN
+
 void
 sync_check_unlock(const latch_t* latch)
 {
@@ -1191,7 +1191,7 @@ Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @param level - to find
 @return	a matching latch, or NULL if not found */
-UNIV_INTERN
+
 const latch_t*
 sync_check_find(latch_level_t level)
 {
@@ -1201,7 +1201,7 @@ sync_check_find(latch_level_t level)
 /**
 Iterate over the thread's latches.
 @param functor - called for each element. */
-UNIV_INTERN
+
 bool
 sync_check_iterate(sync_check_functor_t& functor)
 {
@@ -1210,7 +1210,7 @@ sync_check_iterate(sync_check_functor_t& functor)
 
 /**
 Enable sync order checking. */
-UNIV_INTERN
+
 void
 sync_check_enable()
 {

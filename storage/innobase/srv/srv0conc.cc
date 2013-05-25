@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -38,6 +38,7 @@ Created 2011/04/18 Sunny Bains
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include <mysql/plugin.h>
 
 #include "srv0srv.h"
 #include "sync0mutex.h"
@@ -45,27 +46,27 @@ Created 2011/04/18 Sunny Bains
 
 /** Number of times a thread is allowed to enter InnoDB within the same
 SQL query after it has once got the ticket. */
-UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
+ulong	srv_n_free_tickets_to_enter = 500;
 
 #ifdef HAVE_ATOMIC_BUILTINS
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it. */
-UNIV_INTERN ulong	srv_adaptive_max_sleep_delay = 150000;
+ulong	srv_adaptive_max_sleep_delay = 150000;
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-UNIV_INTERN ulong	srv_thread_sleep_delay	= 10000;
+ulong	srv_thread_sleep_delay	= 10000;
 
 
 /** We are prepared for a situation that we have this many threads waiting for
 a semaphore inside InnoDB. innobase_start_or_create_for_mysql() sets the
 value. */
 
-UNIV_INTERN ulint	srv_max_n_threads	= 0;
+ulint	srv_max_n_threads	= 0;
 
 /** The following controls how many threads we let inside InnoDB concurrently:
 threads waiting for locks are not counted into the number because otherwise
 we could get a deadlock. Value of 0 will disable the concurrency check. */
 
-UNIV_INTERN ulong	srv_thread_concurrency	= 0;
+ulong	srv_thread_concurrency	= 0;
 
 #ifndef HAVE_ATOMIC_BUILTINS
 
@@ -98,7 +99,7 @@ static srv_conc_slot_t*	srv_conc_slots;
 
 #if defined(UNIV_PFS_MUTEX)
 /* Key to register srv_conc_mutex_key with performance schema */
-UNIV_INTERN mysql_pfs_key_t	srv_conc_mutex_key;
+mysql_pfs_key_t	srv_conc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #endif /* !HAVE_ATOMIC_BUILTINS */
@@ -500,7 +501,7 @@ retry:
 /*********************************************************************//**
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
-UNIV_INTERN
+
 void
 srv_conc_enter_innodb(
 /*==================*/
@@ -523,7 +524,7 @@ srv_conc_enter_innodb(
 /*********************************************************************//**
 This lets a thread enter InnoDB regardless of the number of threads inside
 InnoDB. This must be called when a thread ends a lock wait. */
-UNIV_INTERN
+
 void
 srv_conc_force_enter_innodb(
 /*========================*/
@@ -558,7 +559,7 @@ srv_conc_force_enter_innodb(
 /*********************************************************************//**
 This must be called when a thread exits InnoDB in a lock wait or at the
 end of an SQL statement. */
-UNIV_INTERN
+
 void
 srv_conc_force_exit_innodb(
 /*=======================*/
@@ -587,7 +588,7 @@ srv_conc_force_exit_innodb(
 
 /*********************************************************************//**
 Get the count of threads waiting inside InnoDB. */
-UNIV_INTERN
+
 ulint
 srv_conc_get_waiting_threads(void)
 /*==============================*/
@@ -597,7 +598,7 @@ srv_conc_get_waiting_threads(void)
 
 /*********************************************************************//**
 Get the count of threads active inside InnoDB. */
-UNIV_INTERN
+
 ulint
 srv_conc_get_active_threads(void)
 /*==============================*/

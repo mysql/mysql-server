@@ -463,7 +463,7 @@ Allocate a block.  The thread calling this function must hold
 buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
 The buf_pool_mutex may be released and reacquired.
 @return	allocated block, never NULL */
-UNIV_INTERN
+
 void*
 buf_buddy_alloc_low(
 /*================*/
@@ -604,7 +604,7 @@ buf_buddy_relocate(
 
 /**********************************************************************//**
 Deallocate a block. */
-UNIV_INTERN
+
 void
 buf_buddy_free_low(
 /*===============*/

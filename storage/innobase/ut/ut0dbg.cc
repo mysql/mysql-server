@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,21 +23,19 @@ Debug utilities for Innobase.
 Created 1/30/1994 Heikki Tuuri
 **********************************************************************/
 
-#include "univ.i"
+#include "ha_prototypes.h"
+
 #include "ut0dbg.h"
-#ifndef UNIV_HOTBACKUP
-# include "ha_prototypes.h"
-#endif /* !UNIV_HOTBACKUP */
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #else
 /** This is used to eliminate compiler warnings */
-UNIV_INTERN ulint	ut_dbg_zero	= 0;
+ulint	ut_dbg_zero	= 0;
 #endif
 
 /*************************************************************//**
 Flush stderr and stdout, then abort execution. */
-UNIV_INTERN
+
 void
 ut_abort(void)
 /************/
@@ -49,7 +47,7 @@ ut_abort(void)
 
 /*************************************************************//**
 Report a failed assertion. */
-UNIV_INTERN
+
 void
 ut_dbg_assertion_failed(
 /*====================*/
@@ -106,7 +104,7 @@ ut_dbg_assertion_failed(
 
 /*******************************************************************//**
 Resets a speedo (records the current time in it). */
-UNIV_INTERN
+
 void
 speedo_reset(
 /*=========*/
@@ -120,7 +118,7 @@ speedo_reset(
 /*******************************************************************//**
 Shows the time elapsed and usage statistics since the last reset of a
 speedo. */
-UNIV_INTERN
+
 void
 speedo_show(
 /*========*/

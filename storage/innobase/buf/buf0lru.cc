@@ -24,16 +24,12 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "buf0lru.h"
-
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_NONINL
 #include "buf0lru.ic"
 #endif /* UNIV_NOINL */
 
-#include "ha_prototypes.h"
-
+#ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
-#include "ut0lst.h"
 #include "ut0rnd.h"
 #include "sync0mutex.h"
 #include "sync0rw.h"
@@ -114,18 +110,18 @@ static ulint			buf_LRU_stat_arr_ind;
 
 /** Current operation counters.  Not protected by any mutex.  Cleared
 by buf_LRU_stat_update(). */
-UNIV_INTERN buf_LRU_stat_t	buf_LRU_stat_cur;
+buf_LRU_stat_t	buf_LRU_stat_cur;
 
 /** Running sum of past values of buf_LRU_stat_cur.
 Updated by buf_LRU_stat_update().  Not Protected by any mutex. */
-UNIV_INTERN buf_LRU_stat_t	buf_LRU_stat_sum;
+buf_LRU_stat_t	buf_LRU_stat_sum;
 
 /* @} */
 
 /** @name Heuristics for detecting index scan @{ */
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
-UNIV_INTERN uint	buf_LRU_old_threshold_ms;
+uint	buf_LRU_old_threshold_ms;
 /* @} */
 
 /******************************************************************//**
@@ -180,7 +176,7 @@ incr_LRU_size_in_bytes(
 Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
 @return	TRUE if should use unzip_LRU */
-UNIV_INTERN
+
 ibool
 buf_LRU_evict_from_unzip_LRU(
 /*=========================*/
@@ -868,7 +864,7 @@ Flushes all dirty pages or removes all pages belonging
 to a given tablespace. A PROBLEM: if readahead is being started, what
 guarantees that it will not try to read in pages after this operation
 has completed? */
-UNIV_INTERN
+
 void
 buf_LRU_flush_or_remove_pages(
 /*==========================*/
@@ -909,7 +905,7 @@ buf_LRU_flush_or_remove_pages(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
-UNIV_INTERN
+
 void
 buf_LRU_insert_zip_clean(
 /*=====================*/
@@ -1045,7 +1041,7 @@ buf_LRU_free_from_common_LRU_list(
 /******************************************************************//**
 Try to free a replaceable block.
 @return	TRUE if found and freed */
-UNIV_INTERN
+
 ibool
 buf_LRU_scan_and_free_block(
 /*========================*/
@@ -1066,7 +1062,7 @@ Returns TRUE if less than 25 % of the buffer pool in any instance is
 available. This can be used in heuristics to prevent huge transactions
 eating up the whole buffer pool for their locks.
 @return	TRUE if less than 25 % of buffer pool left */
-UNIV_INTERN
+
 ibool
 buf_LRU_buf_pool_running_out(void)
 /*==============================*/
@@ -1099,7 +1095,7 @@ buf_LRU_buf_pool_running_out(void)
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
 @return	a free control block, or NULL if the buf_block->free list is empty */
-UNIV_INTERN
+
 buf_block_t*
 buf_LRU_get_free_only(
 /*==================*/
@@ -1230,7 +1226,7 @@ we put it to free list to be used.
 * iteration > 1:
   * same as iteration 1 but sleep 100ms
 @return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
-UNIV_INTERN
+
 buf_block_t*
 buf_LRU_get_free_block(
 /*===================*/
@@ -1579,7 +1575,7 @@ buf_LRU_remove_block(
 
 /******************************************************************//**
 Adds a block to the LRU list of decompressed zip pages. */
-UNIV_INTERN
+
 void
 buf_unzip_LRU_add_block(
 /*====================*/
@@ -1737,7 +1733,7 @@ Adds a block to the LRU list. Please make sure that the zip_size is
 already set into the page zip when invoking the function, so that we
 can get correct zip_size from the buffer page when adding a block
 into LRU */
-UNIV_INTERN
+
 void
 buf_LRU_add_block(
 /*==============*/
@@ -1753,7 +1749,7 @@ buf_LRU_add_block(
 
 /******************************************************************//**
 Moves a block to the start of the LRU list. */
-UNIV_INTERN
+
 void
 buf_LRU_make_block_young(
 /*=====================*/
@@ -1773,7 +1769,7 @@ buf_LRU_make_block_young(
 
 /******************************************************************//**
 Moves a block to the end of the LRU list. */
-UNIV_INTERN
+
 void
 buf_LRU_make_block_old(
 /*===================*/
@@ -1794,7 +1790,7 @@ accessible via bpage.
 The caller must hold buf_pool->mutex and must not hold any
 buf_page_get_mutex() when calling this function.
 @return true if freed, false otherwise. */
-UNIV_INTERN
+
 bool
 buf_LRU_free_page(
 /*===============*/
@@ -2074,7 +2070,7 @@ func_exit:
 
 /******************************************************************//**
 Puts a block back to the free list. */
-UNIV_INTERN
+
 void
 buf_LRU_block_free_non_file_page(
 /*=============================*/
@@ -2404,7 +2400,7 @@ buf_LRU_block_free_hashed_page(
 
 /******************************************************************//**
 Remove one page from LRU list and put it to free list */
-UNIV_INTERN
+
 void
 buf_LRU_free_one_page(
 /*==================*/
@@ -2483,7 +2479,7 @@ buf_LRU_old_ratio_update_instance(
 /**********************************************************************//**
 Updates buf_pool->LRU_old_ratio.
 @return	updated old_pct */
-UNIV_INTERN
+
 ulint
 buf_LRU_old_ratio_update(
 /*=====================*/
@@ -2511,7 +2507,7 @@ buf_LRU_old_ratio_update(
 /********************************************************************//**
 Update the historical stats that we are collecting for LRU eviction
 policy at the end of each interval. */
-UNIV_INTERN
+
 void
 buf_LRU_stat_update(void)
 /*=====================*/
@@ -2660,7 +2656,7 @@ buf_LRU_validate_instance(
 /**********************************************************************//**
 Validates the LRU list.
 @return	TRUE */
-UNIV_INTERN
+
 ibool
 buf_LRU_validate(void)
 /*==================*/
@@ -2681,7 +2677,7 @@ buf_LRU_validate(void)
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Prints the LRU list for one buffer pool instance. */
-UNIV_INTERN
+
 void
 buf_LRU_print_instance(
 /*===================*/
@@ -2752,7 +2748,7 @@ buf_LRU_print_instance(
 
 /**********************************************************************//**
 Prints the LRU list. */
-UNIV_INTERN
+
 void
 buf_LRU_print(void)
 /*===============*/

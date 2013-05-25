@@ -21,8 +21,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
+/* Include necessary SQL headers */
 #include "ha_prototypes.h"
+#include <debug_sync.h>
+#include <log.h>
+#include <sql_class.h>
 
+/* Include necessary InnoDB headers */
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
@@ -213,7 +218,7 @@ requires exclusive lock (any transactions that have accessed the table
 must commit or roll back first, and no transactions can access the table
 while prepare_inplace_alter_table() is executing)
 */
-UNIV_INTERN
+
 enum_alter_inplace_result
 ha_innobase::check_if_supported_inplace_alter(
 /*==========================================*/
@@ -1104,7 +1109,7 @@ innobase_col_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_rec_to_mysql(
 /*==================*/
@@ -1156,7 +1161,7 @@ null_field:
 
 /*************************************************************//**
 Copies an InnoDB index entry to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_fields_to_mysql(
 /*=====================*/
@@ -1199,7 +1204,7 @@ innobase_fields_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB row to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_row_to_mysql(
 /*==================*/
@@ -1235,7 +1240,7 @@ innobase_row_to_mysql(
 
 /*************************************************************//**
 Resets table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_rec_reset(
 /*===============*/
@@ -1598,7 +1603,7 @@ innobase_fts_check_doc_id_col(
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return	the status of the FTS_DOC_ID index */
-UNIV_INTERN
+
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
@@ -1686,7 +1691,7 @@ Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column in MySQL create index definition.
 @return	FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-UNIV_INTERN
+
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index_in_def(
 /*===================================*/
@@ -3453,7 +3458,7 @@ by ALTER TABLE and holding data used during in-place alter.
 @retval true		Failure
 @retval false		Success
 */
-UNIV_INTERN
+
 bool
 ha_innobase::prepare_inplace_alter_table(
 /*=====================================*/
@@ -4070,7 +4075,7 @@ by ALTER TABLE and holding data used during in-place alter.
 @retval true		Failure
 @retval false		Success
 */
-UNIV_INTERN
+
 bool
 ha_innobase::inplace_alter_table(
 /*=============================*/
@@ -5640,7 +5645,7 @@ by ALTER TABLE and holding data used during in-place alter.
 @retval true		Failure
 @retval false		Success
 */
-UNIV_INTERN
+
 bool
 ha_innobase::commit_inplace_alter_table(
 /*====================================*/
@@ -6226,7 +6231,7 @@ foreign_fail:
 @param thd - the session
 @param start_value - the lower bound
 @param max_value - the upper bound (inclusive) */
-UNIV_INTERN
+
 ib_sequence_t::ib_sequence_t(
 	THD*		thd,
 	ulonglong	start_value,
@@ -6263,7 +6268,7 @@ ib_sequence_t::ib_sequence_t(
 /**
 Postfix increment
 @return the next value to insert */
-UNIV_INTERN
+
 ulonglong
 ib_sequence_t::operator++(int) UNIV_NOTHROW
 {

@@ -32,8 +32,8 @@ Created 1/30/1994 Heikki Tuuri
 #define ut_error	assert(0)
 #else /* !UNIV_INNOCHECKSUM */
 
-#include "univ.i"
-#include <stdlib.h>
+/* Do not include univ.i because univ.i includes this. */
+
 #include "os0thread.h"
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
@@ -52,14 +52,14 @@ extern ulint	ut_dbg_zero;
 
 /*************************************************************//**
 Flush stderr and stdout, then abort execution. */
-UNIV_INTERN
+
 void
 ut_abort(void)
 	UNIV_COLD __attribute__((noreturn));
 
 /*************************************************************//**
 Report a failed assertion. */
-UNIV_INTERN
+
 void
 ut_dbg_assertion_failed(
 /*====================*/
@@ -114,7 +114,7 @@ struct speedo_t {
 
 /*******************************************************************//**
 Resets a speedo (records the current time in it). */
-UNIV_INTERN
+
 void
 speedo_reset(
 /*=========*/
@@ -123,7 +123,7 @@ speedo_reset(
 /*******************************************************************//**
 Shows the time elapsed and usage statistics since the last reset of a
 speedo. */
-UNIV_INTERN
+
 void
 speedo_show(
 /*========*/

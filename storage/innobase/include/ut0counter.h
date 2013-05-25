@@ -28,7 +28,6 @@ Created 2012/04/12 by Sunny Bains
 #define UT0COUNTER_H
 
 #include "univ.i"
-#include <string.h>
 #include "os0thread.h"
 
 /** CPU cache line size */

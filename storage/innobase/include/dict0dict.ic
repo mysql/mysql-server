@@ -29,7 +29,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "rem0types.h"
 #include "fsp0fsp.h"
 #include "srv0srv.h"
-#include "sync0rw.h" /* RW_S_LATCH */
+#include "sync0rw.h"
 
 /*********************************************************************//**
 Gets the minimum number of bytes per character.

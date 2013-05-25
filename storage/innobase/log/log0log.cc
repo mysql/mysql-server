@@ -30,6 +30,8 @@ Database log
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "log0log.h"
 
 #ifdef UNIV_NONINL
@@ -77,25 +79,25 @@ reduce the size of the log.
 */
 
 /* Global log system variable */
-UNIV_INTERN log_t*	log_sys	= NULL;
+log_t*	log_sys	= NULL;
 
 #ifdef UNIV_PFS_RWLOCK
-UNIV_INTERN mysql_pfs_key_t	checkpoint_lock_key;
+mysql_pfs_key_t	checkpoint_lock_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	log_sys_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	log_flush_order_mutex_key;
+mysql_pfs_key_t	log_sys_mutex_key;
+mysql_pfs_key_t	log_flush_order_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
-UNIV_INTERN ibool	log_do_write = TRUE;
+ibool	log_do_write = TRUE;
 #endif /* UNIV_DEBUG */
 
 /* These control how often we print warnings if the last checkpoint is too
 old */
-UNIV_INTERN ibool	log_has_printed_chkp_warning = FALSE;
-UNIV_INTERN time_t	log_last_warning_time;
+ibool	log_has_printed_chkp_warning = FALSE;
+time_t	log_last_warning_time;
 
 /* A margin for free space in the log buffer before a log entry is catenated */
 #define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)
@@ -170,7 +172,7 @@ log_buf_pool_get_oldest_modification(void)
 Opens the log for log_write_low. The log must be closed with log_close and
 released with log_release.
 @return	start lsn of the log record */
-UNIV_INTERN
+
 lsn_t
 log_reserve_and_open(
 /*=================*/
@@ -218,7 +220,7 @@ loop:
 /************************************************************//**
 Writes to the log the string given. It is assumed that the caller holds the
 log mutex. */
-UNIV_INTERN
+
 void
 log_write_low(
 /*==========*/
@@ -290,7 +292,7 @@ part_loop:
 /************************************************************//**
 Closes the log.
 @return	lsn */
-UNIV_INTERN
+
 lsn_t
 log_close(void)
 /*===========*/
@@ -382,7 +384,7 @@ function_exit:
 Calculates the data capacity of a log group, when the log file headers are not
 included.
 @return	capacity in bytes */
-UNIV_INTERN
+
 lsn_t
 log_group_get_capacity(
 /*===================*/
@@ -478,7 +480,7 @@ log_group_calc_lsn_offset(
 /*******************************************************************//**
 Calculates where in log files we find a specified lsn.
 @return	log file number */
-UNIV_INTERN
+
 ulint
 log_calc_where_lsn_is(
 /*==================*/
@@ -520,7 +522,7 @@ log_calc_where_lsn_is(
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to
 some lsn, for instance, a checkpoint lsn. */
-UNIV_INTERN
+
 void
 log_group_set_fields(
 /*=================*/
@@ -631,7 +633,7 @@ failure:
 
 /******************************************************//**
 Initializes the log. */
-UNIV_INTERN
+
 void
 log_init(void)
 /*==========*/
@@ -734,7 +736,7 @@ log_init(void)
 /******************************************************************//**
 Inits a log group to the log system.
 @return true if success, false if not */
-UNIV_INTERN __attribute__((warn_unused_result))
+__attribute__((warn_unused_result))
 bool
 log_group_init(
 /*===========*/
@@ -894,7 +896,7 @@ log_sys_check_flush_completion(void)
 
 /******************************************************//**
 Completes an i/o to a log file. */
-UNIV_INTERN
+
 void
 log_io_complete(
 /*============*/
@@ -1011,7 +1013,7 @@ log_block_store_checksum(
 
 /******************************************************//**
 Writes a buffer to a log file group. */
-UNIV_INTERN
+
 void
 log_group_write_buf(
 /*================*/
@@ -1133,7 +1135,7 @@ This function is called, e.g., when a transaction wants to commit. It checks
 that the log has been written to the log file up to the last log entry written
 by the transaction. If there is a flush running, it waits and checks if the
 flush flushed enough. If not, starts a new flush. */
-UNIV_INTERN
+
 void
 log_write_up_to(
 /*============*/
@@ -1356,7 +1358,7 @@ do_waits:
 
 /****************************************************************//**
 Does a syncronous flush of the log buffer to disk. */
-UNIV_INTERN
+
 void
 log_buffer_flush_to_disk(void)
 /*==========================*/
@@ -1378,7 +1380,7 @@ This functions writes the log buffer to the log file and if 'flush'
 is set it forces a flush of the log file as well. This is meant to be
 called from background master thread only as it does not wait for
 the write (+ possible flush) to finish. */
-UNIV_INTERN
+
 void
 log_buffer_sync_in_background(
 /*==========================*/
@@ -1533,7 +1535,7 @@ log_checkpoint_set_nth_group_info(
 
 /*******************************************************************//**
 Gets info from a checkpoint about a log group. */
-UNIV_INTERN
+
 void
 log_checkpoint_get_nth_group_info(
 /*==============================*/
@@ -1648,7 +1650,7 @@ log_group_checkpoint(
 /******************************************************//**
 Writes info to a buffer of a log group when log files are created in
 backup restoration. */
-UNIV_INTERN
+
 void
 log_reset_first_header_and_checkpoint(
 /*==================================*/
@@ -1702,7 +1704,7 @@ log_reset_first_header_and_checkpoint(
 #ifndef UNIV_HOTBACKUP
 /******************************************************//**
 Reads a checkpoint info from a log group header to log_sys->checkpoint_buf. */
-UNIV_INTERN
+
 void
 log_group_read_checkpoint_info(
 /*===========================*/
@@ -1722,7 +1724,7 @@ log_group_read_checkpoint_info(
 
 /******************************************************//**
 Writes checkpoint info to groups. */
-UNIV_INTERN
+
 void
 log_groups_write_checkpoint_info(void)
 /*==================================*/
@@ -1747,7 +1749,7 @@ blocks from the buffer pool: it only checks what is lsn of the oldest
 modification in the pool, and writes information about the lsn in
 log files. Use log_make_checkpoint_at to flush also the pool.
 @return	TRUE if success, FALSE if a checkpoint write was already running */
-UNIV_INTERN
+
 ibool
 log_checkpoint(
 /*===========*/
@@ -1838,7 +1840,7 @@ log_checkpoint(
 
 /****************************************************************//**
 Makes a checkpoint at a given lsn or later. */
-UNIV_INTERN
+
 void
 log_make_checkpoint_at(
 /*===================*/
@@ -1957,7 +1959,7 @@ loop:
 
 /******************************************************//**
 Reads a specified log segment to a buffer. */
-UNIV_INTERN
+
 void
 log_group_read_log_seg(
 /*===================*/
@@ -2015,7 +2017,7 @@ Checks that there is enough free space in the log to start a new query step.
 Flushes the log buffer or makes a new checkpoint if necessary. NOTE: this
 function may only be called if the calling thread owns no synchronization
 objects! */
-UNIV_INTERN
+
 void
 log_check_margins(void)
 /*===================*/
@@ -2043,7 +2045,7 @@ Makes a checkpoint at the latest lsn and writes it to first page of each
 data file in the database, so that we know that the file spaces contain
 all modifications up to that lsn. This can only be called at database
 shutdown. This function also writes all log in log files to the log archive. */
-UNIV_INTERN
+
 void
 logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
@@ -2333,7 +2335,7 @@ loop:
 /******************************************************//**
 Checks by parsing that the catenated log segment for a single mtr is
 consistent. */
-UNIV_INTERN
+
 ibool
 log_check_log_recs(
 /*===============*/
@@ -2384,7 +2386,7 @@ log_check_log_recs(
 /******************************************************//**
 Peeks the current lsn.
 @return	TRUE if success, FALSE if could not get the log system mutex */
-UNIV_INTERN
+
 ibool
 log_peek_lsn(
 /*=========*/
@@ -2403,7 +2405,7 @@ log_peek_lsn(
 
 /******************************************************//**
 Prints info of the log. */
-UNIV_INTERN
+
 void
 log_print(
 /*======*/
@@ -2450,7 +2452,7 @@ log_print(
 
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
-UNIV_INTERN
+
 void
 log_refresh_stats(void)
 /*===================*/
@@ -2481,7 +2483,7 @@ log_group_close(
 
 /********************************************************//**
 Closes all log groups. */
-UNIV_INTERN
+
 void
 log_group_close_all(void)
 /*=====================*/
@@ -2503,7 +2505,7 @@ log_group_close_all(void)
 
 /********************************************************//**
 Shutdown the log system but do not release all the memory. */
-UNIV_INTERN
+
 void
 log_shutdown(void)
 /*==============*/
@@ -2534,7 +2536,7 @@ log_shutdown(void)
 
 /********************************************************//**
 Free the log system data structures. */
-UNIV_INTERN
+
 void
 log_mem_free(void)
 /*==============*/

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -35,7 +35,7 @@ Lock an rw-lock in shared mode for the current thread. If the rw-lock is
 locked in exclusive mode, or there is an exclusive lock request waiting,
 the function spins a preset time (controlled by srv_n_spin_wait_rounds),
 waiting for the lock before suspending the thread. */
-UNIV_INTERN
+
 void
 rw_lock_s_lock_spin(
 /*================*/
@@ -47,7 +47,7 @@ rw_lock_s_lock_spin(
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 Inserts the debug information for an rw-lock. */
-UNIV_INTERN
+
 void
 rw_lock_add_debug_info(
 /*===================*/
@@ -58,7 +58,7 @@ rw_lock_add_debug_info(
 	ulint		line);		/*!< in: line where requested */
 /******************************************************************//**
 Removes a debug information struct for an rw-lock. */
-UNIV_INTERN
+
 void
 rw_lock_remove_debug_info(
 /*======================*/
