@@ -943,23 +943,29 @@ TimeHelper::TimeHelper(Handle<Value> mysqlTime) :
 
 /* readFraction() returns value in microseconds
 */
-int readFraction(const NdbDictionary::Column *col, char *buf) {
+int readFraction(const NdbDictionary::Column *col, char *buf, bool neg) {
   int prec  = col->getPrecision();
   int usec = 0;
-  if(prec > 0) {  
+  if(prec > 0) {
     register int bufsz = (1 + prec) / 2;
     usec = unpack_bigendian(buf, bufsz);
+    if(neg && usec) {
+      usec = (1ULL << (8*bufsz)) - usec; // two's complement
+    }
     while(prec < 5) usec *= 100, prec += 2;
   }
   return usec;
 }
 
-void writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {  
+void writeFraction(const NdbDictionary::Column *col, int usec, char *buf, bool neg) {
   int prec  = col->getPrecision();
   if(prec > 0) {
     register int bufsz = (1 + prec) / 2; // {1,1,2,2,3,3}
     while(prec < 5) usec /= 100, prec += 2;
     if(prec % 2) usec -= (usec % 10); // forced loss of precision
+    if(neg) {
+      usec = (~usec) + 1;  // two's complement
+    }
     pack_bigendian(usec, buf, bufsz);
   }
 }
@@ -994,7 +1000,7 @@ Handle<Value> Timestamp2Reader(const NdbDictionary::Column *col,
                                char *buffer, size_t offset) {
   HandleScope scope;
   uint32_t timeSeconds = unpack_bigendian(buffer+offset, 4);
-  int timeMilliseconds = readFraction(col, buffer+offset+4) / 1000;
+  int timeMilliseconds = readFraction(col, buffer+offset+4, false) / 1000;
   double jsdate = ((double) timeSeconds * 1000) + timeMilliseconds;
   return scope.Close(Date::New(jsdate));
 }
@@ -1009,7 +1015,7 @@ Handle<Value> Timestamp2Writer(const NdbDictionary::Column * col,
     int64_t timeSeconds = timeMilliseconds / 1000;
     timeMilliseconds %= 1000;
     pack_bigendian(timeSeconds, buffer+offset, 4);
-    writeFraction(col, timeMilliseconds * 1000, buffer+offset+4);
+    writeFraction(col, timeMilliseconds * 1000, buffer+offset+4, false);
   }
   return valid ? writerOK : outOfRange(col->getName());
 }
@@ -1065,7 +1071,7 @@ Handle<Value> Datetime2Reader(const NdbDictionary::Column *col,
   HandleScope scope;
   TimeHelper tm;
   uint64_t packedValue = unpack_bigendian(buffer+offset, 5);
-  tm.microsec = readFraction(col, buffer+offset+5);
+  tm.microsec = readFraction(col, buffer+offset+5, false);
 
   tm.second = (packedValue & 0x3F);       packedValue >>= 6;
   tm.minute = (packedValue & 0x3F);       packedValue >>= 6;
@@ -1090,7 +1096,7 @@ Handle<Value> Datetime2Writer(const NdbDictionary::Column * col,
     packedValue |= tm.minute;                   packedValue <<= 6;
     packedValue |= tm.second;                   
     pack_bigendian(packedValue, buffer+offset, 5);
-    writeFraction(col, tm.microsec, buffer+offset+5);
+    writeFraction(col, tm.microsec, buffer+offset+5, false);
   }
   return tm.valid ? writerOK : outOfRange(col->getName());  
 }
@@ -1158,11 +1164,18 @@ Handle<Value> Time2Reader(const NdbDictionary::Column *col,
   HandleScope scope;
   TimeHelper tm; 
   int packedValue = (int) unpack_bigendian(buffer+offset, 3);
-  tm.second = (packedValue & 0x3F);       packedValue >>= 6;
-  tm.minute = (packedValue & 0x3F);       packedValue >>= 6;
-  tm.hour   = (packedValue & 0x03FF);     packedValue >>= 10;
-  tm.sign   = (packedValue > 0 ? 1 : -1);
-  tm.microsec = readFraction(col, buffer+offset+3);
+  if(packedValue & 0x800000) {
+    tm.sign = 1;
+  }
+  else {
+    /* Subtract from 2^23 to get two's complement */
+    tm.sign = -1;
+    packedValue = 0x800000 - packedValue;
+  }
+  tm.second   = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.minute   = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.hour     = (packedValue & 0x03FF);     packedValue >>= 10;
+  tm.microsec = readFraction(col, buffer+offset+3, (tm.sign < 0));
   return scope.Close(tm.toJs());
 }
 
@@ -1171,12 +1184,16 @@ Handle<Value> Time2Writer(const NdbDictionary::Column * col,
   TimeHelper tm(value);
   int packedValue = 0;
   if(tm.valid) {
-    packedValue = (tm.sign > 0 ? 1 : 0);         packedValue <<= 11;
-    packedValue |= tm.hour;                      packedValue <<= 6;
-    packedValue |= tm.minute;                    packedValue <<= 6;
+    bool is_neg = (tm.sign < 0);
+    packedValue = (is_neg ? 0 : 1);         packedValue <<= 11;
+    packedValue |= tm.hour;                 packedValue <<= 6;
+    packedValue |= tm.minute;               packedValue <<= 6;
     packedValue |= tm.second;
+    if (is_neg) {
+      packedValue = 0x800000 - packedValue;
+    }
     pack_bigendian(packedValue, buffer+offset, 3);
-    writeFraction(col, tm.microsec, buffer+offset+3);
+    writeFraction(col, tm.microsec, buffer+offset+3, is_neg);
   }  
   
   return tm.valid ? writerOK : outOfRange(col->getName());  
