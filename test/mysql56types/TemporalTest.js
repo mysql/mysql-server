@@ -134,5 +134,23 @@ t6.run = function() {
   fail_openSession(this, InsertFunction(data));
 }
 
+// Time1. Tenths of a second.  Negative
+var t7 = new harness.ConcurrentTest("t7_time_negative");
+t7.run = function() {
+  var data = new TestData(7);
+  data.Time1 = -210000;
+  this.verifier = new ValueVerifier(this, "Time1", -210000);
+  fail_openSession(this, InsertFunction(data));
+}
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6];
+// Time4.  Negative.
+var t8 = new harness.ConcurrentTest("t8_time_fractional_negative");
+t8.run = function() {
+  var data = new TestData(8);
+  data.Time4 = -1111.6222;
+  this.verifier = new ValueVerifier(this, "Time4", -1111.6);
+  fail_openSession(this, InsertFunction(data));
+}
+
+
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];
