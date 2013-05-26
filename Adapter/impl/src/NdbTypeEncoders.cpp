@@ -71,6 +71,11 @@ DECLARE_ENCODER_TEMPLATES(fp);
 ENCODER(FloatEncoder, fpReader<float>, fpWriter<float>);
 ENCODER(DoubleEncoder, fpReader<double>, fpWriter<double>);
 
+DECLARE_ENCODER(Binary);
+DECLARE_ENCODER_TEMPLATES(varbinary);
+ENCODER(VarbinaryEncoder, varbinaryReader<uint8_t>, varbinaryWriter<uint8_t>);
+ENCODER(LongVarbinaryEncoder, varbinaryReader<uint16_t>, varbinaryWriter<uint16_t>);
+
 DECLARE_ENCODER(Char);
 DECLARE_ENCODER_TEMPLATES(varchar);
 ENCODER(VarcharEncoder, varcharReader<uint8_t>, varcharWriter<uint8_t>);
@@ -102,15 +107,15 @@ const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & UnsupportedTypeEncoder,               // 13 OLDDECIMAL
   & CharEncoder,                          // 14 CHAR
   & VarcharEncoder,                       // 15 VARCHAR
-  & UnsupportedTypeEncoder,               // 16 BINARY
-  & UnsupportedTypeEncoder,               // 17 VARBINARY
+  & BinaryEncoder,                        // 16 BINARY
+  & VarbinaryEncoder,                     // 17 VARBINARY
   & DatetimeEncoder,                      // 18 DATETIME
   & DateEncoder,                          // 19 DATE
   & UnsupportedTypeEncoder,               // 20 BLOB
   & UnsupportedTypeEncoder,               // 21 TEXT
   & UnsupportedTypeEncoder,               // 22 BIT
   & LongVarcharEncoder,                   // 23 LONGVARCHAR
-  & UnsupportedTypeEncoder,               // 24 LONGVARBINARY
+  & LongVarbinaryEncoder,                 // 24 LONGVARBINARY
   & TimeEncoder,                          // 25 TIME
   & YearEncoder,                          // 26 YEAR
   & TimestampEncoder,                     // 27 TIMESTAMP
@@ -542,6 +547,58 @@ Handle<Value> fpWriter(const NdbDictionary::Column * col,
   return valid ? writerOK : outOfRange(col->getName());
 }
 
+
+/****** Binary & Varbinary *******/
+
+Handle<Value> BinaryReader(const NdbDictionary::Column *col, 
+                           char *buffer, size_t offset) {
+  HandleScope scope;
+  node::Buffer * b = node::Buffer::New(buffer + offset, col->getLength());
+  return scope.Close(b->handle_);
+}
+
+Handle<Value> BinaryWriter(const NdbDictionary::Column * col,
+                           Handle<Value> value, char *buffer, size_t offset) {
+  bool valid = node::Buffer::HasInstance(value);
+  if(valid) {
+    Handle<Object> obj = value->ToObject();
+    size_t col_len = col->getLength();
+    size_t data_len = node::Buffer::Length(obj);
+    size_t ncopied = col_len > data_len ? data_len : col_len;
+    memmove(buffer+offset, node::Buffer::Data(obj), ncopied);
+    if(ncopied < col_len) {
+      memset(buffer+offset+ncopied, 0, col_len - ncopied); // padding
+    }
+  }
+  return valid ? writerOK : outOfRange(col->getName());
+}
+
+template<typename LENGTHTYPE>
+Handle<Value> varbinaryReader(const NdbDictionary::Column *col, 
+                              char *buffer, size_t offset) {
+  HandleScope scope;
+  LOAD_ALIGNED_DATA(LENGTHTYPE, length, buffer+offset);
+  char * data = buffer+offset+sizeof(length);
+  node::Buffer *b = node::Buffer::New(data, length);
+  return scope.Close(b->handle_);
+}                            
+
+template<typename LENGTHTYPE>
+Handle<Value> varbinaryWriter(const NdbDictionary::Column * col,
+                              Handle<Value> value, 
+                              char *buffer, size_t offset) {
+  bool valid = node::Buffer::HasInstance(value);
+  if(valid) {
+    size_t col_len = col->getLength();
+    Handle<Object> obj = value->ToObject();
+    LENGTHTYPE data_len = node::Buffer::Length(obj);
+    if(data_len > col_len) data_len = col_len;  // truncate
+    STORE_ALIGNED_DATA(LENGTHTYPE, data_len, buffer+offset);
+    char * data = buffer+offset+sizeof(data_len);
+    memmove(data, node::Buffer::Data(obj), data_len);
+  }
+  return valid ? writerOK : outOfRange(col->getName());
+}
 
 /****** String types ********/
 
