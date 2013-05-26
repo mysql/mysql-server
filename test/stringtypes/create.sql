@@ -15,3 +15,12 @@ create table if not exists charset_test (
   str_var_utf32 VARCHAR(20) character set utf32  
 );
 
+create table if not exists binary_test (
+  id int not null PRIMARY KEY,
+  bin_fix BINARY(20),
+  bin_var VARBINARY(200),
+  bin_var_long VARBINARY(2000)
+);
+
+delete from charset_test;
+delete from binary_test;
