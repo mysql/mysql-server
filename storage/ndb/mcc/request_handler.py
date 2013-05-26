@@ -45,6 +45,7 @@ import threading
 import random
 import stat
 import errno
+import contextlib
 
 import util
 import config_parser
@@ -52,6 +53,14 @@ import config_parser
 from clusterhost import produce_ABClusterHost 
 
 _logger = logging.getLogger(__name__)
+
+@contextlib.contextmanager
+def seq_acting(seq, action):
+	try:
+		yield seq
+	finally:
+		for e in seq:
+			getattr(e, action)()
 
 class ShutdownException(Exception):
     """Exception thrown when shutdown command arrives"""
@@ -234,7 +243,7 @@ def handle_appendFileReq(req, body):
         assert (ch.file_exists(dp)), 'File ' + dp + ' does not exist on host ' + ch.host
         assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
 
-        with (ch.open(sp), ch.open(dp, 'a+')) as (sourceFile, destinationFile):
+        with seq_acting((ch.open(sp), ch.open(dp, 'a+')), 'close') as (sourceFile, destinationFile):
             destinationFile.write(sourceFile.read())
 
     return make_rep(req)
