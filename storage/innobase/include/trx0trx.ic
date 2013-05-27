@@ -178,6 +178,54 @@ trx_search_latch_release_if_reserved(
 	}
 }
 
+/********************************************************************//**
+Check if redo rseg is modified for insert/update. */
+UNIV_INLINE
+bool
+trx_is_redo_rseg_updated(
+/*=====================*/
+	const trx_t*	   trx) /*!< in: transaction */
+{
+	return(trx->rsegs.m_redo.insert_undo != 0
+	       || trx->rsegs.m_redo.update_undo != 0);
+}
+
+/********************************************************************//**
+Check if noredo rseg is modified for insert/update. */
+UNIV_INLINE
+bool
+trx_is_noredo_rseg_updated(
+/*=======================*/
+	const trx_t*	   trx) /*!< in: transaction */
+{
+	return(trx->rsegs.m_noredo.insert_undo != 0
+	       || trx->rsegs.m_noredo.update_undo != 0);
+}
+
+/********************************************************************//**
+Check if redo/noredo rseg is modified for insert/update. */
+UNIV_INLINE
+bool
+trx_is_rseg_updated(
+/*================*/
+	const trx_t*	   trx) /*!< in: transaction */
+{
+	return(trx_is_redo_rseg_updated(trx)
+	       || trx_is_noredo_rseg_updated(trx));
+}
+
+/********************************************************************//**
+Check if redo/nonredo rseg is valid. */
+UNIV_INLINE
+bool
+trx_is_rseg_assigned(
+/*=================*/
+	const trx_t*	   trx) /*!< in: transaction */
+{
+	return(trx->rsegs.m_redo.rseg != NULL
+	       || trx->rsegs.m_noredo.rseg != NULL);
+}
+
 /**
 Increase the reference count. If the transaction is in state
 TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered

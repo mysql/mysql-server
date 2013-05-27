@@ -29,7 +29,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "univ.i"
 #include "trx0types.h"
 #include "trx0sys.h"
-#include "ut0bh.h"
+#include <vector>
 
 /******************************************************************//**
 Gets a rollback segment header.
@@ -114,7 +114,7 @@ void
 trx_rseg_array_init(
 /*================*/
 	trx_sysf_t*	sys_header,	/*!< in/out: trx system header */
-	ib_bh_t*	ib_bh,		/*!< in: rseg queue */
+	purge_pq_t*	purge_queue,	/*!< in: rseg queue */
 	mtr_t*		mtr);		/*!< in/out: mtr */
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */
@@ -122,15 +122,18 @@ Free's an instance of the rollback segment in memory. */
 void
 trx_rseg_mem_free(
 /*==============*/
-	trx_rseg_t*	rseg);		/*!< in, own: instance to free */
-
+	trx_rseg_t*	rseg,		/*!< in, own: instance to free */
+	trx_rseg_t**	rseg_array);	/*!< out: add rseg reference to this
+					central array. */
 /*********************************************************************
 Creates a rollback segment. */
 
 trx_rseg_t*
 trx_rseg_create(
 /*============*/
-	ulint	space);			/*!< in: id of UNDO tablespace */
+	ulint	space,		/*!< in: id of UNDO tablespace */
+	ulint   nth_free_slot);	/*!< in: allocate nth free slot.
+				0 means next free slots. */
 
 /********************************************************************
 Get the number of unique rollback tablespaces in use except space id 0.
@@ -155,7 +158,7 @@ struct trx_rseg_t{
 	/*--------------------------------------------------------*/
 	ulint		id;	/*!< rollback segment id == the index of
 				its slot in the trx system file copy */
-	ib_mutex_t		mutex;	/*!< mutex protecting the fields in this
+	ib_mutex_t	mutex;	/*!< mutex protecting the fields in this
 				struct except id, which is constant */
 	ulint		space;	/*!< space where the rollback segment is
 				header is placed */
@@ -189,12 +192,6 @@ struct trx_rseg_t{
 					yet purged log */
 	ibool		last_del_marks;	/*!< TRUE if the last not yet purged log
 					needs purging */
-};
-
-/** For prioritising the rollback segments for purge. */
-struct rseg_queue_t {
-        trx_id_t	trx_no;         /*!< trx_rseg_t::last_trx_no */
-        trx_rseg_t*     rseg;           /*!< Rollback segment */
 };
 
 /* Undo log segment slot in a rollback segment header */

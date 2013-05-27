@@ -309,10 +309,11 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(mem_pool_mutex),
 	PSI_KEY(mutex_list_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
-	PSI_KEY(purge_sys_bh_mutex),
+	PSI_KEY(purge_sys_pq_mutex),
 	PSI_KEY(recv_sys_mutex),
 	PSI_KEY(recv_writer_mutex),
-	PSI_KEY(rseg_mutex),
+	PSI_KEY(redo_rseg_mutex),
+	PSI_KEY(noredo_rseg_mutex),
 #  ifdef UNIV_SYNC_DEBUG
 	PSI_KEY(rw_lock_debug_mutex),
 #  endif /* UNIV_SYNC_DEBUG */
@@ -3553,7 +3554,7 @@ innobase_rollback_trx(
 
 	lock_unlock_table_autoinc(trx);
 
-	if (trx->insert_undo != 0 || trx->update_undo != 0) {
+	if (trx_is_rseg_updated(trx)) {
 		error = trx_rollback_for_mysql(trx);
 	}
 
