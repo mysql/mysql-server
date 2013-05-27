@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 
 
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/include/memcached
                     ${CMAKE_CURRENT_SOURCE_DIR}/utilities 
@@ -87,7 +88,7 @@ CHECK_INCLUDE_FILES("sys/types.h;netinet/tcp.h" HAVE_NETINET_TCP_H)
 CHECK_FUNCTION_EXISTS(htonll         HAVE_HTONLL)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config_tests.in 
-               ${CMAKE_CURRENT_SOURCE_DIR}/config.h)
+               ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 install(TARGETS memcached DESTINATION ${INSTALL_SBINDIR}) 
 

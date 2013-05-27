@@ -63,6 +63,7 @@ include_directories(BEFORE include)
 include_directories(BEFORE ${CACHE_SRC})
 include_directories(${NDB_SOURCE_DIR}/src/ndbjtie/mysql)
 include_directories(${NDB_SOURCE_DIR}/src/ndbapi/)
+include_directories(${CMAKE_BINARY_DIR}/storage/ndb/memcache/include/)
 include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(AFTER ${BUNDLED_MEMCACHED})
 
@@ -163,7 +164,7 @@ endif()
 
 # Build ndbmemcache_config.h
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.in 
-               ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.h)
+               ${CMAKE_CURRENT_BINARY_DIR}/include/ndbmemcache_config.h)
 
 # Build sandbox.sh
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh.in
