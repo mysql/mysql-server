@@ -23,13 +23,14 @@ Quiesce a tablespace.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
-#include "row0quiesce.h"
-#include "row0mysql.h"
+#include "ha_prototypes.h"
 
+#include "row0quiesce.h"
 #ifdef UNIV_NONINL
 #include "row0quiesce.ic"
 #endif
 
+#include "row0mysql.h"
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "trx0purge.h"

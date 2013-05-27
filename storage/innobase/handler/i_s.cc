@@ -23,9 +23,12 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
-#include "i_s.h"
 #include "ha_prototypes.h"
+#include <sql_acl.h>
+#include <sql_show.h>
+#include <sql_time.h>
 
+#include "i_s.h"
 #include "btr0pcur.h"
 #include "btr0types.h"
 #include "dict0dict.h"
@@ -5255,6 +5258,16 @@ i_s_innodb_buffer_page_get_info(
 		page_info->is_old = bpage->old;
 
 		page_info->freed_page_clock = bpage->freed_page_clock;
+
+		switch (buf_page_get_io_fix(bpage)) {
+		case BUF_IO_NONE:
+		case BUF_IO_WRITE:
+		case BUF_IO_PIN:
+			break;
+		case BUF_IO_READ:
+			page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
+			return;
+		}
 
 		if (page_info->page_state == BUF_BLOCK_FILE_PAGE) {
 			const buf_block_t*block;

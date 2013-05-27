@@ -23,10 +23,9 @@ The tablespace memory cache
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
 
-#include "fil0fil.h"
-
 #include "ha_prototypes.h"
 
+#include "fil0fil.h"
 #include "mem0mem.h"
 #include "hash0hash.h"
 #include "os0file.h"
@@ -48,7 +47,6 @@ Created 10/25/1995 Heikki Tuuri
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
 # include "sync0sync.h"
-# include "os0sync.h"
 #else /* !UNIV_HOTBACKUP */
 # include "srv0srv.h"
 static ulint srv_data_read, srv_data_written;

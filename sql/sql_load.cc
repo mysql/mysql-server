@@ -379,9 +379,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   else
 #endif
   {
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-    ex->file_name+=dirname_length(ex->file_name);
-#endif
     if (!dirname_length(ex->file_name))
     {
       strxnmov(name, FN_REFLEN-1, mysql_real_data_home, tdb, NullS);
@@ -1548,11 +1545,7 @@ int READ_INFO::read_field()
         PUSH(chr);
         chr= escape_char;
       }
-#ifdef ALLOW_LINESEPARATOR_IN_STRINGS
-      if (chr == line_term_char)
-#else
       if (chr == line_term_char && found_enclosed_char == INT_MAX)
-#endif
       {
 	if (terminator(line_term_ptr,line_term_length))
 	{					// Maybe unexpected linefeed

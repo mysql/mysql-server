@@ -31,6 +31,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0types.h"
 #include "mtr0types.h"
 #include "page0types.h"
+#include "trx0types.h"
 #ifndef DBUG_OFF
 # include <ostream>
 # include <sstream>

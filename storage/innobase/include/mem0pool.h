@@ -28,7 +28,6 @@ Created 6/9/1994 Heikki Tuuri
 
 #include "univ.i"
 #include "os0file.h"
-#include "ut0lst.h"
 
 /** Memory pool */
 struct mem_pool_t;

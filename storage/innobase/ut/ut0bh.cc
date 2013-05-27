@@ -30,8 +30,6 @@ Created 2010-05-28 by Sunny Bains
 #include "ut0bh.ic"
 #endif
 
-#include <string.h>
-
 /**********************************************************************//**
 Create a binary heap.
 @return a new binary heap */

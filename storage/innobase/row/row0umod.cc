@@ -23,6 +23,8 @@ Undo modify of a row
 Created 2/27/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0umod.h"
 
 #ifdef UNIV_NONINL

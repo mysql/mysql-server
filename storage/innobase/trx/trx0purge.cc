@@ -23,6 +23,8 @@ Purge old versions
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "trx0purge.h"
 
 #ifdef UNIV_NONINL

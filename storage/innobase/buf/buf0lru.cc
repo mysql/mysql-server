@@ -24,21 +24,16 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "buf0lru.h"
-
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_NONINL
 #include "buf0lru.ic"
 #endif
 
-#include "ha_prototypes.h"
-
+#ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
-#include "ut0lst.h"
 #include "ut0rnd.h"
 #include "sync0sync.h"
 #include "sync0rw.h"
 #include "hash0hash.h"
-#include "os0sync.h"
 #include "fil0fil.h"
 #include "btr0btr.h"
 #include "buf0buddy.h"

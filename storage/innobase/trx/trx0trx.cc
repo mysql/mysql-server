@@ -23,30 +23,31 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "trx0trx.h"
 
 #ifdef UNIV_NONINL
 #include "trx0trx.ic"
 #endif
 
-#include "ha_prototypes.h"
-
-#include "trx0undo.h"
-#include "trx0rseg.h"
-#include "log0log.h"
-#include "que0que.h"
+#include "btr0sea.h"
 #include "lock0lock.h"
-#include "trx0roll.h"
-#include "usr0sess.h"
+#include "log0log.h"
+#include "os0proc.h"
+#include "que0que.h"
 #include "read0read.h"
+#include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "btr0sea.h"
-#include "os0proc.h"
-#include "trx0xa.h"
-#include "trx0rec.h"
 #include "trx0purge.h"
-#include "srv0mon.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0undo.h"
+#include "trx0xa.h"
+#include "usr0sess.h"
+#include "ut0pool.h"
 #include "ut0vec.h"
 #include "srv0space.h"
 #include "ut0pool.h"
@@ -95,6 +96,68 @@ trx_set_detailed_error_from_file(
 	os_file_read_string(file, trx->detailed_error, MAX_DETAILED_ERROR_LEN);
 }
 
+/********************************************************************//**
+Initialize transaction object.
+@param	trx	trx to initialize */
+static
+void
+trx_init(
+/*=====*/
+	trx_t*	trx)
+{
+	trx->id = 0;
+
+	trx->no = TRX_ID_MAX;
+
+	trx->state = TRX_STATE_NOT_STARTED;
+
+	trx->is_recovered = false;
+
+	trx->op_info = "";
+
+	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
+
+	trx->check_foreigns = true;
+
+	trx->check_unique_secondary = true;
+
+	trx->support_xa = true;
+
+	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+
+	trx->dict_operation = TRX_DICT_OP_NONE;
+
+	trx->table_id = 0;
+
+	trx->error_state = DB_SUCCESS;
+
+	trx->undo_no = 0;
+
+	trx->rsegs.m_redo.rseg = NULL;
+
+	trx->rsegs.m_noredo.rseg = NULL;
+
+	trx->read_only = false;
+
+	trx->auto_commit = false;
+
+	trx->will_lock = 0;
+
+	trx->ddl = false;
+
+	trx->internal = false;
+
+	ut_d(trx->start_file = 0);
+
+	ut_d(trx->start_line = 0);
+
+	trx->magic_n = TRX_MAGIC_N;
+
+	trx->lock.que_state = TRX_QUE_RUNNING;
+
+	trx->last_sql_stat_start.least_undo_no = 0;
+}
+
 /** For managing the life-cycle of the trx_t instance that we get
 from the pool. */
 struct TrxFactory {
@@ -106,27 +169,9 @@ struct TrxFactory {
 	@param trx	Transaction instance to initialise */
 	static void init(trx_t* trx)
 	{
-		trx->magic_n = TRX_MAGIC_N;
+		trx_init(trx);
 
-		trx->state = TRX_STATE_NOT_STARTED;
-
-		trx->isolation_level = TRX_ISO_REPEATABLE_READ;
-
-		trx->no = TRX_ID_MAX;
-
-		trx->support_xa = true;
-
-		trx->check_foreigns = true;
-
-		trx->check_unique_secondary = true;
-
-		trx->dict_operation = TRX_DICT_OP_NONE;
-
-		trx->error_state = DB_SUCCESS;
-
-		trx->lock.que_state = TRX_QUE_RUNNING;
-
-		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+		trx->dict_operation_lock_mode = 0;
 
 		trx->xid = reinterpret_cast<XID*>(
 			mem_zalloc(sizeof(*trx->xid)));
@@ -135,8 +180,6 @@ struct TrxFactory {
 			mem_zalloc(MAX_DETAILED_ERROR_LEN));
 
 		trx->xid->formatID = -1;
-
-		trx->op_info = "";
 
 		trx->lock.lock_heap = mem_heap_create_typed(
 			256, MEM_HEAP_FOR_LOCK_HEAP);
@@ -303,33 +346,9 @@ trx_create_low()
 {
 	trx_t*	trx = trx_pools->get();
 
-	ut_a(trx->state == TRX_STATE_NOT_STARTED);
+	assert_trx_is_free(trx);
 
-	ut_a(trx->dict_operation == TRX_DICT_OP_NONE);
-
-	ut_a(!trx->read_only);
-
-	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
-
-	trx->no = TRX_ID_MAX;
-
-	trx->support_xa = true;
-
-	trx->check_foreigns = true;
-
-	trx->check_unique_secondary = true;
-
-	trx->dict_operation = TRX_DICT_OP_NONE;
-
-	trx->error_state = DB_SUCCESS;
-
-	trx->lock.que_state = TRX_QUE_RUNNING;
-
-	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
-
-	trx->xid->formatID = -1;
-
-	trx->op_info = "";
+	trx_init(trx);
 
 	mem_heap_t*	heap;
 	ib_alloc_t*	heap_alloc;
@@ -361,11 +380,7 @@ static
 void
 trx_free(trx_t*& trx)
 {
-	ut_a(trx->state == TRX_STATE_NOT_STARTED);
-
-	ut_a(trx->dict_operation == TRX_DICT_OP_NONE);
-
-	ut_a(!trx->read_only);
+	assert_trx_is_free(trx);
 
 	trx->mysql_thd = 0;
 
@@ -465,11 +480,10 @@ trx_free_for_background(
 		putc('\n', stderr);
 	}
 
-	ut_a(trx->state == TRX_STATE_NOT_STARTED);
-	ut_a(!trx_is_rseg_updated(trx));
-	ut_a(trx->read_view == NULL);
-
 	trx->dict_operation = TRX_DICT_OP_NONE;
+	assert_trx_is_inactive(trx);
+
+	trx_init(trx);
 
 	trx_free(trx);
 }
@@ -1694,37 +1708,13 @@ trx_commit_in_memory(
 	trx_named_savept_t*	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
 	trx_roll_savepoints_free(trx, savep);
 
-	trx->rsegs.m_redo.rseg = NULL;
-	trx->rsegs.m_noredo.rseg = NULL;
-	trx->undo_no = 0;
-	trx->undo_rseg_space = 0;
-	trx->last_sql_stat_start.least_undo_no = 0;
+        if (trx->fts_trx) {
+                trx_finalize_for_fts(trx, not_rollback);
+        }
 
-	trx->ddl = false;
-	trx->internal = false;
-#ifdef UNIV_DEBUG
-	ut_ad(trx->start_file != 0);
-	ut_ad(trx->start_line != 0);
-	trx->start_file = 0;
-	trx->start_line = 0;
-#endif /* UNIV_DEBUG */
+	trx_init(trx);
 
-	trx->will_lock = 0;
-	trx->read_only = false;
-	trx->auto_commit = false;
-
-	if (trx->fts_trx) {
-		trx_finalize_for_fts(trx, not_rollback);
-	}
-
-	ut_ad(trx->lock.wait_thr == NULL);
-	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-	ut_ad(!trx->in_ro_trx_list);
-	ut_ad(!trx->in_rw_trx_list);
-
-	trx->dict_operation = TRX_DICT_OP_NONE;
-
-	trx->error_state = DB_SUCCESS;
+	assert_trx_is_free(trx);
 
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
@@ -1791,6 +1781,12 @@ trx_commit_low(
 
 		/*--------------*/
 		mtr_commit(mtr);
+
+		DBUG_EXECUTE_IF("ib_crash_during_trx_commit_in_mem",
+				if (trx_is_rseg_updated(trx)) {
+					log_make_checkpoint_at(LSN_MAX, TRUE);
+					DBUG_SUICIDE();
+				});
 		/*--------------*/
 		lsn = mtr->end_lsn;
 	} else {

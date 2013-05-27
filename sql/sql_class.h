@@ -902,7 +902,7 @@ public:
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
     CURRENTLY NOT IMPLEMENTED!
   */
-  void close_transient_cursors();
+  void close_transient_cursors() { }
   void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
   void reset();

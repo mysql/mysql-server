@@ -82,8 +82,6 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 #include "univ.i"
 #include "ut0crc32.h"
 
-#include <string.h>
-
 ib_ut_crc32_t	ut_crc32;
 
 /* Precalculated table used to generate the CRC32 if the CPU does not
