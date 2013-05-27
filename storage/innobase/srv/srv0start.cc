@@ -38,6 +38,8 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "ut0mem.h"
 #include "mem0mem.h"
 #include "data0data.h"
@@ -89,7 +91,6 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
-# include "os0sync.h"
 # include "zlib.h"
 # include "ut0crc32.h"
 

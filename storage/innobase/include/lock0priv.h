@@ -37,7 +37,6 @@ those functions in lock/ */
 #include "dict0types.h"
 #include "hash0hash.h"
 #include "trx0types.h"
-#include "ut0lst.h"
 
 /** A table lock */
 struct lock_table_t {

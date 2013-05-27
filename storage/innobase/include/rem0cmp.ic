@@ -23,7 +23,7 @@ Comparison services for records
 Created 7/1/1994 Heikki Tuuri
 ************************************************************************/
 
-#include "mysql_com.h"
+#include <mysql_com.h>
 
 /*************************************************************//**
 This function is used to compare two dfields where at least the first

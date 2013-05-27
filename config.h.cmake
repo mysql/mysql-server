@@ -297,24 +297,8 @@
 #cmakedefine HAVE_UINT 1
 #cmakedefine SIZEOF_ULONG @SIZEOF_ULONG@
 #cmakedefine HAVE_ULONG 1
-#cmakedefine SIZEOF_INT8 @SIZEOF_INT8@
-#cmakedefine HAVE_INT8 1
-#cmakedefine SIZEOF_UINT8 @SIZEOF_UINT8@
-#cmakedefine HAVE_UINT8 1
-#cmakedefine SIZEOF_INT16 @SIZEOF_INT16@
-#cmakedefine HAVE_INT16 1
-#cmakedefine SIZEOF_UINT16 @SIZEOF_UINT16@
-#cmakedefine HAVE_UINT16 1
-#cmakedefine SIZEOF_INT32 @SIZEOF_INT32@
-#cmakedefine HAVE_INT32 1
-#cmakedefine SIZEOF_UINT32 @SIZEOF_UINT32@
-#cmakedefine HAVE_UINT32 1
 #cmakedefine SIZEOF_U_INT32_T @SIZEOF_U_INT32_T@
 #cmakedefine HAVE_U_INT32_T 1
-#cmakedefine SIZEOF_INT64 @SIZEOF_INT64@
-#cmakedefine HAVE_INT64 1
-#cmakedefine SIZEOF_UINT64 @SIZEOF_UINT64@
-#cmakedefine HAVE_UINT64 1
 
 #cmakedefine SOCKET_SIZE_TYPE @SOCKET_SIZE_TYPE@
 

@@ -2416,9 +2416,6 @@ static void network_init(void)
       unireg_abort(1);          /* purecov: tested */
     }
     umask(((~my_umask) & 0666));
-#if defined(S_IFSOCK) && defined(SECURE_SOCKETS)
-    (void) chmod(mysqld_unix_port,S_IFSOCK);  /* Fix solaris 2.6 bug */
-#endif
     if (mysql_socket_listen(unix_sock, (int)back_log) < 0)
       sql_print_warning("listen() on Unix socket failed with error %d",
           socket_errno);
@@ -2676,24 +2673,6 @@ void kill_blocked_pthreads()
 }
 
 
-#ifdef THREAD_SPECIFIC_SIGPIPE
-/**
-  Aborts a thread nicely. Comes here on SIGPIPE.
-
-  @todo
-    One should have to fix that thr_alarm know about this thread too.
-*/
-extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
-{
-  THD *thd=current_thd;
-  DBUG_ENTER("abort_thread");
-  if (thd)
-    thd->killed= THD::KILL_CONNECTION;
-  DBUG_VOID_RETURN;
-}
-#endif
-
-
 /******************************************************************************
   Setup a signal thread with handles all signals.
   Because Linux doesn't support schemas use a mutex to check that
@@ -2915,10 +2894,8 @@ void my_init_signals(void)
   (void) sigemptyset(&set);
   my_sigset(SIGPIPE,SIG_IGN);
   sigaddset(&set,SIGPIPE);
-#ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
-#endif
   sigaddset(&set,SIGTERM);
 
   /* Fix signals if blocked by parents (can happen on Mac OS X) */
@@ -3008,10 +2985,8 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 #ifdef USE_ONE_SIGNAL_HAND
   (void) sigaddset(&set,THR_SERVER_ALARM);  // For alarms
 #endif
-#ifndef IGNORE_SIGHUP_SIGQUIT
   (void) sigaddset(&set,SIGQUIT);
   (void) sigaddset(&set,SIGHUP);
-#endif
   (void) sigaddset(&set,SIGTERM);
   (void) sigaddset(&set,SIGTSTP);
 

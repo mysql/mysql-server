@@ -24,7 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  */
 
 %{
-
+#include "ha_prototypes.h"
 #include "mem0mem.h"
 #include "fts0ast.h"
 #include "fts0blex.h"

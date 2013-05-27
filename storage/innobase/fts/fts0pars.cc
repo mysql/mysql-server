@@ -78,7 +78,7 @@
 /* Line 189 of yacc.c  */
 #line 26 "fts0pars.y"
 
-
+#include "ha_prototypes.h"
 #include "mem0mem.h"
 #include "fts0ast.h"
 #include "fts0blex.h"

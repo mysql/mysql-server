@@ -328,9 +328,6 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
     DBUG_ASSERT(0);
     DBUG_RETURN(error);
   }
-#ifdef NOT_NEEDED
-  if (new_data == rec0)
-#endif
   {
     if (unlikely(error= part_info->get_partition_id(part_info,
                                                     new_part_id,
@@ -339,24 +336,6 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
       DBUG_RETURN(error);
     }
   }
-#ifdef NOT_NEEDED
-  else
-  {
-    /*
-      This branch should never execute but it is written anyways for
-      future use. It will be tested by ensuring that the above
-      condition is false in one test situation before pushing the code.
-    */
-    set_field_ptr(part_field_array, new_data, rec0);
-    error= part_info->get_partition_id(part_info, new_part_id,
-                                       new_func_value);
-    set_field_ptr(part_field_array, rec0, new_data);
-    if (unlikely(error))
-    {
-      DBUG_RETURN(error);
-    }
-  }
-#endif
   DBUG_RETURN(0);
 }
 

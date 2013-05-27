@@ -21,8 +21,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
+/* Include necessary SQL headers */
 #include "ha_prototypes.h"
+#include <debug_sync.h>
+#include <log.h>
+#include <sql_class.h>
 
+/* Include necessary InnoDB headers */
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0priv.h"

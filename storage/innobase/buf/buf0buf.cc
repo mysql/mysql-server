@@ -30,6 +30,8 @@ The database buffer buf_pool
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "buf0buf.h"
 
 #ifdef UNIV_NONINL
@@ -38,7 +40,7 @@ Created 11/5/1995 Heikki Tuuri
 
 #ifdef UNIV_INNOCHECKSUM
 #include "string.h"
-#include "mach0data.h"	/* mach_read_from_4 */
+#include "mach0data.h"
 #endif /* UNIV_INNOCHECKSUM */
 #ifndef UNIV_INNOCHECKSUM
 #include "mem0mem.h"
@@ -2764,35 +2766,25 @@ wait_until_unfixed:
 						   offset, fold);
 
 		mutex_enter(&block->mutex);
-		if (UNIV_UNLIKELY(bpage != hash_bpage)) {
-			/* The buf_pool->page_hash was modified
-			while buf_pool->mutex was released.
-			Free the block that was allocated. */
-
+		if (bpage != hash_bpage
+		    || bpage->buf_fix_count
+		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
 			buf_LRU_block_free_non_file_page(block);
 			buf_pool_mutex_exit(buf_pool);
-			mutex_exit(&block->mutex);
 			rw_lock_x_unlock(hash_lock);
-
-			block = NULL;
-			goto loop;
-		}
-
-		if (UNIV_UNLIKELY
-		    (bpage->buf_fix_count
-		     || buf_page_get_io_fix(bpage) != BUF_IO_NONE)) {
-
-			rw_lock_x_unlock(hash_lock);
-			/* The block was buffer-fixed or I/O-fixed
-			while buf_pool->mutex was not held by this thread.
-			Free the block that was allocated and try again.
-			This should be extremely unlikely. */
-
-			buf_LRU_block_free_non_file_page(block);
-			buf_pool_mutex_exit(buf_pool);
 			mutex_exit(&block->mutex);
 
-			goto wait_until_unfixed;
+			if (bpage != hash_bpage) {
+				/* The buf_pool->page_hash was modified
+				while buf_pool->mutex was not held
+				by this thread. */
+				goto loop;
+			} else {
+				/* The block was buffer-fixed or
+				I/O-fixed while buf_pool->mutex was
+				not held by this thread. */
+				goto wait_until_unfixed;
+			}
 		}
 
 		/* Move the compressed page from bpage to block,
