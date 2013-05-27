@@ -1196,3 +1196,15 @@ Tablespace::is_system_tablespace(
 	       || id == srv_tmp_space.space_id());
 }
 
+/** Check if shared-system or undo tablespace.
+@return true if shared-system or undo tablespace */
+
+bool
+Tablespace::is_system_or_undo_tablespace(
+/*=====================================*/
+	ulint   id)
+{
+	return(id == srv_sys_space.space_id()
+	       || id <= srv_undo_tablespaces_open);
+}
+

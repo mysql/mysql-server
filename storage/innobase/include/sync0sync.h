@@ -91,10 +91,11 @@ extern mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 extern mysql_pfs_key_t	mem_pool_mutex_key;
 extern mysql_pfs_key_t	mutex_list_mutex_key;
-extern mysql_pfs_key_t	purge_sys_bh_mutex_key;
+extern mysql_pfs_key_t	purge_sys_pq_mutex_key;
 extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	recv_writer_mutex_key;
-extern mysql_pfs_key_t	rseg_mutex_key;
+extern mysql_pfs_key_t	redo_rseg_mutex_key;
+extern mysql_pfs_key_t	noredo_rseg_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 extern mysql_pfs_key_t	rw_lock_debug_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
@@ -678,7 +679,8 @@ or row lock! */
 #define SYNC_TREE_NODE		890
 #define	SYNC_PURGE_LATCH	800
 #define	SYNC_TRX_UNDO		700
-#define SYNC_RSEG		600
+#define SYNC_REDO_RSEG		600
+#define SYNC_NOREDO_RSEG	599
 #define SYNC_RSEG_HEADER_NEW	591
 #define SYNC_RSEG_HEADER	590
 #define SYNC_TRX_UNDO_PAGE	570
