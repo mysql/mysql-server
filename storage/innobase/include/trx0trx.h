@@ -579,6 +579,26 @@ non-locking select */
 	ut_error;							\
 } while (0)
 
+/** Check if transaction is free so that it can be re-initialized.
+@param t	transaction handle */
+#define	assert_trx_is_free(t)	do {					\
+	ut_ad(trx_state_eq((t), TRX_STATE_NOT_STARTED));		\
+	ut_ad((t)->insert_undo == NULL);				\
+	ut_ad((t)->update_undo == NULL);				\
+	ut_ad((t)->read_view == NULL);					\
+	ut_ad((t)->lock.wait_thr == NULL);				\
+	ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);		\
+	ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);			\
+} while(0)
+
+/** Check if transaction is in-active so that it can be freed and put back to
+transaction pool.
+@param t	transaction handle */
+#define assert_trx_is_inactive(t) do {					\
+	assert_trx_is_free((t));					\
+	ut_ad((t)->dict_operation_lock_mode == 0);			\
+} while(0)
+
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
 Assert that an autocommit non-locking select cannot be in the
