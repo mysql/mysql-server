@@ -60,7 +60,7 @@ void
 trx_purge_sys_create(
 /*=================*/
 	ulint		n_purge_threads,/*!< in: number of purge threads */
-	ib_bh_t*	ib_bh);		/*!< in/own: UNDO log min binary heap*/
+	purge_pq_t*	purge_queue);	/*!< in/own: UNDO log min binary heap*/
 /********************************************************************//**
 Frees the global purge system control structure. */
 
@@ -74,10 +74,15 @@ update undo log segment from the rseg slot if it is too big for reuse. */
 void
 trx_purge_add_update_undo_to_history(
 /*=================================*/
-	trx_t*	trx,		/*!< in: transaction */
-	page_t*	undo_page,	/*!< in: update undo log header page,
-				x-latched */
-	mtr_t*	mtr);		/*!< in: mtr */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: update undo log. */
+	page_t*		undo_page,	/*!< in: update undo log header page,
+					x-latched */
+	bool		update_rseg_history_len,
+					/*!< in: if true: update rseg history
+					len else skip updating it. */
+	ulint		n_added_logs,	/*!< in: number of logs added */
+	mtr_t*		mtr);		/*!< in: mtr */
 /*******************************************************************//**
 This function runs a purge batch.
 @return	number of undo log pages handled in the batch */
@@ -120,14 +125,29 @@ purge_state_t
 trx_purge_state(void);
 /*=================*/
 
+// Forward declaration
+struct TrxUndoRsegsIterator;
+
 /** This is the purge pointer/iterator. We need both the undo no and the
 transaction no up to which purge has parsed and applied the records. */
 struct purge_iter_t {
+	purge_iter_t()
+		:
+		trx_no(),
+		undo_no(),
+		undo_rseg_space(ULINT_UNDEFINED)
+	{
+		// Do nothing
+	}
+
 	trx_id_t	trx_no;		/*!< Purge has advanced past all
 					transactions whose number is less
 					than this */
 	undo_no_t	undo_no;	/*!< Purge has advanced past all records
 					whose undo number is less than this */
+	ulint		undo_rseg_space;
+					/*!< Last undo record resided in this
+					space id. */
 };
 
 /** The control structure used in the purge operation */
@@ -194,15 +214,20 @@ struct trx_purge_t{
 	ulint		hdr_page_no;	/*!< Header page of the undo log where
 					the next record to purge belongs */
 	ulint		hdr_offset;	/*!< Header byte offset on the page */
-	/*-----------------------------*/
+
+
+	TrxUndoRsegsIterator*
+			rseg_iter;	/*!< Iterator to get the next rseg
+					to process */
+
 	mem_heap_t*	heap;		/*!< Temporary storage used during a
 					purge: can be emptied after purge
 					completes */
 	/*-----------------------------*/
-	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
-					rseg_queue_t::trx_no. It is protected
-					by the bh_mutex */
-	ib_mutex_t		bh_mutex;	/*!< Mutex protecting ib_bh */
+	purge_pq_t*	purge_queue;	/*!< Binary min-heap, ordered on
+					TrxUndoRsegs::trx_no. It is protected
+					by the pq_mutex */
+	ib_mutex_t	pq_mutex;	/*!< Mutex protecting purge_queue */
 };
 
 /** Info required to purge a record */
@@ -211,8 +236,39 @@ struct trx_purge_rec_t {
 	roll_ptr_t	roll_ptr;	/*!< File pointr to UNDO record */
 };
 
+/**
+Chooses the rollback segment with the smallest trx_no. */
+struct TrxUndoRsegsIterator {
+
+	/** Constructor */
+	TrxUndoRsegsIterator(trx_purge_t* purge_sys);
+
+	/**
+	Sets the next rseg to purge in m_purge_sys.
+	@return zip_size if log is for a compressed table, ULINT_UNDEFINED if
+	no rollback segments to purge, 0 for non compressed tables. */
+	ulint set_next();
+
+private:
+	// Disable copying
+	TrxUndoRsegsIterator(const TrxUndoRsegsIterator&);
+	TrxUndoRsegsIterator& operator=(const TrxUndoRsegsIterator&);
+
+	/** The purge system pointer */
+	trx_purge_t*			m_purge_sys;
+
+	/** The current element to process */
+	TrxUndoRsegs			m_trx_undo_rsegs;
+
+	/** Track the current element in m_trx_undo_rseg */
+	TrxUndoRsegs::iterator		m_iter;
+
+	/** Sentinel value */
+	static const TrxUndoRsegs	NullElement;
+};
+
 #ifndef UNIV_NONINL
 #include "trx0purge.ic"
-#endif
+#endif /* UNIV_NOINL */
 
-#endif
+#endif /* trx0purge_h */

@@ -1,0 +1,224 @@
+#
+# WL#6915: InnoDB: Undo logs for temp-tables (and related objects) should
+# reside in temp-tablespace
+#
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Embedded server does not support crashing
+--source include/not_embedded.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+# In the test scenario, there can be orphaned .frm files.
+# These are expected.  So suppressing the associated warnings.
+call mtr.add_suppression("InnoDB: Error: table .* does not exist "
+			 "in the InnoDB internal");
+call mtr.add_suppression("Found .* prepared XA transactions");
+
+################################################################################
+#
+# Will test following scenarios:
+# 1. Hitting crash while preparing xa trx.
+# 2. Hitting crash while committing normal trx involving temp/non-temp tables.
+# 3. try to start server with different values of innodb_undo_logs.
+#    (try scenario such that a rollback segment is shared by multiple trxs).
+#
+################################################################################
+
+#-----------------------------------------------------------------------------
+#
+# create test-bed
+#
+let $per_table = `select @@innodb_file_per_table`;
+let $format = `select @@innodb_file_format`;
+
+set global innodb_file_per_table = off;
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
+let $MYSQL_DATA_DIR = `select @@datadir`;
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+let $args = --loose-console > $SEARCH_FILE 2>&1;
+let crash = $args --innodb-force-recovery-crash;
+
+#-----------------------------------------------------------------------------
+#
+# 1. Hitting crash while preparing xa trx.
+#
+create temporary table t1 (i int) engine=innodb;
+create table t2 (i int) engine=innodb;
+#
+insert into t2 values (301);
+xa start 'tx2';
+insert into t1 values (2), (3);
+insert into t2 values (202), (303);
+select * from t1;
+select * from t2;
+xa end 'tx2';
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+set session debug="+d,ib_trx_crash_during_xa_prepare_step";
+--error 2013
+xa prepare 'tx2';
+#
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+select * from t2;
+drop table t2;
+
+#-----------------------------------------------------------------------------
+#
+# 2. Hitting crash while committing normal trx involving temp/non-temp tables.
+#
+use test;
+create temporary table t1
+	(a int, b char(100), c char(100)) engine = innodb;
+create table t2
+	(a int, b char(100), c char(100)) engine = innodb;
+delimiter |;
+create procedure populate_t1_t2()
+begin
+	declare i int default 1;
+	while (i <= 50) DO
+		insert into t1 values (i, 'a', 'b');
+		insert into t2 values (i, 'a', 'b');
+		set i = i + 1;
+	end while;
+end|
+delimiter ;|
+call populate_t1_t2;
+begin;
+call populate_t1_t2();
+update t1 set a = a + 1;
+update t2 set a = a + 1;
+select count(*) from t1;
+select count(*) from t2;
+set session debug="+d,ib_trx_crash_during_commit";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+commit;
+#
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+select count(*) from t2;
+drop table t2;
+drop procedure populate_t1_t2;
+
+#-----------------------------------------------------------------------------
+#
+# 3. try to start server with different values of innodb_undo_logs.
+#    (try scenario such that a rollback segment is shared by multiple trxs).
+#
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 30
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart: --innodb_undo_logs=1 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+create table t (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+create temporary table t2 (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+drop table t;
+drop table t2;
+#
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+#
+connection default;
+delimiter |;
+create procedure populate_t1_t2()
+begin
+	declare i int default 1;
+	while (i <= 100) DO
+		insert into t1 values (i, 'a', 'b');
+		insert into t2 values (i, 'a', 'b');
+		set i = i + 1;
+	end while;
+end|
+delimiter ;|
+create table t2
+	(a int, b char(100), c char(100)) engine = innodb;
+#
+connection con1;
+create temporary table t1
+	(a int, b char(100), c char(100)) engine = innodb;
+call populate_t1_t2();
+select count(*) from t1;
+drop table t1;
+#
+connection con2;
+create temporary table t1
+	(a int, b char(100), c char(100)) engine = innodb;
+call populate_t1_t2();
+commit;
+select count(*) from t1;
+drop table t1;
+#
+connection default;
+drop table t2;
+drop procedure populate_t1_t2;
+#
+# trying with value innodb_undo_logs = 10 (so only slot-0 redo rseg is active)
+#
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 30
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart: --innodb_undo_logs=10 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+create table t (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+create temporary table t2 (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+drop table t;
+drop table t2;
+#
+# trying with value innodb_undo_logs = 40 (this will make 8 redo rseg active).
+#
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 30
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart: --innodb_undo_logs=40 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+create table t (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+create temporary table t2 (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+insert into t values (2);
+drop table t;
+drop table t2;
+
+#-----------------------------------------------------------------------------
+#
+# remove test-bed
+#
+eval set global innodb_file_format = $format;
+eval set global innodb_file_per_table = $per_table;
+
