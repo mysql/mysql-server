@@ -30,17 +30,16 @@ The wait array used in synchronization primitives
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "sync0arr.h"
 #ifdef UNIV_NONINL
 #include "sync0arr.ic"
 #endif
 
-#include "ha_prototypes.h"
-
 #include "sync0sync.h"
 #include "lock0lock.h"
 #include "sync0rw.h"
-#include "os0sync.h"
 #include "os0file.h"
 #include "srv0srv.h"
 

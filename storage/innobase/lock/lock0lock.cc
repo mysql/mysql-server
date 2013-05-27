@@ -25,7 +25,8 @@ Created 5/7/1996 Heikki Tuuri
 
 #define LOCK_MODULE_IMPLEMENTATION
 
-#include "dict0mem.h"
+#include "ha_prototypes.h"
+
 #include "lock0lock.h"
 #include "lock0priv.h"
 
@@ -34,8 +35,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "lock0priv.ic"
 #endif
 
-#include "ha_prototypes.h"
-
+#include "dict0mem.h"
 #include "usr0sess.h"
 #include "trx0purge.h"
 #include "trx0sys.h"

@@ -2864,7 +2864,6 @@ int prepare_create_field(Create_field *sql_field,
     (*blob_columns)++;
     break;
   case MYSQL_TYPE_VARCHAR:
-#ifndef QQ_ALL_HANDLERS_SUPPORT_VARCHAR
     if (table_flags & HA_NO_VARCHAR)
     {
       /* convert VARCHAR to CHAR because handler is not yet up to date */
@@ -2880,7 +2879,6 @@ int prepare_create_field(Create_field *sql_field,
         DBUG_RETURN(1);
       }
     }
-#endif
     /* fall through */
   case MYSQL_TYPE_STRING:
     sql_field->pack_flag=0;

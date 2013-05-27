@@ -24,16 +24,6 @@ InnoDB Native API
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
 *******************************************************/
 
-#include "univ.i"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
 #include "ha_prototypes.h"
 
 #include "api0api.h"
@@ -52,9 +42,7 @@ InnoDB Native API
 #include "row0sel.h"
 #include "lock0lock.h"
 #include "rem0cmp.h"
-#include "ut0dbg.h"
 #include "dict0priv.h"
-#include "ut0ut.h"
 #include "trx0roll.h"
 #include "row0trunc.h"
 

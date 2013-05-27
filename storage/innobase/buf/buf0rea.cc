@@ -24,6 +24,7 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include <mysql/plugin.h>
 
 #include "buf0rea.h"
 #include "fil0fil.h"

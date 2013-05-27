@@ -477,11 +477,10 @@ struct sql_ex_info
   LOG_EVENT_FORCED_ROTATE_F set, so one should not rely on the value of the
   replacing flag when reading a Rotate event.
   I keep the defines here just to remember what they were.
+
+  #define LOG_EVENT_TIME_F            0x1
+  #define LOG_EVENT_FORCED_ROTATE_F   0x2
 */
-#ifdef TO_BE_REMOVED
-#define LOG_EVENT_TIME_F            0x1
-#define LOG_EVENT_FORCED_ROTATE_F   0x2
-#endif
 
 /*
    This flag only makes sense for Format_description_log_event. It is set

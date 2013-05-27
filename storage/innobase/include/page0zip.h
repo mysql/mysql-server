@@ -37,7 +37,7 @@ Created June 2005 by Marko Makela
 #include "buf0buf.h"
 #include "ut0crc32.h"
 #include "buf0checksum.h"
-#include "mach0data.h"	/* mach_read_from_4 */
+#include "mach0data.h"
 #include "zlib.h"
 #endif /* UNIV_INNOCHECKSUM */
 

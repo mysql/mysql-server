@@ -23,10 +23,6 @@ The interface to the operating system synchronization primitives.
 Created 9/6/1995 Heikki Tuuri
 *******************************************************/
 
-#ifdef _WIN32
-#include <winbase.h>
-#endif
-
 /**********************************************************//**
 Acquires ownership of a fast mutex.
 @return	0 if success, != 0 if was reserved by another thread */

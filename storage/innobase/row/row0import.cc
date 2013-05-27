@@ -23,6 +23,8 @@ Import a tablespace to a running instance.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0import.h"
 
 #ifdef UNIV_NONINL

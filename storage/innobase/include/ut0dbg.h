@@ -32,8 +32,8 @@ Created 1/30/1994 Heikki Tuuri
 #define ut_error	assert(0)
 #else /* !UNIV_INNOCHECKSUM */
 
-#include "univ.i"
-#include <stdlib.h>
+/* Do not include univ.i because univ.i includes this. */
+
 #include "os0thread.h"
 
 #if defined(__GNUC__) && (__GNUC__ > 2)

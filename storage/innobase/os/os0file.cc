@@ -32,6 +32,8 @@ The interface to the operating system file i/o primitives
 Created 10/21/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "os0file.h"
 
 #ifdef UNIV_NONINL
@@ -45,7 +47,6 @@ Created 10/21/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "srv0mon.h"
 #ifndef UNIV_HOTBACKUP
-# include "os0sync.h"
 # include "os0thread.h"
 #else /* !UNIV_HOTBACKUP */
 # ifdef _WIN32

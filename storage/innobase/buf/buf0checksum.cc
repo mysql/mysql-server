@@ -24,13 +24,13 @@ Created Aug 11, 2011 Vasil Dimov
 *******************************************************/
 
 #include "univ.i"
-#include "fil0fil.h" /* FIL_* */
-#include "ut0crc32.h" /* ut_crc32() */
-#include "ut0rnd.h" /* ut_fold_binary() */
+#include "fil0fil.h"
+#include "ut0crc32.h"
+#include "ut0rnd.h"
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "srv0srv.h" /* SRV_CHECKSUM_* */
+#include "srv0srv.h"
 #endif /* !UNIV_INNOCHECKSUM */
 #include "buf0types.h"
 

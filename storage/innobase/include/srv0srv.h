@@ -45,7 +45,6 @@ Created 10/10/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
 #include "sync0sync.h"
-#include "os0sync.h"
 #include "que0types.h"
 #include "trx0types.h"
 #include "srv0conc.h"

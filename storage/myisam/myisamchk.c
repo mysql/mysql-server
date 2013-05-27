@@ -1006,7 +1006,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  The data file is nowadays reopened in the repair code so we should
 	  soon remove the following reopen-code
 	*/
-#ifndef TO_BE_REMOVED
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
 	  (void) my_close(info->dfile,MYF(MY_WME)); /* Close new file */
@@ -1016,7 +1015,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
 	  param->read_cache.file=info->dfile;
 	}
-#endif
 	if (! error)
 	{
 	  uint key;

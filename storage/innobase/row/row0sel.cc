@@ -30,13 +30,13 @@ Select
 Created 12/19/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0sel.h"
 
 #ifdef UNIV_NONINL
 #include "row0sel.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "dict0dict.h"
 #include "dict0boot.h"
@@ -3530,7 +3530,7 @@ row_sel_try_search_shortcut_for_mysql(
 Check a pushed-down index condition.
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
 static
-enum icp_result
+ICP_RESULT
 row_search_idx_cond_check(
 /*======================*/
 	byte*			mysql_rec,	/*!< out: record
@@ -3542,7 +3542,7 @@ row_search_idx_cond_check(
 	const rec_t*		rec,		/*!< in: InnoDB record */
 	const ulint*		offsets)	/*!< in: rec_get_offsets() */
 {
-	enum icp_result result;
+	ICP_RESULT	result;
 	ulint		i;
 
 	ut_ad(rec_offs_validate(rec, prebuilt->index, offsets));
