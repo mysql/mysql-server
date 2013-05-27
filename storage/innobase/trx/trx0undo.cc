@@ -2011,6 +2011,8 @@ trx_undo_free_prepared(
 		UT_LIST_REMOVE(trx->rseg->update_undo_list, trx->update_undo);
 
 		trx_undo_mem_free(trx->update_undo);
+
+		trx->update_undo = NULL;
 	}
 	if (trx->insert_undo) {
 		ut_a(trx->insert_undo->state == TRX_UNDO_PREPARED);
@@ -2018,6 +2020,8 @@ trx_undo_free_prepared(
 		UT_LIST_REMOVE(trx->rseg->insert_undo_list, trx->insert_undo);
 
 		trx_undo_mem_free(trx->insert_undo);
+
+		trx->insert_undo = NULL;
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
