@@ -239,20 +239,6 @@ set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
 drop table t;
 
-
-#-----------------------------------------------------------------------------
-#
-# restart the server so that error messages are not carried fwd to other tcs.
-#
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60 
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
 #-----------------------------------------------------------------------------
 #
 # remove test-bed
