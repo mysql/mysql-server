@@ -28,9 +28,8 @@ Created Apr 26, 2012 Vasil Dimov
 
 #include "univ.i"
 
-#include "dict0types.h" /* dict_table_t, table_id_t */
-#include "os0sync.h" /* os_event_t */
-#include "os0thread.h" /* DECLARE_THREAD */
+#include "dict0types.h"
+#include "os0thread.h"
 
 /** Event to wake up the stats thread */
 extern os_event_t	dict_stats_event;

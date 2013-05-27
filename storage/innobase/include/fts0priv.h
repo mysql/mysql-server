@@ -26,6 +26,7 @@ Created 2011/09/02 Sunny Bains
 #ifndef INNOBASE_FTS0PRIV_H
 #define INNOBASE_FTS0PRIV_H
 
+#include "univ.i"
 #include "dict0dict.h"
 #include "pars0pars.h"
 #include "que0que.h"

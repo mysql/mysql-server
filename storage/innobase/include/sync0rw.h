@@ -35,10 +35,8 @@ Created 9/11/1995 Heikki Tuuri
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
-#include "ut0lst.h"
 #include "ut0counter.h"
 #include "sync0sync.h"
-#include "os0sync.h"
 
 /* The following undef is to prevent a name conflict with a macro
 in MySQL: */

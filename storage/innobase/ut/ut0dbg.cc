@@ -23,11 +23,9 @@ Debug utilities for Innobase.
 Created 1/30/1994 Heikki Tuuri
 **********************************************************************/
 
-#include "univ.i"
+#include "ha_prototypes.h"
+
 #include "ut0dbg.h"
-#ifndef UNIV_HOTBACKUP
-# include "ha_prototypes.h"
-#endif /* !UNIV_HOTBACKUP */
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #else

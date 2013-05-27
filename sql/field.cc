@@ -2178,14 +2178,6 @@ type_conversion_status Field_decimal::store(const char *from_arg, uint len,
         Field_decimal::overflow(1);
         return TYPE_WARN_OUT_OF_RANGE;
       }
-      /* 
-	 Defining this will not store "+" for unsigned decimal type even if
-	 it is passed in numeric string. This will make some tests to fail
-      */	 
-#ifdef DONT_ALLOW_UNSIGNED_PLUS      
-      else 
-        sign_char=0;
-#endif 	
     }
   }
 

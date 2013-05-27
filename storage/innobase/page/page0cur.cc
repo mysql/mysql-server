@@ -24,6 +24,8 @@ The page cursor
 Created 10/4/1994 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "page0cur.h"
 #ifdef UNIV_NONINL
 #include "page0cur.ic"
@@ -33,7 +35,6 @@ Created 10/4/1994 Heikki Tuuri
 #include "btr0btr.h"
 #include "mtr0log.h"
 #include "log0recv.h"
-#include "ut0ut.h"
 #ifndef UNIV_HOTBACKUP
 #include "rem0cmp.h"
 

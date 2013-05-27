@@ -30,7 +30,6 @@ Created December 2006 by Marko Makela
 
 #include "buf0buf.h"
 #include "buf0buddy.h"
-#include "ut0ut.h"
 #include "sync0sync.h"
 
 /**********************************************************************//**

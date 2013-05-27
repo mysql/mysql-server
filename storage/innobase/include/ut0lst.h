@@ -27,7 +27,9 @@ Rewritten by Sunny Bains Dec 2011.
 #ifndef ut0lst_h
 #define ut0lst_h
 
-#include "univ.i"
+/* Do not include univ.i because univ.i includes this. */
+
+#include "ut0dbg.h"
 
 /* This module implements the two-way linear list. Note that a single
 list node may belong to two or more lists, but is only on one list

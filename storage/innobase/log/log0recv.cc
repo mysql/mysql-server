@@ -24,6 +24,8 @@ Recovery
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "log0recv.h"
 
 #ifdef UNIV_NONINL

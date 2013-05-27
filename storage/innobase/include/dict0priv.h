@@ -26,6 +26,8 @@ Created  Fri 2 Jul 2010 13:30:38 EST - Sunny Bains
 #ifndef dict0priv_h
 #define dict0priv_h
 
+#include "univ.i"
+
 /**********************************************************************//**
 Gets a table; loads it to the dictionary cache if necessary. A low-level
 function. Note: Not to be called from outside dict0*c functions.

@@ -553,17 +553,12 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       sizeof_st_plugin= *(int *)sym;
     else
     {
-#ifdef ERROR_ON_NO_SIZEOF_PLUGIN_SYMBOL
-      report_error(report, ER_CANT_FIND_DL_ENTRY, sizeof_st_plugin_sym);
-      DBUG_RETURN(0);
-#else
       /*
-        When the following assert starts failing, we'll have to switch
-        to the upper branch of the #ifdef
+        When the following assert starts failing, we'll have to call
+        report_error(report, ER_CANT_FIND_DL_ENTRY, sizeof_st_plugin_sym);
       */
       DBUG_ASSERT(min_plugin_interface_version == 0);
       sizeof_st_plugin= (int)offsetof(struct st_mysql_plugin, version);
-#endif
     }
 
     /*
@@ -914,22 +909,7 @@ static void plugin_deinitialize(struct st_plugin_int *plugin, bool ref_check)
 
   if (plugin->plugin->status_vars)
   {
-#ifdef FIX_LATER
-    /**
-      @todo
-      unfortunately, status variables were introduced without a
-      pluginname_ namespace, that is pluginname_ was not added automatically
-      to status variable names. It should be fixed together with the next
-      incompatible API change.
-    */
-    SHOW_VAR array[2]= {
-      {plugin->plugin->name, (char*)plugin->plugin->status_vars, SHOW_ARRAY},
-      {0, 0, SHOW_UNDEF}
-    };
-    remove_status_vars(array);
-#else
     remove_status_vars(plugin->plugin->status_vars);
-#endif /* FIX_LATER */
   }
 
   if (plugin_type_deinitialize[plugin->plugin->type])
@@ -1153,24 +1133,8 @@ static int plugin_initialize(struct st_plugin_int *plugin)
 
   if (plugin->plugin->status_vars)
   {
-#ifdef FIX_LATER
-    /*
-      We have a problem right now where we can not prepend without
-      breaking backwards compatibility. We will fix this shortly so
-      that engines have "use names" and we wil use those for
-      CREATE TABLE, and use the plugin name then for adding automatic
-      variable names.
-    */
-    SHOW_VAR array[2]= {
-      {plugin->plugin->name, (char*)plugin->plugin->status_vars, SHOW_ARRAY},
-      {0, 0, SHOW_UNDEF}
-    };
-    if (add_status_vars(array)) // add_status_vars makes a copy
-      goto err;
-#else
     if (add_status_vars(plugin->plugin->status_vars))
       goto err;
-#endif /* FIX_LATER */
   }
 
   /*

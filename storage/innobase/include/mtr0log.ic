@@ -23,11 +23,10 @@ Mini-transaction logging routines
 Created 12/7/1995 Heikki Tuuri
 *******************************************************/
 
-#include "mach0data.h"
-#include "ut0lst.h"
 #include "buf0buf.h"
 #include "buf0dblwr.h"
 #include "fsp0types.h"
+#include "mach0data.h"
 #include "trx0sys.h"
 
 /********************************************************//**

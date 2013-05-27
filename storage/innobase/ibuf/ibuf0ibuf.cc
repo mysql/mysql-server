@@ -23,6 +23,8 @@ Insert buffer
 Created 7/19/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "ibuf0ibuf.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -42,8 +44,6 @@ my_bool	srv_ibuf_disable_background_merge;
 #endif
 
 #ifndef UNIV_HOTBACKUP
-
-#include "ha_prototypes.h"
 
 #include "buf0buf.h"
 #include "buf0rea.h"

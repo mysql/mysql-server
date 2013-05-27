@@ -4039,9 +4039,6 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
     reenable_binlog(thd);
     if (error)
     {
-#ifdef IN_THE_FUTURE
-      (void) m_file[new_part_id]->delete_last_inserted_row(new_data);
-#endif
       goto exit;
     }
   }

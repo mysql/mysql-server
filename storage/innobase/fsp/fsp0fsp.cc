@@ -23,6 +23,8 @@ File space management
 Created 11/29/1995 Heikki Tuuri
 ***********************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "fsp0fsp.h"
 
 #ifdef UNIV_NONINL

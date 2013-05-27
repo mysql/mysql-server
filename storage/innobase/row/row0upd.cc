@@ -23,13 +23,13 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0upd.h"
 
 #ifdef UNIV_NONINL
 #include "row0upd.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "dict0dict.h"
 #include "trx0undo.h"
