@@ -266,6 +266,8 @@ void
 row_truncate_rollback(
 	dict_table_t* table,
 	trx_t* trx,
+	table_id_t new_id,
+	bool has_internal_doc_id,
 	bool corrupted,
 	bool unlock_index)
 {
@@ -294,6 +296,16 @@ row_truncate_rollback(
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 
 			dict_set_corrupted(index, trx, "TRUNCATE TABLE");
+		}
+
+		if (has_internal_doc_id) {
+			ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+			table_id_t      id = table->id;
+			table->id = new_id;
+			fts_drop_tables(trx, table);
+			table->id = id;
+			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+			trx_commit_for_mysql(trx);
 		}
 
 	} else if (corrupted && dict_table_is_temporary(table)) {
@@ -575,7 +587,9 @@ row_truncate_update_system_tables(
 
 	if (err != DB_SUCCESS) {
 
-		row_truncate_rollback(table, trx, true, false);
+		row_truncate_rollback(
+			table, trx, new_id, has_internal_doc_id,
+			true, false);
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 		innobase_format_name(
@@ -585,25 +599,6 @@ row_truncate_update_system_tables(
 			"after truncating it. Marked the table as corrupted. "
 			"In-memory representation is now different from the "
 			"on-disk representation.", table_name);
-
-		/* Failed to update the table id, so drop the new
-		FTS auxiliary tables */
-		if (has_internal_doc_id) {
-			ut_ad(trx->state == TRX_STATE_NOT_STARTED);
-
-			table_id_t	id = table->id;
-
-			table->id = new_id;
-
-			fts_drop_tables(trx, table);
-
-			table->id = id;
-
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
-
-			trx_commit_for_mysql(trx);
-		}
-
 		err = DB_ERROR;
 	} else {
 		/* Drop the old FTS index */
@@ -958,7 +953,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 					err = DB_ERROR;);
 
 			if (err != DB_SUCCESS) {
-				row_truncate_rollback(table, trx, false, true);
+				row_truncate_rollback(
+					table, trx, new_id, has_internal_doc_id,
+					false, true);
 				return(row_truncate_complete(
 					table, trx, flags, err));
 			}
@@ -969,7 +966,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 					flags = ULINT_UNDEFINED;);
 
 			if (flags == ULINT_UNDEFINED) {
-				row_truncate_rollback(table, trx, false, true);
+				row_truncate_rollback(
+					table, trx, new_id, has_internal_doc_id,
+					false, true);
 				return(row_truncate_complete(
 					table, trx, flags, DB_ERROR));
 			}
@@ -1000,7 +999,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		err = SysIndexIterator().for_each(dropIndex);
 
 		if (err != DB_SUCCESS) {
-			row_truncate_rollback(table, trx, true, true);
+			row_truncate_rollback(
+				table, trx, new_id, has_internal_doc_id,
+				true, true);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 
@@ -1013,7 +1014,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			err = dict_truncate_index_tree_in_mem(index);
 
 			if (err != DB_SUCCESS) {
-				row_truncate_rollback(table, trx, true, true);
+				row_truncate_rollback(
+					table, trx, new_id, has_internal_doc_id,
+					true, true);
 				return(row_truncate_complete(
 					table, trx, flags, err));
 			}
@@ -1048,7 +1051,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		err = SysIndexIterator().for_each(createIndex);
 
 		if (err != DB_SUCCESS) {
-			row_truncate_rollback(table, trx, true, true);
+			row_truncate_rollback(
+				table, trx, new_id, has_internal_doc_id,
+				true, true);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 	}
@@ -1062,7 +1067,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		err = row_truncate_fts(table, new_id, trx);
 
 		if (err != DB_SUCCESS) {
-			row_truncate_rollback(table, trx, true, false);
+			row_truncate_rollback(
+				table, trx, new_id, has_internal_doc_id,
+				true, false);
 			return(row_truncate_complete(table, trx, flags, err));
 		}
 	}
