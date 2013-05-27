@@ -1392,10 +1392,17 @@ function stopCluster() {
     var layers = ["SQL layer", "Management layer"];
     var procNames = ["SQL", "Cluster"];
     var currseq = 0;
+    var errorReplies = 0;
 
     function onError(errMsg, errReply) {
         mcc.util.dbg("stopCluster failed: "+errMsg);
         alert("Error occured while stopping cluster: `"+errMsg+"' (Press OK to continue)");
+        ++errorReplies;
+
+        var cwpb = dijit.byId("configWizardProgressBar");
+        var visualTile = dojo.query(".dijitProgressBarTile", cwpb.domNode)[0];
+        visualTile.style.backgroundColor = "#FF3366";
+
         updateProgressAndStopNext();
     }
 
@@ -1423,18 +1430,26 @@ function stopCluster() {
     function updateProgressAndStopNext() {
         if (currseq < commands.length) {
             mcc.util.dbg("Stopping " + procNames[currseq] + " processes");
-            updateProgressDialog("Stopping cluster", 
+            updateProgressDialog("Stopping cluster" + 
+                                 (errorReplies ? 
+                                  " (" + errorReplies + " failed command(s))":
+                                  ""), 
                     "Stopping " + procNames[currseq] +
-                    " processes", {maximum: 3, progress: 1 + currseq});
+                    " processes", {maximum: 3, progress: 1 + currseq });
+
             mcc.server.startClusterReq([commands[currseq]], 
                 onReply, onError);       
             currseq++;        
         } else {
-            mcc.util.dbg("Cluster stopped");
-            updateProgressDialog("Stopping cluster", 
-                    "Cluster stopped", 
+            var message = errorReplies ? 
+                "Stop procedure has completed, but " + errorReplies + " out of " + 
+                commands.length + " commands failed" : 
+                "Cluster stopped successfully";
+            mcc.util.dbg(message);
+            updateProgressDialog(message, 
+                    "", 
                     {progress: "100%"});
-            alert("Cluster stopped");
+            alert(message);
             removeProgressDialog();
             waitCondition.resolve();
         }
