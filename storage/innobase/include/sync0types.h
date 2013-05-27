@@ -26,6 +26,8 @@ Created 9/5/1995 Heikki Tuuri
 #ifndef sync0types_h
 #define sync0types_h
 
+/* Do not include univ.i because univ.i includes this. */
+
 struct ib_mutex_t;
 
 #endif

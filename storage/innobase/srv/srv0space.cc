@@ -23,6 +23,8 @@ Multi file shared tablespace implementation.
 Created 2012-11-16 by Sunny Bains.
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "srv0space.h"
 #include "srv0start.h"
 #include "fil0fil.h"

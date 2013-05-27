@@ -30,20 +30,19 @@ Mutex, the basic synchronization primitive
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "sync0sync.h"
 #ifdef UNIV_NONINL
 #include "sync0sync.ic"
 #endif
 
-#include "ha_prototypes.h"
-
 #include "sync0rw.h"
 #include "buf0buf.h"
 #include "srv0srv.h"
 #include "buf0types.h"
-#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 #ifdef UNIV_SYNC_DEBUG
-# include "srv0start.h" /* srv_is_being_started */
+# include "srv0start.h"
 #endif /* UNIV_SYNC_DEBUG */
 
 /*

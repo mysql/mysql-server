@@ -23,6 +23,8 @@ Data types
 Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "data0type.h"
 
 #ifdef UNIV_NONINL
@@ -30,8 +32,6 @@ Created 1/16/1996 Heikki Tuuri
 #endif
 
 #ifndef UNIV_HOTBACKUP
-# include "ha_prototypes.h"
-
 /* At the database startup we store the default-charset collation number of
 this MySQL installation to this global variable. If we have < 4.1.2 format
 column definitions, or records in the insert buffer, we use this

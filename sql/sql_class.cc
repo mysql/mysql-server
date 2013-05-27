@@ -2601,10 +2601,6 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   File file;
   uint option= MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
 
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|= MY_REPLACE_DIR;			// Force use of db directory
-#endif
-
   if (!dirname_length(exchange->file_name))
   {
     strxnmov(path, FN_REFLEN-1, mysql_real_data_home, thd->db ? thd->db : "",
@@ -3509,16 +3505,6 @@ err_names_hash:
   my_hash_delete(&st_hash, (uchar*) statement);
 err_st_hash:
   return 1;
-}
-
-
-void Statement_map::close_transient_cursors()
-{
-#ifdef TO_BE_IMPLEMENTED
-  Statement *stmt;
-  while ((stmt= transient_cursor_list.head()))
-    stmt->close_cursor();                 /* deletes itself from the list */
-#endif
 }
 
 

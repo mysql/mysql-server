@@ -23,6 +23,8 @@ Transaction undo log
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "trx0undo.h"
 
 #ifdef UNIV_NONINL
@@ -33,13 +35,13 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "mach0data.h"
 #include "mtr0log.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
+#include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "trx0rec.h"
 #include "trx0purge.h"
-#include "srv0mon.h"
+#include "trx0rec.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
 
 /* How should the old versions in the history list be managed?
    ----------------------------------------------------------
@@ -2025,6 +2027,8 @@ trx_undo_free_prepared(
 		UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->update_undo_list,
 			       trx->rsegs.m_redo.update_undo);
 		trx_undo_mem_free(trx->rsegs.m_redo.update_undo);
+
+		trx->rsegs.m_redo.update_undo = NULL;
 	}
 
 	if (trx->rsegs.m_redo.insert_undo) {
@@ -2032,6 +2036,8 @@ trx_undo_free_prepared(
 		UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->insert_undo_list,
 			       trx->rsegs.m_redo.insert_undo);
 		trx_undo_mem_free(trx->rsegs.m_redo.insert_undo);
+
+		trx->rsegs.m_redo.insert_undo = NULL;
 	}
 
 	if (trx->rsegs.m_noredo.update_undo) {
@@ -2042,6 +2048,8 @@ trx_undo_free_prepared(
 		UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->update_undo_list,
 			       trx->rsegs.m_noredo.update_undo);
 		trx_undo_mem_free(trx->rsegs.m_noredo.update_undo);
+
+		trx->rsegs.m_noredo.update_undo = NULL;
 	}
 	if (trx->rsegs.m_noredo.insert_undo) {
 
@@ -2051,6 +2059,8 @@ trx_undo_free_prepared(
 		UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->insert_undo_list,
 			       trx->rsegs.m_noredo.insert_undo);
 		trx_undo_mem_free(trx->rsegs.m_noredo.insert_undo);
+
+		trx->rsegs.m_noredo.insert_undo = NULL;
 	}
 }
 #endif /* !UNIV_HOTBACKUP */

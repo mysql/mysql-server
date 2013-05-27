@@ -28,25 +28,24 @@ Created Jan 06, 2010 Vasil Dimov
 #include "univ.i"
 
 #include "ha_prototypes.h"
+#include <mysql_com.h>
 
-#include "btr0btr.h" /* btr_get_size() */
-#include "btr0cur.h" /* btr_estimate_number_of_different_key_vals() */
-#include "dict0dict.h" /* dict_table_get_first_index(), dict_fs2utf8() */
-#include "dict0mem.h" /* DICT_TABLE_MAGIC_N */
+#include "btr0btr.h"
+#include "btr0cur.h"
+#include "dict0dict.h"
+#include "dict0mem.h"
 #include "dict0stats.h"
-#include "data0type.h" /* dtype_t */
-#include "db0err.h" /* dberr_t */
-#include "page0page.h" /* page_align() */
-#include "pars0pars.h" /* pars_info_create() */
-#include "pars0types.h" /* pars_info_t */
-#include "que0que.h" /* que_eval_sql() */
-#include "rem0cmp.h" /* REC_MAX_N_FIELDS,cmp_rec_rec_with_match() */
-#include "row0sel.h" /* sel_node_t */
-#include "row0types.h" /* sel_node_t */
-#include "trx0trx.h" /* trx_create() */
-#include "trx0roll.h" /* trx_rollback_to_savepoint() */
-#include "ut0rnd.h" /* ut_rnd_interval() */
-#include "ut0ut.h" /* ut_format_name(), ut_time() */
+#include "data0type.h"
+#include "page0page.h"
+#include "pars0pars.h"
+#include "pars0types.h"
+#include "que0que.h"
+#include "rem0cmp.h"
+#include "row0sel.h"
+#include "row0types.h"
+#include "trx0trx.h"
+#include "trx0roll.h"
+#include "ut0rnd.h"
 
 #include <vector>
 

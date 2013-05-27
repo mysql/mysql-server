@@ -24,17 +24,12 @@ Compressed page interface
 Created June 2005 by Marko Makela
 *******************************************************/
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include "page0zip.h"
 #ifdef UNIV_NONINL
 # include "page0zip.ic"
 #endif
 
 #ifndef UNIV_INNOCHECKSUM
-#include <map>
-#include <algorithm>
 #include "page0page.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
@@ -56,6 +51,9 @@ Created June 2005 by Marko Makela
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
 #endif /* !UNIV_HOTBACKUP */
+
+#include <map>
+#include <algorithm>
 
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */

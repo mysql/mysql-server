@@ -38,6 +38,7 @@ Created 2011/04/18 Sunny Bains
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include <mysql/plugin.h>
 
 #include "srv0srv.h"
 #include "sync0sync.h"

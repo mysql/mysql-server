@@ -1580,7 +1580,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     */
     share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
   }
-#ifndef WE_WANT_TO_SUPPORT_VERY_OLD_FRM_FILES
   else
   {
     share->null_bytes= (share->null_fields+7)/8;
@@ -1588,7 +1587,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                     share->null_bytes);
     null_bit_pos= 0;
   }
-#endif
 
   use_hash= share->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
@@ -1686,8 +1684,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       TYPELIB *interval= share->intervals + interval_nr - 1;
       unhex_type2(interval);
     }
-    
-#ifndef TO_BE_DELETED_ON_PRODUCTION
+
     if (field_type == MYSQL_TYPE_NEWDECIMAL && !share->mysql_version)
     {
       /*
@@ -1712,7 +1709,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                           share->table_name.str);
       share->crashed= 1;                        // Marker for CHECK TABLE
     }
-#endif
 
     *field_ptr= reg_field=
       make_field(share, record+recpos,
@@ -1873,7 +1869,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         if (field->key_length() != key_part->length)
         {
-#ifndef TO_BE_DELETED_ON_PRODUCTION
           if (field->type() == MYSQL_TYPE_NEWDECIMAL)
           {
             /*
@@ -1901,7 +1896,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             share->crashed= 1;                // Marker for CHECK TABLE
             continue;
           }
-#endif
           key_part->key_part_flag|= HA_PART_KEY_SEG;
         }
       }
@@ -3304,9 +3298,10 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     /* previous MySQL version */
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
-      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
-                   table->alias, table_def->count, table->s->fields,
+      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   table->s->db.str, table->alias,
+                   table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
                    MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);

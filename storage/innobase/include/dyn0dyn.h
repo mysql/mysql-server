@@ -27,7 +27,6 @@ Created 2/5/1996 Heikki Tuuri
 #define dyn0dyn_h
 
 #include "univ.i"
-#include "ut0lst.h"
 #include "mem0mem.h"
 
 /** A block in a dynamically allocated array */
