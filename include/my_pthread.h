@@ -119,7 +119,6 @@ int pthread_cancel(pthread_t thread);
 #define HAVE_LOCALTIME_R		1
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
-#define PTHREAD_STACK_MIN 65536
 
 #undef SAFE_MUTEX				/* This will cause conflicts */
 #define pthread_key(T,V)  DWORD V
@@ -855,6 +854,11 @@ extern uint thd_lib_detected;
   }  while(0)
 #else
 #define mysql_mutex_record_order(A,B) do { } while(0) 
+#endif
+
+/* At least Windows and NetBSD do not have this definition */
+#ifndef PTHREAD_STACK_MIN
+#define PTHREAD_STACK_MIN 65536
 #endif
 
 #ifdef  __cplusplus

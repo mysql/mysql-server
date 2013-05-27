@@ -1436,6 +1436,7 @@ static inline char *dlerror(void)
 #endif
 
 /* Provide __func__ macro definition for platforms that miss it. */
+#if !defined (__func__)
 #if __STDC_VERSION__ < 199901L
 #  if __GNUC__ >= 2
 #    define __func__ __FUNCTION__
@@ -1453,6 +1454,7 @@ static inline char *dlerror(void)
 #else
 #  define __func__ "<unknown>"
 #endif
+#endif /* !defined(__func__) */
 
 #ifndef HAVE_RINT
 /**
