@@ -34,9 +34,9 @@ Created 9/6/1995 Heikki Tuuri
 #ifndef os0sync_h
 #define os0sync_h
 
-#include "univ.i"
+/* Do not include univ.i because univ.i includes this. */
+#include "ut0dbg.h"
 #include "ut0lst.h"
-#include "sync0types.h"
 
 #ifdef _WIN32
 /** Native event (slow)*/

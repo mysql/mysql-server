@@ -26,7 +26,7 @@ Created 2011/09/02 Sunny Bains
 #ifndef fts0fts_h
 #define fts0fts_h
 
-#include "univ.i"
+#include "ha_prototypes.h"
 
 #include "data0type.h"
 #include "data0types.h"

@@ -23,13 +23,13 @@ Comparison services for records
 Created 7/1/1994 Heikki Tuuri
 ************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "rem0cmp.h"
 
 #ifdef UNIV_NONINL
 #include "rem0cmp.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "handler0alter.h"
 #include "srv0srv.h"

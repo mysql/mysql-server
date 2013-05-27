@@ -23,6 +23,8 @@ The lowest-level memory management
 Created 5/12/1997 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "mem0pool.h"
 #ifdef UNIV_NONINL
 #include "mem0pool.ic"
@@ -31,7 +33,6 @@ Created 5/12/1997 Heikki Tuuri
 #include "srv0srv.h"
 #include "sync0sync.h"
 #include "ut0mem.h"
-#include "ut0lst.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "srv0start.h"

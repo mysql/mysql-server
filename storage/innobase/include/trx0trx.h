@@ -26,9 +26,11 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef trx0trx_h
 #define trx0trx_h
 
-#include "univ.i"
-#include "trx0types.h"
+#include "ha_prototypes.h"
+
 #include "dict0types.h"
+#include "trx0types.h"
+
 #ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
 #include "log0log.h"

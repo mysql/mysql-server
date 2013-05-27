@@ -378,7 +378,7 @@ LEX_STRING* thd_query_string(MYSQL_THD thd);
 
 extern "C" {
 
-struct charset_info_st *thd_charset(MYSQL_THD thd);
+CHARSET_INFO *thd_charset(MYSQL_THD thd);
 
 /**
   Check if a user thread is a replication slave thread

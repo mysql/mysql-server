@@ -26,22 +26,14 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef ut0ut_h
 #define ut0ut_h
 
-#include "univ.i"
+/* Do not include univ.i because univ.i includes this. */
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "db0err.h"
-
 #ifndef UNIV_HOTBACKUP
-# include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+# include "os0sync.h"
 #endif /* UNIV_HOTBACKUP */
-
-#include <time.h>
-#ifndef MYSQL_SERVER
-#include <ctype.h>
-#endif
-
-#include <stdarg.h> /* for va_list */
+#include "db0err.h"
 #include <ostream>
 
 /** Index name prefix in fast index creation */

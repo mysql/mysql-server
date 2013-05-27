@@ -23,6 +23,8 @@ Transaction system
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "trx0sys.h"
 
 #ifdef UNIV_NONINL
