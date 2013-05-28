@@ -70,7 +70,7 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 60
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -106,7 +106,7 @@ UNLOCK TABLES;
 #------------------------------------------------------------------------------
 #
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 60
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --exec chmod 0644 $MYSQLD_DATADIR/ibdata1
@@ -153,7 +153,7 @@ SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 60
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -207,7 +207,7 @@ let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
 let SEARCH_FILE= $error_log;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 60
 --source include/wait_until_disconnected.inc
 
 --echo #    Try to restart the server without --innodb-read-only after removing
