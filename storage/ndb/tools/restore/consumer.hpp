@@ -30,6 +30,7 @@ public:
   virtual bool init(Uint32 tableCompabilityMask) { return true;}
   virtual bool object(Uint32 tableType, const void*) { return true;}
   virtual bool table(const TableS &){return true;}
+  virtual bool fk(Uint32 tableType, const void*) { return true;}
   virtual bool endOfTables() { return true; }
   virtual void tuple(const TupleS &, Uint32 fragId){}
   virtual void tuple_free(){}

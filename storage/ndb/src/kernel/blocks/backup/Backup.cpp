@@ -3288,6 +3288,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
              DictTabInfo::isFilegroup(tableType) ||
              DictTabInfo::isFile(tableType)
              || DictTabInfo::isHashMap(tableType)
+             || DictTabInfo::isForeignKey(tableType)
              ))
       {
         jam();
