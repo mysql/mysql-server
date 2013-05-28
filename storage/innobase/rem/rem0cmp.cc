@@ -57,33 +57,6 @@ At the present, the comparison functions return 0 in the case,
 where two records disagree only in the way that one
 has more fields than the other. */
 
-#ifdef UNIV_DEBUG
-/*************************************************************//**
-Used in debug checking of cmp_dtuple_... .
-This function is used to compare a data tuple to a physical record. If
-dtuple has n fields then rec must have either m >= n fields, or it must
-differ from dtuple in some of the m fields rec has.
-@return 1, 0, -1, if dtuple is greater, equal, less than rec,
-respectively, when only the common first fields are compared */
-static
-int
-cmp_debug_dtuple_rec_with_match(
-/*============================*/
-	const dtuple_t*	dtuple,	/*!< in: data tuple */
-	const rec_t*	rec,	/*!< in: physical record which differs from
-				dtuple in some of the common fields, or which
-				has an equal number or more fields than
-				dtuple */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets();
-				may be NULL for ROW_FORMAT=REDUNDANT */
-	ulint		n_cmp,	/*!< in: number of fields to compare */
-	ulint*		matched_fields)/*!< in/out: number of already
-				completely  matched fields; when function
-				returns, contains the value for current
-				comparison */
-	__attribute__((nonnull, warn_unused_result));
-#endif /* UNIV_DEBUG */
-
 /*************************************************************//**
 Compare two data fields.
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
@@ -516,11 +489,6 @@ cmp_dtuple_rec_with_match_low(
 			up to the common fields */
 order_resolved:
 	ut_ad((ret >= - 1) && (ret <= 1));
-	ut_ad(ret == cmp_debug_dtuple_rec_with_match(dtuple, rec, offsets,
-						     n_cmp, matched_fields));
-	ut_ad(*matched_fields == cur_field); /* In the debug version, the
-					     above cmp_debug_... sets
-					     *matched_fields to a value */
 	*matched_fields = cur_field;
 
 	return(ret);
@@ -802,119 +770,3 @@ order_resolved:
 	*matched_fields = cur_field;
 	return(ret);
 }
-
-#ifdef UNIV_DEBUG
-/*************************************************************//**
-Used in debug checking of cmp_dtuple_... .
-This function is used to compare a data tuple to a physical record. If
-dtuple has n fields then rec must have either m >= n fields, or it must
-differ from dtuple in some of the m fields rec has. If encounters an
-externally stored field, returns 0.
-@return 1, 0, -1, if dtuple is greater, equal, less than rec,
-respectively, when only the common first fields are compared */
-static
-int
-cmp_debug_dtuple_rec_with_match(
-/*============================*/
-	const dtuple_t*	dtuple,	/*!< in: data tuple */
-	const rec_t*	rec,	/*!< in: physical record which differs from
-				dtuple in some of the common fields, or which
-				has an equal number or more fields than
-				dtuple */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets();
-				may be NULL for ROW_FORMAT=REDUNDANT */
-	ulint		n_cmp,	/*!< in: number of fields to compare */
-	ulint*		matched_fields) /*!< in/out: number of already
-				completely matched fields; when function
-				returns, contains the value for current
-				comparison */
-{
-	const dfield_t*	dtuple_field;	/* current field in logical record */
-	ulint		dtuple_f_len;	/* the length of the current field
-					in the logical record */
-	const byte*	dtuple_f_data;	/* pointer to the current logical
-					field data */
-	ulint		rec_f_len;	/* length of current field in rec */
-	const byte*	rec_f_data;	/* pointer to the current rec field */
-	int		ret;		/* return value */
-	ulint		cur_field;	/* current field number */
-
-	ut_ad(dtuple && rec && matched_fields);
-	ut_ad(dtuple_check_typed(dtuple));
-	ut_ad(!offsets || rec_offs_validate(rec, NULL, offsets));
-
-	ut_ad(n_cmp > 0);
-	ut_ad(n_cmp <= dtuple_get_n_fields(dtuple));
-	ut_ad(*matched_fields <= n_cmp);
-	ut_ad(*matched_fields <= (offsets
-				  ? rec_offs_n_fields(offsets)
-				  : rec_get_n_fields_old(rec)));
-
-	cur_field = *matched_fields;
-
-	if (cur_field == 0) {
-		if (UNIV_UNLIKELY
-		    (rec_get_info_bits(rec, offsets && rec_offs_comp(offsets))
-		     & REC_INFO_MIN_REC_FLAG)) {
-
-			ret = !(dtuple_get_info_bits(dtuple)
-				& REC_INFO_MIN_REC_FLAG);
-
-			goto order_resolved;
-		}
-
-		if (UNIV_UNLIKELY
-		    (dtuple_get_info_bits(dtuple) & REC_INFO_MIN_REC_FLAG)) {
-			ret = -1;
-
-			goto order_resolved;
-		}
-	}
-
-	/* Match fields in a loop; stop if we run out of fields in dtuple */
-
-	while (cur_field < n_cmp) {
-
-		ulint	mtype;
-		ulint	prtype;
-
-		dtuple_field = dtuple_get_nth_field(dtuple, cur_field);
-		{
-			const dtype_t*	type
-				= dfield_get_type(dtuple_field);
-
-			mtype = type->mtype;
-			prtype = type->prtype;
-		}
-
-		dtuple_f_data = static_cast<const byte*>(
-			dfield_get_data(dtuple_field));
-
-		dtuple_f_len = dfield_get_len(dtuple_field);
-
-		if (rec_get_nth_field_ext(rec, offsets, cur_field,
-					  rec_f_data, rec_f_len)) {
-			/* We do not compare to an externally stored field */
-			ret = 0;
-			goto order_resolved;
-		}
-
-		ret = cmp_data_data(mtype, prtype, dtuple_f_data, dtuple_f_len,
-				    rec_f_data, rec_f_len);
-		if (ret != 0) {
-			goto order_resolved;
-		}
-
-		cur_field++;
-	}
-
-	ret = 0;	/* If we ran out of fields, dtuple was equal to rec
-			up to the common fields */
-order_resolved:
-	ut_ad((ret >= - 1) && (ret <= 1));
-
-	*matched_fields = cur_field;
-
-	return(ret);
-}
-#endif /* UNIV_DEBUG */
