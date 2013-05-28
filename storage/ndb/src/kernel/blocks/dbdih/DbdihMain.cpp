@@ -14249,10 +14249,14 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
      * Check for any "completed" TO
      */
     TakeOverRecordPtr takeOverPtr;
-    for (c_activeTakeOverList.first(takeOverPtr); !takeOverPtr.isNull();
-         c_activeTakeOverList.next(takeOverPtr))
+    for (c_activeTakeOverList.first(takeOverPtr); !takeOverPtr.isNull();)
     {
       jam();
+
+      // move to next, since takeOverPtr might be release below
+      TakeOverRecordPtr nextPtr = takeOverPtr;
+      c_activeTakeOverList.next(nextPtr);
+
       Ptr<NodeRecord> nodePtr;
       nodePtr.i = takeOverPtr.p->toStartingNode;
       if (takeOverPtr.p->toMasterStatus == TakeOverRecord::TO_WAIT_LCP)
@@ -14270,10 +14274,12 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
           conf->startingNodeId = nodePtr.i;
           sendSignal(takeOverPtr.p->m_senderRef, GSN_END_TOCONF, signal, 
                      EndToConf::SignalLength, JBB);
-          
+
           releaseTakeOver(takeOverPtr);
         }
       }
+
+      takeOverPtr = nextPtr;
     }
   }
   
