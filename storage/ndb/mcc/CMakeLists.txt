@@ -43,12 +43,17 @@ macro(SHOW_VAR_ var)
   message("${var}=${${var}}")
 endmacro(SHOW_VAR_)
 
+set(MCC_BROWSER_START_PAGE "welcome.html")
+
 # Write setup script for running out of the source tree so that
 # make install is not required when testing mcc only.
-set(MCC_ABS_INSTALL_BINDIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(MCC_INSTALL_SUBDIR ".")
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_BASE}_in_source.py")
-unset(MCC_ABS_INSTALL_BINDIR)
+set(MCC_INSTALL_BINDIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(MCC_INSTALL_FRONTENDDIR "frontend")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}" "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}" COPYONLY)
+if(NOT WIN32)
+  execute_process(COMMAND "chmod" "u+x" "${MCC_SCRIPT_NAME}")
+endif(NOT WIN32)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mcc_config.py.in" "${CMAKE_CURRENT_BINARY_DIR}/mcc_config.py")
 
 if(NOT DEFAULT_MYSQL_HOME)
   # Don't have the MYSQL variables in this case
@@ -58,6 +63,7 @@ else(NOT DEFAULT_MYSQL_HOME)
   set(MCC_INSTALL_BINDIR "${INSTALL_BINDIR}")
   set(MCC_INSTALL_SUBDIR "${INSTALL_MYSQLSHAREDIR}/mcc")
 endif(NOT DEFAULT_MYSQL_HOME)
+set(MCC_INSTALL_FRONTENDDIR "${MCC_INSTALL_SUBDIR}/frontend")
 
 add_subdirectory("host_info")
 add_subdirectory("frontend")
@@ -121,17 +127,18 @@ endif(WIN32 AND MCC_PYTHON_TO_BUNDLE)
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/post-install.py.in"
         "${CMAKE_CURRENT_BINARY_DIR}/post-install.py")
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
-  "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mcc_config.py.in" "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py")
+install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py"  
+  DESTINATION "${MCC_INSTALL_BINDIR}"
+  COMPONENT ClusterTools
+  RENAME "mcc_config.py")
 
-install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}"  
+#configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
+#  "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}")
+
+install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}"  
   DESTINATION "${MCC_INSTALL_BINDIR}"
   COMPONENT ClusterTools)
-
-if(NOT WIN32)
-  execute_process(COMMAND "chmod" "u+x" "${MCC_SCRIPT_BASE}"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-endif(NOT WIN32)
 
 install(FILES clusterhost.py remote_clusterhost.py request_handler.py 
   util.py config_parser.py cfg.pem ${CMAKE_CURRENT_BINARY_DIR}/post-install.py DESTINATION "${MCC_INSTALL_SUBDIR}"
