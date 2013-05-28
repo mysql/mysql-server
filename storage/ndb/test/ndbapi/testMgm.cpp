@@ -2725,7 +2725,6 @@ int runTestDumpEvents(NDBT_Context* ctx, NDBT_Step* step)
 int runTestStatusAfterStop(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbMgmd mgmd;
-  mgmd.set_timeout(50); // Short timeout, should be upgraded
 
   if (!mgmd.connect())
     return NDBT_FAILED;
