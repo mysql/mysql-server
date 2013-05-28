@@ -878,6 +878,28 @@ dissect_table_name(const char * qualified_table_name,
 }
 
 /**
+ * Similar method for index, only last component is relevant.
+ */
+static
+bool
+dissect_index_name(const char * qualified_index_name,
+                   BaseString & db_name,
+                   BaseString & schema_name,
+                   BaseString & index_name) {
+  Vector<BaseString> split;
+  BaseString tmp(qualified_index_name);
+  if (tmp.split(split, "/") != 4) {
+    err << "Invalid index name format `" << qualified_index_name
+        << "`" << endl;
+    return false;
+  }
+  db_name = split[0];
+  schema_name = split[1];
+  index_name = split[3];
+  return true;
+}
+
+/**
  * Assigns the new name for a database, if and only if to be rewritten.
  */
 static
@@ -1475,6 +1497,10 @@ BackupRestore::object(Uint32 type, const void * ptr)
 	<< errobj << endl;
 
     return false;
+  }
+  case DictTabInfo::ForeignKey: // done after tables
+  {
+    return true;
   }
   default:
   {
@@ -2316,6 +2342,30 @@ BackupRestore::table(const TableS & table){
 }
 
 bool
+BackupRestore::fk(Uint32 type, const void * ptr)
+{
+  if (!m_restore_meta)
+    return true;
+
+  // only record FKs, create in endOfTables()
+  switch (type){
+  case DictTabInfo::ForeignKey:
+  {
+    const NdbDictionary::ForeignKey* fk_ptr =
+      (const NdbDictionary::ForeignKey*)ptr;
+    m_fks.push_back(fk_ptr);
+    return true;
+    break;
+  }
+  default:
+  {
+    break;
+  }
+  }
+  return true;
+}
+
+bool
 BackupRestore::endOfTables(){
   if(!m_restore_meta && !m_rebuild_indexes && !m_disable_indexes)
     return true;
@@ -2395,6 +2445,159 @@ BackupRestore::endOfTables(){
     Vector<NdbDictionary::Index*> & list = m_index_per_table[id];
     list.push_back(idx);
   }
+
+  info << "Create foreign keys" << endl;
+  for (unsigned i = 0; i < m_fks.size(); i++)
+  {
+    const NdbDictionary::ForeignKey& fkinfo = *m_fks[i];
+
+    // full name is e.g. 10/14/fk1 where 10,14 are old table ids
+    const char* fkname = 0;
+    Vector<BaseString> splitname;
+    BaseString tmpname(fkinfo.getName());
+    int n = tmpname.split(splitname, "/");
+    // XXX wtf
+    if (n == 1)
+      fkname = splitname[0].c_str();
+    else if (n == 3)
+      fkname = splitname[2].c_str();
+    else
+    {
+      err << "Invalid foreign key name " << tmpname.c_str() << endl;
+      return false;
+    }
+
+    // retrieve fk parent and child
+    const NdbDictionary::Table* pTab = 0;
+    const NdbDictionary::Index* pInd = 0;
+    const NdbDictionary::Table* cTab = 0;
+    const NdbDictionary::Index* cInd = 0;
+    {
+      BaseString db_name, dummy2, table_name;
+      if (!dissect_table_name(fkinfo.getParentTable(),
+                              db_name, dummy2, table_name))
+        return false;
+      m_ndb->setDatabaseName(db_name.c_str());
+      pTab = dict->getTable(table_name.c_str());
+      if (pTab == 0)
+      {
+        err << "Foreign key " << fkname << " parent table "
+            << db_name.c_str() << "." << table_name.c_str()
+            << " not found: " << dict->getNdbError() << endl;
+        return false;
+      }
+      if (fkinfo.getParentIndex() != 0)
+      {
+        BaseString dummy1, dummy2, index_name;
+        if (!dissect_index_name(fkinfo.getParentIndex(),
+                                dummy1, dummy2, index_name))
+          return false;
+        pInd = dict->getIndex(index_name.c_str(), table_name.c_str());
+        if (pInd == 0)
+        {
+          err << "Foreign key " << fkname << " parent index "
+              << db_name.c_str() << "." << table_name.c_str()
+              << "." << index_name.c_str()
+              << "not found: " << dict->getNdbError() << endl;
+          return false;
+        }
+      }
+    }
+    {
+      BaseString db_name, dummy2, table_name;
+      if (!dissect_table_name(fkinfo.getChildTable(),
+                              db_name, dummy2, table_name))
+        return false;
+      m_ndb->setDatabaseName(db_name.c_str());
+      cTab = dict->getTable(table_name.c_str());
+      if (cTab == 0)
+      {
+        err << "Foreign key " << fkname << " child table "
+            << db_name.c_str() << "." << table_name.c_str()
+            << " not found: " << dict->getNdbError() << endl;
+        return false;
+      }
+      if (fkinfo.getChildIndex() != 0)
+      {
+        BaseString dummy1, dummy2, index_name;
+        if (!dissect_index_name(fkinfo.getChildIndex(),
+                                dummy1, dummy2, index_name))
+          return false;
+        cInd = dict->getIndex(index_name.c_str(), table_name.c_str());
+        if (cInd == 0)
+        {
+          err << "Foreign key " << fkname << " child index "
+              << db_name.c_str() << "." << table_name.c_str()
+              << "." << index_name.c_str()
+              << "not found: " << dict->getNdbError() << endl;
+          return false;
+        }
+      }
+    }
+
+    // define the fk
+    NdbDictionary::ForeignKey fk;
+    fk.setName(fkname);
+    static const int MaxAttrs = MAX_ATTRIBUTES_IN_INDEX;
+    {
+      const NdbDictionary::Column* cols[MaxAttrs+1]; // NULL terminated
+      const int n = fkinfo.getParentColumnCount();
+      int i = 0;
+      while (i < n)
+      {
+        int j = fkinfo.getParentColumnNo(i);
+        const NdbDictionary::Column* pCol = pTab->getColumn(j);
+        if (pCol == 0)
+        {
+          err << "Foreign key " << fkname << " fk column " << i
+              << " parent column " << j << " out of range" << endl;
+          return false;
+        }
+        cols[i++] = pCol;
+      }
+      cols[i] = 0;
+      fk.setParent(*pTab, pInd, cols);
+    }
+    {
+      const NdbDictionary::Column* cols[MaxAttrs+1]; // NULL terminated
+      const int n = fkinfo.getChildColumnCount();
+      int i = 0;
+      while (i < n)
+      {
+        int j = fkinfo.getChildColumnNo(i);
+        const NdbDictionary::Column* cCol = cTab->getColumn(j);
+        if (cCol == 0)
+        {
+          err << "Foreign key " << fkname << " fk column " << i
+              << " child column " << j << " out of range" << endl;
+          return false;
+        }
+        cols[i++] = cCol;
+      }
+      cols[i] = 0;
+      fk.setChild(*cTab, cInd, cols);
+    }
+    fk.setOnUpdateAction(fkinfo.getOnUpdateAction());
+    fk.setOnDeleteAction(fkinfo.getOnDeleteAction());
+
+    // create
+    if (dict->createForeignKey(fk) != 0)
+    {
+      err << "Failed to create foreign key " << fkname
+          << " parent " << pTab->getName()
+          << "." << (pInd ? pInd->getName() : "PRIMARY")
+          << " child " << cTab->getName()
+          << "." << (cInd ? cInd->getName() : "PRIMARY")
+          << ": " << dict->getNdbError() << endl;
+      return false;
+    }
+    info << "Successfully created foreign key " << fkname
+         << " parent " << pTab->getName()
+         << "." << (pInd ? pInd->getName() : "PRIMARY")
+         << " child " << cTab->getName()
+         << "." << (cInd ? cInd->getName() : "PRIMARY") << endl;
+  }
+  info << "Create foreign keys done" << endl;
   return true;
 }
 
