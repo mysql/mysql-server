@@ -49,6 +49,7 @@ import contextlib
 
 import util
 import config_parser
+import mcc_config
 
 from clusterhost import produce_ABClusterHost 
 
@@ -511,7 +512,7 @@ def main(prefix, cfgdir):
     cmdln_parser.add_option('-n', '--no-browser', action='store_true',
                             help='do not open the server\'s start page in a browser.')
     cmdln_parser.add_option('-s', '--browser-start-page', action='store', type='string',
-                            dest='browser_start_page', default='index.html',
+                            dest='browser_start_page', default=mcc_config.MCC_BROWSER_START_PAGE,
                             help='start page for browser: [default: %default]')
     
     cmdln_parser.add_option('-d', '--debug-level', action='store', type='string', 
