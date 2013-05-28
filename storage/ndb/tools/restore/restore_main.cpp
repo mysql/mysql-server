@@ -278,7 +278,7 @@ static struct my_option my_long_options[] =
     (uchar**) &ga_exclude_missing_columns, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "disable-indexes", NDB_OPT_NOSHORT,
-    "Disable indexes",
+    "Disable indexes and foreign keys",
     (uchar**) &ga_disable_indexes,
     (uchar**) &ga_disable_indexes, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },

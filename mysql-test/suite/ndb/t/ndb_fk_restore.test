@@ -36,6 +36,7 @@ delete from t1 where a1 = 1;
 # t1 fragment may be restored before t2 fragment but in MTR
 # there are two fragments so likely FK disable is required
 
+-- let $disable_indexes=0
 -- source ndb_fk_restore.inc
 
 -- error ER_NO_REFERENCED_ROW_2
@@ -61,6 +62,7 @@ insert into t2 (b2,c2) values (10,99);
 -- error ER_ROW_IS_REFERENCED_2
 delete from t1 where a1 = 1;
 
+-- let $disable_indexes=0
 -- source ndb_fk_restore.inc
 
 -- error ER_NO_REFERENCED_ROW_2
@@ -96,11 +98,17 @@ insert into t2 (b2,c2) values (61,62);
 -- error ER_ROW_IS_REFERENCED_2
 delete from t1 where b1=61 and c1=62;
 
+-- let $disable_indexes=0
 -- source ndb_fk_restore.inc
 
 -- error ER_NO_REFERENCED_ROW_2
 insert into t2 (b2,c2) values (61,62);
 -- error ER_ROW_IS_REFERENCED_2
 delete from t1 where b1=61 and c1=62;
+
+-- echo # TEST: disable indexes
+
+-- let $disable_indexes=1
+-- source ndb_fk_restore.inc
 
 drop table t2, t1;
