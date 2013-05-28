@@ -334,16 +334,16 @@ dtuple_get_n_ext(
 /*=============*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
 	__attribute__((nonnull));
-/************************************************************//**
-Compare two data tuples, respecting the collation of character fields.
-@return 1, 0 , -1 if tuple1 is greater, equal, less, respectively,
-than tuple2 */
+/** Compare two data tuples.
+@param[in]	tuple1	first data tuple
+@param[in]	tuple2	second data tuple
+@return positive, 0, negative if tuple1 is greater, equal, less, than tuple2,
+respectively */
 
 int
 dtuple_coll_cmp(
-/*============*/
-	const dtuple_t*	tuple1,	/*!< in: tuple 1 */
-	const dtuple_t*	tuple2)	/*!< in: tuple 2 */
+	const dtuple_t*	tuple1,
+	const dtuple_t*	tuple2)
 	__attribute__((nonnull, warn_unused_result));
 /************************************************************//**
 Folds a prefix given as the number of fields of a tuple.

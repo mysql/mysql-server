@@ -683,7 +683,7 @@ btr_search_check_guess(
 	cmp = cmp_dtuple_rec_with_match(tuple, rec, offsets, &match);
 
 	if (mode == PAGE_CUR_GE) {
-		if (cmp == 1) {
+		if (cmp > 0) {
 			goto exit_func;
 		}
 
@@ -694,18 +694,18 @@ btr_search_check_guess(
 			goto exit_func;
 		}
 	} else if (mode == PAGE_CUR_LE) {
-		if (cmp == -1) {
+		if (cmp < 0) {
 			goto exit_func;
 		}
 
 		cursor->low_match = match;
 
 	} else if (mode == PAGE_CUR_G) {
-		if (cmp != -1) {
+		if (cmp >= 0) {
 			goto exit_func;
 		}
 	} else if (mode == PAGE_CUR_L) {
-		if (cmp != 1) {
+		if (cmp <= 0) {
 			goto exit_func;
 		}
 	}
@@ -737,9 +737,9 @@ btr_search_check_guess(
 		cmp = cmp_dtuple_rec_with_match(tuple, prev_rec,
 						offsets, &match);
 		if (mode == PAGE_CUR_GE) {
-			success = cmp == 1;
+			success = cmp > 0;
 		} else {
-			success = cmp != -1;
+			success = cmp >= 0;
 		}
 
 		goto exit_func;
@@ -766,10 +766,10 @@ btr_search_check_guess(
 		cmp = cmp_dtuple_rec_with_match(tuple, next_rec,
 						offsets, &match);
 		if (mode == PAGE_CUR_LE) {
-			success = cmp == -1;
+			success = cmp < 0;
 			cursor->up_match = match;
 		} else {
-			success = cmp != 1;
+			success = cmp <= 0;
 		}
 	}
 exit_func:

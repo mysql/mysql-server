@@ -2382,23 +2382,12 @@ ib_col_set_value(
 		ut_error;
 		break;
 
-	case DATA_CHAR: {
-		ulint	pad_char = ULINT_UNDEFINED;
-
-		pad_char = dtype_get_pad_char(
-			dtype_get_mtype(dtype),	dtype_get_prtype(dtype));
-
-		ut_a(pad_char != ULINT_UNDEFINED);
-
-		memset((byte*) dst + len,
-		       pad_char,
-		       col_len - len);
-
+	case DATA_CHAR:
 		memcpy(dst, src, len);
-
+		memset((byte*) dst + len, 0x20, col_len - len);
 		len = col_len;
 		break;
-	}
+
 	case DATA_BLOB:
 	case DATA_GEOMETRY:
 	case DATA_BINARY:
