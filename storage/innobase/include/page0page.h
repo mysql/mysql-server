@@ -1065,6 +1065,7 @@ page_rec_validate(
 /*==============*/
 	const rec_t*	rec,	/*!< in: physical record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+#ifdef UNIV_DEBUG
 /***************************************************************//**
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
@@ -1074,6 +1075,7 @@ void
 page_check_dir(
 /*===========*/
 	const page_t*	page);	/*!< in: index page */
+#endif /* UNIV_DEBUG */
 /***************************************************************//**
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
