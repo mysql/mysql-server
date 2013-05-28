@@ -589,7 +589,9 @@ public:
   /* WE KEEP IT IN A RECORD TO ENABLE IT TO BE PARALLELISED IN THE FUTURE.  */
   /**************************************************************************/
   struct TakeOverRecord {
-    
+
+    TakeOverRecord() {}
+
     /**
      * States possible on slave (starting node)
      */
