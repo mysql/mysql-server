@@ -25,17 +25,18 @@ Created 7/1/1994 Heikki Tuuri
 
 #include "mysql_com.h"
 
-/*************************************************************//**
-This function is used to compare two dfields where at least the first
-has its data type field set.
-@return 1, 0, -1, if dfield1 is greater, equal, less than dfield2,
-respectively */
+/** Compare two data fields.
+@param[in]	dfield1	data field; must have type field set
+@param[in]	dfield2	data field
+@return	the comparison result of dfield1 and dfield2
+@retval	0 if dfield1 is equal to dfield2
+@retval	negative if dfield1 is less than dfield2
+@retval	positive if dfield1 is greater than dfield2 */
 UNIV_INLINE
 int
 cmp_dfield_dfield(
-/*==============*/
-	const dfield_t*	dfield1,/*!< in: data field; must have type field set */
-	const dfield_t*	dfield2)/*!< in: data field */
+	const dfield_t*	dfield1,
+	const dfield_t*	dfield2)
 {
 	const dtype_t*	type;
 
@@ -57,7 +58,8 @@ are treated as equal.
 @param[in]	rec2		B-tree record
 @param[in]	offsets1	rec_get_offsets(rec1, index)
 @param[in]	offsets2	rec_get_offsets(rec2, index)
-@return 1, 0, -1 if rec1 is greater, equal, less, respectively, than rec2 */
+@return positive, 0, negative if rec1 is greater, equal, less, than rec2,
+respectively */
 UNIV_INLINE
 int
 cmp_rec_rec(
@@ -73,17 +75,18 @@ cmp_rec_rec(
 				      false, &match_f));
 }
 
-/*****************************************************************
-This function is used to compare two dfields where at least the first
-has its data type field set. */
+/** Compare two data fields.
+@param[in]	dfield1	data field
+@param[in]	dfield2	data field
+@return	the comparison result of dfield1 and dfield2
+@retval	0 if dfield1 is equal to dfield2, or a prefix of dfield1
+@retval	negative if dfield1 is less than dfield2
+@retval	positive if dfield1 is greater than dfield2 */
 UNIV_INLINE
 int
 cmp_dfield_dfield_like_prefix(
-/*==========================*/
-				/* out: 1, 0, -1, if dfield1 is greater, equal,
-				less than dfield2, respectively */
-	const dfield_t*	dfield1,/* in: data field; must have type field set */
-	const dfield_t*	dfield2)/* in: data field */
+	const dfield_t*	dfield1,
+	const dfield_t*	dfield2)
 {
 	const dtype_t*  type;
 

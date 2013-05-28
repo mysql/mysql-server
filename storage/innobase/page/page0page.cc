@@ -2328,7 +2328,7 @@ page_validate(
 		if (UNIV_LIKELY(count >= PAGE_HEAP_NO_USER_LOW)
 		    && !page_rec_is_supremum(rec)) {
 			if (UNIV_UNLIKELY
-			    (1 != cmp_rec_rec(rec, old_rec,
+			    (0 >= cmp_rec_rec(rec, old_rec,
 					      offsets, old_offsets, index))) {
 				fprintf(stderr,
 					"InnoDB: Records in wrong order"

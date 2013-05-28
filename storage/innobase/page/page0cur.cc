@@ -264,12 +264,12 @@ mode_ok:
 
 		cmp = cmp_dtuple_rec_with_match(tuple, mid_rec, offsets,
 						&cur_matched_fields);
-		if (UNIV_LIKELY(cmp > 0)) {
+		if (cmp > 0) {
 low_slot_match:
 			low = mid;
 			low_matched_fields = cur_matched_fields;
 
-		} else if (UNIV_EXPECT(cmp, -1)) {
+		} else if (cmp) {
 up_slot_match:
 			up = mid;
 			up_matched_fields = cur_matched_fields;
@@ -304,11 +304,11 @@ up_slot_match:
 
 		cmp = cmp_dtuple_rec_with_match(tuple, mid_rec, offsets,
 						&cur_matched_fields);
-		if (UNIV_LIKELY(cmp > 0)) {
+		if (cmp > 0) {
 low_rec_match:
 			low_rec = mid_rec;
 			low_matched_fields = cur_matched_fields;
-		} else if (UNIV_EXPECT(cmp, -1)) {
+		} else if (cmp) {
 up_rec_match:
 			up_rec = mid_rec;
 			up_matched_fields = cur_matched_fields;
