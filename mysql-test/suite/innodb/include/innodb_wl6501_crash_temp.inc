@@ -4,7 +4,7 @@
 
 --source include/have_innodb.inc
 --source include/have_debug.inc
-#--source include/big_test.inc
+--source include/big_test.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
