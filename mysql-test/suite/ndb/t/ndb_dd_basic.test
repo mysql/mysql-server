@@ -662,4 +662,14 @@ engine ndb;
 drop logfile group lg1
 engine ndb;
 
+# Bug 13116514: parser does not accept suffix 'M', etc for sizes
+set character_set_client=utf8;
+create logfile group lg1
+add undofile 'undo1.log'
+undo_buffer_size 2M
+engine=ndb;
+
+drop logfile group lg1
+engine ndb;
+
 #End 5.1 test case
