@@ -3922,7 +3922,7 @@ NdbDictionaryImpl::dropTable(const char * name)
 static bool
 dropTableAllowDropChildFK(const NdbTableImpl& impl,
                           const NdbDictionary::ForeignKey& fk,
-                          bool cascade_constraints)
+                          int flags)
 {
   DBUG_ENTER("dropTableAllowDropChildFK");
   const char* table = impl.m_internalName.c_str();
@@ -3932,18 +3932,40 @@ dropTableAllowDropChildFK(const NdbTableImpl& impl,
                       table, child, parent));
   const bool is_child = strcmp(table, child) == 0;
   const bool is_parent = strcmp(table, parent) == 0;
-  if (cascade_constraints)
+  if (flags & NdbDictionary::Dictionary::DropTableCascadeConstraints)
   {
     DBUG_PRINT("info", ("return true - cascade_constraints is on"));
     DBUG_RETURN(true);
   }
-  if (is_parent && !is_child)
+  if (is_child && !is_parent)
   {
-    DBUG_PRINT("info", ("return false - is_parent && !is_child"));
-    DBUG_RETURN(false);
+    DBUG_PRINT("info", ("return true - !is_parent && is_child"));
+    DBUG_RETURN(true);
   }
-  DBUG_PRINT("info", ("return true"));
-  DBUG_RETURN(true);
+  if (is_child && is_parent)
+  {
+    // same table (self ref FK)
+    DBUG_PRINT("info", ("return true - is_child && is_parent"));
+    DBUG_RETURN(true);
+  }
+  if (flags & NdbDictionary::Dictionary::DropTableCascadeConstraintsDropDB)
+  {
+    // first part is db...
+    const char * end = strchr(parent, table_name_separator);
+    if (end != NULL)
+    {
+      size_t len = end - parent;
+      if (strncmp(parent, child, len) == 0)
+      {
+        DBUG_PRINT("info",
+                   ("return OK - DropTableCascadeConstraintsDropDB & same DB"));
+        DBUG_RETURN(true);
+      }
+    }
+  }
+
+  DBUG_PRINT("info", ("return false"));
+  DBUG_RETURN(false);
 }
 
 int
@@ -4038,9 +4060,6 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
     ERR_RETURN(getNdbError(), -1);
   }
 
-  const bool cascade_constraints = (flags & DropTableCascadeConstraints);
-
-  if (!cascade_constraints)
   {
     /**
      * To keep this method atomic...
@@ -4063,7 +4082,7 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
         {
           ERR_RETURN(getNdbError(), -1);
         }
-        if (!dropTableAllowDropChildFK(impl, fk, cascade_constraints))
+        if (!dropTableAllowDropChildFK(impl, fk, flags))
         {
           m_receiver.m_error.code = 21080;
           ERR_RETURN(getNdbError(), -1);
