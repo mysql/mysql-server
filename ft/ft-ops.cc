@@ -6074,10 +6074,14 @@ int toku_ft_get_key_after_bytes(FT_HANDLE ft_h, const DBT *start_key, uint64_t s
         ft_search_init(&search, (start_key == nullptr ? ft_cursor_compare_one : ft_cursor_compare_set_range), FT_SEARCH_LEFT, start_key, ft_h);
         
         int r;
-        paranoid_invariant(ft->in_memory_stats.numbytes >= 0);
-        uint64_t numbytes = (uint64_t) ft->in_memory_stats.numbytes;
+        // We can't do this because of #5768, there may be dictionaries in the wild that have negative stats.  This won't affect mongo so it's ok:
+        //paranoid_invariant(ft->in_memory_stats.numbytes >= 0);
+        int64_t numbytes = ft->in_memory_stats.numbytes;
+        if (numbytes < 0) {
+            numbytes = 0;
+        }
         uint64_t skipped = 0;
-        r = get_key_after_bytes_in_subtree(ft_h, ft, root, &unlockers, nullptr, &infinite_bounds, &bfe, &search, numbytes, start_key, skip_len, callback, cb_extra, &skipped);
+        r = get_key_after_bytes_in_subtree(ft_h, ft, root, &unlockers, nullptr, &infinite_bounds, &bfe, &search, (uint64_t) numbytes, start_key, skip_len, callback, cb_extra, &skipped);
         assert(!unlockers.locked);
         if (r != TOKUDB_TRY_AGAIN) {
             if (r == DB_NOTFOUND) {
