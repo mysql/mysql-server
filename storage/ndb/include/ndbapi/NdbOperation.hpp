@@ -1100,6 +1100,11 @@ public:
   const NdbLockHandle* getLockHandle() const;
   const NdbLockHandle* getLockHandle();
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  // XXX until NdbRecord is used in ndb_restore
+  void set_disable_fk() { m_flags |= OF_DISABLE_FK; }
+#endif
+
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
