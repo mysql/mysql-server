@@ -94,6 +94,7 @@ public:
   virtual void release();
   virtual bool object(Uint32 type, const void* ptr);
   virtual bool table(const TableS &);
+  virtual bool fk(Uint32 type, const void* ptr);
   virtual bool endOfTables();
   virtual void tuple(const TupleS &, Uint32 fragId);
   virtual void tuple_free();
@@ -235,6 +236,7 @@ public:
   Vector<NdbDictionary::Tablespace*> m_tablespaces;    // Index by id
   Vector<NdbDictionary::LogfileGroup*> m_logfilegroups;// Index by id
   Vector<NdbDictionary::HashMap*> m_hashmaps;
+  Vector<const NdbDictionary::ForeignKey*> m_fks;
 
   static const PromotionRules m_allowed_promotion_attrs[];
 };

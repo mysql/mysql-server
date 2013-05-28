@@ -1398,6 +1398,19 @@ main(int argc, char** argv)
            << metaData.getNoOfTables() << endl;
     }
   }
+
+  debug << "Save foreign key info" << endl;
+  for(i = 0; i<metaData.getNoOfObjects(); i++)
+  {
+    for(Uint32 j= 0; j < g_consumers.size(); j++)
+      if (!g_consumers[j]->fk(metaData.getObjType(i),
+			      metaData.getObjPtr(i)))
+      {
+        // no error is possible 
+        assert(false);
+      } 
+  }
+
   debug << "Close tables" << endl; 
   for(i= 0; i < g_consumers.size(); i++)
     if (!g_consumers[i]->endOfTables())
