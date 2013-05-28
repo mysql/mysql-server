@@ -2475,6 +2475,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
       exitHandler();
     } // if
 
+    // XXX until NdbRecord is used
+    op->set_disable_fk();
+
     n_bytes= 0;
 
     if (table->getFragmentType() == NdbDictionary::Object::UserDefined)
