@@ -2967,9 +2967,7 @@ row_sel_store_mysql_rec(
 	    && dict_index_is_clust(index)) {
 
 		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
-			prebuilt->table,
-			rec,
-			prebuilt->heap);
+			prebuilt->table, rec, NULL);
 	}
 
 	return(TRUE);
