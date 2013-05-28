@@ -429,7 +429,7 @@ private:
                                const NdbDictionary::Table*);
   static bool drop_table_and_related(THD*, Ndb*, NdbDictionary::Dictionary*,
                                      const NdbDictionary::Table*,
-                                     bool cascade_constraints);
+                                     int drop_flags);
   int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const char* path);
   void release_metadata(THD *thd, Ndb *ndb);

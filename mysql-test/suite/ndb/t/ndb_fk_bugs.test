@@ -515,36 +515,51 @@ drop table t2, t1;
 # Bug#16286164 - DROP/ALTER TABLE NOT PROTECTED FROM BREAKING NDB FK CONSTRAINTS
 
 --echo # bug#16286164 - case: drop when referenced by different table
+let $i=2;
+while ($i)
+{
+	eval set @i=$i;
+	let $engine=`select if(@i=1,'ndb','innodb')`;
 
-create table t1 (
-  a int not null,
-  primary key using hash (a)
-) engine=ndb;
+	eval create table t1 (
+  	     a int not null,
+	     primary key using hash (a)
+	) engine=$engine;
 
-create table t2 (
-  a int not null,
-  b int,
-  primary key using hash (a),
-  key (b),
-  foreign key fk1 (b) references t1 (a)
-) engine=ndb;
+	eval create table t2 (
+	     a int not null,
+	     b int,
+	     primary key using hash (a),
+	     key (b),
+	     foreign key fk1 (b) references t1 (a)
+	) engine=$engine;
 
---error ER_ROW_IS_REFERENCED
-drop table t1;
+	--error ER_ROW_IS_REFERENCED
+	drop table t1;
 
-drop table t2, t1;
+	drop table t2, t1;
+	dec $i;
+}
 
 --echo # bug#16286164 - case: drop when referenced by same table
+let $i=2;
+while ($i)
+{
+	eval set @i=$i;
+	let $engine=`select if(@i=1,'ndb','innodb')`;
 
-create table t1 (
-  a int not null,
-  b int,
-  primary key using hash (a),
-  key (b),
-  foreign key fk1 (b) references t1 (a)
-) engine=ndb;
+	eval create table t1 (
+	     a int not null,
+	     b int,
+	     primary key using hash (a),
+	     key (b),
+	     foreign key fk1 (b) references t1 (a)
+	) engine=$engine;
 
-drop table t1;
+	drop table t1;
+
+	dec $i;
+}
 
 -- echo # BugXXZ - multi part unique index parent
 
