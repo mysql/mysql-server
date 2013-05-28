@@ -28,7 +28,7 @@ while ($i < $n)
 
 --connection master
 SET GLOBAL debug= 'd,semi_sync_3-way_deadlock';
-SET DEBUG_SYNC= "before_process_commit_stage_queue WAIT_FOR signal.rotate_finished";
+SET DEBUG_SYNC= "before_process_commit_stage_queue WAIT_FOR signal.rotate_finished no_clear_event";
 
 --echo # Build 10 connections to master server
 --disable_query_log
