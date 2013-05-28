@@ -32,19 +32,22 @@
 
   Nomenclature:
 
-    - signal:             A value of a global variable that persists
-                          until overwritten by a new signal. The global
-                          variable can also be seen as a "signal post"
-                          or "flag mast". Then the signal is what is
-                          attached to the "signal post" or "flag mast".
+    - signal:             An event identified by a name that a signal
+                          thread uses to notify the wait thread that
+                          waits on this event. When the signal  thread
+                          notifies the wait thread, the signal name
+                          is copied into global list and the wait thread
+                          is signalled to wake up and proceed with further
+                          processing.
 
-    - emit a signal:      Assign the value (the signal) to the global
-                          variable ("set a flag") and broadcast a
-                          global condition to wake those waiting for
-                          a signal.
+    - emit a signal:      Signal thread wakes up wait thread or multiple
+                          wait threads that shall wait for the signal identified
+                          by a signal name. This signal thread copies the signal
+                          name into a global list and broadcasts the event which
+                          wakes the threads that wait for this event.
 
-    - wait for a signal:  Loop over waiting for the global condition until
-                          the global value matches the wait-for signal.
+    - wait for a signal:  Wait on a event indentified by the signal name until
+                          the signal thread signals the event.
 
   By default, all sync points are inactive. They do nothing (except to
   burn a couple of CPU cycles for checking if they are active).
@@ -80,12 +83,19 @@
   conn2 waits immediately at the special sync point 'now' for another
   thread to emit the 'opened' signal.
 
-  A signal remains in effect until it is overwritten. If conn1 signals
-  'opened' before conn2 reaches 'now', conn2 will still find the 'opened'
-  signal. It does not wait in this case.
+  If conn1 signals 'opened' before conn2 reaches 'now', conn2 will find
+  the 'opened' signal. The wait thread shall not wait in this case.
 
   When conn2 reaches 'after_abort_locks', it signals 'flushed', which lets
-  conn1 awake.
+  conn1 awake and clears the 'flushed' signal from the global list. In case
+  the 'flushed' signal is to be notified to multiple wait threads, an attribute
+  NO_CLEAR_EVENT need to be specified with the WAIT_FOR in addition to signal
+  the name as:
+      SET DEBUG_SYNC= 'WAIT_FOR flushed NO_CLEAR_EVENT';
+  It is up to the user to ensure once when all the wait threads have processed
+  the 'flushed' signal to clear/deactivate the signal using the RESET action
+  of DEBUG_SYNC accordingly.
+
 
   Normally the activation of a sync point is cleared when it has been
   executed. Sometimes it is necessary to keep the sync point active for
@@ -149,7 +159,8 @@
        <sync point name> TEST |
        <sync point name> CLEAR |
        <sync point name> {{SIGNAL <signal name> |
-                           WAIT_FOR <signal name> [TIMEOUT <seconds>]}
+                           WAIT_FOR <signal name> [TIMEOUT <seconds>]
+                           [NO_CLEAR_EVENT]}
                           [EXECUTE <count>] &| HIT_LIMIT <count>}
 
   Here '&|' means 'and/or'. This means that one of the sections
@@ -160,8 +171,6 @@
 
   The facility is an optional part of the MySQL server.
   It is enabled in a debug server by default.
-
-      ./configure --enable-debug-sync
 
   The Debug Sync Facility, when compiled in, is disabled by default. It
   can be enabled by a mysqld command line option:
@@ -330,6 +339,9 @@
 #include "sql_parse.h"
 #include "log.h"
 
+#include <set>
+#include <string>
+
 using std::max;
 using std::min;
 
@@ -350,6 +362,7 @@ struct st_debug_sync_action
   String        wait_for;               /* signal to wait for */
   String        sync_point;             /* sync point name */
   bool          need_sort;              /* if new action, array needs sort */
+  bool          clear_event;            /* do not clear signal if false */
 };
 
 /* Debug sync control. Referenced by THD. */
@@ -368,21 +381,28 @@ struct st_debug_sync_control
   char                  ds_proc_info[80];       /* proc_info string */
 };
 
+typedef std::set<std::string> signal_event_set;
 
 /**
   Definitions for the debug sync facility.
-  1. Global string variable to hold a "signal" ("signal post", "flag mast").
+  1. Global set of signal names which are signalled.
   2. Global condition variable for signaling and waiting.
   3. Global mutex to synchronize access to the above.
 */
 struct st_debug_sync_globals
 {
-  String                ds_signal;              /* signal variable */
+  signal_event_set      ds_signal_set;          /* list of signals signalled */
   mysql_cond_t          ds_cond;                /* condition variable */
   mysql_mutex_t         ds_mutex;               /* mutex variable */
   ulonglong             dsp_hits;               /* statistics */
   ulonglong             dsp_executed;           /* statistics */
   ulonglong             dsp_max_active;         /* statistics */
+
+  st_debug_sync_globals() : dsp_hits(0), dsp_executed(0), dsp_max_active(0) {}
+private:
+  // Not implemented:
+  st_debug_sync_globals(const st_debug_sync_globals&);
+  st_debug_sync_globals &operator=(const st_debug_sync_globals&);
 };
 static st_debug_sync_globals debug_sync_global; /* All globals in one object */
 
@@ -487,7 +507,6 @@ int debug_sync_init(void)
     int rc;
 
     /* Initialize the global variables. */
-    debug_sync_global.ds_signal.length(0);
     if ((rc= mysql_cond_init(key_debug_sync_globals_ds_cond,
                              &debug_sync_global.ds_cond, NULL)) ||
         (rc= mysql_mutex_init(key_debug_sync_globals_ds_mutex,
@@ -521,7 +540,7 @@ void debug_sync_end(void)
     debug_sync_C_callback_ptr= NULL;
 
     /* Destroy the global variables. */
-    debug_sync_global.ds_signal.free();
+    debug_sync_global.ds_signal_set.clear();
     mysql_cond_destroy(&debug_sync_global.ds_cond);
     mysql_mutex_destroy(&debug_sync_global.ds_mutex);
 
@@ -869,9 +888,9 @@ static void debug_sync_reset(THD *thd)
   /* Remove all actions of this thread. */
   ds_control->ds_active= 0;
 
-  /* Clear the global signal. */
+  /* Clear the signals. */
   mysql_mutex_lock(&debug_sync_global.ds_mutex);
-  debug_sync_global.ds_signal.length(0);
+  debug_sync_global.ds_signal_set.clear();
   mysql_mutex_unlock(&debug_sync_global.ds_mutex);
 
   DBUG_VOID_RETURN;
@@ -1479,6 +1498,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
     /* Set default for EXECUTE and TIMEOUT options. */
     action->execute= 1;
     action->timeout= opt_debug_sync_timeout;
+    action->clear_event= true;
 
     /* Get next token. If none follows, set action. */
     if (!(ptr= debug_sync_token(&token, &token_length, ptr)))
@@ -1524,6 +1544,17 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
       goto err;
     }
 
+    /* Get next token. If none follows, set action. */
+    if (!(ptr= debug_sync_token(&token, &token_length, ptr)))
+      goto set_action;
+  }
+
+  /*
+    Try NO_CLEAR_EVENT.
+  */
+  if (!my_strcasecmp(system_charset_info, token, "NO_CLEAR_EVENT"))
+  {
+    action->clear_event= false;
     /* Get next token. If none follows, set action. */
     if (!(ptr= debug_sync_token(&token, &token_length, ptr)))
       goto set_action;
@@ -1618,7 +1649,7 @@ bool debug_sync_update(THD *thd, char *val_str)
     The value of the system variable 'debug_sync' reflects if
     the facility is enabled ("ON") or disabled (default, "OFF").
 
-    When "ON", the current signal is added.
+    When "ON", the list of signals signalled are added separated by comma.
 */
 
 uchar *debug_sync_value_ptr(THD *thd)
@@ -1628,26 +1659,28 @@ uchar *debug_sync_value_ptr(THD *thd)
 
   if (opt_debug_sync_timeout)
   {
-    static char on[]= "ON - current signal: '"; 
+    std::string signals_on("ON - signals: '");
+    static char sep[]= ",";
 
-    // Ensure exclusive access to debug_sync_global.ds_signal
+    // Ensure exclusive access to debug_sync_global.ds_signal_set
     mysql_mutex_lock(&debug_sync_global.ds_mutex);
 
-    size_t lgt= (sizeof(on) /* includes '\0' */ +
-                 debug_sync_global.ds_signal.length() + 1 /* for '\'' */);
-    char *vend;
-    char *vptr;
+    signal_event_set::const_iterator iter;
+    for (iter= debug_sync_global.ds_signal_set.begin();
+         iter != debug_sync_global.ds_signal_set.end(); )
+    {
+      signals_on.append(*iter);
+      if ((++iter) != debug_sync_global.ds_signal_set.end())
+        signals_on.append(sep);
+    }
+    signals_on.append("'");
+
+    const char *c_str= signals_on.c_str();
+    const size_t lgt= strlen(c_str) + 1;
 
     if ((value= (char*) alloc_root(thd->mem_root, lgt)))
-    {
-      vend= value + lgt - 1; /* reserve space for '\0'. */
-      vptr= debug_sync_bmove_len(value, vend, STRING_WITH_LEN(on));
-      vptr= debug_sync_bmove_len(vptr, vend, debug_sync_global.ds_signal.ptr(),
-                                 debug_sync_global.ds_signal.length());
-      if (vptr < vend)
-        *(vptr++)= '\'';
-      *vptr= '\0'; /* We have one byte reserved for the worst case. */
-    }
+      memcpy(value, c_str, lgt);
+
     mysql_mutex_unlock(&debug_sync_global.ds_mutex);
   }
   else
@@ -1658,6 +1691,62 @@ uchar *debug_sync_value_ptr(THD *thd)
   }
 
   DBUG_RETURN((uchar*) value);
+}
+
+
+/**
+  Return true if the signal is found in global signal list.
+
+  @param signal Signal name identifying the signal.
+
+  @note
+    If signal is found in the global signal set, it means that the
+    signal thread has signalled to the waiting thread. This method
+    must be called with the debug_sync_global.ds_mutex held.
+
+  @eretval true  if signal is found in the global signal list.
+  @retval false otherwise.
+*/
+
+static inline bool is_signalled(const std::string *signal_name)
+{
+  return (debug_sync_global.ds_signal_set.find(*signal_name) !=
+          debug_sync_global.ds_signal_set.end());
+}
+
+
+/**
+  Return false if signal has been added to global signal list.
+
+  @param signal signal name that is to be added to the global signal
+         list.
+
+  @note
+    This method add signal name to the global signal list and signals
+    the waiting thread that this signal has been emitted. This method
+    must be called with the debug_sync_global.ds_mutex held.
+*/
+
+static inline void add_signal_event(const std::string *signal_name)
+{
+  debug_sync_global.ds_signal_set.insert(*signal_name);
+}
+
+
+/**
+  Remove the signal from the global signal list.
+
+  @param signal signal name to be removed from the global signal list.
+
+  @note
+    This method erases the signal from the signal list.  This happens
+    when the wait thread has processed the signal event from the
+    signalling thread. This method should be called with the
+    debug_sync_global.ds_mutex held.
+*/
+static inline void clear_signal_event(const std::string *signal_name)
+{
+  debug_sync_global.ds_signal_set.erase(*signal_name);
 }
 
 
@@ -1712,7 +1801,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
 
     /*
       Take mutex to ensure that only one thread access
-      debug_sync_global.ds_signal at a time.  Need to take mutex for
+      debug_sync_global.ds_signal_set at a time.  Need to take mutex for
       read access too, to create a memory barrier in order to avoid that
       threads just reads an old cached version of the signal.
     */
@@ -1720,15 +1809,9 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
 
     if (action->signal.length())
     {
-      /* Copy the signal to the global variable. */
-      if (debug_sync_global.ds_signal.copy(action->signal))
-      {
-        /*
-          Error is reported by my_malloc().
-          We must disable the facility. We have no way to return an error.
-        */
-        debug_sync_emergency_disable(); /* purecov: tested */
-      }
+      std::string signal= action->signal.ptr();
+      /* Copy the signal to the global set. */
+      add_signal_event(&signal);
       /* Wake threads waiting in a sync point. */
       mysql_cond_broadcast(&debug_sync_global.ds_cond);
       DBUG_PRINT("debug_sync_exec", ("signal '%s'  at: '%s'",
@@ -1741,6 +1824,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
       mysql_cond_t  *old_cond= 0;
       int             error= 0;
       struct timespec abstime;
+      std::string wait_for= action->wait_for.ptr();
 
       /*
         We don't use enter_cond()/exit_cond(). They do not save old
@@ -1763,30 +1847,27 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
 
       set_timespec(abstime, action->timeout);
       DBUG_EXECUTE("debug_sync_exec", {
-          /* Functions as DBUG_PRINT args can change keyword and line nr. */
-          const char *sig_glob= debug_sync_global.ds_signal.c_ptr();
           DBUG_PRINT("debug_sync_exec",
-                     ("wait for '%s'  at: '%s'  curr: '%s'",
-                      sig_wait, dsp_name, sig_glob));});
-
+                     ("wait for '%s'  at: '%s'",
+                      sig_wait, dsp_name));});
       /*
         Wait until global signal string matches the wait_for string.
         Interrupt when thread or query is killed or facility disabled.
         The facility can become disabled when some thread cannot get
         the required dynamic memory allocated.
       */
-      while (stringcmp(&debug_sync_global.ds_signal, &action->wait_for) &&
+      while (!is_signalled(&wait_for) &&
              !thd->killed && opt_debug_sync_timeout)
       {
         error= mysql_cond_timedwait(&debug_sync_global.ds_cond,
                                     &debug_sync_global.ds_mutex,
                                     &abstime);
+
         DBUG_EXECUTE("debug_sync", {
             /* Functions as DBUG_PRINT args can change keyword and line nr. */
-            const char *sig_glob= debug_sync_global.ds_signal.c_ptr();
             DBUG_PRINT("debug_sync",
-                       ("awoke from %s  global: %s  error: %d",
-                        sig_wait, sig_glob, error));});
+                       ("awoke from %s error: %d", sig_wait, error)); });
+
         if (error == ETIMEDOUT || error == ETIME)
         {
           // We should not make the statement fail, even if in strict mode.
@@ -1800,6 +1881,9 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         }
         error= 0;
       }
+      if (action->clear_event)
+        clear_signal_event(&wait_for);
+
       DBUG_EXECUTE("debug_sync_exec",
                    if (thd->killed)
                      DBUG_PRINT("debug_sync_exec",
@@ -1912,7 +1996,7 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len)
 
   @description
     The function is similar to @c debug_sync_eval_action but is
-    to be called immediately from the server code rather than 
+    to be called immediately from the server code rather than
     to be triggered by setting a value to DEBUG_SYNC system variable.
 
   @note
@@ -1921,7 +2005,7 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len)
 
     Caution.
     The function allocates in THD::mem_root and therefore
-    is not recommended to be deployed inside big loops.    
+    is not recommended to be deployed inside big loops.
 */
 
 bool debug_sync_set_action(THD *thd, const char *action_str, size_t len)
@@ -1931,7 +2015,7 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len)
   DBUG_ENTER("debug_sync_set_action");
   DBUG_ASSERT(thd);
   DBUG_ASSERT(action_str);
-  
+
   value= strmake_root(thd->mem_root, action_str, len);
   rc= debug_sync_eval_action(thd, value);
   DBUG_RETURN(rc);
