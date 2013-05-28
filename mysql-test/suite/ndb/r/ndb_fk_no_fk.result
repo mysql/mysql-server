@@ -510,11 +510,11 @@ y int,
 foreign key (y) references mydb1.t1(z)
 ) engine=ndb;
 Warnings:
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
+Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
 Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
 Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
 create table mydb1.t2 (
 pk1 int not null primary key,
 d int,
@@ -596,8 +596,8 @@ drop database mydb1;
 Warnings:
 Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
 Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
 Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
 
 ndb_show_tables completed.....
@@ -609,10 +609,10 @@ count(*)
 # Drop t1 and the 5 remaining mocks
 drop table t1;
 Warnings:
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
+Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
 set @@ndb_show_foreign_key_mock_tables= 0;
 
