@@ -2446,6 +2446,8 @@ BackupRestore::endOfTables(){
     list.push_back(idx);
   }
 
+  if (m_disable_indexes)
+    return true;
   info << "Create foreign keys" << endl;
   for (unsigned i = 0; i < m_fks.size(); i++)
   {
@@ -2498,7 +2500,7 @@ BackupRestore::endOfTables(){
           err << "Foreign key " << fkname << " parent index "
               << db_name.c_str() << "." << table_name.c_str()
               << "." << index_name.c_str()
-              << "not found: " << dict->getNdbError() << endl;
+              << " not found: " << dict->getNdbError() << endl;
           return false;
         }
       }
@@ -2529,7 +2531,7 @@ BackupRestore::endOfTables(){
           err << "Foreign key " << fkname << " child index "
               << db_name.c_str() << "." << table_name.c_str()
               << "." << index_name.c_str()
-              << "not found: " << dict->getNdbError() << endl;
+              << " not found: " << dict->getNdbError() << endl;
           return false;
         }
       }
