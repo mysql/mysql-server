@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# a poor man's profiler
+# http://webcache.googleusercontent.com/search?q=cache:http://mituzas.lt/2009/02/15/poor-mans-contention-profiling/
+
 nsamples=1
 sleeptime=1
 
@@ -13,10 +16,7 @@ while [ $# -gt 0 ] ; do
     shift
 done
 
-# change the process name
-pid=$*
-
-# may need the cilk gdb
+pid=$1
 
 for x in $(seq 1 $nsamples)
   do
