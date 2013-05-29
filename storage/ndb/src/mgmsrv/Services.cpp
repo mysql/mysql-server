@@ -170,6 +170,7 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("insert error", &MgmApiSession::insertError, ""),
     MGM_ARG("node", Int, Mandatory, "Node to receive error"),
     MGM_ARG("error", Int, Mandatory, "Errorcode to insert"),
+    MGM_ARG("extra", Int, Optional, "Extra info to error insert"),
 
   MGM_CMD("set trace", &MgmApiSession::setTrace, ""),
     MGM_ARG("node", Int, Mandatory, "Node"),
@@ -616,11 +617,14 @@ MgmApiSession::getConfig(Parser_t::Context &,
 void
 MgmApiSession::insertError(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
+  Uint32 extra = 0;
   Uint32 node = 0, error = 0;
   int result= 0;
 
   args.get("node", &node);
   args.get("error", &error);
+  const bool hasExtra = args.get("extra", &extra);
+  Uint32 * extraptr = hasExtra ? &extra : 0;
 
   if(node==m_mgmsrv.getOwnNodeId()
      && error < MGM_ERROR_MAX_INJECT_SESSION_ONLY)
@@ -631,7 +635,7 @@ MgmApiSession::insertError(Parser<MgmApiSession>::Context &,
   }
   else
   {
-    result= m_mgmsrv.insertError(node, error);
+    result= m_mgmsrv.insertError(node, error, extraptr);
   }
 
   m_output->println("insert error reply");
