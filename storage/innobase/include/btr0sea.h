@@ -115,22 +115,19 @@ btr_search_guess_on_hash(
 					currently has on btr_search_latch:
 					RW_S_LATCH, RW_X_LATCH, or 0 */
 	mtr_t*		mtr);		/*!< in: mtr */
-/********************************************************************//**
-Moves or deletes hash entries for moved records. If new_page is already hashed,
-then the hash index for page, if any, is dropped. If new_page is not hashed,
-and page is hashed, then a new hash index is built to new_page with the same
-parameters as page (this often happens when a page is split). */
+/** Move or delete hash entries for moved records.
+@param[in]	new_block	recipient of the records;
+any existing hash index for this page will be dropped.
+@param[in]	block		donator of the records;
+if only this page is hashed, then a hash index will be
+built on new_block with the same parameters (usually on a page split)
+@param[in/out]	index		index tree */
 
 void
 btr_search_move_or_delete_hash_entries(
-/*===================================*/
-	buf_block_t*	new_block,	/*!< in: records are copied
-					to this page */
-	buf_block_t*	block,		/*!< in: index page from which
-					records were copied, and the
-					copied records will be deleted
-					from this page */
-	dict_index_t*	index);		/*!< in: record descriptor */
+	buf_block_t*	new_block,
+	buf_block_t*	block,
+	dict_index_t*	index);
 /********************************************************************//**
 Drops a page hash index. */
 
