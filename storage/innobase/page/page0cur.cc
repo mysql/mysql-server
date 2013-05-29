@@ -317,7 +317,7 @@ page_cur_search_with_match(
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
-	page_check_dir(page);
+	ut_d(page_check_dir(page));
 
 #ifdef PAGE_CUR_ADAPT
 	if (page_is_leaf(page)

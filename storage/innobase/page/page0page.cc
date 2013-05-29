@@ -1922,6 +1922,7 @@ page_rec_validate(
 }
 
 #ifndef UNIV_HOTBACKUP
+#ifdef UNIV_DEBUG
 /***************************************************************//**
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
@@ -1957,6 +1958,7 @@ page_check_dir(
 		buf_page_print(page, 0, 0);
 	}
 }
+#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
