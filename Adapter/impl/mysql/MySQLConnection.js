@@ -454,7 +454,7 @@ function ReadOperation(dbTableHandler, sql, keys, callback) {
         op.result.value = rows[0];
         op.result.success = true;
         // convert the felix result into the user result
-        op.result.value = dbTableHandler.applyMappingToResult(op.result.value);
+        op.result.value = dbTableHandler.applyMappingToResult(op.result.value, 'mysql');
         if (typeof(op.callback) === 'function') {
           // call the UserContext callback
           op.callback(null, op);
@@ -701,7 +701,7 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
   udebug.log_detail('dbSession.buildInsertOperation with tableHandler:', 
                     dbTableHandler.dbTable.name, 'object:', object);
   getMetadata(dbTableHandler);
-  var fields = dbTableHandler.getFields(object, true);
+  var fields = dbTableHandler.getFields(object, true, 'mysql');
   var insertSQL = dbTableHandler.mysql.insertSQL;
   return new InsertOperation(insertSQL, fields, callback);
 };
