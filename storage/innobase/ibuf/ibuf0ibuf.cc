@@ -4077,8 +4077,7 @@ dump:
 		DBUG_VOID_RETURN;
 	}
 
-	low_match = page_cur_search(block, index, entry,
-				    PAGE_CUR_LE, &page_cur);
+	low_match = page_cur_search(block, index, entry, &page_cur);
 
 	heap = mem_heap_create(
 		sizeof(upd_t)
@@ -4193,8 +4192,7 @@ ibuf_set_del_mark(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 
-	low_match = page_cur_search(
-		block, index, entry, PAGE_CUR_LE, &page_cur);
+	low_match = page_cur_search(block, index, entry, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
 		rec_t*		rec;
@@ -4259,8 +4257,7 @@ ibuf_delete(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 
-	low_match = page_cur_search(
-		block, index, entry, PAGE_CUR_LE, &page_cur);
+	low_match = page_cur_search(block, index, entry, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
 		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
