@@ -27,6 +27,7 @@ Created 2007/03/16/03 Sunny Bains
 #define INNOBASE_FST0AST_H
 
 #include "univ.i"
+#include "ha_prototypes.h"
 #include "mem0mem.h"
 
 /* The type of AST Node */
