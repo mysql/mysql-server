@@ -1415,22 +1415,19 @@ exit_func:
 	}
 }
 
-/********************************************************************//**
-Moves or deletes hash entries for moved records. If new_page is already hashed,
-then the hash index for page, if any, is dropped. If new_page is not hashed,
-and page is hashed, then a new hash index is built to new_page with the same
-parameters as page (this often happens when a page is split). */
+/** Move or delete hash entries for moved records.
+@param[in]	new_block	recipient of the records;
+any existing hash index for this page will be dropped.
+@param[in]	block		donator of the records;
+if only this page is hashed, then a hash index will be
+built on new_block with the same parameters (usually on a page split)
+@param[in/out]	index		index tree */
 
 void
 btr_search_move_or_delete_hash_entries(
-/*===================================*/
-	buf_block_t*	new_block,	/*!< in: records are copied
-					to this page */
-	buf_block_t*	block,		/*!< in: index page from which
-					records were copied, and the
-					copied records will be deleted
-					from this page */
-	dict_index_t*	index)		/*!< in: record descriptor */
+	buf_block_t*	new_block,
+	buf_block_t*	block,
+	dict_index_t*	index)
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
@@ -1439,12 +1436,11 @@ btr_search_move_or_delete_hash_entries(
 
 	rw_lock_s_lock(&btr_search_latch);
 
-	ut_a(!new_block->index || new_block->index == index);
-	ut_a(!block->index || block->index == index);
 	ut_a(!(new_block->index || block->index)
 	     || !dict_index_is_ibuf(index));
 
 	if (new_block->index) {
+		ut_a(new_block->index == index);
 
 		rw_lock_s_unlock(&btr_search_latch);
 
@@ -1456,6 +1452,8 @@ btr_search_move_or_delete_hash_entries(
 	if (block->index) {
 		ulint	n_fields = block->curr_n_fields;
 		ibool	left_side = block->curr_left_side;
+
+		ut_a(block->index == index);
 
 		new_block->n_fields = block->curr_n_fields;
 		new_block->left_side = left_side;
