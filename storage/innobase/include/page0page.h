@@ -856,50 +856,60 @@ page_copy_rec_list_end_no_locks(
 	const rec_t*		rec,
 	const dict_index_t*	index,
 	mtr_t*			mtr);
-/*************************************************************//**
-Copies records from page to new_page, from the given record onward,
+/** Copy records from block to new_block, from a given record onward,
 including that record. Infimum and supremum records are not copied.
-The records are copied to the start of the record list on new_page.
+The records are copied to the start of the record list on new_block.
 
 IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
+@param[in/out]	new_block	index page to copy to
+@param[in/out]	block		index page to copy from
+@param[in]	rec		record on page, NULL=page infimum
+@param[in/out]	index		index tree
+@param[in/out]	mtr		mini-transaction
+
 @return pointer to the original successor of the infimum record on
-new_page, or NULL on zip overflow (new_block will be decompressed) */
+new_block
+@retval NULL on zip overflow (new_block will be decompressed) */
 
 const rec_t*
 page_copy_rec_list_end(
-/*===================*/
-	buf_block_t*	new_block,	/*!< in/out: index page to copy to */
-	buf_block_t*	block,		/*!< in: index page containing rec */
-	rec_t*		rec,		/*!< in: record on page */
-	dict_index_t*	index,		/*!< in: record descriptor */
-	mtr_t*		mtr)		/*!< in: mtr */
-	__attribute__((nonnull));
-/*************************************************************//**
-Copies records from page to new_page, up to the given record, NOT
-including that record. Infimum and supremum records are not copied.
-The records are copied to the end of the record list on new_page.
+	buf_block_t*		new_block,
+	buf_block_t*		block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	mtr_t*			mtr)
+	__attribute__((nonnull(1,2,4,5)));
+/** Copy records from block to new_block, up to the given record,
+NOT including that record. Infimum and supremum records are not copied.
+The records are copied to the end of the record list on new_block.
 
 IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return pointer to the original predecessor of the supremum record on
-new_page, or NULL on zip overflow (new_block will be decompressed) */
+@param[in/out]	new_block	index page to copy to
+@param[in/out]	block		index page to copy from
+@param[in]	rec		record on page, NULL=page supremum
+@param[in/out]	index		index tree
+@param[in/out]	mtr		mini-transaction
 
-rec_t*
+@return pointer to the original predecessor of the supremum record on
+new_block
+@retval NULL on zip overflow (new_block will be decompressed) */
+
+const rec_t*
 page_copy_rec_list_start(
-/*=====================*/
-	buf_block_t*	new_block,	/*!< in/out: index page to copy to */
-	buf_block_t*	block,		/*!< in: index page containing rec */
-	rec_t*		rec,		/*!< in: record on page */
-	dict_index_t*	index,		/*!< in: record descriptor */
-	mtr_t*		mtr)		/*!< in: mtr */
-	__attribute__((nonnull));
+	buf_block_t*		new_block,
+	buf_block_t*		block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	mtr_t*			mtr)
+	__attribute__((nonnull(1,2,4,5)));
 /*************************************************************//**
 Deletes records from a page from a given record onward, including that record.
 The infimum and supremum records are not deleted. */
