@@ -251,7 +251,6 @@ SET @cond = "invalid";
 GET DIAGNOSTICS CONDITION @cond @var1 = CLASS_ORIGIN;
 Warnings:
 Error	1758	Invalid condition number
-Error	1758	Invalid condition number
 SELECT COUNT(max_questions) INTO @var FROM mysql.user;
 CREATE PROCEDURE p1()
 BEGIN
@@ -267,6 +266,8 @@ DECLARE var INT;
 GET DIAGNOSTICS CONDITION cond var = CLASS_ORIGIN;
 END|
 CALL p1();
+Warnings:
+Error	1758	Invalid condition number
 DROP PROCEDURE p1;
 #
 # Test GET DIAGNOSTICS runtime
@@ -467,10 +468,6 @@ cursor_name
 message_text	Truncated incorrect DECIMAL value: ''
 mysql_errno	1292
 returned_sqlstate	22007
-Warnings:
-Level	Warning
-Code	1292
-Message	Truncated incorrect DECIMAL value: ''
 DROP PROCEDURE p1;
 CREATE PROCEDURE p1()
 BEGIN
@@ -490,13 +487,6 @@ errno1	1292
 msg1	Truncated incorrect DECIMAL value: ''
 errno2	1758
 msg2	Invalid condition number
-Warnings:
-Level	Warning
-Code	1292
-Message	Truncated incorrect DECIMAL value: ''
-Level	Error
-Code	1758
-Message	Invalid condition number
 DROP PROCEDURE p1;
 
 # Interaction with SIGNAL
@@ -607,7 +597,7 @@ SELECT var, @var;
 END|
 CALL p1();
 var	@var
-1	1
+0	0
 DROP PROCEDURE p1;
 
 # Setting TABLE_NAME is currently not implemented.
@@ -638,8 +628,6 @@ CREATE TABLE t1 (a INT);
 CALL p1();
 v
 T
-Warnings:
-Note	1050	Table 't1' already exists
 DROP TABLE t1;
 DROP PROCEDURE p1;
 
@@ -678,13 +666,13 @@ SIGNAL SQLSTATE '01002';
 GET CURRENT DIAGNOSTICS CONDITION 1 @y = RETURNED_SQLSTATE;
 END;
 SIGNAL SQLSTATE '01001';
-SELECT @x, @y;
 END|
 CALL p1();
-@x	@y
-01001	01002
 Warnings:
 Warning	1642	Unhandled user-defined warning condition
+SELECT @x, @y;
+@x	@y
+01001	01002
 DROP PROCEDURE p1;
 
 # Using OUT and INOUT parameters as the target variables.
@@ -854,35 +842,29 @@ CREATE PROCEDURE p1()
 BEGIN
 DECLARE EXIT HANDLER FOR SQLEXCEPTION
 BEGIN
-DECLARE msg1 TEXT;
-DECLARE errno1 INT;
-DECLARE msg2 TEXT;
-DECLARE errno2 INT;
-DECLARE msg4 TEXT;
-DECLARE errno4 INT;
 # Should be identical
-GET CURRENT DIAGNOSTICS CONDITION 1 msg1 = MESSAGE_TEXT, errno1 = MYSQL_ERRNO;
-SELECT msg1, errno1;
-GET STACKED DIAGNOSTICS CONDITION 1 msg2 = MESSAGE_TEXT, errno2 = MYSQL_ERRNO;
-SELECT msg2, errno2;
+GET CURRENT DIAGNOSTICS CONDITION 1 @msg1 = MESSAGE_TEXT, @errno1 = MYSQL_ERRNO;
+GET STACKED DIAGNOSTICS CONDITION 1 @msg2 = MESSAGE_TEXT, @errno2 = MYSQL_ERRNO;
+SELECT @msg1, @errno1;
+SELECT @msg2, @errno2;
 SELECT * FROM t1;   # Clear first diagnostics area
 # CURRENT should be empty, STACKED unchanged
 GET CURRENT DIAGNOSTICS @cno = NUMBER;
 SELECT @cno;
-GET STACKED DIAGNOSTICS CONDITION 1 msg4 = MESSAGE_TEXT, errno4 = MYSQL_ERRNO;
-SELECT msg4, errno4;
+GET STACKED DIAGNOSTICS CONDITION 1 @msg4 = MESSAGE_TEXT, @errno4 = MYSQL_ERRNO;
+SELECT @msg4, @errno4;
 END;
 DROP TABLE non_existent;
 END|
 CALL p1();
-msg1	errno1
+@msg1	@errno1
 Unknown table 'test.non_existent'	1051
-msg2	errno2
+@msg2	@errno2
 Unknown table 'test.non_existent'	1051
 a
 @cno
 0
-msg4	errno4
+@msg4	@errno4
 Unknown table 'test.non_existent'	1051
 DROP PROCEDURE p1;
 DROP TABLE t1;
@@ -893,39 +875,32 @@ CREATE PROCEDURE p1()
 BEGIN
 DECLARE CONTINUE HANDLER FOR SQLWARNING
 BEGIN
-DECLARE msg1 TEXT;
-DECLARE errno1 INT;
-DECLARE msg2 TEXT;
-DECLARE errno2 INT;
-DECLARE msg3 TEXT;
-DECLARE errno3 INT;
-DECLARE msg4 TEXT;
-DECLARE errno4 INT;
 # Should be identical
-GET CURRENT DIAGNOSTICS CONDITION 1 msg1 = MESSAGE_TEXT, errno1 = MYSQL_ERRNO;
-SELECT msg1, errno1;
-GET STACKED DIAGNOSTICS CONDITION 1 msg2 = MESSAGE_TEXT, errno2 = MYSQL_ERRNO;
-SELECT msg2, errno2;
+GET CURRENT DIAGNOSTICS CONDITION 1 @msg1 = MESSAGE_TEXT, @errno1 = MYSQL_ERRNO;
+SELECT @msg1, @errno1;
+GET STACKED DIAGNOSTICS CONDITION 1 @msg2 = MESSAGE_TEXT, @errno2 = MYSQL_ERRNO;
+SELECT @msg2, @errno2;
 RESIGNAL SET MYSQL_ERRNO= 9999, MESSAGE_TEXT= 'Changed by resignal';
 # Should be changed, but still identical
-GET CURRENT DIAGNOSTICS CONDITION 1 msg3 = MESSAGE_TEXT, errno3 = MYSQL_ERRNO;
-SELECT msg3, errno3;
-GET STACKED DIAGNOSTICS CONDITION 1 msg4 = MESSAGE_TEXT, errno4 = MYSQL_ERRNO;
-SELECT msg4, errno4;
+GET CURRENT DIAGNOSTICS CONDITION 1 @msg3 = MESSAGE_TEXT, @errno3 = MYSQL_ERRNO;
+SELECT @msg3, @errno3;
+GET STACKED DIAGNOSTICS CONDITION 1 @msg4 = MESSAGE_TEXT, @errno4 = MYSQL_ERRNO;
+SELECT @msg4, @errno4;
+RESIGNAL SET MYSQL_ERRNO= 9999, MESSAGE_TEXT= 'Changed by resignal, for caller';
 END;
 SELECT 10 + 'a';
 END|
 CALL p1();
 10 + 'a'
 10
-msg1	errno1
+@msg1	@errno1
 Truncated incorrect DOUBLE value: 'a'	1292
-msg2	errno2
+@msg2	@errno2
 Truncated incorrect DOUBLE value: 'a'	1292
-msg3	errno3
+@msg3	@errno3
 Changed by resignal	9999
-msg4	errno4
+@msg4	@errno4
 Changed by resignal	9999
 Warnings:
-Warning	9999	Changed by resignal
+Warning	9999	Changed by resignal, for caller
 DROP PROCEDURE p1;

@@ -132,9 +132,10 @@ SET DEBUG = '+d,innodb_test_no_foreign_idx';
 ALTER TABLE `#child` ADD CONSTRAINT fk_40 FOREIGN KEY (a1, a2)
 REFERENCES `#parent`(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SET DEBUG = '-d,innodb_test_no_foreign_idx';
 
 SHOW ERRORS;
+
+SET DEBUG = '-d,innodb_test_no_foreign_idx';
 
 SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
 
@@ -147,9 +148,10 @@ SET DEBUG = '+d,innodb_test_no_reference_idx';
 ALTER TABLE child ADD CONSTRAINT fk_42 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SET DEBUG = '-d,innodb_test_no_reference_idx';
 
 SHOW ERRORS;
+
+SET DEBUG = '-d,innodb_test_no_reference_idx';
 
 # This is to test the scenario no index on referenced table,
 # alter table should fail
@@ -171,9 +173,10 @@ SET DEBUG = '+d,innodb_test_cannot_add_fk_system';
 ALTER TABLE `#child` ADD CONSTRAINT fk_43 FOREIGN KEY (a1, a2)
 REFERENCES `#parent`(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 
 SHOW ERRORS;
+
+SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 
 DROP TABLE `#child`;
 DROP TABLE `#parent`;
