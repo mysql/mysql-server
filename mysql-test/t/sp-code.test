@@ -679,14 +679,18 @@ BEGIN
 
     DECLARE CONTINUE HANDLER FOR SQLWARNING
     BEGIN
+      GET DIAGNOSTICS @n = NUMBER;
+      GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
       SELECT "Warning found!";
-      SHOW WARNINGS;
+      SELECT @err_no, @err_txt;
     END;
 
     DECLARE EXIT HANDLER FOR NOT FOUND
     BEGIN
+      GET DIAGNOSTICS @n = NUMBER;
+      GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
       SELECT "End of Result Set found!";
-      SHOW WARNINGS;
+      SELECT @err_no, @err_txt;
     END;
 
     WHILE TRUE DO
@@ -957,3 +961,26 @@ DROP FUNCTION f6;
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
 DROP VIEW t3;
+
+--echo
+--echo # SHOW ... CODE
+--echo #
+
+DELIMITER |;
+
+CREATE PROCEDURE p11_many_handlers ()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR 1050             SELECT "1050 for 401a, please";
+  DECLARE EXIT     HANDLER FOR NOT FOUND        SELECT "a place not found";
+  DECLARE CONTINUE HANDLER FOR SQLWARNING       SELECT "a warn place";
+  DECLARE EXIT     HANDLER FOR SQLEXCEPTION     SELECT "an exceptional place";
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '01000' SELECT "state of the nation";
+  BEGIN
+    DECLARE EXIT   HANDLER FOR NOT FOUND, 1,2   SELECT "multi multi";
+  END;
+END|
+
+DELIMITER ;|
+
+SHOW PROCEDURE CODE p11_many_handlers;
+DROP PROCEDURE p11_many_handlers;

@@ -436,7 +436,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   String old_packet;
   Object_creation_ctx *saved_creation_ctx;
   Diagnostics_area *caller_da= thd->get_stmt_da();
-  Diagnostics_area sp_da(caller_da->statement_id(), false);
+  Diagnostics_area sp_da(false);
 
   /*
     Just reporting a stack overrun error
@@ -614,9 +614,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       break;
     }
 
-    /* Reset number of warnings for this query. */
-    thd->get_stmt_da()->reset_statement_cond_count();
-
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
     /*
@@ -719,9 +716,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
   /*
     - conditions generated during trigger execution should not be
-    propagated to the caller on success;
+    propagated to the caller on success;   (merge_da_on_success)
     - if there was an exception during execution, conditions should be
-    propagated to the caller in any case.
+    propagated to the caller in any case.  (err_status)
   */
   if (err_status || merge_da_on_success)
   {
@@ -732,45 +729,30 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       Diagnostics Area.
 
       On the other hand, if the routine body is not empty and some statement
-      in the routine generates a condition or uses tables, Diagnostics Area
-      is guaranteed to have changed. In this case we know that the routine
-      Diagnostics Area contains only new conditions, and thus we perform a copy.
+      in the routine generates a condition, Diagnostics Area is guaranteed to
+      have changed. In this case we know that the routine Diagnostics Area
+      contains only new conditions, and thus we perform a copy.
+
+      We don't use push_warning() here as to avoid invocation of
+      condition handlers or escalation of warnings to errors.
     */
-    if (caller_da->diagnostics_area_changed(&sp_da))
+    if (!err_status && thd->get_stmt_da() != &sp_da)
     {
       /*
-        If the invocation of the routine was a standalone statement,
-        rather than a sub-statement, in other words, if it's a CALL
-        of a procedure, rather than invocation of a function or a
-        trigger, we need to clear the current contents of the caller's
-        Diagnostics Area.
-
-        This is per MySQL rules: if a statement generates a warning,
-        warnings from the previous statement are flushed.  Normally
-        it's done in push_warning(). However, here we don't use
-        push_warning() to avoid invocation of condition handlers or
-        escalation of warnings to errors.
+        If we are RETURNing directly from a handler and the handler has
+        executed successfully, only transfer the conditions that were
+        raised during handler execution. Conditions that were present
+        when the handler was activated, are considered handled.
       */
-      caller_da->opt_reset_condition_info(thd->query_id);
-
-      if (!err_status && thd->get_stmt_da() != &sp_da)
-      {
-        /*
-          If we are RETURNing directly from a handler and the handler has
-          executed successfully, only transfer the conditions that were
-          raised during handler execution. Conditions that were present
-          when the handler was activated, are considered handled.
-        */
-        caller_da->copy_new_sql_conditions(thd, thd->get_stmt_da());
-      }
-      else // err_status || thd->get_stmt_da() == sp_da
-      {
-        /*
-          If we ended with an exception or the SP exited without any handler
-          active, transfer all conditions to the Diagnostics Area of the caller.
-        */
-        caller_da->copy_sql_conditions_from_da(thd, thd->get_stmt_da());
-      }
+      caller_da->copy_new_sql_conditions(thd, thd->get_stmt_da());
+    }
+    else // err_status || thd->get_stmt_da() == sp_da
+    {
+      /*
+        If we ended with an exception, or the SP exited without any handler
+        active, transfer all conditions to the Diagnostics Area of the caller.
+      */
+      caller_da->copy_sql_conditions_from_da(thd, thd->get_stmt_da());
     }
   }
 

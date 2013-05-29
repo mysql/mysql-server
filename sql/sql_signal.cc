@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -417,7 +417,7 @@ bool Sql_cmd_signal::execute(THD *thd)
 
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->set_row_count_func(0);
-  thd->get_stmt_da()->reset_condition_info(thd->query_id);
+  thd->get_stmt_da()->reset_condition_info(thd);
 
   DBUG_ASSERT(thd->lex->query_tables == NULL);
 
@@ -471,12 +471,10 @@ bool Sql_cmd_resignal::execute(THD *thd)
 
   thd->pop_diagnostics_area();
 
-  /*
-    This is a way to force sql_conditions from the current Diagnostics Area
-    to be passed to the caller's Diagnostics Area.
-  */
   Diagnostics_area *da= thd->get_stmt_da();
-  da->set_statement_id(thd->query_id);
+
+  // allow set_error_status(), in raise_condition() or here.
+  da->reset_diagnostics_area();
 
   Sql_condition *raised= NULL;
 
@@ -550,7 +548,7 @@ bool Sql_cmd_resignal::execute(THD *thd)
     just add the DA back. It will in any case be popped by the SP
     exit code.
   */
-  frame->handler_da.reset_condition_info(da->statement_id());
+  frame->handler_da.reset_condition_info(thd);
   frame->handler_da.reset_diagnostics_area();
   thd->push_diagnostics_area(&frame->handler_da);
 
