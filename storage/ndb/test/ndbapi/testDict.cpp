@@ -7372,7 +7372,7 @@ int
 runCreateHashmaps(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
-  int nodeId = restarter.getMasterNodeId();
+  // int nodeId = restarter.getMasterNodeId();
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
 
