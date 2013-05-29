@@ -28,8 +28,10 @@
 var util   = require('util'),
     udebug = unified_debug.getLogger("MySQLDictionary.js");
 
-exports.DataDictionary = function(pooledConnection) {
+exports.DataDictionary = function(pooledConnection, dbConnectionPool) {
   this.connection = pooledConnection;
+  // need connection pool only for type converters
+  this.dbConnectionPool = dbConnectionPool;
 };
 
 exports.DataDictionary.prototype.listTables = function(databaseName, user_callback) {
@@ -52,6 +54,7 @@ exports.DataDictionary.prototype.listTables = function(databaseName, user_callba
 
 
 exports.DataDictionary.prototype.getTableMetadata = function(databaseName, tableName, user_callback) {
+  var dbConnectionPool = this.dbConnectionPool;
 
   // get precision from columnSize e.g. 10,2
   var getPrecision = function(columnSize) {
@@ -258,6 +261,13 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           break;
         }
         
+        // check if there is a type converter for the column type
+        var typeConverter = dbConnectionPool.getTypeConverter(columnType);
+        if (typeConverter) {
+          column.typeConverter = {};
+          column.typeConverter.mysql = typeConverter;
+        }
+
         // continue parsing the rest of the column definition line
 
         // check for character set
