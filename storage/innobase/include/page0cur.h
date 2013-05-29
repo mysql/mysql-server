@@ -341,6 +341,8 @@ public:
 		  m_block (block), m_rec (rec), m_offsets (0) {
 		ut_ad(m_comp == dict_table_is_comp(m_index->table));
 		ut_ad(fil_page_get_type(getPage()) == FIL_PAGE_INDEX);
+		ut_ad(mach_read_from_2(getPage() + UNIV_PAGE_SIZE - 10)
+		      == ulint(m_comp ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
 		if (!m_rec) {
 			m_rec = getPage() + (m_comp
@@ -372,6 +374,8 @@ public:
 		  m_offsets (0) {
 		ut_ad(m_comp == dict_table_is_comp(m_index->table));
 		ut_ad(fil_page_get_type(getPage()) == FIL_PAGE_INDEX);
+		ut_ad(mach_read_from_2(getPage() + UNIV_PAGE_SIZE - 10)
+		      == ulint(m_comp ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
 		if (!m_rec) {
 			m_rec = getPage() + (m_comp

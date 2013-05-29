@@ -529,12 +529,7 @@ page_copy_rec_list_end_no_locks(
 	const dict_index_t*	index,
 	mtr_t*			mtr)
 {
-	const page_t*		new_page= buf_block_get_frame(new_block);
-
 	btr_assert_not_corrupted(new_block, index);
-	ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
-	ut_ad(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
-	      (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
 	PageCur cur1(mtr, index, block, rec);
 
@@ -555,27 +550,32 @@ page_copy_rec_list_end_no_locks(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************//**
-Copies records from page to new_page, from a given record onward,
+/** Copy records from block to new_block, from a given record onward,
 including that record. Infimum and supremum records are not copied.
-The records are copied to the start of the record list on new_page.
+The records are copied to the start of the record list on new_block.
 
 IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
+@param[in/out]	new_block	index page to copy to
+@param[in/out]	block		index page to copy from
+@param[in]	rec		record on page, NULL=page infimum
+@param[in/out]	index		index tree
+@param[in/out]	mtr		mini-transaction
+
 @return pointer to the original successor of the infimum record on
-new_page, or NULL on zip overflow (new_block will be decompressed) */
+new_block
+@retval NULL on zip overflow (new_block will be decompressed) */
 
 const rec_t*
 page_copy_rec_list_end(
-/*===================*/
-	buf_block_t*	new_block,	/*!< in/out: index page to copy to */
-	buf_block_t*	block,		/*!< in: index page containing rec */
-	rec_t*		rec,		/*!< in: record on page */
-	dict_index_t*	index,		/*!< in: record descriptor */
-	mtr_t*		mtr)		/*!< in: mtr */
+	buf_block_t*		new_block,
+	buf_block_t*		block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	mtr_t*			mtr)
 {
 	PageCur dst(mtr, index, new_block);
 	PageCur src(mtr, index, block, rec);
@@ -651,6 +651,11 @@ page_copy_rec_list_end(
 
 	/* Update the lock table and possible hash index */
 
+	if (!rec) {
+		src.setBeforeFirst();
+		rec = src.getRec();
+	}
+
 	lock_move_rec_list_end(new_block, block, rec);
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
@@ -658,43 +663,45 @@ page_copy_rec_list_end(
 	return(dst.getRec());
 }
 
-/*************************************************************//**
-Copies records from page to new_page, up to the given record,
+/** Copy records from block to new_block, up to the given record,
 NOT including that record. Infimum and supremum records are not copied.
-The records are copied to the end of the record list on new_page.
+The records are copied to the end of the record list on new_block.
 
 IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return pointer to the original predecessor of the supremum record on
-new_page, or NULL on zip overflow (new_block will be decompressed) */
+@param[in/out]	new_block	index page to copy to
+@param[in/out]	block		index page to copy from
+@param[in]	rec		record on page, NULL=page supremum
+@param[in/out]	index		index tree
+@param[in/out]	mtr		mini-transaction
 
-rec_t*
+@return pointer to the original predecessor of the supremum record on
+new_block
+@retval NULL on zip overflow (new_block will be decompressed) */
+
+const rec_t*
 page_copy_rec_list_start(
-/*=====================*/
-	buf_block_t*	new_block,	/*!< in/out: index page to copy to */
-	buf_block_t*	block,		/*!< in: index page containing rec */
-	rec_t*		rec,		/*!< in: record on page */
-	dict_index_t*	index,		/*!< in: record descriptor */
-	mtr_t*		mtr)		/*!< in: mtr */
+	buf_block_t*		new_block,
+	buf_block_t*		block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	mtr_t*			mtr)
 {
+	const page_t*	page		= buf_block_get_frame(block);
 	page_t*		new_page	= buf_block_get_frame(new_block);
 	page_zip_des_t*	new_page_zip	= buf_block_get_page_zip(new_block);
 	ulint		log_mode	= 0 /* remove warning */;
 	rec_t*		ret		= page_rec_get_prev(
 		page_get_supremum_rec(new_page));
 
+	ut_ad(!rec || page_align(rec) == page);
+
 	btr_assert_not_corrupted(new_block, index);
-	ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
-	ut_ad(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
-	      (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
-	/* Here, "cur2" may be pointing to a user record or the
-	predefined infimum record. */
-
-	if (page_rec_is_infimum(rec)) {
+	if (rec && page_rec_is_infimum(rec)) {
 
 		return(ret);
 	}
@@ -713,7 +720,7 @@ page_copy_rec_list_start(
 		}
 	}
 
-	ut_ad(!cur1.isUser() == page_rec_is_supremum(rec));
+	ut_ad(!cur1.isUser() == !rec || page_rec_is_supremum(rec));
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
@@ -723,10 +730,10 @@ page_copy_rec_list_start(
 	max_trx_id is ignored for temp tables because it not required
 	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
-	    && page_is_leaf(page_align(rec))
+	    && page_is_leaf(page)
 	    && !dict_table_is_temporary(index->table)) {
 		page_update_max_trx_id(new_block, NULL,
-				       page_get_max_trx_id(page_align(rec)),
+				       page_get_max_trx_id(page),
 				       mtr);
 	}
 
@@ -770,6 +777,10 @@ zip_reorganize:
 	}
 
 	/* Update the lock table and possible hash index */
+
+	if (!rec) {
+		rec = page_get_supremum_rec(page);
+	}
 
 	lock_move_rec_list_start(new_block, block, rec, ret);
 

@@ -1248,9 +1248,8 @@ btr_page_reorganize_low(
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
 
-	page_copy_rec_list_end_no_locks(block, temp_block,
-					page_get_infimum_rec(temp_page),
-					index, mtr);
+	page_copy_rec_list_end_no_locks(
+		block, temp_block, NULL, index, mtr);
 
 	/* Multiple transactions cannot simultaneously operate on the
 	same temp-table in parallel.
@@ -1590,8 +1589,7 @@ btr_root_raise_and_insert(
 #ifdef UNIV_ZIP_COPY
 	    || new_page_zip
 #endif /* UNIV_ZIP_COPY */
-	    || !page_copy_rec_list_end(new_block, root_block,
-				       page_get_infimum_rec(root),
+	    || !page_copy_rec_list_end(new_block, root_block, NULL,
 				       index, mtr)) {
 		ut_a(new_page_zip);
 
@@ -2882,8 +2880,7 @@ btr_lift_page_up(
 #ifdef UNIV_ZIP_COPY
 	    || father_page_zip
 #endif /* UNIV_ZIP_COPY */
-	    || !page_copy_rec_list_end(father_block, block,
-				       page_get_infimum_rec(page),
+	    || !page_copy_rec_list_end(father_block, block, NULL,
 				       index, mtr)) {
 		const page_zip_des_t*	page_zip
 			= buf_block_get_page_zip(block);
@@ -3107,9 +3104,8 @@ err_exit:
 
 	/* Move records to the merge page */
 	if (is_left) {
-		rec_t*	orig_pred = page_copy_rec_list_start(
-			merge_block, block, page_get_supremum_rec(page),
-			index, mtr);
+		const rec_t*	orig_pred = page_copy_rec_list_start(
+			merge_block, block, NULL, index, mtr);
 
 		if (!orig_pred) {
 			goto err_exit;
@@ -3146,9 +3142,8 @@ err_exit:
 			memset(merge_page + FIL_PAGE_PREV, 0xff, 4);
 		}
 
-		orig_succ = page_copy_rec_list_end(merge_block, block,
-						   page_get_infimum_rec(page),
-						   cursor->index, mtr);
+		orig_succ = page_copy_rec_list_end(
+			merge_block, block, NULL, cursor->index, mtr);
 
 		if (!orig_succ) {
 			ut_a(merge_page_zip);
