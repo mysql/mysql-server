@@ -3077,40 +3077,47 @@ lock_move_rec_list_end(
 		reset the lock bits on the old */
 
 		for (;;) {
-			ulint	heap_no;
+			ulint	rec1_heap_no;
+			ulint	rec2_heap_no;
 
 			if (comp) {
-				heap_no = rec_get_heap_no_new(rec1);
+				rec1_heap_no = rec_get_heap_no_new(rec1);
+
+				if (rec1_heap_no == PAGE_HEAP_NO_SUPREMUM) {
+					break;
+				}
+
+				rec2_heap_no = rec_get_heap_no_new(rec2);
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+				rec2 = page_rec_get_next_low(rec2, TRUE);
 			} else {
-				heap_no = rec_get_heap_no_old(rec1);
+				rec1_heap_no = rec_get_heap_no_old(rec1);
+
+				if (rec1_heap_no == PAGE_HEAP_NO_SUPREMUM) {
+					break;
+				}
+
+				rec2_heap_no = rec_get_heap_no_old(rec2);
+
 				ut_ad(!memcmp(rec1, rec2,
 					      rec_get_data_size_old(rec2)));
+
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (heap_no == PAGE_HEAP_NO_SUPREMUM) {
-				break;
-			}
-
-			if (lock_rec_get_nth_bit(lock, heap_no)) {
-				lock_rec_reset_nth_bit(lock, heap_no);
+			if (lock_rec_get_nth_bit(lock, rec1_heap_no)) {
+				lock_rec_reset_nth_bit(lock, rec1_heap_no);
 
 				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 					lock_reset_lock_and_trx_wait(lock);
 				}
 
-				if (comp) {
-					heap_no = rec_get_heap_no_new(rec2);
-				} else {
-					heap_no = rec_get_heap_no_old(rec2);
-				}
 
 				lock_rec_add_to_queue(
-					type_mode, new_block, heap_no,
+					type_mode, new_block, rec2_heap_no,
 					lock->index, lock->trx, FALSE);
 			}
-
-			rec1 = page_rec_get_next_low(rec1, comp);
-			rec2 = page_rec_get_next_low(rec2, comp);
 		}
 	}
 
