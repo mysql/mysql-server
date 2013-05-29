@@ -39,7 +39,6 @@ Created 2012-08-21 Sunny Bains
 #include "sync0mutex.h"
 #include "sync0sync.h"
 
-// FIXME: Get rid of this
 #include "srv0start.h"
 
 #include "ha_prototypes.h"
@@ -307,7 +306,7 @@ public:
 	/** Latching order checks start when this is set true */
 	bool			m_enabled;
 
-	/** This variable is set to TRUE when sync_init is called */
+	/** This variable is set to true when sync_init is called */
 	bool			m_initialised;
 
 	/** Thread specific data. */
@@ -1053,8 +1052,6 @@ sync_check_init()
 	sync_latch_meta_init();
 
 	/* Init the mutex list and create the mutex to protect it. */
-
-	//mutex_create("mutex_list", &mutex_list_mutex);
 
 	/* Init the rw-lock list and create the mutex to protect it. */
 
