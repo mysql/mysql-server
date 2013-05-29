@@ -2646,24 +2646,27 @@ create procedure bug7743 ( searchstring char(28) )
 begin
 declare var mediumint(8) unsigned;
 select a into var from t4 where b = 2 and c = binary searchstring limit 1;
+show warnings;
 select var;
 end|
 call bug7743("oneword")|
+Level	Code	Message
 var
 1
 call bug7743("OneWord")|
+Level	Code	Message
+Warning	1329	No data - zero rows fetched, selected, or processed
 var
 NULL
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 call bug7743("anotherword")|
+Level	Code	Message
 var
 2
 call bug7743("AnotherWord")|
+Level	Code	Message
+Warning	1329	No data - zero rows fetched, selected, or processed
 var
 NULL
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug7743|
 drop table t4|
 delete from t3|
@@ -4577,14 +4580,11 @@ Before NOT FOUND condition is triggered
 2
 After NOT FOUND condtition is triggered
 xid	xdone
-1	1
+1	0
 call bug15231_3()|
 Result
 Missed it (correct)
 Level	Code	Message
-Warning	1366	Incorrect decimal value: 'zap' for column 'x' at row 1
-Result
-Caught it (correct)
 call bug15231_5()|
 Result
 Missed it (correct)
@@ -6190,7 +6190,6 @@ create procedure mysqltest_db1.sp_bug28551() begin end;
 call mysqltest_db1.sp_bug28551();
 show warnings;
 Level	Code	Message
-Note	1008	Can't drop database 'mysqltest_db1'; database doesn't exist
 drop database mysqltest_db1;
 drop database if exists mysqltest_db1;
 drop table if exists test.t1;
@@ -7065,15 +7064,12 @@ CREATE PROCEDURE p1(a CHAR)
 BEGIN
 SELECT 1;
 SELECT CAST('10 ' as UNSIGNED INTEGER);
-SELECT 1;
 END|
 CALL p1('data truncated parameter');
 1
 1
 CAST('10 ' as UNSIGNED INTEGER)
 10
-1
-1
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '10 '
@@ -7092,15 +7088,12 @@ CREATE PROCEDURE p4()
 BEGIN
 SELECT 1;
 SELECT CAST('10 ' as UNSIGNED INTEGER);
-SELECT 2;
 END|
 CALL p1();
 1
 1
 CAST('10 ' as UNSIGNED INTEGER)
 10
-2
-2
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '10 '
 DROP PROCEDURE p1;

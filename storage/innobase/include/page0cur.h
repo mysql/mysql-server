@@ -263,20 +263,35 @@ page_cur_delete_rec(
 					cursor->rec, index) */
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 #ifndef UNIV_HOTBACKUP
-/****************************************************************//**
-Searches the right position for a page cursor.
+/** Search the right position for a page cursor.
+@param[in]	block	buffer block
+@param[in]	index	index tree
+@param[in]	tuple	data tuple
+@param[in]	mode	PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
+@param[out]	cursor	page cursor
 @return	number of matched fields on the left */
 UNIV_INLINE
 ulint
 page_cur_search(
-/*============*/
-	const buf_block_t*	block,	/*!< in: buffer block */
-	const dict_index_t*	index,	/*!< in: record descriptor */
-	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
-					PAGE_CUR_LE, PAGE_CUR_G, or
-					PAGE_CUR_GE */
-	page_cur_t*		cursor);/*!< out: page cursor */
+	const buf_block_t*	block,
+	const dict_index_t*	index,
+	const dtuple_t*		tuple,
+	ulint			mode,
+	page_cur_t*		cursor);
+
+/** Search the right position for a page cursor.
+@param[in]	block	buffer block
+@param[in]	index	index tree
+@param[in]	tuple	data tuple
+@param[out]	cursor	page cursor
+@return	number of matched fields on the left */
+UNIV_INLINE
+ulint
+page_cur_search(
+	const buf_block_t*	block,
+	const dict_index_t*	index,
+	const dtuple_t*		tuple,
+	page_cur_t*		cursor);
 /****************************************************************//**
 Searches the right position for a page cursor. */
 
@@ -292,17 +307,9 @@ page_cur_search_with_match(
 	ulint*			iup_matched_fields,
 					/*!< in/out: already matched
 					fields in upper limit record */
-	ulint*			iup_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	ulint*			ilow_matched_fields,
 					/*!< in/out: already matched
 					fields in lower limit record */
-	ulint*			ilow_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	page_cur_t*		cursor);/*!< out: page cursor */
 /***********************************************************//**
 Positions a page cursor on a randomly chosen user record on a page. If there

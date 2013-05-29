@@ -1543,11 +1543,7 @@ ROLLBACK to savepoint t1_save;
 COMMIT;
 END|
 CALL test.p1(12);
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 CALL test.p1(13);
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 drop table t1;
 drop procedure test.p1;
 CREATE TABLE t1 (a int not null)

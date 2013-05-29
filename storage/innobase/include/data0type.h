@@ -34,13 +34,10 @@ extern ulint	data_mysql_default_charset_coll;
 /* SQL data type struct */
 struct dtype_t;
 
-/* SQL Like operator comparison types */
+/** SQL Like operator comparison types */
 enum ib_like_t {
-	IB_LIKE_EXACT,                  /* e.g.  STRING */
-	IB_LIKE_PREFIX,                 /* e.g., STRING% */
-	IB_LIKE_SUFFIX,                 /* e.g., %STRING */
-	IB_LIKE_SUBSTR,                 /* e.g., %STRING% */
-	IB_LIKE_REGEXP                  /* Future */
+	IB_LIKE_EXACT,	/**< e.g.  STRING */
+	IB_LIKE_PREFIX	/**< e.g., STRING% */
 };
 
 /*-------------------------------------------*/
@@ -402,15 +399,6 @@ dtype_set_mbminmaxlen(
 	ulint		mbmaxlen);	/*!< in: maximum length of a char,
 					in bytes, or 0 if this is not
 					a character type */
-/*********************************************************************//**
-Gets the padding character code for the type.
-@return	padding character code, or ULINT_UNDEFINED if no padding specified */
-UNIV_INLINE
-ulint
-dtype_get_pad_char(
-/*===============*/
-	ulint	mtype,		/*!< in: main type */
-	ulint	prtype);	/*!< in: precise type */
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************************//**
 Returns the size of a fixed size data type, 0 if not a fixed size type.
