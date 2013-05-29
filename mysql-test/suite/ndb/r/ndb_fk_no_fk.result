@@ -871,3 +871,20 @@ t1	CREATE TABLE `t1` (
   KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table t1, t2;
+set foreign_key_checks=0;
+CREATE TABLE `address` (
+`no` int(11) NOT NULL AUTO_INCREMENT,
+`type` int(11) NOT NULL DEFAULT '37',
+`customer_id` int(11) NOT NULL,
+`street` varchar(255) DEFAULT NULL,
+`country` int(11) DEFAULT NULL,
+PRIMARY KEY (`no`),
+KEY `ca_fk1` (`customer_id`),
+CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+INSERT INTO `address` VALUES (1,37,1,'Main st. 1215',48);
+CREATE TABLE `customer` (
+`id` int(11) NOT NULL,
+PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+drop table address, customer;
