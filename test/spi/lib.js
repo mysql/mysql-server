@@ -32,7 +32,7 @@ var sessionSlot = 0;
 exports.getConnectionPool = function(userCallback) {
 
   function onConnect(err, conn) {
-    udebug.log("getConnectionPool onConnect");    
+    udebug.log("getConnectionPool onConnect err:", err);    
     spi_test_connection = conn;
     userCallback(err, conn);
   }
@@ -42,7 +42,7 @@ exports.getConnectionPool = function(userCallback) {
     userCallback(null, spi_test_connection);
   }
   else {
-    udebug.log("getConnectionPool opening new connection");
+    udebug.log("getConnectionPool opening new connection with properties: ", properties);
     service.connect(properties, onConnect);
   }
 };

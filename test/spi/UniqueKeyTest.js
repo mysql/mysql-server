@@ -90,8 +90,7 @@ function do_read_op(testCase, keyObj) {
   udebug.log("do_read_op for", testCase.name);
   var tx = dbSession.getTransactionHandler();
   var index = dbt.getIndexHandler(keyObj);
-  var key = index.getFields(keyObj);
-  var op = dbSession.buildReadOperation(index, key, tx);
+  var op = dbSession.buildReadOperation(index, keyObj, tx);
   tx.execute([ op ], testCase.checkResult);
 }
 
@@ -100,8 +99,7 @@ function do_update_op(testCase, dataObj) {
   udebug.log("do_update_op for", testCase.name);
   var tx = dbSession.getTransactionHandler();
   var dbix = dbt.getIndexHandler(dataObj.keys);
-  var keys = dbix.getFields(dataObj.keys);
-  var op = dbSession.buildUpdateOperation(dbix, keys, dataObj.values, tx, null);
+  var op = dbSession.buildUpdateOperation(dbix, dataObj.keys, dataObj.values, tx, null);
   tx.execute([ op ], testCase.checkResult);
 }
 
@@ -118,8 +116,7 @@ function do_delete_op(testCase, keyObj) {
   udebug.log("do_delete_op for", testCase.name);
   var tx = dbSession.getTransactionHandler();
   var dbix = dbt.getIndexHandler(keyObj);
-  var key = dbix.getFields(keyObj);
-  var op = dbSession.buildDeleteOperation(dbix, key, tx, null);  
+  var op = dbSession.buildDeleteOperation(dbix, keyObj, tx, null);  
   tx.execute([ op ], testCase.checkResult);
 }
 
