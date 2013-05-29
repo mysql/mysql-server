@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -252,7 +252,7 @@ public:
   */
   ulong get_warn_count() const
   {
-    return m_diagnostics_area.warn_count();
+    return m_diagnostics_area.warn_count(m_thd);
   }
 
   /**
