@@ -26,10 +26,12 @@ function github_clone() {
             git fetch --all -p -t
             popd
         fi
-        git clone $local_cache_dir/$repo.git
+        git clone --local $local_cache_dir/$repo.git
         if [ $? != 0 ] ; then exit 1; fi
+
         pushd $repo
-        git remote set-url origin  git@github.com:Tokutek/$repo $local_cache_dir/$repo.git
+            #Update remote to point to github
+            git remote set-url origin  git@github.com:Tokutek/$repo $local_cache_dir/$repo.git
         popd
     fi
 
