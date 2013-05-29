@@ -102,12 +102,17 @@ function git_tree() {
 
 # compute the number of cpus in this system.  used to parallelize the build.
 function get_ncpus() {
-    if [ -f /proc/cpuinfo ]; then
-        grep bogomips /proc/cpuinfo | wc -l
-    elif [ $system = darwin ] ; then
-        sysctl -n hw.ncpu
+    local n
+    n=$(grep processor /proc/cpuinfo 2>/dev/null)
+    if [ $? = 0 ] ; then
+        echo "$n" | wc -l
     else
-        echo 1
+        n=$(sysctl -n hw.ncpu 2>/dev/null)
+        if [ $? = 0 ] ; then
+            echo $n 
+        else
+            echo 1 # default is 1 cpu
+        fi
     fi
 }
 
