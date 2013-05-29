@@ -3547,8 +3547,6 @@ btr_print_index(
 	btr_print_recursive(index, root, width, &mtr);
 
 	mtr_commit(&mtr);
-
-	btr_validate_index(index, 0);
 }
 #endif /* UNIV_BTR_PRINT */
 
