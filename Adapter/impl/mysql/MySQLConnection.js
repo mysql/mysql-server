@@ -292,10 +292,11 @@ var DBOperationError = function(cause) {
     this.sqlstate = 'HY000';
   } else {
     this.sqlstate = mysql_code_to_sqlstate_map[this.code];
+    cause.sqlstate = this.sqlstate;
   }
   this.message = cause.message;
   this.cause = cause;
-  udebug.log_detail('MySQLConnection DBOperationError constructor', this);
+  udebug.log('MySQLConnection DBOperationError constructor', this);
   var toString = function() {
     return 'DBOperationError ' + this.message;
   };
@@ -707,20 +708,28 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
 
 
 exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys, transaction, callback) {
-  udebug.log_detail('dbSession.buildDeleteOperation with indexHandler:', dbIndexHandler.dbIndex.name, keys);
+  udebug.log_detail('dbSession.buildDeleteOperation with indexHandler:', dbIndexHandler.dbIndex.name, 'keys: ', keys);
+  var keysArray = dbIndexHandler.getFields(keys);
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var deleteSQL = dbTableHandler.mysql.deleteSQL[dbIndexHandler.dbIndex.name];
-  return new DeleteOperation(deleteSQL, keys, callback);
+  return new DeleteOperation(deleteSQL, keysArray, callback);
 };
 
 
 exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, transaction, callback) {
   udebug.log_detail('dbSession.buildReadOperation with indexHandler:', dbIndexHandler.dbIndex.name, 'keys:', keys);
+  var keysArray;
+  if (!Array.isArray(keys)) {
+    // the keys object is a domain object or value object from which we need to extract the array of keys
+    keysArray = dbIndexHandler.getFields(keys);
+  } else {
+    keysArray = keys;
+  }
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var selectSQL = dbTableHandler.mysql.selectSQL[dbIndexHandler.dbIndex.name];
-  return new ReadOperation(dbTableHandler, selectSQL, keys, callback);
+  return new ReadOperation(dbTableHandler, selectSQL, keysArray, callback);
 };
 
 
@@ -799,7 +808,8 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys
 
 updateSetSQL += updateWhereSQL;
 udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
-return new UpdateOperation(updateSetSQL, keys, updateFields, callback);
+var keysArray = dbIndexHandler.getFields(keys);
+return new UpdateOperation(updateSetSQL, keysArray, updateFields, callback);
 };
 
 exports.DBSession.prototype.buildWriteOperation = function(dbIndexHandler, values, transaction, callback) {
