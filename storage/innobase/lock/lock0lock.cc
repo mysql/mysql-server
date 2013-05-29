@@ -1295,27 +1295,24 @@ lock_rec_find_set_bit(
 	return(ULINT_UNDEFINED);
 }
 
-/**********************************************************************//**
-Resets the nth bit of a record lock. */
+/** Reset the nth bit of a record lock.
+@param[in/out]	lock	record lock
+@param[in]	i	index of the bit that will be reset
+@return	previous value of the bit */
 UNIV_INLINE
-void
+byte
 lock_rec_reset_nth_bit(
-/*===================*/
-	lock_t*	lock,	/*!< in: record lock */
-	ulint	i)	/*!< in: index of the bit which must be set to TRUE
-			when this function is called */
+	lock_t*	lock,
+	ulint	i)
 {
-	ulint	byte_index;
-	ulint	bit_index;
-
-	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 	ut_ad(i < lock->un_member.rec_lock.n_bits);
 
-	byte_index = i / 8;
-	bit_index = i % 8;
-
-	((byte*) &lock[1])[byte_index] &= ~(1 << bit_index);
+	byte*	b = reinterpret_cast<byte*>(&lock[1]) + (i >> 3);
+	byte	mask = 1 << (i & 7);
+	byte	bit = *b & mask;
+	*b &= ~mask;
+	return(bit);
 }
 
 /*********************************************************************//**
@@ -2969,19 +2966,22 @@ lock_move_reorganize_page(
 			if (comp) {
 				old_heap_no = rec_get_heap_no_new(rec2);
 				new_heap_no = rec_get_heap_no_new(rec1);
+
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+				rec2 = page_rec_get_next_low(rec2, TRUE);
 			} else {
 				old_heap_no = rec_get_heap_no_old(rec2);
 				new_heap_no = rec_get_heap_no_old(rec1);
 				ut_ad(!memcmp(rec1, rec2,
 					      rec_get_data_size_old(rec2)));
+
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (lock_rec_get_nth_bit(lock, old_heap_no)) {
-
-				/* Clear the bit in old_lock. */
-				ut_d(lock_rec_reset_nth_bit(lock,
-							    old_heap_no));
-
+			/* Clear the bit in old_lock. */
+			if (old_heap_no < lock->un_member.rec_lock.n_bits
+			    && lock_rec_reset_nth_bit(lock, old_heap_no)) {
 				/* NOTE that the old lock bitmap could be too
 				small for the new heap number! */
 
@@ -2994,9 +2994,6 @@ lock_move_reorganize_page(
 				ut_ad(old_heap_no == PAGE_HEAP_NO_SUPREMUM);
 				break;
 			}
-
-			rec1 = page_rec_get_next_low(rec1, comp);
-			rec2 = page_rec_get_next_low(rec2, comp);
 		}
 
 #ifdef UNIV_DEBUG
@@ -3106,13 +3103,11 @@ lock_move_rec_list_end(
 				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (lock_rec_get_nth_bit(lock, rec1_heap_no)) {
-				lock_rec_reset_nth_bit(lock, rec1_heap_no);
-
+			if (rec1_heap_no < lock->un_member.rec_lock.n_bits
+			    && lock_rec_reset_nth_bit(lock, rec1_heap_no)) {
 				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 					lock_reset_lock_and_trx_wait(lock);
 				}
-
 
 				lock_rec_add_to_queue(
 					type_mode, new_block, rec2_heap_no,
@@ -3179,36 +3174,36 @@ lock_move_rec_list_start(
 		reset the lock bits on the old */
 
 		while (rec1 != rec) {
-			ulint	heap_no;
+			ulint	rec1_heap_no;
+			ulint	rec2_heap_no;
 
 			if (comp) {
-				heap_no = rec_get_heap_no_new(rec1);
+				rec1_heap_no = rec_get_heap_no_new(rec1);
+				rec2_heap_no = rec_get_heap_no_new(rec2);
+
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+				rec2 = page_rec_get_next_low(rec2, TRUE);
 			} else {
-				heap_no = rec_get_heap_no_old(rec1);
+				rec1_heap_no = rec_get_heap_no_old(rec1);
+				rec2_heap_no = rec_get_heap_no_old(rec2);
+
 				ut_ad(!memcmp(rec1, rec2,
 					      rec_get_data_size_old(rec2)));
+
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (lock_rec_get_nth_bit(lock, heap_no)) {
-				lock_rec_reset_nth_bit(lock, heap_no);
-
+			if (rec1_heap_no < lock->un_member.rec_lock.n_bits
+			    && lock_rec_reset_nth_bit(lock, rec1_heap_no)) {
 				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 					lock_reset_lock_and_trx_wait(lock);
 				}
 
-				if (comp) {
-					heap_no = rec_get_heap_no_new(rec2);
-				} else {
-					heap_no = rec_get_heap_no_old(rec2);
-				}
-
 				lock_rec_add_to_queue(
-					type_mode, new_block, heap_no,
+					type_mode, new_block, rec2_heap_no,
 					lock->index, lock->trx, FALSE);
 			}
-
-			rec1 = page_rec_get_next_low(rec1, comp);
-			rec2 = page_rec_get_next_low(rec2, comp);
 		}
 
 #ifdef UNIV_DEBUG
