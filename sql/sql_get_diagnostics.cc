@@ -44,7 +44,7 @@ bool
 Sql_cmd_get_diagnostics::execute(THD *thd)
 {
   bool rc;
-  Diagnostics_area new_stmt_da(thd->query_id, false);
+  Diagnostics_area new_stmt_da(false);
   Diagnostics_area *first_da= thd->get_stmt_da();
   const Diagnostics_area *second_da= thd->get_stacked_da();
   DBUG_ENTER("Sql_cmd_get_diagnostics::execute");

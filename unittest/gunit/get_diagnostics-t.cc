@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -226,10 +226,10 @@ TEST_F(GetDiagnosticsTest, Error)
   EXPECT_EQ(1U, thd()->get_stmt_da()->last_statement_cond_count());
 
   // Counted as a error
-  EXPECT_EQ(1U, thd()->get_stmt_da()->error_count());
+  EXPECT_EQ(1U, thd()->get_stmt_da()->error_count(thd()));
 
   // Error is appended
-  EXPECT_EQ(2U, thd()->get_stmt_da()->warn_count());
+  EXPECT_EQ(2U, thd()->get_stmt_da()->warn_count(thd()));
 }
 
 
@@ -260,10 +260,10 @@ TEST_F(GetDiagnosticsTest, FatalError)
   EXPECT_TRUE(thd()->get_stmt_da()->is_error());
 
   // No new condition for the error
-  EXPECT_EQ(0U, thd()->get_stmt_da()->error_count());
+  EXPECT_EQ(0U, thd()->get_stmt_da()->error_count(thd()));
 
   // Fatal error is set, not appended
-  EXPECT_EQ(1U, thd()->get_stmt_da()->warn_count());
+  EXPECT_EQ(1U, thd()->get_stmt_da()->warn_count(thd()));
 }
 
 
@@ -447,8 +447,8 @@ TEST_F(GetDiagnosticsTest, ConditionInformationClassOrigin)
 // Push + pop diagnostics area
 TEST_F(GetDiagnosticsTest, PushPopDiagnosticsArea)
 {
-  Diagnostics_area da1(thd()->query_id, false);
-  Diagnostics_area da2(thd()->query_id, false);
+  Diagnostics_area da1(false);
+  Diagnostics_area da2(false);
   Diagnostics_area *org_da= thd()->get_stmt_da();
 
   thd()->push_diagnostics_area(&da1);
@@ -483,7 +483,7 @@ TEST_F(GetDiagnosticsTest, DiePopDiagnosticsArea)
 // Pushed diagnostics area should initially contain copy of conditions
 TEST_F(GetDiagnosticsTest, PushDiagnosticsArea)
 {
-  Diagnostics_area da(thd()->query_id, false);
+  Diagnostics_area da(false);
   Diagnostics_area *org_da= thd()->get_stmt_da();
 
   Item *var;
@@ -499,7 +499,7 @@ TEST_F(GetDiagnosticsTest, PushDiagnosticsArea)
 
   // Push new diagnostics area, clear old
   thd()->push_diagnostics_area(&da);
-  org_da->reset_condition_info(thd()->query_id);
+  org_da->reset_condition_info(thd());
   EXPECT_TRUE(org_da->cond_count() == 0);
   EXPECT_FALSE(da.cond_count() == 0);
   EXPECT_FALSE(thd()->get_stmt_da()->cond_count() == 0);

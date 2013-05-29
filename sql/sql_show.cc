@@ -7208,11 +7208,11 @@ static bool do_fill_table(THD *thd,
   // that problem we create a Diagnostics_area instance, which is capable of
   // storing "unlimited" number of warnings.
   Diagnostics_area *da= thd->get_stmt_da();
-  Diagnostics_area tmp_da(thd->query_id, true);
-  thd->push_diagnostics_area(&tmp_da);
-  // Remove existing conditions from the pushed DA so we don't get them twice
+  Diagnostics_area tmp_da(true);
+
+  // Don't copy existing conditions from the old DA so we don't get them twice
   // when we call copy_non_errors_from_da below.
-  tmp_da.reset_condition_info(thd->query_id);
+  thd->push_diagnostics_area(&tmp_da, false);
 
   bool res= table_list->schema_table->fill_table(
     thd, table_list, join_table->unified_condition());

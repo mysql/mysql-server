@@ -2823,8 +2823,10 @@ delimiter |;
 --error ER_SP_NO_RETSET
 create function func_1() returns int begin show errors; return 1; end|
 delimiter ;|
+# WL#5928: prepare of diagnostics statements fails now, cos the standard says it should.
+--error ER_UNSUPPORTED_PS
 prepare abc from "show errors";
-deallocate prepare abc;
+# deallocate prepare abc;
 
 --disable_warnings
 drop table if exists t1;
@@ -2842,14 +2844,9 @@ delimiter |;
 --error ER_SP_NO_RETSET
 create function func_1() returns int begin show warnings; return 1; end|
 delimiter ;|
+# WL#5928: prepare of diagnostics statements fails now, cos the standard says it should.
+--error ER_UNSUPPORTED_PS
 prepare abc from "show warnings";
-drop table if exists t1;
-execute abc;
-drop table if exists t2;
-execute abc;
-drop table if exists t1, t2;
-execute abc;
-deallocate prepare abc;
 
 #
 # Bug#22684: The Functions ENCODE, DECODE and FORMAT are not real functions

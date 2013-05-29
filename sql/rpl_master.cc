@@ -859,7 +859,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     ER_MASTER_FATAL_ERROR_READING_BINLOG will be set to the original
     Diagnostics_area.
   */
-  Diagnostics_area temp_da(thd->query_id, false);
+  Diagnostics_area temp_da(false);
   thd->push_diagnostics_area(&temp_da);
 
   DBUG_ENTER("mysql_binlog_send");

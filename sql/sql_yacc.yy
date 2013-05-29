@@ -3023,6 +3023,7 @@ sp_decl:
             }
             if(pctx->add_condition(thd, $2, $5))
               MYSQL_YYABORT;
+            lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // DECLARE COND FOR
             $$.vars= $$.hndlrs= $$.curs= 0;
             $$.conds= 1;
           }
@@ -3045,7 +3046,7 @@ sp_decl:
             sp_instr_hpush_jump *i=
               new (thd->mem_root)
                 sp_instr_hpush_jump(sp->instructions(), handler_pctx, h);
-            
+
             if (!i || sp->add_instr(thd, i))
               MYSQL_YYABORT;
 
@@ -3065,6 +3066,8 @@ sp_decl:
             {
               MYSQL_YYABORT;
             }
+
+            lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // DECL HANDLER FOR
           }
           sp_hcond_list sp_proc_stmt
           {
@@ -3428,6 +3431,7 @@ resignal_stmt:
             LEX *lex= thd->lex;
 
             lex->sql_command= SQLCOM_RESIGNAL;
+            lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // RESIGNAL doesn't clear diagnostics
             lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_resignal($2, $3);
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
@@ -3441,6 +3445,7 @@ get_diagnostics:
 
             info->set_which_da($2);
 
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // GET DIAGS doesn't clear them.
             Lex->sql_command= SQLCOM_GET_DIAGNOSTICS;
             Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_get_diagnostics(info);
 
@@ -10296,6 +10301,17 @@ variable_aux:
             }
             if (!($$= get_system_var(YYTHD, $2, $3, $4)))
               MYSQL_YYABORT;
+            if (!my_strcasecmp(system_charset_info, $3.str, "warning_count") ||
+                !my_strcasecmp(system_charset_info, $3.str, "error_count"))
+            {
+              /*
+                "Diagnostics variable" used in a non-diagnostics statement.
+                Save the information we need for the former, but clear the
+                rest of the diagnostics area on account of the latter.
+                See reset_condition_info().
+              */
+              Lex->keep_diagnostics= DA_KEEP_COUNTS;
+            }
             if (!((Item_func_get_system_var*) $$)->is_written_to_binlog())
               Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
           }
@@ -12373,13 +12389,25 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
           }
         | COUNT_SYM '(' '*' ')' WARNINGS
-          { (void) create_select_for_variable("warning_count"); }
+          {
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
+            (void) create_select_for_variable("warning_count");
+          }
         | COUNT_SYM '(' '*' ')' ERRORS
-          { (void) create_select_for_variable("error_count"); }
+          {
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
+            (void) create_select_for_variable("error_count");
+          }
         | WARNINGS opt_limit_clause_init
-          { Lex->sql_command = SQLCOM_SHOW_WARNS;}
+          {
+            Lex->sql_command = SQLCOM_SHOW_WARNS;
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
+          }
         | ERRORS opt_limit_clause_init
-          { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
+          {
+            Lex->sql_command = SQLCOM_SHOW_ERRORS;
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
+          }
         | PROFILES_SYM
           {
             push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
