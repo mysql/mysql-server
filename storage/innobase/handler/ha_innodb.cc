@@ -6970,21 +6970,17 @@ convert_search_mode_to_innobase(
 	switch (find_flag) {
 	case HA_READ_KEY_EXACT:
 		/* this does not require the index to be UNIQUE */
-		return(PAGE_CUR_GE);
 	case HA_READ_KEY_OR_NEXT:
 		return(PAGE_CUR_GE);
-	case HA_READ_KEY_OR_PREV:
-		return(PAGE_CUR_LE);
 	case HA_READ_AFTER_KEY:
 		return(PAGE_CUR_G);
 	case HA_READ_BEFORE_KEY:
 		return(PAGE_CUR_L);
-	case HA_READ_PREFIX:
-		return(PAGE_CUR_GE);
+	case HA_READ_KEY_OR_PREV:
 	case HA_READ_PREFIX_LAST:
-		return(PAGE_CUR_LE);
 	case HA_READ_PREFIX_LAST_OR_PREV:
 		return(PAGE_CUR_LE);
+	case HA_READ_PREFIX:
 	case HA_READ_MBR_CONTAIN:
 	case HA_READ_MBR_INTERSECT:
 	case HA_READ_MBR_WITHIN:
@@ -7136,8 +7132,7 @@ ha_innobase::index_read(
 
 		match_mode = ROW_SEL_EXACT;
 
-	} else if (find_flag == HA_READ_PREFIX
-		   || find_flag == HA_READ_PREFIX_LAST) {
+	} else if (find_flag == HA_READ_PREFIX_LAST) {
 
 		match_mode = ROW_SEL_EXACT_PREFIX;
 	}

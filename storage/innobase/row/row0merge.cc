@@ -472,7 +472,8 @@ row_merge_dup_report(
 
 /*************************************************************//**
 Compare two tuples.
-@return	1, 0, -1 if a is greater, equal, less, respectively, than b */
+@return	positive, 0, negative if a is greater, equal, less, than b,
+respectively */
 static __attribute__((warn_unused_result))
 int
 row_merge_tuple_cmp(
@@ -546,7 +547,8 @@ UT_SORT_FUNCTION_BODY().
 UT_SORT_FUNCTION_BODY().
 @param a	first tuple to be compared
 @param b	second tuple to be compared
-@return	1, 0, -1 if a is greater, equal, less, respectively, than b */
+@return	positive, 0, negative, if a is greater, equal, less, than b,
+respectively */
 #define row_merge_tuple_cmp_ctx(a,b)			\
 	row_merge_tuple_cmp(n_uniq, n_field, a, b, dup)
 
@@ -1787,20 +1789,16 @@ corrupt:
 	}
 
 	while (mrec0 && mrec1) {
-		switch (cmp_rec_rec_simple(
-				mrec0, mrec1, offsets0, offsets1,
-				dup->index, dup->table)) {
-		case 0:
+		int cmp = cmp_rec_rec_simple(
+			mrec0, mrec1, offsets0, offsets1,
+			dup->index, dup->table);
+		if (cmp < 0) {
+			ROW_MERGE_WRITE_GET_NEXT(0, dup->index, goto merged);
+		} else if (cmp) {
+			ROW_MERGE_WRITE_GET_NEXT(1, dup->index, goto merged);
+		} else {
 			mem_heap_free(heap);
 			DBUG_RETURN(DB_DUPLICATE_KEY);
-		case -1:
-			ROW_MERGE_WRITE_GET_NEXT(0, dup->index, goto merged);
-			break;
-		case 1:
-			ROW_MERGE_WRITE_GET_NEXT(1, dup->index, goto merged);
-			break;
-		default:
-			ut_error;
 		}
 	}
 
