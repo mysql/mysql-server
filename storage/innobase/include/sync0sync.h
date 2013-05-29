@@ -77,11 +77,12 @@ extern mysql_pfs_key_t	server_mutex_key;
 extern mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 extern mysql_pfs_key_t	mem_pool_mutex_key;
-extern mysql_pfs_key_t	purge_sys_bh_mutex_key;
 extern mysql_pfs_key_t	recalc_pool_mutex_key;
+extern mysql_pfs_key_t	purge_sys_pq_mutex_key;
 extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	recv_writer_mutex_key;
-extern mysql_pfs_key_t	rseg_mutex_key;
+extern mysql_pfs_key_t	redo_rseg_mutex_key;
+extern mysql_pfs_key_t	noredo_rseg_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 extern mysql_pfs_key_t	rw_lock_debug_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */

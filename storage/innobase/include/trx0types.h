@@ -29,6 +29,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "ut0mutex.h"
 
+#include <queue>
+#include <vector>
+
 /** printf(3) format used for printing DB_TRX_ID and other system fields */
 #define TRX_ID_FMT		IB_ID_FMT
 
@@ -145,7 +148,86 @@ typedef	byte	trx_undo_rec_t;
 typedef ib_mutex_t RsegMutex;
 typedef ib_mutex_t TrxMutex;
 typedef ib_mutex_t UndoMutex;
-typedef ib_mutex_t BHeapMutex;
+typedef ib_mutex_t PQMutex;
 typedef ib_mutex_t TrxSysMutex;
 
-#endif
+/** Rollback segements from a given transaction with trx-no
+scheduled for purge. */
+class TrxUndoRsegs {
+private:
+	typedef std::vector<trx_rseg_t*> trx_rsegs_t;
+public:
+	typedef trx_rsegs_t::iterator iterator;
+
+	TrxUndoRsegs(trx_id_t trx_no)
+		:
+		m_trx_no(trx_no)
+	{
+	}
+
+	/**
+	Get transaction number
+	@return trx_id_t - get transaction number. */
+	trx_id_t get_trx_no() const
+	{
+		return(m_trx_no);
+	}
+
+	/**
+	Add rollback segment.
+	@param rseg - rollback segment to add. */
+	void push_back(trx_rseg_t* rseg)
+	{
+		m_rsegs.push_back(rseg);
+	}
+
+	/**
+	@return an iterator to the first element */
+	iterator begin()
+	{
+		return(m_rsegs.begin());
+	}
+
+	/**
+	@return an iterator to the end */
+	iterator end()
+	{
+		return(m_rsegs.end());
+	}
+
+	/**
+	Append rollback segments from referred instance to current instance. */
+	void append(const TrxUndoRsegs& append_from)
+	{
+		ut_ad(get_trx_no() == append_from.get_trx_no());
+		m_rsegs.insert(m_rsegs.end(),
+			       append_from.m_rsegs.begin(),
+			       append_from.m_rsegs.end());
+	}
+
+	/**
+	Compare two TrxUndoRsegs based on trx_no.
+	@param - elem1 - first element to compare
+	@param - elem2 - second element to compare
+	@return true if elem1 > elem2 else false.*/
+	bool operator()(const TrxUndoRsegs& elem1, const TrxUndoRsegs& elem2)
+	{
+		return(elem1.m_trx_no > elem2.m_trx_no);
+	}
+
+	/** Compiler defined copy-constructor/assignment operator
+	should be fine given that there is no reference to memory object
+	outside scope of class object.*/
+
+private:
+	/** Transaction number of a transaction of which rollback segments
+	are part off. */
+	trx_id_t		m_trx_no;
+
+	/** Rollback segments of a transaction, scheduled for purge. */
+	trx_rsegs_t		m_rsegs;
+};
+
+typedef std::priority_queue<
+	TrxUndoRsegs, std::vector<TrxUndoRsegs>, TrxUndoRsegs> purge_pq_t;
+#endif /* trx0types_h */

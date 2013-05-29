@@ -22,7 +22,7 @@
 --perl
   use strict;
   my $vardir= $ENV{'MYSQLTEST_VARDIR'} or die ('MYSQLTEST_VARDIR not set! Aborting!\n');
-  my $cnf1= $vardir.'cnf_1.cnf';
+  my $cnf1= $vardir.'/cnf_1.cnf';
   my $basedir=  $ENV{'MYSQL_BASEDIR'} or die "Basedir not set";
 
 # check if mysqld exists in basedir/sql folder or in basedir/bin 
@@ -89,7 +89,7 @@ EOF
   }
 
 #create cnf_2 file.
-  my $cnf2= $vardir.'cnf_2.cnf';
+  my $cnf2= $vardir.'/cnf_2.cnf';
   my $content= "[mysqld]\n";
   $content.="basedir=$basedir\n";
   $content.="port=5620\n";

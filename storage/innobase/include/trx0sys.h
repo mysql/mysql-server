@@ -38,7 +38,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "sync0mutex.h"
 #include "ut0lst.h"
-#include "ut0bh.h"
 #include "read0types.h"
 #include "page0types.h"
 #include "ut0bh.h"
@@ -85,11 +84,11 @@ Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
 
-ib_bh_t*
+purge_pq_t*
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
-Creates the trx_sys instance and initializes ib_bh and mutex. */
+Creates the trx_sys instance and initializes purge_queue and mutex. */
 
 void
 trx_sys_create(void);
@@ -107,7 +106,11 @@ Looks for a free slot for a rollback segment in the trx system file copy.
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
-	mtr_t*		mtr);		/*!< in: mtr */
+	mtr_t*	mtr,			/*!< in/out: mtr */
+	bool	include_tmp_slots,	/*!< in: if true, report slots reserved
+					for temp-tablespace as free slots. */
+	ulint	nth_free_slots);	/*!< in: allocate nth free slot.
+					0 means next free slot. */
 /***************************************************************//**
 Gets the pointer in the nth slot of the rseg array.
 @return	pointer to rseg object, NULL if slot not in use */
@@ -190,6 +193,14 @@ trx_sys_get_max_trx_id(void);
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 extern uint			trx_rseg_n_slots_debug;
 #endif
+
+/*****************************************************************//**
+Check if slot-id is reserved slot-id for noredo rsegs. */
+UNIV_INLINE
+bool
+trx_sys_is_noredo_rseg_slot(
+/*========================*/
+	ulint	slot_id);	/*!< in: slot_id to check */
 
 /*****************************************************************//**
 Writes a trx id to an index page. In case that the id size changes in
@@ -366,7 +377,9 @@ ulint
 trx_sys_create_rsegs(
 /*=================*/
 	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
-	ulint	n_rsegs);	/*!< number of rollback segments to create */
+	ulint	n_rsegs,	/*!< number of rollback segments to create */
+	ulint	n_tmp_rsegs);	/*!< number of rollback segments reserved for
+				temp-tables. */
 /*****************************************************************//**
 Get the number of transaction in the system, independent of their state.
 @return count of transactions in trx_sys_t::trx_list */
@@ -657,6 +670,13 @@ struct trx_sys_t {
 					single-threaded mode; not protected
 					by any mutex, because it is read-only
 					during multi-threaded operation */
+	trx_rseg_t*	const pending_purge_rseg_array[TRX_SYS_N_RSEGS];
+					/*!< Pointer array to rollback segments
+					between slot-1..slot-srv_tmp_undo_logs
+					that are now replaced by non-redo
+					rollback segments. We need them for
+					scheduling purge if any of the rollback
+					segment has pending records to purge. */
 	ulint		rseg_history_len;/*!< Length of the TRX_RSEG_HISTORY
 					list (update undo logs for committed
 					transactions), protected by
