@@ -2279,12 +2279,14 @@ ndb_mgm_set_trace(NdbMgmHandle handle, int nodeId, int traceNumber,
   DBUG_RETURN(retval);
 }
 
-extern "C"
-int 
-ndb_mgm_insert_error(NdbMgmHandle handle, int nodeId, int errorCode,
-		     struct ndb_mgm_reply* reply) 
+int
+ndb_mgm_insert_error_impl(NdbMgmHandle handle, int nodeId,
+                          int errorCode,
+                          int * extra,
+                          struct ndb_mgm_reply* reply)
 {
   DBUG_ENTER("ndb_mgm_insert_error");
+
   CHECK_HANDLE(handle, -1);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_insert_error");
   const ParserRow<ParserDummy> insert_error_reply[] = {
@@ -2298,6 +2300,10 @@ ndb_mgm_insert_error(NdbMgmHandle handle, int nodeId, int errorCode,
   Properties args;
   args.put("node", nodeId);
   args.put("error", errorCode);
+  if (extra)
+  {
+    args.put("extra", * extra);
+  }
 
   const Properties *prop;
   prop = ndb_mgm_call(handle, insert_error_reply, "insert error", &args);
@@ -2316,6 +2322,23 @@ ndb_mgm_insert_error(NdbMgmHandle handle, int nodeId, int errorCode,
   }
 
   DBUG_RETURN(retval);
+}
+
+extern "C"
+int
+ndb_mgm_insert_error(NdbMgmHandle handle, int nodeId, int errorCode,
+		     struct ndb_mgm_reply* reply)
+{
+  return ndb_mgm_insert_error_impl(handle, nodeId, errorCode, 0, reply);
+}
+
+extern "C"
+int
+ndb_mgm_insert_error2(NdbMgmHandle handle, int nodeId,
+                      int errorCode, int extra,
+		     struct ndb_mgm_reply* reply)
+{
+  return ndb_mgm_insert_error_impl(handle, nodeId, errorCode, &extra, reply);
 }
 
 extern "C"
