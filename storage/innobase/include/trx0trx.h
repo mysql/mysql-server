@@ -471,14 +471,13 @@ trx_get_que_state_str(
 	const trx_t*	trx);	/*!< in: transaction */
 
 /****************************************************************//**
-Assign a read-only transaction a rollback-segment, if it is attempting
-to write to a TEMPORARY table. */
+Assign a transaction temp-tablespace bound rollback-segment. */
 
 void
 trx_assign_rseg(
 /*============*/
-	trx_t*		trx);		/*!< A read-only transaction that
-					needs to be assigned a RBS. */
+	trx_t*		trx);		/*!< transaction that involves write
+					to temp-table. */
 
 /** Create the trx_t pool */
 
@@ -564,8 +563,10 @@ Assert that the transaction is either in trx_sys->ro_trx_list or
 trx_sys->rw_trx_list but not both and it cannot be an autocommit
 non-locking select */
 #define assert_trx_in_list(t) do {					\
-	ut_ad((t)->in_ro_trx_list == ((t)->read_only || !(t)->rseg));	\
-	ut_ad((t)->in_rw_trx_list == !((t)->read_only || !(t)->rseg));	\
+	ut_ad((t)->in_ro_trx_list					\
+	      == ((t)->read_only || !(t)->rsegs.m_redo.rseg));		\
+	ut_ad((t)->in_rw_trx_list					\
+	      == !((t)->read_only || !(t)->rsegs.m_redo.rseg));		\
 	ut_ad(!trx_is_autocommit_non_locking((t)));			\
 	switch ((t)->state) {						\
 	case TRX_STATE_PREPARED:					\
@@ -578,6 +579,25 @@ non-locking select */
 	}								\
 	ut_error;							\
 } while (0)
+
+/** Check if transaction is free so that it can be re-initialized.
+@param t	transaction handle */
+#define	assert_trx_is_free(t)	do {					\
+	ut_ad(trx_state_eq((t), TRX_STATE_NOT_STARTED));		\
+	ut_ad(!trx_is_rseg_updated(trx));				\
+	ut_ad((t)->read_view == NULL);					\
+	ut_ad((t)->lock.wait_thr == NULL);				\
+	ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);		\
+	ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);			\
+} while(0)
+
+/** Check if transaction is in-active so that it can be freed and put back to
+transaction pool.
+@param t	transaction handle */
+#define assert_trx_is_inactive(t) do {					\
+	assert_trx_is_free((t));					\
+	ut_ad((t)->dict_operation_lock_mode == 0);			\
+} while(0)
 
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
@@ -735,6 +755,37 @@ holding trx_sys->mutex exclusively.
 lock_rec_convert_impl_to_expl()) will access transactions associated
 to other connections. The locks of transactions are protected by
 lock_sys->mutex and sometimes by trx->mutex. */
+
+
+/** Represents an instance of rollback segment along with its state variables.*/
+struct trx_undo_ptr_t{
+	trx_rseg_t*	rseg;		/*!< rollback segment assigned to the
+					transaction, or NULL if not assigned
+					yet */
+	trx_undo_t*	insert_undo;	/*!< pointer to the insert undo log, or
+					NULL if no inserts performed yet */
+	trx_undo_t*	update_undo;	/*!< pointer to the update undo log, or
+					NULL if no update performed yet */
+};
+
+/** Rollback segments assigned to a transaction for undo logging. */
+struct trx_rsegs_t {
+	/** undo log ptr holding reference to a rollback segment that resides in
+	system/undo tablespace used for undo logging of tables that needs
+	to be recovered on crash. */
+	trx_undo_ptr_t	m_redo;
+
+	/** undo log ptr holding reference to a rollback segment that resides in
+	temp tablespace used for undo logging of tables that doesn't need
+	to be recovered on crash. */
+	trx_undo_ptr_t	m_noredo;
+};
+
+enum trx_rseg_type_t {
+	TRX_RSEG_TYPE_NONE = 0,		/*!< void rollback segment type. */
+	TRX_RSEG_TYPE_REDO,		/*!< redo rollback segment. */
+	TRX_RSEG_TYPE_NOREDO		/*!< non-redo rollback segment. */
+};
 
 struct trx_t{
 	TrxMutex	mutex;		/*!< Mutex protecting the fields
@@ -993,18 +1044,15 @@ struct trx_t{
 					with no gaps; thus it represents
 					the number of modified/inserted
 					rows in a transaction */
+	ulint		undo_rseg_space;
+					/*!< space id where last undo record
+					was written */
 	trx_savept_t	last_sql_stat_start;
 					/*!< undo_no when the last sql statement
 					was started: in case of an error, trx
 					is rolled back down to this undo
 					number; see note at undo_mutex! */
-	trx_rseg_t*	rseg;		/*!< rollback segment assigned to the
-					transaction, or NULL if not assigned
-					yet */
-	trx_undo_t*	insert_undo;	/*!< pointer to the insert undo log, or
-					NULL if no inserts performed yet */
-	trx_undo_t*	update_undo;	/*!< pointer to the update undo log, or
-					NULL if no update performed yet */
+	trx_rsegs_t	rsegs;		/* rollback segments for undo logging */
 	undo_no_t	roll_limit;	/*!< least undo number to undo during
 					a partial rollback; 0 otherwise */
 #ifdef UNIV_DEBUG

@@ -508,7 +508,8 @@ SyncCheck::check_order(const latch_t* latch)
 	case SYNC_LOCK_WAIT_SYS:
 	case SYNC_TRX_SYS:
 	case SYNC_IBUF_BITMAP_MUTEX:
-	case SYNC_RSEG:
+	case SYNC_REDO_RSEG:
+	case SYNC_NOREDO_RSEG:
 	case SYNC_TRX_UNDO:
 	case SYNC_PURGE_LATCH:
 	case SYNC_PURGE_QUEUE:
@@ -612,13 +613,15 @@ SyncCheck::check_order(const latch_t* latch)
 		mutex. */
 
 		ut_a(find(latches, SYNC_TRX_UNDO) != 0
-		     || find(latches, SYNC_RSEG) != 0
+		     || find(latches, SYNC_REDO_RSEG) != 0
+		     || find(latches, SYNC_NOREDO_RSEG) != 0
 		     || basic_check(latches, latch->m_level - 1));
 		break;
 
 	case SYNC_RSEG_HEADER:
 
-		ut_a(find(latches, SYNC_RSEG) != 0);
+		ut_a(find(latches, SYNC_REDO_RSEG) != 0
+		     || find(latches, SYNC_NOREDO_RSEG) != 0);
 		break;
 
 	case SYNC_RSEG_HEADER_NEW:
@@ -848,8 +851,8 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "mem_pool",
 		  SYNC_MEM_POOL, mem_pool_mutex_key);
 
-	LATCH_ADD(SrvLatches, "purge_sys_bh",
-		  SYNC_PURGE_QUEUE, purge_sys_bh_mutex_key);
+	LATCH_ADD(SrvLatches, "purge_sys_pq",
+		  SYNC_PURGE_QUEUE, purge_sys_pq_mutex_key);
 
 	LATCH_ADD(SrvLatches, "recalc_pool",
 		  SYNC_STATS_AUTO_RECALC, recalc_pool_mutex_key);
@@ -860,8 +863,11 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "recv_writer",
 		  SYNC_LEVEL_VARYING, recv_writer_mutex_key);
 
-	LATCH_ADD(SrvLatches, "rseg",
-		  SYNC_RSEG, rseg_mutex_key);
+	LATCH_ADD(SrvLatches, "redo_rseg",
+		  SYNC_REDO_RSEG, redo_rseg_mutex_key);
+
+	LATCH_ADD(SrvLatches, "noredo_rseg",
+		  SYNC_NOREDO_RSEG, noredo_rseg_mutex_key);
 
 #ifdef UNIV_SYNC_DEBUG
 	LATCH_ADD(SrvLatches, "rw_lock_debug",
