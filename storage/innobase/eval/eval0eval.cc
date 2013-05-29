@@ -175,7 +175,7 @@ eval_cmp(
 	que_node_t*	arg1;
 	que_node_t*	arg2;
 	int		res;
-	ibool		val;
+	ibool		val	= FALSE; /* remove warning */
 
 	ut_ad(que_node_get_type(cmp_node) == QUE_NODE_FUNC);
 
