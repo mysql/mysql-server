@@ -106,8 +106,7 @@ function do_delete_op(testCase, keyObj) {
   udebug.log("do_delete_op for", testCase.name);
   var tx = dbSession.getTransactionHandler();
   var dbix = dbt.getIndexHandler(keyObj);
-  var key = dbix.getFields(keyObj);
-  var op = dbSession.buildDeleteOperation(dbix, key, tx, null);  
+  var op = dbSession.buildDeleteOperation(dbix, keyObj, tx, null);  
   tx.execute([ op ], testCase.checkResult);
 }
 
