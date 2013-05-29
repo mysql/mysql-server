@@ -2396,7 +2396,7 @@ MgmtSrvr::setNodeLogLevelImpl(int nodeId, const SetLogLevelOrd & ll)
 //****************************************************************************
 
 int 
-MgmtSrvr::insertError(int nodeId, int errorNo) 
+MgmtSrvr::insertError(int nodeId, int errorNo, Uint32 * extra)
 {
   int block;
 
@@ -2426,6 +2426,12 @@ MgmtSrvr::insertError(int nodeId, int errorNo)
 	   TamperOrd::SignalLength);
   TamperOrd* const tamperOrd = CAST_PTR(TamperOrd, ssig.getDataPtrSend());
   tamperOrd->errorNo = errorNo;
+
+  if (extra)
+  {
+    ssig.getDataPtrSend()[1] = * extra;
+    ssig.header.theLength++;
+  }
 
   int res = ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 :SEND_OR_RECEIVE_FAILED;
 

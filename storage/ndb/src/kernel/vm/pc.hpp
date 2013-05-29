@@ -139,6 +139,7 @@
 #define ERROR_INSERTED(x) false
 #define ERROR_INSERTED_CLEAR(x) false
 #define ERROR_INSERT_VALUE 0
+#define ERROR_INSERT_EXTRA 0
 #define SET_ERROR_INSERT_VALUE(x) do { } while(0)
 #define SET_ERROR_INSERT_VALUE2(x,y) do { } while(0)
 #define CLEAR_ERROR_INSERT_VALUE do { } while(0)
