@@ -27136,6 +27136,22 @@ Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
 			5000, 2);
   }
 
+  if (ERROR_INSERTED(6050))
+  {
+    /**
+     * Simulate only next master getting the RT_END
+     */
+    infoEvent("Simulating only node %u getting RT_END",
+              ERROR_INSERT_EXTRA);
+    rg.m_nodes.clear();
+    rg.m_nodes.set(ERROR_INSERT_EXTRA);
+    signal->theData[0] = 9999;
+    signal->theData[1] = ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+			5000, 2);
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+
   SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->transKey = trans_ptr.p->trans_key;
@@ -27144,33 +27160,6 @@ Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
   req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
-}
-
-void
-Dbdict::check_partial_trans_end_recv_reply(SchemaTransPtr trans_ptr)
-{
-  jam();
-  NodeRecordPtr ownNodePtr;
-  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
-  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER &&
-      trans_ptr.p->check_partial_rollforward &&
-      trans_ptr.p->ressurected_op)
-  {
-    /*
-      We created an operation in new master just to able to
-      complete operation on other slaves. We need to release
-      this ressurected operation explictely.
-     */
-    jam();
-    SchemaOpPtr op_ptr;
-    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
-    list.remove(op_ptr);
-#ifdef VM_TRACE
-    ndbout_c("Releasing ressurected op %u", op_ptr.p->op_key);
-#endif
-    releaseSchemaOp(op_ptr);
-    trans_ptr.p->check_partial_rollforward = false;
-  }
 }
 
 void
@@ -27184,7 +27173,6 @@ Dbdict::trans_end_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
                 rc);
 
   sendTransClientReply(signal, trans_ptr);
-  check_partial_trans_end_recv_reply(trans_ptr);
   releaseSchemaTrans(trans_ptr);
 }
 
