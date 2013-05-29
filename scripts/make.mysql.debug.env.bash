@@ -13,6 +13,7 @@ function usage() {
     echo "--backup=$backup --backup_tree=$backup_tree"
     echo "--cc=$cc --cxx=$cxx"
     echo "--local_cache_dir=$local_cache_dir --local_cache_update=$local_cache_update"
+    echo "--cmake_valgrind=$cmake_valgrind --cmake_debug_paranoid=$cmake_debug_paranoid"
 }
 
 function github_clone() {
@@ -63,6 +64,8 @@ cc=gcc47
 cxx=g++47
 local_cache_dir=
 local_cache_update=1
+cmake_valgrind=
+cmake_debug_paranoid=
 
 while [ $# -ne 0 ] ; do
     arg=$1; shift
@@ -125,7 +128,14 @@ mkdir $mysql/build.debug
 if [ $? != 0 ] ; then exit 1; fi
 pushd $mysql/build.debug
 if [ $? != 0 ] ; then exit 1; fi
-CC=$cc CXX=$cxx cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF
+extra_cmake_options=
+if (( $cmake_valgrind )) ; then
+    extra_cmake_options+=" -DUSE_VALGRIND=ON"
+fi
+if (( $cmake_debug_paranoid )) ; then
+    extra_cmake_options+=" -DTOKU_DEBUG_PARANOID=ON"
+fi
+CC=$cc CXX=$cxx cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF $extra_cmake_options
 if [ $? != 0 ] ; then exit 1; fi
 make -j4 install
 if [ $? != 0 ] ; then exit 1; fi
