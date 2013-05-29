@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -e -u
 
 function usage() {
     echo "build a debug mysql in the current directory"
@@ -12,12 +12,27 @@ function usage() {
     echo "--jemalloc=$jemalloc --jemalloc_tree=$jemalloc_tree"
     echo "--backup=$backup --backup_tree=$backup_tree"
     echo "--cc=$cc --cxx=$cxx"
+    echo "--local_cache_dir=$local_cache_dir --local_cache_update=$local_cache_update"
 }
 
 function github_clone() {
     local repo=$1; local tree=$2
-    git clone git@github.com:Tokutek/$repo
-    if [ $? != 0 ] ; then exit 1; fi
+    if [[ -z "$local_cache_dir" ]] ; then
+        git clone git@github.com:Tokutek/$repo
+        if [ $? != 0 ] ; then exit 1; fi
+    else
+        if (( "$local_cache_update" )) ; then
+            pushd $local_cache_dir/$repo.git
+            git fetch --all -p -t
+            popd
+        fi
+        git clone $local_cache_dir/$repo.git
+        if [ $? != 0 ] ; then exit 1; fi
+        pushd $repo
+        git remote set-url origin  git@github.com:Tokutek/$repo $local_cache_dir/$repo.git
+        popd
+    fi
+
     pushd $repo
     if [ $? != 0 ] ; then exit 1; fi
     if [ -z $git_tag ] ; then
@@ -44,6 +59,8 @@ backup=backup-community
 backup_tree=master
 cc=gcc47
 cxx=g++47
+local_cache_dir=
+local_cache_update=1
 
 while [ $# -ne 0 ] ; do
     arg=$1; shift
