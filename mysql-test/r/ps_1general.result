@@ -319,7 +319,9 @@ prepare stmt4 from ' show master status ';
 prepare stmt4 from ' show master logs ';
 prepare stmt4 from ' show slave status ';
 prepare stmt4 from ' show warnings limit 20 ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt4 from ' show errors limit 20 ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt4 from ' show storage engines ';
 execute stmt4;
 drop table if exists t5;

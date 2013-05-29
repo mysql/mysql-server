@@ -2761,7 +2761,7 @@ drop procedure proc_1;
 create function func_1() returns int begin show errors; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
 prepare abc from "show errors";
-deallocate prepare abc;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
 drop table if exists t1;
 drop table if exists t2;
 create procedure proc_1() show warnings;
@@ -2770,46 +2770,22 @@ Warnings:
 Note	1051	Unknown table 'test.t1'
 call proc_1();
 Level	Code	Message
-Note	1051	Unknown table 'test.t1'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
 call proc_1();
 Level	Code	Message
-Note	1051	Unknown table 'test.t2'
 drop table if exists t1, t2;
 Warnings:
 Note	1051	Unknown table 'test.t1'
 Note	1051	Unknown table 'test.t2'
 call proc_1();
 Level	Code	Message
-Note	1051	Unknown table 'test.t1'
-Note	1051	Unknown table 'test.t2'
 drop procedure proc_1;
 create function func_1() returns int begin show warnings; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
 prepare abc from "show warnings";
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 'test.t1'
-execute abc;
-Level	Code	Message
-Note	1051	Unknown table 'test.t1'
-drop table if exists t2;
-Warnings:
-Note	1051	Unknown table 'test.t2'
-execute abc;
-Level	Code	Message
-Note	1051	Unknown table 'test.t2'
-drop table if exists t1, t2;
-Warnings:
-Note	1051	Unknown table 'test.t1'
-Note	1051	Unknown table 'test.t2'
-execute abc;
-Level	Code	Message
-Note	1051	Unknown table 'test.t1'
-Note	1051	Unknown table 'test.t2'
-deallocate prepare abc;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
 set @my_password="password";
 set @my_data="clear text to encode";
 prepare stmt1 from 'select decode(encode(?, ?), ?)';

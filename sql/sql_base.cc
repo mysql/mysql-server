@@ -3997,7 +3997,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->get_stmt_da()->reset_condition_info(thd->query_id);
+        thd->get_stmt_da()->reset_condition_info(thd);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;

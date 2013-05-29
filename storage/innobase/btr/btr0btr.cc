@@ -2260,8 +2260,7 @@ btr_root_raise_and_insert(
 	}
 
 	/* Reposition the cursor to the child node */
-	page_cur_search(new_block, index, tuple,
-			PAGE_CUR_LE, page_cursor);
+	page_cur_search(new_block, index, tuple, page_cursor);
 
 	/* Split the child and insert tuple */
 	return(btr_page_split_and_insert(flags, cursor, offsets, heap,
@@ -3100,8 +3099,7 @@ insert_empty:
 	/* 7. Reposition the cursor for insert and try insertion */
 	page_cursor = btr_cur_get_page_cur(cursor);
 
-	page_cur_search(insert_block, cursor->index, tuple,
-			PAGE_CUR_LE, page_cursor);
+	page_cur_search(insert_block, cursor->index, tuple, page_cursor);
 
 	rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,
 				    offsets, heap, n_ext, mtr);
