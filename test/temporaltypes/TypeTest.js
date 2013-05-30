@@ -52,7 +52,7 @@ function ValueVerifier(testCase, field, value) {
       }
     }
     catch(e) {
-      testCase.appendErrorMessage(e);
+      testCase.appendErrorMessage('ValueVerifier caught unexpected e: ' + util.inspect(e));
     }
     testCase.failOnError();
   };
@@ -64,7 +64,7 @@ function ReadFunction(testCase, session) {
       testCase.insertErrorVerifier.run(err);  
     }
     else if(err) {
-      testCase.appendErrorMessage(err);
+      testCase.appendErrorMessage('ReadFunction err: ' + util.inspect(err));
       testCase.failOnError();
     }
     else {
