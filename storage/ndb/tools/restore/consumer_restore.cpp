@@ -2344,7 +2344,7 @@ BackupRestore::table(const TableS & table){
 bool
 BackupRestore::fk(Uint32 type, const void * ptr)
 {
-  if (!m_restore_meta)
+  if (!m_restore_meta && !m_rebuild_indexes && !m_disable_indexes)
     return true;
 
   // only record FKs, create in endOfTables()
@@ -2354,6 +2354,7 @@ BackupRestore::fk(Uint32 type, const void * ptr)
     const NdbDictionary::ForeignKey* fk_ptr =
       (const NdbDictionary::ForeignKey*)ptr;
     m_fks.push_back(fk_ptr);
+    info << "Save FK " << fk_ptr->getName() << endl;
     return true;
     break;
   }
@@ -2445,9 +2446,16 @@ BackupRestore::endOfTables(){
     Vector<NdbDictionary::Index*> & list = m_index_per_table[id];
     list.push_back(idx);
   }
+  return true;
+}
 
-  if (m_disable_indexes)
+bool
+BackupRestore::endOfTablesFK()
+{
+  if (!m_restore_meta && !m_rebuild_indexes && !m_disable_indexes)
     return true;
+
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
   info << "Create foreign keys" << endl;
   for (unsigned i = 0; i < m_fks.size(); i++)
   {
