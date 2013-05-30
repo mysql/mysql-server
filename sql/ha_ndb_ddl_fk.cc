@@ -1182,6 +1182,16 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     }
 
     /**
+     * NOTE 2: we mark the table as invalid
+     *         so that it gets removed from GlobalDictCache if
+     *         the schema transaction later fails...
+     *
+     * TODO: This code currently fetches table definition from data-nodes
+     *       once per FK...which could be improved to once if a FK
+     */
+    child_tab.invalidate();
+
+    /**
      * Get table columns columns...
      */
     const NDBCOL * childcols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
