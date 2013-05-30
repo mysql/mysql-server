@@ -3790,6 +3790,9 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TOO_MANY_FIELDS:
     textno= ER_TOO_MANY_FIELDS;
     break;
+  case HA_ERR_INNODB_READ_ONLY:
+    textno= ER_INNODB_READ_ONLY;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
