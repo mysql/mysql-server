@@ -29,6 +29,8 @@
    db_env_set_flusher_thread_callback;
    db_env_set_num_bucket_mutexes;
 
+   read_partitioned_counter;
+
    toku_ydb_error_all_cases;
    toku_set_trace_file;
    toku_close_trace_file;
