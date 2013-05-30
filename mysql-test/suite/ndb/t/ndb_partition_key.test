@@ -284,3 +284,28 @@ select * from nott1 where a=0 and (( b > 0 and b < 3) or
 --source suite/ndb/include/ndb_scan_counts.inc
 
 drop table nott1;
+
+#
+#
+#
+CREATE TABLE t1 (
+a char(10) NOT NULL,
+b char(1) NOT NULL,
+PRIMARY KEY (a,b)
+) ENGINE ndb DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
+  PARTITION BY KEY (a);
+
+insert into t1 values ('a', 'a'), ('b', 'b');
+select * from t1 where a = 'a';
+drop table t1;
+
+CREATE TABLE t1 (
+a varchar(3000) NOT NULL,
+b char(1) NOT NULL,
+PRIMARY KEY (a,b)
+) ENGINE ndb DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
+  PARTITION BY KEY (a);
+
+insert into t1 values ('a', 'a'), ('b', 'b');
+select * from t1 where a = 'a';
+drop table t1;
