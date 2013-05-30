@@ -60,7 +60,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	1290	0
+select a into b from t1 limit 1	2110	0
 insert into t1 values(current_user())	20	0
 # this SET always purges all remembered traces
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -72,7 +72,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2116	0
+select a into b from t1 limit 1	2110	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -83,13 +83,13 @@ root@localhost
 root@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	2529	0
+select * from v1	2523	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 insert into t2 values(current_user());
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	1282	0
+insert into t3 select * from t3	2478	0
 
 # Show that really all global privileges are needed: let root
 # revoke just one from user1. Because user1 does not have all global
@@ -242,7 +242,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	1290	0
+select a into b from t1 limit 1	2110	0
 insert into t1 values(current_user())	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -253,7 +253,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2116	0
+select a into b from t1 limit 1	2110	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -264,7 +264,7 @@ user1@localhost
 user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	2529	0
+select * from v1	2523	0
 set optimizer_trace_offset=2,optimizer_trace_limit=1;
 call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
@@ -398,7 +398,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	1290	0
+select a into b from t1 limit 1	2110	0
 insert into t1 values(current_user())	20	0
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
@@ -427,7 +427,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2116	0
+select a into b from t1 limit 1	2110	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 # Trace exposed body of routine, and content of t1, which we
@@ -451,7 +451,7 @@ user1@localhost
 user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	2529	0
+select * from v1	2523	0
 # Trace exposed body of view, and content of t1, which we
 # could see anyway:
 show create view v1;
@@ -807,7 +807,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	1290	0
+select a into b from t1 limit 1	2110	0
 insert into t1 values(current_user())	20	0
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
@@ -835,7 +835,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2116	0
+select a into b from t1 limit 1	2110	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 # Trace exposed body of routine, and content of t1, which we
@@ -858,7 +858,7 @@ user1@localhost
 user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	2529	0
+select * from v1	2523	0
 # Trace exposed body of view, and content of t1, which we
 # could see anyway:
 show create view v1;
@@ -869,7 +869,7 @@ insert into t2 values(current_user());
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	2502	0
+insert into t3 select * from t3	2496	0
 # Trace exposed body of trigger, and content of t2/t3, which we
 # could see anyway:
 show create trigger trg2;
@@ -888,7 +888,7 @@ a
 first
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select a from (select a from t1 where a like "f%") as tt where a like "fi%"	6948	0
+select a from (select a from t1 where a like "f%") as tt where a like "fi%"	6942	0
 
 # For routines, as they only use t1 and we added only one
 # privilege on t1, we have nothing to remove.
