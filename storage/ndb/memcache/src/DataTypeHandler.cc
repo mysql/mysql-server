@@ -957,7 +957,7 @@ inline void factor_YYYYMMDD(time_helper *tm, Int32 int_date) {
 }
 
 inline void    factor_YYYYYMMDDHHMMSS(time_helper *tm, Uint64 datetime) {
-  tm->year   = datetime / 10000000000 % 10000;
+  tm->year   = datetime / 10000000000ULL % 10000;
   tm->month  = datetime /   100000000 % 100;
   tm->day    = datetime /     1000000 % 100;
   tm->hour   = datetime /       10000 % 100;
@@ -1186,7 +1186,7 @@ int readFraction(const NdbDictionary::Column *col, const char *buf) {
 
 int writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {
   int prec  = col->getPrecision();
-  register int bufsz;
+  register int bufsz = 0;
   if(prec > 0) {
     bufsz = (1 + prec) / 2;
     while(prec < 5) usec /= 100, prec += 2;
