@@ -18,10 +18,6 @@
  02110-1301  USA
  */
 
-/*global unified_debug, fs, path, util, assert, suites_dir,
-         test_conn_properties
-*/
-
 "use strict";
 
 var udebug = unified_debug.getLogger("samples/lib.js");
@@ -41,10 +37,12 @@ var randomUUID = function() {
 /* Tweet domain object model
  */
 var Tweet = function(author, message) {
-  this.id = randomUUID();
-  this.date_created = new Date();
-  this.author = author;
-  this.message = message;
+  if(author !== undefined) {
+    this.id = randomUUID();
+    this.date_created = new Date();
+    this.author = author;
+    this.message = message;
+  }
 };
 
 /* SQL DDL Utilities
