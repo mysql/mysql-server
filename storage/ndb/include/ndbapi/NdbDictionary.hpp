@@ -2602,10 +2602,20 @@ public:
      * @{
      */
 
+    enum CreateFKFlags
+    {
+      /**
+       * CreateFK_NoVerify
+       * - don't verify FK as part of Create.
+       * - @NOTE: This allows creation of inconsistent FK
+       */
+      CreateFK_NoVerify = 1
+    };
+
     /**
      * Create a ForeignKey in database
      */
-    int createForeignKey(const ForeignKey&, ObjectId* = 0);
+    int createForeignKey(const ForeignKey&, ObjectId* = 0, int flags = 0);
 
     /**
      * Get a ForeignKey by name
@@ -2729,6 +2739,12 @@ public:
        * Named after oracle "drop table .. cascade constraints".
        */
       DropTableCascadeConstraints = 0x1
+
+      /*
+       * Drop any referring foreign keys within same DB
+       *   used when dropping database
+       */
+      ,DropTableCascadeConstraintsDropDB = 0x2
     };
     int dropTableGlobal(const Table &ndbtab, int flags);
     int dropIndexGlobal(const Index &index);
