@@ -142,7 +142,7 @@ t6.run = function() {
   var data = new TestData(6);
   var date1969 = new Date(-10000);
   data.cNullableTimestamp = date1969;
-  this.insertErrorVerifier = new ErrorVerifier(this, "22008");
+  this.insertErrorVerifier = new ErrorVerifier(this, "22007");
   fail_openSession(this, InsertFunction(data));
 }
 
