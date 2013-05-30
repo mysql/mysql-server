@@ -486,7 +486,9 @@ private:
 				FUTEX_WAIT_PRIVATE, MUTEX_STATE_WAITERS,
 				0, 0, 0);
 
-			// FIXME: Do we care about the return value?
+			// Since we are retrying the operation the return
+			// value doesn't matter.
+
 		} while (!set_waiters());
 	}
 
@@ -495,8 +497,6 @@ private:
 	{
 		syscall(SYS_futex, &m_lock_word, FUTEX_WAKE_PRIVATE,
 			MUTEX_STATE_LOCKED, 0, 0, 0);
-
-		// FIXME: Do we care about the return value?
 	}
 
 	/** Poll waiting for mutex to be unlocked.
