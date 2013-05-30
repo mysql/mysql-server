@@ -3899,17 +3899,3 @@ field1
 150
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1, t2;
-#
-# Bug#12661349 assert in protocol::end_statement
-#
-# Note: This test case should be run with --ps-protocol
-DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (col1 INT);
-# Connection con1
-# Connection default
-KILL QUERY <con1_id>;
-# Connection con1
-SELECT * FROM t1;
-col1
-# Connection default
-DROP TABLE t1;
