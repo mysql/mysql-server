@@ -60,7 +60,7 @@ create table IF NOT EXISTS tbl3 (
 
 drop table if exists tbl4;
 create table IF NOT EXISTS tbl4 (
-  i int primary key not null auto_increment,
+  i int primary key not null default 1000,
   k int,
   c varchar(120),
   unique key (k)

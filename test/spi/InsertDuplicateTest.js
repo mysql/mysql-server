@@ -131,8 +131,8 @@ t2.run = function() {
 
 t2.checkResult = function(err, tx) {
   try {
-      t2.errorIfNotEqual("t2 cause.sqlstate", '23000', err.cause.sqlstate);
-      t2.errorIfNotEqual("t2 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
+    t2.errorIfNotEqual("t2 cause.sqlstate", '23000', err.cause.sqlstate);
+    t2.errorIfNotEqual("t2 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
   }
   catch(e) {
     t2.appendErrorMessage("t2 exception " + e.message);
