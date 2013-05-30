@@ -611,7 +611,7 @@ function verifyIndexHandler(dbIndexHandler) {
 function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_READ, tx, dbIndexHandler, null);
-  op.keys = dbIndexHandler.getFields(keys);
+  op.keys = Array.isArray(keys) ? keys : dbIndexHandler.getFields(keys);
 
   if(! dbIndexHandler.tableHandler.ValueObject) {
     storeNativeConstructorInMapping(dbIndexHandler.tableHandler);
