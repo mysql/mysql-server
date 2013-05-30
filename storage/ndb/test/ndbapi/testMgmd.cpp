@@ -251,11 +251,11 @@ public:
   {
     const char* hostname;
     if (!get_section_string(config, m_name.c_str(), "HostName", &hostname))
-      return false;
+      return "";
 
     Uint32 port;
     if (!get_section_uint32(config, m_name.c_str(), "PortNumber", &port))
-      return false;
+      return "";
 
     BaseString constr;
     constr.assfmt("%s:%d", hostname, port);
