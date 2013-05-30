@@ -122,6 +122,10 @@ PATENT RIGHTS GRANT:
 //
 
 // The old C interface.  This required a bunch of explicit ___attribute__((__destructor__)) functions to remember to destroy counters at the end.
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct partitioned_counter *PARTITIONED_COUNTER;
 PARTITIONED_COUNTER create_partitioned_counter(void);
 // Effect: Create a counter, initialized to zero.
@@ -133,7 +137,7 @@ void increment_partitioned_counter(PARTITIONED_COUNTER, uint64_t amount);
 // Effect: Increment the counter by amount.
 // Requires: No overflows.  This is a 64-bit unsigned counter.
 
-uint64_t read_partitioned_counter(PARTITIONED_COUNTER);
+uint64_t read_partitioned_counter(PARTITIONED_COUNTER) __attribute__((__visibility__("default")));
 // Effect: Return the current value of the counter.
 
 void partitioned_counters_init(void);
@@ -141,6 +145,10 @@ void partitioned_counters_init(void);
 
 void partitioned_counters_destroy(void);
 // Effect: Destroy any partitioned counters data structures.
+
+#if defined(__cplusplus)
+};
+#endif
 
 #if 0
 #include <pthread.h>
