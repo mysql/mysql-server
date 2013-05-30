@@ -570,6 +570,7 @@ unique(z)
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
+set @@ndb_show_foreign_key_mock_tables= 0;
 
 ndb_show_tables completed.....
 
@@ -579,11 +580,6 @@ count(*)
 0
 # Drop the database mydb0 with all tables still there
 drop database mydb0;
-Warnings:
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't1'
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t3' referenced by 't2'
 
 ndb_show_tables completed.....
 
@@ -593,12 +589,6 @@ count(*)
 4
 # Drop also database mydb1
 drop database mydb1;
-Warnings:
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t1' referenced by 't1'
-Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
 
 ndb_show_tables completed.....
 
@@ -608,13 +598,6 @@ count(*)
 5
 # Drop t1 and the 5 remaining mocks
 drop table t1;
-Warnings:
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - referencing table dropped
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
-Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - referencing table dropped
-set @@ndb_show_foreign_key_mock_tables= 0;
 
 ndb_show_tables completed.....
 
