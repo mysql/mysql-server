@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -36,6 +36,8 @@ Created 04/12/2011 Jimmy Yang
 
 /** Whether to update all columns' value or a specific column value */
 #define UPDATE_ALL_VAL_COL	-1
+
+extern option_t config_option_names[];
 
 /** InnoDB API callback functions */
 static ib_cb_t* innodb_memcached_api[] = {
@@ -1293,7 +1295,8 @@ innodb_api_arithmetic(
 
 		/* If create is true, insert a new row */
 		if (create) {
-			snprintf(value_buf, sizeof(value_buf), "%llu", initial);
+			snprintf(value_buf, sizeof(value_buf),
+				 "%" PRIu64, initial);
 			create_new = true;
 			goto create_new_value;
 		} else {
@@ -1359,8 +1362,7 @@ innodb_api_arithmetic(
 		}
 	}
 
-
-	snprintf(value_buf, sizeof(value_buf), "%llu", value);
+	snprintf(value_buf, sizeof(value_buf), "%" PRIu64, value);
 create_new_value:
 	*cas = mci_get_cas(engine);
 
