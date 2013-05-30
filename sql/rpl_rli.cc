@@ -114,6 +114,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                          key_RELAYLOG_LOCK_flush_queue,
                          key_RELAYLOG_LOCK_log,
                          key_RELAYLOG_LOCK_sync,
+                         0, /* Relaylog doesn't support LOCK_binlog_end_pos */
                          key_RELAYLOG_LOCK_sync_queue,
                          key_RELAYLOG_LOCK_xids,
                          key_RELAYLOG_COND_done,

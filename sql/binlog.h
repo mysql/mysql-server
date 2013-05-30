@@ -298,6 +298,8 @@ class MYSQL_BIN_LOG: public TC_LOG
   PSI_mutex_key m_key_LOCK_log;
   /** The instrumentation key to use for @ LOCK_index. */
   PSI_mutex_key m_key_LOCK_index;
+  /** The instrumentation key to use for @ LOCK_binlog_end_pos. */
+  PSI_mutex_key m_key_LOCK_binlog_end_pos;
 
   PSI_mutex_key m_key_COND_done;
 
@@ -324,8 +326,11 @@ class MYSQL_BIN_LOG: public TC_LOG
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_commit;
   mysql_mutex_t LOCK_sync;
+  mysql_mutex_t LOCK_binlog_end_pos;
   mysql_mutex_t LOCK_xids;
   mysql_cond_t update_cond;
+
+  my_off_t binlog_end_pos;
   ulonglong bytes_written;
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
@@ -504,6 +509,7 @@ public:
                     PSI_mutex_key key_LOCK_done,
                     PSI_mutex_key key_LOCK_flush_queue,
                     PSI_mutex_key key_LOCK_log,
+                    PSI_mutex_key key_LOCK_binlog_end_pos,
                     PSI_mutex_key key_LOCK_sync,
                     PSI_mutex_key key_LOCK_sync_queue,
                     PSI_mutex_key key_LOCK_xids,
@@ -522,6 +528,7 @@ public:
 
     m_key_LOCK_index= key_LOCK_index;
     m_key_LOCK_log= key_LOCK_log;
+    m_key_LOCK_binlog_end_pos= key_LOCK_binlog_end_pos;
     m_key_LOCK_commit= key_LOCK_commit;
     m_key_LOCK_sync= key_LOCK_sync;
     m_key_LOCK_xids= key_LOCK_xids;
@@ -620,7 +627,31 @@ public:
     DBUG_VOID_RETURN;
   }
   void set_max_size(ulong max_size_arg);
-  void signal_update();
+  void signal_update()
+  {
+    DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
+    signal_cnt++;
+    mysql_cond_broadcast(&update_cond);
+    DBUG_VOID_RETURN;
+  }
+
+  void update_binlog_end_pos()
+  {
+    /*
+      binlog_end_pos is used only on master's binlog right now. It is possible
+      to use it on relay log.
+    */
+    if (is_relay_log)
+      signal_update();
+    else
+    {
+      lock_binlog_end_pos();
+      binlog_end_pos= my_b_tell(&log_file);
+      signal_update();
+      unlock_binlog_end_pos();
+    }
+  }
+
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
 public:
@@ -739,6 +770,20 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+
+  /*
+    It is called by the threads(e.g. dump thread) which want to read
+    hot log without LOCK_log protection.
+  */
+  my_off_t get_binlog_end_pos() const
+  {
+    mysql_mutex_assert_not_owner(&LOCK_log);
+    mysql_mutex_assert_owner(&LOCK_binlog_end_pos);
+    return binlog_end_pos;
+  }
+  mysql_mutex_t* get_binlog_end_pos_lock() { return &LOCK_binlog_end_pos; }
+  void lock_binlog_end_pos() { mysql_mutex_lock(&LOCK_binlog_end_pos); }
+  void unlock_binlog_end_pos() { mysql_mutex_unlock(&LOCK_binlog_end_pos); }
 };
 
 typedef struct st_load_file_info

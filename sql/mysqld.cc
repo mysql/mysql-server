@@ -3581,6 +3581,7 @@ int init_common_variables()
                              key_BINLOG_LOCK_done,
                              key_BINLOG_LOCK_flush_queue,
                              key_BINLOG_LOCK_log,
+                             key_BINLOG_LOCK_binlog_end_pos,
                              key_BINLOG_LOCK_sync,
                              key_BINLOG_LOCK_sync_queue,
                              key_BINLOG_LOCK_xids,
@@ -9152,6 +9153,7 @@ PSI_mutex_key key_BINLOG_LOCK_done;
 PSI_mutex_key key_BINLOG_LOCK_flush_queue;
 PSI_mutex_key key_BINLOG_LOCK_index;
 PSI_mutex_key key_BINLOG_LOCK_log;
+PSI_mutex_key key_BINLOG_LOCK_binlog_end_pos;
 PSI_mutex_key key_BINLOG_LOCK_sync;
 PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 PSI_mutex_key key_BINLOG_LOCK_xids;
@@ -9206,6 +9208,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_BINLOG_LOCK_flush_queue, "MYSQL_BIN_LOG::LOCK_flush_queue", 0 },
   { &key_BINLOG_LOCK_index, "MYSQL_BIN_LOG::LOCK_index", 0},
   { &key_BINLOG_LOCK_log, "MYSQL_BIN_LOG::LOCK_log", 0},
+  { &key_BINLOG_LOCK_binlog_end_pos, "MYSQL_BIN_LOG::LOCK_binlog_end_pos", 0},
   { &key_BINLOG_LOCK_sync, "MYSQL_BIN_LOG::LOCK_sync", 0},
   { &key_BINLOG_LOCK_sync_queue, "MYSQL_BIN_LOG::LOCK_sync_queue", 0 },
   { &key_BINLOG_LOCK_xids, "MYSQL_BIN_LOG::LOCK_xids", 0 },
