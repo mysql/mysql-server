@@ -476,7 +476,7 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapte
     result = f.defaultValue;
   }
   var typeConverter = f.typeConverter && f.typeConverter[adapter];
-  if (typeConverter) {
+  if (result && typeConverter) {
     result = typeConverter.toDB(result);
   }
   return result;
