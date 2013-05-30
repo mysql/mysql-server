@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -73,6 +73,8 @@ typedef struct eng_config_info {
 						enabled specifically for
 						this memcached engine */
 } eng_config_info_t;
+
+extern option_t config_option_names[];
 
 /** Check the input key name implies a table mapping switch. The name
 would start with "@@", and in the format of "@@new_table_mapping.key"
