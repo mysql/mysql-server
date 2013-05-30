@@ -1258,3 +1258,46 @@ SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('stands\'] | * | show[@database' IN NATURAL LANGUAGE MODE);
 
 DROP TABLE articles;
+
+# Test for BUG#16516193 - LITERAL PHRASES CANNOT BE COMBINED WITH + OR - OPERATOR
+# Create FTS table
+CREATE TABLE t1 (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	a VARCHAR(200),
+	FULLTEXT (a)
+	) ENGINE= InnoDB;
+
+# Insert rows
+INSERT INTO t1 (a) VALUES
+	('Do you know MySQL is a good database'),
+	('How to build a good database'),
+	('Do you know'),
+	('Do you know MySQL'),
+	('How to use MySQL'),
+	('Do you feel good'),
+	('MySQL is good'),
+	('MySQL is good to know'),
+	('What is database');
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql"' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql")' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('("know mysql" good)' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" good)' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('(good "know mysql")' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+(good "know mysql")' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" "good database")' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql" +"good database"' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@4' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@8' IN BOOLEAN MODE);
+
+# Drop table
+DROP TABLE t1;
