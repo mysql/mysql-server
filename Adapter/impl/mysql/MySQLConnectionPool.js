@@ -129,8 +129,9 @@ exports.DBConnectionPool = function(props) {
   this.is_connected = false;
   // create type converter map
   this.typeConverterMap = {};
-  this.typeConverterMap.timestamp = new TimestampTypeConverter();
-  this.typeConverterMap.date = new DateTypeConverter();
+//  type converters are not presently used
+//  this.typeConverterMap.timestamp = new TimestampTypeConverter();
+//  this.typeConverterMap.date = new DateTypeConverter();
   stats.incr( [ "created" ]);
 };
 

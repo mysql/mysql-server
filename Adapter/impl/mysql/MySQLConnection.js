@@ -319,7 +319,7 @@ function InsertOperation(sql, data, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, null);
+        op.callback(op.result.error, null);
       }
     } else {
       op.result.value = op.data;
@@ -358,7 +358,7 @@ function WriteOperation(sql, data, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, null);
+        op.callback(op.result.error, null);
       }
     } else {
       op.result.value = op.data;
@@ -394,7 +394,7 @@ function DeleteOperation(sql, keys, callback) {
       op.result.error = new DBOperationError(err);
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, op);
+        op.callback(op.result.error, op);
       }
     } else {
       udebug.log('dbSession.DeleteOperation NO ERROR callback:', status);
@@ -440,7 +440,7 @@ function ReadOperation(dbTableHandler, sql, keys, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, op);
+        op.callback(op.result.error, op);
       }
     } else {
       if (rows.length > 1) {
@@ -501,7 +501,7 @@ function ScanOperation(dbTableHandler, sql, parameters, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, op);
+        op.callback(op.result.error, op);
       }
     } else {
       op.result.value = rows;
@@ -540,7 +540,7 @@ function UpdateOperation(sql, keys, values, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, op);
+        op.callback(op.result.error, op);
       }
     } else {
       udebug.log('dbSession.UpdateOperation NO ERROR callback:', status);
