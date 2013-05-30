@@ -119,7 +119,6 @@ struct OSBasicMutex {
 #ifdef _WIN32
 		LeaveCriticalSection(&m_mutex);
 #else
-		// FIXME: Do we check for EINTR?
 		int	ret = pthread_mutex_unlock(&m_mutex);
 		ut_a(ret == 0);
 #endif /* _WIN32 */
