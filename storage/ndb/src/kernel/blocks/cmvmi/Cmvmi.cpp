@@ -1290,7 +1290,7 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   if (tuserblockref != 0)
   {
     signal->theData[0] = errNo;
-    sendSignal(tuserblockref, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(tuserblockref, GSN_NDB_TAMPER, signal, signal->getLength(), JBB);
   }
 #endif
 }//execTAMPER_ORD()
