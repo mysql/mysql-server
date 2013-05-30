@@ -713,53 +713,46 @@ fts_query_intersect_doc_id(
 
 	/* Check if the doc id is deleted and it's in our set */
 	if (fts_bsearch(array, 0, size, doc_id) < 0) {
-		/* If this is the first FTS_EXIST we encountered, all of its
-		value must be in intersect list */
-		if (!query->multi_exist) {
-			fts_ranking_t	new_ranking;
+		fts_ranking_t	new_ranking;
 
-			if (rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
-				ranking = rbt_value(fts_ranking_t, parent.last);
-				rank += (ranking->rank > 0)
-					? ranking->rank : RANK_UPGRADE;
-				if (rank >= 1.0F) {
-					rank = 1.0F;
-				}
-			}
-
-			new_ranking.rank = rank;
-			new_ranking.doc_id = doc_id;
-			new_ranking.words = rbt_create(
-				sizeof(byte*), fts_query_strcmp);
-			ranking = &new_ranking;
-
-			if (rbt_search(query->intersection, &parent,
-				       ranking) != 0) {
-				rbt_add_node(query->intersection,
-					     &parent, ranking);
-			} else {
-				rbt_free(new_ranking.words);
-			}
-		} else {
-
-			if (rbt_search(query->doc_ids, &parent, &doc_id) != 0) {
-				return;
-			}
-
+		/* Check doc_id in doc_ids:
+		   1. if doc_ids is empty, add doc_id into intersection;
+		   2. if doc_ids contains doc_id, add doc_id into intersection.
+		*/
+		if (rbt_size(query->doc_ids) == 0) {
+			new_ranking.words = NULL;
+		} else if (rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
 			ranking = rbt_value(fts_ranking_t, parent.last);
+			rank += (ranking->rank > 0)
+				? ranking->rank : RANK_UPGRADE;
+			if (rank >= 1.0F) {
+				rank = 1.0F;
+			}
 
-			ranking->rank = rank;
+			ut_a(ranking->words);
+			new_ranking.words = ranking->words;
+		} else {
+			return;
+		}
 
-			if (ranking->words != NULL
-			    && rbt_search(query->intersection, &parent,
-					  ranking) != 0) {
-				rbt_add_node(query->intersection, &parent,
-					     ranking);
+		new_ranking.rank = rank;
+		new_ranking.doc_id = doc_id;
 
+		if (rbt_search(query->intersection, &parent,
+			       &new_ranking) != 0) {
+			if (new_ranking.words == NULL) {
+				new_ranking.words = rbt_create(
+					sizeof(byte*), fts_query_strcmp);
+			} else {
 				/* Note that the intersection has taken
 				ownership of the ranking data. */
 				ranking->words = NULL;
 			}
+
+			rbt_add_node(query->intersection,
+				     &parent, &new_ranking);
+		} else {
+			ut_a(0);
 		}
 	}
 }
@@ -1379,11 +1372,26 @@ fts_merge_doc_ids(
 	/* Merge the elements to the result set. */
 	for (node = rbt_first(doc_ids); node; node = rbt_next(doc_ids, node)) {
 		fts_ranking_t*		ranking;
+		const ib_rbt_node_t*	word_node;
 
 		ranking = rbt_value(fts_ranking_t, node);
 
 		fts_query_process_doc_id(
 			query, ranking->doc_id, ranking->rank);
+
+		/* Merge words. Don't need to take operator into account. */
+		ut_a(ranking->words);
+		for (word_node = rbt_first(ranking->words); word_node;
+		     word_node = rbt_next(ranking->words, word_node)) {
+			const byte*		word;
+			const byte**		wordp;
+
+			wordp = rbt_value(const byte*, word_node);
+			word = *wordp;
+
+			fts_query_add_word_to_document(query, ranking->doc_id,
+						       word);
+		}
 	}
 
 	/* If it is an intersection operation, reset query->doc_ids
@@ -2955,10 +2963,10 @@ fts_query_filter_doc_ids(
 		positions here and match later. */
 		if (!query->collect_positions) {
 			fts_query_process_doc_id(query, doc_id, 0);
-		}
 
-		/* Add the word to the document's matched RB tree. */
-		fts_query_add_word_to_document(query, doc_id, word);
+			/* Add the word to the document's matched RB tree. */
+			fts_query_add_word_to_document(query, doc_id, word);
+		}
 	}
 
 	/* Some sanity checks. */
