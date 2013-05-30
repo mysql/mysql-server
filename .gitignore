@@ -26,3 +26,12 @@
 
 *.py[cod]
 
+# Tags
+GPATH
+GRTAGS
+GTAGS
+TAGS
+tags
+
+# Common symlinks used in compiling
+third_party/jemalloc
