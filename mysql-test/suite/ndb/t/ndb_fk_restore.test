@@ -36,7 +36,6 @@ delete from t1 where a1 = 1;
 # t1 fragment may be restored before t2 fragment but in MTR
 # there are two fragments so likely FK disable is required
 
--- let $disable_indexes=0
 -- source ndb_fk_restore.inc
 
 -- error ER_NO_REFERENCED_ROW_2
@@ -62,7 +61,6 @@ insert into t2 (b2,c2) values (10,99);
 -- error ER_ROW_IS_REFERENCED_2
 delete from t1 where a1 = 1;
 
--- let $disable_indexes=0
 -- source ndb_fk_restore.inc
 
 -- error ER_NO_REFERENCED_ROW_2
@@ -98,7 +96,6 @@ insert into t2 (b2,c2) values (61,62);
 -- error ER_ROW_IS_REFERENCED_2
 delete from t1 where b1=61 and c1=62;
 
--- let $disable_indexes=0
 -- source ndb_fk_restore.inc
 
 -- error ER_NO_REFERENCED_ROW_2
@@ -110,5 +107,54 @@ delete from t1 where b1=61 and c1=62;
 
 -- let $disable_indexes=1
 -- source ndb_fk_restore.inc
+
+-- echo # TEST: rebuild indexes meta
+
+# previous tables are unusable via mysql
+drop table t2, t1;
+
+create table t1 (
+  a1 int primary key,
+  b1 int not null,
+  c1 int not null,
+  unique key (b1,c1) using hash
+) engine ndb;
+
+create table t2 (
+  a2 int primary key auto_increment,
+  b2 int not null,
+  c2 int not null,
+  key xb2c2 (b2,c2),
+  foreign key fkb2c2c1b1 (b2,c2) references t1 (c1,b1)
+) engine ndb;
+
+-- let $rebuild_indexes=1
+-- source ndb_fk_restore.inc
+
+-- echo # TEST: rebuild indexes data
+
+# there may be a bug with add FK and reversed column order
+
+alter online table t2
+  drop foreign key fkb2c2c1b1;
+alter online table t2
+  add foreign key fkb2c2b1c1 (b2,c2) references t1 (b1,c1);
+
+insert into t1 (a1,b1,c1) values
+  (1,11,12),(2,21,22),(3,31,32),(4,41,42),(5,51,52),(6,61,62);
+
+insert into t2 (b2,c2) select x.b1,x.c1 from t1 x,t1 y;
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2,c2) values (62,61);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where b1=61 and c1=62;
+
+-- let $rebuild_indexes=1
+-- source ndb_fk_restore.inc
+
+-- error ER_NO_REFERENCED_ROW_2
+insert into t2 (b2,c2) values (62,61);
+-- error ER_ROW_IS_REFERENCED_2
+delete from t1 where b1=61 and c1=62;
 
 drop table t2, t1;

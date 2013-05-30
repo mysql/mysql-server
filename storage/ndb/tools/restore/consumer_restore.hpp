@@ -96,6 +96,7 @@ public:
   virtual bool table(const TableS &);
   virtual bool fk(Uint32 type, const void* ptr);
   virtual bool endOfTables();
+  virtual bool endOfTablesFK();
   virtual void tuple(const TupleS &, Uint32 fragId);
   virtual void tuple_free();
   virtual void tuple_a(restore_callback_t *cb);
