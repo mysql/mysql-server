@@ -84,6 +84,9 @@ public:
   int insertErrorInNode(int _nodeId, int error);
   int insertErrorInAllNodes(int error);
 
+  int insertError2InNode(int _nodeId, int error, int extra);
+  int insertError2InAllNodes(int error, int extra);
+
   int enterSingleUserMode(int _nodeId);
   int exitSingleUserMode();
 

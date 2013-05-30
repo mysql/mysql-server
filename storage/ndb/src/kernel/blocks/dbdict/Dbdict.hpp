@@ -2162,7 +2162,6 @@ private:
   void check_partial_trans_commit_next(SchemaTransPtr,
                                        NdbNodeBitmask &,
                                        SchemaOpPtr);
-  void check_partial_trans_end_recv_reply(SchemaTransPtr);
 
   // participant
   void recvTransReq(Signal*);
