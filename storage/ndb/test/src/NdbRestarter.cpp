@@ -722,6 +722,42 @@ int NdbRestarter::insertErrorInAllNodes(int _error){
 
 }
 
+int
+NdbRestarter::insertError2InNode(int _nodeId, int _error, int extra){
+  if (!isConnected())
+    return -1;
+
+  ndb_mgm_reply reply;
+  reply.return_code = 0;
+
+  if (ndb_mgm_insert_error2(handle, _nodeId, _error, extra, &reply) == -1){
+    MGMERR(handle);
+    g_err << "Could not insert error in node with id = "<< _nodeId << endl;
+  }
+  if(reply.return_code != 0){
+    g_err << "Error: " << reply.message << endl;
+  }
+  return 0;
+}
+
+int NdbRestarter::insertError2InAllNodes(int _error, int extra){
+  if (!isConnected())
+    return -1;
+
+  if (getStatus() != 0)
+    return -1;
+
+  int result = 0;
+
+  for(unsigned i = 0; i < ndbNodes.size(); i++){
+    g_debug << "inserting error in node " << ndbNodes[i].node_id << endl;
+    if (insertError2InNode(ndbNodes[i].node_id, _error, extra) == -1)
+      result = -1;
+  }
+  return result;
+
+}
+
 
 
 int NdbRestarter::dumpStateOneNode(int _nodeId, const int * _args, int _num_args){

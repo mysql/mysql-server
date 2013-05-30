@@ -225,7 +225,7 @@ public:
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    *            INVALID_ERROR_NUMBER
    */
-  int insertError(int processId, int errorNo);
+  int insertError(int processId, int errorNo, Uint32 * extra = 0);
 
 
 
