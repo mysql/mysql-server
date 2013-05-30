@@ -138,10 +138,10 @@ exports.DBConnectionPool = function(props) {
  * Called by SessionFactory.registerTypeConverter.
  */
 exports.DBConnectionPool.prototype.registerTypeConverter = function(typeName, converterObject) {
-  if (converterObject === null) {
-    typeConverterMap[typeName] = undefined;
+  if (converterObject) {
+    this.typeConverterMap[typeName] = converterObject;
   } else {
-    typeConverterMap[typeName] = converterObject;
+    this.typeConverterMap[typeName] = undefined;
   }
 };
 
