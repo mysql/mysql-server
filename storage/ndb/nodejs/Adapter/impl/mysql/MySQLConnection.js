@@ -292,10 +292,11 @@ var DBOperationError = function(cause) {
     this.sqlstate = 'HY000';
   } else {
     this.sqlstate = mysql_code_to_sqlstate_map[this.code];
+    cause.sqlstate = this.sqlstate;
   }
   this.message = cause.message;
   this.cause = cause;
-  udebug.log_detail('MySQLConnection DBOperationError constructor', this);
+  udebug.log('MySQLConnection DBOperationError constructor', this);
   var toString = function() {
     return 'DBOperationError ' + this.message;
   };
@@ -318,7 +319,7 @@ function InsertOperation(sql, data, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, null);
+        op.callback(op.result.error, null);
       }
     } else {
       op.result.value = op.data;
@@ -357,7 +358,7 @@ function WriteOperation(sql, data, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, null);
+        op.callback(op.result.error, null);
       }
     } else {
       op.result.value = op.data;
@@ -393,7 +394,7 @@ function DeleteOperation(sql, keys, callback) {
       op.result.error = new DBOperationError(err);
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, op);
+        op.callback(op.result.error, op);
       }
     } else {
       udebug.log('dbSession.DeleteOperation NO ERROR callback:', status);
@@ -439,7 +440,7 @@ function ReadOperation(dbTableHandler, sql, keys, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, op);
+        op.callback(op.result.error, op);
       }
     } else {
       if (rows.length > 1) {
@@ -453,7 +454,7 @@ function ReadOperation(dbTableHandler, sql, keys, callback) {
         op.result.value = rows[0];
         op.result.success = true;
         // convert the felix result into the user result
-        op.result.value = dbTableHandler.applyMappingToResult(op.result.value);
+        op.result.value = dbTableHandler.applyMappingToResult(op.result.value, 'mysql');
         if (typeof(op.callback) === 'function') {
           // call the UserContext callback
           op.callback(null, op);
@@ -500,7 +501,7 @@ function ScanOperation(dbTableHandler, sql, parameters, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, op);
+        op.callback(op.result.error, op);
       }
     } else {
       op.result.value = rows;
@@ -539,7 +540,7 @@ function UpdateOperation(sql, keys, values, callback) {
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
-        op.callback(err, op);
+        op.callback(op.result.error, op);
       }
     } else {
       udebug.log('dbSession.UpdateOperation NO ERROR callback:', status);
@@ -700,27 +701,35 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
   udebug.log_detail('dbSession.buildInsertOperation with tableHandler:', 
                     dbTableHandler.dbTable.name, 'object:', object);
   getMetadata(dbTableHandler);
-  var fields = dbTableHandler.getFields(object, true);
+  var fields = dbTableHandler.getFields(object, true, 'mysql');
   var insertSQL = dbTableHandler.mysql.insertSQL;
   return new InsertOperation(insertSQL, fields, callback);
 };
 
 
 exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys, transaction, callback) {
-  udebug.log_detail('dbSession.buildDeleteOperation with indexHandler:', dbIndexHandler.dbIndex.name, keys);
+  udebug.log_detail('dbSession.buildDeleteOperation with indexHandler:', dbIndexHandler.dbIndex.name, 'keys: ', keys);
+  var keysArray = dbIndexHandler.getFields(keys);
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var deleteSQL = dbTableHandler.mysql.deleteSQL[dbIndexHandler.dbIndex.name];
-  return new DeleteOperation(deleteSQL, keys, callback);
+  return new DeleteOperation(deleteSQL, keysArray, callback);
 };
 
 
 exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, transaction, callback) {
   udebug.log_detail('dbSession.buildReadOperation with indexHandler:', dbIndexHandler.dbIndex.name, 'keys:', keys);
+  var keysArray;
+  if (!Array.isArray(keys)) {
+    // the keys object is a domain object or value object from which we need to extract the array of keys
+    keysArray = dbIndexHandler.getFields(keys);
+  } else {
+    keysArray = keys;
+  }
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var selectSQL = dbTableHandler.mysql.selectSQL[dbIndexHandler.dbIndex.name];
-  return new ReadOperation(dbTableHandler, selectSQL, keys, callback);
+  return new ReadOperation(dbTableHandler, selectSQL, keysArray, callback);
 };
 
 
@@ -799,7 +808,8 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys
 
 updateSetSQL += updateWhereSQL;
 udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
-return new UpdateOperation(updateSetSQL, keys, updateFields, callback);
+var keysArray = dbIndexHandler.getFields(keys);
+return new UpdateOperation(updateSetSQL, keysArray, updateFields, callback);
 };
 
 exports.DBSession.prototype.buildWriteOperation = function(dbIndexHandler, values, transaction, callback) {
