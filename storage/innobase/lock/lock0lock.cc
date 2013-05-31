@@ -1889,6 +1889,31 @@ lock_number_of_rows_locked(
 	return(n_records);
 }
 
+/*********************************************************************//**
+Return the number of table locks for a transaction.
+The caller must be holding lock_sys->mutex. */
+ulint
+lock_number_of_tables_locked(
+/*=========================*/
+	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
+{
+	const lock_t*	lock;
+	ulint		n_tables = 0;
+
+	ut_ad(lock_mutex_own());
+
+	for (lock = UT_LIST_GET_FIRST(trx_lock->trx_locks);
+	     lock != NULL;
+	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+
+		if (lock_get_type_low(lock) == LOCK_TABLE) {
+			n_tables++;
+		}
+	}
+
+	return(n_tables);
+}
+
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
 
 /*********************************************************************//**
