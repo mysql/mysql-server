@@ -506,6 +506,7 @@ static void ndbcluster_binlog_wait(THD *thd)
     if (thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
 	"reach current position";
+    const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
     pthread_mutex_lock(&injector_mutex);
     while (!(thd && thd->killed) && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
@@ -517,6 +518,20 @@ static void ndbcluster_binlog_wait(THD *thd)
       pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
     }
     pthread_mutex_unlock(&injector_mutex);
+
+    if (count == 0)
+    {
+      sql_print_warning("NDB: Thread id %llu timed out (30s) waiting for epoch %u/%u "
+                        "to be handled.  Progress : %u/%u -> %u/%u.",
+                        (ulonglong) thd->thread_id,
+                        Uint32((wait_epoch >> 32) & 0xffffffff),
+                        Uint32(wait_epoch & 0xffffffff),
+                        Uint32((start_handled_epoch >> 32) & 0xffffffff),
+                        Uint32(start_handled_epoch & 0xffffffff),
+                        Uint32((ndb_latest_handled_binlog_epoch >> 32) & 0xffffffff),
+                        Uint32(ndb_latest_handled_binlog_epoch & 0xffffffff));
+    }
+    
     if (thd)
       thd->proc_info= save_info;
     DBUG_VOID_RETURN;

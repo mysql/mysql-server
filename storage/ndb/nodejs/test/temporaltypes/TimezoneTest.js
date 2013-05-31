@@ -25,6 +25,9 @@
    Write MySQL, Read NDB Timestamp
    Write NDB, Read MySQL Timestamp
    
+   TODO: These tests should use the current adapter rather than "Ndb" 
+         and should use a direct mysql connection rather than our "Mysql"
+   
    Assure that the two backends have identical behavior,
    especially with regard to local time vs. UTC.
 */
