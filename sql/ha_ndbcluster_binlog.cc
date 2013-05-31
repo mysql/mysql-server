@@ -6982,6 +6982,19 @@ restart_cluster_failure:
         pthread_mutex_unlock(&injector_mutex);
         goto err;
       }
+      if (thd->killed == THD::KILL_CONNECTION)
+      {
+        /*
+          Since the ndb binlog thread adds itself to the "global thread list"
+          it need to look at the "killed" flag and stop the thread to avoid
+          that the server hangs during shutdown while waiting for the "global
+          thread list" to be emtpy.
+        */
+        sql_print_information("NDB Binlog: Server shutdown detected while "
+                              "waiting for ndbcluster to start...");
+        pthread_mutex_unlock(&injector_mutex);
+        goto err;
+      }
     }
     pthread_mutex_unlock(&injector_mutex);
 
