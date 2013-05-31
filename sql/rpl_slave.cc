@@ -3068,7 +3068,8 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       goto err;
     uchar* ptr_buffer= command_buffer;
   
-    int4store(ptr_buffer, mi->get_master_log_pos());
+    int4store(ptr_buffer, DBUG_EVALUATE_IF("request_master_log_pos_3", 3,
+                                           mi->get_master_log_pos()));
     ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
     // See comment regarding binlog_flags above.
     int2store(ptr_buffer, binlog_flags);

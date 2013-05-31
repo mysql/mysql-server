@@ -105,7 +105,7 @@ USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
---ERROR ER_OPEN_AS_READONLY
+--ERROR ER_INNODB_READ_ONLY
 CREATE TABLE t2 ( i int ,j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -121,7 +121,7 @@ USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
---ERROR ER_OPEN_AS_READONLY
+--ERROR ER_INNODB_READ_ONLY
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -144,7 +144,7 @@ USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
---ERROR ER_OPEN_AS_READONLY
+--ERROR ER_INNODB_READ_ONLY
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -245,7 +245,7 @@ USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (211,repeat('a',200)),(212,repeat('b',200)),(213,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 WHERE i%10=0 ORDER BY i;
---ERROR ER_OPEN_AS_READONLY
+--ERROR ER_INNODB_READ_ONLY
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -457,7 +457,7 @@ CALL proc2(2,'test2');
 SELECT * FROM t3;
 
 # try to CREATE temp table 
---ERROR ER_OPEN_AS_READONLY
+--ERROR ER_INNODB_READ_ONLY
 CREATE TEMPORARY TABLE temp_1 ( i INT ) ENGINE = Innodb;
 
 # Try to insert with partitioned table
@@ -634,7 +634,7 @@ INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',2
 UPDATE t1 SET i = i + 20;
 --ERROR ER_CANT_LOCK
 DELETE FROM t1;
---ERROR ER_OPEN_AS_READONLY
+--ERROR ER_INNODB_READ_ONLY
 CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
 CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';

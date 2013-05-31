@@ -246,7 +246,7 @@ use test;
 show tables;
 Tables_in_test
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
-ERROR HY000: Table 't1' is read only
+ERROR HY000: InnoDB is in read only mode.
 "testing system and temp tablespace name conflict"
 "restarting server in normal mode"
 use test;
