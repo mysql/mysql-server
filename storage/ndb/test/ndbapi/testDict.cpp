@@ -7372,7 +7372,7 @@ int
 runCreateHashmaps(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
-  int nodeId = restarter.getMasterNodeId();
+  // int nodeId = restarter.getMasterNodeId();
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
 
@@ -10359,6 +10359,87 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runDictTO_1(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 3)
+    return NDBT_OK;
+
+  for (int i = 0; i < ctx->getNumLoops(); i++)
+  {
+    int master = restarter.getMasterNodeId();
+    int next = restarter.getNextMasterNodeId(master);
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+
+    restarter.dumpStateOneNode(master, val2, 2);
+    restarter.insertError2InNode(master, 6050, next);
+
+    ndbout_c("master: %d next: %d", master, next);
+    {
+      g_info << "save all resource usage" << endl;
+      int dump1[] = { DumpStateOrd::SchemaResourceSnapshot };
+      restarter.dumpStateAllNodes(dump1, 1);
+    }
+
+
+    {
+      if (pDic->beginSchemaTrans() != 0)
+      {
+        ndbout << "ERROR: line: " << __LINE__ << endl;
+        ndbout << pDic->getNdbError();
+        return NDBT_FAILED;
+      }
+      for (int j = 0; j < (i + 1); j++)
+      {
+        NdbDictionary::Table pTab(* ctx->getTab());
+        pTab.setName(BaseString(pTab.getName()).appfmt("_EXTRA_%u", j).c_str());
+
+        if (pDic->createTable(pTab) != 0)
+        {
+          ndbout << "ERROR: line: " << __LINE__ << endl;
+          ndbout << pDic->getNdbError();
+          return NDBT_FAILED;
+        }
+      }
+
+      // this should give master failuer...but trans should rollforward
+      if (pDic->endSchemaTrans() != 0)
+      {
+        ndbout << "ERROR: line: " << __LINE__ << endl;
+        ndbout << pDic->getNdbError();
+        return NDBT_FAILED;
+      }
+    }
+
+    for (int j = 0; j < (i + 1); j++)
+    {
+      pDic->dropTable(BaseString(ctx->getTab()->getName()).appfmt("_EXTRA_%u", j).c_str());
+    }
+
+    {
+      g_info << "check all resource usage" << endl;
+      for (int j = 0; j < restarter.getNumDbNodes(); j++)
+      {
+        if (restarter.getDbNodeId(j) == master)
+          continue;
+
+        int dump1[] = { DumpStateOrd::SchemaResourceCheckLeak };
+        restarter.dumpStateOneNode(restarter.getDbNodeId(j), dump1, 1);
+      }
+    }
+
+    restarter.waitNodesNoStart(&master, 1);
+    restarter.startNodes(&master, 1);
+    restarter.waitClusterStarted();
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -10704,6 +10785,10 @@ TESTCASE("CreateHashmaps",
          "Create (default) hashmaps")
 {
   INITIALIZER(runCreateHashmaps);
+}
+TESTCASE("DictTakeOver_1", "")
+{
+  INITIALIZER(runDictTO_1);
 }
 NDBT_TESTSUITE_END(testDict);
 

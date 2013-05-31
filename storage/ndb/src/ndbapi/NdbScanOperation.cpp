@@ -742,7 +742,8 @@ NdbIndexScanOperation::getDistKeyFromRange(const NdbRecord *key_record,
                                            Uint32* distKey)
 {
   const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8; 
-  Uint64 tmp[ MaxKeySizeInLongWords ];
+  // Note: xfrm:ed key can/will be bigger than MaxKeySizeInLongWords
+  Uint64 tmp[ MaxKeySizeInLongWords * MAX_XFRM_MULTIPLY ];
   char* tmpshrink = (char*)tmp;
   Uint32 tmplen = (Uint32)sizeof(tmp);
   

@@ -431,7 +431,13 @@ class Fk_util
 
     // Create new fk referencing the new table
     DBUG_PRINT("info", ("Create new fk: %s", new_fk.getName()));
-    if (dict->createForeignKey(new_fk) != 0)
+    int flags = 0;
+    if (thd_test_options(m_thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+    {
+      flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
+    }
+    NdbDictionary::ObjectId objid;
+    if (dict->createForeignKey(new_fk, &objid, flags) != 0)
     {
       error(dict, "Failed to create foreign key '%s'", new_fk.getName());
       remove_index_global(dict, parent_index);
@@ -1182,6 +1188,16 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     }
 
     /**
+     * NOTE 2: we mark the table as invalid
+     *         so that it gets removed from GlobalDictCache if
+     *         the schema transaction later fails...
+     *
+     * TODO: This code currently fetches table definition from data-nodes
+     *       once per FK...which could be improved to once if a FK
+     */
+    child_tab.invalidate();
+
+    /**
      * Get table columns columns...
      */
     const NDBCOL * childcols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
@@ -1444,7 +1460,13 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::NoAction);
     }
 
-    int err= dict->createForeignKey(ndbfk);
+    int flags = 0;
+    if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+    {
+      flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
+    }
+    NdbDictionary::ObjectId objid;
+    int err= dict->createForeignKey(ndbfk, &objid, flags);
 
     if (child_index)
     {
@@ -2386,7 +2408,14 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
                   name);
       fk.setName(new_name);
       setDbName(ndb, db_and_name);
-      if (dict->createForeignKey(fk) != 0)
+
+      int flags = 0;
+      if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+      {
+        flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
+      }
+      NdbDictionary::ObjectId objid;
+      if (dict->createForeignKey(fk, &objid, flags) != 0)
       {
         ERR_RETURN(dict->getNdbError());
       }
