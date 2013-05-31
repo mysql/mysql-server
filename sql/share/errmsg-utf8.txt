@@ -7018,6 +7018,8 @@ ER_ACCESS_DENIED_CHANGE_USER_ERROR 28000
         eng "Access denied trying to change to user '%-.48s'@'%-.64s' (using password: %s). Disconnecting."
         bgn "Отказан достъп при опит за смяна към потребител %-.48s'@'%-.64s' (използвана парола: %s). Затваряне на връзката."
 
+ER_INNODB_READ_ONLY
+  eng "InnoDB is in read only mode."
 
 #
 #  End of 5.6 error messages.
