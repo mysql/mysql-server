@@ -159,13 +159,14 @@ t4.run = function() {
 var t5 = new harness.ConcurrentTest("testCommitWithoutBegin");
 t5.run = function() {
   var testCase = this;
+  var tx;
   var t5OnCommit = function(err) {
     if (err) {
       // so far so good
       try {
         tx.commit();
         testCase.fail(new Error('t5 Commit without begin and without callback should throw.'));
-      } catch (err) {
+      } catch (e) {
         testCase.pass();
       }
     } else {
@@ -175,7 +176,7 @@ t5.run = function() {
   };
 
   fail_openSession(testCase, function(session) {
-    var tx = session.currentTransaction();
+    tx = session.currentTransaction();
     tx.commit(t5OnCommit);
   });
 };

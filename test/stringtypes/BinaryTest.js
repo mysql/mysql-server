@@ -64,7 +64,7 @@ function ReadFunction(testCase, session) {
 function InsertFunction(data) {
   return function onSession(session, testCase) {
     testCase.data = data;
-    session.persist(data, ReadFunction(testCase, session));
+    session.persist(data, new ReadFunction(testCase, session));
   };
 }
 
@@ -83,7 +83,7 @@ t1.run = function() {
   
   data.bin_fix = value;
   this.verifier = new BufferVerifier(this, "bin_fix", value);
-  fail_openSession(this, InsertFunction(data));
+  fail_openSession(this, new InsertFunction(data));
 };
 
 var t2 = new harness.ConcurrentTest("t2:binary_zero_padded");
@@ -95,7 +95,7 @@ t2.run = function() {
 
   data.bin_fix = value;
   this.verifier = new BufferVerifier(this, "bin_fix", expected);
-  fail_openSession(this, InsertFunction(data));
+  fail_openSession(this, new InsertFunction(data));
 };
 
 var t3 = new harness.ConcurrentTest("t3:varbinary");
@@ -109,7 +109,7 @@ t3.run = function() {
   
   data.bin_var = value;
   this.verifier = new BufferVerifier(this, "bin_var", value);
-  fail_openSession(this, InsertFunction(data));
+  fail_openSession(this, new InsertFunction(data));
 };
 
 var t4 = new harness.ConcurrentTest("t4:longvarbinary");
@@ -123,7 +123,7 @@ t4.run = function() {
   
   data.bin_var_long = value;
   this.verifier = new BufferVerifier(this, "bin_var_long", value);
-  fail_openSession(this, InsertFunction(data));
+  fail_openSession(this, new InsertFunction(data));
 };
 
 module.exports.tests = [t1, t2, t3, t4];
