@@ -584,7 +584,7 @@ exports.UserContext.prototype.find = function() {
         // create the find operation and execute it
         dbSession = userContext.session.dbSession;
         transactionHandler = dbSession.getTransactionHandler();
-        userContext.operation = dbSession.buildReadOperation(index, index.getFields(keys),
+        userContext.operation = dbSession.buildReadOperation(index, keys,
             transactionHandler, findOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
@@ -929,7 +929,7 @@ exports.UserContext.prototype.update = function() {
             new Error('Illegal argument: parameter of update must include all primary key columns.'));
         return;
       }
-      userContext.operation = dbSession.buildUpdateOperation(indexHandler, indexHandler.getFields(userContext.keys),
+      userContext.operation = dbSession.buildUpdateOperation(indexHandler, userContext.keys,
           userContext.values, transactionHandler, updateOnResult);
       if (userContext.execute) {
         transactionHandler.execute([userContext.operation], function() {
@@ -1003,7 +1003,7 @@ exports.UserContext.prototype.load = function() {
         // create the load operation and execute it
         dbSession = userContext.session.dbSession;
         transactionHandler = dbSession.getTransactionHandler();
-        userContext.operation = dbSession.buildReadOperation(index, index.getFields(keys), transactionHandler,
+        userContext.operation = dbSession.buildReadOperation(index, keys, transactionHandler,
             loadOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
@@ -1066,7 +1066,7 @@ exports.UserContext.prototype.remove = function() {
       } else {
         transactionHandler = dbSession.getTransactionHandler();
         userContext.operation = dbSession.buildDeleteOperation(
-            dbIndexHandler, dbIndexHandler.getFields(userContext.keys), transactionHandler, removeOnResult);
+            dbIndexHandler, userContext.keys, transactionHandler, removeOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
             udebug.log_detail('remove transactionHandler.execute callback.');

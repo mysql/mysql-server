@@ -2,7 +2,7 @@
 {
   "name"        : "mysql-js"
   ,
-  "version"     : "0.0.424-dmr"
+  "version"     : "0.7.0"
   ,  
   "description" : "Lightweight object mapping layer for MySQL and MySQL Cluster"
   ,

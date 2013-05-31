@@ -44,7 +44,7 @@ test.run = function() {
 
   function onConnected(err, connection) {
     if(err) {
-      test.fail("Connection error");
+      test.fail("Connection error" + err);
       return;
     }
     harness.SQL.create(test.suite, onCreate);  

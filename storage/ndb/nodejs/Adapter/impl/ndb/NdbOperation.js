@@ -139,8 +139,8 @@ function encodeKeyBuffer(op) {
     if(value !== null) {
       record.setNotNull(i, op.buffers.key);
       offset = record.getColumnOffset(i);
-      if(col.typeConverter) {
-        value = col.typeConverter.toDB(value);
+      if(col.typeConverter && col.typeConverter.ndb) {
+        value = col.typeConverter.ndb.toDB(value);
       }
       adapter.impl.encoderWrite(col[i], value, op.buffers.key, offset);
     }
@@ -178,8 +178,8 @@ function encodeRowBuffer(op) {
       record.setNotNull(i, op.buffers.row);
       op.columnMask.push(col[i].columnNumber);
       offset = record.getColumnOffset(i);
-      if(col[i].typeConverter) {
-        value = col[i].typeConverter.toDB(value);
+      if(col[i].typeConverter && col[i].typeConverter.ndb) {
+        value = col[i].typeConverter.ndb.toDB(value);
       }
       err = adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
       if(err) { udebug.log("encoderWrite: ", err); }
@@ -346,8 +346,8 @@ function readResultRow(op) {
     }
     else {
       value = adapter.impl.encoderRead(col[i], op.buffers.row, offset);
-      if(col[i].typeConverter) {
-        value = col[i].typeConverter.fromDB(value);
+      if(col[i].typeConverter && col[i].typeConverter.ndb) {
+        value = col[i].typeConverter.ndb.fromDB(value);
       }
     }
 
@@ -589,7 +589,7 @@ function storeNativeConstructorInMapping(dbTableHandler) {
   typeConverters = {};
   for(i = 0 ; i < nfields ; i++) {
     fieldNames[i] = dbTableHandler.resolvedMapping.fields[i].fieldName;
-    typeConverters[i] = dbTableHandler.fieldNumberToColumnMap[i].typeConverter;
+    typeConverters[i] = dbTableHandler.fieldNumberToColumnMap[i].typeConverter.ndb;
   }
 
   VOC = adapter.impl.getValueObjectConstructor(record, fieldNames, typeConverters);
@@ -611,7 +611,7 @@ function verifyIndexHandler(dbIndexHandler) {
 function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_READ, tx, dbIndexHandler, null);
-  op.keys = keys;
+  op.keys = Array.isArray(keys) ? keys : dbIndexHandler.getFields(keys);
 
   if(! dbIndexHandler.tableHandler.ValueObject) {
     storeNativeConstructorInMapping(dbIndexHandler.tableHandler);
@@ -630,6 +630,7 @@ function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
 
 function newInsertOperation(tx, tableHandler, row) {
   var op = new DBOperation(opcodes.OP_INSERT, tx, null, tableHandler);
+// Test row for VO?
   op.values = row;
   return op;
 }
@@ -638,7 +639,7 @@ function newInsertOperation(tx, tableHandler, row) {
 function newDeleteOperation(tx, dbIndexHandler, keys) {
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_DELETE, tx, dbIndexHandler, null);
-  op.keys = keys;
+  op.keys = dbIndexHandler.getFields(keys, false, 'ndb');
   return op;
 }
 
@@ -646,6 +647,7 @@ function newDeleteOperation(tx, dbIndexHandler, keys) {
 function newWriteOperation(tx, dbIndexHandler, row) {
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_WRITE, tx, dbIndexHandler, null);
+// Test row for VO
   op.keys = dbIndexHandler.getFields(row);
   op.values = row;
   return op;
@@ -655,7 +657,7 @@ function newWriteOperation(tx, dbIndexHandler, row) {
 function newUpdateOperation(tx, dbIndexHandler, keys, row) {
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_UPDATE, tx, dbIndexHandler, null);
-  op.keys = keys;
+  op.keys = dbIndexHandler.getFields(keys);
   op.values = row;
   return op;
 }
