@@ -15,15 +15,15 @@ INSERT INTO t1 VALUES (4,1), (4,2), (4,3);
 INSERT INTO t1 VALUES (5,1), (5,2), (5,3);
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE		
-t1	1	a	2	b	A	NULL	NULL	NULL	YES	BTREE		
+t1	1	a	1	a	A	#	NULL	NULL	YES	BTREE		
+t1	1	a	2	b	A	#	NULL	NULL	YES	BTREE		
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	4	NULL	NULL	YES	BTREE		
-t1	1	a	2	b	A	9	NULL	NULL	YES	BTREE		
+t1	1	a	1	a	A	#	NULL	NULL	YES	BTREE		
+t1	1	a	2	b	A	#	NULL	NULL	YES	BTREE		
 #####
 # Apply knowledge about the statistics (each index value for 
 # the first key part has an estimate of 2 rows) to ensure that 
@@ -41,7 +41,7 @@ SET SESSION DEBUG="+d,crash_records_in_range";
 # Index statistics kicks in, giving incorrect estimate of 3x2=6 records
 EXPLAIN SELECT * FROM t1 WHERE a IN (1,2,3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	6	Using where; Using index
+1	SIMPLE	t1	range	a	a	5	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a IN (1,2,3);
 a	b
 1	1
@@ -117,7 +117,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 5.9198
+                    "cost": 4.9
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -131,7 +131,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 3.0581,
+                    "cost": 2.8156,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -154,7 +154,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 5,
-                        "cost": 2.139,
+                        "cost": 2.0178,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -175,7 +175,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 5,
-                    "cost_for_plan": 2.139,
+                    "cost_for_plan": 2.0178,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -193,12 +193,12 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                     {
                       "access_type": "range",
                       "rows": 5,
-                      "cost": 3.139,
+                      "cost": 3.0178,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 3.139,
+                "cost_for_plan": 3.0178,
                 "rows_for_plan": 5,
                 "chosen": true
               }
@@ -241,7 +241,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
 # 3 equality ranges: should use index statistics
 EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	7	Using where; Using index
+1	SIMPLE	t1	range	a	a	5	NULL	4	Using where; Using index
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
@@ -302,7 +302,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 5.9198
+                    "cost": 4.9
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -316,7 +316,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 3.0581,
+                    "cost": 2.8156,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -339,8 +339,8 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
-                        "rows": 7,
-                        "cost": 2.6035,
+                        "rows": 4,
+                        "cost": 1.8158,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -353,7 +353,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                     "range_access_plan": {
                       "type": "range_scan",
                       "index": "a",
-                      "rows": 7,
+                      "rows": 4,
                       "ranges": [
                         "1 <= a <= 1",
                         "2 <= a <= 2",
@@ -361,8 +361,8 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                         "10 < a"
                       ] /* ranges */
                     } /* range_access_plan */,
-                    "rows_for_plan": 7,
-                    "cost_for_plan": 2.6035,
+                    "rows_for_plan": 4,
+                    "cost_for_plan": 1.8158,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -379,14 +379,14 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
-                      "rows": 7,
-                      "cost": 4.0035,
+                      "rows": 4,
+                      "cost": 2.6158,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 4.0035,
-                "rows_for_plan": 7,
+                "cost_for_plan": 2.6158,
+                "rows_for_plan": 4,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -496,7 +496,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 5.9198
+                    "cost": 4.9
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -510,7 +510,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 3.0581,
+                    "cost": 2.8156,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -533,7 +533,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
-                        "cost": 1.6745,
+                        "cost": 1.6139,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -554,7 +554,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 3,
-                    "cost_for_plan": 1.6745,
+                    "cost_for_plan": 1.6139,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -573,18 +573,18 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                       "access_type": "ref",
                       "index": "a",
                       "rows": 3,
-                      "cost": 1.6645,
+                      "cost": 1.6039,
                       "chosen": true
                     },
                     {
                       "access_type": "range",
                       "rows": 3,
-                      "cost": 2.2745,
+                      "cost": 2.2139,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.6645,
+                "cost_for_plan": 1.6039,
                 "rows_for_plan": 3,
                 "chosen": true
               }
@@ -704,7 +704,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 5.9198
+                    "cost": 4.9
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -718,7 +718,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 3.0581,
+                    "cost": 2.8156,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -741,7 +741,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
-                        "cost": 1.6745,
+                        "cost": 1.6139,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -762,7 +762,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 3,
-                    "cost_for_plan": 1.6745,
+                    "cost_for_plan": 1.6139,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -781,18 +781,18 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                       "access_type": "ref",
                       "index": "a",
                       "rows": 3,
-                      "cost": 1.6645,
+                      "cost": 1.6039,
                       "chosen": true
                     },
                     {
                       "access_type": "range",
                       "rows": 3,
-                      "cost": 2.2745,
+                      "cost": 2.2139,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.6645,
+                "cost_for_plan": 1.6039,
                 "rows_for_plan": 3,
                 "chosen": true
               }
@@ -911,7 +911,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 5.9198
+                    "cost": 4.9
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -925,7 +925,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 3.0581,
+                    "cost": 2.8156,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -948,7 +948,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
-                        "cost": 1.6745,
+                        "cost": 1.6139,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -969,7 +969,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 3,
-                    "cost_for_plan": 1.6745,
+                    "cost_for_plan": 1.6139,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -988,18 +988,18 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                       "access_type": "ref",
                       "index": "a",
                       "rows": 3,
-                      "cost": 1.6645,
+                      "cost": 1.6039,
                       "chosen": true
                     },
                     {
                       "access_type": "range",
                       "rows": 3,
-                      "cost": 2.2745,
+                      "cost": 2.2139,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.6645,
+                "cost_for_plan": 1.6039,
                 "rows_for_plan": 3,
                 "chosen": true
               }
@@ -1112,7 +1112,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 5.9198
+                    "cost": 4.9
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -1126,7 +1126,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 3.0581,
+                    "cost": 2.8156,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -1304,7 +1304,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 9,
-                    "cost": 5.9198
+                    "cost": 4.9
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -1318,7 +1318,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "a",
-                    "cost": 3.0581,
+                    "cost": 2.8156,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -1339,7 +1339,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
-                        "cost": 1.6745,
+                        "cost": 1.6139,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -1358,7 +1358,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 3,
-                    "cost_for_plan": 1.6745,
+                    "cost_for_plan": 1.6139,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -1377,7 +1377,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                       "access_type": "ref",
                       "index": "a",
                       "rows": 3,
-                      "cost": 1.6645,
+                      "cost": 1.6039,
                       "chosen": true
                     },
                     {
@@ -1387,7 +1387,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.6645,
+                "cost_for_plan": 1.6039,
                 "rows_for_plan": 3,
                 "chosen": true
               }
