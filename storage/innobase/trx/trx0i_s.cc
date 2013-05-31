@@ -556,7 +556,7 @@ thd_done:
 
 	row->trx_tables_in_use = trx->n_mysql_tables_in_use;
 
-	row->trx_tables_locked = trx->mysql_n_tables_locked;
+	row->trx_tables_locked = lock_number_of_tables_locked(&trx->lock);
 
 	/* These are protected by both trx->mutex or lock_sys->mutex,
 	or just lock_sys->mutex. For reading, it suffices to hold
