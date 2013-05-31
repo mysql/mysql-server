@@ -245,3 +245,17 @@ ignore("CharsetTest.js", 26, "Missing \'new\'.", 14);
 ignore("QueryKeywordTest.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 ignore("lib.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 
+// t_basic
+ignore("BatchTest.js", 6, "Don't make functions within a loop.");
+ignore("ParallelOperationTest.js", 6, "Don't make functions within a loop.");
+ignore("SaveTest.js", 8, "Don't make functions within a loop.");
+ignore("SaveTest.js", 8, "Don't make functions within a loop.");
+ignore("SaveTest.js", 10, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
