@@ -52,7 +52,7 @@ function ValueVerifier(testCase, field, value) {
       }
     }
     catch(e) {
-      testCase.appendErrorMessage(e);
+      testCase.appendErrorMessage('ValueVerifier caught unexpected e: ' + util.inspect(e));
     }
     testCase.failOnError();
   };
@@ -60,8 +60,16 @@ function ValueVerifier(testCase, field, value) {
 
 function ReadFunction(testCase, session) { 
   return function onPersist(err) {
-    testCase.errorIfError(err);
-    session.find(TestData, testCase.data.id, testCase.verifier.run);
+    if(testCase.insertErrorVerifier) {
+      testCase.insertErrorVerifier.run(err);  
+    }
+    else if(err) {
+      testCase.appendErrorMessage('ReadFunction err: ' + util.inspect(err));
+      testCase.failOnError();
+    }
+    else {
+      session.find(TestData, testCase.data.id, testCase.verifier.run);
+    }
   }
 }
 
@@ -134,7 +142,7 @@ t6.run = function() {
   var data = new TestData(6);
   var date1969 = new Date(-10000);
   data.cNullableTimestamp = date1969;
-  this.verifier = new ErrorVerifier(this, "22008");
+  this.insertErrorVerifier = new ErrorVerifier(this, "22007");
   fail_openSession(this, InsertFunction(data));
 }
 

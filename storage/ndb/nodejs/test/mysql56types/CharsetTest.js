@@ -59,8 +59,12 @@ function ValueVerifier(testCase, field, value) {
 
 function ReadFunction(testCase, session) { 
   return function onPersist(err) {
-    testCase.errorIfError(err);
-    session.find(TestData, testCase.data.id, testCase.verifier.run);
+    if(err) {
+      testCase.errorIfError(err);
+    }
+    else { 
+      session.find(TestData, testCase.data.id, testCase.verifier.run);
+    }
   }
 }
 

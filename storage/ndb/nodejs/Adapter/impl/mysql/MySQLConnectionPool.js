@@ -57,6 +57,65 @@ function getDriverProperties(props) {
   return driver;
 }
 
+/** Type converter for timestamp objects. For now, userDate is a Javascript Date object that wraps
+ * milliseconds since the Epoch UTC. Default behavior is that the value is converted to a String
+ * for transmission to the database in the time zone of the date itself. But this does not work for mysql-js
+ * because mysqld assumes that the string is in the time zone of the client regardless of the encoded date.
+ * The conversion in this converter creates a String that is always in the time zone of the client regardless
+ * of the time zone of the encoded date.
+ */
+var TimestampTypeConverter = function() {
+};
+
+TimestampTypeConverter.prototype.toDB = function toDB(userDate) {
+  if (userDate === null || userDate === undefined) {
+    return userDate;
+  }
+  // Date.getTimezoneOffset will change for daylight saving
+  var tzoffsetUserDate = userDate.getTimezoneOffset() * 60000; // timezone offset in minutes times milliseconds per minute
+  var userDateMillis = userDate.getTime();
+  var tzoffsetSystemDate = new Date().getTimezoneOffset() * 60000;
+  var dbDate = new Date((userDateMillis + tzoffsetUserDate) - tzoffsetSystemDate);
+  udebug.log_detail('userDate: ', userDate, 'dbDate: ', dbDate);
+  return dbDate;
+};
+  
+TimestampTypeConverter.prototype.fromDB =  function fromDB(dbDate) {
+  if (dbDate === null || dbDate === undefined) {
+    return dbDate;
+  }
+  // Date.getTimezoneOffset will change for daylight saving
+  var tzoffsetDbDate = dbDate.getTimezoneOffset() * 60000; // timezone offset in minutes times milliseconds per minute
+  var dbDateMillis = dbDate.getTime();
+  var tzoffsetSystemDate = new Date().getTimezoneOffset() * 60000;
+  var userDate = new Date((dbDateMillis - tzoffsetDbDate) + tzoffsetSystemDate);
+  udebug.log_detail('dbDate: ', dbDate, ' userDate: ', userDate);
+  return userDate;
+};
+
+/** Type converter for date objects. Instead of using timezone, use UTC to get just the date portion
+ * of the Javascript Date object.
+ */
+var DateTypeConverter = function() {
+};
+
+DateTypeConverter.prototype.toDB = function toDB(userDate) {
+  // no conversion is needed because time zone is stripped out already
+  return userDate;
+};
+  
+DateTypeConverter.prototype.fromDB =  function fromDB(dbDate) {
+  // convert because Date object is relative to time zone
+  if (dbDate === null || dbDate === undefined) {
+    return dbDate;
+  }
+  var tzoffsetDbDate = dbDate.getTimezoneOffset() * 60000; // timezone offset in minutes times milliseconds per minute
+  var dbDateMillis = dbDate.getTime();
+  var userDate = new Date(dbDateMillis + tzoffsetDbDate);
+  udebug.log_detail('dbDate: ', dbDate, ' userDate: ', userDate);
+  return userDate;
+};
+
 
 /* Constructor saves properties but doesn't actually do anything with them.
 */
@@ -68,9 +127,31 @@ exports.DBConnectionPool = function(props) {
   // connections that are being used (wrapped by DBSession)
   this.openConnections = [];
   this.is_connected = false;
+  // create type converter map
+  this.typeConverterMap = {};
+//  type converters are not presently used
+//  this.typeConverterMap.timestamp = new TimestampTypeConverter();
+//  this.typeConverterMap.date = new DateTypeConverter();
   stats.incr( [ "created" ]);
 };
 
+/** Register a user-specified type converter for this connection pool.
+ * Called by SessionFactory.registerTypeConverter.
+ */
+exports.DBConnectionPool.prototype.registerTypeConverter = function(typeName, converterObject) {
+  if (converterObject) {
+    this.typeConverterMap[typeName] = converterObject;
+  } else {
+    this.typeConverterMap[typeName] = undefined;
+  }
+};
+
+/** Get the registered type converter for the parameter type name.
+ * Called when creating the DBTableHandler for a constructor.
+ */
+exports.DBConnectionPool.prototype.getTypeConverter = function(typeName) {
+  return this.typeConverterMap[typeName];
+};
 
 exports.DBConnectionPool.prototype.connectSync = function() {
   var pooledConnection;
@@ -228,7 +309,7 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
       var metadataHandlerOnConnect = function() {
         udebug.log_detail('getTableMetadataHandler.metadataHandlerOnConnect');
 
-        dictionary = new mysqlDictionary.DataDictionary(pooledConnection);
+        dictionary = new mysqlDictionary.DataDictionary(pooledConnection, this.dbConnectionPool);
         dictionary.getTableMetadata(metadataHandler.databaseName, metadataHandler.tableName, 
             metadataHandlerOnTableMetadata);
       };
@@ -236,7 +317,7 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
       if (this.dbConnectionPool.pooledConnections.length > 0) {
         // pop a connection from the pool
         pooledConnection = this.dbConnectionPool.pooledConnections.pop();
-        dictionary = new mysqlDictionary.DataDictionary(pooledConnection);
+        dictionary = new mysqlDictionary.DataDictionary(pooledConnection, this.dbConnectionPool);
         dictionary.getTableMetadata(databaseName, metadataHandler.tableName, user_callback);
       } else {
         pooledConnection = mysql.createConnection(this.dbConnectionPool.driverproperties);
@@ -254,7 +335,7 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
   if (dbSession) {
     // dbSession exists; call the dictionary directly
     pooledConnection = dbSession.pooledConnection;
-    dictionary = new mysqlDictionary.DataDictionary(pooledConnection);
+    dictionary = new mysqlDictionary.DataDictionary(pooledConnection, this);
     udebug.log_detail('MySQLConnectionPool.getTableMetadata calling dictionary.getTableMetadata for',
         databaseName, tableName);
     dictionary.getTableMetadata(databaseName, tableName, user_callback);
