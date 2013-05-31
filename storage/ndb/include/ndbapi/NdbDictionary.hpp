@@ -2602,10 +2602,20 @@ public:
      * @{
      */
 
+    enum CreateFKFlags
+    {
+      /**
+       * CreateFK_NoVerify
+       * - don't verify FK as part of Create.
+       * - @NOTE: This allows creation of inconsistent FK
+       */
+      CreateFK_NoVerify = 1
+    };
+
     /**
      * Create a ForeignKey in database
      */
-    int createForeignKey(const ForeignKey&, ObjectId* = 0);
+    int createForeignKey(const ForeignKey&, ObjectId* = 0, int flags = 0);
 
     /**
      * Get a ForeignKey by name

@@ -106,8 +106,7 @@ function do_delete_op(testCase, keyObj) {
   udebug.log("do_delete_op for", testCase.name);
   var tx = dbSession.getTransactionHandler();
   var dbix = dbt.getIndexHandler(keyObj);
-  var key = dbix.getFields(keyObj);
-  var op = dbSession.buildDeleteOperation(dbix, key, tx, null);  
+  var op = dbSession.buildDeleteOperation(dbix, keyObj, tx, null);  
   tx.execute([ op ], testCase.checkResult);
 }
 
@@ -132,8 +131,8 @@ t2.run = function() {
 
 t2.checkResult = function(err, tx) {
   try {
-      t2.errorIfNotEqual("t2 cause.sqlstate", '23000', err.cause.sqlstate);
-      t2.errorIfNotEqual("t2 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
+    t2.errorIfNotEqual("t2 cause.sqlstate", '23000', err.cause.sqlstate);
+    t2.errorIfNotEqual("t2 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
   }
   catch(e) {
     t2.appendErrorMessage("t2 exception " + e.message);

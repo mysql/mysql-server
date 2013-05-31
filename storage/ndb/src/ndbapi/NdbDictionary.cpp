@@ -4027,7 +4027,8 @@ NdbDictionary::Dictionary::createHashMap(const HashMap& map, ObjectId * dst)
 
 int
 NdbDictionary::Dictionary::createForeignKey(const ForeignKey& fk,
-                                            ObjectId * dst)
+                                            ObjectId * dst,
+                                            int flags)
 {
   ObjectId tmp;
   if (dst == 0)
@@ -4041,10 +4042,16 @@ NdbDictionary::Dictionary::createForeignKey(const ForeignKey& fk,
   }
 
   int ret;
+  int implFlags = 0;
+  if (flags & CreateFK_NoVerify)
+  {
+    implFlags |= DictSignal::RF_NO_BUILD;
+  }
+
   DO_TRANS(ret,
            m_impl.m_receiver.create_fk(NdbForeignKeyImpl::getImpl(fk),
                                        &NdbDictObjectImpl::getImpl(*dst),
-                                       0));
+                                       implFlags));
   return ret;
 }
 

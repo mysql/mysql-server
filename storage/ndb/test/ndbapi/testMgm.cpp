@@ -87,7 +87,7 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
   if (!mgmd.set_timeout(3000))
     return NDBT_FAILED;
 
-  if (!mgmd.connect())
+  if (!mgmd.connect(0, 0, 0))
   {
     g_err << "Connect failed with timeout 3000" << endl;
     return NDBT_FAILED;
@@ -102,7 +102,7 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
   mgmd.setConnectString("1.1.1.1");
 
   NDB_TICKS tstart= NdbTick_CurrentMillisecond();
-  if (mgmd.connect())
+  if (mgmd.connect(0, 0, 0))
   {
     g_err << "Connect to illegal host suceeded" << endl;
     return NDBT_FAILED;
