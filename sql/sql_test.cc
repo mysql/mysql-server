@@ -627,7 +627,7 @@ Max used alarms: %u\n\
 Next alarm time: %lu\n",
 	 alarm_info.active_alarms,
 	 alarm_info.max_used_alarms,
-	 alarm_info.next_alarm_time);
+	(ulong)alarm_info.next_alarm_time);
 #endif
   display_table_locks();
   fflush(stdout);
