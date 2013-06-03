@@ -133,7 +133,7 @@ os_thread_create_func(
 			"CreateThread returned %d", GetLastError());
 	}
 
-	std::pair<map<DWORD, HANDLE>::iterator,bool> ret;
+	std::pair<std::map<DWORD, HANDLE>::iterator,bool> ret;
 	ret = win_thread_map.insert(
 		std::pair<DWORD, HANDLE>(new_thread_id, handle));
 	ut_ad((*ret.first).first == new_thread_id);
