@@ -1388,7 +1388,6 @@ buf_pool_init_instance(
 		}
 
 		buf_pool->instance_no = instance_no;
-		buf_pool->old_pool_size = buf_pool_size;
 		buf_pool->curr_size = chunk->size;
 		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
