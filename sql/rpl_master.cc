@@ -40,7 +40,14 @@ extern TYPELIB binlog_checksum_typelib;
 
 #define get_object(p, obj, msg) \
 {\
-  uint len = (uint)*p++;  \
+  uint len; \
+  if (p >= p_end) \
+  { \
+    my_error(ER_MALFORMED_PACKET, MYF(0)); \
+    my_free(si); \
+    return 1; \
+  } \
+  len= (uint)*p++;  \
   if (p + len > p_end || len >= sizeof(obj)) \
   {\
     errmsg= msg;\
@@ -122,6 +129,14 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
     return 1;
   if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
     goto err2;
+
+  /* 4 bytes for the server id */
+  if (p + 4 > p_end)
+  {
+    my_error(ER_MALFORMED_PACKET, MYF(0));
+    my_free(si);
+    return 1;
+  }
 
   thd->server_id= si->server_id= uint4korr(p);
   p+= 4;
