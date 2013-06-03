@@ -2589,7 +2589,7 @@ CREATE PROCEDURE p2()
 CREATE PROCEDURE p3()
   BEGIN
     SELECT CAST('3 ' as unsigned integer);
-    SELECT 1; # does not clear the warning
+    GET DIAGNOSTICS @n = NUMBER; # does not clear the warning
   END| # 1 warning is passed to the caller
 
 CREATE PROCEDURE p4()
@@ -3642,10 +3642,9 @@ CREATE PROCEDURE p5()
 BEGIN
   DECLARE EXIT HANDLER FOR 1292
   BEGIN
-    SELECT 'Handler for 1292 (1)' AS Msg;
+    SELECT 'Handler for 1292' AS Msg;
     SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1234;
     SHOW WARNINGS;
-    SELECT 'Handler for 1292 (2)' AS Msg;
   END;
 
   INSERT INTO t2

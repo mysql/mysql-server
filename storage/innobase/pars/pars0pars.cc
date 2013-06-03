@@ -296,9 +296,7 @@ pars_like_rebind(
 	}
 
 	/* Is this a '%STRING' or %STRING% ?*/
-	if (*ptr == '%') {
-		op = (op == IB_LIKE_PREFIX) ? IB_LIKE_SUBSTR : IB_LIKE_SUFFIX;
-	}
+	ut_ad(*ptr != '%');
 
 	if (node->like_node == NULL) {
 		/* Add the LIKE operator info node to the node list.
@@ -334,10 +332,8 @@ pars_like_rebind(
 		mach_read_from_4(static_cast<byte*>(dfield_get_data(dfield))));
 
 	switch (op_check) {
-	case	IB_LIKE_PREFIX:
-	case	IB_LIKE_SUFFIX:
-	case	IB_LIKE_SUBSTR:
-	case	IB_LIKE_EXACT:
+	case IB_LIKE_PREFIX:
+	case IB_LIKE_EXACT:
 		break;
 
 	default:
@@ -376,36 +372,6 @@ pars_like_rebind(
 		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
 
 		dfield_set_data(dfield, ptr, ptr_len - 1);
-		break;
-
-	case	IB_LIKE_SUFFIX:
-		func = PARS_LIKE_TOKEN_SUFFIX;
-
-		/* Modify the original node */
-		/* Make it an '' empty string */
-		dfield_set_len(dfield, 0);
-
-		dfield = que_node_get_val(str_node);
-		dtype = dfield_get_type(dfield);
-
-		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
-
-		dfield_set_data(dfield, ptr + 1, ptr_len - 1);
-		break;
-
-	case	IB_LIKE_SUBSTR:
-		func = PARS_LIKE_TOKEN_SUBSTR;
-
-		/* Modify the original node */
-		/* Make it an '' empty string */
-		dfield_set_len(dfield, 0);
-
-		dfield = que_node_get_val(str_node);
-		dtype = dfield_get_type(dfield);
-
-		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
-
-		dfield_set_data(dfield, ptr + 1, ptr_len - 2);
 		break;
 
 	default:

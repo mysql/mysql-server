@@ -598,17 +598,26 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
   {
     Field *field=  *pfield;
 
-    if (field->is_null())
-      fwrite("NULL", sizeof(char), 4, DBUG_FILE);
+    if (field->is_null()) {
+      if (fwrite("NULL", sizeof(char), 4, DBUG_FILE) != 4) {
+        goto unlock_file_and_quit;
+      }
+    }
    
     if (field->type() == MYSQL_TYPE_BIT)
       (void) field->val_int_as_str(&tmp, 1);
     else
       field->val_str(&tmp);
 
-    fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
-    if (pfield[1])
-      fwrite(", ", sizeof(char), 2, DBUG_FILE);
+    if (fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE) != tmp.length()) {
+      goto unlock_file_and_quit;
+    }
+
+    if (pfield[1]) {
+      if (fwrite(", ", sizeof(char), 2, DBUG_FILE) != 2) {
+        goto unlock_file_and_quit;
+      }
+    }
   }
   fprintf(DBUG_FILE, ")");
   if (print_rowid)
@@ -620,6 +629,7 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
     }
   }
   fprintf(DBUG_FILE, "\n");
+unlock_file_and_quit:
   DBUG_UNLOCK_FILE;
 }
 #endif 

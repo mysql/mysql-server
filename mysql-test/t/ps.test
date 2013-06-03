@@ -2823,8 +2823,10 @@ delimiter |;
 --error ER_SP_NO_RETSET
 create function func_1() returns int begin show errors; return 1; end|
 delimiter ;|
+# WL#5928: prepare of diagnostics statements fails now, cos the standard says it should.
+--error ER_UNSUPPORTED_PS
 prepare abc from "show errors";
-deallocate prepare abc;
+# deallocate prepare abc;
 
 --disable_warnings
 drop table if exists t1;
@@ -2842,14 +2844,9 @@ delimiter |;
 --error ER_SP_NO_RETSET
 create function func_1() returns int begin show warnings; return 1; end|
 delimiter ;|
+# WL#5928: prepare of diagnostics statements fails now, cos the standard says it should.
+--error ER_UNSUPPORTED_PS
 prepare abc from "show warnings";
-drop table if exists t1;
-execute abc;
-drop table if exists t2;
-execute abc;
-drop table if exists t1, t2;
-execute abc;
-deallocate prepare abc;
 
 #
 # Bug#22684: The Functions ENCODE, DECODE and FORMAT are not real functions
@@ -3494,35 +3491,3 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1, t2;
 
 ###########################################################################
-
-
---echo #
---echo # Bug#12661349 assert in protocol::end_statement
---echo #
-
---echo # Note: This test case should be run with --ps-protocol
-
---disable_warnings ONCE
-DROP TABLE IF EXISTS t1;
-
-CREATE TABLE t1 (col1 INT);
-
---echo # Connection con1
-connect(con1, localhost, root);
-let $con1_id= `SELECT CONNECTION_ID()`;
-
---echo # Connection default
-connection default;
---replace_result $con1_id <con1_id>
-eval KILL QUERY $con1_id;
-
---echo # Connection con1
-connection con1;
-# Here the server asserts when running with "--ps-protocol"
-SELECT * FROM t1;
-disconnect con1;
---source include/wait_until_disconnected.inc
-
---echo # Connection default
-connection default;
-DROP TABLE t1;

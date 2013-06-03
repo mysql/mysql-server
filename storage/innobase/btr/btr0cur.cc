@@ -387,9 +387,7 @@ btr_cur_search_to_nth_level(
 	ulint		height;
 	ulint		page_no;
 	ulint		up_match;
-	ulint		up_bytes;
 	ulint		low_match;
-	ulint		low_bytes;
 	ulint		savepoint;
 	ulint		rw_latch;
 	ulint		page_mode;
@@ -420,9 +418,7 @@ btr_cur_search_to_nth_level(
 	ut_ad(index->page != FIL_NULL);
 
 	UNIV_MEM_INVALID(&cursor->up_match, sizeof cursor->up_match);
-	UNIV_MEM_INVALID(&cursor->up_bytes, sizeof cursor->up_bytes);
 	UNIV_MEM_INVALID(&cursor->low_match, sizeof cursor->low_match);
-	UNIV_MEM_INVALID(&cursor->low_bytes, sizeof cursor->low_bytes);
 #ifdef UNIV_DEBUG
 	cursor->up_match = ULINT_UNDEFINED;
 	cursor->low_match = ULINT_UNDEFINED;
@@ -561,9 +557,7 @@ btr_cur_search_to_nth_level(
 	page_no = dict_index_get_page(index);
 
 	up_match = 0;
-	up_bytes = 0;
 	low_match = 0;
-	low_bytes = 0;
 
 	height = ULINT_UNDEFINED;
 
@@ -748,8 +742,8 @@ retry_page_get:
 	}
 
 	page_cur_search_with_match(
-		block, index, tuple, page_mode, &up_match, &up_bytes,
-		&low_match, &low_bytes, page_cursor);
+		block, index, tuple, page_mode, &up_match,
+		&low_match, page_cursor);
 
 	if (estimate) {
 		btr_cur_add_path_info(cursor, height, root_height);
@@ -799,9 +793,7 @@ retry_page_get:
 		btr_assert_not_corrupted(child_block, index);
 	} else {
 		cursor->low_match = low_match;
-		cursor->low_bytes = low_bytes;
 		cursor->up_match = up_match;
-		cursor->up_bytes = up_bytes;
 
 #ifdef BTR_CUR_ADAPT
 		/* We do a dirty read of btr_search_enabled here.  We
@@ -3807,8 +3799,6 @@ btr_estimate_number_of_different_key_vals(
 	page_t*		page;
 	rec_t*		rec;
 	ulint		n_cols;
-	ulint		matched_fields;
-	ulint		matched_bytes;
 	ib_uint64_t*	n_diff;
 	ib_uint64_t*	n_not_null;
 	ibool		stats_null_not_equal;
@@ -3900,6 +3890,7 @@ btr_estimate_number_of_different_key_vals(
 		}
 
 		while (!page_rec_is_supremum(rec)) {
+			ulint	matched_fields;
 			rec_t*	next_rec = page_rec_get_next(rec);
 			if (page_rec_is_supremum(next_rec)) {
 				total_external_size +=
@@ -3908,8 +3899,6 @@ btr_estimate_number_of_different_key_vals(
 				break;
 			}
 
-			matched_fields = 0;
-			matched_bytes = 0;
 			offsets_next_rec = rec_get_offsets(next_rec, index,
 							   offsets_next_rec,
 							   ULINT_UNDEFINED,
@@ -3918,8 +3907,7 @@ btr_estimate_number_of_different_key_vals(
 			cmp_rec_rec_with_match(rec, next_rec,
 					       offsets_rec, offsets_next_rec,
 					       index, stats_null_not_equal,
-					       &matched_fields,
-					       &matched_bytes);
+					       &matched_fields);
 
 			for (j = matched_fields; j < n_cols; j++) {
 				/* We add one if this index record has

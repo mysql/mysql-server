@@ -477,6 +477,7 @@ page_get_middle_rec(
 	return(page_rec_get_nth(page, middle));
 }
 
+# ifdef UNIV_SEARCH_DEBUG
 /*************************************************************//**
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
@@ -495,13 +496,10 @@ page_cmp_dtuple_rec_with_match(
 				matched-parameter values below are not
 				affected */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint*		matched_fields, /*!< in/out: number of already completely
+	ulint*		matched_fields)
+				/*!< in/out: number of already completely
 				matched fields; when function returns
 				contains the value for current comparison */
-	ulint*		matched_bytes) /*!< in/out: number of already matched
-				bytes within the first field not completely
-				matched; when function returns contains the
-				value for current comparison */
 {
 	ulint	rec_offset;
 
@@ -523,9 +521,9 @@ page_cmp_dtuple_rec_with_match(
 	}
 
 	return(cmp_dtuple_rec_with_match(dtuple, rec, offsets,
-					 matched_fields,
-					 matched_bytes));
+					 matched_fields));
 }
+# endif /* UNIV_SEARCH_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************//**

@@ -185,6 +185,20 @@ typedef struct YYLTYPE
 
 #ifdef MYSQL_SERVER
 
+/*
+  If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
+  the old SHOW WARNINGS|ERRORS, or "diagnostics variables" such as
+  @@warning_count | @@error_count, we'll set some hints so this
+  information is not lost.
+ */
+enum enum_keep_diagnostics
+{
+  DA_KEEP_NOTHING= 0,   /**< keep nothing */
+  DA_KEEP_DIAGNOSTICS,  /**< keep the diagnostics area */
+  DA_KEEP_COUNTS,       /**< keep @@warning_count / @error_count */
+  DA_KEEP_PARSE_ERROR   /**< keep diagnostics area after parse error */
+};
+
 enum enum_sp_suid_behaviour
 {
   SP_IS_DEFAULT_SUID= 0,
@@ -2432,6 +2446,7 @@ struct LEX: public Query_tables_list
   */
   bool is_set_password_sql;
   bool contains_plaintext_password;
+  enum_keep_diagnostics keep_diagnostics;
 
 private:
   bool m_broken; ///< see mark_broken()
