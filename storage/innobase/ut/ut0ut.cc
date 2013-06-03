@@ -595,7 +595,9 @@ ut_print_namel(
 				       trx ? trx->mysql_thd : NULL,
 				       table_id);
 
-	fwrite(buf, 1, bufend - buf, f);
+	if (fwrite(buf, 1, bufend - buf, f) != (size_t) (bufend - buf)) {
+		perror("fwrite");
+	}
 }
 
 /**********************************************************************//**
@@ -660,7 +662,9 @@ ut_copy_file(
 			? (size_t) len
 			: sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
-		fwrite(buf, 1, size, dest);
+		if (fwrite(buf, 1, size, dest) != size) {
+			perror("fwrite");
+		}
 		len -= (long) size;
 		if (size < maxs) {
 			break;

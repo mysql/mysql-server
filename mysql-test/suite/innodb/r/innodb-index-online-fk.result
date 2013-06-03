@@ -143,10 +143,10 @@ ALTER TABLE `#child` ADD CONSTRAINT fk_40 FOREIGN KEY (a1, a2)
 REFERENCES `#parent`(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_40' in the foreign table '#child'
-SET DEBUG = '-d,innodb_test_no_foreign_idx';
 SHOW ERRORS;
 Level	Code	Message
 Error	1821	Failed to add the foreign key constaint. Missing index for constraint 'fk_40' in the foreign table '#child'
+SET DEBUG = '-d,innodb_test_no_foreign_idx';
 SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -170,10 +170,10 @@ ALTER TABLE child ADD CONSTRAINT fk_42 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_42' in the referenced table 'parent'
-SET DEBUG = '-d,innodb_test_no_reference_idx';
 SHOW ERRORS;
 Level	Code	Message
 Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk_42' in the referenced table 'parent'
+SET DEBUG = '-d,innodb_test_no_reference_idx';
 SET DEBUG = '+d,innodb_test_wrong_fk_option';
 ALTER TABLE child ADD CONSTRAINT fk_42 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -203,10 +203,10 @@ ALTER TABLE `#child` ADD CONSTRAINT fk_43 FOREIGN KEY (a1, a2)
 REFERENCES `#parent`(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constraint 'test/fk_43' to system tables
-SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 SHOW ERRORS;
 Level	Code	Message
 Error	1823	Failed to add the foreign key constraint 'test/fk_43' to system tables
+SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 DROP TABLE `#child`;
 DROP TABLE `#parent`;
 SET foreign_key_checks = 0;

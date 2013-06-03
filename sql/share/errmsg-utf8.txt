@@ -6641,7 +6641,7 @@ ER_INSECURE_PLAIN_TEXT
   eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
 
 ER_INSECURE_CHANGE_MASTER
-  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
+  eng "Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information."
 
 ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO 23000 S1009
         eng "Foreign key constraint for table '%.192s', record '%-.192s' would lead to a duplicate entry in table '%.192s', key '%.192s'"
@@ -7018,6 +7018,8 @@ ER_ACCESS_DENIED_CHANGE_USER_ERROR 28000
         eng "Access denied trying to change to user '%-.48s'@'%-.64s' (using password: %s). Disconnecting."
         bgn "Отказан достъп при опит за смяна към потребител %-.48s'@'%-.64s' (използвана парола: %s). Затваряне на връзката."
 
+ER_INNODB_READ_ONLY
+  eng "InnoDB is in read only mode."
 
 #
 #  End of 5.6 error messages.

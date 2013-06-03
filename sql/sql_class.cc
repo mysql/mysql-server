@@ -918,7 +918,8 @@ THD::THD(bool enable_plugins)
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
    owned_gtid_set(global_sid_map),
-   main_da(0, false),
+   main_da(false),
+   m_parser_da(false),
    m_stmt_da(&main_da)
 {
   ulong tmp;
@@ -1211,8 +1212,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
       (level == Sql_condition::SL_NOTE))
     DBUG_RETURN(NULL);
-
-  da->opt_reset_condition_info(query_id);
 
   /*
     TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to

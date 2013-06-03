@@ -827,9 +827,6 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
   thd->set_query(query_backup);
   thd->query_name_consts= 0;
 
-  if (!thd->is_error())
-    thd->get_stmt_da()->reset_diagnostics_area();
-
   return rc || thd->is_error();
 }
 
@@ -860,7 +857,7 @@ void sp_instr_stmt::print(String *str)
   }
   if (m_query.length > SP_STMT_PRINT_MAXLEN)
     str->qs_append(STRING_WITH_LEN("...")); /* Indicate truncated string */
-  str->qs_append('"');
+  str->qs_append(STRING_WITH_LEN("\""));
 }
 
 
@@ -1221,14 +1218,6 @@ bool sp_instr_jump_case_when::build_expr_items(THD *thd)
 bool sp_instr_freturn::exec_core(THD *thd, uint *nextp)
 {
   /*
-    RETURN is a "procedure statement" (in terms of the SQL standard).
-    That means, Diagnostics Area should be clean before its execution.
-  */
-
-  Diagnostics_area *da= thd->get_stmt_da();
-  da->reset_condition_info(da->statement_id());
-
-  /*
     Change <next instruction pointer>, so that this will be the last
     instruction in the stored function.
   */
@@ -1283,17 +1272,7 @@ void sp_instr_hpush_jump::print(String *str)
   str->qs_append(' ');
   str->qs_append(m_frame);
 
-  switch (m_handler->type) {
-  case sp_handler::EXIT:
-    str->qs_append(STRING_WITH_LEN(" EXIT"));
-    break;
-  case sp_handler::CONTINUE:
-    str->qs_append(STRING_WITH_LEN(" CONTINUE"));
-    break;
-  default:
-    // The handler type must be either CONTINUE or EXIT.
-    DBUG_ASSERT(0);
-  }
+  m_handler->print(str);
 }
 
 
@@ -1492,6 +1471,9 @@ void sp_instr_cpop::print(String *str)
 
 bool sp_instr_copen::execute(THD *thd, uint *nextp)
 {
+  // Manipulating a CURSOR with an expression should clear DA.
+  clear_da(thd);
+
   *nextp= get_ip() + 1;
 
   // Get the cursor pointer.
@@ -1560,6 +1542,9 @@ void sp_instr_copen::print(String *str)
 
 bool sp_instr_cclose::execute(THD *thd, uint *nextp)
 {
+  // Manipulating a CURSOR with an expression should clear DA.
+  clear_da(thd);
+
   *nextp= get_ip() + 1;
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
@@ -1596,6 +1581,9 @@ void sp_instr_cclose::print(String *str)
 
 bool sp_instr_cfetch::execute(THD *thd, uint *nextp)
 {
+  // Manipulating a CURSOR with an expression should clear DA.
+  clear_da(thd);
+
   *nextp= get_ip() + 1;
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);

@@ -6604,7 +6604,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (thd->locked_tables_mode)
   {
     Diagnostics_area *stmt_da= NULL;
-    Diagnostics_area tmp_stmt_da(thd->query_id, false);
+    Diagnostics_area tmp_stmt_da(false);
 
     if (thd->is_error())
     {
@@ -6808,7 +6808,7 @@ err_exclusive_lock:
   if (thd->locked_tables_mode)
   {
     Diagnostics_area *stmt_da= NULL;
-    Diagnostics_area tmp_stmt_da(thd->query_id, false);
+    Diagnostics_area tmp_stmt_da(false);
 
     if (thd->is_error())
     {

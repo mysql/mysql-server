@@ -301,6 +301,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   case HA_ERR_FK_DEPTH_EXCEEDED : return "HA_ERR_FK_DEPTH_EXCEEDED";
+  case HA_ERR_INNODB_READ_ONLY: return "HA_ERR_INNODB_READ_ONLY";
   }
   return "No Error!";
 }
@@ -6528,7 +6529,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   {
     thd->set_time(&when);
     thd->set_query_id(next_query_id());
-    thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
+    DBUG_ASSERT(!thd->get_stmt_da()->is_set());
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
@@ -10197,7 +10198,7 @@ int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *r
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
-      thd->get_stmt_da()->reset_condition_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       *err= 0;
       if (idempotent_error == 0)
@@ -11387,7 +11388,7 @@ AFTER_MAIN_EXEC_ROW_LOOP:
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
-      thd->get_stmt_da()->reset_condition_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }
