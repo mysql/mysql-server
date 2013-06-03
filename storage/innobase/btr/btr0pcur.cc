@@ -451,7 +451,7 @@ btr_pcur_move_to_next_page(
 
 	page_cur_set_before_first(next_block, btr_pcur_get_page_cur(cursor));
 
-	page_check_dir(next_page);
+	ut_d(page_check_dir(next_page));
 }
 
 /*********************************************************//**

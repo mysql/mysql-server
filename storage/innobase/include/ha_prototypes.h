@@ -29,6 +29,8 @@ included here will cause a recompile of everything that includes this header.
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
+#include "sql_class.h"
+
 #include "univ.i"
 
 #if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM

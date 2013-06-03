@@ -790,7 +790,10 @@ page_zip_compress_deflate(
 		ut_print_buf(stderr, strm->next_in, strm->avail_in);
 	}
 	if (UNIV_LIKELY_NULL(logfile)) {
-		fwrite(strm->next_in, 1, strm->avail_in, logfile);
+		if (fwrite(strm->next_in, 1, strm->avail_in, logfile)
+		    != strm->avail_in) {
+			perror("fwrite");
+		}
 	}
 	status = deflate(strm, flush);
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
@@ -1299,7 +1302,10 @@ page_zip_compress(
 
 		if (logfile) {
 			/* Write the uncompressed page to the log. */
-			fwrite(page, 1, UNIV_PAGE_SIZE, logfile);
+			if (fwrite(page, 1, UNIV_PAGE_SIZE, logfile)
+			    != UNIV_PAGE_SIZE) {
+				perror("fwrite");
+			}
 			/* Record the compressed size as zero.
 			This will be overwritten at successful exit. */
 			putc(0, logfile);
@@ -1540,7 +1546,9 @@ err_exit:
 		byte sz[4];
 		mach_write_to_4(sz, c_stream.total_out);
 		fseek(logfile, UNIV_PAGE_SIZE, SEEK_SET);
-		fwrite(sz, 1, sizeof sz, logfile);
+		if (fwrite(sz, 1, sizeof sz, logfile) != sizeof sz) {
+			perror("fwrite");
+		}
 		fclose(logfile);
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */

@@ -757,8 +757,11 @@ public:
       }
     }
 
-    while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
-      fwrite(buf, 1, bytes, stderr);
+    while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0) {
+      if (fwrite(buf, 1, bytes, stderr) != bytes) {
+        perror("fwrite");
+      }
+    }
 
     if (!lines)
     {

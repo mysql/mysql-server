@@ -1270,7 +1270,6 @@ id	content
 3	This is a story that has complicated the phrase structure
 select * from t1 where match(content) against('+"this is a story which" +"complicated the phrase structure"' in boolean mode);
 id	content
-3	This is a story that has complicated the phrase structure
 select * from t1 where match(content) against('"the complicated the phrase structure"' in boolean mode);
 id	content
 3	This is a story that has complicated the phrase structure
@@ -1348,4 +1347,73 @@ DROP TABLE articles;
 CREATE TABLE t1(a TEXT CHARACTER SET LATIN1, FULLTEXT INDEX(a)) ENGINE=INNODB;
 SELECT * FROM t1 WHERE MATCH(a) AGAINST("*");
 ERROR 42000: syntax error, unexpected '*', expecting $end
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+FULLTEXT (a)
+) ENGINE= InnoDB;
+INSERT INTO t1 (a) VALUES
+('Do you know MySQL is a good database'),
+('How to build a good database'),
+('Do you know'),
+('Do you know MySQL'),
+('How to use MySQL'),
+('Do you feel good'),
+('MySQL is good'),
+('MySQL is good to know'),
+('What is database');
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql"' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql")' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('("know mysql" good)' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+2	How to build a good database
+6	Do you feel good
+7	MySQL is good
+8	MySQL is good to know
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" good)' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+2	How to build a good database
+6	Do you feel good
+7	MySQL is good
+8	MySQL is good to know
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('(good "know mysql")' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+2	How to build a good database
+6	Do you feel good
+7	MySQL is good
+8	MySQL is good to know
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+(good "know mysql")' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+2	How to build a good database
+6	Do you feel good
+7	MySQL is good
+8	MySQL is good to know
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" "good database")' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+2	How to build a good database
+4	Do you know MySQL
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql" +"good database"' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@4' IN BOOLEAN MODE);
+id	a
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@8' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
 DROP TABLE t1;

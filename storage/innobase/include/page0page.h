@@ -328,6 +328,7 @@ page_get_middle_rec(
 /*================*/
 	page_t*	page)	/*!< in: page */
 	__attribute__((nonnull, warn_unused_result));
+# ifdef UNIV_SEARCH_DEBUG
 /*************************************************************//**
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
@@ -346,13 +347,11 @@ page_cmp_dtuple_rec_with_match(
 				matched-parameter values below are not
 				affected */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint*		matched_fields, /*!< in/out: number of already completely
+	ulint*		matched_fields);
+				/*!< in/out: number of already completely
 				matched fields; when function returns
 				contains the value for current comparison */
-	ulint*		matched_bytes); /*!< in/out: number of already matched
-				bytes within the first field not completely
-				matched; when function returns contains the
-				value for current comparison */
+# endif /* UNIV_SEARCH_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 /*************************************************************//**
 Gets the page number.
@@ -1073,6 +1072,7 @@ page_rec_validate(
 /*==============*/
 	const rec_t*	rec,	/*!< in: physical record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+#ifdef UNIV_DEBUG
 /***************************************************************//**
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
@@ -1082,6 +1082,7 @@ void
 page_check_dir(
 /*===========*/
 	const page_t*	page);	/*!< in: index page */
+#endif /* UNIV_DEBUG */
 /***************************************************************//**
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash

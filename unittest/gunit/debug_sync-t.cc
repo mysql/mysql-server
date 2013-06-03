@@ -65,6 +65,7 @@ protected:
   void TearDown()
   {
      debug_sync_end();
+     opt_debug_sync_timeout= 0;
   }
 };
 

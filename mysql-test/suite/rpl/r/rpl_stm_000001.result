@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -54,7 +54,7 @@ select (@id := id) - id from t2;
 kill @id;
 drop table t2;
 Got one of the listed errors
-include/wait_for_slave_sql_error.inc [errno=1875]
+include/wait_for_slave_sql_error.inc [errno=1876]
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave.inc
 select count(*) from t1;

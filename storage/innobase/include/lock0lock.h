@@ -640,6 +640,15 @@ lock_number_of_rows_locked(
 	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
 	__attribute__((nonnull, warn_unused_result));
 
+/*********************************************************************//**
+Return the number of table locks for a transaction.
+The caller must be holding lock_sys->mutex. */
+ulint
+lock_number_of_tables_locked(
+/*=========================*/
+	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
+	__attribute__((warn_unused_result));
+
 /*******************************************************************//**
 Gets the type of a lock. Non-inline version for using outside of the
 lock module.

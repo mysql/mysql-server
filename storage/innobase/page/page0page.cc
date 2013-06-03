@@ -1943,6 +1943,7 @@ page_rec_validate(
 }
 
 #ifndef UNIV_HOTBACKUP
+#ifdef UNIV_DEBUG
 /***************************************************************//**
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
@@ -1978,6 +1979,7 @@ page_check_dir(
 		buf_page_print(page, 0, 0);
 	}
 }
+#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
@@ -2520,7 +2522,7 @@ page_validate(
 		if (UNIV_LIKELY(count >= PAGE_HEAP_NO_USER_LOW)
 		    && !page_rec_is_supremum(rec)) {
 			if (UNIV_UNLIKELY
-			    (1 != cmp_rec_rec(rec, old_rec,
+			    (0 >= cmp_rec_rec(rec, old_rec,
 					      offsets, old_offsets, index))) {
 				fprintf(stderr,
 					"InnoDB: Records in wrong order"
