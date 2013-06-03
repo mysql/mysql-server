@@ -121,7 +121,10 @@ sub run_cmd (@) {
         {
           my %args = ( exec => [ ], verbosity => $opt_verbose );
           my $harness = TAP::Harness->new( \%args );
-          $harness->runtests(@files);
+	  # NOTE: backport from 7.3/5.6
+          my $aggreg= $harness->runtests(@files);
+          # Signal failure to calling scripts
+	  exit(1) if $aggreg->get_status() ne 'PASS';
         }
         else
         {
