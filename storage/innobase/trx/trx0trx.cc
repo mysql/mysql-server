@@ -348,8 +348,6 @@ trx_create_low()
 
 	assert_trx_is_free(trx);
 
-	trx_init(trx);
-
 	mem_heap_t*	heap;
 	ib_alloc_t*	heap_alloc;
 
@@ -443,13 +441,11 @@ trx_allocate_for_mysql(void)
 	return(trx);
 }
 
-/********************************************************************//**
-Frees a transaction object of a background operation of the master thread. */
-
+/** Check state of transaction before freeing it.
+@param trx	trx object to validate */
+static
 void
-trx_free_for_background(
-/*====================*/
-	trx_t*	trx)	/*!< in, own: trx object */
+trx_validate_state_before_free(trx_t* trx)
 {
 	if (trx->declared_to_be_inside_innodb) {
 
@@ -482,8 +478,28 @@ trx_free_for_background(
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
 	assert_trx_is_inactive(trx);
+}
+
+/** Free and initialize a transaction object instantinated during recovery.
+@param trx	trx object to free and initialize during recovery */
+
+void
+trx_free_resurrected(trx_t* trx)
+{
+	trx_validate_state_before_free(trx);
 
 	trx_init(trx);
+
+	trx_free(trx);
+}
+
+/** Free a transaction that was allocated by background or user threads.
+@param trx	trx object to free */
+
+void
+trx_free_for_background(trx_t* trx)
+{
+	trx_validate_state_before_free(trx);
 
 	trx_free(trx);
 }
