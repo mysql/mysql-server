@@ -1797,9 +1797,9 @@ struct buf_pool_t{
 
 	/** @name General fields */
 	/* @{ */
-	ib_mutex_t		mutex;		/*!< Buffer pool mutex of this
+	ib_mutex_t	mutex;		/*!< Buffer pool mutex of this
 					instance */
-	ib_mutex_t		zip_mutex;	/*!< Zip mutex of this buffer
+	ib_mutex_t	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not
 					buf_block_t */
