@@ -700,7 +700,7 @@ trx_rollback_resurrected(
 			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
 			trx->id);
 		trx_cleanup_at_db_startup(trx);
-		trx_free_for_background(trx);
+		trx_free_resurrected(trx);
 		return(TRUE);
 	case TRX_STATE_ACTIVE:
 		if (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {

@@ -959,6 +959,9 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
 
   DBUG_ENTER("setup_conversion_functions");
 
+  if (read_pos >= data_end)
+    DBUG_RETURN(1);
+
   if (*read_pos++) //types supplied / first execute
   {
     /*
@@ -2612,8 +2615,8 @@ static void reset_stmt_params(Prepared_statement *stmt)
 void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
   uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
-  ulong stmt_id= uint4korr(packet);
-  ulong flags= (ulong) packet[4];
+  ulong stmt_id;
+  ulong flags;
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
   uchar *packet_end= packet + packet_length;
@@ -2622,6 +2625,14 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   bool open_cursor;
   DBUG_ENTER("mysqld_stmt_execute");
 
+  if (packet + 9 > packet_end)
+  {
+    my_error(ER_MALFORMED_PACKET, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+
+  stmt_id= uint4korr(packet);
+  flags= (ulong) packet[4];
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
   /* First of all clear possible warnings from the previous command */
@@ -2716,12 +2727,20 @@ void mysql_sql_stmt_execute(THD *thd)
 void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
 {
   /* assume there is always place for 8-16 bytes */
-  ulong stmt_id= uint4korr(packet);
-  ulong num_rows= uint4korr(packet+4);
+  ulong stmt_id;
+  ulong num_rows;
   Prepared_statement *stmt;
   Statement stmt_backup;
   Server_side_cursor *cursor;
   DBUG_ENTER("mysqld_stmt_fetch");
+
+  if (packet_length < 8)
+  {
+    my_error(ER_MALFORMED_PACKET, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+  stmt_id= uint4korr(packet);
+  num_rows= uint4korr(packet+4);
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2773,14 +2792,22 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   @param thd                Thread handle
   @param packet             Packet with stmt id
+  @param packet_length      length of data in packet
 */
 
-void mysqld_stmt_reset(THD *thd, char *packet)
+void mysqld_stmt_reset(THD *thd, char *packet, uint packet_length)
 {
-  /* There is always space for 4 bytes in buffer */
-  ulong stmt_id= uint4korr(packet);
+  ulong stmt_id;
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_reset");
+
+  if (packet_length < 4)
+  {
+    my_error(ER_MALFORMED_PACKET, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+
+  stmt_id= uint4korr(packet);
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2819,12 +2846,20 @@ void mysqld_stmt_reset(THD *thd, char *packet)
     we don't send any reply to this command.
 */
 
-void mysqld_stmt_close(THD *thd, char *packet)
+void mysqld_stmt_close(THD *thd, char *packet, uint packet_length)
 {
   /* There is always space for 4 bytes in packet buffer */
-  ulong stmt_id= uint4korr(packet);
+  ulong stmt_id;
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_close");
+
+  if (packet_length < 4)
+  {
+    my_error(ER_MALFORMED_PACKET, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+
+  stmt_id= uint4korr(packet);
 
   thd->get_stmt_da()->disable_status();
 
