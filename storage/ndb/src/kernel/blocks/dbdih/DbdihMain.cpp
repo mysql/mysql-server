@@ -18444,6 +18444,15 @@ Dbdih::waitDropTabWritingToFile(Signal* signal, TabRecordPtr tabPtr){
     return;
   }
 
+  if (tabPtr.p->tabUpdateState != TabRecord::US_IDLE)
+  {
+    jam();
+    signal->theData[0] = DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE;
+    signal->theData[1] = tabPtr.i;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+    return;
+  }
+
   ndbrequire(tabPtr.p->tabLcpStatus ==  TabRecord::TLS_COMPLETED);
   checkDropTabComplete(signal, tabPtr);
 }
