@@ -3,8 +3,6 @@
 
 
 
-funcs_1.charset_collation_1              # depends on compile-time decisions
-
 main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.func_math fails on FreeBSD in PB2
 main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
 
@@ -20,8 +18,4 @@ rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sp
 rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-02-09 anitha Fails very frequently on windows
 
 sys_vars.rpl_init_slave_func		    # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
-
-innodb.innodb_bug13867871                   # bug#14529475
-perfschema.socket_summary_by_instance_func  # bug#16274580
 innodb.innodb_bug14676111                   # bug #16371942 innodb.innodb_bug14676111 is failing on pb2 due to timeout 
-

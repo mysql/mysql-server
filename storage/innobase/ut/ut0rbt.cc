@@ -1,6 +1,6 @@
 /***************************************************************************//**
 
-Copyright (c) 2007, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -751,7 +751,7 @@ rbt_free_node(
 
 /**********************************************************************//**
 Free all the nodes and free the tree. */
-UNIV_INTERN
+
 void
 rbt_free(
 /*=====*/
@@ -766,7 +766,7 @@ rbt_free(
 Create an instance of a red black tree, whose comparison function takes
 an argument
 @return	an empty rb tree */
-UNIV_INTERN
+
 ib_rbt_t*
 rbt_create_arg_cmp(
 /*===============*/
@@ -789,7 +789,7 @@ rbt_create_arg_cmp(
 /**********************************************************************//**
 Create an instance of a red black tree.
 @return	an empty rb tree */
-UNIV_INTERN
+
 ib_rbt_t*
 rbt_create(
 /*=======*/
@@ -827,7 +827,7 @@ rbt_create(
 /**********************************************************************//**
 Generic insert of a value in the rb tree.
 @return	inserted node */
-UNIV_INTERN
+
 const ib_rbt_node_t*
 rbt_insert(
 /*=======*/
@@ -856,7 +856,7 @@ rbt_insert(
 /**********************************************************************//**
 Add a new node to the tree, useful for data that is pre-sorted.
 @return	appended node */
-UNIV_INTERN
+
 const ib_rbt_node_t*
 rbt_add_node(
 /*=========*/
@@ -894,7 +894,7 @@ rbt_add_node(
 /**********************************************************************//**
 Find a matching node in the rb tree.
 @return	NULL if not found else the node where key was found */
-UNIV_INTERN
+
 const ib_rbt_node_t*
 rbt_lookup(
 /*=======*/
@@ -929,7 +929,7 @@ rbt_lookup(
 /**********************************************************************//**
 Delete a node indentified by key.
 @return	TRUE if success FALSE if not found */
-UNIV_INTERN
+
 ibool
 rbt_delete(
 /*=======*/
@@ -953,7 +953,7 @@ rbt_delete(
 Remove a node from the rb tree, the node is not free'd, that is the
 callers responsibility.
 @return	deleted node but without the const */
-UNIV_INTERN
+
 ib_rbt_node_t*
 rbt_remove_node(
 /*============*/
@@ -976,7 +976,7 @@ rbt_remove_node(
 /**********************************************************************//**
 Find the node that has the lowest key that is >= key.
 @return	node satisfying the lower bound constraint or NULL */
-UNIV_INTERN
+
 const ib_rbt_node_t*
 rbt_lower_bound(
 /*============*/
@@ -1017,7 +1017,7 @@ rbt_lower_bound(
 /**********************************************************************//**
 Find the node that has the greatest key that is <= key.
 @return	node satisfying the upper bound constraint or NULL */
-UNIV_INTERN
+
 const ib_rbt_node_t*
 rbt_upper_bound(
 /*============*/
@@ -1058,7 +1058,7 @@ rbt_upper_bound(
 /**********************************************************************//**
 Find the node that has the greatest key that is <= key.
 @return	value of result */
-UNIV_INTERN
+
 int
 rbt_search(
 /*=======*/
@@ -1099,7 +1099,7 @@ rbt_search(
 Find the node that has the greatest key that is <= key. But use the
 supplied comparison function.
 @return	value of result */
-UNIV_INTERN
+
 int
 rbt_search_cmp(
 /*===========*/
@@ -1143,7 +1143,7 @@ rbt_search_cmp(
 
 /**********************************************************************//**
 Return the left most node in the tree. */
-UNIV_INTERN
+
 const ib_rbt_node_t*
 rbt_first(
 /*======*/
@@ -1164,7 +1164,7 @@ rbt_first(
 /**********************************************************************//**
 Return the right most node in the tree.
 @return	the rightmost node or NULL */
-UNIV_INTERN
+
 const ib_rbt_node_t*
 rbt_last(
 /*=====*/
@@ -1184,7 +1184,7 @@ rbt_last(
 /**********************************************************************//**
 Return the next node.
 @return	node next from current */
-UNIV_INTERN
+
 const ib_rbt_node_t*
 rbt_next(
 /*=====*/
@@ -1197,7 +1197,7 @@ rbt_next(
 /**********************************************************************//**
 Return the previous node.
 @return	node prev from current */
-UNIV_INTERN
+
 const ib_rbt_node_t*
 rbt_prev(
 /*=====*/
@@ -1209,7 +1209,7 @@ rbt_prev(
 
 /**********************************************************************//**
 Reset the tree. Delete all the nodes. */
-UNIV_INTERN
+
 void
 rbt_clear(
 /*======*/
@@ -1224,7 +1224,7 @@ rbt_clear(
 /**********************************************************************//**
 Merge the node from dst into src. Return the number of nodes merged.
 @return	no. of recs merged */
-UNIV_INTERN
+
 ulint
 rbt_merge_uniq(
 /*===========*/
@@ -1255,7 +1255,7 @@ Merge the node from dst into src. Return the number of nodes merged.
 Delete the nodes from src after copying node to dst. As a side effect
 the duplicates will be left untouched in the src.
 @return	no. of recs merged */
-UNIV_INTERN
+
 ulint
 rbt_merge_uniq_destructive(
 /*=======================*/
@@ -1302,7 +1302,7 @@ rbt_merge_uniq_destructive(
 Check that every path from the root to the leaves has the same count and
 the tree nodes are in order.
 @return	TRUE if OK FALSE otherwise */
-UNIV_INTERN
+
 ibool
 rbt_validate(
 /*=========*/
@@ -1317,7 +1317,7 @@ rbt_validate(
 
 /**********************************************************************//**
 Iterate over the tree in depth first order. */
-UNIV_INTERN
+
 void
 rbt_print(
 /*======*/

@@ -124,12 +124,8 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 
 #if defined(MACOS) || defined(TARGET_OS_MAC)
 #  define OS_CODE  0x07
-#  if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
-#    include <unix.h> /* for fdopen */
-#  else
-#    ifndef fdopen
-#      define fdopen(fd,mode) NULL /* No fdopen() */
-#    endif
+#  ifndef fdopen
+#    define fdopen(fd,mode) NULL /* No fdopen() */
 #  endif
 #endif
 
@@ -138,9 +134,7 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #endif
 
 #ifdef WIN32
-#  ifndef __CYGWIN__  /* Cygwin is Unix, not Win32 */
-#    define OS_CODE  0x0b
-#  endif
+#  define OS_CODE  0x0b
 #endif
 
 #ifdef __50SERIES /* Prime/PRIMOS */
@@ -176,11 +170,6 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
          /* functions */
 
 #if defined(STDC99) || (defined(__TURBOC__) && __TURBOC__ >= 0x550)
-#  ifndef HAVE_VSNPRINTF
-#    define HAVE_VSNPRINTF
-#  endif
-#endif
-#if defined(__CYGWIN__)
 #  ifndef HAVE_VSNPRINTF
 #    define HAVE_VSNPRINTF
 #  endif

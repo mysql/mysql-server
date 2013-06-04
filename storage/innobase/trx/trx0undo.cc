@@ -23,6 +23,8 @@ Transaction undo log
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "trx0undo.h"
 
 #ifdef UNIV_NONINL
@@ -33,13 +35,13 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "mach0data.h"
 #include "mtr0log.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
+#include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "trx0rec.h"
 #include "trx0purge.h"
-#include "srv0mon.h"
+#include "trx0rec.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
 
 /* How should the old versions in the history list be managed?
    ----------------------------------------------------------
@@ -159,6 +161,7 @@ trx_undo_get_prev_rec_from_prev_page(
 	trx_undo_rec_t*	rec,	/*!< in: undo record */
 	ulint		page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
+	bool		shared,	/*!< in: true=S-latch, false=X-latch */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	space;
@@ -181,8 +184,12 @@ trx_undo_get_prev_rec_from_prev_page(
 	space = page_get_space_id(undo_page);
 	zip_size = fil_space_get_zip_size(space);
 
-	prev_page = trx_undo_page_get_s_latched(space, zip_size,
-						prev_page_no, mtr);
+	buf_block_t*	block = buf_page_get(space, zip_size, prev_page_no,
+					     shared ? RW_S_LATCH : RW_X_LATCH,
+					     mtr);
+	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
+
+	prev_page = buf_block_get_frame(block);
 
 	return(trx_undo_page_get_last_rec(prev_page, page_no, offset));
 }
@@ -190,13 +197,14 @@ trx_undo_get_prev_rec_from_prev_page(
 /***********************************************************************//**
 Gets the previous record in an undo log.
 @return	undo log record, the page s-latched, NULL if none */
-UNIV_INTERN
+
 trx_undo_rec_t*
 trx_undo_get_prev_rec(
 /*==================*/
 	trx_undo_rec_t*	rec,	/*!< in: undo record */
 	ulint		page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
+	bool		shared,	/*!< in: true=S-latch, false=X-latch */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	trx_undo_rec_t*	prev_rec;
@@ -212,7 +220,7 @@ trx_undo_get_prev_rec(
 	previous record */
 
 	return(trx_undo_get_prev_rec_from_prev_page(rec, page_no, offset,
-						    mtr));
+						    shared, mtr));
 }
 
 /***********************************************************************//**
@@ -270,7 +278,7 @@ trx_undo_get_next_rec_from_next_page(
 /***********************************************************************//**
 Gets the next record in an undo log.
 @return	undo log record, the page s-latched, NULL if none */
-UNIV_INTERN
+
 trx_undo_rec_t*
 trx_undo_get_next_rec(
 /*==================*/
@@ -301,7 +309,7 @@ trx_undo_get_next_rec(
 /***********************************************************************//**
 Gets the first record in an undo log.
 @return	undo log record, the page latched, NULL if none */
-UNIV_INTERN
+
 trx_undo_rec_t*
 trx_undo_get_first_rec(
 /*===================*/
@@ -357,7 +365,7 @@ trx_undo_page_init_log(
 /***********************************************************//**
 Parses the redo log entry of an undo log page initialization.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 trx_undo_parse_page_init(
 /*=====================*/
@@ -700,7 +708,7 @@ trx_undo_insert_header_reuse_log(
 /***********************************************************//**
 Parses the redo log entry of an undo log page header create or reuse.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 trx_undo_parse_page_header(
 /*=======================*/
@@ -816,7 +824,7 @@ trx_undo_discard_latest_log(
 /***********************************************************//**
 Parses the redo log entry of an undo log page header discard.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 trx_undo_parse_discard_latest(
 /*==========================*/
@@ -880,15 +888,18 @@ trx_undo_discard_latest_update_undo(
 /********************************************************************//**
 Tries to add a page to the undo log segment where the undo log is placed.
 @return	X-latched block if success, else NULL */
-UNIV_INTERN
+
 buf_block_t*
 trx_undo_add_page(
 /*==============*/
-	trx_t*		trx,	/*!< in: transaction */
-	trx_undo_t*	undo,	/*!< in: undo log memory object */
-	mtr_t*		mtr)	/*!< in: mtr which does not have a latch to any
-				undo log page; the caller must have reserved
-				the rollback segment mutex */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_t*	undo,		/*!< in: undo log memory object */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: assign undo log from
+					referred rollback segment. */
+	mtr_t*		mtr)		/*!< in: mtr which does not have
+					a latch to any undo log page;
+					the caller must have reserved
+					the rollback segment mutex */
 {
 	page_t*		header_page;
 	buf_block_t*	new_block;
@@ -897,9 +908,9 @@ trx_undo_add_page(
 	ulint		n_reserved;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(mutex_own(&(trx->rseg->mutex)));
+	ut_ad(mutex_own(&(undo_ptr->rseg->mutex)));
 
-	rseg = trx->rseg;
+	rseg = undo_ptr->rseg;
 
 	if (rseg->curr_size == rseg->max_size) {
 
@@ -1006,7 +1017,7 @@ trx_undo_free_page(
 /********************************************************************//**
 Frees the last undo log page.
 The caller must hold the rollback segment mutex. */
-UNIV_INTERN
+
 void
 trx_undo_free_last_page_func(
 /*==========================*/
@@ -1059,7 +1070,7 @@ trx_undo_empty_header_page(
 /***********************************************************************//**
 Truncates an undo log from the end. This function is used during a rollback
 to free space from an undo log. */
-UNIV_INTERN
+
 void
 trx_undo_truncate_end_func(
 /*=======================*/
@@ -1077,7 +1088,8 @@ trx_undo_truncate_end_func(
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(mutex_own(&(trx->rseg->mutex)));
+
+	ut_ad(mutex_own(&undo->rseg->mutex));
 
 	for (;;) {
 		mtr_start(&mtr);
@@ -1129,7 +1141,7 @@ function_exit:
 /***********************************************************************//**
 Truncates an undo log from the start. This function is used during a purge
 operation. */
-UNIV_INTERN
+
 void
 trx_undo_truncate_start(
 /*====================*/
@@ -1350,21 +1362,23 @@ trx_undo_mem_create_at_db_start(
 add_to_list:
 	if (type == TRX_UNDO_INSERT) {
 		if (state != TRX_UNDO_CACHED) {
-			UT_LIST_ADD_LAST(undo_list, rseg->insert_undo_list,
-					 undo);
+
+			UT_LIST_ADD_LAST(rseg->insert_undo_list, undo);
 		} else {
-			UT_LIST_ADD_LAST(undo_list, rseg->insert_undo_cached,
-					 undo);
+
+			UT_LIST_ADD_LAST(rseg->insert_undo_cached, undo);
+
 			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 		}
 	} else {
 		ut_ad(type == TRX_UNDO_UPDATE);
 		if (state != TRX_UNDO_CACHED) {
-			UT_LIST_ADD_LAST(undo_list, rseg->update_undo_list,
-					 undo);
+
+			UT_LIST_ADD_LAST(rseg->update_undo_list, undo);
 		} else {
-			UT_LIST_ADD_LAST(undo_list, rseg->update_undo_cached,
-					 undo);
+
+			UT_LIST_ADD_LAST(rseg->update_undo_cached, undo);
+
 			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 		}
 	}
@@ -1377,7 +1391,7 @@ Initializes the undo log lists for a rollback segment memory copy. This
 function is only called when the database is started or a new rollback
 segment is created.
 @return	the combined size of undo log segments in pages */
-UNIV_INTERN
+
 ulint
 trx_undo_lists_init(
 /*================*/
@@ -1387,11 +1401,6 @@ trx_undo_lists_init(
 	trx_rsegf_t*	rseg_header;
 	ulint		i;
 	mtr_t		mtr;
-
-	UT_LIST_INIT(rseg->update_undo_list);
-	UT_LIST_INIT(rseg->update_undo_cached);
-	UT_LIST_INIT(rseg->insert_undo_list);
-	UT_LIST_INIT(rseg->insert_undo_cached);
 
 	mtr_start(&mtr);
 
@@ -1527,7 +1536,7 @@ trx_undo_mem_init_for_reuse(
 
 /********************************************************************//**
 Frees an undo log memory copy. */
-UNIV_INTERN
+
 void
 trx_undo_mem_free(
 /*==============*/
@@ -1642,7 +1651,7 @@ trx_undo_reuse_cached(
 			return(NULL);
 		}
 
-		UT_LIST_REMOVE(undo_list, rseg->insert_undo_cached, undo);
+		UT_LIST_REMOVE(rseg->insert_undo_cached, undo);
 
 		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
@@ -1654,7 +1663,7 @@ trx_undo_reuse_cached(
 			return(NULL);
 		}
 
-		UT_LIST_REMOVE(undo_list, rseg->update_undo_cached, undo);
+		UT_LIST_REMOVE(rseg->update_undo_cached, undo);
 
 		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	}
@@ -1739,12 +1748,15 @@ undo log reused.
 @return DB_SUCCESS if undo log assign successful, possible error codes
 are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE DB_READ_ONLY
 DB_OUT_OF_MEMORY */
-UNIV_INTERN
+
 dberr_t
 trx_undo_assign_undo(
 /*=================*/
-	trx_t*		trx,	/*!< in: transaction */
-	ulint		type)	/*!< in: TRX_UNDO_INSERT or TRX_UNDO_UPDATE */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: assign undo log from
+					referred rollback segment. */
+	ulint		type)		/*!< in: TRX_UNDO_INSERT or
+					TRX_UNDO_UPDATE */
 {
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
@@ -1753,11 +1765,15 @@ trx_undo_assign_undo(
 
 	ut_ad(trx);
 
-	if (trx->rseg == NULL) {
-		return(DB_READ_ONLY);
-	}
+	/* In case of read-only scenario trx->rsegs.m_redo.rseg can be NULL but
+	still request for assigning undo logs is valid as temporary tables
+	can be updated in read-only mode.
+	If there is no rollback segment assigned to trx and still there is
+	object being updated there is something wrong and so this condition
+	check. */
+	ut_ad(trx_is_rseg_assigned(trx));
 
-	rseg = trx->rseg;
+	rseg = undo_ptr->rseg;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
@@ -1771,10 +1787,10 @@ trx_undo_assign_undo(
 		goto func_exit;
 	);
 
-	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
+	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, trx->xid,
 				     &mtr);
 	if (undo == NULL) {
-		err = trx_undo_create(trx, rseg, type, trx->id, &trx->xid,
+		err = trx_undo_create(trx, rseg, type, trx->id, trx->xid,
 				      &undo, &mtr);
 		if (err != DB_SUCCESS) {
 
@@ -1783,13 +1799,13 @@ trx_undo_assign_undo(
 	}
 
 	if (type == TRX_UNDO_INSERT) {
-		UT_LIST_ADD_FIRST(undo_list, rseg->insert_undo_list, undo);
-		ut_ad(trx->insert_undo == NULL);
-		trx->insert_undo = undo;
+		UT_LIST_ADD_FIRST(rseg->insert_undo_list, undo);
+		ut_ad(undo_ptr->insert_undo == NULL);
+		undo_ptr->insert_undo = undo;
 	} else {
-		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_list, undo);
-		ut_ad(trx->update_undo == NULL);
-		trx->update_undo = undo;
+		UT_LIST_ADD_FIRST(rseg->update_undo_list, undo);
+		ut_ad(undo_ptr->update_undo == NULL);
+		undo_ptr->update_undo = undo;
 	}
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
@@ -1806,7 +1822,7 @@ func_exit:
 /******************************************************************//**
 Sets the state of the undo log segment at a transaction finish.
 @return	undo log segment header page, x-latched */
-UNIV_INTERN
+
 page_t*
 trx_undo_set_state_at_finish(
 /*=========================*/
@@ -1853,7 +1869,7 @@ trx_undo_set_state_at_finish(
 /******************************************************************//**
 Sets the state of the undo log segment at a transaction prepare.
 @return	undo log segment header page, x-latched */
-UNIV_INTERN
+
 page_t*
 trx_undo_set_state_at_prepare(
 /*==========================*/
@@ -1881,7 +1897,7 @@ trx_undo_set_state_at_prepare(
 
 	/*------------------------------*/
 	undo->state = TRX_UNDO_PREPARED;
-	undo->xid   = trx->xid;
+	undo->xid   = *trx->xid;
 	/*------------------------------*/
 
 	mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, undo->state,
@@ -1902,32 +1918,40 @@ trx_undo_set_state_at_prepare(
 Adds the update undo log header as the first in the history list, and
 frees the memory object, or puts it to the list of cached update undo log
 segments. */
-UNIV_INTERN
+
 void
 trx_undo_update_cleanup(
 /*====================*/
-	trx_t*	trx,		/*!< in: trx owning the update undo log */
-	page_t*	undo_page,	/*!< in: update undo log header page,
-				x-latched */
-	mtr_t*	mtr)		/*!< in: mtr */
+	trx_t*		trx,		/*!< in: trx owning the update
+					undo log */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: update undo log. */
+	page_t*		undo_page,	/*!< in: update undo log header page,
+					x-latched */
+	bool		update_rseg_history_len,
+					/*!< in: if true: update rseg history
+					len else skip updating it. */
+	ulint		n_added_logs,	/*!< in: number of logs added */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
 
-	undo = trx->update_undo;
-	rseg = trx->rseg;
+	undo = undo_ptr->update_undo;
+	rseg = undo_ptr->rseg;
 
 	ut_ad(mutex_own(&(rseg->mutex)));
 
-	trx_purge_add_update_undo_to_history(trx, undo_page, mtr);
+	trx_purge_add_update_undo_to_history(
+		trx, undo_ptr, undo_page,
+		update_rseg_history_len, n_added_logs, mtr);
 
-	UT_LIST_REMOVE(undo_list, rseg->update_undo_list, undo);
+	UT_LIST_REMOVE(rseg->update_undo_list, undo);
 
-	trx->update_undo = NULL;
+	undo_ptr->update_undo = NULL;
 
 	if (undo->state == TRX_UNDO_CACHED) {
 
-		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_cached, undo);
+		UT_LIST_ADD_FIRST(rseg->update_undo_cached, undo);
 
 		MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
@@ -1941,28 +1965,30 @@ trx_undo_update_cleanup(
 Frees or caches an insert undo log after a transaction commit or rollback.
 Knowledge of inserts is not needed after a commit or rollback, therefore
 the data can be discarded. */
-UNIV_INTERN
+
 void
 trx_undo_insert_cleanup(
 /*====================*/
-	trx_t*	trx)	/*!< in: transaction handle */
+	trx_undo_ptr_t* undo_ptr)       /*!< in: undo log to cleanup. */
 {
 	trx_undo_t*	undo;
 	trx_rseg_t*	rseg;
 
-	undo = trx->insert_undo;
-	ut_ad(undo);
+	undo = undo_ptr->insert_undo;
+	if (undo == 0) {
+		return;
+	}
 
-	rseg = trx->rseg;
+	rseg = undo_ptr->rseg;
 
 	mutex_enter(&(rseg->mutex));
 
-	UT_LIST_REMOVE(undo_list, rseg->insert_undo_list, undo);
-	trx->insert_undo = NULL;
+	UT_LIST_REMOVE(rseg->insert_undo_list, undo);
+	undo_ptr->insert_undo = NULL;
 
 	if (undo->state == TRX_UNDO_CACHED) {
 
-		UT_LIST_ADD_FIRST(undo_list, rseg->insert_undo_cached, undo);
+		UT_LIST_ADD_FIRST(rseg->insert_undo_cached, undo);
 
 		MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
@@ -1988,7 +2014,7 @@ trx_undo_insert_cleanup(
 
 /********************************************************************//**
 At shutdown, frees the undo logs of a PREPARED transaction. */
-UNIV_INTERN
+
 void
 trx_undo_free_prepared(
 /*===================*/
@@ -1996,17 +2022,45 @@ trx_undo_free_prepared(
 {
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
-	if (trx->update_undo) {
-		ut_a(trx->update_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->rseg->update_undo_list,
-			       trx->update_undo);
-		trx_undo_mem_free(trx->update_undo);
+	if (trx->rsegs.m_redo.update_undo) {
+		ut_a(trx->rsegs.m_redo.update_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->update_undo_list,
+			       trx->rsegs.m_redo.update_undo);
+		trx_undo_mem_free(trx->rsegs.m_redo.update_undo);
+
+		trx->rsegs.m_redo.update_undo = NULL;
 	}
-	if (trx->insert_undo) {
-		ut_a(trx->insert_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->rseg->insert_undo_list,
-			       trx->insert_undo);
-		trx_undo_mem_free(trx->insert_undo);
+
+	if (trx->rsegs.m_redo.insert_undo) {
+		ut_a(trx->rsegs.m_redo.insert_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->insert_undo_list,
+			       trx->rsegs.m_redo.insert_undo);
+		trx_undo_mem_free(trx->rsegs.m_redo.insert_undo);
+
+		trx->rsegs.m_redo.insert_undo = NULL;
+	}
+
+	if (trx->rsegs.m_noredo.update_undo) {
+
+		ut_a(trx->rsegs.m_noredo.update_undo->state
+			== TRX_UNDO_PREPARED);
+
+		UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->update_undo_list,
+			       trx->rsegs.m_noredo.update_undo);
+		trx_undo_mem_free(trx->rsegs.m_noredo.update_undo);
+
+		trx->rsegs.m_noredo.update_undo = NULL;
+	}
+	if (trx->rsegs.m_noredo.insert_undo) {
+
+		ut_a(trx->rsegs.m_noredo.insert_undo->state
+			== TRX_UNDO_PREPARED);
+
+		UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->insert_undo_list,
+			       trx->rsegs.m_noredo.insert_undo);
+		trx_undo_mem_free(trx->rsegs.m_noredo.insert_undo);
+
+		trx->rsegs.m_noredo.insert_undo = NULL;
 	}
 }
 #endif /* !UNIV_HOTBACKUP */

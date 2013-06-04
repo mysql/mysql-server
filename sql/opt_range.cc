@@ -1356,7 +1356,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   index= key_nr;
   head=  table;
   key_part_info= head->key_info[index].key_part;
-  my_init_dynamic_array(&ranges, sizeof(QUICK_RANGE*), 16, 16);
 
   /* 'thd' is not accessible in QUICK_RANGE_SELECT::reset(). */
   mrr_buf_size= thd->variables.read_rnd_buff_size;
@@ -1426,7 +1425,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
         delete file;
       }
     }
-    delete_dynamic(&ranges); /* ranges are allocated in alloc */
     free_root(&alloc,MYF(0));
     my_free(column_bitmap.bitmap);
   }
@@ -4439,7 +4437,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   /* Calculate cost(rowid_to_row_scan) */
   {
     Cost_estimate sweep_cost;
-    JOIN *join= param->thd->lex->select_lex.join;
+    JOIN *join= param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
                         &sweep_cost);
@@ -4585,7 +4583,7 @@ skip_to_ror_scan:
   double roru_total_cost;
   {
     Cost_estimate sweep_cost;
-    JOIN *join= param->thd->lex->select_lex.join;
+    JOIN *join= param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
@@ -5177,8 +5175,9 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   if (!info->is_covering)
   {
     Cost_estimate sweep_cost;
-    JOIN *join= info->param->thd->lex->select_lex.join;
+    JOIN *join= info->param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables == 1;
+
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
                         is_interrupted, &sweep_cost);
     info->total_cost += sweep_cost.total_cost();
@@ -5963,6 +5962,34 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
               {
                 new_interval->min_value= last_val->max_value;
                 new_interval->min_flag= NEAR_MIN;
+
+                /*
+                  If the interval is over a partial keypart, the
+                  interval must be "c_{i-1} <= X < c_i" instead of
+                  "c_{i-1} < X < c_i". Reason:
+
+                  Consider a table with a column "my_col VARCHAR(3)",
+                  and an index with definition
+                  "INDEX my_idx my_col(1)". If the table contains rows
+                  with my_col values "f" and "foo", the index will not
+                  distinguish the two rows.
+
+                  Note that tree_or() below will effectively merge
+                  this range with the range created for c_{i-1} and
+                  we'll eventually end up with only one range:
+                  "NULL < X".
+
+                  Partitioning indexes are never partial.
+                */
+                if (param->using_real_indexes)
+                {
+                  const KEY key=
+                    param->table->key_info[param->real_keynr[idx]];
+                  const KEY_PART_INFO *kpi= key.key_part + new_interval->part;
+
+                  if (kpi->key_part_flag & HA_PART_KEY_SEG)
+                    new_interval->min_flag= 0;
+                }
               }
             }
             /* 
@@ -6808,6 +6835,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   if (key_part->image_type == Field::itMBR)
   {
+    // @todo: use is_spatial_operator() instead?
     switch (type) {
     case Item_func::SP_EQUALS_FUNC:
     case Item_func::SP_DISJOINT_FUNC:
@@ -9724,7 +9752,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
   set_if_bigger(quick->max_used_key_length, range->min_length);
   set_if_bigger(quick->max_used_key_length, range->max_length);
   set_if_bigger(quick->used_key_parts, (uint) key_tree->part+1);
-  if (insert_dynamic(&quick->ranges, &range))
+  if (quick->ranges.push_back(range))
     return 1;
 
  end:
@@ -9741,9 +9769,9 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 
 bool QUICK_RANGE_SELECT::unique_key_range()
 {
-  if (ranges.elements == 1)
+  if (ranges.size() == 1)
   {
-    QUICK_RANGE *tmp= *((QUICK_RANGE**)ranges.buffer);
+    QUICK_RANGE *tmp= ranges[0];
     if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE)
     {
       KEY *key=head->key_info+index;
@@ -9932,7 +9960,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     key_part->null_bit=     key_info->key_part[part].null_bit;
     key_part->flag=         (uint8) key_info->key_part[part].key_part_flag;
   }
-  if (insert_dynamic(&quick->ranges, &range))
+  if (quick->ranges.push_back(range))
     goto err;
 
   /*
@@ -9953,7 +9981,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                       make_prev_keypart_map(ref->key_parts), EQ_RANGE)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
-    if (insert_dynamic(&quick->ranges, &null_range))
+    if (quick->ranges.push_back(null_range))
       goto err;
   }
 
@@ -10338,7 +10366,7 @@ int QUICK_RANGE_SELECT::reset()
   HANDLER_BUFFER empty_buf;
   DBUG_ENTER("QUICK_RANGE_SELECT::reset");
   last_range= NULL;
-  cur_range= (QUICK_RANGE**) ranges.buffer;
+  cur_range= ranges.begin();
 
   /* set keyread to TRUE if index is covering */
   if(!head->no_keyread && head->covering_keys.is_set(index))
@@ -10393,8 +10421,8 @@ int QUICK_RANGE_SELECT::reset()
     empty_buf.buffer= empty_buf.buffer_end= empty_buf.end_of_used_area= NULL;
  
   RANGE_SEQ_IF seq_funcs= {quick_range_seq_init, quick_range_seq_next, 0, 0};
-  error= file->multi_range_read_init(&seq_funcs, (void*)this, ranges.elements,
-                                     mrr_flags, mrr_buf_desc? mrr_buf_desc: 
+  error= file->multi_range_read_init(&seq_funcs, this, ranges.size(),
+                                     mrr_flags, mrr_buf_desc? mrr_buf_desc:
                                                               &empty_buf);
   DBUG_RETURN(error);
 }
@@ -10415,11 +10443,10 @@ int QUICK_RANGE_SELECT::reset()
 
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags)
 {
-  QUICK_RANGE_SELECT *quick= (QUICK_RANGE_SELECT*)init_param;
-  quick->qr_traversal_ctx.first=  (QUICK_RANGE**)quick->ranges.buffer;
-  quick->qr_traversal_ctx.cur=    (QUICK_RANGE**)quick->ranges.buffer;
-  quick->qr_traversal_ctx.last=   quick->qr_traversal_ctx.cur + 
-                                  quick->ranges.elements;
+  QUICK_RANGE_SELECT *quick= static_cast<QUICK_RANGE_SELECT*>(init_param);
+  quick->qr_traversal_ctx.first= quick->ranges.begin();
+  quick->qr_traversal_ctx.cur= quick->ranges.begin();
+  quick->qr_traversal_ctx.last= quick->ranges.end();
   return &quick->qr_traversal_ctx;
 }
 
@@ -10621,7 +10648,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
         DBUG_RETURN(0);
     }
 
-    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    const uint count= ranges.size() - (cur_range - ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -10667,7 +10694,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 	DBUG_RETURN(result);
     }
 
-    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    const uint count= ranges.size() - (cur_range-ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -10709,12 +10736,12 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
 {
   QUICK_RANGE *res;
   uint min= 0;
-  uint max= ranges.elements - 1;
+  uint max= ranges.size() - 1;
   uint mid= (max + min)/2;
 
   while (min != max)
   {
-    if (cmp_next(*(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid)))
+    if (cmp_next(ranges[mid]))
     {
       /* current row value > mid->max */
       min= mid + 1;
@@ -10723,7 +10750,7 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
       max= mid;
     mid= (min + max) / 2;
   }
-  res= *(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid);
+  res= ranges[mid];
   return (!cmp_next(res) && !cmp_prev(res));
 }
 
@@ -10754,9 +10781,9 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
   mrr_buf_size= 0;
 
 
-  QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
-  QUICK_RANGE **end_range= pr + ranges.elements;
-  for (; pr!=end_range; pr++)
+  Quick_ranges::const_iterator pr= ranges.begin();
+  Quick_ranges::const_iterator end_range= ranges.end();
+  for (; pr != end_range; pr++)
     rev_ranges.push_front(*pr);
 
   /* Remove EQ_RANGE flag for keys that are not using the full key */
@@ -12776,15 +12803,10 @@ void QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges ()
   if (quick_prefix_select &&
       group_prefix_len < quick_prefix_select->max_used_key_length)
   {
-    DYNAMIC_ARRAY *arr;
-    uint inx;
-
-    for (inx= 0, arr= &quick_prefix_select->ranges; inx < arr->elements; inx++)
+    for (size_t ix= 0; ix < quick_prefix_select->ranges.size(); ++ix)
     {
-      QUICK_RANGE *range;
-
-      get_dynamic(arr, (uchar*)&range, inx);
-      range->flag &= ~(NEAR_MIN | NEAR_MAX);
+      QUICK_RANGE *range= quick_prefix_select->ranges[ix];
+      range->flag&= ~(NEAR_MIN | NEAR_MAX);
     }
   }
 }
@@ -12931,15 +12953,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
 {
   int min_res= 0;
   int max_res= 0;
-#ifdef HPUX11
-  /*
-    volatile is required by a bug in the HP compiler due to which the
-    last test of result fails.
-  */
-  volatile int result;
-#else
   int result;
-#endif
   int is_last_prefix= 0;
 
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::get_next");
@@ -13060,9 +13074,11 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     */
     if (min_max_arg_part && min_max_arg_part->field->is_null())
     {
+      uchar key_buf[MAX_KEY_LENGTH];
+
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
-      key_copy(tmp_record, record, index_info, max_used_key_length);
-      result= head->file->ha_index_read_map(record, tmp_record,
+      key_copy(key_buf, record, index_info, max_used_key_length);
+      result= head->file->ha_index_read_map(record, key_buf,
                                             make_keypart_map(real_key_parts),
                                             HA_READ_AFTER_KEY);
       /*
@@ -13078,7 +13094,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
       if (!result)
       {
         if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
-          key_restore(record, tmp_record, index_info, 0);
+          key_restore(record, key_buf, index_info, 0);
       }
       else if (result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE)
         result= 0; /* There is a result in any case. */
@@ -14135,7 +14151,9 @@ print_multiple_key_values(KEY_PART *key_part, const uchar *key,
     {
       if (*key)
       {
-        fwrite("NULL",sizeof(char),4,DBUG_FILE);
+        if (fwrite("NULL",sizeof(char),4,DBUG_FILE) != 4) {
+          goto restore_col_map;
+        }
         continue;
       }
       key++;                                    // Skip null byte
@@ -14146,10 +14164,13 @@ print_multiple_key_values(KEY_PART *key_part, const uchar *key,
       (void) field->val_int_as_str(&tmp, 1);
     else
       field->val_str(&tmp);
-    fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
+    if (fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE) != tmp.length()) {
+      goto restore_col_map;
+    }
     if (key+store_length < key_end)
       fputc('/',DBUG_FILE);
   }
+restore_col_map:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }
 
@@ -14182,13 +14203,10 @@ void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose)
 
   if (verbose)
   {
-    QUICK_RANGE *range;
-    QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
-    QUICK_RANGE **end_range= pr + ranges.elements;
-    for (; pr != end_range; ++pr)
+    for (size_t ix= 0; ix < ranges.size(); ++ix)
     {
       fprintf(DBUG_FILE, "%*s", indent + 2, "");
-      range= *pr;
+      QUICK_RANGE *range= ranges[ix];
       if (!(range->flag & NO_MIN_RANGE))
       {
         print_multiple_key_values(key_parts, range->min_key,

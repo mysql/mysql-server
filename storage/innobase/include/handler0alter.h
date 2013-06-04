@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,7 +23,7 @@ Smart ALTER TABLE
 
 /*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_rec_to_mysql(
 /*==================*/
@@ -36,7 +36,7 @@ innobase_rec_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB index entry to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_fields_to_mysql(
 /*=====================*/
@@ -47,7 +47,7 @@ innobase_fields_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB row to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_row_to_mysql(
 /*==================*/
@@ -58,7 +58,7 @@ innobase_row_to_mysql(
 
 /*************************************************************//**
 Resets table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_rec_reset(
 /*===============*/

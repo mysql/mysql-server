@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,13 +140,13 @@ my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n)
 
 my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
 {
-#ifdef __WIN__
+#ifdef _WIN32
   const char *quote_str= "\"";
   const uint  quote_len= 1;
 #else
   const char *quote_str= "\'";
   const uint  quote_len= 1;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
   my_bool ret= TRUE;
   va_list dirty_text;
 

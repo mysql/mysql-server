@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
                                            // date_add_interval,
                                            // calc_time_diff
 #include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
-#include "sql_acl.h"    // EVENT_ACL, SUPER_ACL
+#include "auth_common.h"                   // EVENT_ACL, SUPER_ACL
 #include "sp.h"         // load_charset, load_collation
 #include "events.h"
 #include "event_data_objects.h"
@@ -1406,6 +1406,7 @@ Event_job_data::execute(THD *thd, bool drop)
 
   {
     Parser_state parser_state;
+    
     if (parser_state.init(thd, thd->query(), thd->query_length()))
       goto end;
 
@@ -1487,7 +1488,7 @@ end:
   if (save_sctx)
     event_sctx.restore_security_context(thd, save_sctx);
 #endif
-  thd->lex->unit.cleanup();
+  thd->lex->unit->cleanup();
   thd->end_statement();
   thd->cleanup_after_query();
   /* Avoid races with SHOW PROCESSLIST */

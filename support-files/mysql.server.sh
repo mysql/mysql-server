@@ -301,6 +301,9 @@ case "$mode" in
 
     if test -s "$mysqld_pid_file_path"
     then
+      # signal mysqld_safe that it needs to stop
+      touch "$mysqld_pid_file_path.shutdown"
+
       mysqld_pid=`cat "$mysqld_pid_file_path"`
 
       if (kill -0 $mysqld_pid 2>/dev/null)
@@ -360,7 +363,13 @@ case "$mode" in
     else
       # Try to find appropriate mysqld process
       mysqld_pid=`pidof $libexecdir/mysqld`
-      if test -z $mysqld_pid ; then 
+
+      # test if multiple pids exist
+      pid_count=`echo $mysqld_pid | wc -w`
+      if test $pid_count -gt 1 ; then
+        log_failure_msg "Multiple MySQL running but PID file could not be found ($mysqld_pid)"
+        exit 5
+      elif test -z $mysqld_pid ; then 
         if test -f "$lock_file_path" ; then 
           log_failure_msg "MySQL is not running, but lock file ($lock_file_path) exists"
           exit 2

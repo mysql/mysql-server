@@ -79,6 +79,7 @@ row_undo_ins_remove_clust_rec(
 	ut_ad(node->trx->in_rollback);
 
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	/* This is similar to row_undo_mod_clust(). The DDL thread may
 	already have copied this row from the log to the new table.
@@ -104,6 +105,9 @@ row_undo_ins_remove_clust_rec(
 
 	ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur), btr_cur->index)
 	      == node->trx->id);
+	ut_ad(!rec_get_deleted_flag(
+		      btr_cur_get_rec(btr_cur),
+		      dict_table_is_comp(btr_cur->index->table)));
 
 	if (online && dict_index_is_online_ddl(index)) {
 		const rec_t*	rec	= btr_cur_get_rec(btr_cur);
@@ -111,9 +115,7 @@ row_undo_ins_remove_clust_rec(
 		const ulint*	offsets	= rec_get_offsets(
 			rec, index, NULL, ULINT_UNDEFINED, &heap);
 		row_log_table_delete(
-			rec, index, offsets,
-			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
-					+ rec));
+			rec, index, offsets, true, node->trx->id);
 		mem_heap_free(heap);
 	}
 
@@ -144,6 +146,7 @@ row_undo_ins_remove_clust_rec(
 retry:
 	/* If did not succeed, try pessimistic descent to tree */
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	success = btr_pcur_restore_position(BTR_MODIFY_TREE,
 					    &(node->pcur), &mtr);
@@ -172,7 +175,6 @@ retry:
 
 func_exit:
 	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
-	trx_undo_rec_release(node->trx, node->undo_no);
 
 	return(err);
 }
@@ -199,6 +201,7 @@ row_undo_ins_remove_sec_low(
 	log_free_check();
 
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (mode == BTR_MODIFY_LEAF) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
@@ -319,7 +322,8 @@ row_undo_ins_parse_undo_rec(
 	node->rec_type = type;
 
 	node->update = NULL;
-	node->table = dict_table_open_on_id(table_id, dict_locked, FALSE);
+	node->table = dict_table_open_on_id(
+		table_id, dict_locked, DICT_TABLE_OP_NORMAL);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (UNIV_UNLIKELY(node->table == NULL)) {
@@ -415,7 +419,7 @@ marked, at the time of the insert.  InnoDB is eager in a rollback:
 if it figures out that an index record will be removed in the purge
 anyway, it will remove it in the rollback.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-UNIV_INTERN
+
 dberr_t
 row_undo_ins(
 /*=========*/
@@ -426,14 +430,13 @@ row_undo_ins(
 
 	ut_ad(node->state == UNDO_NODE_INSERT);
 	ut_ad(node->trx->in_rollback);
+	ut_ad(trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
 	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
 
 	row_undo_ins_parse_undo_rec(node, dict_locked);
 
 	if (node->table == NULL) {
-		trx_undo_rec_release(node->trx, node->undo_no);
-
 		return(DB_SUCCESS);
 	}
 
@@ -441,14 +444,6 @@ row_undo_ins(
 
 	node->index = dict_table_get_first_index(node->table);
 	ut_ad(dict_index_is_clust(node->index));
-
-	if (dict_index_is_online_ddl(node->index)) {
-		/* Note that we are rolling back this transaction, so
-		that all inserts and updates with this DB_TRX_ID can
-		be skipped. */
-		row_log_table_rollback(node->index, node->trx->id);
-	}
-
 	/* Skip the clustered index (the first index) */
 	node->index = dict_table_get_next_index(node->index);
 

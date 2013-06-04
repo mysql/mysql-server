@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,8 +32,8 @@ Created 1/30/1994 Heikki Tuuri
 #define ut_error	assert(0)
 #else /* !UNIV_INNOCHECKSUM */
 
-#include "univ.i"
-#include <stdlib.h>
+/* Do not include univ.i because univ.i includes this. */
+
 #include "os0thread.h"
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
@@ -51,8 +51,15 @@ extern ulint	ut_dbg_zero;
 #endif
 
 /*************************************************************//**
+Flush stderr and stdout, then abort execution. */
+
+void
+ut_abort(void)
+	UNIV_COLD __attribute__((noreturn));
+
+/*************************************************************//**
 Report a failed assertion. */
-UNIV_INTERN
+
 void
 ut_dbg_assertion_failed(
 /*====================*/
@@ -61,33 +68,27 @@ ut_dbg_assertion_failed(
 	ulint		line)	/*!< in: line number of the assertion */
 	UNIV_COLD __attribute__((nonnull(2)));
 
-/** Abort the execution. */
-# define UT_DBG_PANIC do {					\
-	fflush(stderr);						\
-	abort();						\
-} while (0)
-
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR	assertion expression that should hold */
 #define ut_a(EXPR) do {						\
 	if (UT_DBG_FAIL(EXPR)) {				\
 		ut_dbg_assertion_failed(#EXPR,			\
 				__FILE__, (ulint) __LINE__);	\
-		UT_DBG_PANIC;					\
+		ut_abort();					\
 	}							\
 } while (0)
 
 /** Abort execution. */
 #define ut_error do {						\
 	ut_dbg_assertion_failed(0, __FILE__, (ulint) __LINE__);	\
-	UT_DBG_PANIC;						\
+	ut_abort();						\
 } while (0)
 
 #ifdef UNIV_DEBUG
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)	ut_a(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
-#define ut_d(EXPR)	do {EXPR;} while (0)
+#define ut_d(EXPR)	EXPR
 #else
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)
@@ -113,7 +114,7 @@ struct speedo_t {
 
 /*******************************************************************//**
 Resets a speedo (records the current time in it). */
-UNIV_INTERN
+
 void
 speedo_reset(
 /*=========*/
@@ -122,7 +123,7 @@ speedo_reset(
 /*******************************************************************//**
 Shows the time elapsed and usage statistics since the last reset of a
 speedo. */
-UNIV_INTERN
+
 void
 speedo_show(
 /*========*/

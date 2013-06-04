@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ Created 2011-05-26 Marko Makela
 Allocate the row log for an index and flag the index
 for online creation.
 @retval true if success, false if not */
-UNIV_INTERN
+
 bool
 row_log_allocate(
 /*=============*/
@@ -57,7 +57,7 @@ row_log_allocate(
 
 /******************************************************//**
 Free the row log for an index that was being created online. */
-UNIV_INTERN
+
 void
 row_log_free(
 /*=========*/
@@ -89,7 +89,7 @@ row_log_online_op_try(
 	__attribute__((nonnull, warn_unused_result));
 /******************************************************//**
 Logs an operation to a secondary index that is (or was) being created. */
-UNIV_INTERN
+
 void
 row_log_online_op(
 /*==============*/
@@ -102,7 +102,7 @@ row_log_online_op(
 /******************************************************//**
 Gets the error status of the online index rebuild log.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 row_log_table_get_error(
 /*====================*/
@@ -113,7 +113,7 @@ row_log_table_get_error(
 /******************************************************//**
 Logs a delete operation to a table that is being rebuilt.
 This will be merged in row_log_table_apply_delete(). */
-UNIV_INTERN
+
 void
 row_log_table_delete(
 /*=================*/
@@ -122,6 +122,7 @@ row_log_table_delete(
 	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
 				or X-latched */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
+	bool		purge,	/*!< in: true=purging BLOBs */
 	trx_id_t	trx_id)	/*!< in: DB_TRX_ID of the record before
 				it was deleted */
 	UNIV_COLD __attribute__((nonnull));
@@ -129,7 +130,7 @@ row_log_table_delete(
 /******************************************************//**
 Logs an update operation to a table that is being rebuilt.
 This will be merged in row_log_table_apply_update(). */
-UNIV_INTERN
+
 void
 row_log_table_update(
 /*=================*/
@@ -147,7 +148,7 @@ Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
 of a table that is being rebuilt.
 @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
 or NULL if the PRIMARY KEY definition does not change */
-UNIV_INTERN
+
 const dtuple_t*
 row_log_table_get_pk(
 /*=================*/
@@ -163,7 +164,7 @@ row_log_table_get_pk(
 /******************************************************//**
 Logs an insert to a table that is being rebuilt.
 This will be merged in row_log_table_apply_insert(). */
-UNIV_INTERN
+
 void
 row_log_table_insert(
 /*=================*/
@@ -173,32 +174,28 @@ row_log_table_insert(
 				or X-latched */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec,index) */
 	UNIV_COLD __attribute__((nonnull));
-
 /******************************************************//**
-Notes that a transaction is being rolled back. */
-UNIV_INTERN
+Notes that a BLOB is being freed during online ALTER TABLE. */
+
 void
-row_log_table_rollback(
-/*===================*/
-	dict_index_t*	index,	/*!< in/out: clustered index */
-	trx_id_t	trx_id)	/*!< in: transaction being rolled back */
+row_log_table_blob_free(
+/*====================*/
+	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
+	ulint		page_no)/*!< in: starting page number of the BLOB */
 	UNIV_COLD __attribute__((nonnull));
-
 /******************************************************//**
-Check if a transaction rollback has been initiated.
-@return true if inserts of this transaction were rolled back */
-UNIV_INTERN
-bool
-row_log_table_is_rollback(
-/*======================*/
-	const dict_index_t*	index,	/*!< in: clustered index */
-	trx_id_t		trx_id)	/*!< in: transaction id */
-	__attribute__((nonnull));
+Notes that a BLOB is being allocated during online ALTER TABLE. */
 
+void
+row_log_table_blob_alloc(
+/*=====================*/
+	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
+	ulint		page_no)/*!< in: starting page number of the BLOB */
+	UNIV_COLD __attribute__((nonnull));
 /******************************************************//**
 Apply the row_log_table log to a table upon completing rebuild.
 @return DB_SUCCESS, or error code on failure */
-UNIV_INTERN
+
 dberr_t
 row_log_table_apply(
 /*================*/
@@ -213,7 +210,7 @@ row_log_table_apply(
 Get the latest transaction ID that has invoked row_log_online_op()
 during online creation.
 @return latest transaction ID, or 0 if nothing was logged */
-UNIV_INTERN
+
 trx_id_t
 row_log_get_max_trx(
 /*================*/
@@ -223,7 +220,7 @@ row_log_get_max_trx(
 /******************************************************//**
 Merge the row log to the index upon completing index creation.
 @return DB_SUCCESS, or error code on failure */
-UNIV_INTERN
+
 dberr_t
 row_log_apply(
 /*==========*/

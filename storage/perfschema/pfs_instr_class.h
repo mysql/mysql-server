@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -363,6 +363,11 @@ struct PFS_ALIGNED PFS_file_class : public PFS_instr_class
 /** Instrumentation metadata for a stage. */
 struct PFS_ALIGNED PFS_stage_class : public PFS_instr_class
 {
+  /**
+    Length of the 'stage/<component>/' prefix.
+    This is to extract 'foo' from 'stage/sql/foo'.
+  */
+  uint m_prefix_length;
   /** Stage usage statistics. */
   PFS_stage_stat m_stage_stat;
 };
@@ -422,7 +427,9 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
 PFS_file_key register_file_class(const char *name, uint name_length,
                                  int flags);
 
-PFS_stage_key register_stage_class(const char *name, uint name_length,
+PFS_stage_key register_stage_class(const char *name,
+                                   uint prefix_length,
+                                   uint name_length,
                                    int flags);
 
 PFS_statement_key register_statement_class(const char *name, uint name_length,

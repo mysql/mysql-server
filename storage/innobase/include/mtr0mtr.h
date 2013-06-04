@@ -43,10 +43,10 @@ Created 11/26/1995 Heikki Tuuri
 #define	MTR_LOG_NONE			22	/* log no operations and dirty
 						pages are not added to the
 						flush list */
-#define	MTR_LOG_NO_REDO			23	/* Don't generate REDO log
+#define MTR_LOG_NO_REDO			23	/* Don't generate REDO log
 						but add dirty pages to
 						flush list */
-#define	MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
+#define MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
 						a shorter form */
 
 /* Types for the mlock objects to store in the mtr memo; NOTE that the
@@ -212,7 +212,7 @@ mtr_start(
 	__attribute__((nonnull));
 /***************************************************************//**
 Commits a mini-transaction. */
-UNIV_INTERN
+
 void
 mtr_commit(
 /*=======*/
@@ -260,7 +260,7 @@ mtr_set_log_mode(
 /********************************************************//**
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
 @return	value read */
-UNIV_INTERN
+
 ulint
 mtr_read_ulint(
 /*===========*/
@@ -301,9 +301,10 @@ mtr_x_lock_func(
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************//**
-Releases an object in the memo stack. */
-UNIV_INTERN
-void
+Releases an object in the memo stack.
+@return true if released */
+
+bool
 mtr_memo_release(
 /*=============*/
 	mtr_t*	mtr,	/*!< in/out: mini-transaction */
@@ -327,7 +328,7 @@ mtr_memo_contains(
 /**********************************************************//**
 Checks if memo contains the given page.
 @return	TRUE if contains */
-UNIV_INTERN
+
 ibool
 mtr_memo_contains_page(
 /*===================*/
@@ -336,7 +337,7 @@ mtr_memo_contains_page(
 	ulint		type);	/*!< in: type of object */
 /*********************************************************//**
 Prints info of an mtr handle. */
-UNIV_INTERN
+
 void
 mtr_print(
 /*======*/

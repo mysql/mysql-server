@@ -36,25 +36,27 @@ Created 2/23/1996 Heikki Tuuri
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
 @return	own: persistent cursor */
-UNIV_INTERN
+
 btr_pcur_t*
 btr_pcur_create_for_mysql(void)
 /*============================*/
 {
 	btr_pcur_t*	pcur;
+	DBUG_ENTER("btr_pcur_create_for_mysql");
 
 	pcur = (btr_pcur_t*) mem_alloc(sizeof(btr_pcur_t));
 
 	pcur->btr_cur.index = NULL;
 	btr_pcur_init(pcur);
 
-	return(pcur);
+	DBUG_PRINT("btr_pcur_create_for_mysql", ("pcur: %p", pcur));
+	DBUG_RETURN(pcur);
 }
 
 /**************************************************************//**
 Resets a persistent cursor object, freeing ::old_rec_buf if it is
 allocated and resetting the other members to their initial values. */
-UNIV_INTERN
+
 void
 btr_pcur_reset(
 /*===========*/
@@ -79,14 +81,18 @@ btr_pcur_reset(
 
 /**************************************************************//**
 Frees the memory for a persistent cursor object. */
-UNIV_INTERN
+
 void
 btr_pcur_free_for_mysql(
 /*====================*/
 	btr_pcur_t*	cursor)	/*!< in, own: persistent cursor */
 {
+	DBUG_ENTER("btr_pcur_free_for_mysql");
+	DBUG_PRINT("btr_pcur_free_for_mysql", ("pcur: %p", cursor));
+
 	btr_pcur_reset(cursor);
 	mem_free(cursor);
+	DBUG_VOID_RETURN;
 }
 
 /**************************************************************//**
@@ -96,7 +102,7 @@ cursor data structure, or just setting a flag if the cursor id before the
 first in an EMPTY tree, or after the last in an EMPTY tree. NOTE that the
 page where the cursor is positioned must not be empty if the index tree is
 not totally empty! */
-UNIV_INTERN
+
 void
 btr_pcur_store_position(
 /*====================*/
@@ -174,7 +180,7 @@ btr_pcur_store_position(
 
 /**************************************************************//**
 Copies the stored position of a pcur to another pcur. */
-UNIV_INTERN
+
 void
 btr_pcur_copy_stored_position(
 /*==========================*/
@@ -218,7 +224,7 @@ restores to before first or after the last in the tree.
 @return TRUE if the cursor position was stored when it was on a user
 record and it can be restored on a user record whose ordering fields
 are identical to the ones of the original user record */
-UNIV_INTERN
+
 ibool
 btr_pcur_restore_position_func(
 /*===========================*/
@@ -401,7 +407,7 @@ Moves the persistent cursor to the first record on the next page. Releases the
 latch on the current page, and bufferunfixes it. Note that there must not be
 modifications on the current page, as then the x-latch can be released only in
 mtr_commit. */
-UNIV_INTERN
+
 void
 btr_pcur_move_to_next_page(
 /*=======================*/
@@ -445,7 +451,7 @@ btr_pcur_move_to_next_page(
 
 	page_cur_set_before_first(next_block, btr_pcur_get_page_cur(cursor));
 
-	page_check_dir(next_page);
+	ut_d(page_check_dir(next_page));
 }
 
 /*********************************************************//**
@@ -457,7 +463,7 @@ alphabetical position of the cursor is guaranteed to be sensible on
 return, but it may happen that the cursor is not positioned on the last
 record of any page, because the structure of the tree may have changed
 during the time when the cursor had no latches. */
-UNIV_INTERN
+
 void
 btr_pcur_move_backward_from_page(
 /*=============================*/
@@ -532,7 +538,7 @@ btr_pcur_move_backward_from_page(
 Moves the persistent cursor to the previous record in the tree. If no records
 are left, the cursor stays 'before first in tree'.
 @return	TRUE if the cursor was not before first in tree */
-UNIV_INTERN
+
 ibool
 btr_pcur_move_to_prev(
 /*==================*/
@@ -569,7 +575,7 @@ PAGE_CUR_LE, on the last user record. If no such user record exists, then
 in the first case sets the cursor after last in tree, and in the latter case
 before first in tree. The latching mode must be BTR_SEARCH_LEAF or
 BTR_MODIFY_LEAF. */
-UNIV_INTERN
+
 void
 btr_pcur_open_on_user_rec_func(
 /*===========================*/

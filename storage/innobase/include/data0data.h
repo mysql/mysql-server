@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,6 +32,10 @@ Created 5/30/1994 Heikki Tuuri
 #include "data0type.h"
 #include "mem0mem.h"
 #include "dict0types.h"
+
+#ifndef DBUG_OFF
+# include <ostream>
+#endif /* !DBUG_OFF */
 
 /** Storage for overflow data in a big record, that is, a clustered
 index record which needs external storage of data fields */
@@ -291,7 +295,7 @@ dtuple_create(
 /*********************************************************************//**
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
-UNIV_INTERN
+
 void
 dtuple_set_n_fields(
 /*================*/
@@ -330,16 +334,16 @@ dtuple_get_n_ext(
 /*=============*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
 	__attribute__((nonnull));
-/************************************************************//**
-Compare two data tuples, respecting the collation of character fields.
-@return 1, 0 , -1 if tuple1 is greater, equal, less, respectively,
-than tuple2 */
-UNIV_INTERN
+/** Compare two data tuples.
+@param[in]	tuple1	first data tuple
+@param[in]	tuple2	second data tuple
+@return positive, 0, negative if tuple1 is greater, equal, less, than tuple2,
+respectively */
+
 int
 dtuple_coll_cmp(
-/*============*/
-	const dtuple_t*	tuple1,	/*!< in: tuple 1 */
-	const dtuple_t*	tuple2)	/*!< in: tuple 2 */
+	const dtuple_t*	tuple1,
+	const dtuple_t*	tuple2)
 	__attribute__((nonnull, warn_unused_result));
 /************************************************************//**
 Folds a prefix given as the number of fields of a tuple.
@@ -350,8 +354,6 @@ dtuple_fold(
 /*========*/
 	const dtuple_t*	tuple,	/*!< in: the tuple */
 	ulint		n_fields,/*!< in: number of complete fields to fold */
-	ulint		n_bytes,/*!< in: number of bytes to fold in an
-				incomplete last field */
 	index_id_t	tree_id)/*!< in: index tree id */
 	__attribute__((nonnull, pure, warn_unused_result));
 /*******************************************************************//**
@@ -375,7 +377,7 @@ dtuple_contains_null(
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 dfield_check_typed(
 /*===============*/
@@ -384,7 +386,7 @@ dfield_check_typed(
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 dtuple_check_typed(
 /*===============*/
@@ -393,7 +395,7 @@ dtuple_check_typed(
 /**********************************************************//**
 Checks that a data tuple is typed.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 dtuple_check_typed_no_assert(
 /*=========================*/
@@ -404,7 +406,7 @@ dtuple_check_typed_no_assert(
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 dtuple_validate(
 /*============*/
@@ -413,7 +415,7 @@ dtuple_validate(
 #endif /* UNIV_DEBUG */
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. */
-UNIV_INTERN
+
 void
 dfield_print(
 /*=========*/
@@ -422,7 +424,7 @@ dfield_print(
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */
-UNIV_INTERN
+
 void
 dfield_print_also_hex(
 /*==================*/
@@ -430,13 +432,34 @@ dfield_print_also_hex(
 	__attribute__((nonnull));
 /**********************************************************//**
 The following function prints the contents of a tuple. */
-UNIV_INTERN
+
 void
 dtuple_print(
 /*=========*/
 	FILE*		f,	/*!< in: output stream */
 	const dtuple_t*	tuple)	/*!< in: tuple */
 	__attribute__((nonnull));
+#ifndef DBUG_OFF
+/** Print the contents of a tuple.
+@param o	output stream
+@param field	array of data fields
+@param n	number of data fields */
+
+void
+dfield_print(
+	std::ostream&	o,
+	const dfield_t*	field,
+	ulint		n);
+/** Print the contents of a tuple.
+@param o	output stream
+@param tuple	data tuple */
+
+void
+dtuple_print(
+/*=========*/
+	std::ostream&	o,
+	const dtuple_t*	tuple);
+#endif /* DBUG_OFF */
 /**************************************************************//**
 Moves parts of long fields in entry to the big record vector so that
 the size of tuple drops below the maximum record size allowed in the
@@ -445,7 +468,7 @@ to determine uniquely the insertion place of the tuple in the index.
 @return own: created big record vector, NULL if we are not able to
 shorten the entry enough, i.e., if there are too many fixed-length or
 short fields in entry or the index is clustered */
-UNIV_INTERN
+
 big_rec_t*
 dtuple_convert_big_rec(
 /*===================*/
@@ -458,7 +481,7 @@ dtuple_convert_big_rec(
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created
 from entry with dtuple_convert_big_rec. */
-UNIV_INTERN
+
 void
 dtuple_convert_back_big_rec(
 /*========================*/

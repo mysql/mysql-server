@@ -23,6 +23,8 @@ Import a tablespace to a running instance.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0import.h"
 
 #ifdef UNIV_NONINL
@@ -3228,7 +3230,7 @@ row_import_read_cfg(
 Update the <space, root page> of a table's indexes from the values
 in the data dictionary.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 row_import_update_index_root(
 /*=========================*/
@@ -3396,7 +3398,7 @@ row_import_set_discarded(
 /*****************************************************************//**
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
 @return DB_SUCCESS or error code. */
-UNIV_INTERN
+
 dberr_t
 row_import_update_discarded_flag(
 /*=============================*/
@@ -3460,7 +3462,7 @@ row_import_update_discarded_flag(
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 row_import_for_mysql(
 /*=================*/
@@ -3504,7 +3506,9 @@ row_import_for_mysql(
 
 	mutex_enter(&trx->undo_mutex);
 
-	err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
+	/* IMPORT tablespace is blocked for temp-tables and so we don't
+	need to assign temporary rollback segment for this trx. */
+	err = trx_undo_assign_undo(trx, &trx->rsegs.m_redo, TRX_UNDO_UPDATE);
 
 	mutex_exit(&trx->undo_mutex);
 
@@ -3515,7 +3519,7 @@ row_import_for_mysql(
 
 		return(row_import_cleanup(prebuilt, trx, err));
 
-	} else if (trx->update_undo == 0) {
+	} else if (trx->rsegs.m_redo.update_undo == 0) {
 
 		err = DB_TOO_MANY_CONCURRENT_TRXS;
 		return(row_import_cleanup(prebuilt, trx, err));

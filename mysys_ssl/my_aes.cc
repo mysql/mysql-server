@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,15 +24,7 @@
 #elif defined(HAVE_OPENSSL)
 #include <openssl/aes.h>
 #include <openssl/evp.h>
-
-// Wrap C struct, to ensure resources are released.
-struct MyCipherCtx
-{
-  MyCipherCtx() { memset(&ctx, 0, sizeof(ctx)); }
-  ~MyCipherCtx() { EVP_CIPHER_CTX_cleanup(&ctx); }
-
-  EVP_CIPHER_CTX ctx;
-};
+#include <openssl/err.h>
 #endif
 
 enum encrypt_dir { MY_AES_ENCRYPT, MY_AES_DECRYPT };
@@ -128,7 +120,7 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
   int num_blocks;                               /* number of complete blocks */
   int i;
 #elif defined(HAVE_OPENSSL)
-  MyCipherCtx ctx;
+  EVP_CIPHER_CTX ctx;
   int u_len, f_len;
 #endif
 
@@ -163,16 +155,26 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
 
   return MY_AES_BLOCK_SIZE * (num_blocks + 1);
 #elif defined(HAVE_OPENSSL)
-  if (! EVP_EncryptInit(&ctx.ctx, EVP_aes_128_ecb(),
-                        (const unsigned char *) rkey, NULL))
-    return AES_BAD_DATA;                        /* Error */
-  if (! EVP_EncryptUpdate(&ctx.ctx, (unsigned char *) dest, &u_len,
-                          (unsigned const char *) source, source_length))
-    return AES_BAD_DATA;                        /* Error */
-  if (! EVP_EncryptFinal(&ctx.ctx, (unsigned char *) dest + u_len, &f_len))
-    return AES_BAD_DATA;                        /* Error */
 
+  EVP_CIPHER_CTX_init(&ctx);
+
+  if (! EVP_EncryptInit_ex(&ctx, EVP_aes_128_ecb(), NULL,
+                        (const unsigned char *) rkey, NULL))
+    goto aes_error;                             /* Error */
+  if (! EVP_EncryptUpdate(&ctx, (unsigned char *) dest, &u_len,
+                          (unsigned const char *) source, source_length))
+    goto aes_error;                             /* Error */
+  if (! EVP_EncryptFinal(&ctx, (unsigned char *) dest + u_len, &f_len))
+    goto aes_error;                             /* Error */
+
+  EVP_CIPHER_CTX_cleanup(&ctx);
   return u_len + f_len;
+
+aes_error:
+  /* need to explicitly clean up the error if we want to ignore it */
+  ERR_clear_error();
+  EVP_CIPHER_CTX_cleanup(&ctx);
+  return AES_BAD_DATA;
 #endif
 }
 
@@ -204,7 +206,7 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
   int num_blocks;                               /* Number of complete blocks */
   int i;
 #elif defined(HAVE_OPENSSL)
-  MyCipherCtx ctx;
+  EVP_CIPHER_CTX ctx;
   int u_len, f_len;
 #endif
 
@@ -246,15 +248,26 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
   memcpy(dest, block, MY_AES_BLOCK_SIZE - pad_len);
   return MY_AES_BLOCK_SIZE * num_blocks - pad_len;
 #elif defined(HAVE_OPENSSL)
-  if (! EVP_DecryptInit(&ctx.ctx, EVP_aes_128_ecb(),
-                        (const unsigned char *) rkey, NULL))
-    return AES_BAD_DATA;                        /* Error */
-  if (! EVP_DecryptUpdate(&ctx.ctx, (unsigned char *) dest, &u_len,
+
+  EVP_CIPHER_CTX_init(&ctx);
+
+  if (! EVP_DecryptInit_ex(&ctx, EVP_aes_128_ecb(),
+                        NULL, (const unsigned char *) rkey, NULL))
+    goto aes_error;                             /* Error */
+  if (! EVP_DecryptUpdate(&ctx, (unsigned char *) dest, &u_len,
                           (unsigned const char *) source, source_length))
-    return AES_BAD_DATA;                        /* Error */
-  if (! EVP_DecryptFinal(&ctx.ctx, (unsigned char *) dest + u_len, &f_len))
-    return AES_BAD_DATA;                        /* Error */
+    goto aes_error;                             /* Error */
+  if (! EVP_DecryptFinal_ex(&ctx, (unsigned char *) dest + u_len, &f_len))
+    goto aes_error;                             /* Error */
+
+  EVP_CIPHER_CTX_cleanup(&ctx);
   return u_len + f_len;
+
+aes_error:
+  /* need to explicitly clean up the error if we want to ignore it */
+  ERR_clear_error();
+  EVP_CIPHER_CTX_cleanup(&ctx);
+  return AES_BAD_DATA;
 #endif
 }
 

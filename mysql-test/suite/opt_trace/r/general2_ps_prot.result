@@ -1589,28 +1589,28 @@ jump_if_not 4(4) exists(select 2)	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 3,
+        "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#3 */ select 2"
+            "expanded_query": "/* select#2 */ select 2"
           }
         ] /* steps */
       } /* join_preparation */
     },
     {
       "subselect_execution": {
-        "select#": 3,
+        "select#": 2,
         "steps": [
           {
             "join_optimization": {
-              "select#": 3,
+              "select#": 2,
               "steps": [
               ] /* steps */
             } /* join_optimization */
           },
           {
             "join_execution": {
-              "select#": 3,
+              "select#": 2,
               "steps": [
               ] /* steps */
             } /* join_execution */
@@ -1628,21 +1628,21 @@ jump_if_not 6(6) (select count(0) from `test`.`t1`)	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 4,
+        "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#4 */ select count(0) from `t1`"
+            "expanded_query": "/* select#2 */ select count(0) from `t1`"
           }
         ] /* steps */
       } /* join_preparation */
     },
     {
       "subselect_execution": {
-        "select#": 4,
+        "select#": 2,
         "steps": [
           {
             "join_optimization": {
-              "select#": 4,
+              "select#": 2,
               "steps": [
               ] /* steps */,
               "empty_result": {
@@ -1652,7 +1652,7 @@ jump_if_not 6(6) (select count(0) from `test`.`t1`)	{
           },
           {
             "join_execution": {
-              "select#": 4,
+              "select#": 2,
               "steps": [
               ] /* steps */
             } /* join_execution */
@@ -1670,21 +1670,21 @@ SET @a=(select count(a) from t1 where a>0)	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 5,
+        "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#5 */ select count(`t1`.`a`) from `t1` where (`t1`.`a` > 0)"
+            "expanded_query": "/* select#2 */ select count(`t1`.`a`) from `t1` where (`t1`.`a` > 0)"
           }
         ] /* steps */
       } /* join_preparation */
     },
     {
       "subselect_execution": {
-        "select#": 5,
+        "select#": 2,
         "steps": [
           {
             "join_optimization": {
-              "select#": 5,
+              "select#": 2,
               "steps": [
                 {
                   "condition_processing": {
@@ -1780,7 +1780,7 @@ SET @a=(select count(a) from t1 where a>0)	{
           },
           {
             "join_execution": {
-              "select#": 5,
+              "select#": 2,
               "steps": [
               ] /* steps */
             } /* join_execution */
@@ -1794,21 +1794,21 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 6,
+        "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#6 */ select count(`t1`.`a`) from `t1` where (`t1`.`a` > 1)"
+            "expanded_query": "/* select#2 */ select count(`t1`.`a`) from `t1` where (`t1`.`a` > 1)"
           }
         ] /* steps */
       } /* join_preparation */
     },
     {
       "subselect_execution": {
-        "select#": 6,
+        "select#": 2,
         "steps": [
           {
             "join_optimization": {
-              "select#": 6,
+              "select#": 2,
               "steps": [
                 {
                   "condition_processing": {
@@ -1904,7 +1904,7 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
           },
           {
             "join_execution": {
-              "select#": 6,
+              "select#": 2,
               "steps": [
               ] /* steps */
             } /* join_execution */
@@ -2111,28 +2111,28 @@ set b@1 (select (2 + x@0))	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 3,
+        "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#3 */ select (2 + x@0)"
+            "expanded_query": "/* select#2 */ select (2 + x@0)"
           }
         ] /* steps */
       } /* join_preparation */
     },
     {
       "subselect_execution": {
-        "select#": 3,
+        "select#": 2,
         "steps": [
           {
             "join_optimization": {
-              "select#": 3,
+              "select#": 2,
               "steps": [
               ] /* steps */
             } /* join_optimization */
           },
           {
             "join_execution": {
-              "select#": 3,
+              "select#": 2,
               "steps": [
               ] /* steps */
             } /* join_execution */

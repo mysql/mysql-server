@@ -33,15 +33,15 @@ Created 5/20/1997 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 
 # ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	hash_table_mutex_key;
+mysql_pfs_key_t	hash_table_mutex_key;
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_RWLOCK
-UNIV_INTERN mysql_pfs_key_t	hash_table_locks_key;
+mysql_pfs_key_t	hash_table_locks_key;
 # endif /* UNIV_PFS_RWLOCK */
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_mutex_enter(
 /*=============*/
@@ -54,7 +54,7 @@ hash_mutex_enter(
 
 /************************************************************//**
 Releases the mutex for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_mutex_exit(
 /*============*/
@@ -67,7 +67,7 @@ hash_mutex_exit(
 
 /************************************************************//**
 Reserves all the mutexes of a hash table, in an ascending order. */
-UNIV_INTERN
+
 void
 hash_mutex_enter_all(
 /*=================*/
@@ -84,7 +84,7 @@ hash_mutex_enter_all(
 
 /************************************************************//**
 Releases all the mutexes of a hash table. */
-UNIV_INTERN
+
 void
 hash_mutex_exit_all(
 /*================*/
@@ -101,7 +101,7 @@ hash_mutex_exit_all(
 
 /************************************************************//**
 Releases all but the passed in mutex of a hash table. */
-UNIV_INTERN
+
 void
 hash_mutex_exit_all_but(
 /*====================*/
@@ -124,7 +124,7 @@ hash_mutex_exit_all_but(
 
 /************************************************************//**
 s-lock a lock for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_lock_s(
 /*========*/
@@ -147,7 +147,7 @@ hash_lock_s(
 
 /************************************************************//**
 x-lock a lock for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_lock_x(
 /*========*/
@@ -170,7 +170,7 @@ hash_lock_x(
 
 /************************************************************//**
 unlock an s-lock for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_unlock_s(
 /*==========*/
@@ -193,7 +193,7 @@ hash_unlock_s(
 
 /************************************************************//**
 unlock x-lock for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_unlock_x(
 /*==========*/
@@ -214,7 +214,7 @@ hash_unlock_x(
 
 /************************************************************//**
 Reserves all the locks of a hash table, in an ascending order. */
-UNIV_INTERN
+
 void
 hash_lock_x_all(
 /*============*/
@@ -237,7 +237,7 @@ hash_lock_x_all(
 
 /************************************************************//**
 Releases all the locks of a hash table, in an ascending order. */
-UNIV_INTERN
+
 void
 hash_unlock_x_all(
 /*==============*/
@@ -259,7 +259,7 @@ hash_unlock_x_all(
 
 /************************************************************//**
 Releases all but passed in lock of a hash table, */
-UNIV_INTERN
+
 void
 hash_unlock_x_all_but(
 /*==================*/
@@ -288,7 +288,7 @@ hash_unlock_x_all_but(
 Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n.
 @return	own: created table */
-UNIV_INTERN
+
 hash_table_t*
 hash_create(
 /*========*/
@@ -329,7 +329,7 @@ hash_create(
 
 /*************************************************************//**
 Frees a hash table. */
-UNIV_INTERN
+
 void
 hash_table_free(
 /*============*/
@@ -347,7 +347,7 @@ hash_table_free(
 Creates a sync object array to protect a hash table.
 ::sync_obj can be mutexes or rw_locks depening on the type of
 hash table. */
-UNIV_INTERN
+
 void
 hash_create_sync_obj_func(
 /*======================*/

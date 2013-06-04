@@ -30,21 +30,19 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(__WIN__)
 #ifdef HAVE_SELECT_H
 #include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif /* !defined(__WIN__) */
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 #ifndef INADDR_NONE
@@ -66,13 +64,13 @@ ulong		max_allowed_packet= 1024L*1024L*1024L;
 my_bool	net_flush(NET *net);
 #endif
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 /* socket_errno is defined in my_global.h for all platforms */
 #define perror(A)
 #else
 #include <errno.h>
 #define SOCKET_ERROR -1
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*
   If allowed through some configuration, then this needs to
@@ -153,7 +151,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     if (!mysql_unix_port)
     {
       char *env;
-#ifdef __WIN__
+#ifdef _WIN32
       mysql_unix_port = (char*) MYSQL_NAMEDPIPE;
 #else
       mysql_unix_port = (char*) MYSQL_UNIX_ADDR;
@@ -162,7 +160,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(__WIN__)
+#if defined(SIGPIPE) && !defined(_WIN32)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
@@ -309,32 +307,6 @@ my_pipe_sig_handler(int sig __attribute__((unused)))
 
 
 /**************************************************************************
-  Connect to sql server
-  If host == 0 then use localhost
-**************************************************************************/
-
-#ifdef USE_OLD_FUNCTIONS
-MYSQL * STDCALL
-mysql_connect(MYSQL *mysql,const char *host,
-	      const char *user, const char *passwd)
-{
-  MYSQL *res;
-  mysql=mysql_init(mysql);			/* Make it thread safe */
-  {
-    DBUG_ENTER("mysql_connect");
-    if (!(res=mysql_real_connect(mysql,host,user,passwd,NullS,0,NullS,0)))
-    {
-      if (mysql->free_me)
-	my_free(mysql);
-    }
-    mysql->reconnect= 1;
-    DBUG_RETURN(res);
-  }
-}
-#endif
-
-
-/**************************************************************************
   Change user and database
 **************************************************************************/
 
@@ -398,7 +370,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 
 void read_user_name(char *name)
 {
@@ -865,26 +837,6 @@ mysql_list_processes(MYSQL *mysql)
   mysql->field_count=field_count;
   DBUG_RETURN(mysql_store_result(mysql));
 }
-
-
-#ifdef USE_OLD_FUNCTIONS
-int  STDCALL
-mysql_create_db(MYSQL *mysql, const char *db)
-{
-  DBUG_ENTER("mysql_createdb");
-  DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_CREATE_DB,db, (ulong) strlen(db),0));
-}
-
-
-int  STDCALL
-mysql_drop_db(MYSQL *mysql, const char *db)
-{
-  DBUG_ENTER("mysql_drop_db");
-  DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_DROP_DB,db,(ulong) strlen(db),0));
-}
-#endif
 
 
 int STDCALL

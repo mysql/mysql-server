@@ -17,9 +17,12 @@ INCLUDE_DIRECTORIES(
   ${GTEST_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/sql
+  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/storage/innobase/include
   ${CMAKE_SOURCE_DIR}/unittest/gunit
 )
+
+INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/innodb.cmake)
 
 SET(TESTS
   #example
@@ -59,6 +62,8 @@ IF (MERGE_UNITTESTS)
     TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
   ENDIF()
 
+  ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
+
   ADD_TEST(merge_innodb_tests merge_innodb_tests-t)
 
 ELSE()
@@ -77,6 +82,8 @@ ELSE()
     IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
       TARGET_LINK_LIBRARIES(${test}-t perfschema)
     ENDIF()
+
+    ADD_DEPENDENCIES(${test}-t GenError)
 
     ADD_TEST(${test} ${test}-t)
   ENDFOREACH()

@@ -102,7 +102,8 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
 */
 
 static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
-                                         Item ***copy_func, bool modify_item)
+                                         Func_ptr_array *copy_func,
+                                         bool modify_item)
 {
   bool maybe_null= item->maybe_null;
   Field *new_field;
@@ -163,7 +164,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     in the beginning of create_tmp_field().
    */
   if (copy_func && item->real_item()->is_result_field())
-    *((*copy_func)++) = item;			// Save for copy_funcs
+    copy_func->push_back(item);
   if (modify_item)
     item->set_result_field(new_field);
   if (item->type() == Item::NULL_ITEM)
@@ -236,7 +237,7 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-                        Item ***copy_func, Field **from_field,
+                        Func_ptr_array *copy_func, Field **from_field,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,
@@ -332,7 +333,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       }
       else
       {
-        *((*copy_func)++)= item;
+        copy_func->push_back(item);
       }
 
       result= create_tmp_field_from_field(thd,
@@ -368,7 +369,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       *from_field= ((Item_result_field*)item)->result_field;
     }
     result= create_tmp_field_from_item(thd, item, table,
-                                       (make_copy_field ? 0 : copy_func),
+                                       (make_copy_field ? NULL : copy_func),
                                        modify_item);
     break;
   case Item::TYPE_HOLDER:  
@@ -472,7 +473,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   Copy_field *copy=0;
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
-  Item **copy_func;
   MI_COLUMNDEF *recinfo;
   /*
     total_uneven_bit_length is uneven bit length for visible fields
@@ -547,6 +547,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   
   init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
+  void *rawmem= alloc_root(&own_root, sizeof(Func_ptr_array));
+  if (!rawmem)
+    DBUG_RETURN(NULL);                        /* purecov: inspected */
+  Func_ptr_array *copy_func= new (rawmem) Func_ptr_array(&own_root);
+  copy_func->reserve(copy_func_count);
+
   if (!multi_alloc_root(&own_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),
@@ -554,7 +560,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         &default_field, sizeof(Field*) * (field_count),
                         &blob_field, sizeof(uint)*(field_count+1),
                         &from_field, sizeof(Field*)*field_count,
-                        &copy_func, sizeof(*copy_func)*(copy_func_count+1),
                         &param->keyinfo, sizeof(*param->keyinfo),
                         &key_part_info,
                         sizeof(*key_part_info)*(param->group_parts+1),
@@ -627,7 +632,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   Field **tmp_from_field=from_field;
   while ((item=li++))
   {
-    Item::Type type=item->type();
+    Item::Type type= item->type();
+    if (type == Item::COPY_STR_ITEM)
+    {
+      item= ((Item_copy *)item)->get_item();
+      type= item->type();
+    }
     if (not_all_columns)
     {
       if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
@@ -646,8 +656,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
           goto update_hidden;
         }
       }
-      if (item->const_item() && (int) hidden_field_count <= 0)
-        continue; // We don't have to store this
     }
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
     {						/* Can't calc group yet */
@@ -659,7 +667,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	if (!arg->const_item())
 	{
 	  Field *new_field=
-            create_tmp_field(thd, table, arg, arg->type(), &copy_func,
+            create_tmp_field(thd, table, arg, arg->type(), copy_func,
                              tmp_from_field, &default_field[fieldnr],
                              group != 0,not_all_columns,
                              distinct, false);
@@ -711,7 +719,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       */
       Field *new_field= (param->schema_table) ?
         create_tmp_field_for_schema(thd, item, table) :
-        create_tmp_field(thd, table, item, type, &copy_func,
+        create_tmp_field(thd, table, item, type, copy_func,
                          tmp_from_field, &default_field[fieldnr],
                          group != 0,
                          !force_copy_fields &&
@@ -860,8 +868,7 @@ update_hidden:
     table->record[1]= table->record[0]+alloc_length;
     share->default_values= table->record[1]+alloc_length;
   }
-  copy_func[0]=0;				// End marker
-  param->func_count= copy_func - param->items_to_copy;
+  param->func_count= copy_func->size();
   DBUG_ASSERT(param->func_count <= copy_func_count); // Used <= allocated
 
   setup_tmp_table_column_bitmaps(table, bitmaps);
@@ -1957,7 +1964,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
 
   if (create_myisam_tmp_table(&new_table, table->s->key_info,
                               start_recinfo, recinfo,
-			      (thd->lex->select_lex.options |
+			      (thd->lex->select_lex->options |
                                thd->variables.option_bits),
                               thd->variables.big_tables))
     goto err2;

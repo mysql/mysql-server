@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "rem0types.h"
 #include "fsp0fsp.h"
 #include "srv0srv.h"
-#include "sync0rw.h" /* RW_S_LATCH */
+#include "sync0rw.h"
 
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
@@ -1346,6 +1346,21 @@ dict_max_field_len_store_undo(
 	}
 
 	return(prefix_len);
+}
+
+/**********************************************************************//**
+Prevent table eviction by moving a table to the non-LRU list from the
+LRU list if it is not already there. */
+UNIV_INLINE
+void
+dict_table_prevent_eviction(
+/*========================*/
+	dict_table_t*	table)	/*!< in: table to prevent eviction */
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	if (table->can_be_evicted) {
+		dict_table_move_from_lru_to_non_lru(table);
+	}
 }
 
 /********************************************************************//**

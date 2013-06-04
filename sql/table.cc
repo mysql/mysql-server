@@ -20,7 +20,6 @@
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "table.h"
-#include "frm_crypt.h"           // get_crypt_for_frm
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
                                                 // primary_key_name
@@ -29,7 +28,8 @@
 #include "strfunc.h"                            // unhex_type2
 #include "sql_partition.h"       // mysql_unpack_partition,
                                  // fix_partition_func, partition_info
-#include "sql_acl.h"             // *_ACL, acl_getroot_no_password
+#include "auth_common.h"         // acl_getroot
+                                 // *_ACL, acl_getroot_no_password
 #include "sql_base.h"            // release_table_share
 #include "sql_derived.h"
 #include <m_ctype.h>
@@ -302,18 +302,16 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
 }
 
 
-/*
-  Allocate a setup TABLE_SHARE structure
+/**
+  Allocate and setup a TABLE_SHARE structure
 
-  SYNOPSIS
-    alloc_table_share()
-    TABLE_LIST		Take database and table name from there
-    key			Table cache key (db \0 table_name \0...)
-    key_length		Length of key
+  @param table_list  structure from which database and table 
+                     name can be retrieved
+  @param key         table cache key (db \0 table_name \0...)
+  @param key_length  length of the key
 
-  RETURN
-    0  Error (out of memory)
-    #  Share
+  @return            pointer to allocated table share
+    @retval NULL     error (out of memory, too long path name)
 */
 
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
@@ -322,16 +320,35 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
   MEM_ROOT mem_root;
   TABLE_SHARE *share;
   char *key_buff, *path_buff;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   uint path_length;
   Table_cache_element **cache_element_array;
+  bool was_truncated= false;
   DBUG_ENTER("alloc_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'",
                        table_list->db, table_list->table_name));
 
-  path_length= build_table_filename(path, sizeof(path) - 1,
+  /*
+    There are FN_REFLEN - reg_ext_length bytes available for the 
+    file path and the trailing '\0', which may be padded to the right 
+    of the length indicated by the length parameter. The returned 
+    path length does not include the trailing '\0'.
+  */
+  path_length= build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
                                     table_list->db,
-                                    table_list->table_name, "", 0);
+                                    table_list->table_name, "", 0,
+                                    &was_truncated);
+
+  /*
+    The path now misses extension, but includes '\0'. Unless it was
+    truncated, everything should be ok. 
+  */
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path) - 1, path);
+    DBUG_RETURN(NULL);
+  }
+
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if (multi_alloc_root(&mem_root,
                        &share, sizeof(*share),
@@ -638,7 +655,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   bool error_given;
   File file;
   uchar head[64];
-  char	path[FN_REFLEN];
+  char	path[FN_REFLEN + 1];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
   DBUG_PRINT("enter", ("table: '%s'.'%s'  path: '%s'", share->db.str,
@@ -647,7 +664,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   error= 1;
   error_given= 0;
 
-  strxmov(path, share->normalized_path.str, reg_ext, NullS);
+  strxnmov(path, sizeof(path) - 1, share->normalized_path.str, reg_ext, NullS);
   if ((file= mysql_file_open(key_file_frm,
                              path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
@@ -1004,7 +1021,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   handler *handler_file= 0;
   KEY	*keyinfo;
   KEY_PART_INFO *key_part;
-  SQL_CRYPT *crypted=0;
   Field  **field_ptr, *reg_field;
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
@@ -1108,7 +1124,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   strpos=disk_buff+6;  
 
-  use_extended_sk= (legacy_db_type == DB_TYPE_INNODB);
+  use_extended_sk=
+    ha_check_storage_engine_flag(share->db_type(),
+                                 HTON_SUPPORTS_EXTENDED_KEYS);
 
   uint total_key_parts;
   if (use_extended_sk)
@@ -1182,12 +1200,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       key_part->store_length=key_part->length;
     }
     /*
-      Add PK parts if engine supports PK extension for secondary keys.
-      Atm it works for Innodb only. Here we add unique first key parts
-      to the end of secondary key parts array and increase actual number
-      of key parts. Note that primary key is always first if exists.
-      Later if there is no PK in the table then number of actual keys parts
-      is set to user defined key parts.
+      Add primary key parts if engine supports primary key extension for
+      secondary keys. Here we add unique first key parts to the end of
+      secondary key parts array and increase actual number of key parts.
+      Note that primary key is always first if exists. Later if there is no
+      primary key in the table then number of actual keys parts is set to
+      user defined key parts.
     */
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->actual_flags= keyinfo->flags;
@@ -1220,13 +1238,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     share->system= 1;				/* one-record-database */
-#ifdef HAVE_CRYPTED_FRM
-  else if (*(head+26) == 2)
-  {
-    crypted= get_crypt_for_frm();
-    share->crypted= 1;
-  }
-#endif
 
   record_offset= (ulong) (uint2korr(head+6)+
                           ((uint2korr(head+14) == 0xffff ?
@@ -1475,14 +1486,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;                                   /* purecov: inspected */
 
   mysql_file_seek(file, pos+288, MY_SEEK_SET, MYF(0));
-#ifdef HAVE_CRYPTED_FRM
-  if (crypted)
-  {
-    crypted->decode((char*) forminfo+256,288-256);
-    if (sint2korr(forminfo+284) != 0)		// Should be 0
-      goto err;                                 // Wrong password
-  }
-#endif
 
   share->fields= uint2korr(forminfo+258);
   pos= uint2korr(forminfo+260);   /* Length of all screens */
@@ -1515,14 +1518,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
-#ifdef HAVE_CRYPTED_FRM
-  if (crypted)
-  {
-    crypted->decode((char*) disk_buff,read_length);
-    delete crypted;
-    crypted=0;
-  }
-#endif
+
   strpos= disk_buff+pos;
 
   share->intervals= (TYPELIB*) (field_ptr+share->fields+1);
@@ -1584,7 +1580,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     */
     share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
   }
-#ifndef WE_WANT_TO_SUPPORT_VERY_OLD_FRM_FILES
   else
   {
     share->null_bytes= (share->null_fields+7)/8;
@@ -1592,7 +1587,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                     share->null_bytes);
     null_bit_pos= 0;
   }
-#endif
 
   use_hash= share->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
@@ -1690,8 +1684,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       TYPELIB *interval= share->intervals + interval_nr - 1;
       unhex_type2(interval);
     }
-    
-#ifndef TO_BE_DELETED_ON_PRODUCTION
+
     if (field_type == MYSQL_TYPE_NEWDECIMAL && !share->mysql_version)
     {
       /*
@@ -1716,7 +1709,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                           share->table_name.str);
       share->crashed= 1;                        // Marker for CHECK TABLE
     }
-#endif
 
     *field_ptr= reg_field=
       make_field(share, record+recpos,
@@ -1810,13 +1802,25 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	primary_key=key;
 	for (i=0 ; i < keyinfo->user_defined_key_parts ;i++)
 	{
-	  uint fieldnr= key_part[i].fieldnr;
-	  if (!fieldnr ||
-	      share->field[fieldnr-1]->real_maybe_null() ||
-	      share->field[fieldnr-1]->key_length() !=
-	      key_part[i].length)
-	  {
-	    primary_key=MAX_KEY;		// Can't be used
+          DBUG_ASSERT(key_part[i].fieldnr > 0);
+          // Table field corresponding to the i'th key part.
+          Field *table_field= share->field[key_part[i].fieldnr - 1];
+
+          /*
+            If the key column is of NOT NULL BLOB type, then it
+            will definitly have key prefix. And if key part prefix size
+            is equal to the BLOB column max size, then we can promote
+            it to primary key.
+          */
+          if (!table_field->real_maybe_null() &&
+              table_field->type() == MYSQL_TYPE_BLOB &&
+              table_field->field_length == key_part[i].length)
+            continue;
+
+	  if (table_field->real_maybe_null() ||
+	      table_field->key_length() != key_part[i].length)
+ 	  {
+	    primary_key= MAX_KEY;		// Can't be used
 	    break;
 	  }
 	}
@@ -1877,7 +1881,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         if (field->key_length() != key_part->length)
         {
-#ifndef TO_BE_DELETED_ON_PRODUCTION
           if (field->type() == MYSQL_TYPE_NEWDECIMAL)
           {
             /*
@@ -1905,7 +1908,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             share->crashed= 1;                // Marker for CHECK TABLE
             continue;
           }
-#endif
           key_part->key_part_flag|= HA_PART_KEY_SEG;
         }
       }
@@ -2031,7 +2033,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->errarg= errarg;
   my_free(disk_buff);
   my_free(extra_segment_buff);
-  delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
 
@@ -3309,9 +3310,10 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     /* previous MySQL version */
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
-      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
-                   table->alias, table_def->count, table->s->fields,
+      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   table->s->db.str, table->alias,
+                   table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
                    MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
@@ -3874,7 +3876,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
   if (!field_translation && merge_underlying_list)
   {
     Field_translator *transl;
-    SELECT_LEX *select= &view->select_lex;
+    SELECT_LEX *select= view->select_lex;
     Item *item;
     TABLE_LIST *tbl;
     List_iterator_fast<Item> it(select->item_list);
@@ -3914,12 +3916,12 @@ bool TABLE_LIST::setup_underlying(THD *thd)
     /* TODO: use hash for big number of fields */
 
     /* full text function moving to current select */
-    if (view->select_lex.ftfunc_list->elements)
+    if (view->select_lex->ftfunc_list->elements)
     {
       Item_func_match *ifm;
       SELECT_LEX *current_select= thd->lex->current_select;
       List_iterator_fast<Item_func_match>
-        li(*(view->select_lex.ftfunc_list));
+        li(*(view->select_lex->ftfunc_list));
       while ((ifm= li++))
         current_select->ftfunc_list->push_front(ifm);
     }
@@ -4801,7 +4803,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
                                Name_resolution_context *context)
 {
-  bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
+  bool save_wrapper= thd->lex->select_lex->no_wrap_view_item;
   Item *field= *field_ref;
   DBUG_ENTER("create_view_field");
 
@@ -6294,7 +6296,7 @@ bool TABLE_LIST::handle_derived(LEX *lex,
 
 st_select_lex_unit *TABLE_LIST::get_unit() const
 {
-  return (view ? &view->unit : derived);
+  return (view ? view->unit : derived);
 }
 
 

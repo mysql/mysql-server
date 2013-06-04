@@ -24,6 +24,7 @@
   replication slave.
 */
 
+#ifdef HAVE_REPLICATION
 #include "sql_priv.h"
 #include "my_global.h"
 #include "rpl_slave.h"
@@ -54,8 +55,6 @@
 #include "dynamic_ids.h"
 #include "rpl_rli_pdb.h"
 #include "global_threads.h"
-
-#ifdef HAVE_REPLICATION
 
 #include "rpl_tblmap.h"
 #include "debug_sync.h"
@@ -488,6 +487,13 @@ int init_recovery(Master_info* mi, const char** errmsg)
     rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
   }
 
+  /*
+    Clear the retrieved GTID set so that events that are written partially
+    will be fetched again.
+    */
+  global_sid_lock->wrlock();
+  (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
+  global_sid_lock->unlock();
   DBUG_RETURN(error);
 }
 
@@ -1109,14 +1115,11 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
 
   if (!mi->inited || !mi->rli->inited)
   {
-    error= ER_SLAVE_FATAL_ERROR;
+    error= !mi->inited ? ER_SLAVE_MI_INIT_REPOSITORY :
+                         ER_SLAVE_RLI_INIT_REPOSITORY;
     Rpl_info *info= (!mi->inited ?  mi : static_cast<Rpl_info *>(mi->rli));
     const char* prefix= current_thd ? ER(error) : ER_DEFAULT(error);
-    const char* message= !mi->inited ?
-                         "Failed to initialize the master-info structure":
-                         "Failed to initialize the relay-log-info structure";
-
-    info->report(ERROR_LEVEL, error, prefix, message);
+    info->report(ERROR_LEVEL, error, prefix, NULL);
 
     DBUG_RETURN(error);
   }
@@ -3065,7 +3068,8 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       goto err;
     uchar* ptr_buffer= command_buffer;
   
-    int4store(ptr_buffer, mi->get_master_log_pos());
+    int4store(ptr_buffer, DBUG_EVALUATE_IF("request_master_log_pos_3", 3,
+                                           mi->get_master_log_pos()));
     ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
     // See comment regarding binlog_flags above.
     int2store(ptr_buffer, binlog_flags);
@@ -5472,10 +5476,9 @@ pthread_handler_t handle_slave_sql(void *arg)
       init_relay_log_pos() called above). Maybe the assertion would be
       meaningful if we held rli->data_lock between the my_b_seek() and the
       DBUG_ASSERT().
+
+      DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->get_event_relay_log_pos());
     */
-#ifdef SHOULD_BE_CHECKED
-    DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->get_event_relay_log_pos());
-#endif
   }
 #endif
   DBUG_ASSERT(rli->info_thd == thd);

@@ -54,7 +54,8 @@
 #include "sql_rename.h"       // mysql_rename_table
 #include "sql_tablespace.h"   // mysql_alter_tablespace
 #include "hostname.h"         // hostname_cache_refresh
-#include "sql_acl.h"          // *_ACL, check_grant, is_acl_user,
+#include "auth_common.h"      // acl_authenticate
+                              // *_ACL, check_grant, is_acl_user,
                               // has_any_table_level_privileges,
                               // mysql_drop_user, mysql_rename_user,
                               // check_grant_routine,
@@ -121,11 +122,7 @@ using std::min;
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
-static bool check_show_access(THD *thd, TABLE_LIST *table);
 static void sql_kill(THD *thd, ulong id, bool only_kill_query);
-static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
-
-const char *any_db="*any*";	// Special symbol for check_access
 
 const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Sleep") },
@@ -435,9 +432,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REPAIR]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ANALYZE]=           CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -464,9 +459,9 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]|=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ANALYZE]|=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
@@ -924,7 +919,9 @@ bool do_command(THD *thd)
 
   /*
     XXX: this code is here only to clear possible errors of init_connect. 
-    Consider moving to init_connect() instead.
+    Consider moving to prepare_new_connection_state() instead.
+    That requires making sure the DA is cleared before non-parsing statements
+    such as COM_QUIT.
   */
   thd->clear_error();				// Clear error message
   thd->get_stmt_da()->reset_diagnostics_area();
@@ -1235,17 +1232,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* acl_authenticate() takes the data from net->read_pos */
     net->read_pos= (uchar*)packet;
 
-    uint save_db_length= thd->db_length;
-    char *save_db= thd->db;
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
+    char *save_db= thd->db;
+    uint save_db_length= thd->db_length;
     Security_context save_security_ctx= *thd->security_ctx;
-    const CHARSET_INFO *save_character_set_client=
-      thd->variables.character_set_client;
-    const CHARSET_INFO *save_collation_connection=
-      thd->variables.collation_connection;
-    const CHARSET_INFO *save_character_set_results=
-      thd->variables.character_set_results;
 
     auth_rc= acl_authenticate(thd, packet_length);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
@@ -1254,11 +1245,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->set_user_connect(save_user_connect);
-      thd->reset_db (save_db, save_db_length);
-      thd->variables.character_set_client= save_character_set_client;
-      thd->variables.collation_connection= save_collation_connection;
-      thd->variables.character_set_results= save_character_set_results;
-      thd->update_charset();
+      thd->reset_db(save_db, save_db_length);
+
+      my_error(ER_ACCESS_DENIED_CHANGE_USER_ERROR, MYF(0),
+               thd->security_ctx->user,
+               thd->security_ctx->host_or_ip,
+               (thd->password ? ER(ER_YES) : ER(ER_NO)));
+      thd->killed= THD::KILL_CONNECTION;
+      error=true;
     }
     else
     {
@@ -1269,6 +1263,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
       my_free(save_db);
       my_free(save_security_ctx.user);
+
     }
     break;
   }
@@ -1294,12 +1289,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_CLOSE:
   {
-    mysqld_stmt_close(thd, packet);
+    mysqld_stmt_close(thd, packet, packet_length);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysqld_stmt_reset(thd, packet);
+    mysqld_stmt_reset(thd, packet, packet_length);
     break;
   }
   case COM_QUERY:
@@ -1464,9 +1459,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       Init TABLE_LIST members necessary when the undelrying
       table is view.
     */
-    table_list.select_lex= &(thd->lex->select_lex);
+    table_list.select_lex= thd->lex->select_lex;
     thd->lex->
-      select_lex.table_list.link_in_list(&table_list,
+      select_lex->table_list.link_in_list(&table_list,
                                          &table_list.next_local);
     thd->lex->add_to_query_tables(&table_list);
 
@@ -1502,7 +1497,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     mysqld_list_fields(thd,&table_list,fields);
 
-    thd->lex->unit.cleanup();
+    thd->lex->unit->cleanup();
     /* No need to rollback statement transaction, it's not started. */
     DBUG_ASSERT(thd->transaction.stmt.is_empty());
     close_thread_tables(thd);
@@ -1529,6 +1524,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     int not_used;
+
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
 
     /*
       Initialize thd->lex since it's used in many base functions, such as
@@ -1578,6 +1579,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     thd->status_var.com_other++;
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
@@ -1664,6 +1670,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (thread_id & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
+    else if (packet_length < 4)
+      my_error(ER_MALFORMED_PACKET, MYF(0));
     else
     {
       thd->status_var.com_stat[SQLCOM_KILL]++;
@@ -1674,6 +1682,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_SET_OPTION:
   {
+    if (packet_length < 2)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     thd->status_var.com_stat[SQLCOM_SET_OPTION]++;
     uint opt_command= uint2korr(packet);
 
@@ -1810,13 +1823,12 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     {
       LEX_STRING db;
       size_t dummy;
-      if (lex->select_lex.db == NULL &&
-          lex->copy_db_to(&lex->select_lex.db, &dummy))
-      {
+      if (lex->select_lex->db == NULL &&
+          lex->copy_db_to(&lex->select_lex->db, &dummy))
         DBUG_RETURN(1);
-      }
-      schema_select_lex= new SELECT_LEX();
-      db.str= schema_select_lex->db= lex->select_lex.db;
+      if ((schema_select_lex= lex->new_empty_query_block()) == NULL)
+        DBUG_RETURN(1);      /* purecov: inspected */
+      db.str= schema_select_lex->db= lex->select_lex->db;
       schema_select_lex->table_list.first= NULL;
       db.length= strlen(db.str);
 
@@ -1829,10 +1841,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   {
     DBUG_ASSERT(table_ident);
     TABLE_LIST **query_tables_last= lex->query_tables_last;
-    schema_select_lex= new SELECT_LEX();
-    /* 'parent_lex' is used in init_query() so it must be before it. */
-    schema_select_lex->parent_lex= lex;
-    schema_select_lex->init_query();
+    if ((schema_select_lex= lex->new_empty_query_block()) == NULL)
+      DBUG_RETURN(1);        /* purecov: inspected */
     if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
                                               MDL_SHARED_READ))
       DBUG_RETURN(1);
@@ -2128,13 +2138,13 @@ mysql_execute_command(THD *thd)
   int  up_result= 0;
   LEX  *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   /* first table of first SELECT_LEX */
   TABLE_LIST *first_table= select_lex->table_list.first;
   /* list of all tables in query */
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
-  SELECT_LEX_UNIT *unit= &lex->unit;
+  SELECT_LEX_UNIT *unit= lex->unit;
 #ifdef HAVE_REPLICATION
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
@@ -2161,7 +2171,7 @@ mysql_execute_command(THD *thd)
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt);
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
-    check that it is first table in global list and relink it first in 
+    check that it is first table in global list and relink it first in
     queries_tables list if it is necessary (we need such relinking only
     for queries with subqueries in select list, in this case tables of
     subqueries will go to global list first)
@@ -2178,20 +2188,19 @@ mysql_execute_command(THD *thd)
   /* should be assigned after making first tables same */
   all_tables= lex->query_tables;
   /* set context for commands which do not use setup_tables */
-  select_lex->
-    context.resolve_in_table_list_only(select_lex->
-                                       table_list.first);
+  select_lex->context.resolve_in_table_list_only(select_lex->get_table_list());
 
-  /*
-    Reset warning count for each query that uses tables
-    A better approach would be to reset this for any commands
-    that is not a SHOW command or a select that only access local
-    variables, but for now this is probably good enough.
-  */
-  if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) == 0)
+  thd->get_stmt_da()->reset_diagnostics_area();
+  if ((thd->lex->keep_diagnostics != DA_KEEP_PARSE_ERROR) &&
+      (thd->lex->keep_diagnostics != DA_KEEP_DIAGNOSTICS))
   {
-    if (all_tables)
-      thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
+    /*
+      No parse errors, and it's not a diagnostic statement:
+      remove the sql conditions from the DA!
+      For diagnostic statements we need to keep the conditions
+      around so we can inspec them.
+    */
+    thd->get_stmt_da()->reset_condition_info(thd);
   }
 
 #ifdef HAVE_REPLICATION
@@ -2362,6 +2371,15 @@ mysql_execute_command(THD *thd)
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+
+    /*
+      Implicit commit is not allowed with an active XA transaction.
+      In this case we should not release metadata locks as the XA transaction
+      will not be rolled back. Therefore we simply return here.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
+
     /* Commit the normal transaction if one is active. */
     if (trans_commit_implicit(thd))
       goto error;
@@ -3525,6 +3543,12 @@ end_with_restore_list:
     */
     if (thd->variables.option_bits & OPTION_TABLE_LOCK)
     {
+      /*
+        Can we commit safely? If not, return to avoid releasing
+        transactional metadata locks.
+      */
+      if (trans_check_state(thd))
+        DBUG_RETURN(-1);
       res= trans_commit_implicit(thd);
       thd->locked_tables_list.unlock_locked_tables(thd);
       thd->mdl_context.release_transactional_locks();
@@ -3537,6 +3561,12 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_LOCK_TABLES:
+    /*
+      Can we commit safely? If not, return to avoid releasing
+      transactional metadata locks.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
     /* We must end the transaction first, regardless of anything */
     res= trans_commit_implicit(thd);
     thd->locked_tables_list.unlock_locked_tables(thd);
@@ -3734,7 +3764,7 @@ end_with_restore_list:
     delete lex->sphead;
     lex->sphead= NULL;
   }
-  /* lex->unit.cleanup() is called outside, no need to call it here */
+  /* lex->unit->cleanup() is called outside, no need to call it here */
   break;
   case SQLCOM_SHOW_CREATE_EVENT:
     res= Events::show_create_event(thd, lex->spname->m_db,
@@ -4696,7 +4726,7 @@ finish:
     }
   }
 
-  lex->unit.cleanup();
+  lex->unit->cleanup();
   /* Free tables */
   THD_STAGE_INFO(thd, stage_closing_tables);
   close_thread_tables(thd);
@@ -4776,7 +4806,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
   bool res;
   /* assign global limit variable if limit is not given */
   {
-    SELECT_LEX *param= lex->unit.global_parameters;
+    SELECT_LEX *param= lex->unit->global_parameters;
     if (!param->explicit_limit)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
@@ -4817,646 +4847,6 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
   return res;
 }
 
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-/**
-  Check grants for commands which work only with one table.
-
-  @param thd                    Thread handler
-  @param privilege              requested privilege
-  @param all_tables             global table list of query
-  @param no_errors              FALSE/TRUE - report/don't report error to
-                            the client (using my_error() call).
-
-  @retval
-    0   OK
-  @retval
-    1   access denied, error is sent to client
-*/
-
-bool check_single_table_access(THD *thd, ulong privilege, 
-                               TABLE_LIST *all_tables, bool no_errors)
-{
-  Security_context * backup_ctx= thd->security_ctx;
-
-  /* we need to switch to the saved context (if any) */
-  if (all_tables->security_ctx)
-    thd->security_ctx= all_tables->security_ctx;
-
-  const char *db_name;
-  if ((all_tables->view || all_tables->field_translation) &&
-      !all_tables->schema_table)
-    db_name= all_tables->view_db.str;
-  else
-    db_name= all_tables->db;
-
-  if (check_access(thd, privilege, db_name,
-                   &all_tables->grant.privilege,
-                   &all_tables->grant.m_internal,
-                   0, no_errors))
-    goto deny;
-
-  /* Show only 1 table for check_grant */
-  if (!(all_tables->belong_to_view &&
-        (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
-      check_grant(thd, privilege, all_tables, FALSE, 1, no_errors))
-    goto deny;
-
-  thd->security_ctx= backup_ctx;
-  return 0;
-
-deny:
-  thd->security_ctx= backup_ctx;
-  return 1;
-}
-
-/**
-  Check grants for commands which work only with one table and all other
-  tables belonging to subselects or implicitly opened tables.
-
-  @param thd			Thread handler
-  @param privilege		requested privilege
-  @param all_tables		global table list of query
-
-  @retval
-    0   OK
-  @retval
-    1   access denied, error is sent to client
-*/
-
-bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
-{
-  if (check_single_table_access (thd,privilege,all_tables, FALSE))
-    return 1;
-
-  /* Check rights on tables of subselects and implicitly opened tables */
-  TABLE_LIST *subselects_tables, *view= all_tables->view ? all_tables : 0;
-  if ((subselects_tables= all_tables->next_global))
-  {
-    /*
-      Access rights asked for the first table of a view should be the same
-      as for the view
-    */
-    if (view && subselects_tables->belong_to_view == view)
-    {
-      if (check_single_table_access (thd, privilege, subselects_tables, FALSE))
-        return 1;
-      subselects_tables= subselects_tables->next_global;
-    }
-    if (subselects_tables &&
-        (check_table_access(thd, SELECT_ACL, subselects_tables, FALSE,
-                            UINT_MAX, FALSE)))
-      return 1;
-  }
-  return 0;
-}
-
-
-/**
-  @brief Compare requested privileges with the privileges acquired from the
-    User- and Db-tables.
-  @param thd          Thread handler
-  @param want_access  The requested access privileges.
-  @param db           A pointer to the Db name.
-  @param[out] save_priv A pointer to the granted privileges will be stored.
-  @param grant_internal_info A pointer to the internal grant cache.
-  @param dont_check_global_grants True if no global grants are checked.
-  @param no_error     True if no errors should be sent to the client.
-
-  'save_priv' is used to save the User-table (global) and Db-table grants for
-  the supplied db name. Note that we don't store db level grants if the global
-  grants is enough to satisfy the request AND the global grants contains a
-  SELECT grant.
-
-  For internal databases (INFORMATION_SCHEMA, PERFORMANCE_SCHEMA),
-  additional rules apply, see ACL_internal_schema_access.
-
-  @see check_grant
-
-  @return Status of denial of access by exclusive ACLs.
-    @retval FALSE Access can't exclusively be denied by Db- and User-table
-      access unless Column- and Table-grants are checked too.
-    @retval TRUE Access denied.
-*/
-
-bool
-check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
-             GRANT_INTERNAL_INFO *grant_internal_info,
-             bool dont_check_global_grants, bool no_errors)
-{
-  Security_context *sctx= thd->security_ctx;
-  ulong db_access;
-
-  /*
-    GRANT command:
-    In case of database level grant the database name may be a pattern,
-    in case of table|column level grant the database name can not be a pattern.
-    We use 'dont_check_global_grants' as a flag to determine
-    if it's database level grant command
-    (see SQLCOM_GRANT case, mysql_execute_command() function) and
-    set db_is_pattern according to 'dont_check_global_grants' value.
-  */
-  bool  db_is_pattern= ((want_access & GRANT_ACL) && dont_check_global_grants);
-  ulong dummy;
-  DBUG_ENTER("check_access");
-  DBUG_PRINT("enter",("db: %s  want_access: %lu  master_access: %lu",
-                      db ? db : "", want_access, sctx->master_access));
-
-  if (save_priv)
-    *save_priv=0;
-  else
-  {
-    save_priv= &dummy;
-    dummy= 0;
-  }
-
-  THD_STAGE_INFO(thd, stage_checking_permissions);
-  if ((!db || !db[0]) && !thd->db && !dont_check_global_grants)
-  {
-    DBUG_PRINT("error",("No database"));
-    if (!no_errors)
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR),
-                 MYF(0));                       /* purecov: tested */
-    DBUG_RETURN(TRUE);				/* purecov: tested */
-  }
-
-  if ((db != NULL) && (db != any_db))
-  {
-    const ACL_internal_schema_access *access;
-    access= get_cached_schema_access(grant_internal_info, db);
-    if (access)
-    {
-      switch (access->check(want_access, save_priv))
-      {
-      case ACL_INTERNAL_ACCESS_GRANTED:
-        /*
-          All the privileges requested have been granted internally.
-          [out] *save_privileges= Internal privileges.
-        */
-        DBUG_RETURN(FALSE);
-      case ACL_INTERNAL_ACCESS_DENIED:
-        if (! no_errors)
-        {
-          my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                   sctx->priv_user, sctx->priv_host, db);
-        }
-        DBUG_RETURN(TRUE);
-      case ACL_INTERNAL_ACCESS_CHECK_GRANT:
-        /*
-          Only some of the privilege requested have been granted internally,
-          proceed with the remaining bits of the request (want_access).
-        */
-        want_access&= ~(*save_priv);
-        break;
-      }
-    }
-  }
-
-  if ((sctx->master_access & want_access) == want_access)
-  {
-    /*
-      1. If we don't have a global SELECT privilege, we have to get the
-      database specific access rights to be able to handle queries of type
-      UPDATE t1 SET a=1 WHERE b > 0
-      2. Change db access if it isn't current db which is being addressed
-    */
-    if (!(sctx->master_access & SELECT_ACL))
-    {
-      if (db && (!thd->db || db_is_pattern || strcmp(db, thd->db)))
-        db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
-                           sctx->priv_user, db, db_is_pattern);
-      else
-      {
-        /* get access for current db */
-        db_access= sctx->db_access;
-      }
-      /*
-        The effective privileges are the union of the global privileges
-        and the intersection of db- and host-privileges,
-        plus the internal privileges.
-      */
-      *save_priv|= sctx->master_access | db_access;
-    }
-    else
-      *save_priv|= sctx->master_access;
-    DBUG_RETURN(FALSE);
-  }
-  if (((want_access & ~sctx->master_access) & ~DB_ACLS) ||
-      (! db && dont_check_global_grants))
-  {						// We can never grant this
-    DBUG_PRINT("error",("No possible access"));
-    if (!no_errors)
-    {
-      if (thd->password == 2)
-        my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
-                 sctx->priv_user,
-                 sctx->priv_host);
-      else
-        my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
-                 sctx->priv_user,
-                 sctx->priv_host,
-                 (thd->password ?
-                  ER(ER_YES) :
-                  ER(ER_NO)));                    /* purecov: tested */
-    }
-    DBUG_RETURN(TRUE);				/* purecov: tested */
-  }
-
-  if (db == any_db)
-  {
-    /*
-      Access granted; Allow select on *any* db.
-      [out] *save_privileges= 0
-    */
-    DBUG_RETURN(FALSE);
-  }
-
-  if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
-    db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
-                       sctx->priv_user, db, db_is_pattern);
-  else
-    db_access= sctx->db_access;
-  DBUG_PRINT("info",("db_access: %lu  want_access: %lu",
-                     db_access, want_access));
-
-  /*
-    Save the union of User-table and the intersection between Db-table and
-    Host-table privileges, with the already saved internal privileges.
-  */
-  db_access= (db_access | sctx->master_access);
-  *save_priv|= db_access;
-
-  /*
-    We need to investigate column- and table access if all requested privileges
-    belongs to the bit set of .
-  */
-  bool need_table_or_column_check=
-    (want_access & (TABLE_ACLS | PROC_ACLS | db_access)) == want_access;
-
-  /*
-    Grant access if the requested access is in the intersection of
-    host- and db-privileges (as retrieved from the acl cache),
-    also grant access if all the requested privileges are in the union of
-    TABLES_ACLS and PROC_ACLS; see check_grant.
-  */
-  if ( (db_access & want_access) == want_access ||
-      (!dont_check_global_grants &&
-       need_table_or_column_check))
-  {
-    /*
-       Ok; but need to check table- and column privileges.
-       [out] *save_privileges is (User-priv | (Db-priv & Host-priv) | Internal-priv)
-    */
-    DBUG_RETURN(FALSE);
-  }
-
-  /*
-    Access is denied;
-    [out] *save_privileges is (User-priv | (Db-priv & Host-priv) | Internal-priv)
-  */
-  DBUG_PRINT("error",("Access denied"));
-  if (!no_errors)
-    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-             sctx->priv_user, sctx->priv_host,
-             (db ? db : (thd->db ?
-                         thd->db :
-                         "unknown")));
-  DBUG_RETURN(TRUE);
-
-}
-
-
-/**
-  Check if user has enough privileges for execution of SHOW statement,
-  which was converted to query to one of I_S tables.
-
-  @param thd    Thread context.
-  @param table  Table list element for I_S table to be queried..
-
-  @retval FALSE - Success.
-  @retval TRUE  - Failure.
-*/
-
-static bool check_show_access(THD *thd, TABLE_LIST *table)
-{
-  switch (get_schema_table_idx(table->schema_table)) {
-  case SCH_SCHEMATA:
-    return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
-      check_global_access(thd, SHOW_DB_ACL);
-
-  case SCH_TABLE_NAMES:
-  case SCH_TABLES:
-  case SCH_VIEWS:
-  case SCH_TRIGGERS:
-  case SCH_EVENTS:
-  {
-    const char *dst_db_name= table->schema_select_lex->db;
-
-    DBUG_ASSERT(dst_db_name);
-
-    if (check_access(thd, SELECT_ACL, dst_db_name,
-                     &thd->col_access, NULL, FALSE, FALSE))
-      return TRUE;
-
-    if (!thd->col_access && check_grant_db(thd, dst_db_name))
-    {
-      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-               thd->security_ctx->priv_user,
-               thd->security_ctx->priv_host,
-               dst_db_name);
-      return TRUE;
-    }
-
-    return FALSE;
-  }
-
-  case SCH_COLUMNS:
-  case SCH_STATISTICS:
-  {
-    TABLE_LIST *dst_table;
-    dst_table= table->schema_select_lex->table_list.first;
-
-    DBUG_ASSERT(dst_table);
-
-    /*
-      Open temporary tables to be able to detect them during privilege check.
-    */
-    if (open_temporary_tables(thd, dst_table))
-      return TRUE;
-
-    if (check_access(thd, SELECT_ACL, dst_table->db,
-                     &dst_table->grant.privilege,
-                     &dst_table->grant.m_internal,
-                     FALSE, FALSE))
-          return TRUE; /* Access denied */
-
-    /*
-      Check_grant will grant access if there is any column privileges on
-      all of the tables thanks to the fourth parameter (bool show_table).
-    */
-    if (check_grant(thd, SELECT_ACL, dst_table, TRUE, UINT_MAX, FALSE))
-      return TRUE; /* Access denied */
-
-    close_thread_tables(thd);
-    dst_table->table= NULL;
-
-    /* Access granted */
-    return FALSE;
-  }
-  default:
-    break;
-  }
-
-  return FALSE;
-}
-
-
-
-/**
-  @brief Check if the requested privileges exists in either User-, Host- or
-    Db-tables.
-  @param thd          Thread context
-  @param want_access  Privileges requested
-  @param tables       List of tables to be compared against
-  @param no_errors    Don't report error to the client (using my_error() call).
-  @param any_combination_of_privileges_will_do TRUE if any privileges on any
-    column combination is enough.
-  @param number       Only the first 'number' tables in the linked list are
-                      relevant.
-
-  The suppled table list contains cached privileges. This functions calls the
-  help functions check_access and check_grant to verify the first three steps
-  in the privileges check queue:
-  1. Global privileges
-  2. OR (db privileges AND host privileges)
-  3. OR table privileges
-  4. OR column privileges (not checked by this function!)
-  5. OR routine privileges (not checked by this function!)
-
-  @see check_access
-  @see check_grant
-
-  @note This functions assumes that table list used and
-  thd->lex->query_tables_own_last value correspond to each other
-  (the latter should be either 0 or point to next_global member
-  of one of elements of this table list).
-
-  @return
-    @retval FALSE OK
-    @retval TRUE  Access denied; But column or routine privileges might need to
-      be checked also.
-*/
-
-bool
-check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
-		   bool any_combination_of_privileges_will_do,
-                   uint number, bool no_errors)
-{
-  TABLE_LIST *org_tables= tables;
-  TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
-  uint i= 0;
-  Security_context *sctx= thd->security_ctx, *backup_ctx= thd->security_ctx;
-  /*
-    The check that first_not_own_table is not reached is for the case when
-    the given table list refers to the list for prelocking (contains tables
-    of other queries). For simple queries first_not_own_table is 0.
-  */
-  for (; i < number && tables != first_not_own_table && tables;
-       tables= tables->next_global, i++)
-  {
-    ulong want_access= requirements;
-    if (tables->security_ctx)
-      sctx= tables->security_ctx;
-    else
-      sctx= backup_ctx;
-
-    /*
-       Register access for view underlying table.
-       Remove SHOW_VIEW_ACL, because it will be checked during making view
-     */
-    tables->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
-
-    /*
-      We should not encounter table list elements for reformed SHOW
-      statements unless this is first table list element in the main
-      select.
-      Such table list elements require additional privilege check
-      (see check_show_access()). This check is carried out by caller,
-      but only for the first table list element from the main select.
-    */
-    DBUG_ASSERT(!tables->schema_table_reformed ||
-                tables == thd->lex->select_lex.table_list.first);
-
-    DBUG_PRINT("info", ("derived: %d  view: %d", tables->derived != 0,
-                        tables->view != 0));
-
-    if (tables->is_anonymous_derived_table())
-      continue;
-
-    thd->security_ctx= sctx;
-
-    if (check_access(thd, want_access, tables->get_db_name(),
-                     &tables->grant.privilege,
-                     &tables->grant.m_internal,
-                     0, no_errors))
-      goto deny;
-  }
-  thd->security_ctx= backup_ctx;
-  return check_grant(thd,requirements,org_tables,
-                     any_combination_of_privileges_will_do,
-                     number, no_errors);
-deny:
-  thd->security_ctx= backup_ctx;
-  return TRUE;
-}
-
-
-bool
-check_routine_access(THD *thd, ulong want_access,char *db, char *name,
-		     bool is_proc, bool no_errors)
-{
-  TABLE_LIST tables[1];
-  
-  memset(tables, 0, sizeof(TABLE_LIST));
-  tables->db= db;
-  tables->table_name= tables->alias= name;
-  
-  /*
-    The following test is just a shortcut for check_access() (to avoid
-    calculating db_access) under the assumption that it's common to
-    give persons global right to execute all stored SP (but not
-    necessary to create them).
-    Note that this effectively bypasses the ACL_internal_schema_access checks
-    that are implemented for the INFORMATION_SCHEMA and PERFORMANCE_SCHEMA,
-    which are located in check_access().
-    Since the I_S and P_S do not contain routines, this bypass is ok,
-    as long as this code path is not abused to create routines.
-    The assert enforce that.
-  */
-  DBUG_ASSERT((want_access & CREATE_PROC_ACL) == 0);
-  if ((thd->security_ctx->master_access & want_access) == want_access)
-    tables->grant.privilege= want_access;
-  else if (check_access(thd, want_access, db,
-                        &tables->grant.privilege,
-                        &tables->grant.m_internal,
-                        0, no_errors))
-    return TRUE;
-  
-  return check_grant_routine(thd, want_access, tables, is_proc, no_errors);
-}
-
-
-/**
-  Check if the routine has any of the routine privileges.
-
-  @param thd	       Thread handler
-  @param db           Database name
-  @param name         Routine name
-
-  @retval
-    0            ok
-  @retval
-    1            error
-*/
-
-bool check_some_routine_access(THD *thd, const char *db, const char *name,
-                               bool is_proc)
-{
-  ulong save_priv;
-  /*
-    The following test is just a shortcut for check_access() (to avoid
-    calculating db_access)
-    Note that this effectively bypasses the ACL_internal_schema_access checks
-    that are implemented for the INFORMATION_SCHEMA and PERFORMANCE_SCHEMA,
-    which are located in check_access().
-    Since the I_S and P_S do not contain routines, this bypass is ok,
-    as it only opens SHOW_PROC_ACLS.
-  */
-  if (thd->security_ctx->master_access & SHOW_PROC_ACLS)
-    return FALSE;
-  if (!check_access(thd, SHOW_PROC_ACLS, db, &save_priv, NULL, 0, 1) ||
-      (save_priv & SHOW_PROC_ACLS))
-    return FALSE;
-  return check_routine_level_acl(thd, db, name, is_proc);
-}
-
-
-/**
-  Check if the given table has any of the asked privileges
-
-  @param thd		 Thread handler
-  @param want_access	 Bitmap of possible privileges to check for
-
-  @retval
-    0  ok
-  @retval
-    1  error
-*/
-
-bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
-{
-  ulong access;
-  DBUG_ENTER("check_some_access");
-
-  /* This loop will work as long as we have less than 32 privileges */
-  for (access= 1; access < want_access ; access<<= 1)
-  {
-    if (access & want_access)
-    {
-      if (!check_access(thd, access, table->db,
-                        &table->grant.privilege,
-                        &table->grant.m_internal,
-                        0, 1) &&
-           !check_grant(thd, access, table, FALSE, 1, TRUE))
-        DBUG_RETURN(0);
-    }
-  }
-  DBUG_PRINT("exit",("no matching access rights"));
-  DBUG_RETURN(1);
-}
-
-#else
-
-static bool check_show_access(THD *thd, TABLE_LIST *table)
-{
-  return false;
-}
-
-#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
-
-
-/**
-  check for global access and give descriptive error message if it fails.
-
-  @param thd			Thread handler
-  @param want_access		Use should have any of these global rights
-
-  @warning
-    One gets access right if one has ANY of the rights in want_access.
-    This is useful as one in most cases only need one global right,
-    but in some case we want to check if the user has SUPER or
-    REPL_CLIENT_ACL rights.
-
-  @retval
-    0	ok
-  @retval
-    1	Access denied.  In this case an error is sent to the client
-*/
-
-bool check_global_access(THD *thd, ulong want_access)
-{
-  DBUG_ENTER("check_global_access");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  char command[128];
-  if ((thd->security_ctx->master_access & want_access))
-    DBUG_RETURN(0);
-  get_privilege_desc(command, sizeof(command), want_access);
-  my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
-  DBUG_RETURN(1);
-#else
-  DBUG_RETURN(0);
-#endif
-}
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
@@ -5579,7 +4969,6 @@ void THD::reset_for_next_command()
   DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
   thd->free_list= 0;
-  thd->select_number= 1;
   /*
     Those two lines below are theoretically unneeded as
     THD::cleanup_after_query() should take care of this already.
@@ -5618,6 +5007,7 @@ void THD::reset_for_next_command()
   thd->clear_error();
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->reset_statement_cond_count();
+
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
 
@@ -5626,7 +5016,8 @@ void THD::reset_for_next_command()
 
   thd->m_trans_end_pos= 0;
   thd->m_trans_log_file= NULL;
-  thd->commit_error= 0;
+  thd->m_trans_fixed_log_file= NULL;
+  thd->commit_error= THD::CE_NONE;
   thd->durability_property= HA_REGULAR_DURABILITY;
   thd->set_trans_pos(NULL, 0);
 
@@ -5637,128 +5028,6 @@ void THD::reset_for_next_command()
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  Resets the lex->current_select object.
-  @note It is assumed that lex->current_select != NULL
-
-  This function is a wrapper around select_lex->init_select() with an added
-  check for the special situation when using INTO OUTFILE and LOAD DATA.
-*/
-
-void
-mysql_init_select(LEX *lex)
-{
-  SELECT_LEX *select_lex= lex->current_select;
-  select_lex->init_select();
-  lex->wild= 0;
-  if (select_lex == &lex->select_lex)
-  {
-    DBUG_ASSERT(lex->result == 0);
-    lex->exchange= 0;
-  }
-}
-
-
-/**
-  Used to allocate a new SELECT_LEX object on the current thd mem_root and
-  link it into the relevant lists.
-
-  This function is always followed by mysql_init_select.
-
-  @see mysql_init_select
-
-  @retval TRUE An error occurred
-  @retval FALSE The new SELECT_LEX was successfully allocated.
-*/
-
-bool
-mysql_new_select(LEX *lex, bool move_down)
-{
-  SELECT_LEX *select_lex;
-  THD *thd= lex->thd;
-  Name_resolution_context *outer_context= lex->current_context();
-  DBUG_ENTER("mysql_new_select");
-
-  if (!(select_lex= new (thd->mem_root) SELECT_LEX()))
-    DBUG_RETURN(1);
-  select_lex->select_number= ++thd->select_number;
-  select_lex->parent_lex= lex; /* Used in init_query. */
-  select_lex->init_query();
-  select_lex->init_select();
-  lex->nest_level++;
-  if (lex->nest_level > (int) MAX_SELECT_NESTING)
-  {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
-    DBUG_RETURN(1);
-  }
-  select_lex->nest_level= lex->nest_level;
-  if (move_down)
-  {
-    SELECT_LEX_UNIT *unit;
-    lex->subqueries= TRUE;
-    /* first select_lex of subselect or derived table */
-    if (!(unit= new (thd->mem_root) SELECT_LEX_UNIT()))
-      DBUG_RETURN(1);
-
-    unit->init_query();
-    unit->init_select();
-    unit->thd= thd;
-    unit->include_down(lex->current_select);
-    unit->link_next= 0;
-    unit->link_prev= 0;
-    select_lex->include_down(unit);
-    /*
-      By default we assume that it is usual subselect and we have outer name
-      resolution context, if no we will assign it to 0 later
-    */
-    if (select_lex->outer_select()->parsing_place == IN_ON)
-      /*
-        This subquery is part of an ON clause, so we need to link the
-        name resolution context for this subquery with the ON context.
-
-        @todo outer_context is not the same as
-        &select_lex->outer_select()->context in one case:
-        (SELECT 1 as a) UNION (SELECT 2) ORDER BY (SELECT a);
-        When we create the select_lex for the subquery in ORDER BY,
-        1) outer_context is the context of the second SELECT of the
-        UNION
-        2) &select_lex->outer_select() is the fake select_lex, which context
-        is the one of the first SELECT of the UNION (see
-        st_select_lex_unit::add_fake_select_lex()).
-        2) is the correct context, per the documentation. 1) is not, and using
-        it leads to a resolving error for the query above.
-        We should fix 1) and then use it unconditionally here.
-      */
-      select_lex->context.outer_context= outer_context;
-    else
-      select_lex->context.outer_context= &select_lex->outer_select()->context;
-  }
-  else
-  {
-    if (lex->current_select->order_list.first && !lex->current_select->braces)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
-      DBUG_RETURN(1);
-    }
-    select_lex->include_neighbour(lex->current_select);
-    SELECT_LEX_UNIT *unit= select_lex->master_unit();                              
-    if (!unit->fake_select_lex && unit->add_fake_select_lex(lex->thd))
-      DBUG_RETURN(1);
-    select_lex->context.outer_context= 
-                unit->first_select()->context.outer_context;
-  }
-
-  select_lex->master_unit()->global_parameters= select_lex;
-  select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
-  lex->current_select= select_lex;
-  /*
-    in subquery is SELECT query and we allow resolution of names in SELECT
-    list
-  */
-  select_lex->context.resolve_in_select_list= TRUE;
-  DBUG_RETURN(0);
-}
 
 /**
   Create a select to return the same output as 'SELECT @@var_name'.
@@ -5781,7 +5050,6 @@ void create_select_for_variable(const char *var_name)
 
   thd= current_thd;
   lex= thd->lex;
-  mysql_init_select(lex);
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
@@ -5802,15 +5070,13 @@ void create_select_for_variable(const char *var_name)
 
 void mysql_init_multi_delete(LEX *lex)
 {
-  lex->sql_command=  SQLCOM_DELETE_MULTI;
-  mysql_init_select(lex);
-  lex->select_lex.select_limit= 0;
-  lex->unit.select_limit_cnt= HA_POS_ERROR;
-  lex->select_lex.table_list.save_and_clear(&lex->auxiliary_table_list);
-  lex->query_tables= 0;
+  lex->sql_command= SQLCOM_DELETE_MULTI;
+  lex->select_lex->select_limit= 0;
+  lex->unit->select_limit_cnt= HA_POS_ERROR;
+  lex->select_lex->table_list.save_and_clear(&lex->auxiliary_table_list);
+  lex->query_tables= NULL;
   lex->query_tables_last= &lex->query_tables;
 }
-
 
 /*
   When you modify mysql_parse(), you may need to mofify
@@ -5832,6 +5098,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 {
   int error __attribute__((unused));
   DBUG_ENTER("mysql_parse");
+  DBUG_PRINT("mysql_parse", ("query: '%s'", rawbuf));
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
@@ -5851,8 +5118,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     is required for the cache to work properly.
     FIXME: cleanup the dependencies in the code to simplify this.
   */
-  lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
+  lex_start(thd);
 
   if (query_cache.send_result_to_client(thd, rawbuf, length) <= 0)
   {
@@ -5949,7 +5216,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
           if (unlikely(thd->security_ctx->password_expired &&
-                       !lex->is_change_password &&
+                       !lex->is_set_password_sql &&
                        lex->sql_command != SQLCOM_SET_OPTION))
           {
             my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
@@ -6042,7 +5309,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
 
     thd->m_statement_psi= NULL;
     if (!parse_sql(thd, & parser_state, NULL) &&
-        all_tables_not_ok(thd, lex->select_lex.table_list.first))
+        all_tables_not_ok(thd, lex->select_lex->table_list.first))
       error= 1;                  /* Ignore question */
     thd->m_statement_psi= parent_locker;
     thd->end_statement();
@@ -6624,7 +5891,7 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
     (SELECT ... ORDER BY LIMIT n) ORDER BY ...
     @endvarbatim
   
-  @param thd_arg		   thread handle
+  @param thd_arg       thread handle
 
   @note
     The object is used to retrieve rows from the temporary table
@@ -6641,21 +5908,19 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
   SELECT_LEX *first_sl= first_select();
   DBUG_ENTER("add_fake_select_lex");
   DBUG_ASSERT(!fake_select_lex);
+  DBUG_ASSERT(thd_arg == thd);
 
-  if (!(fake_select_lex= new (thd_arg->mem_root) SELECT_LEX()))
-      DBUG_RETURN(1);
-  fake_select_lex->include_standalone(this, 
-                                      (SELECT_LEX_NODE**)&fake_select_lex);
+  if (!(fake_select_lex= thd_arg->lex->new_empty_query_block()))
+    DBUG_RETURN(true);       /* purecov: inspected */
+  fake_select_lex->include_standalone(this, &fake_select_lex);
   fake_select_lex->select_number= INT_MAX;
-  fake_select_lex->parent_lex= thd_arg->lex; /* Used in init_query. */
-  fake_select_lex->make_empty_select();
   fake_select_lex->linkage= GLOBAL_OPTIONS_TYPE;
   fake_select_lex->select_limit= 0;
 
-  fake_select_lex->context.outer_context=first_sl->context.outer_context;
+  fake_select_lex->set_context(first_sl->context.outer_context);
+
   /* allow item list resolving in fake select for ORDER BY */
   fake_select_lex->context.resolve_in_select_list= TRUE;
-  fake_select_lex->context.select_lex= fake_select_lex;
 
   if (!is_union())
   {
@@ -6669,8 +5934,8 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
     fake_select_lex->no_table_names_allowed= 1;
     thd_arg->lex->current_select= fake_select_lex;
   }
-  thd_arg->lex->pop_context();
-  DBUG_RETURN(0);
+  thd->lex->pop_context();
+  DBUG_RETURN(false);
 }
 
 
@@ -6924,7 +6189,7 @@ bool check_simple_select()
 {
   THD *thd= current_thd;
   LEX *lex= thd->lex;
-  if (lex->current_select != &lex->select_lex)
+  if (lex->current_select != lex->select_lex)
   {
     char command[80];
     Lex_input_stream *lip= & thd->m_parser_state->m_lip;
@@ -7004,184 +6269,6 @@ Item * all_any_subquery_creator(Item *left_expr,
 }
 
 
-/**
-  Perform first stage of privilege checking for SELECT statement.
-
-  @param thd          Thread context.
-  @param lex          LEX for SELECT statement.
-  @param tables       List of tables used by statement.
-  @param first_table  First table in the main SELECT of the SELECT
-                      statement.
-
-  @retval FALSE - Success (column-level privilege checks might be required).
-  @retval TRUE  - Failure, privileges are insufficient.
-*/
-
-bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table)
-{
-  bool res;
-  /*
-    lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
-    requires FILE_ACL access.
-  */
-  ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
-                                              SELECT_ACL;
-
-  if (tables)
-  {
-    res= check_table_access(thd,
-                            privileges_requested,
-                            tables, FALSE, UINT_MAX, FALSE) ||
-         (first_table && first_table->schema_table_reformed &&
-          check_show_access(thd, first_table));
-  }
-  else
-    res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
-
-  return res;
-}
-
-
-/**
-  Multi update query pre-check.
-
-  @param thd		Thread handler
-  @param tables	Global/local table list (have to be the same)
-
-  @retval
-    FALSE OK
-  @retval
-    TRUE  Error
-*/
-
-bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
-{
-  const char *msg= 0;
-  TABLE_LIST *table;
-  LEX *lex= thd->lex;
-  SELECT_LEX *select_lex= &lex->select_lex;
-  DBUG_ENTER("multi_update_precheck");
-
-  if (select_lex->item_list.elements != lex->value_list.elements)
-  {
-    my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-  /*
-    Ensure that we have UPDATE or SELECT privilege for each table
-    The exact privilege is checked in mysql_multi_update()
-  */
-  for (table= tables; table; table= table->next_local)
-  {
-    if (table->derived)
-      table->grant.privilege= SELECT_ACL;
-    else if ((check_access(thd, UPDATE_ACL, table->db,
-                           &table->grant.privilege,
-                           &table->grant.m_internal,
-                           0, 1) ||
-              check_grant(thd, UPDATE_ACL, table, FALSE, 1, TRUE)) &&
-             (check_access(thd, SELECT_ACL, table->db,
-                           &table->grant.privilege,
-                           &table->grant.m_internal,
-                           0, 0) ||
-              check_grant(thd, SELECT_ACL, table, FALSE, 1, FALSE)))
-      DBUG_RETURN(TRUE);
-
-    table->table_in_first_from_clause= 1;
-  }
-  /*
-    Is there tables of subqueries?
-  */
-  if (&lex->select_lex != lex->all_selects_list)
-  {
-    DBUG_PRINT("info",("Checking sub query list"));
-    for (table= tables; table; table= table->next_global)
-    {
-      if (!table->table_in_first_from_clause)
-      {
-	if (check_access(thd, SELECT_ACL, table->db,
-                         &table->grant.privilege,
-                         &table->grant.m_internal,
-                         0, 0) ||
-	    check_grant(thd, SELECT_ACL, table, FALSE, 1, FALSE))
-	  DBUG_RETURN(TRUE);
-      }
-    }
-  }
-
-  if (select_lex->order_list.elements)
-    msg= "ORDER BY";
-  else if (select_lex->select_limit)
-    msg= "LIMIT";
-  if (msg)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "UPDATE", msg);
-    DBUG_RETURN(TRUE);
-  }
-  DBUG_RETURN(FALSE);
-}
-
-/**
-  Multi delete query pre-check.
-
-  @param thd			Thread handler
-  @param tables		Global/local table list
-
-  @retval
-    FALSE OK
-  @retval
-    TRUE  error
-*/
-
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
-{
-  SELECT_LEX *select_lex= &thd->lex->select_lex;
-  TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
-  TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
-  DBUG_ENTER("multi_delete_precheck");
-
-  /*
-    Temporary tables are pre-opened in 'tables' list only. Here we need to
-    initialize TABLE instances in 'aux_tables' list.
-  */
-  for (TABLE_LIST *tl= aux_tables; tl; tl= tl->next_global)
-  {
-    if (tl->table)
-      continue;
-
-    if (tl->correspondent_table)
-      tl->table= tl->correspondent_table->table;
-  }
-
-  /* sql_yacc guarantees that tables and aux_tables are not zero */
-  DBUG_ASSERT(aux_tables != 0);
-  if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);
-
-  /*
-    Since aux_tables list is not part of LEX::query_tables list we
-    have to juggle with LEX::query_tables_own_last value to be able
-    call check_table_access() safely.
-  */
-  thd->lex->query_tables_own_last= 0;
-  if (check_table_access(thd, DELETE_ACL, aux_tables, FALSE, UINT_MAX, FALSE))
-  {
-    thd->lex->query_tables_own_last= save_query_tables_own_last;
-    DBUG_RETURN(TRUE);
-  }
-  thd->lex->query_tables_own_last= save_query_tables_own_last;
-
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && !select_lex->where)
-  {
-    my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-               ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-  DBUG_RETURN(FALSE);
-}
-
-
 /*
   Given a table in the source list, find a correspondent table in the
   table references list.
@@ -7253,7 +6340,7 @@ static TABLE_LIST *multi_delete_table_match(LEX *lex, TABLE_LIST *tbl,
 
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
 {
-  TABLE_LIST *tables= lex->select_lex.table_list.first;
+  TABLE_LIST *tables= lex->select_lex->table_list.first;
   TABLE_LIST *target_tbl;
   DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
 
@@ -7281,90 +6368,6 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
 
 
 /**
-  simple UPDATE query pre-check.
-
-  @param thd		Thread handler
-  @param tables	Global table list
-
-  @retval
-    FALSE OK
-  @retval
-    TRUE  Error
-*/
-
-bool update_precheck(THD *thd, TABLE_LIST *tables)
-{
-  DBUG_ENTER("update_precheck");
-  if (thd->lex->select_lex.item_list.elements != thd->lex->value_list.elements)
-  {
-    my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-  DBUG_RETURN(check_one_table_access(thd, UPDATE_ACL, tables));
-}
-
-
-/**
-  simple DELETE query pre-check.
-
-  @param thd		Thread handler
-  @param tables	Global table list
-
-  @retval
-    FALSE  OK
-  @retval
-    TRUE   error
-*/
-
-bool delete_precheck(THD *thd, TABLE_LIST *tables)
-{
-  DBUG_ENTER("delete_precheck");
-  if (check_one_table_access(thd, DELETE_ACL, tables))
-    DBUG_RETURN(TRUE);
-  /* Set privilege for the WHERE clause */
-  tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
-  simple INSERT query pre-check.
-
-  @param thd		Thread handler
-  @param tables	Global table list
-
-  @retval
-    FALSE  OK
-  @retval
-    TRUE   error
-*/
-
-bool insert_precheck(THD *thd, TABLE_LIST *tables)
-{
-  LEX *lex= thd->lex;
-  DBUG_ENTER("insert_precheck");
-
-  /*
-    Check that we have modify privileges for the first table and
-    select privileges for the rest
-  */
-  ulong privilege= (INSERT_ACL |
-                    (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
-                    (lex->value_list.elements ? UPDATE_ACL : 0));
-
-  if (check_one_table_access(thd, privilege, tables))
-    DBUG_RETURN(TRUE);
-
-  if (lex->update_list.elements != lex->value_list.elements)
-  {
-    my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
    Set proper open mode and table type for element representing target table
    of CREATE TABLE statement, also adjust statement table list if necessary.
 */
@@ -7378,7 +6381,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
   else
     create_table->open_type= OT_BASE_ONLY;
 
-  if (!lex->select_lex.item_list.elements)
+  if (!lex->select_lex->item_list.elements)
   {
     /*
       Avoid opening and locking target table for ordinary CREATE TABLE
@@ -7389,139 +6392,6 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
     */
     create_table->lock_type= TL_READ;
   }
-}
-
-
-/**
-  CREATE TABLE query pre-check.
-
-  @param thd			Thread handler
-  @param tables		Global table list
-  @param create_table	        Table which will be created
-
-  @retval
-    FALSE   OK
-  @retval
-    TRUE   Error
-*/
-
-bool create_table_precheck(THD *thd, TABLE_LIST *tables,
-                           TABLE_LIST *create_table)
-{
-  LEX *lex= thd->lex;
-  SELECT_LEX *select_lex= &lex->select_lex;
-  ulong want_priv;
-  bool error= TRUE;                                 // Error message is given
-  DBUG_ENTER("create_table_precheck");
-
-  /*
-    Require CREATE [TEMPORARY] privilege on new table; for
-    CREATE TABLE ... SELECT, also require INSERT.
-  */
-
-  want_priv= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-             CREATE_TMP_ACL :
-             (CREATE_ACL | (select_lex->item_list.elements ? INSERT_ACL : 0));
-
-  if (check_access(thd, want_priv, create_table->db,
-                   &create_table->grant.privilege,
-                   &create_table->grant.m_internal,
-                   0, 0))
-    goto err;
-
-  /* If it is a merge table, check privileges for merge children. */
-  if (lex->create_info.merge_list.first)
-  {
-    /*
-      The user must have (SELECT_ACL | UPDATE_ACL | DELETE_ACL) on the
-      underlying base tables, even if there are temporary tables with the same
-      names.
-
-      From user's point of view, it might look as if the user must have these
-      privileges on temporary tables to create a merge table over them. This is
-      one of two cases when a set of privileges is required for operations on
-      temporary tables (see also CREATE TABLE).
-
-      The reason for this behavior stems from the following facts:
-
-        - For merge tables, the underlying table privileges are checked only
-          at CREATE TABLE / ALTER TABLE time.
-
-          In other words, once a merge table is created, the privileges of
-          the underlying tables can be revoked, but the user will still have
-          access to the merge table (provided that the user has privileges on
-          the merge table itself). 
-
-        - Temporary tables shadow base tables.
-
-          I.e. there might be temporary and base tables with the same name, and
-          the temporary table takes the precedence in all operations.
-
-        - For temporary MERGE tables we do not track if their child tables are
-          base or temporary. As result we can't guarantee that privilege check
-          which was done in presence of temporary child will stay relevant later
-          as this temporary table might be removed.
-
-      If SELECT_ACL | UPDATE_ACL | DELETE_ACL privileges were not checked for
-      the underlying *base* tables, it would create a security breach as in
-      Bug#12771903.
-    */
-
-    if (check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                           lex->create_info.merge_list.first,
-                           FALSE, UINT_MAX, FALSE))
-      goto err;
-  }
-
-  if (want_priv != CREATE_TMP_ACL &&
-      check_grant(thd, want_priv, create_table, FALSE, 1, FALSE))
-    goto err;
-
-  if (select_lex->item_list.elements)
-  {
-    /* Check permissions for used tables in CREATE TABLE ... SELECT */
-    if (tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
-                                     UINT_MAX, FALSE))
-      goto err;
-  }
-  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
-  {
-    if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
-      goto err;
-  }
-  error= FALSE;
-
-err:
-  DBUG_RETURN(error);
-}
-
-
-/**
-  Check privileges for LOCK TABLES statement.
-
-  @param thd     Thread context.
-  @param tables  List of tables to be locked.
-
-  @retval FALSE - Success.
-  @retval TRUE  - Failure.
-*/
-
-static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables)
-{
-  TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
-
-  for (TABLE_LIST *table= tables; table != first_not_own_table && table;
-       table= table->next_global)
-  {
-    if (is_temporary_table(table))
-      continue;
-
-    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, table,
-                           FALSE, 1, FALSE))
-      return TRUE;
-  }
-
-  return FALSE;
 }
 
 
@@ -7879,7 +6749,66 @@ bool parse_sql(THD *thd,
 
   /* Parse the query. */
 
+  /*
+    Use a temporary DA while parsing. We don't know until after parsing
+    whether the current command is a diagnostic statement, in which case
+    we'll need to have the previous DA around to answer questions about it.
+  */
+  Diagnostics_area *parser_da= thd->get_parser_da();
+  Diagnostics_area *da=        thd->get_stmt_da();
+
+  thd->push_diagnostics_area(parser_da, false);
+
+  parser_da->reset_diagnostics_area();
+  parser_da->reset_condition_info(thd);
+
   bool mysql_parse_status= MYSQLparse(thd) != 0;
+
+  /*
+    Unwind diagnostics area.
+
+    If any issues occurred during parsing, they will become
+    the sole conditions for the current statement.
+
+    Otherwise, if we have a diagnostic statement on our hands,
+    we'll preserve the previous diagnostics area here so we
+    can answer questions about it.  This specifically means
+    that repeatedly asking about a DA won't clear it.
+
+    Otherwise, it's a regular command with no issues during
+    parsing, so we'll just clear the DA in preparation for
+    the processing of this command.
+  */
+
+  if (parser_da->current_statement_cond_count() != 0)
+  {
+    /*
+      Error/warning during parsing: top DA should contain parse error(s)!
+      Any pre-existing conditions will be replaced.
+    */
+    da->reset_condition_info(thd);
+
+    /*
+      We need to put any errors in the DA as well as the condition list.
+    */
+    if (parser_da->is_error())
+    {
+      da->set_error_status(parser_da->mysql_errno(),
+                           parser_da->message_text(),
+                           parser_da->returned_sqlstate());
+    }
+
+    da->copy_sql_conditions_from_da(thd, parser_da);
+
+    /*
+      Do not clear the condition list when starting execution as it
+      now contains not the results of the previous executions, but
+      a non-zero number of errors/warnings thrown during parsing!
+    */
+    thd->lex->keep_diagnostics= DA_KEEP_PARSE_ERROR;
+  }
+
+  thd->pop_diagnostics_area();
 
   /*
     Check that if MYSQLparse() failed either thd->is_error() is set, or an

@@ -23,6 +23,8 @@ Transaction rollback
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "trx0roll.h"
 
 #ifdef UNIV_NONINL
@@ -30,21 +32,21 @@ Created 3/26/1996 Heikki Tuuri
 #endif
 
 #include "fsp0fsp.h"
+#include "lock0lock.h"
 #include "mach0data.h"
+#include "pars0pars.h"
+#include "que0que.h"
+#include "read0read.h"
+#include "row0mysql.h"
+#include "row0undo.h"
+#include "srv0mon.h"
+#include "srv0start.h"
+#include "trx0rec.h"
 #include "trx0rseg.h"
+#include "trx0sys.h"
 #include "trx0trx.h"
 #include "trx0undo.h"
-#include "trx0rec.h"
-#include "que0que.h"
 #include "usr0sess.h"
-#include "srv0start.h"
-#include "read0read.h"
-#include "row0undo.h"
-#include "row0mysql.h"
-#include "lock0lock.h"
-#include "pars0pars.h"
-#include "srv0mon.h"
-#include "trx0sys.h"
 
 /** This many pages must be undone before a truncate is tried within
 rollback */
@@ -97,8 +99,11 @@ trx_rollback_to_savepoint_low(
 
 	trx->error_state = DB_SUCCESS;
 
-	if (trx->insert_undo != 0 || trx->update_undo != 0) {
-		ut_ad(trx->rseg != 0);
+	if (trx_is_rseg_updated(trx)) {
+
+		ut_ad(trx->rsegs.m_redo.rseg != 0
+		      || trx->rsegs.m_noredo.rseg != 0);
+
 		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
 		ut_a(thr == que_fork_start_command(
@@ -133,7 +138,7 @@ trx_rollback_to_savepoint_low(
 /*******************************************************************//**
 Rollback a transaction to a given savepoint or do a complete rollback.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 trx_rollback_to_savepoint(
 /*======================*/
@@ -193,7 +198,7 @@ trx_rollback_for_mysql_low(
 /*******************************************************************//**
 Rollback a transaction used in MySQL.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 trx_rollback_for_mysql(
 /*===================*/
@@ -230,7 +235,7 @@ trx_rollback_for_mysql(
 /*******************************************************************//**
 Rollback the latest SQL statement for MySQL.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 trx_rollback_last_sql_stat_for_mysql(
 /*=================================*/
@@ -310,14 +315,15 @@ trx_roll_savepoint_free(
 	trx_t*			trx,	/*!< in: transaction handle */
 	trx_named_savept_t*	savep)	/*!< in: savepoint to free */
 {
-	UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
+	UT_LIST_REMOVE(trx->trx_savepoints, savep);
+
 	mem_free(savep->name);
 	mem_free(savep);
 }
 
 /*******************************************************************//**
 Frees savepoint structs starting from savep. */
-UNIV_INTERN
+
 void
 trx_roll_savepoints_free(
 /*=====================*/
@@ -395,7 +401,7 @@ the row, these locks are naturally released in the rollback. Savepoints which
 were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 trx_rollback_to_savepoint_for_mysql(
 /*================================*/
@@ -449,7 +455,7 @@ If there is already a savepoint of the same name, this call erases that old
 savepoint and replaces it with a new. Savepoints are deleted in a transaction
 commit or rollback.
 @return	always DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 trx_savepoint_for_mysql(
 /*====================*/
@@ -469,7 +475,7 @@ trx_savepoint_for_mysql(
 	if (savep) {
 		/* There is a savepoint with the same name: free that */
 
-		UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
+		UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
 		mem_free(savep->name);
 		mem_free(savep);
@@ -485,7 +491,7 @@ trx_savepoint_for_mysql(
 
 	savep->mysql_binlog_cache_pos = binlog_cache_pos;
 
-	UT_LIST_ADD_LAST(trx_savepoints, trx->trx_savepoints, savep);
+	UT_LIST_ADD_LAST(trx->trx_savepoints, savep);
 
 	return(DB_SUCCESS);
 }
@@ -495,7 +501,7 @@ Releases only the named savepoint. Savepoints which were set after this
 savepoint are left as is.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 trx_release_savepoint_for_mysql(
 /*============================*/
@@ -521,7 +527,7 @@ Determines if this transaction is rolling back an incomplete transaction
 in crash recovery.
 @return TRUE if trx is an incomplete transaction that is being rolled
 back in crash recovery */
-UNIV_INTERN
+
 ibool
 trx_is_recv(
 /*========*/
@@ -533,7 +539,7 @@ trx_is_recv(
 /*******************************************************************//**
 Returns a transaction savepoint taken at this point in time.
 @return	savepoint */
-UNIV_INTERN
+
 trx_savept_t
 trx_savept_take(
 /*============*/
@@ -624,35 +630,24 @@ trx_rollback_active(
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE
 	    && trx->table_id != 0) {
 
+		ut_ad(dictionary_locked);
+
 		/* If the transaction was for a dictionary operation,
 		we drop the relevant table only if it is not flagged
 		as DISCARDED. If it still exists. */
 
 		table = dict_table_open_on_id(
-			trx->table_id, dictionary_locked, FALSE);
+			trx->table_id, TRUE, DICT_TABLE_OP_NORMAL);
 
 		if (table && !dict_table_is_discarded(table)) {
-
-			dberr_t	err;
-
-			/* Ensure that the table doesn't get evicted from the
-			cache, keeps things simple for drop. */
-
-			if (table->can_be_evicted) {
-				dict_table_move_from_lru_to_non_lru(table);
-			}
-
-			dict_table_close(table, dictionary_locked, FALSE);
-
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Dropping table '%s', with id " UINT64PF " "
 				"in recovery",
 				table->name, trx->table_id);
 
-			err = row_drop_table_for_mysql(table->name, trx, TRUE);
-			trx_commit_for_mysql(trx);
+			dict_table_close_and_drop(trx, table);
 
-			ut_a(err == DB_SUCCESS);
+			trx_commit_for_mysql(trx);
 		}
 	}
 
@@ -690,31 +685,32 @@ trx_rollback_resurrected(
 	to accidentally clean up a non-recovered transaction here. */
 
 	trx_mutex_enter(trx);
+	bool		is_recovered	= trx->is_recovered;
+	trx_state_t	state		= trx->state;
+	trx_mutex_exit(trx);
 
-	if (!trx->is_recovered) {
-		trx_mutex_exit(trx);
+	if (!is_recovered) {
 		return(FALSE);
 	}
 
-	switch (trx->state) {
+	switch (state) {
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		mutex_exit(&trx_sys->mutex);
-		trx_mutex_exit(trx);
 		fprintf(stderr,
 			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
 			trx->id);
 		trx_cleanup_at_db_startup(trx);
+		trx_free_resurrected(trx);
 		return(TRUE);
 	case TRX_STATE_ACTIVE:
-		trx_mutex_exit(trx);
 		if (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 			mutex_exit(&trx_sys->mutex);
 			trx_rollback_active(trx);
+			trx_free_for_background(trx);
 			return(TRUE);
 		}
 		return(FALSE);
 	case TRX_STATE_PREPARED:
-		trx_mutex_exit(trx);
 		return(FALSE);
 	case TRX_STATE_NOT_STARTED:
 		break;
@@ -729,7 +725,7 @@ Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back. */
-UNIV_INTERN
+
 void
 trx_rollback_or_clean_recovered(
 /*============================*/
@@ -799,7 +795,7 @@ committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread.
 @return	a dummy parameter */
-extern "C" UNIV_INTERN
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
 /*================================================*/
@@ -823,201 +819,27 @@ DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
 	OS_THREAD_DUMMY_RETURN;
 }
 
-/*******************************************************************//**
-Creates an undo number array.
-@return	own: undo number array */
-static
-trx_undo_arr_t*
-trx_undo_arr_create(
-/*================*/
-	ulint		n_cells)	/*!< Number of cells */
-{
-	trx_undo_arr_t*	arr;
-	mem_heap_t*	heap;
-	ulint		sz = sizeof(*arr) + sizeof(*arr->infos) * n_cells;
-
-	heap = mem_heap_create(sz);
-
-	arr = static_cast<trx_undo_arr_t*>(mem_heap_zalloc(heap, sz));
-
-	arr->n_cells = n_cells;
-
-	arr->infos = (trx_undo_inf_t*) (arr + 1);
-
-	arr->heap = heap;
-
-	return(arr);
-}
-
-/*******************************************************************//**
-Frees an undo number array. */
-UNIV_INTERN
-void
-trx_undo_arr_free(
-/*==============*/
-	trx_undo_arr_t*	arr)	/*!< in: undo number array */
-{
-	mem_heap_free(arr->heap);
-}
-
-/*******************************************************************//**
-Stores info of an undo log record to the array if it is not stored yet.
-@return	FALSE if the record already existed in the array */
-static
-ibool
-trx_undo_arr_store_info(
-/*====================*/
-	trx_t*		trx,	/*!< in: transaction */
-	undo_no_t	undo_no)/*!< in: undo number */
-{
-	ulint		i;
-	trx_undo_arr_t*	arr;
-	ulint		n = 0;
-	ulint		n_used;
-	trx_undo_inf_t*	stored_here = NULL;
-
-	arr = trx->undo_no_arr;
-	n_used = arr->n_used;
-
-	for (i = 0; i < arr->n_cells; i++) {
-		trx_undo_inf_t*	cell;
-
-		cell = trx_undo_arr_get_nth_info(arr, i);
-
-		if (!cell->in_use) {
-			if (!stored_here) {
-				/* Not in use, we may store here */
-				cell->undo_no = undo_no;
-				cell->in_use = TRUE;
-
-				arr->n_used++;
-
-				stored_here = cell;
-			}
-		} else {
-			n++;
-
-			if (cell->undo_no == undo_no) {
-
-				if (stored_here) {
-					stored_here->in_use = FALSE;
-					ut_ad(arr->n_used > 0);
-					arr->n_used--;
-				}
-
-				ut_ad(arr->n_used == n_used);
-
-				return(FALSE);
-			}
-		}
-
-		if (n == n_used && stored_here) {
-
-			ut_ad(arr->n_used == 1 + n_used);
-
-			return(TRUE);
-		}
-	}
-
-	ut_error;
-
-	return(FALSE);
-}
-
-/*******************************************************************//**
-Removes an undo number from the array. */
-static
-void
-trx_undo_arr_remove_info(
-/*=====================*/
-	trx_undo_arr_t*	arr,	/*!< in: undo number array */
-	undo_no_t	undo_no)/*!< in: undo number */
-{
-	ulint		i;
-
-	for (i = 0; i < arr->n_cells; i++) {
-
-		trx_undo_inf_t*	cell;
-
-		cell = trx_undo_arr_get_nth_info(arr, i);
-
-		if (cell->in_use && cell->undo_no == undo_no) {
-			cell->in_use = FALSE;
-			ut_ad(arr->n_used > 0);
-			--arr->n_used;
-			break;
-		}
-	}
-}
-
-/*******************************************************************//**
-Gets the biggest undo number in an array.
-@return	biggest value, 0 if the array is empty */
-static
-undo_no_t
-trx_undo_arr_get_biggest(
-/*=====================*/
-	const trx_undo_arr_t*	arr)	/*!< in: undo number array */
-{
-	ulint		i;
-	undo_no_t	biggest = 0;
-	ulint		n_checked = 0;
-
-	for (i = 0; i < arr->n_cells && n_checked < arr->n_used; ++i) {
-
-		const trx_undo_inf_t*	cell = &arr->infos[i];
-
-		if (cell->in_use) {
-
-			++n_checked;
-
-			if (cell->undo_no > biggest) {
-
-				biggest = cell->undo_no;
-			}
-		}
-	}
-
-	return(biggest);
-}
-
 /***********************************************************************//**
 Tries truncate the undo logs. */
 static
 void
 trx_roll_try_truncate(
 /*==================*/
-	trx_t*	trx)	/*!< in/out: transaction */
+	trx_t*		trx,		/*!< in/out: transaction */
+	trx_undo_ptr_t*	undo_ptr)	/*!< in: rollback segment to look
+					for next undo log record. */
 {
-	undo_no_t		limit;
-	const trx_undo_arr_t*	arr;
-
-	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(mutex_own(&((trx->rseg)->mutex)));
+	ut_ad(mutex_own(&trx->undo_mutex));
+	ut_ad(mutex_own(&undo_ptr->rseg->mutex));
 
 	trx->pages_undone = 0;
 
-	arr = trx->undo_no_arr;
-
-	limit = trx->undo_no;
-
-	if (arr->n_used > 0) {
-		undo_no_t	biggest;
-
-		biggest = trx_undo_arr_get_biggest(arr);
-
-		if (biggest >= limit) {
-
-			limit = biggest + 1;
-		}
+	if (undo_ptr->insert_undo) {
+		trx_undo_truncate_end(trx, undo_ptr->insert_undo, trx->undo_no);
 	}
 
-	if (trx->insert_undo) {
-		trx_undo_truncate_end(trx, trx->insert_undo, limit);
-	}
-
-	if (trx->update_undo) {
-		trx_undo_truncate_end(trx, trx->update_undo, limit);
+	if (undo_ptr->update_undo) {
+		trx_undo_truncate_end(trx, undo_ptr->update_undo, trx->undo_no);
 	}
 }
 
@@ -1033,30 +855,22 @@ trx_roll_pop_top_rec(
 	trx_undo_t*	undo,	/*!< in: undo log */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	page_t*		undo_page;
-	ulint		offset;
-	trx_undo_rec_t*	prev_rec;
-	page_t*		prev_rec_page;
-
 	ut_ad(mutex_own(&trx->undo_mutex));
 
-	undo_page = trx_undo_page_get_s_latched(
+	page_t*	undo_page = trx_undo_page_get_s_latched(
 		undo->space, undo->zip_size, undo->top_page_no, mtr);
 
-	offset = undo->top_offset;
+	ulint	offset = undo->top_offset;
 
-	/*	fprintf(stderr, "Thread %lu undoing trx " TRX_ID_FMT
-			" undo record " TRX_ID_FMT "\n",
-	os_thread_get_curr_id(), trx->id, undo->top_undo_no); */
-
-	prev_rec = trx_undo_get_prev_rec(
-		undo_page + offset, undo->hdr_page_no, undo->hdr_offset, mtr);
+	trx_undo_rec_t*	prev_rec = trx_undo_get_prev_rec(
+		undo_page + offset, undo->hdr_page_no, undo->hdr_offset,
+		true, mtr);
 
 	if (prev_rec == NULL) {
 
 		undo->empty = TRUE;
 	} else {
-		prev_rec_page = page_align(prev_rec);
+		page_t*	prev_rec_page = page_align(prev_rec);
 
 		if (prev_rec_page != undo_page) {
 
@@ -1071,22 +885,22 @@ trx_roll_pop_top_rec(
 	return(undo_page + offset);
 }
 
+
 /********************************************************************//**
 Pops the topmost record when the two undo logs of a transaction are seen
-as a single stack of records ordered by their undo numbers. Inserts the
-undo number of the popped undo record to the array of currently processed
-undo numbers in the transaction. When the query thread finishes processing
-of this undo record, it must be released with trx_undo_rec_release.
+as a single stack of records ordered by their undo numbers.
 @return undo log record copied to heap, NULL if none left, or if the
 undo number of the top record would be less than the limit */
-UNIV_INTERN
+
 trx_undo_rec_t*
-trx_roll_pop_top_rec_of_trx(
-/*========================*/
-	trx_t*		trx,	/*!< in: transaction */
-	undo_no_t	limit,	/*!< in: least undo number we need */
-	roll_ptr_t*	roll_ptr,/*!< out: roll pointer to undo record */
-	mem_heap_t*	heap)	/*!< in: memory heap where copied */
+trx_roll_pop_top_rec_of_trx_low(
+/*============================*/
+	trx_t*		trx,		/*!< in/out: transaction */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: rollback segment to look
+					for next undo log record. */
+	undo_no_t	limit,		/*!< in: least undo number we need */
+	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
+	mem_heap_t*	heap)		/*!< in/out: memory heap where copied */
 {
 	trx_undo_t*	undo;
 	trx_undo_t*	ins_undo;
@@ -1096,23 +910,22 @@ trx_roll_pop_top_rec_of_trx(
 	undo_no_t	undo_no;
 	ibool		is_insert;
 	trx_rseg_t*	rseg;
-	ulint		progress_pct;
 	mtr_t		mtr;
 
-	rseg = trx->rseg;
-try_again:
-	mutex_enter(&(trx->undo_mutex));
+	rseg = undo_ptr->rseg;
+
+	mutex_enter(&trx->undo_mutex);
 
 	if (trx->pages_undone >= TRX_ROLL_TRUNC_THRESHOLD) {
 		mutex_enter(&rseg->mutex);
 
-		trx_roll_try_truncate(trx);
+		trx_roll_try_truncate(trx, undo_ptr);
 
 		mutex_exit(&rseg->mutex);
 	}
 
-	ins_undo = trx->insert_undo;
-	upd_undo = trx->update_undo;
+	ins_undo = undo_ptr->insert_undo;
+	upd_undo = undo_ptr->update_undo;
 
 	if (!ins_undo || ins_undo->empty) {
 		undo = upd_undo;
@@ -1125,19 +938,10 @@ try_again:
 	}
 
 	if (!undo || undo->empty || limit > undo->top_undo_no) {
-
-		if ((trx->undo_no_arr)->n_used == 0) {
-			/* Rollback is ending */
-
-			mutex_enter(&(rseg->mutex));
-
-			trx_roll_try_truncate(trx);
-
-			mutex_exit(&(rseg->mutex));
-		}
-
-		mutex_exit(&(trx->undo_mutex));
-
+		mutex_enter(&rseg->mutex);
+		trx_roll_try_truncate(trx, undo_ptr);
+		mutex_exit(&rseg->mutex);
+		mutex_exit(&trx->undo_mutex);
 		return(NULL);
 	}
 
@@ -1152,14 +956,15 @@ try_again:
 
 	undo_no = trx_undo_rec_get_undo_no(undo_rec);
 
-	ut_ad(undo_no + 1 == trx->undo_no);
+	ut_ad(trx_roll_check_undo_rec_ordering(
+		undo_no, undo->rseg->space, trx));
 
 	/* We print rollback progress info if we are in a crash recovery
 	and the transaction has at least 1000 row operations to undo. */
 
 	if (trx == trx_roll_crash_recv_trx && trx_roll_max_undo_no > 1000) {
 
-		progress_pct = 100 - (ulint)
+		ulint	progress_pct = 100 - (ulint)
 			((undo_no * 100) / trx_roll_max_undo_no);
 		if (progress_pct != trx_roll_progress_printed_pct) {
 			if (trx_roll_progress_printed_pct == 0) {
@@ -1176,20 +981,11 @@ try_again:
 	}
 
 	trx->undo_no = undo_no;
-
-	if (!trx_undo_arr_store_info(trx, undo_no)) {
-		/* A query thread is already processing this undo log record */
-
-		mutex_exit(&(trx->undo_mutex));
-
-		mtr_commit(&mtr);
-
-		goto try_again;
-	}
+	trx->undo_rseg_space = undo->rseg->space;
 
 	undo_rec_copy = trx_undo_rec_copy(undo_rec, heap);
 
-	mutex_exit(&(trx->undo_mutex));
+	mutex_exit(&trx->undo_mutex);
 
 	mtr_commit(&mtr);
 
@@ -1197,46 +993,31 @@ try_again:
 }
 
 /********************************************************************//**
-Reserves an undo log record for a query thread to undo. This should be
-called if the query thread gets the undo log record not using the pop
-function above.
-@return	TRUE if succeeded */
-UNIV_INTERN
-ibool
-trx_undo_rec_reserve(
-/*=================*/
-	trx_t*		trx,	/*!< in/out: transaction */
-	undo_no_t	undo_no)/*!< in: undo number of the record */
+Get next undo log record from redo and noredo rollback segments.
+@return undo log record copied to heap, NULL if none left, or if the
+undo number of the top record would be less than the limit */
+
+trx_undo_rec_t*
+trx_roll_pop_top_rec_of_trx(
+/*========================*/
+	trx_t*		trx,		/*!< in: transaction */
+	undo_no_t	limit,		/*!< in: least undo number we need */
+	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
+	mem_heap_t*	heap)		/*!< in: memory heap where copied */
 {
-	ibool	ret;
+	trx_undo_rec_t* undo_rec = 0;
 
-	mutex_enter(&(trx->undo_mutex));
+	if (trx_is_redo_rseg_updated(trx)) {
+		undo_rec = trx_roll_pop_top_rec_of_trx_low(
+			trx, &trx->rsegs.m_redo, limit, roll_ptr, heap);
+	}
 
-	ret = trx_undo_arr_store_info(trx, undo_no);
+	if (undo_rec == 0 && trx_is_noredo_rseg_updated(trx)) {
+		undo_rec = trx_roll_pop_top_rec_of_trx_low(
+			trx, &trx->rsegs.m_noredo, limit, roll_ptr, heap);
+	}
 
-	mutex_exit(&(trx->undo_mutex));
-
-	return(ret);
-}
-
-/*******************************************************************//**
-Releases a reserved undo record. */
-UNIV_INTERN
-void
-trx_undo_rec_release(
-/*=================*/
-	trx_t*		trx,	/*!< in/out: transaction */
-	undo_no_t	undo_no)/*!< in: undo number */
-{
-	trx_undo_arr_t*	arr;
-
-	mutex_enter(&(trx->undo_mutex));
-
-	arr = trx->undo_no_arr;
-
-	trx_undo_arr_remove_info(arr, undo_no);
-
-	mutex_exit(&(trx->undo_mutex));
+	return(undo_rec);
 }
 
 /****************************************************************//**
@@ -1281,11 +1062,7 @@ trx_rollback_start(
 					partial undo), 0 if we are rolling back
 					the entire transaction */
 {
-	que_t*		roll_graph;
-
 	ut_ad(trx_mutex_own(trx));
-
-	ut_ad(trx->undo_no_arr == NULL || trx->undo_no_arr->n_used == 0);
 
 	/* Initialize the rollback field in the transaction */
 
@@ -1299,14 +1076,9 @@ trx_rollback_start(
 
 	trx->pages_undone = 0;
 
-	if (trx->undo_no_arr == NULL) {
-		/* Single query thread -> 1 */
-		trx->undo_no_arr = trx_undo_arr_create(1);
-	}
-
 	/* Build a 'query' graph which will perform the undo operations */
 
-	roll_graph = trx_roll_graph_build(trx);
+	que_t*	roll_graph = trx_roll_graph_build(trx);
 
 	trx->graph = roll_graph;
 
@@ -1323,8 +1095,6 @@ trx_rollback_finish(
 /*================*/
 	trx_t*		trx)	/*!< in: transaction */
 {
-	ut_a(trx->undo_no_arr == NULL || trx->undo_no_arr->n_used == 0);
-
 	trx_commit(trx);
 
 	trx->mod_tables.clear();
@@ -1335,7 +1105,7 @@ trx_rollback_finish(
 /*********************************************************************//**
 Creates a rollback command node struct.
 @return	own: rollback node struct */
-UNIV_INTERN
+
 roll_node_t*
 roll_node_create(
 /*=============*/
@@ -1355,7 +1125,7 @@ roll_node_create(
 /***********************************************************//**
 Performs an execution step for a rollback command node in a query graph.
 @return	query thread to run next, or NULL */
-UNIV_INTERN
+
 que_thr_t*
 trx_rollback_step(
 /*==============*/

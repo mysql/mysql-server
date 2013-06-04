@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -259,52 +259,6 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_PREPARE_FOR_DROP:
     mysql_mutex_lock(&THR_LOCK_myisam);
     share->last_version= 0L;			/* Impossible version */
-#ifdef __WIN__REMOVE_OBSOLETE_WORKAROUND
-    /* Close the isam and data files as Win32 can't drop an open table */
-    mysql_mutex_lock(&share->intern_lock);
-    if (flush_key_blocks(share->key_cache, share->kfile,
-			 (function == HA_EXTRA_FORCE_REOPEN ?
-			  FLUSH_RELEASE : FLUSH_IGNORE_CHANGED)))
-    {
-      error=my_errno;
-      share->changed=1;
-      mi_print_error(info->s, HA_ERR_CRASHED);
-      mi_mark_crashed(info);			/* Fatal error found */
-    }
-    if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
-    {
-      info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
-      error=end_io_cache(&info->rec_cache);
-    }
-    if (info->lock_type != F_UNLCK && ! info->was_locked)
-    {
-      info->was_locked=info->lock_type;
-      if (mi_lock_database(info,F_UNLCK))
-	error=my_errno;
-      info->lock_type = F_UNLCK;
-    }
-    if (share->kfile >= 0)
-      _mi_decrement_open_count(info);
-    if (share->kfile >= 0 && mysql_file_close(share->kfile, MYF(0)))
-      error=my_errno;
-    {
-      LIST *list_element ;
-      for (list_element=myisam_open_list ;
-	   list_element ;
-	   list_element=list_element->next)
-      {
-	MI_INFO *tmpinfo=(MI_INFO*) list_element->data;
-	if (tmpinfo->s == info->s)
-	{
-          if (tmpinfo->dfile >= 0 && mysql_file_close(tmpinfo->dfile, MYF(0)))
-	    error = my_errno;
-	  tmpinfo->dfile= -1;
-	}
-      }
-    }
-    share->kfile= -1;				/* Files aren't open anymore */
-    mysql_mutex_unlock(&share->intern_lock);
-#endif
     mysql_mutex_unlock(&THR_LOCK_myisam);
     break;
   case HA_EXTRA_FLUSH:

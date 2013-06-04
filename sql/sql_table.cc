@@ -57,7 +57,7 @@
 #include "table_cache.h"
 #include <mysql/psi/mysql_table.h>
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <io.h>
 #endif
 
@@ -2864,7 +2864,6 @@ int prepare_create_field(Create_field *sql_field,
     (*blob_columns)++;
     break;
   case MYSQL_TYPE_VARCHAR:
-#ifndef QQ_ALL_HANDLERS_SUPPORT_VARCHAR
     if (table_flags & HA_NO_VARCHAR)
     {
       /* convert VARCHAR to CHAR because handler is not yet up to date */
@@ -2880,7 +2879,6 @@ int prepare_create_field(Create_field *sql_field,
         DBUG_RETURN(1);
       }
     }
-#endif
     /* fall through */
   case MYSQL_TYPE_STRING:
     sql_field->pack_flag=0;
@@ -3127,26 +3125,27 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
   @param thd              Thread context.
   @param key              Key to be checked.
   @param key_info         Key meta-data info.
-  @param key_list         List of existing keys.
+  @param alter_info       List of columns and indexes to create.
 
   @retval false           Ok.
   @retval true            Error.
 */
 static bool check_duplicate_key(THD *thd,
                                 Key *key, KEY *key_info,
-                                List<Key> *key_list)
+                                Alter_info *alter_info)
 {
   /*
     We only check for duplicate indexes if it is requested and the
     key is not auto-generated.
 
     Check is requested if the key was explicitly created or altered
-    by the user (unless it's a foreign key).
+    (Index is altered/column associated with it is dropped) by the user
+    (unless it's a foreign key).
   */
   if (!key->key_create_info.check_for_duplicate_indexes || key->generated)
     return false;
 
-  List_iterator<Key> key_list_iterator(*key_list);
+  List_iterator<Key> key_list_iterator(alter_info->key_list);
   List_iterator<Key_part_spec> key_column_iterator(key->columns);
   Key *k;
 
@@ -3155,7 +3154,18 @@ static bool check_duplicate_key(THD *thd,
     // Looking for a similar key...
 
     if (k == key)
-      break;
+    {
+      /*
+        Since the duplicate index might exist before or after
+        the modified key in the list, we continue the 
+        comparison with rest of the keys in case of DROP COLUMN
+        operation.
+      */
+      if (alter_info->flags & Alter_info::ALTER_DROP_COLUMN) 
+        continue;
+      else
+        break;
+    }
 
     if (k->generated ||
         (key->type != k->type) ||
@@ -3797,7 +3807,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     const CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
-      uint length;
       Key_part_spec *dup_column;
 
       it.rewind();
@@ -3927,26 +3936,36 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_part_info->fieldnr= field;
       key_part_info->offset=  (uint16) sql_field->offset;
       key_part_info->key_type=sql_field->pack_flag;
-      length= sql_field->key_length;
+      uint key_part_length= sql_field->key_length;
 
       if (column->length)
       {
 	if (f_is_blob(sql_field->pack_flag))
 	{
-	  if ((length=column->length) > max_key_length ||
-	      length > file->max_key_part_length())
+          key_part_length= column->length;
+          /*
+            There is a possibility that the given prefix length is less
+            than the engine max key part length, but still greater
+            than the BLOB field max size. We handle this case
+            using the max_field_size variable below.
+          */
+          uint max_field_size= sql_field->key_length * sql_field->charset->mbmaxlen;
+	  if ((max_field_size && key_part_length > max_field_size) ||
+              key_part_length > max_key_length ||
+	      key_part_length > file->max_key_part_length())
 	  {
-	    length=min(max_key_length, file->max_key_part_length());
+            // Given prefix length is too large, adjust it.
+	    key_part_length= min(max_key_length, file->max_key_part_length());
+	    if (max_field_size)
+              key_part_length= min(key_part_length, max_field_size);
 	    if (key->type == Key::MULTIPLE)
 	    {
 	      /* not a critical problem */
-	      char warn_buff[MYSQL_ERRMSG_SIZE];
-	      my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
-			  length);
-	      push_warning(thd, Sql_condition::SL_WARNING,
-			   ER_TOO_LONG_KEY, warn_buff);
+	      push_warning_printf(thd, Sql_condition::SL_WARNING,
+		                  ER_TOO_LONG_KEY, ER(ER_TOO_LONG_KEY),
+                                  key_part_length);
               /* Align key length to multibyte char boundary */
-              length-= length % sql_field->charset->mbmaxlen;
+              key_part_length-= key_part_length % sql_field->charset->mbmaxlen;
               /*
                If SQL_MODE is STRICT, then report error, else report warning
                and continue execution.
@@ -3956,7 +3975,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    }
 	    else
 	    {
-	      my_error(ER_TOO_LONG_KEY,MYF(0),length);
+	      my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
 	      DBUG_RETURN(TRUE);
 	    }
 	  }
@@ -3964,9 +3983,9 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         // Catch invalid use of partial keys 
 	else if (!f_is_geom(sql_field->pack_flag) &&
                  // is the key partial? 
-                 column->length != length &&
+                 column->length != key_part_length &&
                  // is prefix length bigger than field length? 
-                 (column->length > length ||
+                 (column->length > key_part_length ||
                   // can the field have a partial key? 
                   !Field::type_can_have_key_part (sql_field->sql_type) ||
                   // a packed field can't be used in a partial key
@@ -3980,26 +3999,25 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  DBUG_RETURN(TRUE);
 	}
 	else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
-	  length=column->length;
+	  key_part_length= column->length;
       }
-      else if (length == 0)
+      else if (key_part_length == 0)
       {
 	my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name.str);
 	  DBUG_RETURN(TRUE);
       }
-      if (length > file->max_key_part_length() && key->type != Key::FULLTEXT)
+      if (key_part_length > file->max_key_part_length() &&
+          key->type != Key::FULLTEXT)
       {
-        length= file->max_key_part_length();
+        key_part_length= file->max_key_part_length();
 	if (key->type == Key::MULTIPLE)
 	{
 	  /* not a critical problem */
-	  char warn_buff[MYSQL_ERRMSG_SIZE];
-	  my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
-		      length);
-	  push_warning(thd, Sql_condition::SL_WARNING,
-		       ER_TOO_LONG_KEY, warn_buff);
+	  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_TOO_LONG_KEY, ER(ER_TOO_LONG_KEY),
+                              key_part_length);
           /* Align key length to multibyte char boundary */
-          length-= length % sql_field->charset->mbmaxlen;
+          key_part_length-= key_part_length % sql_field->charset->mbmaxlen;
           /*
             If SQL_MODE is STRICT, then report error, else report warning
             and continue execution.
@@ -4009,15 +4027,15 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
 	else
 	{
-	  my_error(ER_TOO_LONG_KEY,MYF(0),length);
+	  my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
 	  DBUG_RETURN(TRUE);
 	}
       }
-      key_part_info->length=(uint16) length;
+      key_part_info->length= (uint16) key_part_length;
       /* Use packed keys for long strings on the first column */
       if (!((*db_options) & HA_OPTION_NO_PACK_KEYS) &&
           !((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
-	  (length >= KEY_DEFAULT_PACK_LENGTH &&
+	  (key_part_length >= KEY_DEFAULT_PACK_LENGTH &&
 	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
 	    sql_field->pack_flag & FIELDFLAG_BLOB)))
@@ -4029,10 +4047,10 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  key_info->flags|= HA_PACK_KEY;
       }
       /* Check if the key segment is partial, set the key flag accordingly */
-      if (length != sql_field->key_length)
+      if (key_part_length != sql_field->key_length)
         key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
 
-      key_length+=length;
+      key_length+= key_part_length;
       key_part_info++;
 
       /* Create the key name based on the first column (if not given) */
@@ -4088,7 +4106,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
 
     // Check if a duplicate index is defined.
-  if (check_duplicate_key(thd, key, key_info, &alter_info->key_list))
+  if (check_duplicate_key(thd, key, key_info, alter_info))
       DBUG_RETURN(true);
 
     key_info++;
@@ -4872,14 +4890,13 @@ bool mysql_create_table_no_lock(THD *thd,
   else
   {
     bool was_truncated;
-    int length;
     const char *alias= table_case_name(create_info, table_name);
-    length= build_table_filename(path, sizeof(path) - 1, db, alias,
-                                 "", 0, &was_truncated);
-    // Check if we hit FN_REFLEN bytes along with file extension.
-    if (was_truncated || length+reg_ext_length > FN_REFLEN)
+    build_table_filename(path, sizeof(path) - 1 - reg_ext_length, 
+                         db, alias, "", 0, &was_truncated);
+    // Check truncation, will lead to overflow when adding extension
+    if (was_truncated)
     {
-      my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path)-1, path);
+      my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path) - 1, path);
       return true;
     }
   }
@@ -4906,12 +4923,15 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
 {
   bool result;
   bool is_trans= FALSE;
+  uint not_used;
   DBUG_ENTER("mysql_create_table");
 
   /*
-    Open or obtain an exclusive metadata lock on table being created.
+    Open or obtain "X" MDL lock on the table being created.
+    To check the existence of table, lock of type "S" is obtained on the table
+    and then it is upgraded to "X" if table does not exists.
   */
-  if (open_and_lock_tables(thd, thd->lex->query_tables, FALSE, 0))
+  if (open_tables(thd, &thd->lex->query_tables, &not_used, 0))
   {
     result= TRUE;
     goto end;
@@ -5210,12 +5230,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     goto err;
 
   /*
-    Ensure that we have an exclusive lock on target table if we are creating
-    non-temporary table. In LOCK TABLES mode the only way the table is locked,
-    is if it already exists (since you cannot LOCK TABLE a non-existing table).
-    And the only way we then can end up here is if IF EXISTS was used.
+    Ensure that table or view does not exist and we have an exclusive lock on
+    target table if we are creating non-temporary table. In LOCK TABLES mode
+    the only way the table is locked, is if it already exists (since you cannot
+    LOCK TABLE a non-existing table). And the only way we then can end up here
+    is if IF EXISTS was used.
   */
-  DBUG_ASSERT((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+  DBUG_ASSERT(table->table || table->view ||
+              (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
               (thd->locked_tables_mode != LTM_LOCK_TABLES &&
                thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                               table->table_name,
@@ -6979,6 +7001,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   for (uint i=0 ; i < table->s->keys ; i++,key_info++)
   {
     const char *key_name= key_info->name;
+    bool index_column_dropped= false;
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
@@ -7015,7 +7038,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  break;
       }
       if (!cfield)
+      {
+        /*
+           We are dropping a column associated with an index.
+        */
+        index_column_dropped= true;
 	continue;				// Field is removed
+      }
       uint key_part_length=key_part->length;
       if (cfield->field)			// Not new field
       {
@@ -7100,12 +7129,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (key_info->flags & HA_USES_COMMENT)
         key_create_info.comment= key_info->comment;
 
-      /*
-        We're refreshing an already existing index. Since the index is not
-        modified, there is no need to check for duplicate indexes again.
-      */
-      key_create_info.check_for_duplicate_indexes= false;
-
       if (key_info->flags & HA_SPATIAL)
         key_type= Key::SPATIAL;
       else if (key_info->flags & HA_NOSAME)
@@ -7119,6 +7142,15 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         key_type= Key::FULLTEXT;
       else
         key_type= Key::MULTIPLE;
+      
+      if (index_column_dropped)
+      {
+        /*
+           We have dropped a column associated with an index,
+           this warrants a check for duplicate indexes
+        */
+        key_create_info.check_for_duplicate_indexes= true;
+      }
 
       key= new Key(key_type, key_name, strlen(key_name),
                    &key_create_info,
@@ -8777,8 +8809,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       tables.db= from->s->db.str;
       error= 1;
 
-      if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
-          setup_order(thd, thd->lex->select_lex.ref_pointer_array,
+      if (thd->lex->select_lex->setup_ref_array(thd, order_num))
+        goto err;            /* purecov: inspected */
+      if (setup_order(thd, thd->lex->select_lex->ref_pointer_array,
                       &tables, fields, all_fields, order))
         goto err;
       Filesort fsort(order, HA_POS_ERROR, NULL);

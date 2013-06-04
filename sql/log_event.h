@@ -40,7 +40,6 @@
 #include "rpl_utility.h"
 #include "hash.h"
 #include "rpl_tblmap.h"
-#include "rpl_tblmap.cc"
 
 /*
   Variable to suppress the USE <DATABASE> command when using the
@@ -478,11 +477,10 @@ struct sql_ex_info
   LOG_EVENT_FORCED_ROTATE_F set, so one should not rely on the value of the
   replacing flag when reading a Rotate event.
   I keep the defines here just to remember what they were.
+
+  #define LOG_EVENT_TIME_F            0x1
+  #define LOG_EVENT_FORCED_ROTATE_F   0x2
 */
-#ifdef TO_BE_REMOVED
-#define LOG_EVENT_TIME_F            0x1
-#define LOG_EVENT_FORCED_ROTATE_F   0x2
-#endif
 
 /*
    This flag only makes sense for Format_description_log_event. It is set
@@ -4383,42 +4381,66 @@ private:
    */
   int do_table_scan_and_update(Relay_log_info const *rli);
 
-/**
-  Initializes scanning of rows. Opens an index and initailizes an iterator
-  over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
-  over an index or the table if its a HASH_SCAN over the table.
-*/
+  /**
+    Initializes scanning of rows. Opens an index and initailizes an iterator
+    over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
+    over an index or the table if its a HASH_SCAN over the table.
+  */
   int open_record_scan();
 
-/**
-   Does the cleanup
-     -  deallocates all the elements in m_distinct_key_list if any
-     -  closes the index if opened by open_record_scan
-     -  closes the table if opened for scanning.
-*/
+  /**
+    Does the cleanup
+    - deallocates all the elements in m_distinct_key_list if any
+    - closes the index if opened by open_record_scan
+    - closes the table if opened for scanning.
+  */
   int close_record_scan();
 
-/**
-  Fetches next row. If it is a HASH_SCAN over an index, it populates
-  table->record[0] with the next row corresponding to the index. If
-  the indexes are in non-contigous ranges it fetches record corresponding
-  to the key value in the next range.
+  /**
+    Fetches next row. If it is a HASH_SCAN over an index, it populates
+    table->record[0] with the next row corresponding to the index. If
+    the indexes are in non-contigous ranges it fetches record corresponding
+    to the key value in the next range.
 
-  @parms: bool first_read : signifying if this is the first time we are reading a row
-          over an index.
-  @return_value: -  error code when there are no more reeords to be fetched or some other
-                    error occured,
-                 -  0 otherwise.
-*/
+    @parms: bool first_read : signifying if this is the first time we are reading a row
+            over an index.
+    @return_value: -  error code when there are no more reeords to be fetched or some other
+                      error occured,
+                   -  0 otherwise.
+  */
   int next_record_scan(bool first_read);
 
-/**
-  Populates the m_distinct_key_list with unique keys to be modified
-  during HASH_SCAN over keys.
-  @return_value -0 success
-                -Err_code
-*/
+  /**
+    Populates the m_distinct_key_list with unique keys to be modified
+    during HASH_SCAN over keys.
+    @return_value -0 success
+                  -Err_code
+  */
   int add_key_to_distinct_keyset();
+
+  /**
+    Populates the m_hash when using HASH_SCAN. Thence, it:
+    - unpacks the before image (BI)
+    - saves the positions
+    - saves the positions into the hash map, using the
+      BI checksum as key
+    - unpacks the after image (AI) if needed, so that
+      m_curr_row_end gets updated correctly.
+
+    @param rli The reference to the relay log info object.
+    @returns 0 on success. Otherwise, the error code.
+  */
+  int do_hash_row(Relay_log_info const *rli);
+
+  /**
+    This member function scans the table and applies the changes
+    that had been previously hashed. As such, m_hash MUST be filled
+    by do_hash_row before calling this member function.
+
+    @param rli The reference to the relay log info object.
+    @returns 0 on success. Otherwise, the error code.
+  */
+  int do_scan_and_update(Relay_log_info const *rli);
 #endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
 
   friend class Old_rows_log_event;

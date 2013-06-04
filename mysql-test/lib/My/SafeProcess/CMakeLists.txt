@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+IF (NOT INSTALL_MYSQLTESTDIR)
+  RETURN()
+ENDIF()
+
 SET(INSTALL_ARGS 
   DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" 
   COMPONENT Test
@@ -25,8 +29,16 @@ ELSE()
   MYSQL_ADD_EXECUTABLE(my_safe_process safe_process.cc ${INSTALL_ARGS})
 ENDIF()
 
-INSTALL(TARGETS my_safe_process DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test)
+INSTALL(TARGETS my_safe_process
+  DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test
+)
+
 IF(WIN32)
-  INSTALL(TARGETS my_safe_kill DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test)
+  INSTALL(TARGETS my_safe_kill
+    DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test
+  )
 ENDIF()
-INSTALL(FILES Base.pm DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test)
+
+INSTALL(FILES Base.pm
+  DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test
+)

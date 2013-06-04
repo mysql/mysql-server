@@ -19,11 +19,6 @@
 
 /* This is the include file that should be included 'first' in every C file. */
 
-/* Client library users on Windows need this macro defined here. */
-#if !defined(__WIN__) && defined(_WIN32)
-#define __WIN__
-#endif
-
 /*
   InnoDB depends on some MySQL internals which other plugins should not
   need.  This is because of InnoDB's foreign key support, "safe" binlog
@@ -34,22 +29,6 @@
   InnoDB's use.
 */
 #define INNODB_COMPATIBILITY_HOOKS
-
-#ifdef __CYGWIN__
-/* We use a Unix API, so pretend it's not Windows */
-#undef WIN
-#undef WIN32
-#undef _WIN
-#undef _WIN32
-#undef _WIN64
-#undef __WIN__
-#undef __WIN32__
-#define HAVE_ERRNO_AS_DEFINE
-#endif /* __CYGWIN__ */
-
-#if defined(__OpenBSD__) && (OpenBSD >= 200411)
-#define HAVE_ERRNO_AS_DEFINE
-#endif
 
 #if defined(i386) && !defined(__i386__)
 #define __i386__
@@ -76,7 +55,7 @@
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 /* Make it easier to add conditional code in _expressions_ */
-#ifdef __WIN__
+#ifdef _WIN32
 #define IF_WIN(A,B) A
 #else
 #define IF_WIN(A,B) B
@@ -86,11 +65,6 @@
 #define IF_PURIFY(A,B) A
 #else
 #define IF_PURIFY(A,B) B
-#endif
-
-#ifndef EMBEDDED_LIBRARY
-#define HAVE_REPLICATION
-#define HAVE_EXTERNAL_CLIENT
 #endif
 
 #if defined (_WIN32)
@@ -135,12 +109,6 @@
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
 #endif /* _WIN32*/
-
-
-/* Workaround for _LARGE_FILES and _LARGE_FILE_API incompatibility on AIX */
-#if defined(_AIX) && defined(_LARGE_FILE_API)
-#undef _LARGE_FILE_API
-#endif
 
 /*
   The macros below are used to allow build of Universal/fat binaries of
@@ -203,11 +171,6 @@
 #include <sys/types.h>
 #endif
 
-#ifdef HAVE_THREADS_WITHOUT_SOCKETS
-/* MIT pthreads does not work with unix sockets */
-#undef HAVE_SYS_UN_H
-#endif
-
 #define __EXTENSIONS__ 1	/* We want some extension */
 #ifndef __STDC_EXT__
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
@@ -245,82 +208,33 @@
 #endif
 #endif
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
 
-#if !defined(SCO)
 #define _REENTRANT	1	/* Some thread libraries require this */
-#endif
-#if !defined(_THREAD_SAFE) && !defined(_AIX)
+
+#if !defined(_THREAD_SAFE)
 #define _THREAD_SAFE            /* Required for OSF1 */
 #endif
-#if defined(HPUX10) || defined(HPUX11)
-C_MODE_START			/* HPUX needs this, signal.h bug */
 #include <pthread.h>
-C_MODE_END
-#else
-#include <pthread.h>		/* AIX must have this included first */
-#endif
-#if !defined(SCO) && !defined(_REENTRANT)
-#define _REENTRANT	1	/* Threads requires reentrant code */
-#endif
-#endif /* !defined(__WIN__) */
-
-/* Go around some bugs in different OS and compilers */
-#ifdef _AIX			/* By soren@t.dk */
-#define _H_STRINGS
-#define _SYS_STREAM_H
-/* #define _AIX32_CURSES */	/* XXX: this breaks AIX 4.3.3 (others?). */
-#define ulonglong2double(A) my_ulonglong2double(A)
-#define my_off_t2double(A)  my_ulonglong2double(A)
-C_MODE_START
-inline double my_ulonglong2double(unsigned long long A) { return (double A); }
-C_MODE_END
-#endif /* _AIX */
-
-#ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
-#undef HAVE_SNPRINTF
-#endif
-#ifdef HAVE_BROKEN_PREAD
-/*
-  pread()/pwrite() are not 64 bit safe on HP-UX 11.0 without
-  installing the kernel patch PHKL_20349 or greater
-*/
-#undef HAVE_PREAD
-#undef HAVE_PWRITE
-#endif
-
-#ifdef UNDEF_HAVE_INITGROUPS			/* For AIX 4.3 */
-#undef HAVE_INITGROUPS
-#endif
+#endif /* !defined(_WIN32) */
 
 #if defined(_lint) && !defined(lint)
 #define lint
-#endif
-#if SIZEOF_LONG_LONG > 4 && !defined(_LONG_LONG)
-#define _LONG_LONG 1		/* For AIX string library */
 #endif
 
 #ifndef stdin
 #include <stdio.h>
 #endif
 #include <stdarg.h>
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>
-#endif
 
 #include <math.h>
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
-#ifdef HAVE_FLOAT_H
 #include <float.h>
-#endif
 #ifdef HAVE_FENV_H
 #include <fenv.h> /* For fesetround() */
 #endif
@@ -330,9 +244,6 @@ C_MODE_END
 #endif
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
-#ifdef HAVE_SYS_TIMEB_H
-#include <sys/timeb.h>				/* Avoid warnings on SCO */
 #endif
 #if TIME_WITH_SYS_TIME
 # include <sys/time.h>
@@ -346,10 +257,6 @@ C_MODE_END
 #endif /* TIME_WITH_SYS_TIME */
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#if defined(__cplusplus) && defined(NO_CPLUSPLUS_ALLOCA)
-#undef HAVE_ALLOCA
-#undef HAVE_ALLOCA_H
 #endif
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -369,32 +276,12 @@ C_MODE_END
 #include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
-#ifdef _some_old_compiler_that_does_not_understand_the_construct_below_
-#define compile_time_assert(X)  do { } while(0)
-#else
-#define compile_time_assert(X)                                  \
-  do                                                            \
-  {                                                             \
-    typedef char compile_time_assert[(X) ? 1 : -1];             \
+#define compile_time_assert(X)                                              \
+  do                                                                        \
+  {                                                                         \
+    typedef char compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
-#endif
 
-/* Go around some bugs in different OS and compilers */
-#if defined (HPUX11) && defined(_LARGEFILE_SOURCE)
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif
-#endif
-
-#if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
-#include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */
-#define HAVE_ULONG
-#endif
-#if defined(HPUX10) && defined(_LARGEFILE64_SOURCE)
-/* Fix bug in setrlimit */
-#undef setrlimit
-#define setrlimit cma_setrlimit64
-#endif
 /* Declare madvise where it is not declared for C++, like Solaris */
 #if HAVE_MADVISE && !HAVE_DECL_MADVISE && defined(__cplusplus)
 extern "C" int madvise(void *addr, size_t len, int behav);
@@ -548,12 +435,12 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
 /* additional file share flags for win32 */
-#ifdef __WIN__
+#ifdef _WIN32
 #define _SH_DENYRWD     0x110    /* deny read/write mode & delete */
 #define _SH_DENYWRD     0x120    /* deny write mode & delete      */
 #define _SH_DENYRDD     0x130    /* deny read mode & delete       */
 #define _SH_DENYDEL     0x140    /* deny delete only              */
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
 /* General constants */
@@ -645,16 +532,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define KEY_CACHE_BLOCK_SIZE	(uint) 1024
 
 
-	/* Some things that this system doesn't have */
-
-#ifdef _WIN32
-#define NO_DIR_LIBRARY		/* Not standard dir-library */
-#endif
-
 /* Some defines of functions for portability */
 
-#undef remove		/* Crashes MySQL on SCO 5.0.0 */
-#ifndef __WIN__
+#ifndef _WIN32
 #define closesocket(A)	close(A)
 #endif
 
@@ -772,18 +652,8 @@ extern double my_double_isnan(double x);
 C_MODE_END
 
 #ifdef HAVE_ISINF
-/* Check if C compiler is affected by GCC bug #39228 */
-#if !defined(__cplusplus) && defined(HAVE_BROKEN_ISINF)
-/* Force store/reload of the argument to/from a 64-bit double */
-static inline double my_isinf(double x)
-{
-  volatile double t= x;
-  return isinf(t);
-}
-#else
 /* System-provided isinf() is available and safe to use */
 #define my_isinf(X) isinf(X)
-#endif
 #else /* !HAVE_ISINF */
 #define my_isinf(X) (!finite(X) && !isnan(X))
 #endif
@@ -844,36 +714,17 @@ typedef long long	my_ptrdiff_t;
 
 /* Typdefs for easyier portability */
 
-#ifndef HAVE_UCHAR
 typedef unsigned char	uchar;	/* Short for unsigned char */
-#endif
-
-#ifndef HAVE_INT8
 typedef signed char int8;       /* Signed integer >= 8  bits */
-#endif
-#ifndef HAVE_UINT8
 typedef unsigned char uint8;    /* Unsigned integer >= 8  bits */
-#endif
-#ifndef HAVE_INT16
 typedef short int16;
-#endif
-#ifndef HAVE_UINT16
 typedef unsigned short uint16;
-#endif
 #if SIZEOF_INT == 4
-#ifndef HAVE_INT32
 typedef int int32;
-#endif
-#ifndef HAVE_UINT32
 typedef unsigned int uint32;
-#endif
 #elif SIZEOF_LONG == 4
-#ifndef HAVE_INT32
 typedef long int32;
-#endif
-#ifndef HAVE_UINT32
 typedef unsigned long uint32;
-#endif
 #else
 #error Neither int or long is of 4 bytes width
 #endif
@@ -895,16 +746,10 @@ typedef unsigned long	ulonglong;	  /* ulong or unsigned long long */
 typedef long		longlong;
 #endif
 #endif
-#ifndef HAVE_INT64
 typedef longlong int64;
-#endif
-#ifndef HAVE_UINT64
 typedef ulonglong uint64;
-#endif
 
-#if defined(NO_CLIENT_LONG_LONG)
-typedef unsigned long my_ulonglong;
-#elif defined (__WIN__)
+#if defined (_WIN32)
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
@@ -941,7 +786,7 @@ typedef unsigned long my_off_t;
 typedef ulonglong table_map;          /* Used for table bits in join */
 typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
@@ -986,7 +831,6 @@ typedef char		my_bool; /* Small bool */
 #endif
 #endif
 
-#include <my_dbug.h>
 
 /* Some helper macros */
 #define YESNO(X) ((X) ? "yes" : "no")
@@ -1002,7 +846,7 @@ typedef char		my_bool; /* Small bool */
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
 #endif
 
-#if defined(EMBEDDED_LIBRARY) && !defined(HAVE_EMBEDDED_PRIVILEGE_CONTROL)
+#if defined(EMBEDDED_LIBRARY)
 #define NO_EMBEDDED_ACCESS_CHECKS
 #endif
 
@@ -1092,8 +936,6 @@ typedef char		my_bool; /* Small bool */
 #  else
 #    define __func__ __FUNCTION__
 #  endif
-#elif defined(__BORLANDC__)
-#  define __func__ __FUNC__
 #else
 #  define __func__ "<unknown>"
 #endif
@@ -1145,6 +987,8 @@ static inline double rint(double x)
 #define MYSQL_PLUGIN_IMPORT
 #endif
 #endif
+
+#include <my_dbug.h>
 
 /* Defines that are unique to the embedded version of MySQL */
 

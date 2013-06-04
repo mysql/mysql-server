@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ Created 12/7/1995 Heikki Tuuri
 /********************************************************//**
 Writes 1, 2 or 4 bytes to a file page. Writes the corresponding log
 record to the mini-transaction log if mtr is not NULL. */
-UNIV_INTERN
+
 void
 mlog_write_ulint(
 /*=============*/
@@ -45,7 +45,7 @@ mlog_write_ulint(
 /********************************************************//**
 Writes 8 bytes to a file page. Writes the corresponding log
 record to the mini-transaction log, only if mtr is not NULL */
-UNIV_INTERN
+
 void
 mlog_write_ull(
 /*===========*/
@@ -55,7 +55,7 @@ mlog_write_ull(
 /********************************************************//**
 Writes a string to a file page buffered in the buffer pool. Writes the
 corresponding log record to the mini-transaction log. */
-UNIV_INTERN
+
 void
 mlog_write_string(
 /*==============*/
@@ -66,7 +66,7 @@ mlog_write_string(
 /********************************************************//**
 Logs a write of a string to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
-UNIV_INTERN
+
 void
 mlog_log_string(
 /*============*/
@@ -76,7 +76,7 @@ mlog_log_string(
 /********************************************************//**
 Writes initial part of a log record consisting of one-byte item
 type and four-byte space and page numbers. */
-UNIV_INTERN
+
 void
 mlog_write_initial_log_record(
 /*==========================*/
@@ -109,7 +109,7 @@ mlog_catenate_ulint(
 	ulint	type);	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 /********************************************************//**
 Catenates n bytes to the mtr log. */
-UNIV_INTERN
+
 void
 mlog_catenate_string(
 /*=================*/
@@ -173,7 +173,7 @@ mlog_write_initial_log_record_fast(
 /********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
 @return	parsed record end, NULL if not a complete record */
-UNIV_INTERN
+
 byte*
 mlog_parse_initial_log_record(
 /*==========================*/
@@ -185,7 +185,7 @@ mlog_parse_initial_log_record(
 /********************************************************//**
 Parses a log record written by mlog_write_ulint or mlog_write_ull.
 @return	parsed record end, NULL if not a complete record */
-UNIV_INTERN
+
 byte*
 mlog_parse_nbytes(
 /*==============*/
@@ -197,7 +197,7 @@ mlog_parse_nbytes(
 /********************************************************//**
 Parses a log record written by mlog_write_string.
 @return	parsed record end, NULL if not a complete record */
-UNIV_INTERN
+
 byte*
 mlog_parse_string(
 /*==============*/
@@ -213,7 +213,7 @@ if needed, the field lengths of an index.  Reserves space
 for further log entries.  The log entry must be closed with
 mtr_close().
 @return	buffer, NULL if log mode MTR_LOG_NONE */
-UNIV_INTERN
+
 byte*
 mlog_open_and_write_index(
 /*======================*/
@@ -229,7 +229,7 @@ mlog_open_and_write_index(
 /********************************************************//**
 Parses a log record written by mlog_open_and_write_index.
 @return	parsed record end, NULL if not a complete record */
-UNIV_INTERN
+
 byte*
 mlog_parse_index(
 /*=============*/

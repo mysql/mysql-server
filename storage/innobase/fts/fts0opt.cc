@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,8 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 ***********************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "fts0fts.h"
 #include "row0sel.h"
 #include "que0types.h"
@@ -34,7 +36,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "srv0start.h"
 #include "zlib.h"
 
-#ifndef UNIV_NONINL
+#ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif
@@ -229,10 +231,10 @@ struct fts_msg_t {
 };
 
 /** The number of words to read and optimize in a single pass. */
-UNIV_INTERN ulong	fts_num_word_optimize;
+ulong	fts_num_word_optimize;
 
 // FIXME
-UNIV_INTERN char	fts_enable_diag_print;
+char	fts_enable_diag_print;
 
 /** ZLib compressed block size.*/
 static ulint FTS_ZIP_BLOCK_SIZE	= 1024;
@@ -335,7 +337,7 @@ fts_zip_init(
 /**********************************************************************//**
 Create a fts_optimizer_word_t instance.
 @return new instance */
-UNIV_INTERN
+
 fts_word_t*
 fts_word_init(
 /*==========*/
@@ -420,7 +422,7 @@ fts_optimize_read_node(
 /**********************************************************************//**
 Callback function to fetch the rows in an FTS INDEX record.
 @return always returns non-NULL */
-UNIV_INTERN
+
 ibool
 fts_optimize_index_fetch_node(
 /*==========================*/
@@ -461,7 +463,7 @@ fts_optimize_index_fetch_node(
 /**********************************************************************//**
 Read the rows from the FTS inde.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_index_fetch_nodes(
 /*==================*/
@@ -957,7 +959,7 @@ fts_fetch_doc_ids(
 /**********************************************************************//**
 Read the rows from a FTS common auxiliary table.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_table_fetch_doc_ids(
 /*====================*/
@@ -1024,7 +1026,7 @@ fts_table_fetch_doc_ids(
 Do a binary search for a doc id in the array
 @return +ve index if found -ve index where it should be inserted
         if not found */
-UNIV_INTERN
+
 int
 fts_bsearch(
 /*========*/
@@ -1509,7 +1511,7 @@ fts_optimize_write_word(
 
 /**********************************************************************//**
 Free fts_optimizer_word_t instanace.*/
-UNIV_INTERN
+
 void
 fts_word_free(
 /*==========*/
@@ -2423,7 +2425,7 @@ fts_optimize_table_bk(
 /*********************************************************************//**
 Run OPTIMIZE on the given table.
 @return DB_SUCCESS if all OK */
-UNIV_INTERN
+
 dberr_t
 fts_optimize_table(
 /*===============*/
@@ -2433,8 +2435,11 @@ fts_optimize_table(
 	fts_optimize_t*	optim = NULL;
 	fts_t*		fts = table->fts;
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: FTS start optimize %s\n", table->name);
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"FTS start optimize %s\n",
+			table->name);
+	}
 
 	optim = fts_optimize_create(table);
 
@@ -2508,8 +2513,11 @@ fts_optimize_table(
 
 	fts_optimize_free(optim);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: FTS end optimize %s\n", table->name);
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"FTS end optimize %s\n",
+			table->name);
+	}
 
 	return(error);
 }
@@ -2539,7 +2547,7 @@ fts_optimize_create_msg(
 
 /**********************************************************************//**
 Add the table to add to the OPTIMIZER's list. */
-UNIV_INTERN
+
 void
 fts_optimize_add_table(
 /*===================*/
@@ -2552,9 +2560,7 @@ fts_optimize_add_table(
 	}
 
 	/* Make sure table with FTS index cannot be evicted */
-	if (table->can_be_evicted) {
-		dict_table_move_from_lru_to_non_lru(table);
-	}
+	dict_table_prevent_eviction(table);
 
 	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, table);
 
@@ -2563,7 +2569,7 @@ fts_optimize_add_table(
 
 /**********************************************************************//**
 Optimize a table. */
-UNIV_INTERN
+
 void
 fts_optimize_do_table(
 /*==================*/
@@ -2584,7 +2590,7 @@ fts_optimize_do_table(
 /**********************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
 acknowledgement from the consumer of the message. */
-UNIV_INTERN
+
 void
 fts_optimize_remove_table(
 /*======================*/
@@ -2665,9 +2671,9 @@ fts_optimize_start_table(
 	slot = fts_optimize_find_slot(tables, table);
 
 	if (slot == NULL) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: table %s not registered "
-			"with the optimize thread.\n", table->name);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"table %s not registered with the optimize thread.\n",
+			table->name);
 	} else {
 		slot->last_run = 0;
 		slot->completed = 0;
@@ -2744,9 +2750,11 @@ fts_optimize_del_table(
 		if (slot->state != FTS_STATE_EMPTY
 		    && slot->table->id == table->id) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: FTS Optimize Removing "
-				"table %s\n", table->name);
+			if (fts_enable_diag_print) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"FTS Optimize Removing table %s\n",
+					table->name);
+			}
 
 			slot->table = NULL;
 			slot->state = FTS_STATE_EMPTY;
@@ -2907,7 +2915,7 @@ fts_optimize_need_sync(
 /**********************************************************************//**
 Optimize all FTS tables.
 @return Dummy return */
-UNIV_INTERN
+
 os_thread_ret_t
 fts_optimize_thread(
 /*================*/
@@ -3087,7 +3095,7 @@ fts_optimize_thread(
 
 /**********************************************************************//**
 Startup the optimize thread and create the work queue. */
-UNIV_INTERN
+
 void
 fts_optimize_init(void)
 /*===================*/
@@ -3107,7 +3115,7 @@ fts_optimize_init(void)
 /**********************************************************************//**
 Check whether the work queue is initialized.
 @return TRUE if optimze queue is initialized. */
-UNIV_INTERN
+
 ibool
 fts_optimize_is_init(void)
 /*======================*/
@@ -3117,7 +3125,7 @@ fts_optimize_is_init(void)
 
 /**********************************************************************//**
 Signal the optimize thread to prepare for shutdown. */
-UNIV_INTERN
+
 void
 fts_optimize_start_shutdown(void)
 /*=============================*/
@@ -3156,7 +3164,7 @@ fts_optimize_start_shutdown(void)
 
 /**********************************************************************//**
 Reset the work queue. */
-UNIV_INTERN
+
 void
 fts_optimize_end(void)
 /*==================*/

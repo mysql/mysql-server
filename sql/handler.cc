@@ -27,7 +27,7 @@
 #include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
 #include "sql_table.h"                   // build_table_filename
 #include "sql_parse.h"                          // check_stack_overrun
-#include "sql_acl.h"            // SUPER_ACL
+#include "auth_common.h"        // SUPER_ACL
 #include "sql_base.h"           // free_io_cache
 #include "discover.h"           // writefrm
 #include "log_event.h"          // *_rows_log_event
@@ -1297,6 +1297,11 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 
 
 /**
+  @param[in] ignore_global_read_lock   Allow commit to complete even if a
+                                       global read lock is active. This can be
+                                       used to allow changes to internal tables
+                                       (e.g. slave status tables).
+
   @retval
     0   ok
   @retval
@@ -1310,7 +1315,8 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
     stored functions or triggers. So we simply do nothing now.
     TODO: This should be fixed in later ( >= 5.1) releases.
 */
-int ha_commit_trans(THD *thd, bool all)
+
+int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 {
   int error= 0;
   /*
@@ -1380,7 +1386,7 @@ int ha_commit_trans(THD *thd, bool all)
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
-    if (rw_trans)
+    if (rw_trans && !ignore_global_read_lock)
     {
       /*
         Acquire a metadata lock which will ensure that COMMIT is blocked
@@ -1458,9 +1464,12 @@ end:
                    issued by DDL. Is not set when called
                    at the end of statement, even if
                    autocommit=1.
+  @param[in]  run_after_commit
+                   True by default, otherwise, does not execute
+                   the after_commit hook in the function.
 */
 
-int ha_commit_low(THD *thd, bool all)
+int ha_commit_low(THD *thd, bool all, bool run_after_commit)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
@@ -1494,17 +1503,19 @@ int ha_commit_low(THD *thd, bool all)
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (all)
     thd->transaction.cleanup();
-
-  /* If commit succeeded, we call the after_commit hook */
-  if (!error)
-    (void) RUN_HOOK(transaction, after_commit, (thd, all));
-
   /*
     When the transaction has been committed, we clear the commit_low
     flag. This allow other parts of the system to check if commit_low
     was called.
   */
   thd->transaction.flags.commit_low= false;
+  if (run_after_commit)
+  {
+    /* If commit succeeded, we call the after_commit hook */
+    if (!error)
+      (void) RUN_HOOK(transaction, after_commit, (thd, all));
+    thd->transaction.flags.run_hooks= false;
+  }
   DBUG_RETURN(error);
 }
 
@@ -3778,6 +3789,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_TOO_MANY_FIELDS:
     textno= ER_TOO_MANY_FIELDS;
+    break;
+  case HA_ERR_INNODB_READ_ONLY:
+    textno= ER_INNODB_READ_ONLY;
     break;
   default:
     {
@@ -6257,7 +6271,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     rowid= rowids_buf_cur;
 
     if (is_mrr_assoc)
-      memcpy(&cur_range_info, rowids_buf_cur + h->ref_length, sizeof(uchar**));
+      memcpy(&cur_range_info, rowids_buf_cur + h->ref_length, sizeof(uchar*));
 
     rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
     if (h2->mrr_funcs.skip_record &&

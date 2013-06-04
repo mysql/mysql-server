@@ -23,6 +23,8 @@ Undo modify of a row
 Created 2/27/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0umod.h"
 
 #ifdef UNIV_NONINL
@@ -237,6 +239,7 @@ row_undo_mod_clust(
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	online = dict_index_is_online_ddl(index);
 	if (online) {
@@ -265,6 +268,7 @@ row_undo_mod_clust(
 		descent down the index tree */
 
 		mtr_start(&mtr);
+		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		err = row_undo_mod_clust_low(
 			node, &offsets, &offsets_heap, heap, &rebuilt_old_pk,
@@ -294,7 +298,7 @@ row_undo_mod_clust(
 		case TRX_UNDO_UPD_DEL_REC:
 			row_log_table_delete(
 				btr_pcur_get_rec(pcur), index, offsets,
-				node->trx->id);
+				true, node->trx->id);
 			break;
 		default:
 			ut_ad(0);
@@ -307,6 +311,7 @@ row_undo_mod_clust(
 	if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
 
 		mtr_start(&mtr);
+		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		/* It is not necessary to call row_log_table,
 		because the record is delete-marked and would thus
@@ -320,6 +325,7 @@ row_undo_mod_clust(
 			pessimistic descent down the index tree */
 
 			mtr_start(&mtr);
+			dict_disable_redo_if_temporary(index->table, &mtr);
 
 			err = row_undo_mod_remove_clust_low(node, thr, &mtr,
 							    BTR_MODIFY_TREE);
@@ -332,8 +338,6 @@ row_undo_mod_clust(
 	}
 
 	node->state = UNDO_NODE_FETCH_NEXT;
-
-	trx_undo_rec_release(node->trx, node->undo_no);
 
 	if (offsets_heap) {
 		mem_heap_free(offsets_heap);
@@ -367,6 +371,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 
 	log_free_check();
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -423,6 +428,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	we should delete mark the record. */
 
 	mtr_start(&mtr_vers);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	success = btr_pcur_restore_position(BTR_SEARCH_LEAF, &(node->pcur),
 					    &mtr_vers);
@@ -539,6 +545,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 	log_free_check();
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -1015,7 +1022,8 @@ row_undo_mod_parse_undo_rec(
 				    &dummy_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
-	node->table = dict_table_open_on_id(table_id, dict_locked, FALSE);
+	node->table = dict_table_open_on_id(
+		table_id, dict_locked, DICT_TABLE_OP_NORMAL);
 
 	/* TODO: other fixes associated with DROP TABLE + rollback in the
 	same table by another user */
@@ -1059,7 +1067,7 @@ row_undo_mod_parse_undo_rec(
 /***********************************************************//**
 Undoes a modify operation on a row of a table.
 @return	DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 row_undo_mod(
 /*=========*/
@@ -1072,6 +1080,7 @@ row_undo_mod(
 	ut_ad(node && thr);
 	ut_ad(node->state == UNDO_NODE_MODIFY);
 	ut_ad(node->trx->in_rollback);
+	ut_ad(!trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
 	dict_locked = thr_get_trx(thr)->dict_operation_lock_mode == RW_X_LATCH;
 
@@ -1083,7 +1092,6 @@ row_undo_mod(
 		/* It is already undone, or will be undone by another query
 		thread, or table was dropped */
 
-		trx_undo_rec_release(node->trx, node->undo_no);
 		node->state = UNDO_NODE_FETCH_NEXT;
 
 		return(DB_SUCCESS);
@@ -1091,14 +1099,6 @@ row_undo_mod(
 
 	node->index = dict_table_get_first_index(node->table);
 	ut_ad(dict_index_is_clust(node->index));
-
-	if (dict_index_is_online_ddl(node->index)) {
-		/* Note that we are rolling back this transaction, so
-		that all inserts and updates with this DB_TRX_ID can
-		be skipped. */
-		row_log_table_rollback(node->index, node->trx->id);
-	}
-
 	/* Skip the clustered index (the first index) */
 	node->index = dict_table_get_next_index(node->index);
 

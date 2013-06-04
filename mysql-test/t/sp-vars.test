@@ -179,6 +179,7 @@ BEGIN
   SET v1 = v4;
   SET v2 = 0;
   SET v5 = v4; # check overflow
+  SHOW WARNINGS;
   SET v6 = v3; # check padding
 
   SELECT HEX(v1);
@@ -962,6 +963,7 @@ BEGIN
   DECLARE sp_var INTEGER;
 
   SELECT col INTO sp_var FROM t1 LIMIT 1;
+  SHOW WARNINGS;
   SET @user_var = sp_var;
 
   SELECT sp_var;
@@ -1068,7 +1070,7 @@ END|
 CREATE PROCEDURE p2(arg ENUM('a', 'b'))
 BEGIN
   DECLARE var ENUM('c', 'd') DEFAULT arg;
-
+  SHOW WARNINGS;
   SELECT arg, var;
 END|
 

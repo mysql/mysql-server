@@ -41,22 +41,23 @@ trx_purge_get_log_from_hist(
 	return(node_addr);
 }
 
-#ifdef UNIV_DEBUG
 /********************************************************************//**
 address of its history list node.
-@return	TRUE if purge_sys_t::limit <= purge_sys_t::iter*/
+@return	true if purge_sys_t::limit <= purge_sys_t::iter */
 UNIV_INLINE
-ibool
+bool
 trx_purge_check_limit(void)
 /*=======================*/
 {
-	ut_ad(purge_sys->limit.trx_no <= purge_sys->iter.trx_no);
-
-	if (purge_sys->limit.trx_no == purge_sys->iter.trx_no) {
-		ut_ad(purge_sys->limit.undo_no <= purge_sys->iter.undo_no);
-	}
-
-	return(TRUE);
+	/* limit is used to track till what point purge element has been
+	processed and so limit <= iter.
+	undo_no ordering is enforced only within the same rollback segment.
+	If a transaction uses multiple rollback segments then we need to
+	consider the rollback segment space id too. */
+	return(purge_sys->iter.trx_no > purge_sys->limit.trx_no
+	       || (purge_sys->iter.trx_no == purge_sys->limit.trx_no
+		   && ((purge_sys->iter.undo_no >= purge_sys->limit.undo_no)
+		       || (purge_sys->iter.undo_rseg_space
+			   != purge_sys->limit.undo_rseg_space))));
 }
-#endif /* UNIV_DEBUG */
 

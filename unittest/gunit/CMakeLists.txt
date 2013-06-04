@@ -188,18 +188,23 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/unittest/mytap
+  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/storage/example
 )
 
-CHECK_C_COMPILER_FLAG("-Wno-null-dereference" HAVE_NO_NULL)
+INCLUDE(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-Wno-null-dereference" HAVE_NO_NULL)
 IF(HAVE_NO_NULL)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-null-dereference")
+ENDIF()
+CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
 ENDIF()
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
-  gunit_test_main.cc tap_event_listener.cc thread_utils.cc)
+  gunit_test_main.cc skip_trailing.cc tap_event_listener.cc thread_utils.cc)
 ADD_LIBRARY(gunit_large STATIC
   gunit_test_main_server.cc test_utils.cc tap_event_listener.cc thread_utils.cc)
 ADD_DEPENDENCIES(gunit_small GenError)
@@ -237,13 +242,16 @@ SET(TESTS
   mysys_lf
   mysys_my_atomic
   mysys_my_malloc
+  mysys_my_pwrite
   mysys_my_rdtsc
   mysys_my_vsnprintf
   mysys_my_write
+  prealloced_array
   sql_list
   sql_plist
   sql_string
   stdcxx
+  strings_skip_trailing
   thread_utils
   )
   
@@ -255,6 +263,7 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  debug_sync
   explain_filename
   field
   get_diagnostics
@@ -263,6 +272,7 @@ SET(SERVER_TESTS
   item
   item_func_now_local
   item_timefunc
+  item_like
   join_tab_sort
   log_throttle
   make_sortkey
