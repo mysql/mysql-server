@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -261,13 +261,17 @@ EOF
 
 
 sub show {
-  my ($class, $core_name, $exe_mysqld)= @_;
+  my ($class, $core_name, $exe_mysqld, $parallel)= @_;
   $hint_mysqld= $exe_mysqld;
 
   # On Windows, rely on cdb to be there...
   if (IS_WINDOWS)
   {
-    _cdb($core_name);
+    # Starting cdb is unsafe when used with --parallel > 1 option 
+    if ( $parallel < 2 )
+    {
+      _cdb($core_name);
+    }
     return;
   }
   

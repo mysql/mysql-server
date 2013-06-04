@@ -77,8 +77,7 @@ bool String::realloc(uint32 alloc_length)
     {
       if (str_length > len - 1)
         str_length= 0;
-      if (str_length)				// Avoid bugs in memcpy on AIX
-	memcpy(new_ptr,Ptr,str_length);
+      memcpy(new_ptr,Ptr,str_length);
       new_ptr[str_length]=0;
       alloced=1;
     }

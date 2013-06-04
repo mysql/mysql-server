@@ -21,14 +21,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
-#include <unireg.h>
-#include <mysqld_error.h>
-#include <log.h>
+/* Include necessary SQL headers */
+#include "ha_prototypes.h"
 #include <debug_sync.h>
-#include <mysql/innodb_priv.h>
-#include <sql_alter.h>
+#include <log.h>
 #include <sql_class.h>
 
+/* Include necessary InnoDB headers */
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
@@ -41,12 +40,10 @@ Smart ALTER TABLE
 #include "srv0space.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
-#include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "srv0mon.h"
 #include "fts0priv.h"
 #include "pars0pars.h"
-
 #include "ha_innodb.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
@@ -221,7 +218,7 @@ requires exclusive lock (any transactions that have accessed the table
 must commit or roll back first, and no transactions can access the table
 while prepare_inplace_alter_table() is executing)
 */
-UNIV_INTERN
+
 enum_alter_inplace_result
 ha_innobase::check_if_supported_inplace_alter(
 /*==========================================*/
@@ -806,6 +803,8 @@ innobase_get_foreign_key_info(
 	ulint		num_fk = 0;
 	Alter_info*	alter_info = ha_alter_info->alter_info;
 
+	DBUG_ENTER("innobase_get_foreign_key_info");
+
 	*n_add_fk = 0;
 
 	List_iterator<Key> key_iterator(alter_info->key_list);
@@ -826,7 +825,7 @@ innobase_get_foreign_key_info(
 		char*		tbl_namep = NULL;
 		ulint		db_name_len = 0;
 		ulint		tbl_name_len = 0;
-#ifdef __WIN__
+#ifdef _WIN32
 		char		db_name[MAX_DATABASE_NAME_LEN];
 		char		tbl_name[MAX_TABLE_NAME_LEN];
 #endif
@@ -881,7 +880,7 @@ innobase_get_foreign_key_info(
 
 		add_fk[num_fk] = dict_mem_foreign_create();
 
-#ifndef __WIN__
+#ifndef _WIN32
 		tbl_namep = fk_key->ref_table.str;
 		tbl_name_len = fk_key->ref_table.length;
 		db_namep = fk_key->ref_db.str;
@@ -1007,7 +1006,7 @@ innobase_get_foreign_key_info(
 
 	*n_add_fk = num_fk;
 
-	return(true);
+	DBUG_RETURN(true);
 err_exit:
 	for (ulint i = 0; i <= num_fk; i++) {
 		if (add_fk[i]) {
@@ -1015,7 +1014,7 @@ err_exit:
 		}
 	}
 
-	return(false);
+	DBUG_RETURN(false);
 }
 
 /*************************************************************//**
@@ -1110,7 +1109,7 @@ innobase_col_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_rec_to_mysql(
 /*==================*/
@@ -1162,7 +1161,7 @@ null_field:
 
 /*************************************************************//**
 Copies an InnoDB index entry to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_fields_to_mysql(
 /*=====================*/
@@ -1205,7 +1204,7 @@ innobase_fields_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB row to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_row_to_mysql(
 /*==================*/
@@ -1241,7 +1240,7 @@ innobase_row_to_mysql(
 
 /*************************************************************//**
 Resets table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_rec_reset(
 /*===============*/
@@ -1604,7 +1603,7 @@ innobase_fts_check_doc_id_col(
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return	the status of the FTS_DOC_ID index */
-UNIV_INTERN
+
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
@@ -1692,7 +1691,7 @@ Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column in MySQL create index definition.
 @return	FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-UNIV_INTERN
+
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index_in_def(
 /*===================================*/
@@ -2988,7 +2987,9 @@ prepare_inplace_alter_table_dict(
 			error = DB_OUT_OF_MEMORY;
 			goto error_handling;
 		}
+	}
 
+	if (ctx->online) {
 		/* Assign a consistent read view for
 		row_merge_read_clustered_index(). */
 		trx_assign_read_view(ctx->prebuilt->trx);
@@ -3121,17 +3122,7 @@ error_handled:
 					ctx->new_table, ctx->trx);
 			}
 
-			dict_table_close(ctx->new_table, TRUE, FALSE);
-
-#if defined UNIV_DEBUG || defined UNIV_DDL_DEBUG
-			/* Nobody should have initialized the stats of the
-			newly created table yet. When this is the case, we
-			know that it has not been added for background stats
-			gathering. */
-			ut_a(!ctx->new_table->stat_initialized);
-#endif /* UNIV_DEBUG || UNIV_DDL_DEBUG */
-
-			row_merge_drop_table(ctx->trx, ctx->new_table);
+			dict_table_close_and_drop(ctx->trx, ctx->new_table);
 
 			/* Free the log for online table rebuild, if
 			one was allocated. */
@@ -3469,7 +3460,7 @@ by ALTER TABLE and holding data used during in-place alter.
 @retval true		Failure
 @retval false		Success
 */
-UNIV_INTERN
+
 bool
 ha_innobase::prepare_inplace_alter_table(
 /*=====================================*/
@@ -4086,7 +4077,7 @@ by ALTER TABLE and holding data used during in-place alter.
 @retval true		Failure
 @retval false		Success
 */
-UNIV_INTERN
+
 bool
 ha_innobase::inplace_alter_table(
 /*=============================*/
@@ -4308,10 +4299,11 @@ rollback_inplace_alter_table(
 		goto func_exit;
 	}
 
+	trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 	row_mysql_lock_data_dictionary(ctx->trx);
 
 	if (ctx->need_rebuild()) {
-		dberr_t	err;
+		dberr_t	err = DB_SUCCESS;
 		ulint	flags	= ctx->new_table->flags;
 
 		/* DML threads can access ctx->new_table via the
@@ -4334,18 +4326,7 @@ rollback_inplace_alter_table(
 			}
 		}
 
-		/* Drop the table. */
-		dict_table_close(ctx->new_table, TRUE, FALSE);
-
-#if defined UNIV_DEBUG || defined UNIV_DDL_DEBUG
-		/* Nobody should have initialized the stats of the
-		newly created table yet. When this is the case, we
-		know that it has not been added for background stats
-		gathering. */
-		ut_a(!ctx->new_table->stat_initialized);
-#endif /* UNIV_DEBUG || UNIV_DDL_DEBUG */
-
-		err = row_merge_drop_table(ctx->trx, ctx->new_table);
+		dict_table_close_and_drop(ctx->trx, ctx->new_table);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -4359,8 +4340,6 @@ rollback_inplace_alter_table(
 		DBUG_ASSERT(!(ha_alter_info->handler_flags
 			      & Alter_inplace_info::ADD_PK_INDEX));
 		DBUG_ASSERT(ctx->new_table == prebuilt->table);
-
-		trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 
 		innobase_rollback_sec_index(
 			prebuilt->table, table, FALSE, ctx->trx);
@@ -5026,8 +5005,11 @@ innobase_update_foreign_cache(
 	ha_innobase_inplace_ctx*	ctx)
 {
 	dict_table_t*	user_table;
+	dberr_t		err = DB_SUCCESS;
 
 	DBUG_ENTER("innobase_update_foreign_cache");
+
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	user_table = ctx->old_table;
 
@@ -5060,8 +5042,16 @@ innobase_update_foreign_cache(
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
-	DBUG_RETURN(dict_load_foreigns(user_table->name,
-				       ctx->col_names, false, true));
+	dict_names_t	fk_tables;
+
+	err = dict_load_foreigns(user_table->name,
+				 ctx->col_names, false, true,
+				 DICT_ERR_IGNORE_NONE,
+				 fk_tables);
+
+	ut_ad(fk_tables.empty());
+
+	DBUG_RETURN(err);
 }
 
 /** Commit the changes made during prepare_inplace_alter_table()
@@ -5657,7 +5647,7 @@ by ALTER TABLE and holding data used during in-place alter.
 @retval true		Failure
 @retval false		Success
 */
-UNIV_INTERN
+
 bool
 ha_innobase::commit_inplace_alter_table(
 /*====================================*/
@@ -5903,7 +5893,7 @@ ha_innobase::commit_inplace_alter_table(
 				DBUG_SUICIDE(););
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
-		ut_ad(trx->insert_undo || trx->update_undo);
+		ut_ad(trx_is_rseg_updated(trx));
 
 		/* The following call commits the
 		mini-transaction, making the data dictionary
@@ -5949,20 +5939,10 @@ ha_innobase::commit_inplace_alter_table(
 
 		if (fail) {
 			if (new_clustered) {
-				dict_table_close(ctx->new_table,
-						 TRUE, FALSE);
-
-#if defined UNIV_DEBUG || defined UNIV_DDL_DEBUG
-				/* Nobody should have initialized the
-				stats of the newly created table
-				yet. When this is the case, we know
-				that it has not been added for
-				background stats gathering. */
-				ut_a(!ctx->new_table->stat_initialized);
-#endif /* UNIV_DEBUG || UNIV_DDL_DEBUG */
-
 				trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
-				row_merge_drop_table(trx, ctx->new_table);
+
+				dict_table_close_and_drop(trx, ctx->new_table);
+
 				trx_commit_for_mysql(trx);
 				ctx->new_table = NULL;
 			} else {
@@ -5996,6 +5976,9 @@ ha_innobase::commit_inplace_alter_table(
 			because WL#6049 (FK MDL) has not been
 			implemented yet. */
 			ctx->old_table->to_be_dropped = true;
+
+			DBUG_PRINT("to_be_dropped",
+				   ("table: %s", ctx->old_table->name));
 
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
@@ -6250,7 +6233,7 @@ foreign_fail:
 @param thd - the session
 @param start_value - the lower bound
 @param max_value - the upper bound (inclusive) */
-UNIV_INTERN
+
 ib_sequence_t::ib_sequence_t(
 	THD*		thd,
 	ulonglong	start_value,
@@ -6287,7 +6270,7 @@ ib_sequence_t::ib_sequence_t(
 /**
 Postfix increment
 @return the next value to insert */
-UNIV_INTERN
+
 ulonglong
 ib_sequence_t::operator++(int) UNIV_NOTHROW
 {

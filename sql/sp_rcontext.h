@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,15 +122,13 @@ public:
     ///
     /// @param _sql_condition SQL-condition, triggered handler activation.
     /// @param _continue_ip   Continue instruction pointer.
-    /// @param _statement_id  Statement ID of the current Diagnostics Area.
     Handler_call_frame(const sp_handler *_handler,
                        Sql_condition *_sql_condition,
-                       uint _continue_ip,
-                       ulonglong statement_id)
+                       uint _continue_ip)
      :handler(_handler),
       sql_condition(_sql_condition),
       continue_ip(_continue_ip),
-      handler_da(statement_id, false)
+      handler_da(false)
     { }
  };
 
@@ -226,7 +224,7 @@ public:
   void exit_handler(THD *thd,
                     sp_pcontext *target_scope);
 
-  /// @return the continue instruction pointer if the last activated CONTINUE
+  /// @return the continue instruction pointer of the last activated CONTINUE
   /// handler. This function must not be called for the EXIT handlers.
   uint get_last_handler_continue_ip() const
   {

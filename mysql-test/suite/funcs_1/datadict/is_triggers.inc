@@ -20,9 +20,6 @@
 #                   create variants for embedded/non embedded server.
 #
 
-let $engine_type       = MEMORY;
-let $other_engine_type = MyISAM;
-
 let $is_table = TRIGGERS;
 
 # The table INFORMATION_SCHEMA.TRIGGERS must exist

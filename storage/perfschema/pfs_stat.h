@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -56,6 +56,11 @@ struct PFS_single_stat
     m_sum= 0;
     m_min= ULONGLONG_MAX;
     m_max= 0;
+  }
+
+  inline bool has_timed_stats() const
+  {
+    return (m_min <= m_max);
   }
 
   inline void aggregate(const PFS_single_stat *stat)

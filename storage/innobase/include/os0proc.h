@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,21 +47,21 @@ number is unique. In Linux returns the 'process number' of the current
 thread. That number is the same as one sees in 'top', for example. In Linux
 the thread id is not the same as one sees in 'top'.
 @return	process id as a number */
-UNIV_INTERN
+
 ulint
 os_proc_get_number(void);
 /*====================*/
 /****************************************************************//**
 Allocates large pages memory.
 @return	allocated memory */
-UNIV_INTERN
+
 void*
 os_mem_alloc_large(
 /*===============*/
 	ulint*	n);			/*!< in/out: number of bytes */
 /****************************************************************//**
 Frees large pages memory. */
-UNIV_INTERN
+
 void
 os_mem_free_large(
 /*==============*/

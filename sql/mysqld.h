@@ -328,8 +328,10 @@ extern PSI_mutex_key key_BINLOG_LOCK_done;
 extern PSI_mutex_key key_BINLOG_LOCK_flush_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_index;
 extern PSI_mutex_key key_BINLOG_LOCK_log;
+extern PSI_mutex_key key_BINLOG_LOCK_binlog_end_pos;
 extern PSI_mutex_key key_BINLOG_LOCK_sync;
 extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
+extern PSI_mutex_key key_BINLOG_LOCK_xids;
 extern PSI_mutex_key
   key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_error_log,
@@ -359,6 +361,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
+extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_LOCK_thread_created;
@@ -535,7 +538,7 @@ void init_sql_statement_info();
 void init_com_statement_info();
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
-#ifndef __WIN__
+#ifndef _WIN32
 extern pthread_t signal_thread;
 #endif
 

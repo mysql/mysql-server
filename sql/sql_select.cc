@@ -35,7 +35,7 @@
                                  // mysql_unlock_read_tables
 #include "sql_show.h"            // append_identifier
 #include "sql_base.h"            // setup_wild, setup_fields, fill_record
-#include "sql_acl.h"             // *_ACL
+#include "auth_common.h"         // *_ACL
 #include "sql_test.h"            // misc. debug printing utilities
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
@@ -75,8 +75,9 @@ bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option)
 {
   bool res;
-  LEX *lex= thd->lex;
-  SELECT_LEX *select_lex = &lex->select_lex;
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex = lex->select_lex;
+
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 
@@ -88,10 +89,10 @@ bool handle_select(THD *thd, select_result *result,
 
   if (select_lex->master_unit()->is_union() || 
       select_lex->master_unit()->fake_select_lex)
-    res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
+    res= mysql_union(thd, lex, result, lex->unit, setup_tables_done_option);
   else
   {
-    SELECT_LEX_UNIT *unit= &lex->unit;
+    SELECT_LEX_UNIT *unit= lex->unit;
     unit->set_limit(unit->global_parameters);
     /*
       'options' of mysql_select will be set in JOIN, as far as JOIN for
@@ -2114,7 +2115,18 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
       idx_cond->update_used_tables();
       if ((idx_cond->used_tables() & tab->table->map) == 0)
       {
-        DBUG_ASSERT(other_tbls_ok || idx_cond->const_item());
+        /*
+          The following assert is to check that we only skip pushing the
+          index condition for the following situations:
+          1. We actually are allowed to generate an index condition on another
+             table.
+          2. The index condition is a constant item.
+          3. The index condition contains an updatable user variable
+             (test this by checking that the RAND_TABLE_BIT is set).
+        */
+        DBUG_ASSERT(other_tbls_ok ||                                  // 1
+                    idx_cond->const_item() ||                         // 2
+                    (idx_cond->used_tables() & RAND_TABLE_BIT) );     // 3
         DBUG_VOID_RETURN;
       }
 
@@ -3011,6 +3023,11 @@ void JOIN_TAB::cleanup()
       (Tested in part_of_refkey)
     */
     table->reginfo.join_tab= NULL;
+    if (table->pos_in_table_list)
+    {
+      table->pos_in_table_list->derived_keys_ready= false;
+      table->pos_in_table_list->derived_key_list.empty();
+    }
   }
   end_read_record(&read_record);
 }
@@ -3168,8 +3185,8 @@ void JOIN::join_free()
   if (can_unlock && lock && thd->lock && ! thd->locked_tables_mode &&
       !(select_options & SELECT_NO_UNLOCK) &&
       !select_lex->subquery_in_having &&
-      (select_lex == (thd->lex->unit.fake_select_lex ?
-                      thd->lex->unit.fake_select_lex : &thd->lex->select_lex)))
+      (select_lex == (thd->lex->unit->fake_select_lex ?
+                      thd->lex->unit->fake_select_lex : thd->lex->select_lex)))
   {
     /*
       TODO: unlock tables even if the join isn't top level select in the

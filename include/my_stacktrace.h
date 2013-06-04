@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #if defined (__x86_64__) || defined (__i386__)
 #define HAVE_STACKTRACE 1
 #endif
-#elif defined(__WIN__) || defined(HAVE_PRINTSTACK)
+#elif defined(_WIN32) || defined(HAVE_PRINTSTACK)
 #define HAVE_STACKTRACE 1
 #endif
 
@@ -49,7 +49,7 @@ void my_write_core(int sig);
 #if BACKTRACE_DEMANGLE
 char *my_demangle(const char *mangled_name, int *status);
 #endif
-#ifdef __WIN__
+#ifdef _WIN32
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 #endif
 #endif

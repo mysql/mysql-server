@@ -20,14 +20,6 @@
 
 C_MODE_START
 
-#ifdef HAVE_AIOWAIT
-#include <sys/asynch.h>			/* Used by record-cache */
-typedef struct my_aio_result {
-  aio_result_t result;
-  int	       pending;
-} my_aio_result;
-#endif
-
 #ifdef HAVE_VALGRIND
 # include <valgrind/memcheck.h>
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
@@ -164,16 +156,11 @@ extern char *my_strndup(const char *from, size_t length,
   Switch to my_malloc() if the memory block to be allocated is bigger than
   max_alloca_sz.
 */
-#ifndef HAVE_ALLOCA
-#define my_safe_alloca(size, max_alloca_sz) my_alloca(size)
-#define my_safe_afree(ptr, size, max_alloca_sz) my_afree(ptr)
-#else
 #define my_safe_alloca(size, max_alloca_sz) ((size <= max_alloca_sz) ? \
                                              my_alloca(size) : \
                                              my_malloc(size, MYF(0)))
 #define my_safe_afree(ptr, size, max_alloca_sz) if (size > max_alloca_sz) \
                                                my_free(ptr)
-#endif                                          /* #ifndef HAVE_ALLOCA */
 
 #if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
 /**
@@ -216,31 +203,14 @@ extern void my_large_free(uchar *ptr);
 #define my_large_free(A) my_free((A))
 #endif /* HAVE_LARGE_PAGES */
 
-#ifdef HAVE_ALLOCA
-#if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
-#pragma alloca
-#endif /* _AIX */
-#if defined(__MWERKS__)
-#undef alloca
-#define alloca _alloca
-#endif /* __MWERKS__ */
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
 #endif /* GNUC */
 #define my_alloca(SZ) alloca((size_t) (SZ))
 #define my_afree(PTR) {}
-#else
-#define my_alloca(SZ) my_malloc(SZ,MYF(MY_FAE))
-#define my_afree(PTR) my_free(PTR)
-#endif /* HAVE_ALLOCA */
 
-#ifndef errno				/* did we already get it? */
-#ifdef HAVE_ERRNO_AS_DEFINE
 #include <errno.h>			/* errno is a define */
-#else
-extern int errno;			/* declare errno */
-#endif
-#endif					/* #ifndef errno */
+
 extern char *home_dir;			/* Home directory for user */
 extern const char *my_progname;		/* program-name (printed in errors) */
 extern char curr_dir[];		/* Current directory for user */
@@ -315,10 +285,6 @@ typedef struct st_record_cache	/* Used when cacheing records */
   uint	rc_length,read_length,reclength;
   my_off_t rc_record_pos,end_of_file;
   uchar *rc_buff,*rc_buff2,*rc_pos,*rc_end,*rc_request_pos;
-#ifdef HAVE_AIOWAIT
-  int	use_async_io;
-  my_aio_result aio_result;
-#endif
   enum cache_type type;
 } RECORD_CACHE;
 
@@ -498,15 +464,6 @@ typedef struct st_io_cache		/* Used when cacheing files */
     somewhere else
   */
   my_bool alloced_buffer;
-#ifdef HAVE_AIOWAIT
-  /*
-    As inidicated by ifdef, this is for async I/O, which is not currently
-    used (because it's not reliable on all systems)
-  */
-  uint inited;
-  my_off_t aio_read_pos;
-  my_aio_result aio_result;
-#endif
 } IO_CACHE;
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -637,12 +594,12 @@ extern int      my_access(const char *path, int amode);
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
-#ifdef __WIN__
+#ifdef _WIN32
 extern my_bool is_filename_allowed(const char *name, size_t length,
                    my_bool allow_current_dir);
-#else /* __WIN__ */
+#else /* _WIN32 */
 # define is_filename_allowed(name, length, allow_cwd) (TRUE)
-#endif /* __WIN__ */ 
+#endif /* _WIN32 */ 
 
 #ifdef _WIN32
 extern int nt_share_delete(const char *name,myf MyFlags);
@@ -771,7 +728,6 @@ extern void remove_io_thread(IO_CACHE *info);
 extern int _my_b_seq_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_net_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_get(IO_CACHE *info);
-extern int _my_b_async_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_write(IO_CACHE *info,const uchar *Buffer,size_t Count);
 extern int my_b_append(IO_CACHE *info,const uchar *Buffer,size_t Count);
 extern int my_b_safe_write(IO_CACHE *info,const uchar *Buffer,size_t Count);
@@ -881,9 +837,6 @@ extern int my_getncpus();
 #ifndef MAP_NOSYNC
 #define MAP_NOSYNC      0
 #endif
-#ifndef MAP_NORESERVE
-#define MAP_NORESERVE 0         /* For irix and AIX */
-#endif
 
 #ifdef HAVE_MMAP64
 #define my_mmap(a,b,c,d,e,f)    mmap64(a,b,c,d,e,f)
@@ -947,7 +900,7 @@ extern void add_compiled_collation(CHARSET_INFO *cs);
 extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);
-#ifdef __WIN__
+#ifdef _WIN32
 #define BACKSLASH_MBTAIL
 /* File system character set */
 extern CHARSET_INFO *fs_character_set(void);
@@ -959,7 +912,7 @@ extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 extern void thd_increment_bytes_sent(ulong length);
 extern void thd_increment_bytes_received(ulong length);
 
-#ifdef __WIN__
+#ifdef _WIN32
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
 
 /* implemented in my_windac.c */
@@ -978,7 +931,7 @@ void my_win_console_fputs(const CHARSET_INFO *cs, const char *data);
 void my_win_console_putc(const CHARSET_INFO *cs, int c);
 void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args);
 int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***av);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #include <mysql/psi/psi.h>
 

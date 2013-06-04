@@ -17,14 +17,11 @@
 #define MY_CONFIG_H
 #cmakedefine DOT_FRM_VERSION @DOT_FRM_VERSION@
 /* Headers we may want to use. */
-#cmakedefine STDC_HEADERS 1
 #cmakedefine _GNU_SOURCE 1
 #cmakedefine HAVE_ALLOCA_H 1
-#cmakedefine HAVE_AIO_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
 #cmakedefine HAVE_ASM_MSR_H 1
 #cmakedefine HAVE_ASM_TERMBITS_H 1
-#cmakedefine HAVE_BSEARCH 1
 #cmakedefine HAVE_CRYPT_H 1
 #cmakedefine HAVE_CURSES_H 1
 #cmakedefine HAVE_CXXABI_H 1
@@ -35,55 +32,41 @@
 #cmakedefine HAVE_EXECINFO_H 1
 #cmakedefine HAVE_FCNTL_H 1
 #cmakedefine HAVE_FENV_H 1
-#cmakedefine HAVE_FLOAT_H 1
-#cmakedefine HAVE_FLOATINGPOINT_H 1
 #cmakedefine HAVE_FNMATCH_H 1
 #cmakedefine HAVE_FPU_CONTROL_H 1
 #cmakedefine HAVE_GRP_H 1
 #cmakedefine HAVE_IA64INTRIN_H 1
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_INTTYPES_H 1
-#cmakedefine HAVE_LIMITS_H 1
-#cmakedefine HAVE_LOCALE_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_MEMORY_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_PATHS_H 1
 #cmakedefine HAVE_POLL_H 1
-#cmakedefine HAVE_PORT_H 1
 #cmakedefine HAVE_PWD_H 1
 #cmakedefine HAVE_SCHED_H 1
 #cmakedefine HAVE_SELECT_H 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
-#cmakedefine HAVE_STDDEF_H 1
 #cmakedefine HAVE_STDLIB_H 1
 #cmakedefine HAVE_STDARG_H 1
 #cmakedefine HAVE_STRINGS_H 1
-#cmakedefine HAVE_STRING_H 1
 #cmakedefine HAVE_STDINT_H 1
-#cmakedefine HAVE_SEMAPHORE_H 1
 #cmakedefine HAVE_SYNCH_H 1
 #cmakedefine HAVE_SYSENT_H 1
 #cmakedefine HAVE_SYS_DIR_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
-#cmakedefine HAVE_SYS_FILE_H 1
 #cmakedefine HAVE_SYS_FPU_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
 #cmakedefine HAVE_SYS_IPC_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
 #cmakedefine HAVE_SYS_MMAN_H 1
 #cmakedefine HAVE_SYS_NDIR_H 1
-#cmakedefine HAVE_SYS_PTE_H 1
-#cmakedefine HAVE_SYS_PTEM_H 1
 #cmakedefine HAVE_SYS_PRCTL_H 1
 #cmakedefine HAVE_SYS_RESOURCE_H 1
 #cmakedefine HAVE_SYS_SELECT_H 1
 #cmakedefine HAVE_SYS_SHM_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
 #cmakedefine HAVE_SYS_STAT_H 1
-#cmakedefine HAVE_SYS_STREAM_H 1
-#cmakedefine HAVE_SYS_TERMCAP_H 1
-#cmakedefine HAVE_SYS_TIMEB_H 1
 #cmakedefine HAVE_SYS_TIMES_H 1
 #cmakedefine HAVE_SYS_TIME_H 1
 #cmakedefine HAVE_SYS_TYPES_H 1
@@ -94,10 +77,8 @@
 #cmakedefine HAVE_TERMIOS_H 1
 #cmakedefine HAVE_TERMIO_H 1
 #cmakedefine HAVE_TERMCAP_H 1
-#cmakedefine HAVE_TIME_H 1
 #cmakedefine HAVE_UNISTD_H 1
 #cmakedefine HAVE_UTIME_H 1
-#cmakedefine HAVE_VARARGS_H 1
 #cmakedefine HAVE_VIS_H 1
 #cmakedefine HAVE_SYS_UTIME_H 1
 #cmakedefine HAVE_SYS_WAIT_H 1
@@ -111,54 +92,40 @@
 #cmakedefine HAVE_LIBSOCKET 1
 #cmakedefine HAVE_LIBNSL 1
 #cmakedefine HAVE_LIBCRYPT 1
-#cmakedefine HAVE_LIBMTMALLOC 1
 #cmakedefine HAVE_LIBWRAP 1
-#cmakedefine HAVE_LIBRESOLV 1
 /* Does "struct timespec" have a "sec" and "nsec" field? */
 #cmakedefine HAVE_TIMESPEC_TS_SEC 1
 
 /* Readline */
 #cmakedefine HAVE_HIST_ENTRY 1
 #cmakedefine USE_LIBEDIT_INTERFACE 1
-#cmakedefine USE_NEW_READLINE_INTERFACE 1
 
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine GWINSZ_IN_SYS_IOCTL 1
-#cmakedefine TIOCSTAT_IN_SYS_IOCTL 1
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
 
 /* Functions we may want to use. */
 #cmakedefine HAVE_ALIGNED_MALLOC 1
-#cmakedefine HAVE_ALIGNED_FREE 1
-#cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
-#cmakedefine HAVE_ALLOCA 1
-#cmakedefine HAVE_BMOVE 1
 #cmakedefine HAVE_INDEX 1
-#cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CRYPT 1
 #cmakedefine HAVE_CUSERID 1
 #cmakedefine HAVE_DIRECTIO 1
 #cmakedefine HAVE_DLERROR 1
 #cmakedefine HAVE_DLOPEN 1
-#cmakedefine HAVE_DOPRNT 1
 #cmakedefine HAVE_FCHMOD 1
 #cmakedefine HAVE_FCNTL 1
-#cmakedefine HAVE_FCONVERT 1
 #cmakedefine HAVE_FDATASYNC 1
 #cmakedefine HAVE_FESETROUND 1
 #cmakedefine HAVE_FINITE 1
 #cmakedefine HAVE_FP_EXCEPT 1
-#cmakedefine HAVE_FPSETMASK 1
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
-#cmakedefine HAVE_FTIME 1
 #cmakedefine HAVE_GETADDRINFO 1
 #cmakedefine HAVE_GETCWD 1
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
 #cmakedefine HAVE_GETHRTIME 1
-#cmakedefine HAVE_GETLINE 1
 #cmakedefine HAVE_GETNAMEINFO 1
 #cmakedefine HAVE_GETPAGESIZE 1
 #cmakedefine HAVE_GETPASS 1
@@ -194,7 +161,7 @@
 #cmakedefine HAVE_DECL_MADVISE 1
 #cmakedefine HAVE_DECL_TGOTO 1
 #cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
-#cmakedefine HAVE_MALLINFO 1
+#cmakedefine HAVE_MALLOC_INFO 1
 #cmakedefine HAVE_MEMCPY 1
 #cmakedefine HAVE_MEMMOVE 1
 #cmakedefine HAVE_MKSTEMP 1
@@ -203,40 +170,28 @@
 #cmakedefine HAVE_MMAP64 1
 #cmakedefine HAVE_PERROR 1
 #cmakedefine HAVE_POLL 1
-#cmakedefine HAVE_PORT_CREATE 1
 #cmakedefine HAVE_POSIX_FALLOCATE 1
 #cmakedefine HAVE_POSIX_MEMALIGN 1
 #cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_RDTSCLL 1
-#cmakedefine HAVE_READ_REAL_TIME 1
 #cmakedefine HAVE_PTHREAD_ATTR_CREATE 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
-#cmakedefine HAVE_PTHREAD_ATTR_SETPRIO 1
-#cmakedefine HAVE_PTHREAD_ATTR_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSCOPE 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
-#cmakedefine HAVE_PTHREAD_CONDATTR_CREATE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
-#cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KILL 1
 #cmakedefine HAVE_PTHREAD_RWLOCK_RDLOCK 1
-#cmakedefine HAVE_PTHREAD_SETPRIO_NP 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
-#cmakedefine HAVE_PTHREAD_THREADMASK 1
 #cmakedefine HAVE_PTHREAD_YIELD_NP 1
 #cmakedefine HAVE_PTHREAD_YIELD_ZERO_ARG 1
 #cmakedefine PTHREAD_ONCE_INITIALIZER @PTHREAD_ONCE_INITIALIZER@
-#cmakedefine HAVE_PUTENV 1
-#cmakedefine HAVE_RE_COMP 1
-#cmakedefine HAVE_REGCOMP 1
 #cmakedefine HAVE_READDIR_R 1
 #cmakedefine HAVE_READLINK 1
 #cmakedefine HAVE_REALPATH 1
-#cmakedefine HAVE_RENAME 1
 #cmakedefine HAVE_RINT 1
 #cmakedefine HAVE_RWLOCK_INIT 1
 #cmakedefine HAVE_SCHED_YIELD 1
@@ -244,11 +199,7 @@
 #cmakedefine HAVE_SETFD 1
 #cmakedefine HAVE_SETENV 1
 #cmakedefine HAVE_SETLOCALE 1
-#cmakedefine HAVE_SIGADDSET 1
-#cmakedefine HAVE_SIGEMPTYSET 1
-#cmakedefine HAVE_SIGHOLD 1
 #cmakedefine HAVE_SIGSET 1
-#cmakedefine HAVE_SIGSET_T 1
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SIGTHREADMASK 1
 #cmakedefine HAVE_SIGWAIT 1
@@ -256,38 +207,25 @@
 #cmakedefine HAVE_SNPRINTF 1
 #cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STRERROR 1
-#cmakedefine HAVE_STRCOLL 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
 #cmakedefine HAVE_FGETLN 1
 #cmakedefine HAVE_STRNLEN 1
-#cmakedefine HAVE_STRPBRK 1
 #cmakedefine HAVE_STRSEP 1
-#cmakedefine HAVE_STRSTR 1
 #cmakedefine HAVE_STRTOK_R 1
-#cmakedefine HAVE_STRTOL 1
 #cmakedefine HAVE_STRTOLL 1
 #cmakedefine HAVE_STRTOUL 1
 #cmakedefine HAVE_STRTOULL 1
-#cmakedefine HAVE_SHMAT 1
-#cmakedefine HAVE_SHMCTL 1
-#cmakedefine HAVE_SHMDT 1
-#cmakedefine HAVE_SHMGET 1
 #cmakedefine HAVE_TELL 1
 #cmakedefine HAVE_TEMPNAM 1
 #cmakedefine HAVE_THR_SETCONCURRENCY 1
 #cmakedefine HAVE_THR_YIELD 1
-#cmakedefine HAVE_TIME 1
 #cmakedefine HAVE_TIMES 1
-#cmakedefine HAVE_VALLOC 1
-#define HAVE_VIO_READ_BUFF 1
 #cmakedefine HAVE_VASPRINTF 1
-#cmakedefine HAVE_VPRINTF 1
 #cmakedefine HAVE_VSNPRINTF 1
 #cmakedefine HAVE_FTRUNCATE 1
 #cmakedefine HAVE_TZNAME 1
-#cmakedefine HAVE_AIO_READ 1
 /* Symbols we may use */
 /* used by stacktrace functions */
 #cmakedefine HAVE_BSS_START 1
@@ -303,18 +241,12 @@
 #cmakedefine HAVE_SOCKADDR_IN_SIN_LEN 1
 #cmakedefine HAVE_SOCKADDR_IN6_SIN6_LEN 1
 #cmakedefine HAVE_TIMESPEC_TS_SEC 1
-#cmakedefine STRUCT_DIRENT_HAS_D_INO 1
-#cmakedefine STRUCT_DIRENT_HAS_D_NAMLEN 1
-#cmakedefine SPRINTF_RETURNS_INT 1
 
 #cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine HAVE_EPOLL 1
-#cmakedefine HAVE_EPOLL_CTL 1
 /* #cmakedefine HAVE_EVENT_PORTS 1 */
 #cmakedefine HAVE_INET_NTOP 1
-#cmakedefine HAVE_KQUEUE 1
 #cmakedefine HAVE_WORKING_KQUEUE 1
-#cmakedefine HAVE_SIGNAL 1
 #cmakedefine HAVE_TIMERADD 1
 #cmakedefine HAVE_TIMERCLEAR 1
 #cmakedefine HAVE_TIMERCMP 1
@@ -324,8 +256,6 @@
 #cmakedefine HAVE_SIGNAL_H 1
 #cmakedefine HAVE_SYS_DEVPOLL_H 1
 #cmakedefine HAVE_SYS_EPOLL_H 1
-#cmakedefine HAVE_SYS_EVENT_H 1
-#cmakedefine HAVE_SYS_QUEUE_H 1
 #cmakedefine HAVE_TAILQFOREACH 1
 
 #cmakedefine HAVE_VALGRIND
@@ -343,13 +273,11 @@
   #endif
   #define SIZEOF_VOIDP   SIZEOF_LONG
   #define SIZEOF_CHARP   SIZEOF_LONG
-  #define SIZEOF_SIZE_T  SIZEOF_LONG
 #else
 /* No indentation, to fetch the lines from verification scripts */
 #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
 #cmakedefine SIZEOF_VOIDP  @SIZEOF_VOIDP@
 #cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
-#cmakedefine SIZEOF_SIZE_T @SIZEOF_CHARP@
 #endif
 
 #cmakedefine SIZEOF_CHAR @SIZEOF_CHAR@
@@ -365,34 +293,12 @@
 #cmakedefine SIZEOF_OFF_T @SIZEOF_OFF_T@
 #cmakedefine HAVE_OFF_T 1
 #cmakedefine SIZEOF_SIGSET_T @SIZEOF_SIGSET_T@
-#cmakedefine HAVE_SIGSET_T 1
-#cmakedefine HAVE_SIZE_T 1
-#cmakedefine SIZEOF_UCHAR @SIZEOF_UCHAR@
-#cmakedefine HAVE_UCHAR 1
 #cmakedefine SIZEOF_UINT @SIZEOF_UINT@
 #cmakedefine HAVE_UINT 1
 #cmakedefine SIZEOF_ULONG @SIZEOF_ULONG@
 #cmakedefine HAVE_ULONG 1
-#cmakedefine SIZEOF_INT8 @SIZEOF_INT8@
-#cmakedefine HAVE_INT8 1
-#cmakedefine SIZEOF_UINT8 @SIZEOF_UINT8@
-#cmakedefine HAVE_UINT8 1
-#cmakedefine SIZEOF_INT16 @SIZEOF_INT16@
-#cmakedefine HAVE_INT16 1
-#cmakedefine SIZEOF_UINT16 @SIZEOF_UINT16@
-#cmakedefine HAVE_UINT16 1
-#cmakedefine SIZEOF_INT32 @SIZEOF_INT32@
-#cmakedefine HAVE_INT32 1
-#cmakedefine SIZEOF_UINT32 @SIZEOF_UINT32@
-#cmakedefine HAVE_UINT32 1
 #cmakedefine SIZEOF_U_INT32_T @SIZEOF_U_INT32_T@
 #cmakedefine HAVE_U_INT32_T 1
-#cmakedefine SIZEOF_INT64 @SIZEOF_INT64@
-#cmakedefine HAVE_INT64 1
-#cmakedefine SIZEOF_UINT64 @SIZEOF_UINT64@
-#cmakedefine HAVE_UINT64 1
-#cmakedefine SIZEOF_BOOL @SIZEOF_BOOL@
-#cmakedefine HAVE_BOOL 1
 
 #cmakedefine SOCKET_SIZE_TYPE @SOCKET_SIZE_TYPE@
 
@@ -429,34 +335,14 @@
 
 #cmakedefine TARGET_OS_LINUX 1
 
-#cmakedefine HAVE_WCTYPE_H 1
-#cmakedefine HAVE_WCHAR_H 1
 #cmakedefine HAVE_LANGINFO_H 1
-#cmakedefine HAVE_MBRLEN
-#cmakedefine HAVE_MBSCMP
-#cmakedefine HAVE_MBSRTOWCS
-#cmakedefine HAVE_WCRTOMB
-#cmakedefine HAVE_MBRTOWC
-#cmakedefine HAVE_WCSCOLL
 #cmakedefine HAVE_WCSDUP
-#cmakedefine HAVE_WCWIDTH
-#cmakedefine HAVE_WCTYPE
-#cmakedefine HAVE_ISWLOWER 1
-#cmakedefine HAVE_ISWUPPER 1
-#cmakedefine HAVE_TOWLOWER 1
-#cmakedefine HAVE_TOWUPPER 1
-#cmakedefine HAVE_ISWCTYPE 1
 #cmakedefine HAVE_WCHAR_T 1
-#cmakedefine HAVE_WCTYPE_T 1
 #cmakedefine HAVE_WINT_T 1
 
 
-#cmakedefine HAVE_STRCASECMP 1
-#cmakedefine HAVE_STRNCASECMP 1
 #cmakedefine HAVE_STRDUP 1
 #cmakedefine HAVE_LANGINFO_CODESET 
-#cmakedefine HAVE_TCGETATTR 1
-#cmakedefine HAVE_FLOCKFILE 1
 
 #cmakedefine HAVE_WEAK_SYMBOL 1
 #cmakedefine HAVE_ABI_CXA_DEMANGLE 1
@@ -478,7 +364,6 @@
 #cmakedefine HAVE_LARGE_PAGES 1
 #cmakedefine HUGETLB_USE_PROC_MEMINFO 1
 #cmakedefine NO_FCNTL_NONBLOCK 1
-#cmakedefine NO_ALARM 1
 
 #cmakedefine _LARGE_FILES 1
 #cmakedefine _LARGEFILE_SOURCE 1
@@ -519,7 +404,7 @@
 #define setenv(a,b,c) _putenv_s(a,b)
 #endif
 /* We don't want the min/max macros */
-#ifdef __WIN__
+#ifdef _WIN32
 #define NOMINMAX
 #endif
 

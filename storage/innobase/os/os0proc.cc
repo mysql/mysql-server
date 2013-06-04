@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -40,9 +40,9 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 #define OS_MAP_ANON	MAP_ANON
 #endif
 
-UNIV_INTERN ibool os_use_large_pages;
+ibool os_use_large_pages;
 /* Large page size. This may be a boot-time option on some platforms */
-UNIV_INTERN ulint os_large_page_size;
+ulint os_large_page_size;
 
 /****************************************************************//**
 Converts the current process id to a number. It is not guaranteed that the
@@ -50,12 +50,12 @@ number is unique. In Linux returns the 'process number' of the current
 thread. That number is the same as one sees in 'top', for example. In Linux
 the thread id is not the same as one sees in 'top'.
 @return	process id as a number */
-UNIV_INTERN
+
 ulint
 os_proc_get_number(void)
 /*====================*/
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	return((ulint)GetCurrentProcessId());
 #else
 	return((ulint) getpid());
@@ -65,7 +65,7 @@ os_proc_get_number(void)
 /****************************************************************//**
 Allocates large pages memory.
 @return	allocated memory */
-UNIV_INTERN
+
 void*
 os_mem_alloc_large(
 /*===============*/
@@ -120,7 +120,7 @@ os_mem_alloc_large(
 skip:
 #endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
 
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEM_INFO	system_info;
 	GetSystemInfo(&system_info);
 
@@ -173,7 +173,7 @@ skip:
 
 /****************************************************************//**
 Frees large pages memory. */
-UNIV_INTERN
+
 void
 os_mem_free_large(
 /*==============*/
@@ -196,7 +196,7 @@ os_mem_free_large(
 		return;
 	}
 #endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
-#ifdef __WIN__
+#ifdef _WIN32
 	/* When RELEASE memory, the size parameter must be 0.
 	Do not use MEM_RELEASE with MEM_DECOMMIT. */
 	if (!VirtualFree(ptr, 0, MEM_RELEASE)) {

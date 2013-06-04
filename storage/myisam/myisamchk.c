@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,9 +22,6 @@
 #include <stdarg.h>
 #include <my_getopt.h>
 #include <my_bit.h>
-#ifdef HAVE_SYS_VADVICE_H
-#include <sys/vadvise.h>
-#endif
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -359,7 +356,7 @@ static void usage(void)
   -?, --help          Display this help and exit.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
-#if defined( __WIN__)
+#if defined(_WIN32)
    printf("semicolon (;)");
 #else
    printf("colon (:)");
@@ -1009,7 +1006,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  The data file is nowadays reopened in the repair code so we should
 	  soon remove the following reopen-code
 	*/
-#ifndef TO_BE_REMOVED
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
 	  (void) my_close(info->dfile,MYF(MY_WME)); /* Close new file */
@@ -1019,7 +1015,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
 	  param->read_cache.file=info->dfile;
 	}
-#endif
 	if (! error)
 	{
 	  uint key;

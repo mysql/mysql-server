@@ -41,8 +41,9 @@
                           // date_time_format_make
 #include "tztime.h"       // my_tz_free, my_tz_init, my_tz_SYSTEM
 #include "hostname.h"     // hostname_cache_free, hostname_cache_init
-#include "sql_acl.h"      // acl_free, grant_free, acl_init,
-                          // grant_init
+#include "auth_common.h"  // init_default_auth_plugin, set_default_auth_plugin
+                          // acl_free, acl_init
+                          // grant_free, grant_init
 #include "sql_base.h"     // table_def_free, table_def_init,
                           // Table_cache,
                           // cached_table_definitions
@@ -125,12 +126,6 @@ using std::vector;
 
 #define mysqld_charset &my_charset_latin1
 
-/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
-
-#if defined(HAVE_DEC_3_2_THREADS) || defined(HAVE_purify) && defined(__linux__)
-#define HAVE_CLOSE_SERVER_SOCK 1
-#endif
-
 extern "C" {          // Because of SCO 3.2V4.2
 #include <errno.h>
 #include <sys/stat.h>
@@ -149,7 +144,7 @@ extern "C" {          // Because of SCO 3.2V4.2
 #endif
 #include <my_net.h>
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #include <sys/resource.h>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
@@ -161,7 +156,7 @@ extern "C" {          // Because of SCO 3.2V4.2
 #include <sys/select.h>
 #endif
 #include <sys/utsname.h>
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #include <my_libwrap.h>
 
@@ -169,7 +164,7 @@ extern "C" {          // Because of SCO 3.2V4.2
 #include <sys/mman.h>
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <crtdbg.h>
 #endif
 
@@ -186,10 +181,6 @@ extern int getpagesizes2(size_t *, int);
 extern int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #endif /* __sun__ ... */
 #endif /* HAVE_SOLARIS_LARGE_PAGES */
-
-#ifdef _AIX41
-int initgroups(const char *,unsigned int);
-#endif
 
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
 #include <ieeefp.h>
@@ -262,13 +253,6 @@ inline void setup_fpu()
 #endif /* _WIN32 && */
 #endif /* __i386__ */
 
-#if defined(__sgi) && defined(HAVE_SYS_FPU_H)
-  /* Enable denormalized DOUBLE values support for IRIX */
-  union fpc_csr n;
-  n.fc_word = get_fpc_csr();
-  n.fc_struct.flush = 0;
-  set_fpc_csr(n.fc_word);
-#endif
 }
 
 } /* cplusplus */
@@ -339,9 +323,9 @@ static PSI_thread_key key_thread_handle_con_sharedmem;
 static PSI_thread_key key_thread_handle_con_sockets;
 #endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
 
-#ifdef __WIN__
+#ifdef _WIN32
 static PSI_thread_key key_thread_handle_shutdown;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static PSI_rwlock_key key_rwlock_openssl;
@@ -1167,8 +1151,7 @@ static uint thr_kill_signal;
 
 /* OS specific variables */
 
-#ifdef __WIN__
-#undef   getpid
+#ifdef _WIN32
 #include <process.h>
 
 static mysql_cond_t COND_handler_count;
@@ -1183,14 +1166,12 @@ static char shutdown_event_name[40];
 #include "nt_servc.h"
 static   NTService  Service;        ///< Service object for WinNT
 #endif /* EMBEDDED_LIBRARY */
-#endif /* __WIN__ */
 
-#ifdef _WIN32
 static char pipe_name[512];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
-#endif
+#endif /* _WIN32 */
 
 #ifndef EMBEDDED_LIBRARY
 bool mysqld_embedded=0;
@@ -1307,7 +1288,7 @@ static void close_connections(void)
   kill_blocked_pthreads();
 
   /* kill connection thread */
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
                       (ulong) select_thread));
   mysql_mutex_lock(&LOCK_thread_count);
@@ -1336,7 +1317,7 @@ static void close_connections(void)
     close_server_sock();
   }
   mysql_mutex_unlock(&LOCK_thread_count);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
   /* Abort listening to new connections */
@@ -1485,7 +1466,8 @@ static void close_connections(void)
 
 static void close_server_sock()
 {
-#ifdef HAVE_CLOSE_SERVER_SOCK
+/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
+#if defined(HAVE_purify) && defined(__linux__)
   DBUG_ENTER("close_server_sock");
   MYSQL_SOCKET tmp_sock;
   tmp_sock=ip_sock;
@@ -1514,7 +1496,7 @@ void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #if !defined(EMBEDDED_LIBRARY)
   {
     if (!SetEvent(hEventShutdown))
@@ -1553,7 +1535,7 @@ void kill_mysql(void)
     or stop, we just want to kill the server.
 */
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 static void *kill_server(void *sig_ptr)
 #define RETURN_FROM_KILL_SERVER return 0
 #else
@@ -1579,7 +1561,7 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER_DEFAULT(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
-#if defined(HAVE_SMEM) && defined(__WIN__)
+#if defined(HAVE_SMEM) && defined(_WIN32)
   /*
    Send event to smem_event_connect_request for aborting
    */
@@ -1639,7 +1621,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 #ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,print_signal_warning);    /* int. thread system calls */
 #endif
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   if (sig == SIGALRM)
     alarm(2);         /* reschedule alarm */
 #endif
@@ -1977,7 +1959,7 @@ static void set_ports()
   }
   if (!mysqld_unix_port)
   {
-#ifdef __WIN__
+#ifdef _WIN32
     mysqld_unix_port= (char*) MYSQL_NAMEDPIPE;
 #else
     mysqld_unix_port= (char*) MYSQL_UNIX_ADDR;
@@ -1991,7 +1973,7 @@ static void set_ports()
 
 static struct passwd *check_user(const char *user)
 {
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   struct passwd *tmp_user_info;
   uid_t user_id= geteuid();
 
@@ -2056,7 +2038,7 @@ err:
 static void set_user(const char *user, struct passwd *user_info_arg)
 {
   /* purecov: begin tested */
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   DBUG_ASSERT(user_info_arg != 0);
 #ifdef HAVE_INITGROUPS
   /*
@@ -2086,7 +2068,7 @@ static void set_user(const char *user, struct passwd *user_info_arg)
 
 static void set_effective_user(struct passwd *user_info_arg)
 {
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   DBUG_ASSERT(user_info_arg != 0);
   if (setregid((gid_t)-1, user_info_arg->pw_gid) == -1)
   {
@@ -2105,7 +2087,7 @@ static void set_effective_user(struct passwd *user_info_arg)
 /** Change root user if started with @c --chroot . */
 static void set_root(const char *path)
 {
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   if (chroot(path) == -1)
   {
     sql_perror("chroot");
@@ -2312,14 +2294,14 @@ static void network_init(void)
 
     mysql_socket_set_thread_owner(ip_sock);
 
-#ifndef __WIN__
+#ifndef _WIN32
     /*
       We should not use SO_REUSEADDR on windows as this would enable a
       user to open two mysqld servers with the same TCP/IP port.
     */
     arg= 1;
     (void) mysql_socket_setsockopt(ip_sock, SOL_SOCKET, SO_REUSEADDR, (char*)&arg,sizeof(arg));
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #ifdef IPV6_V6ONLY
      /*
@@ -2434,9 +2416,6 @@ static void network_init(void)
       unireg_abort(1);          /* purecov: tested */
     }
     umask(((~my_umask) & 0666));
-#if defined(S_IFSOCK) && defined(SECURE_SOCKETS)
-    (void) chmod(mysqld_unix_port,S_IFSOCK);  /* Fix solaris 2.6 bug */
-#endif
     if (mysql_socket_listen(unix_sock, (int)back_log) < 0)
       sql_print_warning("listen() on Unix socket failed with error %d",
           socket_errno);
@@ -2694,31 +2673,13 @@ void kill_blocked_pthreads()
 }
 
 
-#ifdef THREAD_SPECIFIC_SIGPIPE
-/**
-  Aborts a thread nicely. Comes here on SIGPIPE.
-
-  @todo
-    One should have to fix that thr_alarm know about this thread too.
-*/
-extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
-{
-  THD *thd=current_thd;
-  DBUG_ENTER("abort_thread");
-  if (thd)
-    thd->killed= THD::KILL_CONNECTION;
-  DBUG_VOID_RETURN;
-}
-#endif
-
-
 /******************************************************************************
   Setup a signal thread with handles all signals.
   Because Linux doesn't support schemas use a mutex to check that
   the signal thread is ready before continuing
 ******************************************************************************/
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 
 
 /*
@@ -2871,7 +2832,7 @@ static void start_signal_handler(void)
 static void check_data_home(const char *path)
 {}
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
 #if BACKTRACE_DEMANGLE
@@ -2883,7 +2844,7 @@ extern "C" char *my_demangle(const char *mangled_name, int *status)
 #endif
 
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #ifndef SA_RESETHAND
 #define SA_RESETHAND 0
 #endif
@@ -2933,10 +2894,8 @@ void my_init_signals(void)
   (void) sigemptyset(&set);
   my_sigset(SIGPIPE,SIG_IGN);
   sigaddset(&set,SIGPIPE);
-#ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
-#endif
   sigaddset(&set,SIGTERM);
 
   /* Fix signals if blocked by parents (can happen on Mac OS X) */
@@ -2973,7 +2932,6 @@ static void start_signal_handler(void)
   DBUG_ENTER("start_signal_handler");
 
   (void) pthread_attr_init(&thr_attr);
-#if !defined(HAVE_DEC_3_2_THREADS)
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
 #if defined(__ia64__) || defined(__ia64)
@@ -2984,7 +2942,6 @@ static void start_signal_handler(void)
   pthread_attr_setstacksize(&thr_attr,my_thread_stack_size*2);
 #else
   pthread_attr_setstacksize(&thr_attr,my_thread_stack_size);
-#endif
 #endif
 
   mysql_mutex_lock(&LOCK_thread_count);
@@ -3028,10 +2985,8 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 #ifdef USE_ONE_SIGNAL_HAND
   (void) sigaddset(&set,THR_SERVER_ALARM);  // For alarms
 #endif
-#ifndef IGNORE_SIGHUP_SIGQUIT
   (void) sigaddset(&set,SIGQUIT);
   (void) sigaddset(&set,SIGHUP);
-#endif
   (void) sigaddset(&set,SIGTERM);
   (void) sigaddset(&set,SIGTSTP);
 
@@ -3142,7 +3097,7 @@ static void check_data_home(const char *path)
 {}
 
 #endif /*!EMBEDDED_LIBRARY*/
-#endif  /* __WIN__*/
+#endif  /* _WIN32*/
 
 
 /**
@@ -3220,7 +3175,7 @@ void *my_str_realloc_mysqld(void *ptr, size_t size)
 #endif /* EMBEDDED_LIBRARY */
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 pthread_handler_t handle_shutdown(void *arg)
 {
@@ -3243,7 +3198,7 @@ const char *load_default_groups[]= {
 #endif
 "mysqld","server", MYSQL_BASE_VERSION, 0, 0};
 
-#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
@@ -3626,8 +3581,10 @@ int init_common_variables()
                              key_BINLOG_LOCK_done,
                              key_BINLOG_LOCK_flush_queue,
                              key_BINLOG_LOCK_log,
+                             key_BINLOG_LOCK_binlog_end_pos,
                              key_BINLOG_LOCK_sync,
                              key_BINLOG_LOCK_sync_queue,
+                             key_BINLOG_LOCK_xids,
                              key_BINLOG_COND_done,
                              key_BINLOG_update_cond,
                              key_BINLOG_prep_xids_cond,
@@ -4891,7 +4848,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   {
     time_t purge_time= server_start_time - expire_logs_days*24*60*60;
     if (purge_time >= 0)
-      mysql_bin_log.purge_logs_before_date(purge_time);
+      mysql_bin_log.purge_logs_before_date(purge_time, true);
   }
 #endif
 
@@ -4931,7 +4888,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
 static void create_shutdown_thread()
 {
-#ifdef __WIN__
+#ifdef _WIN32
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
   pthread_t hThread;
   int error;
@@ -4943,7 +4900,7 @@ static void create_shutdown_thread()
 
   // On "Stop Service" we have to do regular shutdown
   Service.SetShutdownEvent(hEventShutdown);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 #endif /* EMBEDDED_LIBRARY */
@@ -5062,7 +5019,7 @@ static void test_lc_time_sz()
 }
 #endif//DBUG_OFF
 
-#ifdef __WIN__
+#ifdef _WIN32
 int win_main(int argc, char **argv)
 #else
 int mysqld_main(int argc, char **argv)
@@ -5393,7 +5350,7 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(1);
   network_init();
 
-#ifdef __WIN__
+#ifdef _WIN32
   if (!opt_console)
   {
     if (reopen_fstreams(log_error_file, stdout, stderr))
@@ -5545,7 +5502,7 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("quit",("Exiting main thread"));
 
-#ifndef __WIN__
+#ifndef _WIN32
 #ifdef EXTRA_DEBUG2
   sql_print_error("Before Lock_thread_count");
 #endif
@@ -5557,7 +5514,7 @@ int mysqld_main(int argc, char **argv)
 #ifdef EXTRA_DEBUG2
   sql_print_error("After lock_thread_count");
 #endif
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /*
@@ -5573,7 +5530,7 @@ int mysqld_main(int argc, char **argv)
     mysql_cond_wait(&COND_thread_count, &LOCK_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
 
-#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
   if (Service.IsNT() && start_mode)
     Service.Stop();
   else
@@ -5595,7 +5552,7 @@ int mysqld_main(int argc, char **argv)
   (all this is needed only to run mysqld as a service on WinNT)
 ****************************************************************************/
 
-#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 int mysql_service(void *p)
 {
   if (my_thread_init())
@@ -7136,7 +7093,7 @@ struct my_option my_long_options[]=
    &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 0, 0, 0,
    0, 0, 0},
 #endif
-#ifdef __WIN__
+#ifdef _WIN32
   {"standalone", 0,
   "Dummy option to start as a standalone program (NT).", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7987,7 +7944,7 @@ static void usage(void)
     puts("\nFor more help options (several pages), use mysqld --verbose --help.");
   else
   {
-#ifdef __WIN__
+#ifdef _WIN32
   puts("NT and Win32 specific options:\n\
   --install                     Install the default service (NT).\n\
   --install-manual              Install the default service started manually (NT).\n\
@@ -8196,7 +8153,7 @@ static int mysql_init_variables(void)
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
-#if defined(__WIN__)
+#if defined(_WIN32)
   /* Allow Win32 users to move MySQL anywhere */
   {
     char prg_dev[LIBLEN];
@@ -8481,67 +8438,103 @@ mysqld_get_one_option(int optid,
     {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #ifndef EMBEDDED_LIBRARY
-      /* Parse instrument name and value from argument string */
-      char* name = argument,*p, *val;
 
-      /* Assignment required */
+      /*
+        Parse instrument name and value from argument string. Handle leading
+        and trailing spaces. Also handle single quotes.
+
+        Acceptable:
+          performance_schema_instrument = ' foo/%/bar/  =  ON  '
+          performance_schema_instrument = '%=OFF'
+        Not acceptable:
+          performance_schema_instrument = '' foo/%/bar = ON ''
+          performance_schema_instrument = '%='OFF''
+      */
+      char *name= argument,*p= NULL, *val= NULL;
+      my_bool quote= false; /* true if quote detected */
+      my_bool error= true;  /* false if no errors detected */
+      const int PFS_BUFFER_SIZE= 128;
+      char orig_argument[PFS_BUFFER_SIZE+1];
+      orig_argument[0]= 0;
+
+      if (!argument)
+        goto pfs_error;
+
+      /* Save original argument string for error reporting */
+      strncpy(orig_argument, argument, PFS_BUFFER_SIZE);
+
+      /* Split instrument name and value at the equal sign */
       if (!(p= strchr(argument, '=')))
-      {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Missing value for performance_schema_instrument "
-                               "'%s'", argument);
-        return 0;
-      }
+        goto pfs_error;
 
-      /* Option value */
+      /* Get option value */
       val= p + 1;
       if (!*val)
+        goto pfs_error;
+
+      /* Trim leading spaces and quote from the instrument name */
+      while (*name && (my_isspace(mysqld_charset, *name) || (*name == '\'')))
       {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Missing value for performance_schema_instrument "
-                               "'%s'", argument);
-        return 0;
+        /* One quote allowed */
+        if (*name == '\'')
+        {
+          if (!quote)
+            quote= true;
+          else
+            goto pfs_error;
+        }
+        name++;
       }
 
-      /* Trim leading spaces from instrument name */
-      while (*name && my_isspace(mysqld_charset, *name))
-        name++;
-
-      /* Trim trailing spaces and slashes from instrument name */
-      while (p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
+      /* Trim trailing spaces from instrument name */
+      while ((p > name) && my_isspace(mysqld_charset, p[-1]))
         p--;
       *p= 0;
 
+      /* Remove trailing slash from instrument name */
+      if (p > name && (p[-1] == '/'))
+        p[-1]= 0;
+
       if (!*name)
-      {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Invalid instrument name for "
-                               "performance_schema_instrument '%s'", argument);
-        return 0;
-      }
+        goto pfs_error;
 
       /* Trim leading spaces from option value */
       while (*val && my_isspace(mysqld_charset, *val))
         val++;
 
-      /* Trim trailing spaces from option value */
-      if ((p= my_strchr(mysqld_charset, val, val+strlen(val), ' ')) != NULL)
-        *p= 0;
+      /* Trim trailing spaces and matching quote from value */
+      p= val + strlen(val);
+      while (p > val && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '\''))
+      {
+        /* One matching quote allowed */
+        if (p[-1] == '\'')
+        {
+          if (quote)
+            quote= false;
+          else
+            goto pfs_error;
+        }
+        p--;
+      }
+
+      *p= 0;
 
       if (!*val)
-      {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Invalid value for performance_schema_instrument "
-                               "'%s'", argument);
-        return 0;
-      }
+        goto pfs_error;
 
       /* Add instrument name and value to array of configuration options */
       if (add_pfs_instr_to_array(name, val))
+        goto pfs_error;
+
+      error= false;
+
+pfs_error:
+      if (error)
       {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Invalid value for performance_schema_instrument "
-                               "'%s'", argument);
+        my_getopt_error_reporter(WARNING_LEVEL,
+                                 "Invalid instrument name or value for "
+                                 "performance_schema_instrument '%s'",
+                                 orig_argument);
         return 0;
       }
 #endif /* EMBEDDED_LIBRARY */
@@ -8692,7 +8685,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
                       "option (see documentation for more details).");
 
   if (log_error_file_ptr != disabled_my_option)
-#ifdef __WIN__
+#ifdef _WIN32
     /*
       Enable the error log only if console option is not specified 
       and MySQL is not running as a service.
@@ -9160,8 +9153,10 @@ PSI_mutex_key key_BINLOG_LOCK_done;
 PSI_mutex_key key_BINLOG_LOCK_flush_queue;
 PSI_mutex_key key_BINLOG_LOCK_index;
 PSI_mutex_key key_BINLOG_LOCK_log;
+PSI_mutex_key key_BINLOG_LOCK_binlog_end_pos;
 PSI_mutex_key key_BINLOG_LOCK_sync;
 PSI_mutex_key key_BINLOG_LOCK_sync_queue;
+PSI_mutex_key key_BINLOG_LOCK_xids;
 PSI_mutex_key
   key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_error_log,
@@ -9192,6 +9187,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_RELAYLOG_LOCK_log;
 PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
+PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_LOCK_thread_created;
@@ -9212,8 +9208,10 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_BINLOG_LOCK_flush_queue, "MYSQL_BIN_LOG::LOCK_flush_queue", 0 },
   { &key_BINLOG_LOCK_index, "MYSQL_BIN_LOG::LOCK_index", 0},
   { &key_BINLOG_LOCK_log, "MYSQL_BIN_LOG::LOCK_log", 0},
+  { &key_BINLOG_LOCK_binlog_end_pos, "MYSQL_BIN_LOG::LOCK_binlog_end_pos", 0},
   { &key_BINLOG_LOCK_sync, "MYSQL_BIN_LOG::LOCK_sync", 0},
   { &key_BINLOG_LOCK_sync_queue, "MYSQL_BIN_LOG::LOCK_sync_queue", 0 },
+  { &key_BINLOG_LOCK_xids, "MYSQL_BIN_LOG::LOCK_xids", 0 },
   { &key_RELAYLOG_LOCK_commit, "MYSQL_RELAY_LOG::LOCK_commit", 0},
   { &key_RELAYLOG_LOCK_commit_queue, "MYSQL_RELAY_LOG::LOCK_commit_queue", 0 },
   { &key_RELAYLOG_LOCK_done, "MYSQL_RELAY_LOG::LOCK_done", 0 },
@@ -9222,6 +9220,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_log, "MYSQL_RELAY_LOG::LOCK_log", 0},
   { &key_RELAYLOG_LOCK_sync, "MYSQL_RELAY_LOG::LOCK_sync", 0},
   { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0 },
+  { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
   { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL},
@@ -9364,9 +9363,9 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
 
-#ifdef __WIN__
+#ifdef _WIN32
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},

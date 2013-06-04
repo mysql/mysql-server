@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ Created 1/8/1997 Heikki Tuuri
 /********************************************************************//**
 Creates a row undo node to a query graph.
 @return	own: undo node */
-UNIV_INTERN
+
 undo_node_t*
 row_undo_node_create(
 /*=================*/
@@ -51,18 +51,19 @@ Looks for the clustered index record when node has the row reference.
 The pcur in node is used in the search. If found, stores the row to node,
 and stores the position of pcur, and detaches it. The pcur must be closed
 by the caller in any case.
-@return TRUE if found; NOTE the node->pcur must be closed by the
+@return true if found; NOTE the node->pcur must be closed by the
 caller, regardless of the return value */
-UNIV_INTERN
-ibool
+
+bool
 row_undo_search_clust_to_pcur(
 /*==========================*/
-	undo_node_t*	node);	/*!< in: row undo node */
+	undo_node_t*	node)	/*!< in/out: row undo node */
+	__attribute__((warn_unused_result));
 /***********************************************************//**
 Undoes a row operation in a table. This is a high-level function used
 in SQL execution graphs.
 @return	query thread to run next or NULL */
-UNIV_INTERN
+
 que_thr_t*
 row_undo_step(
 /*==========*/

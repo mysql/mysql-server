@@ -1,6 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+#Start server with MyISAM
 --source include/force_myisam_default.inc
 
 # The test for bug#27029 requires about 8 hours and 20 minutes on my

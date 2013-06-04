@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,7 @@ InnoDB Native API
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
 *******************************************************/
 
-#include <errno.h>
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif /* HAVE_UNISTD_H */
+#include "ha_prototypes.h"
 
 #include "api0misc.h"
 #include "trx0roll.h"
@@ -38,15 +34,11 @@ InnoDB Native API
 #include "pars0pars.h"
 #include "row0sel.h"
 #include "lock0lock.h"
-#include "ha_prototypes.h"
-#include <m_ctype.h>
-#include <mysys_err.h>
-#include <mysql/plugin.h>
 
 /*********************************************************************//**
 Sets a lock on a table.
 @return	error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 ib_trx_lock_table_with_retry(
 /*=========================*/
@@ -122,7 +114,7 @@ run_again:
 Handles user errors and lock waits detected by the database engine.
 @return TRUE if it was a lock wait and we should continue running
 the query thread */
-UNIV_INTERN
+
 ibool
 ib_handle_errors(
 /*=============*/

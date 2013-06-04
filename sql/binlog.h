@@ -261,10 +261,11 @@ typedef struct st_log_info
   my_off_t index_file_offset, index_file_start_offset;
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
+  int entry_index; //used in purge_logs(), calculatd in find_log_pos().
   mysql_mutex_t lock;
   st_log_info()
     : index_file_offset(0), index_file_start_offset(0),
-      pos(0), fatal(0)
+      pos(0), fatal(0), entry_index(0)
     {
       log_file_name[0] = '\0';
       mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
@@ -297,6 +298,8 @@ class MYSQL_BIN_LOG: public TC_LOG
   PSI_mutex_key m_key_LOCK_log;
   /** The instrumentation key to use for @ LOCK_index. */
   PSI_mutex_key m_key_LOCK_index;
+  /** The instrumentation key to use for @ LOCK_binlog_end_pos. */
+  PSI_mutex_key m_key_LOCK_binlog_end_pos;
 
   PSI_mutex_key m_key_COND_done;
 
@@ -308,6 +311,8 @@ class MYSQL_BIN_LOG: public TC_LOG
   PSI_mutex_key m_key_LOCK_commit;
   /** The instrumentation key to use for @ LOCK_sync. */
   PSI_mutex_key m_key_LOCK_sync;
+  /** The instrumentation key to use for @ LOCK_xids. */
+  PSI_mutex_key m_key_LOCK_xids;
   /** The instrumentation key to use for @ update_cond. */
   PSI_cond_key m_key_update_cond;
   /** The instrumentation key to use for @ prep_xids_cond. */
@@ -321,7 +326,11 @@ class MYSQL_BIN_LOG: public TC_LOG
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_commit;
   mysql_mutex_t LOCK_sync;
+  mysql_mutex_t LOCK_binlog_end_pos;
+  mysql_mutex_t LOCK_xids;
   mysql_cond_t update_cond;
+
+  my_off_t binlog_end_pos;
   ulonglong bytes_written;
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
@@ -370,7 +379,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   /**
     Increment the prepared XID counter.
    */
-  void inc_prep_xids() {
+  void inc_prep_xids(THD *thd) {
     DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
     my_atomic_rwlock_wrlock(&m_prep_xids_lock);
 #ifndef DBUG_OFF
@@ -380,6 +389,7 @@ class MYSQL_BIN_LOG: public TC_LOG
 #endif
     DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
     my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
+    thd->transaction.flags.xid_written= true;
     DBUG_VOID_RETURN;
   }
 
@@ -388,15 +398,20 @@ class MYSQL_BIN_LOG: public TC_LOG
 
     Signal m_prep_xids_cond if the counter reaches zero.
    */
-  void dec_prep_xids() {
+  void dec_prep_xids(THD *thd) {
     DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
     my_atomic_rwlock_wrlock(&m_prep_xids_lock);
     int32 result= my_atomic_add32(&m_prep_xids, -1);
     DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
     my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
+    thd->transaction.flags.xid_written= false;
     /* If the old value was 1, it is zero now. */
     if (result == 1)
+    {
+      mysql_mutex_lock(&LOCK_xids);
       mysql_cond_signal(&m_prep_xids_cond);
+      mysql_mutex_unlock(&LOCK_xids);
+    }
     DBUG_VOID_RETURN;
   }
 
@@ -494,8 +509,10 @@ public:
                     PSI_mutex_key key_LOCK_done,
                     PSI_mutex_key key_LOCK_flush_queue,
                     PSI_mutex_key key_LOCK_log,
+                    PSI_mutex_key key_LOCK_binlog_end_pos,
                     PSI_mutex_key key_LOCK_sync,
                     PSI_mutex_key key_LOCK_sync_queue,
+                    PSI_mutex_key key_LOCK_xids,
                     PSI_cond_key key_COND_done,
                     PSI_cond_key key_update_cond,
                     PSI_cond_key key_prep_xids_cond,
@@ -511,8 +528,10 @@ public:
 
     m_key_LOCK_index= key_LOCK_index;
     m_key_LOCK_log= key_LOCK_log;
+    m_key_LOCK_binlog_end_pos= key_LOCK_binlog_end_pos;
     m_key_LOCK_commit= key_LOCK_commit;
     m_key_LOCK_sync= key_LOCK_sync;
+    m_key_LOCK_xids= key_LOCK_xids;
     m_key_update_cond= key_update_cond;
     m_key_prep_xids_cond= key_prep_xids_cond;
     m_key_file_log= key_file_log;
@@ -566,7 +585,8 @@ private:
   int flush_cache_to_file(my_off_t *flush_end_pos);
   int finish_commit(THD *thd);
   std::pair<bool, bool> sync_binlog_file(bool force);
-  void process_commit_stage_queue(THD *thd, THD *queue, int flush_error);
+  void process_commit_stage_queue(THD *thd, THD *queue);
+  void process_after_commit_stage_queue(THD *thd, THD *first);
   int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
                                 THD **out_queue_var);
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
@@ -607,7 +627,31 @@ public:
     DBUG_VOID_RETURN;
   }
   void set_max_size(ulong max_size_arg);
-  void signal_update();
+  void signal_update()
+  {
+    DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
+    signal_cnt++;
+    mysql_cond_broadcast(&update_cond);
+    DBUG_VOID_RETURN;
+  }
+
+  void update_binlog_end_pos()
+  {
+    /*
+      binlog_end_pos is used only on master's binlog right now. It is possible
+      to use it on relay log.
+    */
+    if (is_relay_log)
+      signal_update();
+    else
+    {
+      lock_binlog_end_pos();
+      binlog_end_pos= my_b_tell(&log_file);
+      signal_update();
+      unlock_binlog_end_pos();
+    }
+  }
+
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
 public:
@@ -686,8 +730,8 @@ public:
   bool flush_and_sync(const bool force= false);
   int purge_logs(const char *to_log, bool included,
                  bool need_lock_index, bool need_update_threads,
-                 ulonglong *decrease_log_space);
-  int purge_logs_before_date(time_t purge_time);
+                 ulonglong *decrease_log_space, bool auto_purge);
+  int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_first_log(Relay_log_info* rli, bool included);
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
@@ -726,6 +770,20 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+
+  /*
+    It is called by the threads(e.g. dump thread) which want to read
+    hot log without LOCK_log protection.
+  */
+  my_off_t get_binlog_end_pos() const
+  {
+    mysql_mutex_assert_not_owner(&LOCK_log);
+    mysql_mutex_assert_owner(&LOCK_binlog_end_pos);
+    return binlog_end_pos;
+  }
+  mysql_mutex_t* get_binlog_end_pos_lock() { return &LOCK_binlog_end_pos; }
+  void lock_binlog_end_pos() { mysql_mutex_lock(&LOCK_binlog_end_pos); }
+  void unlock_binlog_end_pos() { mysql_mutex_unlock(&LOCK_binlog_end_pos); }
 };
 
 typedef struct st_load_file_info

@@ -136,13 +136,6 @@ page_cur_position(
 					the record */
 	page_cur_t*		cur);	/*!< out: page cursor */
 /**********************************************************//**
-Invalidates a page cursor by setting the record pointer NULL. */
-UNIV_INLINE
-void
-page_cur_invalidate(
-/*================*/
-	page_cur_t*	cur);	/*!< out: page cursor */
-/**********************************************************//**
 Moves the cursor to the next record on page. */
 UNIV_INLINE
 void
@@ -208,7 +201,7 @@ Inserts a record next to page cursor on an uncompressed page.
 Returns pointer to inserted record if succeed, i.e., enough
 space available, NULL otherwise. The cursor stays at the same position.
 @return	pointer to record if succeed, NULL otherwise */
-UNIV_INTERN
+
 rec_t*
 page_cur_insert_rec_low(
 /*====================*/
@@ -231,7 +224,7 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return	pointer to record if succeed, NULL otherwise */
-UNIV_INTERN
+
 rec_t*
 page_cur_insert_rec_zip(
 /*====================*/
@@ -249,7 +242,7 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if this is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-UNIV_INTERN
+
 void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
@@ -260,7 +253,7 @@ page_copy_rec_list_end_to_created_page(
 /***********************************************************//**
 Deletes a record at the page cursor. The cursor is moved to the
 next record after the deleted one. */
-UNIV_INTERN
+
 void
 page_cur_delete_rec(
 /*================*/
@@ -270,23 +263,38 @@ page_cur_delete_rec(
 					cursor->rec, index) */
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 #ifndef UNIV_HOTBACKUP
-/****************************************************************//**
-Searches the right position for a page cursor.
+/** Search the right position for a page cursor.
+@param[in]	block	buffer block
+@param[in]	index	index tree
+@param[in]	tuple	data tuple
+@param[in]	mode	PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
+@param[out]	cursor	page cursor
 @return	number of matched fields on the left */
 UNIV_INLINE
 ulint
 page_cur_search(
-/*============*/
-	const buf_block_t*	block,	/*!< in: buffer block */
-	const dict_index_t*	index,	/*!< in: record descriptor */
-	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
-					PAGE_CUR_LE, PAGE_CUR_G, or
-					PAGE_CUR_GE */
-	page_cur_t*		cursor);/*!< out: page cursor */
+	const buf_block_t*	block,
+	const dict_index_t*	index,
+	const dtuple_t*		tuple,
+	ulint			mode,
+	page_cur_t*		cursor);
+
+/** Search the right position for a page cursor.
+@param[in]	block	buffer block
+@param[in]	index	index tree
+@param[in]	tuple	data tuple
+@param[out]	cursor	page cursor
+@return	number of matched fields on the left */
+UNIV_INLINE
+ulint
+page_cur_search(
+	const buf_block_t*	block,
+	const dict_index_t*	index,
+	const dtuple_t*		tuple,
+	page_cur_t*		cursor);
 /****************************************************************//**
 Searches the right position for a page cursor. */
-UNIV_INTERN
+
 void
 page_cur_search_with_match(
 /*=======================*/
@@ -299,22 +307,14 @@ page_cur_search_with_match(
 	ulint*			iup_matched_fields,
 					/*!< in/out: already matched
 					fields in upper limit record */
-	ulint*			iup_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	ulint*			ilow_matched_fields,
 					/*!< in/out: already matched
 					fields in lower limit record */
-	ulint*			ilow_matched_bytes,
-					/*!< in/out: already matched
-					bytes in a field not yet
-					completely matched */
 	page_cur_t*		cursor);/*!< out: page cursor */
 /***********************************************************//**
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */
-UNIV_INTERN
+
 void
 page_cur_open_on_rnd_user_rec(
 /*==========================*/
@@ -324,7 +324,7 @@ page_cur_open_on_rnd_user_rec(
 /***********************************************************//**
 Parses a log record of a record insert on a page.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 page_cur_parse_insert_rec(
 /*======================*/
@@ -337,7 +337,7 @@ page_cur_parse_insert_rec(
 /**********************************************************//**
 Parses a log record of copying a record list end to a new created page.
 @return	end of log record or NULL */
-UNIV_INTERN
+
 byte*
 page_parse_copy_rec_list_to_created_page(
 /*=====================================*/
@@ -349,7 +349,7 @@ page_parse_copy_rec_list_to_created_page(
 /***********************************************************//**
 Parses log record of a record delete on a page.
 @return	pointer to record end or NULL */
-UNIV_INTERN
+
 byte*
 page_cur_parse_delete_rec(
 /*======================*/
@@ -362,7 +362,7 @@ page_cur_parse_delete_rec(
 Removes the record from a leaf page. This function does not log
 any changes. It is used by the IMPORT tablespace functions.
 @return	true if success, i.e., the page did not become too empty */
-UNIV_INTERN
+
 bool
 page_delete_rec(
 /*============*/
@@ -376,7 +376,9 @@ page_delete_rec(
 /** Index page cursor */
 
 struct page_cur_t{
-	byte*		rec;	/*!< pointer to a record on page */
+	const dict_index_t*	index;
+	rec_t*		rec;	/*!< pointer to a record on page */
+	ulint*		offsets;
 	buf_block_t*	block;	/*!< pointer to the block containing rec */
 };
 

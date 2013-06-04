@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef MY_DBUG_INCLUDED
 #define MY_DBUG_INCLUDED
 
-#ifndef __WIN__
+#ifndef _WIN32
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -24,7 +24,7 @@
 #include <unistd.h>
 #endif
 #include <signal.h>
-#endif  /* not __WIN__ */
+#endif  /* not _WIN32 */
 
 #ifdef  __cplusplus
 extern "C" {
@@ -39,7 +39,7 @@ struct _db_stack_frame_ {
 };
 
 struct  _db_code_state_;
-extern  my_bool _dbug_on_;
+extern  MYSQL_PLUGIN_IMPORT my_bool _dbug_on_;
 extern  my_bool _db_keyword_(struct _db_code_state_ *, const char *, int);
 extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
 extern  int _db_explain_init_(char *buf, size_t len);
@@ -55,6 +55,7 @@ extern void _db_enter_(const char *_func_, const char *_file_, uint _line_,
                        struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_pargs_(uint _line_,const char *keyword);
+extern  int _db_enabled_();
 extern  void _db_doprnt_(const char *format,...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 extern  void _db_dump_(uint _line_,const char *keyword,
@@ -80,7 +81,17 @@ extern  const char* _db_get_func_(void);
 #define DBUG_EVALUATE_IF(keyword,a1,a2) \
         (_db_keyword_(0,(keyword), 1) ? (a1) : (a2))
 #define DBUG_PRINT(keyword,arglist) \
-        do {_db_pargs_(__LINE__,keyword); _db_doprnt_ arglist;} while(0)
+        do \
+        {  \
+          if (_dbug_on_) \
+          { \
+            _db_pargs_(__LINE__,keyword); \
+            if (_db_enabled_()) \
+            {  \
+              _db_doprnt_ arglist; \
+            } \
+          } \
+        } while(0)
 #define DBUG_PUSH(a1) _db_push_ (a1)
 #define DBUG_POP() _db_pop_ ()
 #define DBUG_SET(a1) _db_set_ (a1)
@@ -98,7 +109,7 @@ extern  const char* _db_get_func_(void);
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
-#ifndef __WIN__
+#ifndef _WIN32
 #define DBUG_ABORT()                    (_db_flush_(), abort())
 #else
 /*
@@ -129,7 +140,7 @@ extern  const char* _db_get_func_(void);
   An alternative would be to use _exit(EXIT_FAILURE),
   but then valgrind would report lots of memory leaks.
  */
-#ifdef __WIN__
+#ifdef _WIN32
 #define DBUG_SUICIDE() DBUG_ABORT()
 #else
 extern void _db_suicide_();

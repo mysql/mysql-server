@@ -22,6 +22,7 @@
 #
 -- source include/master-slave.inc
 -- source include/not_windows.inc
+-- source include/not_lowercase1.inc
 
 SET SQL_LOG_BIN=0;
 CREATE DATABASE B37656;

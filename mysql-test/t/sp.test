@@ -3110,6 +3110,7 @@ create procedure bug7743 ( searchstring char(28) )
 begin
   declare var mediumint(8) unsigned;
   select a into var from t4 where b = 2 and c = binary searchstring limit 1;
+  show warnings;
   select var;
 end|
 
@@ -8259,7 +8260,6 @@ CREATE PROCEDURE p1(a CHAR)
 BEGIN
   SELECT 1;
   SELECT CAST('10 ' as UNSIGNED INTEGER);
-  SELECT 1;
 END|
 delimiter ;|
 
@@ -8289,7 +8289,6 @@ CREATE PROCEDURE p4()
 BEGIN
   SELECT 1;
   SELECT CAST('10 ' as UNSIGNED INTEGER);
-  SELECT 2;
 END|
 delimiter ;|
 

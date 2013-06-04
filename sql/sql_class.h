@@ -902,7 +902,7 @@ public:
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
     CURRENTLY NOT IMPLEMENTED!
   */
-  void close_transient_cursors();
+  void close_transient_cursors() { }
   void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
   void reset();
@@ -2129,6 +2129,7 @@ private:
    */
   /**@{*/
   const char *m_trans_log_file;
+  const char *m_trans_fixed_log_file;
   my_off_t m_trans_end_pos;
   /**@}*/
 
@@ -2181,15 +2182,21 @@ public:
     /*
       (Mostly) binlog-specific fields use while flushing the caches
       and committing transactions.
+      We don't use bitfield any more in the struct. Modification will
+      be lost when concurrently updating multiple bit fields. It will
+      cause a race condition in a multi-threaded application. And we
+      already caught a race condition case between xid_written and
+      ready_preempt in MYSQL_BIN_LOG::ordered_commit.
     */
     struct {
-      bool enabled:1;                   // see ha_enable_transaction()
-      bool pending:1;                   // Is the transaction commit pending?
-      bool xid_written:1;               // The session wrote an XID
-      bool real_commit:1;               // Is this a "real" commit?
-      bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
+      bool enabled;                   // see ha_enable_transaction()
+      bool pending;                   // Is the transaction commit pending?
+      bool xid_written;               // The session wrote an XID
+      bool real_commit;               // Is this a "real" commit?
+      bool commit_low;                // see MYSQL_BIN_LOG::ordered_commit
+      bool run_hooks;                 // Call the after_commit hook
 #ifndef DBUG_OFF
-      bool ready_preempt:1;             // internal in MYSQL_BIN_LOG::ordered_commit
+      bool ready_preempt;             // internal in MYSQL_BIN_LOG::ordered_commit
 #endif
     } flags;
 
@@ -2249,7 +2256,7 @@ public:
   } transaction;
   Global_read_lock global_read_lock;
   Field      *dup_field;
-#ifndef __WIN__
+#ifndef _WIN32
   sigset_t signals;
 #endif
 
@@ -2573,7 +2580,6 @@ public:
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
-  uint       select_number;             //number of select (used for EXPLAIN)
   /*
     Current or next transaction isolation level.
     When a connection is established, the value is taken from
@@ -2631,13 +2637,22 @@ public:
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
       m_trans_log_file= file + dirname_length(file);
+      MEM_ROOT *log_file_mem_root= &main_mem_root;
+      if (!m_trans_fixed_log_file)
+        m_trans_fixed_log_file= new (log_file_mem_root) char[FN_REFLEN + 1];
+      m_trans_fixed_log_file= strdup_root(log_file_mem_root,
+                                          file + dirname_length(file));
     }
     else
+    {
       m_trans_log_file= NULL;
+      m_trans_fixed_log_file= NULL;
+    }
 
     m_trans_end_pos= pos;
-    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_end_pos: %llu",
-                          m_trans_log_file, m_trans_end_pos));
+    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_fixed_log_file: %s, "
+                          "m_trans_end_pos: %llu", m_trans_log_file,
+                          m_trans_fixed_log_file, m_trans_end_pos));
     DBUG_VOID_RETURN;
   }
 
@@ -2653,13 +2668,32 @@ public:
                           pos_var ? *pos_var : 0));
     DBUG_VOID_RETURN;
   }
+
+  void get_trans_fixed_pos(const char **file_var, my_off_t *pos_var) const
+  {
+    DBUG_ENTER("THD::get_trans_fixed_pos");
+    if (file_var)
+      *file_var = m_trans_fixed_log_file;
+    if (pos_var)
+      *pos_var= m_trans_end_pos;
+    DBUG_PRINT("return", ("file: %s, pos: %llu",
+                          file_var ? *file_var : "<none>",
+                          pos_var ? *pos_var : 0));
+    DBUG_VOID_RETURN;
+  }
   /**@}*/
 
 
   /*
     Error code from committing or rolling back the transaction.
   */
-  int commit_error;
+  enum Commit_error
+  {
+    CE_NONE= 0,
+    CE_FLUSH_ERROR,
+    CE_COMMIT_ERROR,
+    CE_ERROR_COUNT
+  } commit_error;
 
   /*
     Define durability properties that engines may check to
@@ -3235,16 +3269,31 @@ public:
   { return get_stmt_da()->stacked_da(); }
 
   /**
+    Returns thread-local Diagnostics Area for parsing.
+    We need to have a clean DA in case errors or warnings are thrown
+    during parsing, but we can't just reset the main DA in case we
+    have a diagnostic statement on our hand that needs the old DA
+    to answer questions about the previous execution.
+    Keeping a static per-thread DA for parsing is less costly than
+    allocating a temporary one for each statement we parse.
+  */
+  Diagnostics_area *get_parser_da()
+  { return &m_parser_da; }
+
+  /**
     Push the given Diagnostics Area on top of the stack, making
     it the new first Diagnostics Area. Conditions in the new second
     Diagnostics Area will be copied to the new first Diagnostics Area.
 
     @param da   Diagnostics Area to be come the top of
                 the Diagnostics Area stack.
+    @param copy_conditions
+                Copy the conditions from the new second Diagnostics Area
+                to the new first Diagnostics Area, as per SQL standard.
   */
-  void push_diagnostics_area(Diagnostics_area *da)
+  void push_diagnostics_area(Diagnostics_area *da, bool copy_conditions= true)
   {
-    get_stmt_da()->push_diagnostics_area(this, da);
+    get_stmt_da()->push_diagnostics_area(this, da, copy_conditions);
     m_stmt_da= da;
   }
 
@@ -3776,6 +3825,7 @@ private:
   */
   MEM_ROOT main_mem_root;
   Diagnostics_area main_da;
+  Diagnostics_area m_parser_da;              /**< cf. get_parser_da() */
   Diagnostics_area *m_stmt_da;
 
   /**
@@ -4087,6 +4137,9 @@ private:
      allowed.
    */
   List<Item> *fields;
+protected:
+  /// ha_start_bulk_insert has been called. Never cleared.
+  bool bulk_insert_started;
 public:
   ulonglong autoinc_value_of_last_inserted_row; // autogenerated or not
   COPY_INFO info;
@@ -4152,6 +4205,7 @@ public:
     :table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
+     bulk_insert_started(false),
      autoinc_value_of_last_inserted_row(0),
      info(COPY_INFO::INSERT_OPERATION,
           target_columns,
@@ -4237,6 +4291,8 @@ public:
 
 #include <myisam.h>
 
+typedef Mem_root_array<Item*, true> Func_ptr_array;
+
 /* 
   Param to create temporary tables when doing SELECT:s 
   NOTE
@@ -4249,7 +4305,7 @@ public:
   List<Item> copy_funcs;
   Copy_field *copy_field, *copy_field_end;
   uchar	    *group_buff;
-  Item	    **items_to_copy;			/* Fields in tmp table */
+  Func_ptr_array *items_to_copy;             /* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
   KEY *keyinfo;
   ha_rows end_write_records;
@@ -4437,7 +4493,7 @@ public:
   SELECT_LEX_UNIT *sel;
   inline Table_ident(THD *thd, LEX_STRING db_arg, LEX_STRING table_arg,
 		     bool force)
-    :table(table_arg), sel((SELECT_LEX_UNIT *)0)
+    :table(table_arg), sel(NULL)
   {
     if (!force && (thd->client_capabilities & CLIENT_NO_SCHEMA))
       db.str=0;
@@ -4445,7 +4501,7 @@ public:
       db= db_arg;
   }
   inline Table_ident(LEX_STRING table_arg) 
-    :table(table_arg), sel((SELECT_LEX_UNIT *)0)
+    :table(table_arg), sel(NULL)
   {
     db.str=0;
   }
@@ -4979,6 +5035,11 @@ inline bool add_value_to_list(THD *thd, Item *value)
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
   return thd->lex->current_select->add_order_to_list(thd, item, asc);
+}
+
+inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
+{
+  return thd->lex->current_select->add_gorder_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)

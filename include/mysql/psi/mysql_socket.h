@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 /* For my_chsize */
 #include <my_sys.h>
 /* For socket api */
-#ifdef __WIN__
+#ifdef _WIN32
   #include <ws2def.h>
   #include <winsock2.h>
   #include <MSWSock.h>
@@ -1113,7 +1113,7 @@ inline_mysql_socket_shutdown
 {
   int result;
 
-#ifdef __WIN__
+#ifdef _WIN32
   static LPFN_DISCONNECTEX DisconnectEx = NULL;
   if (DisconnectEx == NULL)
   {
@@ -1136,7 +1136,7 @@ inline_mysql_socket_shutdown
       (&state, mysql_socket.m_psi, PSI_SOCKET_SHUTDOWN, (size_t)0, src_file, src_line);
 
     /* Instrumented code */
-#ifdef __WIN__
+#ifdef _WIN32
     if (DisconnectEx)
       result= (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED) NULL,
                             (DWORD) 0, (DWORD) 0) == TRUE) ? 0 : -1;
@@ -1153,7 +1153,7 @@ inline_mysql_socket_shutdown
 #endif
 
   /* Non instrumented code */
-#ifdef __WIN__
+#ifdef _WIN32
   if (DisconnectEx)
     result= (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED) NULL,
                           (DWORD) 0, (DWORD) 0) == TRUE) ? 0 : -1;

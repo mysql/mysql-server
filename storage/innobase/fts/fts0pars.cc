@@ -78,7 +78,7 @@
 /* Line 189 of yacc.c  */
 #line 26 "fts0pars.y"
 
-
+#include "ha_prototypes.h"
 #include "mem0mem.h"
 #include "fts0ast.h"
 #include "fts0blex.h"
@@ -271,8 +271,6 @@ YYID (yyi)
 #    define YYSTACK_ALLOC __builtin_alloca
 #   elif defined __BUILTIN_VA_ARG_INCR
 #    include <alloca.h> /* INFRINGES ON USER NAME SPACE */
-#   elif defined _AIX
-#    define YYSTACK_ALLOC __alloca
 #   elif defined _MSC_VER
 #    include <malloc.h> /* INFRINGES ON USER NAME SPACE */
 #    define alloca _alloca

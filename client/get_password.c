@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,16 +24,12 @@
 #include <m_ctype.h>
 #include <mysql/get_password.h>
 
-#if defined(HAVE_BROKEN_GETPASS) && !defined(HAVE_GETPASSPHRASE)
-#undef HAVE_GETPASS
-#endif
-
 #ifdef HAVE_GETPASS
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif /* HAVE_PWD_H */
 #else /* ! HAVE_GETPASS */
-#ifndef __WIN__
+#ifndef _WIN32
 #include <sys/ioctl.h>
 #ifdef HAVE_TERMIOS_H				/* For tty-password */
 #include	<termios.h>
@@ -47,20 +43,16 @@
 #define TERMIO	struct sgttyb
 #endif
 #endif
-#ifdef alpha_linux_port
-#include <asm/ioctls.h>				/* QQ; Fix this in configure */
-#include <asm/termiobits.h>
-#endif
 #else
 #include <conio.h>
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 #endif /* HAVE_GETPASS */
 
 #ifdef HAVE_GETPASSPHRASE			/* For Solaris */
 #define getpass(A) getpassphrase(A)
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
 /* were just going to fake it here and get input from
    the keyboard */
 
@@ -211,7 +203,7 @@ char *get_tty_password_ext(const char *opt_message,
   DBUG_RETURN(strdup_function(buff,MYF(MY_FAE)));
 }
 
-#endif /*__WIN__*/
+#endif /* _WIN32 */
 
 char *get_tty_password(const char *opt_message)
 {

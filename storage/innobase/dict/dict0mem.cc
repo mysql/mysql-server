@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -24,6 +24,11 @@ Data dictionary memory object creation
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
+#ifndef UNIV_HOTBACKUP
+#include "ha_prototypes.h"
+#include <mysql_com.h>
+#endif /* !UNIV_HOTBACKUP */
+
 #include "dict0mem.h"
 
 #ifdef UNIV_NONINL
@@ -35,12 +40,11 @@ Created 1/8/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "fts0priv.h"
+
 #ifndef UNIV_HOTBACKUP
-# include "ha_prototypes.h"	/* innobase_casedn_str(),
-				innobase_get_lower_case_table_names */
-# include "mysql_com.h"		/* NAME_LEN */
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
+
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
 #endif /* UNIV_BLOB_DEBUG */
@@ -50,17 +54,13 @@ Created 1/8/1996 Heikki Tuuri
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register autoinc_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	autoinc_mutex_key;
+mysql_pfs_key_t	autoinc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
-
-/** Prefix for tmp tables, adopted from sql/table.h */
-#define tmp_file_prefix		"#sql"
-#define tmp_file_prefix_length	4
 
 /**********************************************************************//**
 Creates a table memory object.
 @return	own: table object */
-UNIV_INTERN
+
 dict_table_t*
 dict_mem_table_create(
 /*==================*/
@@ -81,7 +81,13 @@ dict_mem_table_create(
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 
 	table = static_cast<dict_table_t*>(
-		mem_heap_zalloc(heap, sizeof(dict_table_t)));
+		mem_heap_zalloc(heap, sizeof(*table)));
+
+	lock_table_lock_list_init(&table->locks);
+
+	UT_LIST_INIT(table->indexes, &dict_index_t::indexes);
+	UT_LIST_INIT(table->foreign_list, &dict_foreign_t::foreign_list);
+	UT_LIST_INIT(table->referenced_list, &dict_foreign_t::referenced_list);
 
 	table->heap = heap;
 
@@ -129,7 +135,7 @@ dict_mem_table_create(
 
 /****************************************************************//**
 Free a table memory object. */
-UNIV_INTERN
+
 void
 dict_mem_table_free(
 /*================*/
@@ -205,7 +211,7 @@ dict_add_col_name(
 
 /**********************************************************************//**
 Adds a column definition to a table. */
-UNIV_INTERN
+
 void
 dict_mem_table_add_col(
 /*===================*/
@@ -371,7 +377,7 @@ dict_mem_table_col_rename_low(
 
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
-UNIV_INTERN
+
 void
 dict_mem_table_col_rename(
 /*======================*/
@@ -400,7 +406,7 @@ dict_mem_table_col_rename(
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
-UNIV_INTERN
+
 void
 dict_mem_fill_column_struct(
 /*========================*/
@@ -431,7 +437,7 @@ dict_mem_fill_column_struct(
 /**********************************************************************//**
 Creates an index memory object.
 @return	own: index object */
-UNIV_INTERN
+
 dict_index_t*
 dict_mem_index_create(
 /*==================*/
@@ -466,13 +472,14 @@ dict_mem_index_create(
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return	own: foreign constraint struct */
-UNIV_INTERN
+
 dict_foreign_t*
 dict_mem_foreign_create(void)
 /*=========================*/
 {
 	dict_foreign_t*	foreign;
 	mem_heap_t*	heap;
+	DBUG_ENTER("dict_mem_foreign_create");
 
 	heap = mem_heap_create(100);
 
@@ -481,7 +488,9 @@ dict_mem_foreign_create(void)
 
 	foreign->heap = heap;
 
-	return(foreign);
+	DBUG_PRINT("dict_mem_foreign_create", ("heap: %p", heap));
+
+	DBUG_RETURN(foreign);
 }
 
 /**********************************************************************//**
@@ -489,7 +498,7 @@ Sets the foreign_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
 will point to foreign_table_name.  If 2, then another string is
 allocated from foreign->heap and set to lower case. */
-UNIV_INTERN
+
 void
 dict_mem_foreign_table_name_lookup_set(
 /*===================================*/
@@ -520,7 +529,7 @@ Sets the referenced_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
 will point to referenced_table_name.  If 2, then another string is
 allocated from foreign->heap and set to lower case. */
-UNIV_INTERN
+
 void
 dict_mem_referenced_table_name_lookup_set(
 /*======================================*/
@@ -551,7 +560,7 @@ dict_mem_referenced_table_name_lookup_set(
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
 by the column name may be released only after publishing the index. */
-UNIV_INTERN
+
 void
 dict_mem_index_add_field(
 /*=====================*/
@@ -576,7 +585,7 @@ dict_mem_index_add_field(
 
 /**********************************************************************//**
 Frees an index memory object. */
-UNIV_INTERN
+
 void
 dict_mem_index_free(
 /*================*/
@@ -597,9 +606,15 @@ dict_mem_index_free(
 }
 
 /*******************************************************************//**
-Create a temporary tablename.
-@return temporary tablename suitable for InnoDB use */
-UNIV_INTERN
+Create a temporary tablename like "#sql-ibnnnn-mmmm" where
+  nnnn = the table ID
+  mmmm = the current LSN
+Both of these numbers are 64 bit integers and can use up to 20 digits.
+Note that both numbers are needed to achieve a unique name since it is
+possible for two threads to call this while the LSN is the same.
+But these two threads will not be working on the same table.
+@return A unique temporary tablename suitable for InnoDB use */
+
 char*
 dict_mem_create_temporary_tablename(
 /*================================*/
@@ -610,12 +625,17 @@ dict_mem_create_temporary_tablename(
 	const char*	dbend   = strchr(dbtab, '/');
 	ut_ad(dbend);
 	size_t		dblen   = dbend - dbtab + 1;
-	size_t		size = tmp_file_prefix_length + 4 + 9 + 9 + dblen;
+	size_t		size =
+		dblen + (sizeof(TEMP_FILE_PREFIX) + 3 + 20 + 1 + 20);
+
+	lsn_t		cur_lsn;
+	while (!log_peek_lsn(&cur_lsn)) {}
 
 	char*	name = static_cast<char*>(mem_heap_alloc(heap, size));
 	memcpy(name, dbtab, dblen);
 	ut_snprintf(name + dblen, size - dblen,
-		    tmp_file_prefix "-ib" UINT64PF, id);
+		    TEMP_FILE_PREFIX_INNODB UINT64PF "-" UINT64PF,
+		    id, cur_lsn);
+
 	return(name);
 }
-

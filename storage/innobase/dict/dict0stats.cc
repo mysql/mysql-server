@@ -27,24 +27,25 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "univ.i"
 
-#include "btr0btr.h" /* btr_get_size() */
-#include "btr0cur.h" /* btr_estimate_number_of_different_key_vals() */
-#include "dict0dict.h" /* dict_table_get_first_index(), dict_fs2utf8() */
-#include "dict0mem.h" /* DICT_TABLE_MAGIC_N */
+#include "ha_prototypes.h"
+#include <mysql_com.h>
+
+#include "btr0btr.h"
+#include "btr0cur.h"
+#include "dict0dict.h"
+#include "dict0mem.h"
 #include "dict0stats.h"
-#include "data0type.h" /* dtype_t */
-#include "db0err.h" /* dberr_t */
-#include "page0page.h" /* page_align() */
-#include "pars0pars.h" /* pars_info_create() */
-#include "pars0types.h" /* pars_info_t */
-#include "que0que.h" /* que_eval_sql() */
-#include "rem0cmp.h" /* REC_MAX_N_FIELDS,cmp_rec_rec_with_match() */
-#include "row0sel.h" /* sel_node_t */
-#include "row0types.h" /* sel_node_t */
-#include "trx0trx.h" /* trx_create() */
-#include "trx0roll.h" /* trx_rollback_to_savepoint() */
-#include "ut0rnd.h" /* ut_rnd_interval() */
-#include "ut0ut.h" /* ut_format_name(), ut_time() */
+#include "data0type.h"
+#include "page0page.h"
+#include "pars0pars.h"
+#include "pars0types.h"
+#include "que0que.h"
+#include "rem0cmp.h"
+#include "row0sel.h"
+#include "row0types.h"
+#include "trx0trx.h"
+#include "trx0roll.h"
+#include "ut0rnd.h"
 
 #include <vector>
 
@@ -400,7 +401,7 @@ dict_stats_table_clone_create(
 
 	t->corrupted = table->corrupted;
 
-	UT_LIST_INIT(t->indexes);
+	UT_LIST_INIT(t->indexes, &dict_index_t::indexes);
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
@@ -438,13 +439,17 @@ dict_stats_table_clone_create(
 			heap, idx->n_uniq * sizeof(idx->fields[0]));
 
 		for (ulint i = 0; i < idx->n_uniq; i++) {
-			UNIV_MEM_ASSERT_RW_ABORT(index->fields[i].name, strlen(index->fields[i].name) + 1);
+
+			UNIV_MEM_ASSERT_RW_ABORT(
+				index->fields[i].name,
+				strlen(index->fields[i].name) + 1);
+
 			idx->fields[i].name = (char*) mem_heap_strdup(
 				heap, index->fields[i].name);
 		}
 
 		/* hook idx into t->indexes */
-		UT_LIST_ADD_LAST(indexes, t->indexes, idx);
+		UT_LIST_ADD_LAST(t->indexes, idx);
 
 		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_alloc(
 			heap,
@@ -785,7 +790,10 @@ dict_stats_update_transient_for_index(
 		 && dict_index_is_clust(index))) {
 		mtr_t	mtr;
 		ulint	size;
+
 		mtr_start(&mtr);
+		dict_disable_redo_if_temporary(index->table, &mtr);
+
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 
 		size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
@@ -828,7 +836,7 @@ is relatively quick and is used to calculate transient statistics that
 are not saved on disk.
 This was the only way to calculate statistics before the
 Persistent Statistics feature was introduced. */
-UNIV_INTERN
+
 void
 dict_stats_update_transient(
 /*========================*/
@@ -1024,8 +1032,6 @@ dict_stats_analyze_index_level(
 	     btr_pcur_is_on_user_rec(&pcur);
 	     btr_pcur_move_to_next_user_rec(&pcur, mtr)) {
 
-		ulint	matched_fields = 0;
-		ulint	matched_bytes = 0;
 		bool	rec_is_last_on_page;
 
 		rec = btr_pcur_get_rec(&pcur);
@@ -1085,6 +1091,8 @@ dict_stats_analyze_index_level(
 		(*total_recs)++;
 
 		if (prev_rec != NULL) {
+			ulint	matched_fields;
+
 			prev_rec_offsets = rec_get_offsets(
 				prev_rec, index, prev_rec_offsets,
 				n_uniq, &heap);
@@ -1095,8 +1103,7 @@ dict_stats_analyze_index_level(
 					       prev_rec_offsets,
 					       index,
 					       FALSE,
-					       &matched_fields,
-					       &matched_bytes);
+					       &matched_fields);
 
 			for (i = matched_fields; i < n_uniq; i++) {
 
@@ -1309,8 +1316,7 @@ dict_stats_scan_page(
 
 	while (!page_rec_is_supremum(next_rec)) {
 
-		ulint	matched_fields = 0;
-		ulint	matched_bytes = 0;
+		ulint	matched_fields;
 
 		offsets_next_rec = rec_get_offsets(next_rec, index,
 						   offsets_next_rec,
@@ -1321,8 +1327,7 @@ dict_stats_scan_page(
 		the first n_prefix fields */
 		cmp_rec_rec_with_match(rec, next_rec,
 				       offsets_rec, offsets_next_rec,
-				       index, FALSE, &matched_fields,
-				       &matched_bytes);
+				       index, FALSE, &matched_fields);
 
 		if (matched_fields < n_prefix) {
 			/* rec != next_rec, => rec is non-boring */
@@ -1746,6 +1751,10 @@ dict_stats_analyze_index(
 	boundaries_t*	n_diff_boundaries;
 	mtr_t		mtr;
 	ulint		size;
+	DBUG_ENTER("dict_stats_analyze_index");
+
+	DBUG_PRINT("info", ("index: %s, online status: %d", index->name,
+			    dict_index_get_online_status(index)));
 
 	DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name);
 
@@ -1768,7 +1777,7 @@ dict_stats_analyze_index(
 	switch (size) {
 	case ULINT_UNDEFINED:
 		dict_stats_assert_initialized_index(index);
-		return;
+		DBUG_VOID_RETURN;
 	case 0:
 		/* The root node of the tree is a leaf */
 		size = 1;
@@ -1822,7 +1831,7 @@ dict_stats_analyze_index(
 		mtr_commit(&mtr);
 
 		dict_stats_assert_initialized_index(index);
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	/* set to zero */
@@ -1984,6 +1993,7 @@ found_level:
 	mem_free(n_diff_on_level);
 
 	dict_stats_assert_initialized_index(index);
+	DBUG_VOID_RETURN;
 }
 
 /*********************************************************************//**
@@ -2069,7 +2079,6 @@ dict_stats_update_persistent(
 	return(DB_SUCCESS);
 }
 
-#include "mysql_com.h"
 /*********************************************************************//**
 Save an individual index's statistic into the persistent statistics
 storage.
@@ -2835,12 +2844,14 @@ dict_stats_fetch_from_ps(
 
 /*********************************************************************//**
 Fetches or calculates new estimates for index statistics. */
-UNIV_INTERN
+
 void
 dict_stats_update_for_index(
 /*========================*/
 	dict_index_t*	index)	/*!< in/out: index */
 {
+	DBUG_ENTER("dict_stats_update_for_index");
+
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	if (dict_stats_is_persistent_enabled(index->table)) {
@@ -2850,7 +2861,7 @@ dict_stats_update_for_index(
 			dict_stats_analyze_index(index);
 			dict_table_stats_unlock(index->table, RW_X_LATCH);
 			dict_stats_save(index->table);
-			return;
+			DBUG_VOID_RETURN;
 		}
 		/* else */
 
@@ -2873,13 +2884,15 @@ dict_stats_update_for_index(
 	dict_table_stats_lock(index->table, RW_X_LATCH);
 	dict_stats_update_transient_for_index(index);
 	dict_table_stats_unlock(index->table, RW_X_LATCH);
+
+	DBUG_VOID_RETURN;
 }
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_update(
 /*==============*/
@@ -3115,7 +3128,7 @@ marko: If ibuf merges are not disabled, we need to scan the *.ibd files.
 But we shouldn't open *.ibd files before we have rolled back dict
 transactions and opened the SYS_* records for the *.ibd files.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_drop_index(
 /*==================*/
@@ -3277,7 +3290,7 @@ Removes the statistics for a table and all of its indexes from the
 persistent statistics storage if it exists and if there is data stored for
 the table. This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_drop_table(
 /*==================*/
@@ -3445,7 +3458,7 @@ dict_stats_rename_table_in_index_stats(
 Renames a table in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_rename_table(
 /*====================*/
@@ -3603,7 +3616,7 @@ Renames an index in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
 if the persistent stats do not exist. */
-UNIV_INTERN
+
 dberr_t
 dict_stats_rename_index(
 /*====================*/

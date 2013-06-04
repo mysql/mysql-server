@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,9 +67,9 @@ my_bool	net_flush(NET *net);
 #include "errmsg.h"
 #include <violite.h>
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #include <my_pthread.h>				/* because of signal()	*/
-#endif /* !defined(__WIN__) */
+#endif /* !defined(_WIN32) */
 
 #include <sys/stat.h>
 #include <signal.h>
@@ -79,14 +79,12 @@ my_bool	net_flush(NET *net);
 #include <pwd.h>
 #endif
 
-#if !defined(__WIN__)
 #ifdef HAVE_SELECT_H
 #  include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #  include <sys/select.h>
 #endif
-#endif /* !defined(__WIN__) */
 
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
@@ -886,7 +884,7 @@ static void cli_flush_use_result(MYSQL *mysql, my_bool flush_all_results)
 }
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 static my_bool is_NT(void)
 {
   char *os=getenv("OS");
@@ -1302,7 +1300,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
                                     opt_arg));
               break;
             }
-            convert_dirname(buff, buff2, NULL);
+            convert_dirname(buff2, buff, NULL);
             EXTENSION_SET_STRING(options, plugin_dir, buff2);
           }
           break;
@@ -1925,7 +1923,7 @@ typedef struct str2str_st
 
 const MY_CSET_OS_NAME charsets[]=
 {
-#ifdef __WIN__
+#ifdef _WIN32
   {"cp437",          "cp850",    my_cs_approx},
   {"cp850",          "cp850",    my_cs_exact},
   {"cp852",          "cp852",    my_cs_exact},
@@ -2111,15 +2109,13 @@ def:
 }
 
 
-#ifndef __WIN__
+#ifndef _WIN32
 #include <stdlib.h> /* for getenv() */
 #ifdef HAVE_LANGINFO_H
 #include <langinfo.h>
 #endif
-#ifdef HAVE_LOCALE_H
 #include <locale.h>
-#endif
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
 static int
@@ -2127,7 +2123,7 @@ mysql_autodetect_character_set(MYSQL *mysql)
 {
   const char *csname= MYSQL_DEFAULT_CHARSET_NAME;
 
-#ifdef __WIN__
+#ifdef _WIN32
   char cpbuf[64];
   {
     my_snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetConsoleCP());
@@ -3125,14 +3121,14 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
                       "_os", SYSTEM_TYPE);
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                       "_platform", MACHINE_TYPE);
-#ifdef __WIN__
+#ifdef _WIN32
   snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
 #else
   snprintf(buff, buf_len, "%lu", (ulong) getpid());
 #endif
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
 
-#ifdef __WIN__
+#ifdef _WIN32
   snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
@@ -3153,7 +3149,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   const char    *scramble_plugin;
   ulong		pkt_length;
   NET		*net= &mysql->net;
-#ifdef __WIN__
+#ifdef _WIN32
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
 #endif
 #ifdef HAVE_SYS_UN_H

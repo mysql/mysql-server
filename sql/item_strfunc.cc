@@ -41,7 +41,7 @@
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"
 #include "mysqld.h"                             // LOCK_uuid_generator
-#include "sql_acl.h"                            // SUPER_ACL
+#include "auth_common.h"                        // SUPER_ACL
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
 #include "password.h"           // my_make_scrambled_password,
                                 // my_make_scrambled_password_323
@@ -2050,9 +2050,8 @@ char *Item_func_old_password::alloc(THD *thd, const char *password,
 String *Item_func_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-
 #ifdef HAVE_CRYPT
+  String *res = args[0]->val_str(str);
   char salt[3],*salt_ptr;
   if ((null_value=args[0]->null_value))
     return 0;
@@ -2143,12 +2142,16 @@ String *Item_func_encode::val_str(String *str)
 
 void Item_func_encode::crypto_transform(String *res)
 {
+  THD *thd= current_thd;
+  WARN_DEPRECATED(thd, "ENCODE", "AES_ENCRYPT");
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
 }
 
 void Item_func_decode::crypto_transform(String *res)
 {
+  THD *thd= current_thd;
+  WARN_DEPRECATED(thd, "DECODE", "AES_DECRYPT");
   sql_crypt.decode((char*) res->ptr(),res->length());
 }
 
@@ -4271,7 +4274,7 @@ String *Item_func_uuid::val_str(String *str)
       *--s=_dig_vec_lower[mac[i] >> 4];
     }
     randominit(&uuid_rand, tmp + (ulong) server_start_time,
-               tmp + (ulong) IF_WIN(GetCurrentProcessId(), getpid()));
+	       tmp + (ulong) thd->status_var.bytes_sent);
     set_clock_seq_str();
   }
 

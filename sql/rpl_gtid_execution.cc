@@ -217,6 +217,83 @@ int gtid_acquire_ownership_multiple(THD *thd)
 #endif
 
 
+/**
+  Check if current transaction should be skipped, that is, if GTID_NEXT
+  was already logged.
+
+  @param  thd    The calling thread.
+
+  @retval true   Transaction was already logged.
+  @retval false  Transaction must be executed.
+*/
+static inline bool is_already_logged_transaction(const THD *thd)
+{
+  DBUG_ENTER("is_already_logged_transaction");
+
+  const Gtid_specification *gtid_next= &thd->variables.gtid_next;
+  const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
+
+  if (gtid_next_list == NULL)
+  {
+    if (gtid_next->type == GTID_GROUP)
+    {
+      if (thd->owned_gtid.sidno == 0)
+        DBUG_RETURN(true);
+      else
+        DBUG_ASSERT(thd->owned_gtid.equals(gtid_next->gtid));
+    }
+    else
+      DBUG_ASSERT(thd->owned_gtid.sidno == 0);
+  }
+  else
+  {
+#ifdef HAVE_GTID_NEXT_LIST
+    if (gtid_next->type == GTID_GROUP)
+    {
+      DBUG_ASSERT(gtid_next_list->contains_gtid(gtid_next->gtid));
+      if (!thd->owned_gtid_set.contains_gtid(gtid_next->gtid))
+        DBUG_RETURN(true);
+    }
+#else
+    DBUG_ASSERT(0);/*NOTREACHED*/
+#endif
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Debug code executed when a transaction is skipped.
+
+  @param  thd     The calling thread.
+
+  @retval GTID_STATEMENT_SKIP  Indicate that statement should be
+                               skipped by caller.
+*/
+static inline enum_gtid_statement_status skip_statement(const THD *thd)
+{
+  DBUG_ENTER("skip_statement");
+
+  DBUG_PRINT("info", ("skipping statement '%s'. "
+                      "gtid_next->type=%d sql_command=%d "
+                      "thd->thread_id=%lu",
+                      thd->query(),
+                      thd->variables.gtid_next.type,
+                      thd->lex->sql_command,
+                      thd->thread_id));
+
+#ifndef DBUG_OFF
+  const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
+  global_sid_lock->rdlock();
+  DBUG_ASSERT(logged_gtids->contains_gtid(thd->variables.gtid_next.gtid));
+  global_sid_lock->unlock();
+#endif
+
+  DBUG_RETURN(GTID_STATEMENT_SKIP);
+}
+
+
 enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
 {
   DBUG_ENTER("gtid_pre_statement_checks");
@@ -229,9 +306,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
 
   const Gtid_specification *gtid_next= &thd->variables.gtid_next;
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) &&
-      (thd->in_active_multi_stmt_transaction() ||
-       (!is_update_query(thd->lex->sql_command) &&
-        !thd->lex->is_set_password_sql)) &&
+      thd->in_active_multi_stmt_transaction() &&
       gtid_next->type != AUTOMATIC_GROUP)
   {
     my_error(ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET, MYF(0));
@@ -251,7 +326,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
   if (sql_command == SQLCOM_COMMIT || sql_command == SQLCOM_BEGIN ||
       sql_command == SQLCOM_ROLLBACK ||
       ((sql_command == SQLCOM_SELECT ||
-        sql_command == SQLCOM_SET_OPTION) &&
+        (sql_command == SQLCOM_SET_OPTION && !thd->lex->is_set_password_sql)) &&
        !thd->lex->uses_stored_routines()))
     DBUG_RETURN(GTID_STATEMENT_EXECUTE);
 
@@ -296,33 +371,11 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
                       thd->owned_gtid.gno,
                       (ulong)thd->thread_id));
 
+  const bool skip_transaction= is_already_logged_transaction(thd);
   if (gtid_next_list == NULL)
   {
-    if (gtid_next->type == GTID_GROUP)
-    {
-      if (thd->owned_gtid.sidno == 0)
-      {
-        /// @todo assert that statement is logged and not owned /sven
-        DBUG_PRINT("info", ("skipping statement '%s'. "
-                            "gtid_next->type=%d sql_command=%d "
-                            "thd->thread_id=%lu",
-                            thd->query(),
-                            gtid_next->type, sql_command,
-                            thd->thread_id));
-        /*
-          @todo: tests fail when this is enabled. figure out why /sven
-          char buf[Gtid::MAX_TEXT_LENGTH + 1];
-          gtid_next->to_string(&global_sid_map, buf);
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-          ER_SKIPPING_LOGGED_TRANSACTION,
-          ER(ER_SKIPPING_LOGGED_TRANSACTION), buf);
-        */
-        DBUG_RETURN(GTID_STATEMENT_SKIP);
-      }
-      DBUG_ASSERT(thd->owned_gtid.equals(gtid_next->gtid));
-    }
-    else
-      DBUG_ASSERT(thd->owned_gtid.sidno == 0);
+    if (skip_transaction)
+      DBUG_RETURN(skip_statement(thd));
     DBUG_RETURN(GTID_STATEMENT_EXECUTE);
   }
   else
@@ -335,26 +388,8 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
                MYF(0));
       DBUG_RETURN(GTID_STATEMENT_CANCEL);
     case GTID_GROUP:
-      DBUG_ASSERT(gtid_next_list->contains_gtid(gtid_next->gtid));
-      if (!thd->owned_gtid_set.contains_gtid(gtid_next->gtid))
-      {
-        /*
-          @todo: tests fail when this is enabled. figure out why /sven
-          char buf[Gtid::MAX_TEXT_LENGTH + 1];
-          gtid_next->to_string(&global_sid_map, buf);
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-          ER_SKIPPING_LOGGED_TRANSACTION,
-          ER(ER_SKIPPING_LOGGED_TRANSACTION), buf);
-        */
-        /// @todo assert that statement is logged and not owned /sven
-        DBUG_PRINT("info", ("skipping statement '%s'. "
-                            "gtid_next->type=%d sql_command=%d "
-                            "thd->thread_id=%lu",
-                            thd->query(),
-                            gtid_next->type, sql_command,
-                            thd->thread_id));
-        DBUG_RETURN(GTID_STATEMENT_SKIP);
-      }
+      if (skip_transaction)
+        DBUG_RETURN(skip_statement(thd));
       /*FALLTHROUGH*/
     case ANONYMOUS_GROUP:
       DBUG_RETURN(GTID_STATEMENT_EXECUTE);
@@ -370,6 +405,42 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
 }
 
 
+void gtid_post_statement_checks(THD *thd)
+{
+  DBUG_ENTER("gtid_post_statement_checks");
+  const enum_sql_command sql_command= thd->lex->sql_command;
+
+  /*
+    If transaction is terminated we set GTID_NEXT type to
+    UNDEFINED_GROUP, to prevent that the same GTID is used for another
+    transaction (same GTID here means that user only set
+    GTID_NEXT= GTID_GROUP once for two transactions).
+
+    If the current statement:
+      implict commits
+      OR
+      is SQLCOM_SET_OPTION AND is SET PASSWORD
+      OR
+      is commit
+      OR
+      is rollback
+    that means the transaction is terminated and we set GTID_NEXT type
+    to UNDEFINED_GROUP.
+
+    SET AUTOCOMMIT=1 statement is handled on Gtid_state::update_on_flush().
+  */
+  if (thd->variables.gtid_next.type == GTID_GROUP &&
+      thd->get_command() != COM_STMT_PREPARE &&
+      (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) ||
+       (sql_command == SQLCOM_SET_OPTION && thd->lex->is_set_password_sql) ||
+       sql_command == SQLCOM_COMMIT ||
+       sql_command == SQLCOM_ROLLBACK))
+    thd->variables.gtid_next.set_undefined();
+
+  DBUG_VOID_RETURN;
+}
+
+
 int gtid_rollback(THD *thd)
 {
   DBUG_ENTER("gtid_rollback");
@@ -377,8 +448,6 @@ int gtid_rollback(THD *thd)
   global_sid_lock->rdlock();
   gtid_state->update_on_rollback(thd);
   global_sid_lock->unlock();
-
-  thd->variables.gtid_next.set_undefined();
 
   DBUG_RETURN(0);
 }

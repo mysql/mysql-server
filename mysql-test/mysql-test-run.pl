@@ -646,7 +646,7 @@ sub run_test_server ($$$) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 
-			   My::CoreDump->show($core_file, $exe_mysqld);
+			   My::CoreDump->show($core_file, $exe_mysqld, $opt_parallel);
 
 			   if ($num_saved_cores >= $opt_max_save_core) {
 			     mtr_report(" - deleting it, already saved",
@@ -2059,7 +2059,17 @@ sub executable_setup () {
   }
   else
   {
-    $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+    if ( defined $ENV{'MYSQL_TEST'} )
+    {
+      $exe_mysqltest=$ENV{'MYSQL_TEST'};
+      print "===========================================================\n";
+      print "WARNING:The mysqltest binary is fetched from $exe_mysqltest\n";
+      print "===========================================================\n";
+    }
+    else
+    {
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+    }
   }
 
 }
@@ -2321,18 +2331,6 @@ sub environment_setup {
 				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
-  # The environment variable used for shared libs on AIX
-  $ENV{'SHLIB_PATH'}= join(":", @ld_library_paths,
-                           $ENV{'SHLIB_PATH'} ?
-                           split(':', $ENV{'SHLIB_PATH'}) : ());
-  mtr_debug("SHLIB_PATH: $ENV{'SHLIB_PATH'}");
-
-  # The environment variable used for shared libs on hp-ux
-  $ENV{'LIBPATH'}= join(":", @ld_library_paths,
-                        $ENV{'LIBPATH'} ?
-                        split(':', $ENV{'LIBPATH'}) : ());
-  mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
-
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
 
@@ -2483,6 +2481,15 @@ sub environment_setup {
 		   "$path_client_bindir/my_print_defaults",
 		   "$basedir/extra/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute innochecksum
+  # ----------------------------------------------------
+  my $exe_innochecksum=
+    mtr_exe_exists(vs_config_dirs('extra', 'innochecksum'),
+                   "$path_client_bindir/innochecksum",
+                   "$basedir/extra/innochecksum");
+  $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
 
   # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
@@ -5684,6 +5691,11 @@ sub start_servers($) {
 
       # Save this test case information, so next can examine it
       $mysqld->{'started_tinfo'}= $tinfo;
+
+      # Wait until server's uuid is generated. This avoids that master and
+      # slave generate the same UUID sporadically.
+      sleep_until_file_created("$datadir/auto.cnf", $opt_start_timeout,
+                               $mysqld->{'proc'});
 
     }
 

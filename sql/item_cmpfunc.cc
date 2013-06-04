@@ -5267,8 +5267,8 @@ longlong Item_func_like::val_int()
     return 0;
   }
   null_value=0;
-  if (canDoTurboBM)
-    return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
+  if (can_do_bm)
+    return bm_matches(res->ptr(), res->length()) ? 1 : 0;
   return my_wildcmp(cmp.cmp_collation.collation,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
@@ -5304,12 +5304,12 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   if (Item_bool_func2::fix_fields(thd, ref) ||
       escape_item->fix_fields(thd, &escape_item))
-    return TRUE;
+    return true;
 
   if (!escape_item->const_during_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
-    return TRUE;
+    return true;
   }
   
   if (escape_item->const_item())
@@ -5373,25 +5373,29 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     {
       String* res2 = args[1]->val_str(&cmp.value2);
       if (!res2)
-        return FALSE;				// Null argument
-      
+        return false;				// Null argument
+
       const size_t len   = res2->length();
       const char*  first = res2->ptr();
       const char*  last  = first + len - 1;
+
       /*
-        len must be > 2 ('%pattern%')
-        heuristic: only do TurboBM for pattern_len > 2
+        Minimum length pattern before Boyer-Moore is used
+        for SELECT "text" LIKE "%pattern%" including the two
+        wildcards in class Item_func_like.
       */
-      
-      if (len > MIN_TURBOBM_PATTERN_LEN + 2 &&
+
+      const size_t min_bm_pattern_len= 5;
+
+      if (len > min_bm_pattern_len &&
           *first == wild_many &&
           *last  == wild_many)
       {
         const char* tmp = first + 1;
         for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
-        canDoTurboBM = (tmp == last) && !use_mb(args[0]->collation.collation);
+        can_do_bm= (tmp == last) && !use_mb(args[0]->collation.collation);
       }
-      if (canDoTurboBM)
+      if (can_do_bm)
       {
         pattern_len = (int) len - 2;
         pattern     = thd->strmake(first + 1, pattern_len);
@@ -5401,18 +5405,18 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
                                       alphabet_size)));
         bmGs      = suff + pattern_len + 1;
         bmBc      = bmGs + pattern_len + 1;
-        turboBM_compute_good_suffix_shifts(suff);
-        turboBM_compute_bad_character_shifts();
+        bm_compute_good_suffix_shifts(suff);
+        bm_compute_bad_character_shifts();
         DBUG_PRINT("info",("done"));
       }
     }
   }
-  return FALSE;
+  return false;
 }
 
 void Item_func_like::cleanup()
 {
-  canDoTurboBM= FALSE;
+  can_do_bm= false;
   Item_bool_func2::cleanup();
 }
 
@@ -5570,18 +5574,14 @@ void Item_func_regex::cleanup()
 }
 
 
-#ifdef LIKE_CMP_TOUPPER
-#define likeconv(cs,A) (uchar) (cs)->toupper(A)
-#else
 #define likeconv(cs,A) (uchar) (cs)->sort_order[(uchar) (A)]
-#endif
 
 
 /**
   Precomputation dependent only on pattern_len.
 */
 
-void Item_func_like::turboBM_compute_suffixes(int *suff)
+void Item_func_like::bm_compute_suffixes(int *suff)
 {
   const int   plm1 = pattern_len - 1;
   int            f = 0;
@@ -5637,9 +5637,9 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
   Precomputation dependent only on pattern_len.
 */
 
-void Item_func_like::turboBM_compute_good_suffix_shifts(int *suff)
+void Item_func_like::bm_compute_good_suffix_shifts(int *suff)
 {
-  turboBM_compute_suffixes(suff);
+  bm_compute_suffixes(suff);
 
   int *end = bmGs + pattern_len;
   int *k;
@@ -5681,7 +5681,7 @@ void Item_func_like::turboBM_compute_good_suffix_shifts(int *suff)
    Precomputation dependent on pattern_len.
 */
 
-void Item_func_like::turboBM_compute_bad_character_shifts()
+void Item_func_like::bm_compute_bad_character_shifts()
 {
   int *i;
   int *end = bmBc + alphabet_size;
@@ -5712,13 +5712,11 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
     returns true/false for match/no match
 */
 
-bool Item_func_like::turboBM_matches(const char* text, int text_len) const
+bool Item_func_like::bm_matches(const char* text, int text_len) const
 {
   int bcShift;
-  int turboShift;
   int shift = pattern_len;
   int j     = 0;
-  int u     = 0;
   const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   const int plm1=  pattern_len - 1;
@@ -5729,66 +5727,43 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   {
     while (j <= tlmpl)
     {
-      int i= plm1;
-      while (i >= 0 && pattern[i] == text[i + j])
-      {
-	i--;
-	if (i == plm1 - shift)
-	  i-= u;
-      }
-      if (i < 0)
-	return 1;
+      int i;
 
-      const int v = plm1 - i;
-      turboShift = u - v;
-      bcShift    = bmBc[(uint) (uchar) text[i + j]] - plm1 + i;
-      shift      = max(turboShift, bcShift);
-      shift      = max(shift, bmGs[i]);
-      if (shift == bmGs[i])
-	u = min(pattern_len - shift, v);
+      for (i= plm1; (i >= 0) && (pattern[i] == text[i + j]) ;--i) {}
+
+      if (i < 0)
+	return true;
       else
       {
-	if (turboShift < bcShift)
-	  shift = max(shift, u + 1);
-	u = 0;
+        bcShift= bmBc[(uint) text[i + j]] - plm1 + i;
+        shift= max(bcShift, bmGs[i]);
       }
       j+= shift;
     }
-    return 0;
+    return false;
   }
   else
   {
     while (j <= tlmpl)
     {
-      int i = plm1;
-      while (i >= 0 && likeconv(cs,pattern[i]) == likeconv(cs,text[i + j]))
-      {
-	i--;
-	if (i == plm1 - shift)
-	  i-= u;
-      }
-      if (i < 0)
-	return 1;
+      int i;
 
-      const int v = plm1 - i;
-      turboShift = u - v;
-      bcShift    = bmBc[(uint) likeconv(cs, text[i + j])] - plm1 + i;
-      shift      = max(turboShift, bcShift);
-      shift      = max(shift, bmGs[i]);
-      if (shift == bmGs[i])
-	u = min(pattern_len - shift, v);
+      for (i= plm1;
+           (i >= 0) && likeconv(cs,pattern[i]) == likeconv(cs,text[i + j]);
+           --i) {}
+
+      if (i < 0)
+	return true;
       else
       {
-	if (turboShift < bcShift)
-	  shift = max(shift, u + 1);
-	u = 0;
+        bcShift= bmBc[(uint) likeconv(cs, text[i + j])] - plm1 + i;
+        shift= max(bcShift, bmGs[i]);
       }
       j+= shift;
     }
-    return 0;
+    return false;
   }
 }
-
 
 /**
   Make a logical XOR of the arguments.

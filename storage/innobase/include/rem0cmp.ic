@@ -23,71 +23,20 @@ Comparison services for records
 Created 7/1/1994 Heikki Tuuri
 ************************************************************************/
 
-/*****************************************************************
-This function is used to compare two (CHAR) data fields for the LIKE
-operator. */
-UNIV_INLINE
-int
-cmp_data_data_like_prefix(
-/*======================*/
-				/* out: 1, 0, -1, if data1 is greater, equal,
-				less than data2, respectively */
-	byte*           data1,  /* in: data field (== a pointer to a memory
-				buffer) */
-	ulint           len1,   /* in: data field length or UNIV_SQL_NULL */
-	byte*           data2,  /* in: data field (== a pointer to a memory
-				buffer) */
-	ulint           len2)   /* in: data field length or UNIV_SQL_NULL */
-{
-	return(cmp_data_data_slow_like_prefix(data1, len1, data2, len2));
-}
-/*****************************************************************
-This function is used to compare two (CHAR) data fields for the LIKE
-operator. */
-UNIV_INLINE
-int
-cmp_data_data_like_suffix(
-/*======================*/
-				/* out: 1, 0, -1, if data1 is greater, equal,
-				less than data2, respectively */
-	byte*           data1,  /* in: data field (== a pointer to a memory
-				buffer) */
-	ulint           len1,   /* in: data field length or UNIV_SQL_NULL */
-	byte*           data2,  /* in: data field (== a pointer to a memory
-				buffer) */
-	ulint           len2)   /* in: data field length or UNIV_SQL_NULL */
-{
-	return(cmp_data_data_slow_like_suffix(data1, len1, data2, len2));
-}
-/*****************************************************************
-This function is used to compare two (CHAR) data fields for the LIKE
-operator. */
-UNIV_INLINE
-int
-cmp_data_data_like_substr(
-/*======================*/
-				/* out: 1, 0, -1, if data1 is greater, equal,
-				less than data2, respectively */
-	byte*           data1,  /* in: data field (== a pointer to a memory
-				buffer) */
-	ulint           len1,   /* in: data field length or UNIV_SQL_NULL */
-	byte*           data2,  /* in: data field (== a pointer to a memory
-				buffer) */
-	ulint           len2)   /* in: data field length or UNIV_SQL_NULL */
-{
-	return(cmp_data_data_slow_like_substr(data1, len1, data2, len2));
-}
-/*************************************************************//**
-This function is used to compare two dfields where at least the first
-has its data type field set.
-@return 1, 0, -1, if dfield1 is greater, equal, less than dfield2,
-respectively */
+#include <mysql_com.h>
+
+/** Compare two data fields.
+@param[in]	dfield1	data field; must have type field set
+@param[in]	dfield2	data field
+@return	the comparison result of dfield1 and dfield2
+@retval	0 if dfield1 is equal to dfield2
+@retval	negative if dfield1 is less than dfield2
+@retval	positive if dfield1 is greater than dfield2 */
 UNIV_INLINE
 int
 cmp_dfield_dfield(
-/*==============*/
-	const dfield_t*	dfield1,/*!< in: data field; must have type field set */
-	const dfield_t*	dfield2)/*!< in: data field */
+	const dfield_t*	dfield1,
+	const dfield_t*	dfield2)
 {
 	const dtype_t*	type;
 
@@ -102,65 +51,81 @@ cmp_dfield_dfield(
 			     dfield_get_len(dfield2)));
 }
 
-/*****************************************************************
-This function is used to compare two dfields where at least the first
-has its data type field set. */
-UNIV_INLINE
-int
-cmp_dfield_dfield_like_suffix(
-/*==========================*/
-				/* out: 1, 0, -1, if dfield1 is greater, equal,
-				less than dfield2, respectively */
-	dfield_t*       dfield1,/* in: data field; must have type field set */
-	dfield_t*       dfield2)/* in: data field */
-{
-	ut_ad(dfield_check_typed(dfield1));
-
-	return(cmp_data_data_like_suffix(
-		(byte*) dfield_get_data(dfield1),
-		dfield_get_len(dfield1),
-		(byte*) dfield_get_data(dfield2),
-		dfield_get_len(dfield2)));
-}
-
-/*****************************************************************
-This function is used to compare two dfields where at least the first
-has its data type field set. */
-UNIV_INLINE
-int
-cmp_dfield_dfield_like_substr(
-/*==========================*/
-				/* out: 1, 0, -1, if dfield1 is greater, equal,
-				less than dfield2, respectively */
-	dfield_t*       dfield1,/* in: data field; must have type field set */
-	dfield_t*       dfield2)/* in: data field */
-{
-	ut_ad(dfield_check_typed(dfield1));
-
-	return(cmp_data_data_like_substr(
-		(byte*) dfield_get_data(dfield1),
-		dfield_get_len(dfield1),
-		(byte*) dfield_get_data(dfield2),
-		dfield_get_len(dfield2)));
-}
-/*************************************************************//**
-This function is used to compare two physical records. Only the common
-first fields are compared.
-@return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than
-rec2; only the common first fields are compared */
+/** Compare two B-tree records.
+Only the common first fields are compared, and externally stored field
+are treated as equal.
+@param[in]	rec1		B-tree record
+@param[in]	rec2		B-tree record
+@param[in]	offsets1	rec_get_offsets(rec1, index)
+@param[in]	offsets2	rec_get_offsets(rec2, index)
+@return positive, 0, negative if rec1 is greater, equal, less, than rec2,
+respectively */
 UNIV_INLINE
 int
 cmp_rec_rec(
-/*========*/
-	const rec_t*	rec1,	/*!< in: physical record */
-	const rec_t*	rec2,	/*!< in: physical record */
-	const ulint*	offsets1,/*!< in: rec_get_offsets(rec1, index) */
-	const ulint*	offsets2,/*!< in: rec_get_offsets(rec2, index) */
-	dict_index_t*	index)	/*!< in: data dictionary index */
+	const rec_t*		rec1,
+	const rec_t*		rec2,
+	const ulint*		offsets1,
+	const ulint*		offsets2,
+	const dict_index_t*	index)
 {
-	ulint	match_f		= 0;
-	ulint	match_b		= 0;
+	ulint	match_f;
 
 	return(cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index,
-				      FALSE, &match_f, &match_b));
+				      false, &match_f));
+}
+
+/** Compare two data fields.
+@param[in]	dfield1	data field
+@param[in]	dfield2	data field
+@return	the comparison result of dfield1 and dfield2
+@retval	0 if dfield1 is equal to dfield2, or a prefix of dfield1
+@retval	negative if dfield1 is less than dfield2
+@retval	positive if dfield1 is greater than dfield2 */
+UNIV_INLINE
+int
+cmp_dfield_dfield_like_prefix(
+	const dfield_t*	dfield1,
+	const dfield_t*	dfield2)
+{
+	const dtype_t*  type;
+
+	ut_ad(dfield_check_typed(dfield1));
+	ut_ad(dfield_check_typed(dfield2));
+
+	type = dfield_get_type(dfield1);
+
+#ifdef UNIV_DEBUG
+	switch (type->prtype & DATA_MYSQL_TYPE_MASK) {
+	case MYSQL_TYPE_BIT:
+	case MYSQL_TYPE_STRING:
+	case MYSQL_TYPE_VAR_STRING:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_VARCHAR:
+		break;
+	default:
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
+
+	uint cs_num = dtype_get_charset_coll(type->prtype);
+
+	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
+		return(cs->coll->strnncoll(
+			       cs,
+			       static_cast<uchar*>(
+				       dfield_get_data(dfield1)),
+			       dfield_get_len(dfield1),
+			       static_cast<uchar*>(
+				       dfield_get_data(dfield2)),
+			       dfield_get_len(dfield2),
+			       1));
+	}
+
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Unable to find charset-collation %u", cs_num);
+	return(0);
 }

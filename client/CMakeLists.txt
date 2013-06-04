@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
-  ${READLINE_INCLUDE_DIR}
+  ${EDITLINE_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -30,13 +30,11 @@ INCLUDE_DIRECTORIES(
 ## We will need libeay32.dll and ssleay32.dll when running client executables.
 COPY_OPENSSL_DLLS(copy_openssl_client)
 
-
-ADD_DEFINITIONS(${READLINE_DEFINES})
 ADD_DEFINITIONS(${SSL_DEFINES})
 MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
 TARGET_LINK_LIBRARIES(mysql mysqlclient)
 IF(UNIX)
-  TARGET_LINK_LIBRARIES(mysql ${READLINE_LIBRARY})
+  TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
 ENDIF(UNIX)
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
@@ -64,6 +62,7 @@ MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
 TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
+SET_SOURCE_FILES_PROPERTIES(mysqlbinlog.cc PROPERTIES COMPILE_FLAGS "-DHAVE_REPLICATION")
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)

@@ -49,9 +49,9 @@
 #include "mysqld.h"
 #include "lock.h"
 #include "sql_time.h"                       // known_date_time_formats
-#include "sql_acl.h" // SUPER_ACL,
-                     // mysql_user_table_is_in_short_password_format
-                     // disconnect_on_expired_password
+#include "auth_common.h" // SUPER_ACL,
+                         // mysql_user_table_is_in_short_password_format
+                         // disconnect_on_expired_password
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
 #include "debug_sync.h"                         // DEBUG_SYNC
@@ -1175,7 +1175,7 @@ static Sys_var_ulong Sys_connect_timeout(
 static Sys_var_charptr Sys_datadir(
        "datadir", "Path to the database root directory",
        READ_ONLY GLOBAL_VAR(mysql_real_data_home_ptr),
-       CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(0));
+       CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(mysql_real_data_home));
 
 #ifndef DBUG_OFF
 static Sys_var_dbug Sys_dbug(
@@ -2424,7 +2424,7 @@ static Sys_var_ulong Sys_thread_stack(
 static Sys_var_charptr Sys_tmpdir(
        "tmpdir", "Path for temporary files. Several paths may "
        "be specified, separated by a "
-#if defined(__WIN__)
+#if defined(_WIN32)
        "semicolon (;)"
 #else
        "colon (:)"
@@ -3520,7 +3520,7 @@ static Sys_var_session_special Sys_rand_seed2(
 
 static ulonglong read_error_count(THD *thd)
 {
-  return thd->get_stmt_da()->error_count();
+  return thd->get_stmt_da()->error_count(thd);
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_error_count(
@@ -3532,7 +3532,7 @@ static Sys_var_session_special Sys_error_count(
 
 static ulonglong read_warning_count(THD *thd)
 {
-  return thd->get_stmt_da()->warn_count();
+  return thd->get_stmt_da()->warn_count(thd);
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_warning_count(
