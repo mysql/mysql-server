@@ -38,9 +38,7 @@ ENDMACRO()
 
 MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
 
-  IF(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR 
-     CMAKE_SYSTEM_NAME STREQUAL "AIX" OR
-     CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  IF(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     # Use bundled zlib on some platforms by default (system one is too
     # old or not existent)
     IF (NOT WITH_ZLIB)

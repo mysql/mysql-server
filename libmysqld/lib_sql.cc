@@ -511,6 +511,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char ***argvp= NULL;
   int fake_argc= 1;
   char *fake_argv[2];
+  char **foo= &fake_argv[0];
   char fake_server[]= "server";
   char fake_embedded[]= "embedded";
   char *fake_groups[]= { fake_server, fake_embedded, NULL };
@@ -544,7 +545,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     fake_argv[0]= fake_name;
     fake_argv[1]= NULL;
 
-    char **foo= &fake_argv[0];
     argcp= &fake_argc;
     argvp= &foo;
   }
@@ -593,7 +593,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   /* Get default temporary directory */
   opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#if defined(__WIN__)
+#if defined(_WIN32)
   if (!opt_mysql_tmpdir)
     opt_mysql_tmpdir=getenv("TEMP");
   if (!opt_mysql_tmpdir)

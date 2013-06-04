@@ -29,7 +29,7 @@
 #endif
 
 #ifndef WEXITSTATUS
-# ifdef __WIN__
+# ifdef _WIN32
 #  define WEXITSTATUS(stat_val) (stat_val)
 # else
 #  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
@@ -68,16 +68,11 @@ static struct my_option my_long_options[]=
 {
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Not used by mysql_upgrade. Only for backward compatibility.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
    &not_used, &not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"datadir", 'd',
-   "Not used by mysql_upgrade. Only for backward compatibility.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -107,7 +102,7 @@ static struct my_option my_long_options[]=
    "Password to use when connecting to server. If password is not given,"
    " it's solicited on the tty.", &opt_password,&opt_password,
    0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -286,12 +281,6 @@ get_one_option(int optid, const struct my_option *opt,
     add_option= FALSE;
     break;
 
-  case 'b': /* --basedir   */
-  case 'd': /* --datadir   */
-    fprintf(stderr, "%s: the '--%s' option is always ignored\n",
-            my_progname, optid == 'b' ? "basedir" : "datadir");
-    /* FALLTHROUGH */
-
   case 'k':                                     /* --version-check */
   case 'v': /* --verbose   */
   case 'f': /* --force     */
@@ -400,7 +389,7 @@ static int run_tool(char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
   va_end(args);
 
-#ifdef __WIN__
+#ifdef _WIN32
   dynstr_append(&ds_cmdline, "\"");
 #endif
 
@@ -957,7 +946,7 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);
 
-#if __WIN__
+#if _WIN32
   if (GetModuleFileName(NULL, self_name, FN_REFLEN) == 0)
 #endif
   {

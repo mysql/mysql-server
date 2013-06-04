@@ -86,7 +86,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 EXPLAIN UPDATE t2 SET a=2 WHERE pk<2492 AND d=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY,idx_d	PRIMARY	3	NULL	#	Using where
+1	SIMPLE	t2	range	PRIMARY,idx_d	PRIMARY	3	const	#	Using where
 UPDATE t2 SET a=2 WHERE pk<2492 AND d=1;
 CREATE TABLE t3(
 a INT NOT NULL,

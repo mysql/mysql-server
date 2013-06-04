@@ -16,8 +16,6 @@
 #include "mysys_priv.h"
 #include "mysys_err.h"
 
-#ifndef SHARED_LIBRARY
-
 const char *globerrs[GLOBERRS]=
 {
   "Can't create/write to file '%s' (Errcode: %d - %s)",
@@ -59,45 +57,6 @@ void init_glob_errs(void)
 {
   /* This is now done statically. */
 }
-
-#else
-
-void init_glob_errs()
-{
-  EE(EE_CANTCREATEFILE) = "Can't create/write to file '%s' (Errcode: %d - %s)";
-  EE(EE_READ)		= "Error reading file '%s' (Errcode: %d - %s)";
-  EE(EE_WRITE)		= "Error writing file '%s' (Errcode: %d - %s)";
-  EE(EE_BADCLOSE)	= "Error on close of '%'s (Errcode: %d - %s)";
-  EE(EE_OUTOFMEMORY)	= "Out of memory (Needed %u bytes)";
-  EE(EE_DELETE)		= "Error on delete of '%s' (Errcode: %d - %s)";
-  EE(EE_LINK)		= "Error on rename of '%s' to '%s' (Errcode: %d - %s)";
-  EE(EE_EOFERR)		= "Unexpected EOF found when reading file '%s' (Errcode: %d - %s)";
-  EE(EE_CANTLOCK)	= "Can't lock file (Errcode: %d - %s)";
-  EE(EE_CANTUNLOCK)	= "Can't unlock file (Errcode: %d - %s)";
-  EE(EE_DIR)		= "Can't read dir of '%s' (Errcode: %d - %s)";
-  EE(EE_STAT)		= "Can't get stat of '%s' (Errcode: %d - %s)";
-  EE(EE_CANT_CHSIZE)	= "Can't change size of file (Errcode: %d - %s)";
-  EE(EE_CANT_OPEN_STREAM)= "Can't open stream from handle (Errcode: %d - %s)";
-  EE(EE_GETWD)		= "Can't get working directory (Errcode: %d - %s)";
-  EE(EE_SETWD)		= "Can't change dir to '%s' (Errcode: %d - %s)";
-  EE(EE_LINK_WARNING)	= "Warning: '%s' had %d links";
-  EE(EE_OPEN_WARNING)	= "Warning: %d files and %d streams is left open\n";
-  EE(EE_DISK_FULL)	= "Disk is full writing '%s' (Errcode: %d - %s). Waiting for someone to free space...";
-  EE(EE_CANT_MKDIR)	="Can't create directory '%s' (Errcode: %d - %s)";
-  EE(EE_UNKNOWN_CHARSET)= "Character set '%s' is not a compiled character set and is not specified in the %s file";
-  EE(EE_OUT_OF_FILERESOURCES)="Out of resources when opening file '%s' (Errcode: %d - %s)";
-  EE(EE_CANT_READLINK)=	"Can't read value for symlink '%s' (Error %d - %s)";
-  EE(EE_CANT_SYMLINK)=	"Can't create symlink '%s' pointing at '%s' (Error %d - %s)";
-  EE(EE_REALPATH)=	"Error on realpath() on '%s' (Error %d - %s)";
-  EE(EE_SYNC)=		"Can't sync file '%s' to disk (Errcode: %d - %s)";
-  EE(EE_UNKNOWN_COLLATION)= "Collation '%s' is not a compiled collation and is not specified in the %s file";
-  EE(EE_FILENOTFOUND)	= "File '%s' not found (Errcode: %d - %s)";
-  EE(EE_FILE_NOT_CLOSED) = "File '%s' (fileno: %d) was not closed";
-  EE(EE_CHANGE_OWNERSHIP)   = "Can't change ownership of the file '%s' (Errcode: %d - %s)";
-  EE(EE_CHANGE_PERMISSIONS) = "Can't change permissions of the file '%s' (Errcode: %d - %s)";
-  EE(EE_CANT_SEEK)      = "Can't seek in file '%s' (Errcode: %d - %s)";
-}
-#endif
 
 /*
  We cannot call my_error/my_printf_error here in this function.

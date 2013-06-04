@@ -43,7 +43,7 @@
 #include "sql_parse.h"                        /* comp_*_creator */
 #include "sql_table.h"                        /* primary_key_name */
 #include "sql_partition.h"  /* mem_alloc_error, partition_info, HASH_PARTITION */
-#include "sql_acl.h"                          /* *_ACL */
+#include "auth_common.h"                      /* *_ACL */
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
 #include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "rpl_slave.h"
@@ -606,57 +606,6 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   DBUG_RETURN(result);
 }
 
-/**
-   @brief Creates a new SELECT_LEX for a UNION branch.
-
-   Sets up and initializes a SELECT_LEX structure for a query once the parser
-   discovers a UNION token. The current SELECT_LEX is pushed on the stack and
-   the new SELECT_LEX becomes the current one.
-
-   @param lex The parser state.
-
-   @param is_union_distinct True if the union preceding the new select statement
-   uses UNION DISTINCT.
-
-   @param is_top_level This should be @c TRUE if the newly created SELECT_LEX
-   is a non-nested statement.
-
-   @return <code>false</code> if successful, <code>true</code> if an error was
-   reported. In the latter case parsing should stop.
- */
-bool add_select_to_union_list(LEX *lex, bool is_union_distinct, 
-                              bool is_top_level)
-{
-  /* 
-     Only the last SELECT can have INTO. Since the grammar won't allow INTO in
-     a nested SELECT, we make this check only when creating a top-level SELECT.
-  */
-  if (is_top_level && lex->result)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
-    return TRUE;
-  }
-  if (lex->proc_analyse)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "SELECT ... PROCEDURE ANALYSE()");
-    return TRUE;
-  }
-  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
-  {
-    my_parse_error(ER(ER_SYNTAX_ERROR));
-    return TRUE;
-  }
-  /* This counter shouldn't be incremented for UNION parts */
-  lex->nest_level--;
-  if (mysql_new_select(lex, 0))
-    return TRUE;
-  mysql_init_select(lex);
-  lex->current_select->linkage=UNION_TYPE;
-  if (is_union_distinct) /* UNION DISTINCT - remember position */
-    lex->current_select->master_unit()->union_distinct=
-      lex->current_select;
-  return FALSE;
-}
 
 /**
    @brief Initializes a SELECT_LEX for a query within parentheses (aka
@@ -785,7 +734,6 @@ static void sp_create_assignment_lex(THD *thd, const char *option_ptr)
   lex= thd->lex;
 
   /* Set new LEX as if we at start of set rule. */
-  mysql_init_select(lex);
   lex->sql_command= SQLCOM_SET_OPTION;
   lex->var_list.empty();
   lex->one_shot_set= 0;
@@ -1940,7 +1888,7 @@ query:
           {
             THD *thd= YYTHD;
             if (!thd->bootstrap &&
-              (!(thd->lex->select_lex.options & OPTION_FOUND_COMMENT)))
+                !thd->m_parser_state->has_comment())
             {
               my_message(ER_EMPTY_QUERY, ER(ER_EMPTY_QUERY), MYF(0));
               MYSQL_YYABORT;
@@ -2352,16 +2300,17 @@ create:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_CREATE_TABLE;
-            if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_WRITE, MDL_EXCLUSIVE))
+            if (!lex->select_lex->add_table_to_list(thd, $5, NULL,
+                                                    TL_OPTION_UPDATING,
+                                                    TL_WRITE, MDL_SHARED))
               MYSQL_YYABORT;
             /*
-              For CREATE TABLE, an non-existing table is not an error.
-              Instruct open_tables() to just take an MDL lock if the
-              table does not exist.
+              Instruct open_table() to acquire SHARED lock to check the
+              existance of table. If the table does not exist then
+              it will be upgraded EXCLUSIVE MDL lock. If table exist
+              then open_table() will return with an error or warning.
             */
-            lex->query_tables->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+            lex->query_tables->open_strategy= TABLE_LIST::OPEN_FOR_CREATE;
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->change=NullS;
@@ -2376,7 +2325,7 @@ create:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            lex->current_select= &lex->select_lex; 
+            lex->current_select= lex->select_lex; 
             if ((lex->create_info.used_fields & HA_CREATE_USED_ENGINE) &&
                 !lex->create_info.db_type)
             {
@@ -2706,7 +2655,7 @@ clear_privileges:
            lex->columns.empty();
            lex->grant= lex->grant_tot_col= 0;
            lex->all_privileges= 0;
-           lex->select_lex.db= 0;
+           lex->select_lex->db= NULL;
            lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
            lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
            memset(&(lex->mqh), 0, sizeof(lex->mqh));
@@ -3074,6 +3023,7 @@ sp_decl:
             }
             if(pctx->add_condition(thd, $2, $5))
               MYSQL_YYABORT;
+            lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // DECLARE COND FOR
             $$.vars= $$.hndlrs= $$.curs= 0;
             $$.conds= 1;
           }
@@ -3096,7 +3046,7 @@ sp_decl:
             sp_instr_hpush_jump *i=
               new (thd->mem_root)
                 sp_instr_hpush_jump(sp->instructions(), handler_pctx, h);
-            
+
             if (!i || sp->add_instr(thd, i))
               MYSQL_YYABORT;
 
@@ -3116,6 +3066,8 @@ sp_decl:
             {
               MYSQL_YYABORT;
             }
+
+            lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // DECL HANDLER FOR
           }
           sp_hcond_list sp_proc_stmt
           {
@@ -3479,6 +3431,7 @@ resignal_stmt:
             LEX *lex= thd->lex;
 
             lex->sql_command= SQLCOM_RESIGNAL;
+            lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // RESIGNAL doesn't clear diagnostics
             lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_resignal($2, $3);
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
@@ -3492,6 +3445,7 @@ get_diagnostics:
 
             info->set_which_da($2);
 
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // GET DIAGS doesn't clear them.
             Lex->sql_command= SQLCOM_GET_DIAGNOSTICS;
             Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_get_diagnostics(info);
 
@@ -5030,8 +4984,8 @@ ts_wait:
         ;
 
 size_number:
-          real_ulong_num { $$= $1;}
-        | IDENT
+          real_ulonglong_num { $$= $1;}
+        | IDENT_sys
           {
             ulonglong number;
             uint text_shift_number= 0;
@@ -5093,9 +5047,9 @@ create2:
             LEX *lex= thd->lex;
 
             lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
-            src_table= lex->select_lex.add_table_to_list(thd, $2, NULL, 0,
-                                                         TL_READ,
-                                                         MDL_SHARED_READ);
+            src_table= lex->select_lex->add_table_to_list(thd, $2, NULL, 0,
+                                                          TL_READ,
+                                                          MDL_SHARED_READ);
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
@@ -5108,9 +5062,9 @@ create2:
             LEX *lex= thd->lex;
 
             lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
-            src_table= lex->select_lex.add_table_to_list(thd, $3, NULL, 0,
-                                                         TL_READ,
-                                                         MDL_SHARED_READ);
+            src_table= lex->select_lex->add_table_to_list(thd, $3, NULL, 0,
+                                                          TL_READ,
+                                                          MDL_SHARED_READ);
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
@@ -5859,7 +5813,6 @@ create_select:
               is created correctly in this case
             */
             lex->current_select->table_list.save_and_clear(&lex->save_list);
-            mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
           }
           select_options select_item_list
@@ -6074,7 +6027,7 @@ create_table_option:
           }
         | UNION_SYM opt_equal
           {
-            Lex->select_lex.table_list.save_and_clear(&Lex->save_list);
+            Lex->select_lex->table_list.save_and_clear(&Lex->save_list);
           }
           '(' opt_table_list ')'
           {
@@ -6083,8 +6036,8 @@ create_table_option:
               from the global list.
             */
             LEX *lex=Lex;
-            lex->create_info.merge_list= lex->select_lex.table_list;
-            lex->select_lex.table_list= lex->save_list;
+            lex->create_info.merge_list= lex->select_lex->table_list;
+            lex->select_lex->table_list= lex->save_list;
             /*
               When excluding union list from the global list we assume that
               elements of the former immediately follow elements which represent
@@ -7246,14 +7199,14 @@ alter:
             lex->name.length= 0;
             lex->sql_command= SQLCOM_ALTER_TABLE;
             lex->duplicates= DUP_ERROR; 
-            if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_READ_NO_INSERT,
-                                                   MDL_SHARED_UPGRADABLE))
+            if (!lex->select_lex->add_table_to_list(thd, $4, NULL,
+                                                    TL_OPTION_UPDATING,
+                                                    TL_READ_NO_INSERT,
+                                                    MDL_SHARED_UPGRADABLE))
               MYSQL_YYABORT;
             lex->col_list.empty();
-            lex->select_lex.init_order();
-            lex->select_lex.db= (lex->select_lex.table_list.first)->db;
+            lex->select_lex->init_order();
+            lex->select_lex->db= (lex->select_lex->table_list.first)->db;
             memset(&lex->create_info, 0, sizeof(lex->create_info));
             lex->create_info.db_type= 0;
             lex->create_info.default_table_charset= NULL;
@@ -7600,18 +7553,18 @@ alter_commands:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             size_t dummy;
-            lex->select_lex.db=$6->db.str;
-            if (lex->select_lex.db == NULL &&
-                lex->copy_db_to(&lex->select_lex.db, &dummy))
+            lex->select_lex->db=$6->db.str;
+            if (lex->select_lex->db == NULL &&
+                lex->copy_db_to(&lex->select_lex->db, &dummy))
             {
               MYSQL_YYABORT;
             }
             lex->name= $6->table;
             lex->alter_info.flags|= Alter_info::ALTER_EXCHANGE_PARTITION;
-            if (!lex->select_lex.add_table_to_list(thd, $6, NULL,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_READ_NO_INSERT,
-                                                   MDL_SHARED_NO_WRITE))
+            if (!lex->select_lex->add_table_to_list(thd, $6, NULL,
+                                                    TL_OPTION_UPDATING,
+                                                    TL_READ_NO_INSERT,
+                                                    MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
             DBUG_ASSERT(!lex->m_sql_cmd);
             lex->m_sql_cmd= new (thd->mem_root)
@@ -7851,9 +7804,9 @@ alter_list_item:
           {
             LEX *lex=Lex;
             size_t dummy;
-            lex->select_lex.db=$3->db.str;
-            if (lex->select_lex.db == NULL &&
-                lex->copy_db_to(&lex->select_lex.db, &dummy))
+            lex->select_lex->db= $3->db.str;
+            if (lex->select_lex->db == NULL &&
+                lex->copy_db_to(&lex->select_lex->db, &dummy))
             {
               MYSQL_YYABORT;
             }
@@ -8523,7 +8476,7 @@ adm_partition:
 
 cache_keys_spec:
           {
-            Lex->select_lex.alloc_index_hints(YYTHD);
+            Lex->select_lex->alloc_index_hints(YYTHD);
             Select->set_index_hint_type(INDEX_HINT_USE, 
                                         old_mode ? 
                                         INDEX_HINT_MASK_JOIN : 
@@ -8594,9 +8547,6 @@ select_init2:
 select_part2:
           {
             LEX *lex= Lex;
-            SELECT_LEX *sel= lex->current_select;
-            if (sel->linkage != UNION_TYPE)
-              mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
           }
           select_options select_item_list
@@ -8654,17 +8604,17 @@ select_option:
               Allow this flag only on the first top-level SELECT statement, if
               SQL_CACHE wasn't specified, and only once per query.
              */
-            if (Lex->current_select != &Lex->select_lex)
+            if (Lex->current_select != Lex->select_lex)
             {
               my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_NO_CACHE");
               MYSQL_YYABORT;
             }
-            else if (Lex->select_lex.sql_cache == SELECT_LEX::SQL_CACHE)
+            else if (Lex->select_lex->sql_cache == SELECT_LEX::SQL_CACHE)
             {
               my_error(ER_WRONG_USAGE, MYF(0), "SQL_CACHE", "SQL_NO_CACHE");
               MYSQL_YYABORT;
             }
-            else if (Lex->select_lex.sql_cache == SELECT_LEX::SQL_NO_CACHE)
+            else if (Lex->select_lex->sql_cache == SELECT_LEX::SQL_NO_CACHE)
             {
               my_error(ER_DUP_ARGUMENT, MYF(0), "SQL_NO_CACHE");
               MYSQL_YYABORT;
@@ -8672,8 +8622,8 @@ select_option:
             else
             {
               Lex->safe_to_cache_query=0;
-              Lex->select_lex.options&= ~OPTION_TO_QUERY_CACHE;
-              Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
+              Lex->select_lex->options&= ~OPTION_TO_QUERY_CACHE;
+              Lex->select_lex->sql_cache= SELECT_LEX::SQL_NO_CACHE;
             }
           }
         | SQL_CACHE_SYM
@@ -8682,17 +8632,17 @@ select_option:
               Allow this flag only on the first top-level SELECT statement, if
               SQL_NO_CACHE wasn't specified, and only once per query.
              */
-            if (Lex->current_select != &Lex->select_lex)
+            if (Lex->current_select != Lex->select_lex)
             {
               my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_CACHE");
               MYSQL_YYABORT;
             }         
-            else if (Lex->select_lex.sql_cache == SELECT_LEX::SQL_NO_CACHE)
+            else if (Lex->select_lex->sql_cache == SELECT_LEX::SQL_NO_CACHE)
             {
               my_error(ER_WRONG_USAGE, MYF(0), "SQL_NO_CACHE", "SQL_CACHE");
               MYSQL_YYABORT;
             }
-            else if (Lex->select_lex.sql_cache == SELECT_LEX::SQL_CACHE)
+            else if (Lex->select_lex->sql_cache == SELECT_LEX::SQL_CACHE)
             {
               my_error(ER_DUP_ARGUMENT, MYF(0), "SQL_CACHE");
               MYSQL_YYABORT;
@@ -8700,8 +8650,8 @@ select_option:
             else
             {
               Lex->safe_to_cache_query=1;
-              Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
-              Lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE;
+              Lex->select_lex->options|= OPTION_TO_QUERY_CACHE;
+              Lex->select_lex->sql_cache= SELECT_LEX::SQL_CACHE;
             }
           }
         ;
@@ -10302,6 +10252,7 @@ sum_expr:
             if ($$ == NULL)
               MYSQL_YYABORT;
             $5->empty();
+            sel->gorder_list.empty();
           }
         ;
 
@@ -10329,7 +10280,7 @@ variable_aux:
             if ($$ == NULL)
               MYSQL_YYABORT;
             LEX *lex= Lex;
-            lex->uncacheable(UNCACHEABLE_RAND);
+            lex->set_uncacheable(UNCACHEABLE_RAND);
             lex->set_var_list.push_back(item);
           }
         | ident_or_text
@@ -10338,7 +10289,7 @@ variable_aux:
             if ($$ == NULL)
               MYSQL_YYABORT;
             LEX *lex= Lex;
-            lex->uncacheable(UNCACHEABLE_RAND);
+            lex->set_uncacheable(UNCACHEABLE_RAND);
           }
         | '@' opt_var_ident_type ident_or_text opt_component
           {
@@ -10350,6 +10301,17 @@ variable_aux:
             }
             if (!($$= get_system_var(YYTHD, $2, $3, $4)))
               MYSQL_YYABORT;
+            if (!my_strcasecmp(system_charset_info, $3.str, "warning_count") ||
+                !my_strcasecmp(system_charset_info, $3.str, "error_count"))
+            {
+              /*
+                "Diagnostics variable" used in a non-diagnostics statement.
+                Save the information we need for the former, but clear the
+                rest of the diagnostics area on account of the latter.
+                See reset_condition_info().
+              */
+              Lex->keep_diagnostics= DA_KEEP_COUNTS;
+            }
             if (!((Item_func_get_system_var*) $$)->is_written_to_binlog())
               Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
           }
@@ -10372,18 +10334,27 @@ opt_gconcat_separator:
 
 opt_gorder_clause:
           /* empty */
+        | ORDER_SYM BY
           {
-            Select->gorder_list = NULL;
-          }
-        | order_clause
-          {
-            SELECT_LEX *select= Select;
-            select->gorder_list= new (YYTHD->mem_root)
-                                   SQL_I_List<ORDER>(select->order_list);
-            if (select->gorder_list == NULL)
+            LEX *lex= Lex;
+            SELECT_LEX *sel= lex->current_select;
+            if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
+                sel->olap != UNSPECIFIED_OLAP_TYPE &&
+                (sel->linkage != UNION_TYPE || sel->braces))
+            {
+              my_error(ER_WRONG_USAGE, MYF(0),
+                       "CUBE/ROLLUP", "ORDER BY");
               MYSQL_YYABORT;
-            select->order_list.empty();
+            }
           }
+         gorder_list;
+        ;
+
+gorder_list:
+          gorder_list ',' order_ident order_dir
+          { if (add_gorder_to_list(YYTHD, $3,(bool) $4)) MYSQL_YYABORT; }
+        | order_ident order_dir
+          { if (add_gorder_to_list(YYTHD, $1,(bool) $2)) MYSQL_YYABORT; }
         ;
 
 in_sum_expr:
@@ -10789,7 +10760,6 @@ table_factor:
                 MYSQL_YYABORT;
               sel->add_joined_table($$);
               lex->pop_context();
-              lex->nest_level--;
             }
             else if ($5 != NULL)
             {
@@ -10802,8 +10772,7 @@ table_factor:
             }
             else
             {
-              /* nested join: FROM (t1 JOIN t2 ...),
-                 nest_level is the same as in the outer query */
+              /* nested join: FROM (t1 JOIN t2 ...) */
               $$= $3;
             }
           }
@@ -10842,7 +10811,7 @@ select_derived_union:
           UNION_SYM
           union_option
           {
-            if (add_select_to_union_list(Lex, (bool)$3, FALSE))
+            if (Lex->new_union_query((bool)$3))
               MYSQL_YYABORT;
           }
           query_specification
@@ -10877,9 +10846,6 @@ select_init2_derived:
 select_part2_derived:
           {
             LEX *lex= Lex;
-            SELECT_LEX *sel= lex->current_select;
-            if (sel->linkage != UNION_TYPE)
-              mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
           }
           opt_query_expression_options select_item_list
@@ -10924,9 +10890,8 @@ select_derived2:
               MYSQL_YYABORT;
             }
             if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE ||
-                mysql_new_select(lex, 1))
+                lex->new_query())
               MYSQL_YYABORT;
-            mysql_init_select(lex);
             lex->current_select->linkage= DERIVED_TABLE_TYPE;
             lex->current_select->parsing_place= SELECT_LIST;
           }
@@ -11466,7 +11431,7 @@ procedure_analyse_clause:
               MYSQL_YYABORT;
             }
 
-            if (&lex->select_lex != lex->current_select)
+            if (lex->select_lex != lex->current_select)
             {
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
               MYSQL_YYABORT;
@@ -11480,11 +11445,12 @@ procedure_analyse_clause:
 
             if ((lex->proc_analyse= new Proc_analyse_params) == NULL)
             {
-              my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR));
+              my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+                       sizeof(Proc_analyse_params));
               MYSQL_YYABORT;
             }
             
-            lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+            lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
           }
           '(' opt_procedure_analyse_params ')'
         ;
@@ -11604,7 +11570,7 @@ into_destination:
           OUTFILE TEXT_STRING_filesystem
           {
             LEX *lex= Lex;
-            lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+            lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
             if (!(lex->exchange= new sql_exchange($2.str, 0)) ||
                 !(lex->result= new select_export(lex->exchange)))
               MYSQL_YYABORT;
@@ -11617,7 +11583,7 @@ into_destination:
             LEX *lex=Lex;
             if (!lex->describe)
             {
-              lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+              lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
               if (!(lex->exchange= new sql_exchange($2.str,1)))
                 MYSQL_YYABORT;
               if (!(lex->result= new select_dump(lex->exchange)))
@@ -11626,7 +11592,7 @@ into_destination:
           }
         | select_var_list_init
           {
-            Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+            Lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
           }
         ;
 
@@ -11639,7 +11605,6 @@ do:
           {
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_DO;
-            mysql_init_select(lex);
           }
           expr_list
           {
@@ -11865,13 +11830,12 @@ insert:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSERT;
             lex->duplicates= DUP_ERROR; 
-            mysql_init_select(lex);
           }
           insert_lock_option
           opt_ignore insert2
           {
             Select->set_lock_for_tables($3);
-            Lex->current_select= &Lex->select_lex;
+            Lex->current_select= Lex->select_lex;
           }
           insert_field_spec opt_insert_update
           {}
@@ -11883,12 +11847,11 @@ replace:
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_REPLACE;
             lex->duplicates= DUP_REPLACE;
-            mysql_init_select(lex);
           }
           replace_lock_option insert2
           {
             Select->set_lock_for_tables($3);
-            Lex->current_select= &Lex->select_lex;
+            Lex->current_select= Lex->select_lex;
           }
           insert_field_spec
           {}
@@ -12043,7 +12006,7 @@ opt_insert_update:
         | ON DUPLICATE_SYM
           {
             Lex->duplicates= DUP_UPDATE;
-            TABLE_LIST *first_table= Lex->select_lex.table_list.first;
+            TABLE_LIST *first_table= Lex->select_lex->table_list.first;
             /* Fix lock for ON DUPLICATE KEY UPDATE */
             if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
               first_table->lock_type= TL_WRITE_DEFAULT;
@@ -12057,7 +12020,6 @@ update:
           UPDATE_SYM
           {
             LEX *lex= Lex;
-            mysql_init_select(lex);
             lex->sql_command= SQLCOM_UPDATE;
             lex->duplicates= DUP_ERROR; 
           }
@@ -12065,13 +12027,13 @@ update:
           SET update_list
           {
             LEX *lex= Lex;
-            if (lex->select_lex.table_list.elements > 1)
+            if (lex->select_lex->table_list.elements > 1)
               lex->sql_command= SQLCOM_UPDATE_MULTI;
-            else if (lex->select_lex.get_table_list()->derived)
+            else if (lex->select_lex->get_table_list()->derived)
             {
               /* it is single table update and it is update of derived table */
               my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
-                       lex->select_lex.get_table_list()->alias, "UPDATE");
+                       lex->select_lex->get_table_list()->alias, "UPDATE");
               MYSQL_YYABORT;
             }
             /*
@@ -12124,12 +12086,11 @@ delete:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_DELETE;
-            mysql_init_select(lex);
             YYPS->m_lock_type= TL_WRITE_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_WRITE;
 
             lex->ignore= 0;
-            lex->select_lex.init_order();
+            lex->select_lex->init_order();
           }
           opt_delete_options single_multi
         ;
@@ -12228,9 +12189,6 @@ truncate:
             LEX* lex= Lex;
             lex->sql_command= SQLCOM_TRUNCATE;
             lex->alter_info.reset();
-            lex->select_lex.options= 0;
-            lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
-            lex->select_lex.init_order();
             YYPS->m_lock_type= TL_WRITE;
             YYPS->m_mdl_type= MDL_EXCLUSIVE;
           }
@@ -12314,8 +12272,6 @@ show:
           SHOW
           {
             LEX *lex=Lex;
-            lex->wild=0;
-            mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
             memset(&lex->create_info, 0, sizeof(lex->create_info));
           }
@@ -12337,7 +12293,7 @@ show_param:
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLES;
-             lex->select_lex.db= $3;
+             lex->select_lex->db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                MYSQL_YYABORT;
            }
@@ -12345,7 +12301,7 @@ show_param:
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TRIGGERS;
-             lex->select_lex.db= $3;
+             lex->select_lex->db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
                MYSQL_YYABORT;
            }
@@ -12353,7 +12309,7 @@ show_param:
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_EVENTS;
-             lex->select_lex.db= $2;
+             lex->select_lex->db= $2;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                MYSQL_YYABORT;
            }
@@ -12361,7 +12317,7 @@ show_param:
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLE_STATUS;
-             lex->select_lex.db= $3;
+             lex->select_lex->db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLES))
                MYSQL_YYABORT;
            }
@@ -12369,7 +12325,7 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
-            lex->select_lex.db= $3;
+            lex->select_lex->db= $3;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
               MYSQL_YYABORT;
           }
@@ -12433,13 +12389,25 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
           }
         | COUNT_SYM '(' '*' ')' WARNINGS
-          { (void) create_select_for_variable("warning_count"); }
+          {
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
+            (void) create_select_for_variable("warning_count");
+          }
         | COUNT_SYM '(' '*' ')' ERRORS
-          { (void) create_select_for_variable("error_count"); }
+          {
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
+            (void) create_select_for_variable("error_count");
+          }
         | WARNINGS opt_limit_clause_init
-          { Lex->sql_command = SQLCOM_SHOW_WARNS;}
+          {
+            Lex->sql_command = SQLCOM_SHOW_WARNS;
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
+          }
         | ERRORS opt_limit_clause_init
-          { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
+          {
+            Lex->sql_command = SQLCOM_SHOW_ERRORS;
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
+          }
         | PROFILES_SYM
           {
             push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
@@ -12518,7 +12486,7 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_SHOW_CREATE;
-            if (!lex->select_lex.add_table_to_list(YYTHD, $3, NULL,0))
+            if (!lex->select_lex->add_table_to_list(YYTHD, $3, NULL,0))
               MYSQL_YYABORT;
             lex->only_view= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
@@ -12527,7 +12495,7 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_SHOW_CREATE;
-            if (!lex->select_lex.add_table_to_list(YYTHD, $3, NULL, 0))
+            if (!lex->select_lex->add_table_to_list(YYTHD, $3, NULL, 0))
               MYSQL_YYABORT;
             lex->only_view= 1;
           }
@@ -12660,10 +12628,9 @@ describe:
           describe_command table_ident
           {
             LEX *lex= Lex;
-            mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
-            lex->select_lex.db= 0;
+            lex->select_lex->db= NULL;
             lex->verbose= 0;
             if (prepare_schema_table(YYTHD, lex, $2, SCH_COLUMNS))
               MYSQL_YYABORT;
@@ -12675,7 +12642,7 @@ describe:
         | describe_command opt_extended_describe
           { Lex->describe|= DESCRIBE_NORMAL; }
           explanable_command
-          { Lex->select_lex.options|= SELECT_DESCRIBE; }
+          { Lex->select_lex->options|= SELECT_DESCRIBE; }
         ;
 
 explanable_command:
@@ -12929,7 +12896,7 @@ use:
           {
             LEX *lex=Lex;
             lex->sql_command=SQLCOM_CHANGE_DB;
-            lex->select_lex.db= $2.str;
+            lex->select_lex->db= $2.str;
           }
         ;
 
@@ -14328,7 +14295,6 @@ set:
           SET
           {
             LEX *lex= Lex;
-            mysql_init_select(lex);
             lex->sql_command= SQLCOM_SET_OPTION;
             lex->option_type= OPT_SESSION;
             lex->var_list.empty();
@@ -14672,7 +14638,6 @@ option_value_no_option_type:
             lex->var_list.push_back(var);
             lex->autocommit= TRUE;
             lex->is_set_password_sql= true;
-            lex->is_change_password= TRUE;
 
             if (sp)
               sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
@@ -14691,30 +14656,6 @@ option_value_no_option_type:
             lex->is_set_password_sql= true;
             if (lex->sphead)
               lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-            /*
-              'is_change_password' should be set if the user is setting his
-              own password. This is later used to determine if the password
-              expiration flag should be reset.
-              Either the user exactly matches the currently authroized user or
-              the CURRENT_USER keyword was used.
-
-              If CURRENT_USER was used for the <user> rule then
-              user->user.str=0. See rule below:
-              
-              user:
-                 [..]
-              | CURRENT_USER optional_braces
-                {
-                 [..]
-                  memset($$, 0, sizeof(LEX_USER));
-                }
-            */
-            if (user->user.str ||
-                match_authorized_user(&current_thd->main_security_ctx,
-                                      user))
-              lex->is_change_password= TRUE;
-            else
-              lex->is_change_password= FALSE;
           }
         ;
 
@@ -15098,7 +15039,7 @@ handler_rkey_mode:
 /* GRANT / REVOKE */
 
 revoke:
-          REVOKE clear_privileges revoke_command
+          REVOKE clear_privileges { Lex->sql_command= SQLCOM_REVOKE; } revoke_command
           {}
         ;
 
@@ -15106,7 +15047,6 @@ revoke_command:
           grant_privileges ON opt_table grant_ident FROM grant_list
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= 0;
           }
         | grant_privileges ON FUNCTION_SYM grant_ident FROM grant_list
@@ -15117,7 +15057,6 @@ revoke_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_FUNCTION;
           }
         | grant_privileges ON PROCEDURE_SYM grant_ident FROM grant_list
@@ -15128,7 +15067,6 @@ revoke_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
         | ALL opt_privileges ',' GRANT OPTION FROM grant_list
@@ -15139,13 +15077,12 @@ revoke_command:
           {
             LEX *lex= Lex;
             lex->users_list.push_front ($3);
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_PROXY;
           } 
         ;
 
 grant:
-          GRANT clear_privileges grant_command
+          GRANT clear_privileges { Lex->sql_command= SQLCOM_GRANT; } grant_command
           {}
         ;
 
@@ -15154,7 +15091,6 @@ grant_command:
           require_clause grant_options
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= 0;
           }
         | grant_privileges ON FUNCTION_SYM grant_ident TO_SYM grant_list
@@ -15166,7 +15102,6 @@ grant_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_FUNCTION;
           }
         | grant_privileges ON PROCEDURE_SYM grant_ident TO_SYM grant_list
@@ -15178,14 +15113,12 @@ grant_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
         | PROXY_SYM ON user TO_SYM grant_list opt_grant_option
           {
             LEX *lex= Lex;
             lex->users_list.push_front ($3);
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_PROXY;
           } 
         ;
@@ -15196,7 +15129,13 @@ opt_table:
         ;
 
 grant_privileges:
-          object_privilege_list {}
+          object_privilege_list
+          {
+            LEX *lex= Lex;
+            if (lex->grant == GLOBAL_ACLS &&
+                lex->sql_command == SQLCOM_REVOKE)
+              lex->sql_command= SQLCOM_REVOKE_ALL;
+          }
         | ALL opt_privileges
           { 
             Lex->all_privileges= 1; 
@@ -15382,7 +15321,10 @@ grant_user:
           {
             $$=$1; $1->password=$4;
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             String *password = new (YYTHD->mem_root) String((const char*)$4.str,
                                     YYTHD->variables.character_set_client);
             check_password_policy(password);
@@ -15396,9 +15338,18 @@ grant_user:
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           { 
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             $$= $1; 
             $1->password= $5; 
+            if (!strcmp($5.str, ""))
+            {
+              String *password= new (YYTHD->mem_root) String ((const char *)"",
+                                     YYTHD->variables.character_set_client);
+              check_password_policy(password);
+            }
             /*
               1. Plugin must be resolved
             */
@@ -15407,7 +15358,10 @@ grant_user:
         | user IDENTIFIED_SYM WITH ident_or_text
           {
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             $$= $1;
             $1->plugin= $4;
             $1->auth= empty_lex_str;
@@ -15416,7 +15370,10 @@ grant_user:
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
           {
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             $$= $1;
             $1->plugin= $4;
             $1->auth= $6;
@@ -15427,6 +15384,7 @@ grant_user:
           {
             $$= $1;
             $1->password= null_lex_str;
+            check_password_policy(NULL);
           }
         ;
 
@@ -15631,7 +15589,12 @@ union_clause:
 union_list:
           UNION_SYM union_option
           {
-            if (add_select_to_union_list(Lex, (bool)$2, TRUE))
+            if (Lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+            if (Lex->new_union_query((bool)$2))
               MYSQL_YYABORT;
           }
           select_init
@@ -15706,8 +15669,13 @@ query_expression_body:
         | query_expression_body
           UNION_SYM union_option 
           {
-            if (add_select_to_union_list(Lex, (bool)$3, FALSE))
+            if (Lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
+            if (Lex->new_union_query((bool)$3))
+               MYSQL_YYABORT;
           }
           query_specification
           opt_union_order_or_limit
@@ -15741,7 +15709,7 @@ subselect_start:
               (SELECT .. ) UNION ...  becomes 
               SELECT * FROM ((SELECT ...) UNION ...)
             */
-            if (mysql_new_select(Lex, 1))
+            if (Lex->new_query())
               MYSQL_YYABORT;
           }
         ;
@@ -15753,7 +15721,6 @@ subselect_end:
             lex->pop_context();
             SELECT_LEX *child= lex->current_select;
             lex->current_select = lex->current_select->outer_select();
-            lex->nest_level--;
             lex->current_select->n_child_sum_items += child->n_sum_items;
             /*
               A subselect can add fields to an outer select. Reserve space for
@@ -15911,10 +15878,10 @@ view_tail:
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_CREATE_VIEW;
             /* first table in list is target VIEW name */
-            if (!lex->select_lex.add_table_to_list(thd, $3, NULL,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_IGNORE,
-                                                   MDL_EXCLUSIVE))
+            if (!lex->select_lex->add_table_to_list(thd, $3, NULL,
+                                                    TL_OPTION_UPDATING,
+                                                    TL_IGNORE,
+                                                    MDL_EXCLUSIVE))
               MYSQL_YYABORT;
             lex->query_tables->open_strategy= TABLE_LIST::OPEN_STUB;
           }
@@ -16084,11 +16051,11 @@ trigger_tail:
               sp_proc_stmt alternatives are not saving/restoring LEX, so
               lex->query_tables can be wiped out.
             */
-            if (!lex->select_lex.add_table_to_list(thd, $6,
-                                                   (LEX_STRING*) 0,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_READ_NO_INSERT,
-                                                   MDL_SHARED_NO_WRITE))
+            if (!lex->select_lex->add_table_to_list(thd, $6,
+                                                    (LEX_STRING*) 0,
+                                                    TL_OPTION_UPDATING,
+                                                    TL_READ_NO_INSERT,
+                                                    MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
           }
         ;

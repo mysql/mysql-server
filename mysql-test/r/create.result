@@ -109,7 +109,7 @@ insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
 explain select * from t2 where b="world";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	B	B	21	const	1	Using index condition
+1	SIMPLE	t2	ref	B	B	21	const	1	NULL
 select * from t2 where b="world";
 a	B
 3	world
@@ -878,9 +878,10 @@ ERROR HY000: Table 't2' was not locked with LOCK TABLES
 unlock tables;
 lock table t1 read, t2 read;
 create table t2 select * from t1;
-ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+ERROR 42S01: Table 't2' already exists
 create table if not exists t2 select * from t1;
-ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+Warnings:
+Note	1050	Table 't2' already exists
 unlock tables;
 lock table t1 read, t2 write;
 create table t2 select * from t1;

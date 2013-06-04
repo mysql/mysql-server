@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,7 @@
 #include <my_global.h>
 #ifdef HAVE_COMPRESS
 #include <my_sys.h>
-#ifndef SCO
 #include <m_string.h>
-#endif
 #include <zlib.h>
 
 /*

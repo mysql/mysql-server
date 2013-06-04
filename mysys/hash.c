@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -197,12 +197,7 @@ static uint my_hash_rec_mask(const HASH *hash, HASH_LINK *pos,
 
 
 
-/* for compilers which can not handle inline */
-static
-#if !defined(__USLC__) && !defined(__sgi)
-inline
-#endif
-my_hash_value_type rec_hashnr(HASH *hash,const uchar *record)
+static inline my_hash_value_type rec_hashnr(HASH *hash,const uchar *record)
 {
   size_t length;
   uchar *key= (uchar*) my_hash_key(hash, record, &length, 0);

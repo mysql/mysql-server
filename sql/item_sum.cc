@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013  Oracle and/or its affiliates. All
+   rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2946,9 +2947,9 @@ int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,
   for (uint i= 0; i < item_func->arg_count_field; i++)
   {
     Item *item= item_func->args[i];
-    /* 
-      If field_item is a const item then either get_tp_table_field returns 0
-      or it is an item over a const table. 
+    /*
+      If item is a const item then either get_tmp_table_field returns 0
+      or it is an item over a const table.
     */
     if (item->const_item())
       continue;
@@ -2958,9 +2959,13 @@ int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,
       the temporary table, not the original field
     */
     Field *field= item->get_tmp_table_field();
-    int res;
+
+    if (!field)
+      continue;
+
     uint offset= field->offset(field->table->record[0])-table->s->null_bytes;
-    if((res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset)))
+    int res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset);
+    if (res)
       return res;
   }
   return 0;
@@ -2985,24 +2990,25 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
   {
     Item *item= *(*order_item)->item;
     /*
+      If item is a const item then either get_tmp_table_field returns 0
+      or it is an item over a const table.
+    */
+    if (item->const_item())
+      continue;
+    /*
       We have to use get_tmp_table_field() instead of
       real_item()->get_tmp_table_field() because we want the field in
       the temporary table, not the original field
-    */
+     */
     Field *field= item->get_tmp_table_field();
-    /* 
-      If item is a const item then either get_tp_table_field returns 0
-      or it is an item over a const table. 
-    */
-    if (field && !item->const_item())
-    {
-      int res;
-      uint offset= (field->offset(field->table->record[0]) -
-                    table->s->null_bytes);
-      if ((res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset)))
-        return ((*order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
-          
-    }
+    if (!field)
+      continue;
+
+    uint offset= (field->offset(field->table->record[0]) -
+                  table->s->null_bytes);
+    int res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset);
+    if (res)
+      return ((*order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
   }
   /*
     We can't return 0 because in that case the tree class would remove this
@@ -3041,23 +3047,28 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
   for (; arg < arg_end; arg++)
   {
     String *res;
-    if (! (*arg)->const_item())
-    {
-      /*
-	We have to use get_tmp_table_field() instead of
-	real_item()->get_tmp_table_field() because we want the field in
-	the temporary table, not the original field
-        We also can't use table->field array to access the fields
-        because it contains both order and arg list fields.
-      */
-      Field *field= (*arg)->get_tmp_table_field();
-      uint offset= (field->offset(field->table->record[0]) -
-                    table->s->null_bytes);
-      DBUG_ASSERT(offset < table->s->reclength);
-      res= field->val_str(&tmp, key + offset);
-    }
-    else
+    /*
+      We have to use get_tmp_table_field() instead of
+      real_item()->get_tmp_table_field() because we want the field in
+      the temporary table, not the original field
+      We also can't use table->field array to access the fields
+      because it contains both order and arg list fields.
+     */
+    if ((*arg)->const_item())
       res= (*arg)->val_str(&tmp);
+    else
+    {
+      Field *field= (*arg)->get_tmp_table_field();
+      if (field)
+      {
+        uint offset= (field->offset(field->table->record[0]) -
+                      table->s->null_bytes);
+        DBUG_ASSERT(offset < table->s->reclength);
+        res= field->val_str(&tmp, key + offset);
+      }
+      else
+        res= (*arg)->val_str(&tmp);
+    }
     if (res)
       result->append(*res);
   }
@@ -3110,11 +3121,12 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
 Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
-                       SQL_I_List<ORDER> *order_list, String *separator_arg)
+                       const SQL_I_List<ORDER> &order_list,
+                       String *separator_arg)
   :tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
    order(0), context(context_arg),
-   arg_count_order(order_list ? order_list->elements : 0),
+   arg_count_order(order_list.elements),
    arg_count_field(select_list->elements),
    row_count(0),
    distinct(distinct_arg),
@@ -3154,7 +3166,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= order_list->first;
+    for (ORDER *order_item= order_list.first;
          order_item != NULL;
          order_item= order_item->next)
     {
@@ -3312,12 +3324,12 @@ bool Item_func_group_concat::add()
   for (uint i= 0; i < arg_count_field; i++)
   {
     Item *show_item= args[i];
-    if (!show_item->const_item())
-    {
-      Field *f= show_item->get_tmp_table_field();
-      if (f->is_null_in_record((const uchar*) table->record[0]))
+    if (show_item->const_item())
+      continue;
+
+    Field *field= show_item->get_tmp_table_field();
+    if (field && field->is_null_in_record((const uchar*) table->record[0]))
         return 0;                               // Skip row if it contains null
-    }
   }
 
   null_value= FALSE;

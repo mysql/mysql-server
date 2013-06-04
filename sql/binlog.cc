@@ -163,6 +163,14 @@ public:
    */
   int attach_to(THD *thd)
   {
+    /*
+      Simulate session attach error.
+    */
+    DBUG_EXECUTE_IF("simulate_session_attach_error",
+                    {
+                      if (rand() % 3 == 0)
+                        return 1;
+                    };);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread)(thd_get_psi(thd));
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -821,7 +829,7 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
   {
     Group_cache::enum_add_group_status status= 
       group_cache.add_logged_group(thd, get_byte_position());
-    if (status == Group_cache::ERROR)
+    if (status == Group_cache::ERROR_GROUP)
       DBUG_RETURN(1);
     else if (status == Group_cache::APPEND_NEW_GROUP)
     {
@@ -891,7 +899,7 @@ static int write_one_empty_group_to_cache(THD *thd,
 #ifdef NON_ERROR_GTID
   IO_CACHE *cache= &cache_data->cache_log;
   Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
-  if (status == Group_cache::ERROR)
+  if (status == Group_cache::ERROR_GROUP)
     DBUG_RETURN(1);
   DBUG_ASSERT(status == Group_cache::APPEND_NEW_GROUP);
   Gtid_specification spec= { GTID_GROUP, gtid };
@@ -1447,15 +1455,15 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     rollback.
    */
   if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT)
-    if (int error= ha_rollback_low(thd, all))
-      DBUG_RETURN(error);
+    if ((error= ha_rollback_low(thd, all)))
+      goto end;
 
   /*
     If there is no cache manager, or if there is nothing in the
     caches, there are no caches to roll back, so we're trivially done.
    */
   if (cache_mngr == NULL || cache_mngr->is_binlog_empty())
-    DBUG_RETURN(0);
+    goto end;
 
   DBUG_PRINT("debug",
              ("all.cannot_safely_rollback(): %s, trx_cache_empty: %s",
@@ -1477,8 +1485,8 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   }
   else if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
-    if (int error= cache_mngr->stmt_cache.finalize(thd))
-      DBUG_RETURN(error);
+    if ((error= cache_mngr->stmt_cache.finalize(thd)))
+      goto end;
     stuff_logged= true;
   }
 
@@ -1567,8 +1575,15 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       a cache and need to be rolled back.
     */
     error |= cache_mngr->trx_cache.truncate(thd, all);
-    DBUG_RETURN(error);
   }
+
+end:
+  /*
+    When a statement errors out on auto-commit mode it is rollback
+    implicitly, so the same should happen to its GTID.
+  */
+  if (!thd->in_active_multi_stmt_transaction())
+    gtid_rollback(thd);
 
   DBUG_PRINT("return", ("error: %d", error));
   DBUG_RETURN(error);
@@ -1744,10 +1759,10 @@ static void adjust_linfo_offsets(my_off_t purge_offset)
 }
 
 
-static bool log_in_use(const char* log_name)
+static int log_in_use(const char* log_name)
 {
   size_t log_name_len = strlen(log_name) + 1;
-  bool result = 0;
+  int thread_count=0;
 
   mysql_mutex_lock(&LOCK_thread_count);
 
@@ -1759,15 +1774,19 @@ static bool log_in_use(const char* log_name)
     if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      result = !memcmp(log_name, linfo->log_file_name, log_name_len);
+      if(!memcmp(log_name, linfo->log_file_name, log_name_len))
+      {
+        thread_count++;
+        sql_print_warning("file %s was not purged because it was being read"
+                          "by thread number %llu", log_name,
+                          (ulonglong)(*it)->thread_id);
+      }
       mysql_mutex_unlock(&linfo->lock);
-      if (result)
-	break;
     }
   }
 
   mysql_mutex_unlock(&LOCK_thread_count);
-  return result;
+  return thread_count;
 }
 
 static bool purge_error_message(THD* thd, int res)
@@ -1962,7 +1981,7 @@ bool purge_master_logs(THD* thd, const char* to_log)
                              mysql_bin_log.purge_logs(search_file_name, false,
                                                       true/*need_lock_index=true*/,
                                                       true/*need_update_threads=true*/,
-                                                      NULL));
+                                                      NULL, false));
 }
 
 
@@ -1985,7 +2004,8 @@ bool purge_master_logs_before_date(THD* thd, time_t purge_time)
     return 0;
   }
   return purge_error_message(thd,
-                             mysql_bin_log.purge_logs_before_date(purge_time));
+                             mysql_bin_log.purge_logs_before_date(purge_time,
+                                                                  false));
 }
 #endif /* EMBEDDED_LIBRARY */
 
@@ -2136,7 +2156,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
   if (binary_log->is_open())
   {
     LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
-    SELECT_LEX_UNIT *unit= &thd->lex->unit;
+    SELECT_LEX_UNIT *unit= thd->lex->unit;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos = max<my_off_t>(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
@@ -2173,6 +2193,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
       to account binlog event header size
     */
     thd->variables.max_allowed_packet += MAX_LOG_EVENT_HEADER;
+
+    DEBUG_SYNC(thd, "after_show_binlog_event_found_file");
 
     mysql_mutex_lock(log_lock);
 
@@ -2347,6 +2369,8 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_mutex_destroy(&LOCK_index);
     mysql_mutex_destroy(&LOCK_commit);
     mysql_mutex_destroy(&LOCK_sync);
+    mysql_mutex_destroy(&LOCK_binlog_end_pos);
+    mysql_mutex_destroy(&LOCK_xids);
     mysql_cond_destroy(&update_cond);
     my_atomic_rwlock_destroy(&m_prep_xids_lock);
     mysql_cond_destroy(&m_prep_xids_cond);
@@ -2364,6 +2388,9 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(m_key_LOCK_commit, &LOCK_commit, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(m_key_LOCK_binlog_end_pos, &LOCK_binlog_end_pos,
+                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
   my_atomic_rwlock_init(&m_prep_xids_lock);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond, NULL);
@@ -3203,8 +3230,6 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
                                 bool need_sid_lock,
                                 Format_description_log_event *extra_description_event)
 {
-  File file= -1;
-
   // lock_index must be acquired *before* sid_lock.
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
@@ -3394,6 +3419,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   close_purge_index_file();
 #endif
 
+  update_binlog_end_pos();
   DBUG_RETURN(0);
 
 err:
@@ -3406,8 +3432,6 @@ err:
 Turning logging off for the whole duration of the MySQL server process. \
 To turn it on again: fix the cause, \
 shutdown the MySQL server and restart it.", name, errno);
-  if (file >= 0)
-    mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
   end_io_cache(&index_file);
   my_free(name);
@@ -3703,6 +3727,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
       linfo->index_file_offset = my_b_tell(&index_file);
       break;
     }
+    linfo->entry_index++;
   }
 
 end:  
@@ -3796,6 +3821,13 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   int err;
   const char* save_name;
   DBUG_ENTER("reset_logs");
+
+  /*
+    Flush logs for storage engines, so that the last transaction
+    is fsynced inside storage engines.
+  */
+  if (ha_flush_logs(NULL))
+    DBUG_RETURN(1);
 
   ha_reset_logs(thd);
 
@@ -4125,7 +4157,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   rli->relay_log.purge_logs(to_purge_if_included, included,
                             false/*need_lock_index=false*/,
                             false/*need_update_threads=false*/,
-                            &rli->log_space_total);
+                            &rli->log_space_total, true);
   // Tell the I/O thread to take the relay_log_space_limit into account
   rli->ignore_log_space_limit= 0;
   mysql_mutex_unlock(&rli->log_space_lock);
@@ -4235,6 +4267,7 @@ err:
                              all threads. False for relay logs, true otherwise.
   @param freed_log_space     If not null, decrement this variable of
                              the amount of log space freed
+  @param auto_purge          True if this is an automatic purge.
 
   @note
     If any of the logs before the deleted one is in use,
@@ -4249,13 +4282,15 @@ err:
                                 mysql_file_stat() or mysql_file_delete()
 */
 
-int MYSQL_BIN_LOG::purge_logs(const char *to_log, 
+int MYSQL_BIN_LOG::purge_logs(const char *to_log,
                               bool included,
                               bool need_lock_index,
-                              bool need_update_threads, 
-                              ulonglong *decrease_log_space)
+                              bool need_update_threads,
+                              ulonglong *decrease_log_space,
+                              bool auto_purge)
 {
-  int error= 0;
+  int error= 0, no_of_log_files_to_purge= 0, no_of_log_files_purged= 0;
+  int no_of_threads_locking_log= 0;
   bool exit_loop= 0;
   LOG_INFO log_info;
   THD *thd= current_thd;
@@ -4273,6 +4308,8 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     goto err;
   }
 
+  no_of_log_files_to_purge= log_info.entry_index;
+
   if ((error= open_purge_index_file(TRUE)))
   {
     sql_print_error("MYSQL_BIN_LOG::purge_logs failed to sync the index file.");
@@ -4285,10 +4322,31 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   */
   if ((error=find_log_pos(&log_info, NullS, false/*need_lock_index=false*/)))
     goto err;
-  while ((strcmp(to_log,log_info.log_file_name) || (exit_loop=included)) &&
-         !is_active(log_info.log_file_name) &&
-         !log_in_use(log_info.log_file_name))
+
+  while ((strcmp(to_log,log_info.log_file_name) || (exit_loop=included)))
   {
+    if(is_active(log_info.log_file_name))
+    {
+      if(!auto_purge)
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_PURGE_LOG_IS_ACTIVE,
+                            ER(ER_WARN_PURGE_LOG_IS_ACTIVE),
+                            log_info.log_file_name);
+      break;
+    }
+
+    if ((no_of_threads_locking_log= log_in_use(log_info.log_file_name)))
+    {
+      if(!auto_purge)
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_PURGE_LOG_IN_USE,
+                            ER(ER_WARN_PURGE_LOG_IN_USE),
+                            log_info.log_file_name,  no_of_threads_locking_log,
+                            no_of_log_files_purged, no_of_log_files_to_purge);
+      break;
+    }
+    no_of_log_files_purged++;
+
     if ((error= register_purge_index_entry(log_info.log_file_name)))
     {
       sql_print_error("MYSQL_BIN_LOG::purge_logs failed to copy %s to register file.",
@@ -4638,6 +4696,7 @@ err:
 
   @param thd		Thread pointer
   @param purge_time	Delete all log files before given date.
+  @param auto_purge     True if this is an automatic purge.
 
   @note
     If any of the logs before the deleted one is in use,
@@ -4651,14 +4710,16 @@ err:
                                 mysql_file_stat() or mysql_file_delete()
 */
 
-int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
+int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
 {
   int error;
-  char to_log[FN_REFLEN];
+  int no_of_threads_locking_log= 0, no_of_log_files_purged= 0;
+  bool log_is_active= false, log_is_in_use= false;
+  char to_log[FN_REFLEN], copy_log_in_use[FN_REFLEN];
   LOG_INFO log_info;
   MY_STAT stat_area;
   THD *thd= current_thd;
-  
+
   DBUG_ENTER("purge_logs_before_date");
 
   mysql_mutex_lock(&LOCK_index);
@@ -4667,14 +4728,23 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
   if ((error=find_log_pos(&log_info, NullS, false/*need_lock_index=false*/)))
     goto err;
 
-  while (strcmp(log_file_name, log_info.log_file_name) &&
-	 !is_active(log_info.log_file_name) &&
-         !log_in_use(log_info.log_file_name))
+  while (!(log_is_active= is_active(log_info.log_file_name)))
   {
+    if ((no_of_threads_locking_log= log_in_use(log_info.log_file_name)))
+    {
+      if (!auto_purge)
+      {
+        log_is_in_use= true;
+        strcpy(copy_log_in_use, log_info.log_file_name);
+      }
+      break;
+    }
+    no_of_log_files_purged++;
+
     if (!mysql_file_stat(m_key_file_log,
                          log_info.log_file_name, &stat_area, MYF(0)))
     {
-      if (my_errno == ENOENT) 
+      if (my_errno == ENOENT)
       {
         /*
           It's not fatal if we can't stat a log file that does not exist.
@@ -4718,10 +4788,47 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
       break;
   }
 
+  if (log_is_active)
+  {
+    if(!auto_purge)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_PURGE_LOG_IS_ACTIVE,
+                          ER(ER_WARN_PURGE_LOG_IS_ACTIVE),
+                          log_info.log_file_name);
+
+  }
+
+  if (log_is_in_use)
+  {
+    int no_of_log_files_to_purge= no_of_log_files_purged+1;
+    while (strcmp(log_file_name, log_info.log_file_name))
+    {
+      if (mysql_file_stat(m_key_file_log, log_info.log_file_name,
+                          &stat_area, MYF(0)))
+      {
+        if (stat_area.st_mtime < purge_time)
+          no_of_log_files_to_purge++;
+        else
+          break;
+      }
+      if (find_next_log(&log_info, false/*need_lock_index=false*/))
+      {
+        no_of_log_files_to_purge++;
+        break;
+      }
+    }
+
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_PURGE_LOG_IN_USE,
+                        ER(ER_WARN_PURGE_LOG_IN_USE),
+                        copy_log_in_use, no_of_threads_locking_log,
+                        no_of_log_files_purged, no_of_log_files_to_purge);
+  }
+
   error= (to_log[0] ? purge_logs(to_log, true,
                                  false/*need_lock_index=false*/,
                                  true/*need_update_threads=true*/,
-                                 (ulonglong *) 0) : 0);
+                                 (ulonglong *) 0, auto_purge) : 0);
 
 err:
   mysql_mutex_unlock(&LOCK_index);
@@ -4813,25 +4920,28 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     mysql_mutex_lock(&LOCK_log);
   else
     mysql_mutex_assert_owner(&LOCK_log);
-  mysql_mutex_lock(&LOCK_commit);
+  DBUG_EXECUTE_IF("semi_sync_3-way_deadlock",
+                  DEBUG_SYNC(current_thd, "before_rotate_binlog"););
+  mysql_mutex_lock(&LOCK_xids);
   /*
     We need to ensure that the number of prepared XIDs are 0.
 
     If m_prep_xids is not zero:
-    - We release the LOCK_commit lock to allow sessions to commit,
-      hence decrease m_prep_xids
+    - We wait for storage engine commit, hence decrease m_prep_xids
     - We keep the LOCK_log to block new transactions from being
       written to the binary log.
    */
   while (get_prep_xids() > 0)
-    mysql_cond_wait(&m_prep_xids_cond, &LOCK_commit);
+    mysql_cond_wait(&m_prep_xids_cond, &LOCK_xids);
+  mysql_mutex_unlock(&LOCK_xids);
+
   mysql_mutex_lock(&LOCK_index);
 
-  if ((error= ha_flush_logs(0)))
+  if (DBUG_EVALUATE_IF("expire_logs_always", 0, 1)
+      && (error= ha_flush_logs(NULL)))
     goto end;
 
   mysql_mutex_assert_owner(&LOCK_log);
-  mysql_mutex_assert_owner(&LOCK_commit);
   mysql_mutex_assert_owner(&LOCK_index);
 
   /* Reuse old name if not binlog and not update log */
@@ -4878,7 +4988,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     log rotation should give the waiting thread a signal to
     discover EOF and move on to the next log.
   */
-  signal_update();
+  flush_io_cache(&log_file);
+  update_binlog_end_pos();
 
   old_name=name;
   name=0;				// Don't free name
@@ -4954,7 +5065,6 @@ end:
   }
 
   mysql_mutex_unlock(&LOCK_index);
-  mysql_mutex_unlock(&LOCK_commit);
   if (need_lock_log)
     mysql_mutex_unlock(&LOCK_log);
 
@@ -5385,7 +5495,12 @@ void MYSQL_BIN_LOG::purge()
                     { purge_time= my_time(0);});
     if (purge_time >= 0)
     {
-      purge_logs_before_date(purge_time);
+      /*
+        Flush logs for storage engines, so that the last transaction
+        is fsynced inside storage engines.
+      */
+      ha_flush_logs(NULL);
+      purge_logs_before_date(purge_time, true);
     }
   }
 #endif
@@ -5744,7 +5859,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
     if (!error && !(error= flush_and_sync()))
     {
       bool check_purge= false;
-      signal_update();
+      update_binlog_end_pos();
       error= rotate(true, &check_purge);
       if (!error && check_purge)
         purge();
@@ -5809,6 +5924,15 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
   IO_CACHE *cache= &cache_data->cache_log;
   bool incident= cache_data->has_incident();
 
+  DBUG_EXECUTE_IF("simulate_binlog_flush_error",
+                  {
+                    if (rand() % 3 == 0)
+                    {
+                      write_error=1;
+                      goto err;
+                    }
+                  };);
+
   mysql_mutex_assert_owner(&LOCK_log);
 
   DBUG_ASSERT(is_open());
@@ -5847,7 +5971,6 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         goto err;
       }
 
-      thd->variables.gtid_next.set_undefined();
       global_sid_lock->rdlock();
       if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
       {
@@ -5869,6 +5992,8 @@ err:
     sql_print_error(ER(ER_ERROR_ON_WRITE), name,
                     errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
+  thd->commit_error= THD::CE_FLUSH_ERROR;
+
   DBUG_RETURN(1);
 }
 
@@ -5930,9 +6055,9 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
   DBUG_ENTER("wait_for_update_bin_log");
 
   if (!timeout)
-    mysql_cond_wait(&update_cond, &LOCK_log);
+    mysql_cond_wait(&update_cond, &LOCK_binlog_end_pos);
   else
-    ret= mysql_cond_timedwait(&update_cond, &LOCK_log,
+    ret= mysql_cond_timedwait(&update_cond, &LOCK_binlog_end_pos,
                               const_cast<struct timespec *>(timeout));
   DBUG_RETURN(ret);
 }
@@ -5969,7 +6094,8 @@ void MYSQL_BIN_LOG::close(uint exiting)
                   relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       s.write(&log_file);
       bytes_written+= s.data_written;
-      signal_update();
+      flush_io_cache(&log_file);
+      update_binlog_end_pos();
     }
 #endif /* HAVE_REPLICATION */
 
@@ -6053,15 +6179,6 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
   if (is_open())
     max_size= max_size_arg;
   mysql_mutex_unlock(&LOCK_log);
-  DBUG_VOID_RETURN;
-}
-
-
-void MYSQL_BIN_LOG::signal_update()
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
-  signal_cnt++;
-  mysql_cond_broadcast(&update_cond);
   DBUG_VOID_RETURN;
 }
 
@@ -6448,10 +6565,7 @@ MYSQL_BIN_LOG::flush_thread_caches(THD *thd)
     */
     thd->set_trans_pos(log_file_name, my_b_tell(&log_file));
     if (wrote_xid)
-    {
-      inc_prep_xids();
-      thd->transaction.flags.xid_written= true;
-    }
+      inc_prep_xids(thd);
   }
   DBUG_PRINT("debug", ("bytes: %llu", bytes));
   return std::make_pair(error, bytes);
@@ -6478,7 +6592,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
 {
   DBUG_ASSERT(total_bytes_var && rotate_var && out_queue_var);
   my_off_t total_bytes= 0;
-  int flush_error= 0;
+  int flush_error= 1;
   mysql_mutex_assert_owner(&LOCK_log);
 
   my_atomic_rwlock_rdlock(&opt_binlog_max_flush_queue_time_lock);
@@ -6501,7 +6615,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
     std::pair<int,my_off_t> result= flush_thread_caches(current.second);
     has_more= current.first;
     total_bytes+= result.second;
-    if (flush_error == 0)
+    if (flush_error == 1)
       flush_error= result.first;
     if (first_seen == NULL)
       first_seen= current.second;
@@ -6519,7 +6633,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
     {
       std::pair<int,my_off_t> result= flush_thread_caches(head);
       total_bytes+= result.second;
-      if (flush_error == 0)
+      if (flush_error == 1)
         flush_error= result.first;
     }
     if (first_seen == NULL)
@@ -6546,12 +6660,10 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
 
   @param thd The "master" thread
   @param first First thread in the queue of threads to commit
-  @param flush_error Error code from flush operation.
  */
 
 void
-MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
-                                          int flush_error)
+MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
 {
   mysql_mutex_assert_owner(&LOCK_commit);
   Thread_excursion excursion(thd);
@@ -6574,10 +6686,14 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
 #ifndef DBUG_OFF
     stage_manager.clear_preempt_status(head);
 #endif
-    if (flush_error != 0)
-      head->commit_error= flush_error;
-    else if (int error= excursion.attach_to(head))
-      head->commit_error= error;
+    if (head->commit_error != THD::CE_NONE)
+      ;
+    else if (excursion.attach_to(head))
+    {
+      head->commit_error= THD::CE_COMMIT_ERROR;
+      sql_print_error("Out of memory while attaching to session thread "
+                      "during the group commit phase.");
+    }
     else
     {
       bool all= head->transaction.flags.real_commit;
@@ -6585,15 +6701,59 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
       {
         /* head is parked to have exited append() */
         DBUG_ASSERT(head->transaction.flags.ready_preempt);
-
-        if (int error= ha_commit_low(head, all))
-          head->commit_error= error;
-        else if (head->transaction.flags.xid_written)
-          dec_prep_xids();
+        /*
+          storage engine commit
+        */
+        if (ha_commit_low(head, all, false))
+          head->commit_error= THD::CE_COMMIT_ERROR;
       }
       DBUG_PRINT("debug", ("commit_error: %d, flags.pending: %s",
                            head->commit_error,
                            YESNO(head->transaction.flags.pending)));
+    }
+    /*
+      Decrement the prepared XID counter after storage engine commit.
+      We also need decrement the prepared XID when encountering a
+      flush error or session attach error for avoiding 3-way deadlock
+      among user thread, rotate thread and dump thread.
+    */
+    if (head->transaction.flags.xid_written)
+      dec_prep_xids(head);
+  }
+}
+
+/**
+  Process after commit for a sequence of sessions.
+
+  @param thd The "master" thread
+  @param first First thread in the queue of threads to commit
+ */
+
+void
+MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
+{
+  Thread_excursion excursion(thd);
+  for (THD *head= first; head; head= head->next_to_commit)
+  {
+    if (head->transaction.flags.run_hooks &&
+        head->commit_error == THD::CE_NONE)
+    {
+      if (excursion.attach_to(head))
+      {
+        head->commit_error= THD::CE_COMMIT_ERROR;
+        sql_print_error("Out of memory while attaching to session thread "
+                        "during the group commit phase.");
+      }
+      if (head->commit_error == THD::CE_NONE)
+      {
+        bool all= head->transaction.flags.real_commit;
+        (void) RUN_HOOK(transaction, after_commit, (head, all));
+        /*
+          When after_commit finished for the transaction, clear the run_hooks flag.
+          This allow other parts of the system to check if after_commit was called.
+        */
+        head->transaction.flags.run_hooks= false;
+      }
     }
   }
 }
@@ -6723,15 +6883,32 @@ MYSQL_BIN_LOG::sync_binlog_file(bool force)
 int
 MYSQL_BIN_LOG::finish_commit(THD *thd)
 {
-  if (thd->commit_error == 0 && thd->transaction.flags.commit_low)
+  if (thd->transaction.flags.commit_low)
   {
     const bool all= thd->transaction.flags.real_commit;
-    thd->commit_error= ha_commit_low(thd, all);
+    /*
+      storage engine commit
+    */
+    if (thd->commit_error == THD::CE_NONE &&
+        ha_commit_low(thd, all, false))
+      thd->commit_error= THD::CE_COMMIT_ERROR;
+    /*
+      Decrement the prepared XID counter after storage engine commit
+    */
     if (thd->transaction.flags.xid_written)
-      dec_prep_xids();
+      dec_prep_xids(thd);
+    /*
+      If commit succeeded, we call the after_commit hook
+    */
+    if (thd->commit_error == THD::CE_NONE)
+    {
+      (void) RUN_HOOK(transaction, after_commit, (thd, all));
+      thd->transaction.flags.run_hooks= false;
+    }
   }
+  else if (thd->transaction.flags.xid_written)
+    dec_prep_xids(thd);
 
-  thd->variables.gtid_next.set_undefined();
   /*
     Remove committed GTID from owned_gtids, it was already logged on
     MYSQL_BIN_LOG::write_cache().
@@ -6740,13 +6917,37 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
   gtid_state->update_on_commit(thd);
   global_sid_lock->unlock();
 
-  DBUG_ASSERT(thd->commit_error || !thd->transaction.flags.commit_low);
+  DBUG_ASSERT(thd->commit_error || !thd->transaction.flags.run_hooks);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
   DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
                         thd->thread_id, thd->commit_error));
   return thd->commit_error;
 }
 
+/**
+   Auxiliary function used in ordered_commit.
+*/
+static inline int call_after_sync_hook(THD *queue_head)
+{
+  const char *log_file= NULL;
+  my_off_t pos= 0;
+
+  if (NO_HOOK(binlog_storage))
+    return 0;
+
+  DBUG_ASSERT(queue_head != NULL);
+  for (THD *thd= queue_head; thd != NULL; thd= thd->next_to_commit)
+    if (likely(thd->commit_error == THD::CE_NONE))
+      thd->get_trans_fixed_pos(&log_file, &pos);
+
+  if (DBUG_EVALUATE_IF("simulate_after_sync_hook_error", 1, 0) ||
+      RUN_HOOK(binlog_storage, after_sync, (queue_head, log_file, pos)))
+  {
+    sql_print_error("Failed to run 'after_sync' hooks");
+    return ER_ERROR_ON_WRITE;
+  }
+  return 0;
+}
 
 /**
   Flush and commit the transaction.
@@ -6818,12 +7019,13 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       ha_commit_low since that calls st_transaction::cleanup.
   */
   thd->transaction.flags.pending= true;
-  thd->commit_error= 0;
+  thd->commit_error= THD::CE_NONE;
   thd->next_to_commit= NULL;
   thd->durability_property= HA_IGNORE_DURABILITY;
   thd->transaction.flags.real_commit= all;
   thd->transaction.flags.xid_written= false;
   thd->transaction.flags.commit_low= !skip_commit;
+  thd->transaction.flags.run_hooks= !skip_commit;
 #ifndef DBUG_OFF
   /*
      The group commit Leader may have to wait for follower whose transaction
@@ -6879,7 +7081,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       flush_error= ER_ERROR_ON_WRITE;
     }
 
-    signal_update();
+    update_binlog_end_pos();
     DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
 
@@ -6918,12 +7120,27 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       DBUG_RETURN(finish_commit(thd));
     }
     THD *commit_queue= stage_manager.fetch_queue_for(Stage_manager::COMMIT_STAGE);
-    process_commit_stage_queue(thd, commit_queue, flush_error);
+    DBUG_EXECUTE_IF("semi_sync_3-way_deadlock",
+                    DEBUG_SYNC(thd, "before_process_commit_stage_queue"););
+
+    if (flush_error == 0)
+      flush_error= call_after_sync_hook(commit_queue);
+
+    process_commit_stage_queue(thd, commit_queue);
     mysql_mutex_unlock(&LOCK_commit);
+    /*
+      Process after_commit after LOCK_commit is released for avoiding
+      3-way deadlock among user thread, rotate thread and dump thread.
+    */
+    process_after_commit_stage_queue(thd, commit_queue);
     final_queue= commit_queue;
   }
   else
+  {
     mysql_mutex_unlock(&LOCK_sync);
+    if (flush_error == 0)
+      call_after_sync_hook(final_queue);
+  }
 
   /* Commit done so signal all waiting threads */
   stage_manager.signal_done(final_queue);
@@ -6936,20 +7153,17 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   (void) finish_commit(thd);
 
   /*
-    If we need to rotate, we do it now.
+    If we need to rotate, we do it without commit error.
+    Otherwise the thd->commit_error will be possibly reset.
    */
-  if (do_rotate)
+  if (do_rotate && thd->commit_error == THD::CE_NONE)
   {
     /*
-      We can force the rotate since we did the check in
-      flush_session_queue(). Giving "false" would have the same
-      result, but will do the check again.
+      Do not force the rotate as several consecutive groups may
+      request unnecessary rotations.
 
       NOTE: Run purge_logs wo/ holding LOCK_log because it does not
       need the mutex. Otherwise causes various deadlocks.
-
-      NOTE: The LOCK_commit is necessary when doing a rotate, but that
-      is grabbed inside new_file_impl().
     */
 
     DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
@@ -6962,7 +7176,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     if (!error && check_purge)
       purge();
     else
-      thd->commit_error= error;
+      thd->commit_error= THD::CE_COMMIT_ERROR;
   }
   DBUG_RETURN(thd->commit_error);
 }
@@ -7946,6 +8160,44 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     DBUG_PRINT("info", ("decision: logging in %s format",
                         is_current_stmt_binlog_format_row() ?
                         "ROW" : "STATEMENT"));
+
+    if (variables.binlog_format == BINLOG_FORMAT_ROW &&
+        (lex->sql_command == SQLCOM_UPDATE ||
+         lex->sql_command == SQLCOM_UPDATE_MULTI ||
+         lex->sql_command == SQLCOM_DELETE ||
+         lex->sql_command == SQLCOM_DELETE_MULTI))
+    {
+      String table_names;
+      /*
+        Generate a warning for UPDATE/DELETE statements that modify a
+        BLACKHOLE table, as row events are not logged in row format.
+      */
+      for (TABLE_LIST *table= tables; table; table= table->next_global)
+      {
+        if (table->placeholder())
+          continue;
+        if (table->table->file->ht->db_type == DB_TYPE_BLACKHOLE_DB &&
+            table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        {
+            table_names.append(table->table_name);
+            table_names.append(",");
+        }
+      }
+      if (!table_names.is_empty())
+      {
+        bool is_update= (lex->sql_command == SQLCOM_UPDATE ||
+                         lex->sql_command == SQLCOM_UPDATE_MULTI);
+        /*
+          Replace the last ',' with '.' for table_names
+        */
+        table_names.replace(table_names.length()-1, 1, ".", 1);
+        push_warning_printf(this, Sql_condition::SL_WARNING,
+                            WARN_ON_BLOCKHOLE_IN_RBR,
+                            ER(WARN_ON_BLOCKHOLE_IN_RBR),
+                            is_update ? "UPDATE" : "DELETE",
+                            table_names.c_ptr());
+      }
+    }
   }
 #ifndef DBUG_OFF
   else
@@ -7975,7 +8227,7 @@ bool THD::is_ddl_gtid_compatible() const
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-      lex->select_lex.item_list.elements)
+      lex->select_lex->item_list.elements)
   {
     /*
       CREATE ... SELECT (without TEMPORARY) is unsafe because if

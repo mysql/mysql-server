@@ -47,7 +47,7 @@
 using std::min;
 using std::max;
 
-#if defined(USE_LIBEDIT_INTERFACE) && defined(HAVE_LOCALE_H)
+#if defined(USE_LIBEDIT_INTERFACE)
 #include <locale.h>
 #endif
 
@@ -98,20 +98,14 @@ extern "C" {
 #endif
 #endif
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #include <conio.h>
 #else
-#include <readline/readline.h>
+#include <readline.h>
 #define HAVE_READLINE
 #define USE_POPEN
 #endif
-  //int vidattr(long unsigned int attrs);	// Was missing in sun curses
 }
-
-#if !defined(HAVE_VIDATTR)
-#undef vidattr
-#define vidattr(A) {}			// Can't get this to work
-#endif
 
 #ifdef FN_NO_CASE_SENSE
 #define cmp_database(cs,A,B) my_strcasecmp((cs), (A), (B))
@@ -168,6 +162,7 @@ static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
 static my_bool opt_binary_mode= FALSE;
+static my_bool opt_connect_expired_password= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -219,7 +214,7 @@ static const CHARSET_INFO *charset_info= &my_charset_latin1;
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
 
-#ifdef __WIN__
+#ifdef _WIN32
 /*
   A flag that indicates if --execute buffer has already been converted,
   to avoid double conversion on reconnect.
@@ -246,7 +241,7 @@ my_win_is_console_cached(FILE *file)
 {
   return win_is_console_cache & (1 << _fileno(file));
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /* Various printing flags */
 #define MY_PRINT_ESC_0 1  /* Replace 0x00 bytes to "\0"              */
@@ -1254,7 +1249,7 @@ int main(int argc,char *argv[])
       close(stdout_fileno_copy);             /* Clean up dup(). */
   }
 
-#ifdef __WIN__
+#ifdef _WIN32
   /* Convert command line parameters from UTF16LE to UTF8MB4. */
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
 #endif
@@ -1714,7 +1709,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -1825,6 +1820,11 @@ static struct my_option my_long_options[] =
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"connect-expired-password", 0,
+   "Notify the server that this client is prepared to handle expired "
+   "password sandbox mode.",
+   &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2016,7 +2016,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     set_if_bigger(opt_silent,1);                         // more silent
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
@@ -2099,7 +2099,7 @@ static int get_options(int argc, char **argv)
 
 static int read_and_execute(bool interactive)
 {
-#if defined(__WIN__)
+#if defined(_WIN32)
   String tmpbuf;
   String buffer;
 #endif
@@ -2181,7 +2181,7 @@ static int read_and_execute(bool interactive)
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
 
-#if defined(__WIN__)
+#if defined(_WIN32)
       size_t nread;
       tee_fputs(prompt, stdout);
       if (!tmpbuf.is_alloced())
@@ -2217,7 +2217,7 @@ static int read_and_execute(bool interactive)
         reset_prompt(&in_string, &ml_comment);
         continue;
       }
-#endif                                          /* defined(__WIN__) */
+#endif                                          /* defined(_WIN32) */
       /*
         When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
         which may cause coredump.
@@ -2274,7 +2274,7 @@ static int read_and_execute(bool interactive)
     }
   }
 
-#if defined(__WIN__)
+#if defined(_WIN32)
   buffer.free();
   tmpbuf.free();
 #else
@@ -2756,9 +2756,7 @@ static void initialize_readline (char *name)
 
   rl_add_defun("magic-space", (rl_command_func_t *)&fake_magic_space, -1);
 #elif defined(USE_LIBEDIT_INTERFACE)
-#ifdef HAVE_LOCALE_H
   setlocale(LC_ALL,""); /* so as libedit use isprint */
-#endif
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= &no_completion;
   rl_add_defun("magic-space", (Function*)&fake_magic_space, -1);
@@ -4818,7 +4816,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   mysql_init(&mysql);
   init_connection_options(&mysql);
 
-#ifdef __WIN__
+#ifdef _WIN32
   uint cnv_errors;
   String converted_database, converted_user;
   if (!my_charset_same(&my_charset_utf8mb4_bin, mysql.charset))
@@ -4856,7 +4854,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     return -1;					// Retryable
   }
 
-#ifdef __WIN__
+#ifdef _WIN32
   /* Convert --execute buffer from UTF8MB4 to connection character set */
   if (!execute_buffer_conversion_done++ &&
       status.line_buff &&
@@ -4885,7 +4883,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     if (!(status.line_buff= batch_readline_command(NULL, (char *) tmp.c_ptr_safe())))
       return 1;
   }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
   charset_info= mysql.charset;
   
@@ -4906,7 +4904,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 static void
 init_connection_options(MYSQL *mysql)
 {
-  my_bool interactive= status.batch ? FALSE : TRUE;
+  my_bool handle_expired= (opt_connect_expired_password || !status.batch) ?
+    TRUE : FALSE;
 
   if (opt_init_command)
     mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);
@@ -4978,7 +4977,7 @@ init_connection_options(MYSQL *mysql)
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysql");
 
-  mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &interactive);
+  mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 }
 
 
@@ -5059,9 +5058,7 @@ com_status(String *buffer __attribute__((unused)),
 
   if (skip_updates)
   {
-    vidattr(A_BOLD);
     tee_fprintf(stdout, "\nAll updates ignored to this database\n");
-    vidattr(A_NORMAL);
   }
 #ifdef USE_POPEN
   tee_fprintf(stdout, "Current pager:\t\t%s\n", pager);
@@ -5128,9 +5125,7 @@ com_status(String *buffer __attribute__((unused)),
   }
   if (safe_updates)
   {
-    vidattr(A_BOLD);
     tee_fprintf(stdout, "\nNote that you are running in safe_update_mode:\n");
-    vidattr(A_NORMAL);
     tee_fprintf(stdout, "\
 UPDATEs and DELETEs that don't use a key in the WHERE clause are not allowed.\n\
 (One can force an UPDATE/DELETE by adding LIMIT # at the end of the command.)\n\
@@ -5224,15 +5219,11 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
     if (!inited)
     {
       inited=1;
-#ifdef HAVE_SETUPTERM
-      (void) setupterm((char *)0, 1, (int *) 0);
-#endif
     }
     if (info_type == INFO_ERROR)
     {
       if (!opt_nobeep)
         putchar('\a');		      	/* This should make a bell */
-      vidattr(A_STANDOUT);
       if (error)
       {
 	if (sqlstate)
@@ -5243,10 +5234,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
       else
         tee_puts("ERROR: ", file);
     }
-    else
-      vidattr(A_BOLD);
     (void) tee_puts(str, file);
-    vidattr(A_NORMAL);
   }
   if (unbuffered)
     fflush(file);
@@ -5284,7 +5272,7 @@ static void remove_cntrl(String &buffer)
 */
 void tee_write(FILE *file, const char *s, size_t slen, int flags)
 {
-#ifdef __WIN__
+#ifdef _WIN32
   my_bool is_console= my_win_is_console_cached(file);
 #endif
   const char *se;
@@ -5298,14 +5286,19 @@ void tee_write(FILE *file, const char *s, size_t slen, int flags)
       if (use_mb(charset_info) &&
           (mblen= my_ismbchar(charset_info, s, se)))
       {
-#ifdef __WIN__
+#ifdef _WIN32
         if (is_console)
           my_win_console_write(charset_info, s, mblen);
         else
 #endif
-        fwrite(s, 1, mblen, file);
-        if (opt_outfile)
-          fwrite(s, 1, mblen, OUTFILE);
+        if (fwrite(s, 1, mblen, file) != (size_t) mblen) {
+          perror("fwrite");
+        }
+        if (opt_outfile) {
+          if (fwrite(s, 1, mblen, OUTFILE) != (size_t) mblen) {
+            perror("fwrite");
+          }
+        }
         s+= mblen - 1;
         continue;
       }
@@ -5325,7 +5318,7 @@ void tee_write(FILE *file, const char *s, size_t slen, int flags)
       tee_fputs("\\\\", file);
     else
     {
-#ifdef __WIN__
+#ifdef _WIN32
       if (is_console)
         my_win_console_putc(charset_info, (int) *s);
       else
@@ -5343,7 +5336,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
   va_list args;
 
   va_start(args, fmt);
-#ifdef __WIN__
+#ifdef _WIN32
   if (my_win_is_console_cached(file))
     my_win_console_vfprintf(charset_info, fmt, args);
   else
@@ -5369,7 +5362,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 */
 void tee_fputs(const char *s, FILE *file)
 {
-#ifdef __WIN__
+#ifdef _WIN32
   if (my_win_is_console_cached(file))
     my_win_console_fputs(charset_info, s);
   else
@@ -5388,7 +5381,7 @@ void tee_puts(const char *s, FILE *file)
 
 void tee_putc(int c, FILE *file)
 {
-#ifdef __WIN__
+#ifdef _WIN32
   if (my_win_is_console_cached(file))
     my_win_console_putc(charset_info, c);
   else
@@ -5398,7 +5391,7 @@ void tee_putc(int c, FILE *file)
     putc(c, OUTFILE);
 }
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #include <time.h>
 #else
 #include <sys/times.h>
@@ -5410,7 +5403,7 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#if defined(__WIN__)
+#if defined(_WIN32)
   return clock();
 #else
   struct tms tms_tmp;
@@ -5663,7 +5656,7 @@ static void init_username()
 static void get_current_os_user() {
   const char *user;
 
-#ifdef __WIN__
+#ifdef _WIN32
   char buf[255];
   WCHAR wbuf[255];
   DWORD wbuf_len= sizeof(wbuf) / sizeof(WCHAR);
@@ -5692,17 +5685,17 @@ static void get_current_os_user() {
        !(user= getenv("LOGNAME")) &&
        !(user= getenv("LOGIN")))
     user= "UNKNOWN USER";
-#endif                                          /* __WIN__ */
+#endif                                          /* _WIN32 */
   current_os_user= my_strdup(user, MYF(MY_WME));
   return;
 }
 
 // Get the current OS sudo user name (only for non-Windows platforms).
 static void get_current_os_sudouser() {
-#ifndef __WIN__
+#ifndef _WIN32
   if (getenv("SUDO_USER"))
    current_os_sudouser= my_strdup(getenv("SUDO_USER"), MYF(MY_WME));
-#endif                                          /* !__WIN__ */
+#endif                                          /* !_WIN32 */
   return;
 }
 

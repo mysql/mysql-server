@@ -23,13 +23,14 @@ Quiesce a tablespace.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
-#include "row0quiesce.h"
-#include "row0mysql.h"
+#include "ha_prototypes.h"
 
+#include "row0quiesce.h"
 #ifdef UNIV_NONINL
 #include "row0quiesce.ic"
 #endif
 
+#include "row0mysql.h"
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "trx0purge.h"
@@ -506,7 +507,7 @@ row_quiesce_table_has_fts_index(
 
 /*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
-UNIV_INTERN
+
 void
 row_quiesce_table_start(
 /*====================*/
@@ -533,10 +534,11 @@ row_quiesce_table_start(
 
 	ut_a(table->id > 0);
 
-	ulint	count = 0;
-
-	while (ibuf_contract_in_background(table->id, TRUE) != 0) {
-		if (!(++count % 20)) {
+	for (ulint count = 0;
+	     ibuf_contract_in_background(table->id, TRUE) != 0
+	     && !trx_is_interrupted(trx);
+	     ++count) {
+		if (!(count % 20)) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Merging change buffer entries for '%s'",
 				table_name);
@@ -571,7 +573,7 @@ row_quiesce_table_start(
 
 /*********************************************************************//**
 Cleanup after table quiesce. */
-UNIV_INTERN
+
 void
 row_quiesce_table_complete(
 /*=======================*/
@@ -627,7 +629,7 @@ row_quiesce_table_complete(
 /*********************************************************************//**
 Set a table's quiesce state.
 @return DB_SUCCESS or error code. */
-UNIV_INTERN
+
 dberr_t
 row_quiesce_set_state(
 /*==================*/

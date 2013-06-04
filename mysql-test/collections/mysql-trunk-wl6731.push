@@ -1,0 +1,5 @@
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=normal-debug_i_main --vardir=var-normal_i_main --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --suite=i_main
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=i_main_embedded-debug --vardir=var-i_main_1_embedded --suite=i_main --embedded --experimental=collections/default.experimental
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=i_main_innodb_4k_size-debug --vardir=var-innodb-4k --experimental=collections/default.experimental --suite=i_main --mysqld=--innodb-page-size=4k
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=i_main_innodb_8k_size-debug --vardir=var-innodb-8k --experimental=collections/default.experimental --suite=i_main --mysqld=--innodb-page-size=8k
+perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=i_main_ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-daily.list --suite=i_main

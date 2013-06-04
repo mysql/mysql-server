@@ -32,6 +32,8 @@ The interface to the operating system file i/o primitives
 Created 10/21/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "os0file.h"
 
 #ifdef UNIV_NONINL
@@ -45,15 +47,14 @@ Created 10/21/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "srv0mon.h"
 #ifndef UNIV_HOTBACKUP
-# include "os0sync.h"
 # include "os0thread.h"
 #else /* !UNIV_HOTBACKUP */
-# ifdef __WIN__
+# ifdef _WIN32
 /* Add includes for the _stat() call to compile on Windows */
 #  include <sys/types.h>
 #  include <sys/stat.h>
 #  include <errno.h>
-# endif /* __WIN__ */
+# endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
 #if defined(LINUX_NATIVE_AIO)
@@ -73,19 +74,19 @@ static const ulint NUM_RETRIES_ON_PARTIAL_IO = 10;
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
 my_umask */
 
-#ifndef __WIN__
+#ifndef _WIN32
 /** Umask for creating files */
-UNIV_INTERN ulint	os_innodb_umask = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+ulint	os_innodb_umask = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
 #else
 /** Umask for creating files */
-UNIV_INTERN ulint	os_innodb_umask	= 0;
-#endif /* __WIN__ */
+ulint	os_innodb_umask	= 0;
+#endif /* _WIN32 */
 
 #ifndef UNIV_HOTBACKUP
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
 #define OS_FILE_N_SEEK_MUTEXES	16
-UNIV_INTERN os_ib_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
+os_ib_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
 
 /* In simulated aio, merge at most this many consecutive i/os */
 #define OS_AIO_MERGE_N_CONSECUTIVE	64
@@ -145,14 +146,11 @@ the completed IO request and calls completion routine on it.
 **********************************************************************/
 
 
-/** Flag: enable debug printout for asynchronous i/o */
-UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
-
 #ifdef UNIV_PFS_IO
 /* Keys to register InnoDB I/O with performance schema */
-UNIV_INTERN mysql_pfs_key_t  innodb_data_file_key;
-UNIV_INTERN mysql_pfs_key_t  innodb_log_file_key;
-UNIV_INTERN mysql_pfs_key_t  innodb_temp_file_key;
+mysql_pfs_key_t  innodb_data_file_key;
+mysql_pfs_key_t  innodb_log_file_key;
+mysql_pfs_key_t  innodb_temp_file_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous i/o array slot structure */
@@ -218,7 +216,7 @@ struct os_aio_array_t{
 				/*!< Number of reserved slots in the
 				aio array outside the ibuf segment */
 	os_aio_slot_t*	slots;	/*!< Pointer to the slots in the array */
-#ifdef __WIN__
+#ifdef _WIN32
 	HANDLE*		handles;
 				/*!< Pointer to an array of OS native
 				event handles where we copied the
@@ -226,7 +224,7 @@ struct os_aio_array_t{
 				order. This can be used in
 				WaitForMultipleObjects; used only in
 				Windows */
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #if defined(LINUX_NATIVE_AIO)
 	io_context_t*		aio_ctx;
@@ -272,38 +270,37 @@ wait until a batch of new read requests have been posted */
 static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
 #endif /* !UNIV_HOTBACKUP */
 
-UNIV_INTERN ulint	os_n_file_reads		= 0;
-UNIV_INTERN ulint	os_bytes_read_since_printout = 0;
-UNIV_INTERN ulint	os_n_file_writes	= 0;
-UNIV_INTERN ulint	os_n_fsyncs		= 0;
-UNIV_INTERN ulint	os_n_file_reads_old	= 0;
-UNIV_INTERN ulint	os_n_file_writes_old	= 0;
-UNIV_INTERN ulint	os_n_fsyncs_old		= 0;
-UNIV_INTERN time_t	os_last_printout;
+ulint	os_n_file_reads		= 0;
+ulint	os_bytes_read_since_printout = 0;
+ulint	os_n_file_writes	= 0;
+ulint	os_n_fsyncs		= 0;
+ulint	os_n_file_reads_old	= 0;
+ulint	os_n_file_writes_old	= 0;
+ulint	os_n_fsyncs_old		= 0;
+time_t	os_last_printout;
 
-UNIV_INTERN ibool	os_has_said_disk_full	= FALSE;
+ibool	os_has_said_disk_full	= FALSE;
 
-#if !defined(UNIV_HOTBACKUP)	\
-    && (!defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8)
+#if !defined(UNIV_HOTBACKUP) && !defined(HAVE_ATOMIC_BUILTINS)
 /** The mutex protecting the following counts of pending I/O operations */
 static os_ib_mutex_t	os_file_count_mutex;
-#endif /* !UNIV_HOTBACKUP && (!HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8) */
+#endif /* !UNIV_HOTBACKUP && !HAVE_ATOMIC_BUILTINS */
 
 /** Number of pending os_file_pread() operations */
-UNIV_INTERN ulint	os_file_n_pending_preads  = 0;
+ulint	os_file_n_pending_preads  = 0;
 /** Number of pending os_file_pwrite() operations */
-UNIV_INTERN ulint	os_file_n_pending_pwrites = 0;
+ulint	os_file_n_pending_pwrites = 0;
 /** Number of pending write operations */
-UNIV_INTERN ulint	os_n_pending_writes = 0;
+ulint	os_n_pending_writes = 0;
 /** Number of pending read operations */
-UNIV_INTERN ulint	os_n_pending_reads = 0;
+ulint	os_n_pending_reads = 0;
 
 #ifdef UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Validates the consistency the aio system some of the time.
 @return	TRUE if ok or the check was skipped */
-UNIV_INTERN
+
 ibool
 os_aio_validate_skip(void)
 /*======================*/
@@ -329,12 +326,12 @@ os_aio_validate_skip(void)
 # endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
 
-#ifdef __WIN__
+#ifdef _WIN32
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
 @return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
 OS_WIN7. */
-UNIV_INTERN
+
 ulint
 os_get_os_version(void)
 /*===================*/
@@ -368,7 +365,7 @@ os_get_os_version(void)
 		return(0);
 	}
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
@@ -385,7 +382,7 @@ os_file_get_last_error_low(
 	bool	on_error_silent)	/*!< in: TRUE then don't print any
 					diagnostic to the log */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 
 	ulint	err = (ulint) GetLastError();
 	if (err == ERROR_SUCCESS) {
@@ -555,7 +552,7 @@ The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
 @return	error number, or OS error number + 100 */
-UNIV_INTERN
+
 ulint
 os_file_get_last_error(
 /*===================*/
@@ -700,7 +697,7 @@ os_file_handle_error_no_exit(
 
 #undef USE_FILE_LOCK
 #define USE_FILE_LOCK
-#if defined(UNIV_HOTBACKUP) || defined(__WIN__)
+#if defined(UNIV_HOTBACKUP) || defined(_WIN32)
 /* InnoDB Hot Backup does not lock the data files.
  * On Windows, mandatory locking is used.
  */
@@ -747,14 +744,14 @@ os_file_lock(
 #ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */
-UNIV_INTERN
+
 void
 os_io_init_simple(void)
 /*===================*/
 {
-#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
+#ifndef HAVE_ATOMIC_BUILTINS
 	os_file_count_mutex = os_mutex_create();
-#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8 */
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		os_file_seek_mutexes[i] = os_mutex_create();
@@ -765,7 +762,7 @@ os_io_init_simple(void)
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
 @return	temporary file handle, or NULL on error */
-UNIV_INTERN
+
 FILE*
 os_file_create_tmpfile(void)
 /*========================*/
@@ -799,7 +796,7 @@ directory named by the dirname argument. The directory stream is positioned
 at the first entry. In both Unix and Windows we automatically skip the '.'
 and '..' items at the start of the directory listing.
 @return	directory stream, NULL if error */
-UNIV_INTERN
+
 os_file_dir_t
 os_file_opendir(
 /*============*/
@@ -812,7 +809,7 @@ os_file_opendir(
 					a directory */
 {
 	os_file_dir_t		dir;
-#ifdef __WIN__
+#ifdef _WIN32
 	LPWIN32_FIND_DATA	lpFindFileData;
 	char			path[OS_FILE_MAX_PATH + 3];
 
@@ -850,19 +847,19 @@ os_file_opendir(
 	}
 
 	return(dir);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
 Closes a directory stream.
 @return	0 if success, -1 if failure */
-UNIV_INTERN
+
 int
 os_file_closedir(
 /*=============*/
 	os_file_dir_t	dir)	/*!< in: directory stream */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL		ret;
 
 	ret = FindClose(dir);
@@ -884,14 +881,14 @@ os_file_closedir(
 	}
 
 	return(ret);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
 This function returns information of the next file in the directory. We jump
 over the '.' and '..' entries in the directory.
 @return	0 if ok, -1 if error, 1 if at the end of the directory */
-UNIV_INTERN
+
 int
 os_file_readdir_next_file(
 /*======================*/
@@ -899,7 +896,7 @@ os_file_readdir_next_file(
 	os_file_dir_t	dir,	/*!< in: directory stream */
 	os_file_stat_t*	info)	/*!< in/out: buffer where the info is returned */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	LPWIN32_FIND_DATA	lpFindFileData;
 	BOOL			ret;
 
@@ -973,15 +970,7 @@ next_file:
 #ifdef HAVE_READDIR_R
 	ret = readdir_r(dir, (struct dirent*) dirent_buf, &ent);
 
-	if (ret != 0
-#ifdef UNIV_AIX
-	    /* On AIX, only if we got non-NULL 'ent' (result) value and
-	    a non-zero 'ret' (return) value, it indicates a failed
-	    readdir_r() call. An NULL 'ent' with an non-zero 'ret'
-	    would indicate the "end of the directory" is reached. */
-	    && ent != NULL
-#endif
-	   ) {
+	if (ret != 0) {
 		fprintf(stderr,
 			"InnoDB: cannot read directory %s, error %lu\n",
 			dirname, (ulong) ret);
@@ -1071,7 +1060,7 @@ the call succeeds, unless the fail_if_exists arguments is true.
 If another error occurs, such as a permission error, this does not crash,
 but reports the error and returns FALSE.
 @return	TRUE if call succeeds, FALSE on error */
-UNIV_INTERN
+
 ibool
 os_file_create_directory(
 /*=====================*/
@@ -1080,7 +1069,7 @@ os_file_create_directory(
 	ibool		fail_if_exists)	/*!< in: if TRUE, pre-existing directory
 					is treated as an error. */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	rcode;
 
 	rcode = CreateDirectory((LPCTSTR) pathname, NULL);
@@ -1108,7 +1097,7 @@ os_file_create_directory(
 	}
 
 	return (TRUE);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /****************************************************************//**
@@ -1117,7 +1106,7 @@ this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-UNIV_INTERN
+
 os_file_t
 os_file_create_simple_func(
 /*=======================*/
@@ -1131,7 +1120,7 @@ os_file_create_simple_func(
 	os_file_t	file;
 	ibool		retry;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DWORD		access;
 	DWORD		create_flag;
 	DWORD		attributes	= 0;
@@ -1220,7 +1209,7 @@ os_file_create_simple_func(
 
 	} while (retry);
 
-#else /* __WIN__ */
+#else /* _WIN32 */
 	int		create_flag;
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
@@ -1299,7 +1288,7 @@ os_file_create_simple_func(
 	}
 #endif /* USE_FILE_LOCK */
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	return(file);
 }
@@ -1310,7 +1299,7 @@ os_file_create_simple_no_error_handling(), not directly this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-UNIV_INTERN
+
 os_file_t
 os_file_create_simple_no_error_handling_func(
 /*=========================================*/
@@ -1325,7 +1314,7 @@ os_file_create_simple_no_error_handling_func(
 {
 	os_file_t	file;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DWORD		access;
 	DWORD		create_flag;
 	DWORD		attributes	= 0;
@@ -1384,7 +1373,7 @@ os_file_create_simple_no_error_handling_func(
 			  NULL);		// No template file
 
 	*success = (file != INVALID_HANDLE_VALUE);
-#else /* __WIN__ */
+#else /* _WIN32 */
 	int		create_flag;
 
 	ut_a(name);
@@ -1443,14 +1432,14 @@ os_file_create_simple_no_error_handling_func(
 	}
 #endif /* USE_FILE_LOCK */
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	return(file);
 }
 
 /****************************************************************//**
 Tries to disable OS caching on an opened file descriptor. */
-UNIV_INTERN
+
 void
 os_file_set_nocache(
 /*================*/
@@ -1498,7 +1487,7 @@ this function!
 Opens an existing file or creates a new.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-UNIV_INTERN
+
 os_file_t
 os_file_create_func(
 /*================*/
@@ -1520,23 +1509,23 @@ os_file_create_func(
 	ibool		on_error_no_exit;
 	ibool		on_error_silent;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DBUG_EXECUTE_IF(
 		"ib_create_table_fail_disk_full",
 		*success = FALSE;
 		SetLastError(ERROR_DISK_FULL);
 		return((os_file_t) -1);
 	);
-#else /* __WIN__ */
+#else /* _WIN32 */
 	DBUG_EXECUTE_IF(
 		"ib_create_table_fail_disk_full",
 		*success = FALSE;
 		errno = ENOSPC;
 		return((os_file_t) -1);
 	);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DWORD		create_flag;
 	DWORD		share_mode	= FILE_SHARE_READ;
 
@@ -1662,7 +1651,7 @@ os_file_create_func(
 
 	} while (retry);
 
-#else /* __WIN__ */
+#else /* _WIN32 */
 	int		create_flag;
 	const char*	mode_str	= NULL;
 
@@ -1792,7 +1781,7 @@ os_file_create_func(
 	}
 #endif /* USE_FILE_LOCK */
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	return(file);
 }
@@ -1800,7 +1789,7 @@ os_file_create_func(
 /***********************************************************************//**
 Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
-UNIV_INTERN
+
 bool
 os_file_delete_if_exists_func(
 /*==========================*/
@@ -1811,7 +1800,7 @@ os_file_delete_if_exists_func(
 				or false if doesn't pre-exist.
 				If NULL, then ignore setting this value. */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	bool	ret;
 	ulint	count	= 0;
 	if (exist) {
@@ -1872,20 +1861,20 @@ loop:
 	}
 
 	return(true);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
-UNIV_INTERN
+
 bool
 os_file_delete_func(
 /*================*/
 	const char*	name)	/*!< in: file path as a null-terminated
 				string */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 	ulint	count	= 0;
 loop:
@@ -1944,7 +1933,7 @@ NOTE! Use the corresponding macro os_file_rename(), not directly this function!
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 os_file_rename_func(
 /*================*/
@@ -1965,7 +1954,7 @@ os_file_rename_func(
 	ut_ad(exists);
 #endif /* UNIV_DEBUG */
 
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 
 	ret = MoveFile((LPCTSTR) oldpath, (LPCTSTR) newpath);
@@ -1989,7 +1978,7 @@ os_file_rename_func(
 	}
 
 	return(TRUE);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
@@ -1997,13 +1986,13 @@ NOTE! Use the corresponding macro os_file_close(), not directly this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 os_file_close_func(
 /*===============*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 
 	ut_a(file);
@@ -2029,20 +2018,20 @@ os_file_close_func(
 	}
 
 	return(TRUE);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 #ifdef UNIV_HOTBACKUP
 /***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 os_file_close_no_error_handling(
 /*============================*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 
 	ut_a(file);
@@ -2065,20 +2054,20 @@ os_file_close_no_error_handling(
 	}
 
 	return(TRUE);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 #endif /* UNIV_HOTBACKUP */
 
 /***********************************************************************//**
 Gets a file size.
 @return	file size, or (os_offset_t) -1 on failure */
-UNIV_INTERN
+
 os_offset_t
 os_file_get_size(
 /*=============*/
 	os_file_t	file)	/*!< in: handle to a file */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	os_offset_t	offset;
 	DWORD		high;
 	DWORD		low;
@@ -2094,13 +2083,13 @@ os_file_get_size(
 	return(offset);
 #else
 	return((os_offset_t) lseek(file, 0, SEEK_END));
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /***********************************************************************//**
 Write the specified number of zeros to a newly created file.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 os_file_set_size(
 /*=============*/
@@ -2180,21 +2169,21 @@ error_handling:
 /***********************************************************************//**
 Truncates a file at its current position.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 os_file_set_eof(
 /*============*/
 	FILE*		file)	/*!< in: file to be truncated */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	HANDLE h = (HANDLE) _get_osfhandle(fileno(file));
 	return(SetEndOfFile(h));
-#else /* __WIN__ */
+#else /* _WIN32 */
 	return(!ftruncate(fileno(file), ftell(file)));
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
-#ifndef __WIN__
+#ifndef _WIN32
 /***********************************************************************//**
 Wrapper to fsync(2) that retries the call on some errors.
 Returns the value 0 if successful; otherwise the value -1 is returned and
@@ -2241,19 +2230,19 @@ os_file_fsync(
 
 	return(ret);
 }
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 
 /***********************************************************************//**
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
 @return	TRUE if success */
-UNIV_INTERN
+
 ibool
 os_file_flush_func(
 /*===============*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL	ret;
 
 	ut_a(file);
@@ -2285,35 +2274,7 @@ os_file_flush_func(
 #else
 	int	ret;
 
-#if defined(HAVE_DARWIN_THREADS)
-# ifndef F_FULLFSYNC
-	/* The following definition is from the Mac OS X 10.3 <sys/fcntl.h> */
-#  define F_FULLFSYNC 51 /* fsync + ask the drive to flush to the media */
-# elif F_FULLFSYNC != 51
-#  error "F_FULLFSYNC != 51: ABI incompatibility with Mac OS X 10.3"
-# endif
-	/* Apple has disabled fsync() for internal disk drives in OS X. That
-	caused corruption for a user when he tested a power outage. Let us in
-	OS X use a nonstandard flush method recommended by an Apple
-	engineer. */
-
-	if (!srv_have_fullfsync) {
-		/* If we are not on an operating system that supports this,
-		then fall back to a plain fsync. */
-
-		ret = os_file_fsync(file);
-	} else {
-		ret = fcntl(file, F_FULLFSYNC, NULL);
-
-		if (ret) {
-			/* If we are not on a file system that supports this,
-			then fall back to a plain fsync. */
-			ret = os_file_fsync(file);
-		}
-	}
-#else
 	ret = os_file_fsync(file);
-#endif
 
 	if (ret == 0) {
 		return(TRUE);
@@ -2339,7 +2300,7 @@ os_file_flush_func(
 #endif
 }
 
-#ifndef __WIN__
+#ifndef _WIN32
 /*******************************************************************//**
 Does a syncronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
@@ -2360,7 +2321,7 @@ os_file_io(
 
 	for (ulint i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
 		if (type == OS_FILE_READ ) {
-#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
+#if defined(HAVE_PREAD)
 			n_bytes = pread(file, buf, n, offset);
 #else
 			off_t ret_offset;
@@ -2370,10 +2331,10 @@ os_file_io(
 				return(bytes_returned);
 			}
 			n_bytes = read(file, buf, (ssize_t) n);
-#endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
+#endif /* HAVE_PREAD */
 		} else {
 			ut_ad(type == OS_FILE_WRITE);
-#if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
+#if defined(HAVE_PWRITE)
 			n_bytes = pwrite(file, buf, n, offset);
 #else
 			off_t ret_offset;
@@ -2383,7 +2344,7 @@ os_file_io(
 				return(bytes_returned);
 			}
 			n_bytes = write(file, buf, (ssize_t) n);
-#endif /* HAVE_PWRITE && !HAVE_BROKEN_PREAD */
+#endif /* HAVE_PWRITE */
 		}
 
 		if ((ulint) n_bytes == n) {
@@ -2453,8 +2414,8 @@ os_file_pread(
 	}
 
 	os_n_file_reads++;
-#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
-#if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
+#if defined(HAVE_PREAD)
+#if defined(HAVE_ATOMIC_BUILTINS)
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
@@ -2468,7 +2429,7 @@ os_file_pread(
 
 	read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
 
-#if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
+#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_decrement_ulint(&os_file_n_pending_preads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
@@ -2478,7 +2439,7 @@ os_file_pread(
 	os_n_pending_reads--;
 	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD == 8 */
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(read_bytes);
 #else
@@ -2487,7 +2448,7 @@ os_file_pread(
 		ulint	i;
 #endif /* !UNIV_HOTBACKUP */
 
-#if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
+#ifdef HAVE_ATOMIC_BUILTINS
 		(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 		MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 #else
@@ -2495,7 +2456,7 @@ os_file_pread(
 		os_n_pending_reads++;
 		MONITOR_INC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD == 8 */
+#endif /* HAVE_ATOMIC_BUILTINS */
 #ifndef UNIV_HOTBACKUP
 		/* Protect the seek / read operation with a mutex */
 		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
@@ -2509,15 +2470,15 @@ os_file_pread(
 		os_mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
+#ifdef HAVE_ATOMIC_BUILTINS
 		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
-		MONITOR_ATOIC_DEC(MONITOR_OS_PENDING_READS);
+		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
 #else
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
 		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD_SIZE == 8 */
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 		return(read_bytes);
 	}
@@ -2555,36 +2516,37 @@ os_file_pwrite(
 
 	os_n_file_writes++;
 
-#if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
-#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
+#if defined(HAVE_PWRITE)
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
+	(void) os_atomic_increment_ulint(&os_file_n_pending_pwrites, 1);
+	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
 	os_n_pending_writes++;
 	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
-#else
-	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
-	(void) os_atomic_increment_ulint(&os_file_n_pending_pwrites, 1);
-	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
-#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	written_bytes = os_file_io(
 		file, (void*) buf, n, offs, OS_FILE_WRITE);
 
-#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
+	(void) os_atomic_decrement_ulint(&os_file_n_pending_pwrites, 1);
+	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
 	os_n_pending_writes--;
 	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
-#else
-	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
-	(void) os_atomic_decrement_ulint(&os_file_n_pending_pwrites, 1);
-	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
-#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(written_bytes);
-#else
+#else /* HAVE_PWRITE */
 	{
 # ifndef UNIV_HOTBACKUP
 		ulint	i;
@@ -2616,7 +2578,7 @@ os_file_pwrite(
 
 		return(written_bytes);
 	}
-#endif
+#endif /* HAVE_PWRITE */
 }
 #endif
 
@@ -2625,7 +2587,7 @@ NOTE! Use the corresponding macro os_file_read(), not directly this
 function!
 Requests a synchronous positioned read operation.
 @return	TRUE if request was successful, FALSE if fail */
-UNIV_INTERN
+
 ibool
 os_file_read_func(
 /*==============*/
@@ -2634,7 +2596,7 @@ os_file_read_func(
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n)	/*!< in: number of bytes to read */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL		ret;
 	DWORD		len;
 	DWORD		ret2;
@@ -2660,10 +2622,15 @@ try_again:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
+	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
 	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
@@ -2681,10 +2648,15 @@ try_again:
 		os_mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef HAVE_ATOMIC_BUILTINS
+		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
+#else
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
 		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 		goto error_handling;
 	}
@@ -2695,15 +2667,20 @@ try_again:
 	os_mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
 	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (ret && len == n) {
 		return(TRUE);
 	}
-#else /* __WIN__ */
+#else /* _WIN32 */
 	ibool	retry;
 	ssize_t	ret;
 
@@ -2722,14 +2699,14 @@ try_again:
 		UINT64PF"\n"
 		"InnoDB: Was only able to read %ld.\n",
 		n, offset, (lint) ret);
-#endif /* __WIN__ */
-#ifdef __WIN__
+#endif /* _WIN32 */
+#ifdef _WIN32
 error_handling:
 #endif
 	retry = os_file_handle_error(NULL, "read");
 
 	if (retry) {
-#ifndef __WIN__
+#ifndef _WIN32
 		if (ret > 0 && (ulint) ret < n) {
 			buf = (uchar*) buf + (ulint) ret;
 			offset += (ulint) ret;
@@ -2740,7 +2717,7 @@ error_handling:
 	}
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Cannot read from file. OS error number %lu.",
-#ifdef __WIN__
+#ifdef _WIN32
 		(ulong) GetLastError());
 #else
 		(ulong) errno);
@@ -2755,7 +2732,7 @@ not directly this function!
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns FALSE.
 @return	TRUE if request was successful, FALSE if fail */
-UNIV_INTERN
+
 ibool
 os_file_read_no_error_handling_func(
 /*================================*/
@@ -2764,7 +2741,7 @@ os_file_read_no_error_handling_func(
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n)	/*!< in: number of bytes to read */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL		ret;
 	DWORD		len;
 	DWORD		ret2;
@@ -2790,10 +2767,15 @@ try_again:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
+	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
 	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
@@ -2811,10 +2793,15 @@ try_again:
 		os_mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef HAVE_ATOMIC_BUILTINS
+		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
+#else
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
 		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 		goto error_handling;
 	}
@@ -2825,15 +2812,20 @@ try_again:
 	os_mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
 	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (ret && len == n) {
 		return(TRUE);
 	}
-#else /* __WIN__ */
+#else /* _WIN32 */
 	ibool	retry;
 	ssize_t	ret;
 
@@ -2846,20 +2838,20 @@ try_again:
 
 		return(TRUE);
 	}
-#endif /* __WIN__ */
-#ifdef __WIN__
+#endif /* _WIN32 */
+#ifdef _WIN32
 error_handling:
 #endif
 	retry = os_file_handle_error_no_exit(NULL, "read", FALSE);
 
 	if (retry) {
-#ifndef __WIN__
+#ifndef _WIN32
 		if(ret > 0 && (ulint) ret < n) {
 			buf = (uchar*) buf + (ulint) ret;
 			offset += ret;
 			n -= (ulint) ret;
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 		goto try_again;
 	}
 
@@ -2870,7 +2862,7 @@ error_handling:
 Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
 mostly meant to be used with temporary files. */
-UNIV_INTERN
+
 void
 os_file_read_string(
 /*================*/
@@ -2894,7 +2886,7 @@ NOTE! Use the corresponding macro os_file_write(), not directly
 this function!
 Requests a synchronous write operation.
 @return	TRUE if request was successful, FALSE if fail */
-UNIV_INTERN
+
 ibool
 os_file_write_func(
 /*===============*/
@@ -2907,7 +2899,7 @@ os_file_write_func(
 {
 	ut_ad(!srv_read_only_mode);
 
-#ifdef __WIN__
+#ifdef _WIN32
 	BOOL		ret;
 	DWORD		len;
 	DWORD		ret2;
@@ -2932,10 +2924,15 @@ retry:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
+	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes++;
 	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / write operation with a mutex */
@@ -2953,10 +2950,15 @@ retry:
 		os_mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef HAVE_ATOMIC_BUILTINS
+		(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
+		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
+#else
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
 		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 		ut_print_timestamp(stderr);
 
@@ -2980,10 +2982,15 @@ retry:
 	os_mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
+	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes--;
 	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (ret && len == n) {
 
@@ -3086,7 +3093,7 @@ retry:
 /*******************************************************************//**
 Check the existence and type of the given file.
 @return	TRUE if call succeeded */
-UNIV_INTERN
+
 ibool
 os_file_status(
 /*===========*/
@@ -3094,7 +3101,7 @@ os_file_status(
 	ibool*		exists,	/*!< out: TRUE if file exists */
 	os_file_type_t* type)	/*!< out: type of the file (if it exists) */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	int		ret;
 	struct _stat64	statinfo;
 
@@ -3158,7 +3165,7 @@ os_file_status(
 /*******************************************************************//**
 This function returns information about the specified file
 @return	DB_SUCCESS if all OK */
-UNIV_INTERN
+
 dberr_t
 os_file_get_status(
 /*===============*/
@@ -3170,7 +3177,7 @@ os_file_get_status(
 {
 	int		ret;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	struct _stat64	statinfo;
 
 	ret = _stat64(path, &statinfo);
@@ -3287,7 +3294,7 @@ This function allocates memory to be returned.  It is the callers
 responsibility to free the return value after it is no longer needed.
 
 @return	own: new full pathname */
-UNIV_INTERN
+
 char*
 os_file_make_new_pathname(
 /*======================*/
@@ -3337,7 +3344,7 @@ This function allocates memory to be returned.  It is the callers
 responsibility to free the return value after it is no longer needed.
 
 @return	own: A full pathname; data_dir_path/databasename/tablename.ibd */
-UNIV_INTERN
+
 char*
 os_file_make_remote_pathname(
 /*=========================*/
@@ -3386,7 +3393,7 @@ This function manipulates that path in place.
 
 If the path format is not as expected, just return.  The result is used
 to inform a SHOW CREATE TABLE command. */
-UNIV_INTERN
+
 void
 os_file_make_data_dir_path(
 /*========================*/
@@ -3451,7 +3458,7 @@ returned by dirname and basename for different paths:
        ".."	      "."	     ".."
 
 @return	own: directory component of the pathname */
-UNIV_INTERN
+
 char*
 os_file_dirname(
 /*============*/
@@ -3481,7 +3488,7 @@ os_file_dirname(
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return	TRUE if call succeeded FALSE otherwise */
-UNIV_INTERN
+
 ibool
 os_file_create_subdirs_if_needed(
 /*=============================*/
@@ -3785,9 +3792,9 @@ os_aio_array_create(
 		ut_malloc(n * sizeof(*array->slots)));
 
 	memset(array->slots, 0x0, sizeof(n * sizeof(*array->slots)));
-#ifdef __WIN__
+#ifdef _WIN32
 	array->handles = static_cast<HANDLE*>(ut_malloc(n * sizeof(HANDLE)));
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #if defined(LINUX_NATIVE_AIO)
 	array->aio_ctx = NULL;
@@ -3870,9 +3877,9 @@ os_aio_array_free(
 	}
 #endif /* WIN_ASYNC_IO */
 
-#ifdef __WIN__
+#ifdef _WIN32
 	ut_free(array->handles);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	os_mutex_free(array->mutex);
 	os_event_free(array->not_full);
 	os_event_free(array->is_empty);
@@ -3897,7 +3904,7 @@ array is divided logically into n_read_segs and n_write_segs
 respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that */
-UNIV_INTERN
+
 ibool
 os_aio_init(
 /*========*/
@@ -4006,7 +4013,7 @@ os_aio_init(
 
 /***********************************************************************
 Frees the asynchronous io system. */
-UNIV_INTERN
+
 void
 os_aio_free(void)
 /*=============*/
@@ -4060,7 +4067,7 @@ os_aio_array_wake_win_aio_at_shutdown(
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */
-UNIV_INTERN
+
 void
 os_aio_wake_all_threads_at_shutdown(void)
 /*=====================================*/
@@ -4106,7 +4113,7 @@ os_aio_wake_all_threads_at_shutdown(void)
 /************************************************************************//**
 Waits until there are no pending writes in os_aio_write_array. There can
 be other, synchronous, pending writes. */
-UNIV_INTERN
+
 void
 os_aio_wait_until_no_pending_writes(void)
 /*=====================================*/
@@ -4143,7 +4150,7 @@ os_aio_get_segment_no_from_slot(
 		seg_len = os_aio_read_array->n_slots
 			/ os_aio_read_array->n_segments;
 
-		segment = 2 + slot->pos / seg_len;
+		segment = (srv_read_only_mode ? 0 : 2) + slot->pos / seg_len;
 	} else {
 		ut_ad(!srv_read_only_mode);
 		ut_a(array == os_aio_write_array);
@@ -4445,7 +4452,7 @@ os_aio_simulated_wake_handler_thread(
 
 /**********************************************************************//**
 Wakes up simulated aio i/o-handler threads if they have something to do. */
-UNIV_INTERN
+
 void
 os_aio_simulated_wake_handler_threads(void)
 /*=======================================*/
@@ -4468,7 +4475,7 @@ This function can be called if one wants to post a batch of reads and
 prefers an i/o-handler thread to handle them all at once later. You must
 call os_aio_simulated_wake_handler_threads later to ensure the threads
 are not left sleeping! */
-UNIV_INTERN
+
 void
 os_aio_simulated_put_read_threads_to_sleep(void)
 /*============================================*/
@@ -4478,7 +4485,7 @@ os_aio_simulated_put_read_threads_to_sleep(void)
 Windows when using simulated AIO. Windows XP seems to schedule
 background threads too eagerly to allow for coalescing during
 readahead requests. */
-#ifdef __WIN__
+#ifdef _WIN32
 	os_aio_array_t*	array;
 
 	if (srv_use_native_aio) {
@@ -4497,7 +4504,7 @@ readahead requests. */
 			os_event_reset(os_aio_segment_wait_events[i]);
 		}
 	}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 #if defined(LINUX_NATIVE_AIO)
@@ -4552,7 +4559,7 @@ os_aio_linux_dispatch(
 NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @return	TRUE if request was queued successfully, FALSE if fail */
-UNIV_INTERN
+
 ibool
 os_aio_func(
 /*========*/
@@ -4779,7 +4786,7 @@ into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 @return	TRUE if the aio operation succeeded */
-UNIV_INTERN
+
 ibool
 os_aio_windows_handle(
 /*==================*/
@@ -5074,7 +5081,7 @@ into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 @return	TRUE if the IO was successful */
-UNIV_INTERN
+
 ibool
 os_aio_linux_handle(
 /*================*/
@@ -5229,7 +5236,7 @@ found:
 Does simulated aio. This function should be called by an i/o-handler
 thread.
 @return	TRUE if the aio operation succeeded */
-UNIV_INTERN
+
 ibool
 os_aio_simulated_handle(
 /*====================*/
@@ -5306,14 +5313,6 @@ restart:
 		if (!slot->reserved) {
 			continue;
 		} else if (slot->io_already_done) {
-
-			if (os_aio_print_debug) {
-				fprintf(stderr,
-					"InnoDB: i/o for slot %lu"
-					" already done, returning\n",
-					(ulong) i);
-			}
-
 			aio_slot = slot;
 			ret = TRUE;
 			goto slot_io_done;
@@ -5597,7 +5596,7 @@ os_aio_array_validate(
 /**********************************************************************//**
 Validates the consistency the aio system.
 @return	TRUE if ok */
-UNIV_INTERN
+
 ibool
 os_aio_validate(void)
 /*=================*/
@@ -5659,7 +5658,7 @@ os_aio_print_segment_info(
 
 /**********************************************************************//**
 Prints info about the aio array. */
-UNIV_INTERN
+
 void
 os_aio_print_array(
 /*==============*/
@@ -5703,7 +5702,7 @@ os_aio_print_array(
 
 /**********************************************************************//**
 Prints info of the aio arrays. */
-UNIV_INTERN
+
 void
 os_aio_print(
 /*=========*/
@@ -5719,11 +5718,11 @@ os_aio_print(
 			srv_io_thread_op_info[i],
 			srv_io_thread_function[i]);
 
-#ifndef __WIN__
+#ifndef _WIN32
 		if (os_aio_segment_wait_events[i]->is_set) {
 			fprintf(file, " ev set");
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 		fprintf(file, "\n");
 	}
@@ -5800,7 +5799,7 @@ os_aio_print(
 
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
-UNIV_INTERN
+
 void
 os_aio_refresh_stats(void)
 /*======================*/
@@ -5818,7 +5817,7 @@ os_aio_refresh_stats(void)
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations.
 @return	TRUE if all free */
-UNIV_INTERN
+
 ibool
 os_aio_all_slots_free(void)
 /*=======================*/

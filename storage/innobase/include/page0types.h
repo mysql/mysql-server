@@ -26,8 +26,6 @@ Created 2/2/1994 Heikki Tuuri
 #ifndef page0types_h
 #define page0types_h
 
-using namespace std;
-
 #include <map>
 
 #include "univ.i"
@@ -38,6 +36,7 @@ using namespace std;
 #define page_t	   ib_page_t
 /** Type of the index page */
 typedef	byte		page_t;
+#ifndef UNIV_INNOCHECKSUM
 /** Index page cursor */
 struct page_cur_t;
 
@@ -108,7 +107,7 @@ struct page_zip_stat_t {
 };
 
 /** Compression statistics types */
-typedef map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
+typedef std::map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
 
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 extern page_zip_stat_t				page_zip_stat[PAGE_ZIP_SSIZE_MAX];
@@ -122,7 +121,7 @@ extern mysql_pfs_key_t				page_zip_stat_per_index_mutex_key;
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
-UNIV_INTERN
+
 void
 page_zip_rec_set_deleted(
 /*=====================*/
@@ -134,7 +133,7 @@ page_zip_rec_set_deleted(
 /**********************************************************************//**
 Write the "owned" flag of a record on a compressed page.  The n_owned field
 must already have been written on the uncompressed page. */
-UNIV_INTERN
+
 void
 page_zip_rec_set_owned(
 /*===================*/
@@ -145,7 +144,7 @@ page_zip_rec_set_owned(
 
 /**********************************************************************//**
 Shift the dense page directory when a record is deleted. */
-UNIV_INTERN
+
 void
 page_zip_dir_delete(
 /*================*/
@@ -158,7 +157,7 @@ page_zip_dir_delete(
 
 /**********************************************************************//**
 Add a slot to the dense page directory. */
-UNIV_INTERN
+
 void
 page_zip_dir_add_slot(
 /*==================*/
@@ -166,4 +165,5 @@ page_zip_dir_add_slot(
 	ulint		is_clustered)	/*!< in: nonzero for clustered index,
 					zero for others */
 	__attribute__((nonnull));
+#endif /* !UNIV_INNOCHECKSUM */
 #endif

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -61,7 +61,7 @@ freed. If the node already has an allocated buffer, that buffer is freed
 here. NOTE that this is the only function where dynamic memory should be
 allocated for a query node val field.
 @return	pointer to allocated buffer */
-UNIV_INTERN
+
 byte*
 eval_node_alloc_val_buf(
 /*====================*/
@@ -101,7 +101,7 @@ eval_node_alloc_val_buf(
 Free the buffer from global dynamic memory for a value of a que_node,
 if it has been allocated in the above function. The freeing for pushed
 column values is done in sel_col_prefetch_buf_free. */
-UNIV_INTERN
+
 void
 eval_node_free_val_buf(
 /*===================*/
@@ -135,12 +135,9 @@ eval_cmp_like(
 	que_node_t*	arg2)		/* !< in: right operand */
 {
 	ib_like_t	op;
-	int		res;
 	que_node_t*	arg3;
 	que_node_t*	arg4;
-	dfield_t*	dfield;
-	dtype_t*	dtype;
-	ibool		val = TRUE;
+	const dfield_t*	dfield;
 
 	arg3 = que_node_get_like_node(arg2);
 
@@ -148,51 +145,23 @@ eval_cmp_like(
 	ut_a(arg3);
 
 	dfield = que_node_get_val(arg3);
-	dtype = dfield_get_type(dfield);
-
-	ut_a(dtype_get_mtype(dtype) == DATA_INT);
-	op = static_cast<ib_like_t>(mach_read_from_4(static_cast<const unsigned char*>(dfield_get_data(dfield))));
+	ut_ad(dtype_get_mtype(dfield_get_type(dfield)) == DATA_INT);
+	op = static_cast<ib_like_t>(
+		mach_read_from_4(static_cast<const byte*>(
+					 dfield_get_data(dfield))));
 
 	switch (op) {
-	case	IB_LIKE_PREFIX:
-
+	case IB_LIKE_PREFIX:
 		arg4 = que_node_get_next(arg3);
-		res = cmp_dfield_dfield_like_prefix(
-			que_node_get_val(arg1),
-			que_node_get_val(arg4));
-		break;
-
-	case	IB_LIKE_SUFFIX:
-
-		arg4 = que_node_get_next(arg3);
-		res = cmp_dfield_dfield_like_suffix(
-			que_node_get_val(arg1),
-			que_node_get_val(arg4));
-		break;
-
-	case	IB_LIKE_SUBSTR:
-
-		arg4 = que_node_get_next(arg3);
-		res = cmp_dfield_dfield_like_substr(
-			que_node_get_val(arg1),
-			que_node_get_val(arg4));
-		break;
-
-	case	IB_LIKE_EXACT:
-		res = cmp_dfield_dfield(
-			que_node_get_val(arg1),
-			que_node_get_val(arg2));
-		break;
-
-	default:
-		ut_error;
+		return(!cmp_dfield_dfield_like_prefix(que_node_get_val(arg1),
+						      que_node_get_val(arg4)));
+	case IB_LIKE_EXACT:
+		return(!cmp_dfield_dfield(que_node_get_val(arg1),
+					  que_node_get_val(arg2)));
 	}
 
-	if (res != 0) {
-		val = FALSE;
-	}
-
-	return(val);
+	ut_error;
+	return(FALSE);
 }
 
 /*********************************************************************
@@ -206,53 +175,47 @@ eval_cmp(
 	que_node_t*	arg1;
 	que_node_t*	arg2;
 	int		res;
-	int		func;
-	ibool		val = TRUE;
+	ibool		val	= FALSE; /* remove warning */
 
 	ut_ad(que_node_get_type(cmp_node) == QUE_NODE_FUNC);
 
 	arg1 = cmp_node->args;
 	arg2 = que_node_get_next(arg1);
 
-	func = cmp_node->func;
-
-	if (func == PARS_LIKE_TOKEN_EXACT
-	    || func == PARS_LIKE_TOKEN_PREFIX
-	    || func == PARS_LIKE_TOKEN_SUFFIX
-	    || func == PARS_LIKE_TOKEN_SUBSTR) {
-
-		val = eval_cmp_like(arg1, arg2);
-	} else {
+	switch (cmp_node->func) {
+	case '<':
+	case '=':
+	case '>':
+	case PARS_LE_TOKEN:
+	case PARS_NE_TOKEN:
+	case PARS_GE_TOKEN:
 		res = cmp_dfield_dfield(
 			que_node_get_val(arg1), que_node_get_val(arg2));
 
-		if (func == '=') {
-			if (res != 0) {
-				val = FALSE;
-			}
-		} else if (func == '<') {
-			if (res != -1) {
-				val = FALSE;
-			}
-		} else if (func == PARS_LE_TOKEN) {
-			if (res == 1) {
-				val = FALSE;
-			}
-		} else if (func == PARS_NE_TOKEN) {
-			if (res == 0) {
-				val = FALSE;
-			}
-		} else if (func == PARS_GE_TOKEN) {
-			if (res == -1) {
-				val = FALSE;
-			}
-		} else {
-			ut_ad(func == '>');
-
-			if (res != 1) {
-				val = FALSE;
-			}
+		switch (cmp_node->func) {
+		case '<':
+			val = (res < 0);
+			break;
+		case '=':
+			val = (res == 0);
+			break;
+		case '>':
+			val = (res > 0);
+			break;
+		case PARS_LE_TOKEN:
+			val = (res <= 0);
+			break;
+		case PARS_NE_TOKEN:
+			val = (res != 0);
+			break;
+		case PARS_GE_TOKEN:
+			val = (res >= 0);
+			break;
 		}
+		break;
+	default:
+		val = eval_cmp_like(arg1, arg2);
+		break;
 	}
 
 	eval_node_set_ibool_val(cmp_node, val);
@@ -870,7 +833,7 @@ eval_predefined(
 
 /*****************************************************************//**
 Evaluates a function node. */
-UNIV_INTERN
+
 void
 eval_func(
 /*======*/

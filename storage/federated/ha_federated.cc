@@ -603,8 +603,7 @@ int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
        get_server_by_name(mem_root, share->connection_string, &server_buffer)))
   {
     DBUG_PRINT("info", ("get_server_by_name returned > 0 error condition!"));
-    /* need to come up with error handling */
-    error_num=1;
+    error_num= ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE;
     goto error;
   }
   DBUG_PRINT("info", ("get_server_by_name returned server at %lx",

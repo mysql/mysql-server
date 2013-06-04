@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.  #
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.  #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -110,6 +110,9 @@ ENDIF()
 # in preparation for inplace alter table
 ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
 
+# NDB needs replication
+ADD_DEFINITIONS(-DHAVE_REPLICATION)
+
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
 OPTION(WITH_NDB_DEFAULT_PLUGIN_DETECT
@@ -168,7 +171,7 @@ INCLUDE_DIRECTORIES(
 
   # Util library includes
   ${ZLIB_INCLUDE_DIR}
-  ${READLINE_INCLUDE_DIR})
+  ${EDITLINE_INCLUDE_DIR})
 
 # The root of storage/ndb/
 SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})

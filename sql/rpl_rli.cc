@@ -108,13 +108,15 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 
 #ifdef HAVE_PSI_INTERFACE
   relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
-                         key_RELAYLOG_LOCK_log,
-                         key_RELAYLOG_LOCK_flush_queue,
                          key_RELAYLOG_LOCK_commit,
                          key_RELAYLOG_LOCK_commit_queue,
-                         key_RELAYLOG_LOCK_sync,
-                         key_RELAYLOG_LOCK_sync_queue,
                          key_RELAYLOG_LOCK_done,
+                         key_RELAYLOG_LOCK_flush_queue,
+                         key_RELAYLOG_LOCK_log,
+                         key_RELAYLOG_LOCK_sync,
+                         0, /* Relaylog doesn't support LOCK_binlog_end_pos */
+                         key_RELAYLOG_LOCK_sync_queue,
+                         key_RELAYLOG_LOCK_xids,
                          key_RELAYLOG_COND_done,
                          key_RELAYLOG_update_cond,
                          key_RELAYLOG_prep_xids_cond,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -73,7 +73,9 @@ UNIV_INLINE
 dict_table_t*
 dict_table_open_on_id_low(
 /*======================*/
-	table_id_t	table_id)	/*!< in: table id */
+	table_id_t		table_id,	/*!< in: table id */
+	dict_err_ignore_t	ignore_err)	/*!< in: errors to ignore
+						when loading the table */
 {
 	dict_table_t*	table;
 	ulint		fold;
@@ -87,7 +89,7 @@ dict_table_open_on_id_low(
 		    dict_table_t*, table, ut_ad(table->cached),
 		    table->id == table_id);
 	if (table == NULL) {
-		table = dict_load_table_on_id(table_id);
+		table = dict_load_table_on_id(table_id, ignore_err);
 	}
 
 	ut_ad(!table || table->cached);
@@ -109,6 +111,10 @@ dict_table_check_if_in_cache_low(
 	dict_table_t*	table;
 	ulint		table_fold;
 
+	DBUG_ENTER("dict_table_check_if_in_cache_low");
+	DBUG_PRINT("dict_table_check_if_in_cache_low",
+		   ("table: '%s'", table_name));
+
 	ut_ad(table_name);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -118,6 +124,6 @@ dict_table_check_if_in_cache_low(
 	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
 		    dict_table_t*, table, ut_ad(table->cached),
 		    !strcmp(table->name, table_name));
-	return(table);
+	DBUG_RETURN(table);
 }
 #endif /*! UNIV_HOTBACKUP */

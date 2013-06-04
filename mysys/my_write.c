@@ -79,7 +79,6 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     my_errno= errno;
     DBUG_PRINT("error",("Write only %ld bytes, error: %d",
 			(long) writtenbytes, my_errno));
-#ifndef NO_BACKGROUND
     if (my_thread_var->abort)
       MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
 
@@ -106,7 +105,6 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
       /* We may come here if the file quota is exeeded */
       continue;
     }
-#endif
     break;
   }
   if (MyFlags & (MY_NABP | MY_FNABP))

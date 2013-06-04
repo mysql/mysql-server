@@ -542,11 +542,11 @@ update_sum_func(Item_sum **func_ptr)
 */
 
 bool
-copy_funcs(Item **func_ptr, const THD *thd)
+copy_funcs(Func_ptr_array *func_ptr, const THD *thd)
 {
-  Item *func;
-  for (; (func = *func_ptr) ; func_ptr++)
+  for (size_t ix= 0; ix < func_ptr->size(); ++ix)
   {
+    Item *func= func_ptr->at(ix);
     func->save_in_result_field(1);
     /*
       Need to check the THD error state because Item::val_xxx() don't
@@ -796,17 +796,12 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
     op->set_write_func(end_write);
     if (tmp_tbl->precomputed_group_by)
     {
-      /*
-        A preceding call to create_tmp_table in the case when loose
-        index scan is used guarantees that
-        TMP_TABLE_PARAM::items_to_copy has enough space for the group
-        by functions. It is OK here to use memcpy since we copy
-        Item_sum pointers into an array of Item pointers.
-      */
-      memcpy(tmp_tbl->items_to_copy + tmp_tbl->func_count,
-             join->sum_funcs,
-             sizeof(Item*)*tmp_tbl->sum_func_count);
-      tmp_tbl->items_to_copy[tmp_tbl->func_count+tmp_tbl->sum_func_count]= 0;
+      Item_sum **func_ptr= join->sum_funcs;
+      Item_sum *func;
+      while ((func= *(func_ptr++)))
+      {
+        tmp_tbl->items_to_copy->push_back(func);
+      }
     }
   }
 }
@@ -934,9 +929,7 @@ do_select(JOIN *join)
 
   join->thd->limit_found_rows= join->send_records;
   /*
-    Use info provided by filesort for "order by with limit":
-
-    When using a Priority Queue, we cannot rely on send_records, but need
+    For "order by with limit", we cannot rely on send_records, but need
     to use the rowcount read originally into the join_tab applying the
     filesort. There cannot be any post-filtering conditions, nor any
     following join_tabs in this case, so this rowcount properly represents
@@ -958,7 +951,9 @@ do_select(JOIN *join)
       sort_tab= join_tab + const_tables;
     }
     if (sort_tab->filesort &&
-        sort_tab->filesort->using_pq)
+        join->select_options & OPTION_FOUND_ROWS &&
+        sort_tab->filesort->sortorder &&
+        sort_tab->filesort->limit != HA_POS_ERROR)
     {
       join->thd->limit_found_rows= sort_tab->records;
     }
@@ -2822,7 +2817,6 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 	  /* Join over all rows in table;  Return number of found rows */
 	  TABLE *table=jt->table;
 
-	  join->select_options ^= OPTION_FOUND_ROWS;
 	  if (table->sort.record_pointers ||
 	      (table->sort.io_cache && my_b_inited(table->sort.io_cache)))
 	  {
@@ -3496,7 +3490,6 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     }
     if (copy_blobs(first_field))
     {
-      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(ME_FATALERROR));
       error=0;
       goto err;
     }

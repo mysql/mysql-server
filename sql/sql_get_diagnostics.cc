@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,13 +44,23 @@ bool
 Sql_cmd_get_diagnostics::execute(THD *thd)
 {
   bool rc;
-  Diagnostics_area new_stmt_da(thd->query_id, false);
+  Diagnostics_area new_stmt_da(false);
   Diagnostics_area *first_da= thd->get_stmt_da();
   const Diagnostics_area *second_da= thd->get_stacked_da();
   DBUG_ENTER("Sql_cmd_get_diagnostics::execute");
 
   /* Push new Diagnostics Area, execute statement and pop. */
   thd->push_diagnostics_area(&new_stmt_da);
+  /*
+    Reset the condition counter.
+    This statement has just started and has not generated any conditions
+    on its own. However the condition counter will have been updated by
+    push_diagnostics_area() to match the number of conditions present in
+    first_da. It is therefore necessary to reset so we don't inherit the
+    old counter value.
+  */
+  new_stmt_da.reset_statement_cond_count();
+
   if (m_info->get_which_da() == Diagnostics_information::STACKED_AREA)
   {
     // STACKED_AREA only allowed inside handlers

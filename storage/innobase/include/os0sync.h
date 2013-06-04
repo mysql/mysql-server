@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -34,11 +34,11 @@ Created 9/6/1995 Heikki Tuuri
 #ifndef os0sync_h
 #define os0sync_h
 
-#include "univ.i"
+/* Do not include univ.i because univ.i includes this. */
+#include "ut0dbg.h"
 #include "ut0lst.h"
-#include "sync0types.h"
 
-#ifdef __WIN__
+#ifdef _WIN32
 /** Native event (slow)*/
 typedef HANDLE			os_native_event_t;
 /** Native mutex */
@@ -67,7 +67,7 @@ typedef struct os_event*	os_event_t;
 
 /** An asynchronous signal sent between threads */
 struct os_event {
-#ifdef __WIN__
+#ifdef _WIN32
 	HANDLE		handle;		/*!< kernel event object, slow,
 					used on older Windows */
 #endif
@@ -81,8 +81,8 @@ struct os_event {
 					the event becomes signaled */
 	os_cond_t	cond_var;	/*!< condition variable is used in
 					waiting for the event */
-	UT_LIST_NODE_T(os_event_t) os_event_list;
-					/*!< list of all created events */
+	UT_LIST_NODE_T(os_event)
+			os_event_list;	/*!< list of all created events */
 };
 
 /** Denotes an infinite delay for os_event_wait_time() */
@@ -108,13 +108,13 @@ extern ulint		os_fast_mutex_count;
 
 /*********************************************************//**
 Initializes global event and OS 'slow' mutex lists. */
-UNIV_INTERN
+
 void
 os_sync_init(void);
 /*==============*/
 /*********************************************************//**
 Frees created events and OS 'slow' mutexes. */
-UNIV_INTERN
+
 void
 os_sync_free(void);
 /*==============*/
@@ -123,14 +123,14 @@ Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
 explicitly by calling sync_os_reset_event.
 @return	the event handle */
-UNIV_INTERN
+
 os_event_t
 os_event_create(void);
 /*==================*/
 /**********************************************************//**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
-UNIV_INTERN
+
 void
 os_event_set(
 /*=========*/
@@ -142,14 +142,14 @@ The return value should be passed to os_even_wait_low() if it is desired
 that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low(). */
-UNIV_INTERN
+
 ib_int64_t
 os_event_reset(
 /*===========*/
 	os_event_t	event);	/*!< in: event to reset */
 /**********************************************************//**
 Frees an event object. */
-UNIV_INTERN
+
 void
 os_event_free(
 /*==========*/
@@ -172,7 +172,7 @@ thread C calls os_event_wait()  [infinite wait!]
 Where such a scenario is possible, to avoid infinite wait, the
 value returned by os_event_reset() should be passed in as
 reset_sig_count. */
-UNIV_INTERN
+
 void
 os_event_wait_low(
 /*==============*/
@@ -188,7 +188,7 @@ os_event_wait_low(
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite.
 @return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-UNIV_INTERN
+
 ulint
 os_event_wait_time_low(
 /*===================*/
@@ -203,27 +203,27 @@ os_event_wait_time_low(
 Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (ib_mutex_t) should be used where possible.
 @return	the mutex handle */
-UNIV_INTERN
+
 os_ib_mutex_t
 os_mutex_create(void);
 /*=================*/
 /**********************************************************//**
 Acquires ownership of a mutex semaphore. */
-UNIV_INTERN
+
 void
 os_mutex_enter(
 /*===========*/
 	os_ib_mutex_t	mutex);	/*!< in: mutex to acquire */
 /**********************************************************//**
 Releases ownership of a mutex. */
-UNIV_INTERN
+
 void
 os_mutex_exit(
 /*==========*/
 	os_ib_mutex_t	mutex);	/*!< in: mutex to release */
 /**********************************************************//**
 Frees an mutex object. */
-UNIV_INTERN
+
 void
 os_mutex_free(
 /*==========*/
@@ -324,28 +324,28 @@ pfs_os_fast_mutex_unlock(
 
 /**********************************************************//**
 Releases ownership of a fast mutex. */
-UNIV_INTERN
+
 void
 os_fast_mutex_unlock_func(
 /*======================*/
 	fast_mutex_t*		fast_mutex);	/*!< in: mutex to release */
 /*********************************************************//**
 Initializes an operating system fast mutex semaphore. */
-UNIV_INTERN
+
 void
 os_fast_mutex_init_func(
 /*====================*/
 	fast_mutex_t*		fast_mutex);	/*!< in: fast mutex */
 /**********************************************************//**
 Acquires ownership of a fast mutex. */
-UNIV_INTERN
+
 void
 os_fast_mutex_lock_func(
 /*====================*/
 	fast_mutex_t*		fast_mutex);	/*!< in: mutex to acquire */
 /**********************************************************//**
 Frees an mutex object. */
-UNIV_INTERN
+
 void
 os_fast_mutex_free_func(
 /*====================*/
@@ -644,7 +644,12 @@ for synchronization */
 	(void) os_atomic_increment_ulint(&counter, amount)
 
 #define os_decrement_counter_by_amount(mutex, counter, amount)	\
-	(void) os_atomic_increment_ulint(&counter, (-((lint) amount)))
+	do {							\
+		ut_d(ulint c_ =)				\
+		os_atomic_decrement_ulint(&counter,amount);	\
+		ut_ad(c_ + amount >= amount);			\
+	} while(0)
+
 #else
 #define os_increment_counter_by_amount(mutex, counter, amount)	\
 	do {							\

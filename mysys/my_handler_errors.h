@@ -89,7 +89,9 @@ static const char *handler_error_messages[]=
   "Table is being used in foreign key check",
   "Tablespace already exists",
   "Too many columns",
-  "Row in wrong partition"
+  "Row in wrong partition",
+  "Foreign key cascade delete/update exceeds max depth",
+  "InnoDB is in read only mode"
 };
 
 extern void my_handler_error_register(void);

@@ -52,11 +52,11 @@ static int getWaitTime(const struct timespec& start_ts);
 
 static unsigned long long timespec_to_usec(const struct timespec *ts)
 {
-#ifndef __WIN__
+#ifndef _WIN32
   return (unsigned long long) ts->tv_sec * TIME_MILLION + ts->tv_nsec / TIME_THOUSAND;
 #else
   return ts->tv.i64 / 10;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /*******************************************************************************
@@ -695,7 +695,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
 
       /* Calcuate the waiting period. */
-#ifdef __WIN__
+#ifdef _WIN32
       abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
       abstime.max_timeout_msec= (long)wait_timeout_;
 #else
@@ -708,7 +708,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         diff_nsecs -= TIME_BILLION;
       }
       abstime.tv_nsec = diff_nsecs;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
       
       /* In semi-synchronous replication, we wait until the binlog-dump
        * thread has received the reply on the relevant binlog segment from the
@@ -749,9 +749,10 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         {
           if (trace_level_ & kTraceGeneral)
           {
-            sql_print_error("Replication semi-sync getWaitTime fail at "
-                            "wait position (%s, %lu)",
-                            trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos);
+            sql_print_information("Assessment of waiting time for commitTrx "
+                                  "failed at wait position (%s, %lu)",
+                                  trx_wait_binlog_name,
+                                  (unsigned long)trx_wait_binlog_pos);
           }
           rpl_semi_sync_master_timefunc_fails++;
         }
@@ -1136,8 +1137,8 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
     int wait_time = getWaitTime(start_ts);
     if (wait_time < 0)
     {
-      sql_print_error("Semi-sync master wait for reply "
-                      "fail to get wait time.");
+      sql_print_information("Assessment of waiting time for "
+                            "readSlaveReply failed.");
       rpl_semi_sync_master_timefunc_fails++;
     }
     else

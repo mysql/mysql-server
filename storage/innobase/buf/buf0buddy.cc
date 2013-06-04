@@ -174,19 +174,19 @@ buf_buddy_get(
 
 /** Validate a given zip_free list. */
 struct	CheckZipFree {
-	ulint	i;
-	CheckZipFree(ulint i) : i (i) {}
+	CheckZipFree(ulint i) : m_i(i) {}
 
 	void	operator()(const buf_buddy_free_t* elem) const
 	{
 		ut_a(buf_buddy_stamp_is_free(elem));
-		ut_a(elem->stamp.size <= i);
+		ut_a(elem->stamp.size <= m_i);
 	}
+
+	ulint		m_i;
 };
 
 #define BUF_BUDDY_LIST_VALIDATE(bp, i)				\
-	UT_LIST_VALIDATE(list, buf_buddy_free_t,		\
-			 bp->zip_free[i], CheckZipFree(i))
+	UT_LIST_VALIDATE(bp->zip_free[i], CheckZipFree(i))
 
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
@@ -280,7 +280,7 @@ buf_buddy_add_to_free(
 	ut_ad(buf_pool->zip_free[i].start != buf);
 
 	buf_buddy_stamp_free(buf, i);
-	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], buf);
+	UT_LIST_ADD_FIRST(buf_pool->zip_free[i], buf);
 	ut_d(BUF_BUDDY_LIST_VALIDATE(buf_pool, i));
 }
 
@@ -291,14 +291,15 @@ void
 buf_buddy_remove_from_free(
 /*=======================*/
 	buf_pool_t*		buf_pool,	/*!< in: buffer pool instance */
-	buf_buddy_free_t*	buf,		/*!< in,own: block to be freed */
+	buf_buddy_free_t*	buf,		/*!< in,own: block to be
+						freed */
 	ulint			i)		/*!< in: index of
 						buf_pool->zip_free[] */
 {
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_buddy_check_free(buf_pool, buf, i));
 
-	UT_LIST_REMOVE(list, buf_pool->zip_free[i], buf);
+	UT_LIST_REMOVE(buf_pool->zip_free[i], buf);
 	buf_buddy_stamp_nonfree(buf, i);
 }
 
@@ -462,7 +463,7 @@ Allocate a block.  The thread calling this function must hold
 buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
 The buf_pool_mutex may be released and reacquired.
 @return	allocated block, never NULL */
-UNIV_INTERN
+
 void*
 buf_buddy_alloc_low(
 /*================*/
@@ -547,6 +548,11 @@ buf_buddy_relocate(
 	offset	= mach_read_from_4((const byte*) src
 				   + FIL_PAGE_OFFSET);
 
+	/* Suppress Valgrind warnings about conditional jump
+	on uninitialized value. */
+	UNIV_MEM_VALID(&space, sizeof space);
+	UNIV_MEM_VALID(&offset, sizeof offset);
+
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
 
 	bpage = buf_page_hash_get(buf_pool, space, offset);
@@ -599,7 +605,7 @@ buf_buddy_relocate(
 
 /**********************************************************************//**
 Deallocate a block. */
-UNIV_INTERN
+
 void
 buf_buddy_free_low(
 /*===============*/

@@ -1,7 +1,7 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#ifdef __WIN__
+#ifdef _WIN32
 #include  <limits.h>
 #endif
 

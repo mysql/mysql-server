@@ -24,7 +24,9 @@ Created 2007/03/27 Sunny Bains
 Completed 2011/7/10 Sunny and Jimmy Yang
 *******************************************************/
 
-#include "dict0dict.h" /* dict_table_get_n_rows() */
+#include "ha_prototypes.h"
+
+#include "dict0dict.h"
 #include "ut0rbt.h"
 #include "row0sel.h"
 #include "fts0fts.h"
@@ -32,10 +34,8 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0ast.h"
 #include "fts0pars.h"
 #include "fts0types.h"
-#include "ha_prototypes.h"
-#include <ctype.h>
 
-#ifndef UNIV_NONINL
+#ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif
@@ -54,9 +54,6 @@ if we want to enforce such limitation */
 static const double FTS_NORMALIZE_COEFF = 0.0115F;
 
 // FIXME: Need to have a generic iterator that traverses the ilist.
-
-/* For parsing the search phrase */
-static const char* FTS_PHRASE_DELIMITER = "\t ";
 
 struct fts_word_freq_t;
 
@@ -716,53 +713,46 @@ fts_query_intersect_doc_id(
 
 	/* Check if the doc id is deleted and it's in our set */
 	if (fts_bsearch(array, 0, size, doc_id) < 0) {
-		/* If this is the first FTS_EXIST we encountered, all of its
-		value must be in intersect list */
-		if (!query->multi_exist) {
-			fts_ranking_t	new_ranking;
+		fts_ranking_t	new_ranking;
 
-			if (rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
-				ranking = rbt_value(fts_ranking_t, parent.last);
-				rank += (ranking->rank > 0)
-					? ranking->rank : RANK_UPGRADE;
-				if (rank >= 1.0F) {
-					rank = 1.0F;
-				}
-			}
-
-			new_ranking.rank = rank;
-			new_ranking.doc_id = doc_id;
-			new_ranking.words = rbt_create(
-				sizeof(byte*), fts_query_strcmp);
-			ranking = &new_ranking;
-
-			if (rbt_search(query->intersection, &parent,
-				       ranking) != 0) {
-				rbt_add_node(query->intersection,
-					     &parent, ranking);
-			} else {
-				rbt_free(new_ranking.words);
-			}
-		} else {
-
-			if (rbt_search(query->doc_ids, &parent, &doc_id) != 0) {
-				return;
-			}
-
+		/* Check doc_id in doc_ids:
+		   1. if doc_ids is empty, add doc_id into intersection;
+		   2. if doc_ids contains doc_id, add doc_id into intersection.
+		*/
+		if (rbt_size(query->doc_ids) == 0) {
+			new_ranking.words = NULL;
+		} else if (rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
 			ranking = rbt_value(fts_ranking_t, parent.last);
+			rank += (ranking->rank > 0)
+				? ranking->rank : RANK_UPGRADE;
+			if (rank >= 1.0F) {
+				rank = 1.0F;
+			}
 
-			ranking->rank = rank;
+			ut_a(ranking->words);
+			new_ranking.words = ranking->words;
+		} else {
+			return;
+		}
 
-			if (ranking->words != NULL
-			    && rbt_search(query->intersection, &parent,
-					  ranking) != 0) {
-				rbt_add_node(query->intersection, &parent,
-					     ranking);
+		new_ranking.rank = rank;
+		new_ranking.doc_id = doc_id;
 
+		if (rbt_search(query->intersection, &parent,
+			       &new_ranking) != 0) {
+			if (new_ranking.words == NULL) {
+				new_ranking.words = rbt_create(
+					sizeof(byte*), fts_query_strcmp);
+			} else {
 				/* Note that the intersection has taken
 				ownership of the ranking data. */
 				ranking->words = NULL;
 			}
+
+			rbt_add_node(query->intersection,
+				     &parent, &new_ranking);
+		} else {
+			ut_a(0);
 		}
 	}
 }
@@ -1382,11 +1372,26 @@ fts_merge_doc_ids(
 	/* Merge the elements to the result set. */
 	for (node = rbt_first(doc_ids); node; node = rbt_next(doc_ids, node)) {
 		fts_ranking_t*		ranking;
+		const ib_rbt_node_t*	word_node;
 
 		ranking = rbt_value(fts_ranking_t, node);
 
 		fts_query_process_doc_id(
 			query, ranking->doc_id, ranking->rank);
+
+		/* Merge words. Don't need to take operator into account. */
+		ut_a(ranking->words);
+		for (word_node = rbt_first(ranking->words); word_node;
+		     word_node = rbt_next(ranking->words, word_node)) {
+			const byte*		word;
+			const byte**		wordp;
+
+			wordp = rbt_value(const byte*, word_node);
+			word = *wordp;
+
+			fts_query_add_word_to_document(query, ranking->doc_id,
+						       word);
+		}
 	}
 
 	/* If it is an intersection operation, reset query->doc_ids
@@ -2320,14 +2325,16 @@ fts_query_phrase_search(
 	fts_query_t*		query,	/*!< in: query instance */
 	const fts_string_t*	phrase)	/*!< in: token to search */
 {
-	char*			src;
-	char*			state;	/* strtok_r internal state */
 	ib_vector_t*		tokens;
 	ib_vector_t*		orig_tokens;
 	mem_heap_t*		heap = mem_heap_create(sizeof(fts_string_t));
-	char*			utf8 = strdup((char*) phrase->f_str);
+	ulint			len = phrase->f_len;
+	ulint			cur_pos = 0;
 	ib_alloc_t*		heap_alloc;
 	ulint			num_token;
+	CHARSET_INFO*		charset;
+
+	charset = query->fts_index_table.charset;
 
 	heap_alloc = ib_heap_allocator_create(heap);
 
@@ -2341,21 +2348,39 @@ fts_query_phrase_search(
 	}
 
 	/* Split the phrase into tokens. */
-	for (src = utf8; /* No op */; src = NULL) {
+	while (cur_pos < len) {
 		fts_cache_t*	cache = query->index->table->fts->cache;
 		ib_rbt_bound_t	parent;
-		fts_string_t*	token = static_cast<fts_string_t*>(
-			ib_vector_push(tokens, NULL));
+		ulint		offset;
+		ulint		cur_len;
+		fts_string_t	result_str;
 
-		token->f_str = (byte*) strtok_r(
-			src, FTS_PHRASE_DELIMITER, &state);
+                cur_len = innobase_mysql_fts_get_token(
+                        charset,
+                        reinterpret_cast<const byte*>(phrase->f_str) + cur_pos,
+                        reinterpret_cast<const byte*>(phrase->f_str) + len,
+			&result_str, &offset);
 
-		if (!token->f_str) {
-			ib_vector_pop(tokens);
+		if (cur_len == 0) {
 			break;
 		}
 
-		token->f_len = ut_strlen((char*) token->f_str);
+		cur_pos += cur_len;
+
+		if (result_str.f_n_char == 0
+		    || result_str.f_n_char > fts_max_token_size) {
+			continue;
+		}
+
+		fts_string_t*	token = static_cast<fts_string_t*>(
+			ib_vector_push(tokens, NULL));
+
+		token->f_str = static_cast<byte*>(
+			mem_heap_alloc(heap, result_str.f_len + 1));
+		ut_memcpy(token->f_str, result_str.f_str, result_str.f_len);
+
+		token->f_len = result_str.f_len;
+		token->f_str[token->f_len] = 0;
 
 		if (cache->stopword_info.cached_stopword
 		    && rbt_search(cache->stopword_info.cached_stopword,
@@ -2525,7 +2550,6 @@ fts_query_phrase_search(
 	}
 
 func_exit:
-	free(utf8);
 	mem_heap_free(heap);
 
 	/* Don't need it anymore. */
@@ -2691,7 +2715,7 @@ Process (nested) sub-expression, create a new result set to store the
 sub-expression result by processing nodes under current sub-expression
 list. Merge the sub-expression result with that of parent expression list.
 @return DB_SUCCESS if all went well */
-UNIV_INTERN
+
 dberr_t
 fts_ast_visit_sub_exp(
 /*==================*/
@@ -2939,10 +2963,10 @@ fts_query_filter_doc_ids(
 		positions here and match later. */
 		if (!query->collect_positions) {
 			fts_query_process_doc_id(query, doc_id, 0);
-		}
 
-		/* Add the word to the document's matched RB tree. */
-		fts_query_add_word_to_document(query, doc_id, word);
+			/* Add the word to the document's matched RB tree. */
+			fts_query_add_word_to_document(query, doc_id, word);
+		}
 	}
 
 	/* Some sanity checks. */
@@ -3402,7 +3426,7 @@ fts_query_parse(
 /*******************************************************************//**
 FTS Query entry point.
 @return DB_SUCCESS if successful otherwise error code */
-UNIV_INTERN
+
 dberr_t
 fts_query(
 /*======*/

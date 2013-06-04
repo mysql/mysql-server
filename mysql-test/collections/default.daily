@@ -1,6 +1,6 @@
 # Run all default suites without specifying any replication mode. This will  run rpl tests in all 3 modes row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-daily.list
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests
 
 # Run all default suites with embedded server
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=embedded  --vardir=var-embedded  --embedded
@@ -44,4 +44,3 @@ perl mysql-test-run.pl --timer --force --debug-server --comment=memcached-debug 
 #Run with Query Cache Enabled
 
 perl mysql-test-run.pl --debug-server --timer --force --testcase-timeout=60 --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
-

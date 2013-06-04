@@ -32,7 +32,8 @@
 #include "sql_db.h"                             // mysql_change_db
 #include "hostname.h" // inc_host_errors, ip_to_hostname,
                       // reset_host_errors
-#include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
+#include "auth_common.h"                // SUPER_ACL, acl_check_host
+                                        // acl_getroot, NO_ACCESS
 #include "sql_callback.h"
 #include "log.h"
 
@@ -902,7 +903,7 @@ pthread_handler_t handle_one_connection(void *arg)
 bool thd_prepare_connection(THD *thd)
 {
   bool rc;
-  lex_start(thd);
+  //lex_start(thd);
   rc= login_connection(thd);
   MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
   if (rc)

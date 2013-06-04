@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,11 +26,13 @@ Created 2007-03-27 Sunny Bains
 #ifndef INNOBASE_FTS0TYPES_H
 #define INNOBASE_FTS0TYPES_H
 
+#include "univ.i"
+#include "fts0fts.h"
+#include "fut0fut.h"
+#include "pars0pars.h"
 #include "que0types.h"
 #include "ut0byte.h"
-#include "fut0fut.h"
 #include "ut0rbt.h"
-#include "fts0fts.h"
 
 /** Types used within FTS. */
 struct fts_que_t;
@@ -278,33 +280,6 @@ struct fts_token_t {
 
 /** It's defined in fts/fts0fts.c */
 extern const fts_index_selector_t fts_index_selector[];
-
-/******************************************************************//**
-Compare two UTF-8 strings. */
-UNIV_INLINE
-int
-fts_utf8_string_cmp(
-/*================*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/*!< in: key */
-	const void*	p2);			/*!< in: node */
-
-/******************************************************************//**
-Compare two UTF-8 strings, and return match (0) if
-passed in "key" value equals or is the prefix of the "node" value. */
-UNIV_INLINE
-int
-fts_utf8_string_cmp_prefix(
-/*=======================*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/*!< in: key */
-	const void*	p2);			/*!< in: node */
 
 /******************************************************************//**
 Compare two fts_trx_row_t instances doc_ids. */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -35,11 +35,11 @@ Created 9/11/1995 Heikki Tuuri
 #include "sync0rw.ic"
 #endif
 
+#include "ha_prototypes.h"
+
 #include "os0thread.h"
 #include "mem0mem.h"
 #include "srv0srv.h"
-#include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
-#include "ha_prototypes.h"
 
 /*
 	IMPLEMENTATION OF THE RW_LOCK
@@ -134,15 +134,15 @@ wait_ex_event:	A thread may only wait on the wait_ex_event after it has
 		   Verify lock_word == 0 (waiting thread holds x_lock)
 */
 
-UNIV_INTERN rw_lock_stats_t	rw_lock_stats;
+rw_lock_stats_t	rw_lock_stats;
 
 /* The global list of rw-locks */
-UNIV_INTERN rw_lock_list_t	rw_lock_list;
-UNIV_INTERN ib_mutex_t		rw_lock_list_mutex;
+rw_lock_list_t	rw_lock_list;
+ib_mutex_t		rw_lock_list_mutex;
 
 #ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	rw_lock_list_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	rw_lock_mutex_key;
+mysql_pfs_key_t	rw_lock_list_mutex_key;
+mysql_pfs_key_t	rw_lock_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_SYNC_DEBUG
@@ -150,17 +150,17 @@ UNIV_INTERN mysql_pfs_key_t	rw_lock_mutex_key;
 To modify the debug info list of an rw-lock, this mutex has to be
 acquired in addition to the mutex protecting the lock. */
 
-UNIV_INTERN ib_mutex_t		rw_lock_debug_mutex;
+ib_mutex_t		rw_lock_debug_mutex;
 
 # ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	rw_lock_debug_mutex_key;
+mysql_pfs_key_t	rw_lock_debug_mutex_key;
 # endif
 
 /* If deadlock detection does not get immediately the mutex,
 it may wait for this event */
-UNIV_INTERN os_event_t		rw_lock_debug_event;
+os_event_t		rw_lock_debug_event;
 /* This is set to TRUE, if there may be waiters for the event */
-UNIV_INTERN ibool		rw_lock_debug_waiters;
+ibool		rw_lock_debug_waiters;
 
 /******************************************************************//**
 Creates a debug info struct. */
@@ -204,7 +204,7 @@ Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
 is necessary only if the memory block containing it is freed. */
-UNIV_INTERN
+
 void
 rw_lock_create_func(
 /*================*/
@@ -248,7 +248,7 @@ rw_lock_create_func(
 	UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
 
 #ifdef UNIV_SYNC_DEBUG
-	UT_LIST_INIT(lock->debug_list);
+	UT_LIST_INIT(lock->debug_list, &rw_lock_debug_t::list);
 
 	lock->level = level;
 #endif /* UNIV_SYNC_DEBUG */
@@ -271,7 +271,7 @@ rw_lock_create_func(
 	ut_ad(UT_LIST_GET_FIRST(rw_lock_list) == NULL
 	      || UT_LIST_GET_FIRST(rw_lock_list)->magic_n == RW_LOCK_MAGIC_N);
 
-	UT_LIST_ADD_FIRST(list, rw_lock_list, lock);
+	UT_LIST_ADD_FIRST(rw_lock_list, lock);
 
 	mutex_exit(&rw_lock_list_mutex);
 }
@@ -280,7 +280,7 @@ rw_lock_create_func(
 Calling this function is obligatory only if the memory buffer containing
 the rw-lock is freed. Removes an rw-lock object from the global list. The
 rw-lock is checked to be in the non-locked state. */
-UNIV_INTERN
+
 void
 rw_lock_free_func(
 /*==============*/
@@ -308,7 +308,7 @@ rw_lock_free_func(
 	ut_ad(UT_LIST_GET_NEXT(list, lock) == NULL
 	      || UT_LIST_GET_NEXT(list, lock)->magic_n == RW_LOCK_MAGIC_N);
 
-	UT_LIST_REMOVE(list, rw_lock_list, lock);
+	UT_LIST_REMOVE(rw_lock_list, lock);
 
 	mutex_exit(&rw_lock_list_mutex);
 
@@ -326,7 +326,7 @@ rw_lock_free_func(
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks.
 @return	TRUE */
-UNIV_INTERN
+
 ibool
 rw_lock_validate(
 /*=============*/
@@ -354,7 +354,7 @@ Lock an rw-lock in shared mode for the current thread. If the rw-lock is
 locked in exclusive mode, or there is an exclusive lock request waiting,
 the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
 for the lock, before suspending the thread. */
-UNIV_INTERN
+
 void
 rw_lock_s_lock_spin(
 /*================*/
@@ -439,7 +439,7 @@ read was done. The ownership is moved because we want that the current
 thread is able to acquire a second x-latch which is stored in an mtr.
 This, in turn, is needed to pass the debug checks of index page
 operations. */
-UNIV_INTERN
+
 void
 rw_lock_x_lock_move_ownership(
 /*==========================*/
@@ -594,7 +594,7 @@ for the lock before suspending the thread. If the same thread has an x-lock
 on the rw-lock, locking succeed, with the following exception: if pass != 0,
 only a single x-lock may be taken on the lock. NOTE: If the same thread has
 an s-lock, locking does not succeed! */
-UNIV_INTERN
+
 void
 rw_lock_x_lock_func(
 /*================*/
@@ -688,7 +688,7 @@ because the debug mutex is also acquired in sync0arr while holding the OS
 mutex protecting the sync array, and the ordinary mutex_enter might
 recursively call routines in sync0arr, leading to a deadlock on the OS
 mutex. */
-UNIV_INTERN
+
 void
 rw_lock_debug_mutex_enter(void)
 /*===========================*/
@@ -713,7 +713,7 @@ loop:
 
 /******************************************************************//**
 Releases the debug mutex. */
-UNIV_INTERN
+
 void
 rw_lock_debug_mutex_exit(void)
 /*==========================*/
@@ -728,7 +728,7 @@ rw_lock_debug_mutex_exit(void)
 
 /******************************************************************//**
 Inserts the debug information for an rw-lock. */
-UNIV_INTERN
+
 void
 rw_lock_add_debug_info(
 /*===================*/
@@ -753,7 +753,7 @@ rw_lock_add_debug_info(
 	info->thread_id = os_thread_get_curr_id();
 	info->pass	= pass;
 
-	UT_LIST_ADD_FIRST(list, lock->debug_list, info);
+	UT_LIST_ADD_FIRST(lock->debug_list, info);
 
 	rw_lock_debug_mutex_exit();
 
@@ -766,7 +766,7 @@ rw_lock_add_debug_info(
 
 /******************************************************************//**
 Removes a debug information struct for an rw-lock. */
-UNIV_INTERN
+
 void
 rw_lock_remove_debug_info(
 /*======================*/
@@ -794,7 +794,8 @@ rw_lock_remove_debug_info(
 		    && (info->lock_type == lock_type)) {
 
 			/* Found! */
-			UT_LIST_REMOVE(list, lock->debug_list, info);
+			UT_LIST_REMOVE(lock->debug_list, info);
+
 			rw_lock_debug_mutex_exit();
 
 			rw_lock_debug_free(info);
@@ -814,7 +815,7 @@ rw_lock_remove_debug_info(
 Checks if the thread has locked the rw-lock in the specified mode, with
 the pass value == 0.
 @return	TRUE if locked */
-UNIV_INTERN
+
 ibool
 rw_lock_own(
 /*========*/
@@ -854,7 +855,7 @@ rw_lock_own(
 /******************************************************************//**
 Checks if somebody has locked the rw-lock in the specified mode.
 @return	TRUE if locked */
-UNIV_INTERN
+
 ibool
 rw_lock_is_locked(
 /*==============*/
@@ -885,7 +886,7 @@ rw_lock_is_locked(
 #ifdef UNIV_SYNC_DEBUG
 /***************************************************************//**
 Prints debug info of currently locked rw-locks. */
-UNIV_INTERN
+
 void
 rw_lock_list_print_info(
 /*====================*/
@@ -941,7 +942,7 @@ rw_lock_list_print_info(
 
 /***************************************************************//**
 Prints debug info of an rw-lock. */
-UNIV_INTERN
+
 void
 rw_lock_print(
 /*==========*/
@@ -982,7 +983,7 @@ rw_lock_print(
 
 /*********************************************************************//**
 Prints info of a debug struct. */
-UNIV_INTERN
+
 void
 rw_lock_debug_print(
 /*================*/
@@ -1015,7 +1016,7 @@ rw_lock_debug_print(
 Returns the number of currently locked rw-locks. Works only in the debug
 version.
 @return	number of locked rw-locks */
-UNIV_INTERN
+
 ulint
 rw_lock_n_locked(void)
 /*==================*/

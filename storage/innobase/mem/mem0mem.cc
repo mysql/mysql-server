@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +22,8 @@ The memory management
 
 Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
+
+#include "ha_prototypes.h"
 
 #include "mem0mem.h"
 #ifdef UNIV_NONINL
@@ -92,16 +94,17 @@ buffers in an already freed heap. */
 
 #ifdef MEM_PERIODIC_CHECK
 
-ibool					mem_block_list_inited;
-/* List of all mem blocks allocated; protected by the mem_comm_pool mutex */
+/** List of all mem blocks allocated; protected by the mem_comm_pool mutex */
 UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
+
+ibool				mem_block_list_inited;
 
 #endif
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string, allocated from a memory heap.
 @return	own: a copy of the string */
-UNIV_INTERN
+
 char*
 mem_heap_strdup(
 /*============*/
@@ -114,7 +117,7 @@ mem_heap_strdup(
 /**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
 @return	own: a copy of the data */
-UNIV_INTERN
+
 void*
 mem_heap_dup(
 /*=========*/
@@ -128,7 +131,7 @@ mem_heap_dup(
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
 @return	own: the result */
-UNIV_INTERN
+
 char*
 mem_heap_strcat(
 /*============*/
@@ -266,7 +269,7 @@ formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).
 @return	heap-allocated formatted string */
-UNIV_INTERN
+
 char*
 mem_heap_printf(
 /*============*/
@@ -297,7 +300,7 @@ mem_heap_printf(
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
 for MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
@@ -375,7 +378,7 @@ mem_heap_create_block(
 
 	if (!mem_block_list_inited) {
 		mem_block_list_inited = TRUE;
-		UT_LIST_INIT(mem_block_list);
+		UT_LIST_INIT(mem_block_list, &mem_block_t::mem_block_list);
 	}
 
 	UT_LIST_ADD_LAST(mem_block_list, mem_block_list, block);
@@ -410,7 +413,7 @@ mem_heap_create_block(
 Adds a new block to a memory heap.
 @return created block, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
 mem_heap_add_block(
 /*===============*/
@@ -456,14 +459,14 @@ mem_heap_add_block(
 
 	/* Add the new block as the last block */
 
-	UT_LIST_INSERT_AFTER(list, heap->base, block, new_block);
+	UT_LIST_INSERT_AFTER(heap->base, block, new_block);
 
 	return(new_block);
 }
 
 /******************************************************************//**
 Frees a block from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_block_free(
 /*================*/
@@ -482,12 +485,12 @@ mem_heap_block_free(
 		mem_analyze_corruption(block);
 	}
 
-	UT_LIST_REMOVE(list, heap->base, block);
+	UT_LIST_REMOVE(heap->base, block);
 
 #ifdef MEM_PERIODIC_CHECK
 	mutex_enter(&(mem_comm_pool->mutex));
 
-	UT_LIST_REMOVE(mem_block_list, mem_block_list, block);
+	UT_LIST_REMOVE(mem_block_list, block);
 
 	mutex_exit(&(mem_comm_pool->mutex));
 #endif
@@ -536,7 +539,7 @@ mem_heap_block_free(
 #ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_free_block_free(
 /*=====================*/
@@ -555,7 +558,7 @@ mem_heap_free_block_free(
 /******************************************************************//**
 Goes through the list of all allocated mem blocks, checks their magic
 numbers, and reports possible corruption. */
-UNIV_INTERN
+
 void
 mem_validate_all_blocks(void)
 /*=========================*/

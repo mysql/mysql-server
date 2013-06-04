@@ -29,7 +29,7 @@
 #include "sql_optimizer.h"
 #include "opt_trace.h"
 #include "sql_base.h"
-#include "sql_acl.h"
+#include "auth_common.h"
 #include "opt_explain_format.h"
 
 static void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
@@ -347,13 +347,6 @@ JOIN::prepare(TABLE_LIST *tables_init,
     order= NULL;
   }
 
-#ifdef RESTRICTED_GROUP
-  if (implicit_grouping)
-  {
-    my_message(ER_WRONG_SUM_SELECT,ER(ER_WRONG_SUM_SELECT),MYF(0));
-    DBUG_RETURN(-1); /* purecov: inspected */
-  }
-#endif
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
     DBUG_RETURN(-1); /* purecov: inspected */
   if (alloc_func_list())

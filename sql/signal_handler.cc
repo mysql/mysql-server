@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "my_stacktrace.h"
 #include "global_threads.h"
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <crtdbg.h>
 #define SIGNAL_FMT "exception 0x%x"
 #else
@@ -65,7 +65,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 
   segfaulted = 1;
 
-#ifdef __WIN__
+#ifdef _WIN32
   SYSTEMTIME utc_time;
   GetSystemTime(&utc_time);
   const long hrs=  utc_time.wHour;
@@ -130,23 +130,6 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 
   my_safe_printf_stderr("%s",
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");
-
-#if defined(HAVE_LINUXTHREADS)
-#define UNSAFE_DEFAULT_LINUX_THREADS 200
-  if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
-  {
-    my_safe_printf_stderr(
-      "You seem to be running 32-bit Linux and have "
-      "%d concurrent connections.\n"
-      "If you have not changed STACK_SIZE in LinuxThreads "
-      "and built the binary \n"
-      "yourself, LinuxThreads is quite likely to steal "
-      "a part of the global heap for\n"
-      "the thread stack. Please read "
-      "http://dev.mysql.com/doc/mysql/en/linux-installation.html\n\n"
-      thread_count);
-  }
-#endif /* HAVE_LINUXTHREADS */
 
 #ifdef HAVE_STACKTRACE
   THD *thd=current_thd;
@@ -249,7 +232,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   }
 #endif
 
-#ifndef __WIN__
+#ifndef _WIN32
   /*
      Quit, without running destructors (etc.)
      On Windows, do not terminate, but pass control to exception filter.

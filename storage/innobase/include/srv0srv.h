@@ -45,7 +45,6 @@ Created 10/10/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
 #include "sync0sync.h"
-#include "os0sync.h"
 #include "que0types.h"
 #include "trx0types.h"
 #include "srv0conc.h"
@@ -212,9 +211,9 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
-#ifdef __WIN__
+#ifdef _WIN32
 extern ibool	srv_use_native_conditions;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server undo tablespaces directory, can be absolute path. */
@@ -226,8 +225,11 @@ extern ulong	srv_undo_tablespaces;
 /** The number of UNDO tablespaces that are open and ready to use. */
 extern ulint	srv_undo_tablespaces_open;
 
-/* The number of undo segments to use */
+/** The number of undo segments to use */
 extern ulong	srv_undo_logs;
+
+/** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
+extern const ulong	srv_tmp_undo_logs;
 
 extern char*	srv_log_group_home_dir;
 
@@ -247,9 +249,6 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
 
-/* The sort order table of the MySQL latin1_swedish_ci character set
-collation */
-extern const byte*	srv_latin1_ordering;
 #ifndef UNIV_HOTBACKUP
 extern my_bool	srv_use_sys_malloc;
 #else
@@ -365,20 +364,6 @@ extern ulint	srv_available_undo_logs;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
-
-#ifdef UNIV_DEBUG
-extern	ibool	srv_print_thread_releases;
-extern	ibool	srv_print_lock_waits;
-extern	ibool	srv_print_buf_io;
-extern	ibool	srv_print_log_io;
-extern	ibool	srv_print_latch_waits;
-#else /* UNIV_DEBUG */
-# define srv_print_thread_releases	FALSE
-# define srv_print_lock_waits		FALSE
-# define srv_print_buf_io		FALSE
-# define srv_print_log_io		FALSE
-# define srv_print_latch_waits		FALSE
-#endif /* UNIV_DEBUG */
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 extern my_bool	srv_ibuf_disable_background_merge;
@@ -538,32 +523,32 @@ enum srv_thread_type {
 
 /*********************************************************************//**
 Boots Innobase server. */
-UNIV_INTERN
+
 void
 srv_boot(void);
 /*==========*/
 /*********************************************************************//**
 Initializes the server. */
-UNIV_INTERN
+
 void
 srv_init(void);
 /*==========*/
 /*********************************************************************//**
 Frees the data structures created in srv_init(). */
-UNIV_INTERN
+
 void
 srv_free(void);
 /*==========*/
 /*********************************************************************//**
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
-UNIV_INTERN
+
 void
 srv_general_init(void);
 /*==================*/
 /*********************************************************************//**
 Sets the info describing an i/o thread current state. */
-UNIV_INTERN
+
 void
 srv_set_io_thread_op_info(
 /*======================*/
@@ -572,7 +557,7 @@ srv_set_io_thread_op_info(
 				state */
 /*********************************************************************//**
 Resets the info describing an i/o thread current state. */
-UNIV_INTERN
+
 void
 srv_reset_io_thread_op_info();
 /*=========================*/
@@ -582,7 +567,7 @@ and wakes up the purge thread if it is suspended (not sleeping).  Note
 that there is a small chance that the purge thread stays suspended
 (we do not protect our operation with the srv_sys_t:mutex, for
 performance reasons). */
-UNIV_INTERN
+
 void
 srv_wake_purge_thread_if_not_active(void);
 /*=====================================*/
@@ -592,7 +577,7 @@ and wakes up the master thread if it is suspended (not sleeping). Used
 in the MySQL interface. Note that there is a small chance that the master
 thread stays suspended (we do not protect our operation with the kernel
 mutex, for performace reasons). */
-UNIV_INTERN
+
 void
 srv_active_wake_master_thread_low(void);
 /*===================================*/
@@ -604,7 +589,7 @@ srv_active_wake_master_thread_low(void);
 	} while (0)
 /*******************************************************************//**
 Wakes up the master thread if it is suspended or being suspended. */
-UNIV_INTERN
+
 void
 srv_wake_master_thread(void);
 /*========================*/
@@ -612,7 +597,7 @@ srv_wake_master_thread(void);
 Outputs to a file the output of the InnoDB Monitor.
 @return FALSE if not all information printed
 due to failure to obtain necessary mutex */
-UNIV_INTERN
+
 ibool
 srv_printf_innodb_monitor(
 /*======================*/
@@ -626,7 +611,7 @@ srv_printf_innodb_monitor(
 
 /******************************************************************//**
 Function to pass InnoDB status variables to MySQL */
-UNIV_INTERN
+
 void
 srv_export_innodb_status(void);
 /*==========================*/
@@ -634,21 +619,21 @@ srv_export_innodb_status(void);
 Get current server activity count. We don't hold srv_sys::mutex while
 reading this value as it is only used in heuristics.
 @return activity count. */
-UNIV_INTERN
+
 ulint
 srv_get_activity_count(void);
 /*========================*/
 /*******************************************************************//**
 Check if there has been any activity.
 @return FALSE if no change in activity counter. */
-UNIV_INTERN
+
 ibool
 srv_check_activity(
 /*===============*/
 	ulint		old_activity_count);	/*!< old activity count */
 /******************************************************************//**
 Increment the server activity counter. */
-UNIV_INTERN
+
 void
 srv_inc_activity_count(void);
 /*=========================*/
@@ -656,7 +641,7 @@ srv_inc_activity_count(void);
 /**********************************************************************//**
 Enqueues a task to server task queue and releases a worker thread, if there
 is a suspended one. */
-UNIV_INTERN
+
 void
 srv_que_task_enqueue_low(
 /*=====================*/
@@ -667,7 +652,7 @@ Check whether any background thread is active. If so, return the thread
 type.
 @return SRV_NONE if all are are suspended or have exited, thread
 type if any are still active. */
-UNIV_INTERN
+
 enum srv_thread_type
 srv_get_active_thread_type(void);
 /*============================*/
@@ -677,7 +662,7 @@ extern "C" {
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
-UNIV_INTERN
+
 os_thread_ret_t
 DECLARE_THREAD(srv_monitor_thread)(
 /*===============================*/
@@ -687,7 +672,7 @@ DECLARE_THREAD(srv_monitor_thread)(
 /*********************************************************************//**
 The master thread controlling the server.
 @return	a dummy parameter */
-UNIV_INTERN
+
 os_thread_ret_t
 DECLARE_THREAD(srv_master_thread)(
 /*==============================*/
@@ -698,7 +683,7 @@ DECLARE_THREAD(srv_master_thread)(
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs.
 @return	a dummy parameter */
-UNIV_INTERN
+
 os_thread_ret_t
 DECLARE_THREAD(srv_error_monitor_thread)(
 /*=====================================*/
@@ -708,7 +693,7 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 /*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
 @return	a dummy parameter */
-UNIV_INTERN
+
 os_thread_ret_t
 DECLARE_THREAD(srv_purge_coordinator_thread)(
 /*=========================================*/
@@ -718,7 +703,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 /*********************************************************************//**
 Worker thread that reads tasks from the work queue and executes them.
 @return	a dummy parameter */
-UNIV_INTERN
+
 os_thread_ret_t
 DECLARE_THREAD(srv_worker_thread)(
 /*==============================*/
@@ -729,7 +714,7 @@ DECLARE_THREAD(srv_worker_thread)(
 /**********************************************************************//**
 Get count of tasks in the queue.
 @return number of tasks in queue  */
-UNIV_INTERN
+
 ulint
 srv_get_task_queue_length(void);
 /*===========================*/
@@ -739,7 +724,7 @@ Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller!
 @return number of threads released: this may be less than n if not
 enough threads were suspended at the moment */
-UNIV_INTERN
+
 ulint
 srv_release_threads(
 /*================*/
@@ -750,14 +735,14 @@ srv_release_threads(
 Check whether any background thread are active. If so print which thread
 is active. Send the threads wakeup signal.
 @return name of thread that is active or NULL */
-UNIV_INTERN
+
 const char*
 srv_any_background_threads_are_active(void);
 /*=======================================*/
 
 /**********************************************************************//**
 Wakeup the purge threads. */
-UNIV_INTERN
+
 void
 srv_purge_wakeup(void);
 /*==================*/

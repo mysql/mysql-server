@@ -187,12 +187,12 @@ bool get_binlog_rewrite_db(const char* db)
     @param[in]     event_len          length of the event
     @param[in]     description_event  error, warning or info
 
-    @retval        true               returns if the space is not allocated.
-    @retval        false              if rewrite is successful or no rewrite
-                                      for the event.
+    @retval        0                  incase of no change to the event length
+    @retval        -1                 incase of memory full error.
+    @retval        >0                 return the new length of the event.
 
 */
-bool rewrite_buffer(char **buf, int event_len,
+int rewrite_buffer(char **buf, int event_len,
                     const Format_description_log_event
                     *description_event)
 {
@@ -203,7 +203,7 @@ bool rewrite_buffer(char **buf, int event_len,
   uchar const *const ptr_dblen= (uchar const*)temp_vpart + 0;
 
   if(!(get_binlog_rewrite_db((const char*)ptr_dblen + 1)))
-    return false;
+    return 0;
   int temp_length_l= common_header_len + post_header_len;
   size_t old_db_len= *(uchar*) ptr_dblen;
   size_t rewrite_db_len= strlen(rewrite_to_db);
@@ -212,7 +212,7 @@ bool rewrite_buffer(char **buf, int event_len,
   int replace_segment= rewrite_db_len - old_db_len;
   if (!(temp_rewrite_buf= (char*) my_malloc(event_len + replace_segment,
                                             MYF(MY_WME))))
-    return true;
+    return -1;
 
   memcpy(temp_rewrite_buf, *buf, temp_length_l);
   char* temp_ptr=temp_rewrite_buf + temp_length_l + 0;
@@ -224,7 +224,7 @@ bool rewrite_buffer(char **buf, int event_len,
   memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
 
   *buf= temp_rewrite_buf;
-  return false;
+  return (event_len + replace_segment);
 }
 
 #endif
@@ -300,6 +300,8 @@ static const char *HA_ERR(int i)
   case HA_ERR_LOGGING_IMPOSSIBLE: return "HA_ERR_LOGGING_IMPOSSIBLE";
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
+  case HA_ERR_FK_DEPTH_EXCEEDED : return "HA_ERR_FK_DEPTH_EXCEEDED";
+  case HA_ERR_INNODB_READ_ONLY: return "HA_ERR_INNODB_READ_ONLY";
   }
   return "No Error!";
 }
@@ -1487,10 +1489,16 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
 #if defined(MYSQL_CLIENT)
   if(option_rewrite_set && buf[EVENT_TYPE_OFFSET] == TABLE_MAP_EVENT)
   {
-    if (rewrite_buffer(&buf, data_len, description_event))
+    int rewrite= rewrite_buffer(&buf, data_len, description_event);
+    if(rewrite == -1)
     {
       error= "Out of memory";
       goto err;
+    }
+    else if(rewrite > 0)
+    {
+      *(buf+EVENT_LEN_OFFSET)= rewrite;
+      data_len= uint4korr(buf+EVENT_LEN_OFFSET);
     }
   }
 #endif
@@ -3827,7 +3835,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
                                      thd->in_multi_stmt_transaction_mode();
       break;
       case SQLCOM_CREATE_TABLE:
-        cmd_must_go_to_trx_cache= lex->select_lex.item_list.elements &&
+        cmd_must_go_to_trx_cache= lex->select_lex->item_list.elements &&
                                   thd->is_current_stmt_binlog_format_row();
         cmd_can_generate_row_events= 
           ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -6521,7 +6529,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   {
     thd->set_time(&when);
     thd->set_query_id(next_query_id());
-    thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
+    DBUG_ASSERT(!thd->get_stmt_da()->is_set());
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
@@ -6620,8 +6628,8 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
-      thd->lex->select_lex.context.resolve_in_table_list_only(&tables);
-      set_fields(tables.db, field_list, &thd->lex->select_lex.context);
+      thd->lex->select_lex->context.resolve_in_table_list_only(&tables);
+      set_fields(tables.db, field_list, &thd->lex->select_lex->context);
       thd->variables.pseudo_thread_id= thread_id;
       if (net)
       {
@@ -8369,7 +8377,16 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
 
 err:
   if (error)
+  {
     end_io_cache(&file);
+    /*
+      Error occured. Delete .info and .data files if they are created.
+    */
+    strmov(ext,".info");
+    mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
+    strmov(ext,".data");
+    mysql_file_delete(key_file_log_event_data, fname_buf, MYF(0));
+  }
   if (fd >= 0)
     mysql_file_close(fd, MYF(0));
   return error != 0;
@@ -8831,12 +8848,16 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
     end_io_cache(&file);
     fd= -1;
   }
-  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
-  memcpy(ext, ".data", 6);
-  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   error = 0;
 
 err:
+  DBUG_EXECUTE_IF("simulate_file_open_error_exec_event",
+                  {
+                     strmov(ext, ".info");
+                  });
+  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
+  strmov(ext, ".data");
+  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   delete lev;
   if (fd >= 0)
   {
@@ -10027,7 +10048,7 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
   DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
 
-  bool result= FALSE;
+  bool result= false;
   uchar saved_x[2]= {0, 0}, saved_filler[2]= {0, 0};
 
   if (table->s->null_bytes > 0)
@@ -10059,39 +10080,52 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
     }
   }
 
-  if (table->s->blob_fields + table->s->varchar_fields == 0 &&
+  /**
+    Compare full record only if:
+    - there are no blob fields (otherwise we would also need
+      to compare blobs contents as well);
+    - there are no varchar fields (otherwise we would also need
+      to compare varchar contents as well);
+    - there are no null fields, otherwise NULLed fields
+      contents (i.e., the don't care bytes) may show arbitrary
+      values, depending on how each engine handles internally.
+    - if all the bitmap is set (both are full rows)
+    */
+  if ((table->s->blob_fields +
+       table->s->varchar_fields +
+       table->s->null_fields) == 0 &&
       bitmap_is_set_all(cols))
   {
     result= cmp_record(table,record[1]);
-    goto record_compare_exit;
   }
 
-  /* Compare null bits */
-  if (bitmap_is_set_all(cols) &&
-      memcmp(table->null_flags,
-       table->null_flags+table->s->rec_buff_length,
-       table->s->null_bytes))
+  /*
+    Fallback to field-by-field comparison:
+    1. start by checking if the field is signaled:
+    2. if it is, first compare the null bit if the field is nullable
+    3. then compare the contents of the field, if it is not
+       set to null
+   */
+  else
   {
-    result= TRUE;       // Diff in NULL value
-    goto record_compare_exit;
-  }
-
-  /* Compare updated fields */
-  for (Field **ptr= table->field ;
-       *ptr && ((*ptr)->field_index < cols->n_bits);
-       ptr++)
-  {
-    if (bitmap_is_set(cols, (*ptr)->field_index))
+    for (Field **ptr=table->field ;
+         *ptr && ((*ptr)->field_index < cols->n_bits) && !result;
+         ptr++)
     {
-      if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+      Field *field= *ptr;
+      if (bitmap_is_set(cols, field->field_index))
       {
-        result= TRUE;
-        goto record_compare_exit;
+        /* compare null bit */
+        if (field->is_null() != field->is_null_in_record(table->record[1]))
+          result= true;
+
+        /* compare content, only if fields are not set to NULL */
+        else if (!field->is_null())
+          result= field->cmp_binary_offset(table->s->rec_buff_length);
       }
     }
   }
 
-record_compare_exit:
   /*
     Restore the saved bytes.
 
@@ -10164,7 +10198,7 @@ int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *r
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
-      thd->get_stmt_da()->reset_condition_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       *err= 0;
       if (idempotent_error == 0)
@@ -10635,200 +10669,220 @@ end:
 
 }
 
-
-int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
+int Rows_log_event::do_hash_row(Relay_log_info const *rli)
 {
+  DBUG_ENTER("Rows_log_event::do_hash_row");
   DBUG_ASSERT(m_table && m_table->in_use != NULL);
-  TABLE *table= m_table;
-
   int error= 0;
-  const uchar *saved_last_m_curr_row= NULL;
-  const uchar *bi_start= NULL;
-  const uchar *bi_ends= NULL;
-  const uchar *ai_start= NULL;
-  const uchar *ai_ends= NULL;
-  HASH_ROW_ENTRY* entry;
-  int idempotent_errors= 0;
 
-  DBUG_ENTER("Rows_log_event::do_hash_scan_and_update");
+  /* create an empty entry to add to the hash table */
+  HASH_ROW_ENTRY* entry= m_hash.make_entry();
 
-  bi_start= m_curr_row;
+  /* Prepare the record, unpack and save positions. */
+  entry->positions->bi_start= m_curr_row;        // save the bi start pos
+  prepare_record(m_table, &m_cols, false);
   if ((error= unpack_current_row(rli, &m_cols)))
-    goto err;
-  bi_ends= m_curr_row_end;
+    goto end;
+  entry->positions->bi_ends= m_curr_row_end;    // save the bi end pos
 
-  store_record(m_table, record[1]);
+  /*
+    Now that m_table->record[0] is filled in, we can add the entry
+    to the hash table. Note that the put operation calculates the
+    key based on record[0] contents (including BLOB fields).
+   */
+  m_hash.put(m_table, &m_cols, entry);
 
+  if (m_key_index < MAX_KEY)
+    add_key_to_distinct_keyset();
+
+  /*
+    We need to unpack the AI to advance the positions, so we
+    know when we have reached m_rows_end and that we do not
+    unpack the AI in the next iteration as if it was a BI.
+  */
   if (get_general_type_code() == UPDATE_ROWS_EVENT)
   {
-    /*
+    /* Save a copy of the BI. */
+    store_record(m_table, record[1]);
+
+     /*
       This is the situation after hashing the BI:
 
       ===|=== before image ====|=== after image ===|===
          ^                     ^
          m_curr_row            m_curr_row_end
-
-      We need to skip the AI as well, before moving on to the
-      next row.
     */
-    ai_start= m_curr_row= m_curr_row_end;
+
+    /* Set the position to the start of the record to be unpacked. */
+    m_curr_row= m_curr_row_end;
+
+    /* We shouldn't need this, but lets not leave loose ends */
+    prepare_record(m_table, &m_cols, false);
     error= unpack_current_row(rli, &m_cols_ai);
-    ai_ends= m_curr_row_end;
-  }
-
-  /* move BI to index 0 */
-  memcpy(m_table->record[0], m_table->record[1], m_table->s->reclength);
-
-  /* create an entry to add to the hash table */
-  entry= m_hash.make_entry(bi_start, bi_ends, ai_start, ai_ends);
-
-  /* add it to the hash table */
-  m_hash.put(m_table, &m_cols, entry);
-  if (m_key_index < MAX_KEY)
-    add_key_to_distinct_keyset();
-
-  /*
-    Last row hashed. We are handling the last (pair of) row(s).  So
-    now we do the table scan and match against the entries in the hash
-    table.
-   */
-  if (m_curr_row_end == m_rows_end)
-  {
-    saved_last_m_curr_row=m_curr_row;
-
-    DBUG_PRINT("info",("Hash was populated with %d records!", m_hash.size()));
-
-    /* open table or index depending on whether we have set m_key_index or not. */
-    if ((error= open_record_scan()))
-      goto err;
 
     /*
-       Scan the table only once and compare against entries in hash.
-       When a match is found, apply the changes.
-     */
-    int i= 0;
-    do
-    {
-      /* get the next record from the table */
-      error= next_record_scan(i == 0);
-      i++;
+      This is the situation after unpacking the AI:
 
-      if(error)
-        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
-      switch (error) {
-        case 0:
+      ===|=== before image ====|=== after image ===|===
+                               ^                   ^
+                               m_curr_row          m_curr_row_end
+    */
+
+    /* Restore back the copy of the BI. */
+    restore_record(m_table, record[1]);
+  }
+
+end:
+  DBUG_RETURN(error);
+}
+
+int Rows_log_event::do_scan_and_update(Relay_log_info const *rli)
+{
+  DBUG_ENTER("Rows_log_event::do_scan_and_update");
+  DBUG_ASSERT(m_table && m_table->in_use != NULL);
+  DBUG_ASSERT(m_hash.is_empty() == false);
+  TABLE *table= m_table;
+  int error= 0;
+  const uchar *saved_last_m_curr_row= NULL;
+  const uchar *saved_last_m_curr_row_end= NULL;
+  /* create an empty entry to add to the hash table */
+  HASH_ROW_ENTRY* entry= NULL;
+  int idempotent_errors= 0;
+  int i= 0;
+
+  saved_last_m_curr_row=m_curr_row;
+  saved_last_m_curr_row_end=m_curr_row_end;
+
+  DBUG_PRINT("info",("Hash was populated with %d records!", m_hash.size()));
+
+  /* open table or index depending on whether we have set m_key_index or not. */
+  if ((error= open_record_scan()))
+    goto err;
+
+  /*
+     Scan the table only once and compare against entries in hash.
+     When a match is found, apply the changes.
+   */
+  do
+  {
+    /* get the next record from the table */
+    error= next_record_scan(i == 0);
+    i++;
+
+    if(error)
+      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+    switch (error) {
+      case 0:
+      {
+        entry= m_hash.get(table, &m_cols);
+        store_record(table, record[1]);
+
+        /**
+           If there are collisions we need to be sure that this is
+           indeed the record we want.  Loop through all records for
+           the given key and explicitly compare them against the
+           record we got from the storage engine.
+         */
+        while(entry)
         {
-          entry= m_hash.get(table, &m_cols);
-          store_record(table, record[1]);
+          m_curr_row= entry->positions->bi_start;
+          m_curr_row_end= entry->positions->bi_ends;
+
+          prepare_record(table, &m_cols, false);
+          if ((error= unpack_current_row(rli, &m_cols)))
+            goto close_table;
+
+          if (record_compare(table, &m_cols))
+            m_hash.next(&entry);
+          else
+            break;   // we found a match
+        }
+
+        /**
+           We found the entry we needed, just apply the changes.
+         */
+        if (entry)
+        {
+          // just to be safe, copy the record from the SE to table->record[0]
+          restore_record(table, record[1]);
 
           /**
-             If there are collisions we need to be sure that this is
-             indeed the record we want.  Loop through all records for
-             the given key and explicitly compare them against the
-             record we got from the storage engine.
-           */
-          while(entry)
-          {
-            m_curr_row= entry->positions->bi_start;
-            m_curr_row_end= entry->positions->bi_ends;
+             At this point, both table->record[0] and
+             table->record[1] have the SE row that matched the one
+             in the hash table.
 
-            if ((error= unpack_current_row(rli, &m_cols)))
+             Thence if this is a DELETE we wouldn't need to mess
+             around with positions anymore, but since this can be an
+             update, we need to provide positions so that AI is
+             unpacked correctly to table->record[0] in UPDATE
+             implementation of do_exec_row().
+          */
+          m_curr_row= entry->positions->bi_start;
+          m_curr_row_end= entry->positions->bi_ends;
+
+          /* we don't need this entry anymore, just delete it */
+          if ((error= m_hash.del(entry)))
+            goto err;
+
+          if ((error= do_apply_row(rli)))
+          {
+            if (handle_idempotent_and_ignored_errors(rli, &error))
               goto close_table;
 
-            if (record_compare(m_table, &m_cols))
-              m_hash.next(&entry);
-            else
-              break;   // we found a match
-          }
-
-          /**
-             We found the entry we needed, just apply the changes.
-           */
-          if (entry)
-          {
-            // just to be safe, copy the record from the SE to table->record[0]
-            memcpy(table->record[0], table->record[1], table->s->reclength);
-
-            /**
-               At this point, both table->record[0] and
-               table->record[1] have the SE row that matched the one
-               in the hash table.
-
-               Thence if this is a DELETE we wouldn't need to mess
-               around with positions anymore, but since this can be an
-               update, we need to provide positions so that AI is
-               unpacked correctly to table->record[0] in UPDATE
-               implementation of do_exec_row().
-            */
-            m_curr_row= entry->positions->bi_start;
-            m_curr_row_end= entry->positions->bi_ends;
-
-            /* we don't need this entry anymore, just delete it */
-            if ((error= m_hash.del(entry)))
-              goto err;
-
-            if ((error= do_apply_row(rli)))
-            {
-              if (handle_idempotent_and_ignored_errors(rli, &error))
-                goto close_table;
-
-              do_post_row_operations(rli, error);
-            }
+            do_post_row_operations(rli, error);
           }
         }
-        break;
-
-        case HA_ERR_RECORD_DELETED:
-          // get next
-          continue;
-
-        case HA_ERR_KEY_NOT_FOUND:
-          /* If the slave exec mode is idempotent or the error is
-              skipped error, then don't break */
-          if (handle_idempotent_and_ignored_errors(rli, &error))
-            goto close_table;
-          idempotent_errors++;
-          continue;
-
-        case HA_ERR_END_OF_FILE:
-        default:
-          // exception (hash is not empty and we have reached EOF or
-          // other error happened)
-          goto close_table;
       }
+      break;
+
+      case HA_ERR_RECORD_DELETED:
+        // get next
+        continue;
+
+      case HA_ERR_KEY_NOT_FOUND:
+        /* If the slave exec mode is idempotent or the error is
+            skipped error, then don't break */
+        if (handle_idempotent_and_ignored_errors(rli, &error))
+          goto close_table;
+        idempotent_errors++;
+        continue;
+
+      case HA_ERR_END_OF_FILE:
+      default:
+        // exception (hash is not empty and we have reached EOF or
+        // other error happened)
+        goto close_table;
     }
-   /**
-     if the rbr_exec_mode is set to Idempotent, we cannot expect the hash to
-     be empty. In such cases we count the number of idempotent errors and check
-     if it is equal to or greater than the number of rows left in the hash.
-    */
-    while (((idempotent_errors < m_hash.size()) && !m_hash.is_empty()) &&
-           (!error || (error == HA_ERR_RECORD_DELETED)));
+  }
+  /**
+    if the rbr_exec_mode is set to Idempotent, we cannot expect the hash to
+    be empty. In such cases we count the number of idempotent errors and check
+    if it is equal to or greater than the number of rows left in the hash.
+   */
+  while (((idempotent_errors < m_hash.size()) && !m_hash.is_empty()) &&
+         (!error || (error == HA_ERR_RECORD_DELETED)));
 
 close_table:
-    if (error)
-    {
-      m_table->file->print_error(error, MYF(0));
-      DBUG_PRINT("info", ("Failed to get next record"
-                          " (ha_rnd_next returns %d)",error));
-    }
+  if (error == HA_ERR_RECORD_DELETED)
+    error= 0;
 
-    if (!error)
-      error= close_record_scan();  
-    else
-      /* 
-        we are already with errors. Keep the error code and 
-        try to close the scan anyway.
-      */
-      (void) close_record_scan(); 
-
-    if (error == HA_ERR_RECORD_DELETED)
-      error= 0;
-
-    DBUG_ASSERT((m_hash.is_empty() && !error) ||
-                (!m_hash.is_empty() &&
-                 ((error) || (idempotent_errors >= m_hash.size()))));
+  if (error)
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_PRINT("info", ("Failed to get next record"
+                        " (ha_rnd_next returns %d)",error));
+    /*
+      we are already with errors. Keep the error code and
+      try to close the scan anyway.
+    */
+    (void) close_record_scan();
   }
+  else
+    error= close_record_scan();
+
+  DBUG_ASSERT((m_hash.is_empty() && !error) ||
+              (!m_hash.is_empty() &&
+               ((error) || (idempotent_errors >= m_hash.size()))));
 
 err:
 
@@ -10839,10 +10893,33 @@ err:
        handling entries in the hash.
      */
     m_curr_row= saved_last_m_curr_row;
-    m_curr_row_end= m_rows_end;
+    m_curr_row_end= saved_last_m_curr_row_end;
   }
 
   DBUG_RETURN(error);
+}
+
+int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
+{
+  DBUG_ENTER("Rows_log_event::do_hash_scan_and_update");
+  DBUG_ASSERT(m_table && m_table->in_use != NULL);
+
+  // HASHING PART
+
+  /* unpack the BI (and AI, if it exists) and add it to the hash map. */
+  if (int error= this->do_hash_row(rli))
+    DBUG_RETURN(error);
+
+  /* We have not yet hashed all rows in the buffer. Do not proceed to the SCAN part. */
+  if (m_curr_row_end < m_rows_end)
+    DBUG_RETURN (0);
+
+  DBUG_PRINT("info",("Hash was populated with %d records!", m_hash.size()));
+  DBUG_ASSERT(m_curr_row_end == m_rows_end);
+
+  // SCANNING & UPDATE PART
+
+  DBUG_RETURN(this->do_scan_and_update(rli));
 }
 
 int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
@@ -11311,7 +11388,7 @@ AFTER_MAIN_EXEC_ROW_LOOP:
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
-      thd->get_stmt_da()->reset_condition_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }
@@ -12700,6 +12777,8 @@ Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 #ifdef MYSQL_CLIENT
 void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 {
+  DBUG_EXECUTE_IF("simulate_cache_read_error",
+                  {DBUG_SET("+d,simulate_my_b_fill_error");});
   Rows_log_event::print_helper(file, print_event_info, "Write_rows");
 }
 #endif

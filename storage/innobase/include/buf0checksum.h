@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ Calculates a page CRC32 which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on
 32-bit and 64-bit architectures.
 @return	checksum */
-UNIV_INTERN
+
 ib_uint32_t
 buf_calc_page_crc32(
 /*================*/
@@ -50,7 +50,7 @@ Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on
 32-bit and 64-bit architectures.
 @return	checksum */
-UNIV_INTERN
+
 ulint
 buf_calc_page_new_checksum(
 /*=======================*/
@@ -64,25 +64,21 @@ NOTE: we must first store the new formula checksum to
 FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
 because this takes that field as an input!
 @return	checksum */
-UNIV_INTERN
+
 ulint
 buf_calc_page_old_checksum(
 /*=======================*/
 	const byte*	page);	/*!< in: buffer page */
 
-#ifndef UNIV_INNOCHECKSUM
-
 /********************************************************************//**
 Return a printable string describing the checksum algorithm.
 @return	algorithm name */
-UNIV_INTERN
+
 const char*
 buf_checksum_algorithm_name(
 /*========================*/
 	srv_checksum_algorithm_t	algo);	/*!< in: algorithm */
 
 extern ulong	srv_checksum_algorithm;
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* buf0checksum_h */

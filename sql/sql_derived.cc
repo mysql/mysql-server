@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include "sql_select.h"
 #include "sql_optimizer.h"                    // JOIN
 #include "sql_view.h"                         // check_duplicate_names
-#include "sql_acl.h"                          // SELECT_ACL
+#include "auth_common.h"                      // SELECT_ACL
 #include "sql_tmp_table.h"                    // Tmp tables
 
 
@@ -359,7 +359,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
                             result->tmp_table_param.start_recinfo,
                             &result->tmp_table_param.recinfo,
                             (unit->first_select()->options |
-                             thd->lex->select_lex.options |
+                             thd->lex->select_lex->options |
                              thd->variables.option_bits |
                              TMP_TABLE_ALL_COLUMNS),
                             thd->variables.big_tables, &thd->opt_trace))

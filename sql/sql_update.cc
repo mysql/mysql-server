@@ -34,7 +34,7 @@
 #include "probes_mysql.h"
 #include "debug_sync.h"
 #include "key.h"                                // is_key_used
-#include "sql_acl.h"                            // *_ACL, check_grant
+#include "auth_common.h"                        // *_ACL, check_grant
 #include "records.h"                            // init_read_record,
                                                 // end_read_record
 #include "filesort.h"                           // filesort
@@ -240,7 +240,7 @@ int mysql_update(THD *thd,
   TABLE		*table;
   SQL_SELECT	*select= NULL;
   READ_RECORD	info;
-  SELECT_LEX    *select_lex= &thd->lex->select_lex;
+  SELECT_LEX    *select_lex= thd->lex->select_lex;
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
@@ -641,7 +641,10 @@ int mysql_update(THD *thd,
         if (select && select->skip_record(thd, &skip_record))
         {
           error= 1;
-          table->file->unlock_row();
+          /*
+            Don't try unlocking the row if skip_record reported an error since
+            in this case the transaction might have been rolled back already.
+          */
           break;
         }
         if (!skip_record)
@@ -894,8 +897,17 @@ int mysql_update(THD *thd,
         }
       }
     }
-    else
+    /*
+      Don't try unlocking the row if skip_record reported an error since in
+      this case the transaction might have been rolled back already.
+    */
+    else if (!thd->is_error())
       table->file->unlock_row();
+    else
+    {
+      error= 1;
+      break;
+    }
     thd->get_stmt_da()->inc_current_row_for_condition();
     if (thd->is_error())
     {
@@ -1051,7 +1063,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   TABLE *table= table_list->table;
 #endif
   List<Item> all_fields;
-  SELECT_LEX *select_lex= &thd->lex->select_lex;
+  SELECT_LEX *select_lex= thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_update");
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1308,7 +1320,7 @@ int mysql_multi_update_prepare(THD *thd)
   LEX *lex= thd->lex;
   TABLE_LIST *table_list= lex->query_tables;
   TABLE_LIST *tl, *leaves;
-  List<Item> *fields= &lex->select_lex.item_list;
+  List<Item> *fields= &lex->select_lex->item_list;
   table_map tables_for_update;
   bool update_view= 0;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
@@ -1338,10 +1350,10 @@ int mysql_multi_update_prepare(THD *thd)
     call in setup_tables()).
   */
 
-  if (setup_tables(thd, &lex->select_lex.context,
-                   &lex->select_lex.top_join_list,
-                   table_list, &lex->select_lex.leaf_tables,
-                   FALSE))
+  if (setup_tables(thd, &lex->select_lex->context,
+                   &lex->select_lex->top_join_list,
+                   table_list, &lex->select_lex->leaf_tables,
+                   false))
     DBUG_RETURN(TRUE);
 
   if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
@@ -1368,7 +1380,7 @@ int mysql_multi_update_prepare(THD *thd)
 
   thd->table_map_for_update= tables_for_update= get_table_map(fields);
 
-  leaves= lex->select_lex.leaf_tables;
+  leaves= lex->select_lex->leaf_tables;
 
   if (unsafe_key_update(leaves, tables_for_update))
     DBUG_RETURN(true);
@@ -1452,7 +1464,7 @@ int mysql_multi_update_prepare(THD *thd)
     Check that we are not using table that we are updating, but we should
     skip all tables of UPDATE SELECT itself
   */
-  lex->select_lex.exclude_from_table_unique_test= TRUE;
+  lex->select_lex->exclude_from_table_unique_test= true;
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
     if (tl->lock_type != TL_READ &&
@@ -1470,7 +1482,7 @@ int mysql_multi_update_prepare(THD *thd)
     Set exclude_from_table_unique_test value back to FALSE. It is needed for
     further check in multi_update::prepare whether to use record cache.
   */
-  lex->select_lex.exclude_from_table_unique_test= FALSE;
+  lex->select_lex->exclude_from_table_unique_test= false;
   DBUG_RETURN (FALSE);
 }
 
@@ -1495,7 +1507,7 @@ bool mysql_multi_update(THD *thd,
   DBUG_ENTER("mysql_multi_update");
 
   if (!(*result= new multi_update(table_list,
-				 thd->lex->select_lex.leaf_tables,
+				 thd->lex->select_lex->leaf_tables,
 				 fields, values,
 				 handle_duplicates, ignore)))
   {

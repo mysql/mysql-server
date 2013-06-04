@@ -161,20 +161,6 @@ page_cur_position(
 }
 
 /**********************************************************//**
-Invalidates a page cursor by setting the record pointer NULL. */
-UNIV_INLINE
-void
-page_cur_invalidate(
-/*================*/
-	page_cur_t*	cur)	/*!< out: page cursor */
-{
-	ut_ad(cur);
-
-	cur->rec = NULL;
-	cur->block = NULL;
-}
-
-/**********************************************************//**
 Moves the cursor to the next record on page. */
 UNIV_INLINE
 void
@@ -201,35 +187,47 @@ page_cur_move_to_prev(
 }
 
 #ifndef UNIV_HOTBACKUP
-/****************************************************************//**
-Searches the right position for a page cursor.
+/** Search the right position for a page cursor.
+@param[in]	block	buffer block
+@param[in]	index	index tree
+@param[in]	tuple	data tuple
+@param[in]	mode	PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
+@param[out]	cursor	page cursor
 @return	number of matched fields on the left */
 UNIV_INLINE
 ulint
 page_cur_search(
-/*============*/
-	const buf_block_t*	block,	/*!< in: buffer block */
-	const dict_index_t*	index,	/*!< in: record descriptor */
-	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
-					PAGE_CUR_LE, PAGE_CUR_G, or
-					PAGE_CUR_GE */
-	page_cur_t*		cursor)	/*!< out: page cursor */
+	const buf_block_t*	block,
+	const dict_index_t*	index,
+	const dtuple_t*		tuple,
+	ulint			mode,
+	page_cur_t*		cursor)
 {
-	ulint		low_matched_fields = 0;
-	ulint		low_matched_bytes = 0;
-	ulint		up_matched_fields = 0;
-	ulint		up_matched_bytes = 0;
+	ulint		low_match = 0;
+	ulint		up_match = 0;
 
 	ut_ad(dtuple_check_typed(tuple));
 
 	page_cur_search_with_match(block, index, tuple, mode,
-				   &up_matched_fields,
-				   &up_matched_bytes,
-				   &low_matched_fields,
-				   &low_matched_bytes,
-				   cursor);
-	return(low_matched_fields);
+				   &up_match, &low_match, cursor);
+	return(low_match);
+}
+
+/** Search the right position for a page cursor.
+@param[in]	block	buffer block
+@param[in]	index	index tree
+@param[in]	tuple	data tuple
+@param[out]	cursor	page cursor
+@return	number of matched fields on the left */
+UNIV_INLINE
+ulint
+page_cur_search(
+	const buf_block_t*	block,
+	const dict_index_t*	index,
+	const dtuple_t*		tuple,
+	page_cur_t*		cursor)
+{
+	return(page_cur_search(block, index, tuple, PAGE_CUR_LE, cursor));
 }
 
 /***********************************************************//**

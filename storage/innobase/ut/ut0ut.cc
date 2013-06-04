@@ -23,30 +23,29 @@ Various utilities for Innobase.
 Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
-#include "ut0ut.h"
+#include "ha_prototypes.h"
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "os0thread.h" /* thread-ID */
+#ifndef UNIV_HOTBACKUP
+# include <mysql_com.h>
+#endif /* !UNIV_HOTBACKUP */
+
+#include "os0thread.h"
+#include "ut0ut.h"
 
 #ifdef UNIV_NONINL
 #include "ut0ut.ic"
 #endif
 
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
-
 #ifndef UNIV_HOTBACKUP
 # include "trx0trx.h"
-# include "ha_prototypes.h"
-# include "mysql_com.h" /* NAME_LEN */
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 /** A constant to prevent the compiler from optimizing ut_delay() away. */
-UNIV_INTERN ibool	ut_always_false	= FALSE;
+ibool	ut_always_false	= FALSE;
 
-#ifdef __WIN__
+#ifdef _WIN32
 /*****************************************************************//**
 NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
 epoch starts from 1970/1/1. For selection of constant see:
@@ -101,7 +100,7 @@ reimplement this function. */
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime.
 @return	system time */
-UNIV_INTERN
+
 ib_time_t
 ut_time(void)
 /*=========*/
@@ -116,7 +115,7 @@ Upon successful completion, the value 0 is returned; otherwise the
 value -1 is returned and the global variable errno is set to indicate the
 error.
 @return	0 on success, -1 otherwise */
-UNIV_INTERN
+
 int
 ut_usectime(
 /*========*/
@@ -157,7 +156,7 @@ Returns the number of microseconds since epoch. Similar to
 time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
 @return	us since epoch */
-UNIV_INTERN
+
 ullint
 ut_time_us(
 /*=======*/
@@ -182,7 +181,7 @@ Returns the number of milliseconds since some epoch.  The
 value may wrap around.  It should only be used for heuristic
 purposes.
 @return	ms since epoch */
-UNIV_INTERN
+
 ulint
 ut_time_ms(void)
 /*============*/
@@ -198,7 +197,7 @@ ut_time_ms(void)
 /**********************************************************//**
 Returns the difference of two times in seconds.
 @return	time2 - time1 expressed in seconds */
-UNIV_INTERN
+
 double
 ut_difftime(
 /*========*/
@@ -212,7 +211,7 @@ ut_difftime(
 
 /**********************************************************//**
 Prints a timestamp to a file. */
-UNIV_INTERN
+
 void
 ut_print_timestamp(
 /*===============*/
@@ -222,9 +221,9 @@ ut_print_timestamp(
 
 #ifndef UNIV_INNOCHECKSUM
 	thread_id = os_thread_pf(os_thread_get_curr_id());
-#endif
+#endif /* !UNIV_INNOCHECKSUM */
 
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEMTIME cal_tm;
 
 	GetLocalTime(&cal_tm);
@@ -265,13 +264,13 @@ ut_print_timestamp(
 
 /**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
-UNIV_INTERN
+
 void
 ut_sprintf_timestamp(
 /*=================*/
 	char*	buf) /*!< in: buffer where to sprintf */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEMTIME cal_tm;
 
 	GetLocalTime(&cal_tm);
@@ -310,13 +309,13 @@ ut_sprintf_timestamp(
 /**********************************************************//**
 Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'. */
-UNIV_INTERN
+
 void
 ut_sprintf_timestamp_without_extra_chars(
 /*=====================================*/
 	char*	buf) /*!< in: buffer where to sprintf */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEMTIME cal_tm;
 
 	GetLocalTime(&cal_tm);
@@ -353,7 +352,7 @@ ut_sprintf_timestamp_without_extra_chars(
 
 /**********************************************************//**
 Returns current year, month, day. */
-UNIV_INTERN
+
 void
 ut_get_year_month_day(
 /*==================*/
@@ -361,7 +360,7 @@ ut_get_year_month_day(
 	ulint*	month,	/*!< out: month */
 	ulint*	day)	/*!< out: day */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	SYSTEMTIME cal_tm;
 
 	GetLocalTime(&cal_tm);
@@ -387,14 +386,14 @@ ut_get_year_month_day(
 	*day = (ulint) cal_tm_ptr->tm_mday;
 #endif
 }
-#endif /* UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
+#else /* UNIV_HOTBACKUP */
+
 /*************************************************************//**
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++.
 @return	dummy value */
-UNIV_INTERN
+
 ulint
 ut_delay(
 /*=====*/
@@ -415,11 +414,11 @@ ut_delay(
 
 	return(j);
 }
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_HOTBACKUP */
 
 /*************************************************************//**
 Prints the contents of a memory buffer in hex and ascii. */
-UNIV_INTERN
+
 void
 ut_print_buf(
 /*=========*/
@@ -450,10 +449,64 @@ ut_print_buf(
 	putc(';', file);
 }
 
+#ifndef DBUG_OFF
+/*************************************************************//**
+Prints the contents of a memory buffer in hex. */
+
+void
+ut_print_buf_hex(
+/*=============*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+{
+	const byte*		data;
+	ulint			i;
+
+	static const char	hexdigit[16] = {
+		'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
+	};
+
+	UNIV_MEM_ASSERT_RW(buf, len);
+
+	o << "(0x";
+
+	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
+		byte	b = *data++;
+		o << hexdigit[b >> 16] << hexdigit[b & 15];
+	}
+
+	o << ")";
+}
+
+/*************************************************************//**
+Prints the contents of a memory buffer in hex and ascii. */
+
+void
+ut_print_buf(
+/*=========*/
+	std::ostream&	o,	/*!< in/out: output stream */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
+{
+	const byte*	data;
+	ulint		i;
+
+	UNIV_MEM_ASSERT_RW(buf, len);
+
+	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
+		int	c = static_cast<int>(*data++);
+		o << (isprint(c) ? static_cast<char>(c) : ' ');
+	}
+
+	ut_print_buf_hex(o, buf, len);
+}
+#endif /* !DBUG_OFF */
+
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
 @return	first power of 2 which is >= n */
-UNIV_INTERN
+
 ulint
 ut_2_power_up(
 /*==========*/
@@ -474,7 +527,7 @@ ut_2_power_up(
 
 /**********************************************************************//**
 Outputs a NUL-terminated file name, quoted with apostrophes. */
-UNIV_INTERN
+
 void
 ut_print_filename(
 /*==============*/
@@ -503,7 +556,7 @@ Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier. */
-UNIV_INTERN
+
 void
 ut_print_name(
 /*==========*/
@@ -521,7 +574,7 @@ Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier. */
-UNIV_INTERN
+
 void
 ut_print_namel(
 /*===========*/
@@ -542,7 +595,9 @@ ut_print_namel(
 				       trx ? trx->mysql_thd : NULL,
 				       table_id);
 
-	fwrite(buf, 1, bufend - buf, f);
+	if (fwrite(buf, 1, bufend - buf, f) != (size_t) (bufend - buf)) {
+		perror("fwrite");
+	}
 }
 
 /**********************************************************************//**
@@ -550,7 +605,7 @@ Formats a table or index name, quoted as an SQL identifier. If the name
 contains a slash '/', the result will contain two identifiers separated by
 a period (.), as in SQL database_name.identifier.
 @return pointer to 'formatted' */
-UNIV_INTERN
+
 char*
 ut_format_name(
 /*===========*/
@@ -591,7 +646,7 @@ ut_format_name(
 
 /**********************************************************************//**
 Catenate files. */
-UNIV_INTERN
+
 void
 ut_copy_file(
 /*=========*/
@@ -607,7 +662,9 @@ ut_copy_file(
 			? (size_t) len
 			: sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
-		fwrite(buf, 1, size, dest);
+		if (fwrite(buf, 1, size, dest) != size) {
+			perror("fwrite");
+		}
 		len -= (long) size;
 		if (size < maxs) {
 			break;
@@ -616,7 +673,7 @@ ut_copy_file(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef __WIN__
+#ifdef _WIN32
 # include <stdarg.h>
 /**********************************************************************//**
 A substitute for vsnprintf(3), formatted output conversion into
@@ -625,7 +682,7 @@ characters that would have been printed if the buffer was unlimited because
 VC's _vsnprintf() returns -1 in this case and we would need to call
 _vscprintf() in addition to estimate that but we would need another copy
 of "ap" for that and VC does not provide va_copy(). */
-UNIV_INTERN
+
 void
 ut_vsnprintf(
 /*=========*/
@@ -643,7 +700,7 @@ A substitute for snprintf(3), formatted output conversion into
 a limited buffer.
 @return number of characters that would have been printed if the size
 were unlimited, not including the terminating '\0'. */
-UNIV_INTERN
+
 int
 ut_snprintf(
 /*========*/
@@ -675,13 +732,13 @@ ut_snprintf(
 
 	return(res);
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*************************************************************//**
 Convert an error number to a human readable text message. The
 returned string is static and should not be freed or modified.
 @return	string, describing the error */
-UNIV_INTERN
+
 const char*
 ut_strerr(
 /*======*/
