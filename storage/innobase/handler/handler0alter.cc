@@ -2987,7 +2987,9 @@ prepare_inplace_alter_table_dict(
 			error = DB_OUT_OF_MEMORY;
 			goto error_handling;
 		}
+	}
 
+	if (ctx->online) {
 		/* Assign a consistent read view for
 		row_merge_read_clustered_index(). */
 		trx_assign_read_view(ctx->prebuilt->trx);

@@ -1751,6 +1751,10 @@ dict_stats_analyze_index(
 	boundaries_t*	n_diff_boundaries;
 	mtr_t		mtr;
 	ulint		size;
+	DBUG_ENTER("dict_stats_analyze_index");
+
+	DBUG_PRINT("info", ("index: %s, online status: %d", index->name,
+			    dict_index_get_online_status(index)));
 
 	DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name);
 
@@ -1773,7 +1777,7 @@ dict_stats_analyze_index(
 	switch (size) {
 	case ULINT_UNDEFINED:
 		dict_stats_assert_initialized_index(index);
-		return;
+		DBUG_VOID_RETURN;
 	case 0:
 		/* The root node of the tree is a leaf */
 		size = 1;
@@ -1827,7 +1831,7 @@ dict_stats_analyze_index(
 		mtr_commit(&mtr);
 
 		dict_stats_assert_initialized_index(index);
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	/* set to zero */
@@ -1989,6 +1993,7 @@ found_level:
 	mem_free(n_diff_on_level);
 
 	dict_stats_assert_initialized_index(index);
+	DBUG_VOID_RETURN;
 }
 
 /*********************************************************************//**
@@ -2845,6 +2850,8 @@ dict_stats_update_for_index(
 /*========================*/
 	dict_index_t*	index)	/*!< in/out: index */
 {
+	DBUG_ENTER("dict_stats_update_for_index");
+
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	if (dict_stats_is_persistent_enabled(index->table)) {
@@ -2854,7 +2861,7 @@ dict_stats_update_for_index(
 			dict_stats_analyze_index(index);
 			dict_table_stats_unlock(index->table, RW_X_LATCH);
 			dict_stats_save(index->table);
-			return;
+			DBUG_VOID_RETURN;
 		}
 		/* else */
 
@@ -2877,6 +2884,8 @@ dict_stats_update_for_index(
 	dict_table_stats_lock(index->table, RW_X_LATCH);
 	dict_stats_update_transient_for_index(index);
 	dict_table_stats_unlock(index->table, RW_X_LATCH);
+
+	DBUG_VOID_RETURN;
 }
 
 /*********************************************************************//**
