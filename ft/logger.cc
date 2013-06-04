@@ -255,7 +255,8 @@ toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID l
     if (r!=0) return r;
 
     logger->next_log_file_number = nexti;
-    open_logfile(logger);
+    r = open_logfile(logger);
+    if (r!=0) return r;
     if (last_xid == TXNID_NONE) {
         last_xid = last_xid_if_clean_shutdown;
     }
