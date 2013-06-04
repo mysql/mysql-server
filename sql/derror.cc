@@ -138,7 +138,9 @@ bool read_texts(const char *file_name, const char *language,
                                O_RDONLY | O_SHARE | O_BINARY,
                                MYF(0))) < 0)
     {
-      sql_print_error("Can't find messagefile '%s'", name);
+      sql_print_error("Can't find error-message file '%s'. Check error-message"
+                      " file location and 'lc-messages-dir' configuration"
+                      " directive.", name);
       goto open_err;
     }
 
