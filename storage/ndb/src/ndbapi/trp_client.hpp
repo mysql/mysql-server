@@ -72,6 +72,9 @@ public:
 
   void lock();
   void unlock();
+  /* Interface used by Multiple NDB waiter code */
+  void lock_client();
+  bool check_if_locked(void);
 
   Uint32 getOwnNodeId() const;
 
@@ -165,6 +168,20 @@ private:
 };
 
 #include "TransporterFacade.hpp"
+
+inline
+bool
+trp_client::check_if_locked()
+{
+  return m_facade->m_poll_owner->m_poll.check_if_locked(this, (Uint32)0);
+}
+
+inline
+void
+trp_client::lock_client()
+{
+  m_facade->m_poll_owner->m_poll.lock_client(this);
+}
 
 inline
 void
