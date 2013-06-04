@@ -634,6 +634,17 @@ test10()
 
     printf("\ndelete[] (new C0[0])\n");
     C0 * c0a0 = new C0[0];
+#if __GNUC__ == 4 && __GNUC_MINOR__ == 7 && __GNUC_PATCHLEVEL__ >= 2
+    /**
+     * GCC 4.7.2 emits a null pointer for this...
+     *   see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=53330
+     */
+    if (c0a0 == NULL)
+    {
+      c0a0 = new C0[1];
+    }
+#endif
+
     // Check that zero length array new worked
     if (c0a0 == NULL)
       abort();
