@@ -1,10 +1,2 @@
-reconf1:  BUG#16898807 No Online Reconfiguration
-external_values: BUG#16898807 No Online Reconfiguration
-mpart_key: BUG#16898807 No Online Reconfiguration
-type_char:  BUG#16898807 No Online Reconfiguration
-type_numeric:  BUG#16898807 No Online Reconfiguration
-type_signed:  BUG#16898807 No Online Reconfiguration
-type_temporal:  BUG#16898807 No Online Reconfiguration
-type_unsigned:  BUG#16898807 No Online Reconfiguration
-unique_idx:  BUG#16898807 No Online Reconfiguration
-
+lib_ascii : BUG#16387890 NDB_MEMCACHE.LIB_ASCII
+lib_binary: BUG#16387890 NDB_MEMCACHE.LIB_ASCII 

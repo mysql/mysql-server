@@ -50,11 +50,6 @@ NdbWaitGroup::NdbWaitGroup(Ndb_cluster_connection *_conn, int _ndbs) :
 
 NdbWaitGroup::~NdbWaitGroup()
 {
-  while (m_count > 0)
-  {
-    m_multiWaitHandler->unregisterNdb(m_array[topDownIdx(m_count--)]);
-  }
-
   delete m_multiWaitHandler;
   delete m_wakeNdb;
   delete[] m_array;
@@ -73,9 +68,10 @@ bool NdbWaitGroup::addNdb(Ndb *ndb)
     return false; // array is full
   }
 
-  if (unlikely(m_multiWaitHandler->ndbIsRegistered(ndb)))
+  for (int i = 0; i < m_count; i++)
   {
-    return false; // duplicate of item already in group
+    if (ndb == m_array[topDownIdx(i)])
+      return false; // duplicate of item already in group
   }
 
   m_count++;
@@ -100,22 +96,18 @@ int NdbWaitGroup::wait(Ndb ** & arrayHead    /* out */,
   int wait_rc;
   int nready;
   {
-    PollGuard pg(* m_wakeNdb->theImpl);   // get ready to poll
-    wait_rc = m_multiWaitHandler->waitForInput(ndblist, m_count, min_ndbs,
-                                               & pg, timeout_millis);
-    nready = m_multiWaitHandler->getNumReadyNdbs();
+    wait_rc = m_multiWaitHandler->waitForInput(ndblist,
+                                               m_count,
+                                               min_ndbs,
+                                               timeout_millis,
+                                               &nready);
 
     if (wait_rc == 0)
     {
-      arrayHead = ndblist;   // success
-      for(int i = 0 ; i < nready ; i++)  // remove ready Ndbs from group
-      {
-        m_multiWaitHandler->unregisterNdb(m_array[topDownIdx(m_count)]);
-        m_count--;
-      }
+      arrayHead = ndblist;    // success
+      /* Remove from m_array by moving index */
+      m_count -= nready;
     }
-  }   /* release PollGuard */
-
+  }
   return wait_rc ? -1 : nready;
 }
-
