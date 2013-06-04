@@ -2115,7 +2115,18 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
       idx_cond->update_used_tables();
       if ((idx_cond->used_tables() & tab->table->map) == 0)
       {
-        DBUG_ASSERT(other_tbls_ok || idx_cond->const_item());
+        /*
+          The following assert is to check that we only skip pushing the
+          index condition for the following situations:
+          1. We actually are allowed to generate an index condition on another
+             table.
+          2. The index condition is a constant item.
+          3. The index condition contains an updatable user variable
+             (test this by checking that the RAND_TABLE_BIT is set).
+        */
+        DBUG_ASSERT(other_tbls_ok ||                                  // 1
+                    idx_cond->const_item() ||                         // 2
+                    (idx_cond->used_tables() & RAND_TABLE_BIT) );     // 3
         DBUG_VOID_RETURN;
       }
 

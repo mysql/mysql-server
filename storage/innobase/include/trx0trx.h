@@ -91,13 +91,19 @@ Creates a transaction object for background operations by the master thread.
 trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
-/********************************************************************//**
-Frees a transaction object of a background operation of the master thread. */
+
+/** Frees and initialize a transaction object instantinated during recovery.
+@param trx      trx object to free and initialize during recovery */
 
 void
-trx_free_for_background(
-/*====================*/
-	trx_t*	trx);	/*!< in, own: trx object */
+trx_free_resurrected(trx_t* trx);
+
+/** Free a transaction that was allocated by background or user threads.
+@param trx      trx object to free */
+
+void
+trx_free_for_background(trx_t* trx);
+
 /********************************************************************//**
 At shutdown, frees a transaction object that is in the PREPARED state. */
 

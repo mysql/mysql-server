@@ -969,7 +969,8 @@ public:
 	/** Construct a pretty-printed record.
 	@param rec	record with header
 	@param offsets	rec_get_offsets(rec, ...) */
-	rec_printer(const rec_t* rec, const ulint* offsets) : ostringstream ()
+	rec_printer(const rec_t* rec, const ulint* offsets)
+	: std::ostringstream ()
 	{
 		rec_print(*this, rec,
 			  rec_get_info_bits(rec, rec_offs_comp(offsets)),

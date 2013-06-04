@@ -26,8 +26,6 @@ Created 2/2/1994 Heikki Tuuri
 #ifndef page0types_h
 #define page0types_h
 
-using namespace std;
-
 #include <map>
 
 #include "univ.i"
@@ -119,7 +117,7 @@ struct page_zip_stat_t {
 };
 
 /** Compression statistics types */
-typedef map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
+typedef std::map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
 
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 extern page_zip_stat_t				page_zip_stat[PAGE_ZIP_SSIZE_MAX];
