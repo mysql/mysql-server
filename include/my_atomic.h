@@ -256,12 +256,6 @@ make_atomic_store(ptr)
 #define LF_BACKOFF (1)
 #endif
 
-#define MY_ATOMIC_OK       0
-#define MY_ATOMIC_NOT_1CPU 1
-C_MODE_START
-extern int my_atomic_initialize();
-C_MODE_END
-
 #endif
 
 #endif /* MY_ATOMIC_INCLUDED */
