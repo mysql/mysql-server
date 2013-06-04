@@ -2621,6 +2621,7 @@ row_log_allocate(
 	byte*		buf;
 	row_log_t*	log;
 	ulint		size;
+	DBUG_ENTER("row_log_allocate");
 
 	ut_ad(!dict_index_is_online_ddl(index));
 	ut_ad(dict_index_is_clust(index) == !!table);
@@ -2634,7 +2635,7 @@ row_log_allocate(
 	size = 2 * srv_sort_buf_size + sizeof *log;
 	buf = (byte*) os_mem_alloc_large(&size);
 	if (!buf) {
-		return(false);
+		DBUG_RETURN(false);
 	}
 
 	log = (row_log_t*) &buf[2 * srv_sort_buf_size];
@@ -2642,7 +2643,7 @@ row_log_allocate(
 	log->fd = row_merge_file_create_low();
 	if (log->fd < 0) {
 		os_mem_free_large(buf, size);
-		return(false);
+		DBUG_RETURN(false);
 	}
 	mutex_create(index_online_log_key, &log->mutex,
 		     SYNC_INDEX_ONLINE_LOG);
@@ -2667,7 +2668,7 @@ row_log_allocate(
 	atomic operations in both cases. */
 	MONITOR_ATOMIC_INC(MONITOR_ONLINE_CREATE_INDEX);
 
-	return(true);
+	DBUG_RETURN(true);
 }
 
 /******************************************************//**
@@ -3350,6 +3351,7 @@ row_log_apply(
 	dberr_t		error;
 	row_log_t*	log;
 	row_merge_dup_t	dup = { index, table, NULL, 0 };
+	DBUG_ENTER("row_log_apply");
 
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!dict_index_is_clust(index));
@@ -3392,5 +3394,5 @@ row_log_apply(
 
 	row_log_free(log);
 
-	return(error);
+	DBUG_RETURN(error);
 }
