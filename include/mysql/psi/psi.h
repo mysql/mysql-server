@@ -1101,6 +1101,7 @@ struct PSI_statement_locker_state_v1
   char m_schema_name[PSI_SCHEMA_NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
+  PSI_sp_share *m_parent_sp_share;
 };
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 
@@ -1763,7 +1764,7 @@ typedef void (*end_stage_v1_t) (void);
 */
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, const void *charset);
+   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share);
 
 /**
   Refine a statement locker to a more specific key.
@@ -1798,15 +1799,6 @@ typedef void (*start_statement_v1_t)
 typedef void (*set_statement_text_v1_t)
   (struct PSI_statement_locker *locker,
    const char *text, uint text_len);
-
-/**
-  Set the statement parent stored program.
-  @param locker the current statement locker
-  @param head the parent stored program @c sp_head
-*/
-typedef void (*set_statement_parent_v1_t)
-  (struct PSI_statement_locker *locker,
-   PSI_sp_share *sp_share);
 
 /**
   Set a statement event lock time.
@@ -2016,8 +2008,8 @@ typedef struct PSI_digest_locker * (*digest_start_v1_t)
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
 
-typedef void (*start_sp_v1_t)
-  (struct PSI_sp_locker *locker);
+typedef PSI_sp_locker* (*start_sp_v1_t)
+  (struct PSI_sp_locker_state_v1 *state, struct PSI_sp_share* sp_share);
 
 typedef void (*end_sp_v1_t)
   (struct PSI_sp_locker *locker);
@@ -2026,9 +2018,6 @@ typedef void (*drop_sp_v1_t)
   (uint object_type,
    const char *schema_name, uint schema_name_length,
    const char *object_name, uint object_name_length);
-
-typedef struct PSI_sp_locker* (*get_thread_sp_locker_v1_t)
-  (struct PSI_sp_locker_state_v1 *state);
 
 /**
   Acquire a sp share instrumentation.
@@ -2213,8 +2202,6 @@ struct PSI_v1
   start_statement_v1_t start_statement;
   /** @sa set_statement_text_v1_t. */
   set_statement_text_v1_t set_statement_text;
-  /** @sa set_statement_parent_v1_t. */                                        
-  set_statement_parent_v1_t set_statement_parent;                              
   /** @sa set_statement_lock_time_t. */
   set_statement_lock_time_t set_statement_lock_time;
   /** @sa set_statement_rows_sent_t. */
@@ -2269,8 +2256,6 @@ struct PSI_v1
   start_sp_v1_t start_sp;
   /** @sa start_sp_v1_t. */
   end_sp_v1_t end_sp;
-  /** @sa get_thread_sp_locker_v1_t. */
-  get_thread_sp_locker_v1_t get_thread_sp_locker;
   /** @sa drop_sp_v1_t. */
   drop_sp_v1_t drop_sp;
   /** @sa get_sp_share_v1_t. */

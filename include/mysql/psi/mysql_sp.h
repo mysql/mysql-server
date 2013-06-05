@@ -28,10 +28,10 @@
 #endif    
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  #define MYSQL_START_SP(STATE) \
-    inline_mysql_start_sp(STATE)
+  #define MYSQL_START_SP(STATE, SP_SHARE) \
+    inline_mysql_start_sp(STATE, SP_SHARE)
 #else
-  #define MYSQL_START_SP(STATE) \
+  #define MYSQL_START_SP(STATE, SP_SHARE) \
     NULL
 #endif
 
@@ -74,14 +74,9 @@ enum enum_sp_object_type
 };
 
 static inline struct PSI_sp_locker*
-inline_mysql_start_sp(PSI_sp_locker_state *state)
+inline_mysql_start_sp(PSI_sp_locker_state *state, PSI_sp_share *sp_share)
 {
-  PSI_sp_locker *locker;
- 
-  locker= PSI_SP_CALL(get_thread_sp_locker)(state);
-  if (likely(locker != NULL))
-    PSI_SP_CALL(start_sp)(locker);
-  return locker;
+  return PSI_SP_CALL(start_sp)(state, sp_share);
 }
 
 static inline void inline_mysql_end_sp(PSI_sp_locker *locker)

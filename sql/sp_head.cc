@@ -697,12 +697,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
     parent_locker= thd->m_statement_psi;
     thd->m_statement_psi= MYSQL_START_STATEMENT(& state, psi_info->m_key,
-                                                thd->db, thd->db_length, thd->charset());
-
-    if (thd->m_statement_psi != NULL)
-    {
-      MYSQL_SET_STATEMENT_PARENT(thd->m_statement_psi, this->m_sp_share);
-    }
+                                                thd->db, thd->db_length,
+                                                thd->charset(),
+                                                this->m_sp_share);
 #endif
 
     err_status= i->execute(thd, &ip);
@@ -976,8 +973,7 @@ bool sp_head::execute_trigger(THD *thd,
   PSI_sp_locker_state state;
   PSI_sp_locker *locker;
 
-  state.m_sp_share= m_sp_share;
-  locker= MYSQL_START_SP(&state);
+  locker= MYSQL_START_SP(&state, m_sp_share);
 #endif
   err_status= execute(thd, FALSE);
 #ifdef HAVE_PSI_SP_INTERFACE
@@ -1185,8 +1181,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   PSI_sp_locker_state state;
   PSI_sp_locker *locker;
 
-  state.m_sp_share= m_sp_share;
-  locker= MYSQL_START_SP(&state);
+  locker= MYSQL_START_SP(&state, m_sp_share);
 #endif
   err_status= execute(thd, TRUE);
 #ifdef HAVE_PSI_SP_INTERFACE
@@ -1412,8 +1407,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   PSI_sp_locker_state state;
   PSI_sp_locker *locker;
 
-  state.m_sp_share= m_sp_share;
-  locker= MYSQL_START_SP(&state);
+  locker= MYSQL_START_SP(&state, m_sp_share);
 #endif
   if (!err_status)
     err_status= execute(thd, TRUE);

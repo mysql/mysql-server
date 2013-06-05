@@ -4439,7 +4439,7 @@ void pfs_end_stage_v1()
 PSI_statement_locker*
 pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
                                    PSI_statement_key key,
-                                   const void *charset)
+                                   const void *charset, PSI_sp_share *sp_share)
 {
   DBUG_ASSERT(state != NULL);
   if (! flag_global_instrumentation)
@@ -4529,6 +4529,19 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
           pfs->m_nesting_event_level= parent->m_nesting_event_level + 1;
       }
 
+      /* Set parent Stored Procedure information for this statement. */
+      if(sp_share)
+      {
+        PFS_program *parent_sp= reinterpret_cast<PFS_program*>(sp_share);
+        pfs->m_sp_type= parent_sp->m_type;
+        memcpy(pfs->m_schema_name, parent_sp->m_schema_name,
+               parent_sp->m_schema_name_length);   
+        pfs->m_schema_name_length= parent_sp->m_schema_name_length;                         
+        memcpy(pfs->m_object_name, parent_sp->m_object_name,
+               parent_sp->m_object_name_length);
+        pfs->m_object_name_length= parent_sp->m_object_name_length;                       
+      }  
+
       state->m_statement= pfs;
       flags|= STATE_FLAG_EVENT;
 
@@ -4574,6 +4587,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_no_good_index_used= 0;
 
   state->m_schema_name_length= 0;
+  state->m_parent_sp_share= sp_share;
 
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
@@ -4685,35 +4699,6 @@ void pfs_set_statement_text_v1(PSI_statement_locker *locker,
   return;
 }
 
-static void set_statement_parent_v1(PSI_statement_locker *locker,              
-                                    PSI_sp_share *sp_share)                          
-{                                                                              
-  PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
-  PFS_program *parent_sp= reinterpret_cast<PFS_program *> (sp_share);           
-  DBUG_ASSERT(state != NULL);                                                  
-
-  /* sp_share could be NULL */
-  if(!parent_sp)
-    return;
-                                                                               
-  if (state->m_discarded)                                                      
-    return;                                                                    
-                                                                               
-  if (state->m_flags & STATE_FLAG_EVENT)                                       
-  {                                                                            
-    PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
-    DBUG_ASSERT(pfs != NULL);                                                  
-
-    pfs->m_sp_type= parent_sp->m_type;
-    memcpy(pfs->m_schema_name, parent_sp->m_schema_name, parent_sp->m_schema_name_length);   
-    pfs->m_schema_name_length= parent_sp->m_schema_name_length;                         
-    memcpy(pfs->m_object_name, parent_sp->m_object_name, parent_sp->m_object_name_length);
-    pfs->m_object_name_length= parent_sp->m_object_name_length;                       
-  }                                                                            
-                                                                               
-  return;                                                                      
-}                                                                              
-                                                                               
 #define SET_STATEMENT_ATTR_BODY(LOCKER, ATTR, VALUE)                    \
   PSI_statement_locker_state *state;                                    \
   state= reinterpret_cast<PSI_statement_locker_state*> (LOCKER);        \
@@ -4939,12 +4924,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         digest_copy(& pfs->m_digest_storage, digest_storage);
       }
     
-      pfs_program= find_or_create_program(thread,
-                                           pfs->m_sp_type,
-                                           pfs->m_object_name,
-                                           pfs->m_object_name_length,
-                                           pfs->m_schema_name,
-                                           pfs->m_schema_name_length, false);
+      pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share); 
 
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
@@ -5148,24 +5128,15 @@ void pfs_release_sp_share_v1(PSI_sp_share* sp_share)
   return;
 }
 
-/**                                                                             
-  Implementation of the stored program instrumentation interface.                         
-  @sa PSI_v1::get_thread_sp_locker.                                      
-*/                                                                              
-PSI_sp_locker*
-pfs_get_thread_sp_locker_v1(PSI_sp_locker_state *state)
+PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state, PSI_sp_share *sp_share)
 {
-  bool m_enabled;
-  bool m_timed;
-
-  DBUG_ASSERT(state != NULL);
-  
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
   if (unlikely(pfs_thread == NULL))                                             
     return NULL;
+
   state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
 
-  PFS_program *pfs_program= reinterpret_cast<PFS_program*>(state->m_sp_share);
+  PFS_program *pfs_program= reinterpret_cast<PFS_program*>(sp_share);
 
   /* 
     sp share might be null in case when stat array is full and no new
@@ -5181,18 +5152,7 @@ pfs_get_thread_sp_locker_v1(PSI_sp_locker_state *state)
                       pfs_program->m_schema_name_length,
                       pfs_program->m_object_name,
                       pfs_program->m_object_name_length,
-                      &m_enabled, &m_timed);
-
-  state->m_enabled= m_enabled;
-  state->m_timed= m_timed;
-
-  return reinterpret_cast<PSI_sp_locker*> (state);
-}
-
-void pfs_start_sp_v1(PSI_sp_locker *locker)
-{
-  PSI_sp_locker_state *state= reinterpret_cast<PSI_sp_locker_state*> (locker); 
-  DBUG_ASSERT(state != NULL);
+                      (bool*)(&state->m_enabled), (bool*)(&state->m_timed));
 
   ulonglong timer_start= 0;
 
@@ -5202,6 +5162,10 @@ void pfs_start_sp_v1(PSI_sp_locker *locker)
                                                   & state->m_timer);
     state->m_timer_start= timer_start;
   }
+
+  state->m_sp_share= sp_share;
+
+  return reinterpret_cast<PSI_sp_locker*> (state);
 }
 
 void pfs_end_sp_v1(PSI_sp_locker *locker)
@@ -5245,12 +5209,12 @@ void pfs_drop_sp_v1(uint object_type,
   if (unlikely(pfs_thread == NULL))                                             
     return;
 
-  int res= find_and_drop_program(pfs_thread,
-                                 (enum_object_type)object_type,
-                                 object_name,
-                                 object_name_length,
-                                 schema_name,
-                                 schema_name_length);
+  int res= drop_program(pfs_thread,
+                        (enum_object_type)object_type,
+                        object_name,
+                        object_name_length,
+                        schema_name,
+                        schema_name_length);
   if(res != 0)
   {
     /* TODO : Do we need to check return value? */
@@ -5504,7 +5468,6 @@ PSI_v1 PFS_v1=
   pfs_refine_statement_v1,
   pfs_start_statement_v1,
   pfs_set_statement_text_v1,
-  set_statement_parent_v1,
   pfs_set_statement_lock_time_v1,
   pfs_set_statement_rows_sent_v1,
   pfs_set_statement_rows_examined_v1,
@@ -5532,7 +5495,6 @@ PSI_v1 PFS_v1=
   pfs_set_thread_connect_attrs_v1,
   pfs_start_sp_v1,
   pfs_end_sp_v1,
-  pfs_get_thread_sp_locker_v1,
   pfs_drop_sp_v1,
   pfs_get_sp_share_v1,
   pfs_release_sp_share_v1

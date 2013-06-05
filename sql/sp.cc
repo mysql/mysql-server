@@ -30,6 +30,7 @@
 #include "sp_cache.h"
 #include "lock.h"                               // lock_object_name
 #include "sp.h"
+#include "mysql/psi/mysql_sp.h"
 
 #include <my_user.h>
 
@@ -1340,6 +1341,13 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
       if (sp)
         sp_cache_flush_obsolete(spc, &sp);
     }
+#ifdef HAVE_PSI_SP_INTERFACE
+    /* Drop statistics for this stored program from performance schema. */
+    MYSQL_DROP_SP((type == SP_TYPE_PROCEDURE) ?
+                  SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
+                  name->m_db.str, name->m_db.length,
+                  name->m_name.str, name->m_name.length);
+#endif 
   }
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
