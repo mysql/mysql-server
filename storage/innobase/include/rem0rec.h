@@ -31,6 +31,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0types.h"
 #include "mtr0types.h"
 #include "page0types.h"
+#include "trx0types.h"
 #ifndef DBUG_OFF
 # include <ostream>
 # include <sstream>
@@ -811,8 +812,6 @@ rec_fold(
 					rec_get_offsets() */
 	ulint		n_fields,	/*!< in: number of complete
 					fields to fold */
-	ulint		n_bytes,	/*!< in: number of bytes to fold
-					in an incomplete last field */
 	index_id_t	tree_id)	/*!< in: index tree id */
 	__attribute__((nonnull, pure, warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
@@ -970,7 +969,8 @@ public:
 	/** Construct a pretty-printed record.
 	@param rec	record with header
 	@param offsets	rec_get_offsets(rec, ...) */
-	rec_printer(const rec_t* rec, const ulint* offsets) : ostringstream ()
+	rec_printer(const rec_t* rec, const ulint* offsets)
+	: std::ostringstream ()
 	{
 		rec_print(*this, rec,
 			  rec_get_info_bits(rec, rec_offs_comp(offsets)),

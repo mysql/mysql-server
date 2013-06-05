@@ -1836,7 +1836,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
                                sp_find_routine(thd, SP_TYPE_FUNCTION,
                                                name, &thd->sp_func_cache,
                                                FALSE) != NULL;
-    thd->get_stmt_da()->reset_condition_info(thd->query_id);
+    thd->get_stmt_da()->reset_condition_info(thd);
     if (! sp_object_found)
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",

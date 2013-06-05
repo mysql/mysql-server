@@ -23,6 +23,7 @@ File-based list utilities
 Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
 
+#include "univ.i"
 #include "fut0lst.h"
 
 #ifdef UNIV_NONINL

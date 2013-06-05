@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -553,8 +553,6 @@ dtuple_fold(
 /*========*/
 	const dtuple_t*	tuple,	/*!< in: the tuple */
 	ulint		n_fields,/*!< in: number of complete fields to fold */
-	ulint		n_bytes,/*!< in: number of bytes to fold in an
-				incomplete last field */
 	index_id_t	tree_id)/*!< in: index tree id */
 {
 	const dfield_t*	field;
@@ -576,22 +574,6 @@ dtuple_fold(
 		len = dfield_get_len(field);
 
 		if (len != UNIV_SQL_NULL) {
-			fold = ut_fold_ulint_pair(fold,
-						  ut_fold_binary(data, len));
-		}
-	}
-
-	if (n_bytes > 0) {
-		field = dtuple_get_nth_field(tuple, i);
-
-		data = (const byte*) dfield_get_data(field);
-		len = dfield_get_len(field);
-
-		if (len != UNIV_SQL_NULL) {
-			if (len > n_bytes) {
-				len = n_bytes;
-			}
-
 			fold = ut_fold_ulint_pair(fold,
 						  ut_fold_binary(data, len));
 		}

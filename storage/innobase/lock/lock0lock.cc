@@ -25,7 +25,8 @@ Created 5/7/1996 Heikki Tuuri
 
 #define LOCK_MODULE_IMPLEMENTATION
 
-#include "dict0mem.h"
+#include "ha_prototypes.h"
+
 #include "lock0lock.h"
 #include "lock0priv.h"
 
@@ -34,8 +35,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "lock0priv.ic"
 #endif
 
-#include "ha_prototypes.h"
-
+#include "dict0mem.h"
 #include "usr0sess.h"
 #include "trx0purge.h"
 #include "trx0sys.h"
@@ -1295,27 +1295,24 @@ lock_rec_find_set_bit(
 	return(ULINT_UNDEFINED);
 }
 
-/**********************************************************************//**
-Resets the nth bit of a record lock. */
+/** Reset the nth bit of a record lock.
+@param[in/out]	lock	record lock
+@param[in]	i	index of the bit that will be reset
+@return	previous value of the bit */
 UNIV_INLINE
-void
+byte
 lock_rec_reset_nth_bit(
-/*===================*/
-	lock_t*	lock,	/*!< in: record lock */
-	ulint	i)	/*!< in: index of the bit which must be set to TRUE
-			when this function is called */
+	lock_t*	lock,
+	ulint	i)
 {
-	ulint	byte_index;
-	ulint	bit_index;
-
-	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 	ut_ad(i < lock->un_member.rec_lock.n_bits);
 
-	byte_index = i / 8;
-	bit_index = i % 8;
-
-	((byte*) &lock[1])[byte_index] &= ~(1 << bit_index);
+	byte*	b = reinterpret_cast<byte*>(&lock[1]) + (i >> 3);
+	byte	mask = 1 << (i & 7);
+	byte	bit = *b & mask;
+	*b &= ~mask;
+	return(bit);
 }
 
 /*********************************************************************//**
@@ -1887,6 +1884,31 @@ lock_number_of_rows_locked(
 	}
 
 	return(n_records);
+}
+
+/*********************************************************************//**
+Return the number of table locks for a transaction.
+The caller must be holding lock_sys->mutex. */
+ulint
+lock_number_of_tables_locked(
+/*=========================*/
+	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
+{
+	const lock_t*	lock;
+	ulint		n_tables = 0;
+
+	ut_ad(lock_mutex_own());
+
+	for (lock = UT_LIST_GET_FIRST(trx_lock->trx_locks);
+	     lock != NULL;
+	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+
+		if (lock_get_type_low(lock) == LOCK_TABLE) {
+			n_tables++;
+		}
+	}
+
+	return(n_tables);
 }
 
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
@@ -2956,64 +2978,47 @@ lock_move_reorganize_page(
 		supremum of the page; the infimum may carry locks if an
 		update of a record is occurring on the page, and its locks
 		were temporarily stored on the infimum */
-		page_cur_t	cur1;
-		page_cur_t	cur2;
-
-		page_cur_set_before_first(block, &cur1);
-		page_cur_set_before_first(oblock, &cur2);
+		const rec_t*	rec1 = page_get_infimum_rec(
+			buf_block_get_frame(block));
+		const rec_t*	rec2 = page_get_infimum_rec(
+			buf_block_get_frame(oblock));
 
 		/* Set locks according to old locks */
 		for (;;) {
 			ulint	old_heap_no;
 			ulint	new_heap_no;
 
-			ut_ad(comp || !memcmp(page_cur_get_rec(&cur1),
-					      page_cur_get_rec(&cur2),
-					      rec_get_data_size_old(
-						      page_cur_get_rec(
-							      &cur2))));
-			if (UNIV_LIKELY(comp)) {
-				old_heap_no = rec_get_heap_no_new(
-					page_cur_get_rec(&cur2));
-				new_heap_no = rec_get_heap_no_new(
-					page_cur_get_rec(&cur1));
+			if (comp) {
+				old_heap_no = rec_get_heap_no_new(rec2);
+				new_heap_no = rec_get_heap_no_new(rec1);
+
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+				rec2 = page_rec_get_next_low(rec2, TRUE);
 			} else {
-				old_heap_no = rec_get_heap_no_old(
-					page_cur_get_rec(&cur2));
-				new_heap_no = rec_get_heap_no_old(
-					page_cur_get_rec(&cur1));
+				old_heap_no = rec_get_heap_no_old(rec2);
+				new_heap_no = rec_get_heap_no_old(rec1);
+				ut_ad(!memcmp(rec1, rec2,
+					      rec_get_data_size_old(rec2)));
+
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (lock_rec_get_nth_bit(lock, old_heap_no)) {
-
-				/* Clear the bit in old_lock. */
-				ut_d(lock_rec_reset_nth_bit(lock,
-							    old_heap_no));
-
+			/* Clear the bit in old_lock. */
+			if (old_heap_no < lock->un_member.rec_lock.n_bits
+			    && lock_rec_reset_nth_bit(lock, old_heap_no)) {
 				/* NOTE that the old lock bitmap could be too
 				small for the new heap number! */
 
 				lock_rec_add_to_queue(
 					lock->type_mode, block, new_heap_no,
 					lock->index, lock->trx, FALSE);
-
-				/* if (new_heap_no == PAGE_HEAP_NO_SUPREMUM
-				&& lock_get_wait(lock)) {
-				fprintf(stderr,
-				"---\n--\n!!!Lock reorg: supr type %lu\n",
-				lock->type_mode);
-				} */
 			}
 
-			if (UNIV_UNLIKELY
-			    (new_heap_no == PAGE_HEAP_NO_SUPREMUM)) {
-
+			if (new_heap_no == PAGE_HEAP_NO_SUPREMUM) {
 				ut_ad(old_heap_no == PAGE_HEAP_NO_SUPREMUM);
 				break;
 			}
-
-			page_cur_move_to_next(&cur1);
-			page_cur_move_to_next(&cur2);
 		}
 
 #ifdef UNIV_DEBUG
@@ -3055,6 +3060,9 @@ lock_move_rec_list_end(
 	lock_t*		lock;
 	const ulint	comp	= page_rec_is_comp(rec);
 
+	ut_ad(buf_block_get_frame(block) == page_align(rec));
+	ut_ad(comp == page_is_comp(buf_block_get_frame(new_block)));
+
 	lock_mutex_enter();
 
 	/* Note: when we move locks from record to record, waiting locks
@@ -3065,59 +3073,71 @@ lock_move_rec_list_end(
 
 	for (lock = lock_rec_get_first_on_page(block); lock;
 	     lock = lock_rec_get_next_on_page(lock)) {
-		page_cur_t	cur1;
-		page_cur_t	cur2;
+		const rec_t*	rec1	= rec;
+		const rec_t*	rec2;
 		const ulint	type_mode = lock->type_mode;
 
-		page_cur_position(rec, block, &cur1);
+		if (comp) {
+			if (page_offset(rec1) == PAGE_NEW_INFIMUM) {
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+			}
 
-		if (page_cur_is_before_first(&cur1)) {
-			page_cur_move_to_next(&cur1);
+			rec2 = page_rec_get_next_low(
+				buf_block_get_frame(new_block)
+				+ PAGE_NEW_INFIMUM, TRUE);
+		} else {
+			if (page_offset(rec1) == PAGE_OLD_INFIMUM) {
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+			}
+
+			rec2 = page_rec_get_next_low(
+				buf_block_get_frame(new_block)
+				+ PAGE_OLD_INFIMUM, FALSE);
 		}
-
-		page_cur_set_before_first(new_block, &cur2);
-		page_cur_move_to_next(&cur2);
 
 		/* Copy lock requests on user records to new page and
 		reset the lock bits on the old */
 
-		while (!page_cur_is_after_last(&cur1)) {
-			ulint	heap_no;
+		for (;;) {
+			ulint	rec1_heap_no;
+			ulint	rec2_heap_no;
 
 			if (comp) {
-				heap_no = rec_get_heap_no_new(
-					page_cur_get_rec(&cur1));
+				rec1_heap_no = rec_get_heap_no_new(rec1);
+
+				if (rec1_heap_no == PAGE_HEAP_NO_SUPREMUM) {
+					break;
+				}
+
+				rec2_heap_no = rec_get_heap_no_new(rec2);
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+				rec2 = page_rec_get_next_low(rec2, TRUE);
 			} else {
-				heap_no = rec_get_heap_no_old(
-					page_cur_get_rec(&cur1));
-				ut_ad(!memcmp(page_cur_get_rec(&cur1),
-					 page_cur_get_rec(&cur2),
-					 rec_get_data_size_old(
-						 page_cur_get_rec(&cur2))));
+				rec1_heap_no = rec_get_heap_no_old(rec1);
+
+				if (rec1_heap_no == PAGE_HEAP_NO_SUPREMUM) {
+					break;
+				}
+
+				rec2_heap_no = rec_get_heap_no_old(rec2);
+
+				ut_ad(!memcmp(rec1, rec2,
+					      rec_get_data_size_old(rec2)));
+
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (lock_rec_get_nth_bit(lock, heap_no)) {
-				lock_rec_reset_nth_bit(lock, heap_no);
-
+			if (rec1_heap_no < lock->un_member.rec_lock.n_bits
+			    && lock_rec_reset_nth_bit(lock, rec1_heap_no)) {
 				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 					lock_reset_lock_and_trx_wait(lock);
 				}
 
-				if (comp) {
-					heap_no = rec_get_heap_no_new(
-						page_cur_get_rec(&cur2));
-				} else {
-					heap_no = rec_get_heap_no_old(
-						page_cur_get_rec(&cur2));
-				}
-
 				lock_rec_add_to_queue(
-					type_mode, new_block, heap_no,
+					type_mode, new_block, rec2_heap_no,
 					lock->index, lock->trx, FALSE);
 			}
-
-			page_cur_move_to_next(&cur1);
-			page_cur_move_to_next(&cur2);
 		}
 	}
 
@@ -3153,62 +3173,62 @@ lock_move_rec_list_start(
 
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(new_block->frame == page_align(old_end));
+	ut_ad(comp == page_rec_is_comp(old_end));
 
 	lock_mutex_enter();
 
 	for (lock = lock_rec_get_first_on_page(block); lock;
 	     lock = lock_rec_get_next_on_page(lock)) {
-		page_cur_t	cur1;
-		page_cur_t	cur2;
+		const rec_t*	rec1;
+		const rec_t*	rec2;
 		const ulint	type_mode = lock->type_mode;
 
-		page_cur_set_before_first(block, &cur1);
-		page_cur_move_to_next(&cur1);
-
-		page_cur_position(old_end, new_block, &cur2);
-		page_cur_move_to_next(&cur2);
+		if (comp) {
+			rec1 = page_rec_get_next_low(
+				buf_block_get_frame(block)
+				+ PAGE_NEW_INFIMUM, TRUE);
+			rec2 = page_rec_get_next_low(old_end, TRUE);
+		} else {
+			rec1 = page_rec_get_next_low(
+				buf_block_get_frame(block)
+				+ PAGE_OLD_INFIMUM, FALSE);
+			rec2 = page_rec_get_next_low(old_end, FALSE);
+		}
 
 		/* Copy lock requests on user records to new page and
 		reset the lock bits on the old */
 
-		while (page_cur_get_rec(&cur1) != rec) {
-			ulint	heap_no;
+		while (rec1 != rec) {
+			ulint	rec1_heap_no;
+			ulint	rec2_heap_no;
 
 			if (comp) {
-				heap_no = rec_get_heap_no_new(
-					page_cur_get_rec(&cur1));
+				rec1_heap_no = rec_get_heap_no_new(rec1);
+				rec2_heap_no = rec_get_heap_no_new(rec2);
+
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+				rec2 = page_rec_get_next_low(rec2, TRUE);
 			} else {
-				heap_no = rec_get_heap_no_old(
-					page_cur_get_rec(&cur1));
-				ut_ad(!memcmp(page_cur_get_rec(&cur1),
-					      page_cur_get_rec(&cur2),
-					      rec_get_data_size_old(
-						      page_cur_get_rec(
-							      &cur2))));
+				rec1_heap_no = rec_get_heap_no_old(rec1);
+				rec2_heap_no = rec_get_heap_no_old(rec2);
+
+				ut_ad(!memcmp(rec1, rec2,
+					      rec_get_data_size_old(rec2)));
+
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (lock_rec_get_nth_bit(lock, heap_no)) {
-				lock_rec_reset_nth_bit(lock, heap_no);
-
+			if (rec1_heap_no < lock->un_member.rec_lock.n_bits
+			    && lock_rec_reset_nth_bit(lock, rec1_heap_no)) {
 				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 					lock_reset_lock_and_trx_wait(lock);
 				}
 
-				if (comp) {
-					heap_no = rec_get_heap_no_new(
-						page_cur_get_rec(&cur2));
-				} else {
-					heap_no = rec_get_heap_no_old(
-						page_cur_get_rec(&cur2));
-				}
-
 				lock_rec_add_to_queue(
-					type_mode, new_block, heap_no,
+					type_mode, new_block, rec2_heap_no,
 					lock->index, lock->trx, FALSE);
 			}
-
-			page_cur_move_to_next(&cur1);
-			page_cur_move_to_next(&cur2);
 		}
 
 #ifdef UNIV_DEBUG
@@ -4031,7 +4051,7 @@ lock_table(
 
 	if ((mode == LOCK_IX || mode == LOCK_X)
 	    && !trx->read_only
-	    && trx->rseg == 0) {
+	    && trx->rsegs.m_redo.rseg == 0) {
 
 		trx_set_rw_mode(trx);
 	}
@@ -5547,7 +5567,7 @@ lock_validate_table_locks(
 		const lock_t*	lock;
 
 		assert_trx_in_list(trx);
-		ut_ad((trx->read_only || trx->rseg == 0)
+		ut_ad((trx->read_only || trx->rsegs.m_redo.rseg == 0)
 		      == (trx_list == &trx_sys->ro_trx_list));
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
@@ -6821,7 +6841,7 @@ lock_table_locks_lookup(
 
 		assert_trx_in_list(trx);
 
-		ut_ad((trx->read_only || trx->rseg == 0)
+		ut_ad((trx->read_only || trx->rsegs.m_redo.rseg == 0)
 		      == (trx_list == &trx_sys->ro_trx_list));
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);

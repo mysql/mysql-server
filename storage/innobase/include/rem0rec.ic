@@ -1663,8 +1663,6 @@ rec_fold(
 					rec_get_offsets() */
 	ulint		n_fields,	/*!< in: number of complete
 					fields to fold */
-	ulint		n_bytes,	/*!< in: number of bytes to fold
-					in an incomplete last field */
 	index_id_t	tree_id)	/*!< in: index tree id */
 {
 	ulint		i;
@@ -1675,18 +1673,13 @@ rec_fold(
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(rec_validate(rec, offsets));
-	ut_ad(n_fields + n_bytes > 0);
+	ut_ad(n_fields > 0);
 
 	n_fields_rec = rec_offs_n_fields(offsets);
 	ut_ad(n_fields <= n_fields_rec);
-	ut_ad(n_fields < n_fields_rec || n_bytes == 0);
 
 	if (n_fields > n_fields_rec) {
 		n_fields = n_fields_rec;
-	}
-
-	if (n_fields == n_fields_rec) {
-		n_bytes = 0;
 	}
 
 	fold = ut_fold_ull(tree_id);
@@ -1695,19 +1688,6 @@ rec_fold(
 		data = rec_get_nth_field(rec, offsets, i, &len);
 
 		if (len != UNIV_SQL_NULL) {
-			fold = ut_fold_ulint_pair(fold,
-						  ut_fold_binary(data, len));
-		}
-	}
-
-	if (n_bytes > 0) {
-		data = rec_get_nth_field(rec, offsets, i, &len);
-
-		if (len != UNIV_SQL_NULL) {
-			if (len > n_bytes) {
-				len = n_bytes;
-			}
-
 			fold = ut_fold_ulint_pair(fold,
 						  ut_fold_binary(data, len));
 		}

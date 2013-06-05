@@ -3539,7 +3539,7 @@ static Sys_var_session_special Sys_rand_seed2(
 
 static ulonglong read_error_count(THD *thd)
 {
-  return thd->get_stmt_da()->error_count();
+  return thd->get_stmt_da()->error_count(thd);
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_error_count(
@@ -3551,7 +3551,7 @@ static Sys_var_session_special Sys_error_count(
 
 static ulonglong read_warning_count(THD *thd)
 {
-  return thd->get_stmt_da()->warn_count();
+  return thd->get_stmt_da()->warn_count(thd);
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_warning_count(

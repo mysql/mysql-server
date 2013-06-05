@@ -430,6 +430,7 @@ void LEX::reset()
   expr_allows_subselect= true;
   use_only_table_context= false;
   contains_plaintext_password= false;
+  keep_diagnostics= DA_KEEP_NOTHING;
 
   name.str= NULL;
   name.length= 0;

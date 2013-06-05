@@ -1777,3 +1777,36 @@ COUNT(*)
 DROP TABLE t1;
 SET GLOBAL query_cache_size= @qc;
 #
+
+# WL5928: Most statements should clear the diagnostic area
+#         Show this also works when we serve from query-cache!
+#
+SELECT @@session.query_cache_type INTO @qc_type;
+SET SESSION query_cache_type=2;
+CREATE TABLE t1 (f1 VARCHAR(16));
+INSERT INTO t1 VALUES ("cat"),("dog"),("wombat"),("elephant");
+
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+SELECT SQL_CACHE * FROM t1;
+f1
+cat
+dog
+wombat
+elephant
+SHOW WARNINGS;
+Level	Code	Message
+
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+SELECT SQL_CACHE * FROM t1;
+f1
+cat
+dog
+wombat
+elephant
+SHOW WARNINGS;
+Level	Code	Message
+
+DROP TABLE t1;
+SET SESSION query_cache_type=@qc_type;

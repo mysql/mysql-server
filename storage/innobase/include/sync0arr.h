@@ -27,7 +27,6 @@ Created 9/5/1995 Heikki Tuuri
 #define sync0arr_h
 
 #include "univ.i"
-#include "ut0lst.h"
 #include "ut0mem.h"
 #include "os0thread.h"
 

@@ -26,8 +26,6 @@ Created 2007-03-27 Sunny Bains
 #ifndef INNOBASE_FTS0TYPES_IC
 #define INNOBASE_FTS0TYPES_IC
 
-#include <ctype.h>
-
 #include "rem0cmp.h"
 #include "ha_prototypes.h"
 

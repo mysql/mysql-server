@@ -30,7 +30,6 @@ Created 2/16/1997 Heikki Tuuri
 
 
 #include "ut0byte.h"
-#include "ut0lst.h"
 #include "trx0trx.h"
 #include "read0types.h"
 

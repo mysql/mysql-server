@@ -918,7 +918,8 @@ THD::THD(bool enable_plugins)
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
    owned_gtid_set(global_sid_map),
-   main_da(0, false),
+   main_da(false),
+   m_parser_da(false),
    m_stmt_da(&main_da)
 {
   ulong tmp;
@@ -1211,8 +1212,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
       (level == Sql_condition::SL_NOTE))
     DBUG_RETURN(NULL);
-
-  da->opt_reset_condition_info(query_id);
 
   /*
     TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
@@ -2601,10 +2600,6 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   File file;
   uint option= MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
 
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|= MY_REPLACE_DIR;			// Force use of db directory
-#endif
-
   if (!dirname_length(exchange->file_name))
   {
     strxnmov(path, FN_REFLEN-1, mysql_real_data_home, thd->db ? thd->db : "",
@@ -3509,16 +3504,6 @@ err_names_hash:
   my_hash_delete(&st_hash, (uchar*) statement);
 err_st_hash:
   return 1;
-}
-
-
-void Statement_map::close_transient_cursors()
-{
-#ifdef TO_BE_IMPLEMENTED
-  Statement *stmt;
-  while ((stmt= transient_cursor_list.head()))
-    stmt->close_cursor();                 /* deletes itself from the list */
-#endif
 }
 
 

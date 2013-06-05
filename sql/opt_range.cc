@@ -14151,7 +14151,9 @@ print_multiple_key_values(KEY_PART *key_part, const uchar *key,
     {
       if (*key)
       {
-        fwrite("NULL",sizeof(char),4,DBUG_FILE);
+        if (fwrite("NULL",sizeof(char),4,DBUG_FILE) != 4) {
+          goto restore_col_map;
+        }
         continue;
       }
       key++;                                    // Skip null byte
@@ -14162,10 +14164,13 @@ print_multiple_key_values(KEY_PART *key_part, const uchar *key,
       (void) field->val_int_as_str(&tmp, 1);
     else
       field->val_str(&tmp);
-    fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
+    if (fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE) != tmp.length()) {
+      goto restore_col_map;
+    }
     if (key+store_length < key_end)
       fputc('/',DBUG_FILE);
   }
+restore_col_map:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }
 

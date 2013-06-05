@@ -34,8 +34,9 @@ Created July 17, 2007 Vasil Dimov
    so they must come first.
    From the symptoms, this is related to bug#46587 in the MySQL bug DB.
 */
-#include "univ.i"
+
 #include "ha_prototypes.h"
+#include <sql_class.h>
 
 #include "buf0buf.h"
 #include "dict0dict.h"
@@ -50,12 +51,10 @@ Created July 17, 2007 Vasil Dimov
 #include "srv0srv.h"
 #include "sync0rw.h"
 #include "sync0sync.h"
-#include "sync0types.h"
 #include "trx0i_s.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "ut0mem.h"
-#include "ut0ut.h"
 
 /** Initial number of rows in the table cache */
 #define TABLE_CACHE_INITIAL_ROWSNUM	1024
@@ -557,7 +556,7 @@ thd_done:
 
 	row->trx_tables_in_use = trx->n_mysql_tables_in_use;
 
-	row->trx_tables_locked = trx->mysql_n_tables_locked;
+	row->trx_tables_locked = lock_number_of_tables_locked(&trx->lock);
 
 	/* These are protected by both trx->mutex or lock_sys->mutex,
 	or just lock_sys->mutex. For reading, it suffices to hold

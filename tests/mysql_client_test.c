@@ -8547,6 +8547,8 @@ static void test_mem_overun()
   buffer[length-2]= ')';
   buffer[--length]= '\0';
 
+  strcat(buffer," ENGINE = MyISAM ");
+  length= strlen(buffer);
   rc= mysql_real_query(mysql, buffer, length);
   myquery(rc);
 
@@ -12340,7 +12342,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  my_process_warnings(mysql, 12);
+  my_process_warnings(mysql, 6); /* behaviour changed by WL#5928 */
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");
@@ -12371,7 +12373,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  my_process_warnings(mysql, 6);
+  my_process_warnings(mysql, 3); /* behaviour changed by WL#5928 */
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");
@@ -12410,7 +12412,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  my_process_warnings(mysql, 2);
+  my_process_warnings(mysql, 0);
 
   verify_col_data("t1", "day_ovfl", "838:59:59");
   verify_col_data("t1", "day", "828:30:30");
@@ -15502,7 +15504,7 @@ static void test_mysql_insert_id()
   DIE_UNLESS(res == 400);
 
   /* table with auto_increment column */
-  rc= mysql_query(mysql, "create table t2 (f1 int not null primary key auto_increment, f2 varchar(255))");
+  rc= mysql_query(mysql, "create table t2 (f1 int not null primary key auto_increment, f2 varchar(255)) ENGINE = MyISAM");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t2 values (1,'a')");
   myquery(rc);
@@ -15584,7 +15586,7 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table t2");
   myquery(rc);
   rc= mysql_query(mysql, "create table t2 (f1 int not null primary key "
-                  "auto_increment, f2 varchar(255), unique (f2))");
+                  "auto_increment, f2 varchar(255), unique (f2)) ENGINE = MyISAM");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t2 values (null,'e')");
   res= mysql_insert_id(mysql);
@@ -17760,7 +17762,7 @@ static void test_bug36004()
 
   DIE_UNLESS(mysql_warning_count(mysql) == 0);
   query_int_variable(mysql, "@@warning_count", &warning_count);
-  DIE_UNLESS(warning_count);
+  DIE_UNLESS(!warning_count); /* behaviour changed by WL#5928 */
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -17769,7 +17771,7 @@ static void test_bug36004()
   mysql_stmt_close(stmt);
 
   query_int_variable(mysql, "@@warning_count", &warning_count);
-  DIE_UNLESS(warning_count);
+  DIE_UNLESS(!warning_count); /* behaviour changed by WL#5928 */
 
   stmt= mysql_simple_prepare(mysql, "drop table if exists inexistant");
   check_stmt(stmt);
@@ -19347,6 +19349,75 @@ static void test_wl6587()
 }
 
 
+static void test_wl5928()
+{
+  MYSQL_STMT *stmt;
+  int         rc;
+  MYSQL_RES  *result;
+
+  myheader("test_wl5928");
+
+  stmt= mysql_simple_prepare(mysql, "SHOW WARNINGS");
+  DIE_UNLESS(stmt == NULL);
+  stmt= mysql_simple_prepare(mysql, "SHOW ERRORS");
+  DIE_UNLESS(stmt == NULL);
+  stmt= mysql_simple_prepare(mysql, "SHOW COUNT(*) WARNINGS");
+  DIE_UNLESS(stmt == NULL);
+  stmt= mysql_simple_prepare(mysql, "SHOW COUNT(*) ERRORS");
+  DIE_UNLESS(stmt == NULL);
+  stmt= mysql_simple_prepare(mysql, "SELECT @@warning_count");
+  DIE_UNLESS(stmt == NULL);
+  stmt= mysql_simple_prepare(mysql, "SELECT @@error_count");
+  DIE_UNLESS(stmt == NULL);
+  stmt= mysql_simple_prepare(mysql, "GET DIAGNOSTICS");
+  DIE_UNLESS(stmt == NULL);
+
+  /* PREPARE */
+
+  stmt= mysql_simple_prepare(mysql, "CREATE TABLE t1 (f1 YEAR(1))");
+  DIE_UNLESS(mysql_warning_count(mysql) == 1);
+  check_stmt(stmt);
+
+  /* SHOW WARNINGS.  (Will keep diagnostics) */
+  rc= mysql_query(mysql, "SHOW WARNINGS");
+  myquery(rc);
+  result= mysql_store_result(mysql);
+  mytest(result);
+  rc= my_process_result_set(result);
+  DIE_UNLESS(rc == 1);
+  mysql_free_result(result);
+
+  /* EXEC */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  DIE_UNLESS(mysql_warning_count(mysql) == 0);
+
+  /* SHOW WARNINGS.  (Will keep diagnostics) */
+  rc= mysql_query(mysql, "SHOW WARNINGS");
+  myquery(rc);
+  result= mysql_store_result(mysql);
+  mytest(result);
+  rc= my_process_result_set(result);
+  DIE_UNLESS(rc == 0);
+  mysql_free_result(result);
+
+  /* clean up */
+  mysql_stmt_close(stmt);
+
+  stmt= mysql_simple_prepare(mysql, "DROP TABLE t1");
+  check_stmt(stmt);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+
+  stmt= mysql_simple_prepare(mysql, "SELECT 1");
+  check_stmt(stmt);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -19616,6 +19687,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl5968", test_wl5968 },
   { "test_wl5924", test_wl5924 },
   { "test_wl6587", test_wl6587 },
+  { "test_wl5928", test_wl5928 },
   { 0, 0 }
 };
 

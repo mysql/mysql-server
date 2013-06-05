@@ -34,10 +34,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
+#include "univ.i"
+
+/* Include necessary SQL headers */
 #include "ha_prototypes.h"
+#include <debug_sync.h>
+#include <gstream.h>
+#include <log.h>
+#include <mysys_err.h>
+#include <strfunc.h>
+#include <sql_acl.h>
+#include <sql_show.h>
+#include <sql_table.h>
 
 /* Include necessary InnoDB headers */
-#include "univ.i"
 #include "buf0dump.h"
 #include "buf0lru.h"
 #include "buf0flu.h"
@@ -299,10 +309,11 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(mem_pool_mutex),
 	PSI_KEY(mutex_list_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
-	PSI_KEY(purge_sys_bh_mutex),
+	PSI_KEY(purge_sys_pq_mutex),
 	PSI_KEY(recv_sys_mutex),
 	PSI_KEY(recv_writer_mutex),
-	PSI_KEY(rseg_mutex),
+	PSI_KEY(redo_rseg_mutex),
+	PSI_KEY(noredo_rseg_mutex),
 #  ifdef UNIV_SYNC_DEBUG
 	PSI_KEY(rw_lock_debug_mutex),
 #  endif /* UNIV_SYNC_DEBUG */
@@ -1519,10 +1530,10 @@ Converts an identifier to a table name. */
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	struct charset_info_st*	cs,	/*!< in: the 'from' character set */
-	char*			to,	/*!< out: converted identifier */
-	const char*		from,	/*!< in: identifier to convert */
-	ulint			len)	/*!< in: length of 'to', in bytes */
+	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*		to,	/*!< out: converted identifier */
+	const char*	from,	/*!< in: identifier to convert */
+	ulint		len)	/*!< in: length of 'to', in bytes */
 {
 	uint	errors;
 
@@ -1560,10 +1571,10 @@ Converts an identifier to UTF-8. */
 void
 innobase_convert_from_id(
 /*=====================*/
-	struct charset_info_st*	cs,	/*!< in: the 'from' character set */
-	char*			to,	/*!< out: converted identifier */
-	const char*		from,	/*!< in: identifier to convert */
-	ulint			len)	/*!< in: length of 'to', in bytes */
+	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*		to,	/*!< out: converted identifier */
+	const char*	from,	/*!< in: identifier to convert */
+	ulint		len)	/*!< in: length of 'to', in bytes */
 {
 	uint	errors;
 
@@ -1636,7 +1647,7 @@ innobase_casedn_str(
 Determines the connection character set.
 @return	connection character set */
 
-struct charset_info_st*
+CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	mysql_thd)	/*!< in: MySQL thread handle */
@@ -3543,7 +3554,7 @@ innobase_rollback_trx(
 
 	lock_unlock_table_autoinc(trx);
 
-	if (trx->insert_undo != 0 || trx->update_undo != 0) {
+	if (trx_is_rseg_updated(trx)) {
 		error = trx_rollback_for_mysql(trx);
 	}
 
@@ -6959,21 +6970,17 @@ convert_search_mode_to_innobase(
 	switch (find_flag) {
 	case HA_READ_KEY_EXACT:
 		/* this does not require the index to be UNIQUE */
-		return(PAGE_CUR_GE);
 	case HA_READ_KEY_OR_NEXT:
 		return(PAGE_CUR_GE);
-	case HA_READ_KEY_OR_PREV:
-		return(PAGE_CUR_LE);
 	case HA_READ_AFTER_KEY:
 		return(PAGE_CUR_G);
 	case HA_READ_BEFORE_KEY:
 		return(PAGE_CUR_L);
-	case HA_READ_PREFIX:
-		return(PAGE_CUR_GE);
+	case HA_READ_KEY_OR_PREV:
 	case HA_READ_PREFIX_LAST:
-		return(PAGE_CUR_LE);
 	case HA_READ_PREFIX_LAST_OR_PREV:
 		return(PAGE_CUR_LE);
+	case HA_READ_PREFIX:
 	case HA_READ_MBR_CONTAIN:
 	case HA_READ_MBR_INTERSECT:
 	case HA_READ_MBR_WITHIN:
@@ -7125,8 +7132,7 @@ ha_innobase::index_read(
 
 		match_mode = ROW_SEL_EXACT;
 
-	} else if (find_flag == HA_READ_PREFIX
-		   || find_flag == HA_READ_PREFIX_LAST) {
+	} else if (find_flag == HA_READ_PREFIX_LAST) {
 
 		match_mode = ROW_SEL_EXACT_PREFIX;
 	}
@@ -9194,7 +9200,7 @@ ha_innobase::create(
 	if (form->s->fields > REC_MAX_N_USER_FIELDS) {
 		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
 	} else if (srv_read_only_mode) {
-		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
 	}
 
 	/* Create the table definition in InnoDB */
@@ -11878,11 +11884,10 @@ ha_innobase::external_lock(
 	    && !(table_flags() & HA_BINLOG_STMT_CAPABLE)
 	    && thd_binlog_format(thd) == BINLOG_FORMAT_STMT
 	    && thd_binlog_filter_ok(thd)
-	    && thd_sqlcom_can_generate_row_events(thd))
-	{
-		int skip = 0;
+	    && thd_sqlcom_can_generate_row_events(thd)) {
+		bool skip = 0;
 		/* used by test case */
-		DBUG_EXECUTE_IF("no_innodb_binlog_errors", skip = 1;);
+		DBUG_EXECUTE_IF("no_innodb_binlog_errors", skip = true;);
 		if (!skip) {
 			my_error(ER_BINLOG_STMT_MODE_AND_ROW_ENGINE, MYF(0),
 			         " InnoDB is limited to row-logging when "
@@ -11900,14 +11905,23 @@ ha_innobase::external_lock(
 		|| thd_sql_command(thd) == SQLCOM_DROP_TABLE
 		|| thd_sql_command(thd) == SQLCOM_ALTER_TABLE
 		|| thd_sql_command(thd) == SQLCOM_OPTIMIZE
-		|| thd_sql_command(thd) == SQLCOM_CREATE_TABLE
+		|| (thd_sql_command(thd) == SQLCOM_CREATE_TABLE
+		    && lock_type == F_WRLCK)
 		|| thd_sql_command(thd) == SQLCOM_CREATE_INDEX
 		|| thd_sql_command(thd) == SQLCOM_DROP_INDEX
 		|| thd_sql_command(thd) == SQLCOM_DELETE)) {
 
-		ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+		if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE)
+		{
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN,
+				    ER_INNODB_READ_ONLY);
+			DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
+		} else {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN,
+				    ER_READ_ONLY_MODE);
+			DBUG_RETURN(HA_ERR_TABLE_READONLY);
+		}
 
-		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
 	trx = prebuilt->trx;
@@ -12626,7 +12640,9 @@ ha_innobase::store_lock(
 		|| sql_command == SQLCOM_DROP_TABLE
 		|| sql_command == SQLCOM_ALTER_TABLE
 		|| sql_command == SQLCOM_OPTIMIZE
-		|| sql_command == SQLCOM_CREATE_TABLE
+		|| (sql_command == SQLCOM_CREATE_TABLE
+		    && (lock_type >= TL_WRITE_CONCURRENT_INSERT
+			 && lock_type <= TL_WRITE))
 		|| sql_command == SQLCOM_CREATE_INDEX
 		|| sql_command == SQLCOM_DROP_INDEX
 		|| sql_command == SQLCOM_DELETE)) {
@@ -16327,7 +16343,7 @@ ha_innobase::multi_range_read_info(
 InnoDB index push-down condition check
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
 
-enum icp_result
+ICP_RESULT
 innobase_index_cond(
 /*================*/
 	void*	file)	/*!< in/out: pointer to ha_innobase */
@@ -16409,7 +16425,9 @@ ib_senderrf(
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #elif HAVE_VASPRINTF
-	(void) vasprintf(&str, format, args);
+	int	ret;
+	ret = vasprintf(&str, format, args);
+	ut_a(ret != -1);
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
@@ -16485,7 +16503,9 @@ ib_errf(
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #elif HAVE_VASPRINTF
-	(void) vasprintf(&str, format, args);
+	int	ret;
+	ret = vasprintf(&str, format, args);
+	ut_a(ret != -1);
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
@@ -16519,7 +16539,9 @@ ib_logf(
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #elif HAVE_VASPRINTF
-	(void) vasprintf(&str, format, args);
+	int	ret;
+	ret = vasprintf(&str, format, args);
+	ut_a(ret != -1);
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
