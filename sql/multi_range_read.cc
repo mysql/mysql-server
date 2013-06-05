@@ -1114,6 +1114,7 @@ void DsMrr_impl::close_second_handler()
 {
   if (secondary_file)
   {
+    secondary_file->extra(HA_EXTRA_NO_KEYREAD);
     secondary_file->ha_index_or_rnd_end();
     secondary_file->ha_external_lock(current_thd, F_UNLCK);
     secondary_file->ha_close();

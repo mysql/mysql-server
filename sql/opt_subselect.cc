@@ -4107,7 +4107,7 @@ SJ_TMP_TABLE::create_sj_weedout_tmp_table(THD *thd)
   recinfo++;
   if (share->db_type() == TMP_ENGINE_HTON)
   {
-    if (create_internal_tmp_table(table, keyinfo, start_recinfo, &recinfo, 0, 0))
+    if (create_internal_tmp_table(table, keyinfo, start_recinfo, &recinfo, 0))
       goto err;
   }
   if (open_tmp_table(table))

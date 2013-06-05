@@ -2757,6 +2757,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   {
     /* This should never happen, assert in debug, and fail in release build */
     DBUG_ASSERT(0);
+    (void) extra(HA_EXTRA_NO_KEYREAD);
     *first_value= ULONGLONG_MAX;
     return;
   }

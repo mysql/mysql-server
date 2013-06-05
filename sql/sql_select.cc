@@ -10028,10 +10028,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
                                 join_read_system :join_read_const;
       if (table->covering_keys.is_set(tab->ref.key) &&
           !table->no_keyread)
-      {
-        table->key_read=1;
-        table->file->extra(HA_EXTRA_KEYREAD);
-      }
+        table->enable_keyread();
       else if ((!jcl || jcl > 4) && !tab->ref.is_access_triggered())
         push_index_cond(tab, tab->ref.key);
       break;
@@ -10040,10 +10037,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       /* fall through */
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
-      {
-	table->key_read=1;
-	table->file->extra(HA_EXTRA_KEYREAD);
-      }
+        table->enable_keyread();
       else if ((!jcl || jcl > 4) && !tab->ref.is_access_triggered())
         push_index_cond(tab, tab->ref.key);
       break;
@@ -10655,8 +10649,10 @@ void JOIN::cleanup(bool full)
       {
 	if (tab->table)
         {
-          DBUG_PRINT("info", ("close index: %s.%s", tab->table->s->db.str,
-                              tab->table->s->table_name.str));
+          DBUG_PRINT("info", ("close index: %s.%s  alias: %s",
+                              tab->table->s->db.str,
+                              tab->table->s->table_name.str,
+                              tab->table->alias.c_ptr()));
           tab->table->file->ha_index_or_rnd_end();
         }
       }
@@ -15102,8 +15098,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
     if (share->db_type() == TMP_ENGINE_HTON)
     {
       if (create_internal_tmp_table(table, param->keyinfo, param->start_recinfo,
-                                    &param->recinfo, select_options,
-                                    thd->variables.big_tables))
+                                    &param->recinfo, select_options))
         goto err;
     }
     if (open_tmp_table(table))
@@ -15322,7 +15317,7 @@ bool open_tmp_table(TABLE *table)
 bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
                                ENGINE_COLUMNDEF *start_recinfo,
                                ENGINE_COLUMNDEF **recinfo, 
-                               ulonglong options, my_bool big_tables)
+                               ulonglong options)
 {
   int error;
   MARIA_KEYDEF keydef;
@@ -15415,7 +15410,8 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
   }
   bzero((char*) &create_info,sizeof(create_info));
 
-  if (big_tables && !(options & SELECT_SMALL_RESULT))
+  /* Use long data format, to ensure we never get a 'table is full' error */
+  if (!(options & SELECT_SMALL_RESULT))
     create_info.data_file_length= ~(ulonglong) 0;
 
   /*
@@ -15505,7 +15501,7 @@ bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
 bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
                                ENGINE_COLUMNDEF *start_recinfo,
                                ENGINE_COLUMNDEF **recinfo,
-                               ulonglong options, my_bool big_tables)
+                               ulonglong options)
 {
   int error;
   MI_KEYDEF keydef;
@@ -15592,7 +15588,7 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
   MI_CREATE_INFO create_info;
   bzero((char*) &create_info,sizeof(create_info));
 
-  if (big_tables && !(options & SELECT_SMALL_RESULT))
+  if (!(options & SELECT_SMALL_RESULT))
     create_info.data_file_length= ~(ulonglong) 0;
 
   if ((error=mi_create(share->table_name.str, share->keys, &keydef,
@@ -15682,8 +15678,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   if (create_internal_tmp_table(&new_table, table->key_info, start_recinfo,
                                 recinfo,
                                 thd->lex->select_lex.options | 
-			        thd->variables.option_bits,
-                                thd->variables.big_tables))
+			        thd->variables.option_bits))
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
@@ -17209,6 +17204,8 @@ join_read_first(JOIN_TAB *tab)
 {
   int error= 0;
   TABLE *table=tab->table;
+  DBUG_ENTER("join_read_first");
+
   if (table->covering_keys.is_set(tab->index) && !table->no_keyread &&
       !table->key_read)
     table->enable_keyread();
@@ -17225,9 +17222,9 @@ join_read_first(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       report_error(table, error);
-    return -1;
+    DBUG_RETURN(-1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -17247,6 +17244,8 @@ join_read_last(JOIN_TAB *tab)
 {
   TABLE *table=tab->table;
   int error= 0;
+  DBUG_ENTER("join_read_first");
+
   if (table->covering_keys.is_set(tab->index) && !table->no_keyread &&
       !table->key_read)
     table->enable_keyread();
@@ -17260,9 +17259,9 @@ join_read_last(JOIN_TAB *tab)
   if (!error)
     error= table->file->prepare_index_scan();
   if (error || (error= tab->table->file->ha_index_last(tab->table->record[0])))
-    return report_error(table, error);
+    DBUG_RETURN(report_error(table, error));
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 

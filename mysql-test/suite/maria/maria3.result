@@ -312,7 +312,7 @@ aria_log_file_size	4294959104
 aria_log_purge_type	immediate
 aria_max_sort_file_size	9223372036853727232
 aria_pagecache_age_threshold	300
-aria_pagecache_buffer_size	134217728
+aria_pagecache_buffer_size	8388608
 aria_pagecache_division_limit	100
 aria_page_checksum	OFF
 aria_recover	NORMAL
