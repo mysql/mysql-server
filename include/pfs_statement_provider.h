@@ -39,7 +39,8 @@ void pfs_register_statement_v1(const char *category,
 PSI_statement_locker*
 pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
                                    PSI_statement_key key,
-                                   const void *charset);
+                                   const void *charset,
+                                   PSI_sp_share *sp_share);
 
 PSI_statement_locker*
 pfs_refine_statement_v1(PSI_statement_locker *locker,
