@@ -108,7 +108,7 @@ class ColumnImpl implements Column {
         this.precision = ndbColumn.getPrecision();
         this.scale = ndbColumn.getScale();
         this.size = ndbColumn.getSize();
-        logger.info("ColumnImpl column type: " + this.columnType);
+        logger.detail("ColumnImpl column type: " + this.columnType);
         switch(ndbColumn.getType()) {
             case ColumnConst.Type.Tinyint:
             case ColumnConst.Type.Tinyunsigned:
