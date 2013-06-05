@@ -23,8 +23,6 @@ Data types
 Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
-#include <string.h> /* strlen() */
-
 #include "mach0data.h"
 #ifndef UNIV_HOTBACKUP
 # include "ha_prototypes.h"
@@ -246,48 +244,6 @@ dtype_get_mbmaxlen(
 {
 	ut_ad(type);
 	return(DATA_MBMAXLEN(type->mbminmaxlen));
-}
-
-/*********************************************************************//**
-Gets the padding character code for a type.
-@return	padding character code, or ULINT_UNDEFINED if no padding specified */
-UNIV_INLINE
-ulint
-dtype_get_pad_char(
-/*===============*/
-	ulint	mtype,		/*!< in: main type */
-	ulint	prtype)		/*!< in: precise type */
-{
-	switch (mtype) {
-	case DATA_FIXBINARY:
-	case DATA_BINARY:
-		if (dtype_get_charset_coll(prtype)
-		    == DATA_MYSQL_BINARY_CHARSET_COLL) {
-			/* Starting from 5.0.18, do not pad
-			VARBINARY or BINARY columns. */
-			return(ULINT_UNDEFINED);
-		}
-		/* Fall through */
-	case DATA_CHAR:
-	case DATA_VARCHAR:
-	case DATA_MYSQL:
-	case DATA_VARMYSQL:
-		/* Space is the padding character for all char and binary
-		strings, and starting from 5.0.3, also for TEXT strings. */
-
-		return(0x20);
-	case DATA_GEOMETRY:
-                /* DATA_GEOMETRY is binary data, not ASCII-based. */
-	        return(ULINT_UNDEFINED);
-	case DATA_BLOB:
-		if (!(prtype & DATA_BINARY_TYPE)) {
-			return(0x20);
-		}
-		/* Fall through */
-	default:
-		/* No padding specified */
-		return(ULINT_UNDEFINED);
-	}
 }
 
 /**********************************************************************//**

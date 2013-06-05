@@ -24,16 +24,6 @@ InnoDB Native API
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
 *******************************************************/
 
-#include "univ.i"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
 #include "ha_prototypes.h"
 
 #include "api0api.h"
@@ -52,9 +42,7 @@ InnoDB Native API
 #include "row0sel.h"
 #include "lock0lock.h"
 #include "rem0cmp.h"
-#include "ut0dbg.h"
 #include "dict0priv.h"
-#include "ut0ut.h"
 #include "trx0roll.h"
 
 /** configure variable for binlog option with InnoDB APIs */
@@ -2382,23 +2370,12 @@ ib_col_set_value(
 		ut_error;
 		break;
 
-	case DATA_CHAR: {
-		ulint	pad_char = ULINT_UNDEFINED;
-
-		pad_char = dtype_get_pad_char(
-			dtype_get_mtype(dtype),	dtype_get_prtype(dtype));
-
-		ut_a(pad_char != ULINT_UNDEFINED);
-
-		memset((byte*) dst + len,
-		       pad_char,
-		       col_len - len);
-
+	case DATA_CHAR:
 		memcpy(dst, src, len);
-
+		memset((byte*) dst + len, 0x20, col_len - len);
 		len = col_len;
 		break;
-	}
+
 	case DATA_BLOB:
 	case DATA_GEOMETRY:
 	case DATA_BINARY:

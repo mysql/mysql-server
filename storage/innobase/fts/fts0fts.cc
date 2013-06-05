@@ -4958,20 +4958,20 @@ fts_get_doc_id_from_rec(
 	ulint		len;
 	const byte*	data;
 	ulint		col_no;
-	ulint*		offsets;
 	doc_id_t	doc_id = 0;
 	dict_index_t*	clust_index;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets = offsets_;
+	mem_heap_t*	my_heap = heap;
 
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
-	offsets	= offsets_;
 	clust_index = dict_table_get_first_index(table);
 
-	offsets_[0] = UT_ARR_SIZE(offsets_);
+	rec_offs_init(offsets_);
 
 	offsets = rec_get_offsets(
-		rec, clust_index, offsets, ULINT_UNDEFINED, &heap);
+		rec, clust_index, offsets, ULINT_UNDEFINED, &my_heap);
 
 	col_no = dict_col_get_clust_pos(
 		&table->cols[table->fts->doc_col], clust_index);
@@ -4982,6 +4982,10 @@ fts_get_doc_id_from_rec(
 	ut_a(len == 8);
 	ut_ad(8 == sizeof(doc_id));
 	doc_id = static_cast<doc_id_t>(mach_read_from_8(data));
+
+	if (my_heap && !heap) {
+		mem_heap_free(my_heap);
+	}
 
 	return(doc_id);
 }

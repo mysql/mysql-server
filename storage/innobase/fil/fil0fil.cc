@@ -23,10 +23,9 @@ The tablespace memory cache
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
 
-#include "fil0fil.h"
-
 #include "ha_prototypes.h"
 
+#include "fil0fil.h"
 #include "mem0mem.h"
 #include "hash0hash.h"
 #include "os0file.h"
@@ -48,7 +47,6 @@ Created 10/25/1995 Heikki Tuuri
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
 # include "sync0sync.h"
-# include "os0sync.h"
 #else /* !UNIV_HOTBACKUP */
 # include "srv0srv.h"
 static ulint srv_data_read, srv_data_written;
@@ -312,7 +310,9 @@ initialized. */
 static fil_system_t*	fil_system	= NULL;
 
 /** Determine if (i) is a user tablespace id or not. */
-# define fil_is_user_tablespace_id(i) ((i) > srv_undo_tablespaces_open)
+# define fil_is_user_tablespace_id(i) 		\
+	(((i) > srv_undo_tablespaces_open)	\
+	 && ((i) != srv_tmp_space.space_id()))
 
 /** Determine if user has explicitly disabled fsync(). */
 #ifndef _WIN32
@@ -362,11 +362,8 @@ fil_space_belongs_in_lru(
 /*=====================*/
 	const fil_space_t*	space)	/*!< in: file space */
 {
-	/* Even if temp-tablespace id > undo-tablespace-open it serve
-	as system-level-tablepsace so indicate it accordingly.*/
 	return(space->purpose == FIL_TABLESPACE
-	       && (space->id == srv_tmp_space.space_id()
-		   ? false : fil_is_user_tablespace_id(space->id)));
+	       && fil_is_user_tablespace_id(space->id));
 }
 
 /********************************************************************//**

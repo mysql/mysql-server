@@ -23,9 +23,12 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
-#include "i_s.h"
 #include "ha_prototypes.h"
+#include <sql_acl.h>
+#include <sql_show.h>
+#include <sql_time.h>
 
+#include "i_s.h"
 #include "btr0pcur.h"
 #include "btr0types.h"
 #include "dict0dict.h"

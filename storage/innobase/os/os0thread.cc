@@ -23,18 +23,15 @@ The interface to the operating system thread control primitives
 Created 9/8/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "os0thread.h"
 #ifdef UNIV_NONINL
 #include "os0thread.ic"
 #endif
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #ifndef UNIV_HOTBACKUP
 #include "srv0srv.h"
-#include "os0sync.h"
 
 #ifdef _WIN32
 /** This STL map remembers the initial handle returned by CreateThread
@@ -136,7 +133,7 @@ os_thread_create_func(
 			"CreateThread returned %d", GetLastError());
 	}
 
-	std::pair<map<DWORD, HANDLE>::iterator,bool> ret;
+	std::pair<std::map<DWORD, HANDLE>::iterator,bool> ret;
 	ret = win_thread_map.insert(
 		std::pair<DWORD, HANDLE>(new_thread_id, handle));
 	ut_ad((*ret.first).first == new_thread_id);

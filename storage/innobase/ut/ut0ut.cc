@@ -23,24 +23,24 @@ Various utilities for Innobase.
 Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
-#include "ut0ut.h"
+#include "ha_prototypes.h"
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "os0thread.h" /* thread-ID */
+#ifndef UNIV_HOTBACKUP
+# include <mysql_com.h>
+#endif /* !UNIV_HOTBACKUP */
+
+#include "os0thread.h"
+#include "ut0ut.h"
 
 #ifdef UNIV_NONINL
 #include "ut0ut.ic"
 #endif
 
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
-
 #ifndef UNIV_HOTBACKUP
 # include "trx0trx.h"
-# include "ha_prototypes.h"
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 /** A constant to prevent the compiler from optimizing ut_delay() away. */
 ibool	ut_always_false	= FALSE;
@@ -221,7 +221,7 @@ ut_print_timestamp(
 
 #ifndef UNIV_INNOCHECKSUM
 	thread_id = os_thread_pf(os_thread_get_curr_id());
-#endif
+#endif /* !UNIV_INNOCHECKSUM */
 
 #ifdef _WIN32
 	SYSTEMTIME cal_tm;
@@ -386,9 +386,9 @@ ut_get_year_month_day(
 	*day = (ulint) cal_tm_ptr->tm_mday;
 #endif
 }
-#endif /* UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
+#else /* UNIV_HOTBACKUP */
+
 /*************************************************************//**
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++.
@@ -414,7 +414,7 @@ ut_delay(
 
 	return(j);
 }
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_HOTBACKUP */
 
 /*************************************************************//**
 Prints the contents of a memory buffer in hex and ascii. */
@@ -595,7 +595,9 @@ ut_print_namel(
 				       trx ? trx->mysql_thd : NULL,
 				       table_id);
 
-	fwrite(buf, 1, bufend - buf, f);
+	if (fwrite(buf, 1, bufend - buf, f) != (size_t) (bufend - buf)) {
+		perror("fwrite");
+	}
 }
 
 /**********************************************************************//**
@@ -660,7 +662,9 @@ ut_copy_file(
 			? (size_t) len
 			: sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
-		fwrite(buf, 1, size, dest);
+		if (fwrite(buf, 1, size, dest) != size) {
+			perror("fwrite");
+		}
 		len -= (long) size;
 		if (size < maxs) {
 			break;

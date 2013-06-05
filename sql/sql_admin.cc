@@ -353,7 +353,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           because it's already known that the table is badly damaged.
         */
 
-        Diagnostics_area tmp_da(thd->query_id, false);
+        Diagnostics_area tmp_da(false);
         thd->push_diagnostics_area(&tmp_da);
 
         open_error= open_temporary_tables(thd, table);
@@ -665,7 +665,7 @@ send_result:
         if (protocol->write())
           goto err;
       }
-      thd->get_stmt_da()->reset_condition_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd);
     }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);

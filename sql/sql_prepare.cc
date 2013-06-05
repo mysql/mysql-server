@@ -959,6 +959,9 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
 
   DBUG_ENTER("setup_conversion_functions");
 
+  if (read_pos >= data_end)
+    DBUG_RETURN(1);
+
   if (*read_pos++) //types supplied / first execute
   {
     /*
@@ -1996,10 +1999,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   lex->select_lex->context.resolve_in_table_list_only(select_lex->
                                                       get_table_list());
 
-  /* Reset warning count for each query that uses tables */
-  if (tables)
-    thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
-
   /*
     For the optimizer trace, this is the symmetric, for statement preparation,
     of what is done at statement execution (in mysql_execute_command()).
@@ -2010,6 +2009,13 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 
   Opt_trace_object trace_command(&thd->opt_trace);
   Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
+
+  if ((thd->lex->keep_diagnostics == DA_KEEP_COUNTS) ||
+      (thd->lex->keep_diagnostics == DA_KEEP_DIAGNOSTICS))
+  {
+    my_error(ER_UNSUPPORTED_PS, MYF(0));
+    goto error;
+  }
 
   if (sql_command_flags[sql_command] & CF_HA_CLOSE)
     mysql_ha_rm_tables(thd, tables);
@@ -2144,10 +2150,13 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_DEALLOCATE_PREPARE:
   default:
     /*
-      Trivial check of all status commands. This is easier than having
-      things in the above case list, as it's less chance for mistakes.
+      Trivial check of all status commands and diagnostic commands.
+      This is easier than having things in the above case list,
+      as it's less chance for mistakes.
     */
-    if (!(sql_command_flags[sql_command] & CF_STATUS_COMMAND))
+    if (!(sql_command_flags[sql_command] & CF_STATUS_COMMAND)
+       || (sql_command_flags[sql_command] & CF_DIAGNOSTIC_STMT)
+      )
     {
       /* All other statements are not supported yet. */
       my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
@@ -2260,7 +2269,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
 
-  /* check_prepared_statemnt sends the metadata packet in case of success */
+  /* check_prepared_statement sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
 }
 
@@ -2606,8 +2615,8 @@ static void reset_stmt_params(Prepared_statement *stmt)
 void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
   uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
-  ulong stmt_id= uint4korr(packet);
-  ulong flags= (ulong) packet[4];
+  ulong stmt_id;
+  ulong flags;
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
   uchar *packet_end= packet + packet_length;
@@ -2616,6 +2625,14 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   bool open_cursor;
   DBUG_ENTER("mysqld_stmt_execute");
 
+  if (packet + 9 > packet_end)
+  {
+    my_error(ER_MALFORMED_PACKET, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+
+  stmt_id= uint4korr(packet);
+  flags= (ulong) packet[4];
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
   /* First of all clear possible warnings from the previous command */
@@ -2710,12 +2727,20 @@ void mysql_sql_stmt_execute(THD *thd)
 void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
 {
   /* assume there is always place for 8-16 bytes */
-  ulong stmt_id= uint4korr(packet);
-  ulong num_rows= uint4korr(packet+4);
+  ulong stmt_id;
+  ulong num_rows;
   Prepared_statement *stmt;
   Statement stmt_backup;
   Server_side_cursor *cursor;
   DBUG_ENTER("mysqld_stmt_fetch");
+
+  if (packet_length < 8)
+  {
+    my_error(ER_MALFORMED_PACKET, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+  stmt_id= uint4korr(packet);
+  num_rows= uint4korr(packet+4);
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2767,14 +2792,22 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   @param thd                Thread handle
   @param packet             Packet with stmt id
+  @param packet_length      length of data in packet
 */
 
-void mysqld_stmt_reset(THD *thd, char *packet)
+void mysqld_stmt_reset(THD *thd, char *packet, uint packet_length)
 {
-  /* There is always space for 4 bytes in buffer */
-  ulong stmt_id= uint4korr(packet);
+  ulong stmt_id;
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_reset");
+
+  if (packet_length < 4)
+  {
+    my_error(ER_MALFORMED_PACKET, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+
+  stmt_id= uint4korr(packet);
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2813,12 +2846,20 @@ void mysqld_stmt_reset(THD *thd, char *packet)
     we don't send any reply to this command.
 */
 
-void mysqld_stmt_close(THD *thd, char *packet)
+void mysqld_stmt_close(THD *thd, char *packet, uint packet_length)
 {
   /* There is always space for 4 bytes in packet buffer */
-  ulong stmt_id= uint4korr(packet);
+  ulong stmt_id;
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_close");
+
+  if (packet_length < 4)
+  {
+    my_error(ER_MALFORMED_PACKET, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+
+  stmt_id= uint4korr(packet);
 
   thd->get_stmt_da()->disable_status();
 
@@ -2925,7 +2966,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   param= stmt->param_array[param_number];
 
-  Diagnostics_area new_stmt_da(thd->query_id, false);
+  Diagnostics_area new_stmt_da(false);
   thd->push_diagnostics_area(&new_stmt_da);
 
 #ifndef EMBEDDED_LIBRARY
@@ -3015,7 +3056,12 @@ Reprepare_observer::report_error(THD *thd)
     The Diagnostics Area is set to an error status to enforce
     that this thread execution stops and returns to the caller,
     backtracking all the way to Prepared_statement::execute_loop().
+
+    As the DA has not yet been reset at this point, we'll need to
+    reset the previous statement's result status first.
+    Test with rpl_sp_effects and friends.
   */
+  thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
   m_invalidated= TRUE;
 
@@ -3326,6 +3372,13 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lex->set_trg_event_type_for_tables();
 
   /*
+    Pre-clear the diagnostics area unless a warning was thrown
+    during parsing.
+  */
+  if (thd->lex->keep_diagnostics != DA_KEEP_PARSE_ERROR)
+    thd->get_stmt_da()->reset_condition_info(thd);
+
+  /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
     tables, etc.  Let's save a snapshot of current parse tree to the
@@ -3504,6 +3557,8 @@ Prepared_statement::execute_loop(String *expanded_query,
     return TRUE;
   }
 
+  DBUG_ASSERT(!thd->get_stmt_da()->is_set());
+
   if (set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
@@ -3649,7 +3704,7 @@ Prepared_statement::reprepare()
       Sic: we can't simply silence warnings during reprepare, because if
       it's failed, we need to return all the warnings to the user.
     */
-    thd->get_stmt_da()->reset_condition_info(thd->query_id);
+    thd->get_stmt_da()->reset_condition_info(thd);
   }
   return error;
 }
@@ -3780,6 +3835,22 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   thd->status_var.com_stmt_execute++;
 
+  /*
+    Reset the diagnostics area.
+
+    For regular statements, this would have happened in the parsing
+    stage.
+
+    SQL prepared statements (SQLCOM_EXECUTE) also have a parsing
+    stage first (where we find out it's EXECUTE ... [USING ...]).
+
+    However, ps-protocol prepared statements have no parsing stage for
+    COM_STMT_EXECUTE before coming here, so we reset the condition info
+    here.  Since diagnostics statements can't be prepared, we don't need
+    to make an exception for them.
+  */
+  thd->get_stmt_da()->reset_condition_info(thd);
+
   if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));
@@ -3813,7 +3884,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
   DBUG_ASSERT(thd->change_list.is_empty());
 
-  /* 
+  /*
    The only case where we should have items in the thd->free_list is
    after stmt->set_params_from_vars(), which may in some cases create
    Item_null objects.
@@ -3859,6 +3930,13 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
   reinit_stmt_before_use(thd, lex);
+
+  /*
+    Set a hint so mysql_execute_command() won't clear the DA *again*,
+    thereby discarding any conditions we might raise in here
+    (e.g. "database we prepared with no longer exists", ER_BAD_DB_ERROR).
+  */
+  thd->lex->keep_diagnostics= DA_KEEP_PARSE_ERROR;
 
   /* Go! */
 
@@ -4012,7 +4090,7 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
 */
 
 Ed_connection::Ed_connection(THD *thd)
-  :m_diagnostics_area(thd->query_id, false),
+  :m_diagnostics_area(false),
   m_thd(thd),
   m_rsets(0),
   m_current_rset(0)
@@ -4038,7 +4116,7 @@ Ed_connection::free_old_result()
   }
   m_current_rset= m_rsets;
   m_diagnostics_area.reset_diagnostics_area();
-  m_diagnostics_area.reset_condition_info(m_thd->query_id);
+  m_diagnostics_area.reset_condition_info(m_thd);
 }
 
 

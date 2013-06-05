@@ -30,7 +30,7 @@ Created 2007-03-27 Sunny Bains
 #include "fts0types.h"
 #include "fts0priv.h"
 
-#ifndef UNIV_NONINL
+#ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif

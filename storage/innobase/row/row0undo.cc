@@ -23,6 +23,8 @@ Row undo
 Created 1/8/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0undo.h"
 
 #ifdef UNIV_NONINL
@@ -262,10 +264,9 @@ row_undo(
 
 	if (node->state == UNDO_NODE_FETCH_NEXT) {
 
-		node->undo_rec = trx_roll_pop_top_rec_of_trx(trx,
-							     trx->roll_limit,
-							     &roll_ptr,
-							     node->heap);
+		node->undo_rec = trx_roll_pop_top_rec_of_trx(
+			trx, trx->roll_limit, &roll_ptr, node->heap);
+
 		if (!node->undo_rec) {
 			/* Rollback completed for this query thread */
 

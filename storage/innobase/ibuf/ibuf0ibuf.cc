@@ -23,6 +23,8 @@ Insert buffer
 Created 7/19/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "ibuf0ibuf.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -42,8 +44,6 @@ my_bool	srv_ibuf_disable_background_merge;
 #endif
 
 #ifndef UNIV_HOTBACKUP
-
-#include "ha_prototypes.h"
 
 #include "buf0buf.h"
 #include "buf0rea.h"
@@ -3801,6 +3801,10 @@ ibuf_insert(
 	/* Read the settable global variable ibuf_use only once in
 	this function, so that we will have a consistent view of it. */
 	ibuf_use_t	use		= ibuf_use;
+	DBUG_ENTER("ibuf_insert");
+
+	DBUG_PRINT("ibuf", ("op: %d, space: %ld, page_no: %ld",
+			    op, space, page_no));
 
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(ut_is_2pow(zip_size));
@@ -3816,7 +3820,7 @@ ibuf_insert(
 		case IBUF_USE_NONE:
 		case IBUF_USE_DELETE:
 		case IBUF_USE_DELETE_MARK:
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		case IBUF_USE_INSERT:
 		case IBUF_USE_INSERT_DELETE_MARK:
 		case IBUF_USE_ALL:
@@ -3829,7 +3833,7 @@ ibuf_insert(
 		switch (use) {
 		case IBUF_USE_NONE:
 		case IBUF_USE_INSERT:
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		case IBUF_USE_DELETE_MARK:
 		case IBUF_USE_DELETE:
 		case IBUF_USE_INSERT_DELETE_MARK:
@@ -3845,7 +3849,7 @@ ibuf_insert(
 		case IBUF_USE_NONE:
 		case IBUF_USE_INSERT:
 		case IBUF_USE_INSERT_DELETE_MARK:
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		case IBUF_USE_DELETE_MARK:
 		case IBUF_USE_DELETE:
 		case IBUF_USE_ALL:
@@ -3887,7 +3891,7 @@ check_watch:
 			is being buffered, have this request executed
 			directly on the page in the buffer pool after the
 			buffered entries for this page have been merged. */
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		}
 	}
 
@@ -3898,7 +3902,7 @@ skip_watch:
 	    >= page_get_free_space_of_empty(dict_table_is_comp(index->table))
 	    / 2) {
 
-		return(FALSE);
+		DBUG_RETURN(FALSE);
 	}
 
 	err = ibuf_insert_low(BTR_MODIFY_PREV, op, no_counter,
@@ -3915,12 +3919,12 @@ skip_watch:
 		/* fprintf(stderr, "Ibuf insert for page no %lu of index %s\n",
 		page_no, index->name); */
 #endif
-		return(TRUE);
+		DBUG_RETURN(TRUE);
 
 	} else {
 		ut_a(err == DB_STRONG_FAIL || err == DB_TOO_BIG_RECORD);
 
-		return(FALSE);
+		DBUG_RETURN(FALSE);
 	}
 }
 
@@ -4031,6 +4035,11 @@ ibuf_insert_to_index_page(
 
 	DBUG_ENTER("ibuf_insert_to_index_page");
 
+	DBUG_PRINT("ibuf", ("page_no: %ld", buf_block_get_page_no(block)));
+	DBUG_PRINT("ibuf", ("index name: %s", index->name));
+	DBUG_PRINT("ibuf", ("online status: %d",
+			    dict_index_get_online_status(index)));
+
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!buf_block_align(page)->index);
@@ -4077,8 +4086,7 @@ dump:
 		DBUG_VOID_RETURN;
 	}
 
-	low_match = page_cur_search(block, index, entry,
-				    PAGE_CUR_LE, &page_cur);
+	low_match = page_cur_search(block, index, entry, &page_cur);
 
 	heap = mem_heap_create(
 		sizeof(upd_t)
@@ -4193,8 +4201,7 @@ ibuf_set_del_mark(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 
-	low_match = page_cur_search(
-		block, index, entry, PAGE_CUR_LE, &page_cur);
+	low_match = page_cur_search(block, index, entry, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
 		rec_t*		rec;
@@ -4259,8 +4266,7 @@ ibuf_delete(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 
-	low_match = page_cur_search(
-		block, index, entry, PAGE_CUR_LE, &page_cur);
+	low_match = page_cur_search(block, index, entry, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
 		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);

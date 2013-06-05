@@ -38,13 +38,10 @@ The database server main program
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
-/* Dummy comment */
-#include "srv0srv.h"
-
 #include "ha_prototypes.h"
 
+#include "srv0srv.h"
 #include "ut0mem.h"
-#include "ut0ut.h"
 #include "os0proc.h"
 #include "mem0mem.h"
 #include "mem0pool.h"
@@ -61,12 +58,11 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
-#include "dict0stats_bg.h" /* dict_stats_event */
+#include "dict0stats_bg.h"
 #include "srv0space.h"
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "trx0i_s.h"
-#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 #include "srv0mon.h"
 #include "ut0crc32.h"
 
@@ -107,6 +103,10 @@ ulint	srv_undo_tablespaces_open = 8;
 
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
+
+/** UNDO logs that are not redo logged.
+These logs reside in the temp tablespace.*/
+const ulong		srv_tmp_undo_logs = 32;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
@@ -2376,7 +2376,7 @@ srv_task_execute(void)
 		que_run_threads(thr);
 
 		os_atomic_inc_ulint(
-			&purge_sys->bh_mutex, &purge_sys->n_completed, 1);
+			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
 	}
 
 	return(thr != NULL);

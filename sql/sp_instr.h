@@ -102,10 +102,22 @@ public:
   sp_pcontext *get_parsing_ctx() const
   { return m_parsing_ctx; }
 
+protected:
+  /**
+    Clear diagnostics area.
+    @param thd         Thread context
+  */
+  void clear_da(THD *thd) const
+  {
+    thd->get_stmt_da()->reset_diagnostics_area();
+    thd->get_stmt_da()->reset_condition_info(thd);
+  }
+
   ///////////////////////////////////////////////////////////////////////////
   // The following operations are used solely for SP-code-optimizer.
   ///////////////////////////////////////////////////////////////////////////
 
+public:
   /**
     Mark this instruction as reachable during optimization and return the
     index to the next instruction. Jump instruction will add their
@@ -259,7 +271,15 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual bool execute(THD *thd, uint *nextp)
-  { return validate_lex_and_execute_core(thd, nextp, true); }
+  {
+    /*
+      SP instructions with expressions should clear DA before execution.
+      Note that sp_instr_stmt will override execute(), but it clears DA
+      during normal mysql_execute_command().
+    */
+    clear_da(thd);
+    return validate_lex_and_execute_core(thd, nextp, true);
+  }
 
 protected:
   /////////////////////////////////////////////////////////////////////////
@@ -442,7 +462,7 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 /**
-  sp_instr_set represents SET-statememnts, which deal with SP-variables.
+  sp_instr_set represents SET-statements, which deal with SP-variables.
 */
 class sp_instr_set : public sp_lex_instr
 {

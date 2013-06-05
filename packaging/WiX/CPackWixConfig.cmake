@@ -23,7 +23,7 @@ IF(ESSENTIALS)
  ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Embedded;Debuginfo;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries")
+    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries")
 ENDIF()
 
 
