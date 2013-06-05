@@ -903,7 +903,7 @@ pthread_handler_t handle_one_connection(void *arg)
 bool thd_prepare_connection(THD *thd)
 {
   bool rc;
-  //lex_start(thd);
+  lex_start(thd);
   rc= login_connection(thd);
   MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
   if (rc)
