@@ -34,8 +34,6 @@ processing.
 
 #include "ut0list.h"
 #include "mem0mem.h"
-#include "os0sync.h"
-#include "sync0types.h"
 
 struct ib_wqueue_t;
 

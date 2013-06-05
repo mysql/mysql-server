@@ -79,10 +79,10 @@ mysys/my_perf.c, contributed by Facebook under the following license.
  * factor of two increase in speed on a Power PC G4 (PPC7455) using gcc -O3.
  */
 
+#include <string.h>
+
 #include "univ.i"
 #include "ut0crc32.h"
-
-#include <string.h>
 
 ib_ut_crc32_t	ut_crc32;
 

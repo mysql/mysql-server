@@ -24,15 +24,14 @@ from dictionary tables
 Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
-#include "dict0load.h"
-#include "mysql_version.h"
+#include "ha_prototypes.h"
 
+#include "dict0load.h"
 #ifdef UNIV_NONINL
 #include "dict0load.ic"
 #endif
 
-#include "ha_prototypes.h" /* innobase_casedn_str() */
-
+#include "mysql_version.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "page0page.h"

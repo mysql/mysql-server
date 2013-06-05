@@ -24,13 +24,16 @@ Contains also create table and other data dictionary operations.
 Created 9/17/2000 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+#include <debug_sync.h>
+#include <gstream.h>
+#include <spatial.h>
+
 #include "row0mysql.h"
 
 #ifdef UNIV_NONINL
 #include "row0mysql.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "row0ins.h"
 #include "row0merge.h"
@@ -3733,7 +3736,8 @@ row_truncate_table_for_mysql(
 
 		mutex_enter(&trx->undo_mutex);
 
-		err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
+		err = trx_undo_assign_undo(
+			trx, &trx->rsegs.m_redo, TRX_UNDO_UPDATE);
 
 		mutex_exit(&trx->undo_mutex);
 
@@ -5402,7 +5406,6 @@ row_scan_index_for_mysql(
 {
 	dtuple_t*	prev_entry	= NULL;
 	ulint		matched_fields;
-	ulint		matched_bytes;
 	byte*		buf;
 	dberr_t		ret;
 	rec_t*		rec;
@@ -5487,11 +5490,9 @@ func_exit:
 
 	if (prev_entry != NULL) {
 		matched_fields = 0;
-		matched_bytes = 0;
 
 		cmp = cmp_dtuple_rec_with_match(prev_entry, rec, offsets,
-						&matched_fields,
-						&matched_bytes);
+						&matched_fields);
 		contains_null = FALSE;
 
 		/* In a unique secondary index we allow equal key values if

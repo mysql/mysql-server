@@ -5574,11 +5574,7 @@ void Item_func_regex::cleanup()
 }
 
 
-#ifdef LIKE_CMP_TOUPPER
-#define likeconv(cs,A) (uchar) (cs)->toupper(A)
-#else
 #define likeconv(cs,A) (uchar) (cs)->sort_order[(uchar) (A)]
-#endif
 
 
 /**

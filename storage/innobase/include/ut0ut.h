@@ -26,22 +26,14 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef ut0ut_h
 #define ut0ut_h
 
-#include "univ.i"
+/* Do not include univ.i because univ.i includes this. */
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "db0err.h"
-
 #ifndef UNIV_HOTBACKUP
-# include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+# include "os0sync.h"
 #endif /* UNIV_HOTBACKUP */
-
-#include <time.h>
-#ifndef MYSQL_SERVER
-#include <ctype.h>
-#endif
-
-#include <stdarg.h> /* for va_list */
+#include "db0err.h"
 #include <ostream>
 
 /** Index name prefix in fast index creation */
@@ -118,18 +110,6 @@ ut_max(
 /*===*/
 	ulint	 n1,	/*!< in: first number */
 	ulint	 n2);	/*!< in: second number */
-/****************************************************************//**
-Calculates minimum of two ulint-pairs. */
-UNIV_INLINE
-void
-ut_pair_min(
-/*========*/
-	ulint*	a,	/*!< out: more significant part of minimum */
-	ulint*	b,	/*!< out: less significant part of minimum */
-	ulint	a1,	/*!< in: more significant part of first pair */
-	ulint	b1,	/*!< in: less significant part of first pair */
-	ulint	a2,	/*!< in: more significant part of second pair */
-	ulint	b2);	/*!< in: less significant part of second pair */
 /******************************************************//**
 Compares two ulints.
 @return	1 if a > b, 0 if a == b, -1 if a < b */
@@ -139,17 +119,6 @@ ut_ulint_cmp(
 /*=========*/
 	ulint	a,	/*!< in: ulint */
 	ulint	b);	/*!< in: ulint */
-/*******************************************************//**
-Compares two pairs of ulints.
-@return	-1 if a < b, 0 if a == b, 1 if a > b */
-UNIV_INLINE
-int
-ut_pair_cmp(
-/*========*/
-	ulint	a1,	/*!< in: more significant part of first pair */
-	ulint	a2,	/*!< in: less significant part of first pair */
-	ulint	b1,	/*!< in: more significant part of second pair */
-	ulint	b2);	/*!< in: less significant part of second pair */
 /*************************************************************//**
 Determines if a number is zero or a power of two.
 @param n	in: number

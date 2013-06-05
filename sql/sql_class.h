@@ -902,7 +902,7 @@ public:
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
     CURRENTLY NOT IMPLEMENTED!
   */
-  void close_transient_cursors();
+  void close_transient_cursors() { }
   void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
   void reset();
@@ -3269,16 +3269,31 @@ public:
   { return get_stmt_da()->stacked_da(); }
 
   /**
+    Returns thread-local Diagnostics Area for parsing.
+    We need to have a clean DA in case errors or warnings are thrown
+    during parsing, but we can't just reset the main DA in case we
+    have a diagnostic statement on our hand that needs the old DA
+    to answer questions about the previous execution.
+    Keeping a static per-thread DA for parsing is less costly than
+    allocating a temporary one for each statement we parse.
+  */
+  Diagnostics_area *get_parser_da()
+  { return &m_parser_da; }
+
+  /**
     Push the given Diagnostics Area on top of the stack, making
     it the new first Diagnostics Area. Conditions in the new second
     Diagnostics Area will be copied to the new first Diagnostics Area.
 
     @param da   Diagnostics Area to be come the top of
                 the Diagnostics Area stack.
+    @param copy_conditions
+                Copy the conditions from the new second Diagnostics Area
+                to the new first Diagnostics Area, as per SQL standard.
   */
-  void push_diagnostics_area(Diagnostics_area *da)
+  void push_diagnostics_area(Diagnostics_area *da, bool copy_conditions= true)
   {
-    get_stmt_da()->push_diagnostics_area(this, da);
+    get_stmt_da()->push_diagnostics_area(this, da, copy_conditions);
     m_stmt_da= da;
   }
 
@@ -3810,6 +3825,7 @@ private:
   */
   MEM_ROOT main_mem_root;
   Diagnostics_area main_da;
+  Diagnostics_area m_parser_da;              /**< cf. get_parser_da() */
   Diagnostics_area *m_stmt_da;
 
   /**

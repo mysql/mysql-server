@@ -30,6 +30,8 @@ Database log
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "log0log.h"
 
 #ifdef UNIV_NONINL

@@ -30,20 +30,19 @@ Mutex, the basic synchronization primitive
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "sync0sync.h"
 #ifdef UNIV_NONINL
 #include "sync0sync.ic"
 #endif
 
-#include "ha_prototypes.h"
-
 #include "sync0rw.h"
 #include "buf0buf.h"
 #include "srv0srv.h"
 #include "buf0types.h"
-#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 #ifdef UNIV_SYNC_DEBUG
-# include "srv0start.h" /* srv_is_being_started */
+# include "srv0start.h"
 #endif /* UNIV_SYNC_DEBUG */
 
 /*
@@ -1181,7 +1180,8 @@ sync_thread_add_level(
 	case SYNC_LOCK_WAIT_SYS:
 	case SYNC_TRX_SYS:
 	case SYNC_IBUF_BITMAP_MUTEX:
-	case SYNC_RSEG:
+	case SYNC_NOREDO_RSEG:
+	case SYNC_REDO_RSEG:
 	case SYNC_TRX_UNDO:
 	case SYNC_PURGE_LATCH:
 	case SYNC_PURGE_QUEUE:
@@ -1275,11 +1275,13 @@ sync_thread_add_level(
 		without any covering mutex. */
 
 		ut_a(sync_thread_levels_contain(array, SYNC_TRX_UNDO)
-		     || sync_thread_levels_contain(array, SYNC_RSEG)
+		     || sync_thread_levels_contain(array, SYNC_REDO_RSEG)
+		     || sync_thread_levels_contain(array, SYNC_NOREDO_RSEG)
 		     || sync_thread_levels_g(array, level - 1, TRUE));
 		break;
 	case SYNC_RSEG_HEADER:
-		ut_a(sync_thread_levels_contain(array, SYNC_RSEG));
+		ut_a(sync_thread_levels_contain(array, SYNC_REDO_RSEG)
+		     || sync_thread_levels_contain(array, SYNC_NOREDO_RSEG));
 		break;
 	case SYNC_RSEG_HEADER_NEW:
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE));

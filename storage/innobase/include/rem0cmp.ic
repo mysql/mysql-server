@@ -23,19 +23,20 @@ Comparison services for records
 Created 7/1/1994 Heikki Tuuri
 ************************************************************************/
 
-#include "mysql_com.h"
+#include <mysql_com.h>
 
-/*************************************************************//**
-This function is used to compare two dfields where at least the first
-has its data type field set.
-@return 1, 0, -1, if dfield1 is greater, equal, less than dfield2,
-respectively */
+/** Compare two data fields.
+@param[in]	dfield1	data field; must have type field set
+@param[in]	dfield2	data field
+@return	the comparison result of dfield1 and dfield2
+@retval	0 if dfield1 is equal to dfield2
+@retval	negative if dfield1 is less than dfield2
+@retval	positive if dfield1 is greater than dfield2 */
 UNIV_INLINE
 int
 cmp_dfield_dfield(
-/*==============*/
-	const dfield_t*	dfield1,/*!< in: data field; must have type field set */
-	const dfield_t*	dfield2)/*!< in: data field */
+	const dfield_t*	dfield1,
+	const dfield_t*	dfield2)
 {
 	const dtype_t*	type;
 
@@ -50,39 +51,42 @@ cmp_dfield_dfield(
 			     dfield_get_len(dfield2)));
 }
 
-/*************************************************************//**
-This function is used to compare two physical records. Only the common
-first fields are compared.
-@return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than
-rec2; only the common first fields are compared */
+/** Compare two B-tree records.
+Only the common first fields are compared, and externally stored field
+are treated as equal.
+@param[in]	rec1		B-tree record
+@param[in]	rec2		B-tree record
+@param[in]	offsets1	rec_get_offsets(rec1, index)
+@param[in]	offsets2	rec_get_offsets(rec2, index)
+@return positive, 0, negative if rec1 is greater, equal, less, than rec2,
+respectively */
 UNIV_INLINE
 int
 cmp_rec_rec(
-/*========*/
-	const rec_t*	rec1,	/*!< in: physical record */
-	const rec_t*	rec2,	/*!< in: physical record */
-	const ulint*	offsets1,/*!< in: rec_get_offsets(rec1, index) */
-	const ulint*	offsets2,/*!< in: rec_get_offsets(rec2, index) */
-	dict_index_t*	index)	/*!< in: data dictionary index */
+	const rec_t*		rec1,
+	const rec_t*		rec2,
+	const ulint*		offsets1,
+	const ulint*		offsets2,
+	const dict_index_t*	index)
 {
-	ulint	match_f		= 0;
-	ulint	match_b		= 0;
+	ulint	match_f;
 
 	return(cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index,
-				      FALSE, &match_f, &match_b));
+				      false, &match_f));
 }
 
-/*****************************************************************
-This function is used to compare two dfields where at least the first
-has its data type field set. */
+/** Compare two data fields.
+@param[in]	dfield1	data field
+@param[in]	dfield2	data field
+@return	the comparison result of dfield1 and dfield2
+@retval	0 if dfield1 is equal to dfield2, or a prefix of dfield1
+@retval	negative if dfield1 is less than dfield2
+@retval	positive if dfield1 is greater than dfield2 */
 UNIV_INLINE
 int
 cmp_dfield_dfield_like_prefix(
-/*==========================*/
-				/* out: 1, 0, -1, if dfield1 is greater, equal,
-				less than dfield2, respectively */
-	const dfield_t*	dfield1,/* in: data field; must have type field set */
-	const dfield_t*	dfield2)/* in: data field */
+	const dfield_t*	dfield1,
+	const dfield_t*	dfield2)
 {
 	const dtype_t*  type;
 

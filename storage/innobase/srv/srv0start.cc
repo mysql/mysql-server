@@ -38,6 +38,8 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "ut0mem.h"
 #include "mem0mem.h"
 #include "data0data.h"
@@ -89,7 +91,6 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
-# include "os0sync.h"
 # include "zlib.h"
 # include "ut0crc32.h"
 
@@ -1122,7 +1123,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		srv_n_log_files_found = srv_n_log_files;
 	ulint		io_limit;
 	mtr_t		mtr;
-	ib_bh_t*	ib_bh;
+	purge_pq_t*	purge_queue;
 	ulint		n_recovered_trx;
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
@@ -1846,13 +1847,13 @@ files_checked:
 		after the double write buffer has been created. */
 		trx_sys_create_sys_pages();
 
-		ib_bh = trx_sys_init_at_db_start();
+		purge_queue = trx_sys_init_at_db_start();
 		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
+		trx_purge_sys_create(srv_n_purge_threads, purge_queue);
 
 		err = dict_create();
 
@@ -1924,13 +1925,13 @@ files_checked:
 			return(srv_init_abort(err));
 		}
 
-		ib_bh = trx_sys_init_at_db_start();
+		purge_queue = trx_sys_init_at_db_start();
 		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
+		trx_purge_sys_create(srv_n_purge_threads, purge_queue);
 
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */
@@ -2111,7 +2112,7 @@ files_checked:
 	be set using the dynamic global variable srv_undo_logs. */
 
 	srv_available_undo_logs = trx_sys_create_rsegs(
-		srv_undo_tablespaces, srv_undo_logs);
+		srv_undo_tablespaces, srv_undo_logs, srv_tmp_undo_logs);
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
 		/* Can only happen if force recovery is set. */

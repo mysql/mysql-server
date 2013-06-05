@@ -24,6 +24,11 @@ Data dictionary memory object creation
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
+#ifndef UNIV_HOTBACKUP
+#include "ha_prototypes.h"
+#include <mysql_com.h>
+#endif /* !UNIV_HOTBACKUP */
+
 #include "dict0mem.h"
 
 #ifdef UNIV_NONINL
@@ -35,11 +40,11 @@ Created 1/8/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "fts0priv.h"
+
 #ifndef UNIV_HOTBACKUP
-# include "ha_prototypes.h"	/* innobase_casedn_str(),
-				innobase_get_lower_case_table_names */
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
+
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
 #endif /* UNIV_BLOB_DEBUG */

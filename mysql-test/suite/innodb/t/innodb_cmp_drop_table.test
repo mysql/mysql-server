@@ -37,7 +37,7 @@ create table t2(a text) engine=innodb;
 
 -- disable_query_log
 
--- let $i = 200
+-- let $i = 500
 while ($i)
 {
   insert into t2 values(repeat('abcdefghijklmnopqrstuvwxyz',1000));

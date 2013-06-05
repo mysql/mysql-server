@@ -600,8 +600,42 @@ connection ddl;
 connection default;
 drop table t1;
 drop table t2;
+disconnect con1;
 
 ###########################################################################
 
 SET DEBUG_SYNC = 'RESET';
 DROP FUNCTION MY_KILL;
+
+
+--echo #
+--echo # Bug#12661349 assert in protocol::end_statement
+--echo #
+
+--echo # Note: This test case should be run with --ps-protocol
+
+CREATE TABLE t1 (col1 INT);
+--enable_connect_log
+
+--connect(con1, localhost, root)
+--let $con1_id= `SELECT CONNECTION_ID()`
+SET DEBUG_SYNC= 'before_execute_sql_command SIGNAL waiting WAIT_FOR killed';
+--send SELECT * FROM t1
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR waiting';
+--replace_result $con1_id <con1_id>
+--eval KILL QUERY $con1_id
+SET DEBUG_SYNC= 'now SIGNAL killed';
+
+--connection con1
+# Here the server asserts when running with "--ps-protocol"
+--error ER_QUERY_INTERRUPTED
+--reap
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP TABLE t1;
+--disable_connect_log
+SET DEBUG_SYNC= 'RESET';

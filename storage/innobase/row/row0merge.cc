@@ -209,14 +209,15 @@ row_merge_buf_add(
 	ulint			bucket = 0;
 	doc_id_t		write_doc_id;
 	ulint			n_row_added = 0;
+	DBUG_ENTER("row_merge_buf_add");
 
 	if (buf->n_tuples >= buf->max_tuples) {
-		return(0);
+		DBUG_RETURN(0);
 	}
 
 	DBUG_EXECUTE_IF(
 		"ib_row_merge_buf_add_two",
-		if (buf->n_tuples >= 2) return(0););
+		if (buf->n_tuples >= 2) DBUG_RETURN(0););
 
 	UNIV_PREFETCH_R(row->fields);
 
@@ -293,7 +294,7 @@ row_merge_buf_add(
 						ib_logf(IB_LOG_LEVEL_WARN,
 							"FTS Doc ID is zero. "
 							"Record Skipped");
-						return(0);
+						DBUG_RETURN(0);
 					}
 				}
 
@@ -410,7 +411,7 @@ row_merge_buf_add(
 	/* If this is FTS index, we already populated the sort buffer, return
 	here */
 	if (index->type & DICT_FTS) {
-		return(n_row_added);
+		DBUG_RETURN(n_row_added);
 	}
 
 #ifdef UNIV_DEBUG
@@ -436,7 +437,7 @@ row_merge_buf_add(
 
 	/* Reserve one byte for the end marker of row_merge_block_t. */
 	if (buf->total_size + data_size >= srv_sort_buf_size - 1) {
-		return(0);
+		DBUG_RETURN(0);
 	}
 
 	buf->total_size += data_size;
@@ -451,7 +452,7 @@ row_merge_buf_add(
 		dfield_dup(field++, buf->heap);
 	} while (--n_fields);
 
-	return(n_row_added);
+	DBUG_RETURN(n_row_added);
 }
 
 /*************************************************************//**
@@ -472,7 +473,8 @@ row_merge_dup_report(
 
 /*************************************************************//**
 Compare two tuples.
-@return	1, 0, -1 if a is greater, equal, less, respectively, than b */
+@return	positive, 0, negative if a is greater, equal, less, than b,
+respectively */
 static __attribute__((warn_unused_result))
 int
 row_merge_tuple_cmp(
@@ -546,7 +548,8 @@ UT_SORT_FUNCTION_BODY().
 UT_SORT_FUNCTION_BODY().
 @param a	first tuple to be compared
 @param b	second tuple to be compared
-@return	1, 0, -1 if a is greater, equal, less, respectively, than b */
+@return	positive, 0, negative, if a is greater, equal, less, than b,
+respectively */
 #define row_merge_tuple_cmp_ctx(a,b)			\
 	row_merge_tuple_cmp(n_uniq, n_field, a, b, dup)
 
@@ -1110,6 +1113,7 @@ row_merge_read_clustered_index(
 	os_event_t		fts_parallel_sort_event = NULL;
 	ibool			fts_pll_sort = FALSE;
 	ib_int64_t		sig_count = 0;
+	DBUG_ENTER("row_merge_read_clustered_index");
 
 	ut_ad((old_table == new_table) == !col_map);
 	ut_ad(!add_cols || col_map);
@@ -1326,14 +1330,26 @@ end_of_index:
 		offsets = rec_get_offsets(rec, clust_index, NULL,
 					  ULINT_UNDEFINED, &row_heap);
 
-		if (online && new_table != old_table) {
-			/* When rebuilding the table online, perform a
-			REPEATABLE READ, so that row_log_table_apply()
-			will not see a newer state of the table when
-			applying the log.  This is mainly to prevent
-			false duplicate key errors, because the log
-			will identify records by the PRIMARY KEY,
-			and also to prevent unsafe BLOB access. */
+		if (online) {
+			/* Perform a REPEATABLE READ.
+
+			When rebuilding the table online,
+			row_log_table_apply() must not see a newer
+			state of the table when applying the log.
+			This is mainly to prevent false duplicate key
+			errors, because the log will identify records
+			by the PRIMARY KEY, and also to prevent unsafe
+			BLOB access.
+
+			When creating a secondary index online, this
+			table scan must not see records that have only
+			been inserted to the clustered index, but have
+			not been written to the online_log of
+			index[]. If we performed READ UNCOMMITTED, it
+			could happen that the ADD INDEX reaches
+			ONLINE_INDEX_COMPLETE state between the time
+			the DML thread has updated the clustered index
+			but has not yet accessed secondary index. */
 			ut_ad(trx->read_view);
 
 			if (!read_view_sees_trx_id(
@@ -1376,37 +1392,12 @@ end_of_index:
 			would make it tricky to detect duplicate
 			keys. */
 			continue;
-		} else if (UNIV_LIKELY_NULL(rec_offs_any_null_extern(
-						    rec, offsets))) {
-			/* This is essentially a READ UNCOMMITTED to
-			fetch the most recent version of the record. */
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-			trx_id_t	trx_id;
-			ulint		trx_id_offset;
-
-			/* It is possible that the record was
-			just inserted and the off-page columns
-			have not yet been written. We will
-			ignore the record if this is the case,
-			because it should be covered by the
-			index->info.online log in that case. */
-
-			trx_id_offset = clust_index->trx_id_offset;
-			if (!trx_id_offset) {
-				trx_id_offset = row_get_trx_id_offset(
-					clust_index, offsets);
-			}
-
-			trx_id = trx_read_trx_id(rec + trx_id_offset);
-			ut_a(trx_rw_is_active(trx_id, NULL, false));
-			ut_a(trx_undo_trx_id_is_insert(rec + trx_id_offset));
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-
-			/* When !online, we are holding an X-lock on
-			old_table, preventing any inserts. */
-			ut_ad(online);
-			continue;
 		}
+
+		/* When !online, we are holding a lock on old_table, preventing
+		any inserts that could have written a record 'stub' before
+		writing out off-page columns. */
+		ut_ad(!rec_offs_any_null_extern(rec, offsets));
 
 		/* Build a row based on the clustered index. */
 
@@ -1692,7 +1683,7 @@ wait_again:
 
 	trx->op_info = "";
 
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /** Write a record via buffer 2 and read the next record to buffer N.
@@ -1787,20 +1778,16 @@ corrupt:
 	}
 
 	while (mrec0 && mrec1) {
-		switch (cmp_rec_rec_simple(
-				mrec0, mrec1, offsets0, offsets1,
-				dup->index, dup->table)) {
-		case 0:
+		int cmp = cmp_rec_rec_simple(
+			mrec0, mrec1, offsets0, offsets1,
+			dup->index, dup->table);
+		if (cmp < 0) {
+			ROW_MERGE_WRITE_GET_NEXT(0, dup->index, goto merged);
+		} else if (cmp) {
+			ROW_MERGE_WRITE_GET_NEXT(1, dup->index, goto merged);
+		} else {
 			mem_heap_free(heap);
 			DBUG_RETURN(DB_DUPLICATE_KEY);
-		case -1:
-			ROW_MERGE_WRITE_GET_NEXT(0, dup->index, goto merged);
-			break;
-		case 1:
-			ROW_MERGE_WRITE_GET_NEXT(1, dup->index, goto merged);
-			break;
-		default:
-			ut_error;
 		}
 	}
 
@@ -2044,13 +2031,14 @@ row_merge_sort(
 	ulint		num_runs;
 	ulint*		run_offset;
 	dberr_t		error	= DB_SUCCESS;
+	DBUG_ENTER("row_merge_sort");
 
 	/* Record the number of merge runs we need to perform */
 	num_runs = file->offset;
 
 	/* If num_runs are less than 1, nothing to merge */
 	if (num_runs <= 1) {
-		return(error);
+		DBUG_RETURN(error);
 	}
 
 	/* "run_offset" records each run's first offset number */
@@ -2078,7 +2066,7 @@ row_merge_sort(
 
 	mem_free(run_offset);
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /*************************************************************//**
@@ -2146,6 +2134,7 @@ row_merge_insert_index_tuples(
 	ulint			foffs = 0;
 	ulint*			offsets;
 	mrec_buf_t*		buf;
+	DBUG_ENTER("row_merge_insert_index_tuples");
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(!(index->type & DICT_FTS));
@@ -2206,12 +2195,7 @@ row_merge_insert_index_tuples(
 				mrec, index, offsets, &n_ext, tuple_heap);
 
 			if (!n_ext) {
-				/* There are no externally stored columns.
-				If we are creating secondary indexes only,
-				row_merge_read_clustered_index() will
-				essentially perform READ UNCOMMITTED.
-				This does not matter, because
-				row_log_apply() is idempotent. */
+				/* There are no externally stored columns. */
 			} else {
 				ut_ad(dict_index_is_clust(index));
 				/* Off-page columns can be fetched safely
@@ -2334,7 +2318,7 @@ err_exit:
 	mem_heap_free(ins_heap);
 	mem_heap_free(heap);
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /*********************************************************************//**
@@ -3324,6 +3308,7 @@ row_merge_build_indexes(
 	fts_psort_t*		merge_info = NULL;
 	ib_int64_t		sig_count = 0;
 	bool			fts_psort_initiated = false;
+	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad((old_table == new_table) == !col_map);
@@ -3337,7 +3322,7 @@ row_merge_build_indexes(
 		os_mem_alloc_large(&block_size));
 
 	if (block == NULL) {
-		return(DB_OUT_OF_MEMORY);
+		DBUG_RETURN(DB_OUT_OF_MEMORY);
 	}
 
 	trx_start_if_not_started_xa(trx, true);
@@ -3600,5 +3585,5 @@ func_exit:
 		}
 	}
 
-	return(error);
+	DBUG_RETURN(error);
 }

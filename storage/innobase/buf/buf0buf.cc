@@ -30,6 +30,8 @@ The database buffer buf_pool
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "buf0buf.h"
 
 #ifdef UNIV_NONINL
@@ -38,7 +40,7 @@ Created 11/5/1995 Heikki Tuuri
 
 #ifdef UNIV_INNOCHECKSUM
 #include "string.h"
-#include "mach0data.h"	/* mach_read_from_4 */
+#include "mach0data.h"
 #endif /* UNIV_INNOCHECKSUM */
 #ifndef UNIV_INNOCHECKSUM
 #include "mem0mem.h"
@@ -2243,7 +2245,6 @@ buf_block_init_low(
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;
-	block->n_bytes		= 0;
 	block->left_side	= TRUE;
 }
 #endif /* !UNIV_HOTBACKUP */

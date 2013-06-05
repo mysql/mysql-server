@@ -45,7 +45,6 @@ Created 10/10/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
 #include "sync0sync.h"
-#include "os0sync.h"
 #include "que0types.h"
 #include "trx0types.h"
 #include "srv0conc.h"
@@ -226,8 +225,11 @@ extern ulong	srv_undo_tablespaces;
 /** The number of UNDO tablespaces that are open and ready to use. */
 extern ulint	srv_undo_tablespaces_open;
 
-/* The number of undo segments to use */
+/** The number of undo segments to use */
 extern ulong	srv_undo_logs;
+
+/** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
+extern const ulong	srv_tmp_undo_logs;
 
 extern char*	srv_log_group_home_dir;
 

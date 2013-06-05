@@ -23,6 +23,8 @@ Data dictionary creation and booting
 Created 4/18/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "dict0boot.h"
 
 #ifdef UNIV_NONINL

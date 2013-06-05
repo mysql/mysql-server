@@ -74,6 +74,8 @@ typedef struct eng_config_info {
 						this memcached engine */
 } eng_config_info_t;
 
+extern option_t config_option_names[];
+
 /** Check the input key name implies a table mapping switch. The name
 would start with "@@", and in the format of "@@new_table_mapping.key"
 or simply "@@new_table_mapping" */

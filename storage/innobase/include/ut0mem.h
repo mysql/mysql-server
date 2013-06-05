@@ -27,9 +27,7 @@ Created 5/30/1994 Heikki Tuuri
 #define ut0mem_h
 
 #include "univ.i"
-#include <string.h>
 #ifndef UNIV_HOTBACKUP
-# include "os0sync.h"
 
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large() or malloc().  Does not count malloc()
