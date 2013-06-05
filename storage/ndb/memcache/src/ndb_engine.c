@@ -500,11 +500,17 @@ static ENGINE_ERROR_CODE ndb_get_stats(ENGINE_HANDLE* handle,
   if(stat_key) { 
     if(strncasecmp(stat_key, "menu", 4) == 0)
       return stats_menu(add_stat, cookie);
+    
+    if(strncasecmp(stat_key, "log", 3) == 0) {
+      ndbmc_debug_flush();
+      add_stat("log", 3, "flushed", 7, cookie);
+      return;
+    }
   
-  if((strncasecmp(stat_key, "ndb", 3) == 0)       || 
-     (strncasecmp(stat_key, "scheduler", 9) == 0) ||
-     (strncasecmp(stat_key, "reconf", 6) == 0)    ||
-     (strncasecmp(stat_key, "errors", 6) == 0))
+    if((strncasecmp(stat_key, "ndb", 3) == 0)       || 
+       (strncasecmp(stat_key, "scheduler", 9) == 0) ||
+       (strncasecmp(stat_key, "reconf", 6) == 0)    ||
+       (strncasecmp(stat_key, "errors", 6) == 0))
     {
       /* NDB Engine stats */
       pipeline_add_stats(pipeline, stat_key, add_stat, cookie);
