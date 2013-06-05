@@ -929,7 +929,7 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   stmt_info_new_packet.m_key,
                                                   thd->db, thd->db_length,
-                                                  thd->charset());
+                                                  thd->charset(), NULL);
 
       THD_STAGE_INFO(thd, stage_init);
     }

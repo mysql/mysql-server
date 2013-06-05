@@ -95,7 +95,6 @@
 #include "set_var.h"
 #include "opt_trace.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/mysql_sp.h"
 #include "sql_bootstrap.h"
 #include "opt_explain.h"
 #include "sql_rewrite.h"
@@ -1386,7 +1385,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   com_statement_info[command].m_key,
                                                   thd->db, thd->db_length,
-                                                  thd->charset());
+                                                  thd->charset(), NULL);
       THD_STAGE_INFO(thd, stage_init);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
@@ -3775,15 +3774,7 @@ end_with_restore_list:
     if (!(res= Events::drop_event(thd,
                                   lex->spname->m_db, lex->spname->m_name,
                                   lex->drop_if_exists)))
-      {
-#ifdef HAVE_PSI_SP_INTERFACE
-        /* Drop statistics for this stored program from performance schema. */
-        MYSQL_DROP_SP(SP_OBJECT_TYPE_EVENT,
-                      lex->spname->m_db.str, lex->spname->m_db.length,
-                      lex->spname->m_name.str, lex->spname->m_name.length);
-#endif
         my_ok(thd);
-      }
     break;
 #else
     my_error(ER_NOT_SUPPORTED_YET,MYF(0),"embedded server");
@@ -4483,13 +4474,6 @@ end_with_restore_list:
       res= sp_result;
       switch (sp_result) {
       case SP_OK:
-#ifdef HAVE_PSI_SP_INTERFACE
-        /* Drop statistics for this stored program from performance schema. */
-        MYSQL_DROP_SP((sp_type == SP_TYPE_PROCEDURE) ?
-                      SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
-                      lex->spname->m_db.str, lex->spname->m_db.length,
-                      lex->spname->m_name.str, lex->spname->m_name.length);
-#endif
 	my_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
@@ -4590,16 +4574,6 @@ end_with_restore_list:
   {
     /* Conditionally writes to binlog. */
     res= mysql_create_or_drop_trigger(thd, all_tables, 0);
-    /* Drop statistics for this stored program from performance schema. */
-#ifdef HAVE_PSI_SP_INTERFACE
-    if(!res)
-    {
-      /* Drop statistics for this stored program from performance schema. */
-      MYSQL_DROP_SP(SP_OBJECT_TYPE_TRIGGER,
-                    lex->spname->m_db.str, lex->spname->m_db.length,
-                    lex->spname->m_name.str, lex->spname->m_name.length);
-    }
-#endif
     break;
   }
   case SQLCOM_XA_START:

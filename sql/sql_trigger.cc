@@ -32,6 +32,7 @@
 #include "auth_common.h"                   // *_ACL, is_acl_user
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "sp_cache.h"                     // sp_invalidate_cache
+#include "mysql/psi/mysql_sp.h"
 #include <mysys_err.h>
 
 /*************************************************************************/
@@ -596,7 +597,15 @@ end:
     thd->lex->restore_backup_query_tables_list(&backup);
 
   if (!result)
+  {
+#ifdef HAVE_PSI_SP_INTERFACE
+    /* Drop statistics for this stored program from performance schema. */
+    MYSQL_DROP_SP(SP_OBJECT_TYPE_TRIGGER,
+                  thd->lex->spname->m_db.str, thd->lex->spname->m_db.length,
+                  thd->lex->spname->m_name.str, thd->lex->spname->m_name.length);
+#endif
     my_ok(thd);
+  }
 
   DBUG_RETURN(result);
 }

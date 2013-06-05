@@ -312,12 +312,12 @@ search:
   return NULL;
 }
 
-int find_and_drop_program(PFS_thread *thread, 
-                          enum_object_type object_type,
-                          const char *object_name,
-                          uint object_name_length,
-                          const char *schema_name,
-                          uint schema_name_length)
+int drop_program(PFS_thread *thread, 
+                 enum_object_type object_type,
+                 const char *object_name,
+                 uint object_name_length,
+                 const char *schema_name,
+                 uint schema_name_length)
 {
   int res;
   LF_PINS *pins= get_program_hash_pins(thread);
