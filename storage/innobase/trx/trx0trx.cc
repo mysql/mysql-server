@@ -1613,7 +1613,7 @@ trx_update_mod_tables_timestamp(
 	expensive here */
 	time_t	now = time(NULL);
 
-	std::set<dict_table_t*>::const_iterator	iter;
+	trx_mod_tables_t::const_iterator	iter;
 	for (iter = trx->mod_tables.begin();
 	     iter != trx->mod_tables.end();
 	     ++iter) {
