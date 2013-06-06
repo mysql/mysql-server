@@ -1149,10 +1149,6 @@ struct PSI_sp_locker_state_v1
   ulonglong (*m_timer)(void);
   /** Stored Procedure share. */
   PSI_sp_share* m_sp_share;
-  /** Is enabled. */
-  my_bool m_enabled;
-  /** Is timed. */
-  my_bool m_timed;
 };
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state_v1;
 
