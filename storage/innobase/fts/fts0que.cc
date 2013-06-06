@@ -2367,8 +2367,7 @@ fts_query_phrase_search(
 
 		cur_pos += cur_len;
 
-		if (result_str.f_n_char == 0
-		    || result_str.f_n_char > fts_max_token_size) {
+		if (result_str.f_n_char == 0) {
 			continue;
 		}
 
@@ -2384,7 +2383,9 @@ fts_query_phrase_search(
 
 		if (cache->stopword_info.cached_stopword
 		    && rbt_search(cache->stopword_info.cached_stopword,
-			       &parent, token) != 0) {
+			       &parent, token) != 0
+		    && result_str.f_n_char >= fts_min_token_size
+		    && result_str.f_n_char <= fts_max_token_size) {
 			/* Add the word to the RB tree so that we can
 			calculate it's frequencey within a document. */
 			fts_query_add_word_freq(query, token->f_str);
