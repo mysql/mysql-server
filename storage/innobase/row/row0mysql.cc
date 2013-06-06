@@ -3906,6 +3906,8 @@ row_truncate_table_for_mysql(
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
 
+	table->update_time = time(NULL);
+
 	if (trx->state != TRX_STATE_NOT_STARTED) {
 		trx_commit_for_mysql(trx);
 	}
@@ -4483,6 +4485,11 @@ check_next_foreign:
 
 			fts_free(table);
 		}
+
+		/* Remove the pointer to this table object from the list
+		of modified tables by the transaction because the object
+		is going to be destroyed below. */
+		trx->mod_tables.erase(table);
 
 		dict_table_remove_from_cache(table);
 

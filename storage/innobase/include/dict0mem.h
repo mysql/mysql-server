@@ -998,6 +998,10 @@ struct dict_table_t{
 	table_lock_list_t
 			locks;	/*!< list of locks on the table; protected
 				by lock_sys->mutex */
+
+	time_t		update_time;
+				/*!< timestamp of the last modification of
+				this table */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
