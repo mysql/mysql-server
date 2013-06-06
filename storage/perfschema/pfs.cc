@@ -5145,18 +5145,9 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state, PSI_sp_share *sp_shar
   if(!pfs_program)
     return NULL;
 
-  /* Call lookup_setup_object to find out if its enabled/timed. */
-  lookup_setup_object(pfs_thread,
-                      pfs_program->m_type,
-                      pfs_program->m_schema_name,
-                      pfs_program->m_schema_name_length,
-                      pfs_program->m_object_name,
-                      pfs_program->m_object_name_length,
-                      (bool*)(&state->m_enabled), (bool*)(&state->m_timed));
-
   ulonglong timer_start= 0;
 
-  if (state->m_enabled && state->m_timed)
+  if (pfs_program->m_enabled && pfs_program->m_timed)
   {
     timer_start= get_timer_raw_value_and_function(statement_timer, 
                                                   & state->m_timer);
@@ -5176,19 +5167,19 @@ void pfs_end_sp_v1(PSI_sp_locker *locker)
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
 
-  if (state->m_enabled && state->m_timed)
-  {
-    timer_end= state->m_timer();
-    wait_time= timer_end - state->m_timer_start;
-  }
-
   PFS_program *pfs_program= reinterpret_cast<PFS_program *>(state->m_sp_share);
 
-  /* Now use this timer_end and wait_time for timing information. */
   if(pfs_program != NULL)
   {
+    if (pfs_program->m_enabled && pfs_program->m_timed)
+    {
+      timer_end= state->m_timer();
+      wait_time= timer_end - state->m_timer_start;
+    }
+
+    /* Now use this timer_end and wait_time for timing information. */
     PFS_sp_stat *stat= &pfs_program->m_sp_stat;
-    if (state->m_timed)
+    if (pfs_program->m_timed)
     {
       stat->aggregate_value(wait_time);
     }

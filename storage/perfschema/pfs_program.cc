@@ -28,6 +28,7 @@
 #include "pfs_program.h"
 #include "pfs_global.h"
 #include "sql_string.h"
+#include "pfs_setup_object.h"
 #include <string.h>
 
 /** EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM circular buffer. */
@@ -279,6 +280,15 @@ search:
         pfs->m_object_name_length= object_name_length;
         strncpy(pfs->m_schema_name, schema_name, schema_name_length);
         pfs->m_schema_name_length= schema_name_length;
+
+        /* 
+           First time while inserting this record to program array we need to
+           find out if it is enabled and timed.
+        */
+        lookup_setup_object(thread, pfs->m_type,
+                            pfs->m_schema_name, pfs->m_schema_name_length,
+                            pfs->m_object_name, pfs->m_object_name_length,
+                            &pfs->m_enabled, &pfs->m_timed);
       
         /* Insert this record. */
         int res= lf_hash_insert(&program_hash, pins, &pfs);
@@ -350,3 +360,11 @@ int drop_program(PFS_thread *thread,
   lf_hash_search_unpin(pins);
   return res;
 }
+
+void PFS_program::referesh_setup_object_flags(PFS_thread *thread)                       
+{                                                                               
+  lookup_setup_object(thread, m_type,
+                      m_schema_name, m_schema_name_length,
+                      m_object_name, m_object_name_length,
+                      &m_enabled, &m_timed);
+} 
