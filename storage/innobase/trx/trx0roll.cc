@@ -1097,6 +1097,8 @@ trx_rollback_finish(
 {
 	trx_commit(trx);
 
+	trx->mod_tables.clear();
+
 	trx->lock.que_state = TRX_QUE_RUNNING;
 }
 
