@@ -982,22 +982,22 @@ get_next_redo_rseg(
 		}
 	}
 
-#if UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	ulint start_scan_slot = slot;
 	bool look_for_rollover = false;
-#endif
+#endif /* UNIV_DEBUG */
 
 	for(;;) {
 		rseg = trx_sys->rseg_array[slot];
 
-#if UNIV_DEBUG
+#ifdef UNIV_DEBUG
 		/* Ensure that we are not revisiting the same
 		slot that we have already inspected. */
 		if (look_for_rollover) {
 			ut_ad(start_scan_slot != slot);
 		}
 		look_for_rollover = true;
-#endif
+#endif /* UNIV_DEBUG */
 
 		slot = (slot + 1) % max_undo_logs;
 
