@@ -1556,7 +1556,8 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
     if (!file->bulk_insert &&
         (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
     {
-      mi_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
+      mi_init_bulk_insert(file, (size_t) thd->variables.bulk_insert_buff_size,
+                          rows);
     }
   }
   DBUG_VOID_RETURN;

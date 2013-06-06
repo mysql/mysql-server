@@ -49,8 +49,8 @@ static uchar *read_buffpek_from_file(IO_CACHE *buffer_file, uint count,
 static ha_rows find_all_keys(SORTPARAM *param,SQL_SELECT *select,
 			     uchar * *sort_keys, uchar *sort_keys_buf,
                              IO_CACHE *buffer_file, IO_CACHE *tempfile);
-static int write_keys(SORTPARAM *param,uchar * *sort_keys,
-		      uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
+static bool write_keys(SORTPARAM *param,uchar * *sort_keys,
+                       uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
 static void make_sortkey(SORTPARAM *param,uchar *to, uchar *ref_pos);
 static void register_used_fields(SORTPARAM *param);
 static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count, 
@@ -101,9 +101,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                  bool sort_positions, ha_rows *examined_rows)
 {
   int error;
-  ulong memory_available= thd->variables.sortbuff_size;
-  ulong min_sort_memory;
-  ulong sort_buff_sz;
+  size_t memory_available= thd->variables.sortbuff_size;
+  size_t min_sort_memory;
+  size_t sort_buff_sz;
   uint maxbuffer;
   BUFFPEK *buffpek;
   ha_rows num_rows= HA_POS_ERROR;
@@ -200,7 +200,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     while (memory_available >= min_sort_memory)
     {
-      ulong keys= memory_available / (param.rec_length + sizeof(char*));
+      ulonglong keys= memory_available / (param.rec_length + sizeof(char*));
       table_sort.keys= (uint) min(num_rows, keys);
       sort_buff_sz= table_sort.keys*(param.rec_length+sizeof(char*));
       set_if_bigger(sort_buff_sz, param.rec_length * MERGEBUFF2);   
@@ -211,7 +211,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
       if ((table_sort.sort_keys=
            (uchar**) my_malloc(sort_buff_sz, MYF(0))))
         break;
-      ulong old_memory_available= memory_available;
+      size_t old_memory_available= memory_available;
       memory_available= memory_available/4*3;
       if (memory_available < min_sort_memory &&
           old_memory_available > min_sort_memory)
@@ -391,7 +391,7 @@ void filesort_free_buffers(TABLE *table, bool full)
 static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
                                      uchar *buf)
 {
-  ulong length= sizeof(BUFFPEK)*count;
+  size_t length= sizeof(BUFFPEK)*count;
   uchar *tmp= buf;
   DBUG_ENTER("read_buffpek_from_file");
   if (count > UINT_MAX/sizeof(BUFFPEK))
@@ -711,7 +711,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     1 Error
 */
 
-static int
+static bool
 write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
            IO_CACHE *buffpek_pointers, IO_CACHE *tempfile)
 {

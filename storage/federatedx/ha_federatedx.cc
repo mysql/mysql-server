@@ -537,7 +537,6 @@ static int parse_url_error(FEDERATEDX_SHARE *share, TABLE *table, int error_num)
 int get_connection(MEM_ROOT *mem_root, FEDERATEDX_SHARE *share)
 {
   int error_num= ER_FOREIGN_SERVER_DOESNT_EXIST;
-  char error_buffer[FEDERATEDX_QUERY_BUFFER_SIZE];
   FOREIGN_SERVER *server, server_buffer;
   DBUG_ENTER("ha_federatedx::get_connection");
 

@@ -180,7 +180,7 @@ enum
 #define SPHINXSE_DEFAULT_SCHEME		"sphinx"
 #define SPHINXSE_DEFAULT_HOST		"127.0.0.1"
 #define SPHINXSE_DEFAULT_PORT		9312
-#define SPHINXSE_DEFAULT_INDEX		"*"
+#define SPHINXSE_DEFAULT_INDEX		(char*) "*"
 
 class CSphBuffer
 {
@@ -244,9 +244,9 @@ struct CSphUrl
 	char * m_sBuffer;
 	char * m_sFormatted;
 
-	char * m_sScheme;
+	const char * m_sScheme;
 	char * m_sHost;
-	char * m_sIndex;
+        char * m_sIndex;
 
 	int m_iPort;
 
@@ -254,7 +254,7 @@ struct CSphUrl
 		: m_sBuffer ( NULL )
 		, m_sFormatted ( NULL )
 		, m_sScheme ( SPHINXSE_DEFAULT_SCHEME )
-		, m_sHost ( SPHINXSE_DEFAULT_HOST )
+		, m_sHost ( (char*) SPHINXSE_DEFAULT_HOST )
 		, m_sIndex ( SPHINXSE_DEFAULT_INDEX )
 		, m_iPort ( SPHINXSE_DEFAULT_PORT )
 	{}
@@ -446,7 +446,7 @@ int CSphUrl::Connect()
 	uint uServerVersion;
 	uint uClientVersion = htonl ( SPHINX_SEARCHD_PROTO );
 	int iSocket = -1;
-	char * pError = NULL;
+	const char * pError = NULL;
 	do
 	{
 		iSocket = socket ( iDomain, SOCK_STREAM, 0 );

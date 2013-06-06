@@ -2126,7 +2126,9 @@ void ha_maria::start_bulk_insert(ha_rows rows)
     else if (!file->bulk_insert &&
              (!rows || rows >= MARIA_MIN_ROWS_TO_USE_BULK_INSERT))
     {
-      maria_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
+      maria_init_bulk_insert(file,
+                             (size_t) thd->variables.bulk_insert_buff_size,
+                             rows);
     }
   }
   DBUG_VOID_RETURN;

@@ -52,12 +52,8 @@
   pluggable authentication, so any version starting from "5.5.5-" and
   claiming to support pluggable auth, must be using this fake prefix.
 */
-#ifdef EMBEDDED_LIBRARY
-#define RPL_VERSION_HACK ""
-#else
 /* this version must be the one that *does not* support pluggable auth */
 #define RPL_VERSION_HACK "5.5.5-"
-#endif
 
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
