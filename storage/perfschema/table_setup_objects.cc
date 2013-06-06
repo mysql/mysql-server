@@ -86,6 +86,7 @@ int update_derived_flags()
     return HA_ERR_OUT_OF_MEM;
 
   update_table_share_derived_flags(thread);
+  update_program_share_derived_flags(thread);
   update_table_derived_flags();
   return 0;
 }

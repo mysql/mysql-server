@@ -504,6 +504,9 @@ void reset_socket_class_io();
 /** Update derived flags for all table shares. */
 void update_table_share_derived_flags(PFS_thread *thread);
 
+/** Update derived flags for all stored procedure shares. */
+void update_program_share_derived_flags(PFS_thread *thread);
+
 extern LF_HASH table_share_hash;
 
 /** @} */

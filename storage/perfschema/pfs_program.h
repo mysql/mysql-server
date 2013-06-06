@@ -68,6 +68,9 @@ struct PFS_program : public PFS_instr
   /** Hash key */
   PFS_program_key m_key;
 
+  /** Referesh setup object flags. */
+  void referesh_setup_object_flags(PFS_thread* thread);
+
   /** Reset data for this record. */                                            
   void reset_data(); 
 };

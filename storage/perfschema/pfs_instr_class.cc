@@ -29,6 +29,7 @@
 #include "pfs_events_waits.h"
 #include "pfs_setup_object.h"
 #include "pfs_atomic.h"
+#include "pfs_program.h"
 #include "mysql/psi/mysql_thread.h"
 #include "lf.h"
 
@@ -1472,6 +1473,15 @@ void update_table_share_derived_flags(PFS_thread *thread)
   {
     if (pfs->m_lock.is_populated())
       pfs->refresh_setup_object_flags(thread);
+  }
+}
+
+void update_program_share_derived_flags(PFS_thread *thread)
+{
+  for (uint i= 0 ; i < program_max ; i++)
+  {
+    if (program_array[i].m_lock.is_populated())
+      program_array[i].referesh_setup_object_flags(thread);
   }
 }
 

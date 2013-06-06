@@ -324,8 +324,6 @@ struct PSI_sp_locker_state_v1
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
   PSI_sp_share* m_sp_share;
-  my_bool m_enabled;
-  my_bool m_timed;
 };
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state_v1;
 typedef void (*register_mutex_v1_t)
