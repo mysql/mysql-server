@@ -9699,6 +9699,25 @@ ha_innobase::delete_table(
 
 	parent_trx = check_trx_exists(thd);
 
+	/* Remove the to-be-dropped table from the list of modified tables
+	by parent_trx. Otherwise we may end up with an orphaned pointer to
+	the table object from parent_trx::mod_tables. This could happen in:
+	SET AUTOCOMMIT=0;
+	CREATE TABLE t (PRIMARY KEY (a)) ENGINE=INNODB SELECT 1 AS a UNION
+	ALL SELECT 1 AS a; */
+	trx_mod_tables_t::const_iterator	iter;
+	for (iter = parent_trx->mod_tables.begin();
+	     iter != parent_trx->mod_tables.end();
+	     ++iter) {
+
+		dict_table_t*	table = *iter;
+
+		if (strcmp(norm_name, table->name) == 0) {
+			parent_trx->mod_tables.erase(table);
+			break;
+		}
+	}
+
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
 
@@ -10662,6 +10681,8 @@ ha_innobase::info_low(
 		if (os_file_get_status(path, &stat_info, false) == DB_SUCCESS) {
 			stats.create_time = (ulong) stat_info.ctime;
 		}
+
+		stats.update_time = ib_table->update_time;
 	}
 
 	if (flag & HA_STATUS_VARIABLE) {
