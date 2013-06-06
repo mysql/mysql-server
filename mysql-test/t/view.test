@@ -4596,6 +4596,20 @@ WHERE a = alias.a );
 drop view v1;
 drop table t1,t2;
 
+--echo #
+--echo # MDEV-4593: p_s: crash in simplify_joins with delete using subselect
+--echo # from view
+--echo #
+
+create table `t1`(`a` int);
+create table `t2`(`a` int);
+create or replace view `v1` as select `a` from `t1`;
+prepare s from "delete  from `t2` order by (select 1 from `v1`)";
+execute s;
+deallocate prepare s;
+drop view v1;
+drop tables t1,t2;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------

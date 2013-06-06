@@ -83,7 +83,16 @@ mysql_handle_derived(LEX *lex, uint phases)
 	 sl && !res;
 	 sl= sl->next_select_in_list())
     {
-      for (TABLE_LIST *cursor= sl->get_table_list();
+      TABLE_LIST *cursor= sl->get_table_list();
+      /*
+        DT_MERGE_FOR_INSERT is not needed for views/derived tables inside
+        subqueries. Views and derived tables of subqueries should be
+        processed normally.
+      */
+      if (phases == DT_MERGE_FOR_INSERT &&
+          cursor && cursor->top_table()->select_lex != &lex->select_lex)
+        continue;
+      for (;
 	   cursor && !res;
 	   cursor= cursor->next_local)
       {
