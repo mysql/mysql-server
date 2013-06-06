@@ -105,7 +105,7 @@ pfs_os_fast_mutex_lock(
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 	if (fast_mutex->pfs_psi != NULL)
 	{
-		PSI_mutex_locker* 	locker;
+		PSI_mutex_locker*	locker;
 		PSI_mutex_locker_state	state;
 
 		locker = PSI_MUTEX_CALL(start_mutex_wait)(&state, fast_mutex->pfs_psi,
