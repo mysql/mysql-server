@@ -691,6 +691,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 VALUES (2, 'ğė Daśi      p          ');
 SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('+p +"ğė Daśi*"' IN BOOLEAN MODE);
 s1	s2
+2	ğė Daśi      p          
 DROP TABLE t1;
 "----------Test19---------"
 CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
