@@ -6064,13 +6064,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   mysql_ha_rm_tables(thd, table_list);
 
-  mysql_audit_alter_table(thd, table_list);
-
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
+  {
+    mysql_audit_alter_table(thd, table_list);
+
     /* Conditionally writes to binlog. */
-    DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
-						   alter_info->tablespace_op));
+    bool ret= mysql_discard_or_import_tablespace(thd,table_list,
+                                                 alter_info->tablespace_op);
+    DBUG_RETURN(ret);
+  }
 
   /*
     Code below can handle only base tables so ensure that we won't open a view.
@@ -6262,6 +6265,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     my_error(ER_ILLEGAL_HA, MYF(0), table_name);
     goto err;
   }
+
+  if (table->s->tmp_table == NO_TMP_TABLE)
+    mysql_audit_alter_table(thd, table_list);
   
   thd_proc_info(thd, "setup");
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&

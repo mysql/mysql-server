@@ -44,6 +44,7 @@ insert t2 values ('2020-10-09');
 select * from t2;
 a
 2020-10-09
+alter table t2 add column b int;
 drop table t2;
 explain select distinct * from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -77,8 +78,8 @@ root[root] @ localhost []	test.t1 : read
 root[root] @ localhost []	>> rename table t1 to t2
 root[root] @ localhost []	test.t1 : rename to test.t2
 root[root] @ localhost []	>> alter table t2 add column b int
-root[root] @ localhost []	test.t2 : alter
 root[root] @ localhost []	test.t2 : read
+root[root] @ localhost []	test.t2 : alter
 root[root] @ localhost []	>> create definer=testuser@localhost view v1 as select t2.a+1, t2_copy.a+2 from t2, t2 as t2_copy
 root[root] @ localhost []	test.t2 : read
 root[root] @ localhost []	test.t2 : read
@@ -89,6 +90,7 @@ root[root] @ localhost []	>> drop view v1
 root[root] @ localhost []	>> create temporary table t2 (a date)
 root[root] @ localhost []	>> insert t2 values ('2020-10-09')
 root[root] @ localhost []	>> select * from t2
+root[root] @ localhost []	>> alter table t2 add column b int
 root[root] @ localhost []	>> drop table t2
 root[root] @ localhost []	>> explain select distinct * from t2
 root[root] @ localhost []	test.t2 : read

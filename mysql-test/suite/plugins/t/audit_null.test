@@ -38,6 +38,7 @@ drop view v1;
 create temporary table t2 (a date);
 insert t2 values ('2020-10-09');
 select * from t2;
+alter table t2 add column b int; # MDEV-4565 ALTER on a temporary table generates an audit event
 drop table t2;
 
 # internal temp table generates no audit events
