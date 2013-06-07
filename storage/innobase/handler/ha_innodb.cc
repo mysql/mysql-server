@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysys_err.h>
 #include <strfunc.h>
 #include <sql_acl.h>
+#include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
 

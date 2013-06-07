@@ -39,6 +39,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0read.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
+#include "srv0space.h"
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -49,8 +50,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0pool.h"
 #include "ut0vec.h"
-#include "srv0space.h"
-#include "ut0pool.h"
 
 #include <set>
 #include <new>
