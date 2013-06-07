@@ -851,9 +851,9 @@ buf_page_print(
 			" InnoDB: Compressed page type (" ULINTPF "); "
 			"stored checksum in field1 " ULINTPF "; "
 			"calculated checksums for field1: "
-			"%s " ULINTPF ", "
-			"%s " ULINTPF ", "
-			"%s " ULINTPF "; "
+			"%s " UINT32PF ", "
+			"%s " UINT32PF ", "
+			"%s " UINT32PF "; "
 			"page LSN " LSN_PF "; "
 			"page number (if stored to page already) " ULINTPF "; "
 			"space id (if stored to page already) " ULINTPF "\n",
@@ -1394,7 +1394,7 @@ buf_pool_init_instance(
 		/* Number of locks protecting page_hash must be a
 		power of two */
 		srv_n_page_hash_locks =
-				 ut_2_power_up(srv_n_page_hash_locks);
+			(ulong) ut_2_power_up((ulint) srv_n_page_hash_locks);
 		ut_a(srv_n_page_hash_locks != 0);
 		ut_a(srv_n_page_hash_locks <= MAX_PAGE_HASH_LOCKS);
 
@@ -2269,8 +2269,8 @@ buf_zip_decompress(
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: compressed page checksum mismatch"
-			" (space %u page %u): stored: %lu, crc32: %lu "
-			"innodb: %lu, none: %lu\n",
+			" (space %u page %u): stored: %lu, crc32: "
+			UINT32PF " innodb: " UINT32PF ", none: " UINT32PF "\n",
 			block->page.space, block->page.offset,
 			mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM),
 			page_zip_calc_checksum(frame, size,
@@ -3431,7 +3431,7 @@ buf_page_init(
 		ulint	buf_fix_count = hash_page->buf_fix_count;
 
 		ut_a(buf_fix_count > 0);
-		block->page.buf_fix_count += buf_fix_count;
+		block->page.buf_fix_count += (unsigned) buf_fix_count;
 		buf_pool_watch_remove(buf_pool, fold, hash_page);
 	} else {
 		fprintf(stderr,
@@ -3673,7 +3673,7 @@ err_exit:
 			/* Preserve the reference count. */
 			ulint	buf_fix_count = watch_page->buf_fix_count;
 			ut_a(buf_fix_count > 0);
-			bpage->buf_fix_count += buf_fix_count;
+			bpage->buf_fix_count += (unsigned) buf_fix_count;
 			ut_ad(buf_pool_watch_is_sentinel(buf_pool, watch_page));
 			buf_pool_watch_remove(buf_pool, fold, watch_page);
 		}

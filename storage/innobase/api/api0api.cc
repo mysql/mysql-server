@@ -1457,7 +1457,7 @@ ib_insert_row_with_lock_retry(
 			que_thr_stop_for_mysql(thr);
 
 			thr->lock_state = QUE_THR_LOCK_ROW;
-			lock_wait = ib_handle_errors(&err, trx, thr, savept);
+			lock_wait = (ib_bool_t) ib_handle_errors(&err, trx, thr, savept);
 			thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		} else {
 			lock_wait = FALSE;
@@ -1789,7 +1789,7 @@ ib_update_row_with_lock_retry(
 			if (err != DB_RECORD_NOT_FOUND) {
 				thr->lock_state = QUE_THR_LOCK_ROW;
 
-				lock_wait = ib_handle_errors(
+				lock_wait = (ib_bool_t) ib_handle_errors(
 					&err, trx, thr, savept);
 
 				thr->lock_state = QUE_THR_LOCK_NOLOCK;
@@ -1941,7 +1941,7 @@ ib_delete_row(
 
 	upd = ib_update_vector_create(cursor);
 
-	page_format = dict_table_is_comp(index->table);
+	page_format = (ib_bool_t) dict_table_is_comp(index->table);
 	ib_read_tuple(rec, page_format, tuple);
 
 	upd->n_fields = ib_tuple_get_n_cols(ib_tpl);
@@ -2007,7 +2007,7 @@ ib_cursor_delete_row(
 		ib_bool_t	page_format;
 		mtr_t		mtr;
 
-		page_format = dict_table_is_comp(index->table);
+		page_format = (ib_bool_t) dict_table_is_comp(index->table);
 
 		mtr_start(&mtr);
 
@@ -2076,7 +2076,8 @@ ib_cursor_read_row(
 			const rec_t*	rec;
 			ib_bool_t	page_format;
 
-			page_format = dict_table_is_comp(tuple->index->table);
+			page_format = (ib_bool_t)
+				dict_table_is_comp(tuple->index->table);
 			rec = btr_pcur_get_rec(pcur);
 
 			if (prebuilt->innodb_api_rec &&
@@ -2689,7 +2690,8 @@ ib_col_get_meta_low(
 	ib_col_meta->type = static_cast<ib_col_type_t>(
 		dtype_get_mtype(dfield_get_type(dfield)));
 
-	ib_col_meta->type_len = dtype_get_len(dfield_get_type(dfield));
+	ib_col_meta->type_len = (ib_u32_t)
+		dtype_get_len(dfield_get_type(dfield));
 
 	prtype = (ib_u16_t) dtype_get_prtype(dfield_get_type(dfield));
 
