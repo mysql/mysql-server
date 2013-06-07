@@ -1,0 +1,10 @@
+#
+# MDEV-4480 Assertion `inited == NONE' fails on closing a connection with open handler on temporary table
+#
+
+--connect (con1,localhost,root,,)
+create temporary table t1 as select 1;
+handler t1 open;
+handler t1 read next;
+--disconnect con1
+
