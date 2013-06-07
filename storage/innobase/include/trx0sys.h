@@ -28,20 +28,20 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "univ.i"
 
-#include "trx0types.h"
-#include "fsp0types.h"
-#include "fil0fil.h"
 #include "buf0buf.h"
+#include "fil0fil.h"
+#include "fsp0types.h"
+#include "trx0types.h"
 #ifndef UNIV_HOTBACKUP
-#include "mtr0mtr.h"
-#include "ut0byte.h"
 #include "mem0mem.h"
-#include "sync0sync.h"
-#include "ut0lst.h"
-#include "read0types.h"
+#include "mtr0mtr.h"
 #include "page0types.h"
-#include "ut0bh.h"
+#include "read0types.h"
+#include "sync0sync.h"
 #include "trx0trx.h"
+#include "ut0bh.h"
+#include "ut0lst.h"
+#include "ut0byte.h"
 
 /** In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. */
