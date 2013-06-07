@@ -2115,8 +2115,8 @@ pars_get_lex_chars(
 {
 	int	len;
 
-	len = pars_sym_tab_global->string_len
-		- pars_sym_tab_global->next_char_pos;
+	len = (int) (pars_sym_tab_global->string_len
+	    - pars_sym_tab_global->next_char_pos);
 	if (len == 0) {
 		return(0);
 	}

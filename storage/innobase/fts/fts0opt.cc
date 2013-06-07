@@ -602,7 +602,7 @@ fts_zip_read_word(
 					zip->zp->avail_in =
 						FTS_MAX_WORD_LEN;
 				} else {
-					zip->zp->avail_in = zip->block_sz;
+					zip->zp->avail_in = (uInt) zip->block_sz;
 				}
 
 				++zip->pos;
@@ -703,7 +703,7 @@ fts_fetch_index_words(
 			ib_vector_push(zip->blocks, &block);
 
 			zip->zp->next_out = block;
-			zip->zp->avail_out = zip->block_sz;
+			zip->zp->avail_out = (uInt) zip->block_sz;
 		}
 
 		switch (zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
@@ -1031,39 +1031,39 @@ int
 fts_bsearch(
 /*========*/
 	fts_update_t*	array,	/*!< in: array to sort */
-	int		lower,	/*!< in: the array lower bound */
-	int		upper,	/*!< in: the array upper bound */
+	ulint		lower,	/*!< in: the array lower bound */
+	ulint		upper,	/*!< in: the array upper bound */
 	doc_id_t	doc_id)	/*!< in: the doc id to search for */
 {
-	int	orig_size = upper;
+	ulint	orig_size = upper;
 
 	if (upper == 0) {
 		/* Nothing to search */
 		return(-1);
 	} else {
 		while (lower < upper) {
-			int	i = (lower + upper) >> 1;
+			ulint	i = (lower + upper) >> 1;
 
 			if (doc_id > array[i].doc_id) {
 				lower = i + 1;
 			} else if (doc_id < array[i].doc_id) {
 				upper = i - 1;
 			} else {
-				return(i); /* Found. */
+				return((int) i); /* Found. */
 			}
 		}
 	}
 
 	if (lower == upper && lower < orig_size) {
 		if (doc_id == array[lower].doc_id) {
-			return(lower);
+			return((int) lower);
 		} else if (lower == 0) {
 			return(-1);
 		}
 	}
 
 	/* Not found. */
-	return( (lower == 0) ? -1 : -lower);
+	return( (lower == 0) ? -1 : -((int) lower));
 }
 
 /**********************************************************************//**
@@ -1081,7 +1081,7 @@ fts_optimize_lookup(
 	doc_id_t	last_doc_id)	/*!< in: doc id to lookup */
 {
 	int		pos;
-	int		upper = ib_vector_size(doc_ids);
+	int		upper = (int) ib_vector_size(doc_ids);
 	fts_update_t*	array = (fts_update_t*) doc_ids->data;
 
 	pos = fts_bsearch(array, lower, upper, first_doc_id);

@@ -77,7 +77,7 @@ dtuple_coll_cmp(
 
 	n_fields = dtuple_get_n_fields(tuple1);
 
-	cmp = n_fields - dtuple_get_n_fields(tuple2);
+	cmp = (int) n_fields - (int) dtuple_get_n_fields(tuple2);
 
 	for (i = 0; cmp == 0 && i < n_fields; i++) {
 		const dfield_t*	field1	= dtuple_get_nth_field(tuple1, i);

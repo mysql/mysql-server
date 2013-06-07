@@ -1840,13 +1840,13 @@ fts_lexer_create(
 
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);
-		fts0b_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
+		fts0b_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_blexer;
 		/* FIXME: Debugging */
 		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
 	} else {
 		fts0tlex_init(&fts_lexer->yyscanner);
-		fts0t_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
+		fts0t_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_tlexer;
 	}
 
