@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include <assert.h> // not using namespaces yet
 #include <stdio.h> // not using namespaces yet
+#include <stdlib.h> // not using namespaces yet
 
 #include "myapi.hpp"
 #include "helpers.hpp"
@@ -272,16 +273,16 @@ test6()
     printf("... delete new A(int)\n");
     n = A::f0s();
     printf("... A::f0s() = %d\n", n);
-    assert (n == 10);
+    assert(n == 10);
     n = a->f0s();
     printf("... a->f0s() = %d\n", n);
-    assert (n == 10);
+    assert(n == 10);
     n = a->f0n();
     printf("... a->f0n() = %d\n", n);
-    assert (n == 11);
+    assert(n == 11);
     n = a->f0v();
     printf("... a->f0v() = %d\n", n);
-    assert (n == 12);
+    assert(n == 12);
 
     printf("\nA::take_ptr(A::deliver_ptr())...\n");
     A::take_ptr(A::deliver_ptr());
@@ -302,38 +303,38 @@ test6()
     printf("\naccessing A...\n");
     n = ++A::d0s;
     printf("... ++A::d0s = %d\n", n);
-    assert (n == 11);
+    assert(n == 11);
     n = A::d0sc;
     printf("... A::d0sc = %d\n", n);
-    assert (n == -10);
+    assert(n == -10);
     n = ++a->d0s;
     printf("... ++a->d0s = %d\n", n);
-    assert (n == 12);
+    assert(n == 12);
     n = a->d0sc;
     printf("... a->d0sc = %d\n", n);
-    assert (n == -10);
+    assert(n == -10);
     n = ++a->d0;
     printf("... ++a->d0 = %d\n", n);
-    assert (n == 12);
+    assert(n == 12);
     n = a->d0c;
     printf("... a->d0c = %d\n", n);
-    assert (n == -11);
+    assert(n == -11);
 
     printf("\ncalling B0...\n");
     B0 & b0b0 = *a->newB0();
     printf("... a->newB0() = %p\n", &b0b0);
     n = B0::f0s();
     printf("... B0::f0s() = %d\n", n);
-    assert (n == 20);
+    assert(n == 20);
     n = b0b0.f0s();
     printf("... b0b0.f0s() = %d\n", n);
-    assert (n == 20);
+    assert(n == 20);
     n = b0b0.f0n();
     printf("... b0b0.f0n() = %d\n", n);
-    assert (n == 21);
+    assert(n == 21);
     n = b0b0.f0v();
     printf("... b0b0.f0v() = %d\n", n);
-    assert (n == 22);
+    assert(n == 22);
     a->del(b0b0);
     printf("... a->del(b0b0)\n");
 
@@ -342,22 +343,22 @@ test6()
     printf("... a->newB0() = %p\n", &b0);
     n = ++B0::d0s;
     printf("... ++B0::d0s = %d\n", n);
-    assert (n == 21);
+    assert(n == 21);
     n = B0::d0sc;
     printf("... B0::d0sc = %d\n", n);
-    assert (n == -20);
+    assert(n == -20);
     n = ++b0.d0s;
     printf("... ++b0.d0s = %d\n", n);
-    assert (n == 22);
+    assert(n == 22);
     n = b0.d0sc;
     printf("... b0.d0sc = %d\n", n);
-    assert (n == -20);
+    assert(n == -20);
     n = ++b0.d0;
     printf("... ++b0.d0 = %d\n", n);
-    assert (n == 22);
+    assert(n == 22);
     n = b0.d0c;
     printf("... b0.d0c = %d\n", n);
-    assert (n == -21);
+    assert(n == -21);
     a->del(b0);
     printf("... a->del(b0)\n");
 
@@ -367,16 +368,16 @@ test6()
     printf("... a->newB1() = %p\n", &b0b1);
     n = B1::f0s();
     printf("... B1::f0s() = %d\n", n);
-    assert (n == 30);
+    assert(n == 30);
     n = b0b1.f0s();
     printf("... b0b1.f0s() = %d\n", n);
-    assert (n == 20);
+    assert(n == 20);
     n = b0b1.f0n();
     printf("... b0b1.f0n() = %d\n", n);
-    assert (n == 21);
+    assert(n == 21);
     n = b0b1.f0v();
     printf("... b0b1.f0v() = %d\n", n);
-    assert (n == 32);
+    assert(n == 32);
     a->del(b1b1);
     printf("... a->del(b1b1)\n");
 
@@ -385,22 +386,22 @@ test6()
     printf("... a->newB1() = %p\n", &b1);
     n = ++B1::d0s;
     printf("... ++B1::d0s = %d\n", n);
-    assert (n == 31);
+    assert(n == 31);
     n = B1::d0sc;
     printf("... B1::d0sc = %d\n", n);
-    assert (n == -30);
+    assert(n == -30);
     n = ++b1.d0s;
     printf("... ++b1.d0s = %d\n", n);
-    assert (n == 32);
+    assert(n == 32);
     n = b1.d0sc;
     printf("... b1.d0sc = %d\n", n);
-    assert (n == -30);
+    assert(n == -30);
     n = ++b1.d0;
     printf("... ++b1.d0 = %d\n", n);
-    assert (n == 32);
+    assert(n == 32);
     n = b1.d0c;
     printf("... b1.d0c = %d\n", n);
-    assert (n == -31);
+    assert(n == -31);
     a->del(b1);
     printf("... a->del(b1)\n");
 
@@ -634,20 +635,16 @@ test10()
 
     printf("\ndelete[] (new C0[0])\n");
     C0 * c0a0 = new C0[0];
-#if __GNUC__ == 4 && __GNUC_MINOR__ == 7 && __GNUC_PATCHLEVEL__ >= 2
-    /**
-     * GCC 4.7.2 emits a null pointer for this...
-     *   see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=53330
-     */
-    if (c0a0 == NULL)
-    {
-      c0a0 = new C0[1];
-    }
+#if __GNUC__ == 4 && __GNUC_MINOR__ == 7 && __GNUC_PATCHLEVEL__ >= 0
+    // workaround for GCC 4.7.x bug
+    // no initialization of var for const zero-length obj array expr;
+    // compile warning: "'c0a0' is used uninitialized in this function"
+    // see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=53330
+    c0a0 = new C0[atoi("0")];
 #endif
 
-    // Check that zero length array new worked
-    if (c0a0 == NULL)
-      abort();
+    // check that zero-length array new worked
+    assert(c0a0);
     delete[] c0a0;
 
     const int n = 3;
