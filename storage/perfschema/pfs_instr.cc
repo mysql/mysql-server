@@ -833,6 +833,8 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_parent_thread_internal_id= 0;
         pfs->m_processlist_id= processlist_id;
         pfs->m_event_id= 1;
+        pfs->m_stmt_lock.set_allocated();
+        pfs->m_session_lock.set_allocated();
         pfs->m_enabled= true;
         pfs->m_class= klass;
         pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
@@ -863,7 +865,6 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_stage= 0;
         pfs->m_processlist_info[0]= '\0';
         pfs->m_processlist_info_length= 0;
-        pfs->m_processlist_info_lock.set_allocated();
 
         pfs->m_host= NULL;
         pfs->m_user= NULL;
