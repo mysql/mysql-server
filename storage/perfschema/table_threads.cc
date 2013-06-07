@@ -132,7 +132,6 @@ void table_threads::make_row(PFS_thread *pfs)
   pfs_lock session_lock;
   pfs_lock stmt_lock;
   PFS_stage_class *stage_class;
-  pfs_lock processlist_info_lock;
   PFS_thread_class *safe_class;
 
   m_row_exists= false;
