@@ -1416,7 +1416,7 @@ public:
   void add_modified_key(KEY *old_key, KEY *new_key)
   {
     index_drop_buffer[index_drop_count++]= old_key;
-    index_add_buffer[index_add_count++]= new_key - key_info_buffer;
+    index_add_buffer[index_add_count++]= (uint) (new_key - key_info_buffer);
     DBUG_PRINT("info", ("index changed: '%s'", old_key->name));
   }
 
@@ -1430,7 +1430,7 @@ public:
   /** Add key to array of indexes to be added. */
   void add_added_key(KEY *new_key)
   {
-    index_add_buffer[index_add_count++]= new_key - key_info_buffer;
+    index_add_buffer[index_add_count++]= (uint) (new_key - key_info_buffer);
     DBUG_PRINT("info", ("index added: '%s'", new_key->name));
   }
 };
