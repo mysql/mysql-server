@@ -8,5 +8,17 @@ connection master;
 CREATE TABLE t1 (a INT) ENGINE=FEDERATED CONNECTION='non_existing';
 SHOW WARNINGS;
 
+#
+# MDEV-4468 Assertion `error != 0' fails or timeout occurs on select from a FEDERATED table which points at a non-existent table
+#
+
+create table t1 (a int);
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval create table fed (a int) engine=Federated CONNECTION='mysql://root@127.0.0.1:$MASTER_MYPORT/test/t1';
+drop table t1;
+--error 1146,1431
+select * from fed;
+drop table fed;
+
 source include/federated_cleanup.inc;
 

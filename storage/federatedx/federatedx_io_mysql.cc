@@ -599,6 +599,11 @@ bool federatedx_io_mysql::table_metadata(ha_statistics *stats,
   return 0;
 
 error:
+  if (!mysql_errno(&mysql))
+  {
+    mysql.net.last_errno= ER_NO_SUCH_TABLE;
+    strmake_buf(mysql.net.last_error, "Remote table does not exist");
+  }
   free_result(result);
   return 1;
 }

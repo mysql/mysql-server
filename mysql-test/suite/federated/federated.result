@@ -7,6 +7,12 @@ Level	Code	Message
 Error	1	server name: 'non_existing' doesn't exist!
 Error	1	Can't create/write to file 'non_existing' (Errcode: 14)
 Error	1005	Can't create table 'test.t1' (errno: 1)
+create table t1 (a int);
+create table fed (a int) engine=Federated CONNECTION='mysql://root@127.0.0.1:MASTER_PORT/test/t1';
+drop table t1;
+select * from fed;
+Got one of the listed errors
+drop table fed;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
