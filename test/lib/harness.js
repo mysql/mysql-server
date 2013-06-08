@@ -244,6 +244,10 @@ Test.prototype.errorIfUnset = function(message, value) {
   return ! r;
 };
 
+Test.prototype.hasNoErrors = function() {
+  return this.errorMessages.length === 0;
+};
+
 /** Suite
   *  A suite consists of all tests in all test programs in a directory 
   *
