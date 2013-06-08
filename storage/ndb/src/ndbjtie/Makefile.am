@@ -19,10 +19,10 @@ include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 ## ----------------------------------------------------------------------
 
 ## all subdirectories that have been configured (have a generated Makefile)
-DIST_SUBDIRS = jtie mysql . test
+DIST_SUBDIRS = jtie . test
 
 ## all subdirectories in DIST_SUBDIRS that should be built
-SUBDIRS = jtie mysql . test
+SUBDIRS = jtie . test
 
 ## files to be distributed and not covered in the automatic rules
 EXTRA_DIST = README.txt utils \
@@ -143,10 +143,10 @@ javah: $(NDBJTIE_JAR)
 AM_CPPFLAGS = \
 		-I./utils \
 		-I./jtie \
-		-I./mysql \
 		-I$(top_srcdir)/storage/ndb/include \
 		-I$(top_srcdir)/storage/ndb/include/mgmapi \
 		-I$(top_srcdir)/storage/ndb/include/ndbapi \
+		-I$(top_srcdir)/storage/ndb/include/util \
 		@JNI_INCLUDE_DIRS@
 
 ## build a shared library
@@ -160,13 +160,11 @@ libndbjtie_la_SOURCES = ndbjtie_lib.cpp
 
 ## extra libtool objects (.lo) or libtool libraries (.la)
 #libndbjtie_la_LIBADD = \
-#		../mysql/src/libmysqlutils.la \
 #		$(top_srcdir)/storage/ndb/src/libndbclient.la
 ##   linking directly against a static (and not a libtool) library to ensure
 ##   self-containment violates libtool conventions and triggers a warning
 ##   about non-portability -- possibly, because of a potential pic/non-pic
 ##   code mix on some platforms.
-#		../mysql/src/.libs/libmysqlutils.a \
 #		$(top_srcdir)/storage/ndb/src/.libs/libndbclient.a
 
 ## mode-specific libtool options (overrides AM_LDFLAGS)

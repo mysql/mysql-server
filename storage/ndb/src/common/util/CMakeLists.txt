@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -57,6 +57,9 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             NdbPack.cpp
             HashMap2.cpp
             LinkedStack.cpp
+            decimal_utils.cpp
+            CharsetMap.cpp
+            CharsetMapImpl.cpp
 )
 SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys)
 # Some parts of mysys has been split into it's own library
@@ -106,3 +109,8 @@ ADD_EXECUTABLE(LinkedStack-t LinkedStack.cpp)
 SET_TARGET_PROPERTIES(LinkedStack-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_LINKEDSTACK")
 TARGET_LINK_LIBRARIES(LinkedStack-t ndbgeneral)
+
+ADD_EXECUTABLE(mysql_utils_test-t mysql_utils_test.cpp)
+SET_TARGET_PROPERTIES(mysql_utils_test-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_MYSQL_UTILS")
+TARGET_LINK_LIBRARIES(mysql_utils_test-t ndbgeneral  ndbportlib)
