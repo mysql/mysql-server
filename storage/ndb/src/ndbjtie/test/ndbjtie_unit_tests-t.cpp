@@ -41,18 +41,6 @@ void run_test_script(const char * this_dir,
     assert(this_dir);
     assert(test_name);
 
-#ifdef TARGET_OS_LINUX
-    if (strcmp(test_name, "unload_mutils") == 0)
-    {
-      /**
-       * This test fails on Linux...unknown reason...
-       *   reported as bug#16898943
-       */
-      ok(0 == 0, "subtest: %s - SKIP", test_name);
-      return;
-    }
-#endif
-
     // directory, name, path of test script to run
     const int path_max = 1024; // FILENAME_MAX is ISO-C but may be huge
     char script_dir[path_max];
@@ -159,9 +147,7 @@ int main(int argc, char **argv)
     run_test_script(this_dir, "ndbjtie_multilib");
     run_test_script(this_dir, "ndbjtie_smoke");
     // TAP: configured by MYTAP_CONFIG environment var
-    // XXX for initial testing: run all
-    //if (skip_big_tests) {
-    if (false) {
+    if (skip_big_tests) {
         printf("\n");
         skip(1, "big subtest unload_mutils");
         skip(1, "big subtest unload_ndbjtie_constants");
