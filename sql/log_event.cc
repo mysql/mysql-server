@@ -13368,6 +13368,10 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     gtid_rollback(thd);
   }
   thd->variables.gtid_next.set(sidno, spec.gtid.gno);
+  const Slave_worker* w;
+  w= dynamic_cast<const Slave_worker* >(rli);
+  if (is_mts_worker(thd))
+    w->currently_executing_gtid= thd->variables.gtid_next.gtid;
   DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
                       sidno, spec.gtid.gno));
 

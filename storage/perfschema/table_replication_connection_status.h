@@ -16,7 +16,7 @@
 
 
 #ifndef TABLE_REPLICATION_CONNECTION_STATUS_H
-#define TABLE_REPLICATION_CONNECTION_STATUS_H 
+#define TABLE_REPLICATION_CONNECTION_STATUS_H
 
 /**
   @file storage/perfschema/table_replication_connection_status.h
@@ -47,18 +47,24 @@ enum enum_rpl_connect_status_service_state {
   PS_RPL_CONNECT_SERVICE_STATE_CONNECTING
 };
 
-//TODO: some values hard-coded below, replace them /Shiv
+/**
+  A row in worker's table. The fields with string values have an additional
+  length field denoted by <field_name>_length.
+*/
 struct st_row_connect_status {
-  char Source_UUID[UUID_LENGTH+1];
-  char Thread_Id[21];
+  char Source_UUID[UUID_LENGTH];
+  /** Thread_Id field is declared char instead of int because it shows NULL
+      when Service_State= off.
+  */
+  char Thread_Id[sizeof(ulonglong)];
   uint Thread_Id_length;
   enum_rpl_connect_status_service_state Service_State;
-  char *Received_Transaction_Set; //modify this, this is just an estimate. /Shiv
+  char* Received_Transaction_Set;
   uint Received_Transaction_Set_length;
   uint Last_Error_Number;
   char Last_Error_Message[MAX_SLAVE_ERRMSG];
   uint Last_Error_Message_length;
-  char Last_Error_Timestamp[11];
+  char Last_Error_Timestamp[11]; /* TODO: Change to timestamp data type. */
   uint Last_Error_Timestamp_length;
 };
 

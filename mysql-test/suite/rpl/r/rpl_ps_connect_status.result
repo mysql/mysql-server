@@ -1,0 +1,46 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+select * from performance_schema.replication_connection_status;
+insert into performance_schema.replication_connection_status values(1);
+update performance_schema.replication_connection_status set Master_UUID='';
+delete from performance_schema.replication_connection_status;
+# Asserted this: Value returned by SSS and PS table for Source_UUID should be same.
+# Asserted this: Value returned by SSS and PS table for Received_Transaction_Set should be same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Message should be same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+# Asserted this: SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "On".
+io thread id extracted from SHOW PROCESSLIST and PS table match correctly.
+include/stop_slave.inc
+change master to
+master_user='replssl',
+master_password='';
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+start slave io_thread;
+include/wait_for_slave_param.inc [Last_IO_Errno]
+# Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
+Value returned by SSS and PS table for Last_Error_Message is same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+include/stop_slave.inc
+# Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
+Value returned by SSS and PS table for Last_Error_Message is same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/rpl_restart_server.inc [server_number=2 gtids=on]
+CHANGE MASTER TO
+master_user = 'root',
+master_auto_position= 1;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+include/start_slave.inc
+use test;
+create table t(a int);
+insert into t values(1);
+# Asserted this: Value returned by SSS and PS table for Received_Transaction_Set should be same.
+include/rpl_end.inc

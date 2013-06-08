@@ -1,15 +1,15 @@
 /*
       Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
-   
+
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
       the Free Software Foundation; version 2 of the License.
-   
+
       This program is distributed in the hope that it will be useful,
       but WITHOUT ANY WARRANTY; without even the implied warranty of
       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
       GNU General Public License for more details.
- 
+
       You should have received a copy of the GNU General Public License
       along with this program; if not, write to the Free Software
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
@@ -89,7 +89,7 @@ table_replication_connection_status::m_share=
   &table_replication_connection_status::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL,    
+  NULL,
   1,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
@@ -149,40 +149,22 @@ int table_replication_connection_status::rnd_pos(const void *pos)
 
 void table_replication_connection_status::fill_rows(Master_info *mi)
 {
-  if (mi != NULL)
-  {
-    global_sid_lock->wrlock();
-
-    const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
-    if ((m_row.Received_Transaction_Set_length= io_gtid_set->to_string(&m_row.Received_Transaction_Set)) < 0)
-    {
-      my_free(m_row.Received_Transaction_Set);
-      m_row.Received_Transaction_Set_length= 0;
-      global_sid_lock->unlock();
-      return;
-    }
-    global_sid_lock->unlock();
-  }
-  
-  //TODO: get rid of mutexes that are not needed.
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
-  mysql_mutex_lock(&mi->err_lock);
-  mysql_mutex_lock(&mi->rli->err_lock);
-  
+
   memcpy(m_row.Source_UUID, mi->master_uuid, UUID_LENGTH+1);
 
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
   {
     char thread_id_str[21];
     sprintf(thread_id_str, "%llu", (ulonglong) mi->info_thd->thread_id);
-    m_row.Thread_Id_length= strlen(thread_id_str) + 1;
+    m_row.Thread_Id_length= strlen(thread_id_str);
     memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
   }
   else
   {
     m_row.Thread_Id_length= strlen("NULL");
-    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length+1);
+    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length);
   }
 
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
@@ -193,36 +175,57 @@ void table_replication_connection_status::fill_rows(Master_info *mi)
       m_row.Service_State= PS_RPL_CONNECT_SERVICE_STATE_CONNECTING;
     else
       m_row.Service_State= PS_RPL_CONNECT_SERVICE_STATE_NO;
-  }  
+  }
+
+  mysql_mutex_lock(&mi->err_lock);
+  mysql_mutex_lock(&mi->rli->err_lock);
+
+  if (mi != NULL)
+  {
+    global_sid_lock->wrlock();
+
+    const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
+
+    if ((m_row.Received_Transaction_Set_length=
+         io_gtid_set->to_string(&m_row.Received_Transaction_Set)) < 0)
+    {
+      my_free(m_row.Received_Transaction_Set);
+      m_row.Received_Transaction_Set_length= 0;
+      global_sid_lock->unlock();
+      return;
+    }
+    global_sid_lock->unlock();
+  }
 
   m_row.Last_Error_Number= (unsigned int) mi->last_error().number;
-  
+
   m_row.Last_Error_Message_length= 0;
   m_row.Last_Error_Timestamp_length= 0;
   if (m_row.Last_Error_Number)
   {
     char* temp_store= (char*)mi->last_error().message;
-    m_row.Last_Error_Message_length= strlen(temp_store) + 1;
-    memcpy(m_row.Last_Error_Message, temp_store, m_row.Last_Error_Message_length);
+    m_row.Last_Error_Message_length= strlen(temp_store);
+    memcpy(m_row.Last_Error_Message, temp_store,
+           m_row.Last_Error_Message_length);
 
     temp_store= (char*)mi->last_error().timestamp;
-    m_row.Last_Error_Timestamp_length= strlen(temp_store) + 1;
-    memcpy(m_row.Last_Error_Timestamp, temp_store, m_row.Last_Error_Timestamp_length);
+    m_row.Last_Error_Timestamp_length= strlen(temp_store);
+    memcpy(m_row.Last_Error_Timestamp,
+           temp_store, m_row.Last_Error_Timestamp_length);
   }
 
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->err_lock);
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
-  
+
   m_filled= true;
 }
 
-
 int table_replication_connection_status::read_row_values(TABLE *table,
-                                       unsigned char *,
-                                       Field **fields,
-                                       bool read_all)
+                                                         unsigned char *,
+                                                         Field **fields,
+                                                         bool read_all)
 {
   Field *f;
 
@@ -246,6 +249,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       case 3: /** Received_Transaction_Set */
         set_field_longtext_utf8(f, m_row.Received_Transaction_Set,
                                 m_row.Received_Transaction_Set_length);
+        break;
       case 4: /*Last_Error_Number*/
         set_field_ulong(f, m_row.Last_Error_Number);
         break;
@@ -256,7 +260,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       case 6: /*Last_Error_Timestamp*/
         set_field_varchar_utf8(f, m_row.Last_Error_Timestamp,
                                m_row.Last_Error_Timestamp_length);
-        break;      
+        break;
       default:
         DBUG_ASSERT(false);
       }

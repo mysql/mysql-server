@@ -35,20 +35,28 @@
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
+/** enum values for Service_State of coordinator thread */
 enum enum_rpl_yes_no {
-  PS_RPL_YES= 1,
-  PS_RPL_NO
+  PS_RPL_YES= 1, /* Service_State= on */
+  PS_RPL_NO /* Service_State= off */
 };
 #endif
 
+/**
+  A row in coordinator's table. The fields with string values have an
+   additional length field denoted by <field_name>_length.
+*/
 struct st_row_coordinator {
-  char Thread_Id[21];
+  /** Thread_Id field is declared char instead of int because it shows NULL
+      when Service_State= off.
+  */
+  char Thread_Id[sizeof(ulonglong)+1];
   uint Thread_Id_length;
   enum_rpl_yes_no Service_State;
   uint Last_Error_Number;
   char Last_Error_Message[MAX_SLAVE_ERRMSG];
   uint Last_Error_Message_length;
-  char Last_Error_Timestamp[11];
+  char Last_Error_Timestamp[11]; /* TODO: Change to timestamp data type. */
   uint Last_Error_Timestamp_length;
 };
 

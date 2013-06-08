@@ -169,10 +169,10 @@ void Relay_log_info::init_workers(ulong n_workers)
       Slave_worker *w= NULL;
       get_dynamic((DYNAMIC_ARRAY*)&this->workers, (uchar*) &w, i);
       delete_dynamic_element(&this->workers, i);
-      delete w; 
+      delete w;
     }
-
      deinit_workers();
+     slave_parallel_workers= 0;
   }
   workers_array_initialized= true; //set before init
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);

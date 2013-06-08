@@ -582,7 +582,7 @@ def	performance_schema	replication_execute_status_by_coordinator	Last_Error_Time
 def	performance_schema	replication_execute_status_by_worker	Worker_Id	1	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_worker	Thread_Id	2	NULL	NO	char	21	63	NULL	NULL	NULL	utf8	utf8_general_ci	char(21)			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_worker	Service_State	3	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('On','Off')			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_worker	Last_Executed_Transaction	4	NULL	NO	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_worker	Last_Seen_Transaction	4	NULL	NO	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_worker	Last_Error_Number	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_worker	Last_Error_Message	6	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_worker	Last_Error_Timestamp	7	NULL	NO	varchar	16	48	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(16)			select,insert,update,references	
