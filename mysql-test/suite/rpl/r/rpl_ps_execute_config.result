@@ -1,0 +1,19 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+select * from performance_schema.replication_execute_configuration;
+Desired_Delay	0
+insert into performance_schema.replication_execute_configuration values(1);
+update performance_schema.replication_execute_configuration set Host='';
+delete from performance_schema.replication_execute_configuration;
+# Asserted this: Value returned by SSS and PS table for Desired_Delay should be same.
+include/stop_slave.inc
+change master to master_delay= 2;
+include/start_slave.inc
+# Asserted this: Value returned by SSS and PS table for Desired_Delay should be same.
+include/stop_slave.inc
+change master to master_delay= 0;
+include/start_slave.inc
+include/rpl_end.inc

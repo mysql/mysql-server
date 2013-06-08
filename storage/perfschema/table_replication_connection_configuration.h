@@ -16,7 +16,7 @@
 
 
 #ifndef TABLE_REPLICATION_CONFIGURATION_H
-#define TABLE_REPLICATION_CONFIGURATION_H 
+#define TABLE_REPLICATION_CONFIGURATION_H
 
 /**
   @file storage/perfschema/table_replication_connection_configuration.h
@@ -43,15 +43,20 @@ enum enum_rpl_yes_no {
 };
 #endif
 
+/** enum values for SSL_Allowed*/
 enum enum_ssl_allowed {
     PS_SSL_ALLOWED_YES= 1,
     PS_SSL_ALLOWED_NO,
     PS_SSL_ALLOWED_IGNORED
 };
 
+/**
+  A row in worker's table. The fields with string values have an additional
+  length field denoted by <field_name>_length.
+*/
 struct st_row_connect_config {
   char Host[HOST_MAX_LEN];
-  uint Host_length;  
+  uint Host_length;
   uint Port;
   char User[USER_MAX_LEN];
   uint User_length;
@@ -60,7 +65,7 @@ struct st_row_connect_config {
   bool Auto_Position;
   enum_ssl_allowed SSL_Allowed;
   char SSL_CA_File[FN_REFLEN];
-  uint SSL_CA_File_length; 
+  uint SSL_CA_File_length;
   char SSL_CA_Path[FN_REFLEN];
   uint SSL_CA_Path_length;
   char SSL_Certificate[FN_REFLEN];

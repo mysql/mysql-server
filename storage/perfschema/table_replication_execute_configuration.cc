@@ -1,15 +1,15 @@
 /*
       Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
-   
+
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
       the Free Software Foundation; version 2 of the License.
-   
+
       This program is distributed in the hope that it will be useful,
       but WITHOUT ANY WARRANTY; without even the implied warranty of
       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
       GNU General Public License for more details.
- 
+
       You should have received a copy of the GNU General Public License
       along with this program; if not, write to the Free Software
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
@@ -55,7 +55,7 @@ table_replication_execute_configuration::m_share=
   &table_replication_execute_configuration::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL,    
+  NULL,
   1,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
@@ -68,12 +68,14 @@ PFS_engine_table* table_replication_execute_configuration::create(void)
   return new table_replication_execute_configuration();
 }
 
-table_replication_execute_configuration::table_replication_execute_configuration()
+table_replication_execute_configuration
+  ::table_replication_execute_configuration()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
 {}
 
-table_replication_execute_configuration::~table_replication_execute_configuration()
+table_replication_execute_configuration
+  ::~table_replication_execute_configuration()
 {}
 
 void table_replication_execute_configuration::reset_position(void)
@@ -81,6 +83,7 @@ void table_replication_execute_configuration::reset_position(void)
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
 }
+
 #ifndef MYSQL_CLIENT
 int table_replication_execute_configuration::rnd_next(void)
 {
@@ -102,6 +105,7 @@ int table_replication_execute_configuration::rnd_next(void)
   return 0;
 }
 #endif
+
 int table_replication_execute_configuration::rnd_pos(const void *pos)
 {
   Master_info *mi= active_mi;
@@ -115,27 +119,21 @@ int table_replication_execute_configuration::rnd_pos(const void *pos)
 
 void table_replication_execute_configuration::fill_rows(Master_info *mi)
 {
-  char *slave_sql_running_state= NULL;
-
-  mysql_mutex_lock(&mi->rli->info_thd_lock);
-  slave_sql_running_state= const_cast<char *>(mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "");
-  mysql_mutex_unlock(&mi->rli->info_thd_lock);
-
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
-  
+
   m_row.Desired_Delay= (long int) mi->rli->get_sql_delay();
-  
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
-  
+
   m_filled= true;
 }
 
 int table_replication_execute_configuration::read_row_values(TABLE *table,
-                                       unsigned char *,
-                                       Field **fields,
-                                       bool read_all)
+                                                             unsigned char *,
+                                                             Field **fields,
+                                                             bool read_all)
 {
   Field *f;
 

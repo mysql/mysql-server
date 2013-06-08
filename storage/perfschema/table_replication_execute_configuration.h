@@ -33,14 +33,7 @@
   @{
 */
 
-#ifndef ENUM_RPL_YES_NO
-#define ENUM_RPL_YES_NO
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1,
-  PS_RPL_NO
-};
-#endif
-
+/** A row in the table*/
 struct st_row_execute_config {
   uint32 Desired_Delay;
 };

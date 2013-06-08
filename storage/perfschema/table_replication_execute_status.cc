@@ -1,15 +1,15 @@
 /*
       Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
-   
+
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
       the Free Software Foundation; version 2 of the License.
-   
+
       This program is distributed in the hope that it will be useful,
       but WITHOUT ANY WARRANTY; without even the implied warranty of
       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
       GNU General Public License for more details.
- 
+
       You should have received a copy of the GNU General Public License
       along with this program; if not, write to the Free Software
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
@@ -60,7 +60,7 @@ table_replication_execute_status::m_share=
   &table_replication_execute_status::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL,    
+  NULL,
   1,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
@@ -124,28 +124,31 @@ void table_replication_execute_status::fill_rows(Master_info *mi)
   char *slave_sql_running_state= NULL;
 
   mysql_mutex_lock(&mi->rli->info_thd_lock);
-  slave_sql_running_state= const_cast<char *>(mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "");
+  slave_sql_running_state= const_cast<char *>
+                           (mi->rli->info_thd ?
+                            mi->rli->info_thd->get_proc_info() : "");
   mysql_mutex_unlock(&mi->rli->info_thd_lock);
 
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
-  
+
   if (mi->rli->slave_running)
     m_row.Service_State= PS_RPL_YES;
   else
     m_row.Service_State= PS_RPL_NO;
-  
-  // Remaining_Delay
+
   ulong remaining_delay_int;
   char remaining_delay_str[11];
     if (slave_sql_running_state == stage_sql_thd_waiting_until_delay.m_name)
     {
       time_t t= my_time(0), sql_delay_end= mi->rli->get_sql_delay_end();
-      remaining_delay_int= (long int)(t < sql_delay_end ? sql_delay_end - t : 0);
+      remaining_delay_int= (long int)(t < sql_delay_end ?
+                                      sql_delay_end - t : 0);
       sprintf(remaining_delay_str, "%lu", remaining_delay_int);
       m_row.Remaining_Delay_length= strlen(remaining_delay_str) + 1;
-      memcpy(m_row.Remaining_Delay, remaining_delay_str, m_row.Remaining_Delay_length);
+      memcpy(m_row.Remaining_Delay, remaining_delay_str,
+              m_row.Remaining_Delay_length);
     }
     else
     {
@@ -155,7 +158,7 @@ void table_replication_execute_status::fill_rows(Master_info *mi)
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
-  
+
   m_filled= true;
 }
 
@@ -179,8 +182,9 @@ int table_replication_execute_status::read_row_values(TABLE *table,
         set_field_enum(f, m_row.Service_State);
         break;
       case 1: /* Remaining_Delay */
-        set_field_varchar_utf8(f, m_row.Remaining_Delay, m_row.Remaining_Delay_length);
-        break;    
+        set_field_varchar_utf8(f, m_row.Remaining_Delay,
+                               m_row.Remaining_Delay_length);
+        break;
       default:
         DBUG_ASSERT(false);
       }
