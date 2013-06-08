@@ -30,6 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0blex.h"
 #include "fts0tlex.h"
 #include "fts0pars.h"
+#include <my_sys.h>
 
 extern	int fts_lexer(YYSTYPE*, fts_lexer_t*);
 extern	int fts_blexer(YYSTYPE*, yyscan_t);
