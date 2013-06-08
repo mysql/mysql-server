@@ -25,10 +25,7 @@ import com.mysql.ndbjtie.ndbapi.Ndb;
 import com.mysql.ndbjtie.ndbapi.NdbError;
 
 /**
- * Tests the basic functioning of the NdbJTie libary: mgmapi for starting
- * a cluster (not implemented yet) and ndbapi for connecting to a cluster.
- * XXX test requires a running cluster at this time, which is why we're
- * not running this test as a unit but mtr test.
+ * Tests loading the NdbJTie libary and connecting to a cluster if running.
  */
 public class NdbJTieSmokeTest extends JTieTestBase {
 
