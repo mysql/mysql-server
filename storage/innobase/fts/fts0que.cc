@@ -615,7 +615,7 @@ fts_query_union_doc_id(
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
 
 	/* Check if the doc id is deleted and it's not already in our set. */
-	if (fts_bsearch(array, 0, size, doc_id) < 0
+	if (fts_bsearch(array, 0, (int) size, doc_id) < 0
 	    && rbt_search(query->doc_ids, &parent, &doc_id) != 0) {
 
 		fts_ranking_t	ranking;
@@ -643,7 +643,7 @@ fts_query_remove_doc_id(
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
 
 	/* Check if the doc id is deleted and it's in our set. */
-	if (fts_bsearch(array, 0, size, doc_id) < 0
+	if (fts_bsearch(array, 0, (int) size, doc_id) < 0
 	    && rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
 
 		fts_ranking_t*	ranking;
@@ -674,7 +674,7 @@ fts_query_change_ranking(
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
 
 	/* Check if the doc id is deleted and it's in our set. */
-	if (fts_bsearch(array, 0, size, doc_id) < 0
+	if (fts_bsearch(array, 0, (int) size, doc_id) < 0
 	    && rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
 
 		fts_ranking_t*	ranking;
@@ -712,7 +712,7 @@ fts_query_intersect_doc_id(
 	fts_ranking_t*	ranking;
 
 	/* Check if the doc id is deleted and it's in our set */
-	if (fts_bsearch(array, 0, size, doc_id) < 0) {
+	if (fts_bsearch(array, 0, (int) size, doc_id) < 0) {
 		fts_ranking_t	new_ranking;
 
 		/* Check doc_id in doc_ids:

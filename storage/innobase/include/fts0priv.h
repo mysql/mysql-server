@@ -261,8 +261,8 @@ int
 fts_bsearch(
 /*========*/
 	fts_update_t*	array,		/*!< in: array to sort */
-	ulint		lower,		/*!< in: lower bound of array*/
-	ulint		upper,		/*!< in: upper bound of array*/
+	int		lower,		/*!< in: lower bound of array*/
+	int		upper,		/*!< in: upper bound of array*/
 	doc_id_t	doc_id)		/*!< in: doc id to lookup */
 	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
