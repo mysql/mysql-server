@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003-2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1051,7 +1051,7 @@ static
 const
 NDBT_Attribute ACCOUNT_TYPES_Attribs[] = {
   NDBT_Attribute("ACCOUNT_TYPE_ID", NdbDictionary::Column::Unsigned, 1, true),
-  NDBT_Attribute("DESCRIPTION", NdbDictionary::Column::Binary, 64, false, false, &my_charset_latin1_bin)
+  NDBT_Attribute("DESCRIPTION", NdbDictionary::Column::Char, 64, false, false, &my_charset_latin1_bin)
 };
 
 static
