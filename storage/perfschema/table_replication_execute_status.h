@@ -35,12 +35,17 @@
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
+/** enum values for Service_State field*/
 enum enum_rpl_yes_no {
   PS_RPL_YES= 1,
   PS_RPL_NO
 };
 #endif
 
+/**
+  A row in the table. The fields with string values have an additional
+  length field denoted by <field_name>_length.
+*/
 struct st_row_execute_status {
   enum_rpl_yes_no Service_State;
   char Remaining_Delay[11];

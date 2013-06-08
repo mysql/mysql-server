@@ -36,23 +36,35 @@
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
+/** enumerated values for Service_State of worker thread*/
 enum enum_rpl_yes_no {
-  PS_RPL_YES= 1,
-  PS_RPL_NO
+  PS_RPL_YES= 1, /* Service_State= on */
+  PS_RPL_NO /* Service_State= off */
 };
 #endif
 
+/**
+  A row in worker's table. The fields with string values have an additional
+  length field denoted by <field_name>_length.
+*/
 struct st_row_worker {
+  /** Worker_Id is added to the table because thread is killed at STOP SLAVE
+      but the status needs to show up, so worker_id is used as a permanent
+      identifier.
+  */
   ulonglong Worker_Id;
-  char Thread_Id[21];
+  /** Thread_Id field is declared char instead of int because it shows NULL
+      when Service_State= off.
+  */
+  char Thread_Id[sizeof(ulonglong)+1];
   uint Thread_Id_length;
   enum_rpl_yes_no Service_State;
-  char Last_Executed_Transaction[57];
-  uint Last_Executed_Transaction_length;
+  char Last_Seen_Transaction[Gtid::MAX_TEXT_LENGTH+1];
+  uint Last_Seen_Transaction_length;
   uint Last_Error_Number;
   char Last_Error_Message[MAX_SLAVE_ERRMSG];
   uint Last_Error_Message_length;
-  char Last_Error_Timestamp[11];
+  char Last_Error_Timestamp[11]; /* TODO: Change to timestamp data type. */
   uint Last_Error_Timestamp_length;
 };
 
@@ -61,15 +73,13 @@ class table_replication_execute_status_by_worker: public PFS_engine_table
 {
 private:
   void fill_rows(Slave_worker *);
-  
+
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
   /** current row*/
   st_row_worker m_row;
-
-  bool m_filled;
 
   /** Current position. */
   PFS_simple_index m_pos;

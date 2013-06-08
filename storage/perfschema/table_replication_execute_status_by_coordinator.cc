@@ -1,15 +1,15 @@
 /*
       Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
-   
+
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
       the Free Software Foundation; version 2 of the License.
-   
+
       This program is distributed in the hope that it will be useful,
       but WITHOUT ANY WARRANTY; without even the implied warranty of
       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
       GNU General Public License for more details.
- 
+
       You should have received a copy of the GNU General Public License
       along with this program; if not, write to the Free Software
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
@@ -75,7 +75,7 @@ table_replication_execute_status_by_coordinator::m_share=
   &table_replication_execute_status_by_coordinator::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL,    
+  NULL,
   1,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
@@ -83,18 +83,19 @@ table_replication_execute_status_by_coordinator::m_share=
   false /* checked */
 };
 
-
 PFS_engine_table* table_replication_execute_status_by_coordinator::create(void)
 {
   return new table_replication_execute_status_by_coordinator();
 }
 
-table_replication_execute_status_by_coordinator::table_replication_execute_status_by_coordinator()
+table_replication_execute_status_by_coordinator
+  ::table_replication_execute_status_by_coordinator()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
 {}
 
-table_replication_execute_status_by_coordinator::~table_replication_execute_status_by_coordinator()
+table_replication_execute_status_by_coordinator
+  ::~table_replication_execute_status_by_coordinator()
 {}
 
 void table_replication_execute_status_by_coordinator::reset_position(void)
@@ -134,16 +135,14 @@ int table_replication_execute_status_by_coordinator::rnd_pos(const void *pos)
   return 0;
 }
 
-void table_replication_execute_status_by_coordinator::fill_rows(Master_info *mi)
+void table_replication_execute_status_by_coordinator
+  ::fill_rows(Master_info *mi)
 {
-  mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
-  mysql_mutex_lock(&mi->err_lock);
-  mysql_mutex_lock(&mi->rli->err_lock);
 
   if (mi->rli->slave_running)
-  {  
-    char thread_id_str[21];
+  {
+    char thread_id_str[sizeof(ulonglong)+1];
     sprintf(thread_id_str, "%u", (uint) mi->rli->info_thd->thread_id);
     m_row.Thread_Id_length= strlen(thread_id_str);
     memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
@@ -151,38 +150,41 @@ void table_replication_execute_status_by_coordinator::fill_rows(Master_info *mi)
   else
   {
     m_row.Thread_Id_length= strlen("NULL");
-    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length+1);
+    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length);
   }
- 
+
   if (mi->rli->slave_running)
     m_row.Service_State= PS_RPL_YES;
   else
     m_row.Service_State= PS_RPL_NO;
 
+  mysql_mutex_lock(&mi->rli->err_lock);
+
   m_row.Last_Error_Number= (long int) mi->rli->last_error().number;
+  m_row.Last_Error_Message_length= 0;
+  m_row.Last_Error_Timestamp_length= 0;
 
   if (m_row.Last_Error_Number)
   {
     char *temp_store= (char*) mi->rli->last_error().message;
-    m_row.Last_Error_Message_length= strlen(temp_store) + 1;
-    memcpy(m_row.Last_Error_Message, temp_store, m_row.Last_Error_Message_length);
+    m_row.Last_Error_Message_length= strlen(temp_store);
+    memcpy(m_row.Last_Error_Message, temp_store,
+           m_row.Last_Error_Message_length);
     temp_store= (char*) mi->rli->last_error().timestamp;
-    m_row.Last_Error_Timestamp_length= strlen(temp_store) + 1;
-    memcpy(m_row.Last_Error_Timestamp, temp_store, m_row.Last_Error_Timestamp_length);
+    m_row.Last_Error_Timestamp_length= strlen(temp_store);
+    memcpy(m_row.Last_Error_Timestamp, temp_store,
+           m_row.Last_Error_Timestamp_length);
   }
 
   mysql_mutex_unlock(&mi->rli->err_lock);
-  mysql_mutex_unlock(&mi->err_lock);
   mysql_mutex_unlock(&mi->rli->data_lock);
-  mysql_mutex_unlock(&mi->data_lock);
-  
+
   m_filled= true;
 }
 
-int table_replication_execute_status_by_coordinator::read_row_values(TABLE *table,
-                                       unsigned char *,
-                                       Field **fields,
-                                       bool read_all)
+int table_replication_execute_status_by_coordinator
+  ::read_row_values(TABLE *table, unsigned char *,
+                    Field **fields, bool read_all)
 {
   Field *f;
 
@@ -204,10 +206,12 @@ int table_replication_execute_status_by_coordinator::read_row_values(TABLE *tabl
         set_field_ulong(f, m_row.Last_Error_Number);
         break;
       case 3: /*Last_Error_Message*/
-        set_field_varchar_utf8(f, m_row.Last_Error_Message, m_row.Last_Error_Message_length);
+        set_field_varchar_utf8(f, m_row.Last_Error_Message,
+                               m_row.Last_Error_Message_length);
         break;
       case 4: /*Last_Error_Timestamp*/
-        set_field_varchar_utf8(f, m_row.Last_Error_Timestamp, m_row.Last_Error_Timestamp_length);
+        set_field_varchar_utf8(f, m_row.Last_Error_Timestamp,
+                               m_row.Last_Error_Timestamp_length);
         break;
       default:
         DBUG_ASSERT(false);

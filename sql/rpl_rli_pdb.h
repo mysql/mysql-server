@@ -363,6 +363,11 @@ public:
     Coordinator or Worker itself needs to hold when write a new value.
   */
   en_running_state volatile running_status;
+  /*
+    If the server is running in gtid-mode=on, this variables stores
+    gtid of the currently executing transaction.
+  */
+  mutable Gtid currently_executing_gtid;
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);

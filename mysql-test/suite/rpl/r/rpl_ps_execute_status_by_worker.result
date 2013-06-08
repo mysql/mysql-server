@@ -1,0 +1,60 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes;");
+include/stop_slave.inc
+SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
+SET @@global.slave_parallel_workers=1;
+include/start_slave.inc
+Warnings:
+Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
+select * from performance_schema.replication_execute_status_by_worker;
+insert into performance_schema.replication_execute_status_by_worker values(1);
+update performance_schema.replication_execute_status_by_worker set Service_State='';
+delete from performance_schema.replication_execute_status_by_worker;
+# Asserted this: Worker_Id should be 0
+worker thread id extracted from SHOW PROCESSLIST and PS table match.
+# Asserted this: Service_State should be "On" on a fresh slave server.
+# Asserted this: Last_Seen_Transaction should show "ANONYMOUS" if gtid-mode=off.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Message should be same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+use test;
+create table t(a int primary key);
+drop table t;
+insert into t values(1);
+include/wait_for_slave_sql_error.inc [errno=1146]
+# Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
+Value returned by SSS and PS table for Last_Error_Message is same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
+Value returned by SSS and PS table for Last_Error_Message is same.
+# Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+STOP SLAVE;
+RESET SLAVE;
+drop table t;
+RESET MASTER;
+include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/rpl_restart_server.inc [server_number=2 gtids=on]
+stop slave;
+Warnings:
+Note	1255	Slave already has been stopped
+change master to master_host='127.0.0.1',master_port=MASTER_MYPORT, master_user='root';
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
+SET @@global.slave_parallel_workers=1;
+start slave;
+Warnings:
+Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
+create database d1;
+create table d1.t1(a int);
+insert into d1.t1 values(1);
+select Last_Seen_Transaction from performance_schema.replication_execute_status_by_worker;
+Last_Seen_Transaction	MASTER_UUID:3
+include/rpl_end.inc

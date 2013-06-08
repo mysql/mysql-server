@@ -1,15 +1,15 @@
 /*
       Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
-   
+
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
       the Free Software Foundation; version 2 of the License.
-   
+
       This program is distributed in the hope that it will be useful,
       but WITHOUT ANY WARRANTY; without even the implied warranty of
       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
       GNU General Public License for more details.
- 
+
       You should have received a copy of the GNU General Public License
       along with this program; if not, write to the Free Software
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
@@ -132,7 +132,7 @@ table_replication_connection_configuration::m_share=
   &table_replication_connection_configuration::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL,    
+  NULL,
   1,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
@@ -146,12 +146,14 @@ PFS_engine_table* table_replication_connection_configuration::create(void)
   return new table_replication_connection_configuration();
 }
 
-table_replication_connection_configuration::table_replication_connection_configuration()
+table_replication_connection_configuration
+  ::table_replication_connection_configuration()
   : PFS_engine_table(&m_share, &m_pos),
     m_filled(false), m_pos(0), m_next_pos(0)
 {}
 
-table_replication_connection_configuration::~table_replication_connection_configuration()
+table_replication_connection_configuration
+  ::~table_replication_connection_configuration()
 {}
 
 void table_replication_connection_configuration::reset_position(void)
@@ -196,18 +198,18 @@ void table_replication_connection_configuration::fill_rows(Master_info *mi)
   char * temp_store;
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
-  
-  m_row.Host_length= strlen(mi->host) + 1;
+
+  m_row.Host_length= strlen(mi->host);
   memcpy(m_row.Host, mi->host, m_row.Host_length);
 
   m_row.Port= (unsigned int) mi->port;
 
   temp_store= (char*)mi->get_user();
-  m_row.User_length= strlen(temp_store) + 1;
+  m_row.User_length= strlen(temp_store);
   memcpy(m_row.User, temp_store, m_row.User_length);
 
   temp_store= (char*)mi->bind_addr;
-  m_row.Network_Interface_length= strlen(temp_store) + 1;
+  m_row.Network_Interface_length= strlen(temp_store);
   memcpy(m_row.Network_Interface, temp_store, m_row.Network_Interface_length);
 
   if (mi->is_auto_position())
@@ -216,65 +218,59 @@ void table_replication_connection_configuration::fill_rows(Master_info *mi)
     m_row.Auto_Position= 0;
 
 #ifdef HAVE_OPENSSL
-  if (mi->ssl)
-    m_row.SSL_Allowed= PS_SSL_ALLOWED_YES
-  else
-    m_row.SSL_Allowed= PS_SSL_ALLOWED_NO;
+  m_row.SSL_Allowed= mi->ssl? PS_SSL_ALLOWED_YES:PS_SSL_ALLOWED_NO;
 #else
-  if (mi->ssl)
-    m_row.SSL_Allowed= PS_SSL_ALLOWED_IGNORED;
-  else 
-    m_row.SSL_Allowed= PS_SSL_ALLOWED_NO;
+  m_row.SSL_Allowed= mi->ssl? PS_SSL_ALLOWED_IGNORED:PS_SSL_ALLOWED_NO;
 #endif
 
   temp_store= (char*)mi->ssl_ca;
-  m_row.SSL_CA_File_length= strlen(temp_store) + 1;
+  m_row.SSL_CA_File_length= strlen(temp_store);
   memcpy(m_row.SSL_CA_File, temp_store, m_row.SSL_CA_File_length);
 
   temp_store= (char*)mi->ssl_capath;
-  m_row.SSL_CA_Path_length= strlen(temp_store) + 1;
+  m_row.SSL_CA_Path_length= strlen(temp_store);
   memcpy(m_row.SSL_CA_Path, temp_store, m_row.SSL_CA_Path_length);
 
   temp_store= (char*)mi->ssl_cert;
-  m_row.SSL_Certificate_length= strlen(temp_store) + 1;
+  m_row.SSL_Certificate_length= strlen(temp_store);
   memcpy(m_row.SSL_Certificate, temp_store, m_row.SSL_Certificate_length);
 
   temp_store= (char*)mi->ssl_cipher;
-  m_row.SSL_Cipher_length= strlen(temp_store) + 1;
+  m_row.SSL_Cipher_length= strlen(temp_store);
   memcpy(m_row.SSL_Cipher, temp_store, m_row.SSL_Cipher_length);
 
   temp_store= (char*)mi->ssl_key;
-  m_row.SSL_Key_length= strlen(temp_store) + 1;
+  m_row.SSL_Key_length= strlen(temp_store);
   memcpy(m_row.SSL_Key, temp_store, m_row.SSL_Key_length);
-  
+
   if (mi->ssl_verify_server_cert)
     m_row.SSL_Verify_Server_Certificate= PS_RPL_YES;
   else
     m_row.SSL_Verify_Server_Certificate= PS_RPL_NO;
 
-  temp_store= (char*)mi->ssl_ca;
-  m_row.SSL_Crl_File_length= strlen(temp_store) + 1;
+  temp_store= (char*)mi->ssl_crl;
+  m_row.SSL_Crl_File_length= strlen(temp_store);
   memcpy(m_row.SSL_Crl_File, temp_store, m_row.SSL_Crl_File_length);
 
-  temp_store= (char*)mi->ssl_capath;
-  m_row.SSL_Crl_Path_length= strlen(temp_store) + 1;
+  temp_store= (char*)mi->ssl_crlpath;
+  m_row.SSL_Crl_Path_length= strlen(temp_store);
   memcpy(m_row.SSL_Crl_Path, m_row.SSL_Crl_Path, m_row.SSL_Crl_Path_length);
 
-  m_row.Connection_Retry_Interval= (unsigned int) mi->connect_retry;  
+  m_row.Connection_Retry_Interval= (unsigned int) mi->connect_retry;
 
-  m_row.Connection_Retry_Count= (ulong) mi->retry_count;  
+  m_row.Connection_Retry_Count= (ulong) mi->retry_count;
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
-  
+
   m_filled= true;
 }
 
 
 int table_replication_connection_configuration::read_row_values(TABLE *table,
-                                                                    unsigned char *,
-                                                                    Field **fields,
-                                                                    bool read_all)
+                                                                unsigned char *,
+                                                                Field **fields,
+                                                                bool read_all)
 {
   Field *f;
 

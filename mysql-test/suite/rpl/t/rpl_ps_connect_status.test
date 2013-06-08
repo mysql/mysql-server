@@ -1,0 +1,226 @@
+#
+# WL#6295- Table: performance_schema.replication_connection_status
+#
+
+source include/master-slave.inc;
+source include/have_ssl_communication.inc;
+source include/have_binlog_format_mixed.inc;
+
+--connection slave
+
+--disable_result_log
+# Verify that the select * works.
+query_vertical select * from performance_schema.replication_connection_status;
+
+#Verify that insert, update and delete do not work.
+error ER_TABLEACCESS_DENIED_ERROR;
+insert into performance_schema.replication_connection_status values(1);
+error ER_TABLEACCESS_DENIED_ERROR;
+update performance_schema.replication_connection_status set Master_UUID='';
+error ER_TABLEACCESS_DENIED_ERROR;
+delete from performance_schema.replication_connection_status;
+--enable_result_log
+
+# Verify that SELECT works for every field and produces an output similar to
+# the corresponding field in SHOW SLAVE STATUS(SSS). For thread_id field in
+# this PS table, there is no corresponding field in SSS so the value of
+# thread_id field is matched with the IO thread_id taken from SHOW PROCESSLIST.
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Master_UUID, 1);
+let $ps_value= query_get_value(select Source_UUID from performance_schema.replication_connection_status, Source_UUID, 1);
+let $assert_text= Value returned by SSS and PS table for Source_UUID should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
+let $ps_value= query_get_value(select Received_Transaction_Set from performance_schema.replication_connection_status, Received_Transaction_Set, 1);
+let $assert_text= Value returned by SSS and PS table for Received_Transaction_Set should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_connection_status, Last_Error_Number, 1);
+let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_connection_status, Last_Error_Message, 1);
+let $assert_text= Value returned by SSS and PS table for Last_Error_Message should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
+let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
+let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
+let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
+let $assert_text= SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "On".;
+let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "On";
+source include/rpl_assert.inc;
+
+# To verify that IO thread_id is correctly shown by PS table, find the
+# row in SHOW PROCESSLIST that corresponds to IO thread and extract the
+# Id field shown in that row.
+# This is implemented by dumping the SHOW PROCESSLIST output in a file
+# and looking for the string "Waiting for master to send event" in a line
+# in the dumped file. The Id field in the that line is then extracted to
+#  obtain the IO thread_id.
+
+let $out_file=$MYSQLTEST_VARDIR/tmp/show_processlist_output.txt;
+exec $MYSQL_SLAVE -e "show processlist" > $out_file;
+let INPUT_FILE= $out_file;
+let $ps_value= query_get_value(select Thread_Id from performance_schema.replication_connection_status, Thread_Id, 1);
+let IO_THREAD_ID= $ps_value;
+
+perl;
+use strict;
+my $input_file= $ENV{'INPUT_FILE'} or die "INPUT_FILE not set\n";
+my $io_thread_id= $ENV{'IO_THREAD_ID'} or die "IO_THREAD_ID not set\n";
+open(IN_FILE, "$input_file") or die("Unable to open '$input_file': $!\n");
+
+open(IN_FILE, "$input_file") or die("Unable to open '$input_file': $!\n");
+while (<IN_FILE>)
+{
+  if (/(\d+)(.*?)(Waiting\s+for\s+master\s+to\s+send\s+event)(.*?)$/)
+  {
+    if ($io_thread_id == $1)
+    {
+      print "io thread id extracted from SHOW PROCESSLIST and PS table match correctly.\n";
+    }
+    else
+    {
+      print "io thread id extracted from SHOW PROCESSLIST and PS table do NOT match.\n";
+    }
+  }
+}
+
+close(IN_FILE);
+EOF
+
+remove_file $out_file;
+
+# We now introduce an error in the IO thread and check for the correctness
+# of error number, message and timestamp fields.
+
+# Cause an error in IO thread.
+--connection slave
+source include/stop_slave.inc;
+replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
+replace_column 2 ####;
+eval change master to
+  master_user='replssl',
+  master_password='';
+
+start slave io_thread;
+let $slave_param= Last_IO_Errno;
+let $slave_param_value= 1045;
+source include/wait_for_slave_param.inc;
+
+# Extract the error related fields from SSS and PS table and compare them
+# for correctness.
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_connection_status, Last_Error_Number, 1);
+let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_connection_status, Last_Error_Message, 1);
+
+let PS_VALUE= $ps_value;
+let SSS_VALUE= $sss_value;
+
+perl;
+use strict;
+my $ps_value= $ENV{'PS_VALUE'};
+my $sss_value= $ENV{'SSS_VALUE'};
+
+if ($ps_value eq $sss_value)
+{
+  print "Value returned by SSS and PS table for Last_Error_Message is same.\n";
+}
+else
+{
+  print "Value returned by SSS and PS table for Last_Error_Message is NOT same\n";
+}
+EOF
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
+let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
+let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+# Verify that the error fields are preserved after STOP SLAVE.
+source include/stop_slave.inc;
+# Extract the error related fields from SSS and PS table and compare them
+# for correctness
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_connection_status, Last_Error_Number, 1);
+let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_connection_status, Last_Error_Message, 1);
+
+let PS_VALUE= $ps_value;
+let SSS_VALUE= $sss_value;
+
+perl;
+use strict;
+my $ps_value= $ENV{'PS_VALUE'};
+my $sss_value= $ENV{'SSS_VALUE'};
+
+if ($ps_value eq $sss_value)
+{
+  print "Value returned by SSS and PS table for Last_Error_Message is same.\n";
+}
+else
+{
+  print "Value returned by SSS and PS table for Last_Error_Message is NOT same\n";
+}
+EOF
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
+let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
+let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+# Restart the master and slave servers in gtid-mode=on, execute some
+# transactions and verify the 'Received_Transaction_Set' field.
+let $rpl_server_number= 1;
+let $rpl_start_with_gtids= 1;
+source include/rpl_restart_server.inc;
+
+let $rpl_server_number= 2;
+let $rpl_start_with_gtids= 1;
+source include/rpl_restart_server.inc;
+
+--connection slave
+replace_column 2 ####;
+CHANGE MASTER TO
+ master_user = 'root',
+ master_auto_position= 1;
+source include/start_slave.inc;
+
+--connection master
+use test;
+create table t(a int);
+insert into t values(1);
+
+sync_slave_with_master;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
+let $ps_value= query_get_value(select Received_Transaction_Set from performance_schema.replication_connection_status, Received_Transaction_Set, 1);
+let $assert_text= Value returned by SSS and PS table for Received_Transaction_Set should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/rpl_assert.inc;
+
+let $rpl_only_running_threads= 1;
+source include/rpl_end.inc;
