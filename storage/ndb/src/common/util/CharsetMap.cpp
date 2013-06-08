@@ -105,12 +105,12 @@ const bool * CharsetMap::isMultibyte(int cs_number) const
 }
 
 
-CharsetMap::RecodeStatus CharsetMap::recode(int32_t *lengths, int From, int To, 
+CharsetMap::RecodeStatus CharsetMap::recode(Int32 *lengths, int From, int To, 
                                             const void *void_src, 
                                             void *void_dest) const
 {    
-    int32_t &total_read = lengths[0];     // IN/OUT
-    int32_t &total_written = lengths[1];  // IN/OUT
+    Int32 &total_read = lengths[0];     // IN/OUT
+    Int32 &total_written = lengths[1];  // IN/OUT
     my_wc_t wide;
     my_wc_t mystery_char = '?';  // used in place of unmappable characters
     const unsigned char * src = (const unsigned char *) void_src;
@@ -120,8 +120,8 @@ CharsetMap::RecodeStatus CharsetMap::recode(int32_t *lengths, int From, int To,
     
     if(! (csTo && csFrom)) return RECODE_BAD_CHARSET;
 
-    int32_t src_len = lengths[0];
-    int32_t dest_len = lengths[1];
+    Int32 src_len = lengths[0];
+    Int32 dest_len = lengths[1];
     const unsigned char * src_end = src + src_len;
     unsigned char * dest_end = dest + dest_len;
     total_read = 0 ;            // i.e. lengths[0] = 0;
