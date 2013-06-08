@@ -1031,39 +1031,39 @@ int
 fts_bsearch(
 /*========*/
 	fts_update_t*	array,	/*!< in: array to sort */
-	ulint		lower,	/*!< in: the array lower bound */
-	ulint		upper,	/*!< in: the array upper bound */
+	int		lower,	/*!< in: the array lower bound */
+	int		upper,	/*!< in: the array upper bound */
 	doc_id_t	doc_id)	/*!< in: the doc id to search for */
 {
-	ulint	orig_size = upper;
+	int	orig_size = upper;
 
 	if (upper == 0) {
 		/* Nothing to search */
 		return(-1);
 	} else {
 		while (lower < upper) {
-			ulint	i = (lower + upper) >> 1;
+			int	i = (lower + upper) >> 1;
 
 			if (doc_id > array[i].doc_id) {
 				lower = i + 1;
 			} else if (doc_id < array[i].doc_id) {
 				upper = i - 1;
 			} else {
-				return((int) i); /* Found. */
+				return(i); /* Found. */
 			}
 		}
 	}
 
 	if (lower == upper && lower < orig_size) {
 		if (doc_id == array[lower].doc_id) {
-			return((int) lower);
+			return(lower);
 		} else if (lower == 0) {
 			return(-1);
 		}
 	}
 
 	/* Not found. */
-	return( (lower == 0) ? -1 : -((int) lower));
+	return( (lower == 0) ? -1 : -(lower));
 }
 
 /**********************************************************************//**
@@ -1084,7 +1084,7 @@ fts_optimize_lookup(
 	int		upper = (int) ib_vector_size(doc_ids);
 	fts_update_t*	array = (fts_update_t*) doc_ids->data;
 
-	pos = fts_bsearch(array, lower, upper, first_doc_id);
+	pos = fts_bsearch(array, (int) lower, upper, first_doc_id);
 
 	ut_a(abs(pos) <= upper + 1);
 

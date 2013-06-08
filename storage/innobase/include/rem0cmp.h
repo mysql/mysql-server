@@ -26,11 +26,12 @@ Created 7/1/1994 Heikki Tuuri
 #ifndef rem0cmp_h
 #define rem0cmp_h
 
-#include "univ.i"
+#include "ha_prototypes.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
 #include "rem0rec.h"
+#include <my_sys.h>
 
 /*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
