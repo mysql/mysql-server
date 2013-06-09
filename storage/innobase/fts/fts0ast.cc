@@ -530,9 +530,9 @@ fts_ast_visit(
 			if (oper == FTS_IGNORE_SKIP) {
 				/* This must be the second pass, now we process
 				the FTS_IGNORE operator */
-				visitor(FTS_IGNORE, node, arg);
+				error = visitor(FTS_IGNORE, node, arg);
 			} else {
-				visitor(oper, node, arg);
+				error = visitor(oper, node, arg);
 			}
 
 			node->visited = true;

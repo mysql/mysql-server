@@ -48,6 +48,10 @@ Full Text Search interface
 a configurable variable */
 UNIV_INTERN ulong	fts_max_cache_size;
 
+/** This is FTS result cache limit for each query and would be
+a configurable variable */
+UNIV_INTERN ulong	fts_result_cache_limit;
+
 /** Variable specifying the maximum FTS max token size */
 UNIV_INTERN ulong	fts_max_token_size;
 
