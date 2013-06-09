@@ -892,11 +892,15 @@ create:
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (index->id == index_id && !(index->type & DICT_FTS)) {
-			root_page_no = btr_create(type, space, zip_size,
-						  index_id, index, mtr);
-			index->page = (unsigned int) root_page_no;
-			return(root_page_no);
+		if (index->id == index_id) {
+			if (index->type & DICT_FTS) {
+				return(FIL_NULL);
+			} else {
+				root_page_no = btr_create(type, space, zip_size,
+							  index_id, index, mtr);
+				index->page = (unsigned int) root_page_no;
+				return(root_page_no);
+			}
 		}
 	}
 
