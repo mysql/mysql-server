@@ -125,6 +125,8 @@ enum dberr_t {
 
 	DB_IO_ERROR,			/*!< Generic IO error */
 	DB_IDENTIFIER_TOO_LONG,		/*!< Identifier name too long */
+	DB_FTS_EXCEED_RESULT_CACHE_LIMIT,	/*!< FTS query memory
+					exceeds result cache limit */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
