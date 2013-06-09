@@ -480,7 +480,8 @@ is the global server default. */
 #define HA_ERR_TOO_MANY_FIELDS    185    /* Table has too many columns */
 #define HA_ERR_ROW_IN_WRONG_PARTITION 186 /* Row in wrong partition */
 #define HA_ERR_INNODB_READ_ONLY   187    /* InnoDB is in read only mode. */
-#define HA_ERR_LAST               187    /* Copy of last error nr */
+#define HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT  188 /* FTS query exceeds result cache limit */
+#define HA_ERR_LAST               188    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
