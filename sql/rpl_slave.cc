@@ -23,6 +23,7 @@
   @brief Code to run the io thread and the sql thread on the
   replication slave.
 */
+
 #include "sql_priv.h"
 #include "my_global.h"
 #include "rpl_slave.h"
@@ -884,6 +885,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
       mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
     }
+
     mysql_mutex_unlock(log_lock);
   }
   if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
@@ -921,6 +923,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
       mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
     }
+
     mysql_mutex_unlock(log_lock);
   }
   DBUG_RETURN(0);
@@ -4919,6 +4922,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   struct timespec curr_clock;
 
   DBUG_ENTER("checkpoint_routine");
+
 #ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
   {
@@ -4952,7 +4956,8 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     */
     DBUG_RETURN(FALSE);
   }
-  do
+
+ do
   {
     cnt= rli->gaq->move_queue_head(&rli->workers);
 #ifndef DBUG_OFF
@@ -4981,6 +4986,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     DBUG_PRINT("info", ("jobs_done this itr=%ld", cnt));
     rli->jobs_done+= cnt;
   }
+
 
   /* TODO: 
      to turn the least occupied selection in terms of jobs pieces
@@ -5047,7 +5053,7 @@ end:
 #endif
   set_timespec_nsec(rli->last_clock, 0);
 
-  /* if the slave sql was killed we must return true */
+  /* if the slave sql was killed we must report */
   if (sql_slave_killed(rli->info_thd, rli))
     error= true;
 
@@ -7121,7 +7127,7 @@ static Log_event* next_event(Relay_log_info* rli)
       if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force) &&
           /* We don't ned this in MTS+master parallel slave since this will
              foil the scheduling logic of coordinator */
-          rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC)
+          rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_DB_NAME)
       {
         ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
         mysql_mutex_unlock(&rli->data_lock);
@@ -7299,8 +7305,7 @@ static Log_event* next_event(Relay_log_info* rli)
         // Note that wait_for_update_relay_log unlocks lock_log !
 
         if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 ||
-            DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))/* &&
-            rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC*/)
+            DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)))
         {
           int ret= 0;
           struct timespec waittime;
@@ -7915,12 +7920,10 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                      ER(ER_UNTIL_COND_IGNORED));
 
       if (!slave_errno)
-      {
         slave_errno = start_slave_threads(false/*need_lock_slave=false*/,
                                           true/*wait_for_start=true*/,
                                           mi,
                                           thread_mask);
-      }
     }
     else
       slave_errno = ER_BAD_SLAVE;

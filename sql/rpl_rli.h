@@ -600,7 +600,7 @@ public:
     MTS statistics: 
   */
   ulonglong mts_events_assigned; // number of events (statements) scheduled
-  ulonglong  mts_groups_assigned; // number of groups (transactions) scheduled
+  ulonglong mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
   /*
@@ -623,7 +623,7 @@ public:
   Mts_submode* current_mts_submode;
   int64 mts_last_committed_parent_id;
   /*
-     The following are used to check if the last group has been appliedi
+     The following are used to check if the last group has been applied
      completely, Here is how this works.
 
      C := coordinator rli
@@ -648,7 +648,7 @@ public:
        C->job_done++;
      }
      Also since both these are being done by the coordinator, we
-     dont need any locks
+     don't need any locks.
    */
   bool is_new_group;
   uint delegated_jobs;

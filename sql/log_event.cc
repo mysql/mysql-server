@@ -44,6 +44,7 @@
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
+
 #endif /* MYSQL_CLIENT */
 
 #include <base64.h>
@@ -2781,7 +2782,17 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 
   return res;
 }
+/*
+  SYNOPSIS
+    This function assigns a parent ID to the job group being scheduled in parallel.
+    It also checks if we can schedule the new event in parallel with the previous ones
+    being executed.
 
+  @param        ev log event that has to be scheduled next.
+  @param       rli Pointer to coordinato's relay log info.
+  @return      true if error
+               false otherwise
+ */
 bool mts_assign_parent_group_id(Log_event* ev, Relay_log_info* rli)
 {
   char llbuff[22];
@@ -2806,16 +2817,16 @@ bool mts_assign_parent_group_id(Log_event* ev, Relay_log_info* rli)
 
 /**
    The method maps the event to a Worker and return a pointer to it.
-   The rest of sending the event to the Worker is done by the caller.
+   Sending the event to the Worker is done by the caller.
 
    Irrespective of the type of Group marking (DB partioned or BGC) the
-   following holds truw:
+   following holds true:
 
-   - to recognize the beginning of a group to allocate the group descriptor
-        and queue it;
-   - to associate an event with a Worker (which also handles possible conflicts
+   - recognize the beginning of a group to allocate the group descriptor
+     and queue it;
+   - associate an event with a Worker (which also handles possible conflicts
      detection and waiting for their termination);
-   - to finalize the group assignement when the group closing event is met.
+   - finalize the group assignement when the group closing event is met.
 
    When parallelization mode is BGC-based the partitioning info in the event
    is simply ignored. Thereby association with a Worker does not require
@@ -2829,32 +2840,32 @@ bool mts_assign_parent_group_id(Log_event* ev, Relay_log_info* rli)
    g - mini-group representative event containing the partition info
       (any Table_map, a Query_log_event)
    p - a mini-group internal event that *p*receeding its g-parent
-      (int_, rand_, user_ var:s) 
+      (int_, rand_, user_ var:s)
    r - a mini-group internal "regular" event that follows its g-parent
       (Delete, Update, Write -rows)
    T - terminator of the group (XID, COMMIT, ROLLBACK, auto-commit query)
 
-   Only the first g-event computes the assigned Worker which once 
+   Only the first g-event computes the assigned Worker which once
    is determined remains to be for the rest of the group.
    That is the g-event solely carries partitioning info.
-   For B-event the assigned Worker is NULL to indicate Coordinator 
+   For B-event the assigned Worker is NULL to indicate Coordinator
    has not yet decided. The same applies to p-event.
-   
+
    Notice, these is a special group consisting of optionally multiple p-events
    terminating with a g-event.
    Such case is caused by old master binlog and a few corner-cases of
-   the current master version (todo: to fix). 
+   the current master version (todo: to fix).
 
    In case of the event accesses more than OVER_MAX_DBS the method
    has to ensure sure previously assigned groups to all other workers are
    done.
 
 
-   @note The function updates GAQ queue directly, updates APH hash 
+   @note The function updates GAQ queue directly, updates APH hash
          plus relocates some temporary tables from Coordinator's list into
          involved entries of APH through @c map_db_to_worker.
          There's few memory allocations commented where to be freed.
-   
+
    @return a pointer to the Worker struct or NULL.
    TODO:The BGC-based parallelization still has to address lookup for temp tables.
 */
@@ -2892,9 +2903,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     if (!rli->curr_group_seen_gtid && !rli->curr_group_seen_begin)
     {
       ulong gaq_idx;
-      rli->curr_group_isolated= FALSE;
       rli->mts_groups_assigned++;
-      group.reset(log_pos, 0);// rli->mts_groups_assigned);
+      rli->curr_group_isolated= FALSE;
+      group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
       gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
       DBUG_PRINT("info",("gaq_idx= %ld  gaq->size=%ld", gaq_idx, gaq->size));
@@ -2919,7 +2930,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           rli->mts_end_group_sets_max_dbs= true;
           rli->curr_group_seen_begin= true;
         }
-
+     
         if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
@@ -2992,7 +3003,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                  (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
                  ((*(Log_event **)
                    dynamic_array_ptr(&rli->curr_group_da,
-                                     rli->curr_group_da.elements - 1))->
+                                     rli->curr_group_da.elements - 1))-> 
                                 get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
 
     // partioning info is found which drops the flag
@@ -3014,12 +3025,12 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     do
     {
       char **ref_cur_db= it.ref();
-
+      
       if (!(ret_worker=
             map_db_to_worker(*ref_cur_db, rli,
                              &mts_assigned_partitions[i],
                              /*
-                               todo: optimize it. Although pure
+                               todo: optimize it. Although pure 
                                rows- event load in insensetive to the flag value
                              */
                              TRUE,
@@ -3039,23 +3050,24 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
       i++;
     } while (it++);
+
     if ((ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index))->
         worker_id == MTS_WORKER_UNDEF)
     {
       ptr_group->worker_id= ret_worker->id;
-
+      
       DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
     }
 
     DBUG_ASSERT(i == num_dbs || num_dbs == OVER_MAX_DBS_IN_EVENT_MTS);
   }
-  else
+  else 
   {
     // a mini-group internal "regular" event
     if (rli->last_assigned_worker)
     {
       ret_worker= rli->last_assigned_worker;
-
+      
       DBUG_ASSERT(rli->curr_group_assigned_parts.elements > 0 ||
                   ret_worker->id == 0);
     }
@@ -3071,7 +3083,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
             get_type_code() == APPEND_BLOCK_EVENT))
       {
         DBUG_ASSERT(!ret_worker);
-
+        
         llstr(rli->get_event_relay_log_pos(), llbuff);
         my_error(ER_MTS_CANT_PARALLEL, MYF(0),
                  get_type_str(), rli->get_event_relay_log_name(), llbuff,
@@ -3082,7 +3094,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       }
 
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
-
+      
       DBUG_ASSERT(!ret_worker);
       DBUG_RETURN (ret_worker);
     }
@@ -3099,7 +3111,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
 
     DBUG_ASSERT(ret_worker != NULL);
-
+    
     /*
       The following two blocks are executed if the worker has not been
       notified about new relay-log or a new checkpoints. 
@@ -3157,6 +3169,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 #ifndef DBUG_OFF
     w_rr++;
 #endif
+
   }
 
   DBUG_RETURN (ret_worker);
@@ -3284,7 +3297,8 @@ int Log_event::apply_event(Relay_log_info *rli)
                 This is an empty group being processed due to gtids.
               */
               (rli->curr_group_seen_begin && rli->curr_group_seen_gtid
-               && ends_group()) || true ||
+               && ends_group()) ||
+              rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC ||
               rli->last_assigned_worker ||
               /*
                 Begin_load_query can be logged w/o db info and within
@@ -3293,7 +3307,7 @@ int Log_event::apply_event(Relay_log_info *rli)
               */
               (*(Log_event **)
                dynamic_array_ptr(&rli->curr_group_da,
-                                 rli->curr_group_da.elements - 1))->
+                                 rli->curr_group_da.elements - 1))-> 
               get_type_code() == BEGIN_LOAD_QUERY_EVENT);
 
   worker= NULL;
@@ -3648,13 +3662,13 @@ bool Query_log_event::write(IO_CACHE* file)
 
   /*
     We store -1 in the following status var since we don't have the
-    commit timestamps. The logical timestamp will be updated in the
+    commit timestamp. The logical timestamp will be updated in the
     do_write_cache.
   */
-  if (!file->commit_seq_offset)
+  if (!file->commit_seq_offset > 0)
   {
     file->commit_seq_offset= QUERY_HEADER_LEN +
-                             (int)(start-start_of_status);
+                             (uint)(start-start_of_status);
     *start++= Q_COMMIT_TS;
     int8store(start, SEQ_UNINIT);
     start+= COMMIT_SEQ_LEN;
@@ -4606,7 +4620,7 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
 /**
-   Associating slave Worker thread to a subset of temporary tables
+   Associating slave Worker thread to a subset of temporary tables.
 
    @param thd   THD instance pointer
    @param rli   Relay_log_info of the worker
@@ -5805,6 +5819,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
     /* Save the information describing this binlog */
     const_cast<Relay_log_info *>(rli)->set_rli_description_event(this);
   }
+
   DBUG_RETURN(ret);
 }
 
@@ -13305,7 +13320,7 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 */
   char const *ptr_buffer= buffer + common_header_len;
 
-  spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ?
+  spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ? 
     ANONYMOUS_GROUP : GTID_GROUP;
 
   commit_flag= *ptr_buffer != 0;

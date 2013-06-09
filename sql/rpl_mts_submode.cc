@@ -17,7 +17,7 @@
 #include "rpl_rli_pdb.h"
 #include "rpl_slave.h"
 
-/*
+/**
  Does necessary arrangement before scheduling next event.
  @param:  Relay_log_info rli
  @return: TRUE  if error
@@ -58,7 +58,7 @@ Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info* rli,
   DBUG_VOID_RETURN;
 }
 
-/*
+/**
  Logic to detach the temporary tables from the worker threads upon
  event execution
  @param: thd THD instance
@@ -145,7 +145,7 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
   DBUG_VOID_RETURN;
 }
 
-/*
+/**
   Logic to get least occupied worker when the sql mts_submode= database
   @param
     rli relay log info of coordinator
@@ -190,7 +190,7 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
   DBUG_RETURN(worker);
 }
 
-/*
+/**
  Logic to assign the parent id to the transaction
  @param rli Relay_log_info of the coordinator
  @return true is error
@@ -216,7 +216,7 @@ Mts_submode_master::Mts_submode_master()
   defer_new_group= false;
 }
 
-/*
+/**
  Does necessary arrangement before scheduling next event.
  @param:  Relay_log_info rli
  @return: TRUE  if error
@@ -263,7 +263,7 @@ Mts_submode_master::schedule_next_event(Relay_log_info* rli, Log_event *ev)
   DBUG_RETURN(false);
 }
 
-/*
+/**
  Logic to attach the temporary tables from the worker threads upon
  event execution
  @param: thd THD instance
@@ -325,7 +325,7 @@ Mts_submode_master::attach_temp_tables(THD *thd, const Relay_log_info* rli,
   DBUG_VOID_RETURN;
 }
 
-/*
+/**
  Logic to detach the temporary tables from the worker threads upon
  event execution
  @param: thd THD instance
@@ -354,7 +354,7 @@ Mts_submode_master::detach_temp_tables( THD *thd, const Relay_log_info* rli,
   DBUG_VOID_RETURN;
 }
 
-/*
+/**
   Logic to get least occupied worker when the sql mts_submode= master_parallel
   @param
     rli relay log info of coordinator
@@ -426,7 +426,7 @@ Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
   DBUG_RETURN(worker);
 }
 
-/*
+/**
  Logic to assign the parent id to the transaction
  @param rli Relay_log_info of the coordinator
  @return true is error
