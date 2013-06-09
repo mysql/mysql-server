@@ -606,6 +606,8 @@ TABLE* mts_move_temp_table_to_entry(TABLE *table, THD *thd,
 
   return ret;
 }
+
+
 /**
    Relocation of the list of temporary tables to thd->temporary_tables.
 
@@ -997,8 +999,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     // first ever group must have relay log name
     DBUG_ASSERT(last_group_done_index != c_rli->gaq->size ||
                 ptr_g->group_relay_log_name != NULL);
-//    DBUG_ASSERT(ptr_g->worker_id == id);
-
+    DBUG_ASSERT(ptr_g->worker_id == id);
     if (ev->get_type_code() != XID_EVENT)
     {
       commit_positions(ev, ptr_g, false);
@@ -1369,6 +1370,11 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
     {
       ulonglong l;
       get_dynamic(&last_done, (uchar *) &l, w_i->id);
+      /*
+        There must be some progress otherwise we should have
+        exit the loop earlier.
+      */
+      DBUG_ASSERT(l < ptr_g->total_seqno);
     }
 #endif
     /*
@@ -1867,8 +1873,10 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   error= ev->do_apply_event_worker(worker);
 
   if (ev->ends_group() || (!worker->curr_group_seen_begin &&
-  /* p-events of B/T-less {p,g} group (see legends of
-     Log_event::get_slave_worker) obviously can't commit. */
+  /*
+    p-events of B/T-less {p,g} group (see legends of
+    Log_event::get_slave_worker) obviously can't commit.
+   */
   (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_BGC ||
    part_event) && !is_gtid_event(ev)))
   {

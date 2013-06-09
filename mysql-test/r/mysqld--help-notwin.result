@@ -1225,7 +1225,7 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
 slave-net-timeout 3600
-slave-parallel-type MASTER_PARALLEL
+slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
 slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN

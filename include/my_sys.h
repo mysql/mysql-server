@@ -474,8 +474,15 @@ typedef struct st_io_cache		/* Used when cacheing files */
     somewhere else
   */
   my_bool alloced_buffer;
+  /* Store the transaction's commit sequence number when the IO cache is used
+     to store transaction to be flushed to binary log. */
   int64 commit_seq_no;
-  int commit_seq_offset;
+  /*
+    Offset of the space allotted for commit sequence number from the beginning
+    of the cache that will be used to update it when the transaction has
+    its commit sequence.
+   */
+  uint commit_seq_offset;
 } IO_CACHE;
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);

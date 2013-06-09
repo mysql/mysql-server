@@ -58,7 +58,7 @@ public:
   virtual bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev)= 0;
 };
 
-/*
+/**
   DB partitioned submode
   For significance of each method check definition of Mts_submode
 */
@@ -79,7 +79,7 @@ public:
   bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev);
 };
 
-/*
+/**
   Parallelization using Master parallelization information
   For significance of each method check definition of Mts_submode
  */

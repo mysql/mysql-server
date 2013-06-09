@@ -1425,8 +1425,6 @@ int ha_commit_trans(THD *thd, bool all)
     error= 1;
     goto end;
   }
-
-
   DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 end:
   if (release_mdl && mdl_request.ticket)
