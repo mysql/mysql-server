@@ -1313,3 +1313,19 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@8' IN BOOLEAN MODE);
 
 # Drop table
 DROP TABLE t1;
+
+# Test for BUG#16885178 - INNODB FULLTEXT PHRASE SEARCH VALGRIND ERROR
+CREATE TABLE t1 (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	a VARCHAR(200),
+	FULLTEXT (a)
+	) ENGINE= InnoDB;
+
+# Insert a special row
+INSERT INTO t1 (a) VALUES
+        ('know mysql good database');
+
+# This phrase search fails in valgrind test before the fix.
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"good database"' IN BOOLEAN MODE);
+
+DROP TABLE t1;
