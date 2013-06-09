@@ -25518,26 +25518,19 @@ Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
   getOpRec(op_ptr, createFKRecPtr);
   const CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
 
-  /*
-   * Restart does not call subOps (for reasons such as indexes).
-   * Prepare here would create DBTC triggers with no DICT counterpart.
-   * In any case, we do not want any triggers before data copy.
-   *
-   * op_ptr.p->m_restart is not set when we come from enable fks.
-   * Check also c_restart_enable_fks to be more robust.
-   */
-  if (op_ptr.p->m_restart && !c_restart_enable_fks)
-  {
-    jam();
-    D("no DBTC triggers" << V(op_ptr.p->m_restart) << V(c_restart_enable_fks));
-    sendTransConf(signal, op_ptr);
-    return;
-  }
-  D("do DBTC triggers" << V(op_ptr.p->m_restart) << V(c_restart_enable_fks));
-
   Callback cb;
   cb.m_callbackData = op_ptr.p->op_key;
   cb.m_callbackFunction = safe_cast(&Dbdict::createFK_writeTableConf);
+
+  /*
+   * On restart from disk there is no need to rewrite schemafile.
+   */
+  if (ZRESTART_NO_WRITE_AFTER_READ && op_ptr.p->m_restart == 1)
+  {
+    jam();
+    execute(signal, cb, 0);
+    return;
+  }
 
   /*
    * On SR/NR activate FK there is no need to rewrite schemafile.
@@ -25576,6 +25569,23 @@ Dbdict::createFK_writeTableConf(Signal* signal,
     op_ptr.p->op_key
   };
   op_ptr.p->m_callback = c;
+
+  /*
+   * Restart does not call subOps (for reasons such as indexes).
+   * Prepare here would create DBTC triggers with no DICT counterpart.
+   * In any case, we do not want any triggers before data copy.
+   *
+   * op_ptr.p->m_restart is not set when we come from enable fks.
+   * Check also c_restart_enable_fks to be more robust.
+   */
+  if (op_ptr.p->m_restart && !c_restart_enable_fks)
+  {
+    jam();
+    D("no DBTC triggers" << V(op_ptr.p->m_restart) << V(c_restart_enable_fks));
+    execute(signal, c, 0);
+    return;
+  }
+  D("do DBTC triggers" << V(op_ptr.p->m_restart) << V(c_restart_enable_fks));
 
   CreateFKImplReq* req = (CreateFKImplReq*)signal->getDataPtrSend();
   req->senderRef = reference();
