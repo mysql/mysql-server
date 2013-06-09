@@ -161,8 +161,7 @@ void Relay_log_info::init_workers(ulong n_workers)
     Parallel slave parameters initialization is done regardless
     whether the feature is or going to be active or not.
   */
-  mts_groups_assigned= mts_events_assigned=
-      pending_jobs= wq_size_waits_cnt= 0;
+  mts_groups_assigned= mts_events_assigned= pending_jobs= wq_size_waits_cnt= 0;
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
   mts_last_online_stat= 0;
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);

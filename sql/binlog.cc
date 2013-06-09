@@ -55,6 +55,7 @@ using std::list;
 //number of limit unsafe warnings after which the suppression will be activated
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT 50
 #ifndef DBUG_OFF
+// number of flushes per group.
 static int no_flushes= 0;
 #endif
 static ulonglong limit_unsafe_suppression_start_time= 0;
@@ -1217,22 +1218,6 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
-/*
-SYNOPSIS:
-  Auxiliary function to fetch the relevent io cache from the thread.
-@params:
-  THD thd  The thread instance
-  bool all bool to check id we need trx cache or stmt cache.
-@return:
-  IO_CACHE *: pointer to the relevant IO cache.
- */
-IO_CACHE* get_thd_cache(THD *thd, bool all)
-{
-  DBUG_ENTER("get_thd_cache");
-  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
-  DBUG_RETURN(cache_mngr->get_binlog_cache_log(all));
-}
-
 static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 {
   /*
@@ -1243,7 +1228,8 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("binlog_prepare");
   if (all)
   {
-    cache= get_thd_cache(thd, all);
+    binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+    cache= cache_mngr->get_binlog_cache_log(all);
     DBUG_ASSERT(cache->commit_seq_no == SEQ_UNINIT);
     cache->commit_seq_no=
       mysql_bin_log.commit_clock.get_timestamp();
@@ -1478,6 +1464,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 {
   int error= 0;
   bool stuff_logged= false;
+
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ENTER("MYSQL_BIN_LOG::rollback(THD *thd, bool all)");
   DBUG_PRINT("enter", ("all: %s, cache_mngr: 0x%llx, thd->is_error: %s",
@@ -1591,6 +1578,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
         truncated.
       */
       error= cache_mngr->trx_cache.truncate(thd, all);
+      cache_mngr->trx_cache.cache_log.commit_seq_offset= 0;
     }
   }
 
@@ -5584,7 +5572,7 @@ uint MYSQL_BIN_LOG::next_file_id()
 
   Event size in incremented by @c BINLOG_CHECKSUM_LEN.
 
-  @return 0 or number of unprocessed yet bytes of the event excluding
+  @return 0 or number of unprocessed yet bytes of the event excluding 
             the checksum part.
 */
   static ulong fix_log_event_crc(uchar *buf, uint off, uint event_len,
@@ -5597,28 +5585,27 @@ uint MYSQL_BIN_LOG::next_file_id()
   DBUG_ASSERT(length >= off + LOG_EVENT_HEADER_LEN); //at least common header in
   int2store(event_begin + FLAGS_OFFSET, flags);
   ret= length >= off + event_len ? 0 : off + event_len - length;
-  *crc= my_checksum(*crc, event_begin, event_len - ret);
+  *crc= my_checksum(*crc, event_begin, event_len - ret); 
   return ret;
 }
 
 /*
-  Auxiliary function to fix the commit seq number for the cache involved in
+  Auxiliary function to write the commit seq number for the cache involved in
   do_write_cache.
   @param cache   Instance of IO_CACHE being written to the disk.
   @param buff    Buffer which needs to be fixed to make sure that
                  commit seq_number is written at the pre-allocated space.
  */
-void fix_commit_seq_no(IO_CACHE* cache, uchar* buff)
+void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
 {
-  DBUG_ENTER("fix_commit_seq_no");
+  DBUG_ENTER("write_commit_seq_no");
   uchar* pc_ptr= buff;
-  DBUG_PRINT("info", ("MTS:: offset:=%d",
+  DBUG_PRINT("info", ("MTS:: cache_ptr:=%p", cache));
+  DBUG_PRINT("info", ("MTS:: commit sequence offset:=%d",
                        cache->commit_seq_offset));
-  DBUG_PRINT("info", ("MTS:: CTS:=%lld",
+  DBUG_PRINT("info", ("MTS:: Commit Timestamp:=%lld",
                        cache->commit_seq_no));
   DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
-  DBUG_PRINT("info", ("MTS:: cache_ptr:=%p",
-                       cache));
   DBUG_ASSERT(cache->commit_seq_no != SEQ_UNINIT);
   DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
   pc_ptr++;
@@ -5647,7 +5634,7 @@ void fix_commit_seq_no(IO_CACHE* cache, uchar* buff)
     events prior to fill in the binlog cache.
 */
 
-int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
+int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::do_write_cache");
 
@@ -5673,7 +5660,6 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
   my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
   uchar buf[BINLOG_CHECKSUM_LEN];
   bool pc_fixed= false;
-  Log_event_type ev_type;
 
   // while there is just one alg the following must hold:
   DBUG_ASSERT(!do_checksum ||
@@ -5705,7 +5691,6 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
 
   do
   {
-
     /*
       if we only got a partial header in the last iteration,
       get the other half now and process a full header.
@@ -5773,7 +5758,7 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
 
         DBUG_ASSERT(remains != 0 && crc != crc_0);
 
-        crc= my_checksum(crc, cache->read_pos, length);
+        crc= my_checksum(crc, cache->read_pos, length); 
         remains -= length;
         if (my_b_write(&log_file, cache->read_pos, length))
           DBUG_RETURN(ER_ERROR_ON_WRITE);
@@ -5796,6 +5781,7 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
         if (do_checksum)
         {
           if (remains != 0)
+
           {
             /*
               finish off with remains of the last event that crawls
@@ -5827,14 +5813,16 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
           uchar *log_pos= ev + LOG_POS_OFFSET;
           if (!pc_fixed)
           {
-            ev_type= (Log_event_type)ev[EVENT_TYPE_OFFSET];
+            Log_event_type ev_type= (Log_event_type)ev[EVENT_TYPE_OFFSET];
             /* We don't have to fix the strayed user_var event outside
                BEGIN;...COMMIT; boundaries, since they will force the slave
-               to start a new group anyway.*/
+               to start a new group anyway. Example of strayed USER VAR
+               event includes  CREATE TABLE t1 SELECT @c;
+              */
             if (ev_type != USER_VAR_EVENT)
             {
               uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
-              fix_commit_seq_no(cache, pc_ptr);
+              write_commit_seq_no(cache, pc_ptr);
             }
             else
               DBUG_PRINT("info",("Skipped strayed USER_VAR event not bounded "
@@ -5854,7 +5842,7 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
             int4store(ev + EVENT_LEN_OFFSET, event_len + BINLOG_CHECKSUM_LEN);
             remains= fix_log_event_crc(cache->read_pos, hdr_offs, event_len,
                                        length, &crc);
-            if (my_b_write(&log_file, ev,
+            if (my_b_write(&log_file, ev, 
                            remains == 0 ? event_len : length - hdr_offs))
               DBUG_RETURN(ER_ERROR_ON_WRITE);
             if (remains == 0)
@@ -5883,7 +5871,6 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
       */
       hdr_offs -= length;
     }
-
 
     /* Write the entire buf to the binary log file */
     if (!do_checksum)
@@ -6021,7 +6008,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
     {
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
-                        if ((write_error= do_write_cache(thd, cache)))
+                        if ((write_error= do_write_cache(cache)))
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
                                                write_error));
                         flush_and_sync(true);
@@ -6029,7 +6016,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
                         DBUG_SUICIDE();
                       });
 
-      if ((write_error= do_write_cache(thd, cache)))
+      if ((write_error= do_write_cache(cache)))
         goto err;
 
       if (incident && write_incident(thd, false/*need_lock_log=false*/,
@@ -6477,7 +6464,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   int error= RESULT_SUCCESS;
   bool stuff_logged= false;
-  bool real_trans= false;
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
                        (ulonglong) thd, YESNO(all), (ulonglong) xid,
                        (ulonglong) cache_mngr));
@@ -6556,7 +6542,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   if (!error && !cache_mngr->trx_cache.is_binlog_empty() &&
       ending_trans(thd, all))
   {
-    real_trans= (all || thd->transaction.all.ha_list == 0);
+    bool real_trans= (all || thd->transaction.all.ha_list == 0);
     /*
       We are committing an XA transaction if it is a "real" transaction
       and have an XID assigned (because some handlerton registered). A
@@ -7562,9 +7548,7 @@ static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
                           is_transactional, FALSE, TRUE, 0, TRUE);
     if (cache_data->write_event(thd, &qinfo))
-    {
       DBUG_RETURN(1);
-    }
   }
 
   DBUG_RETURN(0);
@@ -9137,7 +9121,7 @@ Logical_clock_state::get_timestamp()
   write failure), then the error code is returned.
 */
 int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
-                      ulong query_len, bool is_trans, bool direct,
+                      ulong query_len, bool is_trans, bool direct, 
                       bool suppress_use, int errcode)
 {
   DBUG_ENTER("THD::binlog_query");

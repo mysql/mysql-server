@@ -36,7 +36,7 @@ private:
   int64 clock_step;
   PSI_mutex_key key_state_lock;
 protected:
-  inline void init(){state= 0; clock_step= 1;}
+  virtual inline void init(){state= 0; clock_step= 1;}
 public:
   Logical_clock_state();
   int64 step();
@@ -346,6 +346,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   mysql_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
+  char index_file_name[FN_REFLEN];
   /*
     crash_safe_index_file is temp file used for guaranteeing
     index file crash safe when master server restarts.
@@ -471,9 +472,6 @@ public:
   bool is_relay_log;
   ulong signal_cnt;  // update of the counter is checked by heartbeat
   uint8 checksum_alg_reset; // to contain a new value when binlog is rotated
-
-  char index_file_name[FN_REFLEN];
-
   /*
     Holds the last seen in Relay-Log FD's checksum alg value.
     The initial value comes from the slave's local FD that heads
@@ -680,7 +678,7 @@ public:
 
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(THD* thd, IO_CACHE *cache);
+  int  do_write_cache(IO_CACHE *cache);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);

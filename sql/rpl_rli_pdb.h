@@ -23,6 +23,7 @@ extern ulong w_rr;
   B-event event that Begins a group (a transaction)
   T-event event that Terminates a group (a transaction)
 */
+
 /* Assigned Partition Hash (APH) entry */
 typedef struct st_db_worker_hash_entry
 {
@@ -155,6 +156,7 @@ typedef struct st_slave_job_group
   my_off_t group_relay_log_pos;  // filled by W
   ulong worker_id;
   Slave_worker *worker;
+  ulonglong total_seqno;
 
   my_off_t master_log_pos;       // B-event log_pos
   /* checkpoint coord are reset by periodical and special (Rotate event) CP:s */
@@ -166,16 +168,12 @@ typedef struct st_slave_job_group
   volatile uchar done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
-  /**
-    BGC-based parallelization
-  */
-  longlong parent_seqno; // parent group id
-  longlong total_seqno;  // current group id
+  longlong parent_seqno;
   /*
     Coordinator fills the struct with defaults and options at starting of 
     a group distribution.
   */
-  void reset (my_off_t master_pos, longlong seqno)
+  void reset(my_off_t master_pos, ulonglong seqno)
   {
     master_log_pos= master_pos;
     group_master_log_pos= group_relay_log_pos= 0;
@@ -189,7 +187,6 @@ typedef struct st_slave_job_group
     checkpoint_relay_log_pos= 0;
     checkpoint_seqno= (uint) -1;
     done= 0;
-    parent_seqno= SEQ_UNINIT;
   }
 } Slave_job_group;
 
@@ -201,7 +198,7 @@ typedef struct st_slave_job_group
 class Slave_committed_queue : public circular_buffer_queue
 {
 public:
-
+  
   bool inited;
 
   /* master's Rot-ev exec */
@@ -211,7 +208,7 @@ public:
      The last checkpoint time Low-Water-Mark
   */
   Slave_job_group lwm;
-
+  
   /* last time processed indexes for each worker */
   DYNAMIC_ARRAY last_done;
 
@@ -224,7 +221,7 @@ public:
   {
     uint k;
     ulonglong l= 0;
-
+    
     if (max >= (ulong) -1 || !circular_buffer_queue::inited_queue)
       return;
     else
@@ -237,7 +234,7 @@ public:
   }
 
   ~Slave_committed_queue ()
-  {
+  { 
     if (inited)
     {
       delete_dynamic(&last_done);
