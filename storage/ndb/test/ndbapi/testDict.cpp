@@ -9611,6 +9611,10 @@ runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
 
 #define CHK1(b) CHK2(b, "-");
 
+// myRandom48 seems too non-random
+#define myRandom48(x) (unsigned(ndb_rand()) % (x))
+#define myRandom48Init(x) (ndb_srand(x))
+
 // used for create and verify
 struct Fkdef {
   static const int tabmax = 5;
@@ -9670,6 +9674,8 @@ struct Fkdef {
   Key key[keymax];
   int nkey;
   List list;
+  bool nokeys;
+  bool nodrop;
 };
 
 static int
@@ -9907,6 +9913,8 @@ fk_create_key(const Fkdef& d, Ndb* pNdb, int k)
   int result = NDBT_OK;
   do
   {
+    if (d.nokeys)
+      break;
     const Fkdef::Key& dk = d.key[k];
     NdbDictionary::ForeignKey key;
     key.setName(dk.keyname);
@@ -10052,6 +10060,8 @@ fk_verify_key(Fkdef& d, Ndb* pNdb, int k)
   int result = NDBT_OK;
   do
   {
+    if (d.nokeys)
+      break;
     Fkdef::Key& dk = d.key[k];
     g_info << "verify key " << dk.keyname << endl;
     NdbDictionary::ForeignKey key;
@@ -10251,6 +10261,8 @@ fk_drop_key(const Fkdef& d, Ndb* pNdb, int k, bool force)
   int result = NDBT_OK;
   do
   {
+    if (d.nokeys)
+      break;
     const Fkdef::Key& dk = d.key[k];
     g_info << "drop key " << dk.keyname
            << (force ? " (force)" : "") << endl;
@@ -10301,7 +10313,33 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   const int numdbnodes = restarter.getNumDbNodes();
 
+  int seed = (int)getpid();
+  {
+    const char* p = NdbEnv_GetEnv("RANDOM_SEED", (char*)0, 0);
+    if (p != 0)
+      seed = atoi(p);
+  }
+  myRandom48Init(seed);
+  g_info << "random seed: " << seed << endl;
+
   Fkdef d;
+
+  // create no FKs at all
+  d.nokeys = false;
+  {
+    const char* p = NdbEnv_GetEnv("FK_SRNR_NOKEYS", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+      d.nokeys = true;
+  }
+
+  // do not drop objects at end
+  d.nodrop = false;
+  {
+    const char* p = NdbEnv_GetEnv("FK_SRNR_NODROP", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+      d.nodrop = true;
+  }
+
   fk_define_all(d, testcase);
 
   do
@@ -10348,16 +10386,23 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
     }
     CHK1(result == NDBT_OK);
 
-    CHK1(fk_drop_all(d, pNdb, false) == NDBT_OK);
+    if (!d.nodrop)
+    {
+      CHK1(fk_drop_all(d, pNdb, false) == NDBT_OK);
+    }
   }
   while (0);
 
   if (result != NDBT_OK)
   {
-    (void)fk_drop_all(d, pNdb, true);
+    if (!d.nodrop)
+      (void)fk_drop_all(d, pNdb, true);
   }
   return result;
 }
+
+#undef myRandom48
+#undef myRandom48Init
 
 int
 runDictTO_1(NDBT_Context* ctx, NDBT_Step* step)
