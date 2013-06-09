@@ -1418,3 +1418,14 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@8' IN BOOLEAN MODE);
 id	a
 1	Do you know MySQL is a good database
 DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+FULLTEXT (a)
+) ENGINE= InnoDB;
+INSERT INTO t1 (a) VALUES
+('know mysql good database');
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"good database"' IN BOOLEAN MODE);
+id	a
+1	know mysql good database
+DROP TABLE t1;
