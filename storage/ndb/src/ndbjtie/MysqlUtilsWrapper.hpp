@@ -76,7 +76,7 @@ struct MysqlUtilsWrapper {
     
     static CharsetMap::RecodeStatus
     CharsetMap__recode
-    ( const CharsetMap & obj, int32_t * p0, int p1, int p2, const void * p3, void * p4 )
+    ( const CharsetMap & obj, Int32 * p0, int p1, int p2, const void * p3, void * p4 )
     {
         return obj.recode(p0, p1, p2, p3, p4);
     }
