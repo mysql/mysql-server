@@ -613,6 +613,7 @@ private:
 
   binlog_trx_cache_data& operator=(const binlog_trx_cache_data& info);
   binlog_trx_cache_data(const binlog_trx_cache_data& info);
+  inline void reset_commit_seq_offset(){cache_log.commit_seq_offset= 0;}
 };
 
 class binlog_cache_mngr {
@@ -1210,6 +1211,13 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
         explicitly support rollback to savepoints.
       */
       group_cache.clear();
+      /*
+        Also in such a case we must remove the commit parent offset
+        so that we do not end up currupting the binary log since the
+        offset of the commit seq number may differ in the new "BEGIN"
+        event (or B-events in general).
+      */
+      reset_commit_seq_offset();
     }
   }
 
@@ -1578,7 +1586,6 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
         truncated.
       */
       error= cache_mngr->trx_cache.truncate(thd, all);
-      cache_mngr->trx_cache.cache_log.commit_seq_offset= 0;
     }
   }
 
