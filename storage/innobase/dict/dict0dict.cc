@@ -6075,9 +6075,9 @@ dict_table_schema_check(
 		/* we found a column with the same name on j'th position,
 		compare column types and flags */
 
-		dtype_sql_name(req_schema->columns[i].mtype,
-			       req_schema->columns[i].prtype_mask,
-			       req_schema->columns[i].len,
+		dtype_sql_name((unsigned) req_schema->columns[i].mtype,
+			       (unsigned) req_schema->columns[i].prtype_mask,
+			       (unsigned) req_schema->columns[i].len,
 			       req_type, sizeof(req_type));
 
 		dtype_sql_name(table->cols[j].mtype,
@@ -6188,7 +6188,7 @@ dict_fs2utf8(
 
 	strconvert(
 		&my_charset_filename, db,
-		system_charset_info, db_utf8, db_utf8_size,
+		system_charset_info, db_utf8, (uint) db_utf8_size,
 		&errors);
 
 	/* convert each # to @0023 in table name and store the result in buf */
@@ -6215,7 +6215,7 @@ dict_fs2utf8(
 	errors = 0;
 	strconvert(
 		&my_charset_filename, buf,
-		system_charset_info, table_utf8, table_utf8_size,
+		system_charset_info, table_utf8, (uint) table_utf8_size,
 		&errors);
 
 	if (errors != 0) {

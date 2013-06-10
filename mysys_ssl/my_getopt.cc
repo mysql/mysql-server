@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -923,6 +923,7 @@ static int findopt(char *optpat, uint length,
 {
   uint count;
   const struct my_option *opt= *opt_res;
+  my_bool is_prefix= FALSE;
 
   for (count= 0; opt->name; opt++)
   {
@@ -931,11 +932,14 @@ static int findopt(char *optpat, uint length,
       (*opt_res)= opt;
       if (!opt->name[length])		/* Exact match */
 	return 1;
+
       if (!count)
       {
         /* We only need to know one prev */
 	count= 1;
 	*ffname= opt->name;
+        if (opt->name[length])
+          is_prefix= TRUE;
       }
       else if (strcmp(*ffname, opt->name))
       {
@@ -947,6 +951,12 @@ static int findopt(char *optpat, uint length,
       }
     }
   }
+  if (is_prefix && count == 1)
+    my_getopt_error_reporter(WARNING_LEVEL,
+                             "Using unique option prefix %.*s instead of %s "
+                             "is deprecated and will be removed in a future "
+                             "release. Please use the full name instead.",
+        length, optpat, *ffname);
   return count;
 }
 

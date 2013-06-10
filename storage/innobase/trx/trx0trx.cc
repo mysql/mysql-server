@@ -39,6 +39,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0read.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
+#include "srv0space.h"
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -49,10 +50,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0pool.h"
 #include "ut0vec.h"
-#include "srv0space.h"
-#include "ut0pool.h"
 
 #include <set>
+#include <new>
 
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 
@@ -191,6 +191,12 @@ struct TrxFactory {
 		mutex_create(
 			trx_undo_mutex_key,
 			&trx->undo_mutex, SYNC_TRX_UNDO);
+
+		/* Explicitly call the constructor of the already
+		allocated object. trx_t objects are allocated by
+		mem_zalloc() in Pool::Pool() which would not call
+		the constructors of the trx_t members. */
+		new(&trx->mod_tables) trx_mod_tables_t();
 	}
 
 	/**
@@ -224,6 +230,8 @@ struct TrxFactory {
 
 		mutex_free(&trx->mutex);
 		mutex_free(&trx->undo_mutex);
+
+		trx->mod_tables.~trx_mod_tables_t();
 	}
 
 	/**
@@ -368,6 +376,10 @@ trx_create_low()
 	lock_trx_lock_list_init(&trx->lock.trx_locks);
 	UT_LIST_INIT(trx->trx_savepoints, &trx_named_savept_t::trx_savepoints);
 
+	/* Should have been either just initialized or .clear()ed by
+	trx_free(). */
+	ut_a(trx->mod_tables.size() == 0);
+
 	return(trx);
 }
 
@@ -396,6 +408,8 @@ trx_free(trx_t*& trx)
 		ib_vector_free(trx->lock.table_locks);
 		trx->lock.table_locks = NULL;
 	}
+
+	trx->mod_tables.clear();
 
 	trx_pools->free(trx);
 
@@ -982,22 +996,22 @@ get_next_redo_rseg(
 		}
 	}
 
-#if UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	ulint start_scan_slot = slot;
 	bool look_for_rollover = false;
-#endif
+#endif /* UNIV_DEBUG */
 
 	for(;;) {
 		rseg = trx_sys->rseg_array[slot];
 
-#if UNIV_DEBUG
+#ifdef UNIV_DEBUG
 		/* Ensure that we are not revisiting the same
 		slot that we have already inspected. */
 		if (look_for_rollover) {
 			ut_ad(start_scan_slot != slot);
 		}
 		look_for_rollover = true;
-#endif
+#endif /* UNIV_DEBUG */
 
 		slot = (slot + 1) % max_undo_logs;
 
@@ -1077,7 +1091,7 @@ trx_assign_rseg_low(
 					tablespaces */
 	trx_rseg_type_t	rseg_type)	/*!< in: type of rseg to assign. */
 {
-	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
+	if (srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
@@ -1584,6 +1598,41 @@ trx_flush_log_if_needed(
 	trx->op_info = "";
 }
 
+/**********************************************************************//**
+For each table that has been modified by the given transaction: update
+its dict_table_t::update_time with the current timestamp. Clear the list
+of the modified tables at the end. */
+static
+void
+trx_update_mod_tables_timestamp(
+/*============================*/
+	trx_t*	trx)	/*!< in: transaction */
+{
+	/* consider using trx->start_time if calling time() is too
+	expensive here */
+	time_t	now = time(NULL);
+
+	trx_mod_tables_t::const_iterator	iter;
+	for (iter = trx->mod_tables.begin();
+	     iter != trx->mod_tables.end();
+	     ++iter) {
+
+		dict_table_t*	table = *iter;
+
+		/* This could be executed by multiple threads concurrently
+		on the same table object. This is fine because time_t is
+		word size or less. And _purely_ _theoretically_, even if
+		time_t write is not atomic, likely the value of 'now' is
+		the same in all threads and even if it is not, getting a
+		"garbage" in table->update_time is justified because
+		protecting it with a latch here would be too performance
+		intrusive. */
+		table->update_time = now;
+	}
+
+	trx->mod_tables.clear();
+}
+
 /****************************************************************//**
 Commits a transaction in memory. */
 static __attribute__((nonnull))
@@ -2049,6 +2098,7 @@ trx_commit_for_mysql(
 	case TRX_STATE_ACTIVE:
 	case TRX_STATE_PREPARED:
 		trx->op_info = "committing";
+		trx_update_mod_tables_timestamp(trx);
 		trx_commit(trx);
 		MONITOR_DEC(MONITOR_TRX_ACTIVE);
 		trx->op_info = "";
@@ -2233,7 +2283,7 @@ state_ok:
 	}
 
 	if (trx->mysql_thd != NULL) {
-		innobase_mysql_print_thd(f, trx->mysql_thd, max_query_len);
+		innobase_mysql_print_thd(f, trx->mysql_thd, (uint) max_query_len);
 	}
 }
 

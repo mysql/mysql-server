@@ -8547,6 +8547,8 @@ static void test_mem_overun()
   buffer[length-2]= ')';
   buffer[--length]= '\0';
 
+  strcat(buffer," ENGINE = MyISAM ");
+  length= strlen(buffer);
   rc= mysql_real_query(mysql, buffer, length);
   myquery(rc);
 

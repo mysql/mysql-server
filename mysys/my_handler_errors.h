@@ -90,8 +90,9 @@ static const char *handler_error_messages[]=
   "Tablespace already exists",
   "Too many columns",
   "Row in wrong partition",
-  "Foreign key cascade delete/update exceeds max depth",
-  "InnoDB is in read only mode"
+  "InnoDB is in read only mode",
+  "FTS query exceeds result cache memory limit",
+  "Foreign key cascade delete/update exceeds max depth"
 };
 
 extern void my_handler_error_register(void);
