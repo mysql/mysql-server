@@ -827,5 +827,44 @@ truncate table master;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`slave`, CONSTRAINT `slave_ibfk_1` FOREIGN KEY (`j`) REFERENCES `test`.`master` (`i`))
 drop table slave;
 drop table master;
+"3. Test truncate of loaded table that has blob + compression."
+use test;
+set global innodb_file_per_table = 1;
+set global innodb_file_format='Barracuda';
+create table t1 (a int not null, d int not null, b blob not null, c text,
+primary key (b(10), a, d),  index (d), index(a),  index (c(2070),
+b(255)), index (b(5), c(10), a)
+) engine=InnoDB row_format=compressed key_block_size=8;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 200) DO
+insert into t1 values (i, i, repeat(concat('tc3_', i), 1000),
+repeat('a', 1000));
+set i = i + 1;
+end while;
+end|
+call populate_t1();
+select count(*) from t1;
+count(*)
+200
+set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select count(*) from t1;
+count(*)
+0
+call populate_t1();
+select count(*) from t1;
+count(*)
+200
+drop procedure populate_t1;
+drop table t1;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;

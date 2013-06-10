@@ -6641,41 +6641,35 @@ truncate_t::index_t::set(
 /*=====================*/
 	const dict_index_t* index)
 {
-	/* Collects info for creating compressed index page during recovery */
-	ulint	pos;
-
+	/* Get trx-id column position (set only for clustered index) */
 	if (dict_index_is_clust(index)) {
-
-		pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-
-		ut_ad(pos > 0);
-		ut_ad(pos != ULINT_UNDEFINED);
-
+		m_trx_id_pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
+		ut_ad(m_trx_id_pos > 0);
+		ut_ad(m_trx_id_pos != ULINT_UNDEFINED);
 	} else {
-		pos = ULINT_UNDEFINED;
+		m_trx_id_pos = 0;
 	}
 
-	m_trx_id_pos = pos;
-
+	/* Original logic set this field differently if page is not leaf.
+	For truncate case this being first page to get created it is 
+	always a leaf page and so we don't need that condition here. */
 	m_n_fields = dict_index_get_n_fields(index);
 
-	ulint	len;
-
 	/* See requirements of page_zip_fields_encode for size. */
-	ulint	sz = (m_n_fields + 1) * 2;
-	byte*	encoded = new (std::nothrow) byte[sz];
+	ulint	encoded_buf_size = (m_n_fields + 1) * 2;
+	byte*	encoded_buf = new (std::nothrow) byte[encoded_buf_size];
 
-	len = page_zip_fields_encode(m_n_fields, index, m_trx_id_pos, encoded);
-
-	ut_a(len <= sz);
+	ulint len = page_zip_fields_encode(
+		m_n_fields, index, m_trx_id_pos, encoded_buf);
+	ut_a(len <= encoded_buf_size);
 
 	/* Append the encoded fields data. */
-	m_fields.insert(m_fields.end(), &encoded[0], &encoded[len]);
+	m_fields.insert(m_fields.end(), &encoded_buf[0], &encoded_buf[len]);
 
 	/* NUL terminate the encoded data */
 	m_fields.push_back(0);
 
-	delete[] encoded;
+	delete[] encoded_buf;
 }
 
 /**
@@ -6810,7 +6804,9 @@ truncate_t::create_indexes(
 		if (fsp_flags_is_compressed(flags)) {
 
 			btr_create_info.n_fields = it->m_n_fields;
-			btr_create_info.field_len = it->m_fields.size();
+			/* Skip the NUL appended field */
+			btr_create_info.field_len = it->m_fields.size() - 1;
+			btr_create_info.trx_id_pos = it->m_trx_id_pos;
 		}
 
 		root_page_no = create_index(
@@ -6929,7 +6925,7 @@ truncate_t::write(
 		/* Write index ids, type, root-page-no into mtr log */
 		for (ulint i = 0; i < m_indexes.size(); ++i) {
 
-			log_ptr = mlog_open(&mtr, 8 + 4 + 4);
+			log_ptr = mlog_open(&mtr, 8 + 4 + 4 + 4);
 
 			mach_write_to_8(log_ptr, m_indexes[i].m_id);
 			log_ptr += 8;
@@ -6938,6 +6934,9 @@ truncate_t::write(
 			log_ptr += 4;
 
 			mach_write_to_4(log_ptr, m_indexes[i].m_root_page_no);
+			log_ptr += 4;
+
+			mach_write_to_4(log_ptr, m_indexes[i].m_trx_id_pos);
 			log_ptr += 4;
 
 			mlog_close(&mtr, log_ptr);
@@ -7051,6 +7050,9 @@ truncate_t::parse(
 			*ptr += 4;
 
 			index.m_root_page_no = mach_read_from_4(*ptr);
+			*ptr += 4;
+
+			index.m_trx_id_pos = mach_read_from_4(*ptr);
 			*ptr += 4;
 
 			m_indexes.push_back(index);
