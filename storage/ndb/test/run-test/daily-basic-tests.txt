@@ -1931,3 +1931,47 @@ max-time : 600
 cmd: testDict
 args: -n DictTakeOver_1 T1
 
+max-time : 300
+cmd: testFK
+args: -n CreateDrop T1
+
+max-time : 300
+cmd: testFK
+args: -n CreateDropWithData T1
+
+max-time : 300
+cmd: testFK
+args: -n CreateDropDuring T1
+
+max-time : 300
+cmd: testFK
+args: -n CreateDropError T1
+
+max-time : 300
+cmd: testFK
+args: -n Basic1 T1
+
+max-time : 300
+cmd: testFK
+args: -n Basic5 T1
+
+max-time : 300
+cmd: testFK
+args: -n Basic55 T1
+
+max-time : 300
+cmd: testFK
+args: -n TransError T1
+
+max-time : 300
+cmd: testFK
+args: -n Cascade1 T1
+
+max-time : 300
+cmd: testFK
+args: -n Cascade10 T1
+
+max-time : 300
+cmd: testFK
+args: -n CascadeError T1
+
