@@ -46,7 +46,6 @@ public abstract class TestCase implements Test {
      * to result.errors.
      */
     public void run(TestResult result) {
-        System.out.println(name + ".run()");
         TestListener listener = result.listener;
         listener.startTest(this);
         try {

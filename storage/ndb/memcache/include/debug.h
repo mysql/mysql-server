@@ -78,6 +78,7 @@ DECLARE_FUNCTIONS_WITH_C_LINKAGE
 void ndbmc_debug_init(const char *file, int enable);
 void ndbmc_debug_print(const char *, const char *, ...);
 void ndbmc_debug_enter(const char *);
+void ndbmc_debug_flush();
 END_FUNCTIONS_WITH_C_LINKAGE
 
 #endif
