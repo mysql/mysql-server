@@ -3335,6 +3335,7 @@ row_log_apply(
 	dberr_t		error;
 	row_log_t*	log;
 	row_merge_dup_t	dup = { index, table, NULL, 0 };
+	DBUG_ENTER("row_log_apply");
 
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!dict_index_is_clust(index));
@@ -3377,5 +3378,5 @@ row_log_apply(
 
 	row_log_free(log);
 
-	return(error);
+	DBUG_RETURN(error);
 }

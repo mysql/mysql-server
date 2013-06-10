@@ -1242,19 +1242,27 @@ trx_undo_report_row_operation(
 
 	trx = thr_get_trx(thr);
 
+	bool	is_temp_table = dict_table_is_temporary(index->table);
+
+	/* Temporary tables do not go into INFORMATION_SCHEMA.TABLES,
+	so do not bother adding it to the list of modified tables by
+	the transaction - this list is only used for maintaining
+	INFORMATION_SCHEMA.TABLES.UPDATE_TIME. */
+	if (!is_temp_table) {
+		trx->mod_tables.insert(index->table);
+	}
+
 	/* If trx is read-only then only temp-tables can be written.
 	If trx is read-write and involves temp-table only then we
 	assign temporary rseg. */
-	if (trx->read_only || dict_table_is_temporary(index->table)) {
+	if (trx->read_only || is_temp_table) {
 
-		ut_ad(trx->in_ro_trx_list
-		      || dict_table_is_temporary(index->table));
+		ut_ad(trx->in_ro_trx_list || is_temp_table);
 
-		ut_ad(!srv_read_only_mode
-		      || dict_table_is_temporary(index->table));
+		ut_ad(!srv_read_only_mode || is_temp_table);
 
 		/* MySQL should block writes to non-temporary tables. */
-		ut_a(dict_table_is_temporary(index->table));
+		ut_a(is_temp_table);
 
 		if (trx->rsegs.m_noredo.rseg == 0) {
 			trx_assign_rseg(trx);
@@ -1271,8 +1279,7 @@ trx_undo_report_row_operation(
 	/* If object is temp-table then select noredo rseg as changes
 	to undo logs don't need REDO logging given that they are not
 	restored on restart as corresponding object doesn't exist on restart.*/
-	undo_ptr = dict_table_is_temporary(index->table)
-		   ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
+	undo_ptr = is_temp_table ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
 
 	switch (op_type) {
 	case TRX_UNDO_INSERT_OP:

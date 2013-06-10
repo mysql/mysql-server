@@ -332,9 +332,8 @@ row_mysql_store_geometry(
 		String  wkt;
 
 		/** Show the meaning of geometry data. */
-		Geometry* g = Geometry::construct(&buffer,
-						 (const char*)src,
-						 src_len);
+		Geometry* g = Geometry::construct(
+			&buffer, (const char*)src, (uint32) src_len);
 
 		if (g)
 		{
@@ -374,9 +373,8 @@ row_mysql_read_geometry(
 		String  wkt;
 
 		/** Show the meaning of geometry data. */
-		Geometry* g = Geometry::construct(&buffer,
-						 (const char*)data,
-						 *len);
+		Geometry* g = Geometry::construct(
+			&buffer, (const char*) data, (uint32) *len);
 
 		if (g)
 		{
@@ -3902,6 +3900,11 @@ check_next_foreign:
 
 			fts_free(table);
 		}
+
+		/* Remove the pointer to this table object from the list
+		of modified tables by the transaction because the object
+		is going to be destroyed below. */
+		trx->mod_tables.erase(table);
 
 		dict_table_remove_from_cache(table);
 

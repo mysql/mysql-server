@@ -53,7 +53,11 @@ typedef enum dberr_t		ib_err_t;
 /** Representation of a byte within InnoDB */
 typedef unsigned char		ib_byte_t;
 /** Representation of an unsigned long int within InnoDB */
+#ifdef _WIN64
+typedef unsigned __int64	ib_ulint_t;
+#else
 typedef unsigned long int	ib_ulint_t;
+#endif /* _WIN64 */
 
 /* We assume C99 support except when using VisualStudio. */
 #if !defined(_MSC_VER)

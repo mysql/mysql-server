@@ -196,7 +196,7 @@ os_thread_exit(
 	DWORD win_thread_id = GetCurrentThreadId();
 	HANDLE handle = win_thread_map[win_thread_id];
 	CloseHandle(handle);
-	int ret = win_thread_map.erase(win_thread_id);
+	size_t ret = win_thread_map.erase(win_thread_id);
 	ut_a(ret == 1);
 
 	os_mutex_exit(os_sync_mutex);

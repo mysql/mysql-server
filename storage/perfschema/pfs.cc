@@ -2012,7 +2012,7 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
 
   aggregate_thread(pfs);
 
-  pfs->m_lock.allocated_to_dirty();
+  pfs->m_session_lock.allocated_to_dirty();
 
   clear_thread_account(pfs);
 
@@ -2042,7 +2042,7 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
 
   pfs->m_enabled= enabled;
 
-  pfs->m_lock.dirty_to_allocated();
+  pfs->m_session_lock.dirty_to_allocated();
 }
 
 /**
@@ -2064,7 +2064,7 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
   if (unlikely(pfs == NULL))
     return;
 
-  pfs->m_lock.allocated_to_dirty();
+  pfs->m_session_lock.allocated_to_dirty();
 
   clear_thread_account(pfs);
 
@@ -2097,7 +2097,7 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
   }
   pfs->m_enabled= enabled;
 
-  pfs->m_lock.dirty_to_allocated();
+  pfs->m_session_lock.dirty_to_allocated();
 }
 
 /**
@@ -2114,11 +2114,11 @@ void pfs_set_thread_db_v1(const char* db, int db_len)
 
   if (likely(pfs != NULL))
   {
-    pfs->m_lock.allocated_to_dirty();
+    pfs->m_stmt_lock.allocated_to_dirty();
     if (db_len > 0)
       memcpy(pfs->m_dbname, db, db_len);
     pfs->m_dbname_length= db_len;
-    pfs->m_lock.dirty_to_allocated();
+    pfs->m_stmt_lock.dirty_to_allocated();
   }
 }
 
@@ -2135,9 +2135,7 @@ void pfs_set_thread_command_v1(int command)
 
   if (likely(pfs != NULL))
   {
-    pfs->m_lock.allocated_to_dirty();
     pfs->m_command= command;
-    pfs->m_lock.dirty_to_allocated();
   }
 }
 
@@ -2151,9 +2149,7 @@ void pfs_set_thread_start_time_v1(time_t start_time)
 
   if (likely(pfs != NULL))
   {
-    pfs->m_lock.allocated_to_dirty();
     pfs->m_start_time= start_time;
-    pfs->m_lock.dirty_to_allocated();
   }
 }
 
@@ -2183,16 +2179,16 @@ void pfs_set_thread_info_v1(const char* info, uint info_len)
       if (info_len > sizeof(pfs->m_processlist_info))
         info_len= sizeof(pfs->m_processlist_info);
 
-      pfs->m_processlist_info_lock.allocated_to_dirty();
+      pfs->m_stmt_lock.allocated_to_dirty();
       memcpy(pfs->m_processlist_info, info, info_len);
       pfs->m_processlist_info_length= info_len;
-      pfs->m_processlist_info_lock.dirty_to_allocated();
+      pfs->m_stmt_lock.dirty_to_allocated();
     }
     else
     {
-      pfs->m_processlist_info_lock.allocated_to_dirty();
+      pfs->m_stmt_lock.allocated_to_dirty();
       pfs->m_processlist_info_length= 0;
-      pfs->m_processlist_info_lock.dirty_to_allocated();
+      pfs->m_stmt_lock.dirty_to_allocated();
     }
   }
 }
@@ -5168,19 +5164,17 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
     /* copy from the input buffer as much as we can fit */
     uint copy_size= (uint)(length < session_connect_attrs_size_per_thread ?
                            length : session_connect_attrs_size_per_thread);
-    thd->m_lock.allocated_to_dirty();
+    thd->m_session_lock.allocated_to_dirty();
     memcpy(thd->m_session_connect_attrs, buffer, copy_size);
     thd->m_session_connect_attrs_length= copy_size;
     thd->m_session_connect_attrs_cs= (const CHARSET_INFO *) from_cs;
-    thd->m_lock.dirty_to_allocated();
-    
+    thd->m_session_lock.dirty_to_allocated();
+
     if (copy_size == length)
       return 0;
-    else
-    {
-      session_connect_attrs_lost++;
-      return 1;
-    }
+
+    session_connect_attrs_lost++;
+    return 1;
   }
   return 0;
 }

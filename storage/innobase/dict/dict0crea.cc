@@ -1030,20 +1030,16 @@ dict_recreate_index_tree(
 	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-
-		if (index->id == index_id && !(index->type & DICT_FTS)) {
-
-			root_page_no = btr_create(
-				type, space, zip_size, index_id, index, NULL,
-				mtr);
-
-			index->page = root_page_no;
-
-			return(root_page_no);
-		} else if (index->id == index_id && (index->type & DICT_FTS)) {
-			/* We ignore creation of FTS index. It is created
-			separately. */
-			return(root_page_no);
+		if (index->id == index_id) {
+			if (index->type & DICT_FTS) {
+				return(FIL_NULL);
+			} else {
+				root_page_no = btr_create(
+					type, space, zip_size, index_id, index,
+					NULL, mtr);
+				index->page = (unsigned int) root_page_no;
+				return(root_page_no);
+			}
 		}
 	}
 
