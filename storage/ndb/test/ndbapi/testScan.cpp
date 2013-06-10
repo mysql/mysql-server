@@ -539,7 +539,11 @@ int runScanReadErrorOneNode(NDBT_Context* ctx, NDBT_Step* step){
     for (int j=0; j<10; j++){
       if (hugoTrans.scanReadRecords(GETNDB(step), 
 				    records, 0, parallelism) != 0)
+      {
+        // Remember that one scan read failed, but continue to
+        // read to put load on the system
 	result = NDBT_FAILED;
+      }
     }
 	
 
