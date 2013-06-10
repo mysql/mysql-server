@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,15 +28,13 @@ IF(HAVE_JAVA)
 ENDIF(HAVE_JAVA)
 
 ADD_SUBDIRECTORY(jtie)
-ADD_SUBDIRECTORY(mysql)
 ADD_SUBDIRECTORY(test)
 
 IF(HAVE_JDK)
 
   INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
 
-  INCLUDE_DIRECTORIES(mysql
-                      utils
+  INCLUDE_DIRECTORIES(utils
                       jtie)
 
   ADD_LIBRARY(ndbjtie STATIC ndbjtie_lib.cpp)
