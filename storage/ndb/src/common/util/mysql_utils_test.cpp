@@ -170,10 +170,12 @@ int test_charset_map()
        In the latin1 encoding this is a literal 0xFC,
        but in the UTF-8 representation it is 0xC3 0xBC.
     */
-    const char my_word_latin1[6]    = { 0xFC, 'l', 'k', 'e', 'r', 0};
-    const char my_word_utf8[7]      = { 0xC3, 0xBC, 'l', 'k', 'e', 'r', 0};
-    const char my_word_truncated[5] = { 0xC3, 0xBC, 'l', 'k', 0};
-    const unsigned char my_bad_utf8[5]       = { 'l', 0xBC, 'a', 'd', 0};
+    // use numeric escape sequencesx.. (or downcast integer literal to char)
+    // to avoid narrowing conversion compile warnings
+    const char my_word_latin1[6]    = { '\xFC', 'l', 'k', 'e', 'r', 0};
+    const char my_word_utf8[7]      = { '\xC3', '\xBC', 'l', 'k', 'e', 'r', 0};
+    const char my_word_truncated[5] = { '\xC3', '\xBC', 'l', 'k', 0};
+    const unsigned char my_bad_utf8[5]       = { 'l', '\xBC', 'a', 'd', 0};
     char result_buff_1[32];
     char result_buff_2[32];
     char result_buff_too_small[4];
