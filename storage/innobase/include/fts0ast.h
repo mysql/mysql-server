@@ -26,7 +26,6 @@ Created 2007/03/16/03 Sunny Bains
 #ifndef INNOBASE_FST0AST_H
 #define INNOBASE_FST0AST_H
 
-#include "univ.i"
 #include "ha_prototypes.h"
 #include "mem0mem.h"
 
@@ -73,7 +72,7 @@ struct fts_lexer_t;
 struct fts_ast_node_t;
 struct fts_ast_state_t;
 
-typedef ulint (*fts_ast_callback)(fts_ast_oper_t, fts_ast_node_t*, void*);
+typedef dberr_t (*fts_ast_callback)(fts_ast_oper_t, fts_ast_node_t*, void*);
 
 /********************************************************************
 Parse the string using the lexer setup within state.*/

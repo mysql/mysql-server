@@ -1797,15 +1797,14 @@ struct buf_pool_t{
 
 	/** @name General fields */
 	/* @{ */
-	ib_mutex_t		mutex;		/*!< Buffer pool mutex of this
+	ib_mutex_t	mutex;		/*!< Buffer pool mutex of this
 					instance */
-	ib_mutex_t		zip_mutex;	/*!< Zip mutex of this buffer
+	ib_mutex_t	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not
 					buf_block_t */
 	ulint		instance_no;	/*!< Array index of this buffer
 					pool instance */
-	ulint		old_pool_size;  /*!< Old pool size in bytes */
 	ulint		curr_pool_size;	/*!< Current pool size in bytes */
 	ulint		LRU_old_ratio;  /*!< Reserve this much of the buffer
 					pool for "old" blocks */

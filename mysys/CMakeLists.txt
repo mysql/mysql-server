@@ -34,7 +34,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
-				my_atomic.c my_getncpus.c
+				my_getncpus.c
 				my_rdtsc.c psi_noop.c my_syslog.c)
 
 IF (WIN32)

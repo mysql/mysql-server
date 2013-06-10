@@ -90,7 +90,7 @@ innobase_mysql_cmp(
 	}
 #endif /* UNIV_DEBUG */
 
-	uint cs_num = dtype_get_charset_coll(prtype);
+	uint cs_num = (uint) dtype_get_charset_coll(prtype);
 
 	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
 		return(cs->coll->strnncollsp(
@@ -371,7 +371,7 @@ cmp_data(
 		return(cmp);
 	}
 
-	cmp = len1 - len2;
+	cmp = (int) (len1 - len2);
 
 	if (!cmp || pad == ULINT_UNDEFINED) {
 		return(cmp);

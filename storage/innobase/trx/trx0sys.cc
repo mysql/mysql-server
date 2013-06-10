@@ -942,7 +942,7 @@ trx_sys_create_rsegs(
 	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
 	ut_a(n_tmp_rsegs > 0 && n_tmp_rsegs < TRX_SYS_N_RSEGS);
 
-	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
+	if (srv_read_only_mode) {
 		return(ULINT_UNDEFINED);
 	}
 
