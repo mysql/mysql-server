@@ -391,7 +391,11 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 	for (unsigned n = 0; n < ndbNodes.size(); n++){
 	  if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED &&
 	      ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTING)
+	  {
+            // Found one not starting node, don't wait anymore
 	    waitMore = false;
+            break;
+          }
 
 	}
       } 
