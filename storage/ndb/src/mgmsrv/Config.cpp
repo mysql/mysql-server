@@ -751,7 +751,10 @@ bool Config::illegal_change(const Properties& diff_list) const {
       Uint32 type;
       require(what->get("Type", &type));
       if (type == DT_ILLEGAL_CHANGE)
+      {
         illegal= true;
+        break;
+      }
     }
   }
   return illegal;
