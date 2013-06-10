@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,14 +28,15 @@ libgeneral_la_SOURCES = \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp SparseBitmask.cpp parse_mask.hpp \
 	    ndb_rand.c require.c Vector.cpp \
-	    NdbPack.cpp
+	    NdbPack.cpp \
+	    decimal_utils.cpp CharsetMap.cpp CharsetMapImpl.cpp
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
 
 libndbazio_la_SOURCES = ndbzio.c
 libndbazio_la_LIBADD = @ZLIB_LIBS@
 
-noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t SparseBitmask-t ndb_version-t NdbPack-t HashMap2-t LinkedStack-t
+noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t SparseBitmask-t ndb_version-t NdbPack-t HashMap2-t LinkedStack-t mysql_utils_test-t
 
 BaseString_t_SOURCES = BaseString.cpp
 BaseString_t_CXXFLAGS = -DTEST_BASE_STRING
@@ -98,6 +99,15 @@ LinkedStack_t_LDADD = \
 	$(top_builddir)/mysys/libmysyslt.la \
 	$(top_builddir)/dbug/libdbuglt.la \
 	$(top_builddir)/strings/libmystringslt.la
+
+mysql_utils_test_t_SOURCES = mysql_utils_test.cpp
+#mysql_utils_test_t_CXXFLAGS = -DTEST_MYSQL_UTILS
+mysql_utils_test_t_LDADD = \
+	libgeneral.la \
+	$(top_builddir)/dbug/libdbuglt.la \
+	$(top_builddir)/mysys/libmysyslt.la \
+	$(top_builddir)/strings/libmystringslt.la \
+	$(top_builddir)/storage/ndb/src/common/portlib/libportlib.la
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am

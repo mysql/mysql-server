@@ -21,16 +21,7 @@
 #ifndef CharsetMap_hpp
 #define CharsetMap_hpp
 
-/*
- * This API uses the C99 exact-width type aliases as defined in <stdint.h>.
- * Unfortunately, some C/C++ compiler still lack a stdint.h header file.
- * (For instance, MS Visual Studio until VS2010.)
- *
- * Since this API has no dependency upon NDBAPI, we do not want to use
- * the exact-width type aliases from there but delegate to a generic helper
- * file that handles the absence of the <stdint.h>.
- */
-#include "mystdint.h"
+#include "ndb_types.h"
 
 /**
  * Handles encoding issues for character data
@@ -125,7 +116,7 @@ public:
      * If the conversion is successful we return RECODE_OK.
      * Other return values are noted above.
      */
-    RecodeStatus recode(int32_t *lengths /* IN/OUT */,
+    RecodeStatus recode(Int32 *lengths /* IN/OUT */,
                         int cs_from, int cs_to, const void *src,
                         void *dest) const;
                         
