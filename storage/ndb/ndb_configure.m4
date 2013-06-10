@@ -530,7 +530,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   if test x"$have_clusterj" = xyes
   then
     NDBJTIE_OPT="ndbjtie"
-    NDBJTIE_LIBS="ndbjtie/libndbjtie.la ndbjtie/mysql/libmysqlutils.la"
+    NDBJTIE_LIBS="ndbjtie/libndbjtie.la"
 
     # generate jtie unit tests:
     AC_CONFIG_FILES([storage/ndb/src/ndbjtie/jtie/test/myapi/test_myapi.sh],
