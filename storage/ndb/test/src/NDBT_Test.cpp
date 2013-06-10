@@ -726,9 +726,16 @@ int NDBT_TestCaseImpl1::runSteps(NDBT_Context* ctx){
     startStepInThread(i, ctx);
   waitSteps();
 
+  // Check if any step failed
   for(i = 0; i < steps.size(); i++)
+  {
     if (results[i] != NDBT_OK)
+    {
+      // Found one step which had failed -> report failed
       res = NDBT_FAILED;
+      break;
+    }
+  }
   return res;
 }
 
