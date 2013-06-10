@@ -1227,7 +1227,7 @@ page_zip_compress(
 	const rec_t**		recs;		/*!< dense page directory,
 						sorted by address */
 	mem_heap_t*		heap;
-	ulint			trx_id_col;
+	ulint			trx_id_col = ULINT_UNDEFINED;
 	ulint			n_blobs	= 0;
 	byte*			storage;	/* storage of uncompressed
 						columns */
@@ -1359,22 +1359,31 @@ page_zip_compress(
 	ut_a(err == Z_OK);
 
 	c_stream.next_out = buf;
+
 	/* Subtract the space reserved for uncompressed data. */
 	/* Page header and the end marker of the modification log */
 	c_stream.avail_out = buf_end - buf - 1;
+
 	/* Dense page directory and uncompressed columns, if any */
 	if (page_is_leaf(page)) {
 		if ((index && dict_index_is_clust(index))
-			|| (page_comp_info
+		    || (page_comp_info
 			&& (page_comp_info->type & DICT_CLUSTERED))) {
+
 			if (index) {
 				trx_id_col = dict_index_get_sys_col_pos(
 					index, DATA_TRX_ID);
 				ut_ad(trx_id_col > 0);
 				ut_ad(trx_id_col != ULINT_UNDEFINED);
+			} else if (page_comp_info
+				   && (page_comp_info->type &
+					DICT_CLUSTERED)) {
+				trx_id_col = page_comp_info->trx_id_pos;
 			}
+
 			slot_size = PAGE_ZIP_DIR_SLOT_SIZE
 				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+
 		} else {
 			/* Signal the absence of trx_id
 			in page_zip_fields_encode() */

@@ -1626,6 +1626,7 @@ btr_create(
 			page_comp_info.n_fields = btr_create_info->n_fields;
 			page_comp_info.field_len = btr_create_info->field_len;
 			page_comp_info.fields = btr_create_info->fields;
+			page_comp_info.trx_id_pos = btr_create_info->trx_id_pos;
 			page = page_create_zip(block, NULL, 0, 0,
 					       &page_comp_info, mtr);
 		}
