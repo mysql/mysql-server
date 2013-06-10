@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -530,7 +530,11 @@ int ha_ndbinfo::rnd_init(bool scan)
     DBUG_RETURN(err2mysql(err));
 
   if ((err = scan_op->readTuples()) != 0)
+  {
+    // Release the scan operation
+    g_ndbinfo->releaseScanOperation(scan_op);
     DBUG_RETURN(err2mysql(err));
+  }
 
   /* Read all columns specified in read_set */
   for (uint i = 0; i < table->s->fields; i++)
@@ -543,7 +547,13 @@ int ha_ndbinfo::rnd_init(bool scan)
   }
 
   if ((err = scan_op->execute()) != 0)
+  {
+    // Release pointers to the columns
+    m_impl.m_columns.clear();
+    // Release the scan operation
+    g_ndbinfo->releaseScanOperation(scan_op);
     DBUG_RETURN(err2mysql(err));
+  }
 
   m_impl.m_scan_op = scan_op;
   DBUG_RETURN(0);
