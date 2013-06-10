@@ -209,7 +209,8 @@ struct btr_create_t {
 		format_flags(),
 		n_fields(),
 		field_len(),
-		fields(ptr)
+		fields(ptr),
+		trx_id_pos(ULINT_UNDEFINED)
 	{
 		/* Do nothing */
 	}
@@ -225,6 +226,9 @@ struct btr_create_t {
 
 	/** Column meta-data, encoded. */
 	const byte* const	fields;
+
+	/** Position of trx-id column. */
+	ulint			trx_id_pos;
 };
 
 #endif
