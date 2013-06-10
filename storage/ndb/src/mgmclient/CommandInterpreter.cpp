@@ -1094,7 +1094,10 @@ public:
     {
       if (m_status->node_states[i].node_id == nodeid &&
           m_status->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB)
+      {
         found = true;
+        break;
+      }
     }
 
     if (!found)

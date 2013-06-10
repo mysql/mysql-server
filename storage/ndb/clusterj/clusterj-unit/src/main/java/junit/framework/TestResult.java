@@ -49,7 +49,7 @@ public class TestResult {
     }
 
     public synchronized boolean wasSuccessful() {
-        return failures.isEmpty();
+        return failures.isEmpty() && throwables.isEmpty();
     }
 
     public TestListener newListener() {
