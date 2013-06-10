@@ -206,10 +206,8 @@ void print_annotate_event(PRINT_EVENT_INFO *print_event_info)
   }
 }
 
-static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
-                                          const char* logname);
-static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
-                                           const char* logname);
+static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *, const char*);
+static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *, const char*);
 static Exit_status dump_log_entries(const char* logname);
 static Exit_status safe_connect();
 

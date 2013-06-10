@@ -54,7 +54,7 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 }
 
 
-char *batch_readline(LINE_BUFFER *line_buff)
+char *batch_readline(LINE_BUFFER *line_buff, bool binary_mode)
 {
   char *pos;
   ulong out_length;
@@ -63,8 +63,17 @@ char *batch_readline(LINE_BUFFER *line_buff)
   if (!(pos=intern_read_line(line_buff, &out_length)))
     return 0;
   if (out_length && pos[out_length-1] == '\n')
-    if (--out_length && pos[out_length-1] == '\r')  /* Remove '\n' */
-      out_length--;                                 /* Remove '\r' */
+  {
+    /*
+      On Windows platforms we also need to remove '\r', unconditionally.  On
+      Unix-like platforms we only remove it if we are not on binary mode.
+     */
+
+    /* Remove '\n' */
+    if (--out_length && IF_WIN(1,!binary_mode) && pos[out_length-1] == '\r')
+      /* Remove '\r' */
+      out_length--;                                 
+  }
   line_buff->read_length=out_length;
   pos[out_length]=0;
   return pos;
@@ -226,7 +235,7 @@ char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length)
   for (;;)
   {
     pos=buffer->end_of_line;
-    while (*pos != '\n' && *pos)
+    while (*pos != '\n' && pos != buffer->end)
       pos++;
     if (pos == buffer->end)
     {
