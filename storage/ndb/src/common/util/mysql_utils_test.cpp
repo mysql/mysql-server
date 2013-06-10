@@ -100,7 +100,8 @@ int test_decimal(const char *s, int prec, int scale, int expected_rv)
 
     str_buff[0] = 0;
 
-    r1 = decimal_str2bin(s, strlen(s), prec, scale, bin_buff, 128);
+    // cast: decimal_str2bin expects 'int' for size_t strlen()
+    r1 = decimal_str2bin(s, (int)strlen(s), prec, scale, bin_buff, 128);
     if(r1 <= E_DEC_OVERFLOW) {
         r2 = decimal_bin2str(bin_buff, 128, prec, scale, str_buff, 128);
         CHECK(r2 == E_DEC_OK);
@@ -175,7 +176,8 @@ int test_charset_map()
     const char my_word_latin1[6]    = { '\xFC', 'l', 'k', 'e', 'r', 0};
     const char my_word_utf8[7]      = { '\xC3', '\xBC', 'l', 'k', 'e', 'r', 0};
     const char my_word_truncated[5] = { '\xC3', '\xBC', 'l', 'k', 0};
-    const unsigned char my_bad_utf8[5]       = { 'l', '\xBC', 'a', 'd', 0};
+    // no need for 'unsigned char[]'
+    const char my_bad_utf8[5]       = { 'l', '\xBC', 'a', 'd', 0};
     char result_buff_1[32];
     char result_buff_2[32];
     char result_buff_too_small[4];
