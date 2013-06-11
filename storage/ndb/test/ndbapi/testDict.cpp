@@ -10320,7 +10320,7 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
       seed = atoi(p);
   }
   myRandom48Init(seed);
-  g_info << "random seed: " << seed << endl;
+  g_err << "random seed: " << seed << endl;
 
   Fkdef d;
 
