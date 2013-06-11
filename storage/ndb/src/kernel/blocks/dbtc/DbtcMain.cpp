@@ -11290,6 +11290,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
      * scan.  We are ready to start executing the scan
      */
     scanptr.p->scanAttrInfoPtr = regCachePtr->attrInfoSectionI;
+    scanptr.p->scanKeyInfoPtr = regCachePtr->keyInfoSectionI;
     releaseCacheRecord(apiConnectptr, regCachePtr);
     diFcountReqLab(signal, scanptr);
     return;
