@@ -610,7 +610,18 @@ JOIN::optimize()
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (hidden_group_field_count == 0 && rollup.state == ROLLUP::STATE_NONE)
-      select_distinct=0;
+    {
+      /*
+        All GROUP expressions are in SELECT list, so resulting rows are
+        distinct. ROLLUP is not specified, so adds no row. So all rows in the
+        result set are distinct, DISTINCT is useless.
+        @todo could remove DISTINCT if ROLLUP were specified and all GROUP
+        expressions were non-nullable, because ROLLUP adds only NULL
+        values. Currently, ROLLUP+DISTINCT is rejected because executor
+        cannot handle it in all cases.
+      */
+      select_distinct= false;
+    }
   }
   else if (select_distinct &&
            plan_is_single_table() &&
