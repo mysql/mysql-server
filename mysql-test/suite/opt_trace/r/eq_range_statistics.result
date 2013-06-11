@@ -1140,9 +1140,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                       {
                         "index": "a",
                         "ranges": [
-                          "5 < a AND 2 <= b <= 2",
-                          "5 < a AND 3 <= b <= 3",
-                          "5 < a AND 4 <= b <= 4"
+                          "5 < a"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -1164,9 +1162,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                       "index": "a",
                       "rows": 1,
                       "ranges": [
-                        "5 < a AND 2 <= b <= 2",
-                        "5 < a AND 3 <= b <= 3",
-                        "5 < a AND 4 <= b <= 4"
+                        "5 < a"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
