@@ -25,7 +25,13 @@ option(WITH_MCC "Include MySQL Cluster Configurator" ON)
 if(NOT WITH_MCC)
   message(STATUS "Skipping mcc")
   return()
-endif(NOT WITH_MCC) 
+endif(NOT WITH_MCC)
+
+# PB2 on win?
+set(PB2DRIVE $ENV{PB2DRIVE})
+if(WIN32 AND PB2DRIVE AND NOT MCC_PYTHON_TO_BUNDLE)
+	message(FATAL_ERROR "MCC_PYTHON_TO_BUNDLE not set when building in PB2 on Windows")
+endif() 
 
 function(SETIFUNDEF_ var val)
   if(NOT DEFINED ${var})
@@ -128,7 +134,7 @@ CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/post-install.py.in"
         "${CMAKE_CURRENT_BINARY_DIR}/post-install.py")
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mcc_config.py.in" "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py")
-install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py"  
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py"  
   DESTINATION "${MCC_INSTALL_BINDIR}"
   COMPONENT ClusterTools
   RENAME "mcc_config.py")
