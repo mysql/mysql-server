@@ -44,7 +44,6 @@ ALTER TABLE mysql.tables_priv ENGINE=MyISAM;
 ALTER TABLE mysql.columns_priv ENGINE=MyISAM;
 ALTER TABLE mysql.procs_priv ENGINE=MyISAM;
 ALTER TABLE mysql.proxies_priv ENGINE=MyISAM;
-ALTER TABLE mysql.host ENGINE=MyISAM;
 # MCP_BUG16226274 <
 
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
