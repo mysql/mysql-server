@@ -110,7 +110,7 @@ SET_TARGET_PROPERTIES(LinkedStack-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_LINKEDSTACK")
 TARGET_LINK_LIBRARIES(LinkedStack-t ndbgeneral)
 
-ADD_EXECUTABLE(mysql_utils_test-t mysql_utils_test.cpp)
-SET_TARGET_PROPERTIES(mysql_utils_test-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_MYSQL_UTILS")
-TARGET_LINK_LIBRARIES(mysql_utils_test-t ndbgeneral  ndbportlib)
+#ADD_EXECUTABLE(mysql_utils_test-t mysql_utils_test.cpp)
+#SET_TARGET_PROPERTIES(mysql_utils_test-t
+#                      PROPERTIES COMPILE_FLAGS "-DTEST_MYSQL_UTILS")
+#TARGET_LINK_LIBRARIES(mysql_utils_test-t ndbgeneral  ndbportlib)
