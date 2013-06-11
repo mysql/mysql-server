@@ -24,9 +24,9 @@
 #include "pfs_column_types.h"
 #include "pfs_stat.h"
 
-#define OBJECT_NAME_LENGTH 80
-#define SCHEMA_NAME_LENGTH 80
-#define HASH_KEY_LENGTH sizeof(enum_object_type) + OBJECT_NAME_LENGTH + 1 + SCHEMA_NAME_LENGTH + 1
+#define OBJECT_NAME_LENGTH NAME_LEN
+#define SCHEMA_NAME_LENGTH NAME_LEN
+#define PROGRAM_HASH_KEY_LENGTH sizeof(enum_object_type) + OBJECT_NAME_LENGTH + 1 + SCHEMA_NAME_LENGTH + 1
 
 extern LF_HASH program_hash;
 extern ulong program_max;
@@ -42,7 +42,7 @@ struct PFS_program_key
     This has to be a string for LF_HASH,                                        
     the format is "<object_type><0x00><object_name><0x00><schema_name><0x00>"                            
   */
-  char m_hash_key[HASH_KEY_LENGTH];
+  char m_hash_key[PROGRAM_HASH_KEY_LENGTH];
   uint m_key_length;
 }; 
 
@@ -52,21 +52,21 @@ struct PFS_program : public PFS_instr
   enum_object_type m_type;
 
   /** Object name. */
-  char m_object_name[OBJECT_NAME_LENGTH];
+  const char *m_object_name;
   int m_object_name_length;
  
   /** Object Schema name. */
-  char m_schema_name[SCHEMA_NAME_LENGTH];
+  const char *m_schema_name;
   int m_schema_name_length;
+
+  /** Hash key */
+  PFS_program_key m_key;
 
   /** Sub statement stat. */
   PFS_statement_stat m_stmt_stat;
 
   /** Stored program stat. */
   PFS_sp_stat m_sp_stat;
-
-  /** Hash key */
-  PFS_program_key m_key;
 
   /** Referesh setup object flags. */
   void referesh_setup_object_flags(PFS_thread* thread);
@@ -90,10 +90,9 @@ find_or_create_program(PFS_thread *thread,
                       const char *object_name,                                  
                       uint object_name_length,                                  
                       const char *schema,                                       
-                      uint schema_length,
-                      my_bool fromSP);
+                      uint schema_length);
 
-int
+void
 drop_program(PFS_thread *thread,
              enum_object_type object_type,
              const char *object_name,

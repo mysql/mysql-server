@@ -31,6 +31,8 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 
+ulong nested_statement_lost= 0;
+
 /**
   @addtogroup Performance_schema_buffers
   @{

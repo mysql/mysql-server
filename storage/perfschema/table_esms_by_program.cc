@@ -286,8 +286,10 @@ table_esms_by_program::rnd_pos(const void *pos)
 
 void table_esms_by_program::make_row(PFS_program* program)
 {
-
+  pfs_lock lock;
   m_row_exists= false;
+
+  program->m_lock.begin_optimistic_lock(&lock);
   
   m_row.m_object_type= program->m_type;
 
@@ -301,13 +303,14 @@ void table_esms_by_program::make_row(PFS_program* program)
     memcpy(m_row.m_schema_name, program->m_schema_name,
            m_row.m_schema_name_length); 
 
+  time_normalizer *normalizer= time_normalizer::get(statement_timer);
   /* Get stored program's over all stats. */
-  time_normalizer *normalizer1= time_normalizer::get(statement_timer);
-  m_row.m_sp_stat.set(normalizer1, &program->m_sp_stat);
-
+  m_row.m_sp_stat.set(normalizer, &program->m_sp_stat);
   /* Get sub statements' stats. */
-  time_normalizer *normalizer2= time_normalizer::get(statement_timer);
-  m_row.m_stmt_stat.set(normalizer2, & program->m_stmt_stat);
+  m_row.m_stmt_stat.set(normalizer, & program->m_stmt_stat);
+
+  if (! program->m_lock.end_optimistic_lock(&lock))
+    return;
 
   m_row_exists= true;
 }
@@ -337,16 +340,22 @@ int table_esms_by_program
       case 0: /* OBJECT_TYPE */
         if(m_row.m_object_type != 0)
           set_field_enum(f, m_row.m_object_type);
+        else
+          f->set_null();
         break;
       case 1: /* OBJECT_SCHEMA */
         if(m_row.m_schema_name_length > 0)
           set_field_varchar_utf8(f, m_row.m_schema_name,
                                  m_row.m_schema_name_length);
+        else
+          f->set_null();
         break;
       case 2: /* OBJECT_NAME */
         if(m_row.m_object_name_length > 0)
           set_field_varchar_utf8(f, m_row.m_object_name,
                                  m_row.m_object_name_length);
+        else
+          f->set_null();
         break;
       case 3: /* COUNT_STAR */
       case 4: /* SUM_TIMER_WAIT */
