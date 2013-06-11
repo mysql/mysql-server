@@ -1139,6 +1139,7 @@ static const char *default_options[]=
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation", "plugin-dir", "default-auth",
+  "enable-cleartext-plugin",
   NullS
 };
 enum option_id {
@@ -1150,6 +1151,7 @@ enum option_id {
   OPT_ssl_cipher, OPT_max_allowed_packet, OPT_protocol, OPT_shared_memory_base_name, 
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth, 
+  OPT_enable_cleartext_plugin,
   OPT_keep_this_one_last
 };
 
@@ -1394,6 +1396,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
           break;
         case OPT_default_auth:
           EXTENSION_SET_STRING(options, default_auth, opt_arg);
+          break;
+        case OPT_enable_cleartext_plugin:
           break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
@@ -4218,6 +4222,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     break;
   case MYSQL_DEFAULT_AUTH:
     EXTENSION_SET_STRING(&mysql->options, default_auth, arg);
+    break;
+  case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
     break;
   case MYSQL_PROGRESS_CALLBACK:
     if (!mysql->options.extension)
