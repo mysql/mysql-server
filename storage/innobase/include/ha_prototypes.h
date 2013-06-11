@@ -22,14 +22,12 @@ Prototypes for global functions in ha_innodb.cc that are called by
 InnoDB C code.
 
 NOTE: This header is intended to insulate InnoDB from SQL names and functions.
-Do not include any headers other than univ.i into this.  A change to any header
-included here will cause a recompile of everything that includes this header.
+Do not include any headers other than univ.i into this unless they are very
+simple headers.
 ************************************************************************/
 
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
-
-#include "sql_class.h"
 
 #include "univ.i"
 
@@ -126,18 +124,6 @@ thd_is_replication_slave_thread(
 	THD*	thd);	/*!< in: thread handle */
 
 /******************************************************************//**
-Gets information on the durability property requested by thread.
-Used when writing either a prepare or commit record to the log
-buffer.
-@return the durability property. */
-
-enum durability_properties
-thd_requested_durability(
-/*=====================*/
-	const THD* thd)	/*!< in: thread handle */
-	__attribute__((nonnull, warn_unused_result));
-
-/******************************************************************//**
 Returns true if the transaction this thread is processing has edited
 non-transactional tables. Used by the deadlock detector when deciding
 which transaction to rollback in case of a deadlock - we try to avoid
@@ -174,8 +160,7 @@ get_innobase_type_from_mysql_type(
 					at least ENUM and SET,
 					and unsigned integer
 					types are 'unsigned types' */
-	const void*	field)		/*!< in: MySQL Field */
-	__attribute__((nonnull));
+	const void*	field);		/*!< in: MySQL Field */
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
@@ -272,8 +257,7 @@ const char*
 innobase_get_stmt(
 /*==============*/
 	THD*	thd,		/*!< in: MySQL thread handle */
-	size_t*	length)		/*!< out: length of the SQL statement */
-	__attribute__((nonnull));
+	size_t*	length);		/*!< out: length of the SQL statement */
 /******************************************************************//**
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function
@@ -417,8 +401,7 @@ innobase_format_name(
 	ulint		buflen,		/*!< in: length of buf, in bytes */
 	const char*	name,		/*!< in: index or table name
 					to format */
-	ibool		is_index_name)	/*!< in: index name */
-	__attribute__((nonnull));
+	ibool		is_index_name);	/*!< in: index name */
 
 /** Corresponds to Sql_condition:enum_warning_level. */
 enum ib_log_level_t {
@@ -556,6 +539,32 @@ innobase_convert_to_filename_charset(
 	char*           to,     /* out: converted identifier */
 	const char*     from,   /* in: identifier to convert */
 	ulint           len);   /* in: length of 'to', in bytes */
+
+/*************************************************************//**
+InnoDB index push-down condition check defined in ha_innodb.cc
+@return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
+
+#include <my_icp.h>
+
+ICP_RESULT
+innobase_index_cond(
+/*================*/
+	void*	file)	/*!< in/out: pointer to ha_innobase */
+	__attribute__((warn_unused_result));
+
+/******************************************************************//**
+Gets information on the durability property requested by thread.
+Used when writing either a prepare or commit record to the log
+buffer.
+@return the durability property. */
+
+#include <dur_prop.h>
+
+enum durability_properties
+thd_requested_durability(
+/*=====================*/
+	const THD* thd)	/*!< in: thread handle */
+	__attribute__((warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
 

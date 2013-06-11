@@ -80,6 +80,7 @@
 #include <m_ctype.h>
 #include <myisam.h>
 #include <my_dir.h>
+#include <dur_prop.h>
 #include "rpl_handler.h"
 
 #include "sp_head.h"

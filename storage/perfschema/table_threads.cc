@@ -129,8 +129,9 @@ table_threads::table_threads()
 void table_threads::make_row(PFS_thread *pfs)
 {
   pfs_lock lock;
+  pfs_lock session_lock;
+  pfs_lock stmt_lock;
   PFS_stage_class *stage_class;
-  pfs_lock processlist_info_lock;
   PFS_thread_class *safe_class;
 
   m_row_exists= false;
@@ -148,6 +149,9 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
 
+  /* Protect this reader against session attribute changes */
+  pfs->m_session_lock.begin_optimistic_lock(&session_lock);
+
   m_row.m_username_length= pfs->m_username_length;
   if (unlikely(m_row.m_username_length > sizeof(m_row.m_username)))
     return;
@@ -160,13 +164,53 @@ void table_threads::make_row(PFS_thread *pfs)
   if (m_row.m_hostname_length != 0)
     memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
 
+  if (! pfs->m_session_lock.end_optimistic_lock(& session_lock))
+  {
+    /*
+      One of the columns:
+      - PROCESSLIST_USER
+      - PROCESSLIST_HOST
+      is being updated.
+      Do not discard the entire row.
+      Do not loop waiting for a stable value.
+      Just return NULL values.
+    */
+    m_row.m_username_length= 0;
+    m_row.m_hostname_length= 0;
+  }
+
+  /* Protect this reader against statement attributes changes */
+  pfs->m_stmt_lock.begin_optimistic_lock(&stmt_lock);
+
   m_row.m_dbname_length= pfs->m_dbname_length;
   if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname)))
     return;
   if (m_row.m_dbname_length != 0)
     memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
 
+  m_row.m_processlist_info_ptr= & pfs->m_processlist_info[0];
+  m_row.m_processlist_info_length= pfs->m_processlist_info_length;
+
+  if (! pfs->m_stmt_lock.end_optimistic_lock(& stmt_lock))
+  {
+    /*
+      One of the columns:
+      - PROCESSLIST_DB
+      - PROCESSLIST_INFO
+      is being updated.
+      Do not discard the entire row.
+      Do not loop waiting for a stable value.
+      Just return NULL values.
+    */
+    m_row.m_dbname_length= 0;
+    m_row.m_processlist_info_length= 0;
+  }
+
+  /* Dirty read, sanitize the command. */
   m_row.m_command= pfs->m_command;
+  if ((m_row.m_command < 0) || (m_row.m_command > COM_END))
+    m_row.m_command= COM_END;
+
   m_row.m_start_time= pfs->m_start_time;
 
   stage_class= find_stage_class(pfs->m_stage);
@@ -178,23 +222,6 @@ void table_threads::make_row(PFS_thread *pfs)
   else
   {
     m_row.m_processlist_state_length= 0;
-  }
-
-  /* Protect this reader against info attribute changes. */
-  pfs->m_processlist_info_lock.begin_optimistic_lock(&processlist_info_lock);
-
-  m_row.m_processlist_info_ptr= & pfs->m_processlist_info[0];
-  m_row.m_processlist_info_length= pfs->m_processlist_info_length;
-
-  if (! pfs->m_processlist_info_lock.end_optimistic_lock(& processlist_info_lock))
-  {
-    /*
-      Column PROCESSLIST_INFO is being updated.
-      Do not discard the entire row.
-      Do not loop waiting for a stable value.
-      Just return NULL values for this column.
-    */
-    m_row.m_processlist_info_length= 0;
   }
 
   m_row.m_enabled_ptr= &pfs->m_enabled;

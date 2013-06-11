@@ -473,7 +473,7 @@ ut_print_buf_hex(
 
 	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
 		byte	b = *data++;
-		o << hexdigit[b >> 16] << hexdigit[b & 15];
+		o << hexdigit[(int) b >> 16] << hexdigit[b & 15];
 	}
 
 	o << ")";
@@ -857,6 +857,8 @@ ut_strerr(
 		return("Table dictionary has changed");
 	case DB_IDENTIFIER_TOO_LONG:
 		return("Identifier name is too long");
+	case DB_FTS_EXCEED_RESULT_CACHE_LIMIT:
+		return("FTS query exceeds result cache limit");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

@@ -204,7 +204,7 @@ buf_LRU_make_block_old(
 Updates buf_pool->LRU_old_ratio.
 @return	updated old_pct */
 
-ulint
+uint
 buf_LRU_old_ratio_update(
 /*=====================*/
 	uint	old_pct,/*!< in: Reserve this percentage of

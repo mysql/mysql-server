@@ -12418,10 +12418,6 @@ show_param:
           }
         | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
           {
-            push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                ER_WARN_DEPRECATED_SYNTAX,
-                                ER(ER_WARN_DEPRECATED_SYNTAX),
-                                "SHOW PROFILE", "Performance Schema");
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_PROFILE;
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)

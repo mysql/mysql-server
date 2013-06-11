@@ -471,7 +471,7 @@ page_zip_parse_compress(
 Calculate the compressed page checksum.
 @return	page checksum */
 
-ulint
+ib_uint32_t
 page_zip_calc_checksum(
 /*===================*/
         const void*     data,   /*!< in: compressed page */
