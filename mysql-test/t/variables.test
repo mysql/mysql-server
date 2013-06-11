@@ -1228,7 +1228,10 @@ DROP TABLE t1;
 
 SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
 --echo # Set the max_binlog_cache_size to size more than 4GB. 
+--disable_warnings
 SET GLOBAL max_binlog_cache_size = 5 * 1024 * 1024 * 1024;
+--enable_warnings
+--replace_result 5368709120 max_size 4294963200 max_size
 SELECT @@GLOBAL.max_binlog_cache_size;
 SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
 

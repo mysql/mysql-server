@@ -81,6 +81,7 @@ SET @@global.binlog_stmt_cache_size = 10000.01;
 SET @@global.binlog_stmt_cache_size = -1024;
 SELECT @@global.binlog_stmt_cache_size;
 SET @@global.binlog_stmt_cache_size = 42949672950;
+--replace_result 4294963200 max_binlog_cache_size 42949668864 max_binlog_cache_size
 SELECT @@global.binlog_stmt_cache_size;
 echo 'Bug: Errors are not coming on assigning invalid values to variable';
 

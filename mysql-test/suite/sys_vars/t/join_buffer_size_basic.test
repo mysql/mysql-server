@@ -88,7 +88,9 @@ SELECT @@global.join_buffer_size;
 SET @@global.join_buffer_size = 127;
 SELECT @@global.join_buffer_size;
 SET @@global.join_buffer_size = 42949672951;
+--replace_result 42949672832 max_join_buffer_size 4294967168 max_join_buffer_size
 SELECT @@global.join_buffer_size;
+SET @@global.join_buffer_size = 1024*1024;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.join_buffer_size = 65530.34;
@@ -104,7 +106,9 @@ SELECT @@session.join_buffer_size;
 SET @@session.join_buffer_size = 127;
 SELECT @@session.join_buffer_size;
 SET @@session.join_buffer_size = 42949672951;
+--replace_result 42949672832 max_join_buffer_size 4294967168 max_join_buffer_size
 SELECT @@session.join_buffer_size;
+SET @@session.join_buffer_size = 1024*1024;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.join_buffer_size = 65530.34;
