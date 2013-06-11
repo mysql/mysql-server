@@ -1141,6 +1141,8 @@ typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state_v1;
 
 struct PSI_sp_locker_state_v1
 {
+  /** Internal state. */
+  uint m_flags;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */

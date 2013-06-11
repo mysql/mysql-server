@@ -320,6 +320,7 @@ struct PSI_socket_locker_state_v1
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state_v1;
 struct PSI_sp_locker_state_v1
 {
+  uint m_flags;
   struct PSI_thread *m_thread;
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);

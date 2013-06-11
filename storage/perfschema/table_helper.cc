@@ -318,24 +318,6 @@ void PFS_statement_stat_row::set_field(uint index, Field *f)
   }
 }
 
-void PFS_sp_stat_row::set_field(uint index, Field *f)
-{
-  /* 
-     Are there any more field to be added for statistics specific 
-     to SP?
-  */
-  switch (index)
-  {
-    case 0: /* COUNT_STAR */
-    case 1: /* SUM_TIMER_WAIT */
-    case 2: /* MIN_TIMER_WAIT */
-    case 3: /* AVG_TIMER_WAIT */
-    case 4: /* MAX_TIMER_WAIT */
-      m_timer1_row.set_field(index, f);
-      break;
-  }
-}
-
 void PFS_connection_stat_row::set_field(uint index, Field *f)
 {
   switch (index)

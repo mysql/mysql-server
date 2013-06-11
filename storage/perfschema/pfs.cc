@@ -1170,8 +1170,6 @@ static inline int mysql_mutex_lock(...)
 pthread_key(PFS_thread*, THR_PFS);
 bool THR_PFS_initialized= false;
 
-ulong nested_statement_lost= 0;
-
 static inline PFS_thread*
 my_pthread_get_THR_PFS()
 {
@@ -4519,7 +4517,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
       if(pfs_thread->m_events_statements_count > 0)
       {
-          PFS_events_statements *parent= & pfs_thread->m_statement_stack[pfs_thread->m_events_statements_count-1];
+          PFS_events_statements *parent= pfs--;
           pfs->m_nesting_event_id= parent->m_event_id;
           pfs->m_nesting_event_type= parent->m_event_type;
           pfs->m_nesting_event_level= parent->m_nesting_event_level + 1;
@@ -5045,6 +5043,11 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     }
   }
 
+  PFS_statement_stat *sub_stmt_stat= NULL;
+  if(pfs_program != NULL)
+  {
+    sub_stmt_stat= &pfs_program->m_stmt_stat;
+  }
   switch (da->status())
   {
     case Diagnostics_area::DA_EMPTY:
@@ -5057,11 +5060,10 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         digest_stat->m_rows_affected+= da->affected_rows();
         digest_stat->m_warning_count+= da->last_statement_cond_count();
       }
-      if(pfs_program != NULL)
+      if(sub_stmt_stat != NULL)
       {
-        pfs_program->m_stmt_stat.m_rows_affected+= da->affected_rows();
-        pfs_program->m_stmt_stat.m_warning_count+=
-                                               da->last_statement_cond_count();
+        sub_stmt_stat->m_rows_affected+= da->affected_rows();
+        sub_stmt_stat->m_warning_count+= da->last_statement_cond_count();
       }
       break;
     case Diagnostics_area::DA_EOF:
@@ -5070,10 +5072,9 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         digest_stat->m_warning_count+= da->last_statement_cond_count();
       }
-      if(pfs_program != NULL)
+      if(sub_stmt_stat != NULL)
       {
-        pfs_program->m_stmt_stat.m_warning_count+= 
-                                               da->last_statement_cond_count();
+        sub_stmt_stat->m_warning_count+= da->last_statement_cond_count();
       }
       break;
     case Diagnostics_area::DA_ERROR:
@@ -5082,9 +5083,9 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         digest_stat->m_error_count++;
       }
-      if(pfs_program != NULL)
+      if(sub_stmt_stat != NULL)
       {
-        pfs_program->m_stmt_stat.m_error_count++;
+        sub_stmt_stat->m_error_count++;
       }
       break;
     case Diagnostics_area::DA_DISABLED:
@@ -5113,14 +5114,14 @@ PSI_sp_share *pfs_get_sp_share_v1(uint object_type,
                                       object_name,
                                       object_name_length,
                                       schema_name,
-                                      schema_name_length, true);
+                                      schema_name_length);
 
   return reinterpret_cast<PSI_sp_share *>(pfs_program);
 }
 
 void pfs_release_sp_share_v1(PSI_sp_share* sp_share)
 {
-  //TODO: 
+  /* Unused */
   return;
 }
 
@@ -5130,21 +5131,21 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state, PSI_sp_share *sp_shar
   if (unlikely(pfs_thread == NULL))                                             
     return NULL;
 
-  state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
-
   PFS_program *pfs_program= reinterpret_cast<PFS_program*>(sp_share);
-
   /* 
     sp share might be null in case when stat array is full and no new
     stored program stats are being inserted into it.
   */
-  if(!pfs_program)
+  if (pfs_program == NULL || !pfs_program->m_enabled)
     return NULL;
+
+  state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
 
   ulonglong timer_start= 0;
 
-  if (pfs_program->m_enabled && pfs_program->m_timed)
+  if(pfs_program->m_timed)
   {
+    state->m_flags |= STATE_FLAG_TIMED;
     timer_start= get_timer_raw_value_and_function(statement_timer, 
                                                   & state->m_timer);
     state->m_timer_start= timer_start;
@@ -5164,25 +5165,19 @@ void pfs_end_sp_v1(PSI_sp_locker *locker)
   ulonglong wait_time= 0;
 
   PFS_program *pfs_program= reinterpret_cast<PFS_program *>(state->m_sp_share);
+  PFS_sp_stat *stat= &pfs_program->m_sp_stat;
 
-  if(pfs_program != NULL)
+  if (state->m_flags & STATE_FLAG_TIMED)
   {
-    if (pfs_program->m_enabled && pfs_program->m_timed)
-    {
-      timer_end= state->m_timer();
-      wait_time= timer_end - state->m_timer_start;
-    }
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
 
     /* Now use this timer_end and wait_time for timing information. */
-    PFS_sp_stat *stat= &pfs_program->m_sp_stat;
-    if (pfs_program->m_timed)
-    {
-      stat->aggregate_value(wait_time);
-    }
-    else
-    {
-      stat->aggregate_counted();
-    }
+    stat->aggregate_value(wait_time);
+  }
+  else
+  {
+    stat->aggregate_counted();
   }
 }
 
@@ -5196,16 +5191,10 @@ void pfs_drop_sp_v1(uint object_type,
   if (unlikely(pfs_thread == NULL))                                             
     return;
 
-  int res= drop_program(pfs_thread,
-                        (enum_object_type)object_type,
-                        object_name,
-                        object_name_length,
-                        schema_name,
-                        schema_name_length);
-  if(res != 0)
-  {
-    /* TODO : Do we need to check return value? */
-  }
+  drop_program(pfs_thread,
+               (enum_object_type)object_type,
+               object_name, object_name_length,
+               schema_name, schema_name_length);
 }
 
 /**
