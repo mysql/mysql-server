@@ -2254,7 +2254,7 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                       {
                         "index": "i1b",
                         "ranges": [
-                          "key1b < 10 AND 5 <= key1a <= 5"
+                          "key1b < 10"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -2474,9 +2474,9 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
                       {
                         "index": "i1b",
                         "ranges": [
-                          "2 < key1b <= 3 AND 5 <= key1a <= 5",
+                          "2 < key1b <= 3",
                           "3 < key1b < 7",
-                          "7 <= key1b < 10 AND 5 <= key1a <= 5"
+                          "7 <= key1b < 10"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -2690,8 +2690,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
                       {
                         "index": "i1b",
                         "ranges": [
-                          "7 < key1b < 10 AND 4 <= key1a <= 4",
-                          "7 < key1b < 10 AND 5 <= key1a <= 5"
+                          "7 < key1b < 10"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -2713,8 +2712,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
                       "index": "i1b",
                       "rows": 2,
                       "ranges": [
-                        "7 < key1b < 10 AND 4 <= key1a <= 4",
-                        "7 < key1b < 10 AND 5 <= key1a <= 5"
+                        "7 < key1b < 10"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 2,
@@ -5808,7 +5806,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       {
                         "index": "b",
                         "ranges": [
-                          "b < 2 AND 1 <= a <= 1"
+                          "b < 2"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
