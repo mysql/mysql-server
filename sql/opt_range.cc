@@ -2694,7 +2694,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     {
       Opt_trace_array trace_idx(trace,
-                                "potential_range_indices",
+                                "potential_range_indexes",
                                 Opt_trace_context::RANGE_OPTIMIZER);
       /*
         Make an array with description of all key parts of all table keys.
@@ -4341,7 +4341,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
                                              n_child_scans)))
     DBUG_RETURN(NULL);
   // Note: to_merge.end() is called to close this object after this for-loop.
-  Opt_trace_array to_merge(trace, "indices_to_merge");
+  Opt_trace_array to_merge(trace, "indexes_to_merge");
   /*
     Collect best 'range' scan for each of disjuncts, and, while doing so,
     analyze possibility of ROR scans. Also calculate some values needed by
@@ -5351,7 +5351,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     Note: trace_isect_idx.end() is called to close this object after
     this while-loop.
   */
-  Opt_trace_array trace_isect_idx(trace, "intersecting_indices");
+  Opt_trace_array trace_isect_idx(trace, "intersecting_indexes");
   while (cur_ror_scan != tree->ror_scans_end && !intersect->is_covering)
   {
     Opt_trace_object trace_idx(trace);
@@ -11496,7 +11496,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
   SEL_ARG *cur_index_tree= NULL;
   ha_rows cur_quick_prefix_records= 0;
   uint cur_param_idx= MAX_KEY;
-  Opt_trace_array trace_indices(trace, "potential_group_range_indices");
+  Opt_trace_array trace_indexes(trace, "potential_group_range_indexes");
   for (uint cur_index= 0 ; cur_index_info != cur_index_info_end ;
        cur_index_info++, cur_index++)
   {
@@ -11843,7 +11843,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       cause= NULL;
     }
   }
-  trace_indices.end();
+  trace_indexes.end();
 
   if (!index_info) /* No usable index found. */
     DBUG_RETURN(NULL);
