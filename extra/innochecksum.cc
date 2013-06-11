@@ -856,8 +856,10 @@ static struct my_option innochecksum_options[] = {
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Verbose (prints progress every 5 seconds).",
     &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
   {"debug", '#', "Output debug log. See " REFMAN "dbug-package.html",
     &dbug_setting, &dbug_setting, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif /* !DBUG_OFF */
   {"count", 'c', "Print the count of pages in the file and exits.",
     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"start_page", 's', "Start on this page number (0 based).",
@@ -893,9 +895,15 @@ static struct my_option innochecksum_options[] = {
 /* Print out the Innodb version and machine information. */
 static void print_version(void)
 {
+#ifdef DBUG_OFF
 	printf("%s Ver %s, for %s (%s)\n",
 		my_progname, INNODB_VERSION_STR,
 		SYSTEM_TYPE, MACHINE_TYPE);
+#else
+	printf("%s-debug Ver %s, for %s (%s)\n",
+		my_progname, INNODB_VERSION_STR,
+		SYSTEM_TYPE, MACHINE_TYPE);
+#endif /* DBUG_OFF */
 }
 
 static void usage(void)
@@ -919,6 +927,7 @@ innochecksum_get_one_option(
 	char			*argument __attribute__((unused)))
 {
 	switch (optid) {
+#ifndef DBUG_OFF
 	case '#':
 		dbug_setting = argument
 			? argument
@@ -926,6 +935,7 @@ innochecksum_get_one_option(
 				 "d:o,/tmp/innochecksum.trace");
 		DBUG_PUSH(dbug_setting);
 		break;
+#endif /* !DBUG_OFF */
 	case 'e':
 		use_end_page = true;
 		break;
