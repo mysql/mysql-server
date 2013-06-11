@@ -40,4 +40,7 @@ typedef struct tab_node_struct		tab_node_t;
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */
 #define	DICT_HDR_PAGE_NO	FSP_DICT_HDR_PAGE_NO
 
+#define TEMP_TABLE_PREFIX                "#sql"
+#define TEMP_TABLE_PATH_PREFIX           "/" TEMP_TABLE_PREFIX
+
 #endif
