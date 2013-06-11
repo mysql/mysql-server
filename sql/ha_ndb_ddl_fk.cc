@@ -2326,6 +2326,11 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         childObjectId= org_child.get_table()->getObjectId();
       }
 
+      /**
+       * flags for CreateForeignKey
+       */
+      int flags = 0;
+
       char db_and_name[FN_LEN + 1];
       const char * name= fk_split_name(db_and_name, fk.getParentTable());
       if (strcmp(name, src_tab) == 0 &&
@@ -2338,7 +2343,8 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         for (unsigned j= 0; j < fk.getParentColumnCount(); j++)
         {
           unsigned no= fk.getParentColumnNo(j);
-          cols[j]= dsttab.get_table()->getColumn(no);
+          const NDBCOL * orgcol = srctab.get_table()->getColumn(no);
+          cols[j]= dsttab.get_table()->getColumn(orgcol->getName());
         }
         cols[fk.getParentColumnCount()]= 0;
         parentObjectId= dsttab.get_table()->getObjectId();
@@ -2363,6 +2369,18 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         {
           fk.setParent(* dsttab.get_table(), 0, cols);
         }
+
+
+        /**
+         * We're parent, and this is offline alter table
+         *   then we can't verify that FK cause the new parent will
+         *   be populated later during copy data between tables
+         *
+         * However, iff FK is consistent when this alter starts,
+         *   it should remain consistent since mysql does not
+         *   allow the alter to modify the columns referenced
+         */
+        flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
       }
       else
       {
@@ -2373,7 +2391,8 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         for (unsigned j= 0; j < fk.getChildColumnCount(); j++)
         {
           unsigned no= fk.getChildColumnNo(j);
-          cols[j]= dsttab.get_table()->getColumn(no);
+          const NDBCOL * orgcol = srctab.get_table()->getColumn(no);
+          cols[j]= dsttab.get_table()->getColumn(orgcol->getName());
         }
         cols[fk.getChildColumnCount()]= 0;
         childObjectId= dsttab.get_table()->getObjectId();
@@ -2409,7 +2428,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
       fk.setName(new_name);
       setDbName(ndb, db_and_name);
 
-      int flags = 0;
       if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
       {
         flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
