@@ -3818,6 +3818,14 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
       /*
         In "WHERE outer_field", *conds may be an Item_outer_ref allocated in
         the execution memroot.
+        @todo change this line in WL#7082. Currently, when we execute a SP,
+        containing "SELECT (SELECT ... WHERE t1.col) FROM t1",
+        resolution may make *conds equal to an Item_outer_ref, then below
+        *conds becomes Item_field, which then goes straight on to execution,
+        undoing the effects of putting Item_outer_ref in the first place...
+        With a PS the problem is not as severe, as after the code below we
+        don't go to execution: a next execution will do a new name resolution
+        which will create Item_outer_ref again.
       */
       prep_where= (*conds)->real_item();
       *conds= where= prep_where->copy_andor_structure(thd);
