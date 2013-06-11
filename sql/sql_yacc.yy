@@ -11290,6 +11290,12 @@ olap_opt:
                        "global union parameters");
               MYSQL_YYABORT;
             }
+            if (lex->current_select->options & SELECT_DISTINCT)
+            {
+              // DISTINCT+ROLLUP does not work
+              my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP", "DISTINCT");
+              MYSQL_YYABORT;
+            }
             lex->current_select->olap= ROLLUP_TYPE;
           }
         ;
