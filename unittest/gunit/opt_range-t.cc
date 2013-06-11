@@ -871,6 +871,63 @@ TEST_F(SelArgTest, GetMMTreeOneTwoColIndex)
   EXPECT_STREQ(expected2, range_string.c_ptr());
 }
 
+/*
+  Optimizer tracing should only print ranges for applicable keyparts.
+ */
+TEST_F(SelArgTest, GetMMTreeNonApplicableKeypart)
+{
+  create_table(3);
+
+  Mock_field_long *field_long1= m_table_fields[0];
+  Mock_field_long *field_long2= m_table_fields[1];
+  Mock_field_long *field_long3= m_table_fields[2];
+
+  List<Field> index_list;
+  index_list.push_back(field_long1);
+  index_list.push_back(field_long2);
+  index_list.push_back(field_long3);
+  m_opt_param->add_key(index_list);
+
+
+  char buff[512];
+  String range_string(buff, sizeof(buff), system_charset_info);
+  range_string.set_charset(system_charset_info);
+
+  /*
+    Expected result is range only on first keypart. Third keypart is
+    not applicable because there are no predicates on the second
+    keypart.
+  */
+  const char expected1[]= 
+    "result keys[0]: (42 <= field_1 <= 42)\n";
+  SEL_TREE *tree=
+    get_mm_tree(m_opt_param,
+                new Item_cond_and(create_item(EQUAL, field_long1, 42),
+                                  create_item(EQUAL, field_long3, 10))
+                );
+
+  range_string.length(0);
+  print_tree(&range_string, "result", tree , m_opt_param);
+  EXPECT_STREQ(expected1, range_string.c_ptr());
+
+  /*
+    Expected result is range only on first keypart. Second keypart is
+    not applicable because the predicate on the first keypart does not
+    use an equality operator.
+  */
+  const char expected2[]= 
+    "result keys[0]: (field_1 < 42)\n";
+  tree=
+    get_mm_tree(m_opt_param,
+                new Item_cond_and(create_item(LESS, field_long1, 42),
+                                  create_item(EQUAL, field_long2, 10))
+                );
+  
+  range_string.length(0);
+  print_tree(&range_string, "result", tree , m_opt_param);
+  EXPECT_STREQ(expected2, range_string.c_ptr());
+}
+
 
 /*
   Exercise range optimizer with three single column indexes
