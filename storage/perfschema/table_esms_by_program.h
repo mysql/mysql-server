@@ -36,12 +36,12 @@
 struct row_esms_by_program
 {
   /** Column OBJECT_TYPE. */
-  enum_object_type m_object_type;//(OBJECT_TYPE_EVENT,OBJECT_TYPE_FUNCTION,OBJECT_TYPE_PROCEDURE,OBJECT_TYPE_TRIGGER,OBJECT_TYPE_TABLE);
+  enum_object_type m_object_type;
   /** Column OBJECT_SCHEMA. */
-  char m_schema_name[80];
+  char m_schema_name[SCHEMA_NAME_LENGTH];
   int m_schema_name_length;
   /** Column OBJECT_NAME. */
-  char m_object_name[80];
+  char m_object_name[OBJECT_NAME_LENGTH];
   int m_object_name_length;
 
   /** 

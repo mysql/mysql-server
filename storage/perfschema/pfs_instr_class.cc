@@ -1478,10 +1478,13 @@ void update_table_share_derived_flags(PFS_thread *thread)
 
 void update_program_share_derived_flags(PFS_thread *thread)
 {
-  for (uint i= 0 ; i < program_max ; i++)
+  PFS_program *pfs= program_array;
+  PFS_program *pfs_last= program_array + program_max;
+
+  for (; pfs < pfs_last ; pfs++)
   {
-    if (program_array[i].m_lock.is_populated())
-      program_array[i].referesh_setup_object_flags(thread);
+    if (pfs->m_lock.is_populated())
+      pfs->referesh_setup_object_flags(thread);
   }
 }
 

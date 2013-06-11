@@ -50,8 +50,6 @@ static bool program_hash_inited= false;
 */
 int init_program(const PFS_global_param *param)
 {
-  unsigned int index;
-
   /*
     Allocate memory for program_array based on
     performance_schema_max_program_instances value.
@@ -68,9 +66,12 @@ int init_program(const PFS_global_param *param)
   if (unlikely(program_array == NULL))
     return 1;
 
-  for (index= 0; index < program_max; index++)
+  PFS_program *pfs= program_array;
+  PFS_program *pfs_last= program_array + program_max;
+  
+  for (; pfs < pfs_last ; pfs++)
   {
-    program_array[index].reset_data();
+    pfs->reset_data();
   }
 
   return 0;
@@ -136,31 +137,8 @@ static void set_program_key(PFS_program_key *key,
   DBUG_ASSERT(schema_name_length <= SCHEMA_NAME_LENGTH);
 
   char *ptr= &key->m_hash_key[0];
-  switch(object_type)
-  {
-    case OBJECT_TYPE_PROCEDURE:
-      memcpy(ptr, "PROCEDURE", 9);
-      ptr+= 9;
-    break;
-    case OBJECT_TYPE_FUNCTION:
-      memcpy(ptr, "FUNCTION", 8);
-      ptr+= 8;
-    break;
-    case OBJECT_TYPE_TRIGGER:
-      memcpy(ptr, "TRIGGER", 7);
-      ptr+= 7;
-    break;
-/*
-    case OBJECT_TYPE_EVENT:
-      memcpy(ptr, "EVENT", 5);
-      ptr+= 5;
-    break;
-*/
-    default:
-      //DBUG_ASSERT(0);
-    break;
-  }
-  ptr[0]= 0;
+
+  ptr[0]= object_type;
   ptr++;
 
   if (object_name_length > 0)
@@ -192,15 +170,16 @@ void PFS_program::reset_data()
 
 void reset_esms_by_program()
 {
-  uint index;
-
   if (program_array == NULL)
     return;
 
+  PFS_program *pfs= program_array;
+  PFS_program *pfs_last= program_array + program_max;
+  
   /* Reset statistics in program_array. */
-  for (index= 0; index < program_max; index++)
+  for (; pfs < pfs_last ; pfs++)
   {
-    program_array[index].reset_data();
+    pfs->reset_data();
   }
 }
 
@@ -221,8 +200,7 @@ find_or_create_program(PFS_thread *thread,
                       const char *object_name,
                       uint object_name_length,
                       const char *schema_name,
-                      uint schema_name_length,
-                      my_bool fromSP)
+                      uint schema_name_length)
 {
   if (program_array == NULL || program_max == 0 ||
       object_name_length ==0 || schema_name_length == 0)
@@ -234,7 +212,6 @@ find_or_create_program(PFS_thread *thread,
  
   /* Prepare program key */
   PFS_program_key key;
-  key.m_hash_key[0]= 0;
   set_program_key(&key, object_type,
                   object_name, object_name_length,
                   schema_name, schema_name_length);
@@ -276,9 +253,10 @@ search:
         memcpy(pfs->m_key.m_hash_key, key.m_hash_key, key.m_key_length);
         pfs->m_key.m_key_length= key.m_key_length;
         pfs->m_type= object_type;
-        strncpy(pfs->m_object_name, object_name, object_name_length);
+
+        pfs->m_object_name= pfs->m_key.m_hash_key + 1;
         pfs->m_object_name_length= object_name_length;
-        strncpy(pfs->m_schema_name, schema_name, schema_name_length);
+        pfs->m_schema_name= pfs->m_object_name + object_name_length + 1;
         pfs->m_schema_name_length= schema_name_length;
 
         /* 
@@ -307,36 +285,34 @@ search:
           if (++retry_count > retry_max)
           {
             /* Avoid infinite loops */
-            program_lost= fromSP ? program_lost + 1 : program_lost;
+            program_lost++;
             return NULL;
           }
           goto search;
         }
         /* OOM in lf_hash_insert */
-        program_lost= fromSP ? program_lost + 1 : program_lost;
+        program_lost++;
         return NULL;
       }
     }
   }
-  program_lost= fromSP ? program_lost + 1 : program_lost;
+  program_lost++;
   return NULL;
 }
 
-int drop_program(PFS_thread *thread, 
+void drop_program(PFS_thread *thread, 
                  enum_object_type object_type,
                  const char *object_name,
                  uint object_name_length,
                  const char *schema_name,
                  uint schema_name_length)
 {
-  int res;
   LF_PINS *pins= get_program_hash_pins(thread);
   if (unlikely(pins == NULL))
-    return -1;
+    return;
  
   /* Prepare program key */
   PFS_program_key key;
-  key.m_hash_key[0]= 0;
   set_program_key(&key, object_type,
                   object_name, object_name_length,
                   schema_name, schema_name_length);
@@ -350,15 +326,14 @@ int drop_program(PFS_thread *thread,
   {
     PFS_program *pfs= NULL;
     pfs= *entry;
-    pfs->reset_data();
 
-    res= lf_hash_delete(&program_hash, pins,
-                        key.m_hash_key, key.m_key_length);
+    lf_hash_delete(&program_hash, pins,
+                   key.m_hash_key, key.m_key_length);
     pfs->m_lock.allocated_to_free();
   }
   
   lf_hash_search_unpin(pins);
-  return res;
+  return;
 }
 
 void PFS_program::referesh_setup_object_flags(PFS_thread *thread)                       

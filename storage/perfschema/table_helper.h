@@ -458,7 +458,10 @@ struct PFS_sp_stat_row
   }
 
   /** Set a table field from the row. */
-  void set_field(uint index, Field *f);
+  inline void set_field(uint index, Field *f)
+  {
+    m_timer1_row.set_field(index, f);
+  }
 };
 
 /** Row fragment for connection statistics. */
