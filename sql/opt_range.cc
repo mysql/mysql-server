@@ -13824,11 +13824,6 @@ void append_range(String *out,
   }
 }
 
-#ifndef DBUG_OFF
-
-
-
-
 /**
   Traverse an R-B tree of range conditions and append all ranges for
   this keypart and consecutive keyparts to range_trace (if non-NULL)
@@ -13928,8 +13923,6 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
     range_so_far->length(save_range_so_far_length);
   }
 }
-
-#endif // DBUG_OFF
 
 /**
   Print the ranges in a SEL_TREE to debug log.
