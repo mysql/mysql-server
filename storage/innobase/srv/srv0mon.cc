@@ -1211,8 +1211,10 @@ ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 built-in operations for atomic memory access */
 ib_mutex_t	monitor_mutex;
 
+#ifdef HAVE_PSI_INTERFACE
 /** Key to register monitor_mutex with performance schema */
 mysql_pfs_key_t	monitor_mutex_key;
+#endif
 
 /****************************************************************//**
 Initialize the monitor subsystem. */

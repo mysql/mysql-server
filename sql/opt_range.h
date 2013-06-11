@@ -408,6 +408,8 @@ protected:
   handler *file;
   /* Members to deal with case when this quick select is a ROR-merged scan */
   bool in_ror_merged_scan;
+
+  // TODO: pre-allocate space to avoid malloc/free for small number of columns.
   MY_BITMAP column_bitmap;
 
   friend class TRP_ROR_INTERSECT;
@@ -821,7 +823,7 @@ private:
   uint min_max_arg_len;  /* The length of the MIN/MAX argument field */
   uchar *key_infix;       /* Infix of constants from equality predicates. */
   uint key_infix_len;
-  DYNAMIC_ARRAY min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
+  Quick_ranges min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
   uint real_prefix_len; /* Length of key prefix extended with key_infix. */
   uint real_key_parts;  /* A number of keyparts in the above value.      */
   List<Item_sum> *min_functions;

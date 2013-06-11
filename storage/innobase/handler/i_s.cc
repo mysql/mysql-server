@@ -266,7 +266,7 @@ field_store_string(
 
 	if (str != NULL) {
 
-		ret = field->store(str, strlen(str),
+		ret = field->store(str, (uint) strlen(str),
 				   system_charset_info);
 		field->set_notnull();
 	} else {
@@ -303,10 +303,10 @@ field_store_index_name(
 		char	buf[NAME_LEN + 1];
 		buf[0] = '?';
 		memcpy(buf + 1, index_name + 1, strlen(index_name));
-		ret = field->store(buf, strlen(buf),
+		ret = field->store(buf, (uint) strlen(buf),
 				   system_charset_info);
 	} else {
-		ret = field->store(index_name, strlen(index_name),
+		ret = field->store(index_name, (uint) strlen(index_name),
 				   system_charset_info);
 	}
 
@@ -330,7 +330,7 @@ field_store_ulint(
 
 	if (n != ULINT_UNDEFINED) {
 
-		ret = field->store(n);
+		ret = field->store((double) n);
 		field->set_notnull();
 	} else {
 
@@ -636,14 +636,15 @@ fill_innodb_trx_from_cache(
 
 		/* trx_mysql_thread_id */
 		OK(fields[IDX_TRX_MYSQL_THREAD_ID]->store(
-			   row->trx_mysql_thread_id));
+			   (double) row->trx_mysql_thread_id));
 
 		/* trx_query */
 		if (row->trx_query) {
 			/* store will do appropriate character set
 			conversion check */
 			fields[IDX_TRX_QUERY]->store(
-				row->trx_query, strlen(row->trx_query),
+				row->trx_query,
+				(uint) strlen(row->trx_query),
 				row->trx_query_cs);
 			fields[IDX_TRX_QUERY]->set_notnull();
 		} else {
@@ -688,11 +689,11 @@ fill_innodb_trx_from_cache(
 
 		/* trx_unique_checks */
 		OK(fields[IDX_TRX_UNIQUE_CHECKS]->store(
-			   row->trx_unique_checks));
+			   (double) row->trx_unique_checks));
 
 		/* trx_foreign_key_checks */
 		OK(fields[IDX_TRX_FOREIGN_KEY_CHECKS]->store(
-			   row->trx_foreign_key_checks));
+			   (double) row->trx_foreign_key_checks));
 
 		/* trx_last_foreign_key_error */
 		OK(field_store_string(fields[IDX_TRX_LAST_FOREIGN_KEY_ERROR],
@@ -700,7 +701,7 @@ fill_innodb_trx_from_cache(
 
 		/* trx_adaptive_hash_latched */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_LATCHED]->store(
-			   row->trx_has_search_latch));
+			   (double) row->trx_has_search_latch));
 
 		/* trx_adaptive_hash_timeout */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_TIMEOUT]->store(
@@ -708,11 +709,11 @@ fill_innodb_trx_from_cache(
 
 		/* trx_is_read_only*/
 		OK(fields[IDX_TRX_READ_ONLY]->store(
-				(long) row->trx_is_read_only, true));
+				(longlong) row->trx_is_read_only, true));
 
 		/* trx_is_autocommit_non_locking */
 		OK(fields[IDX_TRX_AUTOCOMMIT_NON_LOCKING]->store(
-				(long) row->trx_is_autocommit_non_locking,
+				(longlong) row->trx_is_autocommit_non_locking,
 				true));
 
 		OK(schema_table_store_record(thd, table));
@@ -956,7 +957,7 @@ fill_innodb_locks_from_cache(
 					       row->lock_table,
 					       strlen(row->lock_table),
 					       thd, TRUE);
-		OK(fields[IDX_LOCK_TABLE]->store(buf, bufend - buf,
+		OK(fields[IDX_LOCK_TABLE]->store(buf, (uint) (bufend - buf),
 						 system_charset_info));
 
 		/* lock_index */
@@ -1449,13 +1450,13 @@ i_s_cmp_fill_low(
 		clear it.  We could introduce mutex protection, but it
 		could cause a measureable performance hit in
 		page0zip.cc. */
-		table->field[1]->store(zip_stat->compressed);
-		table->field[2]->store(zip_stat->compressed_ok);
+		table->field[1]->store((double) zip_stat->compressed);
+		table->field[2]->store((double) zip_stat->compressed_ok);
 		table->field[3]->store(
-			(ulong) (zip_stat->compressed_usec / 1000000));
-		table->field[4]->store(zip_stat->decompressed);
+			(double) (zip_stat->compressed_usec / 1000000));
+		table->field[4]->store((double) zip_stat->decompressed);
 		table->field[5]->store(
-			(ulong) (zip_stat->decompressed_usec / 1000000));
+			(double) (zip_stat->decompressed_usec / 1000000));
 
 		if (reset) {
 			memset(zip_stat, 0, sizeof *zip_stat);
@@ -1790,19 +1791,19 @@ i_s_cmp_per_index_fill_low(
 		}
 
 		fields[IDX_COMPRESS_OPS]->store(
-			iter->second.compressed);
+			(double) iter->second.compressed);
 
 		fields[IDX_COMPRESS_OPS_OK]->store(
-			iter->second.compressed_ok);
+			(double) iter->second.compressed_ok);
 
 		fields[IDX_COMPRESS_TIME]->store(
-			(long) (iter->second.compressed_usec / 1000000));
+			(double) (iter->second.compressed_usec / 1000000));
 
 		fields[IDX_UNCOMPRESS_OPS]->store(
-			iter->second.decompressed);
+			(double) iter->second.decompressed);
 
 		fields[IDX_UNCOMPRESS_TIME]->store(
-			(long) (iter->second.decompressed_usec / 1000000));
+			(double) (iter->second.decompressed_usec / 1000000));
 
 		if (schema_table_store_record(thd, table)) {
 			status = 1;
@@ -2095,15 +2096,15 @@ i_s_cmpmem_fill_low(
 			buddy_stat = &buf_pool->buddy_stat[x];
 
 			table->field[0]->store(BUF_BUDDY_LOW << x);
-			table->field[1]->store(i);
-			table->field[2]->store(buddy_stat->used);
-			table->field[3]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
+			table->field[1]->store((double) i);
+			table->field[2]->store((double) buddy_stat->used);
+			table->field[3]->store((double) (x < BUF_BUDDY_SIZES
 				? UT_LIST_GET_LEN(buf_pool->zip_free[x])
-				: 0);
+				: 0));
 			table->field[4]->store(
 				(longlong) buddy_stat->relocated, true);
 			table->field[5]->store(
-				(ulong) (buddy_stat->relocated_usec / 1000000));
+				(double) (buddy_stat->relocated_usec / 1000000));
 
 			if (reset) {
 				/* This is protected by buf_pool->mutex. */
@@ -2661,7 +2662,7 @@ i_s_metrics_fill(
 
 			if (time_diff) {
 				OK(fields[METRIC_AVG_VALUE_RESET]->store(
-					(double )MONITOR_VALUE(count)
+					(double) MONITOR_VALUE(count)
 					/ time_diff));
 				fields[METRIC_AVG_VALUE_RESET]->set_notnull();
 			} else {
@@ -3327,13 +3328,13 @@ i_s_fts_index_cache_fill_one_index(
 						true));
 
 					OK(fields[I_S_FTS_DOC_COUNT]->store(
-						node->doc_count));
+						(double) node->doc_count));
 
 					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
 						(longlong) doc_id, true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
-						pos));
+						(double) pos));
 
 					OK(schema_table_store_record(
 						thd, table));
@@ -3636,13 +3637,13 @@ i_s_fts_index_table_fill_one_index(
 						true));
 
 					OK(fields[I_S_FTS_DOC_COUNT]->store(
-						node->doc_count));
+						(double) node->doc_count));
 
 					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
 						(longlong) doc_id, true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
-						pos));
+						(double) pos));
 
 					OK(schema_table_store_record(
 						thd, table));
@@ -4065,7 +4066,7 @@ i_s_innodb_temp_table_info_fill(
 
 	fields = table->field;
 
-	OK(fields[IDX_TEMP_TABLE_ID]->store(info->m_table_id));
+	OK(fields[IDX_TEMP_TABLE_ID]->store((double) info->m_table_id));
 
 	OK(field_store_string(fields[IDX_TEMP_TABLE_NAME], info->m_table_name));
 
@@ -4572,31 +4573,41 @@ i_s_innodb_stats_fill(
 
 	fields = table->field;
 
-	OK(fields[IDX_BUF_STATS_POOL_ID]->store(info->pool_unique_id));
+	OK(fields[IDX_BUF_STATS_POOL_ID]->store(
+		(double) info->pool_unique_id));
 
-	OK(fields[IDX_BUF_STATS_POOL_SIZE]->store(info->pool_size));
+	OK(fields[IDX_BUF_STATS_POOL_SIZE]->store(
+		(double) info->pool_size));
 
-	OK(fields[IDX_BUF_STATS_LRU_LEN]->store(info->lru_len));
+	OK(fields[IDX_BUF_STATS_LRU_LEN]->store(
+		(double) info->lru_len));
 
-	OK(fields[IDX_BUF_STATS_OLD_LRU_LEN]->store(info->old_lru_len));
+	OK(fields[IDX_BUF_STATS_OLD_LRU_LEN]->store(
+		(double) info->old_lru_len));
 
-	OK(fields[IDX_BUF_STATS_FREE_BUFFERS]->store(info->free_list_len));
+	OK(fields[IDX_BUF_STATS_FREE_BUFFERS]->store(
+		(double) info->free_list_len));
 
 	OK(fields[IDX_BUF_STATS_FLUSH_LIST_LEN]->store(
-		info->flush_list_len));
+		(double) info->flush_list_len));
 
-	OK(fields[IDX_BUF_STATS_PENDING_ZIP]->store(info->n_pend_unzip));
+	OK(fields[IDX_BUF_STATS_PENDING_ZIP]->store(
+		(double) info->n_pend_unzip));
 
-	OK(fields[IDX_BUF_STATS_PENDING_READ]->store(info->n_pend_reads));
+	OK(fields[IDX_BUF_STATS_PENDING_READ]->store(
+		(double) info->n_pend_reads));
 
-	OK(fields[IDX_BUF_STATS_FLUSH_LRU]->store(info->n_pending_flush_lru));
+	OK(fields[IDX_BUF_STATS_FLUSH_LRU]->store(
+		(double) info->n_pending_flush_lru));
 
-	OK(fields[IDX_BUF_STATS_FLUSH_LIST]->store(info->n_pending_flush_list));
+	OK(fields[IDX_BUF_STATS_FLUSH_LIST]->store(
+		(double) info->n_pending_flush_list));
 
-	OK(fields[IDX_BUF_STATS_PAGE_YOUNG]->store(info->n_pages_made_young));
+	OK(fields[IDX_BUF_STATS_PAGE_YOUNG]->store(
+		(double) info->n_pages_made_young));
 
 	OK(fields[IDX_BUF_STATS_PAGE_NOT_YOUNG]->store(
-		info->n_pages_not_made_young));
+		(double) info->n_pages_not_made_young));
 
 	OK(fields[IDX_BUF_STATS_PAGE_YOUNG_RATE]->store(
 		info->page_made_young_rate));
@@ -4604,30 +4615,37 @@ i_s_innodb_stats_fill(
 	OK(fields[IDX_BUF_STATS_PAGE_NOT_YOUNG_RATE]->store(
 		info->page_not_made_young_rate));
 
-	OK(fields[IDX_BUF_STATS_PAGE_READ]->store(info->n_pages_read));
+	OK(fields[IDX_BUF_STATS_PAGE_READ]->store(
+		(double) info->n_pages_read));
 
-	OK(fields[IDX_BUF_STATS_PAGE_CREATED]->store(info->n_pages_created));
+	OK(fields[IDX_BUF_STATS_PAGE_CREATED]->store(
+		(double) info->n_pages_created));
 
-	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN]->store(info->n_pages_written));
+	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN]->store(
+		(double) info->n_pages_written));
 
-	OK(fields[IDX_BUF_STATS_GET]->store(info->n_page_gets));
+	OK(fields[IDX_BUF_STATS_GET]->store(
+		(double) info->n_page_gets));
 
-	OK(fields[IDX_BUF_STATS_PAGE_READ_RATE]->store(info->pages_read_rate));
+	OK(fields[IDX_BUF_STATS_PAGE_READ_RATE]->store(
+		info->pages_read_rate));
 
-	OK(fields[IDX_BUF_STATS_PAGE_CREATE_RATE]->store(info->pages_created_rate));
+	OK(fields[IDX_BUF_STATS_PAGE_CREATE_RATE]->store(
+		info->pages_created_rate));
 
-	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN_RATE]->store(info->pages_written_rate));
+	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN_RATE]->store(
+		info->pages_written_rate));
 
 	if (info->n_page_get_delta) {
-		OK(fields[IDX_BUF_STATS_HIT_RATE]->store(
+		OK(fields[IDX_BUF_STATS_HIT_RATE]->store((double)
 			1000 - (1000 * info->page_read_delta
 				/ info->n_page_get_delta)));
 
-		OK(fields[IDX_BUF_STATS_MADE_YOUNG_PCT]->store(
+		OK(fields[IDX_BUF_STATS_MADE_YOUNG_PCT]->store((double)
 			1000 * info->young_making_delta
 			/ info->n_page_get_delta));
 
-		OK(fields[IDX_BUF_STATS_NOT_MADE_YOUNG_PCT]->store(
+		OK(fields[IDX_BUF_STATS_NOT_MADE_YOUNG_PCT]->store((double)
 			1000 * info->not_young_making_delta
 			/ info->n_page_get_delta));
 	} else {
@@ -4636,10 +4654,11 @@ i_s_innodb_stats_fill(
 		OK(fields[IDX_BUF_STATS_NOT_MADE_YOUNG_PCT]->store(0));
 	}
 
-	OK(fields[IDX_BUF_STATS_READ_AHREAD]->store(info->n_ra_pages_read));
+	OK(fields[IDX_BUF_STATS_READ_AHREAD]->store(
+		(double) info->n_ra_pages_read));
 
 	OK(fields[IDX_BUF_STATS_READ_AHEAD_EVICTED]->store(
-		info->n_ra_pages_evicted));
+		(double) info->n_ra_pages_evicted));
 
 	OK(fields[IDX_BUF_STATS_READ_AHEAD_RATE]->store(
 		info->pages_readahead_rate));
@@ -4647,13 +4666,17 @@ i_s_innodb_stats_fill(
 	OK(fields[IDX_BUF_STATS_READ_AHEAD_EVICT_RATE]->store(
 		info->pages_evicted_rate));
 
-	OK(fields[IDX_BUF_STATS_LRU_IO_SUM]->store(info->io_sum));
+	OK(fields[IDX_BUF_STATS_LRU_IO_SUM]->store(
+		(double) info->io_sum));
 
-	OK(fields[IDX_BUF_STATS_LRU_IO_CUR]->store(info->io_cur));
+	OK(fields[IDX_BUF_STATS_LRU_IO_CUR]->store(
+		(double) info->io_cur));
 
-	OK(fields[IDX_BUF_STATS_UNZIP_SUM]->store(info->unzip_sum));
+	OK(fields[IDX_BUF_STATS_UNZIP_SUM]->store(
+		(double) info->unzip_sum));
 
-	OK(fields[IDX_BUF_STATS_UNZIP_CUR]->store( info->unzip_cur));
+	OK(fields[IDX_BUF_STATS_UNZIP_CUR]->store(
+		(double) info->unzip_cur));
 
 	DBUG_RETURN(schema_table_store_record(thd, table));
 }
@@ -5002,13 +5025,17 @@ i_s_innodb_buffer_page_fill(
 
 		state_str = NULL;
 
-		OK(fields[IDX_BUFFER_POOL_ID]->store(page_info->pool_id));
+		OK(fields[IDX_BUFFER_POOL_ID]->store(
+			(double) page_info->pool_id));
 
-		OK(fields[IDX_BUFFER_BLOCK_ID]->store(page_info->block_id));
+		OK(fields[IDX_BUFFER_BLOCK_ID]->store(
+			(double) page_info->block_id));
 
-		OK(fields[IDX_BUFFER_PAGE_SPACE]->store(page_info->space_id));
+		OK(fields[IDX_BUFFER_PAGE_SPACE]->store(
+			(double) page_info->space_id));
 
-		OK(fields[IDX_BUFFER_PAGE_NUM]->store(page_info->page_num));
+		OK(fields[IDX_BUFFER_PAGE_NUM]->store(
+			(double) page_info->page_num));
 
 		OK(field_store_string(
 			fields[IDX_BUFFER_PAGE_TYPE],
@@ -5060,7 +5087,7 @@ i_s_innodb_buffer_page_fill(
 
 				OK(fields[IDX_BUFFER_PAGE_TABLE_NAME]->store(
 					table_name,
-					table_name_end - table_name,
+					(uint) (table_name_end - table_name),
 					system_charset_info));
 				fields[IDX_BUFFER_PAGE_TABLE_NAME]->set_notnull();
 
@@ -5717,23 +5744,27 @@ i_s_innodb_buf_page_lru_fill(
 
 		page_info = info_array + i;
 
-		OK(fields[IDX_BUF_LRU_POOL_ID]->store(page_info->pool_id));
+		OK(fields[IDX_BUF_LRU_POOL_ID]->store(
+			(double) page_info->pool_id));
 
-		OK(fields[IDX_BUF_LRU_POS]->store(page_info->block_id));
+		OK(fields[IDX_BUF_LRU_POS]->store(
+			(double) page_info->block_id));
 
-		OK(fields[IDX_BUF_LRU_PAGE_SPACE]->store(page_info->space_id));
+		OK(fields[IDX_BUF_LRU_PAGE_SPACE]->store(
+			(double) page_info->space_id));
 
-		OK(fields[IDX_BUF_LRU_PAGE_NUM]->store(page_info->page_num));
+		OK(fields[IDX_BUF_LRU_PAGE_NUM]->store(
+			(double) page_info->page_num));
 
 		OK(field_store_string(
 			fields[IDX_BUF_LRU_PAGE_TYPE],
 			i_s_page_type[page_info->page_type].type_str));
 
 		OK(fields[IDX_BUF_LRU_PAGE_FLUSH_TYPE]->store(
-			page_info->flush_type));
+			(double) page_info->flush_type));
 
 		OK(fields[IDX_BUF_LRU_PAGE_FIX_COUNT]->store(
-			page_info->fix_count));
+			(double) page_info->fix_count));
 
 		if (page_info->hashed) {
 			OK(field_store_string(
@@ -5775,7 +5806,7 @@ i_s_innodb_buf_page_lru_fill(
 
 				OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
 					table_name,
-					table_name_end - table_name,
+					(uint) (table_name_end - table_name),
 					system_charset_info));
 				fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
 
@@ -6184,7 +6215,7 @@ i_s_dict_fill_sys_tables(
 
 	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
 
-	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(zip_size));
+	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store((double) zip_size));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -6458,13 +6489,13 @@ i_s_dict_fill_sys_tablestats(
 						      TRUE));
 
 		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(
-				table->stat_clustered_index_size));
+				(double) table->stat_clustered_index_size));
 
 		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(
-				table->stat_sum_of_other_index_sizes));
+				(double) table->stat_sum_of_other_index_sizes));
 
 		OK(fields[SYS_TABLESTATS_MODIFIED]->store(
-				(ulint) table->stat_modified_counter));
+				(double) table->stat_modified_counter));
 	} else {
 		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
 				      "Uninitialized"));
@@ -6483,7 +6514,7 @@ i_s_dict_fill_sys_tablestats(
 	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc, TRUE));
 
 	OK(fields[SYS_TABLESTATS_TABLE_REF_COUNT]->store(
-		table->n_ref_count));
+		(double) table->n_ref_count));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -6970,7 +7001,7 @@ i_s_dict_fill_sys_columns(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_COLUMN_TABLE_ID]->store(longlong(table_id), TRUE));
+	OK(fields[SYS_COLUMN_TABLE_ID]->store((longlong) table_id, TRUE));
 
 	OK(field_store_string(fields[SYS_COLUMN_NAME], col_name));
 
@@ -7183,11 +7214,11 @@ i_s_dict_fill_sys_fields(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_FIELD_INDEX_ID]->store(longlong(index_id), TRUE));
+	OK(fields[SYS_FIELD_INDEX_ID]->store((longlong) index_id, TRUE));
 
 	OK(field_store_string(fields[SYS_FIELD_NAME], field->name));
 
-	OK(fields[SYS_FIELD_POS]->store(pos));
+	OK(fields[SYS_FIELD_POS]->store((double) pos));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -7643,7 +7674,7 @@ i_s_dict_fill_sys_foreign_cols(
 
 	OK(field_store_string(fields[SYS_FOREIGN_COL_REF_NAME], ref_col_name));
 
-	OK(fields[SYS_FOREIGN_COL_POS]->store(pos));
+	OK(fields[SYS_FOREIGN_COL_POS]->store((double) pos));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -7898,11 +7929,11 @@ i_s_dict_fill_sys_tablespaces(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_TABLESPACES_SPACE]->store(space));
+	OK(fields[SYS_TABLESPACES_SPACE]->store((double) space));
 
 	OK(field_store_string(fields[SYS_TABLESPACES_NAME], name));
 
-	OK(fields[SYS_TABLESPACES_FLAGS]->store(flags));
+	OK(fields[SYS_TABLESPACES_FLAGS]->store((double) flags));
 
 	OK(field_store_string(fields[SYS_TABLESPACES_FILE_FORMAT],
 			      file_format));
@@ -7910,9 +7941,9 @@ i_s_dict_fill_sys_tablespaces(
 	OK(field_store_string(fields[SYS_TABLESPACES_ROW_FORMAT],
 			      row_format));
 
-	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store(page_size));
+	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store((double) page_size));
 
-	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store(zip_size));
+	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store((double) zip_size));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 

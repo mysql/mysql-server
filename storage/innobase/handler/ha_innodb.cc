@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysys_err.h>
 #include <strfunc.h>
 #include <sql_acl.h>
+#include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
 
@@ -1433,7 +1434,8 @@ convert_error_code_to_mysql(
 
 	case DB_FTS_INVALID_DOCID:
 		return(HA_FTS_INVALID_DOCID);
-
+	case DB_FTS_EXCEED_RESULT_CACHE_LIMIT:
+		return(HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT);
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		return(HA_ERR_TOO_MANY_CONCURRENT_TRXS);
 	case DB_UNSUPPORTED:
@@ -1554,11 +1556,11 @@ innobase_check_identifier_length(
 	CHARSET_INFO	*cs = system_charset_info;
 	DBUG_ENTER("innobase_check_identifier_length");
 
-	uint res = cs->cset->well_formed_len(cs, id, id + strlen(id),
-					     NAME_CHAR_LEN,
-					     &well_formed_error);
+	size_t len = cs->cset->well_formed_len(cs, id, id + strlen(id),
+					       NAME_CHAR_LEN,
+					       &well_formed_error);
 
-	if (well_formed_error || res == NAME_CHAR_LEN) {
+	if (well_formed_error || len == NAME_CHAR_LEN) {
 		my_error(ER_TOO_LONG_IDENT, MYF(0), id);
 		DBUG_RETURN(true);
 	}
@@ -2997,7 +2999,7 @@ innobase_change_buffering_inited_ok:
 			/* The user has not set the value. We should
 			set it based on innodb_io_capacity. */
 			srv_max_io_capacity =
-				ut_max(2 * srv_io_capacity, 2000);
+				(ulong) ut_max(2 * srv_io_capacity, 2000);
 		}
 
 	} else if (srv_max_io_capacity < srv_io_capacity) {
@@ -4754,7 +4756,7 @@ table_opened:
 
 			/* Find corresponding cluster index
 			key length in MySQL's key_info[] array */
-			for (ulint i = 0; i < table->s->keys; i++) {
+			for (uint i = 0; i < table->s->keys; i++) {
 				dict_index_t*	index;
 				index = innobase_get_index(i);
 				if (dict_index_is_clust(index)) {
@@ -4959,8 +4961,8 @@ innobase_fts_text_cmp(
 	const fts_string_t*	s1 = (const fts_string_t*) p1;
 	const fts_string_t*	s2 = (const fts_string_t*) p2;
 
-	return(ha_compare_text(charset, s1->f_str, s1->f_len,
-			       s2->f_str, s2->f_len, 0, 0));
+	return(ha_compare_text(charset, s1->f_str, (uint) s1->f_len,
+			       s2->f_str, (uint) s2->f_len, 0, 0));
 }
 /******************************************************************//**
 compare two character string case insensitively according to their charset. */
@@ -4981,8 +4983,8 @@ innobase_fts_text_case_cmp(
 
 	newlen = strlen((const char*) s2->f_str);
 
-	return(ha_compare_text(charset, s1->f_str, s1->f_len,
-			       s2->f_str, newlen, 0, 0));
+	return(ha_compare_text(charset, s1->f_str, (uint) s1->f_len,
+			       s2->f_str, (uint) newlen, 0, 0));
 }
 /******************************************************************//**
 Get the first character's code position for FTS index partition. */
@@ -5028,8 +5030,8 @@ innobase_fts_text_cmp_prefix(
 	const fts_string_t*	s2 = (const fts_string_t*) p2;
 	int			result;
 
-	result = ha_compare_text(charset, s2->f_str, s2->f_len,
-				 s1->f_str, s1->f_len, 1, 0);
+	result = ha_compare_text(charset, s2->f_str, (uint) s2->f_len,
+				 s1->f_str, (uint) s1->f_len, 1, 0);
 
 	/* We switched s1, s2 position in ha_compare_text. So we need
 	to negate the result */
@@ -5049,8 +5051,8 @@ innobase_fts_string_cmp(
 	uchar*			s1 = (uchar*) p1;
 	uchar*			s2 = *(uchar**) p2;
 
-	return(ha_compare_text(charset, s1, strlen((const char*) s1),
-			       s2, strlen((const char*) s2), 0, 0));
+	return(ha_compare_text(charset, s1, (uint) strlen((const char*) s1),
+			       s2, (uint) strlen((const char*) s2), 0, 0));
 }
 /******************************************************************//**
 Makes all characters in a string lower case. */
@@ -5103,58 +5105,50 @@ innobase_mysql_fts_get_token(
 
 	token->f_n_char = token->f_len = 0;
 
-	do {
-		for (;;) {
+	for (;;) {
 
-			if (doc >= end) {
-				return(doc - start);
-			}
-
-			int	ctype;
-
-			mbl = cs->cset->ctype(
-				cs, &ctype, doc, (const uchar*) end);
-
-			if (true_word_char(ctype, *doc)) {
-				break;
-			}
-
-			doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
+		if (doc >= end) {
+			return(doc - start);
 		}
 
-		ulint	mwc = 0;
-		ulint	length = 0;
+		int	ctype;
 
-		token->f_str = const_cast<byte*>(doc);
+		mbl = cs->cset->ctype(
+			cs, &ctype, doc, (const uchar*) end);
 
-		while (doc < end) {
-
-			int	ctype;
-
-			mbl = cs->cset->ctype(
-				cs, &ctype, (uchar*) doc, (uchar*) end);
-
-			if (true_word_char(ctype, *doc)) {
-				mwc = 0;
-			} else if (!misc_word_char(*doc) || mwc) {
-				break;
-			} else {
-				++mwc;
-			}
-
-			++length;
-
-			doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
+		if (true_word_char(ctype, *doc)) {
+			break;
 		}
 
-		token->f_len = (uint) (doc - token->f_str) - mwc;
-		token->f_n_char = length;
+		doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
+	}
 
-		return(doc - start);
+	ulint	mwc = 0;
+	ulint	length = 0;
 
-	} while (doc < end);
+	token->f_str = const_cast<byte*>(doc);
 
-	token->f_str[token->f_len] = 0;
+	while (doc < end) {
+
+		int	ctype;
+
+		mbl = cs->cset->ctype(
+			cs, &ctype, (uchar*) doc, (uchar*) end);
+		if (true_word_char(ctype, *doc)) {
+			mwc = 0;
+		} else if (!misc_word_char(*doc) || mwc) {
+			break;
+		} else {
+			++mwc;
+		}
+
+		++length;
+
+		doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
+	}
+
+	token->f_len = (uint) (doc - token->f_str) - mwc;
+	token->f_n_char = length;
 
 	return(doc - start);
 }
@@ -5630,8 +5624,8 @@ build_template_needs_field(
 		return(field);
 	}
 
-	if (bitmap_is_set(table->read_set, i)
-	    || bitmap_is_set(table->write_set, i)) {
+	if (bitmap_is_set(table->read_set, (uint) i)
+	    || bitmap_is_set(table->write_set, (uint) i)) {
 		/* This field is needed in the query */
 
 		return(field);
@@ -7704,7 +7698,7 @@ ha_innobase::ft_init_ext(
 {
 	trx_t*			trx;
 	dict_table_t*		table;
-	ulint			error;
+	dberr_t			error;
 	byte*			query = (byte*) key->ptr();
 	ulint			query_len = key->length();
 	const CHARSET_INFO*	char_set = key->charset();
@@ -7781,23 +7775,24 @@ ha_innobase::ft_init_ext(
 
 	error = fts_query(trx, index, flags, query, query_len, &result);
 
-	// FIXME: Proper error handling and diagnostic
 	if (error != DB_SUCCESS) {
-		fprintf(stderr, "Error processing query\n");
-	} else {
-		/* Allocate FTS handler, and instantiate it before return */
-		fts_hdl = (NEW_FT_INFO*) my_malloc(sizeof(NEW_FT_INFO),
-						   MYF(0));
-
-		fts_hdl->please = (struct _ft_vft*)(&ft_vft_result);
-		fts_hdl->could_you = (struct _ft_vft_ext*)(&ft_vft_ext_result);
-		fts_hdl->ft_prebuilt = prebuilt;
-		fts_hdl->ft_result = result;
-
-		/* FIXME: Re-evluate the condition when Bug 14469540
-		is resolved */
-		prebuilt->in_fts_query = true;
+		my_error(convert_error_code_to_mysql(error, 0, NULL),
+			MYF(0));
+		return(NULL);
 	}
+
+	/* Allocate FTS handler, and instantiate it before return */
+	fts_hdl = static_cast<NEW_FT_INFO*>(my_malloc(sizeof(NEW_FT_INFO),
+				   MYF(0)));
+
+	fts_hdl->please = const_cast<_ft_vft*>(&ft_vft_result);
+	fts_hdl->could_you = const_cast<_ft_vft_ext*>(&ft_vft_ext_result);
+	fts_hdl->ft_prebuilt = prebuilt;
+	fts_hdl->ft_result = result;
+
+	/* FIXME: Re-evluate the condition when Bug 14469540
+	is resolved */
+	prebuilt->in_fts_query = true;
 
 	return((FT_INFO*) fts_hdl);
 }
@@ -9699,6 +9694,25 @@ ha_innobase::delete_table(
 
 	parent_trx = check_trx_exists(thd);
 
+	/* Remove the to-be-dropped table from the list of modified tables
+	by parent_trx. Otherwise we may end up with an orphaned pointer to
+	the table object from parent_trx::mod_tables. This could happen in:
+	SET AUTOCOMMIT=0;
+	CREATE TABLE t (PRIMARY KEY (a)) ENGINE=INNODB SELECT 1 AS a UNION
+	ALL SELECT 1 AS a; */
+	trx_mod_tables_t::const_iterator	iter;
+	for (iter = parent_trx->mod_tables.begin();
+	     iter != parent_trx->mod_tables.end();
+	     ++iter) {
+
+		dict_table_t*	table = *iter;
+
+		if (strcmp(norm_name, table->name) == 0) {
+			parent_trx->mod_tables.erase(table);
+			break;
+		}
+	}
+
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
 
@@ -10662,6 +10676,8 @@ ha_innobase::info_low(
 		if (os_file_get_status(path, &stat_info, false) == DB_SUCCESS) {
 			stats.create_time = (ulong) stat_info.ctime;
 		}
+
+		stats.update_time = ib_table->update_time;
 	}
 
 	if (flag & HA_STATUS_VARIABLE) {
@@ -11429,8 +11445,8 @@ get_foreign_key_info(
 	LEX_STRING*		name = NULL;
 
 	ptr = dict_remove_db_name(foreign->id);
-	f_key_info.foreign_id = thd_make_lex_string(thd, 0, ptr,
-						    (uint) strlen(ptr), 1);
+	f_key_info.foreign_id = thd_make_lex_string(
+		thd, 0, ptr, (uint) strlen(ptr), 1);
 
 	/* Name format: database name, '/', table name, '\0' */
 
@@ -11441,12 +11457,14 @@ get_foreign_key_info(
 	tmp_buff[len] = 0;
 
 	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
-	f_key_info.referenced_db = thd_make_lex_string(thd, 0, name_buff, len, 1);
+	f_key_info.referenced_db = thd_make_lex_string(
+		thd, 0, name_buff, (unsigned int) len, 1);
 
 	/* Referenced (parent) table name */
 	ptr = dict_remove_db_name(foreign->referenced_table_name);
 	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
-	f_key_info.referenced_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
+	f_key_info.referenced_table = thd_make_lex_string(
+		thd, 0, name_buff, (unsigned int) len, 1);
 
 	/* Dependent (child) database name */
 	len = dict_get_db_name_len(foreign->foreign_table_name);
@@ -11455,12 +11473,14 @@ get_foreign_key_info(
 	tmp_buff[len] = 0;
 
 	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
-	f_key_info.foreign_db = thd_make_lex_string(thd, 0, name_buff, len, 1);
+	f_key_info.foreign_db = thd_make_lex_string(
+		thd, 0, name_buff, (unsigned int) len, 1);
 
 	/* Dependent (child) table name */
 	ptr = dict_remove_db_name(foreign->foreign_table_name);
 	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
-	f_key_info.foreign_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
+	f_key_info.foreign_table = thd_make_lex_string(
+		thd, 0, name_buff, (unsigned int) len, 1);
 
 	do {
 		ptr = foreign->foreign_col_names[i];
@@ -11487,9 +11507,8 @@ get_foreign_key_info(
 		ptr = "RESTRICT";
 	}
 
-	f_key_info.delete_method = thd_make_lex_string(thd,
-						       f_key_info.delete_method,
-						       ptr, len, 1);
+	f_key_info.delete_method = thd_make_lex_string(
+		thd, f_key_info.delete_method, ptr, (unsigned int) len, 1);
 
 	if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) {
 		len = 7;
@@ -11505,9 +11524,8 @@ get_foreign_key_info(
 		ptr = "RESTRICT";
 	}
 
-	f_key_info.update_method = thd_make_lex_string(thd,
-						       f_key_info.update_method,
-						       ptr, len, 1);
+	f_key_info.update_method = thd_make_lex_string(
+		thd, f_key_info.update_method, ptr, (unsigned int) len, 1);
 
 	if (foreign->referenced_index && foreign->referenced_index->name) {
 		referenced_key_name = thd_make_lex_string(thd,
@@ -12279,7 +12297,7 @@ innodb_show_status(
 		memcpy(str + len, truncated_msg, sizeof truncated_msg - 1);
 		len += sizeof truncated_msg - 1;
 		usable_len = (MAX_STATUS_SIZE - 1) - len;
-		fseek(srv_monitor_file, flen - usable_len, SEEK_SET);
+		fseek(srv_monitor_file, (long) (flen - usable_len), SEEK_SET);
 		len += fread(str + len, 1, usable_len, srv_monitor_file);
 		flen = len;
 	} else {
@@ -12290,7 +12308,7 @@ innodb_show_status(
 	mutex_exit(&srv_monitor_file_mutex);
 
 	stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
-		   STRING_WITH_LEN(""), str, flen);
+		   STRING_WITH_LEN(""), str, (uint) flen);
 
 	my_free(str);
 
@@ -12397,11 +12415,13 @@ innodb_mutex_show_status(
 			continue;
 		}
 
-		buf1len = my_snprintf(buf1, sizeof buf1, "%s:%lu",
-				     innobase_basename(lock->cfile_name),
-				     (ulong) lock->cline);
-		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
-				      (ulong) lock->count_os_wait);
+		buf1len = (uint) my_snprintf(
+			buf1, sizeof buf1, "%s:%lu",
+			innobase_basename(lock->cfile_name),
+			(ulong) lock->cline);
+		buf2len = (uint) my_snprintf(
+			buf2, sizeof buf2, "os_waits=%lu",
+			(ulong) lock->count_os_wait);
 
 		if (stat_print(thd, innobase_hton_name,
 			       hton_name_len, buf1, buf1len,
@@ -12432,15 +12452,16 @@ innodb_mutex_show_status(
 	mutex_exit(&rw_lock_list_mutex);
 
 #ifdef UNIV_DEBUG
-	buf2len = my_snprintf(buf2, sizeof buf2,
-			     "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
-			     "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
-			      (ulong) rw_lock_count,
-			      (ulong) rw_lock_count_spin_loop,
-			      (ulong) rw_lock_count_spin_rounds,
-			      (ulong) rw_lock_count_os_wait,
-			      (ulong) rw_lock_count_os_yield,
-			      (ulong) (rw_lock_wait_time / 1000));
+	buf2len = (uint) my_snprintf(
+		buf2, sizeof buf2,
+		"count=%lu, spin_waits=%lu, spin_rounds=%lu, "
+		"os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
+		(ulong) rw_lock_count,
+		(ulong) rw_lock_count_spin_loop,
+		(ulong) rw_lock_count_spin_rounds,
+		(ulong) rw_lock_count_os_wait,
+		(ulong) rw_lock_count_os_yield,
+		(ulong) (rw_lock_wait_time / 1000));
 
 	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
@@ -15702,6 +15723,11 @@ static MYSQL_SYSVAR_ULONG(ft_total_cache_size, fts_max_total_cache_size,
   "Total memory allocated for InnoDB Fulltext Search cache",
   NULL, NULL, 640000000, 32000000, 1600000000, 0);
 
+static MYSQL_SYSVAR_ULONG(ft_result_cache_limit, fts_result_cache_limit,
+  PLUGIN_VAR_RQCMDARG,
+  "InnoDB Fulltext search query result cache limit in bytes",
+  NULL, NULL, 2000000000L, 1000000L, ~0UL, 0);
+
 static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search minimum token size in characters",
@@ -16096,6 +16122,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* !DBUG_OFF */
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_total_cache_size),
+  MYSQL_SYSVAR(ft_result_cache_limit),
   MYSQL_SYSVAR(ft_enable_stopword),
   MYSQL_SYSVAR(ft_max_token_size),
   MYSQL_SYSVAR(ft_min_token_size),
@@ -16275,7 +16302,7 @@ innobase_undo_logs_init_default_max()
 {
 	MYSQL_SYSVAR_NAME(undo_logs).max_val
 		= MYSQL_SYSVAR_NAME(undo_logs).def_val
-		= srv_available_undo_logs;
+		= (unsigned long) srv_available_undo_logs;
 }
 
 /****************************************************************************
@@ -16584,7 +16611,7 @@ innobase_convert_to_filename_charset(
 	CHARSET_INFO*	cs_to = &my_charset_filename;
 	CHARSET_INFO*	cs_from = system_charset_info;
 
-	return(strconvert(cs_from, from, cs_to, to, len, &errors));
+	return(strconvert(cs_from, from, cs_to, to, (uint) len, &errors));
 }
 
 /**********************************************************************
@@ -16600,5 +16627,5 @@ innobase_convert_to_system_charset(
 	CHARSET_INFO*	cs1 = &my_charset_filename;
 	CHARSET_INFO*	cs2 = system_charset_info;
 
-	return(strconvert(cs1, from, cs2, to, len, errors));
+	return(strconvert(cs1, from, cs2, to, (uint) len, errors));
 }

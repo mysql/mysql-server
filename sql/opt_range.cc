@@ -12663,9 +12663,6 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
 
   if (min_max_arg_part)
   {
-    if (my_init_dynamic_array(&min_max_ranges, sizeof(QUICK_RANGE*), 16, 16))
-      return 1;
-
     if (have_min)
     {
       if (!(min_functions= new List<Item_sum>))
@@ -12703,8 +12700,6 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
         return 1;
     }
   }
-  else
-    min_max_ranges.elements= 0;
 
   return 0;
 }
@@ -12721,8 +12716,7 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
       ha_*_end() for whatever is the current access method.
     */
     head->file->ha_index_or_rnd_end();
-  if (min_max_arg_part)
-    delete_dynamic(&min_max_ranges);
+
   free_root(&alloc,MYF(0));
   delete min_functions_it;
   delete max_functions_it;
@@ -12775,7 +12769,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
                          range_flag);
   if (!range)
     return TRUE;
-  if (insert_dynamic(&min_max_ranges, &range))
+  if (min_max_ranges.push_back(range))
     return TRUE;
   return FALSE;
 }
@@ -12836,14 +12830,12 @@ void QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges ()
 void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
 {
   max_used_key_length= real_prefix_len;
-  if (min_max_ranges.elements > 0)
+  if (min_max_ranges.size() > 0)
   {
-    QUICK_RANGE *cur_range;
     if (have_min)
     { /* Check if the right-most range has a lower boundary. */
-      get_dynamic(&min_max_ranges, (uchar*)&cur_range,
-                  min_max_ranges.elements - 1);
-      if (!(cur_range->flag & NO_MIN_RANGE))
+      QUICK_RANGE *rightmost_range= min_max_ranges[min_max_ranges.size() - 1];
+      if (!(rightmost_range->flag & NO_MIN_RANGE))
       {
         max_used_key_length+= min_max_arg_len;
         used_key_parts++;
@@ -12852,8 +12844,8 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
     }
     if (have_max)
     { /* Check if the left-most range has an upper boundary. */
-      get_dynamic(&min_max_ranges, (uchar*)&cur_range, 0);
-      if (!(cur_range->flag & NO_MAX_RANGE))
+      QUICK_RANGE *leftmost_range= min_max_ranges[0];
+      if (!(leftmost_range->flag & NO_MAX_RANGE))
       {
         max_used_key_length+= min_max_arg_len;
         used_key_parts++;
@@ -13049,7 +13041,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::next_min");
 
   /* Find the MIN key using the eventually extended group prefix. */
-  if (min_max_ranges.elements > 0)
+  if (min_max_ranges.size() > 0)
   {
     if ((result= next_min_in_range()))
       DBUG_RETURN(result);
@@ -13132,7 +13124,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max()
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::next_max");
 
   /* Get the last key in the (possibly extended) group. */
-  if (min_max_ranges.elements > 0)
+  if (min_max_ranges.size() > 0)
     result= next_max_in_range();
   else
     result= head->file->ha_index_read_map(record, group_prefix,
@@ -13284,21 +13276,21 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
 {
   ha_rkey_function find_flag;
   key_part_map keypart_map;
-  QUICK_RANGE *cur_range;
   bool found_null= FALSE;
   int result= HA_ERR_KEY_NOT_FOUND;
 
-  DBUG_ASSERT(min_max_ranges.elements > 0);
+  DBUG_ASSERT(min_max_ranges.size() > 0);
 
-  for (uint range_idx= 0; range_idx < min_max_ranges.elements; range_idx++)
-  { /* Search from the left-most range to the right. */
-    get_dynamic(&min_max_ranges, (uchar*)&cur_range, range_idx);
-
+  /* Search from the left-most range to the right. */
+  for (Quick_ranges::const_iterator it= min_max_ranges.begin();
+       it != min_max_ranges.end(); ++it)
+  {
+    QUICK_RANGE *cur_range= *it;
     /*
       If the current value for the min/max argument is bigger than the right
       boundary of cur_range, there is no need to check this range.
     */
-    if (range_idx != 0 && !(cur_range->flag & NO_MAX_RANGE) &&
+    if (it != min_max_ranges.begin() && !(cur_range->flag & NO_MAX_RANGE) &&
         (key_cmp(min_max_arg_part, (const uchar*) cur_range->max_key,
                  min_max_arg_len) == 1))
       continue;
@@ -13424,20 +13416,20 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
 {
   ha_rkey_function find_flag;
   key_part_map keypart_map;
-  QUICK_RANGE *cur_range;
   int result;
 
-  DBUG_ASSERT(min_max_ranges.elements > 0);
+  DBUG_ASSERT(min_max_ranges.size() > 0);
 
-  for (uint range_idx= min_max_ranges.elements; range_idx > 0; range_idx--)
-  { /* Search from the right-most range to the left. */
-    get_dynamic(&min_max_ranges, (uchar*)&cur_range, range_idx - 1);
-
+  /* Search from the right-most range to the left. */
+  for (Quick_ranges::const_iterator it= min_max_ranges.end();
+       it != min_max_ranges.begin(); --it)
+  {
+    QUICK_RANGE *cur_range = *(it - 1);
     /*
       If the current value for the min/max argument is smaller than the left
       boundary of cur_range, there is no need to check this range.
     */
-    if (range_idx != min_max_ranges.elements &&
+    if (it != min_max_ranges.end() &&
         !(cur_range->flag & NO_MIN_RANGE) &&
         (key_cmp(min_max_arg_part, (const uchar*) cur_range->min_key,
                  min_max_arg_len) == -1))
@@ -14312,10 +14304,10 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
     fprintf(DBUG_FILE, "%*susing quick_range_select:\n", indent, "");
     quick_prefix_select->dbug_dump(indent + 2, verbose);
   }
-  if (min_max_ranges.elements > 0)
+  if (min_max_ranges.size() > 0)
   {
     fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n",
-            indent, "", min_max_ranges.elements);
+            indent, "", static_cast<int>(min_max_ranges.size()));
   }
 }
 
