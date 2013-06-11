@@ -1,0 +1,10 @@
+install plugin pam soname 'auth_pam.so';
+create user test_pam identified via pam using 'mariadb_mtr';
+create user pam_test;
+grant proxy on pam_test to test_pam;
+show variables like 'pam%';
+Variable_name	Value
+pam_use_cleartext_plugin	ON
+drop user test_pam;
+drop user pam_test;
+uninstall plugin pam;

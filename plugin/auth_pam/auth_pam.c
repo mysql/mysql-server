@@ -154,6 +154,27 @@ static struct st_mysql_auth info =
   pam_auth
 };
 
+static char use_cleartext_plugin;
+static MYSQL_SYSVAR_BOOL(use_cleartext_plugin, use_cleartext_plugin,
+       PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+       "Use mysql_cleartext_plugin on the client side instead of the dialog "
+       "plugin. This may be needed for compatibility reasons, but it only "
+       "supports simple PAM policies that don't require anything besides "
+       "a password", NULL, NULL, 0);
+
+static struct st_mysql_sys_var* vars[] = {
+  MYSQL_SYSVAR(use_cleartext_plugin),
+  NULL
+};
+
+
+static int init(void *p __attribute__((unused)))
+{
+  if (use_cleartext_plugin)
+    info.client_auth_plugin= "mysql_clear_password";
+  return 0;
+}
+
 maria_declare_plugin(pam)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
@@ -162,11 +183,11 @@ maria_declare_plugin(pam)
   "Sergei Golubchik",
   "PAM based authentication",
   PLUGIN_LICENSE_GPL,
-  NULL,
+  init,
   NULL,
   0x0100,
   NULL,
-  NULL,
+  vars,
   "1.0",
   MariaDB_PLUGIN_MATURITY_BETA
 }

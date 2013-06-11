@@ -1,0 +1,12 @@
+
+--source pam_init.inc
+
+show variables like 'pam%';
+
+--error 1
+--exec echo FAIL | $MYSQL_TEST -u test_pam --plugin-dir=$plugindir
+
+drop user test_pam;
+drop user pam_test;
+uninstall plugin pam;
+
