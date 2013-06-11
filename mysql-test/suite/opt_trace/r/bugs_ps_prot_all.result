@@ -1637,6 +1637,43 @@ ON table2 .col_int_key = table1 .col_int_key
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
+                            "strategy": "LooseScan",
+                            "recalculate_access_paths_and_cost": {
+                              "tables": [
+                                {
+                                  "table": "`t1` `table1`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "ref",
+                                        "index": "col_int_key",
+                                        "usable": false,
+                                        "chosen": false
+                                      },
+                                      {
+                                        "access_type": "scan",
+                                        "rows": 4,
+                                        "cost": 2.8068,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */,
+                                  "unknown_key_1": {
+                                    "searching_loose_scan_index": {
+                                      "indexes": [
+                                        {
+                                          "index": "col_int_key",
+                                          "index_handles_needed_semijoin_equalities": false
+                                        }
+                                      ] /* indexes */
+                                    } /* searching_loose_scan_index */
+                                  }
+                                }
+                              ] /* tables */
+                            } /* recalculate_access_paths_and_cost */,
+                            "chosen": false
+                          },
+                          {
                             "strategy": "MaterializeScan",
                             "recalculate_access_paths_and_cost": {
                               "tables": [
@@ -1684,8 +1721,7 @@ ON table2 .col_int_key = table1 .col_int_key
                     {
                       "access_type": "ref",
                       "index": "col_int_key",
-                      "rows": 2e308,
-                      "cost": 0,
+                      "usable": false,
                       "chosen": false
                     },
                     {
@@ -1814,6 +1850,82 @@ ON table2 .col_int_key = table1 .col_int_key
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
+                            "strategy": "LooseScan",
+                            "recalculate_access_paths_and_cost": {
+                              "tables": [
+                                {
+                                  "table": "`t1` `table2`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "ref",
+                                        "index": "col_int_key",
+                                        "usable": false,
+                                        "chosen": false
+                                      },
+                                      {
+                                        "access_type": "scan",
+                                        "rows": 4,
+                                        "cost": 2.8068,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */,
+                                  "unknown_key_2": {
+                                    "searching_loose_scan_index": {
+                                      "indexes": [
+                                        {
+                                          "index": "col_int_key",
+                                          "covering_scan": {
+                                            "cost": 1.0698,
+                                            "chosen": true
+                                          } /* covering_scan */
+                                        }
+                                      ] /* indexes */
+                                    } /* searching_loose_scan_index */
+                                  }
+                                },
+                                {
+                                  "table": "`t1` `table1`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "ref",
+                                        "index": "col_int_key",
+                                        "rows": 2,
+                                        "cost": 4.493,
+                                        "chosen": true
+                                      },
+                                      {
+                                        "access_type": "scan",
+                                        "rows": 3,
+                                        "cost": 11.227,
+                                        "chosen": false
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                },
+                                {
+                                  "table": "`where_subselect_20070`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "scan",
+                                        "using_join_cache": true,
+                                        "rows": 6,
+                                        "cost": 11.62,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                }
+                              ] /* tables */
+                            } /* recalculate_access_paths_and_cost */,
+                            "cost": 19.182,
+                            "rows": 6,
+                            "chosen": true
+                          },
+                          {
                             "strategy": "MaterializeScan",
                             "recalculate_access_paths_and_cost": {
                               "tables": [
@@ -1835,8 +1947,8 @@ ON table2 .col_int_key = table1 .col_int_key
                             } /* recalculate_access_paths_and_cost */,
                             "cost": 19.433,
                             "rows": 6,
-                            "duplicate_tables_left": true,
-                            "chosen": true
+                            "duplicate_tables_left": false,
+                            "chosen": false
                           },
                           {
                             "strategy": "DuplicatesWeedout",
@@ -1888,7 +2000,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "rows": 4,
                         "cost": 4.9068
                       } /* table_scan */,
-                      "potential_range_indices": [
+                      "potential_range_indexes": [
                         {
                           "index": "col_int_key",
                           "usable": true,
@@ -1896,7 +2008,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             "col_int_key"
                           ] /* key_parts */
                         }
-                      ] /* potential_range_indices */,
+                      ] /* potential_range_indexes */,
                       "best_covering_index_scan": {
                         "index": "col_int_key",
                         "cost": 1.8698,
@@ -2183,7 +2295,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                           "rows": 1,
                                           "cost": 3.3
                                         } /* table_scan */,
-                                        "potential_range_indices": [
+                                        "potential_range_indexes": [
                                           {
                                             "index": "a",
                                             "usable": true,
@@ -2199,7 +2311,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                               "c"
                                             ] /* key_parts */
                                           }
-                                        ] /* potential_range_indices */,
+                                        ] /* potential_range_indexes */,
                                         "best_covering_index_scan": {
                                           "index": "a_2",
                                           "cost": 1.2,

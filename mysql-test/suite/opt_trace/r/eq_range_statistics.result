@@ -119,7 +119,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                     "rows": 9,
                     "cost": 4.9
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "a",
                       "usable": true,
@@ -128,7 +128,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                         "b"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
                     "cost": 2.8156,
@@ -304,7 +304,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                     "rows": 9,
                     "cost": 4.9
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "a",
                       "usable": true,
@@ -313,7 +313,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                         "b"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
                     "cost": 2.8156,
@@ -498,7 +498,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                     "rows": 9,
                     "cost": 4.9
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "a",
                       "usable": true,
@@ -507,7 +507,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                         "b"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
                     "cost": 2.8156,
@@ -706,7 +706,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                     "rows": 9,
                     "cost": 4.9
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "a",
                       "usable": true,
@@ -715,7 +715,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                         "b"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
                     "cost": 2.8156,
@@ -913,7 +913,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                     "rows": 9,
                     "cost": 4.9
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "a",
                       "usable": true,
@@ -922,7 +922,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                         "b"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
                     "cost": 2.8156,
@@ -1114,7 +1114,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                     "rows": 9,
                     "cost": 4.9
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "a",
                       "usable": true,
@@ -1123,7 +1123,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                         "b"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
                     "cost": 2.8156,
@@ -1302,7 +1302,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                     "rows": 9,
                     "cost": 4.9
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "a",
                       "usable": true,
@@ -1311,7 +1311,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                         "b"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
                     "cost": 2.8156,

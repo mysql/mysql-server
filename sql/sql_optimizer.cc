@@ -5614,15 +5614,15 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
   can be used for GROUP BY or DISTINCT to the optimizer trace.
 
   @param trace     The optimizer trace context we're adding info to
-  @param join_tab  The table the indices cover
+  @param join_tab  The table the indexes cover
   @param new_keys  The keys that are considered useful because they can
                    be used for GROUP BY or DISTINCT
-  @param cause     Zero-terminated string with reason for adding indices
+  @param cause     Zero-terminated string with reason for adding indexes
                    to const_keys
 
   @see add_group_and_distinct_keys()
  */
-static void trace_indices_added_group_distinct(Opt_trace_context *trace,
+static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
                                                const JOIN_TAB *join_tab,
                                                const key_map new_keys,
                                                const char* cause)
@@ -5747,7 +5747,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   if (!possible_keys.is_clear_all() &&
       !possible_keys.is_subset(join_tab->const_keys))
   {
-    trace_indices_added_group_distinct(&join->thd->opt_trace, join_tab,
+    trace_indexes_added_group_distinct(&join->thd->opt_trace, join_tab,
                                        possible_keys, cause);
     join_tab->const_keys.merge(possible_keys);
     join_tab->keys.merge(possible_keys);
