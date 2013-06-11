@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #ifndef PREALLOCED_ARRAY_INCLUDED
 #define PREALLOCED_ARRAY_INCLUDED
@@ -22,8 +22,9 @@
 
 /**
   A typesafe replacement for DYNAMIC_ARRAY. We do our own memory management,
-  and pre-allocate space for a number of elements. The purpose is to pre-allocate
-  enough elements to cover normal use cases, thus saving malloc()/free() overhead.
+  and pre-allocate space for a number of elements. The purpose is to
+  pre-allocate enough elements to cover normal use cases, thus saving
+  malloc()/free() overhead.
   If we run out of space, we use malloc to allocate more space.
 
   The interface is chosen to be similar to std::vector.
@@ -64,7 +65,10 @@ class Prealloced_array
 public:
   Prealloced_array()
     : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
-  {}
+  {
+    // We do not want a zero-size array.
+    compile_time_assert(Prealloc != 0);
+  }
 
   /**
     An object instance "owns" its array, so we do deep copy here.
@@ -168,10 +172,7 @@ public:
    */
   bool push_back(const Element_type &element)
   {
-    const size_t min_capacity= 20;
     const size_t expansion_factor= 2;
-    if (0 == m_capacity && reserve(min_capacity))
-      return true;
     if (m_size == m_capacity && reserve(m_capacity * expansion_factor))
       return true;
     Element_type *p= &m_array_ptr[m_size++];

@@ -315,8 +315,8 @@ public:
 	@param set auto-increment size in pages */
 	void set_autoextend_increment(ulint pages)
 	{
-		m_auto_extend_increment = ((pages * UNIV_PAGE_SIZE)
-					   / (1024 * 1024));
+		m_auto_extend_increment =
+			(ulong) ((pages * UNIV_PAGE_SIZE) / (1024 * 1024));
 	}
 
 	/**
