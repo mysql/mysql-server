@@ -72,7 +72,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Last_Error_Timestamp")},
-    {C_STRING_WITH_LEN("varchar(16)")},
+    {C_STRING_WITH_LEN("timestamp")},
     {NULL, 0}
   }
 };
@@ -198,9 +198,10 @@ void table_replication_connection_status::fill_rows(Master_info *mi)
   }
 
   m_row.Last_Error_Number= (unsigned int) mi->last_error().number;
-
   m_row.Last_Error_Message_length= 0;
-  m_row.Last_Error_Timestamp_length= 0;
+  m_row.Last_Error_Timestamp= 0;
+
+  /** If error, set error message and timestamp */
   if (m_row.Last_Error_Number)
   {
     char* temp_store= (char*)mi->last_error().message;
@@ -208,10 +209,8 @@ void table_replication_connection_status::fill_rows(Master_info *mi)
     memcpy(m_row.Last_Error_Message, temp_store,
            m_row.Last_Error_Message_length);
 
-    temp_store= (char*)mi->last_error().timestamp;
-    m_row.Last_Error_Timestamp_length= strlen(temp_store);
-    memcpy(m_row.Last_Error_Timestamp,
-           temp_store, m_row.Last_Error_Timestamp_length);
+    /** time in millisecond since epoch */
+    m_row.Last_Error_Timestamp= mi->last_error().skr*1000000;
   }
 
   mysql_mutex_unlock(&mi->rli->err_lock);
@@ -258,8 +257,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
                                m_row.Last_Error_Message_length);
         break;
       case 6: /*Last_Error_Timestamp*/
-        set_field_varchar_utf8(f, m_row.Last_Error_Timestamp,
-                               m_row.Last_Error_Timestamp_length);
+         set_field_timestamp(f, m_row.Last_Error_Timestamp);
         break;
       default:
         DBUG_ASSERT(false);

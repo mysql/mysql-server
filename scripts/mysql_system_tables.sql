@@ -1675,7 +1675,7 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
     "Received_Transaction_Set text not null,"
     "Last_Error_Number bigint not null,"
     "Last_Error_Message varchar(1024) not null,"
-    "Last_Error_Timestamp varchar(16) not null"
+    "Last_Error_Timestamp timestamp(0) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1719,7 +1719,7 @@ SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordina
     "Service_State ENUM('On','Off') not null,"
     "Last_Error_Number bigint not null,"
     "Last_Error_Message varchar(1024) not null,"
-    "Last_Error_Timestamp varchar(16) not null"
+    "Last_Error_Timestamp timestamp(0) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1738,7 +1738,7 @@ SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_worker("
     "Last_Seen_Transaction char(57) not null,"
     "Last_Error_Number bigint not null,"
     "Last_Error_Message varchar(1024) not null,"
-    "Last_Error_Timestamp varchar(16) not null"
+    "Last_Error_Timestamp timestamp(0) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
