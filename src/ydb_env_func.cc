@@ -226,21 +226,3 @@ db_env_set_num_bucket_mutexes(uint32_t num_mutexes) {
     toku_pair_list_set_lock_size(num_mutexes);
 }
 
-int
-db_env_set_toku_product_name(const char *name) {
-    if (tokudb_num_envs > 0) {
-        return EINVAL;
-    }
-    if (!name || strlen(name) < 1) {
-        return EINVAL;
-    }
-    if (strlen(name) >= sizeof(toku_product_name)) {
-        return ENAMETOOLONG;
-    }
-    if (strncmp(toku_product_name, name, sizeof(toku_product_name))) {
-        strcpy(toku_product_name, name);
-        tokudb_update_product_name_strings();
-    }
-    return 0;
-}
-
