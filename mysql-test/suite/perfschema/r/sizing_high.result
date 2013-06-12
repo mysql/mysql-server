@@ -208,9 +208,9 @@ performance_schema	socket_instances.memory	134400
 performance_schema	events_statements_summary_by_digest.size	1472
 performance_schema	events_statements_summary_by_digest.count	10000
 performance_schema	events_statements_summary_by_digest.memory	14720000
-performance_schema	events_statements_summary_by_program.size	568
+performance_schema	events_statements_summary_by_program.size	656
 performance_schema	events_statements_summary_by_program.count	5000
-performance_schema	events_statements_summary_by_program.memory	2840000
+performance_schema	events_statements_summary_by_program.memory	3280000
 performance_schema	session_connect_attrs.size	500
 performance_schema	session_connect_attrs.count	512
 performance_schema	session_connect_attrs.memory	256000
@@ -233,4 +233,4 @@ performance_schema	(user_hash).size	100
 performance_schema	(program_hash).count	2
 performance_schema	(program_hash).size	5000
 performance_schema	host_cache.size	336
-performance_schema	performance_schema.memory	447656448
+performance_schema	performance_schema.memory	448096448
