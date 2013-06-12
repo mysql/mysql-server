@@ -102,7 +102,6 @@ enum {
     TOKU_LOG_VERSION   = FT_LAYOUT_VERSION, 
     TOKU_LOG_MIN_SUPPORTED_VERSION = FT_LAYOUT_MIN_SUPPORTED_VERSION,
 };
-#define ROLLBACK_CACHEFILE_NAME "tokudb.rollback"
 
 int toku_logger_create (TOKULOGGER *resultp);
 int toku_logger_open (const char *directory, TOKULOGGER logger);

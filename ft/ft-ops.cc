@@ -6220,6 +6220,8 @@ exit:
     return r;
 }
 
+
+
 void toku_ft_layer_destroy(void) {
     toku_mutex_destroy(&ft_open_close_lock);
     toku_ft_serialize_layer_destroy();

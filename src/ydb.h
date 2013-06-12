@@ -114,5 +114,4 @@ extern "C" uint64_t toku_test_get_latest_lsn(DB_ENV *env) __attribute__((__visib
 // test-only function
 extern "C" int toku_test_get_checkpointing_user_data_status(void) __attribute__((__visibility__("default")));
 
-
 #endif

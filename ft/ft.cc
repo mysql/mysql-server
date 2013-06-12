@@ -1081,3 +1081,92 @@ void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space) {
     *used_space = info.used_space;
 }
 
+
+#if !defined(TOKUDB_REVISION)
+#error
+#endif
+
+
+
+#define xstr(X) str(X)
+#define str(X) #X
+#define static_version_string xstr(DB_VERSION_MAJOR) "." \
+                              xstr(DB_VERSION_MINOR) "." \
+                              xstr(DB_VERSION_PATCH) " build " \
+                              xstr(TOKUDB_REVISION)
+struct toku_product_name_strings_struct toku_product_name_strings;
+
+char toku_product_name[TOKU_MAX_PRODUCT_NAME_LENGTH];
+void
+tokudb_update_product_name_strings(void) {
+    //DO ALL STRINGS HERE.. maybe have a separate FT layer version as well
+    { // Version string
+        int n = snprintf(toku_product_name_strings.db_version,
+                         sizeof(toku_product_name_strings.db_version),
+                         "%s %s", toku_product_name, static_version_string);
+        assert(n >= 0);
+        assert((unsigned)n < sizeof(toku_product_name_strings.db_version));
+    }
+    {
+        int n = snprintf(toku_product_name_strings.fileopsdirectory,
+                         sizeof(toku_product_name_strings.fileopsdirectory),
+                         "%s.directory", toku_product_name);
+        assert(n >= 0);
+        assert((unsigned)n < sizeof(toku_product_name_strings.fileopsdirectory));
+    }
+    {
+        int n = snprintf(toku_product_name_strings.environmentdictionary,
+                         sizeof(toku_product_name_strings.environmentdictionary),
+                         "%s.environment", toku_product_name);
+        assert(n >= 0);
+        assert((unsigned)n < sizeof(toku_product_name_strings.environmentdictionary));
+    }
+    {
+        int n = snprintf(toku_product_name_strings.rollback_cachefile,
+                         sizeof(toku_product_name_strings.rollback_cachefile),
+                         "%s.rollback", toku_product_name);
+        assert(n >= 0);
+        assert((unsigned)n < sizeof(toku_product_name_strings.rollback_cachefile));
+    }
+    {
+        int n = snprintf(toku_product_name_strings.single_process_lock,
+                         sizeof(toku_product_name_strings.single_process_lock),
+                         "__%s_lock_dont_delete_me", toku_product_name);
+        assert(n >= 0);
+        assert((unsigned)n < sizeof(toku_product_name_strings.single_process_lock));
+    }
+}
+#undef xstr
+#undef str
+
+int
+toku_single_process_lock(const char *lock_dir, const char *which, int *lockfd) {
+    if (!lock_dir)
+        return ENOENT;
+    int namelen=strlen(lock_dir)+strlen(which);
+    char lockfname[namelen+sizeof("/_") + strlen(toku_product_name_strings.single_process_lock)];
+
+    int l = snprintf(lockfname, sizeof(lockfname), "%s/%s_%s",
+                     lock_dir, toku_product_name_strings.single_process_lock, which);
+    assert(l+1 == (signed)(sizeof(lockfname)));
+    *lockfd = toku_os_lock_file(lockfname);
+    if (*lockfd < 0) {
+        int e = get_error_errno();
+        fprintf(stderr, "Couldn't start tokudb because some other tokudb process is using the same directory [%s] for [%s]\n", lock_dir, which);
+        return e;
+    }
+    return 0;
+}
+
+int
+toku_single_process_unlock(int *lockfd) {
+    int fd = *lockfd;
+    *lockfd = -1;
+    if (fd>=0) {
+        int r = toku_os_unlock_file(fd);
+        if (r != 0)
+            return get_error_errno();
+    }
+    return 0;
+}
+
