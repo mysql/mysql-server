@@ -292,7 +292,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
               and handler's data and report about failure to rename table.
             */
             (void) mysql_rename_table(hton, new_db, new_alias,
-                                      ren_table->db, old_alias, 0);
+                                      ren_table->db, old_alias, NO_FK_CHECKS);
           }
         }
       }
