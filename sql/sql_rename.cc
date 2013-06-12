@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -292,7 +292,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
             (void) mysql_rename_table(ha_resolve_by_legacy_type(thd,
                                                                 table_type),
                                       new_db, new_alias,
-                                      ren_table->db, old_alias, 0);
+                                      ren_table->db, old_alias, NO_FK_CHECKS);
           }
         }
       }

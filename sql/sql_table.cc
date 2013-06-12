@@ -5063,6 +5063,7 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
                    NO_FRM_RENAME  Don't rename the FRM file
                                   but only the table in the storage engine.
                    NO_HA_TABLE    Don't rename table in engine.
+                   NO_FK_CHECKS   Don't check FK constraints during rename.
 
   @return false    OK
   @return true     Error
@@ -5080,11 +5081,16 @@ mysql_rename_table(handlerton *base, const char *old_db,
   char tmp_name[NAME_LEN+1];
   handler *file;
   int error=0;
+  ulonglong save_bits= thd->variables.option_bits;
   int length;
   bool was_truncated;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
                        old_db, old_name, new_db, new_name));
+
+  // Temporarily disable foreign key checks
+  if (flags & NO_FK_CHECKS) 
+    thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
 
   file= (base == NULL ? 0 :
          get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
@@ -5160,6 +5166,8 @@ mysql_rename_table(handlerton *base, const char *old_db,
   }
 #endif
 
+  // Restore options bits to the original value
+  thd->variables.option_bits= save_bits;
 
   DBUG_RETURN(error != 0);
 }
@@ -6572,7 +6580,7 @@ static bool mysql_inplace_alter_table(THD *thd,
       */
       (void) mysql_rename_table(db_type,
                                 alter_ctx->new_db, alter_ctx->new_alias,
-                                alter_ctx->db, alter_ctx->alias, 0);
+                                alter_ctx->db, alter_ctx->alias, NO_FK_CHECKS);
       DBUG_RETURN(true);
     }
   }
@@ -7522,7 +7530,8 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     {
       (void) mysql_rename_table(old_db_type,
                                 alter_ctx->new_db, alter_ctx->new_alias,
-                                alter_ctx->db, alter_ctx->table_name, 0);
+                                alter_ctx->db, alter_ctx->table_name, 
+                                NO_FK_CHECKS);
       error= -1;
     }
   }
@@ -8397,9 +8406,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     // Rename failed, delete the temporary table.
     (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                           alter_ctx.tmp_name, FN_IS_TMP);
+    
     // Restore the backup of the original table to the old name.
     (void) mysql_rename_table(old_db_type, alter_ctx.db, backup_name,
-                              alter_ctx.db, alter_ctx.alias, FN_FROM_IS_TMP);
+                              alter_ctx.db, alter_ctx.alias, 
+                              FN_FROM_IS_TMP | NO_FK_CHECKS);
+    
     goto err_with_mdl;
   }
 
@@ -8417,7 +8429,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                           alter_ctx.new_db, alter_ctx.new_alias, 0);
     // Restore the backup of the original table to the old name.
     (void) mysql_rename_table(old_db_type, alter_ctx.db, backup_name,
-                              alter_ctx.db, alter_ctx.alias, FN_FROM_IS_TMP);
+                              alter_ctx.db, alter_ctx.alias, 
+                              FN_FROM_IS_TMP | NO_FK_CHECKS);
     goto err_with_mdl;
   }
 
