@@ -24,14 +24,14 @@
 # Avoid CrashReporter popup on Mac.
 --source include/not_crashrep.inc
 
+# Innochecksum must be debug build so --debug option can be used.
+--source include/have_innochecksum_debug.inc
+
 call mtr.add_suppression("InnoDB: Unable to lock");
 
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
 
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
@@ -42,9 +42,7 @@ INSERT INTO t1 VALUES(1, 'Innochecksum InnoDB');
 INSERT INTO t1 VALUES(2, 'Innochecksum CRC32');
 
 --echo # Shutdown the Server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Test cases for read from standard input for innochecksum tool
 --echo # Test[1(a)]: for read from standard input for innochecksum tool without rewrite of checksum with debug option.
@@ -202,16 +200,12 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --remove_file $MYSQLTEST_VARDIR/tmp/a.ibd
 
 --echo # Start the server to validate the t1.ibd having crc32 checksum.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---echo # Server Started normally
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
+
+select * from t1;
 
 --echo # Shutdown the server
---exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --echo # Test[2] End
 --echo # Test[3] for read from standard input for innochecksum tool with rewrite of "none" checksum.
@@ -315,16 +309,13 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --remove_file $MYSQLTEST_VARDIR/tmp/a.ibd
 
 --echo # Start the server to validate the t1.ibd having "none" checksum.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---echo # Server Started normally
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
+
+select * from t1;
 
 --echo # Shutdown the server
---exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
+
 --echo # Test[3] End
 
 --echo # Test[4] for read from standard input for innochecksum tool with rewrite of "innodb" checksum.
@@ -406,21 +397,16 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --remove_file $MYSQLTEST_VARDIR/tmp/a.ibd
 
 --echo # Start the server to validate the t1.ibd having "innodb" checksum.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---echo # Server Started normally
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
---echo # Test[4] End
+--source include/start_mysqld.inc
 
+select * from t1;
+
+--echo # Test[4] End
 --remove_file $MYSQLD_DATADIR/test/t1.ibd.backup
 
 --echo # Test[5] for lock.
 --echo # Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
 
-select * from t1;
-
---echo # INNOCHECKSUM MYSQLD_DATADIR/test/t1.ibd
 --error 1
 --exec $INNOCHECKSUM $MYSQLD_DATADIR/test/t1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN=Error: Unable to lock file:: $MYSQLD_DATADIR/test/t1.ibd;
@@ -435,9 +421,7 @@ CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
 CREATE INDEX idx1 ON tab1(c2(10));
 INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 --echo shutdown over
 --echo # Test[a] end
 --echo # Test[b] Scenario: Innochecksum is running state(had acquire lock on tab1.ibd file)
@@ -463,10 +447,7 @@ if ($pid == 0)
 EOF
 
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
@@ -475,11 +456,33 @@ select * from tab1;
 --remove_file $MYSQLTEST_VARDIR/tmp/out.txt
 --source include/wait_until_disconnected.inc
 
+let t1_IBD = $MYSQLD_DATADIR/test/tab1.ibd;
+
+# The below perl script ensures that the lock on the ibd file is successfully removed.
+perl;
+use strict;
+use warnings;
+use Fcntl qw(:DEFAULT :flock);
+my $ibd_file = $ENV{'t1_IBD'};
+my $count = 0;
+open(MYFILE, "$ibd_file") || die "Unable to open $ibd_file";
+while(1) {
+ if(flock(MYFILE, LOCK_EX) == 1) {
+        last;
+ } else {
+        sleep(1);
+ }
+ if($count == 25) {
+     die "Innochecksum didn't release the lock on $ibd_file after $count retries.\n";
+ }
+ $count++;
+}
+flock(MYFILE, LOCK_UN) or die "Cannot unlock $ibd_file $!\n";
+close(MYFILE);
+EOF
+
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 # cleanup
 DROP TABLE t1;
