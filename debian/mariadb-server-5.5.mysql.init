@@ -106,7 +106,7 @@ case "${1:-''}" in
 	    test -e /var/run/mysqld || install -m 755 -o mysql -g root -d /var/run/mysqld
 
 	    # Start MariaDB! 
-  	    /usr/bin/mysqld_safe > /dev/null 2>&1 &
+  	    /usr/bin/mysqld_safe "${@:2}" > /dev/null 2>&1 &
 
 	    # 6s was reported in #352070 to be too few when using ndbcluster
 	    for i in $(seq 1 "${MYSQLD_STARTUP_TIMEOUT:-30}"); do
