@@ -489,7 +489,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                     "rows": 2,
                     "cost": 3.5
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "PRIMARY",
                       "usable": true,
@@ -497,7 +497,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                         "c"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
                     "cost": 1.401,
@@ -691,7 +691,7 @@ select `col
                     "rows": 2,
                     "cost": 3.5
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "index\n1\ta",
                       "usable": true,
@@ -699,7 +699,7 @@ select `col
                         "col\n1\ta"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "index\n1\ta",
                     "cost": 1.4013,

@@ -139,7 +139,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{
                                 "rows": 2,
                                 "cost": 4.5034
                               },
-                              "potential_range_indices": [
+                              "potential_range_indexes": [
                                 {
                                   "index": "d",
                                   "usable": true,
@@ -198,7 +198,7 @@ RESULT
 NULL
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{"steps": [{"join_preparation": {"select#": 1,"steps": [{"join_preparation": {"select#": 2,"steps": [{"expanded_query": "/* select#2 */ select 1 from `t6` where (`t6`.`d` = `t5`.`c`)"}]}},{"expanded_query": "/* select#1 */ select (/* select#2 */ select 1 from `t6` where (`t6`.`d` = `t5`.`c`)) AS `RESULT` from `t5`"}]}},{"join_optimization": {"select#": 1,"steps": [{"table_dependencies": [{"table": "`t5`","row_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"rows_estimation": [{"table": "`t5`","rows": 1,"cost": 1,"table_type": "system","empty": false}]},{"attaching_conditions_to_tables": {"original_condition": null,"attached_conditions_computation": [],"attached_conditions_summary": []}},{"refine_plan": []}]}},{"join_execution": {"select#": 1,"steps": [{"subselect_execution": {"select#": 2,"steps": [{"join_optimization": {"select#": 2,"steps": [{"condition_processing": {"condition": "WHERE","original_condition": "(`t6`.`d` = NULL)","steps": [{"transformation": "equality_propagation","resulting_condition": "multiple equal(NULL, `t6`.`d`)"},{"transformation": "constant_propagation","resulting_condition": "multiple equal(NULL, `t6`.`d`)"},{"transformation": "trivial_condition_removal","resulting_condition": "multiple equal(NULL, `t6`.`d`)"}]}},{"table_dependencies": [{"table": "`t6`","row_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"ref_optimizer_key_uses": [{"table": "`t6`","field": "d","equals": "NULL","null_rejecting": true}]},{"rows_estimation": [{"table": "`t6`","range_analysis": {"table_scan": {"rows": 2,"cost": 4.5034},"potential_range_indices": [{"index": "d","usable": true,"key_parts": ["d"]}],"best_covering_index_scan": {"index": "d","cost": 1.4233,"chosen": true},"setup_range_conditions": [{"impossible_condition": {"cause": "comparison_with_null_always_false"}}],"impossible_range": true},"rows": 0,"cause": "impossible_where_condition"}]}],"empty_result": {"cause": "no matching row in const table"}}},{"join_execution": {"select#": 2,"steps": []}}]}}]}}]}	0	0
+SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{"steps": [{"join_preparation": {"select#": 1,"steps": [{"join_preparation": {"select#": 2,"steps": [{"expanded_query": "/* select#2 */ select 1 from `t6` where (`t6`.`d` = `t5`.`c`)"}]}},{"expanded_query": "/* select#1 */ select (/* select#2 */ select 1 from `t6` where (`t6`.`d` = `t5`.`c`)) AS `RESULT` from `t5`"}]}},{"join_optimization": {"select#": 1,"steps": [{"table_dependencies": [{"table": "`t5`","row_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"rows_estimation": [{"table": "`t5`","rows": 1,"cost": 1,"table_type": "system","empty": false}]},{"attaching_conditions_to_tables": {"original_condition": null,"attached_conditions_computation": [],"attached_conditions_summary": []}},{"refine_plan": []}]}},{"join_execution": {"select#": 1,"steps": [{"subselect_execution": {"select#": 2,"steps": [{"join_optimization": {"select#": 2,"steps": [{"condition_processing": {"condition": "WHERE","original_condition": "(`t6`.`d` = NULL)","steps": [{"transformation": "equality_propagation","resulting_condition": "multiple equal(NULL, `t6`.`d`)"},{"transformation": "constant_propagation","resulting_condition": "multiple equal(NULL, `t6`.`d`)"},{"transformation": "trivial_condition_removal","resulting_condition": "multiple equal(NULL, `t6`.`d`)"}]}},{"table_dependencies": [{"table": "`t6`","row_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"ref_optimizer_key_uses": [{"table": "`t6`","field": "d","equals": "NULL","null_rejecting": true}]},{"rows_estimation": [{"table": "`t6`","range_analysis": {"table_scan": {"rows": 2,"cost": 4.5034},"potential_range_indexes": [{"index": "d","usable": true,"key_parts": ["d"]}],"best_covering_index_scan": {"index": "d","cost": 1.4233,"chosen": true},"setup_range_conditions": [{"impossible_condition": {"cause": "comparison_with_null_always_false"}}],"impossible_range": true},"rows": 0,"cause": "impossible_where_condition"}]}],"empty_result": {"cause": "no matching row in const table"}}},{"join_execution": {"select#": 2,"steps": []}}]}}]}}]}	0	0
 select (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
 from information_schema.OPTIMIZER_TRACE;
 (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
@@ -333,7 +333,7 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
                           "rows": 2,
                           "cost": 4.5034
                         } /* table_scan */,
-                        "potential_range_indices": [
+                        "potential_range_indexes": [
                           {
                             "index": "d",
                             "usable": true,
@@ -341,7 +341,7 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
                               "d"
                             ] /* key_parts */
                           }
-                        ] /* potential_range_indices */,
+                        ] /* potential_range_indexes */,
                         "best_covering_index_scan": {
                           "index": "d",
                           "cost": 1.4233,
@@ -514,7 +514,7 @@ SELECT /* should be last */ (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESUL
                                 "rows": 2,
                                 "cost": 4.5034
                               } /* table_scan */,
-                              "potential_range_indices": [
+                              "potential_range_indexes": [
                                 {
                                   "index": "d",
                                   "usable": true,
@@ -522,7 +522,7 @@ SELECT /* should be last */ (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESUL
                                     "d"
                                   ] /* key_parts */
                                 }
-                              ] /* potential_range_indices */,
+                              ] /* potential_range_indexes */,
                               "best_covering_index_scan": {
                                 "index": "d",
                                 "cost": 1.4233,
@@ -724,7 +724,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                                 "rows": 2,
                                 "cost": 4.5034
                               } /* table_scan */,
-                              "potential_range_indices": [
+                              "potential_range_indexes": [
                                 {
                                   "index": "d",
                                   "usable": true,
@@ -732,7 +732,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                                     "d"
                                   ] /* key_parts */
                                 }
-                              ] /* potential_range_indices */,
+                              ] /* potential_range_indexes */,
                               "best_covering_index_scan": {
                                 "index": "d",
                                 "cost": 1.4233,
@@ -812,7 +812,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                                 "rows": 2,
                                 "cost": 4.5034
                               } /* table_scan */,
-                              "potential_range_indices": [
+                              "potential_range_indexes": [
                                 {
                                   "index": "d",
                                   "usable": true,
@@ -820,7 +820,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                                     "d"
                                   ] /* key_parts */
                                 }
-                              ] /* potential_range_indices */,
+                              ] /* potential_range_indexes */,
                               "best_covering_index_scan": {
                                 "index": "d",
                                 "cost": 1.4233,
@@ -1519,7 +1519,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                           "rows": 2,
                           "cost": 4.5034
                         } /* table_scan */,
-                        "potential_range_indices": [
+                        "potential_range_indexes": [
                           {
                             "index": "d",
                             "usable": true,
@@ -1527,7 +1527,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                               "d"
                             ] /* key_parts */
                           }
-                        ] /* potential_range_indices */,
+                        ] /* potential_range_indexes */,
                         "best_covering_index_scan": {
                           "index": "d",
                           "cost": 1.4233,
@@ -1819,7 +1819,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                           "rows": 2,
                           "cost": 4.5034
                         } /* table_scan */,
-                        "potential_range_indices": [
+                        "potential_range_indexes": [
                           {
                             "index": "d",
                             "usable": true,
@@ -1827,7 +1827,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                               "d"
                             ] /* key_parts */
                           }
-                        ] /* potential_range_indices */,
+                        ] /* potential_range_indexes */,
                         "best_covering_index_scan": {
                           "index": "d",
                           "cost": 1.4233,
@@ -5878,7 +5878,7 @@ update t6 set d=5 where d is NULL	{
           "rows": 2,
           "cost": 4.5034
         } /* table_scan */,
-        "potential_range_indices": [
+        "potential_range_indexes": [
           {
             "index": "d",
             "usable": true,
@@ -5886,7 +5886,7 @@ update t6 set d=5 where d is NULL	{
               "d"
             ] /* key_parts */
           }
-        ] /* potential_range_indices */,
+        ] /* potential_range_indexes */,
         "setup_range_conditions": [
         ] /* setup_range_conditions */,
         "group_index_range": {
@@ -5963,7 +5963,7 @@ delete from t6 where d=5	{
           "rows": 2,
           "cost": 4.5034
         } /* table_scan */,
-        "potential_range_indices": [
+        "potential_range_indexes": [
           {
             "index": "d",
             "usable": true,
@@ -5971,7 +5971,7 @@ delete from t6 where d=5	{
               "d"
             ] /* key_parts */
           }
-        ] /* potential_range_indices */,
+        ] /* potential_range_indexes */,
         "setup_range_conditions": [
         ] /* setup_range_conditions */,
         "group_index_range": {
@@ -6082,7 +6082,7 @@ insert into t6 select * from t6 where d>7	{
                     "rows": 3,
                     "cost": 4.7051
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "d",
                       "usable": true,
@@ -6090,7 +6090,7 @@ insert into t6 select * from t6 where d>7	{
                         "d"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "d",
                     "cost": 1.6465,
@@ -6284,7 +6284,7 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                     "rows": 4,
                     "cost": 4.9068
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "d",
                       "usable": true,
@@ -6292,7 +6292,7 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                         "d"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
                   "group_index_range": {
@@ -6482,7 +6482,7 @@ delete t6 from t5, t6 where d>7000	{
                     "rows": 4,
                     "cost": 4.9068
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "d",
                       "usable": true,
@@ -6490,7 +6490,7 @@ delete t6 from t5, t6 where d>7000	{
                         "d"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "d",
                     "cost": 1.8698,
@@ -8656,7 +8656,7 @@ select d+1 into res from t6 where d=res+1	{
                     "rows": 4,
                     "cost": 4.9068
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "d",
                       "usable": true,
@@ -8664,7 +8664,7 @@ select d+1 into res from t6 where d=res+1	{
                         "d"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "d",
                     "cost": 1.8698,
@@ -8769,7 +8769,7 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                     "rows": 4,
                     "cost": 4.9068
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "d",
                       "usable": true,
@@ -8777,7 +8777,7 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                         "d"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "d",
                     "cost": 1.8698,

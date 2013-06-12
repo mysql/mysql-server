@@ -398,7 +398,6 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
   {
     JOIN_TAB *const tab= join->join_tab + tableno;
     POSITION *const pos= tab->position;
-    uint keylen, keyno;
     if (pos->sj_strategy == SJ_OPT_NONE)
     {
       tableno++;  // nothing to do
@@ -434,13 +433,17 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           else
             tab->select->set_quick(NULL);
         }
-        /* Calculate key length */
-        keylen= 0;
-        keyno= pos->loosescan_key;
-        for (uint kp=0; kp < pos->loosescan_parts; kp++)
-          keylen += tab->table->key_info[keyno].key_part[kp].store_length;
 
+        const uint keyno= pos->loosescan_key;
+        DBUG_ASSERT(tab->keys.is_set(keyno));
+        tab->index= keyno;
+
+        /* Calculate key length */
+        uint keylen= 0;
+        for (uint kp= 0; kp < pos->loosescan_parts; kp++)
+          keylen+= tab->table->key_info[keyno].key_part[kp].store_length;
         tab->loosescan_key_len= keylen;
+
         if (pos->n_sj_tables > 1)
         {
           last_sj_tab->firstmatch_return= tab;
@@ -1494,13 +1497,7 @@ bool JOIN::set_access_methods()
       continue;                      // Handled in make_join_statistics()
 
     Key_use *const keyuse= tab->position->key;
-    if (tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
-    {
-      DBUG_ASSERT(tab->keys.is_set(tab->position->loosescan_key));
-      tab->type= JT_ALL; // @todo is this consistent for a LooseScan table ?
-      tab->index= tab->position->loosescan_key;
-     }
-    else if (!keyuse)
+    if (!keyuse)
     {
       tab->type= JT_ALL;
       if (tableno > const_tables)

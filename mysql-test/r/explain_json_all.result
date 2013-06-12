@@ -1697,28 +1697,24 @@ INSERT INTO t1 VALUES
 (2,2), (2,2),
 (4,1), (4,1), (4,1), (4,1),
 (2,1), (2,1);
-EXPLAIN FORMAT=JSON SELECT DISTINCT SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+EXPLAIN FORMAT=JSON SELECT SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "duplicates_removal": {
-      "using_temporary_table": true,
-      "using_filesort": false,
-      "grouping_operation": {
-        "using_filesort": true,
-        "table": {
-          "table_name": "t1",
-          "access_type": "ALL",
-          "rows": 9,
-          "filtered": 100
-        } /* table */
-      } /* grouping_operation */
-    } /* duplicates_removal */
+    "grouping_operation": {
+      "using_filesort": true,
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows": 9,
+        "filtered": 100
+      } /* table */
+    } /* grouping_operation */
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select distinct sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` with rollup
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` with rollup
 DROP TABLE t1;
 # Composition of DISTINCT, GROUP BY and ORDER BY
 CREATE TABLE t1 (a INT, b INT);
