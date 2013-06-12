@@ -67,7 +67,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Last_Error_Timestamp")},
-    {C_STRING_WITH_LEN("varchar(16)")},
+    {C_STRING_WITH_LEN("timestamp")},
     {NULL, 0}
   },
 };
@@ -199,21 +199,19 @@ void table_replication_execute_status_by_worker::fill_rows(Slave_worker *w)
   }
 
   m_row.Last_Error_Number= (unsigned int) w->last_error().number;
-
   m_row.Last_Error_Message_length= 0;
-  m_row.Last_Error_Timestamp_length= 0;
+  m_row.Last_Error_Timestamp= 0;
 
-  /* If error number is set, find error message and timestamp. */
+  /** If error, set error message and timestamp */
   if (m_row.Last_Error_Number)
   {
     char * temp_store= (char*)w->last_error().message;
     m_row.Last_Error_Message_length= strlen(temp_store);
     memcpy(m_row.Last_Error_Message, w->last_error().message,
            m_row.Last_Error_Message_length);
-    temp_store= (char*)w->last_error().timestamp;
-    m_row.Last_Error_Timestamp_length= strlen(temp_store);
-    memcpy(m_row.Last_Error_Timestamp, w->last_error().timestamp,
-           m_row.Last_Error_Timestamp_length);
+
+    /** time in millisecond since epoch */
+    m_row.Last_Error_Timestamp= w->last_error().skr*1000000;
   }
   mysql_mutex_unlock(&w->jobs_lock);
 }
@@ -252,7 +250,7 @@ int table_replication_execute_status_by_worker::read_row_values(TABLE *table,
         set_field_varchar_utf8(f, m_row.Last_Error_Message, m_row.Last_Error_Message_length);
         break;
       case 6: /*Last_Error_Timestamp*/
-        set_field_varchar_utf8(f, m_row.Last_Error_Timestamp, m_row.Last_Error_Timestamp_length);
+        set_field_timestamp(f, m_row.Last_Error_Timestamp);
         break; 
       default:
         DBUG_ASSERT(false);

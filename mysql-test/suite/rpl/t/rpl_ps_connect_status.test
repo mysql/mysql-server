@@ -51,8 +51,8 @@ source include/rpl_assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
-let $assert_cond= "$sss_value" = "$ps_value";
+let $assert_text= Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.;
+let $assert_cond= "$ps_value" = "0000-00-00 00:00:00";
 source include/rpl_assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
@@ -137,7 +137,7 @@ perl;
 use strict;
 my $ps_value= $ENV{'PS_VALUE'};
 my $sss_value= $ENV{'SSS_VALUE'};
-
+print "$sss_value";
 if ($ps_value eq $sss_value)
 {
   print "Value returned by SSS and PS table for Last_Error_Message is same.\n";
@@ -148,10 +148,14 @@ else
 }
 EOF
 
+
+
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
+let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
+let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
-let $assert_cond= "$sss_value" = "$ps_value";
+let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
 source include/rpl_assert.inc;
 
 # Verify that the error fields are preserved after STOP SLAVE.
@@ -189,7 +193,10 @@ EOF
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
-let $assert_cond= "$sss_value" = "$ps_value";
+let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
+let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
+let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
+let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
 source include/rpl_assert.inc;
 
 # Restart the master and slave servers in gtid-mode=on, execute some
