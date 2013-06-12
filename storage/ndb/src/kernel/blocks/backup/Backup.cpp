@@ -2884,7 +2884,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
     return;
   }
 
-  if (SEND_BACKUP_COMPLETED_FLAG(ptr.p->flags))
+  if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
   {
     BackupAbortRep* rep = (BackupAbortRep*)signal->getDataPtrSend();
     rep->backupId = ptr.p->backupId;
