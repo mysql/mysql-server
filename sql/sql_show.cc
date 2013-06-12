@@ -2212,10 +2212,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ?
                                       tmp_sctx->host_or_ip :
                                       tmp_sctx->host ? tmp_sctx->host : "");
-        if ((thd_info->db=tmp->db))             // Safe test
-          thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
         mysql_mutex_lock(&tmp->LOCK_thd_data);
+        if ((thd_info->db= tmp->db))             // Safe test
+          thd_info->db= thd->strdup(thd_info->db);
         if ((mysys_var= tmp->mysys_var))
           mysql_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed >= KILL_QUERY ?
