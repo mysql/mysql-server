@@ -1683,7 +1683,7 @@ public:
   friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                          Item **conds);
   void top_level_item() { abort_on_null=1; }
-  void copy_andor_arguments(THD *thd, Item_cond *item);
+  void copy_andor_arguments(THD *thd, Item_cond *item, bool real_items= false);
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   void traverse_cond(Cond_traverser, void *arg, traverse_order order);
@@ -1874,11 +1874,11 @@ public:
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
-  Item* copy_andor_structure(THD *thd)
+  Item* copy_andor_structure(THD *thd, bool real_items)
   {
     Item_cond_and *item;
     if ((item= new Item_cond_and(thd, this)))
-       item->copy_andor_arguments(thd, this);
+      item->copy_andor_arguments(thd, this, real_items);
     return item;
   }
   Item *neg_transformer(THD *thd);
@@ -1903,11 +1903,11 @@ public:
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }
-  Item* copy_andor_structure(THD *thd)
+  Item* copy_andor_structure(THD *thd, bool real_items)
   {
     Item_cond_or *item;
     if ((item= new Item_cond_or(thd, this)))
-      item->copy_andor_arguments(thd, this);
+      item->copy_andor_arguments(thd, this, real_items);
     return item;
   }
   Item *neg_transformer(THD *thd);

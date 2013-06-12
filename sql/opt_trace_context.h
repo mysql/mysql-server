@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -187,7 +187,7 @@ public:
      @c sys_vars.cc:
      @li "greedy_search" = the greedy search for a plan
      @li "range_optimizer" = the cost analysis of accessing data through
-     ranges in indices
+     ranges in indexes
      @li "dynamic_range" = the range optimization performed for each record
                            when access method is dynamic range
      @li "repeated_subselect" = the repeated execution of subselects
