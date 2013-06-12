@@ -167,16 +167,17 @@ create_iname(DB_ENV *env, uint64_t id1, uint64_t id2, char *hint, const char *ma
                    8 +  // hex file format version
                    24 + // hex id (normally the txnid's parent and child)
                    8  + // hex value of n if non-neg
-                   sizeof("_B___.tokudb")]; // extra pieces
+                   sizeof("_B___.") + // extra pieces
+                   strlen(toku_product_name)];
     if (n < 0)
         bytes = snprintf(inamebase, sizeof(inamebase),
-                         "%s_%" PRIx64 "_%" PRIx64 "_%" PRIx32            ".tokudb",
-                         hint, id1, id2, FT_LAYOUT_VERSION);
+                         "%s_%" PRIx64 "_%" PRIx64 "_%" PRIx32            ".%s",
+                         hint, id1, id2, FT_LAYOUT_VERSION, toku_product_name);
     else {
         invariant(strlen(mark) == 1);
         bytes = snprintf(inamebase, sizeof(inamebase),
-                         "%s_%" PRIx64 "_%" PRIx64 "_%" PRIx32 "_%s_%" PRIx32 ".tokudb",
-                         hint, id1, id2, FT_LAYOUT_VERSION, mark, n);
+                         "%s_%" PRIx64 "_%" PRIx64 "_%" PRIx32 "_%s_%" PRIx32 ".%s",
+                         hint, id1, id2, FT_LAYOUT_VERSION, mark, n, toku_product_name);
     }
     assert(bytes>0);
     assert(bytes<=(int)sizeof(inamebase)-1);

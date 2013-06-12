@@ -229,50 +229,18 @@ ydb_layer_get_status(DB_ENV* env, YDB_LAYER_STATUS statp) {
 
 static DB_ENV * volatile most_recent_env;   // most recently opened env, used for engine status on crash.  Note there are likely to be races on this if you have multiple threads creating and closing environments in parallel.  We'll declare it volatile since at least that helps make sure the compiler doesn't optimize away certain code (e.g., if while debugging, you write a code that spins on most_recent_env, you'd like to compiler not to optimize your code away.)
 
-const char * environmentdictionary = "tokudb.environment";
-const char * fileopsdirectory = "tokudb.directory";
-
 static int env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt);
 static int toku_maybe_get_engine_status_text (char* buff, int buffsize);  // for use by toku_assert
 static void toku_maybe_set_env_panic(int code, const char * msg);               // for use by toku_assert
-
-static const char single_process_lock_file[] = "/__tokudb_lock_dont_delete_me_";
-
-static int
-single_process_lock(const char *lock_dir, const char *which, int *lockfd) {
-    if (!lock_dir)
-        return ENOENT;
-    int namelen=strlen(lock_dir)+strlen(which);
-    char lockfname[namelen+sizeof(single_process_lock_file)];
-
-    int l = snprintf(lockfname, sizeof(lockfname), "%s%s%s", lock_dir, single_process_lock_file, which);
-    assert(l+1 == (signed)(sizeof(lockfname)));
-    *lockfd = toku_os_lock_file(lockfname);
-    if (*lockfd < 0) {
-        int e = get_error_errno();
-        fprintf(stderr, "Couldn't start tokudb because some other tokudb process is using the same directory [%s] for [%s]\n", lock_dir, which);
-        return e;
-    }
-    return 0;
-}
-
-static int
-single_process_unlock(int *lockfd) {
-    int fd = *lockfd;
-    *lockfd = -1;
-    if (fd>=0) {
-        int r = toku_os_unlock_file(fd);
-        if (r != 0)
-            return get_error_errno();
-    }
-    return 0;
-}
 
 int 
 toku_ydb_init(void) {
     int r = 0;
     //Lower level must be initialized first.
     r = toku_ft_layer_init();
+    if (r!=0) goto exit;
+    r = db_env_set_toku_product_name("tokudb");
+exit:
     return r;
 }
 
@@ -751,7 +719,7 @@ validate_env(DB_ENV * env, bool * valid_newenv, bool need_rollback_cachefile) {
     char* path = NULL;
 
     // Test for persistent environment
-    path = toku_construct_full_name(2, env->i->dir, environmentdictionary);
+    path = toku_construct_full_name(2, env->i->dir, toku_product_name_strings.environmentdictionary);
     assert(path);
     r = toku_stat(path, &buf);
     if (r == 0) {
@@ -772,7 +740,7 @@ validate_env(DB_ENV * env, bool * valid_newenv, bool need_rollback_cachefile) {
 
     // Test for existence of rollback cachefile if it is expected to exist
     if (r == 0 && need_rollback_cachefile) {
-        path = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
+        path = toku_construct_full_name(2, env->i->dir, toku_product_name_strings.rollback_cachefile);
         assert(path);
         r = toku_stat(path, &buf);
         if (r == 0) {  
@@ -797,7 +765,7 @@ validate_env(DB_ENV * env, bool * valid_newenv, bool need_rollback_cachefile) {
 
     // Test for fileops directory
     if (r == 0) {
-        path = toku_construct_full_name(2, env->i->dir, fileopsdirectory);
+        path = toku_construct_full_name(2, env->i->dir, toku_product_name_strings.fileopsdirectory);
         assert(path);
         r = toku_stat(path, &buf);
         if (r == 0) {  
@@ -856,13 +824,13 @@ ydb_maybe_upgrade_env (DB_ENV *env, LSN * last_lsn_of_clean_shutdown_read_from_l
 static void
 unlock_single_process(DB_ENV *env) {
     int r;
-    r = single_process_unlock(&env->i->envdir_lockfd);
+    r = toku_single_process_unlock(&env->i->envdir_lockfd);
     lazy_assert_zero(r);
-    r = single_process_unlock(&env->i->datadir_lockfd);
+    r = toku_single_process_unlock(&env->i->datadir_lockfd);
     lazy_assert_zero(r);
-    r = single_process_unlock(&env->i->logdir_lockfd);
+    r = toku_single_process_unlock(&env->i->logdir_lockfd);
     lazy_assert_zero(r);
-    r = single_process_unlock(&env->i->tmpdir_lockfd);
+    r = toku_single_process_unlock(&env->i->tmpdir_lockfd);
     lazy_assert_zero(r);
 }
 
@@ -934,13 +902,13 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     env_setup_real_log_dir(env);
     env_setup_real_tmp_dir(env);
 
-    r = single_process_lock(env->i->dir, "environment", &env->i->envdir_lockfd);
+    r = toku_single_process_lock(env->i->dir, "environment", &env->i->envdir_lockfd);
     if (r!=0) goto cleanup;
-    r = single_process_lock(env->i->real_data_dir, "data", &env->i->datadir_lockfd);
+    r = toku_single_process_lock(env->i->real_data_dir, "data", &env->i->datadir_lockfd);
     if (r!=0) goto cleanup;
-    r = single_process_lock(env->i->real_log_dir, "logs", &env->i->logdir_lockfd);
+    r = toku_single_process_lock(env->i->real_log_dir, "logs", &env->i->logdir_lockfd);
     if (r!=0) goto cleanup;
-    r = single_process_lock(env->i->real_tmp_dir, "temp", &env->i->tmpdir_lockfd);
+    r = toku_single_process_lock(env->i->real_tmp_dir, "temp", &env->i->tmpdir_lockfd);
     if (r!=0) goto cleanup;
 
     bool need_rollback_cachefile;
@@ -961,7 +929,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     if (upgrade_in_progress) {
         // Delete old rollback file.  There was a clean shutdown, so it has nothing useful,
         // and there is no value in upgrading it.  It is simpler to just create a new one.
-        char* rollback_filename = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
+        char* rollback_filename = toku_construct_full_name(2, env->i->dir, toku_product_name_strings.rollback_cachefile);
         assert(rollback_filename);
         r = unlink(rollback_filename);
         if (r != 0) {
@@ -1057,7 +1025,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         assert_zero(r);
         r = db_use_builtin_key_cmp(env->i->persistent_environment);
         assert_zero(r);
-        r = toku_db_open_iname(env->i->persistent_environment, txn, environmentdictionary, DB_CREATE, mode);
+        r = toku_db_open_iname(env->i->persistent_environment, txn, toku_product_name_strings.environmentdictionary, DB_CREATE, mode);
         assert_zero(r);
         if (newenv) {
             // create new persistent_environment
@@ -1092,7 +1060,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         assert_zero(r);
         r = db_use_builtin_key_cmp(env->i->directory);
         assert_zero(r);
-        r = toku_db_open_iname(env->i->directory, txn, fileopsdirectory, DB_CREATE, mode);
+        r = toku_db_open_iname(env->i->directory, txn, toku_product_name_strings.fileopsdirectory, DB_CREATE, mode);
         assert_zero(r);
     }
     if (using_txns) {
@@ -1225,6 +1193,7 @@ env_close(DB_ENV * env, uint32_t flags) {
     unlock_single_process(env);
     toku_free(env->i);
     toku_free(env);
+    toku_sync_fetch_and_add(&tokudb_num_envs, -1);
     if (flags != 0) {
         r = EINVAL;
     }
@@ -2261,6 +2230,8 @@ env_get_cursor_for_directory(DB_ENV* env, DB_TXN* txn, DBC** c) {
     return toku_db_cursor(env->i->directory, txn, c, 0);
 }
 
+int tokudb_num_envs = 0;
+
 static int 
 toku_env_create(DB_ENV ** envp, uint32_t flags) {
     int r = ENOSYS;
@@ -2374,6 +2345,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
 
     *envp = result;
     r = 0;
+    toku_sync_fetch_and_add(&tokudb_num_envs, 1);
 cleanup:
     if (r!=0) {
         if (result) {
@@ -2761,13 +2733,7 @@ db_version(int *major, int *minor, int *patch) {
         *minor = DB_VERSION_MINOR;
     if (patch)
         *patch = DB_VERSION_PATCH;
-#if defined(TOKUDB_REVISION)
-#define xstr(X) str(X)
-#define str(X) #X
-    return "tokudb " xstr(DB_VERSION_MAJOR) "." xstr(DB_VERSION_MINOR) "." xstr(DB_VERSION_PATCH) " build " xstr(TOKUDB_REVISION);
-#else
-#error
-#endif
+    return toku_product_name_strings.db_version;
 }
  
 // HACK: To ensure toku_pthread_yield gets included in the .so

@@ -289,7 +289,7 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create)
 
     FT_HANDLE t = NULL;   // Note, there is no DB associated with this BRT.
     toku_ft_handle_create(&t);
-    int r = toku_ft_handle_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN);
+    int r = toku_ft_handle_open(t, toku_product_name_strings.rollback_cachefile, create, create, cachetable, NULL_TXN);
     assert_zero(r);
     logger->rollback_cachefile = t->ft->cf;
     toku_logger_initialize_rollback_cache(logger, t->ft);

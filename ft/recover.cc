@@ -97,8 +97,6 @@ PATENT RIGHTS GRANT:
 #include "checkpoint.h"
 #include "txn_manager.h"
 
-static const char recovery_lock_file[] = "/__tokudb_recoverylock_dont_delete_me";
-
 int tokudb_recovery_trace = 0;                    // turn on recovery tracing, default off.
 
 //#define DO_VERIFY_COUNTS
@@ -500,13 +498,13 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
         // If rollback file, specify which checkpointed version of file we need (not just the latest)
         // because we cannot use a rollback log that is later than the last complete checkpoint.  See #3113.
         {
-            bool rollback_file = (0==strcmp(fname, ROLLBACK_CACHEFILE_NAME));
+            bool rollback_file = (0==strcmp(fname, toku_product_name_strings.rollback_cachefile));
             LSN max_acceptable_lsn = MAX_LSN;
             if (rollback_file) {
                 max_acceptable_lsn = renv->ss.checkpoint_begin_lsn;
                 FT_HANDLE t;
                 toku_ft_handle_create(&t);
-                r = toku_ft_handle_open_recovery(t, ROLLBACK_CACHEFILE_NAME, false, false, renv->ct, (TOKUTXN)NULL, l->filenum, max_acceptable_lsn);
+                r = toku_ft_handle_open_recovery(t, toku_product_name_strings.rollback_cachefile, false, false, renv->ct, (TOKUTXN)NULL, l->filenum, max_acceptable_lsn);
                 renv->logger->rollback_cachefile = t->ft->cf;
                 toku_logger_initialize_rollback_cache(renv->logger, t->ft);
             } else {
@@ -826,7 +824,7 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
             return r;
         }
     }
-    assert(0!=strcmp(iname, ROLLBACK_CACHEFILE_NAME)); //Creation of rollback cachefile never gets logged.
+    assert(0!=strcmp(iname, toku_product_name_strings.rollback_cachefile)); //Creation of rollback cachefile never gets logged.
     toku_free(iname_in_cwd);
     toku_free(iname);
 
@@ -854,7 +852,7 @@ static int toku_recover_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
     TOKUTXN txn = NULL;
     char *fname = fixup_fname(&l->iname);
 
-    assert(0!=strcmp(fname, ROLLBACK_CACHEFILE_NAME)); //Rollback cachefile can be opened only via fassociate.
+    assert(0!=strcmp(fname, toku_product_name_strings.rollback_cachefile)); //Rollback cachefile can be opened only via fassociate.
     r = internal_recover_fopen_or_fcreate(renv, must_create, 0, &l->iname, l->filenum, l->treeflags, txn, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, MAX_LSN);
 
     toku_free(fname);
@@ -910,7 +908,7 @@ static int toku_recover_fclose (struct logtype_fclose *l, RECOVER_ENV renv) {
         char *iname = fixup_fname(&l->iname);
         assert(strcmp(tuple->iname, iname) == 0);  // verify that file_map has same iname as log entry
 
-        if (0!=strcmp(iname, ROLLBACK_CACHEFILE_NAME)) {
+        if (0!=strcmp(iname, toku_product_name_strings.rollback_cachefile)) {
             //Rollback cachefile is closed manually at end of recovery, not here
             toku_ft_handle_close_recovery(tuple->ft_handle, l->lsn);
         }
@@ -1569,35 +1567,21 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
 
 int
 toku_recover_lock(const char *lock_dir, int *lockfd) {
-    if (!lock_dir)
-        return ENOENT;
-    int namelen=strlen(lock_dir);
-    char lockfname[namelen+sizeof(recovery_lock_file)];
-
-    int l = snprintf(lockfname, sizeof(lockfname), "%s%s", lock_dir, recovery_lock_file);
-    assert(l+1 == (signed)(sizeof(lockfname)));
-    *lockfd = toku_os_lock_file(lockfname);
-    if (*lockfd < 0) {
-        int e = get_error_errno();
-        fprintf(stderr, "Couldn't run recovery because some other process holds the recovery lock %s\n", lockfname);
-        return e;
+    int e = toku_single_process_lock(lock_dir, "recovery", lockfd);
+    if (e != 0 && e != ENOENT) {
+        fprintf(stderr, "Couldn't run recovery because some other process holds the recovery lock\n");
     }
-    return 0;
+    return e;
 }
 
 int
 toku_recover_unlock(int lockfd) {
-    int r = toku_os_unlock_file(lockfd);
-    if (r != 0) {
-        return get_error_errno();
-    }
-    return 0;
+    int lockfd_copy = lockfd;
+    return toku_single_process_unlock(&lockfd_copy);
 }
 
-
-
 int tokudb_recover(DB_ENV *env,
-                   prepared_txn_callback_t    prepared_txn_callback,                   
+                   prepared_txn_callback_t    prepared_txn_callback,
                    keep_cachetable_callback_t keep_cachetable_callback,
                    TOKULOGGER logger,
                    const char *env_dir, const char *log_dir,
