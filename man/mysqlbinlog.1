@@ -714,6 +714,22 @@ Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqlbinlog: open-files-limit option
+.\" open-files-limit option: mysqlbinlog
+\fB\-\-open\-files\-limit=\fR\fB\fINUM\fR\fR
+.sp
+Sets the open_files_limit variable, which is used to reserve file descriptors for
+\fBmysqlbinlog\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqlbinlog: read-from-remote-server option
 .\" read-from-remote-server option: mysqlbinlog
 \fB\-\-read\-from\-remote\-server\fR,

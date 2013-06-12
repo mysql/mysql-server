@@ -521,7 +521,8 @@ Compress all information sent between the client and the server if both support 
 .\}
 .\" mysqldump: create-options option
 .\" create-options option: mysqldump
-\fB\-\-create\-options\fR
+\fB\-\-create\-options\fR,
+\fB\-a\fR
 .sp
 Include all MySQL\-specific table options in the
 CREATE TABLE
@@ -624,6 +625,38 @@ latin1\&.
 Prior to MySQL 5\&.1\&.38, this option has no effect for output data files produced by using the
 \fB\-\-tab\fR
 option\&. See the description for that option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: defaults-extra-file option
+.\" defaults-extra-file option: mysqldump
+\fB\-\-defaults\-extra\-file=\fR\fB\fIfilename\fR\fR
+.sp
+Set \fB\fIfilename\fR\fR as the file to read default options from after the global defaults files has been read\&.
+Must be given as first option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: defaults-file option
+.\" defaults-file option: mysqldump
+\fB\-\-defaults\-file=\fR\fB\fIfilename\fR\fR
+.sp
+Set \fB\fIfilename\fR\fR as the file to read default options from, override global defaults files\&.
+Must be given as first option\&.
 .RE
 .sp
 .RS 4
@@ -1224,6 +1257,36 @@ to point the slave to the correct master server host\&. Add any such parameters 
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqldump: max-allowed-packet option
+.\" max-allowed-packet option: mysqldump
+\fB\-\-max\-allowed\-packet=\fR\fB\fIlength\fR\fR
+.sp
+Sets the maximum packet length to send to or recieve from server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: net-buffer-length option
+.\" net-buffer-length option: mysqldump
+\fB\-\-net\-buffer\-length=\fR\fB\fIlength\fR\fR
+.sp
+Sets the buffer size for TCP/IP and socket communication\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqldump: no-autocommit option
 .\" no-autocommit option: mysqldump
 \fB\-\-no\-autocommit\fR
@@ -1293,6 +1356,21 @@ statements that re\-create each dumped table\&.
 Do not write any table row information (that is, do not dump table contents)\&. This is useful if you want to dump only the
 CREATE TABLE
 statement for the table (for example, to create an empty copy of the table by loading the dump file)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: no-defaults option
+.\" no-defaults option: mysqldump
+\fB\-\-no\-defaults\fR
+.sp
+Do not read default options from any option file\&. This must be given as the first argument\&.
 .RE
 .sp
 .RS 4
@@ -1451,6 +1529,21 @@ Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 This option is useful for dumping large tables\&. It forces
 \fBmysqldump\fR
 to retrieve rows for a table from the server a row at a time rather than retrieving the entire row set and buffering it in memory before writing it out\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: print-defaults option
+.\" print-defaults option: mysqldump
+\fB\-\-print\-defaults\fR
+.sp
+Print the program argument list and exit\&. This must begiven as the first argument\&.
 .RE
 .sp
 .RS 4

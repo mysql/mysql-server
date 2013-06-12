@@ -123,7 +123,8 @@ Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\
 .\" mysql: help option
 .\" help option: mysql
 \fB\-\-help\fR,
-\fB\-?\fR
+\fB\-?\fR,
+\fB\-I\fR
 .sp
 Display a help message and exit\&.
 .RE
@@ -265,6 +266,21 @@ Compress all information sent between the client and the server if both support 
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql: connect-timeout option
+.\" connect-timeout option: mysql
+\fB\-\-connect\-timeout=\fR\fB\fIseconds\fR\fR
+.sp
+Set the number of seconds before connection timeout\&. (Default value is 0\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql: database option
 .\" database option: mysql
 \fB\-\-database=\fR\fB\fIdb_name\fR\fR,
@@ -352,6 +368,37 @@ character set by default\&. You can usually fix such issues by using this option
 .sp
 See
 Section\ \&9.5, \(lqCharacter Set Configuration\(rq, for more information\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql: defaults-file option
+.\" defaults-file option: mysql
+\fB\-\-defaults-file=\fR\fB\fIfilename\fR\fR
+.sp
+Set \fB\fIfilename\fR\fR as the file to read default options from, override global defaults files\&. Must be given as first option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql: defaults-extra-file option
+.\" defaults-extra-file option: mysql
+\fB\-\-defaults-extra-file=\fR\fB\fIfilename\fR\fR
+.sp
+Set \fB\fIfilename\fR\fR as the file to read default options from after the global defaults files has been read\&.
+Must be given as first option\&.
 .RE
 .sp
 .RS 4
@@ -526,6 +573,37 @@ has no effect if the server does not also support it\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql: max-allowed-packet option
+.\" max-allowed-packet option: mysql
+\fB\-\-max\-allowed\-packet=\fR\fB\fInum\fR\fR
+.sp
+Set the maximum packet length to send to or receive from the server\&. (Default value is 16MB\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql: max-join-size option
+.\" max-join-size option: mysql
+\fB\-\-max\-join\-size=\fR\fB\fInum\fR\fR
+.sp
+Set the automatic limit for rows in a join when using
+\fB\-\-safe\-updates\fR\&. (Default value is 1,000,000\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql: named-commands option
 .\" named-commands option: mysql
 \fB\-\-named\-commands\fR,
@@ -551,13 +629,30 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\h'-04'\(bu\h'+03'\c
+.\}
+.\" mysql: net-buffer-length option
+.\" net-buffer-length option: mysql
+\fB\-\-net\-buffer\-lenght=\fR\fB\fIsize\fR\fR
+.sp
+Set the buffer size for TCP/IP and socket communication\&. (Default value is 16KB\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql: no-auto-rehash option
 .\" no-auto-rehash option: mysql
 \fB\-\-no\-auto\-rehash\fR,
 \fB\-A\fR
 .sp
 This has the same effect as
-\fB\-skip\-auto\-rehash\fR\&. See the description for
+\fB\-\-skip\-auto\-rehash\fR\&. See the description for
 \fB\-\-auto\-rehash\fR\&.
 .RE
 .sp
@@ -575,6 +670,21 @@ This has the same effect as
 \fB\-b\fR
 .sp
 Do not beep when errors occur\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql: no-defaults option
+.\" no-defaults option: mysql
+\fB\-\-no\-defaults\fR
+.sp
+Do not read default options from any option file\&. This must be given as the first argument\&.
 .RE
 .sp
 .RS 4
@@ -734,6 +844,21 @@ On Windows, connect to the server via a named pipe\&. This option applies only i
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
 The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql: print-defaults option
+.\" print-defaults option: mysql
+\fB\-\-print\-defaults\fR
+.sp
+Print the program argument list and exit\&. This must be given as the first argument\&.
 .RE
 .sp
 .RS 4
@@ -907,6 +1032,36 @@ Do not send passwords to the server in old (pre\-4\&.1\&.1) format\&. This preve
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql: select-limit option
+.\" select-limit option: mysql
+\fB\-\-select\-limit=\fR\fB\fIlimit\fR\fR
+.sp
+Set automatic limit for SELECT when using \fB\-\-safe\-updates\fR\&. (Default value is 1,000\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql: server-arg option
+.\" server-arg option: mysql
+\fB\-\-server\-arg=\fR\fB\fIname\fR\fR
+.sp
+Send \fB\fIname\fR\fR as a parameter to the embedded server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql: show-warnings option
 .\" show-warnings option: mysql
 \fB\-\-show\-warnings\fR
@@ -949,6 +1104,21 @@ Silent mode\&. Produce less output\&. This option can be given multiple times to
 This option results in nontabular output format and escaping of special characters\&. Escaping may be disabled by using raw mode; see the description for the
 \fB\-\-raw\fR
 option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql: skip-auto-rehash option
+.\" skip-auto-rehash option: mysql
+\fB\-\-skip\-auto\-rehash\fR
+.sp
+Disable automatic rehashing\&. Synonym for \fB\-\-disable\-auto\-rehash\fR\&.
 .RE
 .sp
 .RS 4
@@ -2754,16 +2924,16 @@ statements that probably need to examine more than 1,000,000 row combinations\&.
 .RE
 .PP
 To specify limits different from 1,000 and 1,000,000, you can override the defaults by using the
-\fB\-\-select_limit\fR
+\fB\-\-select\-limit\fR
 and
-\fB\-\-max_join_size\fR
+\fB\-\-max\-join\-size\fR
 options:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-safe\-updates \-\-select_limit=500 \-\-max_join_size=10000\fR
+shell> \fBmysql \-\-safe\-updates \-\-select\-limit=500 \-\-max\-join\-size=10000\fR
 .fi
 .if n \{\
 .RE
