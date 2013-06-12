@@ -152,7 +152,7 @@ function parse_mysqlbuild() {
             build_debug=0
         fi
         # set tag or HEAD
-        if [[ $temp_tokudb_version =~ ^([0-9]+)\\.([0-9]+)\\.([0-9]+)$ ]] ; then
+        if [[ $temp_tokudb_version =~ ^([0-9]+)\\.([0-9]+)\\.([0-9]+) ]] ; then
             git_tag=tokudb-$temp_tokudb_version
         else
             git_tag=HEAD
