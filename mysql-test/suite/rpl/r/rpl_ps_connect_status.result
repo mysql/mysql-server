@@ -11,7 +11,7 @@ delete from performance_schema.replication_connection_status;
 # Asserted this: Value returned by SSS and PS table for Received_Transaction_Set should be same.
 # Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
 # Asserted this: Value returned by SSS and PS table for Last_Error_Message should be same.
-# Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+# Asserted this: Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.
 # Asserted this: SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "On".
 io thread id extracted from SHOW PROCESSLIST and PS table match correctly.
 include/stop_slave.inc

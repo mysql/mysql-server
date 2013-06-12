@@ -64,8 +64,7 @@ struct st_row_connect_status {
   uint Last_Error_Number;
   char Last_Error_Message[MAX_SLAVE_ERRMSG];
   uint Last_Error_Message_length;
-  char Last_Error_Timestamp[11]; /* TODO: Change to timestamp data type. */
-  uint Last_Error_Timestamp_length;
+  ulonglong Last_Error_Timestamp;
 };
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_STATUS. */
