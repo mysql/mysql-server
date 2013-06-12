@@ -47,7 +47,7 @@ function github_clone() {
     popd
 }
 
-shopt -s compat31 2>/dev/null
+# shopt -s compat31 2>/dev/null
 
 git_tag=
 mysql=mysql
