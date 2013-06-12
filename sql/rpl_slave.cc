@@ -2619,6 +2619,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
     mysql_mutex_lock(&mi->err_lock);
     mysql_mutex_lock(&mi->rli->err_lock);
 
+    DEBUG_SYNC(thd, "wait_after_lock_active_mi_and_rli_data_lock_is_acquired");
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->get_user(), &my_charset_bin);
     protocol->store((uint32) mi->port);
