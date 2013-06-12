@@ -595,3 +595,18 @@ set @v11000 = concat(@v10000, @v1000);
 insert into t1 (c1,c500) values (1,@v11000), (2,@v11000), (3,@v11000);
 --source include/ndb_backup.inc
 drop table t1;
+
+#
+# Bug#16593604
+#
+--echo # Trying to start another backup as nowait with same id should not return error
+--replace_regex /[0-9]+/x/
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup $the_backup_id nowait" 
+--echo # Trying to start another backup as wait started with same id should return error
+--replace_regex /[0-9]+/x/
+--error 255
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup $the_backup_id wait started" 
+--echo # Trying to start another backup as wait completed with same id should return error
+--replace_regex /[0-9]+/x/
+--error 255
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup $the_backup_id wait completed" 
