@@ -6209,6 +6209,8 @@ int toku_ft_layer_init(void) {
     //Portability must be initialized first
     r = toku_portability_init();
     if (r) { goto exit; }
+    r = db_env_set_toku_product_name("tokudb");
+    if (r) { goto exit; }
 
     partitioned_counters_init();
     status_init();

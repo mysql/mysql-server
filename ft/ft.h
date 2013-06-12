@@ -215,4 +215,5 @@ struct toku_product_name_strings_struct {
 };
 
 extern struct toku_product_name_strings_struct toku_product_name_strings;
+extern int tokudb_num_envs;
 #endif

@@ -1170,3 +1170,22 @@ toku_single_process_unlock(int *lockfd) {
     return 0;
 }
 
+int tokudb_num_envs = 0;
+int
+db_env_set_toku_product_name(const char *name) {
+    if (tokudb_num_envs > 0) {
+        return EINVAL;
+    }
+    if (!name || strlen(name) < 1) {
+        return EINVAL;
+    }
+    if (strlen(name) >= sizeof(toku_product_name)) {
+        return ENAMETOOLONG;
+    }
+    if (strncmp(toku_product_name, name, sizeof(toku_product_name))) {
+        strcpy(toku_product_name, name);
+        tokudb_update_product_name_strings();
+    }
+    return 0;
+}
+

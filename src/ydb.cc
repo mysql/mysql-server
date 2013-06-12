@@ -238,9 +238,6 @@ toku_ydb_init(void) {
     int r = 0;
     //Lower level must be initialized first.
     r = toku_ft_layer_init();
-    if (r!=0) goto exit;
-    r = db_env_set_toku_product_name("tokudb");
-exit:
     return r;
 }
 
@@ -2229,8 +2226,6 @@ env_get_cursor_for_directory(DB_ENV* env, DB_TXN* txn, DBC** c) {
     }
     return toku_db_cursor(env->i->directory, txn, c, 0);
 }
-
-int tokudb_num_envs = 0;
 
 static int 
 toku_env_create(DB_ENV ** envp, uint32_t flags) {
