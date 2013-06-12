@@ -1546,14 +1546,14 @@ bool Protocol_binary::send_out_parameters(List<Item_param> *sp_params)
   /* Restore THD::server_status. */
   thd->server_status&= ~SERVER_PS_OUT_PARAMS;
 
+  /* Send EOF-packet. */
+  net_send_eof(thd, thd->server_status, 0);
+
   /*
     Reset SERVER_MORE_RESULTS_EXISTS bit, because this is the last packet
     for sure.
   */
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
-
-  /* Send EOF-packet. */
-  net_send_eof(thd, thd->server_status, 0);
 
   return FALSE;
 }
