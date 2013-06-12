@@ -306,7 +306,7 @@ TRACE
                     "rows": 2,
                     "cost": 4.5034
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "a",
                       "usable": true,
@@ -314,7 +314,7 @@ TRACE
                         "a"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
                     "cost": 1.4175,
@@ -2483,7 +2483,7 @@ table3.col_varchar_10_utf8_key	{
                         "rows": 1,
                         "cost": 4.3049
                       } /* table_scan */,
-                      "potential_range_indices": [
+                      "potential_range_indexes": [
                         {
                           "index": "col_varchar_10_utf8_key",
                           "usable": true,
@@ -2496,7 +2496,7 @@ table3.col_varchar_10_utf8_key	{
                           "usable": false,
                           "cause": "not_applicable"
                         }
-                      ] /* potential_range_indices */,
+                      ] /* potential_range_indexes */,
                       "best_covering_index_scan": {
                         "index": "col_varchar_10_utf8_key",
                         "cost": 1.2,
@@ -2517,7 +2517,7 @@ table3.col_varchar_10_utf8_key	{
                           "rows": 1,
                           "cost": 4.3049
                         } /* table_scan */,
-                        "potential_range_indices": [
+                        "potential_range_indexes": [
                           {
                             "index": "col_varchar_10_utf8_key",
                             "usable": true,
@@ -2530,7 +2530,7 @@ table3.col_varchar_10_utf8_key	{
                             "usable": false,
                             "cause": "not_applicable"
                           }
-                        ] /* potential_range_indices */,
+                        ] /* potential_range_indexes */,
                         "best_covering_index_scan": {
                           "index": "col_varchar_10_utf8_key",
                           "cost": 1.2,
@@ -3257,7 +3257,7 @@ from t0 where a in
                               "rows": 10,
                               "cost": 14
                             } /* table_scan */,
-                            "potential_range_indices": [
+                            "potential_range_indexes": [
                               {
                                 "index": "a",
                                 "usable": true,
@@ -3265,7 +3265,7 @@ from t0 where a in
                                   "a"
                                 ] /* key_parts */
                               }
-                            ] /* potential_range_indices */,
+                            ] /* potential_range_indexes */,
                             "best_covering_index_scan": {
                               "index": "a",
                               "cost": 3.2093,
@@ -3497,7 +3497,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                           "rows": 9,
                           "cost": 5.9198
                         } /* table_scan */,
-                        "potential_range_indices": [
+                        "potential_range_indexes": [
                           {
                             "index": "t2_ID_IDX",
                             "usable": false,
@@ -3510,7 +3510,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                               "PARID"
                             ] /* key_parts */
                           }
-                        ] /* potential_range_indices */,
+                        ] /* potential_range_indexes */,
                         "setup_range_conditions": [
                         ] /* setup_range_conditions */,
                         "group_index_range": {
@@ -4023,7 +4023,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "rows": 2,
                     "cost": 4.5083
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "PRIMARY",
                       "usable": true,
@@ -4032,7 +4032,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                         "seq_1_id"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
                     "cost": 1.4435,
@@ -4094,7 +4094,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "rows": 3,
                     "cost": 4.7125
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "PRIMARY",
                       "usable": true,
@@ -4103,7 +4103,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                         "seq_1_id"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
                     "cost": 1.687,
@@ -4165,7 +4165,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "rows": 3,
                     "cost": 4.7125
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "PRIMARY",
                       "usable": true,
@@ -4174,7 +4174,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                         "seq_1_id"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
                     "cost": 1.687,
@@ -4696,7 +4696,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                     "rows": 100,
                     "cost": 24.588
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "PRIMARY",
                       "usable": true,
@@ -4704,7 +4704,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                         "pk"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
                   "group_index_range": {
