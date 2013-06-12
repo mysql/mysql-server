@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,6 +136,8 @@ static const uint NO_FRM_RENAME=   1 << 2;
 static const uint FRM_ONLY=        1 << 3;
 /** Don't remove table in engine. Remove only .FRM and maybe .PAR files. */
 static const uint NO_HA_TABLE=     1 << 4;
+/** Don't check foreign key constraints while renaming table */
+static const uint NO_FK_CHECKS=    1 << 5;
 
 uint filename_to_tablename(const char *from, char *to, uint to_length
 #ifndef DBUG_OFF
