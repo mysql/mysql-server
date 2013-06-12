@@ -1603,8 +1603,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
            will give duplicates that should be skipped.
         */
         KEY *key= join_tab->table->key_info + join_tab->index;
-        key_copy(join_tab->loosescan_buf, join_tab->read_record.record, key, 
-                 join_tab->loosescan_key_len);
+        key_copy(join_tab->loosescan_buf, join_tab->table->record[0],
+                 key, join_tab->loosescan_key_len);
       }
       else if (join_tab->do_firstmatch() && join_tab->match_tab->found_match)
       {
