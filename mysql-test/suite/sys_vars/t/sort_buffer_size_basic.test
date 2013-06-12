@@ -120,7 +120,7 @@ SET @@global.sort_buffer_size = -1024;
 eval 
 SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = 4294967296;
---replace_result 4294967296 max_sort_buffer_size 4294967296 max_sort_buffer_size
+--replace_result 4294967296 max_sort_buffer_size 4294967295 max_sort_buffer_size
 SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = 1024*1024;
 

@@ -102,7 +102,7 @@ SELECT @@session.bulk_insert_buffer_size;
 --disable_warnings
 SET @@global.bulk_insert_buffer_size = 42949672950;
 --enable_warnings
---replace_result 4294967295 max_bulk_insert_buffer_size 42949672950 max_binlog_cache_size
+--replace_result 4294967295 max_bulk_insert_buffer_size 42949672950 max_bulk_insert_buffer_size
 SELECT @@global.bulk_insert_buffer_size;
 SET @@global.bulk_insert_buffer_size = -1024;
 SELECT @@global.bulk_insert_buffer_size;
@@ -117,7 +117,7 @@ SET @@global.bulk_insert_buffer_size = 429496.10;
 --disable_warnings
 SET @@session.bulk_insert_buffer_size = 42949672950;
 --enable_warnings
---replace_result 4294967295 max_bulk_insert_buffer_size 42949672950 max_binlog_cache_size
+--replace_result 4294967295 max_bulk_insert_buffer_size 42949672950 max_bulk_insert_buffer_size
 SELECT @@session.bulk_insert_buffer_size;
 SET @@session.bulk_insert_buffer_size = -2;
 SELECT @@session.bulk_insert_buffer_size;
