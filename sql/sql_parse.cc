@@ -914,6 +914,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->enable_slow_log= TRUE;
   thd->query_plan_flags= QPLAN_INIT;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
+
+  DEBUG_SYNC(thd,"dispatch_command_before_set_time");
+
   thd->set_time();
   thd->set_query_id(get_query_id());
   if (!(server_command_flags[command] & CF_SKIP_QUERY_ID))

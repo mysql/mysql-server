@@ -1,0 +1,9 @@
+SET DEBUG_SYNC = 'dispatch_command_before_set_time WAIT_FOR do_set_time';
+SELECT 1;
+SET DEBUG_SYNC = 'fill_schema_processlist_after_unow SIGNAL do_set_time WAIT_FOR fill_schema_proceed';
+SELECT INFO,TIME,TIME_MS FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO IS NULL;
+1
+1
+SET DEBUG_SYNC = 'now SIGNAL fill_schema_proceed';
+INFO	TIME	TIME_MS
+NULL	0	0.000
