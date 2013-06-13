@@ -142,7 +142,7 @@ case "${1:-''}" in
 	    log_daemon_msg "Killing MariaDB database server by signal" "mysqld"
 	    killall -15 mysqld
             server_down=
-	    for i in 1 2 3 4 5 6 7 8 9 10 1 2 3 4 5 6 7 8 9 10 1 2 3 4 5 6 7 8 9 10; do
+	    for i in `seq 1 600`; do
               sleep 1
               if mysqld_status check_dead nowarn; then server_down=1; break; fi
             done
