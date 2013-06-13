@@ -81,7 +81,7 @@ typedef unsigned int    mysql_pfs_key_t;
 
 /***************************************************************//**
 Compares two thread ids for equality.
-@return	TRUE if equal */
+@return TRUE if equal */
 
 ibool
 os_thread_eq(
@@ -91,7 +91,7 @@ os_thread_eq(
 /****************************************************************//**
 Converts an OS thread id to a ulint. It is NOT guaranteed that the ulint is
 unique for the thread though!
-@return	thread identifier as a number */
+@return thread identifier as a number */
 
 ulint
 os_thread_pf(
@@ -126,7 +126,7 @@ os_thread_exit(
 	UNIV_COLD __attribute__((noreturn));
 /*****************************************************************//**
 Returns the thread identifier of current thread.
-@return	current thread identifier */
+@return current thread identifier */
 
 os_thread_id_t
 os_thread_get_curr_id(void);

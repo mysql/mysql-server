@@ -94,7 +94,7 @@ mlog_write_initial_log_record(
 
 /********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
-@return	parsed record end, NULL if not a complete record */
+@return parsed record end, NULL if not a complete record */
 
 byte*
 mlog_parse_initial_log_record(
@@ -134,7 +134,7 @@ mlog_parse_initial_log_record(
 
 /********************************************************//**
 Parses a log record written by mlog_write_ulint or mlog_write_ull.
-@return	parsed record end, NULL if not a complete record or a corrupt record */
+@return parsed record end, NULL if not a complete record or a corrupt record */
 
 byte*
 mlog_parse_nbytes(
@@ -378,7 +378,7 @@ mlog_log_string(
 
 /********************************************************//**
 Parses a log record written by mlog_write_string.
-@return	parsed record end, NULL if not a complete record */
+@return parsed record end, NULL if not a complete record */
 
 byte*
 mlog_parse_string(
@@ -430,7 +430,7 @@ mlog_parse_string(
 /********************************************************//**
 Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index.
-@return	buffer, NULL if log mode MTR_LOG_NONE */
+@return buffer, NULL if log mode MTR_LOG_NONE */
 
 byte*
 mlog_open_and_write_index(
@@ -528,7 +528,7 @@ mlog_open_and_write_index(
 
 /********************************************************//**
 Parses a log record written by mlog_open_and_write_index.
-@return	parsed record end, NULL if not a complete record */
+@return parsed record end, NULL if not a complete record */
 
 byte*
 mlog_parse_index(

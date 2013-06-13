@@ -92,7 +92,7 @@ yyparse(void);
 
 /*************************************************************//**
 Parses an SQL string returning the query graph.
-@return	own: the query graph */
+@return own: the query graph */
 
 que_t*
 pars_sql(
@@ -118,7 +118,7 @@ yyerror(
 	const char*	s);	/*!< in: error message string */
 /*********************************************************************//**
 Parses a variable declaration.
-@return	own: symbol table node of type SYM_VAR */
+@return own: symbol table node of type SYM_VAR */
 
 sym_node_t*
 pars_variable_declaration(
@@ -128,7 +128,7 @@ pars_variable_declaration(
 	pars_res_word_t* type);	/*!< in: pointer to a type token */
 /*********************************************************************//**
 Parses a function expression.
-@return	own: function node in a query tree */
+@return own: function node in a query tree */
 
 func_node_t*
 pars_func(
@@ -138,7 +138,7 @@ pars_func(
 /*************************************************************************
 Rebind a LIKE search string. NOTE: We ignore any '%' characters embedded
 within the search string.
-@return	own: function node in a query tree */
+@return own: function node in a query tree */
 
 int
 pars_like_rebind(
@@ -148,7 +148,7 @@ pars_like_rebind(
         ulint           len);   /* in: length of literal to (re) bind*/
 /*********************************************************************//**
 Parses an operator expression.
-@return	own: function node in a query tree */
+@return own: function node in a query tree */
 
 func_node_t*
 pars_op(
@@ -159,7 +159,7 @@ pars_op(
 				operator */
 /*********************************************************************//**
 Parses an ORDER BY clause. Order by a single column only is supported.
-@return	own: order-by node in a query tree */
+@return own: order-by node in a query tree */
 
 order_node_t*
 pars_order_by(
@@ -169,7 +169,7 @@ pars_order_by(
 /*********************************************************************//**
 Parses a select list; creates a query graph node for the whole SELECT
 statement.
-@return	own: select node in a query tree */
+@return own: select node in a query tree */
 
 sel_node_t*
 pars_select_list(
@@ -178,7 +178,7 @@ pars_select_list(
 	sym_node_t*	into_list);	/*!< in: variables list or NULL */
 /*********************************************************************//**
 Parses a cursor declaration.
-@return	sym_node */
+@return sym_node */
 
 que_node_t*
 pars_cursor_declaration(
@@ -188,7 +188,7 @@ pars_cursor_declaration(
 	sel_node_t*	select_node);	/*!< in: select node */
 /*********************************************************************//**
 Parses a function declaration.
-@return	sym_node */
+@return sym_node */
 
 que_node_t*
 pars_function_declaration(
@@ -197,7 +197,7 @@ pars_function_declaration(
 					table */
 /*********************************************************************//**
 Parses a select statement.
-@return	own: select node in a query tree */
+@return own: select node in a query tree */
 
 sel_node_t*
 pars_select_statement(
@@ -212,7 +212,7 @@ pars_select_statement(
 	order_node_t*	order_by);	/*!< in: NULL or an order-by node */
 /*********************************************************************//**
 Parses a column assignment in an update.
-@return	column assignment node */
+@return column assignment node */
 
 col_assign_node_t*
 pars_column_assignment(
@@ -221,7 +221,7 @@ pars_column_assignment(
 	que_node_t*	exp);	/*!< in: value to assign */
 /*********************************************************************//**
 Parses a delete or update statement start.
-@return	own: update node in a query tree */
+@return own: update node in a query tree */
 
 upd_node_t*
 pars_update_statement_start(
@@ -232,7 +232,7 @@ pars_update_statement_start(
 					if delete */
 /*********************************************************************//**
 Parses an update or delete statement.
-@return	own: update node in a query tree */
+@return own: update node in a query tree */
 
 upd_node_t*
 pars_update_statement(
@@ -243,7 +243,7 @@ pars_update_statement(
 	que_node_t*	search_cond);	/*!< in: search condition or NULL */
 /*********************************************************************//**
 Parses an insert statement.
-@return	own: update node in a query tree */
+@return own: update node in a query tree */
 
 ins_node_t*
 pars_insert_statement(
@@ -253,7 +253,7 @@ pars_insert_statement(
 	sel_node_t*	select);	/*!< in: select condition or NULL */
 /*********************************************************************//**
 Parses a procedure parameter declaration.
-@return	own: symbol table node of type SYM_VAR */
+@return own: symbol table node of type SYM_VAR */
 
 sym_node_t*
 pars_parameter_declaration(
@@ -265,7 +265,7 @@ pars_parameter_declaration(
 	pars_res_word_t* type);	/*!< in: pointer to a type token */
 /*********************************************************************//**
 Parses an elsif element.
-@return	elsif node */
+@return elsif node */
 
 elsif_node_t*
 pars_elsif_element(
@@ -274,7 +274,7 @@ pars_elsif_element(
 	que_node_t*	stat_list);	/*!< in: statement list */
 /*********************************************************************//**
 Parses an if-statement.
-@return	if-statement node */
+@return if-statement node */
 
 if_node_t*
 pars_if_statement(
@@ -284,7 +284,7 @@ pars_if_statement(
 	que_node_t*	else_part);	/*!< in: else-part statement list */
 /*********************************************************************//**
 Parses a for-loop-statement.
-@return	for-statement node */
+@return for-statement node */
 
 for_node_t*
 pars_for_statement(
@@ -295,7 +295,7 @@ pars_for_statement(
 	que_node_t*	stat_list);	/*!< in: statement list */
 /*********************************************************************//**
 Parses a while-statement.
-@return	while-statement node */
+@return while-statement node */
 
 while_node_t*
 pars_while_statement(
@@ -304,21 +304,21 @@ pars_while_statement(
 	que_node_t*	stat_list);	/*!< in: statement list */
 /*********************************************************************//**
 Parses an exit statement.
-@return	exit statement node */
+@return exit statement node */
 
 exit_node_t*
 pars_exit_statement(void);
 /*=====================*/
 /*********************************************************************//**
 Parses a return-statement.
-@return	return-statement node */
+@return return-statement node */
 
 return_node_t*
 pars_return_statement(void);
 /*=======================*/
 /*********************************************************************//**
 Parses a procedure call.
-@return	function node */
+@return function node */
 
 func_node_t*
 pars_procedure_call(
@@ -327,7 +327,7 @@ pars_procedure_call(
 	que_node_t*	args);	/*!< in: argument list */
 /*********************************************************************//**
 Parses an assignment statement.
-@return	assignment statement node */
+@return assignment statement node */
 
 assign_node_t*
 pars_assignment_statement(
@@ -337,7 +337,7 @@ pars_assignment_statement(
 /*********************************************************************//**
 Parses a fetch statement. into_list or user_func (but not both) must be
 non-NULL.
-@return	fetch statement node */
+@return fetch statement node */
 
 fetch_node_t*
 pars_fetch_statement(
@@ -347,7 +347,7 @@ pars_fetch_statement(
 	sym_node_t*	user_func);	/*!< in: user function name, or NULL */
 /*********************************************************************//**
 Parses an open or close cursor statement.
-@return	fetch statement node */
+@return fetch statement node */
 
 open_node_t*
 pars_open_statement(
@@ -357,7 +357,7 @@ pars_open_statement(
 	sym_node_t*	cursor);	/*!< in: cursor node */
 /*********************************************************************//**
 Parses a row_printf-statement.
-@return	row_printf-statement node */
+@return row_printf-statement node */
 
 row_printf_node_t*
 pars_row_printf_statement(
@@ -365,21 +365,21 @@ pars_row_printf_statement(
 	sel_node_t*	sel_node);	/*!< in: select node */
 /*********************************************************************//**
 Parses a commit statement.
-@return	own: commit node struct */
+@return own: commit node struct */
 
 commit_node_t*
 pars_commit_statement(void);
 /*=======================*/
 /*********************************************************************//**
 Parses a rollback statement.
-@return	own: rollback node struct */
+@return own: rollback node struct */
 
 roll_node_t*
 pars_rollback_statement(void);
 /*=========================*/
 /*********************************************************************//**
 Parses a column definition at a table creation.
-@return	column sym table node */
+@return column sym table node */
 
 sym_node_t*
 pars_column_def(
@@ -395,7 +395,7 @@ pars_column_def(
 						is of type NOT NULL. */
 /*********************************************************************//**
 Parses a table creation operation.
-@return	table create subgraph */
+@return table create subgraph */
 
 tab_node_t*
 pars_create_table(
@@ -418,7 +418,7 @@ pars_create_table(
 					from disk */
 /*********************************************************************//**
 Parses an index creation operation.
-@return	index create subgraph */
+@return index create subgraph */
 
 ind_node_t*
 pars_create_index(
@@ -432,7 +432,7 @@ pars_create_index(
 	sym_node_t*	column_list);	/*!< in: list of column names */
 /*********************************************************************//**
 Parses a procedure definition.
-@return	query fork node */
+@return query fork node */
 
 que_fork_t*
 pars_procedure_definition(
@@ -447,7 +447,7 @@ Parses a stored procedure call, when this is not within another stored
 procedure, that is, the client issues a procedure call directly.
 In MySQL/InnoDB, stored InnoDB procedures are invoked via the
 parsed procedure tree, not via InnoDB SQL, so this function is not used.
-@return	query graph */
+@return query graph */
 
 que_fork_t*
 pars_stored_procedure_call(
@@ -457,7 +457,7 @@ pars_stored_procedure_call(
 Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
-@return	query thread node to run */
+@return query thread node to run */
 
 que_thr_t*
 pars_complete_graph_for_exec(
@@ -470,7 +470,7 @@ pars_complete_graph_for_exec(
 
 /****************************************************************//**
 Create parser info struct.
-@return	own: info struct */
+@return own: info struct */
 
 pars_info_t*
 pars_info_create(void);
@@ -636,7 +636,7 @@ pars_info_add_id(
 
 /****************************************************************//**
 Get bound literal with the given name.
-@return	bound literal, or NULL if not found */
+@return bound literal, or NULL if not found */
 
 pars_bound_lit_t*
 pars_info_get_bound_lit(
@@ -646,7 +646,7 @@ pars_info_get_bound_lit(
 
 /****************************************************************//**
 Get bound id with the given name.
-@return	bound id, or NULL if not found */
+@return bound id, or NULL if not found */
 
 pars_bound_id_t*
 pars_info_get_bound_id(

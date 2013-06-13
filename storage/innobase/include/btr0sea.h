@@ -63,7 +63,7 @@ btr_search_enable(void);
 
 /********************************************************************//**
 Returns search info for an index.
-@return	search info; search mutex reserved */
+@return search info; search mutex reserved */
 UNIV_INLINE
 btr_search_t*
 btr_search_get_info(
@@ -72,7 +72,7 @@ btr_search_get_info(
 	__attribute__((nonnull));
 /*****************************************************************//**
 Creates and initializes a search info struct.
-@return	own: search info struct */
+@return own: search info struct */
 
 btr_search_t*
 btr_search_info_create(
@@ -81,7 +81,7 @@ btr_search_info_create(
 /*****************************************************************//**
 Returns the value of ref_count. The value is protected by
 btr_search_latch.
-@return	ref_count value. */
+@return ref_count value. */
 
 ulint
 btr_search_info_get_ref_count(
@@ -100,7 +100,7 @@ Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns TRUE, then cursor->up_match and cursor->low_match
 both have sensible values.
-@return	TRUE if succeeded */
+@return TRUE if succeeded */
 
 ibool
 btr_search_guess_on_hash(
@@ -184,7 +184,7 @@ btr_search_update_hash_on_delete(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /********************************************************************//**
 Validates the search system.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 btr_search_validate(void);

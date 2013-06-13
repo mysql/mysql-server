@@ -45,7 +45,7 @@ extern trx_undo_rec_t	trx_purge_dummy_rec;
 /********************************************************************//**
 Calculates the file address of an undo log header when we have the file
 address of its history list node.
-@return	file address of the log */
+@return file address of the log */
 UNIV_INLINE
 fil_addr_t
 trx_purge_get_log_from_hist(
@@ -85,7 +85,7 @@ trx_purge_add_update_undo_to_history(
 	mtr_t*		mtr);		/*!< in: mtr */
 /*******************************************************************//**
 This function runs a purge batch.
-@return	number of undo log pages handled in the batch */
+@return number of undo log pages handled in the batch */
 
 ulint
 trx_purge(
@@ -243,8 +243,7 @@ struct TrxUndoRsegsIterator {
 	/** Constructor */
 	TrxUndoRsegsIterator(trx_purge_t* purge_sys);
 
-	/**
-	Sets the next rseg to purge in m_purge_sys.
+	/** Sets the next rseg to purge in m_purge_sys.
 	@return zip_size if log is for a compressed table, ULINT_UNDEFINED if
 	no rollback segments to purge, 0 for non compressed tables. */
 	ulint set_next();

@@ -44,7 +44,7 @@ struct ha_storage_t;
 /*******************************************************************//**
 Creates a hash storage. If any of the parameters is 0, then a default
 value is used.
-@return	own: hash storage */
+@return own: hash storage */
 UNIV_INLINE
 ha_storage_t*
 ha_storage_create(
@@ -62,7 +62,7 @@ data_len bytes need to be allocated) and the size of storage is going to
 become more than "memlim" then "data" is not added and NULL is returned.
 To disable this behavior "memlim" can be set to 0, which stands for
 "no limit".
-@return	pointer to the copy */
+@return pointer to the copy */
 
 const void*
 ha_storage_put_memlim(
@@ -74,10 +74,10 @@ ha_storage_put_memlim(
 
 /*******************************************************************//**
 Same as ha_storage_put_memlim() but without memory limit.
-@param storage	in/out: hash storage
-@param data	in: data to store
-@param data_len	in: data length
-@return		pointer to the copy of the string */
+@param storage in/out: hash storage
+@param data in: data to store
+@param data_len in: data length
+@return pointer to the copy of the string */
 #define ha_storage_put(storage, data, data_len)	\
 	ha_storage_put_memlim((storage), (data), (data_len), 0)
 
@@ -85,9 +85,9 @@ Same as ha_storage_put_memlim() but without memory limit.
 Copies string into the storage and returns a pointer to the copy. If the
 same string is already present, then pointer to it is returned.
 Strings are considered to be equal if strcmp(str1, str2) == 0.
-@param storage	in/out: hash storage
-@param str	in: string to put
-@return		pointer to the copy of the string */
+@param storage in/out: hash storage
+@param str in: string to put
+@return pointer to the copy of the string */
 #define ha_storage_put_str(storage, str)	\
 	((const char*) ha_storage_put((storage), (str), strlen(str) + 1))
 
@@ -96,10 +96,10 @@ Copies string into the storage and returns a pointer to the copy obeying
 a memory limit.
 If the same string is already present, then pointer to it is returned.
 Strings are considered to be equal if strcmp(str1, str2) == 0.
-@param storage	in/out: hash storage
-@param str	in: string to put
-@param memlim	in: memory limit to obey
-@return		pointer to the copy of the string */
+@param storage in/out: hash storage
+@param str in: string to put
+@param memlim in: memory limit to obey
+@return pointer to the copy of the string */
 #define ha_storage_put_str_memlim(storage, str, memlim)	\
 	((const char*) ha_storage_put_memlim((storage), (str),	\
 					     strlen(str) + 1, (memlim)))
@@ -126,7 +126,7 @@ ha_storage_free(
 
 /*******************************************************************//**
 Gets the size of the memory used by a storage.
-@return	bytes used */
+@return bytes used */
 UNIV_INLINE
 ulint
 ha_storage_get_size(
