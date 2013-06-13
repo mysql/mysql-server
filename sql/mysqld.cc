@@ -1495,6 +1495,7 @@ static void close_server_sock()
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
+  (void) RUN_HOOK(server_state, before_server_shutdown, (current_thd));
 
 #if defined(_WIN32)
 #if !defined(EMBEDDED_LIBRARY)
@@ -1521,6 +1522,8 @@ void kill_mysql(void)
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;     // Safety if kill didn't work
+  (void) RUN_HOOK(server_state, after_server_shutdown, (current_thd));
+
   DBUG_VOID_RETURN;
 }
 
@@ -4821,6 +4824,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("Can't init tc log");
     unireg_abort(1);
   }
+  (void)RUN_HOOK(server_state, before_recovery, (current_thd));
 
   if (ha_recover(0))
   {
@@ -5367,6 +5371,7 @@ int mysqld_main(int argc, char **argv)
         else
           global_sid_lock->unlock();
       }
+      (void) RUN_HOOK(server_state, after_engine_recovery, (current_thd));
     }
   }
 
@@ -5465,6 +5470,7 @@ int mysqld_main(int argc, char **argv)
   initialize_information_schema_acl();
 
   execute_ddl_log_recovery();
+  (void) RUN_HOOK(server_state, after_recovery, (current_thd));
 
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(1);
@@ -5515,6 +5521,7 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
+  (void) RUN_HOOK(server_state, before_handle_connection, (current_thd));
 
 #if defined(_WIN32) || defined(HAVE_SMEM)
   handle_connections_methods();

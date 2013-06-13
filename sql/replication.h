@@ -103,6 +103,83 @@ enum Binlog_storage_flags {
   BINLOG_STORAGE_IS_SYNCED = 1
 };
 
+typedef struct Server_state_param {
+} Server_state_param;
+
+/**
+  Observer server state
+ */
+typedef struct Server_state_observer {
+  uint32 len;
+
+  /**
+    This is called just before the server is ready to accept the client
+    connections to the Server/Node. It marks the possible point where the
+    server can be said to be ready to serve client queries.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*before_handle_connection)(Server_state_param *param);
+
+  /**
+    This callback is called before the start of the recovery
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*before_recovery)(Server_state_param *param);
+
+  /**
+    This callback is called after the end of the engine recovery.
+
+    This is called before the start of the recovery procedure ie.
+    the engine recovery.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*after_engine_recovery)(Server_state_param *param);
+
+  /**
+    This callback is called after the end of the recovery procedure.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*after_recovery)(Server_state_param *param);
+
+  /**
+    This callback is called before the start of the shutdown procedure.
+    Can be useful to initiate some cleanup operations in some cases.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*before_server_shutdown)(Server_state_param *param);
+
+  /**
+    This callback is called after the end of the shutdown procedure.
+    Can be used as a checkpoint of the proper cleanup operations in some cases.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*after_server_shutdown)(Server_state_param *param);
+} Server_state_observer;
+
 /**
    Binlog storage observer parameters
  */
@@ -420,6 +497,28 @@ int register_binlog_transmit_observer(Binlog_transmit_observer *observer, void *
    @retval 1 Observer not exists
 */
 int unregister_binlog_transmit_observer(Binlog_transmit_observer *observer, void *p);
+
+/**
+   Register a server state observer
+
+   @param observer The server state observer to register
+   @param p pointer to the internal plugin structure
+
+   @retval 0 Success
+   @retval 1 Observer already exists
+*/
+int register_server_state_observer(Server_state_observer *observer, void *p);
+
+/**
+   Unregister a server state observer
+
+   @param observer The server state observer to unregister
+   @param p pointer to the internal plugin structure
+
+   @retval 0 Success
+   @retval 1 Observer not exists
+*/
+int unregister_server_state_observer(Server_state_observer *observer, void *p);
 
 /**
    Register a binlog relay IO (slave IO thread) observer

@@ -153,6 +153,18 @@ public:
   int after_rollback(THD *thd, bool all);
 };
 
+class Server_state_delegate
+  :public Delegate {
+public:
+  typedef Server_state_observer Observer;
+  int before_handle_connection(THD *thd);
+  int before_recovery(THD *thd);
+  int after_engine_recovery(THD *thd);
+  int after_recovery(THD *thd);
+  int before_server_shutdown(THD *thd);
+  int after_server_shutdown(THD *thd);
+};
+
 class Binlog_storage_delegate
   :public Delegate {
 public:
@@ -205,6 +217,7 @@ void delegates_destroy();
 
 extern Trans_delegate *transaction_delegate;
 extern Binlog_storage_delegate *binlog_storage_delegate;
+extern Server_state_delegate *server_state_delegate;
 #ifdef HAVE_REPLICATION
 extern Binlog_transmit_delegate *binlog_transmit_delegate;
 extern Binlog_relay_IO_delegate *binlog_relay_io_delegate;
