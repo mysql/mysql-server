@@ -68,9 +68,21 @@ create procedure test.p1() select user(), current_user(), user from mysql.tables
 
 show create procedure test.p1;
 
+select definer from information_schema.routines;
+
 create table test.t1 (a text);
 create event e1 on schedule every 1 second
   do insert test.t1 values (concat(user(), ' ', current_user()));
+
+select definer from information_schema.events;
+
+create view v1 as select * from t1;
+select definer from information_schema.views;
+drop view v1;
+
+create trigger tr1 before delete on t1 for each row set @a:=1;
+select definer from information_schema.triggers;
+drop trigger tr1;
 
 connection default;
 

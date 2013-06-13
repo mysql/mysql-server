@@ -64,9 +64,25 @@ show create procedure test.p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 p1		CREATE DEFINER=`c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0`@`localhost` PROCEDURE `p1`()
 select user(), current_user(), user from mysql.tables_priv	latin1	latin1_swedish_ci	latin1_swedish_ci
+select definer from information_schema.routines;
+definer
+c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0@localhost
 create table test.t1 (a text);
 create event e1 on schedule every 1 second
 do insert test.t1 values (concat(user(), ' ', current_user()));
+select definer from information_schema.events;
+definer
+c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0@localhost
+create view v1 as select * from t1;
+select definer from information_schema.views;
+definer
+c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0@localhost
+drop view v1;
+create trigger tr1 before delete on t1 for each row set @a:=1;
+select definer from information_schema.triggers;
+definer
+c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0@localhost
+drop trigger tr1;
 connect(localhost,c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0,foobar,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'c80cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0'@'localhost' (using password: YES)
 call test.p1();

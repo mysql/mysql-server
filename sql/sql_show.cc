@@ -5374,7 +5374,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   CHARSET_INFO *cs= system_charset_info;
   char params_buff[MAX_FIELD_WIDTH], returns_buff[MAX_FIELD_WIDTH],
     sp_db_buff[NAME_LEN], sp_name_buff[NAME_LEN], path[FN_REFLEN],
-    definer_buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 1];
+    definer_buff[DEFINER_LENGTH + 1];
   String params(params_buff, sizeof(params_buff), cs);
   String returns(returns_buff, sizeof(returns_buff), cs);
   String sp_db(sp_db_buff, sizeof(sp_db_buff), cs);
@@ -5518,7 +5518,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
   char sp_db_buff[SAFE_NAME_LEN + 1], sp_name_buff[NAME_LEN + 1],
-    definer_buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 2],
+    definer_buff[DEFINER_LENGTH + 1],
     returns_buff[MAX_FIELD_WIDTH];
 
   String sp_db(sp_db_buff, sizeof(sp_db_buff), cs);
@@ -8081,7 +8081,7 @@ ST_FIELD_INFO events_fields_info[]=
    SKIP_OPEN_TABLE},
   {"EVENT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Name",
    SKIP_OPEN_TABLE},
-  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer", SKIP_OPEN_TABLE},
+  {"DEFINER", DEFINER_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, "Definer", SKIP_OPEN_TABLE},
   {"TIME_ZONE", 64, MYSQL_TYPE_STRING, 0, 0, "Time zone", SKIP_OPEN_TABLE},
   {"EVENT_BODY", 8, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {"EVENT_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
@@ -8158,7 +8158,7 @@ ST_FIELD_INFO proc_fields_info[]=
   {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {"ROUTINE_COMMENT", 65535, MYSQL_TYPE_STRING, 0, 0, "Comment",
    SKIP_OPEN_TABLE},
-  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer", SKIP_OPEN_TABLE},
+  {"DEFINER", DEFINER_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, "Definer", SKIP_OPEN_TABLE},
   {"CHARACTER_SET_CLIENT", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
    "character_set_client", SKIP_OPEN_TABLE},
   {"COLLATION_CONNECTION", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
@@ -8203,7 +8203,7 @@ ST_FIELD_INFO view_fields_info[]=
   {"VIEW_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FRM_ONLY},
   {"CHECK_OPTION", 8, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FRM_ONLY},
   {"IS_UPDATABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FRM_ONLY},
+  {"DEFINER", DEFINER_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FRM_ONLY},
   {"SECURITY_TYPE", 7, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FRM_ONLY},
   {"CHARACTER_SET_CLIENT", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0, 0,
    OPEN_FRM_ONLY},
@@ -8348,7 +8348,7 @@ ST_FIELD_INFO triggers_fields_info[]=
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FRM_ONLY},
   {"CREATED", 0, MYSQL_TYPE_DATETIME, 0, 1, "Created", OPEN_FRM_ONLY},
   {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, "sql_mode", OPEN_FRM_ONLY},
-  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer", OPEN_FRM_ONLY},
+  {"DEFINER", DEFINER_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, "Definer", OPEN_FRM_ONLY},
   {"CHARACTER_SET_CLIENT", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
    "character_set_client", OPEN_FRM_ONLY},
   {"COLLATION_CONNECTION", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
