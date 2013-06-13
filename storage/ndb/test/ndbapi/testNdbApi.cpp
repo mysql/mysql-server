@@ -2793,7 +2793,8 @@ runBug44065_org(NDBT_Context* ctx, NDBT_Step* step)
         ndbout << "Execute failed, error is " 
                << err.code << " " << endl;
         CHECK((err.classification == NdbError::TemporaryResourceError ||
-               err.classification == NdbError::OverloadError));
+               err.classification == NdbError::OverloadError ||
+               err.classification == NdbError::TimeoutExpired));
         NdbSleep_MilliSleep(50);
       }
       
