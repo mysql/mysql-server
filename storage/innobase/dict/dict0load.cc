@@ -1177,7 +1177,7 @@ loop:
 
 			if (err != DB_SUCCESS) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace open failed for '%s', "
+					"Tablespace open failed for %s, "
 					"ignored.", table_name);
 			}
 
@@ -2432,7 +2432,7 @@ err_exit:
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Table '%s' tablespace is set as discarded.",
+			"Table %s tablespace is set as discarded.",
 			table_name);
 
 		table->ibd_file_missing = TRUE;
@@ -2448,7 +2448,7 @@ err_exit:
 			if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Failed to find tablespace for "
-					"table '%s' in the cache. "
+					"table %s in the cache. "
 					"Attempting to load the tablespace "
 					"with space id %lu.",
 					table_name, (ulong) table->space);
