@@ -18,6 +18,7 @@
 
 #include <ndb_global.h>
 
+#include "mt-asm.h"
 #include "WatchDog.hpp"
 #include "GlobalData.hpp"
 #include <NdbOut.hpp>
@@ -260,13 +261,20 @@ WatchDog::run()
     numThreads = m_watchedCount;
     for (Uint32 i = 0; i < numThreads; i++)
     {
+#ifdef NDB_HAVE_XCNG
+      /* atomically read and clear watchdog counter */
+      counterValue[i] = xcng(m_watchedList[i].m_watchCounter, 0);
+#else
       counterValue[i] = *(m_watchedList[i].m_watchCounter);
-      if (counterValue[i] != 0)
+#endif
+      if (likely(counterValue[i] != 0))
       {
         /*
           The thread responded since last check, so just update state until
           next check.
-
+         */
+#ifndef NDB_HAVE_XCNG
+        /*
           There is a small race here. If the thread changes the counter
           in-between the read and setting to zero here in the watchdog
           thread, then gets stuck immediately after, we may report the
@@ -275,6 +283,7 @@ WatchDog::run()
           this race, nor will there be missed reporting.
         */
         *(m_watchedList[i].m_watchCounter) = 0;
+#endif
         m_watchedList[i].m_startTime = now;
         m_watchedList[i].m_slowWarnDelay = theInterval;
         m_watchedList[i].m_lastCounterValue = counterValue[i];
