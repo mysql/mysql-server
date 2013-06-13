@@ -272,7 +272,7 @@ mutex_enter_func(
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
 acquired immediately, returns with return value 1.
-@return	0 if succeed, 1 if not */
+@return 0 if succeed, 1 if not */
 
 ulint
 mutex_enter_nowait_func(
@@ -329,7 +329,7 @@ NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
 this function!
 This is a performance schema instrumented wrapper function for
 mutex_enter_nowait_func.
-@return	0 if succeed, 1 if not */
+@return 0 if succeed, 1 if not */
 UNIV_INLINE
 ulint
 pfs_mutex_enter_nowait_func(
@@ -366,7 +366,7 @@ pfs_mutex_free_func(
 /******************************************************************//**
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version.
-@return	TRUE if no mutexes and rw-locks reserved */
+@return TRUE if no mutexes and rw-locks reserved */
 
 ibool
 sync_all_freed(void);
@@ -391,7 +391,7 @@ sync_print(
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks that the mutex has been initialized.
-@return	TRUE */
+@return TRUE */
 
 ibool
 mutex_validate(
@@ -400,7 +400,7 @@ mutex_validate(
 /******************************************************************//**
 Checks that the current thread owns the mutex. Works only
 in the debug version.
-@return	TRUE if owns */
+@return TRUE if owns */
 
 ibool
 mutex_own(
@@ -435,7 +435,7 @@ sync_thread_reset_level(
 /******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
-@return	a matching latch, or NULL if not found */
+@return a matching latch, or NULL if not found */
 
 void*
 sync_thread_levels_contains(
@@ -444,7 +444,7 @@ sync_thread_levels_contains(
 					(SYNC_DICT, ...)*/
 /******************************************************************//**
 Checks that the level array for the current thread is empty.
-@return	a latch, or NULL if empty except the exceptions specified below */
+@return a latch, or NULL if empty except the exceptions specified below */
 
 void*
 sync_thread_levels_nonempty_gen(
@@ -460,7 +460,7 @@ except for data dictionary latches. */
 /******************************************************************//**
 Checks if the level array for the current thread is empty,
 except for the btr_search_latch.
-@return	a latch, or NULL if empty except the exceptions specified below */
+@return a latch, or NULL if empty except the exceptions specified below */
 
 void*
 sync_thread_levels_nonempty_trx(
@@ -483,7 +483,7 @@ mutex_get_debug_info(
 					the mutex */
 /******************************************************************//**
 Counts currently reserved mutexes. Works only in the debug version.
-@return	number of reserved mutexes */
+@return number of reserved mutexes */
 
 ulint
 mutex_n_reserved(void);
@@ -501,7 +501,7 @@ mutex_get_lock_word(
 /******************************************************************//**
 NOT to be used outside this module except in debugging! Gets the waiters
 field in a mutex.
-@return	value to set */
+@return value to set */
 UNIV_INLINE
 ulint
 mutex_get_waiters(

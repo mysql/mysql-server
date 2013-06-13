@@ -44,7 +44,7 @@ trx_is_recv(
 	const trx_t*	trx);	/*!< in: transaction */
 /*******************************************************************//**
 Returns a transaction savepoint taken at this point in time.
-@return	savepoint */
+@return savepoint */
 
 trx_savept_t
 trx_savept_take(
@@ -96,7 +96,7 @@ encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
@@ -106,7 +106,7 @@ DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
 			os_thread_create */
 /*********************************************************************//**
 Creates a rollback command node struct.
-@return	own: rollback node struct */
+@return own: rollback node struct */
 
 roll_node_t*
 roll_node_create(
@@ -114,7 +114,7 @@ roll_node_create(
 	mem_heap_t*	heap);	/*!< in: mem heap where created */
 /***********************************************************//**
 Performs an execution step for a rollback command node in a query graph.
-@return	query thread to run next, or NULL */
+@return query thread to run next, or NULL */
 
 que_thr_t*
 trx_rollback_step(
@@ -122,7 +122,7 @@ trx_rollback_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /*******************************************************************//**
 Rollback a transaction used in MySQL.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 trx_rollback_for_mysql(
@@ -131,7 +131,7 @@ trx_rollback_for_mysql(
 	__attribute__((nonnull));
 /*******************************************************************//**
 Rollback the latest SQL statement for MySQL.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 trx_rollback_last_sql_stat_for_mysql(
@@ -140,7 +140,7 @@ trx_rollback_last_sql_stat_for_mysql(
 	__attribute__((nonnull));
 /*******************************************************************//**
 Rollback a transaction to a given savepoint or do a complete rollback.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 trx_rollback_to_savepoint(
@@ -177,7 +177,7 @@ Creates a named savepoint. If the transaction is not yet started, starts it.
 If there is already a savepoint of the same name, this call erases that old
 savepoint and replaces it with a new. Savepoints are deleted in a transaction
 commit or rollback.
-@return	always DB_SUCCESS */
+@return always DB_SUCCESS */
 
 dberr_t
 trx_savepoint_for_mysql(

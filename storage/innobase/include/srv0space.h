@@ -191,86 +191,75 @@ public:
 		ut_ad(m_space_id == ULINT_UNDEFINED);
 	}
 
-	/**
-	Set the space id of the tablespace
-	@param space_id - space id to set */
+	/** Set the space id of the tablespace
+	@param space_id space id to set */
 	void set_space_id(ulint space_id)
 	{
 		ut_a(m_space_id == ULINT_UNDEFINED);
 		m_space_id = space_id;
 	}
 
-	/**
-	Set tablespace full status
-	@param is_tablespace_full - true if full */
+	/** Set tablespace full status
+	@param is_tablespace_full true if full */
 	void set_tablespace_full_status(bool is_tablespace_full)
 	{
 		m_is_tablespace_full = is_tablespace_full;
 	}
 
-	/**
-	Get tablespace full status
+	/** Get tablespace full status
 	@return true if table is full */
 	bool get_tablespace_full_status()
 	{
 		return(m_is_tablespace_full);
 	}
 
-	/**
-	Set sanity check status
-	@param sanity_checks_status - true if sanity checks are done */
+	/** Set sanity check status
+	@param sanity_checks_status true if sanity checks are done */
 	void set_sanity_check_status(bool sanity_check_status)
 	{
 		m_sanity_checks_done = sanity_check_status;
 	}
 
-	/**
-	Get sanity check status
+	/** Get sanity check status
 	@return true if sanity checks are done */
 	bool get_sanity_check_status()
 	{
 		return(m_sanity_checks_done);
 	}
 
-	/**
-	Set tablespace path.
-	@param tablespace_path - path where tablespace file(s) resides */
+	/** Set tablespace path.
+	@param tablespace_path path where tablespace file(s) resides */
 	void set_tablespace_path(char* tablespace_path)
 	{
 		m_tablespace_path = ::strdup(tablespace_path);
 	}
 
-	/**
-	Get tablespace path.
+	/** Get tablespace path.
 	@return path where tablespace file(s) resides. */
 	bool get_tablespace_path()
 	{
 		return(m_tablespace_path);
 	}
 
-	/**
-	Parse the input params and populate member variables.
-	@param filepath - path to data files
-	@param supports_raw - true if it supports raw devices
+	/** Parse the input params and populate member variables.
+	@param filepath path to data files
+	@param supports_raw true if it supports raw devices
 	@return true on success parse */
 	bool parse(const char* filepath, bool supports_raw);
 
-	/**
-	Check the data file specification.
-	@param create_new_db - true if a new database is to be created
-	@param min_expected_tablespace_size - [in] expected tablespace
-		size in bytes
+	/** Check the data file specification.
+	@param create_new_db true if a new database is to be created
+	@param[in] min_expected_tablespace_size expected tablespace size
+						in bytes
 	@return DB_SUCCESS if all OK else error code */
 	dberr_t check_file_spec(
 		bool*	create_new_db,
 		ulint	min_expected_tablespace_size);
 
-	/**
-	Free the memory allocated by parse() */
+	/** Free the memory allocated by parse() */
 	void shutdown();
 
-	/**
-	Normalize the file size, convert to extents. */
+	/** Normalize the file size, convert to extents. */
 	void normalize();
 
 	/**
@@ -294,9 +283,8 @@ public:
 		return(m_auto_extend_last_file);
 	}
 
-	/**
-	Set the last file size.
-	@param size - the size to set */
+	/** Set the last file size.
+	@param size the size to set */
 	void set_last_file_size(ulint size)
 	{
 		ut_a(!m_files.empty());
@@ -327,30 +315,25 @@ public:
 	@return next increment size */
 	ulint get_increment() const;
 
-	/**
-	Open the data files.
-
-	@param sum_of_new_sizes - sum of sizes of new files added
+	/** Open the data files.
+	@param sum_of_new_sizes sum of sizes of new files added
 	@return DB_SUCCESS or error code */
 	dberr_t open(ulint* sum_of_new_sizes);
 
-	/**
-	Read the flush lsn values and check the header flags.
-
-	@param min_flushed_lsn - min of flushed lsn values in data files
-	@param max_flushed_lsn - max of flushed lsn values in data files
+	/** Read the flush lsn values and check the header flags.
+	@param min_flushed_lsn min of flushed lsn values in data files
+	@param max_flushed_lsn max of flushed lsn values in data files
 	@return DB_SUCCESS or error code */
 	dberr_t read_lsn_and_check_flags(
 		lsn_t*		min_flushed_lsn,
 		lsn_t*		max_flushed_lsn);
 
-	/**
-	Delete all the data files. */
+	/** Delete all the data files. */
 	void delete_files();
 
 	/** Check if two shared tablespaces have common data file names.
-	@param space1 - space to check
-	@param space2 - space to check
+	@param space1 space to check
+	@param space2 space to check
 	@return true if they have the same data filenames and paths */
 	static bool intersection(
 		const Tablespace&	space1,
@@ -381,7 +364,7 @@ private:
 	}
 
 	/**
-	@param file - data file spec
+	@param file data file spec
 	@return true if it is a RAW device. */
 	bool is_raw_device(const file_t& file) const
 	{
@@ -393,84 +376,72 @@ private:
 	bool has_raw_device() const;
 
 	/**
-	@param filename - name to lookup in the data files
+	@param filename name to lookup in the data files
 	@return true if the filename exists in the data files */
 	bool find(const char* filename) const;
 
-	/**
-	Note that the data file was not found.
-	@param file - data file spec
-	@param create_new_db - [out] true if a new instances to be created
+	/** Note that the data file was not found.
+	@param file data file spec
+	@param[out] create_new_db true if a new instances to be created
 	@return DB_SUCESS or error code */
 	dberr_t file_not_found(file_t& file, bool* create_new_db);
 
-	/**
-	Note that the data file was found.
-	@param file - data file spec */
+	/** Note that the data file was found.
+	@param file data file spec */
 	void file_found(file_t& file);
 
-	/**
-	Create a data file.
-	@param file - data file spec
+	/** Create a data file.
+	@param file data file spec
 	@return DB_SUCCESS or error code */
 	dberr_t create(file_t& file);
 
-	/**
-	Verify the size of the physical file
-	@param file - data file spec
+	/** Verify the size of the physical file
+	@param file data file spec
 	@return DB_SUCCESS if OK else error code. */
 	dberr_t check_size(file_t& file);
 
-	/**
-	Create a data file.
-	@param file - data file spec
+	/** Create a data file.
+	@param file data file spec
 	@return DB_SUCCESS or error code */
 	dberr_t create_file(file_t& file);
 
-	/**
-	Open a data file.
-	@param file - data file spec
+	/** Open a data file.
+	@param file data file spec
 	@return DB_SUCCESS or error code */
 	dberr_t open_file(file_t& file);
 
-	/**
-	Open/create a data file.
-	@param file - data file spec
+	/** Open/create a data file.
+	@param file data file spec
 	@return DB_SUCCESS or error code */
 	static dberr_t open_data_file(file_t& file);
 
-	/**
-	Check if a file can be opened in the correct mode.
-	@param file - file control information
-	@param reason_if_failed	- exact reason if file_status check failed.
+	/** Check if a file can be opened in the correct mode.
+	@param file file control information
+	@param reason_if_failed exact reason if file_status check failed.
 	@return DB_SUCCESS or error code. */
 	static dberr_t check_file_status(
 		const file_t& 	file,
 		file_status_t& 	reason_if_failed);
 
-	/**
-	Set the size of the file.
-	@param file - data file spec
+	/** Set the size of the file.
+	@param file data file spec
 	@return DB_SUCCESS or error code */
 	static dberr_t set_size(file_t& file);
 
-	/**
-	Make physical filename from control info.
-	@param file - control information
-	@param tablespace_path - path where tablespace file will reside */
+	/** Make physical filename from control info.
+	@param file control information
+	@param tablespace_path path where tablespace file will reside */
 	static void make_name(file_t& file, char* tablespace_path);
 
-	/**
-	Convert a numeric string that optionally ends in G or M, to a number
-	containing megabytes.
-	@param str - string with a quantity in bytes
-	@param megs - out the number in megabytes
+	/** Convert a numeric string that optionally ends in G or M, to a
+	number containing megabytes.
+	@param str string with a quantity in bytes
+	@param megs out the number in megabytes
 	@return next character in string */
 	static char* parse_units(char* ptr, ulint* megs);
 
-	/**
-	Get the file name only
-	@param filepath - filepath as specified by user (can be relative too).
+	/** Get the file name only
+	@param filepath filepath as specified by user (can be relative too).
 	@return filename extract filepath */
 	static char* get_file_name(const char* filepath);
 

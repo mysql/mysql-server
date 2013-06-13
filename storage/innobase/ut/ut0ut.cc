@@ -55,7 +55,7 @@ http://support.microsoft.com/kb/167296/ */
 
 /*****************************************************************//**
 This is the Windows version of gettimeofday(2).
-@return	0 if all OK else -1 */
+@return 0 if all OK else -1 */
 static
 int
 ut_gettimeofday(
@@ -99,7 +99,7 @@ reimplement this function. */
 /**********************************************************//**
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime.
-@return	system time */
+@return system time */
 
 ib_time_t
 ut_time(void)
@@ -114,7 +114,7 @@ Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
 value -1 is returned and the global variable errno is set to indicate the
 error.
-@return	0 on success, -1 otherwise */
+@return 0 on success, -1 otherwise */
 
 int
 ut_usectime(
@@ -155,7 +155,7 @@ ut_usectime(
 Returns the number of microseconds since epoch. Similar to
 time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
-@return	us since epoch */
+@return us since epoch */
 
 ullint
 ut_time_us(
@@ -180,7 +180,7 @@ ut_time_us(
 Returns the number of milliseconds since some epoch.  The
 value may wrap around.  It should only be used for heuristic
 purposes.
-@return	ms since epoch */
+@return ms since epoch */
 
 ulint
 ut_time_ms(void)
@@ -196,7 +196,7 @@ ut_time_ms(void)
 
 /**********************************************************//**
 Returns the difference of two times in seconds.
-@return	time2 - time1 expressed in seconds */
+@return time2 - time1 expressed in seconds */
 
 double
 ut_difftime(
@@ -392,7 +392,7 @@ ut_get_year_month_day(
 /*************************************************************//**
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++.
-@return	dummy value */
+@return dummy value */
 
 ulint
 ut_delay(
@@ -505,7 +505,7 @@ ut_print_buf(
 
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
-@return	first power of 2 which is >= n */
+@return first power of 2 which is >= n */
 
 ulint
 ut_2_power_up(
@@ -737,7 +737,7 @@ ut_snprintf(
 /*************************************************************//**
 Convert an error number to a human readable text message. The
 returned string is static and should not be freed or modified.
-@return	string, describing the error */
+@return string, describing the error */
 
 const char*
 ut_strerr(

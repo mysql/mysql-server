@@ -69,7 +69,7 @@ extern trx_sys_t*	trx_sys;
 
 /***************************************************************//**
 Checks if a page address is the trx sys header page.
-@return	TRUE if trx sys header page */
+@return TRUE if trx sys header page */
 UNIV_INLINE
 ibool
 trx_sys_hdr_page(
@@ -98,7 +98,7 @@ trx_sys_create_sys_pages(void);
 /*==========================*/
 /****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
-@return	slot index or ULINT_UNDEFINED if not found */
+@return slot index or ULINT_UNDEFINED if not found */
 
 ulint
 trx_sysf_rseg_find_free(
@@ -110,7 +110,7 @@ trx_sysf_rseg_find_free(
 					0 means next free slot. */
 /***************************************************************//**
 Gets the pointer in the nth slot of the rseg array.
-@return	pointer to rseg object, NULL if slot not in use */
+@return pointer to rseg object, NULL if slot not in use */
 UNIV_INLINE
 trx_rseg_t*
 trx_sys_get_nth_rseg(
@@ -119,7 +119,7 @@ trx_sys_get_nth_rseg(
 	ulint		n);	/*!< in: index of slot */
 /**********************************************************************//**
 Gets a pointer to the transaction system file copy and x-locks its page.
-@return	pointer to system file copy, page x-locked */
+@return pointer to system file copy, page x-locked */
 UNIV_INLINE
 trx_sysf_t*
 trx_sysf_get(
@@ -128,7 +128,7 @@ trx_sysf_get(
 /*****************************************************************//**
 Gets the space of the nth rollback segment slot in the trx system
 file copy.
-@return	space id */
+@return space id */
 UNIV_INLINE
 ulint
 trx_sysf_rseg_get_space(
@@ -139,7 +139,7 @@ trx_sysf_rseg_get_space(
 /*****************************************************************//**
 Gets the page number of the nth rollback segment slot in the trx system
 file copy.
-@return	page number, FIL_NULL if slot unused */
+@return page number, FIL_NULL if slot unused */
 UNIV_INLINE
 ulint
 trx_sysf_rseg_get_page_no(
@@ -172,7 +172,7 @@ trx_sysf_rseg_set_page_no(
 	mtr_t*		mtr);		/*!< in: mtr */
 /*****************************************************************//**
 Allocates a new transaction id.
-@return	new, allocated trx id */
+@return new, allocated trx id */
 UNIV_INLINE
 trx_id_t
 trx_sys_get_new_trx_id();
@@ -213,7 +213,7 @@ trx_write_trx_id(
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
 mach_read_...
-@return	id */
+@return id */
 UNIV_INLINE
 trx_id_t
 trx_read_trx_id(
@@ -222,7 +222,7 @@ trx_read_trx_id(
 /****************************************************************//**
 Looks for the trx instance with the given id in the rw trx_list.
 The caller must be holding trx_sys->mutex.
-@return	the trx handle or NULL if not found;
+@return the trx handle or NULL if not found;
 the pointer must not be dereferenced unless lock_sys->mutex was
 acquired before calling this function and is still being held */
 UNIV_INLINE
@@ -235,7 +235,7 @@ Returns the minimum trx id in rw trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->state to
 find out if the minimum trx id transaction itself is active, or already
 committed.)
-@return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
+@return the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
 UNIV_INLINE
 trx_id_t
 trx_rw_min_trx_id(void);
@@ -244,7 +244,7 @@ trx_rw_min_trx_id(void);
 Checks if a rw transaction with the given id is active. Caller must hold
 trx_sys->mutex in shared mode. If the caller is not holding
 lock_sys->mutex, the transaction may already have been committed.
-@return	transaction instance if active, or NULL;
+@return transaction instance if active, or NULL;
 the pointer must not be dereferenced unless lock_sys->mutex was
 acquired before calling this function and is still being held */
 UNIV_INLINE
@@ -258,7 +258,7 @@ trx_rw_is_active_low(
 Checks if a rw transaction with the given id is active. If the caller is
 not holding lock_sys->mutex, the transaction may already have been
 committed.
-@return	transaction instance if active, or NULL;
+@return transaction instance if active, or NULL;
 the pointer must not be dereferenced unless lock_sys->mutex was
 acquired before calling this function and is still being held */
 UNIV_INLINE
@@ -273,7 +273,7 @@ trx_rw_is_active(
 #ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks whether a trx is in one of rw_trx_list or ro_trx_list.
-@return	TRUE if is in */
+@return TRUE if is in */
 
 ibool
 trx_in_trx_list(
@@ -349,7 +349,7 @@ trx_sys_close(void);
 /*===============*/
 /*****************************************************************//**
 Get the name representation of the file format from its id.
-@return	pointer to the name */
+@return pointer to the name */
 
 const char*
 trx_sys_file_format_id_to_name(
@@ -358,7 +358,7 @@ trx_sys_file_format_id_to_name(
 /*****************************************************************//**
 Set the file format id unconditionally except if it's already the
 same value.
-@return	TRUE if value updated */
+@return TRUE if value updated */
 
 ibool
 trx_sys_file_format_max_set(
@@ -431,14 +431,14 @@ trx_sys_read_pertable_file_format_id(
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Get the name representation of the file format from its id.
-@return	pointer to the max format name */
+@return pointer to the max format name */
 
 const char*
 trx_sys_file_format_max_get(void);
 /*=============================*/
 /*****************************************************************//**
 Check for the max file format tag stored on disk.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 trx_sys_file_format_max_check(
@@ -447,7 +447,7 @@ trx_sys_file_format_max_check(
 /********************************************************************//**
 Update the file format tag in the system tablespace only if the given
 format id is greater than the known max id.
-@return	TRUE if format_id was bigger than the known max id */
+@return TRUE if format_id was bigger than the known max id */
 
 ibool
 trx_sys_file_format_max_upgrade(
@@ -456,7 +456,7 @@ trx_sys_file_format_max_upgrade(
 	ulint		format_id);	/*!< in: file format identifier */
 /*****************************************************************//**
 Get the name representation of the file format from its id.
-@return	pointer to the name */
+@return pointer to the name */
 
 const char*
 trx_sys_file_format_id_to_name(

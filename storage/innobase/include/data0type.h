@@ -225,7 +225,7 @@ the underling datatype of GEOMETRY data. */
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Gets the MySQL type code from a dtype.
-@return	MySQL type code; this is NOT an InnoDB type code! */
+@return MySQL type code; this is NOT an InnoDB type code! */
 UNIV_INLINE
 ulint
 dtype_get_mysql_type(
@@ -235,7 +235,7 @@ dtype_get_mysql_type(
 Determine how many bytes the first n characters of the given string occupy.
 If the string is shorter than n characters, returns the number of bytes
 the characters in the string occupy.
-@return	length of the prefix, in bytes */
+@return length of the prefix, in bytes */
 
 ulint
 dtype_get_at_most_n_mbchars(
@@ -253,7 +253,7 @@ dtype_get_at_most_n_mbchars(
 /*********************************************************************//**
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type.
-@return	TRUE if string type */
+@return TRUE if string type */
 
 ibool
 dtype_is_string_type(
@@ -263,7 +263,7 @@ dtype_is_string_type(
 Checks if a type is a binary string type. Note that for tables created with
 < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
 those DATA_BLOB columns this function currently returns FALSE.
-@return	TRUE if binary string type */
+@return TRUE if binary string type */
 
 ibool
 dtype_is_binary_string_type(
@@ -275,7 +275,7 @@ Checks if a type is a non-binary string type. That is, dtype_is_string_type is
 TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
 with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
 For those DATA_BLOB columns this function currently returns TRUE.
-@return	TRUE if non-binary string type */
+@return TRUE if non-binary string type */
 
 ibool
 dtype_is_non_binary_string_type(
@@ -302,7 +302,7 @@ dtype_copy(
 	const dtype_t*	type2);	/*!< in: type struct to copy from */
 /*********************************************************************//**
 Gets the SQL main data type.
-@return	SQL main data type */
+@return SQL main data type */
 UNIV_INLINE
 ulint
 dtype_get_mtype(
@@ -310,7 +310,7 @@ dtype_get_mtype(
 	const dtype_t*	type);	/*!< in: data type */
 /*********************************************************************//**
 Gets the precise data type.
-@return	precise data type */
+@return precise data type */
 UNIV_INLINE
 ulint
 dtype_get_prtype(
@@ -331,7 +331,7 @@ dtype_get_mblen(
 				multi-byte character */
 /*********************************************************************//**
 Gets the MySQL charset-collation code for MySQL string types.
-@return	MySQL charset-collation code */
+@return MySQL charset-collation code */
 UNIV_INLINE
 ulint
 dtype_get_charset_coll(
@@ -352,7 +352,7 @@ dtype_form_prtype(
 Determines if a MySQL string type is a subset of UTF-8.  This function
 may return false negatives, in case further character-set collation
 codes are introduced in MySQL later.
-@return	TRUE if a subset of UTF-8 */
+@return TRUE if a subset of UTF-8 */
 UNIV_INLINE
 ibool
 dtype_is_utf8(
@@ -361,7 +361,7 @@ dtype_is_utf8(
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets the type length.
-@return	fixed length of the type, in bytes, or 0 if variable-length */
+@return fixed length of the type, in bytes, or 0 if variable-length */
 UNIV_INLINE
 ulint
 dtype_get_len(
@@ -402,7 +402,7 @@ dtype_set_mbminmaxlen(
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************************//**
 Returns the size of a fixed size data type, 0 if not a fixed size type.
-@return	fixed size, or 0 */
+@return fixed size, or 0 */
 UNIV_INLINE
 ulint
 dtype_get_fixed_size_low(
@@ -416,7 +416,7 @@ dtype_get_fixed_size_low(
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Returns the minimum size of a data type.
-@return	minimum size */
+@return minimum size */
 UNIV_INLINE
 ulint
 dtype_get_min_size_low(
@@ -429,7 +429,7 @@ dtype_get_min_size_low(
 /***********************************************************************//**
 Returns the maximum size of a data type. Note: types in system tables may be
 incomplete and return incorrect information.
-@return	maximum size */
+@return maximum size */
 UNIV_INLINE
 ulint
 dtype_get_max_size_low(
@@ -440,7 +440,7 @@ dtype_get_max_size_low(
 /***********************************************************************//**
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a type.
 For fixed length types it is the fixed length of the type, otherwise 0.
-@return	SQL null storage size in ROW_FORMAT=REDUNDANT */
+@return SQL null storage size in ROW_FORMAT=REDUNDANT */
 UNIV_INLINE
 ulint
 dtype_get_sql_null_size(
@@ -499,7 +499,7 @@ dtype_sql_name(
 
 /*********************************************************************//**
 Validates a data type structure.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dtype_validate(

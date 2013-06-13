@@ -118,7 +118,7 @@ rbt_free(
 	ib_rbt_t*	tree);			/*!< in: rb tree to free */
 /**********************************************************************//**
 Create an instance of a red black tree
-@return	rb tree instance */
+@return rb tree instance */
 
 ib_rbt_t*
 rbt_create(
@@ -128,7 +128,7 @@ rbt_create(
 /**********************************************************************//**
 Create an instance of a red black tree, whose comparison function takes
 an argument
-@return	rb tree instance */
+@return rb tree instance */
 
 ib_rbt_t*
 rbt_create_arg_cmp(
@@ -149,7 +149,7 @@ rbt_delete(
 /**********************************************************************//**
 Remove a node from the red black tree, NOTE: This function will not delete
 the node instance, THAT IS THE CALLERS RESPONSIBILITY.
-@return	the deleted node with the const. */
+@return the deleted node with the const. */
 
 ib_rbt_node_t*
 rbt_remove_node(
@@ -163,7 +163,7 @@ rbt_remove_node(
 /**********************************************************************//**
 Return a node from the red black tree, identified by
 key, NULL if not found
-@return	node if found else return NULL */
+@return node if found else return NULL */
 
 const ib_rbt_node_t*
 rbt_lookup(
@@ -172,7 +172,7 @@ rbt_lookup(
 	const void*	key);			/*!< in: key to lookup */
 /**********************************************************************//**
 Add data to the red black tree, identified by key (no dups yet!)
-@return	inserted node */
+@return inserted node */
 
 const ib_rbt_node_t*
 rbt_insert(
@@ -183,7 +183,7 @@ rbt_insert(
 						copied to the node.*/
 /**********************************************************************//**
 Add a new node to the tree, useful for data that is pre-sorted.
-@return	appended node */
+@return appended node */
 
 const ib_rbt_node_t*
 rbt_add_node(
@@ -194,7 +194,7 @@ rbt_add_node(
 						to the node */
 /**********************************************************************//**
 Return the left most data node in the tree
-@return	left most node */
+@return left most node */
 
 const ib_rbt_node_t*
 rbt_first(
@@ -202,7 +202,7 @@ rbt_first(
 	const ib_rbt_t*	tree);			/*!< in: rb tree */
 /**********************************************************************//**
 Return the right most data node in the tree
-@return	right most node */
+@return right most node */
 
 const ib_rbt_node_t*
 rbt_last(
@@ -210,7 +210,7 @@ rbt_last(
 	const ib_rbt_t*	tree);			/*!< in: rb tree */
 /**********************************************************************//**
 Return the next node from current.
-@return	successor node to current that is passed in. */
+@return successor node to current that is passed in. */
 
 const ib_rbt_node_t*
 rbt_next(
@@ -220,7 +220,7 @@ rbt_next(
 			current);
 /**********************************************************************//**
 Return the prev node from current.
-@return	precedessor node to current that is passed in */
+@return precedessor node to current that is passed in */
 
 const ib_rbt_node_t*
 rbt_prev(
@@ -230,7 +230,7 @@ rbt_prev(
 			current);
 /**********************************************************************//**
 Find the node that has the lowest key that is >= key.
-@return	node that satisfies the lower bound constraint or NULL */
+@return node that satisfies the lower bound constraint or NULL */
 
 const ib_rbt_node_t*
 rbt_lower_bound(
@@ -239,7 +239,7 @@ rbt_lower_bound(
 	const void*	key);			/*!< in: key to search */
 /**********************************************************************//**
 Find the node that has the greatest key that is <= key.
-@return	node that satisifies the upper bound constraint or NULL */
+@return node that satisifies the upper bound constraint or NULL */
 
 const ib_rbt_node_t*
 rbt_upper_bound(
@@ -250,7 +250,7 @@ rbt_upper_bound(
 Search for the key, a node will be retuned in parent.last, whether it
 was found or not. If not found then parent.last will contain the
 parent node for the possibly new key otherwise the matching node.
-@return	result of last comparison */
+@return result of last comparison */
 
 int
 rbt_search(
@@ -262,7 +262,7 @@ rbt_search(
 Search for the key, a node will be retuned in parent.last, whether it
 was found or not. If not found then parent.last will contain the
 parent node for the possibly new key otherwise the matching node.
-@return	result of last comparison */
+@return result of last comparison */
 
 int
 rbt_search_cmp(
@@ -283,7 +283,7 @@ rbt_clear(
 	ib_rbt_t*	tree);			/*!< in: rb tree */
 /**********************************************************************//**
 Merge the node from dst into src. Return the number of nodes merged.
-@return	no. of recs merged */
+@return no. of recs merged */
 
 ulint
 rbt_merge_uniq(
@@ -296,7 +296,7 @@ Delete the nodes from src after copying node to dst. As a side effect
 the duplicates will be left untouched in the src, since we don't support
 duplicates (yet). NOTE: src and dst must be similar, the function doesn't
 check for this condition (yet).
-@return	no. of recs merged */
+@return no. of recs merged */
 
 ulint
 rbt_merge_uniq_destructive(
@@ -306,7 +306,7 @@ rbt_merge_uniq_destructive(
 /**********************************************************************//**
 Verify the integrity of the RB tree. For debugging. 0 failure else height
 of tree (in count of black nodes).
-@return	TRUE if OK FALSE if tree invalid. */
+@return TRUE if OK FALSE if tree invalid. */
 
 ibool
 rbt_validate(

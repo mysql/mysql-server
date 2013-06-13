@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,8 +45,8 @@ row_log_abort_sec(
 /******************************************************//**
 Try to log an operation to a secondary index that is
 (or was) being created.
-@retval	true if the operation was logged or can be ignored
-@retval	false if online index creation is not taking place */
+@retval true if the operation was logged or can be ignored
+@retval false if online index creation is not taking place */
 UNIV_INLINE
 bool
 row_log_online_op_try(

@@ -287,7 +287,7 @@ hash_unlock_x_all_but(
 /*************************************************************//**
 Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n.
-@return	own: created table */
+@return own: created table */
 
 hash_table_t*
 hash_create(

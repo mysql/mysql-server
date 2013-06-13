@@ -439,7 +439,7 @@ flst_truncate_end(
 
 /********************************************************************//**
 Validates a file-based list.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 flst_validate(

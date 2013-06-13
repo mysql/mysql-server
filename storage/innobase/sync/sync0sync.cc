@@ -383,7 +383,7 @@ func_exit:
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
 acquired immediately, returns with return value 1.
-@return	0 if succeed, 1 if not */
+@return 0 if succeed, 1 if not */
 
 ulint
 mutex_enter_nowait_func(
@@ -413,7 +413,7 @@ mutex_enter_nowait_func(
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks that the mutex has been initialized.
-@return	TRUE */
+@return TRUE */
 
 ibool
 mutex_validate(
@@ -429,7 +429,7 @@ mutex_validate(
 /******************************************************************//**
 Checks that the current thread owns the mutex. Works only in the debug
 version.
-@return	TRUE if owns */
+@return TRUE if owns */
 
 ibool
 mutex_own(
@@ -685,7 +685,7 @@ mutex_list_print_info(
 
 /******************************************************************//**
 Counts currently reserved mutexes. Works only in the debug version.
-@return	number of reserved mutexes */
+@return number of reserved mutexes */
 
 ulint
 mutex_n_reserved(void)
@@ -719,7 +719,7 @@ mutex_n_reserved(void)
 /******************************************************************//**
 Returns TRUE if no mutex or rw-lock is currently locked. Works only in
 the debug version.
-@return	TRUE if no mutexes and rw-locks reserved */
+@return TRUE if no mutexes and rw-locks reserved */
 
 ibool
 sync_all_freed(void)
@@ -730,7 +730,7 @@ sync_all_freed(void)
 
 /******************************************************************//**
 Looks for the thread slot for the calling thread.
-@return	pointer to thread slot, NULL if not found */
+@return pointer to thread slot, NULL if not found */
 static
 sync_thread_t*
 sync_thread_level_arrays_find_slot(void)
@@ -758,7 +758,7 @@ sync_thread_level_arrays_find_slot(void)
 
 /******************************************************************//**
 Looks for an unused thread slot.
-@return	pointer to thread slot */
+@return pointer to thread slot */
 static
 sync_thread_t*
 sync_thread_level_arrays_find_free(void)
@@ -828,7 +828,7 @@ sync_print_warning(
 /******************************************************************//**
 Checks if all the level values stored in the level array are greater than
 the given limit.
-@return	TRUE if all greater */
+@return TRUE if all greater */
 static
 ibool
 sync_thread_levels_g(
@@ -864,7 +864,7 @@ sync_thread_levels_g(
 
 /******************************************************************//**
 Checks if the level value is stored in the level array.
-@return	slot if found or NULL */
+@return slot if found or NULL */
 static
 const sync_level_t*
 sync_thread_levels_contain(
@@ -891,7 +891,7 @@ sync_thread_levels_contain(
 
 /******************************************************************//**
 Checks if the level value and latch is already stored in the level array.
-@return	slot if found or NULL */
+@return slot if found or NULL */
 static
 sync_level_t*
 sync_thread_levels_find(
@@ -915,7 +915,7 @@ sync_thread_levels_find(
 /******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
-@return	a matching latch, or NULL if not found */
+@return a matching latch, or NULL if not found */
 
 void*
 sync_thread_levels_contains(
@@ -964,7 +964,7 @@ sync_thread_levels_contains(
 
 /******************************************************************//**
 Checks that the level array for the current thread is empty.
-@return	a latch, or NULL if empty except the exceptions specified below */
+@return a latch, or NULL if empty except the exceptions specified below */
 
 void*
 sync_thread_levels_nonempty_gen(
@@ -1020,7 +1020,7 @@ sync_thread_levels_nonempty_gen(
 /******************************************************************//**
 Checks if the level array for the current thread is empty,
 except for the btr_search_latch.
-@return	a latch, or NULL if empty except the exceptions specified below */
+@return a latch, or NULL if empty except the exceptions specified below */
 
 void*
 sync_thread_levels_nonempty_trx(

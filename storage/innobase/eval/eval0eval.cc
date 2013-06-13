@@ -60,7 +60,7 @@ NOTE that this memory must be explicitly freed when the query graph is
 freed. If the node already has an allocated buffer, that buffer is freed
 here. NOTE that this is the only function where dynamic memory should be
 allocated for a query node val field.
-@return	pointer to allocated buffer */
+@return pointer to allocated buffer */
 
 byte*
 eval_node_alloc_val_buf(
