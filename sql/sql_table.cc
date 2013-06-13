@@ -6907,10 +6907,26 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
           goto err;
 	}
+
 	if ((def->def=alter->def))              // Use new default
+        {
           def->flags&= ~NO_DEFAULT_VALUE_FLAG;
+          /*
+            The defaults are explicitly altered for the TIMESTAMP/DATETIME
+            field, through SET DEFAULT. Hence, set the unireg check
+            appropriately.
+          */
+          if (real_type_with_now_as_default(def->sql_type))
+          {
+            if (def->unireg_check == Field::TIMESTAMP_DNUN_FIELD)
+              def->unireg_check= Field::TIMESTAMP_UN_FIELD;
+            else if (def->unireg_check == Field::TIMESTAMP_DN_FIELD)
+              def->unireg_check= Field::NONE;
+          }
+        }
         else
           def->flags|= NO_DEFAULT_VALUE_FLAG;
+
 	alter_it.remove();
       }
     }
