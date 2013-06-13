@@ -171,3 +171,5 @@ select 1;
 1
 1
 UNINSTALL PLUGIN example;
+UNINSTALL PLUGIN MyISAM;
+ERROR HY000: Built-in plugins cannot be deleted

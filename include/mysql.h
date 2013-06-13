@@ -135,6 +135,7 @@ typedef unsigned long long my_ulonglong;
 
 /* backward compatibility define - to be removed eventually */
 #define ER_WARN_DATA_TRUNCATED WARN_DATA_TRUNCATED
+#define WARN_PLUGIN_DELETE_BUILTIN ER_PLUGIN_DELETE_BUILTIN
 
 typedef struct st_mysql_rows {
   struct st_mysql_rows *next;		/* list of rows */

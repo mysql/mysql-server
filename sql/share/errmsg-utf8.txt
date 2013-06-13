@@ -6161,7 +6161,7 @@ WARN_NO_MASTER_INFO
 WARN_OPTION_IGNORED
   eng "<%-.64s> option ignored"
   ger "Option <%-.64s> ignoriert"
-WARN_PLUGIN_DELETE_BUILTIN
+ER_PLUGIN_DELETE_BUILTIN
   eng "Built-in plugins cannot be deleted"
   ger "Eingebaute Plugins können nicht gelöscht werden"
 WARN_PLUGIN_BUSY

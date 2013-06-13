@@ -148,3 +148,10 @@ SET @@SQL_MODE=@OLD_SQL_MODE;
 #
 select 1;
 UNINSTALL PLUGIN example;
+
+#
+# MDEV-4573 UNINSTALL PLUGIN misleading error message for non-dynamic plugins
+#
+--error ER_PLUGIN_DELETE_BUILTIN
+UNINSTALL PLUGIN MyISAM;
+

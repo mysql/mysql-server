@@ -2174,9 +2174,7 @@ static bool do_uninstall(THD *thd, TABLE *table, const LEX_STRING *name)
   }
   if (!plugin->plugin_dl)
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                 WARN_PLUGIN_DELETE_BUILTIN, ER(WARN_PLUGIN_DELETE_BUILTIN));
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
+    my_error(ER_PLUGIN_DELETE_BUILTIN, MYF(0));
     return 1;
   }
   if (plugin->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
