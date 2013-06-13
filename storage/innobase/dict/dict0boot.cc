@@ -43,7 +43,7 @@ Created 4/18/1996 Heikki Tuuri
 
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
-@return	pointer to the dictionary header, page x-latched */
+@return pointer to the dictionary header, page x-latched */
 
 dict_hdr_t*
 dict_hdr_get(
@@ -165,7 +165,7 @@ dict_hdr_flush_row_id(void)
 /*****************************************************************//**
 Creates the file page for the dictionary header. This function is
 called only at the database creation.
-@return	TRUE if succeed */
+@return TRUE if succeed */
 static
 ibool
 dict_hdr_create(

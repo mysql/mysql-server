@@ -73,7 +73,7 @@ trx_set_detailed_error_from_file(
 	FILE*	file);	/*!< in: file to read message from */
 /****************************************************************//**
 Retrieves the error_info field from a trx.
-@return	the error info */
+@return the error info */
 UNIV_INLINE
 const dict_index_t*
 trx_get_error_info(
@@ -81,27 +81,27 @@ trx_get_error_info(
 	const trx_t*	trx);	/*!< in: trx object */
 /********************************************************************//**
 Creates a transaction object for MySQL.
-@return	own: transaction object */
+@return own: transaction object */
 
 trx_t*
 trx_allocate_for_mysql(void);
 /*========================*/
 /********************************************************************//**
 Creates a transaction object for background operations by the master thread.
-@return	own: transaction object */
+@return own: transaction object */
 
 trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 
 /** Frees and initialize a transaction object instantinated during recovery.
-@param trx      trx object to free and initialize during recovery */
+@param trx trx object to free and initialize during recovery */
 
 void
 trx_free_resurrected(trx_t* trx);
 
 /** Free a transaction that was allocated by background or user threads.
-@param trx      trx object to free */
+@param trx trx object to free */
 
 void
 trx_free_for_background(trx_t* trx);
@@ -241,7 +241,7 @@ trx_cleanup_at_db_startup(
 	trx_t*	trx);	/*!< in: transaction */
 /**********************************************************************//**
 Does the transaction commit for MySQL.
-@return	DB_SUCCESS or error number */
+@return DB_SUCCESS or error number */
 
 dberr_t
 trx_commit_for_mysql(
@@ -257,7 +257,7 @@ trx_prepare_for_mysql(
 /**********************************************************************//**
 This function is used to find number of prepared transactions and
 their transaction objects for a recovery.
-@return	number of prepared transactions */
+@return number of prepared transactions */
 
 int
 trx_recover_for_mysql(
@@ -267,7 +267,7 @@ trx_recover_for_mysql(
 /*******************************************************************//**
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state
-@return	trx or NULL; on match, the trx->xid will be invalidated;
+@return trx or NULL; on match, the trx->xid will be invalidated;
 note that the trx may have been committed, unless the caller is
 holding lock_sys->mutex */
 
@@ -295,7 +295,7 @@ trx_mark_sql_stat_end(
 Assigns a read view for a consistent read query. All the consistent reads
 within the same transaction will get the same read view, which is created
 when this function is first called for a new started transaction.
-@return	consistent read view */
+@return consistent read view */
 
 read_view_t*
 trx_assign_read_view(
@@ -310,7 +310,7 @@ trx_commit_or_rollback_prepare(
 	trx_t*	trx);	/*!< in/out: transaction */
 /*********************************************************************//**
 Creates a commit command node struct.
-@return	own: commit node struct */
+@return own: commit node struct */
 
 commit_node_t*
 trx_commit_node_create(
@@ -318,7 +318,7 @@ trx_commit_node_create(
 	mem_heap_t*	heap);	/*!< in: mem heap where created */
 /***********************************************************//**
 Performs an execution step for a commit type node in a query graph.
-@return	query thread to run next, or NULL */
+@return query thread to run next, or NULL */
 
 que_thr_t*
 trx_commit_step(
@@ -376,7 +376,7 @@ trx_print(
 
 /**********************************************************************//**
 Determine if a transaction is a dictionary operation.
-@return	dictionary operation mode */
+@return dictionary operation mode */
 UNIV_INLINE
 enum trx_dict_op_t
 trx_get_dict_operation(
@@ -401,7 +401,7 @@ that is serving a running transaction.
 A running transaction must be in trx_sys->ro_trx_list or trx_sys->rw_trx_list
 unless it is a non-locking autocommit read only transaction, which is only
 in trx_sys->mysql_trx_list.
-@return	TRUE if trx->state == state */
+@return TRUE if trx->state == state */
 UNIV_INLINE
 ibool
 trx_state_eq(
@@ -427,7 +427,7 @@ trx_assert_started(
 
 /**********************************************************************//**
 Determines if the currently running transaction has been interrupted.
-@return	TRUE if interrupted */
+@return TRUE if interrupted */
 
 ibool
 trx_is_interrupted(
@@ -435,7 +435,7 @@ trx_is_interrupted(
 	const trx_t*	trx);	/*!< in: transaction */
 /**********************************************************************//**
 Determines if the currently running transaction is in strict mode.
-@return	TRUE if strict */
+@return TRUE if strict */
 
 ibool
 trx_is_strict(
@@ -448,15 +448,15 @@ trx_is_strict(
 /*******************************************************************//**
 Calculates the "weight" of a transaction. The weight of one transaction
 is estimated as the number of altered rows + the number of locked rows.
-@param t	transaction
-@return		transaction weight */
+@param t transaction
+@return transaction weight */
 #define TRX_WEIGHT(t)	((t)->undo_no + UT_LIST_GET_LEN((t)->lock.trx_locks))
 
 /*******************************************************************//**
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
 that have not.
-@return	TRUE if weight(a) >= weight(b) */
+@return TRUE if weight(a) >= weight(b) */
 
 ibool
 trx_weight_ge(
@@ -471,7 +471,7 @@ trx_get_que_state_str(). */
 /*******************************************************************//**
 Retrieves transaction's que state in a human readable string. The string
 should not be free()'d or modified.
-@return	string in the data segment */
+@return string in the data segment */
 UNIV_INLINE
 const char*
 trx_get_que_state_str(
@@ -510,8 +510,8 @@ trx_set_rw_mode(
 Increase the reference count. If the transaction is in state
 TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered
 committed and the reference count is not incremented.
-@param trx		Transaction that is being referenced
-@param do_ref_count	Increment the reference iff this is true
+@param trx Transaction that is being referenced
+@param do_ref_count Increment the reference iff this is true
 @return transaction instance if it is not committed */
 UNIV_INLINE
 trx_t*
@@ -521,7 +521,7 @@ trx_reference(
 
 /**
 Release the transaction. Decrease the reference count.
-@param trx	Transaction that is being released */
+@param trx Transaction that is being released */
 UNIV_INLINE
 void
 trx_release_reference(
@@ -536,8 +536,8 @@ Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
 wait timeout to 0 instead of the user configured value that comes
 from innodb_lock_wait_timeout via trx_t::mysql_thd.
-@param trx	transaction
-@return		lock wait timeout in seconds */
+@param trx transaction
+@return lock wait timeout in seconds */
 #define trx_lock_wait_timeout_get(t)					\
 	((t)->mysql_thd != NULL						\
 	 ? thd_lock_wait_timeout((t)->mysql_thd)			\
@@ -546,16 +546,16 @@ from innodb_lock_wait_timeout via trx_t::mysql_thd.
 /*******************************************************************//**
 Determine if the transaction is a non-locking autocommit select
 (implied read-only).
-@param t	transaction
-@return true	if non-locking autocommit select transaction. */
+@param t transaction
+@return true if non-locking autocommit select transaction. */
 #define trx_is_autocommit_non_locking(t)				\
 ((t)->auto_commit && (t)->will_lock == 0)
 
 /*******************************************************************//**
 Determine if the transaction is a non-locking autocommit select
 with an explicit check for the read-only status.
-@param t	transaction
-@return true	if non-locking autocommit read-only transaction. */
+@param t transaction
+@return true if non-locking autocommit read-only transaction. */
 #define trx_is_ac_nl_ro(t)						\
 ((t)->read_only && trx_is_autocommit_non_locking((t)))
 
@@ -589,7 +589,7 @@ non-locking select */
 } while (0)
 
 /** Check if transaction is free so that it can be re-initialized.
-@param t	transaction handle */
+@param t transaction handle */
 #define	assert_trx_is_free(t)	do {					\
 	ut_ad(trx_state_eq((t), TRX_STATE_NOT_STARTED));		\
 	ut_ad(!trx_is_rseg_updated(trx));				\
@@ -601,7 +601,7 @@ non-locking select */
 
 /** Check if transaction is in-active so that it can be freed and put back to
 transaction pool.
-@param t	transaction handle */
+@param t transaction handle */
 #define assert_trx_is_inactive(t) do {					\
 	assert_trx_is_free((t));					\
 	ut_ad((t)->dict_operation_lock_mode == 0);			\

@@ -105,17 +105,17 @@ static const char S_innodb_mem_validate[] = "innodb_mem_validate";
 
 /** Evaluates to true if str1 equals str2_onstack, used for comparing
 the magic table names.
-@param str1		in: string to compare
-@param str1_len 	in: length of str1, in bytes, including terminating NUL
-@param str2_onstack	in: char[] array containing a NUL terminated string
-@return			TRUE if str1 equals str2_onstack */
+@param[in] str1 string to compare
+@param[in] str1_len length of str1, in bytes, including terminating NUL
+@param[in] str2_onstack char[] array containing a NUL terminated string
+@return TRUE if str1 equals str2_onstack */
 #define STR_EQ(str1, str1_len, str2_onstack) \
 	((str1_len) == sizeof(str2_onstack) \
 	 && memcmp(str1, str2_onstack, sizeof(str2_onstack)) == 0)
 
 /*******************************************************************//**
 Determine if the given name is a name reserved for MySQL system tables.
-@return	TRUE if name is a MySQL system table name */
+@return TRUE if name is a MySQL system table name */
 static
 ibool
 row_mysql_is_system_table(
@@ -138,7 +138,7 @@ which the master thread drops in background. We need this on Unix because in
 ALTER TABLE MySQL may call drop table even if the table has running queries on
 it. Also, if there are running foreign key checks on the table, we drop the
 table lazily.
-@return	TRUE if the table was not yet in the drop list, and was added there */
+@return TRUE if the table was not yet in the drop list, and was added there */
 static
 ibool
 row_add_table_to_background_drop_list(
@@ -265,7 +265,7 @@ row_mysql_store_blob_ref(
 
 /*******************************************************************//**
 Reads a reference to a BLOB in the MySQL format.
-@return	pointer to BLOB data */
+@return pointer to BLOB data */
 
 const byte*
 row_mysql_read_blob_ref(
@@ -350,7 +350,7 @@ row_mysql_store_geometry(
 
 /*******************************************************************//**
 Read geometry data in the MySQL format.
-@return	pointer to geometry data */
+@return pointer to geometry data */
 
 const byte*
 row_mysql_read_geometry(
@@ -437,7 +437,7 @@ row_mysql_pad_col(
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
 row0sel.cc.
-@return	up to which byte we used buf in the conversion */
+@return up to which byte we used buf in the conversion */
 
 byte*
 row_mysql_store_col_in_innobase_format(
@@ -801,7 +801,7 @@ handle_new_error:
 
 /********************************************************************//**
 Create a prebuilt struct for a MySQL table handle.
-@return	own: a prebuilt struct */
+@return own: a prebuilt struct */
 
 row_prebuilt_t*
 row_create_prebuilt(
@@ -1043,7 +1043,7 @@ row_update_prebuilt_trx(
 Gets pointer to a prebuilt dtuple used in insertions. If the insert graph
 has not yet been built in the prebuilt struct, then this function first
 builds it.
-@return	prebuilt dtuple; the column type information is also set in it */
+@return prebuilt dtuple; the column type information is also set in it */
 static
 dtuple_t*
 row_get_prebuilt_insert_row(
@@ -1163,7 +1163,7 @@ AUTO_INC lock gives exclusive access to the auto-inc counter of the
 table. The lock is reserved only for the duration of an SQL statement.
 It is not compatible with another AUTO_INC or exclusive lock on the
 table.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_lock_table_autoinc_for_mysql(
@@ -1236,7 +1236,7 @@ run_again:
 
 /*********************************************************************//**
 Sets a table lock on the table mentioned in prebuilt.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_lock_table_for_mysql(
@@ -1317,7 +1317,7 @@ run_again:
 
 /*********************************************************************//**
 Does an insert for MySQL.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_insert_for_mysql(
@@ -1528,7 +1528,7 @@ row_prebuild_sel_graph(
 /*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
-@return	own: update node */
+@return own: update node */
 
 upd_node_t*
 row_create_update_node_for_mysql(
@@ -1571,7 +1571,7 @@ row_create_update_node_for_mysql(
 Gets pointer to a prebuilt update vector used in updates. If the update
 graph has not yet been built in the prebuilt struct, then this function
 first builds it.
-@return	prebuilt update vector */
+@return prebuilt update vector */
 
 upd_t*
 row_get_prebuilt_update_vector(
@@ -1714,7 +1714,7 @@ private:
 
 /*********************************************************************//**
 Does an update or delete of a row for MySQL.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_update_for_mysql(
@@ -2158,7 +2158,7 @@ no_unlock:
 /*********************************************************************//**
 Checks if a table is such that we automatically created a clustered
 index on it (on row id).
-@return	TRUE if the clustered index was generated automatically */
+@return TRUE if the clustered index was generated automatically */
 
 ibool
 row_table_got_default_clust_index(
@@ -2258,7 +2258,7 @@ one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 output by the master thread. If the table name ends in "innodb_mem_validate",
 InnoDB will try to invoke mem_validate(). On failure the transaction will
 be rolled back and the 'table' object will be freed.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_create_table_for_mysql(
@@ -2484,7 +2484,7 @@ err_exit:
 Does an index creation operation for MySQL. TODO: currently failure
 to create an index results in dropping the whole table! This is no problem
 currently as all indexes must be created at the same time as the table.
-@return	error number or DB_SUCCESS */
+@return error number or DB_SUCCESS */
 
 dberr_t
 row_create_index_for_mysql(
@@ -2653,7 +2653,7 @@ Each foreign key constraint must be accompanied with indexes in
 both participating tables. The indexes are allowed to contain more
 fields than mentioned in the constraint. Check also that foreign key
 constraints which reference this table are ok.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_table_add_foreign_constraints(
@@ -2736,7 +2736,7 @@ table before all handles to it has been removed. Furhermore, the MySQL's
 call to drop table must be non-blocking. Therefore we do the drop table
 as a background operation, which is taken care of by the master thread
 in srv0srv.cc.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 static
 dberr_t
 row_drop_table_for_mysql_in_background(
@@ -2779,7 +2779,7 @@ row_drop_table_for_mysql_in_background(
 The master thread in srv0srv.cc calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
 dropping of tables is needed in ALTER TABLE on Unix.
-@return	how many tables dropped + remaining tables in list */
+@return how many tables dropped + remaining tables in list */
 
 ulint
 row_drop_tables_for_mysql_in_background(void)
@@ -2854,7 +2854,7 @@ already_dropped:
 /*********************************************************************//**
 Get the background drop list length. NOTE: the caller must own the
 drop list mutex!
-@return	how many tables in list */
+@return how many tables in list */
 
 ulint
 row_get_background_drop_list_len_low(void)
@@ -2879,7 +2879,7 @@ which the master thread drops in background. We need this on Unix because in
 ALTER TABLE MySQL may call drop table even if the table has running queries on
 it. Also, if there are running foreign key checks on the table, we drop the
 table lazily.
-@return	TRUE if the table was not yet in the drop list, and was added there */
+@return TRUE if the table was not yet in the drop list, and was added there */
 static
 ibool
 row_add_table_to_background_drop_list(
@@ -2926,7 +2926,7 @@ row_add_table_to_background_drop_list(
 
 /*********************************************************************//**
 Reassigns the table identifier of a table.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_mysql_table_id_reassign(
@@ -3201,7 +3201,7 @@ row_discard_tablespace(
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function renames the .ibd file and assigns a new table id for
 the table. Also the flag table->ibd_file_missing is set to TRUE.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_discard_tablespace_for_mysql(
@@ -3262,7 +3262,7 @@ row_discard_tablespace_for_mysql(
 
 /*********************************************************************//**
 Sets an exclusive lock on a table.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_mysql_lock_table(
@@ -3442,7 +3442,7 @@ next_rec:
 /*********************************************************************//**
 Truncation also results in assignment of new table id
 Update these ids to SYSTEM TABLES.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 UNIV_INLINE
 dberr_t
 row_update_new_object_ids(
@@ -3566,7 +3566,7 @@ row_update_new_object_ids(
 
 /*********************************************************************//**
 Truncates a table for MySQL.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_truncate_table_for_mysql(
@@ -3936,7 +3936,7 @@ one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 output by the master thread.  If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_drop_table_for_mysql(
@@ -4726,7 +4726,7 @@ row_mysql_drop_temp_tables(void)
 /*******************************************************************//**
 Drop all foreign keys in a database, see Bug#18942.
 Called at the end of row_drop_database_for_mysql().
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 drop_all_foreign_keys_in_db(
@@ -4785,7 +4785,7 @@ drop_all_foreign_keys_in_db(
 
 /*********************************************************************//**
 Drops a database for MySQL.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_drop_database_for_mysql(
@@ -4917,7 +4917,7 @@ loop:
 /*********************************************************************//**
 Checks if a table name contains the string "/#sql" which denotes temporary
 tables in MySQL.
-@return	true if temporary table */
+@return true if temporary table */
 __attribute__((warn_unused_result))
 bool
 row_is_mysql_tmp_table_name(
@@ -4931,7 +4931,7 @@ row_is_mysql_tmp_table_name(
 
 /****************************************************************//**
 Delete a single constraint.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_delete_constraint_low(
@@ -4954,7 +4954,7 @@ row_delete_constraint_low(
 
 /****************************************************************//**
 Delete a single constraint.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_delete_constraint(
@@ -4987,7 +4987,7 @@ row_delete_constraint(
 
 /*********************************************************************//**
 Renames a table for MySQL.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_rename_table_for_mysql(
@@ -5574,7 +5574,7 @@ next_rec:
 
 /*********************************************************************//**
 Determines if a table is a magic monitor table.
-@return	true if monitor table */
+@return true if monitor table */
 
 bool
 row_is_magic_monitor_table(

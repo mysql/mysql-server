@@ -98,7 +98,7 @@ trx_set_detailed_error_from_file(
 
 /********************************************************************//**
 Initialize transaction object.
-@param	trx	trx to initialize */
+@param trx trx to initialize */
 static
 void
 trx_init(
@@ -162,11 +162,10 @@ trx_init(
 from the pool. */
 struct TrxFactory {
 
-	/**
-	Initializes a transaction object. It must be explicitly started with
-	trx_start_if_not_started() before using it. The default isolation level
-	is TRX_ISO_REPEATABLE_READ.
-	@param trx	Transaction instance to initialise */
+	/** Initializes a transaction object. It must be explicitly started
+	with trx_start_if_not_started() before using it. The default isolation
+	level is TRX_ISO_REPEATABLE_READ.
+	@param trx Transaction instance to initialise */
 	static void init(trx_t* trx)
 	{
 		trx_init(trx);
@@ -199,9 +198,8 @@ struct TrxFactory {
 		new(&trx->mod_tables) trx_mod_tables_t();
 	}
 
-	/**
-	Release resources held by the transaction object.
-	@param trx	the transaction for which to release resources */
+	/** Release resources held by the transaction object.
+	@param trx the transaction for which to release resources */
 	static void destroy(trx_t* trx)
 	{
 		ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -234,8 +232,7 @@ struct TrxFactory {
 		trx->mod_tables.~trx_mod_tables_t();
 	}
 
-	/**
-	Enforce any invariants here, this is called before the transaction
+	/** Enforce any invariants here, this is called before the transaction
 	is added to the pool.
 	@return true if all OK */
 	static bool debug(const trx_t* trx)
@@ -347,7 +344,7 @@ trx_pool_close()
 	trx_pools = 0;
 }
 
-/** @return a trx_t instance from trx_pools.  */
+/** @return a trx_t instance from trx_pools. */
 static
 trx_t*
 trx_create_low()
@@ -385,7 +382,7 @@ trx_create_low()
 
 /**
 Release a trx_t instance back to the pool.
-@param trx	the instance to release. */
+@param trx the instance to release. */
 static
 void
 trx_free(trx_t*& trx)
@@ -418,7 +415,7 @@ trx_free(trx_t*& trx)
 
 /********************************************************************//**
 Creates a transaction object for background operations by the master thread.
-@return	own: transaction object */
+@return own: transaction object */
 
 trx_t*
 trx_allocate_for_background(void)
@@ -435,7 +432,7 @@ trx_allocate_for_background(void)
 
 /********************************************************************//**
 Creates a transaction object for MySQL.
-@return	own: transaction object */
+@return own: transaction object */
 
 trx_t*
 trx_allocate_for_mysql(void)
@@ -456,7 +453,7 @@ trx_allocate_for_mysql(void)
 }
 
 /** Check state of transaction before freeing it.
-@param trx	trx object to validate */
+@param trx trx object to validate */
 static
 void
 trx_validate_state_before_free(trx_t* trx)
@@ -495,7 +492,7 @@ trx_validate_state_before_free(trx_t* trx)
 }
 
 /** Free and initialize a transaction object instantinated during recovery.
-@param trx	trx object to free and initialize during recovery */
+@param trx trx object to free and initialize during recovery */
 
 void
 trx_free_resurrected(trx_t* trx)
@@ -508,7 +505,7 @@ trx_free_resurrected(trx_t* trx)
 }
 
 /** Free a transaction that was allocated by background or user threads.
-@param trx	trx object to free */
+@param trx trx object to free */
 
 void
 trx_free_for_background(trx_t* trx)
@@ -716,7 +713,7 @@ trx_resurrect_table_locks(
 /****************************************************************//**
 Resurrect the transactions that were doing inserts the time of the
 crash, they need to be undone.
-@return trx_t instance  */
+@return trx_t instance */
 static
 trx_t*
 trx_resurrect_insert(
@@ -961,7 +958,7 @@ trx_lists_init_at_db_start(void)
 
 /******************************************************************//**
 Get next redo rollback segment. (Segment are assigned in round-robin fashion).
-@return	assigned rollback segment instance */
+@return assigned rollback segment instance */
 static
 trx_rseg_t*
 get_next_redo_rseg(
@@ -1042,7 +1039,7 @@ get_next_redo_rseg(
 
 /******************************************************************//**
 Get next noredo rollback segment.
-@return	assigned rollback segment instance */
+@return assigned rollback segment instance */
 static
 trx_rseg_t*
 get_next_noredo_rseg(
@@ -1080,7 +1077,7 @@ get_next_noredo_rseg(
 
 /******************************************************************//**
 Assigns a rollback segment to a transaction in a round-robin fashion.
-@return	assigned rollback segment instance */
+@return assigned rollback segment instance */
 static
 trx_rseg_t*
 trx_assign_rseg_low(
@@ -1931,7 +1928,7 @@ trx_cleanup_at_db_startup(
 Assigns a read view for a consistent read query. All the consistent reads
 within the same transaction will get the same read view, which is created
 when this function is first called for a new started transaction.
-@return	consistent read view */
+@return consistent read view */
 
 read_view_t*
 trx_assign_read_view(
@@ -1997,7 +1994,7 @@ trx_commit_or_rollback_prepare(
 
 /*********************************************************************//**
 Creates a commit command node struct.
-@return	own: commit node struct */
+@return own: commit node struct */
 
 commit_node_t*
 trx_commit_node_create(
@@ -2015,7 +2012,7 @@ trx_commit_node_create(
 
 /***********************************************************//**
 Performs an execution step for a commit type node in a query graph.
-@return	query thread to run next, or NULL */
+@return query thread to run next, or NULL */
 
 que_thr_t*
 trx_commit_step(
@@ -2066,7 +2063,7 @@ trx_commit_step(
 
 /**********************************************************************//**
 Does the transaction commit for MySQL.
-@return	DB_SUCCESS or error number */
+@return DB_SUCCESS or error number */
 
 dberr_t
 trx_commit_for_mysql(
@@ -2380,7 +2377,7 @@ trx_assert_started(
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
 that have not.
-@return	TRUE if weight(a) >= weight(b) */
+@return TRUE if weight(a) >= weight(b) */
 
 ibool
 trx_weight_ge(
@@ -2552,7 +2549,7 @@ trx_prepare_for_mysql(
 /**********************************************************************//**
 This function is used to find number of prepared transactions and
 their transaction objects for a recovery.
-@return	number of prepared transactions stored in xid_list */
+@return number of prepared transactions stored in xid_list */
 
 int
 trx_recover_for_mysql(
@@ -2627,7 +2624,7 @@ trx_recover_for_mysql(
 /*******************************************************************//**
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state
-@return	trx on match, the trx->xid will be invalidated;
+@return trx on match, the trx->xid will be invalidated;
 note that the trx may have been committed, unless the caller is
 holding lock_sys->mutex */
 static __attribute__((nonnull, warn_unused_result))
@@ -2673,7 +2670,7 @@ trx_get_trx_by_xid_low(
 /*******************************************************************//**
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state
-@return	trx or NULL; on match, the trx->xid will be invalidated;
+@return trx or NULL; on match, the trx->xid will be invalidated;
 note that the trx may have been committed, unless the caller is
 holding lock_sys->mutex */
 

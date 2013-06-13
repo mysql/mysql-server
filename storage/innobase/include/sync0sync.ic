@@ -72,7 +72,7 @@ mutex_signal_object(
 /******************************************************************//**
 Performs an atomic test-and-set instruction to the lock_word field of a
 mutex.
-@return	the previous value of lock_word: 0 or 1 */
+@return the previous value of lock_word: 0 or 1 */
 UNIV_INLINE
 byte
 ib_mutex_test_and_set(
@@ -134,7 +134,7 @@ mutex_get_lock_word(
 
 /******************************************************************//**
 Gets the waiters field in a mutex.
-@return	value to set */
+@return value to set */
 UNIV_INLINE
 ulint
 mutex_get_waiters(

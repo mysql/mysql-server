@@ -84,7 +84,7 @@ buf_dblwr_page_inside(
 /****************************************************************//**
 Calls buf_page_get() on the TRX_SYS_PAGE and returns a pointer to the
 doublewrite buffer within it.
-@return	pointer to the doublewrite buffer within the filespace header
+@return pointer to the doublewrite buffer within the filespace header
 page. */
 UNIV_INLINE
 byte*

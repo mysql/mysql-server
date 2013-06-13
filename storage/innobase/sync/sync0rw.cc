@@ -178,7 +178,7 @@ rw_lock_debug_free(
 
 /******************************************************************//**
 Creates a debug info struct.
-@return	own: debug info struct */
+@return own: debug info struct */
 static
 rw_lock_debug_t*
 rw_lock_debug_create(void)
@@ -325,7 +325,7 @@ rw_lock_free_func(
 /******************************************************************//**
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks.
-@return	TRUE */
+@return TRUE */
 
 ibool
 rw_lock_validate(
@@ -529,7 +529,7 @@ rw_lock_x_lock_wait(
 
 /******************************************************************//**
 Low-level function for acquiring an exclusive lock.
-@return	FALSE if did not succeed, TRUE if success. */
+@return FALSE if did not succeed, TRUE if success. */
 UNIV_INLINE
 ibool
 rw_lock_x_lock_low(
@@ -814,7 +814,7 @@ rw_lock_remove_debug_info(
 /******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
 the pass value == 0.
-@return	TRUE if locked */
+@return TRUE if locked */
 
 ibool
 rw_lock_own(
@@ -854,7 +854,7 @@ rw_lock_own(
 
 /******************************************************************//**
 Checks if somebody has locked the rw-lock in the specified mode.
-@return	TRUE if locked */
+@return TRUE if locked */
 
 ibool
 rw_lock_is_locked(
@@ -1015,7 +1015,7 @@ rw_lock_debug_print(
 /***************************************************************//**
 Returns the number of currently locked rw-locks. Works only in the debug
 version.
-@return	number of locked rw-locks */
+@return number of locked rw-locks */
 
 ulint
 rw_lock_n_locked(void)

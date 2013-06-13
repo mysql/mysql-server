@@ -76,9 +76,9 @@ btr_corruption_report(
 static ibool btr_blob_dbg_msg;
 
 /** Issue a message about an operation on index->blobs.
-@param op	operation
-@param b	the entry being subjected to the operation
-@param ctx	the context of the operation */
+@param op operation
+@param b the entry being subjected to the operation
+@param ctx the context of the operation */
 #define btr_blob_dbg_msg_issue(op, b, ctx)			\
 	fprintf(stderr, op " %u:%u:%u->%u %s(%u,%u,%u)\n",	\
 		(b)->ref_page_no, (b)->ref_heap_no,		\
@@ -86,9 +86,9 @@ static ibool btr_blob_dbg_msg;
 		(b)->owner, (b)->always_owner, (b)->del)
 
 /** Insert to index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
 
 void
 btr_blob_dbg_rbt_insert(
@@ -106,9 +106,9 @@ btr_blob_dbg_rbt_insert(
 }
 
 /** Remove from index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
 
 void
 btr_blob_dbg_rbt_delete(
@@ -680,7 +680,7 @@ we allocate pages for the non-leaf levels of the tree.
 #ifdef UNIV_BTR_DEBUG
 /**************************************************************//**
 Checks a file segment header within a B-tree root page.
-@return	TRUE if valid */
+@return TRUE if valid */
 static
 ibool
 btr_root_fseg_validate(
@@ -699,7 +699,7 @@ btr_root_fseg_validate(
 
 /**************************************************************//**
 Gets the root node of a tree and x- or s-latches it.
-@return	root page, x- or s-latched */
+@return root page, x- or s-latched */
 static
 buf_block_t*
 btr_root_block_get(
@@ -736,7 +736,7 @@ btr_root_block_get(
 
 /**************************************************************//**
 Gets the root node of a tree and x-latches it.
-@return	root page, x-latched */
+@return root page, x-latched */
 
 page_t*
 btr_root_get(
@@ -752,7 +752,7 @@ btr_root_get(
 Gets the height of the B-tree (the level of the root, when the leaf
 level is assumed to be 0). The caller must hold an S or X latch on
 the index.
-@return	tree height (level of the root) */
+@return tree height (level of the root) */
 
 ulint
 btr_height_get(
@@ -786,7 +786,7 @@ btr_height_get(
 /**************************************************************//**
 Checks a file segment header within a B-tree root page and updates
 the segment header space id.
-@return	TRUE if valid */
+@return TRUE if valid */
 static
 bool
 btr_root_fseg_adjust_on_import(
@@ -903,7 +903,7 @@ btr_root_adjust_on_import(
 /*************************************************************//**
 Gets pointer to the previous user record in the tree. It is assumed that
 the caller has appropriate latches on the page and its neighbor.
-@return	previous user record, NULL if there is none */
+@return previous user record, NULL if there is none */
 
 rec_t*
 btr_get_prev_user_rec(
@@ -961,7 +961,7 @@ btr_get_prev_user_rec(
 /*************************************************************//**
 Gets pointer to the next user record in the tree. It is assumed that the
 caller has appropriate latches on the page and its neighbor.
-@return	next user record, NULL if there is none */
+@return next user record, NULL if there is none */
 
 rec_t*
 btr_get_next_user_rec(
@@ -1048,7 +1048,7 @@ btr_page_create(
 /**************************************************************//**
 Allocates a new file page to be used in an ibuf tree. Takes the page from
 the free list of the tree, which must contain pages!
-@return	new allocated block, x-latched */
+@return new allocated block, x-latched */
 static
 buf_block_t*
 btr_page_alloc_for_ibuf(
@@ -1170,7 +1170,7 @@ btr_page_alloc(
 
 /**************************************************************//**
 Gets the number of pages in a B-tree.
-@return	number of pages, or ULINT_UNDEFINED if the index is unavailable */
+@return number of pages, or ULINT_UNDEFINED if the index is unavailable */
 
 ulint
 btr_get_size(
@@ -1348,7 +1348,7 @@ btr_node_ptr_set_child_page_no(
 
 /************************************************************//**
 Returns the child page of a node pointer and x-latches it.
-@return	child page, x-latched */
+@return child page, x-latched */
 static
 buf_block_t*
 btr_node_ptr_get_child(
@@ -1372,7 +1372,7 @@ btr_node_ptr_get_child(
 /************************************************************//**
 Returns the upper level node pointer to a page. It is assumed that mtr holds
 an x-latch on the tree.
-@return	rec_get_offsets() of the node pointer record */
+@return rec_get_offsets() of the node pointer record */
 static
 ulint*
 btr_page_get_father_node_ptr_func(
@@ -1462,7 +1462,7 @@ btr_page_get_father_node_ptr_func(
 /************************************************************//**
 Returns the upper level node pointer to a page. It is assumed that mtr holds
 an x-latch on the tree.
-@return	rec_get_offsets() of the node pointer record */
+@return rec_get_offsets() of the node pointer record */
 static
 ulint*
 btr_page_get_father_block(
@@ -1508,7 +1508,7 @@ btr_page_get_father(
 
 /************************************************************//**
 Creates the root node for a new index tree.
-@return	page number of the created root, FIL_NULL if did not succeed */
+@return page number of the created root, FIL_NULL if did not succeed */
 
 ulint
 btr_create(
@@ -2018,7 +2018,7 @@ btr_page_reorganize(
 
 /***********************************************************//**
 Parses a redo log record of reorganizing a page.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 btr_parse_page_reorganize(
@@ -2100,7 +2100,7 @@ the tuple. It is assumed that mtr contains an x-latch on the tree.
 NOTE that the operation of this function must always succeed,
 we cannot reverse it: therefore enough free disk space must be
 guaranteed to be available before this function is called.
-@return	inserted record */
+@return inserted record */
 
 rec_t*
 btr_root_raise_and_insert(
@@ -2271,7 +2271,7 @@ btr_root_raise_and_insert(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of inserts
 converging to the left.
-@return	TRUE if split recommended */
+@return TRUE if split recommended */
 
 ibool
 btr_page_get_split_rec_to_left(
@@ -2316,7 +2316,7 @@ btr_page_get_split_rec_to_left(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of inserts
 converging to the right.
-@return	TRUE if split recommended */
+@return TRUE if split recommended */
 
 ibool
 btr_page_get_split_rec_to_right(
@@ -2493,7 +2493,7 @@ func_exit:
 /*************************************************************//**
 Returns TRUE if the insert fits on the appropriate half-page with the
 chosen split_rec.
-@return	true if fits */
+@return true if fits */
 static __attribute__((nonnull(1,3,4,6), warn_unused_result))
 bool
 btr_page_insert_fits(
@@ -3187,21 +3187,21 @@ func_exit:
 #ifdef UNIV_SYNC_DEBUG
 /*************************************************************//**
 Removes a page from the level list of pages.
-@param space	in: space where removed
-@param zip_size	in: compressed page size in bytes, or 0 for uncompressed
-@param page	in/out: page to remove
-@param index	in: index tree
-@param mtr	in/out: mini-transaction */
+@param space in: space where removed
+@param zip_size in: compressed page size in bytes, or 0 for uncompressed
+@param page in/out: page to remove
+@param index in: index tree
+@param mtr in/out: mini-transaction */
 # define btr_level_list_remove(space,zip_size,page,index,mtr)		\
 	btr_level_list_remove_func(space,zip_size,page,index,mtr)
 #else /* UNIV_SYNC_DEBUG */
 /*************************************************************//**
 Removes a page from the level list of pages.
-@param space	in: space where removed
-@param zip_size	in: compressed page size in bytes, or 0 for uncompressed
-@param page	in/out: page to remove
-@param index	in: index tree
-@param mtr	in/out: mini-transaction */
+@param space in: space where removed
+@param zip_size in: compressed page size in bytes, or 0 for uncompressed
+@param page in/out: page to remove
+@param index in: index tree
+@param mtr in/out: mini-transaction */
 # define btr_level_list_remove(space,zip_size,page,index,mtr)		\
 	btr_level_list_remove_func(space,zip_size,page,mtr)
 #endif /* UNIV_SYNC_DEBUG */
@@ -3292,7 +3292,7 @@ btr_set_min_rec_mark_log(
 /****************************************************************//**
 Parses the redo log record for setting an index record as the predefined
 minimum record.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 btr_parse_set_min_rec_mark(
@@ -3539,7 +3539,7 @@ level lifts the records of the page to the father page, thus reducing the
 tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to the
 brothers, if they exist.
-@return	TRUE on success */
+@return TRUE on success */
 
 ibool
 btr_compress(
@@ -4181,7 +4181,7 @@ btr_print_index(
 #ifdef UNIV_DEBUG
 /************************************************************//**
 Checks that the node pointer to a page is appropriate.
-@return	TRUE */
+@return TRUE */
 
 ibool
 btr_check_node_ptr(
@@ -4242,7 +4242,7 @@ btr_index_rec_validate_report(
 /************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 btr_index_rec_validate(
@@ -4350,7 +4350,7 @@ btr_index_rec_validate(
 /************************************************************//**
 Checks the size and number of fields in records based on the definition of
 the index.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 btr_index_page_validate(
@@ -4447,7 +4447,7 @@ btr_validate_report2(
 
 /************************************************************//**
 Validates index tree level.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 bool
 btr_validate_level(
@@ -4867,7 +4867,7 @@ node_ptr_fails:
 
 /**************************************************************//**
 Checks the consistency of an index tree.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 bool
 btr_validate_index(

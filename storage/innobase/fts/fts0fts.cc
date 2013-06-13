@@ -250,7 +250,7 @@ static const char* fts_config_table_insert_values_sql =
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end.
-@return DB_SUCCESS if all OK  */
+@return DB_SUCCESS if all OK */
 static
 dberr_t
 fts_sync(
@@ -320,7 +320,7 @@ fts_update_sync_doc_id(
 	__attribute__((nonnull(1)));
 
 /** Get a character set based on precise type.
-@param prtype	precise type
+@param prtype precise type
 @return the corresponding character set */
 UNIV_INLINE
 CHARSET_INFO*
@@ -2163,7 +2163,7 @@ fts_savepoint_create(
 
 /******************************************************************//**
 Create an FTS trx.
-@return FTS trx  */
+@return FTS trx */
 static
 fts_trx_t*
 fts_trx_create(

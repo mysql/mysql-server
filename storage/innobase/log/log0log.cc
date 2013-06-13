@@ -148,7 +148,7 @@ log_io_complete_checkpoint(void);
 /****************************************************************//**
 Returns the oldest modified block lsn in the pool, or log_sys->lsn if none
 exists.
-@return	LSN of oldest modification */
+@return LSN of oldest modification */
 static
 lsn_t
 log_buf_pool_get_oldest_modification(void)
@@ -171,7 +171,7 @@ log_buf_pool_get_oldest_modification(void)
 /************************************************************//**
 Opens the log for log_write_low. The log must be closed with log_close and
 released with log_release.
-@return	start lsn of the log record */
+@return start lsn of the log record */
 
 lsn_t
 log_reserve_and_open(
@@ -291,7 +291,7 @@ part_loop:
 
 /************************************************************//**
 Closes the log.
-@return	lsn */
+@return lsn */
 
 lsn_t
 log_close(void)
@@ -383,7 +383,7 @@ function_exit:
 /******************************************************//**
 Calculates the data capacity of a log group, when the log file headers are not
 included.
-@return	capacity in bytes */
+@return capacity in bytes */
 
 lsn_t
 log_group_get_capacity(
@@ -398,7 +398,7 @@ log_group_get_capacity(
 /******************************************************//**
 Calculates the offset within a log group, when the log file headers are not
 included.
-@return	size offset (<= offset) */
+@return size offset (<= offset) */
 UNIV_INLINE
 lsn_t
 log_group_calc_size_offset(
@@ -415,7 +415,7 @@ log_group_calc_size_offset(
 /******************************************************//**
 Calculates the offset within a log group, when the log file headers are
 included.
-@return	real offset (>= offset) */
+@return real offset (>= offset) */
 UNIV_INLINE
 lsn_t
 log_group_calc_real_offset(
@@ -432,7 +432,7 @@ log_group_calc_real_offset(
 
 /******************************************************//**
 Calculates the offset of an lsn within a log group.
-@return	offset within the log group */
+@return offset within the log group */
 static
 lsn_t
 log_group_calc_lsn_offset(
@@ -479,7 +479,7 @@ log_group_calc_lsn_offset(
 
 /*******************************************************************//**
 Calculates where in log files we find a specified lsn.
-@return	log file number */
+@return log file number */
 
 ulint
 log_calc_where_lsn_is(
@@ -829,7 +829,7 @@ log_flush_do_unlocks(
 /******************************************************************//**
 Checks if a flush is completed for a log group and does the completion
 routine if yes.
-@return	LOG_UNLOCK_NONE_FLUSHED_LOCK or 0 */
+@return LOG_UNLOCK_NONE_FLUSHED_LOCK or 0 */
 UNIV_INLINE
 ulint
 log_group_check_flush_completion(
@@ -857,7 +857,7 @@ log_group_check_flush_completion(
 
 /******************************************************//**
 Checks if a flush is completed and does the completion routine if yes.
-@return	LOG_UNLOCK_FLUSH_LOCK or 0 */
+@return LOG_UNLOCK_FLUSH_LOCK or 0 */
 static
 ulint
 log_sys_check_flush_completion(void)
@@ -1750,7 +1750,7 @@ Makes a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
 modification in the pool, and writes information about the lsn in
 log files. Use log_make_checkpoint_at to flush also the pool.
-@return	TRUE if success, FALSE if a checkpoint write was already running */
+@return TRUE if success, FALSE if a checkpoint write was already running */
 
 ibool
 log_checkpoint(
@@ -2387,7 +2387,7 @@ log_check_log_recs(
 
 /******************************************************//**
 Peeks the current lsn.
-@return	TRUE if success, FALSE if could not get the log system mutex */
+@return TRUE if success, FALSE if could not get the log system mutex */
 
 ibool
 log_peek_lsn(

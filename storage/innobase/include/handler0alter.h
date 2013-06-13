@@ -70,13 +70,12 @@ auto_increment_increment and auto_increment_offset variables. */
 struct ib_sequence_t {
 
 	/**
-	@param thd - the session
-	@param start_value - the lower bound
-	@param max_value - the upper bound (inclusive) */
+	@param thd the session
+	@param start_value the lower bound
+	@param max_value the upper bound (inclusive) */
 	ib_sequence_t(THD* thd, ulonglong start_value, ulonglong max_value);
 
-	/**
-	Postfix increment
+	/** Postfix increment
 	@return the value to insert */
 	ulonglong operator++(int) UNIV_NOTHROW;
 

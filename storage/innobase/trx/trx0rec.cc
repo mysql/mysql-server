@@ -89,7 +89,7 @@ trx_undof_page_add_undo_rec_log(
 
 /***********************************************************//**
 Parses a redo log record of adding an undo log record.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 trx_undo_parse_add_undo_rec(
@@ -137,7 +137,7 @@ trx_undo_parse_add_undo_rec(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Calculates the free space left for extending an undo log record.
-@return	bytes left */
+@return bytes left */
 UNIV_INLINE
 ulint
 trx_undo_left(
@@ -155,7 +155,7 @@ trx_undo_left(
 Set the next and previous pointers in the undo page for the undo record
 that was written to ptr. Update the first free value by the number of bytes
 written for this undo record.
-@return	offset of the inserted entry on the page if succeeded, 0 if fail */
+@return offset of the inserted entry on the page if succeeded, 0 if fail */
 static
 ulint
 trx_undo_page_set_next_prev_and_add(
@@ -205,7 +205,7 @@ trx_undo_page_set_next_prev_and_add(
 
 /**********************************************************************//**
 Reports in the undo log of an insert of a clustered index record.
-@return	offset of the inserted entry on the page if succeed, 0 if fail */
+@return offset of the inserted entry on the page if succeed, 0 if fail */
 static
 ulint
 trx_undo_page_report_insert(
@@ -277,7 +277,7 @@ trx_undo_page_report_insert(
 
 /**********************************************************************//**
 Reads from an undo log record the general parameters.
-@return	remaining part of undo log record after reading these values */
+@return remaining part of undo log record after reading these values */
 
 byte*
 trx_undo_rec_get_pars(
@@ -317,7 +317,7 @@ trx_undo_rec_get_pars(
 
 /**********************************************************************//**
 Reads from an undo log record a stored column value.
-@return	remaining part of undo log record after reading these values */
+@return remaining part of undo log record after reading these values */
 static
 byte*
 trx_undo_rec_get_col_val(
@@ -372,7 +372,7 @@ trx_undo_rec_get_col_val(
 
 /*******************************************************************//**
 Builds a row reference from an undo log record.
-@return	pointer to remaining part of undo record */
+@return pointer to remaining part of undo record */
 
 byte*
 trx_undo_rec_get_row_ref(
@@ -418,7 +418,7 @@ trx_undo_rec_get_row_ref(
 
 /*******************************************************************//**
 Skips a row reference from an undo log record.
-@return	pointer to remaining part of undo record */
+@return pointer to remaining part of undo record */
 
 byte*
 trx_undo_rec_skip_row_ref(
@@ -449,7 +449,7 @@ trx_undo_rec_skip_row_ref(
 /**********************************************************************//**
 Fetch a prefix of an externally stored column, for writing to the undo log
 of an update or delete marking of a clustered index record.
-@return	ext_buf */
+@return ext_buf */
 static
 byte*
 trx_undo_page_fetch_ext(
@@ -479,7 +479,7 @@ trx_undo_page_fetch_ext(
 
 /**********************************************************************//**
 Writes to the undo log a prefix of an externally stored column.
-@return	undo log position */
+@return undo log position */
 static
 byte*
 trx_undo_page_report_modify_ext(
@@ -857,7 +857,7 @@ trx_undo_page_report_modify(
 /**********************************************************************//**
 Reads from an undo log update record the system field values of the old
 version.
-@return	remaining part of undo log record after reading these values */
+@return remaining part of undo log record after reading these values */
 
 byte*
 trx_undo_update_rec_get_sys_cols(
@@ -886,7 +886,7 @@ trx_undo_update_rec_get_sys_cols(
 
 /**********************************************************************//**
 Reads from an update undo log record the number of updated fields.
-@return	remaining part of undo log record after reading this value */
+@return remaining part of undo log record after reading this value */
 UNIV_INLINE
 byte*
 trx_undo_update_rec_get_n_upd_fields(
@@ -902,7 +902,7 @@ trx_undo_update_rec_get_n_upd_fields(
 
 /**********************************************************************//**
 Reads from an update undo log record a stored field number.
-@return	remaining part of undo log record after reading this value */
+@return remaining part of undo log record after reading this value */
 UNIV_INLINE
 byte*
 trx_undo_update_rec_get_field_no(
@@ -1047,7 +1047,7 @@ trx_undo_update_rec_get_update(
 Builds a partial row from an update undo log record, for purge.
 It contains the columns which occur as ordering in any index of the table.
 Any missing columns are indicated by col->mtype == DATA_MISSING.
-@return	pointer to remaining part of undo record */
+@return pointer to remaining part of undo record */
 
 byte*
 trx_undo_rec_get_partial_row(
@@ -1159,7 +1159,7 @@ trx_undo_erase_page_end(
 
 /***********************************************************//**
 Parses a redo log record of erasing of an undo page end.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 trx_undo_parse_erase_page_end(
@@ -1187,7 +1187,7 @@ Writes information to an undo log about an insert, update, or a delete marking
 of a clustered index record. This information is used in a rollback of the
 transaction and in consistent reads that must look to the history of this
 transaction.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 trx_undo_report_row_operation(
@@ -1435,7 +1435,7 @@ err_exit:
 /******************************************************************//**
 Copies an undo record to heap. This function can be called if we know that
 the undo log record exists.
-@return	own: copy of the record */
+@return own: copy of the record */
 
 trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
@@ -1475,7 +1475,7 @@ NOTE: the caller must have latches on the clustered index page.
 
 @retval true if the undo log has been
 truncated and we cannot fetch the old version
-@retval false if the undo log record is available  */
+@retval false if the undo log record is available */
 static __attribute__((nonnull, warn_unused_result))
 bool
 trx_undo_get_undo_rec(
