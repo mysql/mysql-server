@@ -155,3 +155,17 @@ UNINSTALL PLUGIN example;
 --error ER_PLUGIN_DELETE_BUILTIN
 UNINSTALL PLUGIN MyISAM;
 
+#
+# MDEV-4529 Assertion `tmp->state == 4' fails on mix of INSTALL SONAME / UNINSTALL PLUGIN
+#
+
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+install soname 'ha_example';
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+uninstall plugin example;
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+install soname 'ha_example';
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+uninstall soname 'ha_example';
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+

@@ -173,3 +173,22 @@ select 1;
 UNINSTALL PLUGIN example;
 UNINSTALL PLUGIN MyISAM;
 ERROR HY000: Built-in plugins cannot be deleted
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name
+install soname 'ha_example';
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name
+EXAMPLE
+UNUSABLE
+uninstall plugin example;
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name
+UNUSABLE
+install soname 'ha_example';
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name
+EXAMPLE
+UNUSABLE
+uninstall soname 'ha_example';
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name

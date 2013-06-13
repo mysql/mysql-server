@@ -2032,9 +2032,13 @@ static bool finalize_install(THD *thd, TABLE *table, const LEX_STRING *name)
                           ER_CANT_INITIALIZE_UDF, ER(ER_CANT_INITIALIZE_UDF),
                           name->str, "Plugin is disabled");
   }
+  else if (tmp->state != PLUGIN_IS_UNINITIALIZED)
+  {
+    /* already installed */
+    return 0;
+  }
   else
   {
-    DBUG_ASSERT(tmp->state == PLUGIN_IS_UNINITIALIZED);
     if (plugin_initialize(tmp))
     {
       report_error(REPORT_TO_USER, ER_CANT_INITIALIZE_UDF, name->str,
