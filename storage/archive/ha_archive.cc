@@ -1417,7 +1417,10 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   mysql_mutex_lock(&share->mutex);
 
   if (init_archive_reader())
+  {
+    mysql_mutex_unlock(&share->mutex);
     DBUG_RETURN(errno);
+  }
 
   // now we close both our writer and our reader for the rename
   if (share->archive_write_open)
