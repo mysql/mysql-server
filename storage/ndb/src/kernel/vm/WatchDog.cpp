@@ -160,7 +160,7 @@ const char *get_action(Uint32 IPValue)
     action = "Packing Send Buffers";
     break;
   default:
-    action = "Unknown place";
+    action = NULL;
     break;
   }//switch
   return action;
@@ -330,9 +330,18 @@ WatchDog::run()
       if (oldCounterValue[i] != 9 || elapsed[i] >= theIntervalCheck[i])
       {
         const char *last_stuck_action = get_action(oldCounterValue[i]);
-        g_eventLogger->warning("Ndb kernel thread %u is stuck in: %s "
-                              "elapsed=%u",
-                              threadId[i], last_stuck_action, elapsed[i]);
+        if (last_stuck_action != NULL)
+        {
+          g_eventLogger->warning("Ndb kernel thread %u is stuck in: %s "
+                                 "elapsed=%u",
+                                 threadId[i], last_stuck_action, elapsed[i]);
+        }
+        else
+        {
+          g_eventLogger->warning("Ndb kernel thread %u is stuck in: Unknown place %u "
+                                 "elapsed=%u",
+                                 threadId[i],  oldCounterValue[i], elapsed[i]);
+        }
         {
           struct tms my_tms;
           if (times(&my_tms) != (clock_t)-1)
