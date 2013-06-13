@@ -243,10 +243,19 @@ WatchDog::run()
     if (NdbTick_getMicrosPassed(last_time, now)/1000 > sleep_time*2)
     {
       struct tms my_tms;
-      times(&my_tms);
-      g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
+      if (times(&my_tms) != (clock_t)-1)
+      {
+        g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
                           (Uint64)my_tms.tms_utime,
                           (Uint64)my_tms.tms_stime);
+      }
+      else
+      {
+        g_eventLogger->info("Watchdog: User time: %llu System time: %llu (errno=%d)",
+                          (Uint64)my_tms.tms_utime,
+                          (Uint64)my_tms.tms_stime,
+                          errno);
+      }
       g_eventLogger->warning("Watchdog: Warning overslept %llu ms, expected %u ms.",
                              NdbTick_getMicrosPassed(last_time, now)/1000,
                              sleep_time);
@@ -323,10 +332,19 @@ WatchDog::run()
                               threadId[i], last_stuck_action, elapsed[i]);
         {
           struct tms my_tms;
-          times(&my_tms);
-          g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
+          if (times(&my_tms) != (clock_t)-1)
+          {
+            g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
                               (Uint64)my_tms.tms_utime,
                               (Uint64)my_tms.tms_stime);
+          }
+          else
+          {
+            g_eventLogger->info("Watchdog: User time: %llu System time: %llu (errno=%d)",
+                              (Uint64)my_tms.tms_utime,
+                              (Uint64)my_tms.tms_stime,
+                              errno);
+          }
         }
         if (elapsed[i] > 3 * theInterval)
         {
