@@ -8031,7 +8031,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
       return TYPE_ERR_BAD_VALUE;
     }
     field_arg->set_default();
-    return TYPE_OK;
+    return field_arg->validate_stored_val(current_thd);
   }
   return Item_field::save_in_field(field_arg, no_conversions);
 }
