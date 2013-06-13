@@ -819,6 +819,16 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
     restore_record(table, s->default_values);
     /*
+      Check whether default values of the fields not specified in column list
+      are correct or not.
+    */
+    if (validate_default_values_of_unset_fields(thd, table))
+    {
+      read_info.error= 1;
+      break;
+    }
+
+    /*
       There is no variables in fields_vars list in this format so
       this conversion is safe.
     */
@@ -938,6 +948,15 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     restore_record(table, s->default_values);
+    /*
+      Check whether default values of the fields not specified in column list
+      are correct or not.
+    */
+    if (validate_default_values_of_unset_fields(thd, table))
+    {
+      read_info.error= 1;
+      break;
+    }
 
     while ((item= it++))
     {
@@ -1165,6 +1184,15 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 #endif
     
     restore_record(table, s->default_values);
+    /*
+      Check whether default values of the fields not specified in column list
+      are correct or not.
+    */
+    if (validate_default_values_of_unset_fields(thd, table))
+    {
+      read_info.error= 1;
+      break;
+    }
     
     while ((item= it++))
     {

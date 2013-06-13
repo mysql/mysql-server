@@ -41,6 +41,7 @@ void prepare_triggers_for_insert_stmt(TABLE *table);
 int write_record(THD *thd, TABLE *table,
                  COPY_INFO *info, COPY_INFO *update);
 void kill_delayed_threads(void);
+bool validate_default_values_of_unset_fields(THD *thd, TABLE *table);
 
 #ifdef EMBEDDED_LIBRARY
 inline void kill_delayed_threads(void) {}
