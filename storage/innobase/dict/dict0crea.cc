@@ -848,7 +848,8 @@ dict_drop_index_tree(
 					to record in the clustered index of
 					SYS_INDEXES table. The cursor may be
 					repositioned in this call. */
-	bool		is_drop,	/*!< in: true if we are dropping a table */
+	bool		is_drop,	/*!< in: true if we are dropping
+					a table */
 	mtr_t*		mtr)		/*!< in/out: mtr having the latch on
 					the record page */
 {

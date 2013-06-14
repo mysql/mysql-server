@@ -347,6 +347,40 @@ private:
 	dict_table_t*		m_table;
 };
 
+/** Check for presence of table-id in SYS_XXXX tables. */
+struct TableLocator : public Callback {
+
+	/**
+	Constructor
+	@param table_id	table_id to look for */
+	TableLocator(table_id_t table_id)
+		:
+		Callback(table_id, false),
+		m_table_found(false)
+	{
+		/* No op */
+	}
+
+	/**
+	@return true if table is found */ 
+	bool is_table_found()
+	{
+		return(m_table_found);
+	}
+
+	/**
+	Look for table-id in SYS_XXXX tables without loading the table.
+
+	@param mtr	mini-transaction covering the read
+	@param pcur	persistent cursor used for reading
+	@return DB_SUCCESS or error code */
+	dberr_t operator()(mtr_t* mtr, btr_pcur_t* pcur);
+
+private:
+	/** Set to true if table is present */
+	bool			m_table_found;
+};
+
 /**
 Truncates a table for MySQL.
 @param table		table being truncated
