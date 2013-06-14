@@ -1923,3 +1923,7 @@ max-time : 600
 cmd: testDict
 args: -n DictTakeOver_1 T1
 
+max-time : 600
+cmd: testNodeRestart
+args: -n Bug16007980 T1
+
