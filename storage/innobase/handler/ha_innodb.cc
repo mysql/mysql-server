@@ -11207,14 +11207,15 @@ ha_innobase::check(
 				index_name, sizeof index_name,
 				index->name, TRUE);
 
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_NOT_KEYFILE,
-					    "InnoDB: The B-tree of"
-					    " index %s is corrupted.",
-					    index_name);
+			push_warning_printf(
+				thd, Sql_condition::SL_WARNING,
+				ER_NOT_KEYFILE,
+				"InnoDB: The B-tree of"
+				" index %s is corrupted.",
+				index_name);
 			is_ok = FALSE;
 			dict_set_corrupted(
-				index, prebuilt->trx, "CHECK TABLE");
+				index, prebuilt->trx, "CHECK TABLE-check index");
 		}
 
 #if 0
@@ -11226,15 +11227,18 @@ ha_innobase::check(
 			n_rows_in_table = n_rows;
 		} else if (!(index->type & DICT_FTS)
 			   && (n_rows != n_rows_in_table)) {
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_NOT_KEYFILE,
-					    "InnoDB: Index '%-.200s'"
-					    " contains %lu entries,"
-					    " should be %lu.",
-					    index->name,
-					    (ulong) n_rows,
-					    (ulong) n_rows_in_table);
+			push_warning_printf(
+				thd, Sql_condition::SL_WARNING,
+				ER_NOT_KEYFILE,
+				"InnoDB: Index '%-.200s' contains %lu"
+				" entries, should be %lu.",
+				index->name,
+				(ulong) n_rows,
+				(ulong) n_rows_in_table);
 			is_ok = FALSE;
+			dict_set_corrupted(
+				index, prebuilt->trx,
+				"CHECK TABLE; Wrong count");
 		}
 	}
 
