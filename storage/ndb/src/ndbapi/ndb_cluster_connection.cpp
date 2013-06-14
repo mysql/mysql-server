@@ -1157,7 +1157,7 @@ Ndb_cluster_connection::wait_until_ready(const int * nodes, int cnt,
   {
     dead.clear();
     alive.clear();
-    tp->lock_mutex();
+    tp->lock_poll_mutex();
     for(unsigned i= 0; i < no_db_nodes(); i++)
     {
       //************************************************
@@ -1168,7 +1168,7 @@ Ndb_cluster_connection::wait_until_ready(const int * nodes, int cnt,
       else
         dead.set(m_impl.m_all_nodes[i].id);
     }
-    tp->unlock_mutex();
+    tp->unlock_poll_mutex();
 
     if (alive.contains(mask))
     {
