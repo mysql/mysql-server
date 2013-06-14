@@ -2054,6 +2054,8 @@ void Qmgr::execCM_ADD(Signal* signal)
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
 
+  CRASH_INSERTION(940);
+
   CmAdd * const cmAdd = (CmAdd*)signal->getDataPtr();
   const CmAdd::RequestType type = (CmAdd::RequestType)cmAdd->requestType;
   addNodePtr.i = cmAdd->startingNodeId;
@@ -3348,6 +3350,15 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     ndbrequire(false);
   }
   }
+
+  if (ERROR_INSERTED(939) && ERROR_INSERT_EXTRA == nodeId)
+  {
+    ndbout_c("Ignoring DISCONNECT_REP for node %u that was force disconnected",
+             nodeId);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
+
   node_failed(signal, nodeId);
 }//DISCONNECT_REP
 
@@ -3965,6 +3976,17 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     ndbrequire(false);
   }
 
+  /**
+   * If any node is starting now (c_start.startNode != 0)
+   *   sendPrepFailReq to that too
+   */
+  if (c_start.m_startNode != 0)
+  {
+    jam();
+    cfailedNodes[cnoFailedNodes++] = c_start.m_startNode;
+    c_start.reset();
+  }
+
   TnoFailedNodes = cnoFailedNodes;
   failReport(signal, failedNodePtr.i, (UintR)ZTRUE, aFailCause, sourceNode);
   if (cpresident == getOwnNodeId()) {
@@ -3995,7 +4017,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
         }//for
       }//if
     }//if
-  }//if
+  }
   return;
 }//Qmgr::failReportLab()
 
@@ -6253,8 +6275,26 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
     m_connectivity_check.m_enabled = true;
   }
 #endif
-}//Qmgr::execDUMP_STATE_ORD()
 
+  if (signal->theData[0] == 939 && signal->getLength() == 2)
+  {
+    jam();
+    Uint32 nodeId = signal->theData[1];
+    ndbout_c("Force close communication to %u", nodeId);
+    SET_ERROR_INSERT_VALUE2(939, nodeId);
+    CloseComReqConf * closeCom = CAST_PTR(CloseComReqConf,
+                                          signal->getDataPtrSend());
+
+    closeCom->xxxBlockRef = reference();
+    closeCom->requestType = CloseComReqConf::RT_NO_REPLY;
+    closeCom->failNo      = 0;
+    closeCom->noOfNodes   = 1;
+    NodeBitmask::clear(closeCom->theNodes);
+    NodeBitmask::set(closeCom->theNodes, nodeId);
+    sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
+               CloseComReqConf::SignalLength, JBB);
+  }
+}//Qmgr::execDUMP_STATE_ORD()
 
 void
 Qmgr::execAPI_BROADCAST_REP(Signal* signal)
