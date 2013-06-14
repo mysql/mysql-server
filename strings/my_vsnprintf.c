@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -295,7 +295,7 @@ static char *process_int_arg(char *to, char *end, size_t length,
       }
       to+= diff;
     }
-    bmove(to, store_start, res_length);
+    memmove(to, store_start, res_length);
   }
   to+= res_length;
   return to;
