@@ -237,7 +237,7 @@ before proceeds. */
 
 /**********************************************************************//**
 Creates a table memory object.
-@return	own: table object */
+@return own: table object */
 
 dict_table_t*
 dict_mem_table_create(
@@ -311,7 +311,7 @@ dict_mem_fill_index_struct(
 	ulint		n_fields);	/*!< in: number of fields */
 /**********************************************************************//**
 Creates an index memory object.
-@return	own: index object */
+@return own: index object */
 
 dict_index_t*
 dict_mem_index_create(
@@ -346,7 +346,7 @@ dict_mem_index_free(
 	dict_index_t*	index);	/*!< in: index */
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
-@return	own: foreign constraint struct */
+@return own: foreign constraint struct */
 
 dict_foreign_t*
 dict_mem_foreign_create(void);

@@ -68,7 +68,7 @@ fsp_free_extent(
 /**********************************************************************//**
 Calculates the number of pages reserved by a segment, and how
 many pages are currently used.
-@return	number of reserved pages */
+@return number of reserved pages */
 static
 ulint
 fseg_n_reserved_pages_low(
@@ -92,7 +92,7 @@ fseg_mark_page_used(
 Returns the first extent descriptor for a segment. We think of the extent
 lists of the segment catenated in the order FSEG_FULL -> FSEG_NOT_FULL
 -> FSEG_FREE.
-@return	the first extent descriptor, or NULL if none */
+@return the first extent descriptor, or NULL if none */
 static
 xdes_t*
 fseg_get_first_extent(
@@ -159,7 +159,7 @@ fseg_alloc_free_page_low(
 
 /**********************************************************************//**
 Reads the file space size stored in the header page.
-@return	tablespace size stored in the space header */
+@return tablespace size stored in the space header */
 
 ulint
 fsp_get_size_low(
@@ -172,7 +172,7 @@ fsp_get_size_low(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Gets a pointer to the space header and x-locks its page.
-@return	pointer to the space header, page x-locked */
+@return pointer to the space header, page x-locked */
 UNIV_INLINE
 fsp_header_t*
 fsp_get_space_header(
@@ -202,7 +202,7 @@ fsp_get_space_header(
 
 /**********************************************************************//**
 Gets a descriptor bit of a page.
-@return	TRUE if free */
+@return TRUE if free */
 UNIV_INLINE
 ibool
 xdes_mtr_get_bit(
@@ -258,7 +258,7 @@ xdes_set_bit(
 Looks for a descriptor bit having the desired value. Starts from hint
 and scans upward; at the end of the extent the search is wrapped to
 the start of the extent.
-@return	bit index of the bit, ULINT_UNDEFINED if not found */
+@return bit index of the bit, ULINT_UNDEFINED if not found */
 UNIV_INLINE
 ulint
 xdes_find_bit(
@@ -296,7 +296,7 @@ xdes_find_bit(
 /**********************************************************************//**
 Looks for a descriptor bit having the desired value. Scans the extent in
 a direction opposite to xdes_find_bit.
-@return	bit index of the bit, ULINT_UNDEFINED if not found */
+@return bit index of the bit, ULINT_UNDEFINED if not found */
 UNIV_INLINE
 ulint
 xdes_find_bit_downward(
@@ -333,7 +333,7 @@ xdes_find_bit_downward(
 
 /**********************************************************************//**
 Returns the number of used pages in a descriptor.
-@return	number of pages used */
+@return number of pages used */
 UNIV_INLINE
 ulint
 xdes_get_n_used(
@@ -356,7 +356,7 @@ xdes_get_n_used(
 
 /**********************************************************************//**
 Returns true if extent contains no used pages.
-@return	TRUE if totally free */
+@return TRUE if totally free */
 UNIV_INLINE
 ibool
 xdes_is_free(
@@ -374,7 +374,7 @@ xdes_is_free(
 
 /**********************************************************************//**
 Returns true if extent contains no free pages.
-@return	TRUE if full */
+@return TRUE if full */
 UNIV_INLINE
 ibool
 xdes_is_full(
@@ -410,7 +410,7 @@ xdes_set_state(
 
 /**********************************************************************//**
 Gets the state of an xdes.
-@return	state */
+@return state */
 UNIV_INLINE
 ulint
 xdes_get_state(
@@ -545,7 +545,7 @@ xdes_get_descriptor(
 Gets pointer to a the extent descriptor if the file address
 of the descriptor list node is known. The page where the
 extent descriptor resides is x-locked.
-@return	pointer to the extent descriptor */
+@return pointer to the extent descriptor */
 UNIV_INLINE
 xdes_t*
 xdes_lst_get_descriptor(
@@ -570,7 +570,7 @@ xdes_lst_get_descriptor(
 
 /********************************************************************//**
 Returns page offset of the first page in extent described by a descriptor.
-@return	offset of the first page in extent */
+@return offset of the first page in extent */
 UNIV_INLINE
 ulint
 xdes_get_offset(
@@ -640,7 +640,7 @@ fsp_init_file_page(
 
 /***********************************************************//**
 Parses a redo log record of a file page init.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 fsp_parse_init_file_page(
@@ -767,7 +767,7 @@ fsp_header_init(
 
 /**********************************************************************//**
 Reads the space id from the first page of a tablespace.
-@return	space id, ULINT UNDEFINED if error */
+@return space id, ULINT UNDEFINED if error */
 
 ulint
 fsp_header_get_space_id(
@@ -797,7 +797,7 @@ fsp_header_get_space_id(
 
 /**********************************************************************//**
 Reads the space flags from the first page of a tablespace.
-@return	flags */
+@return flags */
 
 ulint
 fsp_header_get_flags(
@@ -811,7 +811,7 @@ fsp_header_get_flags(
 
 /**********************************************************************//**
 Reads the compressed page size from the first page of a tablespace.
-@return	compressed page size in bytes, or 0 if uncompressed */
+@return compressed page size in bytes, or 0 if uncompressed */
 
 ulint
 fsp_header_get_zip_size(
@@ -857,7 +857,7 @@ Gets the size of the system tablespace from the tablespace header.  If
 we do not have an auto-extending data file, this should be equal to
 the size of the data files.  If there is an auto-extending data file,
 this can be smaller.
-@return	size in pages */
+@return size in pages */
 
 ulint
 fsp_header_get_tablespace_size(void)
@@ -883,7 +883,7 @@ fsp_header_get_tablespace_size(void)
 /***********************************************************************//**
 Tries to extend a single-table tablespace so that a page would fit in the
 data file.
-@return	TRUE if success */
+@return TRUE if success */
 static UNIV_COLD __attribute__((nonnull, warn_unused_result))
 ibool
 fsp_try_extend_data_file_with_pages(
@@ -915,7 +915,7 @@ fsp_try_extend_data_file_with_pages(
 
 /***********************************************************************//**
 Tries to extend the last data file of a tablespace if it is auto-extending.
-@return	FALSE if not auto-extending */
+@return FALSE if not auto-extending */
 static UNIV_COLD __attribute__((nonnull))
 ibool
 fsp_try_extend_data_file(
@@ -1230,7 +1230,7 @@ fsp_fill_free_list(
 
 /**********************************************************************//**
 Allocates a new free extent.
-@return	extent descriptor, NULL if cannot be allocated */
+@return extent descriptor, NULL if cannot be allocated */
 static
 xdes_t*
 fsp_alloc_free_extent(
@@ -1613,7 +1613,7 @@ fsp_free_extent(
 
 /**********************************************************************//**
 Returns the nth inode slot on an inode page.
-@return	segment inode */
+@return segment inode */
 UNIV_INLINE
 fseg_inode_t*
 fsp_seg_inode_page_get_nth_inode(
@@ -1633,7 +1633,7 @@ fsp_seg_inode_page_get_nth_inode(
 
 /**********************************************************************//**
 Looks for a used segment inode on a segment inode page.
-@return	segment inode index, or ULINT_UNDEFINED if not found */
+@return segment inode index, or ULINT_UNDEFINED if not found */
 static
 ulint
 fsp_seg_inode_page_find_used(
@@ -1664,7 +1664,7 @@ fsp_seg_inode_page_find_used(
 
 /**********************************************************************//**
 Looks for an unused segment inode on a segment inode page.
-@return	segment inode index, or ULINT_UNDEFINED if not found */
+@return segment inode index, or ULINT_UNDEFINED if not found */
 static
 ulint
 fsp_seg_inode_page_find_free(
@@ -1695,7 +1695,7 @@ fsp_seg_inode_page_find_free(
 
 /**********************************************************************//**
 Allocates a new file segment inode page.
-@return	TRUE if could be allocated */
+@return TRUE if could be allocated */
 static
 ibool
 fsp_alloc_seg_inode_page(
@@ -1750,7 +1750,7 @@ fsp_alloc_seg_inode_page(
 
 /**********************************************************************//**
 Allocates a new file segment inode.
-@return	segment inode, or NULL if not enough space */
+@return segment inode, or NULL if not enough space */
 static
 fseg_inode_t*
 fsp_alloc_seg_inode(
@@ -1862,7 +1862,7 @@ fsp_free_seg_inode(
 
 /**********************************************************************//**
 Returns the file segment inode, page x-latched.
-@return	segment inode, page x-latched; NULL if the inode is free */
+@return segment inode, page x-latched; NULL if the inode is free */
 static
 fseg_inode_t*
 fseg_inode_try_get(
@@ -1895,7 +1895,7 @@ fseg_inode_try_get(
 
 /**********************************************************************//**
 Returns the file segment inode, page x-latched.
-@return	segment inode, page x-latched */
+@return segment inode, page x-latched */
 static
 fseg_inode_t*
 fseg_inode_get(
@@ -1914,7 +1914,7 @@ fseg_inode_get(
 
 /**********************************************************************//**
 Gets the page number from the nth fragment page slot.
-@return	page number, FIL_NULL if not in use */
+@return page number, FIL_NULL if not in use */
 UNIV_INLINE
 ulint
 fseg_get_nth_frag_page_no(
@@ -1954,7 +1954,7 @@ fseg_set_nth_frag_page_no(
 
 /**********************************************************************//**
 Finds a fragment page slot which is free.
-@return	slot index; ULINT_UNDEFINED if none found */
+@return slot index; ULINT_UNDEFINED if none found */
 static
 ulint
 fseg_find_free_frag_page_slot(
@@ -1981,7 +1981,7 @@ fseg_find_free_frag_page_slot(
 
 /**********************************************************************//**
 Finds a fragment page slot which is used and last in the array.
-@return	slot index; ULINT_UNDEFINED if none found */
+@return slot index; ULINT_UNDEFINED if none found */
 static
 ulint
 fseg_find_last_used_frag_page_slot(
@@ -2009,7 +2009,7 @@ fseg_find_last_used_frag_page_slot(
 
 /**********************************************************************//**
 Calculates reserved fragment page slots.
-@return	number of fragment pages */
+@return number of fragment pages */
 static
 ulint
 fseg_get_n_frag_pages(
@@ -2193,7 +2193,7 @@ fseg_create(
 /**********************************************************************//**
 Calculates the number of pages reserved by a segment, and how many pages are
 currently used.
-@return	number of reserved pages */
+@return number of reserved pages */
 static
 ulint
 fseg_n_reserved_pages_low(
@@ -2223,7 +2223,7 @@ fseg_n_reserved_pages_low(
 /**********************************************************************//**
 Calculates the number of pages reserved by a segment, and how many pages are
 currently used.
-@return	number of reserved pages */
+@return number of reserved pages */
 
 ulint
 fseg_n_reserved_pages(
@@ -2727,7 +2727,7 @@ single-table tablespace, and they are also physically initialized to the data
 file. That is we have already extended the data file so that those pages are
 inside the data file. If not, this function extends the tablespace with
 pages.
-@return	TRUE if there were >= 3 free pages, or we were able to extend */
+@return TRUE if there were >= 3 free pages, or we were able to extend */
 static
 ibool
 fsp_reserve_free_pages(
@@ -2785,7 +2785,7 @@ function we would liberally reserve several 64 page extents for every page
 split or merge in a B-tree. But we do not want to waste disk space if the table
 only occupies < 32 pages. That is why we apply different rules in that special
 case, just ensuring that there are 3 free pages available.
-@return	TRUE if we were able to make the reservation */
+@return TRUE if we were able to make the reservation */
 
 ibool
 fsp_reserve_free_extents(
@@ -2898,7 +2898,7 @@ This function should be used to get information on how much we still
 will be able to insert new data to the database without running out the
 tablespace. Only free extents are taken into account and we also subtract
 the safety margin required by the above function fsp_reserve_free_extents.
-@return	available space in kB */
+@return available space in kB */
 
 ullint
 fsp_get_available_space_in_free_extents(
@@ -3258,7 +3258,7 @@ fseg_free_page(
 
 /**********************************************************************//**
 Checks if a single page of a segment is free.
-@return	true if free */
+@return true if free */
 
 bool
 fseg_page_is_free(
@@ -3382,7 +3382,7 @@ Frees part of a segment. This function can be used to free a segment by
 repeatedly calling this function in different mini-transactions. Doing
 the freeing in a single mini-transaction might result in too big a
 mini-transaction.
-@return	TRUE if freeing completed */
+@return TRUE if freeing completed */
 
 ibool
 fseg_free_step(
@@ -3469,7 +3469,7 @@ fseg_free_step(
 /**********************************************************************//**
 Frees part of a segment. Differs from fseg_free_step because this function
 leaves the header page unfreed.
-@return	TRUE if freeing completed, except the header page */
+@return TRUE if freeing completed, except the header page */
 
 ibool
 fseg_free_step_not_header(
@@ -3534,7 +3534,7 @@ fseg_free_step_not_header(
 Returns the first extent descriptor for a segment. We think of the extent
 lists of the segment catenated in the order FSEG_FULL -> FSEG_NOT_FULL
 -> FSEG_FREE.
-@return	the first extent descriptor, or NULL if none */
+@return the first extent descriptor, or NULL if none */
 static
 xdes_t*
 fseg_get_first_extent(
@@ -3579,7 +3579,7 @@ fseg_get_first_extent(
 
 /*******************************************************************//**
 Validates a segment.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 fseg_validate_low(
@@ -3686,7 +3686,7 @@ fseg_validate_low(
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a segment.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 fseg_validate(
@@ -3789,7 +3789,7 @@ fseg_print(
 
 /*******************************************************************//**
 Validates the file space system and its segments.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 fsp_validate(

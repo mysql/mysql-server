@@ -51,7 +51,7 @@ typedef deque_mem_heap_t upd_cascade_t;
 
 /*********************************************************************//**
 Creates an update vector object.
-@return	own: update vector object */
+@return own: update vector object */
 UNIV_INLINE
 upd_t*
 upd_create(
@@ -61,7 +61,7 @@ upd_create(
 /*********************************************************************//**
 Returns the number of fields in the update vector == number of columns
 to be updated by an update vector.
-@return	number of fields */
+@return number of fields */
 UNIV_INLINE
 ulint
 upd_get_n_fields(
@@ -70,7 +70,7 @@ upd_get_n_fields(
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Returns the nth field of an update vector.
-@return	update vector field */
+@return update vector field */
 UNIV_INLINE
 upd_field_t*
 upd_get_nth_field(
@@ -94,7 +94,7 @@ upd_field_set_field_no(
 	trx_t*		trx);		/*!< in: transaction */
 /*********************************************************************//**
 Returns a field of an update vector by field_no.
-@return	update vector field, or NULL */
+@return update vector field, or NULL */
 UNIV_INLINE
 const upd_field_t*
 upd_get_field_by_field_no(
@@ -105,7 +105,7 @@ upd_get_field_by_field_no(
 /*********************************************************************//**
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record.
-@return	new pointer to mlog */
+@return new pointer to mlog */
 
 byte*
 row_upd_write_sys_vals_to_log(
@@ -146,7 +146,7 @@ row_upd_index_entry_sys_field(
 	ib_uint64_t	val);	/*!< in: value to write */
 /*********************************************************************//**
 Creates an update node for a query graph.
-@return	own: update node */
+@return own: update node */
 
 upd_node_t*
 upd_node_create(
@@ -207,7 +207,7 @@ row_upd_rec_in_place(
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
 the fields as binary strings!
-@return	own: update vector of differing fields */
+@return own: update vector of differing fields */
 
 upd_t*
 row_upd_build_sec_rec_difference_binary(
@@ -365,7 +365,7 @@ row_upd_changes_some_index_ord_field_binary(
 /***********************************************************//**
 Updates a row in a table. This is a high-level function used
 in SQL execution graphs.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 row_upd_step(
@@ -374,7 +374,7 @@ row_upd_step(
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses the log data of system field values.
-@return	log data end or NULL */
+@return log data end or NULL */
 
 byte*
 row_upd_parse_sys_vals(
@@ -399,7 +399,7 @@ row_upd_rec_sys_fields_in_recovery(
 	roll_ptr_t	roll_ptr);/*!< in: roll ptr of the undo log record */
 /*********************************************************************//**
 Parses the log data written by row_upd_index_write_log.
-@return	log data end or NULL */
+@return log data end or NULL */
 
 byte*
 row_upd_index_parse(

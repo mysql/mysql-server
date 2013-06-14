@@ -37,7 +37,7 @@ InnoDB Native API
 
 /*********************************************************************//**
 Sets a lock on a table.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 ib_trx_lock_table_with_retry(

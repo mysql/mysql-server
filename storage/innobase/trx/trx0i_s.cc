@@ -111,15 +111,15 @@ noop because it will be empty. */
 /* @} */
 
 /** Memory limit passed to ha_storage_put_memlim().
-@param cache	hash storage
-@return		maximum allowed allocation size */
+@param cache hash storage
+@return maximum allowed allocation size */
 #define MAX_ALLOWED_FOR_STORAGE(cache)		\
 	(TRX_I_S_MEM_LIMIT			\
 	 - (cache)->mem_allocd)
 
 /** Memory limit in table_cache_create_empty_row().
-@param cache	hash storage
-@return		maximum allowed allocation size */
+@param cache hash storage
+@return maximum allowed allocation size */
 #define MAX_ALLOWED_FOR_ALLOC(cache)		\
 	(TRX_I_S_MEM_LIMIT			\
 	 - (cache)->mem_allocd			\
@@ -200,7 +200,7 @@ mysql_pfs_key_t	cache_last_read_mutex_key;
 /*******************************************************************//**
 For a record lock that is in waiting state retrieves the only bit that
 is set, for a table lock returns ULINT_UNDEFINED.
-@return	record number within the heap */
+@return record number within the heap */
 static
 ulint
 wait_lock_get_heap_no(
@@ -274,7 +274,7 @@ Returns an empty row from a table cache. The row is allocated if no more
 empty rows are available. The number of used rows is incremented.
 If the memory limit is hit then NULL is returned and nothing is
 allocated.
-@return	empty row, or NULL if out of memory */
+@return empty row, or NULL if out of memory */
 static
 void*
 table_cache_create_empty_row(
@@ -415,7 +415,7 @@ table_cache_create_empty_row(
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a row in the locks cache.
-@return	TRUE if valid */
+@return TRUE if valid */
 static
 ibool
 i_s_locks_row_validate(
@@ -450,7 +450,7 @@ i_s_locks_row_validate(
 /*******************************************************************//**
 Fills i_s_trx_row_t object.
 If memory can not be allocated then FALSE is returned.
-@return	FALSE if allocation fails */
+@return FALSE if allocation fails */
 static
 ibool
 fill_trx_row(
@@ -625,7 +625,7 @@ thd_done:
 Format the nth field of "rec" and put it in "buf". The result is always
 NUL-terminated. Returns the number of bytes that were written to "buf"
 (including the terminating NUL).
-@return	end of the result */
+@return end of the result */
 static
 ulint
 put_nth_field(
@@ -683,7 +683,7 @@ put_nth_field(
 /*******************************************************************//**
 Fills the "lock_data" member of i_s_locks_row_t object.
 If memory can not be allocated then FALSE is returned.
-@return	FALSE if allocation fails */
+@return FALSE if allocation fails */
 static
 ibool
 fill_lock_data(
@@ -791,7 +791,7 @@ fill_lock_data(
 /*******************************************************************//**
 Fills i_s_locks_row_t object. Returns its first argument.
 If memory can not be allocated then FALSE is returned.
-@return	FALSE if allocation fails */
+@return FALSE if allocation fails */
 static
 ibool
 fill_locks_row(
@@ -865,7 +865,7 @@ fill_locks_row(
 
 /*******************************************************************//**
 Fills i_s_lock_waits_row_t object. Returns its first argument.
-@return	result object that's filled */
+@return result object that's filled */
 static
 i_s_lock_waits_row_t*
 fill_lock_waits_row(
@@ -893,7 +893,7 @@ Calculates a hash fold for a lock. For a record lock the fold is
 calculated from 4 elements, which uniquely identify a lock at a given
 point in time: transaction id, space id, page number, record number.
 For a table lock the fold is table's id.
-@return	fold */
+@return fold */
 static
 ulint
 fold_lock(
@@ -942,7 +942,7 @@ fold_lock(
 
 /*******************************************************************//**
 Checks whether i_s_locks_row_t object represents a lock_t object.
-@return	TRUE if they match */
+@return TRUE if they match */
 static
 ibool
 locks_row_eq_lock(
@@ -986,7 +986,7 @@ locks_row_eq_lock(
 Searches for a row in the innodb_locks cache that has a specified id.
 This happens in O(1) time since a hash table is used. Returns pointer to
 the row or NULL if none is found.
-@return	row or NULL */
+@return row or NULL */
 static
 i_s_locks_row_t*
 search_innodb_locks(
@@ -1029,7 +1029,7 @@ Adds new element to the locks cache, enlarging it if necessary.
 Returns a pointer to the added row. If the row is already present then
 no row is added and a pointer to the existing row is returned.
 If row can not be allocated then NULL is returned.
-@return	row */
+@return row */
 static
 i_s_locks_row_t*
 add_lock_to_cache(
@@ -1096,7 +1096,7 @@ add_lock_to_cache(
 /*******************************************************************//**
 Adds new pair of locks to the lock waits cache.
 If memory can not be allocated then FALSE is returned.
-@return	FALSE if allocation fails */
+@return FALSE if allocation fails */
 static
 ibool
 add_lock_wait_to_cache(
@@ -1133,7 +1133,7 @@ innodb_locks and a pointer to the added row is returned in
 requested_lock_row, otherwise requested_lock_row is set to NULL.
 If rows can not be allocated then FALSE is returned and the value of
 requested_lock_row is undefined.
-@return	FALSE if allocation fails */
+@return FALSE if allocation fails */
 static
 ibool
 add_trx_relevant_locks_to_cache(
@@ -1227,7 +1227,7 @@ the same version of the cache. */
 
 /*******************************************************************//**
 Checks if the cache can safely be updated.
-@return	TRUE if can be updated */
+@return TRUE if can be updated */
 static
 ibool
 can_cache_be_updated(
@@ -1378,7 +1378,7 @@ fetch_data_into_cache(
 /*******************************************************************//**
 Update the transactions cache if it has not been read for some time.
 Called from handler/i_s.cc.
-@return	0 - fetched, 1 - not */
+@return 0 - fetched, 1 - not */
 
 int
 trx_i_s_possibly_fetch_data_into_cache(
@@ -1408,7 +1408,7 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*******************************************************************//**
 Returns TRUE if the data in the cache is truncated due to the memory
 limit posed by TRX_I_S_MEM_LIMIT.
-@return	TRUE if truncated */
+@return TRUE if truncated */
 
 ibool
 trx_i_s_cache_is_truncated(
@@ -1537,7 +1537,7 @@ trx_i_s_cache_end_write(
 
 /*******************************************************************//**
 Selects a INFORMATION SCHEMA table cache from the whole cache.
-@return	table cache */
+@return table cache */
 static
 i_s_table_cache_t*
 cache_select_table(
@@ -1572,7 +1572,7 @@ cache_select_table(
 /*******************************************************************//**
 Retrieves the number of used rows in the cache for a given
 INFORMATION SCHEMA table.
-@return	number of rows */
+@return number of rows */
 
 ulint
 trx_i_s_cache_get_rows_used(
@@ -1590,7 +1590,7 @@ trx_i_s_cache_get_rows_used(
 /*******************************************************************//**
 Retrieves the nth row (zero-based) in the cache for a given
 INFORMATION SCHEMA table.
-@return	row */
+@return row */
 
 void*
 trx_i_s_cache_get_nth_row(
@@ -1631,7 +1631,7 @@ Crafts a lock id string from a i_s_locks_row_t object. Returns its
 second argument. This function aborts if there is not enough space in
 lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
 want to be 100% sure that it will not abort.
-@return	resulting lock id */
+@return resulting lock id */
 
 char*
 trx_i_s_create_lock_id(

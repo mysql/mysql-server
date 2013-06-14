@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@ Created 3/26/1996 Heikki Tuuri
 /********************************************************************//**
 Calculates the file address of an undo log header when we have the file
 address of its history list node.
-@return	file address of the log */
+@return file address of the log */
 UNIV_INLINE
 fil_addr_t
 trx_purge_get_log_from_hist(
@@ -43,7 +43,7 @@ trx_purge_get_log_from_hist(
 
 /********************************************************************//**
 address of its history list node.
-@return	true if purge_sys_t::limit <= purge_sys_t::iter */
+@return true if purge_sys_t::limit <= purge_sys_t::iter */
 UNIV_INLINE
 bool
 trx_purge_check_limit(void)

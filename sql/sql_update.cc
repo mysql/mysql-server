@@ -30,7 +30,7 @@
 #include "sql_select.h"
 #include "sql_view.h"                           // check_key_in_view
 #include "sp_head.h"
-#include "sql_trigger.h"
+#include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
 #include "probes_mysql.h"
 #include "debug_sync.h"
 #include "key.h"                                // is_key_used
@@ -337,7 +337,7 @@ int mysql_update(THD *thd,
     uses the table->write_set to determine may prune locks too.
   */
   if (table->triggers)
-    table->triggers->mark_fields_used(TRG_EVENT_UPDATE);
+    table->triggers->mark_fields(TRG_EVENT_UPDATE);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
@@ -754,7 +754,7 @@ int mysql_update(THD *thd,
 
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
-                                               table->triggers,
+                                               table,
                                                TRG_EVENT_UPDATE, 0))
         break; /* purecov: inspected */
 
@@ -1736,7 +1736,7 @@ int multi_update::prepare(List<Item> &not_used_values,
       }
       /* All needed columns must be marked before prune_partitions(). */
       if (table->triggers)
-        table->triggers->mark_fields_used(TRG_EVENT_UPDATE);
+        table->triggers->mark_fields(TRG_EVENT_UPDATE);
     }
   }
 
@@ -2040,7 +2040,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
                                                *fields_for_table[offset],
                                                *values_for_table[offset],
                                                false, // ignore_errors
-                                               table->triggers,
+                                               table,
                                                TRG_EVENT_UPDATE, 0))
 	DBUG_RETURN(1);
 

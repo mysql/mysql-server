@@ -39,7 +39,7 @@ typedef	byte	dict_hdr_t;
 
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
-@return	pointer to the dictionary header, page x-latched */
+@return pointer to the dictionary header, page x-latched */
 
 dict_hdr_t*
 dict_hdr_get(
@@ -70,14 +70,14 @@ dict_hdr_flush_row_id(void);
 /*=======================*/
 /**********************************************************************//**
 Returns a new row id.
-@return	the new id */
+@return the new id */
 UNIV_INLINE
 row_id_t
 dict_sys_get_new_row_id(void);
 /*=========================*/
 /**********************************************************************//**
 Reads a row id from a record or other 6-byte stored form.
-@return	row id */
+@return row id */
 UNIV_INLINE
 row_id_t
 dict_sys_read_row_id(

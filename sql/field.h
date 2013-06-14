@@ -1384,6 +1384,10 @@ public:
     flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 
+  /* Validate the value stored in a field */
+  virtual type_conversion_status validate_stored_val(THD *thd)
+  { return TYPE_OK; }
+
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
 
@@ -2587,6 +2591,8 @@ public:
   {
     return get_date(ltime, TIME_FUZZY_DATE);
   }
+  /* Validate the value stored in a field */
+  virtual type_conversion_status validate_stored_val(THD *thd);
 };
 
 
@@ -2758,6 +2764,8 @@ public:
   {
     return unpack_int32(to, from, low_byte_first);
   }
+  /* Validate the value stored in a field */
+  virtual type_conversion_status validate_stored_val(THD *thd);
 };
 
 
@@ -2826,6 +2834,8 @@ public:
   void sql_type(String &str) const;
 
   bool get_timestamp(struct timeval *tm, int *warnings);
+  /* Validate the value stored in a field */
+  virtual type_conversion_status validate_stored_val(THD *thd);
 };
 
 

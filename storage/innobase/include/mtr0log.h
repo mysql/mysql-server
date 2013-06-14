@@ -87,7 +87,7 @@ mlog_write_initial_log_record(
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /********************************************************//**
 Writes a log record about an .ibd file create/delete/rename.
-@return	new value of log_ptr */
+@return new value of log_ptr */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_for_file_op(
@@ -134,7 +134,7 @@ mlog_catenate_ull_compressed(
 	ib_uint64_t	val);	/*!< in: value to write */
 /********************************************************//**
 Opens a buffer to mlog. It must be closed with mlog_close.
-@return	buffer, NULL if log mode MTR_LOG_NONE */
+@return buffer, NULL if log mode MTR_LOG_NONE */
 UNIV_INLINE
 byte*
 mlog_open(
@@ -154,7 +154,7 @@ mlog_close(
 Writes the initial part of a log record (3..11 bytes).
 If the implementation of this function is changed, all
 size parameters to mlog_open() should be adjusted accordingly!
-@return	new value of log_ptr */
+@return new value of log_ptr */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_fast(
@@ -172,7 +172,7 @@ mlog_write_initial_log_record_fast(
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
-@return	parsed record end, NULL if not a complete record */
+@return parsed record end, NULL if not a complete record */
 
 byte*
 mlog_parse_initial_log_record(
@@ -184,7 +184,7 @@ mlog_parse_initial_log_record(
 	ulint*	page_no);/*!< out: page number */
 /********************************************************//**
 Parses a log record written by mlog_write_ulint or mlog_write_ull.
-@return	parsed record end, NULL if not a complete record */
+@return parsed record end, NULL if not a complete record */
 
 byte*
 mlog_parse_nbytes(
@@ -196,7 +196,7 @@ mlog_parse_nbytes(
 	void*	page_zip);/*!< in/out: compressed page, or NULL */
 /********************************************************//**
 Parses a log record written by mlog_write_string.
-@return	parsed record end, NULL if not a complete record */
+@return parsed record end, NULL if not a complete record */
 
 byte*
 mlog_parse_string(
@@ -212,7 +212,7 @@ Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index.  Reserves space
 for further log entries.  The log entry must be closed with
 mtr_close().
-@return	buffer, NULL if log mode MTR_LOG_NONE */
+@return buffer, NULL if log mode MTR_LOG_NONE */
 
 byte*
 mlog_open_and_write_index(
@@ -228,7 +228,7 @@ mlog_open_and_write_index(
 
 /********************************************************//**
 Parses a log record written by mlog_open_and_write_index.
-@return	parsed record end, NULL if not a complete record */
+@return parsed record end, NULL if not a complete record */
 
 byte*
 mlog_parse_index(

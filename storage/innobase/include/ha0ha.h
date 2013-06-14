@@ -62,28 +62,28 @@ ha_search_and_update_if_found_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Looks for an element when we know the pointer to the data and
 updates the pointer to data if found.
-@param table		in/out: hash table
-@param fold		in: folded value of the searched data
-@param data		in: pointer to the data
-@param new_block	in: block containing new_data
-@param new_data		in: new pointer to the data */
+@param table in/out: hash table
+@param fold in: folded value of the searched data
+@param data in: pointer to the data
+@param new_block in: block containing new_data
+@param new_data in: new pointer to the data */
 # define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
 	ha_search_and_update_if_found_func(table,fold,data,new_block,new_data)
 #else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 /** Looks for an element when we know the pointer to the data and
 updates the pointer to data if found.
-@param table		in/out: hash table
-@param fold		in: folded value of the searched data
-@param data		in: pointer to the data
-@param new_block	ignored: block containing new_data
-@param new_data		in: new pointer to the data */
+@param table in/out: hash table
+@param fold in: folded value of the searched data
+@param data in: pointer to the data
+@param new_block ignored: block containing new_data
+@param new_data in: new pointer to the data */
 # define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
 	ha_search_and_update_if_found_func(table,fold,data,new_data)
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 /*************************************************************//**
 Creates a hash table with at least n array cells.  The actual number
 of cells is chosen to be a prime number slightly bigger than n.
-@return	own: created table */
+@return own: created table */
 
 hash_table_t*
 ib_create_func(
@@ -101,20 +101,20 @@ ib_create_func(
 				MEM_HEAP_FOR_PAGE_HASH */
 #ifdef UNIV_SYNC_DEBUG
 /** Creates a hash table.
-@return		own: created table
-@param n_c	in: number of array cells.  The actual number of cells is
+@return own: created table
+@param n_c in: number of array cells. The actual number of cells is
 chosen to be a slightly bigger prime number.
-@param level	in: level of the mutexes in the latching order
-@param n_m	in: number of mutexes to protect the hash table;
+@param level in: level of the mutexes in the latching order
+@param n_m in: number of mutexes to protect the hash table;
 		must be a power of 2, or 0 */
 # define ib_create(n_c,n_m,type,level) ib_create_func(n_c,level,n_m,type)
 #else /* UNIV_SYNC_DEBUG */
 /** Creates a hash table.
-@return		own: created table
-@param n_c	in: number of array cells.  The actual number of cells is
+@return own: created table
+@param n_c in: number of array cells. The actual number of cells is
 chosen to be a slightly bigger prime number.
-@param level	in: level of the mutexes in the latching order
-@param n_m	in: number of mutexes to protect the hash table;
+@param level in: level of the mutexes in the latching order
+@param n_m in: number of mutexes to protect the hash table;
 		must be a power of 2, or 0 */
 # define ib_create(n_c,n_m,type,level) ib_create_func(n_c,n_m,type)
 #endif /* UNIV_SYNC_DEBUG */
@@ -131,7 +131,7 @@ ha_clear(
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return	TRUE if succeed, FALSE if no more memory could be allocated */
+@return TRUE if succeed, FALSE if no more memory could be allocated */
 
 ibool
 ha_insert_for_fold_func(
@@ -151,11 +151,11 @@ ha_insert_for_fold_func(
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return	TRUE if succeed, FALSE if no more memory could be allocated
-@param t	in: hash table
-@param f	in: folded value of data
-@param b	in: buffer block containing the data
-@param d	in: data, must not be NULL */
+@return TRUE if succeed, FALSE if no more memory could be allocated
+@param t in: hash table
+@param f in: folded value of data
+@param b in: buffer block containing the data
+@param d in: data, must not be NULL */
 # define ha_insert_for_fold(t,f,b,d) 	do {		\
 	ha_insert_for_fold_func(t,f,b,d);		\
 	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);	\
@@ -165,11 +165,11 @@ is inserted.
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return	TRUE if succeed, FALSE if no more memory could be allocated
-@param t	in: hash table
-@param f	in: folded value of data
-@param b	ignored: buffer block containing the data
-@param d	in: data, must not be NULL */
+@return TRUE if succeed, FALSE if no more memory could be allocated
+@param t in: hash table
+@param f in: folded value of data
+@param b ignored: buffer block containing the data
+@param d in: data, must not be NULL */
 # define ha_insert_for_fold(t,f,b,d)	do {		\
 	ha_insert_for_fold_func(t,f,d);			\
 	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);	\
@@ -179,7 +179,7 @@ is inserted.
 /*********************************************************//**
 Looks for an element when we know the pointer to the data and deletes
 it from the hash table if found.
-@return	TRUE if found */
+@return TRUE if found */
 UNIV_INLINE
 ibool
 ha_search_and_delete_if_found(
@@ -201,7 +201,7 @@ ha_remove_all_nodes_to_page(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 ha_validate(

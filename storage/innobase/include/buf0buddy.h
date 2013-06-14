@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ Allocate a block.  The thread calling this function must hold
 buf_pool->mutex and must not hold buf_pool->zip_mutex or any
 block->mutex.  The buf_pool->mutex may be released and reacquired.
 This function should only be used for allocating compressed page frames.
-@return	allocated block, never NULL */
+@return allocated block, never NULL */
 UNIV_INLINE
 byte*
 buf_buddy_alloc(

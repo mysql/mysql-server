@@ -55,7 +55,7 @@ Created 10/4/1994 Heikki Tuuri
 #ifdef UNIV_DEBUG
 /*********************************************************//**
 Gets pointer to the page frame where the cursor is positioned.
-@return	page */
+@return page */
 UNIV_INLINE
 page_t*
 page_cur_get_page(
@@ -63,7 +63,7 @@ page_cur_get_page(
 	page_cur_t*	cur);	/*!< in: page cursor */
 /*********************************************************//**
 Gets pointer to the buffer block where the cursor is positioned.
-@return	page */
+@return page */
 UNIV_INLINE
 buf_block_t*
 page_cur_get_block(
@@ -71,7 +71,7 @@ page_cur_get_block(
 	page_cur_t*	cur);	/*!< in: page cursor */
 /*********************************************************//**
 Gets pointer to the page frame where the cursor is positioned.
-@return	page */
+@return page */
 UNIV_INLINE
 page_zip_des_t*
 page_cur_get_page_zip(
@@ -79,7 +79,7 @@ page_cur_get_page_zip(
 	page_cur_t*	cur);	/*!< in: page cursor */
 /*********************************************************//**
 Gets the record where the cursor is positioned.
-@return	record */
+@return record */
 UNIV_INLINE
 rec_t*
 page_cur_get_rec(
@@ -111,7 +111,7 @@ page_cur_set_after_last(
 	page_cur_t*		cur);	/*!< in: cursor */
 /*********************************************************//**
 Returns TRUE if the cursor is before first user record on page.
-@return	TRUE if at start */
+@return TRUE if at start */
 UNIV_INLINE
 ibool
 page_cur_is_before_first(
@@ -119,7 +119,7 @@ page_cur_is_before_first(
 	const page_cur_t*	cur);	/*!< in: cursor */
 /*********************************************************//**
 Returns TRUE if the cursor is after last user record.
-@return	TRUE if at end */
+@return TRUE if at end */
 UNIV_INLINE
 ibool
 page_cur_is_after_last(
@@ -161,7 +161,7 @@ if this is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return	pointer to record if succeed, NULL otherwise */
+@return pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t*
 page_cur_tuple_insert(
@@ -186,7 +186,7 @@ if this is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return	pointer to record if succeed, NULL otherwise */
+@return pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t*
 page_cur_rec_insert(
@@ -200,7 +200,7 @@ page_cur_rec_insert(
 Inserts a record next to page cursor on an uncompressed page.
 Returns pointer to inserted record if succeed, i.e., enough
 space available, NULL otherwise. The cursor stays at the same position.
-@return	pointer to record if succeed, NULL otherwise */
+@return pointer to record if succeed, NULL otherwise */
 
 rec_t*
 page_cur_insert_rec_low(
@@ -223,7 +223,7 @@ if this is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return	pointer to record if succeed, NULL otherwise */
+@return pointer to record if succeed, NULL otherwise */
 
 rec_t*
 page_cur_insert_rec_zip(
@@ -264,12 +264,12 @@ page_cur_delete_rec(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 #ifndef UNIV_HOTBACKUP
 /** Search the right position for a page cursor.
-@param[in]	block	buffer block
-@param[in]	index	index tree
-@param[in]	tuple	data tuple
-@param[in]	mode	PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
-@param[out]	cursor	page cursor
-@return	number of matched fields on the left */
+@param[in] block buffer block
+@param[in] index index tree
+@param[in] tuple data tuple
+@param[in] mode PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
+@param[out] cursor page cursor
+@return number of matched fields on the left */
 UNIV_INLINE
 ulint
 page_cur_search(
@@ -280,11 +280,11 @@ page_cur_search(
 	page_cur_t*		cursor);
 
 /** Search the right position for a page cursor.
-@param[in]	block	buffer block
-@param[in]	index	index tree
-@param[in]	tuple	data tuple
-@param[out]	cursor	page cursor
-@return	number of matched fields on the left */
+@param[in] block buffer block
+@param[in] index index tree
+@param[in] tuple data tuple
+@param[out] cursor page cursor
+@return number of matched fields on the left */
 UNIV_INLINE
 ulint
 page_cur_search(
@@ -323,7 +323,7 @@ page_cur_open_on_rnd_user_rec(
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a log record of a record insert on a page.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_cur_parse_insert_rec(
@@ -336,7 +336,7 @@ page_cur_parse_insert_rec(
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
 /**********************************************************//**
 Parses a log record of copying a record list end to a new created page.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_parse_copy_rec_list_to_created_page(
@@ -348,7 +348,7 @@ page_parse_copy_rec_list_to_created_page(
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
 /***********************************************************//**
 Parses log record of a record delete on a page.
-@return	pointer to record end or NULL */
+@return pointer to record end or NULL */
 
 byte*
 page_cur_parse_delete_rec(
@@ -361,7 +361,7 @@ page_cur_parse_delete_rec(
 /*******************************************************//**
 Removes the record from a leaf page. This function does not log
 any changes. It is used by the IMPORT tablespace functions.
-@return	true if success, i.e., the page did not become too empty */
+@return true if success, i.e., the page did not become too empty */
 
 bool
 page_delete_rec(

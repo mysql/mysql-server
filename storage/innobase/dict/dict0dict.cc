@@ -143,7 +143,7 @@ dict_index_find_cols(
 /*******************************************************************//**
 Builds the internal dictionary cache representation for a clustered
 index, containing also system fields not defined by the user.
-@return	own: the internal representation of the clustered index */
+@return own: the internal representation of the clustered index */
 static
 dict_index_t*
 dict_index_build_internal_clust(
@@ -154,7 +154,7 @@ dict_index_build_internal_clust(
 /*******************************************************************//**
 Builds the internal dictionary cache representation for a non-clustered
 index, containing also system fields not defined by the user.
-@return	own: the internal representation of the non-clustered index */
+@return own: the internal representation of the non-clustered index */
 static
 dict_index_t*
 dict_index_build_internal_non_clust(
@@ -164,7 +164,7 @@ dict_index_build_internal_non_clust(
 					a non-clustered index */
 /**********************************************************************//**
 Builds the internal dictionary cache representation for an FTS index.
-@return	own: the internal representation of the FTS index */
+@return own: the internal representation of the FTS index */
 static
 dict_index_t*
 dict_index_build_internal_fts(
@@ -257,7 +257,7 @@ dict_casedn_str(
 
 /********************************************************************//**
 Checks if the database name in two table names is the same.
-@return	TRUE if same db name */
+@return TRUE if same db name */
 
 ibool
 dict_tables_have_same_db(
@@ -278,7 +278,7 @@ dict_tables_have_same_db(
 
 /********************************************************************//**
 Return the end of table name where we have removed dbname and '/'.
-@return	table name */
+@return table name */
 
 const char*
 dict_remove_db_name(
@@ -294,7 +294,7 @@ dict_remove_db_name(
 
 /********************************************************************//**
 Get the database name length in a table name.
-@return	database name length */
+@return database name length */
 
 ulint
 dict_get_db_name_len(
@@ -610,7 +610,7 @@ dict_table_autoinc_initialize(
 
 /************************************************************************
 Get all the FTS indexes on a table.
-@return	number of FTS indexes */
+@return number of FTS indexes */
 
 ulint
 dict_table_get_all_fts_indexes(
@@ -638,7 +638,7 @@ dict_table_get_all_fts_indexes(
 /********************************************************************//**
 Reads the next autoinc value (== autoinc counter value), 0 if not yet
 initialized.
-@return	value for a new row, or 0 */
+@return value for a new row, or 0 */
 
 ib_uint64_t
 dict_table_autoinc_read(
@@ -727,7 +727,7 @@ dict_index_get_nth_col_or_prefix_pos(
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
-@return	TRUE if contains the column or its prefix */
+@return TRUE if contains the column or its prefix */
 
 ibool
 dict_index_contains_col_or_prefix(
@@ -808,7 +808,7 @@ dict_index_get_nth_field_pos(
 
 /**********************************************************************//**
 Returns a table object based on table id.
-@return	table, NULL if does not exist */
+@return table, NULL if does not exist */
 
 dict_table_t*
 dict_table_open_on_id(
@@ -852,7 +852,7 @@ dict_table_open_on_id(
 
 /********************************************************************//**
 Looks for column n position in the clustered index.
-@return	position in internal representation of the clustered index */
+@return position in internal representation of the clustered index */
 
 ulint
 dict_table_get_nth_col_pos(
@@ -867,7 +867,7 @@ dict_table_get_nth_col_pos(
 /********************************************************************//**
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns.
-@return	TRUE if the column, or its prefix, is in the clustered key */
+@return TRUE if the column, or its prefix, is in the clustered key */
 
 ibool
 dict_table_col_in_clustered_key(
@@ -966,7 +966,7 @@ Returns a table object and increment its open handle count.
 NOTE! This is a high-level function to be used mainly from outside the
 'dict' module. Inside this directory dict_table_get_low
 is usually the appropriate function.
-@return	table, NULL if does not exist */
+@return table, NULL if does not exist */
 
 dict_table_t*
 dict_table_open_on_name(
@@ -1336,7 +1336,7 @@ dict_table_move_from_lru_to_non_lru(
 
 /**********************************************************************//**
 Looks for an index with the given id given a table instance.
-@return	index or NULL */
+@return index or NULL */
 static
 dict_index_t*
 dict_table_find_index_on_id(
@@ -1364,7 +1364,7 @@ dict_table_find_index_on_id(
 Looks for an index with the given id. NOTE that we do not reserve
 the dictionary mutex: this function is for emergency purposes like
 printing info of a corrupt database page!
-@return	index or NULL if not found in cache */
+@return index or NULL if not found in cache */
 
 dict_index_t*
 dict_index_find_on_id_low(
@@ -1405,7 +1405,7 @@ dict_index_find_on_id_low(
 
 /**********************************************************************//**
 Renames a table object.
-@return	TRUE if success */
+@return TRUE if success */
 
 dberr_t
 dict_table_rename_in_cache(
@@ -1934,7 +1934,7 @@ dict_table_remove_from_cache(
 /****************************************************************//**
 If the given column name is reserved for InnoDB system columns, return
 TRUE.
-@return	TRUE if name is reserved */
+@return TRUE if name is reserved */
 
 ibool
 dict_col_name_is_reserved(
@@ -1971,7 +1971,7 @@ dict_col_name_is_reserved(
 /****************************************************************//**
 If an undo log record for this table might not fit on a single page,
 return TRUE.
-@return	TRUE if the undo log record could become too big */
+@return TRUE if the undo log record could become too big */
 static
 ibool
 dict_index_too_big_for_undo(
@@ -2107,7 +2107,7 @@ is_ord_part:
 /****************************************************************//**
 If a record of this index might not fit on a single B-tree page,
 return TRUE.
-@return	TRUE if the index record could become too big */
+@return TRUE if the index record could become too big */
 static
 ibool
 dict_index_too_big_for_tree(
@@ -2268,7 +2268,7 @@ add_field_size:
 
 /**********************************************************************//**
 Adds an index to the dictionary cache.
-@return	DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
+@return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
 
 dberr_t
 dict_index_add_to_cache(
@@ -2762,7 +2762,7 @@ dict_table_wait_for_bg_threads_to_exit(
 /*******************************************************************//**
 Builds the internal dictionary cache representation for a clustered
 index, containing also system fields not defined by the user.
-@return	own: the internal representation of the clustered index */
+@return own: the internal representation of the clustered index */
 static
 dict_index_t*
 dict_index_build_internal_clust(
@@ -2927,7 +2927,7 @@ dict_index_build_internal_clust(
 /*******************************************************************//**
 Builds the internal dictionary cache representation for a non-clustered
 index, containing also system fields not defined by the user.
-@return	own: the internal representation of the non-clustered index */
+@return own: the internal representation of the non-clustered index */
 static
 dict_index_t*
 dict_index_build_internal_non_clust(
@@ -3020,7 +3020,7 @@ dict_index_build_internal_non_clust(
 
 /***********************************************************************
 Builds the internal dictionary cache representation for an FTS index.
-@return	own: the internal representation of the FTS index */
+@return own: the internal representation of the FTS index */
 static
 dict_index_t*
 dict_index_build_internal_fts(
@@ -3070,7 +3070,7 @@ dict_index_build_internal_fts(
 
 /*********************************************************************//**
 Checks if a table is referenced by foreign keys.
-@return	TRUE if table is referenced by a foreign key */
+@return TRUE if table is referenced by a foreign key */
 
 ibool
 dict_table_is_referenced_by_foreign_key(
@@ -3184,7 +3184,7 @@ dict_foreign_remove_from_cache(
 /**********************************************************************//**
 Looks for the foreign constraint from the foreign and referenced lists
 of a table.
-@return	foreign constraint */
+@return foreign constraint */
 static
 dict_foreign_t*
 dict_foreign_find(
@@ -3226,7 +3226,7 @@ dict_foreign_find(
 Tries to find an index whose first fields are the columns in the array,
 in the same order and is not marked for deletion and is not the same
 as types_idx.
-@return	matching index, NULL if not found */
+@return matching index, NULL if not found */
 
 dict_index_t*
 dict_foreign_find_index(
@@ -3320,7 +3320,7 @@ Adds a foreign key constraint object to the dictionary cache. May free
 the object if there already is an object with the same identifier in.
 At least one of the foreign table and the referenced table must already
 be in the dictionary cache!
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 dict_foreign_add_to_cache(
@@ -3470,7 +3470,7 @@ dict_foreign_add_to_cache(
 Scans from pointer onwards. Stops if is at the start of a copy of
 'string' where characters are compared without case sensitivity, and
 only outside `` or "" quotes. Stops also at NUL.
-@return	scanned up to this */
+@return scanned up to this */
 static
 const char*
 dict_scan_to(
@@ -3561,7 +3561,7 @@ dict_accept(
 /*********************************************************************//**
 Scans an id. For the lexical definition of an 'id', see the code below.
 Strips backquotes or double quotes from around the id.
-@return	scanned to */
+@return scanned to */
 static
 const char*
 dict_scan_id(
@@ -3683,7 +3683,7 @@ convert_id:
 
 /*********************************************************************//**
 Tries to scan a column name.
-@return	scanned to */
+@return scanned to */
 static
 const char*
 dict_scan_col(
@@ -3795,7 +3795,7 @@ dict_get_referenced_table(
 }
 /*********************************************************************//**
 Scans a table name from an SQL string.
-@return	scanned to */
+@return scanned to */
 static
 const char*
 dict_scan_table_name(
@@ -3870,7 +3870,7 @@ dict_scan_table_name(
 
 /*********************************************************************//**
 Skips one id. The id is allowed to contain also '.'.
-@return	scanned to */
+@return scanned to */
 static
 const char*
 dict_skip_word(
@@ -4009,7 +4009,7 @@ end_of_string:
 Finds the highest [number] for foreign key constraints of the table. Looks
 only at the >= 4.0.18-format id's, which are of the form
 databasename/tablename_ibfk_[number].
-@return	highest number, 0 if table has no new format foreign key constraints */
+@return highest number, 0 if table has no new format foreign key constraints */
 
 ulint
 dict_table_get_highest_foreign_id(
@@ -4087,7 +4087,7 @@ key constraints declared in the string. This function should be called after
 the indexes for a table have been created. Each foreign key constraint must
 be accompanied with indexes in both participating tables. The indexes are
 allowed to contain more fields than mentioned in the constraint.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 static
 dberr_t
 dict_create_foreign_constraints_low(
@@ -4668,7 +4668,7 @@ try_find_index:
 }
 /**************************************************************************
 Determines whether a string starts with the specified keyword.
-@return	TRUE if str starts with keyword */
+@return TRUE if str starts with keyword */
 
 ibool
 dict_str_starts_with_keyword(
@@ -4690,7 +4690,7 @@ key constraints declared in the string. This function should be called after
 the indexes for a table have been created. Each foreign key constraint must
 be accompanied with indexes in both participating tables. The indexes are
 allowed to contain more fields than mentioned in the constraint.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 dict_create_foreign_constraints(
@@ -4885,7 +4885,7 @@ syntax_error:
 /**********************************************************************//**
 Returns an index object if it is found in the dictionary cache.
 Assumes that dict_sys->mutex is already being held.
-@return	index, NULL if not found */
+@return index, NULL if not found */
 
 dict_index_t*
 dict_index_get_if_in_cache_low(
@@ -4900,7 +4900,7 @@ dict_index_get_if_in_cache_low(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Returns an index object if it is found in the dictionary cache.
-@return	index, NULL if not found */
+@return index, NULL if not found */
 
 dict_index_t*
 dict_index_get_if_in_cache(
@@ -4927,7 +4927,7 @@ dict_index_get_if_in_cache(
 /**********************************************************************//**
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dict_index_check_search_tuple(
@@ -4944,7 +4944,7 @@ dict_index_check_search_tuple(
 
 /**********************************************************************//**
 Builds a node pointer out of a physical record and a page number.
-@return	own: node pointer */
+@return own: node pointer */
 
 dtuple_t*
 dict_index_build_node_ptr(
@@ -5014,7 +5014,7 @@ dict_index_build_node_ptr(
 /**********************************************************************//**
 Copies an initial segment of a physical record, long enough to specify an
 index entry uniquely.
-@return	pointer to the prefix record */
+@return pointer to the prefix record */
 
 rec_t*
 dict_index_copy_rec_order_prefix(
@@ -5044,7 +5044,7 @@ dict_index_copy_rec_order_prefix(
 
 /**********************************************************************//**
 Builds a typed data tuple out of a physical record.
-@return	own: data tuple */
+@return own: data tuple */
 
 dtuple_t*
 dict_index_build_data_tuple(
@@ -5770,7 +5770,7 @@ dict_ind_free(void)
 
 /**********************************************************************//**
 Get index by name
-@return	index, NULL if does not exist */
+@return index, NULL if does not exist */
 
 dict_index_t*
 dict_table_get_index_on_name(
@@ -5873,7 +5873,7 @@ dict_foreign_replace_index(
 /**********************************************************************//**
 In case there is more than one index with the same name return the index
 with the min(id).
-@return	index, NULL if does not exist */
+@return index, NULL if does not exist */
 
 dict_index_t*
 dict_table_get_index_on_name_and_min_id(
@@ -6286,7 +6286,7 @@ dict_close(void)
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
-@return TRUE if valid  */
+@return TRUE if valid */
 static
 ibool
 dict_lru_validate(void)

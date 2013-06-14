@@ -541,13 +541,7 @@ int main() {
 # Test for endianess
 #
 INCLUDE(TestBigEndian)
-IF(APPLE)
-  # Cannot run endian test on universal PPC/Intel binaries 
-  # would return inconsistent result.
-  # config.h.cmake includes a special #ifdef for Darwin
-ELSE()
-  TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
-ENDIF()
+TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 
 #
 # Tests for type sizes (and presence)
@@ -575,12 +569,9 @@ SET(HAVE_VOIDP 1)
 SET(HAVE_CHARP 1)
 SET(HAVE_LONG 1)
 
-IF(NOT APPLE)
 MY_CHECK_TYPE_SIZE("void *" VOIDP)
 MY_CHECK_TYPE_SIZE("char *" CHARP)
 MY_CHECK_TYPE_SIZE(long LONG)
-ENDIF()
-
 MY_CHECK_TYPE_SIZE(char CHAR)
 MY_CHECK_TYPE_SIZE(short SHORT)
 MY_CHECK_TYPE_SIZE(int INT)

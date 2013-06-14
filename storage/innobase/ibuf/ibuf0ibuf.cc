@@ -374,7 +374,7 @@ ibuf_btr_pcur_commit_specify_mtr(
 
 /******************************************************************//**
 Gets the ibuf header page and x-latches it.
-@return	insert buffer header page */
+@return insert buffer header page */
 static
 page_t*
 ibuf_header_page_get(
@@ -394,7 +394,7 @@ ibuf_header_page_get(
 
 /******************************************************************//**
 Gets the root page and x-latches it.
-@return	insert buffer tree root page */
+@return insert buffer tree root page */
 static
 page_t*
 ibuf_tree_root_get(
@@ -652,7 +652,7 @@ ibuf_bitmap_page_init(
 
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 ibuf_parse_bitmap_init(
@@ -673,30 +673,30 @@ ibuf_parse_bitmap_init(
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_DEBUG
 /** Gets the desired bits for a given page from a bitmap page.
-@param page	in: bitmap page
-@param offset	in: page whose bits to get
-@param zs	in: compressed page size in bytes; 0 for uncompressed pages
-@param bit	in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
-@param mtr	in: mini-transaction holding an x-latch on the bitmap page
-@return	value of bits */
+@param page in: bitmap page
+@param offset in: page whose bits to get
+@param zs in: compressed page size in bytes; 0 for uncompressed pages
+@param bit in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
+@param mtr in: mini-transaction holding an x-latch on the bitmap page
+@return value of bits */
 #  define ibuf_bitmap_page_get_bits(page, offset, zs, bit, mtr)	\
 	ibuf_bitmap_page_get_bits_low(page, offset, zs,	\
 				      MTR_MEMO_PAGE_X_FIX, mtr, bit)
 # else /* UNIV_DEBUG */
 /** Gets the desired bits for a given page from a bitmap page.
-@param page	in: bitmap page
-@param offset	in: page whose bits to get
-@param zs	in: compressed page size in bytes; 0 for uncompressed pages
-@param bit	in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
-@param mtr	in: mini-transaction holding an x-latch on the bitmap page
-@return	value of bits */
+@param page in: bitmap page
+@param offset in: page whose bits to get
+@param zs in: compressed page size in bytes; 0 for uncompressed pages
+@param bit in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
+@param mtr in: mini-transaction holding an x-latch on the bitmap page
+@return value of bits */
 #  define ibuf_bitmap_page_get_bits(page, offset, zs, bit, mtr)		\
 	ibuf_bitmap_page_get_bits_low(page, offset, zs, bit)
 # endif /* UNIV_DEBUG */
 
 /********************************************************************//**
 Gets the desired bits for a given page from a bitmap page.
-@return	value of bits */
+@return value of bits */
 UNIV_INLINE
 ulint
 ibuf_bitmap_page_get_bits_low(
@@ -814,7 +814,7 @@ ibuf_bitmap_page_set_bits(
 
 /********************************************************************//**
 Calculates the bitmap page number for a given page number.
-@return	the bitmap page number where the file page is mapped */
+@return the bitmap page number where the file page is mapped */
 UNIV_INLINE
 ulint
 ibuf_bitmap_page_no_calc(
@@ -869,10 +869,10 @@ stored.
 @return bitmap page where the file page is mapped, that is, the bitmap
 page containing the descriptor bits for the file page; the bitmap page
 is x-latched
-@param space	in: space id of the file page
-@param page_no	in: page number of the file page
-@param zip_size	in: compressed page size in bytes; 0 for uncompressed pages
-@param mtr	in: mini-transaction */
+@param space in: space id of the file page
+@param page_no in: page number of the file page
+@param zip_size in: compressed page size in bytes; 0 for uncompressed pages
+@param mtr in: mini-transaction */
 #define ibuf_bitmap_get_map_page(space, page_no, zip_size, mtr)		\
 	ibuf_bitmap_get_map_page_func(space, page_no, zip_size,		\
 				      __FILE__, __LINE__, mtr)
@@ -1136,7 +1136,7 @@ ibuf_update_free_bits_for_two_pages_low(
 
 /**********************************************************************//**
 Returns TRUE if the page is one of the fixed address ibuf pages.
-@return	TRUE if a fixed address ibuf i/o page */
+@return TRUE if a fixed address ibuf i/o page */
 UNIV_INLINE
 ibool
 ibuf_fixed_addr_page(
@@ -1153,7 +1153,7 @@ ibuf_fixed_addr_page(
 /***********************************************************************//**
 Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==TRUE.
-@return	TRUE if level 2 or level 3 page */
+@return TRUE if level 2 or level 3 page */
 
 ibool
 ibuf_page_low(
@@ -1247,7 +1247,7 @@ ibuf_page_low(
 
 /********************************************************************//**
 Returns the page number field of an ibuf record.
-@return	page number */
+@return page number */
 static
 ulint
 ibuf_rec_get_page_no_func(
@@ -1285,7 +1285,7 @@ ibuf_rec_get_page_no_func(
 /********************************************************************//**
 Returns the space id field of an ibuf record. For < 4.1.x format records
 returns 0.
-@return	space id */
+@return space id */
 static
 ulint
 ibuf_rec_get_space_func(
@@ -1408,7 +1408,7 @@ ibuf_rec_get_info_func(
 
 /****************************************************************//**
 Returns the operation type field of an ibuf record.
-@return	operation type */
+@return operation type */
 static
 ibuf_op_t
 ibuf_rec_get_op_type_func(
@@ -1524,7 +1524,7 @@ ibuf_print_ops(
 
 /********************************************************************//**
 Creates a dummy index for inserting a record to a non-clustered index.
-@return	dummy index */
+@return dummy index */
 static
 dict_index_t*
 ibuf_dummy_index_create(
@@ -1682,7 +1682,7 @@ ibuf_build_entry_from_ibuf_rec_func(
 
 /******************************************************************//**
 Get the data size.
-@return	size of fields */
+@return size of fields */
 UNIV_INLINE
 ulint
 ibuf_rec_get_size(
@@ -1806,7 +1806,7 @@ non-clustered index.
 NOTE that the original entry must be kept because we copy pointers to
 its fields.
 
-@return	own: entry to insert into an ibuf index tree */
+@return own: entry to insert into an ibuf index tree */
 static
 dtuple_t*
 ibuf_entry_build(
@@ -1968,7 +1968,7 @@ ibuf_entry_build(
 /*********************************************************************//**
 Builds a search tuple used to search buffered inserts for an index page.
 This is for >= 4.1.x format records.
-@return	own: search tuple */
+@return own: search tuple */
 static
 dtuple_t*
 ibuf_search_tuple_build(
@@ -2021,7 +2021,7 @@ ibuf_search_tuple_build(
 /*********************************************************************//**
 Checks if there are enough pages in the free list of the ibuf tree that we
 dare to start a pessimistic insert to the insert buffer.
-@return	TRUE if enough free pages in list */
+@return TRUE if enough free pages in list */
 UNIV_INLINE
 ibool
 ibuf_data_enough_free_for_insert(void)
@@ -2041,7 +2041,7 @@ ibuf_data_enough_free_for_insert(void)
 /*********************************************************************//**
 Checks if there are enough pages in the free list of the ibuf tree that we
 should remove them and free to the file space management.
-@return	TRUE if enough free pages in list */
+@return TRUE if enough free pages in list */
 UNIV_INLINE
 ibool
 ibuf_data_too_much_free(void)
@@ -2055,7 +2055,7 @@ ibuf_data_too_much_free(void)
 /*********************************************************************//**
 Allocates a new page from the ibuf file segment and adds it to the free
 list.
-@return	TRUE on success, FALSE if no space left */
+@return TRUE on success, FALSE if no space left */
 static
 ibool
 ibuf_add_free_page(void)
@@ -2499,7 +2499,7 @@ ibuf_get_merge_page_nos_func(
 
 /*******************************************************************//**
 Get the matching records for space id.
-@return	current rec or NULL */
+@return current rec or NULL */
 static	__attribute__((nonnull, warn_unused_result))
 const rec_t*
 ibuf_get_user_rec(
@@ -2898,7 +2898,7 @@ ibuf_contract_after_insert(
 
 /*********************************************************************//**
 Determine if an insert buffer record has been encountered already.
-@return	TRUE if a new record, FALSE if possible duplicate */
+@return TRUE if a new record, FALSE if possible duplicate */
 static
 ibool
 ibuf_get_volume_buffered_hash(
@@ -3395,7 +3395,7 @@ ibuf_get_entry_counter_low_func(
 /****************************************************************//**
 Calculate the counter field for an entry based on the current
 last record in ibuf for (space, page_no).
-@return	the counter field, or ULINT_UNDEFINED
+@return the counter field, or ULINT_UNDEFINED
 if we should abort this insertion to ibuf */
 static
 ulint
@@ -3444,7 +3444,7 @@ ibuf_get_entry_counter_func(
 /*********************************************************************//**
 Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible.
-@return	DB_SUCCESS, DB_STRONG_FAIL or other error */
+@return DB_SUCCESS, DB_STRONG_FAIL or other error */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 ibuf_insert_low(
@@ -3787,7 +3787,7 @@ func_exit:
 Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible. Does not do it if the index
 is clustered or unique.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 ibuf_insert(
@@ -3936,7 +3936,7 @@ skip_watch:
 /********************************************************************//**
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer. 
-@return	newly inserted record */
+@return newly inserted record */
 static __attribute__((nonnull))
 rec_t*
 ibuf_insert_to_index_page_low(
@@ -4348,7 +4348,7 @@ ibuf_delete(
 
 /*********************************************************************//**
 Restores insert buffer tree cursor position
-@return	TRUE if the position was restored; FALSE if not */
+@return TRUE if the position was restored; FALSE if not */
 static __attribute__((nonnull))
 ibool
 ibuf_restore_pos(
@@ -4410,7 +4410,7 @@ ibuf_restore_pos(
 Deletes from ibuf the record on which pcur is positioned. If we have to
 resort to a pessimistic delete, this function commits mtr and closes
 the cursor.
-@return	TRUE if mtr was committed and pcur closed in this operation */
+@return TRUE if mtr was committed and pcur closed in this operation */
 static __attribute__((warn_unused_result))
 ibool
 ibuf_delete_rec(
@@ -5040,7 +5040,7 @@ leave_loop:
 
 /******************************************************************//**
 Looks if the insert buffer is empty.
-@return	true if empty */
+@return true if empty */
 
 bool
 ibuf_is_empty(void)

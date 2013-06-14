@@ -77,7 +77,7 @@ lock_queue_iterator_reset(
 Gets the previous lock in the lock queue, returns NULL if there are no
 more locks (i.e. the current lock is the first one). The iterator is
 receded (if not-NULL is returned).
-@return	previous lock or NULL */
+@return previous lock or NULL */
 
 const lock_t*
 lock_queue_iterator_get_prev(
