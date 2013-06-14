@@ -108,8 +108,8 @@ test.t1	check	Error	Incorrect information in file: './test/t1.frm'
 test.t1	check	error	Corrupt
 SELECT * FROM t1;
 ERROR HY000: Failed to read from the .par file
-# Note that it is currently impossible to drop a partitioned table
-# without the .par file
+# Note that we will remove the frm file when we detect that
+# .par file has been deleted.
 DROP TABLE t1;
 ERROR 42S02: Unknown table 'test.t1'
 #
