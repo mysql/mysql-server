@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -579,8 +579,8 @@ public:
   /// Trigger characteristics.
   st_trg_chistics m_trg_chistics;
 
-  /// The Table_triggers_list instance, where this trigger belongs to.
-  class Table_triggers_list *m_trg_list;
+  /// The Table_trigger_dispatcher instance, where this trigger belongs to.
+  class Table_trigger_dispatcher *m_trg_list;
 
 public:
   static void *operator new(size_t size) throw ();

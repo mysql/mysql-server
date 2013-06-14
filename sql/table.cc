@@ -5317,7 +5317,7 @@ void TABLE::mark_columns_needed_for_delete()
     
     Unlike other similar methods, it doesn't mark fields used by triggers,
     that is the responsibility of the caller to do, by using
-    Table_triggers_list::mark_used_fields(TRG_EVENT_UPDATE)!
+    Table_trigger_dispatcher::mark_used_fields(TRG_EVENT_UPDATE)!
 */
 
 void TABLE::mark_columns_needed_for_update()
