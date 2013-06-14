@@ -5118,27 +5118,29 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
-  adjust_related_options();
+  {
+    ulong requested_open_files;
+    adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  if (ho_error == 0)
-  {
-    if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
+    if (ho_error == 0)
     {
-      /* Add sizing hints from the server sizing parameters. */
-      pfs_param.m_hints.m_table_definition_cache= table_def_size;
-      pfs_param.m_hints.m_table_open_cache= table_cache_size;
-      pfs_param.m_hints.m_max_connections= max_connections;
-      pfs_param.m_hints.m_open_files_limit= open_files_limit;
-      PSI_hook= initialize_performance_schema(&pfs_param);
-      if (PSI_hook == NULL)
+      if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
       {
-        pfs_param.m_enabled= false;
-        buffered_logs.buffer(WARNING_LEVEL,
-                             "Performance schema disabled (reason: init failed).");
+        /* Add sizing hints from the server sizing parameters. */
+        pfs_param.m_hints.m_table_definition_cache= table_def_size;
+        pfs_param.m_hints.m_table_open_cache= table_cache_size;
+        pfs_param.m_hints.m_max_connections= max_connections;
+	pfs_param.m_hints.m_open_files_limit= requested_open_files;
+        PSI_hook= initialize_performance_schema(&pfs_param);
+        if (PSI_hook == NULL)
+        {
+          pfs_param.m_enabled= false;
+          buffered_logs.buffer(WARNING_LEVEL,
+                               "Performance schema disabled (reason: init failed).");
+        }
       }
     }
-  }
 #else
   /*
     Other provider of the instrumentation interface should
@@ -5150,6 +5152,7 @@ int mysqld_main(int argc, char **argv)
     these two defines are kept separate.
   */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+  }
 
 #ifdef HAVE_PSI_INTERFACE
   /*
@@ -6720,7 +6723,7 @@ int handle_early_options()
   - @c table_cache_size,
   - the platform max open file limit.
 */
-void adjust_open_files_limit()
+void adjust_open_files_limit(ulong *requested_open_files)
 {
   ulong limit_1;
   ulong limit_2;
@@ -6743,11 +6746,8 @@ void adjust_open_files_limit()
 
   request_open_files= max<ulong>(max<ulong>(limit_1, limit_2), limit_3);
 
+  /* Notice: my_set_max_open_files() may return more than requested. */
   effective_open_files= my_set_max_open_files(request_open_files);
-
-  /* Warning: my_set_max_open_files() may return more than requested. */
-  if (effective_open_files > request_open_files)
-    effective_open_files= request_open_files;
 
   if (effective_open_files < request_open_files)
   {
@@ -6771,13 +6771,15 @@ void adjust_open_files_limit()
   }
 
   open_files_limit= effective_open_files;
+  if (requested_open_files)
+    *requested_open_files= min<ulong>(effective_open_files, request_open_files);
 }
 
-void adjust_max_connections()
+void adjust_max_connections(ulong requested_open_files)
 {
   ulong limit;
 
-  limit= open_files_limit - 10 - TABLE_OPEN_CACHE_MIN * 2;
+  limit= requested_open_files - 10 - TABLE_OPEN_CACHE_MIN * 2;
 
   if (limit < max_connections)
   {
@@ -6792,11 +6794,11 @@ void adjust_max_connections()
   }
 }
 
-void adjust_table_cache_size()
+void adjust_table_cache_size(ulong requested_open_files)
 {
   ulong limit;
 
-  limit= max<ulong>((open_files_limit - 10 - max_connections) / 2,
+  limit= max<ulong>((requested_open_files - 10 - max_connections) / 2,
                     TABLE_OPEN_CACHE_MIN);
 
   if (limit < table_cache_size)
@@ -6828,16 +6830,16 @@ void adjust_table_def_size()
     table_def_size= default_value;
 }
 
-void adjust_related_options()
+void adjust_related_options(ulong *requested_open_files)
 {
   /* In bootstrap, disable grant tables (we are about to create them) */
   if (opt_bootstrap)
     opt_noacl= 1;
 
   /* The order is critical here, because of dependencies. */
-  adjust_open_files_limit();
-  adjust_max_connections();
-  adjust_table_cache_size();
+  adjust_open_files_limit(requested_open_files);
+  adjust_max_connections(*requested_open_files);
+  adjust_table_cache_size(*requested_open_files);
   adjust_table_def_size();
 }
 
