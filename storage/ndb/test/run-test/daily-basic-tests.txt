@@ -1975,3 +1975,7 @@ max-time : 300
 cmd: testFK
 args: -n CascadeError T1
 
+max-time : 600
+cmd: testNodeRestart
+args: -n Bug16007980 T1
+
