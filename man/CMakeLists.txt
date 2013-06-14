@@ -25,7 +25,8 @@ SET(MAN1_SERVER innochecksum.1 my_print_defaults.1 myisam_ftdump.1 myisamchk.1
 SET(MAN8_SERVER mysqld.8 mysqlmanager.8)
 SET(MAN1_CLIENT msql2mysql.1 mysql.1 mysql_find_rows.1 mysql_waitpid.1
 		mysqlaccess.1 mysqladmin.1 mysqlbinlog.1 mysqlcheck.1
-		mysqldump.1 mysqlimport.1 mysqlshow.1 mysqlslap.1)
+		mysqldump.1 mysqlimport.1 mysqlshow.1 mysqlslap.1
+                mysql_plugin.1)
 SET(MAN1_DEVEL mysql_config.1)
 SET(MAN1_TEST mysql-stress-test.pl.1 mysql-test-run.pl.1 mysql_client_test.1
               mysqltest_embedded.1 mysql_client_test_embedded.1)
