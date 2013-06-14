@@ -64,7 +64,7 @@ void test_1(const char *in, const char *exp, enum_explain_filename_mode mode)
 int main()
 {
   setup();
-  plan(NO_PLAN);
+  plan(22);
 
   test_1("test/t1.ibd",
          "Database \"test\", Table \"t1.ibd\"",
