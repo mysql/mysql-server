@@ -30,11 +30,11 @@ class Trigger_creation_ctx : public Stored_program_creation_ctx,
 {
 public:
   static Trigger_creation_ctx *create(THD *thd,
-                                      const char *db_name,
-                                      const char *table_name,
-                                      const LEX_STRING *client_cs_name,
-                                      const LEX_STRING *connection_cl_name,
-                                      const LEX_STRING *db_cl_name);
+                                      const LEX_STRING &db_name,
+                                      const LEX_STRING &table_name,
+                                      const LEX_STRING &client_cs_name,
+                                      const LEX_STRING &connection_cl_name,
+                                      const LEX_STRING &db_cl_name);
 
 public:
   virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)

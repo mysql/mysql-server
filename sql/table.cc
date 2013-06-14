@@ -23,7 +23,7 @@
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
                                                 // primary_key_name
-#include "sql_trigger.h"
+#include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
 #include "sql_parse.h"                          // free_items
 #include "strfunc.h"                            // unhex_type2
 #include "sql_partition.h"       // mysql_unpack_partition,
@@ -5259,7 +5259,7 @@ void TABLE::mark_columns_needed_for_delete()
   mark_columns_per_binlog_row_image();
 
   if (triggers)
-    triggers->mark_fields_used(TRG_EVENT_DELETE);
+    triggers->mark_fields(TRG_EVENT_DELETE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     Field **reg_field;
@@ -5679,7 +5679,7 @@ void TABLE::mark_columns_needed_for_insert()
       row replacement or update write_record() will mark all table
       fields as used.
     */
-    triggers->mark_fields_used(TRG_EVENT_INSERT);
+    triggers->mark_fields(TRG_EVENT_INSERT);
   }
   if (found_next_number_field)
     mark_auto_increment_column();

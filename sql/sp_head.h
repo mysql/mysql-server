@@ -615,6 +615,15 @@ public:
   /// Set the statement-definition (body-definition) end position.
   void set_body_end(THD *thd);
 
+  bool setup_trigger_fields(THD *thd,
+                            Table_trigger_field_support *tfs,
+                            GRANT_INFO *subject_table_grant,
+                            bool need_fix_fields);
+
+  void mark_used_trigger_fields(TABLE *subject_table);
+
+  bool has_updated_trigger_fields(const MY_BITMAP *used_fields) const;
+
   /**
     Execute trigger stored program.
 

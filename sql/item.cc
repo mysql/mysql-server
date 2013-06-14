@@ -24,7 +24,6 @@
 #include "sp_rcontext.h"
 #include "sp_head.h"                  // sp_prepare_func_item
 #include "sp.h"                       // sp_map_item_type
-#include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"                           // append_identifier
 #include "sql_view.h"                           // VIEW_ANY_SQL
@@ -8140,33 +8139,32 @@ void Item_insert_value::print(String *str, enum_query_type query_type)
 
   @param thd     current thread context
   @param table   table of trigger (and where we looking for fields)
-  @param table_triggers     Table_trigger_dispatcher instance. Do not use
+  @param table_triggers     Table_trigger_field_support instance. Do not use
                             TABLE::triggers as it might be not initialized at
                             the moment.
   @param table_grant_info   GRANT_INFO of the subject table
 
   @note
-    This function does almost the same as fix_fields() for Item_field
-    but is invoked right after trigger definition parsing. Since at
-    this stage we can't say exactly what Field object (corresponding
-    to TABLE::record[0] or TABLE::record[1]) should be bound to this
-    Item, we only find out index of the Field and then select concrete
-    Field object in fix_fields() (by that time Table_trigger_dispatcher::old_field/
-    new_field should point to proper array of Fields).
-    It also binds Item_trigger_field to Table_trigger_dispatcher object for
-    table of trigger which uses this item.
+    This function does almost the same as fix_fields() for Item_field but is
+    invoked right after trigger definition parsing. Since at this stage we can't
+    say exactly what Field object (corresponding to TABLE::record[0] or
+    TABLE::record[1]) should be bound to this Item, we only find out index of
+    the Field and then select concrete Field object in fix_fields() (by that
+    time Table_trigger_dispatcher::old_field/ new_field should point to proper
+    array of Fields).  It also binds Item_trigger_field to
+    Table_trigger_field_support object for table of trigger which uses this
+    item.
 */
 
 void Item_trigger_field::setup_field(THD *thd,
-                                     TABLE *table,
-                                     Table_trigger_dispatcher *table_triggers,
+                                     Table_trigger_field_support *table_triggers,
                                      GRANT_INFO *table_grant_info)
 {
   /*
     It is too early to mark fields used here, because before execution
     of statement that will invoke trigger other statements may use same
     TABLE object, so all such mark-up will be wiped out.
-    So instead we do it in Table_trigger_dispatcher::mark_fields_used()
+    So instead we do it in Table_trigger_dispatcher::mark_fields()
     method which is called during execution of these statements.
   */
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
@@ -8175,8 +8173,9 @@ void Item_trigger_field::setup_field(THD *thd,
     Try to find field by its name and if it will be found
     set field_idx properly.
   */
-  (void)find_field_in_table(thd, table, field_name, (uint) strlen(field_name),
-                            0, &field_idx);
+  (void) find_field_in_table(thd, table_triggers->get_subject_table(),
+                             field_name, (uint) strlen(field_name),
+                             0, &field_idx);
   thd->mark_used_columns= save_mark_used_columns;
   triggers= table_triggers;
   table_grants= table_grant_info;
@@ -8186,7 +8185,7 @@ void Item_trigger_field::setup_field(THD *thd,
 bool Item_trigger_field::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == TRIGGER_FIELD_ITEM &&
-         row_version == ((Item_trigger_field *)item)->row_version &&
+         trigger_var_type == ((Item_trigger_field *)item)->trigger_var_type &&
          !my_strcasecmp(system_charset_info, field_name,
                         ((Item_trigger_field *)item)->field_name);
 }
@@ -8253,29 +8252,31 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
     {
       table_grants->want_privilege= want_privilege;
 
-      if (check_grant_column(thd, table_grants, triggers->trigger_table->s->db.str,
-                             triggers->trigger_table->s->table_name.str, field_name,
+      if (check_grant_column(thd, table_grants,
+                             triggers->get_subject_table()->s->db.str,
+                             triggers->get_subject_table()->s->table_name.str,
+                             field_name,
                              strlen(field_name), thd->security_ctx))
         return TRUE;
     }
 #endif // NO_EMBEDDED_ACCESS_CHECKS
 
-    field= (row_version == OLD_ROW) ? triggers->m_old_field[field_idx] :
-                                      triggers->m_new_field[field_idx];
+    field= triggers->get_trigger_variable_field(trigger_var_type, field_idx);
+
     set_field(field);
     fixed= 1;
     return FALSE;
   }
 
   my_error(ER_BAD_FIELD_ERROR, MYF(0), field_name,
-           (row_version == NEW_ROW) ? "NEW" : "OLD");
+           (trigger_var_type == TRG_NEW_ROW) ? "NEW" : "OLD");
   return TRUE;
 }
 
 
 void Item_trigger_field::print(String *str, enum_query_type query_type)
 {
-  str->append((row_version == NEW_ROW) ? "NEW" : "OLD", 3);
+  str->append((trigger_var_type == TRG_NEW_ROW) ? "NEW" : "OLD", 3);
   str->append('.');
   str->append(field_name);
 }

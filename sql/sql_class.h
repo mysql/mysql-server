@@ -3934,17 +3934,22 @@ make_lex_string_root(MEM_ROOT *mem_root,
                      LEX_STRING *lex_str, const char* str, uint length,
                      bool allocate_lex_string);
 
-inline LEX_STRING *lex_string_dup(MEM_ROOT *root,
-                                  const LEX_STRING *original)
-{
-  return make_lex_string_root(root, NULL, original->str, original->length,
-                              true);
-}
-
 inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
                                    const char *src, uint src_len)
 {
   return make_lex_string_root(root, dst, src, src_len, false);
+}
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const LEX_STRING &src)
+{
+  return make_lex_string_root(root, dst, src.str, src.length, false);
+}
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const char *src)
+{
+  return make_lex_string_root(root, dst, src, strlen(src), false);
 }
 
 /*
@@ -5058,19 +5063,6 @@ inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
   return thd->lex->current_select->add_group_to_list(thd, item, asc);
-}
-
-/*************************************************************************/
-
-template <class T>
-inline T *alloc_type(MEM_ROOT *m)
-{
-  return (T *) alloc_root(m, sizeof (T));
-}
-
-inline LEX_STRING *alloc_lex_string(MEM_ROOT *m)
-{
-  return alloc_type<LEX_STRING>(m);
 }
 
 /*************************************************************************/

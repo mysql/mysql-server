@@ -1354,6 +1354,8 @@ typedef struct st_field_info
   /**
      For string-type columns, this is the maximum number of
      characters. Otherwise, it is the 'display-length' for the column.
+     For the data type MYSQL_TYPE_DATETIME this field specifies the
+     number of digits in the fractional part of time value.
   */
   uint field_length;
   /**
