@@ -2221,7 +2221,7 @@ int
 runPnr(NDBT_Context* ctx, NDBT_Step* step)
 {
   int loops = ctx->getNumLoops();
-  NdbRestarter res;
+  NdbRestarter res(0, &ctx->m_cluster_connection);
   bool lcp = ctx->getProperty("LCP", (unsigned)0);
   
   int nodegroups[MAX_NDB_NODES];
@@ -2694,7 +2694,7 @@ runNF_commit(NDBT_Context* ctx, NDBT_Step* step)
 {
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  NdbRestarter restarter;
+  NdbRestarter restarter(0, &ctx->m_cluster_connection);
   if (restarter.getNumDbNodes() < 2)
   {
     ctx->stopTest();
