@@ -260,25 +260,9 @@
 
 #cmakedefine HAVE_VALGRIND
 
-/* Types we may use */
-#ifdef __APPLE__
-  /*
-    Special handling required for OSX to support universal binaries that 
-    mix 32 and 64 bit architectures.
-  */
-  #if(__LP64__)
-    #define SIZEOF_LONG 8
-  #else
-    #define SIZEOF_LONG 4
-  #endif
-  #define SIZEOF_VOIDP   SIZEOF_LONG
-  #define SIZEOF_CHARP   SIZEOF_LONG
-#else
-/* No indentation, to fetch the lines from verification scripts */
 #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
 #cmakedefine SIZEOF_VOIDP  @SIZEOF_VOIDP@
 #cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
-#endif
 
 #cmakedefine SIZEOF_CHAR @SIZEOF_CHAR@
 #define HAVE_CHAR 1
@@ -314,13 +298,7 @@
 #cmakedefine VOID_SIGHANDLER 1
 #define STRUCT_RLIMIT struct rlimit
 
-#ifdef __APPLE__
-  #if __BIG_ENDIAN
-    #define WORDS_BIGENDIAN 1
-  #endif
-#else
 #cmakedefine WORDS_BIGENDIAN 1 
-#endif
 
 /*
   Define to `__inline__' or `__inline' if that's what the C compiler calls it.
