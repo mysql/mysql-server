@@ -839,6 +839,34 @@ bool acl_check_host(const char *host, const char *ip)
 
 
 /**
+  When authentication is attempted using an unknown username a dummy user
+  account with no authentication capabilites is assigned to the connection.
+  This is done increase the cost of enumerating user accounts based on
+  authentication protocol.
+*/
+
+ACL_USER *decoy_user(const LEX_STRING &username,
+                      MEM_ROOT *mem)
+{
+  ACL_USER *user= (ACL_USER *) alloc_root(mem, sizeof(ACL_USER));
+  user->can_authenticate= false;
+  user->user= strdup_root(mem, username.str);
+  user->user[username.length]= '\0';
+  user->auth_string= empty_lex_str;
+  user->ssl_cipher= empty_c_string;
+  user->x509_issuer= empty_c_string;
+  user->x509_subject= empty_c_string;
+
+  /*
+    For now the common default account is used. Improvements might involve
+    mapping a consistent hash of a username to a range of plugins.
+  */
+  user->plugin= default_auth_plugin_name;
+  return user;
+}
+
+
+/**
    Finds acl entry in user database for authentication purposes.
    
    Finds a user and copies it into mpvio. Reports an authentication
@@ -883,8 +911,14 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
 
   if (!mpvio->acl_user)
   {
-    login_failed_error(mpvio, mpvio->auth_info.password_used);
-    DBUG_RETURN (1);
+    /*
+      Pretend the user exists; let the plugin decide how to handle
+      bad credentials.
+    */
+    LEX_STRING usr= { mpvio->auth_info.user_name,
+                      mpvio->auth_info.user_name_length };
+    mpvio->acl_user= decoy_user(usr, mpvio->mem_root);
+    mpvio->acl_user_plugin= mpvio->acl_user->plugin;
   }
 
   if (my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
@@ -1179,7 +1213,9 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (find_mpvio_user(mpvio))
+  {
     DBUG_RETURN(1);
+  }
 
   char *client_plugin;
   if (mpvio->client_capabilities & CLIENT_PLUGIN_AUTH)
@@ -2148,6 +2184,8 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
 
     if (parse_com_change_user_packet(&mpvio, com_change_user_pkt_len))
     {
+      if (!thd->is_error())
+        login_failed_error(&mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
       DBUG_RETURN(1);
     }
@@ -2222,6 +2260,11 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
                                      mpvio.auth_info.user_name,
                                      mpvio.auth_info.host_or_ip,
                                      mpvio.db.str ? mpvio.db.str : (char*) "");
+  }
+
+  if (!mpvio.can_authenticate() && res == CR_OK)
+  {
+    res= CR_ERROR;
   }
 
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
@@ -2516,6 +2559,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   DBUG_EXECUTE_IF("native_password_bad_reply",
                   {
+                    /* This should cause a HANDSHAKE ERROR */
                     pkt_len= 12;
                   }
                   );
