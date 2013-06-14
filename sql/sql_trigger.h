@@ -19,35 +19,43 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
+/**
+  @file
+
+  @brief
+  This file contains declarations of global public functions which are used
+  directly from parser/executioner to perform basic operations on triggers
+  (CREATE TRIGGER, DROP TRIGGER, ALTER TABLE, DROP TABLE, ...)
+*/
+
+///////////////////////////////////////////////////////////////////////////
+
 #include "m_string.h"
 
-class sp_name;
 class THD;
 
 struct TABLE_LIST;
 
 ///////////////////////////////////////////////////////////////////////////
 
-extern const char * const TRG_EXT;
-extern const char * const TRN_EXT;
-
-///////////////////////////////////////////////////////////////////////////
-
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 
 bool add_table_for_trigger(THD *thd,
-                           const sp_name *trg_name,
+                           const LEX_STRING &db_name,
+                           const LEX_STRING &trigger_name,
                            bool continue_if_not_exist,
                            TABLE_LIST **table);
 
-void build_trn_path(THD *thd, const sp_name *trg_name, LEX_STRING *trn_path);
+bool change_trigger_table_name(THD *thd,
+                               const char *db_name,
+                               const char *table_alias,
+                               const char *table_name,
+                               const char *new_db_name,
+                               const char *new_table_name);
 
-bool check_trn_exists(const LEX_STRING *trn_path);
-
-bool load_table_name_for_trigger(THD *thd,
-                                 const sp_name *trg_name,
-                                 const LEX_STRING *trn_path,
-                                 LEX_STRING *tbl_name);
+bool drop_all_triggers(THD *thd,
+                       const char *db_name,
+                       const char *table_name);
 
 ///////////////////////////////////////////////////////////////////////////
 

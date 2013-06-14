@@ -26,6 +26,8 @@
 #include "table.h"                            // TABLE_LIST
 #include "my_bitmap.h"                        // bitmap*
 #include "sql_base.h"                         // fill_record
+#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
+#include "trigger_chain.h"                    // Trigger_chain
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -297,10 +299,11 @@ bool partition_info::can_prune_insert(THD* thd,
   */
   if (table->triggers)
   {
-    Trigger *t= table->triggers->get_trigger(TRG_EVENT_INSERT,
-                                             TRG_ACTION_BEFORE);
+    Trigger_chain *trigger_chain=
+        table->triggers->get_triggers(TRG_EVENT_INSERT, TRG_ACTION_BEFORE);
 
-    if (t && t->is_fields_updated_in_trigger(&full_part_field_set))
+    if (trigger_chain &&
+        trigger_chain->has_updated_trigger_fields(&full_part_field_set))
       DBUG_RETURN(false);
   }
 
@@ -347,10 +350,11 @@ bool partition_info::can_prune_insert(THD* thd,
     */
     if (table->triggers)
     {
-      Trigger *t= table->triggers->get_trigger(TRG_EVENT_UPDATE,
-                                               TRG_ACTION_BEFORE);
+      Trigger_chain *trigger_chain=
+          table->triggers->get_triggers(TRG_EVENT_UPDATE, TRG_ACTION_BEFORE);
 
-      if (t && t->is_fields_updated_in_trigger(&full_part_field_set))
+      if (trigger_chain &&
+          trigger_chain->has_updated_trigger_fields(&full_part_field_set))
         DBUG_RETURN(false);
     }
   }

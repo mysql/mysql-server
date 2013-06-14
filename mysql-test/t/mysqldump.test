@@ -987,6 +987,7 @@ SELECT * FROM `test2`;
 #DROP TABLE test2;
 # restore
 --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqldump.sql
+--replace_column 6 #
 SHOW TRIGGERS;
 SELECT * FROM `test1`;
 SELECT * FROM `test2`;
@@ -2021,6 +2022,7 @@ CREATE PROCEDURE pr1 () SELECT "Meow";
 CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT "Meow";
 
 --echo
+--replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
 SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
@@ -2039,6 +2041,7 @@ DROP PROCEDURE pr1;
 --echo
 --echo reload table; this should restore table and trigger
 --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/t1.sql
+--replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
 SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
@@ -2046,6 +2049,7 @@ SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
 --echo
 --echo reload db; this should restore routines and events
 --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/test_34861.sql
+--replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
 SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
@@ -2289,13 +2293,13 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 --echo # Dumping BUG52792 database in xml format.
 --echo
 --echo # Running 'replace_regex on timestamp'
---replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{2}/--TIMESTAMP--/ /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
 --exec $MYSQL_DUMP --user=root --compact -R -E --triggers -X BUG52792
 --echo
 --echo # Dumping BUG52792 database in xml format with comments.
 --echo
 --echo # Running 'replace_regex on timestamp'
---replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{2}/--TIMESTAMP--/ /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
 --exec $MYSQL_DUMP --comments --user=root -R -E --triggers -X BUG52792
 
 --echo
@@ -2308,7 +2312,7 @@ connect (conn_1, localhost, user1, , BUG52792, $MASTER_MYPORT, $MASTER_MYSOCK);
 connection conn_1;
 
 --echo # Running 'replace_regex on timestamp'
---replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{2}/--TIMESTAMP--/ /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
 --error 2
 --exec $MYSQL_DUMP --user=user1 -R -E --triggers -X BUG52792
 

@@ -36,8 +36,7 @@
 #include <m_ctype.h>
 #include "rpl_mi.h"
 #include "rpl_slave.h"
-#include "sp_head.h"
-#include "sql_trigger.h"
+#include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql_show.h"
 #include <algorithm>
 
@@ -891,8 +890,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
-                                             table->triggers,
-                                             TRG_EVENT_INSERT,
+                                             table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1129,8 +1127,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
-                                             table->triggers,
-                                             TRG_EVENT_INSERT,
+                                             table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1337,8 +1334,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
-                                             table->triggers,
-                                             TRG_EVENT_INSERT,
+                                             table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 

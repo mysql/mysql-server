@@ -22,7 +22,6 @@
 #include "sql_list.h"
 
 struct TABLE;
-struct TABLE_LIST;
 
 class THD;
 class Trigger;
@@ -30,40 +29,56 @@ class Trigger;
 class Trigger_loader
 {
 public:
+  /************************************************************************
+   * Functions to work with TRN files.
+   ***********************************************************************/
+
+  static LEX_STRING build_trn_path(char *trn_file_name_buffer,
+                                   int trn_file_name_buffer_size,
+                                   const char *db_name,
+                                   const char *trigger_name);
+
+  static bool check_trn_exists(const LEX_STRING &trn_path);
+
+  static bool load_trn_file(THD *thd,
+                            const LEX_STRING &trigger_name,
+                            const LEX_STRING &trn_path,
+                            LEX_STRING *tbl_name);
+
+public:
+  static bool trg_file_exists(const char *db_name,
+                              const char *table_name);
+
   static bool load_triggers(THD *thd,
+                            MEM_ROOT *mem_root,
                             const char *db_name,
                             const char *table_name,
-                            TABLE *table,
-                            List<Trigger> *triggers,
-                            bool *trigger_not_found);
+                            List<Trigger> *triggers);
 
-  static bool store_trigger(TABLE_LIST *tables,
+  static bool store_trigger(const LEX_STRING &db_name,
+                            const LEX_STRING &table_name,
+                            MEM_ROOT *mem_root,
                             Trigger *new_trigger,
                             List<Trigger> *triggers);
 
-  static bool drop_trigger(TABLE_LIST *tables,
-                           const char *trigger_name,
-                           List<Trigger> *triggers);
-
-  static bool check_for_uniqueness(const char *db_name,
-                                   const char *trigger_name);
-
-  static bool get_table_name_for_trigger(THD *thd,
-                                         const LEX_STRING *trigger_name,
-                                         const LEX_STRING *trn_path,
-                                         LEX_STRING *tbl_name);
+  static bool drop_trigger(const LEX_STRING &db_name,
+                           const LEX_STRING &table_name,
+                           const LEX_STRING &trigger_name,
+                           MEM_ROOT *mem_root,
+                           List<Trigger> *triggers,
+                           bool *trigger_found);
 
   static bool drop_all_triggers(const char *db_name,
                                 const char *table_name,
                                 List<Trigger> *triggers);
 
-  static bool rename_table_in_trigger(TABLE *table,
-                                      List<Trigger> *triggers,
-                                      const char *old_db_name,
-                                      LEX_STRING *old_table_name,
-                                      const char *new_db_name,
-                                      LEX_STRING *new_table_name,
-                                      bool upgrading50to51);
+  static bool rename_subject_table(MEM_ROOT *mem_root,
+                                   List<Trigger> *triggers,
+                                   const char *old_db_name,
+                                   LEX_STRING *old_table_name,
+                                   const char *new_db_name,
+                                   LEX_STRING *new_table_name,
+                                   bool upgrading50to51);
 
 private:
   Trigger_loader()

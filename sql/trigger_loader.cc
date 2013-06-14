@@ -22,6 +22,12 @@
 #include "sql_table.h"    // build_table_filename()
 #include <mysys_err.h>    // EE_OUTOFMEMORY
 #include "parse_file.h"   // File_option
+#include "trigger.h"
+
+///////////////////////////////////////////////////////////////////////////
+
+const char * const TRN_EXT= ".TRN";
+const char * const TRG_EXT= ".TRG";
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -31,7 +37,7 @@
   .trg file.
 */
 
-static const int TRG_NUM_REQUIRED_PARAMETERS= 6;
+static const int TRG_NUM_REQUIRED_PARAMETERS= 8;
 
 const LEX_STRING trg_file_type= { C_STRING_WITH_LEN("TRIGGERS") };
 
@@ -45,7 +51,7 @@ const LEX_STRING trn_file_type= { C_STRING_WITH_LEN("TRIGGERNAME") };
   database wide trigger namespace.
 */
 
-struct Trigger_name_data
+struct Trn_file_data
 {
   LEX_STRING trigger_table;
 };
@@ -56,7 +62,7 @@ static File_option trn_file_parameters[]=
 {
   {
     { C_STRING_WITH_LEN("trigger_table")},
-    offsetof(struct Trigger_name_data, trigger_table),
+    offsetof(struct Trn_file_data, trigger_table),
     FILE_OPTIONS_ESTRING
   },
   { { 0, 0 }, 0, FILE_OPTIONS_STRING }
@@ -69,13 +75,13 @@ static File_option trn_file_parameters[]=
   Structure representing contents of .TRG file.
 */
 
-struct Trigger_data
+struct Trg_file_data
 {
   /// List of CREATE TRIGGER statements.
-  List<LEX_STRING>  definitions_list;
+  List<LEX_STRING>  definitions;
 
   /// List of 'sql mode' values.
-  List<ulonglong> definition_modes_list;
+  List<ulonglong> sql_modes;
 
   /// List of 'definer' values.
   List<LEX_STRING>  definers_list;
@@ -89,15 +95,19 @@ struct Trigger_data
   /// List of database collation names.
   List<LEX_STRING> db_cl_names;
 
-  bool append_trigger(Trigger *t, MEM_ROOT *mem_root)
+  /// List of trigger creation time stamps
+  List<longlong> created_timestamps;
+
+  bool append_trigger(Trigger *t, MEM_ROOT *m)
   {
     return
-      definitions_list.push_back(t->get_definition(), mem_root) ||
-      definition_modes_list.push_back(t->get_sql_mode(), mem_root) ||
-      definers_list.push_back(t->get_definer(), mem_root) ||
-      client_cs_names.push_back(t->get_client_cs_name(), mem_root) ||
-      connection_cl_names.push_back(t->get_connection_cl_name(), mem_root) ||
-      db_cl_names.push_back(t->get_db_cl_name(), mem_root);
+      definitions.push_back(t->get_definition_ptr(), m) ||
+      sql_modes.push_back(t->get_sql_mode_ptr(), m) ||
+      definers_list.push_back(t->get_definer_ptr(), m) ||
+      client_cs_names.push_back(t->get_client_cs_name_ptr(), m) ||
+      connection_cl_names.push_back(t->get_connection_cl_name_ptr(), m) ||
+      db_cl_names.push_back(t->get_db_cl_name_ptr(), m) ||
+      created_timestamps.push_back(t->get_created_timestamp_ptr(), m);
   }
 };
 
@@ -111,33 +121,38 @@ static File_option trg_file_parameters[]=
 {
   {
     { C_STRING_WITH_LEN("triggers") },
-    my_offsetof(struct Trigger_data, definitions_list),
+    my_offsetof(struct Trg_file_data, definitions),
     FILE_OPTIONS_STRLIST
   },
   {
     { C_STRING_WITH_LEN("sql_modes") },
-    my_offsetof(struct Trigger_data, definition_modes_list),
+    my_offsetof(struct Trg_file_data, sql_modes),
     FILE_OPTIONS_ULLLIST
   },
   {
     { C_STRING_WITH_LEN("definers") },
-    my_offsetof(struct Trigger_data, definers_list),
+    my_offsetof(struct Trg_file_data, definers_list),
     FILE_OPTIONS_STRLIST
   },
   {
     { C_STRING_WITH_LEN("client_cs_names") },
-    my_offsetof(struct Trigger_data, client_cs_names),
+    my_offsetof(struct Trg_file_data, client_cs_names),
     FILE_OPTIONS_STRLIST
   },
   {
     { C_STRING_WITH_LEN("connection_cl_names") },
-    my_offsetof(struct Trigger_data, connection_cl_names),
+    my_offsetof(struct Trg_file_data, connection_cl_names),
     FILE_OPTIONS_STRLIST
   },
   {
     { C_STRING_WITH_LEN("db_cl_names") },
-    my_offsetof(struct Trigger_data, db_cl_names),
+    my_offsetof(struct Trg_file_data, db_cl_names),
     FILE_OPTIONS_STRLIST
+  },
+  {
+    { C_STRING_WITH_LEN("created") },
+    my_offsetof(struct Trg_file_data, created_timestamps),
+    FILE_OPTIONS_ULLLIST
   },
   { { 0, 0 }, 0, FILE_OPTIONS_STRING }
 };
@@ -147,17 +162,17 @@ static File_option trg_file_parameters[]=
 static File_option sql_modes_parameters=
 {
   { C_STRING_WITH_LEN("sql_modes") },
-  my_offsetof(struct Trigger_data, definition_modes_list),
+  my_offsetof(struct Trg_file_data, sql_modes),
   FILE_OPTIONS_ULLLIST
 };
 
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-static LEX_STRING get_trn_file_name(char *trn_file_name_buffer,
-                                    int trn_file_name_buffer_size,
-                                    const char *db_name,
-                                    const char *trigger_name)
+LEX_STRING Trigger_loader::build_trn_path(char *trn_file_name_buffer,
+                                          int trn_file_name_buffer_size,
+                                          const char *db_name,
+                                          const char *trigger_name)
 {
   bool was_truncated= false;
   LEX_STRING trn_file_name;
@@ -175,8 +190,7 @@ static LEX_STRING get_trn_file_name(char *trn_file_name_buffer,
            sizeof (trn_file_name_buffer) - 1,
            trn_file_name_buffer);
 
-  trn_file_name.str= NULL;
-  trn_file_name.length= 0;
+  trn_file_name= NULL_STR;
 
   return trn_file_name;
 }
@@ -188,19 +202,20 @@ static LEX_STRING get_trn_file_name(char *trn_file_name_buffer,
   @param table_name  Name of subject table
 
   @return Operation status.
-  @retval false  Success
-  @retval true   Failure
+    @retval false  Success
+    @retval true   Failure
 */
 
 static bool save_trg_file(const char *db_name,
                           const char *table_name,
-                          const Trigger_data *trg)
+                          const Trg_file_data *trg)
 {
   char trg_file_name_buffer[FN_REFLEN];
   LEX_STRING trg_file_name;
   bool was_truncated= false;
 
-  trg_file_name.length= build_table_filename(trg_file_name_buffer, FN_REFLEN - 1,
+  trg_file_name.length= build_table_filename(trg_file_name_buffer,
+                                             FN_REFLEN - 1,
                                              db_name, table_name,
                                              TRG_EXT, 0, &was_truncated);
 
@@ -257,13 +272,13 @@ static bool rm_trg_file(const char *db_name, const char *table_name)
   return mysql_file_delete(key_file_trg, path, MYF(MY_WME));
 }
 
-static bool fill_trg_data(Trigger_data *trg,
+static bool fill_trg_data(Trg_file_data *trg,
                           MEM_ROOT *mem_root,
                           List<Trigger> *triggers)
 {
   List_iterator<Trigger> it(*triggers);
-
   Trigger *t;
+
   while ((t= it++))
   {
     if (trg->append_trigger(t, mem_root))
@@ -276,46 +291,46 @@ static bool fill_trg_data(Trigger_data *trg,
 /**
   Change the subject table in the given list of triggers.
 
-  @param old_db_name         Old database of subject table
+  @param db_name         Old database of subject table
   @param new_db_name         New database of subject table
   @param new_table_name      New subject table's name
   @param stopper             Pointer to a trigger_name for
                              which we should stop updating.
 
   @retval NULL      Success
-  @retval not-NULL  Failure, pointer to Table_trigger_dispatcher::names_list element
-                    for which update failed.
+  @retval not-NULL  Failure, pointer to Table_trigger_dispatcher::names_list
+                    element for which update failed.
 */
 
-static LEX_STRING *change_table_name_in_trn_files(
+static Trigger *change_table_name_in_trn_files(
   List<Trigger> *triggers,
-  const char *old_db_name,
+  const char *db_name,
   const char *new_db_name,
   const LEX_STRING *new_table_name,
-  const LEX_STRING *stopper)
+  const Trigger *stopper)
 {
-  Trigger *trigger;
   List_iterator_fast<Trigger> it(*triggers);
+  Trigger *t;
 
-  while ((trigger= it++))
+  while ((t= it++))
   {
-    // TODO: FIXME: just a pointer check here! is it enough?
-    if (trigger->get_trigger_name() == stopper)
+    if (t == stopper)
       break;
 
     // Get TRN file name.
 
     char trn_file_name_buffer[FN_REFLEN];
 
-    LEX_STRING trn_file_name= get_trn_file_name(trn_file_name_buffer, FN_REFLEN,
-                                                new_db_name,
-                                                trigger->get_trigger_name()->str);
+    LEX_STRING trn_file_name=
+      Trigger_loader::build_trn_path(trn_file_name_buffer, FN_REFLEN,
+                                     new_db_name, t->get_trigger_name().str);
+
     if (!trn_file_name.str)
       return NULL; // FIXME: OOM
 
     // Prepare TRN data.
 
-    Trigger_name_data trn;
+    Trn_file_data trn;
     trn.trigger_table= *new_table_name;
 
     // Create new TRN file.
@@ -323,17 +338,17 @@ static LEX_STRING *change_table_name_in_trn_files(
     if (sql_create_definition_file(NULL, &trn_file_name, &trn_file_type,
                                    (uchar *) &trn, trn_file_parameters))
     {
-      return trigger->get_trigger_name();
+      return t;
     }
 
     // Remove stale .TRN file in case of database upgrade.
 
-    if (old_db_name)
+    if (db_name)
     {
-      if (rm_trn_file(old_db_name, trigger->get_trigger_name()->str))
+      if (rm_trn_file(db_name, t->get_trigger_name().str))
       {
-        rm_trn_file(new_db_name, trigger->get_trigger_name()->str);
-        return trigger->get_trigger_name();
+        rm_trn_file(new_db_name, t->get_trigger_name().str);
+        return t;
       }
     }
   }
@@ -352,7 +367,7 @@ public:
   Handle_old_incorrect_sql_modes_hook(char *file_path)
     :path(file_path)
   {};
-  virtual bool process_unknown_string(const char *&unknown_key, uchar* base,
+  virtual bool process_unknown_string(const char *&unknown_key, uchar *base,
                                       MEM_ROOT *mem_root, const char *end);
 };
 
@@ -365,7 +380,7 @@ public:
                                           LEX_STRING *trigger_table_arg)
     :path(file_path), trigger_table_value(trigger_table_arg)
   {};
-  virtual bool process_unknown_string(const char *&unknown_key, uchar* base,
+  virtual bool process_unknown_string(const char *&unknown_key, uchar *base,
                                       MEM_ROOT *mem_root, const char *end);
 private:
   char *path;
@@ -398,7 +413,7 @@ private:
 
 bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
   const char *&unknown_key,
-  uchar* base,
+  uchar *base,
   MEM_ROOT *mem_root,
   const char *end)
 {
@@ -443,7 +458,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
 
 bool Handle_old_incorrect_trigger_table_hook::process_unknown_string(
   const char *&unknown_key,
-  uchar* base,
+  uchar *base,
   MEM_ROOT *mem_root,
   const char *end)
 {
@@ -479,17 +494,66 @@ bool Handle_old_incorrect_trigger_table_hook::process_unknown_string(
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
+/*
+  Module private variables to be used in Trigger_loader::load_triggers().
+*/
+
+static LEX_STRING default_definer= EMPTY_STR;
+
+static LEX_STRING default_client_cs_name= NULL_STR;
+static LEX_STRING default_connection_cl_name= NULL_STR;
+static LEX_STRING default_db_cl_name= NULL_STR;
+
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Check if TRN-file exists.
+
+  @param trn_path path to TRN-file
+
+  @return true if TRN-file does not exists, false otherwise.
+*/
+
+bool Trigger_loader::check_trn_exists(const LEX_STRING &trn_path)
+{
+  return access(trn_path.str, F_OK) != 0;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Check if the TRG-file for the given table exists.
+
+  @param db_name    name of schema
+  @param table_name name of trigger
+
+  @return true if TRG-file exists, false otherwise.
+*/
+bool Trigger_loader::trg_file_exists(const char *db_name,
+                                     const char *table_name)
+{
+  char path[FN_REFLEN];
+  build_table_filename(path, FN_REFLEN - 1, db_name, table_name, TRG_EXT, 0);
+
+  if (access(path, F_OK))
+  {
+    if (errno == ENOENT)
+      return false;
+  }
+
+  return true;
+}
+
+
 /**
   Load table triggers from the data dictionary.
 
   @param [in]  thd                thread handle
   @param [in]  db_name            name of schema
-  @param [in]  db_name            name of table
-  @param [in]  table              pointer to the trigger's table
+  @param [in]  table_name         subject table name
   @param [out] triggers           pointer to the list where new Trigger
                                   objects will be inserted
-  @param [out] trigger_not_found  true if trigger was not found by name,
-                                  else false
 
   @return Operation status
     @retval true   Failure
@@ -497,15 +561,14 @@ bool Handle_old_incorrect_trigger_table_hook::process_unknown_string(
 */
 
 bool Trigger_loader::load_triggers(THD *thd,
+                                   MEM_ROOT *mem_root,
                                    const char *db_name,
                                    const char *table_name,
-                                   TABLE *table,
-                                   List<Trigger> *triggers,
-                                   bool *trigger_not_found)
+                                   List<Trigger> *triggers)
 {
   DBUG_ENTER("Trigger_loader::load_triggers");
 
-  // Check that TRG-file exists.
+  // Construct TRG-file name.
 
   char trg_file_path_buffer[FN_REFLEN];
   LEX_STRING trg_file_path;
@@ -515,20 +578,10 @@ bool Trigger_loader::load_triggers(THD *thd,
                                              db_name, table_name, TRG_EXT, 0);
   trg_file_path.str= trg_file_path_buffer;
 
-  *trigger_not_found= false;
-
-  if (access(trg_file_path_buffer, F_OK))
-  {
-    if (errno == ENOENT)
-      *trigger_not_found= true;
-
-    DBUG_RETURN(true);
-  }
-
   // The TRG-file exists so we got to load triggers.
 
   File_parser *parser=
-    sql_parse_prepare(&trg_file_path, &table->mem_root, true);
+    sql_parse_prepare(&trg_file_path, mem_root, true);
 
   if (!parser)
     DBUG_RETURN(true);
@@ -541,80 +594,23 @@ bool Trigger_loader::load_triggers(THD *thd,
 
   Handle_old_incorrect_sql_modes_hook sql_modes_hook(trg_file_path.str);
 
-  Trigger_data trg;
+  Trg_file_data trg;
 
   if (parser->parse((uchar*) &trg,
-                    &table->mem_root,
+                    mem_root,
                     trg_file_parameters,
                     TRG_NUM_REQUIRED_PARAMETERS,
                     &sql_modes_hook))
     DBUG_RETURN(true);
 
-  if (trg.definitions_list.is_empty())
+  if (trg.definitions.is_empty())
   {
-    DBUG_ASSERT(trg.definition_modes_list.is_empty());
+    DBUG_ASSERT(trg.sql_modes.is_empty());
     DBUG_ASSERT(trg.definers_list.is_empty());
     DBUG_ASSERT(trg.client_cs_names.is_empty());
     DBUG_ASSERT(trg.connection_cl_names.is_empty());
     DBUG_ASSERT(trg.db_cl_names.is_empty());
     DBUG_RETURN(false);
-  }
-
-  List_iterator_fast<LEX_STRING> it(trg.definitions_list);
-
-  // Make sure sql_mode list is filled.
-
-  if (trg.definition_modes_list.is_empty())
-  {
-    /*
-      It is old file format => we should fill list of sql_modes.
-
-      We use one mode (current) for all triggers, because we have not
-      information about mode in old format.
-    */
-    sql_mode_t *sql_mode= alloc_type<sql_mode_t>(&table->mem_root);
-
-    if (!sql_mode)
-      DBUG_RETURN(true); // EOM
-
-    *sql_mode= global_system_variables.sql_mode;
-
-    while (it++)
-    {
-      if (trg.definition_modes_list.push_back(sql_mode, &table->mem_root))
-        DBUG_RETURN(true); // EOM
-    }
-
-    it.rewind();
-  }
-
-  // Make sure definer list is filled.
-
-  if (trg.definers_list.is_empty())
-  {
-    /*
-      It is old file format => we should fill list of definers.
-
-      If there is no definer information, we should not switch context to
-      definer when checking privileges. I.e. privileges for such triggers
-      are checked for "invoker" rather than for "definer".
-    */
-
-    LEX_STRING *definer= alloc_lex_string(&table->mem_root);
-
-    if (!definer)
-      DBUG_RETURN(true); // EOM
-
-    definer->str= (char*) "";
-    definer->length= 0;
-
-    while (it++)
-    {
-      if (trg.definers_list.push_back(definer, &table->mem_root))
-        DBUG_RETURN(true); // EOM
-    }
-
-    it.rewind();
   }
 
   // Make sure character set properties are filled.
@@ -640,80 +636,85 @@ bool Trigger_loader::load_triggers(THD *thd,
                         (const char*) db_name,
                         (const char*) table_name);
 
-    LEX_STRING *trg_client_cs_name= alloc_lex_string(&table->mem_root);
-    LEX_STRING *trg_connection_cl_name= alloc_lex_string(&table->mem_root);
-    LEX_STRING *trg_db_cl_name= alloc_lex_string(&table->mem_root);
-
-    if (!trg_client_cs_name || !trg_connection_cl_name || !trg_db_cl_name)
-      DBUG_RETURN(true); // EOM
 
     /*
       Backward compatibility: assume that the query is in the current
       character set.
     */
 
-    lex_string_set(trg_client_cs_name,
+    lex_string_set(&default_client_cs_name,
                    thd->variables.character_set_client->csname);
 
-    lex_string_set(trg_connection_cl_name,
+    lex_string_set(&default_connection_cl_name,
                    thd->variables.collation_connection->name);
 
-    lex_string_set(trg_db_cl_name,
+    lex_string_set(&default_db_cl_name,
                    thd->variables.collation_database->name);
-
-    while (it++)
-    {
-      if (trg.client_cs_names.push_back(trg_client_cs_name, &table->mem_root) ||
-          trg.connection_cl_names.push_back(trg_connection_cl_name, &table->mem_root) ||
-          trg.db_cl_names.push_back(trg_db_cl_name, &table->mem_root))
-      {
-        DBUG_RETURN(true); // EOM
-      }
-    }
-
-    it.rewind();
   }
 
-  DBUG_ASSERT(trg.definition_modes_list.elements == trg.definitions_list.elements);
-  DBUG_ASSERT(trg.definers_list.elements == trg.definitions_list.elements);
-  DBUG_ASSERT(trg.client_cs_names.elements == trg.definitions_list.elements);
-  DBUG_ASSERT(trg.connection_cl_names.elements == trg.definitions_list.elements);
-  DBUG_ASSERT(trg.db_cl_names.elements == trg.definitions_list.elements);
+  LEX_STRING db_name_str;
+  lex_string_set(&db_name_str, db_name);
 
-  LEX_STRING *current_db_name= alloc_lex_string(&table->mem_root);
-  lex_string_set(current_db_name, db_name);
+  LEX_STRING table_name_str;
+  lex_string_set(&table_name_str, table_name);
 
-  LEX_STRING *table_name_str= alloc_lex_string(&table->mem_root);
-  lex_string_set(table_name_str, table_name);
-
-  LEX_STRING *trg_create_str;
-
-  List_iterator_fast<sql_mode_t> itm(trg.definition_modes_list);
+  List_iterator_fast<LEX_STRING> it_definition(trg.definitions);
+  List_iterator_fast<sql_mode_t> it_sql_mode(trg.sql_modes);
   List_iterator_fast<LEX_STRING> it_definer(trg.definers_list);
   List_iterator_fast<LEX_STRING> it_client_cs_name(trg.client_cs_names);
-  List_iterator_fast<LEX_STRING> it_connection_cl_name(trg.connection_cl_names);
+  List_iterator_fast<LEX_STRING> it_connect_cl_name(trg.connection_cl_names);
   List_iterator_fast<LEX_STRING> it_db_cl_name(trg.db_cl_names);
+  List_iterator_fast<longlong>  it_created_timestamps(trg.created_timestamps);
 
-  while ((trg_create_str= it++))
+  while (true)
   {
-    sql_mode_t *sql_mode= itm++;
-    LEX_STRING *definer= it_definer++;
-    LEX_STRING *client_cs_name= it_client_cs_name++;
-    LEX_STRING *connection_cl_name= it_connection_cl_name++;
-    LEX_STRING *db_cl_name= it_db_cl_name++;
+    const LEX_STRING *definition= it_definition++;
 
-    // Create an new trigger instance
+    if (!definition)
+      break;
 
-    Trigger* trigger=
-        new (&table->mem_root) Trigger(current_db_name,
-                                       table_name_str, trg_create_str,
-                                       *sql_mode, definer,
-                                       client_cs_name, connection_cl_name,
-                                       db_cl_name);
+    const sql_mode_t *sql_mode= it_sql_mode++;
+    const LEX_STRING *definer= it_definer++;
+    const LEX_STRING *client_cs_name= it_client_cs_name++;
+    const LEX_STRING *connection_cl_name= it_connect_cl_name++;
+    const LEX_STRING *db_cl_name= it_db_cl_name++;
+    const longlong *created_timestamp= it_created_timestamps++;
 
-    if (triggers->push_back(trigger, &table->mem_root))
+    // Backward compatibility: use default settings if attributes are missing.
+
+    if (!sql_mode)
+      sql_mode= &global_system_variables.sql_mode;
+
+    if (!definer)
+      definer= &default_definer;
+
+    if (!client_cs_name)
+      client_cs_name= &default_client_cs_name;
+
+    if (!connection_cl_name)
+      connection_cl_name= &default_connection_cl_name;
+
+    if (!db_cl_name)
+      db_cl_name= &default_db_cl_name;
+
+    // Create a new trigger instance.
+
+    Trigger *t= Trigger::create_from_dd(mem_root,
+                                        db_name_str,
+                                        table_name_str,
+                                        *definition,
+                                        *sql_mode,
+                                        *definer,
+                                        *client_cs_name,
+                                        *connection_cl_name,
+                                        *db_cl_name,
+                                        created_timestamp);
+
+    // NOTE: new trigger object is not fully initialized here.
+
+    if (triggers->push_back(t, mem_root))
     {
-      delete trigger;
+      delete t;
       DBUG_RETURN(true);
     }
   }
@@ -736,31 +737,34 @@ bool Trigger_loader::load_triggers(THD *thd,
     @retval false  Success
 */
 
-bool Trigger_loader::store_trigger(TABLE_LIST *tables,
+bool Trigger_loader::store_trigger(const LEX_STRING &db_name,
+                                   const LEX_STRING &table_name,
+                                   MEM_ROOT *mem_root,
                                    Trigger *new_trigger,
                                    List<Trigger> *triggers)
 {
   // Fill TRN-data structure.
 
-  Trigger_name_data trn;
+  Trn_file_data trn;
 
-  trn.trigger_table.str= tables->table_name;
-  trn.trigger_table.length= tables->table_name_length;
+  trn.trigger_table= table_name;
 
   // Fill TRG-data structure.
 
-  Trigger_data trg;
+  Trg_file_data trg;
 
-  if (fill_trg_data(&trg, &tables->table->mem_root, triggers))
+  if (fill_trg_data(&trg, mem_root, triggers))
     return true;
 
   // Get TRN file name.
 
   char trn_file_name_buffer[FN_REFLEN];
 
-  LEX_STRING trn_file_name= get_trn_file_name(trn_file_name_buffer, FN_REFLEN,
-                                              tables->db,
-                                              new_trigger->get_trigger_name()->str);
+  LEX_STRING trn_file_name=
+    Trigger_loader::build_trn_path(trn_file_name_buffer, FN_REFLEN,
+                                   db_name.str,
+                                   new_trigger->get_trigger_name().str);
+
   if (!trn_file_name.str)
     return true; // my_error() has already been called.
 
@@ -774,7 +778,7 @@ bool Trigger_loader::store_trigger(TABLE_LIST *tables,
 
   // Save TRG file.
 
-  if (save_trg_file(tables->db, tables->table_name, &trg))
+  if (save_trg_file(db_name.str, table_name.str, &trg))
   {
     mysql_file_delete(key_file_trn, trn_file_name.str, MYF(MY_WME));
     return true;
@@ -788,104 +792,67 @@ bool Trigger_loader::store_trigger(TABLE_LIST *tables,
 /**
   Drop trigger in the data dictionary.
 
-  @param [in]  tables       pointer to trigger's table
-  @param [in]  trigger_name name of the trigger to drop
-  @param [in]  triggers     list of all table triggers
+  @param [in]  tables         pointer to trigger's table
+  @param [in]  trigger_name   name of the trigger to drop
+  @param [in]  triggers       list of all table triggers
+  @param [out] trigger_found  flag to store a result whether
+                              the named trigger was found
 
   @return Operation status.
     @retval true   Failure
     @retval false  Success
 */
 
-bool Trigger_loader::drop_trigger(TABLE_LIST *tables,
-                                  const char *trigger_name,
-                                  List<Trigger> *triggers)
+bool Trigger_loader::drop_trigger(const LEX_STRING &db_name,
+                                  const LEX_STRING &table_name,
+                                  const LEX_STRING &trigger_name,
+                                  MEM_ROOT *mem_root,
+                                  List<Trigger> *triggers,
+                                  bool *trigger_found)
 {
   // Create TRG-data with all table triggers but the trigger to drop.
 
-  Trigger_data trg;
-  bool trigger_found= false;
+  Trg_file_data trg;
+  *trigger_found= false;
 
   {
     List_iterator<Trigger> it(*triggers);
-
     Trigger *t;
+
     while ((t= it++))
     {
       if (my_strcasecmp(table_alias_charset,
-                        t->get_trigger_name()->str,
-                        trigger_name) == 0)
+                        t->get_trigger_name().str,
+                        trigger_name.str) == 0)
       {
+        delete t;
         it.remove(); // Remove trigger from the list.
-        trigger_found= true;
+        *trigger_found= true;
         continue;
       }
 
-      if (trg.append_trigger(t, &tables->table->mem_root))
+      if (trg.append_trigger(t, mem_root))
         return true;
     }
   }
 
-  // If no trigger found, report an error.
-
-  if (!trigger_found)
-  {
-    my_message(ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST), MYF(0));
-    return true;
-  }
-
   // Remove TRN file.
 
-  if (rm_trn_file(tables->db, trigger_name))
+  if (rm_trn_file(db_name.str, trigger_name.str))
     return true;
 
   // If we've just dropped the last trigger, remove TRG file. Otherwise, save
   // new TRG file.
 
   return triggers->is_empty() ?
-         rm_trg_file(tables->db, tables->table_name) :
-         save_trg_file(tables->db, tables->table_name, &trg);
+         rm_trg_file(db_name.str, table_name.str) :
+         save_trg_file(db_name.str, table_name.str, &trg);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 /**
-  Check whether the trigger specified by schema and name does exist
-  in the data dictionary.
-
-  @param [in]  db_name              name of schema
-  @param [in]  trigger_name         name of trigger
-
-  @return Operation status
-    @retval true   Trigger exists. Set error in Diagnostic_area as
-                   a side effect
-    @retval false  Trigger doesn't exist
-*/
-
-bool Trigger_loader::check_for_uniqueness(const char *db_name,
-                                          const char *trigger_name)
-{
-  char trn_file_name_buffer[FN_REFLEN];
-
-  LEX_STRING trn_file_name= get_trn_file_name(trn_file_name_buffer, FN_REFLEN,
-                                              db_name, trigger_name);
-
-  if (!trn_file_name.str)
-    return true;
-
-  if (!access(trn_file_name.str, F_OK))
-  {
-    my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
-    return true;
-  }
-
-  return false;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-/**
-  Get name of table by trigger name.
+  Load trigger table name from TRN-file.
 
   @param [in]  thd              thread handle
   @param [in]  trigger_name     name of trigger
@@ -897,16 +864,16 @@ bool Trigger_loader::check_for_uniqueness(const char *db_name,
     @retval false  Success.
 */
 
-bool Trigger_loader::get_table_name_for_trigger(THD *thd,
-                                                const LEX_STRING *trigger_name,
-                                                const LEX_STRING *trn_path,
-                                                LEX_STRING *tbl_name)
+bool Trigger_loader::load_trn_file(THD *thd,
+                                   const LEX_STRING &trigger_name,
+                                   const LEX_STRING &trn_path,
+                                   LEX_STRING *tbl_name)
 {
   DBUG_ENTER("Trigger_loader::get_table_name_for_trigger()");
 
   /* Prepare the File_parser to parse the TRN-file. */
 
-  File_parser *parser= sql_parse_prepare(trn_path, thd->mem_root, true);
+  File_parser *parser= sql_parse_prepare(&trn_path, thd->mem_root, true);
 
   if (!parser)
     DBUG_RETURN(true);
@@ -914,7 +881,7 @@ bool Trigger_loader::get_table_name_for_trigger(THD *thd,
   if (!is_equal(&trn_file_type, parser->type()))
   {
     my_error(ER_WRONG_OBJECT, MYF(0),
-             trigger_name->str,
+             trigger_name.str,
              TRN_EXT + 1,
              "TRIGGERNAME");
 
@@ -923,10 +890,10 @@ bool Trigger_loader::get_table_name_for_trigger(THD *thd,
 
   /* Parse the TRN-file. */
 
-  Trigger_name_data trn;
+  Trn_file_data trn;
 
   Handle_old_incorrect_trigger_table_hook trigger_table_hook(
-                                          trn_path->str,
+                                          trn_path.str,
                                           &trn.trigger_table);
 
 
@@ -957,16 +924,14 @@ bool Trigger_loader::drop_all_triggers(const char *db_name,
   bool rc= false;
 
   List_iterator_fast<Trigger> it(*triggers);
+  Trigger *t;
 
+  while ((t= it++))
   {
-    Trigger *t;
-    while ((t= it++))
+    if (rm_trn_file(db_name, t->get_trigger_name().str))
     {
-      if (rm_trn_file(db_name, t->get_trigger_name()->str))
-      {
-        rc= true;
-        continue;
-      }
+      rc= true;
+      continue;
     }
   }
 
@@ -975,31 +940,31 @@ bool Trigger_loader::drop_all_triggers(const char *db_name,
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Trigger_loader::rename_table_in_trigger(TABLE *table,
-                                             List<Trigger> *triggers,
-                                             const char *old_db_name,
-                                             LEX_STRING *old_table_name,
-                                             const char *new_db_name,
-                                             LEX_STRING *new_table_name,
-                                             bool upgrading50to51)
+bool Trigger_loader::rename_subject_table(MEM_ROOT *mem_root,
+                                          List<Trigger> *triggers,
+                                          const char *db_name,
+                                          LEX_STRING *table_name,
+                                          const char *new_db_name,
+                                          LEX_STRING *new_table_name,
+                                          bool upgrading50to51)
 {
   // Prepare TRG-data. Do it here so that OOM-error will not cause data
   // inconsistency.
 
-  Trigger_data trg;
+  Trg_file_data trg;
 
-  if (fill_trg_data(&trg, &table->mem_root, triggers))
+  if (fill_trg_data(&trg, mem_root, triggers))
     return true;
 
   // Change the subject table name in TRN files for all triggers.
 
-  LEX_STRING *err_trigname=
+  Trigger *err_trigger=
     change_table_name_in_trn_files(triggers,
-                                   upgrading50to51 ? old_db_name : NULL,
+                                   upgrading50to51 ? db_name : NULL,
                                    new_db_name, new_table_name,
                                    NULL);
 
-  if (err_trigname)
+  if (err_trigger)
   {
     /*
       If we were unable to update one of .TRN files properly we will
@@ -1010,8 +975,8 @@ bool Trigger_loader::rename_table_in_trigger(TABLE *table,
     change_table_name_in_trn_files(
       triggers,
       upgrading50to51 ? new_db_name : NULL,
-      old_db_name, old_table_name,
-      err_trigname);
+      db_name, table_name,
+      err_trigger);
     return true;
   }
 
@@ -1022,7 +987,7 @@ bool Trigger_loader::rename_table_in_trigger(TABLE *table,
 
   // Remove old TRG file.
 
-  if (rm_trg_file(old_db_name, old_table_name->str))
+  if (rm_trg_file(db_name, table_name->str))
   {
     rm_trg_file(new_db_name, new_table_name->str);
     return true;

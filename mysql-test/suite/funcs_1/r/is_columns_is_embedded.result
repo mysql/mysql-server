@@ -315,7 +315,7 @@ def	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	
 def	information_schema	TRIGGERS	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(6)				
 def	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
 def	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
-def	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime				
+def	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	2	NULL	NULL	datetime(2)				
 def	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
 def	information_schema	TRIGGERS	DEFINER	19		NO	varchar	77	231	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(77)				
 def	information_schema	TRIGGERS	EVENT_MANIPULATION	4		NO	varchar	6	18	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(6)				
@@ -716,7 +716,7 @@ NULL	information_schema	TRIGGERS	ACTION_ORDER	bigint	NULL	NULL	NULL	NULL	bigint(
 3.0000	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	varchar	3	9	utf8	utf8_general_ci	varchar(3)
-NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime
+NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime(2)
 3.0000	information_schema	TRIGGERS	SQL_MODE	varchar	8192	24576	utf8	utf8_general_ci	varchar(8192)
 3.0000	information_schema	TRIGGERS	DEFINER	varchar	77	231	utf8	utf8_general_ci	varchar(77)
 3.0000	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	varchar	32	96	utf8	utf8_general_ci	varchar(32)

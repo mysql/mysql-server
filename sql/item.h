@@ -24,7 +24,7 @@
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "field.h"                              /* Derivation */
 #include "sql_array.h"
-#include "table_trigger_dispatcher.h"
+#include "table_trigger_field_support.h"  // Table_trigger_field_support
 
 class Protocol;
 struct TABLE_LIST;
@@ -4051,26 +4051,26 @@ class Item_trigger_field : public Item_field,
 {
 public:
   /* Is this item represents row from NEW or OLD row ? */
-  enum row_version_type {OLD_ROW, NEW_ROW};
-  row_version_type row_version;
+  enum_trigger_variable_type trigger_var_type;
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
   /* Index of the field in the TABLE::field array */
   uint field_idx;
-  /* Pointer to Table_trigger_dispatcher object for table of this trigger */
-  Table_trigger_dispatcher *triggers;
+  /* Pointer to an instance of Table_trigger_field_support interface */
+  Table_trigger_field_support *triggers;
 
   Item_trigger_field(Name_resolution_context *context_arg,
-                     row_version_type row_ver_arg,
+                     enum_trigger_variable_type trigger_var_type_arg,
                      const char *field_name_arg,
                      ulong priv, const bool ro)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     row_version(row_ver_arg), field_idx((uint)-1), original_privilege(priv),
+     trigger_var_type(trigger_var_type_arg),
+     field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}
-  void setup_field(THD *thd, TABLE *table,
-                   Table_trigger_dispatcher *table_triggers,
+  void setup_field(THD *thd,
+                   Table_trigger_field_support *table_triggers,
                    GRANT_INFO *table_grant_info);
   enum Type type() const { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -4096,7 +4096,7 @@ public:
   {
     bool ret= set_value(thd, NULL, it);
     if (!ret)
-      bitmap_set_bit(triggers->trigger_table->fields_set_during_insert,
+      bitmap_set_bit(triggers->get_subject_table()->fields_set_during_insert,
                      field_idx);
     return ret;
   }

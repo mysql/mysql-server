@@ -17,7 +17,6 @@
 #define SQL_BASE_INCLUDED
 
 #include "unireg.h"                    // REQUIRED: for other includes
-#include "sql_trigger.h"                        /* trg_event_type */
 #include "sql_class.h"                          /* enum_mark_columns */
 #include "mysqld.h"                             /* key_map */
 
@@ -30,6 +29,7 @@ struct TABLE_LIST;
 class THD;
 struct handlerton;
 struct TABLE;
+class Table_trigger_dispatcher;
 
 typedef class st_select_lex SELECT_LEX;
 
@@ -175,14 +175,14 @@ void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
                                           bool ignore_errors,
-                                          Table_trigger_dispatcher *triggers,
-                                          enum trg_event_type event,
+                                          TABLE *table,
+                                          enum enum_trigger_event_type event,
                                           int num_fields);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values,
                                           bool ignore_errors,
-                                          Table_trigger_dispatcher *triggers,
-                                          enum trg_event_type event,
+                                          TABLE *table,
+                                          enum enum_trigger_event_type event,
                                           int num_fields);
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
