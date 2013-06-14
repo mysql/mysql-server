@@ -350,7 +350,7 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 		redo log before the crash. */
 		DBUG_EXECUTE_IF("ib_trunc_crash_before_log_checkpoint",
 				log_buffer_flush_to_disk();
-				os_thread_sleep(2000000);
+				os_thread_sleep(500000);
 				DBUG_SUICIDE(););
 
 		log_make_checkpoint_at(LSN_MAX, TRUE);

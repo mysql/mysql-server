@@ -1498,7 +1498,7 @@ recv_recover_page_func(
 		}
 
 		if (recv->start_lsn >= page_lsn
-		    && !srv_trunc_table_fix_up_active) {
+		    && !srv_is_tablespace_truncated(recv_addr->space)) {
 
 			lsn_t	end_lsn;
 

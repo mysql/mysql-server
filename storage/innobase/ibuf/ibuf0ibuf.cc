@@ -954,15 +954,15 @@ ibuf_set_free_bits_func(
 
 	mtr_start(&mtr);
 
-	/* Avoid logging while fixing up truncate of table. */
-	if (srv_trunc_table_fix_up_active) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
-
 	space = buf_block_get_space(block);
 	page_no = buf_block_get_page_no(block);
 	zip_size = buf_block_get_zip_size(block);
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, &mtr);
+
+	/* Avoid logging while fixing up truncate of table. */
+	if (srv_is_tablespace_truncated(space)) {
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
 
 #ifdef UNIV_IBUF_DEBUG
 	if (max_val != ULINT_UNDEFINED) {
