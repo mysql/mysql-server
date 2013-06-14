@@ -253,6 +253,20 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 }
 
 /**
+Look for table-id in SYS_XXXX tables without loading the table.
+
+@param mtr	mini-transaction covering the read
+@param pcur	persistent cursor used for reading
+@return DB_SUCCESS or error code */
+dberr_t
+TableLocator::operator()(mtr_t* mtr, btr_pcur_t* pcur)
+{
+	m_table_found = true;
+
+	return(DB_SUCCESS);
+}
+
+/**
 Rollback the transaction and release the index locks.
 Drop indexes if marking table as corrupted so that drop/create
 sequence works as expected.
@@ -490,8 +504,26 @@ row_truncate_update_table_id(
 }
 
 /**
+Get the table id to truncate.
+@param truncate_t		old/new table id of table to truncate
+@return table_id_t		table_id to use in SYS_XXXX table update. */
+static __attribute__((warn_unused_result))
+table_id_t
+row_truncate_get_trunc_table_id(
+	const truncate_t&	truncate)
+{
+
+	TableLocator tableLocator(truncate.m_old_table_id);
+
+	SysIndexIterator().for_each(tableLocator);
+
+	return(tableLocator.is_table_found() ?
+		truncate.m_old_table_id : truncate.m_new_table_id);
+}
+
+/**
 Update system table to reflect new table id and root page number.
-@param redo_cache		contains info like old table id
+@param truncate_t		old/new table id of table to truncate
 				and updated root_page_no of indexes.
 @param new_table_id		new table id
 @param reserve_dict_mutex	if true, acquire/release
@@ -510,6 +542,8 @@ row_truncate_update_sys_tables_during_fix_up(
 	trx = trx_allocate_for_background();
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
+	table_id_t trunc_table_id = row_truncate_get_trunc_table_id(truncate);
+
 	/* Step-1: Update the root-page-no */
 	truncate_t::indexes_t::const_iterator end = truncate.m_indexes.end();
 	for (truncate_t::indexes_t::const_iterator it
@@ -524,7 +558,7 @@ row_truncate_update_sys_tables_during_fix_up(
 			info, "page_no", it->m_new_root_page_no);
 
 		pars_info_add_ull_literal(
-			info, "table_id", truncate.m_old_table_id);
+			info, "table_id", trunc_table_id);
 
 		pars_info_add_ull_literal(
 			info, "index_id", it->m_id);
@@ -546,8 +580,7 @@ row_truncate_update_sys_tables_during_fix_up(
 
 	/* Step-2: Update table-id. */
 	err = row_truncate_update_table_id(
-		truncate.m_old_table_id, new_table_id,
-		reserve_dict_mutex, trx);
+		trunc_table_id, new_table_id, reserve_dict_mutex, trx);
 
 	if (err != DB_SUCCESS) {
 		return(err);
