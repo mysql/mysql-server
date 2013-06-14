@@ -1255,7 +1255,7 @@ row_log_table_apply_convert_mrec(
 		dfield_t*		dfield
 			= dtuple_get_nth_field(row, col_no);
 		ulint			len;
-		const byte*		data;
+		const byte*		data= NULL;
 
 		if (rec_offs_nth_extern(offsets, i)) {
 			ut_ad(rec_offs_any_extern(offsets));
