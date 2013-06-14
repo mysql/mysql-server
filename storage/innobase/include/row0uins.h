@@ -40,7 +40,7 @@ the same clustered index unique key did not have any record, even delete
 marked, at the time of the insert.  InnoDB is eager in a rollback:
 if it figures out that an index record will be removed in the purge
 anyway, it will remove it in the rollback.
-@return	DB_SUCCESS */
+@return DB_SUCCESS */
 
 dberr_t
 row_undo_ins(

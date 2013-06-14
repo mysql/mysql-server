@@ -130,7 +130,7 @@ row_merge_dup_report(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Sets an exclusive lock on a table, for the duration of creating indexes.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_merge_lock_table(
@@ -192,7 +192,7 @@ row_merge_file_destroy_low(
 Provide a new pathname for a table that is being renamed if it belongs to
 a file-per-table tablespace.  The caller is responsible for freeing the
 memory allocated for the return value.
-@return	new pathname of tablespace file, or NULL if space = 0 */
+@return new pathname of tablespace file, or NULL if space = 0 */
 
 char*
 row_make_new_pathname(
@@ -203,7 +203,7 @@ row_make_new_pathname(
 Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_merge_rename_tables_dict(
@@ -220,7 +220,7 @@ row_merge_rename_tables_dict(
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
-@return	DB_SUCCESS if all OK */
+@return DB_SUCCESS if all OK */
 
 dberr_t
 row_merge_rename_index_to_add(
@@ -233,7 +233,7 @@ row_merge_rename_index_to_add(
 Rename an index in the dictionary that is to be dropped. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
-@return	DB_SUCCESS if all OK */
+@return DB_SUCCESS if all OK */
 
 dberr_t
 row_merge_rename_index_to_drop(
@@ -244,7 +244,7 @@ row_merge_rename_index_to_drop(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Create the index and load in to the dictionary.
-@return	index, or NULL on error */
+@return index, or NULL on error */
 
 dict_index_t*
 row_merge_create_index(
@@ -255,7 +255,7 @@ row_merge_create_index(
 					/*!< in: the index definition */
 /*********************************************************************//**
 Check if a transaction can use an index.
-@return	TRUE if index can be used by the transaction else FALSE */
+@return TRUE if index can be used by the transaction else FALSE */
 
 ibool
 row_merge_is_index_usable(
@@ -267,7 +267,7 @@ Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
 dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and
 before calling this function.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 row_merge_drop_table(
@@ -279,7 +279,7 @@ row_merge_drop_table(
 Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 row_merge_build_indexes(

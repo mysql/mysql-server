@@ -1239,7 +1239,7 @@ srv_mon_free(void)
 /****************************************************************//**
 Get a monitor's "monitor_info" by its monitor id (index into the
 innodb_counter_info array.
-@return	Point to corresponding monitor_info_t, or NULL if no such
+@return Point to corresponding monitor_info_t, or NULL if no such
 monitor */
 
 monitor_info_t*
@@ -1258,7 +1258,7 @@ srv_mon_get_info(
 /****************************************************************//**
 Get monitor's name by its monitor id (indexing into the
 innodb_counter_info array.
-@return	corresponding monitor name, or NULL if no such
+@return corresponding monitor name, or NULL if no such
 monitor */
 
 const char*

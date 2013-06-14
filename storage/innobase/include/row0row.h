@@ -40,7 +40,7 @@ Created 4/20/1996 Heikki Tuuri
 /*********************************************************************//**
 Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
 a clustered index record.
-@return	offset of DATA_TRX_ID */
+@return offset of DATA_TRX_ID */
 UNIV_INLINE
 ulint
 row_get_trx_id_offset(
@@ -50,7 +50,7 @@ row_get_trx_id_offset(
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Reads the trx id field from a clustered index record.
-@return	value of the field */
+@return value of the field */
 UNIV_INLINE
 trx_id_t
 row_get_rec_trx_id(
@@ -61,7 +61,7 @@ row_get_rec_trx_id(
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Reads the roll pointer field from a clustered index record.
-@return	value of the field */
+@return value of the field */
 UNIV_INLINE
 roll_ptr_t
 row_get_rec_roll_ptr(
@@ -111,7 +111,7 @@ row_build_index_entry(
 /*******************************************************************//**
 An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index.
-@return	own: row built; see the NOTE below! */
+@return own: row built; see the NOTE below! */
 
 dtuple_t*
 row_build(
@@ -175,7 +175,7 @@ row_rec_to_index_entry_low(
 /*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
-@return	own: index entry built */
+@return own: index entry built */
 
 dtuple_t*
 row_rec_to_index_entry(
@@ -191,7 +191,7 @@ row_rec_to_index_entry(
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record.
-@return	own: row reference built; see the NOTE below! */
+@return own: row reference built; see the NOTE below! */
 
 dtuple_t*
 row_build_row_ref(
@@ -252,7 +252,7 @@ row_build_row_ref_fast(
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row
 reference.
-@return	TRUE if found */
+@return TRUE if found */
 
 ibool
 row_search_on_row_ref(
@@ -267,7 +267,7 @@ row_search_on_row_ref(
 /*********************************************************************//**
 Fetches the clustered index record for a secondary index record. The latches
 on the secondary index record are preserved.
-@return	record or NULL, if no record found */
+@return record or NULL, if no record found */
 
 rec_t*
 row_get_clust_rec(
@@ -294,7 +294,7 @@ enum row_search_result {
 
 /***************************************************************//**
 Searches an index record.
-@return	whether the record was found or buffered */
+@return whether the record was found or buffered */
 
 enum row_search_result
 row_search_index_entry(
@@ -322,7 +322,7 @@ Not more than "buf_size" bytes are written to "buf".
 The result is always NUL-terminated (provided buf_size is positive) and the
 number of bytes that were written to "buf" is returned (including the
 terminating NUL).
-@return	number of bytes that were written */
+@return number of bytes that were written */
 
 ulint
 row_raw_format(

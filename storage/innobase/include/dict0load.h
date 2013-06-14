@@ -210,7 +210,7 @@ dict_load_table(
 				table and its indexes' definition */
 /***********************************************************************//**
 Loads a table object based on the table id.
-@return	table; NULL if table does not exist */
+@return table; NULL if table does not exist */
 
 dict_table_t*
 dict_load_table_on_id(
@@ -236,7 +236,7 @@ The foreign key constraint is loaded only if the referenced table is also
 in the dictionary cache.  If the referenced table is not in dictionary
 cache, then it is added to the output parameter (fk_tables).
 
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 dict_load_foreigns(
@@ -265,7 +265,7 @@ dict_print(void);
 
 /********************************************************************//**
 This function opens a system table, and return the first record.
-@return	first record of the system table */
+@return first record of the system table */
 
 const rec_t*
 dict_startscan_system(
@@ -276,7 +276,7 @@ dict_startscan_system(
 	dict_system_id_t system_id);	/*!< in: which system table to open */
 /********************************************************************//**
 This function get the next system table record as we scan the table.
-@return	the record if found, NULL if end of scan. */
+@return the record if found, NULL if end of scan. */
 
 const rec_t*
 dict_getnext_system(
@@ -403,7 +403,7 @@ a temporary heap which is used for the table lookup, but not for the path.
 The caller must free the memory for the path returned. This function can
 return NULL if the space ID is not found in SYS_DATAFILES, then the caller
 will assume that the ibd file is in the normal datadir.
-@return	own: A copy of the first datafile found in SYS_DATAFILES.PATH for
+@return own: A copy of the first datafile found in SYS_DATAFILES.PATH for
 the given space ID. NULL if space ID is zero or not found. */
 
 char*
@@ -413,7 +413,7 @@ dict_get_first_path(
 	const char*	name);	/*!< in: tablespace name */
 /********************************************************************//**
 Update the record for space_id in SYS_TABLESPACES to this filepath.
-@return	DB_SUCCESS if OK, dberr_t if the insert failed */
+@return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
 dict_update_filepath(
@@ -422,7 +422,7 @@ dict_update_filepath(
 	const char*	filepath);	/*!< in: filepath */
 /********************************************************************//**
 Insert records into SYS_TABLESPACES and SYS_DATAFILES.
-@return	DB_SUCCESS if OK, dberr_t if the insert failed */
+@return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
 dict_insert_tablespace_and_filepath(

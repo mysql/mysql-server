@@ -443,7 +443,7 @@ static bool set_trigger_new_row(THD *thd,
 
   Item_trigger_field *trg_fld=
     new (thd->mem_root) Item_trigger_field(lex->current_context(),
-                                           Item_trigger_field::NEW_ROW,
+                                           TRG_NEW_ROW,
                                            trigger_field_name.str,
                                            UPDATE_ACL, false);
 
@@ -937,6 +937,12 @@ bool match_authorized_user(Security_context *ctx, LEX_USER *user)
   List<Condition_information_item> *cond_info_list;
   bool is_not_empty;
   Set_signal_information *signal_item_list;
+  enum enum_trigger_order_type trigger_action_order_type;
+  struct
+  {
+    enum enum_trigger_order_type ordering_clause;
+    LEX_STRING anchor_trigger_name;
+  } trg_characteristics;
 }
 
 %{
@@ -1148,6 +1154,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  FLOAT_NUM
 %token  FLOAT_SYM                     /* SQL-2003-R */
 %token  FLUSH_SYM
+%token  FOLLOWS_SYM                  /* MYSQL */
 %token  FORCE_SYM
 %token  FOREIGN                       /* SQL-2003-R */
 %token  FOR_SYM                       /* SQL-2003-R */
@@ -1361,6 +1368,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  POLYGON
 %token  PORT_SYM
 %token  POSITION_SYM                  /* SQL-2003-N */
+%token  PRECEDES_SYM                  /* MYSQL */
 %token  PRECISION                     /* SQL-2003-R */
 %token  PREPARE_SYM                   /* SQL-2003-R */
 %token  PRESERVE_SYM
@@ -1802,7 +1810,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         view_algorithm view_or_trigger_or_sp_or_event
         definer_tail no_definer_tail
         view_suid view_tail view_list_opt view_list view_select
-        view_check_option trigger_tail sp_tail sf_tail udf_tail event_tail
+        view_check_option trigger_tail
+        sp_tail sf_tail udf_tail event_tail
         install uninstall partition_entry binlog_base64_event
         init_key_options normal_key_options normal_key_opts all_key_opt 
         spatial_key_options fulltext_key_options normal_key_opt 
@@ -1845,6 +1854,9 @@ END_OF_INPUT
 %type <cond_info_list> condition_information;
 %type <signal_item_list> signal_information_item_list;
 %type <signal_item_list> opt_set_signal_information;
+
+%type <trg_characteristics> trigger_follows_precedes_clause;
+%type <trigger_action_order_type> trigger_action_order; 
 
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
@@ -13546,9 +13558,7 @@ simple_ident_q:
                 !(new_row && sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE);
               trg_fld= new (thd->mem_root)
                          Item_trigger_field(Lex->current_context(),
-                                            new_row ?
-                                              Item_trigger_field::NEW_ROW:
-                                              Item_trigger_field::OLD_ROW,
+                                            new_row ? TRG_NEW_ROW : TRG_OLD_ROW,
                                             $3.str,
                                             SELECT_ACL,
                                             read_only);
@@ -13936,6 +13946,7 @@ keyword:
         | END                   {}
         | EXECUTE_SYM           {}
         | FLUSH_SYM             {}
+        | FOLLOWS_SYM           {}
         | FORMAT_SYM            {}
         | HANDLER_SYM           {}
         | HELP_SYM              {}
@@ -13948,6 +13959,7 @@ keyword:
         | OWNER_SYM             {}
         | PARSER_SYM            {}
         | PORT_SYM              {}
+        | PRECEDES_SYM          {}
         | PREPARE_SYM           {}
         | REMOVE_SYM            {}
         | REPAIR                {}
@@ -15993,6 +16005,28 @@ view_check_option:
 
 **************************************************************************/
 
+trigger_action_order:
+            FOLLOWS_SYM
+            { $$= TRG_ORDER_FOLLOWS; }
+          | PRECEDES_SYM
+            { $$= TRG_ORDER_PRECEDES; }
+          ;
+
+trigger_follows_precedes_clause: 
+            /* empty */
+            {
+              $$.ordering_clause= TRG_ORDER_NONE;
+              $$.anchor_trigger_name.str= NULL;
+              $$.anchor_trigger_name.length= 0;
+            }
+          |
+            trigger_action_order ident_or_text
+            {
+              $$.ordering_clause= $1;
+              $$.anchor_trigger_name= $2;
+            }
+          ;
+
 trigger_tail:
           TRIGGER_SYM       /* $1 */
           sp_name           /* $2 */
@@ -16003,7 +16037,8 @@ trigger_tail:
           FOR_SYM           /* $7 */
           EACH_SYM          /* $8 */
           ROW_SYM           /* $9 */
-          {                 /* $10 */
+          trigger_follows_precedes_clause /* $10 */
+          {                 /* $11 */
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
 
@@ -16016,13 +16051,30 @@ trigger_tail:
             lex->raw_trg_on_table_name_begin= @5.raw_start;
             lex->raw_trg_on_table_name_end= @7.raw_start;
 
+            if (@10.start == @9.start)
+            {
+              /*
+                @10.start == @9.start when a clause PRECEDES/FOLLOWS is absent.
+              */
+              lex->trg_ordering_clause_begin= NULL;
+              lex->trg_ordering_clause_end= NULL;
+            }
+            else
+            {
+              lex->trg_ordering_clause_begin= @10.start;
+              lex->trg_ordering_clause_end= @10.end;
+            }
+
             sp_head *sp= sp_start_parsing(thd, SP_TYPE_TRIGGER, $2);
 
             if (!sp)
               MYSQL_YYABORT;
 
-            sp->m_trg_chistics.action_time= (enum trg_action_time_type) $3;
-            sp->m_trg_chistics.event= (enum trg_event_type) $4;
+            sp->m_trg_chistics.action_time= (enum enum_trigger_action_time_type) $3;
+            sp->m_trg_chistics.event= (enum enum_trigger_event_type) $4;
+            sp->m_trg_chistics.ordering_clause= $10.ordering_clause;
+            sp->m_trg_chistics.anchor_trigger_name= $10.anchor_trigger_name;
+
             lex->stmt_definition_begin= @1.start;
             lex->ident.str= const_cast<char *>(@6.start);
             lex->ident.length= @8.start - @6.start;
@@ -16035,8 +16087,8 @@ trigger_tail:
 
             sp->set_body_start(thd, @9.end);
           }
-          sp_proc_stmt /* $11 */
-          { /* $12 */
+          sp_proc_stmt /* $12 */
+          { /* $13 */
             THD *thd= YYTHD;
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;

@@ -58,7 +58,7 @@ srv_normalize_path_for_win(
 	char*	str);	/*!< in/out: null-terminated character string */
 /*********************************************************************//**
 Parse temporary tablespace configuration.
-@return	true if ok, false on parse error */
+@return true if ok, false on parse error */
 
 bool
 srv_parse_temp_data_file_paths_and_sizes(
@@ -74,7 +74,7 @@ srv_free_paths_and_sizes(void);
 /*********************************************************************//**
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty.
-@return	string which has the separator if the string is not empty */
+@return string which has the separator if the string is not empty */
 
 char*
 srv_add_path_separator_if_needed(
@@ -84,14 +84,14 @@ srv_add_path_separator_if_needed(
 /****************************************************************//**
 Starts Innobase and creates a new database if database files
 are not found and the user wants.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 innobase_start_or_create_for_mysql(void);
 /*====================================*/
 /****************************************************************//**
 Shuts down the Innobase database.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 innobase_shutdown_for_mysql(void);

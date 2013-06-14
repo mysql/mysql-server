@@ -73,7 +73,7 @@ introduced where a call to log_free_check() is bypassed. */
 
 /***********************************************************//**
 Undoes a modify in a clustered index record.
-@return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
+@return DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_clust_low(
@@ -154,7 +154,7 @@ This is attempted when the record was inserted by updating a
 delete-marked record and there no longer exist transactions
 that would see the delete-marked record.  In other words, we
 roll back the insert by purging the record.
-@return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
+@return DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_remove_clust_low(
@@ -212,7 +212,7 @@ row_undo_mod_remove_clust_low(
 /***********************************************************//**
 Undoes a modify in a clustered index record. Sets also the node state for the
 next round of undo.
-@return	DB_SUCCESS or error code: we may run out of file space */
+@return DB_SUCCESS or error code: we may run out of file space */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_clust(
@@ -348,7 +348,7 @@ row_undo_mod_clust(
 
 /***********************************************************//**
 Delete marks or removes a secondary index entry if found.
-@return	DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_del_mark_or_remove_sec_low(
@@ -486,7 +486,7 @@ return to the original values because we do not know them. But this should
 not cause problems because in row0sel.cc, in queries we always retrieve the
 clustered index record or an earlier version of it, if the secondary index
 record through which we do the search is delete-marked.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_del_mark_or_remove_sec(
@@ -515,10 +515,10 @@ Delete unmarks a secondary index entry which must be found. It might not be
 delete-marked at the moment, but it does not harm to unmark it anyway. We also
 need to update the fields of the secondary index record if we updated its
 fields but alphabetically they stayed the same, e.g., 'abc' -> 'aBc'.
-@retval	DB_SUCCESS on success
-@retval	DB_FAIL if BTR_MODIFY_TREE should be tried
-@retval	DB_OUT_OF_FILE_SPACE when running out of tablespace
-@retval	DB_DUPLICATE_KEY if the value was missing
+@retval DB_SUCCESS on success
+@retval DB_FAIL if BTR_MODIFY_TREE should be tried
+@retval DB_OUT_OF_FILE_SPACE when running out of tablespace
+@retval DB_DUPLICATE_KEY if the value was missing
 	and an insert would lead to a duplicate exists */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
@@ -748,7 +748,7 @@ row_undo_mod_sec_flag_corrupted(
 
 /***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is UPD_DEL.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_upd_del_sec(
@@ -815,7 +815,7 @@ row_undo_mod_upd_del_sec(
 
 /***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is DEL_MARK.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_del_mark_sec(
@@ -883,7 +883,7 @@ row_undo_mod_del_mark_sec(
 
 /***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_upd_exist_sec(
@@ -1066,7 +1066,7 @@ row_undo_mod_parse_undo_rec(
 
 /***********************************************************//**
 Undoes a modify operation on a row of a table.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 row_undo_mod(

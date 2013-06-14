@@ -180,7 +180,7 @@ transaction can commit or rollback (or free views).
 
 /*********************************************************************//**
 Creates a read view object.
-@return	own: read view struct */
+@return own: read view struct */
 UNIV_INLINE
 read_view_t*
 read_view_create_low(
@@ -206,7 +206,7 @@ views contiguously iff the creator_trx_id > 0. One identical in size
 and content as @param view (starting at returned pointer) and another view
 immediately following the trx_ids array. The second view will have and
 extra slot for a trx_id_t element iff view->creator_trx_id > 0.
-@return	read view struct */
+@return read view struct */
 UNIV_INLINE
 read_view_t*
 read_view_clone(
@@ -337,7 +337,7 @@ struct	CreateView {
 /*********************************************************************//**
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
-@return	own: read view struct */
+@return own: read view struct */
 static
 read_view_t*
 read_view_open_now_low(
@@ -385,7 +385,7 @@ read_view_open_now_low(
 /*********************************************************************//**
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
-@return	own: read view struct */
+@return own: read view struct */
 
 read_view_t*
 read_view_open_now(
@@ -413,7 +413,7 @@ Makes a copy of the oldest existing read view, with the exception that also
 the creating trx of the oldest view is set as not visible in the 'copied'
 view. Opens a new view if no views currently exist. The view must be closed
 with ..._close. This is used in purge.
-@return	own: read view struct */
+@return own: read view struct */
 
 read_view_t*
 read_view_purge_open(

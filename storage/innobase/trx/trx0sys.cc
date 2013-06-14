@@ -135,7 +135,7 @@ static	file_format_t	file_format_max;
 #ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks whether a trx is in one of rw_trx_list or ro_trx_list.
-@return	TRUE if is in */
+@return TRUE if is in */
 
 ibool
 trx_in_trx_list(
@@ -363,7 +363,7 @@ trx_sys_print_mysql_master_log_pos(void)
 
 /****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
-@return	slot index or ULINT_UNDEFINED if not found */
+@return slot index or ULINT_UNDEFINED if not found */
 
 ulint
 trx_sysf_rseg_find_free(
@@ -404,7 +404,7 @@ trx_sysf_rseg_find_free(
 
 /****************************************************************//**
 Looks for used slots for redo rollback segment.
-@return	number of used slots */
+@return number of used slots */
 static
 ulint
 trx_sysf_used_slots_for_redo_rseg(
@@ -637,7 +637,7 @@ trx_sys_create_sys_pages(void)
 
 /*****************************************************************//**
 Update the file format tag.
-@return	always TRUE */
+@return always TRUE */
 static
 ibool
 trx_sys_file_format_max_write(
@@ -675,7 +675,7 @@ trx_sys_file_format_max_write(
 
 /*****************************************************************//**
 Read the file format tag.
-@return	the file format or ULINT_UNDEFINED if not set. */
+@return the file format or ULINT_UNDEFINED if not set. */
 static
 ulint
 trx_sys_file_format_max_read(void)
@@ -711,7 +711,7 @@ trx_sys_file_format_max_read(void)
 
 /*****************************************************************//**
 Get the name representation of the file format from its id.
-@return	pointer to the name */
+@return pointer to the name */
 
 const char*
 trx_sys_file_format_id_to_name(
@@ -726,7 +726,7 @@ trx_sys_file_format_id_to_name(
 /*****************************************************************//**
 Check for the max file format tag stored on disk. Note: If max_format_id
 is == UNIV_FORMAT_MAX + 1 then we only print a warning.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 trx_sys_file_format_max_check(
@@ -777,7 +777,7 @@ trx_sys_file_format_max_check(
 /*****************************************************************//**
 Set the file format id unconditionally except if it's already the
 same value.
-@return	TRUE if value updated */
+@return TRUE if value updated */
 
 ibool
 trx_sys_file_format_max_set(
@@ -826,7 +826,7 @@ trx_sys_file_format_tag_init(void)
 /********************************************************************//**
 Update the file format tag in the system tablespace only if the given
 format id is greater than the known max id.
-@return	TRUE if format_id was bigger than the known max id */
+@return TRUE if format_id was bigger than the known max id */
 
 ibool
 trx_sys_file_format_max_upgrade(
@@ -854,7 +854,7 @@ trx_sys_file_format_max_upgrade(
 
 /*****************************************************************//**
 Get the name representation of the file format from its id.
-@return	pointer to the max format name */
+@return pointer to the max format name */
 
 const char*
 trx_sys_file_format_max_get(void)
@@ -1199,7 +1199,7 @@ trx_sys_read_pertable_file_format_id(
 
 /*****************************************************************//**
 Get the name representation of the file format from its id.
-@return	pointer to the name */
+@return pointer to the name */
 
 const char*
 trx_sys_file_format_id_to_name(

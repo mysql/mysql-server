@@ -185,7 +185,7 @@ TrxUndoRsegsIterator::set_next()
 /****************************************************************//**
 Builds a purge 'query' graph. The actual purge is performed by executing
 this query graph.
-@return	own: the query graph */
+@return own: the query graph */
 static
 que_t*
 trx_purge_graph_build(
@@ -854,7 +854,7 @@ trx_purge_choose_next_log(void)
 
 /***********************************************************************//**
 Gets the next record to purge and updates the info in the purge system.
-@return	copy of an undo log record or pointer to the dummy undo log record */
+@return copy of an undo log record or pointer to the dummy undo log record */
 static
 trx_undo_rec_t*
 trx_purge_get_next_rec(
@@ -1024,7 +1024,7 @@ trx_purge_fetch_next_rec(
 
 /*******************************************************************//**
 This function runs a purge batch.
-@return	number of undo log pages handled in the batch */
+@return number of undo log pages handled in the batch */
 static
 ulint
 trx_purge_attach_undo_recs(
@@ -1236,7 +1236,7 @@ trx_purge_truncate(void)
 
 /*******************************************************************//**
 This function runs a purge batch.
-@return	number of undo log pages handled in the batch */
+@return number of undo log pages handled in the batch */
 
 ulint
 trx_purge(

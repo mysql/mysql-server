@@ -166,7 +166,7 @@ buf_flush_recv_note_modification(
 /********************************************************************//**
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., transition FILE_PAGE => NOT_USED allowed.
-@return	TRUE if can replace immediately */
+@return TRUE if can replace immediately */
 
 ibool
 buf_flush_ready_for_replace(
@@ -204,7 +204,7 @@ buf_flush_wait_LRU_batch_end(void);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 buf_flush_validate(
@@ -246,7 +246,7 @@ buf_flush_page(
 	__attribute__((nonnull));
 /********************************************************************//**
 Returns true if the block is modified and ready for flushing.
-@return	true if can flush immediately */
+@return true if can flush immediately */
 
 bool
 buf_flush_ready_for_flush(
@@ -260,7 +260,7 @@ buf_flush_ready_for_flush(
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush
 list in a particular buffer pool.
-@return	number of dirty pages present in a single buffer pool */
+@return number of dirty pages present in a single buffer pool */
 
 ulint
 buf_pool_get_dirty_pages_count(
@@ -269,7 +269,7 @@ buf_pool_get_dirty_pages_count(
 	ulint		id);		/*!< in: space id to check */
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
-@return	count of dirty pages present in all the buffer pools */
+@return count of dirty pages present in all the buffer pools */
 
 ulint
 buf_flush_get_dirty_pages_count(

@@ -26,6 +26,8 @@
 #include "table.h"                            // TABLE_LIST
 #include "my_bitmap.h"                        // bitmap*
 #include "sql_base.h"                         // fill_record
+#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
+#include "trigger_chain.h"                    // Trigger_chain
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -295,12 +297,15 @@ bool partition_info::can_prune_insert(THD* thd,
     partitioning column, since they may change the row to be in another
     partition.
   */
-  if (table->triggers &&
-      table->triggers->has_triggers(TRG_EVENT_INSERT, TRG_ACTION_BEFORE) &&
-      table->triggers->is_fields_updated_in_trigger(&full_part_field_set,
-                                                    TRG_EVENT_INSERT,
-                                                    TRG_ACTION_BEFORE))
-    DBUG_RETURN(false);
+  if (table->triggers)
+  {
+    Trigger_chain *trigger_chain=
+        table->triggers->get_triggers(TRG_EVENT_INSERT, TRG_ACTION_BEFORE);
+
+    if (trigger_chain &&
+        trigger_chain->has_updated_trigger_fields(&full_part_field_set))
+      DBUG_RETURN(false);
+  }
 
   if (table->found_next_number_field)
   {
@@ -343,14 +348,14 @@ bool partition_info::can_prune_insert(THD* thd,
       partitioning column, since they may change the row to be in another
       partition.
     */
-    if (table->triggers &&
-        table->triggers->has_triggers(TRG_EVENT_UPDATE,
-                                      TRG_ACTION_BEFORE) &&
-        table->triggers->is_fields_updated_in_trigger(&full_part_field_set,
-                                                      TRG_EVENT_UPDATE,
-                                                      TRG_ACTION_BEFORE))
+    if (table->triggers)
     {
-      DBUG_RETURN(false);
+      Trigger_chain *trigger_chain=
+          table->triggers->get_triggers(TRG_EVENT_UPDATE, TRG_ACTION_BEFORE);
+
+      if (trigger_chain &&
+          trigger_chain->has_updated_trigger_fields(&full_part_field_set))
+        DBUG_RETURN(false);
     }
   }
 

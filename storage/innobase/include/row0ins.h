@@ -56,7 +56,7 @@ row_ins_check_foreign_constraint(
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Creates an insert node struct.
-@return	own: insert node struct */
+@return own: insert node struct */
 
 ins_node_t*
 ins_node_create(
@@ -155,7 +155,7 @@ Inserts an entry into a clustered index. Tries first optimistic,
 then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 
 dberr_t
 row_ins_clust_index_entry(
@@ -170,7 +170,7 @@ Inserts an entry into a secondary index. Tries first optimistic,
 then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 
 dberr_t
 row_ins_sec_index_entry(
@@ -182,7 +182,7 @@ row_ins_sec_index_entry(
 /***********************************************************//**
 Inserts a row to a table. This is a high-level function used in
 SQL execution graphs.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 row_ins_step(

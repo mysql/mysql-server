@@ -148,7 +148,7 @@ ulint	rec_dummy;
 
 /***************************************************************//**
 Validates the consistency of an old-style physical record.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 rec_validate_old(
@@ -158,7 +158,7 @@ rec_validate_old(
 /******************************************************//**
 Determine how many of the first n columns in a compact
 physical record are stored externally.
-@return	number of externally stored columns */
+@return number of externally stored columns */
 
 ulint
 rec_get_n_extern_new(
@@ -524,7 +524,7 @@ resolved:
 /******************************************************//**
 The following function determines the offsets to each field
 in the record.	It can reuse a previously returned array.
-@return	the new offsets */
+@return the new offsets */
 
 ulint*
 rec_get_offsets_func(
@@ -724,7 +724,7 @@ resolved:
 /************************************************************//**
 The following function is used to get the offset to the nth
 data field in an old-style record.
-@return	offset to the field */
+@return offset to the field */
 
 ulint
 rec_get_nth_field_offs_old(
@@ -777,7 +777,7 @@ rec_get_nth_field_offs_old(
 
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
-@return	total size */
+@return total size */
 UNIV_INLINE __attribute__((warn_unused_result, nonnull(1,2)))
 ulint
 rec_get_converted_size_comp_prefix_low(
@@ -887,7 +887,7 @@ rec_get_converted_size_comp_prefix_low(
 
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
-@return	total size */
+@return total size */
 
 ulint
 rec_get_converted_size_comp_prefix(
@@ -904,7 +904,7 @@ rec_get_converted_size_comp_prefix(
 
 /**********************************************************//**
 Determines the size of a data tuple in ROW_FORMAT=COMPACT.
-@return	total size */
+@return total size */
 
 ulint
 rec_get_converted_size_comp(
@@ -1008,7 +1008,7 @@ rec_set_nth_field_sql_null(
 /*********************************************************//**
 Builds an old-style physical record out of a data tuple and
 stores it beginning from the start of the given buffer.
-@return	pointer to the origin of physical record */
+@return pointer to the origin of physical record */
 static
 rec_t*
 rec_convert_dtuple_to_rec_old(
@@ -1283,7 +1283,7 @@ rec_convert_dtuple_to_rec_comp(
 /*********************************************************//**
 Builds a new-style physical record out of a data tuple and
 stores it beginning from the start of the given buffer.
-@return	pointer to the origin of physical record */
+@return pointer to the origin of physical record */
 static
 rec_t*
 rec_convert_dtuple_to_rec_new(
@@ -1314,7 +1314,7 @@ rec_convert_dtuple_to_rec_new(
 /*********************************************************//**
 Builds a physical record out of a data tuple and
 stores it beginning from the start of the given buffer.
-@return	pointer to the origin of physical record */
+@return pointer to the origin of physical record */
 
 rec_t*
 rec_convert_dtuple_to_rec(
@@ -1368,7 +1368,7 @@ rec_convert_dtuple_to_rec(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
-@return	total size */
+@return total size */
 
 ulint
 rec_get_converted_size_temp(
@@ -1461,7 +1461,7 @@ rec_copy_prefix_to_dtuple(
 /**************************************************************//**
 Copies the first n fields of an old-style physical record
 to a new physical record in a buffer.
-@return	own: copied record */
+@return own: copied record */
 static
 rec_t*
 rec_copy_prefix_to_buf_old(
@@ -1505,7 +1505,7 @@ rec_copy_prefix_to_buf_old(
 /**************************************************************//**
 Copies the first n fields of a physical record to a new physical record in
 a buffer.
-@return	own: copied record */
+@return own: copied record */
 
 rec_t*
 rec_copy_prefix_to_buf(
@@ -1627,7 +1627,7 @@ rec_copy_prefix_to_buf(
 
 /***************************************************************//**
 Validates the consistency of an old-style physical record.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 rec_validate_old(
@@ -1687,7 +1687,7 @@ rec_validate_old(
 
 /***************************************************************//**
 Validates the consistency of a physical record.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 rec_validate(
@@ -1965,7 +1965,7 @@ rec_print(
 # ifdef UNIV_DEBUG
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
-@return	the value of DB_TRX_ID */
+@return the value of DB_TRX_ID */
 
 trx_id_t
 rec_get_trx_id(
