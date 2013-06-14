@@ -24,7 +24,7 @@
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "field.h"                              /* Derivation */
 #include "sql_array.h"
-#include "sql_trigger.h"
+#include "table_trigger_dispatcher.h"
 
 class Protocol;
 struct TABLE_LIST;
@@ -4035,8 +4035,6 @@ public:
 };
 
 
-class Table_triggers_list;
-
 /*
   Represents NEW/OLD version of field of row which is
   changed/read in trigger.
@@ -4059,8 +4057,8 @@ public:
   Item_trigger_field *next_trg_field;
   /* Index of the field in the TABLE::field array */
   uint field_idx;
-  /* Pointer to Table_trigger_list object for table of this trigger */
-  Table_triggers_list *triggers;
+  /* Pointer to Table_trigger_dispatcher object for table of this trigger */
+  Table_trigger_dispatcher *triggers;
 
   Item_trigger_field(Name_resolution_context *context_arg,
                      row_version_type row_ver_arg,
@@ -4071,7 +4069,9 @@ public:
      row_version(row_ver_arg), field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}
-  void setup_field(THD *thd, TABLE *table, GRANT_INFO *table_grant_info);
+  void setup_field(THD *thd, TABLE *table,
+                   Table_trigger_dispatcher *table_triggers,
+                   GRANT_INFO *table_grant_info);
   enum Type type() const { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);

@@ -94,6 +94,20 @@ enum enum_i_s_events_fields
   ISE_DB_CL
 };
 
+
+static const LEX_STRING trg_action_time_type_names[]=
+{
+  { C_STRING_WITH_LEN("BEFORE") },
+  { C_STRING_WITH_LEN("AFTER") }
+};
+
+static const LEX_STRING trg_event_type_names[]=
+{
+  { C_STRING_WITH_LEN("INSERT") },
+  { C_STRING_WITH_LEN("UPDATE") },
+  { C_STRING_WITH_LEN("DELETE") }
+};
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
@@ -3753,7 +3767,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   if (schema_table->i_s_requested_object & OPEN_TRIGGER_ONLY)
   {
     init_sql_alloc(&tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-    if (!Table_triggers_list::check_n_load(thd, db_name->str,
+    if (!Table_trigger_dispatcher::check_n_load(thd, db_name->str,
                                            table_name->str, &tbl, 1))
     {
       table_list.table= &tbl;
@@ -5695,7 +5709,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   }
   if (!tables->view && tables->table->triggers)
   {
-    Table_triggers_list *triggers= tables->table->triggers;
+    Table_trigger_dispatcher *triggers= tables->table->triggers;
     int event, timing;
 
     if (check_table_access(thd, TRIGGER_ACL, tables, FALSE, 1, TRUE))
@@ -8179,7 +8193,7 @@ int finalize_schema_table(st_plugin_int *plugin)
 */
 
 static bool show_create_trigger_impl(THD *thd,
-                                     Table_triggers_list *triggers,
+                                     Table_trigger_dispatcher *triggers,
                                      int trigger_idx)
 {
   int ret_code;
@@ -8372,7 +8386,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
 {
   TABLE_LIST *lst= get_trigger_table(thd, trg_name);
   uint num_tables; /* NOTE: unused, only to pass to open_tables(). */
-  Table_triggers_list *triggers;
+  Table_trigger_dispatcher *triggers;
   int trigger_idx;
   bool error= TRUE;
 
@@ -8392,7 +8406,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /*
-    Open the table by name in order to load Table_triggers_list object.
+    Open the table by name in order to load Table_trigger_dispatcher object.
   */
   if (open_tables(thd, &lst, &num_tables,
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))

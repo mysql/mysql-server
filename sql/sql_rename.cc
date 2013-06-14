@@ -279,7 +279,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
         if (!(rc= mysql_rename_table(hton, ren_table->db, old_alias,
                                      new_db, new_alias, 0)))
         {
-          if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
+          if ((rc= Table_trigger_dispatcher::change_table_name(thd, ren_table->db,
                                                           old_alias,
                                                           ren_table->table_name,
                                                           new_db,

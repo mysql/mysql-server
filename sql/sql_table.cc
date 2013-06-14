@@ -2462,7 +2462,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
           non_tmp_table_deleted= TRUE;
-          new_error= Table_triggers_list::drop_all_triggers(thd, db,
+          new_error= Table_trigger_dispatcher::drop_all_triggers(thd, db,
                                                             table->table_name);
         }
         error|= new_error;
@@ -6648,7 +6648,7 @@ static bool mysql_inplace_alter_table(THD *thd,
       */
       DBUG_RETURN(true);
     }
-    if (Table_triggers_list::change_table_name(thd,
+    if (Table_trigger_dispatcher::change_table_name(thd,
                                                alter_ctx->db,
                                                alter_ctx->alias,
                                                alter_ctx->table_name,
@@ -7653,7 +7653,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (mysql_rename_table(old_db_type, alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias, 0))
       error= -1;
-    else if (Table_triggers_list::change_table_name(thd,
+    else if (Table_trigger_dispatcher::change_table_name(thd,
                                                     alter_ctx->db,
                                                     alter_ctx->alias,
                                                     alter_ctx->table_name,
@@ -8548,7 +8548,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   // Check if we renamed the table and if so update trigger files.
   if (alter_ctx.is_table_renamed() &&
-      Table_triggers_list::change_table_name(thd,
+      Table_trigger_dispatcher::change_table_name(thd,
                                              alter_ctx.db,
                                              alter_ctx.alias,
                                              alter_ctx.table_name,

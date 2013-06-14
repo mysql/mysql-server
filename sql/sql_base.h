@@ -175,13 +175,13 @@ void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
                                           bool ignore_errors,
-                                          Table_triggers_list *triggers,
+                                          Table_trigger_dispatcher *triggers,
                                           enum trg_event_type event,
                                           int num_fields);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values,
                                           bool ignore_errors,
-                                          Table_triggers_list *triggers,
+                                          Table_trigger_dispatcher *triggers,
                                           enum trg_event_type event,
                                           int num_fields);
 bool insert_fields(THD *thd, Name_resolution_context *context,

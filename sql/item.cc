@@ -8140,6 +8140,9 @@ void Item_insert_value::print(String *str, enum_query_type query_type)
 
   @param thd     current thread context
   @param table   table of trigger (and where we looking for fields)
+  @param table_triggers     Table_trigger_dispatcher instance. Do not use
+                            TABLE::triggers as it might be not initialized at
+                            the moment.
   @param table_grant_info   GRANT_INFO of the subject table
 
   @note
@@ -8148,20 +8151,22 @@ void Item_insert_value::print(String *str, enum_query_type query_type)
     this stage we can't say exactly what Field object (corresponding
     to TABLE::record[0] or TABLE::record[1]) should be bound to this
     Item, we only find out index of the Field and then select concrete
-    Field object in fix_fields() (by that time Table_trigger_list::old_field/
+    Field object in fix_fields() (by that time Table_trigger_dispatcher::old_field/
     new_field should point to proper array of Fields).
-    It also binds Item_trigger_field to Table_triggers_list object for
+    It also binds Item_trigger_field to Table_trigger_dispatcher object for
     table of trigger which uses this item.
 */
 
-void Item_trigger_field::setup_field(THD *thd, TABLE *table,
+void Item_trigger_field::setup_field(THD *thd,
+                                     TABLE *table,
+                                     Table_trigger_dispatcher *table_triggers,
                                      GRANT_INFO *table_grant_info)
 {
   /*
     It is too early to mark fields used here, because before execution
     of statement that will invoke trigger other statements may use same
     TABLE object, so all such mark-up will be wiped out.
-    So instead we do it in Table_triggers_list::mark_fields_used()
+    So instead we do it in Table_trigger_dispatcher::mark_fields_used()
     method which is called during execution of these statements.
   */
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
@@ -8173,7 +8178,7 @@ void Item_trigger_field::setup_field(THD *thd, TABLE *table,
   (void)find_field_in_table(thd, table, field_name, (uint) strlen(field_name),
                             0, &field_idx);
   thd->mark_used_columns= save_mark_used_columns;
-  triggers= table->triggers;
+  triggers= table_triggers;
   table_grants= table_grant_info;
 }
 
@@ -8255,8 +8260,8 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
     }
 #endif // NO_EMBEDDED_ACCESS_CHECKS
 
-    field= (row_version == OLD_ROW) ? triggers->old_field[field_idx] :
-                                      triggers->new_field[field_idx];
+    field= (row_version == OLD_ROW) ? triggers->m_old_field[field_idx] :
+                                      triggers->m_new_field[field_idx];
     set_field(field);
     fixed= 1;
     return FALSE;

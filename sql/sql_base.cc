@@ -3735,7 +3735,7 @@ err:
 
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 {
-  if (Table_triggers_list::check_n_load(thd, share->db.str,
+  if (Table_trigger_dispatcher::check_n_load(thd, share->db.str,
                                         share->table_name.str, entry, 0))
     return TRUE;
 
@@ -8928,7 +8928,7 @@ inline bool command_invokes_insert_triggers(enum trg_event_type event,
     @retval true    Error occurred
 */
 inline bool call_before_insert_triggers(THD *thd,
-                                        Table_triggers_list *triggers,
+                                        Table_trigger_dispatcher *triggers,
                                         enum trg_event_type event,
                                         MY_BITMAP *insert_into_fields_bitmap)
 {
@@ -8971,7 +8971,7 @@ inline bool call_before_insert_triggers(THD *thd,
 bool
 fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      List<Item> &values, bool ignore_errors,
-                                     Table_triggers_list *triggers,
+                                     Table_trigger_dispatcher *triggers,
                                      enum trg_event_type event,
                                      int num_fields)
 {
@@ -9126,7 +9126,7 @@ err:
 bool
 fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      List<Item> &values, bool ignore_errors,
-                                     Table_triggers_list *triggers,
+                                     Table_trigger_dispatcher *triggers,
                                      enum trg_event_type event,
                                      int num_fields)
 {
