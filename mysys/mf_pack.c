@@ -308,11 +308,8 @@ size_t unpack_dirname(char * to, const char *from)
       {
 	if ((h_length > 0) && (tilde_expansion[h_length-1] == FN_LIBCHAR))
 	  h_length--;
-	if (buff+h_length < suffix)
-	  bmove(buff+h_length,suffix,length);
-	else
-	  bmove_upp((uchar*) buff+h_length+length, (uchar*) suffix+length, length);
-	bmove(buff,tilde_expansion,h_length);
+        memmove(buff + h_length, suffix, length);
+	memmove(buff, tilde_expansion, h_length);
       }
     }
   }

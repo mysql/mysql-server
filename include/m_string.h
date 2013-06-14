@@ -35,20 +35,9 @@
 /* need by my_vsnprintf */
 #include <stdarg.h> 
 
-/*  This is needed for the definitions of memcpy... on solaris */
-#if defined(HAVE_MEMORY_H) && !defined(__cplusplus)
-#include <memory.h>
-#endif
-
 #define bfill please_use_memset_rather_than_bfill()
 #define bzero please_use_memset_rather_than_bzero()
-
-#if !defined(HAVE_MEMCPY) && !defined(HAVE_MEMMOVE)
-# define memcpy(d, s, n)	bcopy ((s), (d), (n))
-# define memmove(d, s, n)	bmove ((d), (s), (n))
-#elif defined(HAVE_MEMMOVE)
-# define bmove(d, s, n)		memmove((d), (s), (n))
-#endif
+#define bmove please_use_memmove_rather_than_bmove()
 
 #if defined(__cplusplus)
 extern "C" {
@@ -80,7 +69,6 @@ extern char _dig_vec_lower[];
 
 	/* Prototypes for string functions */
 
-extern	void bmove_upp(uchar *dst,const uchar *src,size_t len);
 extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
 		     size_t new_len,size_t tot_len);
 extern	void strappend(char *s,size_t len,pchar fill);
