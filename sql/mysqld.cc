@@ -2053,12 +2053,12 @@ static void set_user(const char *user, struct passwd *user_info_arg)
 #endif
   if (setgid(user_info_arg->pw_gid) == -1)
   {
-    sql_perror("setgid");
+    sql_print_error("setgid: %s", strerror(errno));
     unireg_abort(1);
   }
   if (setuid(user_info_arg->pw_uid) == -1)
   {
-    sql_perror("setuid");
+    sql_print_error("setuid: %s", strerror(errno));
     unireg_abort(1);
   }
 #endif
@@ -2072,12 +2072,12 @@ static void set_effective_user(struct passwd *user_info_arg)
   DBUG_ASSERT(user_info_arg != 0);
   if (setregid((gid_t)-1, user_info_arg->pw_gid) == -1)
   {
-    sql_perror("setregid");
+    sql_print_error("setregid: %s", strerror(errno));
     unireg_abort(1);
   }
   if (setreuid((uid_t)-1, user_info_arg->pw_uid) == -1)
   {
-    sql_perror("setreuid");
+    sql_print_error("setreuid: %s", strerror(errno));
     unireg_abort(1);
   }
 #endif
@@ -2090,7 +2090,7 @@ static void set_root(const char *path)
 #if !defined(_WIN32)
   if (chroot(path) == -1)
   {
-    sql_perror("chroot");
+    sql_print_error("chroot: %s", strerror(errno));
     unireg_abort(1);
   }
   my_setwd("/", MYF(0));
@@ -2234,7 +2234,7 @@ static void network_init(void)
 
         if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai))
         {
-          sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));
+          sql_print_error("%s: %s", ER_DEFAULT(ER_IPSOCK_ERROR), strerror(errno));
           sql_print_error("Can't start server: cannot resolve hostname!");
           unireg_abort(1);
         }
@@ -2246,7 +2246,7 @@ static void network_init(void)
     {
       if (getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai))
       {
-        sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
+        sql_print_error("%s: %s", ER_DEFAULT(ER_IPSOCK_ERROR), strerror(errno));
         sql_print_error("Can't start server: cannot resolve hostname!");
         unireg_abort(1);                          /* purecov: tested */
       }
@@ -2288,7 +2288,7 @@ static void network_init(void)
     // Report user-error if we failed to create a socket.
     if (mysql_socket_getfd(ip_sock) == INVALID_SOCKET)
     {
-      sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
+      sql_print_error("%s: %s", ER_DEFAULT(ER_IPSOCK_ERROR), strerror(errno));
       unireg_abort(1);                          /* purecov: tested */
     }
 
@@ -2348,13 +2348,15 @@ static void network_init(void)
     if (ret < 0)
     {
       DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
-      sql_perror("Can't start server: Bind on TCP/IP port");
+      sql_print_error("Can't start server: Bind on TCP/IP port: %s",
+                      strerror(errno));
       sql_print_error("Do you already have another mysqld server running on port: %d ?",mysqld_port);
       unireg_abort(1);
     }
     if (mysql_socket_listen(ip_sock, (int)back_log) < 0)
     {
-      sql_perror("Can't start server: listen() on TCP/IP port");
+      sql_print_error("Can't start server: listen() on TCP/IP port: %s",
+                      strerror(errno));
       sql_print_error("listen() on TCP/IP failed with error %d",
           socket_errno);
       unireg_abort(1);
@@ -2394,7 +2396,8 @@ static void network_init(void)
 
     if (mysql_socket_getfd(unix_sock) < 0)
     {
-      sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
+      sql_print_error("Can't start server: UNIX Socket : %s",
+                      strerror(errno));
       unireg_abort(1);        /* purecov: inspected */
     }
 
@@ -2411,7 +2414,8 @@ static void network_init(void)
     if (mysql_socket_bind(unix_sock, reinterpret_cast<struct sockaddr *> (&UNIXaddr),
                           sizeof(UNIXaddr)) < 0)
     {
-      sql_perror("Can't start server : Bind on unix socket"); /* purecov: tested */
+      sql_print_error("Can't start server : Bind on unix socket: %s",
+                      strerror(errno));
       sql_print_error("Do you already have another mysqld server running on socket: %s ?",mysqld_unix_port);
       unireg_abort(1);          /* purecov: tested */
     }
@@ -3541,7 +3545,8 @@ int init_common_variables()
   binlog_filter= new Rpl_filter;
   if (!rpl_filter || !binlog_filter)
   {
-    sql_perror("Could not allocate replication and binlog filters");
+    sql_print_error("Could not allocate replication and binlog filters: %s",
+                    strerror(errno));
     return 1;
   }
 
@@ -4860,7 +4865,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   {
     if (setreuid((uid_t)-1, 0) == -1)
     {                        // this should never happen
-      sql_perror("setreuid");
+      sql_print_error("setreuid: %s", strerror(errno));
       unireg_abort(1);
     }
     if (mlockall(MCL_CURRENT))
@@ -6157,7 +6162,7 @@ void handle_connections_sockets()
       */
       connection_errors_accept++;
       if ((error_count++ & 255) == 0)   // This can happen often
-        sql_perror("Error in accept");
+        sql_print_error("Error in accept: %s", strerror(errno));
       if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
         sleep(1);       // Give other threads some time
       continue;
@@ -6308,8 +6313,8 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
                                   &saPipeSecurity)) ==
     INVALID_HANDLE_VALUE)
       {
-  sql_perror("Can't create new named pipe!");
-  break;          // Abort
+        sql_print_error("Can't create new named pipe!: %s", strerror(errno));
+        break;          // Abort
       }
     }
     hConnectedPipe = hPipe;
@@ -6327,7 +6332,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
          &saPipeSecurity)) ==
   INVALID_HANDLE_VALUE)
     {
-      sql_perror("Can't create new named pipe!");
+      sql_print_error("Can't create new named pipe!: %s", strerror(errno));
       hPipe=hConnectedPipe;
       continue;         // We have to try again
     }
@@ -6549,10 +6554,8 @@ errorconn:
     /* Could not form connection;  Free used handlers/memort and retry */
     if (errmsg)
     {
-      char buff[180];
-      strxmov(buff, "Can't create shared memory connection: ", errmsg, ".",
-        NullS);
-      sql_perror(buff);
+      sql_print_error("Can't create shared memory connection: %s. : %s",
+                      errmsg, strerror(errno));
     }
     if (handle_client_file_map)
       CloseHandle(handle_client_file_map);
@@ -6578,9 +6581,8 @@ error:
 
   if (errmsg)
   {
-    char buff[180];
-    strxmov(buff, "Can't create shared memory service: ", errmsg, ".", NullS);
-    sql_perror(buff);
+    sql_print_error("Can't create shared memory service: %s. : %s",
+                    errmsg, strerror(errno));
   }
   my_security_attr_free(sa_event);
   my_security_attr_free(sa_mapping);
@@ -9040,7 +9042,8 @@ static void create_pid_file()
     }
     mysql_file_close(file, MYF(0));
   }
-  sql_perror("Can't start server: can't create PID file");
+  sql_print_error("Can't start server: can't create PID file: %s",
+                  strerror(errno));
   exit(1);
 }
 #endif /* EMBEDDED_LIBRARY */
