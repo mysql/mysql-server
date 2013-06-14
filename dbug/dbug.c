@@ -177,10 +177,6 @@
  *      Externally supplied functions.
  */
 
-#ifndef HAVE_PERROR
-static void perror();          /* Fake system/library error print routine */
-#endif
-
 /*
  *      The user may specify a list of functions to trace or
  *      debug.  These lists are kept in a linear linked list,
@@ -2328,8 +2324,6 @@ static BOOLEAN Writable(const char *pathname)
  *
  */
 
-#ifdef HAVE_LONGJMP
-
 EXPORT void _db_setjmp_()
 {
   CODE_STATE *cs;
@@ -2368,43 +2362,6 @@ EXPORT void _db_longjmp_()
   if (cs->jmpfile)
     cs->file= cs->jmpfile;
 }
-#endif
-
-/*
- *  FUNCTION
- *
- *      perror    perror simulation for systems that don't have it
- *
- *  SYNOPSIS
- *
- *      static VOID perror(s)
- *      char *s;
- *
- *  DESCRIPTION
- *
- *      Perror produces a message on the standard error stream which
- *      provides more information about the library or system error
- *      just encountered.  The argument string s is printed, followed
- *      by a ':', a blank, and then a message and a newline.
- *
- *      An undocumented feature of the unix perror is that if the string
- *      's' is a null string (NOT a NULL pointer!), then the ':' and
- *      blank are not printed.
- *
- *      This version just complains about an "unknown system error".
- *
- */
-
-#ifndef HAVE_PERROR
-static void perror(s)
-char *s;
-{
-  if (s && *s != '\0')
-    (void) fprintf(stderr, "%s: ", s);
-  (void) fprintf(stderr, "<unknown system error>\n");
-}
-#endif /* HAVE_PERROR */
-
 
         /* flush dbug-stream, free mutex lock & wait delay */
         /* This is because some systems (MSDOS!!) dosn't flush fileheader */

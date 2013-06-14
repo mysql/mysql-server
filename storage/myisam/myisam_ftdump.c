@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,11 +115,7 @@ int main(int argc,char *argv[])
     if (subkeys >= 0)
       ft_floatXget(weight, info->lastkey+keylen+1);
 
-#ifdef HAVE_SNPRINTF
     snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
-#else
-    sprintf(buf,"%.*s",(int) keylen,info->lastkey+1);
-#endif
     my_casedn_str(default_charset_info,buf);
     total++;
     lengths[keylen]++;

@@ -613,9 +613,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #endif /* isfinite */
 
 #include <math.h>
-#ifndef HAVE_ISNAN
-#define isnan(x) ((x) != (x))
-#endif
 C_MODE_START
 extern double my_double_isnan(double x);
 C_MODE_END

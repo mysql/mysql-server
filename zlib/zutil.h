@@ -169,34 +169,6 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 
          /* functions */
 
-#if defined(STDC99) || (defined(__TURBOC__) && __TURBOC__ >= 0x550)
-#  ifndef HAVE_VSNPRINTF
-#    define HAVE_VSNPRINTF
-#  endif
-#endif
-#ifndef HAVE_VSNPRINTF
-#  ifdef MSDOS
-     /* vsnprintf may exist on some MS-DOS compilers (DJGPP?),
-        but for now we just assume it doesn't. */
-#    define NO_vsnprintf
-#  endif
-#  ifdef __TURBOC__
-#    define NO_vsnprintf
-#  endif
-#  if defined(WIN32) && (!defined(_MSC_VER) || _MSC_VER < 1500)
-     /* In Win32, vsnprintf is available as the "non-ANSI" _vsnprintf. */
-#    if !defined(vsnprintf) && !defined(NO_vsnprintf)
-#      define vsnprintf _vsnprintf
-#    endif
-#  endif
-#  ifdef __SASC
-#    define NO_vsnprintf
-#  endif
-#endif
-#ifdef VMS
-#  define NO_vsnprintf
-#endif
-
 #  ifdef SMALL_MEDIUM /* MSDOS small or medium model */
 #    define zmemcpy _fmemcpy
 #    define zmemcmp _fmemcmp
