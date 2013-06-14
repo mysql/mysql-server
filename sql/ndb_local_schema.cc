@@ -25,6 +25,8 @@
 #include "sql_table.h"
 #include "mdl.h"
 #include "log.h"
+#include "table_trigger_dispatcher.h"
+#include "sql_trigger.h"
 
 static const char *ndb_ext=".ndb";
 
@@ -247,9 +249,7 @@ Ndb_local_schema::Table::remove_table(void) const
     strmov(db_name_buf, m_db);
     strmov(table_name_buf, m_name);
 
-    if (Table_trigger_dispatcher::drop_all_triggers(m_thd,
-                                               db_name_buf,
-                                               table_name_buf))
+    if (drop_all_triggers(m_thd, db_name_buf, table_name_buf))
     {
       log_warning("Failed to drop all triggers");
     }
