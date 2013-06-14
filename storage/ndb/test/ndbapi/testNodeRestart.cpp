@@ -4963,6 +4963,67 @@ runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runBug16007980(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 4)
+  {
+    g_err << "Insufficient nodes for test." << endl;
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  int loops = ctx->getNumLoops();
+  for (int i = 0; i < loops; i++)
+  {
+    int master = res.getMasterNodeId();
+    int node1 = res.getRandomNodeSameNodeGroup(master, rand());
+    int node2 = res.getRandomNodeOtherNodeGroup(master, rand());
+
+    ndbout_c("master: %u node1: %u node2: %u", master, node1, node2);
+
+    ndbout_c("restart node %u nostart", node2);
+    res.restartNodes(&node2, 1,
+                     NdbRestarter::NRRF_NOSTART | NdbRestarter::NRRF_ABORT);
+    CHECK(res.waitNodesNoStart(&node2, 1) == 0, "");
+
+    ndbout_c("prepare node %u to crash while node %u is starting",
+             node1, node2);
+    ndbout_c("dump/error insert 939 into node %u", node1);
+    int dump[] = { 939, node2 };
+    res.dumpStateOneNode(node1, dump, NDB_ARRAY_SIZE(dump));
+
+    ndbout_c("error insert 940 into node %u", node1);
+    res.insertErrorInNode(node1, 940);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    res.dumpStateOneNode(node1, val2, 2);
+
+    res.insertErrorInNode(node2, 932); // Expect node 2 to crash with error 932
+    res.dumpStateOneNode(node2, val2, 2);
+
+    ndbout_c("starting node %u", node2);
+    res.startNodes(&node2, 1);
+
+    /**
+     * Now both should have failed!
+     */
+    int list[] = { node1, node2 };
+    ndbout_c("waiting for node %u and %u nostart", node1, node2);
+    CHECK(res.waitNodesNoStart(list, NDB_ARRAY_SIZE(list)) == 0, "");
+
+    ndbout_c("starting %u and %u", node1, node2);
+    res.startNodes(list, NDB_ARRAY_SIZE(list));
+
+    ndbout_c("wait cluster started");
+    CHECK(res.waitClusterStarted() == 0, "");
+  }
+
+  return NDBT_OK;
+}
+
+int
 runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
 {
   /* Setup an error insert, then start a checkpoint */
@@ -5689,6 +5750,10 @@ TESTCASE("LCPTakeOver", "")
   STEP(runLCPTakeOver);
   STEP(runPkUpdateUntilStopped);
   STEP(runScanUpdateUntilStopped);
+}
+TESTCASE("Bug16007980", "")
+{
+  INITIALIZER(runBug16007980);
 }
 TESTCASE("LCPScanFragWatchdog", 
          "Test LCP scan watchdog")
