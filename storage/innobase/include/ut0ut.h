@@ -75,8 +75,8 @@ typedef time_t	ib_time_t;
 /*********************************************************************//**
 Delays execution for at most max_wait_us microseconds or returns earlier
 if cond becomes true.
-@param cond		in: condition to wait for; evaluated every 2 ms
-@param max_wait_us	in: maximum delay to wait, in microseconds */
+@param cond in: condition to wait for; evaluated every 2 ms
+@param max_wait_us in: maximum delay to wait, in microseconds */
 #define UT_WAIT_FOR(cond, max_wait_us)				\
 do {								\
 	ullint	start_us;					\
@@ -94,7 +94,7 @@ template <class T> T ut_max(T a, T b) { return(a > b ? a : b); }
 
 /******************************************************//**
 Calculates the minimum of two ulints.
-@return	minimum */
+@return minimum */
 UNIV_INLINE
 ulint
 ut_min(
@@ -103,7 +103,7 @@ ut_min(
 	ulint	 n2);	/*!< in: second number */
 /******************************************************//**
 Calculates the maximum of two ulints.
-@return	maximum */
+@return maximum */
 UNIV_INLINE
 ulint
 ut_max(
@@ -112,7 +112,7 @@ ut_max(
 	ulint	 n2);	/*!< in: second number */
 /******************************************************//**
 Compares two ulints.
-@return	1 if a > b, 0 if a == b, -1 if a < b */
+@return 1 if a > b, 0 if a == b, -1 if a < b */
 UNIV_INLINE
 int
 ut_ulint_cmp(
@@ -121,38 +121,38 @@ ut_ulint_cmp(
 	ulint	b);	/*!< in: ulint */
 /*************************************************************//**
 Determines if a number is zero or a power of two.
-@param n	in: number
-@return		nonzero if n is zero or a power of two; zero otherwise */
+@param n in: number
+@return nonzero if n is zero or a power of two; zero otherwise */
 #define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
 /*************************************************************//**
 Calculates fast the remainder of n/m when m is a power of two.
-@param n	in: numerator
-@param m	in: denominator, must be a power of two
-@return		the remainder of n/m */
+@param n in: numerator
+@param m in: denominator, must be a power of two
+@return the remainder of n/m */
 #define ut_2pow_remainder(n, m) ((n) & ((m) - 1))
 /*************************************************************//**
 Calculates the biggest multiple of m that is not bigger than n
 when m is a power of two.  In other words, rounds n down to m * k.
-@param n	in: number to round down
-@param m	in: alignment, must be a power of two
-@return		n rounded down to the biggest possible integer multiple of m */
+@param n in: number to round down
+@param m in: alignment, must be a power of two
+@return n rounded down to the biggest possible integer multiple of m */
 #define ut_2pow_round(n, m) ((n) & ~((m) - 1))
 /** Align a number down to a multiple of a power of two.
-@param n	in: number to round down
-@param m	in: alignment, must be a power of two
-@return		n rounded down to the biggest possible integer multiple of m */
+@param n in: number to round down
+@param m in: alignment, must be a power of two
+@return n rounded down to the biggest possible integer multiple of m */
 #define ut_calc_align_down(n, m) ut_2pow_round(n, m)
 /********************************************************//**
 Calculates the smallest multiple of m that is not smaller than n
 when m is a power of two.  In other words, rounds n up to m * k.
-@param n	in: number to round up
-@param m	in: alignment, must be a power of two
-@return		n rounded up to the smallest possible integer multiple of m */
+@param n in: number to round up
+@param m in: alignment, must be a power of two
+@return n rounded up to the smallest possible integer multiple of m */
 #define ut_calc_align(n, m) (((n) + ((m) - 1)) & ~((m) - 1))
 /*************************************************************//**
 Calculates fast the 2-logarithm of a number, rounded upward to an
 integer.
-@return	logarithm in the base 2, rounded upward */
+@return logarithm in the base 2, rounded upward */
 UNIV_INLINE
 ulint
 ut_2_log(
@@ -160,7 +160,7 @@ ut_2_log(
 	ulint	n);	/*!< in: number */
 /*************************************************************//**
 Calculates 2 to power n.
-@return	2 to power n */
+@return 2 to power n */
 UNIV_INLINE
 ulint
 ut_2_exp(
@@ -168,7 +168,7 @@ ut_2_exp(
 	ulint	n);	/*!< in: number */
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
-@return	first power of 2 which is >= n */
+@return first power of 2 which is >= n */
 
 ulint
 ut_2_power_up(
@@ -178,14 +178,14 @@ ut_2_power_up(
 
 /** Determine how many bytes (groups of 8 bits) are needed to
 store the given number of bits.
-@param b	in: bits
-@return		number of bytes (octets) needed to represent b */
+@param b in: bits
+@return number of bytes (octets) needed to represent b */
 #define UT_BITS_IN_BYTES(b) (((b) + 7) / 8)
 
 /**********************************************************//**
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime.
-@return	system time */
+@return system time */
 
 ib_time_t
 ut_time(void);
@@ -196,7 +196,7 @@ Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
 value -1 is returned and the global variable errno is set to indicate the
 error.
-@return	0 on success, -1 otherwise */
+@return 0 on success, -1 otherwise */
 
 int
 ut_usectime(
@@ -208,7 +208,7 @@ ut_usectime(
 Returns the number of microseconds since epoch. Similar to
 time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
-@return	us since epoch */
+@return us since epoch */
 
 ullint
 ut_time_us(
@@ -218,7 +218,7 @@ ut_time_us(
 Returns the number of milliseconds since some epoch.  The
 value may wrap around.  It should only be used for heuristic
 purposes.
-@return	ms since epoch */
+@return ms since epoch */
 
 ulint
 ut_time_ms(void);
@@ -237,7 +237,7 @@ ut_time_ms(void);
 
 /**********************************************************//**
 Returns the difference of two times in seconds.
-@return	time2 - time1 expressed in seconds */
+@return time2 - time1 expressed in seconds */
 
 double
 ut_difftime(
@@ -287,7 +287,7 @@ ut_get_year_month_day(
 /*************************************************************//**
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++.
-@return	dummy value */
+@return dummy value */
 
 ulint
 ut_delay(
@@ -448,7 +448,7 @@ a limited buffer. */
 /*************************************************************//**
 Convert an error number to a human readable text message. The
 returned string is static and should not be freed or modified.
-@return	string, describing the error */
+@return string, describing the error */
 
 const char*
 ut_strerr(

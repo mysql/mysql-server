@@ -109,7 +109,7 @@ introduced where a call to log_free_check() is bypassed. */
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes.
-@return	TRUE if changes */
+@return TRUE if changes */
 static
 ibool
 row_upd_changes_first_fields_binary(
@@ -178,7 +178,7 @@ under pcur.
 NOTE that this function will temporarily commit mtr and lose the
 pcur position!
 
-@return	DB_SUCCESS or an error code */
+@return DB_SUCCESS or an error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_upd_check_references_constraints(
@@ -298,7 +298,7 @@ func_exit:
 
 /*********************************************************************//**
 Creates an update node for a query graph.
-@return	own: update node */
+@return own: update node */
 
 upd_node_t*
 upd_node_create(
@@ -582,7 +582,7 @@ row_upd_rec_in_place(
 /*********************************************************************//**
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record.
-@return	new pointer to mlog */
+@return new pointer to mlog */
 
 byte*
 row_upd_write_sys_vals_to_log(
@@ -612,7 +612,7 @@ row_upd_write_sys_vals_to_log(
 
 /*********************************************************************//**
 Parses the log data of system field values.
-@return	log data end or NULL */
+@return log data end or NULL */
 
 byte*
 row_upd_parse_sys_vals(
@@ -720,7 +720,7 @@ row_upd_index_write_log(
 
 /*********************************************************************//**
 Parses the log data written by row_upd_index_write_log.
-@return	log data end or NULL */
+@return log data end or NULL */
 
 byte*
 row_upd_index_parse(
@@ -802,7 +802,7 @@ row_upd_index_parse(
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
 the fields as binary strings!
-@return	own: update vector of differing fields */
+@return own: update vector of differing fields */
 
 upd_t*
 row_upd_build_sec_rec_difference_binary(
@@ -950,7 +950,7 @@ row_upd_build_difference_binary(
 Fetch a prefix of an externally stored column.  This is similar
 to row_ext_lookup(), but the row_ext_t holds the old values
 of the column and must not be poisoned with the new values.
-@return	BLOB prefix */
+@return BLOB prefix */
 static
 byte*
 row_upd_ext_fetch(
@@ -1464,7 +1464,7 @@ row_upd_changes_fts_column(
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes.
-@return	TRUE if changes */
+@return TRUE if changes */
 static
 ibool
 row_upd_changes_first_fields_binary(
@@ -2278,7 +2278,7 @@ func_exit:
 
 /***********************************************************//**
 Delete marks a clustered index record.
-@return	DB_SUCCESS if operation successfully completed, else error code */
+@return DB_SUCCESS if operation successfully completed, else error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_upd_del_mark_clust_rec(
@@ -2631,7 +2631,7 @@ row_upd(
 /***********************************************************//**
 Updates a row in a table. This is a high-level function used in SQL execution
 graphs.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 row_upd_step(

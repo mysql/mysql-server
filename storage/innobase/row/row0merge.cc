@@ -87,7 +87,7 @@ row_merge_buf_encode(
 
 /******************************************************//**
 Allocate a sort buffer.
-@return	own: sort buffer */
+@return own: sort buffer */
 static __attribute__((malloc, nonnull))
 row_merge_buf_t*
 row_merge_buf_create_low(
@@ -118,7 +118,7 @@ row_merge_buf_create_low(
 
 /******************************************************//**
 Allocate a sort buffer.
-@return	own: sort buffer */
+@return own: sort buffer */
 
 row_merge_buf_t*
 row_merge_buf_create(
@@ -144,7 +144,7 @@ row_merge_buf_create(
 
 /******************************************************//**
 Empty a sort buffer.
-@return	sort buffer */
+@return sort buffer */
 
 row_merge_buf_t*
 row_merge_buf_empty(
@@ -183,7 +183,7 @@ row_merge_buf_free(
 
 /******************************************************//**
 Insert a data tuple into a sort buffer.
-@return	number of rows added, 0 if out of space */
+@return number of rows added, 0 if out of space */
 static
 ulint
 row_merge_buf_add(
@@ -473,7 +473,7 @@ row_merge_dup_report(
 
 /*************************************************************//**
 Compare two tuples.
-@return	positive, 0, negative if a is greater, equal, less, than b,
+@return positive, 0, negative if a is greater, equal, less, than b,
 respectively */
 static __attribute__((warn_unused_result))
 int
@@ -538,17 +538,17 @@ no_report:
 
 /** Wrapper for row_merge_tuple_sort() to inject some more context to
 UT_SORT_FUNCTION_BODY().
-@param tuples	array of tuples that being sorted
-@param aux	work area, same size as tuples[]
-@param low	lower bound of the sorting area, inclusive
-@param high	upper bound of the sorting area, inclusive */
+@param tuples array of tuples that being sorted
+@param aux work area, same size as tuples[]
+@param low lower bound of the sorting area, inclusive
+@param high upper bound of the sorting area, inclusive */
 #define row_merge_tuple_sort_ctx(tuples, aux, low, high)		\
 	row_merge_tuple_sort(n_uniq, n_field, dup, tuples, aux, low, high)
 /** Wrapper for row_merge_tuple_cmp() to inject some more context to
 UT_SORT_FUNCTION_BODY().
-@param a	first tuple to be compared
-@param b	second tuple to be compared
-@return	positive, 0, negative, if a is greater, equal, less, than b,
+@param a first tuple to be compared
+@param b second tuple to be compared
+@return positive, 0, negative, if a is greater, equal, less, than b,
 respectively */
 #define row_merge_tuple_cmp_ctx(a,b)			\
 	row_merge_tuple_cmp(n_uniq, n_field, a, b, dup)
@@ -643,7 +643,7 @@ row_merge_buf_write(
 /******************************************************//**
 Create a memory heap and allocate space for row_merge_rec_offsets()
 and mrec_buf_t[3].
-@return	memory heap */
+@return memory heap */
 static
 mem_heap_t*
 row_merge_heap_create(
@@ -673,7 +673,7 @@ row_merge_heap_create(
 
 /********************************************************************//**
 Read a merge block from the file system.
-@return	TRUE if request was successful, FALSE if fail */
+@return TRUE if request was successful, FALSE if fail */
 
 ibool
 row_merge_read(
@@ -708,7 +708,7 @@ row_merge_read(
 
 /********************************************************************//**
 Write a merge block to the file system.
-@return	TRUE if request was successful, FALSE if fail */
+@return TRUE if request was successful, FALSE if fail */
 
 ibool
 row_merge_write(
@@ -739,7 +739,7 @@ row_merge_write(
 
 /********************************************************************//**
 Read a merge record.
-@return	pointer to next record, or NULL on I/O error or end of list */
+@return pointer to next record, or NULL on I/O error or end of list */
 
 const byte*
 row_merge_read_rec(
@@ -947,7 +947,7 @@ row_merge_write_rec_low(
 
 /********************************************************************//**
 Write a merge record.
-@return	pointer to end of block, or NULL on error */
+@return pointer to end of block, or NULL on error */
 static
 byte*
 row_merge_write_rec(
@@ -1014,7 +1014,7 @@ row_merge_write_rec(
 
 /********************************************************************//**
 Write an end-of-list marker.
-@return	pointer to end of block, or NULL on error */
+@return pointer to end of block, or NULL on error */
 static
 byte*
 row_merge_write_eof(
@@ -1056,7 +1056,7 @@ row_merge_write_eof(
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
-@return	DB_SUCCESS or error */
+@return DB_SUCCESS or error */
 static __attribute__((nonnull(1,2,3,4,6,9,10,16), warn_unused_result))
 dberr_t
 row_merge_read_clustered_index(
@@ -1687,9 +1687,9 @@ wait_again:
 }
 
 /** Write a record via buffer 2 and read the next record to buffer N.
-@param N	number of the buffer (0 or 1)
-@param INDEX	record descriptor
-@param AT_END	statement to execute at end of input */
+@param N number of the buffer (0 or 1)
+@param INDEX record descriptor
+@param AT_END statement to execute at end of input */
 #define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
 	do {								\
 		b2 = row_merge_write_rec(&block[2 * srv_sort_buf_size], \
@@ -1713,7 +1713,7 @@ wait_again:
 
 /*************************************************************//**
 Merge two blocks of records on disk and write a bigger block.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_merge_blocks(
@@ -1815,7 +1815,7 @@ done1:
 
 /*************************************************************//**
 Copy a block of index entries.
-@return	TRUE on success, FALSE on failure */
+@return TRUE on success, FALSE on failure */
 static __attribute__((nonnull, warn_unused_result))
 ibool
 row_merge_blocks_copy(
@@ -1884,7 +1884,7 @@ done0:
 
 /*************************************************************//**
 Merge disk files.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull))
 dberr_t
 row_merge(
@@ -2014,7 +2014,7 @@ row_merge(
 
 /*************************************************************//**
 Merge disk files.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 row_merge_sort(
@@ -2115,7 +2115,7 @@ row_merge_copy_blobs(
 /********************************************************************//**
 Read sorted file containing index data tuples and insert these data
 tuples to the index
-@return	DB_SUCCESS or error number */
+@return DB_SUCCESS or error number */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_merge_insert_index_tuples(
@@ -2323,7 +2323,7 @@ err_exit:
 
 /*********************************************************************//**
 Sets an exclusive lock on a table, for the duration of creating indexes.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_merge_lock_table(
@@ -2876,7 +2876,7 @@ row_merge_file_destroy(
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
-@return	DB_SUCCESS if all OK */
+@return DB_SUCCESS if all OK */
 
 dberr_t
 row_merge_rename_index_to_add(
@@ -2929,7 +2929,7 @@ row_merge_rename_index_to_add(
 Rename an index in the dictionary that is to be dropped. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
-@return	DB_SUCCESS if all OK */
+@return DB_SUCCESS if all OK */
 
 dberr_t
 row_merge_rename_index_to_drop(
@@ -2985,7 +2985,7 @@ row_merge_rename_index_to_drop(
 Provide a new pathname for a table that is being renamed if it belongs to
 a file-per-table tablespace.  The caller is responsible for freeing the
 memory allocated for the return value.
-@return	new pathname of tablespace file, or NULL if space = 0 */
+@return new pathname of tablespace file, or NULL if space = 0 */
 
 char*
 row_make_new_pathname(
@@ -3012,7 +3012,7 @@ row_make_new_pathname(
 Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_merge_rename_tables_dict(
@@ -3124,7 +3124,7 @@ row_merge_rename_tables_dict(
 
 /*********************************************************************//**
 Create and execute a query graph for creating an index.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_merge_create_index_graph(
@@ -3164,7 +3164,7 @@ row_merge_create_index_graph(
 
 /*********************************************************************//**
 Create the index and load in to the dictionary.
-@return	index, or NULL on error */
+@return index, or NULL on error */
 
 dict_index_t*
 row_merge_create_index(
@@ -3246,7 +3246,7 @@ Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
 dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and
 before calling this function.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 row_merge_drop_table(
@@ -3266,7 +3266,7 @@ row_merge_drop_table(
 Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 row_merge_build_indexes(

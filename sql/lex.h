@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -228,6 +228,7 @@ static SYMBOL symbols[] = {
   { "FLOAT4",		SYM(FLOAT_SYM)},
   { "FLOAT8",		SYM(DOUBLE_SYM)},
   { "FLUSH",		SYM(FLUSH_SYM)},
+  { "FOLLOWS",          SYM(FOLLOWS_SYM)},
   { "FOR",		SYM(FOR_SYM)},
   { "FORCE",		SYM(FORCE_SYM)},
   { "FOREIGN",		SYM(FOREIGN)},
@@ -430,6 +431,7 @@ static SYMBOL symbols[] = {
   { "POINT",		SYM(POINT_SYM)},
   { "POLYGON",		SYM(POLYGON)},
   { "PORT",		SYM(PORT_SYM)},
+  { "PRECEDES",         SYM(PRECEDES_SYM)},
   { "PRECISION",	SYM(PRECISION)},
   { "PREPARE",          SYM(PREPARE_SYM)},
   { "PRESERVE",		SYM(PRESERVE_SYM)},

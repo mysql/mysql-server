@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -358,7 +358,7 @@ my_bool rename_in_schema_file(THD *thd,
     parser object
 */
 
-File_parser * 
+File_parser *
 sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
 		  bool bad_format_errors)
 {

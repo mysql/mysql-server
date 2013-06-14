@@ -66,7 +66,7 @@ extern my_bool	page_zip_log_pages;
 
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.
-@return	size in bytes */
+@return size in bytes */
 UNIV_INLINE
 ulint
 page_zip_get_size(
@@ -85,7 +85,7 @@ page_zip_set_size(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Determine if a record is so big that it needs to be stored externally.
-@return	FALSE if the entire record can be stored locally on the page */
+@return FALSE if the entire record can be stored locally on the page */
 UNIV_INLINE
 ibool
 page_zip_rec_needs_ext(
@@ -99,7 +99,7 @@ page_zip_rec_needs_ext(
 
 /**********************************************************************//**
 Determine the guaranteed free space on an empty page.
-@return	minimum payload size on the page */
+@return minimum payload size on the page */
 
 ulint
 page_zip_empty_size(
@@ -171,7 +171,7 @@ page_zip_fields_encode(
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
-@return	TRUE on success, FALSE on failure */
+@return TRUE on success, FALSE on failure */
 
 ibool
 page_zip_decompress(
@@ -188,7 +188,7 @@ page_zip_decompress(
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate a compressed page descriptor.
-@return	TRUE if ok */
+@return TRUE if ok */
 UNIV_INLINE
 ibool
 page_zip_simple_validate(
@@ -200,7 +200,7 @@ page_zip_simple_validate(
 #ifdef UNIV_ZIP_DEBUG
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
-@return	TRUE if valid, FALSE if not */
+@return TRUE if valid, FALSE if not */
 
 ibool
 page_zip_validate_low(
@@ -237,7 +237,7 @@ page_zip_max_ins_size(
 
 /**********************************************************************//**
 Determine if enough space is available in the modification log.
-@return	TRUE if page_zip_write_rec() will succeed */
+@return TRUE if page_zip_write_rec() will succeed */
 UNIV_INLINE
 ibool
 page_zip_available(
@@ -278,7 +278,7 @@ page_zip_write_rec(
 
 /***********************************************************//**
 Parses a log record of writing a BLOB pointer of a record.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_zip_parse_write_blob_ptr(
@@ -307,7 +307,7 @@ page_zip_write_blob_ptr(
 
 /***********************************************************//**
 Parses a log record of writing the node pointer of a record.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_zip_parse_write_node_ptr(
@@ -408,7 +408,7 @@ page_zip_dir_add_slot(
 
 /***********************************************************//**
 Parses a log record of writing to the header of a page.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_zip_parse_write_header(
@@ -479,7 +479,7 @@ page_zip_copy_recs(
 
 /**********************************************************************//**
 Parses a log record of compressing an index page.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_zip_parse_compress(
@@ -493,7 +493,7 @@ page_zip_parse_compress(
 #endif /* !UNIV_INNOCHECKSUM */
 /**********************************************************************//**
 Calculate the compressed page checksum.
-@return	page checksum */
+@return page checksum */
 
 ib_uint32_t
 page_zip_calc_checksum(
@@ -505,7 +505,7 @@ page_zip_calc_checksum(
 
 /**********************************************************************//**
 Verify a compressed page's checksum.
-@return	TRUE if the stored checksum is valid according to the value of
+@return TRUE if the stored checksum is valid according to the value of
 innodb_checksum_algorithm */
 
 ibool
@@ -535,7 +535,7 @@ page_zip_compress_write_log_no_data(
 	mtr_t*		mtr);	/*!< in: mtr */
 /**********************************************************************//**
 Parses a log record of compressing an index page without the data.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 UNIV_INLINE
 byte*
 page_zip_parse_compress_no_data(
@@ -559,18 +559,18 @@ page_zip_reset_stat_per_index();
 /** Check if a pointer to an uncompressed page matches a compressed page.
 When we IMPORT a tablespace the blocks and accompanying frames are allocted
 from outside the buffer pool.
-@param ptr	pointer to an uncompressed page frame
-@param page_zip	compressed page descriptor
-@return		TRUE if ptr and page_zip refer to the same block */
+@param ptr pointer to an uncompressed page frame
+@param page_zip compressed page descriptor
+@return TRUE if ptr and page_zip refer to the same block */
 # define PAGE_ZIP_MATCH(ptr, page_zip)					\
 	(((page_zip)->m_external					\
 	  && (page_align(ptr) + UNIV_PAGE_SIZE == (page_zip)->data))	\
 	  || buf_frame_get_page_zip(ptr) == (page_zip))
 #else /* !UNIV_HOTBACKUP */
 /** Check if a pointer to an uncompressed page matches a compressed page.
-@param ptr	pointer to an uncompressed page frame
-@param page_zip	compressed page descriptor
-@return		TRUE if ptr and page_zip refer to the same block */
+@param ptr pointer to an uncompressed page frame
+@param page_zip compressed page descriptor
+@return TRUE if ptr and page_zip refer to the same block */
 # define PAGE_ZIP_MATCH(ptr, page_zip)				\
 	(page_align(ptr) + UNIV_PAGE_SIZE == (page_zip)->data)
 #endif /* !UNIV_HOTBACKUP */

@@ -260,7 +260,7 @@ ibuf_inside(
 	__attribute__((nonnull, pure));
 /***********************************************************************//**
 Checks if a page address is an ibuf bitmap page (level 3 page) address.
-@return	TRUE if a bitmap page */
+@return TRUE if a bitmap page */
 UNIV_INLINE
 ibool
 ibuf_bitmap_page(
@@ -271,7 +271,7 @@ ibuf_bitmap_page(
 /***********************************************************************//**
 Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==TRUE.
-@return	TRUE if level 2 or level 3 page */
+@return TRUE if level 2 or level 3 page */
 
 ibool
 ibuf_page_low(
@@ -294,20 +294,20 @@ ibuf_page_low(
 #ifdef UNIV_DEBUG
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
 pages.  Must not be called when recv_no_ibuf_operations==TRUE.
-@param space	tablespace identifier
-@param zip_size	compressed page size in bytes, or 0
-@param page_no	page number
-@param mtr	mini-transaction or NULL
+@param space tablespace identifier
+@param zip_size compressed page size in bytes, or 0
+@param page_no page number
+@param mtr mini-transaction or NULL
 @return TRUE if level 2 or level 3 page */
 # define ibuf_page(space, zip_size, page_no, mtr)			\
 	ibuf_page_low(space, zip_size, page_no, TRUE, __FILE__, __LINE__, mtr)
 #else /* UVIV_DEBUG */
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
 pages.  Must not be called when recv_no_ibuf_operations==TRUE.
-@param space	tablespace identifier
-@param zip_size	compressed page size in bytes, or 0
-@param page_no	page number
-@param mtr	mini-transaction or NULL
+@param space tablespace identifier
+@param zip_size compressed page size in bytes, or 0
+@param page_no page number
+@param mtr mini-transaction or NULL
 @return TRUE if level 2 or level 3 page */
 # define ibuf_page(space, zip_size, page_no, mtr)			\
 	ibuf_page_low(space, zip_size, page_no, __FILE__, __LINE__, mtr)
@@ -324,7 +324,7 @@ ibuf_free_excess_pages(void);
 Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible. Does not do it if the index
 is clustered or unique.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 ibuf_insert(
@@ -389,7 +389,7 @@ ibuf_contract_in_background(
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 ibuf_parse_bitmap_init(
@@ -413,7 +413,7 @@ ibuf_count_get(
 #endif
 /******************************************************************//**
 Looks if the insert buffer is empty.
-@return	true if empty */
+@return true if empty */
 
 bool
 ibuf_is_empty(void);
@@ -428,7 +428,7 @@ ibuf_print(
 /********************************************************************
 Read the first two bytes from a record's fourth field (counter field in new
 records; something else in older records).
-@return	"counter" field, or ULINT_UNDEFINED if for some reason it can't be read */
+@return "counter" field, or ULINT_UNDEFINED if for some reason it can't be read */
 
 ulint
 ibuf_rec_get_counter(

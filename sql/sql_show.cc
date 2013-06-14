@@ -41,7 +41,10 @@
 #include "sp_head.h"
 #include "sp_pcontext.h"
 #include "set_var.h"
-#include "sql_trigger.h"
+#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "trigger_loader.h"           // Trigger_loader::trg_file_exists()
+#include "trigger_chain.h"            // Trigger_chain
+#include "trigger.h"                  // Trigger
 #include "sql_derived.h"
 #include "sql_partition.h"
 #ifndef EMBEDDED_LIBRARY
@@ -92,6 +95,20 @@ enum enum_i_s_events_fields
   ISE_CLIENT_CS,
   ISE_CONNECTION_CL,
   ISE_DB_CL
+};
+
+
+static const LEX_STRING trg_action_time_type_names[]=
+{
+  { C_STRING_WITH_LEN("BEFORE") },
+  { C_STRING_WITH_LEN("AFTER") }
+};
+
+static const LEX_STRING trg_event_type_names[]=
+{
+  { C_STRING_WITH_LEN("INSERT") },
+  { C_STRING_WITH_LEN("UPDATE") },
+  { C_STRING_WITH_LEN("DELETE") }
 };
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3687,7 +3704,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 {
   TABLE *table= tables->table;
   TABLE_SHARE *share;
-  TABLE tbl;
   TABLE_LIST table_list;
   uint res= 0;
   int not_used;
@@ -3697,7 +3713,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
   memset(&table_list, 0, sizeof(TABLE_LIST));
-  memset(&tbl, 0, sizeof(TABLE));
 
   if (lower_case_table_names)
   {
@@ -3752,16 +3767,28 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   if (schema_table->i_s_requested_object & OPEN_TRIGGER_ONLY)
   {
-    init_sql_alloc(&tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-    if (!Table_triggers_list::check_n_load(thd, db_name->str,
-                                           table_name->str, &tbl, 1))
+    if (!Trigger_loader::trg_file_exists(db_name->str, table_name->str))
+      goto end;
+
+    Table_trigger_dispatcher d(db_name->str, table_name->str);
+
+    if (!d.check_n_load(thd, true))
     {
+      TABLE tbl;
+
+      memset(&tbl, 0, sizeof(TABLE));
+      init_sql_alloc(&tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+
+      tbl.triggers= &d;
       table_list.table= &tbl;
+
       res= schema_table->process_table(thd, &table_list, table,
                                        res, db_name, table_name);
-      delete tbl.triggers;
+
+      table_list.table= NULL;
+      tbl.triggers= NULL;
     }
-    free_root(&tbl.mem_root, MYF(0));
+
     goto end;
   }
 
@@ -3805,17 +3832,23 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     goto end_share;
   }
 
-  if (!open_table_from_share(thd, share, table_name->str, 0,
-                             (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
-                             thd->open_options, &tbl, FALSE))
   {
-    tbl.s= share;
-    table_list.table= &tbl;
-    table_list.view= (LEX*) share->is_view;
-    res= schema_table->process_table(thd, &table_list, table,
-                                     res, db_name, table_name);
-    free_root(&tbl.mem_root, MYF(0));
-    my_free((void *) tbl.alias);
+    TABLE tbl;
+    memset(&tbl, 0, sizeof(TABLE));
+    init_sql_alloc(&tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+
+    if (!open_table_from_share(thd, share, table_name->str, 0,
+                               (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
+                               thd->open_options, &tbl, false))
+    {
+      tbl.s= share;
+      table_list.table= &tbl;
+      table_list.view= (LEX*) share->is_view;
+      res= schema_table->process_table(thd, &table_list, table,
+                                       res, db_name, table_name);
+      free_root(&tbl.mem_root, MYF(0));
+      my_free((void *) tbl.alias);
+    }
   }
 
 end_share:
@@ -5632,43 +5665,71 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-static bool store_trigger(THD *thd, TABLE *table, LEX_STRING *db_name,
-                          LEX_STRING *table_name, LEX_STRING *trigger_name,
-                          enum trg_event_type event,
-                          enum trg_action_time_type timing,
-                          LEX_STRING *trigger_stmt,
-                          sql_mode_t sql_mode,
-                          LEX_STRING *definer_buffer,
-                          LEX_STRING *client_cs_name,
-                          LEX_STRING *connection_cl_name,
-                          LEX_STRING *db_cl_name)
+static bool store_trigger(THD *thd, TABLE *table, Trigger *trigger)
 {
   CHARSET_INFO *cs= system_charset_info;
-  LEX_STRING sql_mode_rep;
 
   restore_record(table, s->default_values);
   table->field[0]->store(STRING_WITH_LEN("def"), cs);
-  table->field[1]->store(db_name->str, db_name->length, cs);
-  table->field[2]->store(trigger_name->str, trigger_name->length, cs);
-  table->field[3]->store(trg_event_type_names[event].str,
-                         trg_event_type_names[event].length, cs);
+  table->field[1]->store(trigger->get_db_name().str,
+                         trigger->get_db_name().length, cs);
+  table->field[2]->store(trigger->get_trigger_name().str,
+                         trigger->get_trigger_name().length, cs);
+
+  {
+    const LEX_STRING &s= trg_event_type_names[trigger->get_event()];
+    table->field[3]->store(s.str, s.length, cs);
+  }
+
   table->field[4]->store(STRING_WITH_LEN("def"), cs);
-  table->field[5]->store(db_name->str, db_name->length, cs);
-  table->field[6]->store(table_name->str, table_name->length, cs);
-  table->field[9]->store(trigger_stmt->str, trigger_stmt->length, cs);
+  table->field[5]->store(trigger->get_db_name().str,
+                         trigger->get_db_name().length, cs);
+  table->field[6]->store(trigger->get_subject_table_name().str,
+                         trigger->get_subject_table_name().length, cs);
+
+  table->field[7]->set_notnull();
+  table->field[7]->store(trigger->get_action_order(), true);
+
+  {
+    const LEX_STRING &s= trigger->get_sp()->m_body_utf8;
+    table->field[9]->store(s.str, s.length, cs);
+  }
+
   table->field[10]->store(STRING_WITH_LEN("ROW"), cs);
-  table->field[11]->store(trg_action_time_type_names[timing].str,
-                          trg_action_time_type_names[timing].length, cs);
+
+  {
+    const LEX_STRING &s= trg_action_time_type_names[trigger->get_action_time()];
+    table->field[11]->store(s.str, s.length, cs);
+  }
+
   table->field[14]->store(STRING_WITH_LEN("OLD"), cs);
   table->field[15]->store(STRING_WITH_LEN("NEW"), cs);
 
-  sql_mode_string_representation(thd, sql_mode, &sql_mode_rep);
-  table->field[17]->store(sql_mode_rep.str, sql_mode_rep.length, cs);
-  table->field[18]->store(definer_buffer->str, definer_buffer->length, cs);
-  table->field[19]->store(client_cs_name->str, client_cs_name->length, cs);
-  table->field[20]->store(connection_cl_name->str,
-                          connection_cl_name->length, cs);
-  table->field[21]->store(db_cl_name->str, db_cl_name->length, cs);
+  if (!trigger->is_created_timestamp_null())
+  {
+    timeval epoche_timestamp;
+    ulonglong created_timestamp= trigger->get_created_timestamp();
+    epoche_timestamp.tv_sec= created_timestamp / 1000;
+    epoche_timestamp.tv_usec= (created_timestamp % 1000) * 1000;
+
+    table->field[16]->set_notnull();
+    table->field[16]->store_timestamp(&epoche_timestamp);
+  }
+
+  {
+    LEX_STRING s;
+    sql_mode_string_representation(thd, trigger->get_sql_mode(), &s);
+    table->field[17]->store(s.str, s.length, cs);
+  }
+
+  table->field[18]->store(trigger->get_definer().str,
+                          trigger->get_definer().length, cs);
+  table->field[19]->store(trigger->get_client_cs_name().str,
+                          trigger->get_client_cs_name().length, cs);
+  table->field[20]->store(trigger->get_connection_cl_name().str,
+                          trigger->get_connection_cl_name().length, cs);
+  table->field[21]->store(trigger->get_db_cl_name().str,
+                          trigger->get_db_cl_name().length, cs);
 
   return schema_table_store_record(thd, table);
 }
@@ -5693,51 +5754,38 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
     thd->clear_error();
     DBUG_RETURN(0);
   }
-  if (!tables->view && tables->table->triggers)
+
+  if (tables->view || !tables->table->triggers)
+    DBUG_RETURN(0);
+
+  if (check_table_access(thd, TRIGGER_ACL, tables, false, 1, true))
+    DBUG_RETURN(0);
+
+  Table_trigger_dispatcher *triggers= tables->table->triggers;
+
+  for (int event= 0; event < (int) TRG_EVENT_MAX; ++event)
   {
-    Table_triggers_list *triggers= tables->table->triggers;
-    int event, timing;
-
-    if (check_table_access(thd, TRIGGER_ACL, tables, FALSE, 1, TRUE))
-      goto ret;
-
-    for (event= 0; event < (int)TRG_EVENT_MAX; event++)
+    for (int timing= 0; timing < (int) TRG_ACTION_MAX; ++timing)
     {
-      for (timing= 0; timing < (int)TRG_ACTION_MAX; timing++)
-      {
-        LEX_STRING trigger_name;
-        LEX_STRING trigger_stmt;
-        sql_mode_t sql_mode;
-        char definer_holder[USER_HOST_BUFF_SIZE];
-        LEX_STRING definer_buffer;
-        LEX_STRING client_cs_name;
-        LEX_STRING connection_cl_name;
-        LEX_STRING db_cl_name;
+      Trigger_chain *trigger_chain= triggers->get_triggers(event, timing);
 
-        definer_buffer.str= definer_holder;
-        if (triggers->get_trigger_info(thd, (enum trg_event_type) event,
-                                       (enum trg_action_time_type)timing,
-                                       &trigger_name, &trigger_stmt,
-                                       &sql_mode,
-                                       &definer_buffer,
-                                       &client_cs_name,
-                                       &connection_cl_name,
-                                       &db_cl_name))
+      if (!trigger_chain)
+        continue;
+
+      List_iterator<Trigger> it(trigger_chain->get_trigger_list());
+      Trigger *trigger;
+
+      while ((trigger= it++))
+      {
+        if (trigger->has_parse_error())
           continue;
 
-        if (store_trigger(thd, table, db_name, table_name, &trigger_name,
-                         (enum trg_event_type) event,
-                         (enum trg_action_time_type) timing, &trigger_stmt,
-                         sql_mode,
-                         &definer_buffer,
-                         &client_cs_name,
-                         &connection_cl_name,
-                         &db_cl_name))
+        if (store_trigger(thd, table, trigger))
           DBUG_RETURN(1);
       }
     }
   }
-ret:
+
   DBUG_RETURN(0);
 }
 
@@ -6768,6 +6816,11 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
                                    strlen(fields_info->field_name));
       if (!(item=new Item_temporal(fields_info->field_type, field_name, 0, 0)))
         DBUG_RETURN(0);
+
+      if (fields_info->field_type == MYSQL_TYPE_TIMESTAMP ||
+          fields_info->field_type == MYSQL_TYPE_DATETIME)
+        item->decimals= fields_info->field_length;
+
       break;
     }
     case MYSQL_TYPE_FLOAT:
@@ -7767,7 +7820,13 @@ ST_FIELD_INFO triggers_fields_info[]=
    OPEN_FRM_ONLY},
   {"ACTION_REFERENCE_OLD_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FRM_ONLY},
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FRM_ONLY},
-  {"CREATED", 0, MYSQL_TYPE_DATETIME, 0, 1, "Created", OPEN_FRM_ONLY},
+  /*
+    Set field_length to the value of 2 for field type MYSQL_TYPE_DATETIME.
+    It allows later during instantiation of class Item_temporal to remember
+    the number of digits in the fractional part of time and use it when
+    the value of MYSQL_TYPE_DATETIME is stored in the Field.
+  */
+  {"CREATED", 2, MYSQL_TYPE_DATETIME, 0, 1, "Created", OPEN_FRM_ONLY},
   {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, "sql_mode", OPEN_FRM_ONLY},
   {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer", OPEN_FRM_ONLY},
   {"CHARACTER_SET_CLIENT", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
@@ -8170,65 +8229,28 @@ int finalize_schema_table(st_plugin_int *plugin)
   Output trigger information (SHOW CREATE TRIGGER) to the client.
 
   @param thd          Thread context.
-  @param triggers     List of triggers for the table.
-  @param trigger_idx  Index of the trigger to dump.
+  @param triggers     table trigger to dump.
 
   @return Operation status
     @retval TRUE Error.
     @retval FALSE Success.
 */
 
-static bool show_create_trigger_impl(THD *thd,
-                                     Table_triggers_list *triggers,
-                                     int trigger_idx)
+static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
 {
-  int ret_code;
-
   Protocol *p= thd->protocol;
   List<Item> fields;
 
-  LEX_STRING trg_name;
-  sql_mode_t trg_sql_mode;
-  LEX_STRING trg_sql_mode_str;
-  LEX_STRING trg_sql_original_stmt;
-  LEX_STRING trg_client_cs_name;
-  LEX_STRING trg_connection_cl_name;
-  LEX_STRING trg_db_cl_name;
+  // Construct sql_mode string.
 
-  const CHARSET_INFO *trg_client_cs;
+  LEX_STRING sql_mode_str;
 
-  /*
-    TODO: Check privileges here. This functionality will be added by
-    implementation of the following WL items:
-      - WL#2227: New privileges for new objects
-      - WL#3482: Protect SHOW CREATE PROCEDURE | FUNCTION | VIEW | TRIGGER
-        properly
+  sql_mode_string_representation(thd, trigger->get_sql_mode(), &sql_mode_str);
 
-    SHOW TRIGGERS and I_S.TRIGGERS will be affected too.
-  */
-
-  /* Prepare trigger "object". */
-
-  triggers->get_trigger_info(thd,
-                             trigger_idx,
-                             &trg_name,
-                             &trg_sql_mode,
-                             &trg_sql_original_stmt,
-                             &trg_client_cs_name,
-                             &trg_connection_cl_name,
-                             &trg_db_cl_name);
-
-  sql_mode_string_representation(thd, trg_sql_mode, &trg_sql_mode_str);
-
-  /* Resolve trigger client character set. */
-
-  if (resolve_charset(trg_client_cs_name.str, NULL, &trg_client_cs))
-    return TRUE;
-
-  /* Send header. */
+  // Send header.
 
   fields.push_back(new Item_empty_string("Trigger", NAME_LEN));
-  fields.push_back(new Item_empty_string("sql_mode", trg_sql_mode_str.length));
+  fields.push_back(new Item_empty_string("sql_mode", sql_mode_str.length));
 
   {
     /*
@@ -8238,7 +8260,8 @@ static bool show_create_trigger_impl(THD *thd,
 
     Item_empty_string *stmt_fld=
       new Item_empty_string("SQL Original Statement",
-                            max<size_t>(trg_sql_original_stmt.length, 1024));
+                            max<size_t>(trigger->get_definition().length,
+                                        1024));
 
     stmt_fld->maybe_null= TRUE;
 
@@ -8254,43 +8277,51 @@ static bool show_create_trigger_impl(THD *thd,
   fields.push_back(new Item_empty_string("Database Collation",
                                          MY_CS_NAME_SIZE));
 
+  fields.push_back(new Item_temporal(MYSQL_TYPE_TIMESTAMP,
+                                     Name_string("created",
+                                                 sizeof("created")-1),
+                                     0, 0));
+
   if (p->send_result_set_metadata(&fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 
-  /* Send data. */
+  // Resolve trigger client character set.
+
+  const CHARSET_INFO *client_cs;
+
+  if (resolve_charset(trigger->get_client_cs_name().str, NULL, &client_cs))
+    return true;
+
+  // Send data.
 
   p->prepare_for_resend();
 
-  p->store(trg_name.str,
-           trg_name.length,
-           system_charset_info);
+  p->store(trigger->get_trigger_name(), system_charset_info);
+  p->store(sql_mode_str, system_charset_info);
+  p->store(trigger->get_definition(), client_cs);
+  p->store(trigger->get_client_cs_name(), system_charset_info);
+  p->store(trigger->get_connection_cl_name(), system_charset_info);
+  p->store(trigger->get_db_cl_name(), system_charset_info);
 
-  p->store(trg_sql_mode_str.str,
-           trg_sql_mode_str.length,
-           system_charset_info);
+  if (!trigger->is_created_timestamp_null())
+  {
+    timeval epoche_timestamp;
+    longlong created_timestamp= trigger->get_created_timestamp();
+    epoche_timestamp.tv_sec= created_timestamp / 1000;
+    epoche_timestamp.tv_usec= (created_timestamp % 1000) * 1000;
+    MYSQL_TIME timestamp;
+    my_tz_SYSTEM->gmt_sec_to_TIME(&timestamp, epoche_timestamp);
+    p->store(&timestamp, 2);
+  }
+  else
+    p->store_null();
 
-  p->store(trg_sql_original_stmt.str,
-           trg_sql_original_stmt.length,
-           trg_client_cs);
+  int rc= p->write();
 
-  p->store(trg_client_cs_name.str,
-           trg_client_cs_name.length,
-           system_charset_info);
-
-  p->store(trg_connection_cl_name.str,
-           trg_connection_cl_name.length,
-           system_charset_info);
-
-  p->store(trg_db_cl_name.str,
-           trg_db_cl_name.length,
-           system_charset_info);
-
-  ret_code= p->write();
-
-  if (!ret_code)
+  if (!rc)
     my_eof(thd);
 
-  return ret_code != 0;
+  return rc != 0;
 }
 
 
@@ -8322,20 +8353,22 @@ static
 TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 {
   char trn_path_buff[FN_REFLEN];
-  LEX_STRING trn_path= { trn_path_buff, 0 };
   LEX_STRING db;
   LEX_STRING tbl_name;
   TABLE_LIST *table;
 
-  build_trn_path(thd, trg_name, &trn_path);
+  LEX_STRING trn_path=
+    Trigger_loader::build_trn_path(trn_path_buff, FN_REFLEN,
+                                   trg_name->m_db.str,
+                                   trg_name->m_name.str);
 
-  if (check_trn_exists(&trn_path))
+  if (Trigger_loader::check_trn_exists(trn_path))
   {
     my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
     return NULL;
   }
 
-  if (load_table_name_for_trigger(thd, trg_name, &trn_path, &tbl_name))
+  if (Trigger_loader::load_trn_file(thd, trg_name->m_name, trn_path, &tbl_name))
     return NULL;
 
   /* We need to reset statement table list to be PS/SP friendly. */
@@ -8372,17 +8405,17 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
 {
   TABLE_LIST *lst= get_trigger_table(thd, trg_name);
   uint num_tables; /* NOTE: unused, only to pass to open_tables(). */
-  Table_triggers_list *triggers;
-  int trigger_idx;
-  bool error= TRUE;
+  Table_trigger_dispatcher *triggers;
+  bool error= true;
+  Trigger *trigger;
 
   if (!lst)
-    return TRUE;
+    return true;
 
   if (check_table_access(thd, TRIGGER_ACL, lst, FALSE, 1, TRUE))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "TRIGGER");
-    return TRUE;
+    return true;
   }
 
   /*
@@ -8392,7 +8425,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /*
-    Open the table by name in order to load Table_triggers_list object.
+    Open the table by name in order to load Table_trigger_dispatcher object.
   */
   if (open_tables(thd, &lst, &num_tables,
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
@@ -8414,9 +8447,9 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     goto exit;
   }
 
-  trigger_idx= triggers->find_trigger_by_name(&trg_name->m_name);
+  trigger= triggers->find_trigger(trg_name->m_name);
 
-  if (trigger_idx < 0)
+  if (!trigger)
   {
     my_error(ER_TRG_CORRUPTED_FILE, MYF(0),
              (const char *) trg_name->m_db.str,
@@ -8425,7 +8458,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     goto exit;
   }
 
-  error= show_create_trigger_impl(thd, triggers, trigger_idx);
+  error= show_create_trigger_impl(thd, trigger);
 
   /*
     NOTE: if show_create_trigger_impl() failed, that means we could not

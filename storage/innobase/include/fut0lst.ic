@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -65,7 +65,7 @@ flst_write_addr(
 
 /********************************************************************//**
 Reads a file address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_read_addr(
@@ -103,7 +103,7 @@ flst_init(
 
 /********************************************************************//**
 Gets list length.
-@return	length */
+@return length */
 UNIV_INLINE
 ulint
 flst_get_len(
@@ -116,7 +116,7 @@ flst_get_len(
 
 /********************************************************************//**
 Gets list first node address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_first(
@@ -129,7 +129,7 @@ flst_get_first(
 
 /********************************************************************//**
 Gets list last node address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_last(
@@ -142,7 +142,7 @@ flst_get_last(
 
 /********************************************************************//**
 Gets list next node address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_next_addr(
@@ -155,7 +155,7 @@ flst_get_next_addr(
 
 /********************************************************************//**
 Gets list prev node address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_prev_addr(

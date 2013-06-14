@@ -149,7 +149,7 @@ ibuf_inside(
 
 /***********************************************************************//**
 Checks if a page address is an ibuf bitmap page address.
-@return	TRUE if a bitmap page */
+@return TRUE if a bitmap page */
 UNIV_INLINE
 ibool
 ibuf_bitmap_page(
@@ -170,7 +170,7 @@ ibuf_bitmap_page(
 
 /*********************************************************************//**
 Translates the free space on a page to a value in the ibuf bitmap.
-@return	value for ibuf bitmap bits */
+@return value for ibuf bitmap bits */
 UNIV_INLINE
 ulint
 ibuf_index_page_calc_free_bits(
@@ -206,7 +206,7 @@ ibuf_index_page_calc_free_bits(
 
 /*********************************************************************//**
 Translates the ibuf free bits to the free space on a page in bytes.
-@return	maximum insert size after reorganize for the page */
+@return maximum insert size after reorganize for the page */
 UNIV_INLINE
 ulint
 ibuf_index_page_calc_free_from_bits(
@@ -237,7 +237,7 @@ ibuf_index_page_calc_free_from_bits(
 
 /*********************************************************************//**
 Translates the free space on a compressed page to a value in the ibuf bitmap.
-@return	value for ibuf bitmap bits */
+@return value for ibuf bitmap bits */
 UNIV_INLINE
 ulint
 ibuf_index_page_calc_free_zip(
@@ -279,7 +279,7 @@ ibuf_index_page_calc_free_zip(
 
 /*********************************************************************//**
 Translates the free space on a page to a value in the ibuf bitmap.
-@return	value for ibuf bitmap bits */
+@return value for ibuf bitmap bits */
 UNIV_INLINE
 ulint
 ibuf_index_page_calc_free(

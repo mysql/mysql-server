@@ -23,13 +23,13 @@
 
 #include "sql_alloc.h"
 #include "violite.h"                            /* SSL_type */
-#include "sql_trigger.h"
 #include "item.h"               /* From item_subselect.h: subselect_union_engine */
 #include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
 #include "sql_array.h"
 #include "mem_root_array.h"
 #include "sql_alter.h"                // Alter_info
 #include "sql_servers.h"
+#include "trigger_def.h"              // enum_trigger_action_time_type
 
 /* YACC and LEX Definitions */
 
@@ -1118,8 +1118,19 @@ extern const LEX_STRING empty_lex_str;
 
 struct st_trg_chistics
 {
-  enum trg_action_time_type action_time;
-  enum trg_event_type event;
+  enum enum_trigger_action_time_type action_time;
+  enum enum_trigger_event_type event;
+
+  /**
+    FOLLOWS or PRECEDES as specified in the CREATE TRIGGER statement.
+  */
+  enum enum_trigger_order_type ordering_clause;
+
+  /**
+    Trigger name referenced in the FOLLOWS/PRECEDES clause of the CREATE TRIGGER
+    statement.
+  */
+  LEX_STRING anchor_trigger_name;
 };
 
 extern sys_var *trg_new_row_fake_var;
@@ -2307,6 +2318,11 @@ struct LEX: public Query_tables_list
   const char* raw_trg_on_table_name_begin;
   /** End of 'ON table', in trigger statements. */
   const char* raw_trg_on_table_name_end;
+
+  /** Start of clause FOLLOWS/PRECEDES. */
+  const char* trg_ordering_clause_begin;
+  /** End (a char after the end) of clause FOLLOWS/PRECEDES. */
+  const char* trg_ordering_clause_end;
 
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;

@@ -120,6 +120,7 @@ let $message= no trigger privilege on table level for create:;
 
 	connection default;
         select current_user;
+--replace_column 6 #
 	show triggers;
         grant TRIGGER on priv1_db.t1 to test_yesprivs@localhost;
         show grants for test_yesprivs@localhost;
@@ -128,6 +129,7 @@ let $message= trigger privilege on table level for create:;
 --source include/show_msg.inc
 	connection yes_privs;
         select current_user;
+--replace_column 6 #
 	show triggers;
 	create trigger trg1_2 before INSERT  on t1 for each row
 		set new.f1 = 'trig 1_2-yes';

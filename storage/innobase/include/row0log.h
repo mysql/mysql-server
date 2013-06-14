@@ -76,8 +76,8 @@ row_log_abort_sec(
 /******************************************************//**
 Try to log an operation to a secondary index that is
 (or was) being created.
-@retval	true if the operation was logged or can be ignored
-@retval	false if online index creation is not taking place */
+@retval true if the operation was logged or can be ignored
+@retval false if online index creation is not taking place */
 UNIV_INLINE
 bool
 row_log_online_op_try(

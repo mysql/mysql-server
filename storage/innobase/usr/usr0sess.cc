@@ -33,7 +33,7 @@ Created 6/25/1996 Heikki Tuuri
 
 /*********************************************************************//**
 Opens a session.
-@return	own: session object */
+@return own: session object */
 
 sess_t*
 sess_open(void)

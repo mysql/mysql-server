@@ -87,7 +87,7 @@
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
-#include "sql_trigger.h"
+#include "sql_trigger.h"      // mysql_create_or_drop_trigger
 #include "transaction.h"
 #include "sql_audit.h"
 #include "sql_prepare.h"
@@ -2213,7 +2213,8 @@ mysql_execute_command(THD *thd)
         When dropping a trigger, we need to load its table name
         before checking slave filter rules.
       */
-      add_table_for_trigger(thd, thd->lex->spname, 1, &all_tables);
+      add_table_for_trigger(thd, lex->spname->m_db,
+                            lex->spname->m_name, true, &all_tables);
       
       if (!all_tables)
       {

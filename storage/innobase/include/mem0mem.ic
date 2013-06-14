@@ -139,7 +139,7 @@ mem_block_get_start(mem_block_t* block)
 
 /***************************************************************//**
 Allocates and zero-fills n bytes of memory from a memory heap.
-@return	allocated, zero-filled storage */
+@return allocated, zero-filled storage */
 UNIV_INLINE
 void*
 mem_heap_zalloc(
@@ -215,7 +215,7 @@ mem_heap_alloc(
 
 /*****************************************************************//**
 Returns a pointer to the heap top.
-@return	pointer to the heap top */
+@return pointer to the heap top */
 UNIV_INLINE
 byte*
 mem_heap_get_heap_top(
@@ -332,7 +332,7 @@ mem_heap_empty(
 /*****************************************************************//**
 Returns a pointer to the topmost element in a memory heap. The size of the
 element must be given.
-@return	pointer to the topmost element */
+@return pointer to the topmost element */
 UNIV_INLINE
 void*
 mem_heap_get_top(
@@ -368,7 +368,7 @@ mem_heap_get_top(
 Checks if a given chunk of memory is the topmost element stored in the
 heap. If this is the case, then calling mem_heap_free_top() would free
 that element from the heap.
-@return	true if topmost */
+@return true if topmost */
 UNIV_INLINE
 bool
 mem_heap_is_top(
@@ -612,7 +612,7 @@ NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
 the C compiler. Is like malloc of C. The buffer must be freed
 with mem_free.
-@return	own: free storage */
+@return own: free storage */
 UNIV_INLINE
 void*
 mem_alloc_func(
@@ -697,7 +697,7 @@ mem_heap_get_size(
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string.
-@return	own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
 char*
 mem_strdup(
@@ -710,7 +710,7 @@ mem_strdup(
 
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
-@return	own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
 char*
 mem_strdupl(
@@ -726,7 +726,7 @@ mem_strdupl(
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string,
 allocated from a memory heap.
-@return	own: a copy of the string */
+@return own: a copy of the string */
 UNIV_INLINE
 char*
 mem_heap_strdupl(
