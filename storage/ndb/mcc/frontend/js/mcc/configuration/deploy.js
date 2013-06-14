@@ -1333,7 +1333,9 @@ function startCluster() {
                             "Starting " + procNames[currseq] +
                             " processes", {maximum: 5, progress: 1 + currseq});
                     mcc.server.startClusterReq([commands[currseq]], 
-                        onReply, onError);                        
+                        onReply, onError);
+                    // Start status polling timer after mgmd has been started					
+                    if (currseq == 0) { mcc.gui.startStatusPoll(false); } // Ignore errors since it may not be available right away               
                     currseq++;        
                 } else {
                     mcc.util.dbg("Cluster started");
@@ -1451,6 +1453,7 @@ function stopCluster() {
                     {progress: "100%"});
             alert(message);
             removeProgressDialog();
+            mcc.gui.stopStatusPoll();
             waitCondition.resolve();
         }
     }

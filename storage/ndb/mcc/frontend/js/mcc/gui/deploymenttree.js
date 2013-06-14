@@ -90,6 +90,7 @@ mcc.gui.deploymenttree.resetDeploymentTreeItem = resetDeploymentTreeItem;
 var deploymentTree = null;
 var treeExpanded = false; 
 var statusPoller = null;
+var stopPollOnError = true;
 var pollMgmdId = null;
 
 // Keep track of the selected item in the tree
@@ -467,21 +468,24 @@ function receiveStatusReply(reply) {
 // Receive error reply
 function receiveStatusError(errMsg, reply) {
     mcc.util.dbg("Error while retrieving status: " + errMsg);
-    
     // Select another mgmd to poll
     mcc.storage.processTypeStorage().getItems({name: "ndb_mgmd"}).then(function (mgmdType) {
         mcc.storage.processStorage().getItems({processtype: mgmdType[0].getId()}).then(function (mgmds) {
+            function sp() { if (stopPollOnError) { stopPollOnError = false; clearInterval(statusPoller); } }
             if (!pollMgmdId) {
                 pollMgmdId = mgmds[0].getId();
                 mcc.util.dbg("Select mgmd to poll: " + pollMgmdId);
             } else if (mgmds.length > 1) {
                 for (var i in mgmds) {
+                    if (i + 1 == mgmds.length) { sp(); }
                     if (mgmds[i].getId() == pollMgmdId) {
                         pollMgmdId = mgmds[(+i + 1) % mgmds.length].getId();
                         break;
                     }
                 }
                 mcc.util.dbg("Select new mgmd to poll: " + pollMgmdId);
+            } else {
+                sp();
             }
         });
     });
@@ -525,12 +529,14 @@ function doPoll() {
 }
 
 // Start polling the mgmd for status
-function startStatusPoll() {
+function startStatusPoll(stopOnError) {
+    stopPollOnError = stopOnError;
     statusPoller = setInterval(doPoll, 2000);
 }
 
 // Stop status polling
 function stopStatusPoll() {
+    stopPollOnError = true;
     clearInterval(statusPoller);
 }
 

@@ -74,7 +74,7 @@ set(MCC_INSTALL_FRONTENDDIR "${MCC_INSTALL_SUBDIR}/frontend")
 add_subdirectory("host_info")
 add_subdirectory("frontend")
 
-if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
+if(WIN32 AND MCC_PYTHON_TO_BUNDLE AND NOT (MCC_LIGHT_INSTALL AND EXISTS "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_SUBDIR}/Python"))
   file(TO_CMAKE_PATH "${MCC_PYTHON_TO_BUNDLE}" MCC_PYTHON_TO_BUNDLE_CMP)
   set(MCC_PYTHON_TO_BUNDLE "${MCC_PYTHON_TO_BUNDLE_CMP}")
   message(STATUS "Checking ${MCC_PYTHON_TO_BUNDLE}...")
@@ -128,7 +128,7 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
 	DESTINATION "." 
     COMPONENT ClusterTools)
 
-endif(WIN32 AND MCC_PYTHON_TO_BUNDLE)
+endif(WIN32 AND MCC_PYTHON_TO_BUNDLE AND NOT (MCC_LIGHT_INSTALL AND EXISTS "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_SUBDIR}/Python"))
 
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/post-install.py.in"
         "${CMAKE_CURRENT_BINARY_DIR}/post-install.py")
@@ -138,9 +138,6 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py"
   DESTINATION "${MCC_INSTALL_BINDIR}"
   COMPONENT ClusterTools
   RENAME "mcc_config.py")
-
-#configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
-#  "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}")
 
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}"  
   DESTINATION "${MCC_INSTALL_BINDIR}"
@@ -153,7 +150,19 @@ install(FILES clusterhost.py remote_clusterhost.py request_handler.py
 install(DIRECTORY tst DESTINATION "${MCC_INSTALL_SUBDIR}"  
   COMPONENT ClusterTools)
 
-add_custom_target(run_mcc python "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_BINDIR}/${MCC_SCRIPT_NAME}" -d DEBUG -o mcc_log.txt VERBATIM)
+if(WIN32 AND NOT CMAKE_INSTALL_CONFIG_NAME)
+	set(CMAKE_INSTALL_CONFIG_NAME $(Configuration))
+endif()
+
+add_custom_target(install_mcc 
+	${CMAKE_COMMAND} "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_INSTALL_CONFIG_NAME}" "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}" 
+	-P "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake" 
+	VERBATIM)
+
+add_custom_target(run_mcc	
+	COMMAND python "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_BINDIR}/${MCC_SCRIPT_NAME}" -d DEBUG -o mcc_log.txt VERBATIM)
+add_dependencies(run_mcc install_mcc)
+
 add_custom_target(run_mcc_in_source python "${MCC_SCRIPT_BASE}_in_source.py" -d DEBUG -o mcc_in_source_log.txt VERBATIM)
 add_custom_target(punit python "${CMAKE_CURRENT_SOURCE_DIR}/tst/tst_main.py" VERBATIM)
 
