@@ -314,11 +314,7 @@ static int write_to_table(char *filename, MYSQL *mysql)
   {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
-#ifdef HAVE_SNPRINTF
     snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
-#else
-    sprintf(sql_statement, "DELETE FROM %s", tablename);
-#endif
     if (mysql_query(mysql, sql_statement))
     {
       db_error_with_table(mysql, tablename);

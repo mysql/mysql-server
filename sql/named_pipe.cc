@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,12 +48,14 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
   memset(sec_descr, 0, sizeof(SECURITY_DESCRIPTOR));
   if (!InitializeSecurityDescriptor(sec_descr, SECURITY_DESCRIPTOR_REVISION))
   {
-    sql_perror("Can't start server : Initialize security descriptor");
+    sql_print_error("Can't start server : Initialize security descriptor: %s",
+                    strerror(errno));
     return INVALID_HANDLE_VALUE;
   }
   if (!SetSecurityDescriptorDacl(sec_descr, TRUE, NULL, FALSE))
   {
-    sql_perror("Can't start server : Set security descriptor");
+    sql_print_error("Can't start server : Set security descriptor: %s",
+                    strerror(errno));
     return INVALID_HANDLE_VALUE;
   }
   sec_attr->nLength= sizeof(SECURITY_ATTRIBUTES);
@@ -88,7 +90,7 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
       
       if (msg_buff != NULL)
       {
-        sql_perror((char *)msg_buff);
+        sql_print_error("%s: %s", (char*)msg_buff, strerror(errno));
         LocalFree(msg_buff);
       }
     }

@@ -22,11 +22,6 @@
 #include "log.h"
 
 
-// Mock logger function sql_perror(), to avoid log.cc linkage
-void sql_perror(const char *message)
-{
-}
-
 // Mock logger function sql_print_error(), to avoid log.cc linkage
 void sql_print_error(const char *format, ...) 
 {

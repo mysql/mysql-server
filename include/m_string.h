@@ -134,10 +134,6 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 
 extern char *llstr(longlong value,char *buff);
 extern char *ullstr(longlong value,char *buff);
-#ifndef HAVE_STRTOUL
-extern long strtol(const char *str, char **ptr, int base);
-extern ulong strtoul(const char *str, char **ptr, int base);
-#endif
 
 extern char *int2str(long val, char *dst, int radix, int upcase);
 extern char *int10_to_str(long val,char *dst,int radix);
@@ -150,20 +146,10 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #undef strtoll
 #define strtoll(A,B,C) strtol((A),(B),(C))
 #define strtoull(A,B,C) strtoul((A),(B),(C))
-#ifndef HAVE_STRTOULL
-#define HAVE_STRTOULL
-#endif
-#ifndef HAVE_STRTOLL
-#define HAVE_STRTOLL
-#endif
 #else
 #ifdef HAVE_LONG_LONG
 extern char *ll2str(longlong val,char *dst,int radix, int upcase);
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
-#if !defined(HAVE_STRTOULL)
-extern longlong strtoll(const char *str, char **ptr, int base);
-extern ulonglong strtoull(const char *str, char **ptr, int base);
-#endif
 #endif
 #endif
 #define longlong2str(A,B,C) ll2str((A),(B),(C),1)
