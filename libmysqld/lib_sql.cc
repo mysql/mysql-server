@@ -566,7 +566,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
     return 1;
   }
 
-  adjust_related_options();
+  ulong requested_open_files_dummy;
+  adjust_related_options(&requested_open_files_dummy);
 
   if (init_common_variables())
   {
