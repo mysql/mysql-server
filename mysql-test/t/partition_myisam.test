@@ -142,11 +142,10 @@ FLUSH TABLES;
 CHECK TABLE t1;
 --error ER_FAILED_READ_FROM_PAR_FILE
 SELECT * FROM t1;
---echo # Note that it is currently impossible to drop a partitioned table
---echo # without the .par file
+--echo # Note that we will remove the frm file when we detect that
+--echo # .par file has been deleted.
 --error ER_BAD_TABLE_ERROR
 DROP TABLE t1;
---remove_file $MYSQLD_DATADIR/test/t1.frm
 --remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYI
 --remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYD
 
