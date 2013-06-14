@@ -79,12 +79,6 @@
  *
  */
 
-/*
-  We can't have SAFE_MUTEX defined here as this will cause recursion
-  in pthread_mutex_lock
-*/
-
-#undef SAFE_MUTEX
 #include <my_global.h>
 #include <m_string.h>
 #include <errno.h>
