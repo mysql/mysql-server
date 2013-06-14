@@ -25,6 +25,7 @@
 #include <kernel/ndb_limits.h>
 #include <ndb_version.h>
 #include <NodeBitmask.hpp>
+#include <ndb_cluster_connection.hpp>
 
 #define MGMERR(h) \
   ndbout << "latest_error="<<ndb_mgm_get_latest_error(h) \
@@ -34,11 +35,12 @@
 	 << endl;
 
 
-NdbRestarter::NdbRestarter(const char* _addr): 
+NdbRestarter::NdbRestarter(const char* _addr, Ndb_cluster_connection * con):
   handle(NULL),
   connected(false),
   m_config(0),
-  m_reconnect(false)
+  m_reconnect(false),
+  m_cluster_connection(con)
 {
   if (_addr == NULL){
     addr.assign("");
@@ -132,6 +134,11 @@ NdbRestarter::restartNodes(int * nodes, int cnt,
         }
       }
     }
+  }
+
+  if ((flags & NRRF_NOSTART) == 0)
+  {
+    wait_until_ready(nodes, cnt);
   }
 
   return 0;
@@ -315,7 +322,12 @@ NdbRestarter::waitConnected(unsigned int _timeout){
 
 int 
 NdbRestarter::waitClusterStarted(unsigned int _timeout){
-  return waitClusterState(NDB_MGM_NODE_STATUS_STARTED, _timeout);
+  int res = waitClusterState(NDB_MGM_NODE_STATUS_STARTED, _timeout);
+  if (res == 0)
+  {
+    wait_until_ready();
+  }
+  return res;
 }
 
 int 
@@ -481,8 +493,14 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 
 int NdbRestarter::waitNodesStarted(const int * _nodes, int _num_nodes,
 		     unsigned int _timeout){
-  return waitNodesState(_nodes, _num_nodes, 
-			NDB_MGM_NODE_STATUS_STARTED, _timeout);  
+  int res = waitNodesState(_nodes, _num_nodes,
+                           NDB_MGM_NODE_STATUS_STARTED, _timeout);
+  if (res == 0)
+  {
+    wait_until_ready(_nodes, _num_nodes);
+  }
+
+  return res;
 }
 
 int NdbRestarter::waitNodesStartPhase(const int * _nodes, int _num_nodes, 
@@ -1064,6 +1082,35 @@ NdbRestarter::splitNodes()
     result.push_back(part0);
   }
   return result;
+}
+
+int
+NdbRestarter::wait_until_ready(const int * nodes, int cnt, int timeout)
+{
+  if (m_cluster_connection == 0)
+  {
+    // no cluster connection, skip wait
+    return 0;
+  }
+
+  Vector<int> allNodes;
+  if (cnt == 0)
+  {
+    if (!isConnected())
+      return -1;
+
+    if (getStatus() != 0)
+      return -1;
+
+    for(unsigned i = 0; i < ndbNodes.size(); i++)
+    {
+      allNodes.push_back(ndbNodes[i].node_id);
+    }
+    cnt = (int)allNodes.size();
+    nodes = allNodes.getBase();
+  }
+
+  return m_cluster_connection->wait_until_ready(nodes, cnt, timeout);
 }
 
 template class Vector<ndb_mgm_node_state>;
