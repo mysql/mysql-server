@@ -39,7 +39,6 @@
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_INTTYPES_H 1
 #cmakedefine HAVE_MALLOC_H 1
-#cmakedefine HAVE_MEMORY_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_PATHS_H 1
 #cmakedefine HAVE_POLL_H 1
@@ -162,8 +161,6 @@
 #cmakedefine HAVE_DECL_TGOTO 1
 #cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
 #cmakedefine HAVE_MALLOC_INFO 1
-#cmakedefine HAVE_MEMCPY 1
-#cmakedefine HAVE_MEMMOVE 1
 #cmakedefine HAVE_MKSTEMP 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP 1

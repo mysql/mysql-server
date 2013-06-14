@@ -3488,7 +3488,7 @@ protected:
   void store_ptr_and_length(const char *from, uint32 length)
   {
     store_length(length);
-    bmove(ptr + packlength, &from, sizeof(char *));
+    memmove(ptr + packlength, &from, sizeof(char *));
   }
   
 public:
