@@ -6276,7 +6276,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 
-  if (dumpCode == 939 && signal->getLength() == 2)
+  if (signal->theData[0] == 939 && signal->getLength() == 2)
   {
     jam();
     Uint32 nodeId = signal->theData[1];
