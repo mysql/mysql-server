@@ -8600,6 +8600,9 @@ ha_innobase::check(
 					    (ulong) n_rows,
 					    (ulong) n_rows_in_table);
 			is_ok = FALSE;
+			row_mysql_lock_data_dictionary(prebuilt->trx);
+			dict_set_corrupted(index);
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
 		}
 	}
 
