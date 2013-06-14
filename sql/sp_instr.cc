@@ -515,16 +515,16 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
         execution.
       */
 
-      Table_triggers_list *ttl= sp->m_trg_list;
-      int event= sp->m_trg_chistics.event;
-      int action_time= sp->m_trg_chistics.action_time;
-      GRANT_INFO *grant_table= &ttl->subject_table_grants[event][action_time];
+      Table_trigger_dispatcher *ttl= sp->m_trg_list;
+      Trigger *trigger= ttl->get_trigger(sp->m_trg_chistics.event,
+                                         sp->m_trg_chistics.action_time);
+      GRANT_INFO *grant_table= trigger->get_subject_table_grant();
 
       for (Item_trigger_field *trg_field= sp->m_trg_table_fields.first;
            trg_field;
            trg_field= trg_field->next_trg_field)
       {
-        trg_field->setup_field(thd, ttl->trigger_table, grant_table);
+        trg_field->setup_field(thd, ttl->trigger_table, ttl, grant_table);
       }
     }
 

@@ -262,7 +262,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
    A GRANT_INFO also serves as a cache of the privilege hash tables. Relevant
    members are grant_table and version.
  */
-typedef struct st_grant_info
+struct GRANT_INFO
 {
   /**
      @brief A copy of the privilege information regarding the current host,
@@ -311,7 +311,7 @@ typedef struct st_grant_info
   ulong orig_want_privilege;
   /** The grant state for internal tables. */
   GRANT_INTERNAL_INFO m_internal;
-} GRANT_INFO;
+};
 
 enum tmp_table_type
 {
@@ -368,7 +368,7 @@ public:
 };
 
 class Field_blob;
-class Table_triggers_list;
+class Table_trigger_dispatcher;
 
 /**
   Category of table found in the table share.
@@ -1051,7 +1051,7 @@ public:
   Field *found_next_number_field;	/* Set on open */
 
   /* Table's triggers, 0 if there are no of them */
-  Table_triggers_list *triggers;
+  Table_trigger_dispatcher *triggers;
   TABLE_LIST *pos_in_table_list;/* Element referring to this table */
   /* Position in thd->locked_table_list under LOCK TABLES */
   TABLE_LIST *pos_in_locked_tables;

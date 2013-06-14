@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -247,7 +247,7 @@ Ndb_local_schema::Table::remove_table(void) const
     strmov(db_name_buf, m_db);
     strmov(table_name_buf, m_name);
 
-    if (Table_triggers_list::drop_all_triggers(m_thd,
+    if (Table_trigger_dispatcher::drop_all_triggers(m_thd,
                                                db_name_buf,
                                                table_name_buf))
     {
@@ -274,7 +274,7 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
     }
     else
     {
-      if (Table_triggers_list::change_table_name(m_thd,
+      if (Table_trigger_dispatcher::change_table_name(m_thd,
                                                  m_db, m_name, m_name,
                                                  new_db, new_name))
       {
