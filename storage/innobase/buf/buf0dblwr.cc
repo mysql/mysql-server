@@ -472,7 +472,7 @@ buf_dblwr_init_or_restore_pages(
 							   page_no)) {
 			/* Do not report the warning if the tablespace is
 			truncated as it's reasonable */
-			if (!srv_trunc_table_fix_up_active) {
+			if (!srv_is_tablespace_truncated(space_id)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"A page in the doublewrite buffer is "
 					"not within space bounds; space id %lu "

@@ -2818,3 +2818,27 @@ srv_purge_wakeup(void)
 	}
 }
 
+/** Check if tablespace is being truncated.
+(Ignore system-tablespace as we don't re-create the tablespace
+and so some of the action that are suppressed by this function
+for independent tablespace are not applicable to system-tablespace).
+@param	space_id	space_id to check for truncate action
+@return true 		if being truncated. */
+
+bool
+srv_is_tablespace_truncated(ulint space_id)
+{
+	if (Tablespace::is_system_tablespace(space_id)) {
+		return(false);
+	}
+
+	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
+		if (srv_tables_to_truncate[i]->m_space_id == space_id) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
+

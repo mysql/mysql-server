@@ -1173,9 +1173,9 @@ fsp_fill_free_list(
 			if (space != srv_tmp_space.space_id()) {
 				mtr_start(&ibuf_mtr);
 
-				/* Avoid logging while fix-up up table for
-				truncate action. */
-				if (srv_trunc_table_fix_up_active) {
+				/* Avoid logging while truncate table
+				fix-up is active. */ 
+				if (srv_is_tablespace_truncated(space)) {
 					mtr_set_log_mode(
 						&ibuf_mtr, MTR_LOG_NO_REDO);
 				}
