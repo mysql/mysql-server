@@ -13,6 +13,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INSTALL(DIRECTORY "." 
-	DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
-    COMPONENT ClusterTools)
+IF(MCC_LIGHT_INSTALL AND EXISTS "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_SUBDIR}/frontend/dojo")
+	MESSAGE(STATUS "Light install, excluding dojo since it has already been installed")
+	INSTALL(DIRECTORY "." 
+		DESTINATION "${MCC_INSTALL_SUBDIR}/frontend"
+		COMPONENT ClusterTools
+		PATTERN "dojo*" EXCLUDE)
+ELSE()
+	INSTALL(DIRECTORY "." 
+		DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
+		COMPONENT ClusterTools)
+ENDIF()
