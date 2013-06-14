@@ -15,21 +15,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "my_global.h"      // NO_EMBEDDED_ACCESS_CHECKS
+#include "my_global.h"                // NO_EMBEDDED_ACCESS_CHECKS
 #include "sql_trigger.h"
-#include "sp.h"             // sp_add_to_query_tables()
-#include "sql_base.h"       // find_temporary_table()
-#include "sql_table.h"      // build_table_filename()
-                            // write_bin_log()
-#include "sql_handler.h"    // mysql_ha_rm_tables()
-#include "sp_cache.h"       // sp_invalidate_cache()
-#include "sql_parse.h"      // check_table_access()
-#include "trigger_loader.h" // Trigger_loader
-
-///////////////////////////////////////////////////////////////////////////
-
-const char * const TRN_EXT= ".TRN";
-const char * const TRG_EXT= ".TRG";
+#include "sp.h"                       // sp_add_to_query_tables()
+#include "sql_base.h"                 // find_temporary_table()
+#include "sql_table.h"                // build_table_filename()
+                                      // write_bin_log()
+#include "sql_handler.h"              // mysql_ha_rm_tables()
+#include "sp_cache.h"                 // sp_invalidate_cache()
+#include "sql_parse.h"                // check_table_access()
+#include "trigger_loader.h"           // Trigger_loader
+#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -43,8 +39,8 @@ const char * const TRG_EXT= ".TRG";
   @note
     This function is mainly responsible for opening and locking of table and
     invalidation of all its instances in table cache after trigger creation.
-    Real work on trigger creation/dropping is done inside Table_trigger_dispatcher
-    methods.
+    Real work on trigger creation/dropping is done inside
+    Table_trigger_dispatcher methods.
 
   @todo
     TODO: We should check if user has TRIGGER privilege for table here.
@@ -136,7 +132,10 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     */
     thd->lex->sql_command= backup.sql_command;
 
-    if (add_table_for_trigger(thd, thd->lex->spname, if_exists, & tables))
+    if (add_table_for_trigger(thd,
+                              thd->lex->spname->m_db,
+                              thd->lex->spname->m_name,
+                              if_exists, & tables))
       goto end;
 
     if (!tables)
@@ -187,7 +186,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   tables->required_type= FRMTYPE_TABLE;
   /*
     Also prevent DROP TRIGGER from opening temporary table which might
-    shadow base table on which trigger to be dropped is defined.
+    shadow the subject table on which trigger to be dropped is defined.
   */
   tables->open_type= OT_BASE_ONLY;
 
@@ -228,13 +227,25 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       goto end;
     }
 
-    if (!(table->triggers= new (&table->mem_root) Table_trigger_dispatcher(table)))
+    if (!(table->triggers= Table_trigger_dispatcher::create(table)))
       goto end;
   }
 
-  result= (create ?
-           table->triggers->create_trigger(thd, tables, &stmt_query):
-           table->triggers->drop_trigger(thd, tables, &stmt_query));
+  if (create)
+  {
+    result= table->triggers->create_trigger(thd, &stmt_query);
+  }
+  else
+  {
+    bool trigger_found;
+
+    result= table->triggers->drop_trigger(thd,
+                                          thd->lex->spname->m_name,
+                                          &trigger_found);
+
+    if (!result && trigger_found)
+      result= stmt_query.append(thd->query(), thd->query_length());
+  }
 
   if (result)
     goto end;
@@ -299,22 +310,24 @@ end:
 */
 
 bool add_table_for_trigger(THD *thd,
-                           const sp_name *trg_name,
-                           bool if_exists,
+                           const LEX_STRING &db_name,
+                           const LEX_STRING &trigger_name,
+                           bool continue_if_not_exist,
                            TABLE_LIST **table)
 {
   LEX *lex= thd->lex;
   char trn_path_buff[FN_REFLEN];
-  LEX_STRING trn_path= { trn_path_buff, 0 };
   LEX_STRING tbl_name= { NULL, 0 };
 
   DBUG_ENTER("add_table_for_trigger");
 
-  build_trn_path(thd, trg_name, &trn_path);
+  LEX_STRING trn_path=
+    Trigger_loader::build_trn_path(trn_path_buff, FN_REFLEN,
+                                   db_name.str, trigger_name.str);
 
-  if (check_trn_exists(&trn_path))
+  if (Trigger_loader::check_trn_exists(trn_path))
   {
-    if (if_exists)
+    if (continue_if_not_exist)
     {
       push_warning_printf(thd,
                           Sql_condition::SL_NOTE,
@@ -330,10 +343,10 @@ bool add_table_for_trigger(THD *thd,
     DBUG_RETURN(TRUE);
   }
 
-  if (load_table_name_for_trigger(thd, trg_name, &trn_path, &tbl_name))
+  if (Trigger_loader::load_trn_file(thd, trigger_name, trn_path, &tbl_name))
     DBUG_RETURN(TRUE);
 
-  *table= sp_add_to_query_tables(thd, lex, trg_name->m_db.str,
+  *table= sp_add_to_query_tables(thd, lex, db_name.str,
                                  tbl_name.str, TL_IGNORE,
                                  MDL_SHARED_NO_WRITE);
 
@@ -342,59 +355,123 @@ bool add_table_for_trigger(THD *thd,
 
 
 /**
-  Contruct path to TRN-file.
+  Update .TRG and .TRN files after renaming triggers' subject table.
 
-  @param thd[in]        Thread context.
-  @param trg_name[in]   Trigger name.
-  @param trn_path[out]  Variable to store constructed path
+  @param[i]] thd            Thread context
+  @param[in] db_name        Current database of subject table
+  @param[in] table_alias    Current alias of subject table
+  @param[in] table_name     Current name of subject table
+  @param[in] new_db_name    New database for subject table
+  @param[in] new_table_name New name of subject table
+
+  @note
+    This method tries to leave trigger related files in consistent state, i.e.
+    it either will complete successfully, or will fail leaving files in their
+    initial state.
+
+  @note
+    This method assumes that subject table is not renamed to itself.
+
+  @note
+    This method needs to be called under an exclusive table metadata lock.
+
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
 */
 
-void build_trn_path(THD *thd, const sp_name *trg_name, LEX_STRING *trn_path)
+bool change_trigger_table_name(THD *thd,
+                               const char *db_name,
+                               const char *table_alias,
+                               const char *table_name,
+                               const char *new_db_name,
+                               const char *new_table_name)
 {
-  /* Construct path to the TRN-file. */
+  // Check if there is at least one trigger for the given table.
 
-  trn_path->length= build_table_filename(trn_path->str,
-                                         FN_REFLEN - 1,
-                                         trg_name->m_db.str,
-                                         trg_name->m_name.str,
-                                         TRN_EXT,
-                                         0);
+  if (!Trigger_loader::trg_file_exists(db_name, table_name))
+    return false;
+
+  /*
+    Since triggers should be in the same schema as their subject tables
+    moving table with them between two schemas raises too many questions.
+    (E.g. what should happen if in new schema we already have trigger
+     with same name ?).
+
+    In case of "ALTER DATABASE `#mysql50#db1` UPGRADE DATA DIRECTORY NAME"
+    we will be given table name with "#mysql50#" prefix
+    To remove this prefix we use check_n_cut_mysql50_prefix().
+  */
+
+  bool upgrading50to51= false;
+
+  if (my_strcasecmp(table_alias_charset, db_name, new_db_name))
+  {
+    char dbname[NAME_LEN + 1];
+    if (check_n_cut_mysql50_prefix(db_name, dbname, sizeof(dbname)) &&
+        !my_strcasecmp(table_alias_charset, dbname, new_db_name))
+    {
+      upgrading50to51= true;
+    }
+    else
+    {
+      my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
+      return true;
+    }
+  }
+
+  /*
+    This method interfaces the mysql server code protected by
+    an exclusive metadata lock.
+  */
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, db_name,
+                                             table_name,
+                                             MDL_EXCLUSIVE));
+
+  DBUG_ASSERT(my_strcasecmp(table_alias_charset, db_name, new_db_name) ||
+              my_strcasecmp(table_alias_charset, table_alias, new_table_name));
+
+  Table_trigger_dispatcher d(db_name, table_name);
+
+  return d.check_n_load(thd, true) ||
+         d.check_for_broken_triggers() ||
+         d.rename_subject_table(thd,
+                                db_name, new_db_name,
+                                table_alias,
+                                new_table_name,
+                                upgrading50to51);
 }
 
 
-/**
-  Check if TRN-file exists.
-
-  @return
-    @retval TRUE  if TRN-file does not exist.
-    @retval FALSE if TRN-file exists.
-*/
-
-bool check_trn_exists(const LEX_STRING *trn_path)
-{
-  return access(trn_path->str, F_OK) != 0;
-}
-
 
 /**
-  Retrieve table name for given trigger.
+  Drop all triggers for table.
 
-  @param thd[in]        Thread context.
-  @param trg_name[in]   Trigger name.
-  @param trn_path[in]   Path to the corresponding TRN-file.
-  @param tbl_name[out]  Variable to store retrieved table name.
+  @param thd        current thread context
+  @param db_name    name of the table schema
+  @param table_name table name
 
-  @return Error status.
-    @retval FALSE on success.
-    @retval TRUE  if table name could not be retrieved.
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
 */
-
-bool load_table_name_for_trigger(THD *thd,
-                                 const sp_name *trg_name,
-                                 const LEX_STRING *trn_path,
-                                 LEX_STRING *tbl_name)
+bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name)
 {
-  return Trigger_loader::get_table_name_for_trigger(thd, &trg_name->m_name,
-                                                    trn_path, tbl_name);
+  // Check if there is at least one trigger for the given table.
 
+  if (!Trigger_loader::trg_file_exists(db_name, table_name))
+    return false;
+
+  /*
+    Here we have to 1) load trigger definitions from TRG-files and 2) parse them
+    to find out trigger names. Since trigger names are not stored in the
+    TRG-file, it is impossible to avoid parsing just to delete triggers.
+  */
+
+  Table_trigger_dispatcher d(db_name, table_name);
+
+  return
+    d.check_n_load(thd, true) ||
+    Trigger_loader::drop_all_triggers(db_name, table_name,
+                                      &d.get_trigger_list());
 }

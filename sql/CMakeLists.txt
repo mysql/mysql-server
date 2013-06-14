@@ -173,6 +173,7 @@ SET(SQL_SHARED_SOURCES
   trigger.cc
   trigger_creation_ctx.cc
   trigger_loader.cc
+  trigger_chain.cc
   tztime.cc
   uniques.cc
   unireg.cc

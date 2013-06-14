@@ -48,13 +48,13 @@
 #include <my_dir.h>
 #include "sp_head.h"
 #include "sp.h"
-#include "sql_trigger.h"
 #include "sql_parse.h"
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
 #include "sql_resolver.h"              // setup_order, fix_inner_refs
 #include "table_cache.h"
+#include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
 
 #ifdef _WIN32
@@ -2462,8 +2462,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
           non_tmp_table_deleted= TRUE;
-          new_error= Table_trigger_dispatcher::drop_all_triggers(thd, db,
-                                                            table->table_name);
+          new_error= drop_all_triggers(thd, db, table->table_name);
         }
         error|= new_error;
         /* Invalidate even if we failed to delete the .FRM file. */
@@ -6648,12 +6647,12 @@ static bool mysql_inplace_alter_table(THD *thd,
       */
       DBUG_RETURN(true);
     }
-    if (Table_trigger_dispatcher::change_table_name(thd,
-                                               alter_ctx->db,
-                                               alter_ctx->alias,
-                                               alter_ctx->table_name,
-                                               alter_ctx->new_db,
-                                               alter_ctx->new_alias))
+    if (change_trigger_table_name(thd,
+                                  alter_ctx->db,
+                                  alter_ctx->alias,
+                                  alter_ctx->table_name,
+                                  alter_ctx->new_db,
+                                  alter_ctx->new_alias))
     {
       /*
         If the rename of trigger files fails, try to rename the table
@@ -7653,12 +7652,12 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (mysql_rename_table(old_db_type, alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias, 0))
       error= -1;
-    else if (Table_trigger_dispatcher::change_table_name(thd,
-                                                    alter_ctx->db,
-                                                    alter_ctx->alias,
-                                                    alter_ctx->table_name,
-                                                    alter_ctx->new_db,
-                                                    alter_ctx->new_alias))
+    else if (change_trigger_table_name(thd,
+                                       alter_ctx->db,
+                                       alter_ctx->alias,
+                                       alter_ctx->table_name,
+                                       alter_ctx->new_db,
+                                       alter_ctx->new_alias))
     {
       (void) mysql_rename_table(old_db_type,
                                 alter_ctx->new_db, alter_ctx->new_alias,
@@ -8548,12 +8547,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   // Check if we renamed the table and if so update trigger files.
   if (alter_ctx.is_table_renamed() &&
-      Table_trigger_dispatcher::change_table_name(thd,
-                                             alter_ctx.db,
-                                             alter_ctx.alias,
-                                             alter_ctx.table_name,
-                                             alter_ctx.new_db,
-                                             alter_ctx.new_alias))
+      change_trigger_table_name(thd,
+                                alter_ctx.db,
+                                alter_ctx.alias,
+                                alter_ctx.table_name,
+                                alter_ctx.new_db,
+                                alter_ctx.new_alias))
   {
     // Rename succeeded, delete the new table.
     (void) quick_rm_table(thd, new_db_type,

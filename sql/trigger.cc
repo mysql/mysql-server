@@ -17,15 +17,15 @@
 #include "my_global.h"
 #include "sql_class.h"
 #include "trigger.h"
-#include "sp_head.h"
-#include "sql_table.h"  // check_n_cut_mysql50_prefix
-#include "mysys_err.h"    // EE_OUTOFMEMORY
-#include "trigger_creation_ctx.h"
-#include "sql_parse.h"    // parse_sql()
-#include "sql_lex.h" //Query_tables_list
-#include "table.h" // TABLE_LIST
-#include "sp.h" // sp_update_stmt_used_routines, sp_add_used_routine
+#include "mysys_err.h"            // EE_OUTOFMEMORY
+#include "trigger_creation_ctx.h" // Trigger_creation_ctx
+#include "sql_parse.h"            // parse_sql
+#include "sp.h"                   // sp_update_stmt_used_routines
+#include "sql_table.h"            // check_n_cut_mysql50_prefix
+#include "sql_show.h"             // append_identifier
+#include "sql_db.h"               // get_default_db_collation
 
+///////////////////////////////////////////////////////////////////////////
 
 /**
   An error handler that catches all non-OOM errors which can occur during
@@ -49,10 +49,10 @@ public:
 
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
-                                const char* sqlstate,
+                                const char *sqlstate,
                                 Sql_condition::enum_severity_level level,
-                                const char* message,
-                                Sql_condition ** cond_hdl)
+                                const char *message,
+                                Sql_condition **cond_hdl)
   {
     if (sql_errno != EE_OUTOFMEMORY &&
         sql_errno != ER_OUT_OF_RESOURCES)
@@ -75,87 +75,374 @@ public:
   const char *get_error_message() { return m_message; }
 };
 
+///////////////////////////////////////////////////////////////////////////
 
 /**
-  Initialize an instance of Trigger.
+  Constructs DEFINER clause.
 
-  @param [in] thd               thread handle
-  @param [in] lex               LEX for parsing of trigger
-  @param [in] trigger_name      trigger name
-  @param [in] trg_creation_ctx  creation context of trigger
-  @param [in] db_name           name of schema
-  @param [in] table             pointer to the trigger's table
+  @param mem_root           mem-root where needed strings will be allocated
+  @param lex_definer        DEFINER clause from the parser (as it is specified
+                            by the user). It is NULL if DEFINER clause is
+                            missing.
+  @param[out] definer_user  pointer to the user part of lex_definer (if any)
+  @param[out] definer_host  pointer to the host part of lex_definer (if any)
+  @param[out] definer       well-formed DEFINER-clause (after successful
+                            execution)
 
-  @return Operation status
-    @retval true   Failure
-    @retval false  Success
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
 */
 
-bool Trigger::init(THD *thd,
-                   LEX *lex,
-                   LEX_STRING *trigger_name,
-                   Stored_program_creation_ctx *trg_creation_ctx,
-                   const LEX_STRING *db_name,
-                   TABLE *table)
+static bool reconstruct_definer_clause(MEM_ROOT *mem_root,
+                                       const LEX_USER *lex_definer,
+                                       LEX_STRING *definer_user,
+                                       LEX_STRING *definer_host,
+                                       LEX_STRING *definer)
 {
-  m_sp= lex->sphead;
-  m_sp->set_info(0, 0, &lex->sp_chistics, m_sql_mode);
-
-  m_event= m_sp->m_trg_chistics.event;
-  m_action_time= m_sp->m_trg_chistics.action_time;
-
-  lex->sphead= NULL; /* Prevent double cleanup. */
-
-  m_sp->set_creation_ctx(trg_creation_ctx);
-  set_trigger_name(trigger_name);
-
-  if (!m_definer->length)
+  if (lex_definer)
   {
-    /*
-      This trigger was created/imported from the previous version of
-      MySQL, which does not support triggers definers. We should emit
-      warning here.
-    */
+    /* SUID trigger (DEFINER is specified by the user). */
 
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
-                        db_name->str,
-                        m_sp->m_name.str);
+    char definer_buf[USER_HOST_BUFF_SIZE];
 
-    /*
-      Set definer to the '' to correct displaying in the information
-      schema.
-    */
+    *definer_user= lex_definer->user;
+    *definer_host= lex_definer->host;
 
-    m_sp->set_definer((char*) "", 0);
+    size_t definer_len=
+      strxmov(definer_buf,
+              lex_definer->user.str, "@", lex_definer->host.str, NullS) -
+      definer_buf;
 
-    /*
-      Triggers without definer information are executed under the
-      authorization of the invoker.
-    */
-
-    m_sp->m_chistics->suid= SP_IS_NOT_SUID;
+    return !lex_string_copy(mem_root, definer, definer_buf, definer_len);
   }
-  else
-    m_sp->set_definer(m_definer->str, m_definer->length);
 
-  m_on_table_name= alloc_lex_string(&table->mem_root);
+  /* non-SUID trigger. */
 
-  if (!m_on_table_name)
-    return true;
-
-  m_on_table_name->str= (char*) lex->raw_trg_on_table_name_begin;
-  m_on_table_name->length= lex->raw_trg_on_table_name_end -
-                           lex->raw_trg_on_table_name_begin;
+  *definer_user= NULL_STR;
+  *definer_host= NULL_STR;
+  *definer= EMPTY_STR;
 
   return false;
 }
 
 
 /**
+  Constructs CREATE TRIGGER statement.
+
+  The point of this method is to create two canonical forms of CREATE TRIGGER
+  statement: one for storing in the Data Dictionary, the other is for writing
+  into the binlog.
+
+  The difference between these two forms is that the Data Dictionary form must
+  not contains FOLLOWS/PRECEDES clause, while the binlog form mist preserve it
+  if it was in the original statement. The reason for that difference is this:
+
+    - the Data Dictionary preserves the trigger execution order (action_order),
+      thus FOLLOWS/PRECEDES clause is not needed.
+
+    - moreover, FOLLOWS/PRECEDES clause usually makes problem in mysqldump,
+      because CREATE TRIGGER statement will have a reference to non-yet-existing
+      trigger (which is about to be created right after this one).
+
+    - thus, FOLLOWS/PRECEDES must not be stored in the Data Dictionary.
+
+    - on the other hand, the binlog contains statements in the user order (as
+      the user executes them). Thus, it is important to preserve
+      FOLLOWS/PRECEDES clause if the user has specified it so that the trigger
+      execution order on master and slave will be the same.
+
+  Both forms of CREATE TRIGGER must have the DEFINER clause if the user
+  specified it (it is a SUID trigger). The DEFINER clause can not be reused
+  from the parser.
+
+  @param thd                thread context
+  @param mem_root           mem-root where needed strings will be allocated
+  @param[out] dd_query      well-formed CREATE TRIGGER statement for storing
+                            in the Data Dictionary (after successful execution)
+  @param[out] binlog_query  well-formed CREATE TRIGGER statement for putting
+                            into binlog (after successful execution)
+  @param[out] definer       well-formed DEFINER-clause (after successful
+                            execution)
+
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
+*/
+
+static bool reconstruct_create_trigger_statement(THD *thd,
+                                                 MEM_ROOT *mem_root,
+                                                 String *binlog_query,
+                                                 String *dd_query,
+                                                 LEX_STRING *definer)
+{
+  LEX *lex= thd->lex;
+
+  if (dd_query->append(STRING_WITH_LEN("CREATE ")))
+    return true; // OOM
+
+  /*
+    Append definer-clause if the trigger is SUID (a usual trigger in
+    new MySQL versions).
+  */
+
+  LEX_STRING definer_user;
+  LEX_STRING definer_host;
+
+  if (reconstruct_definer_clause(mem_root, lex->definer,
+                                 &definer_user, &definer_host, definer))
+    return true;
+
+  append_definer(thd, dd_query, &definer_user, &definer_host);
+
+  if (binlog_query->append(*dd_query))
+    return true; //OOM
+
+  LEX_STRING dd_definition;
+  LEX_STRING binlog_definition;
+
+  binlog_definition.str= (char *) lex->stmt_definition_begin;
+  binlog_definition.length= lex->stmt_definition_end -
+                            lex->stmt_definition_begin;
+
+  trim_whitespace(thd->charset(), &binlog_definition);
+
+  if (lex->trg_ordering_clause_begin !=
+      lex->trg_ordering_clause_end)
+  {
+    dd_definition.str= (char *) lex->stmt_definition_begin;
+    dd_definition.length= lex->trg_ordering_clause_begin -
+                          lex->stmt_definition_begin;
+
+    if (dd_query->append(dd_definition.str, dd_definition.length))
+      return true;
+
+    dd_definition.str= (char *) lex->trg_ordering_clause_end;
+    dd_definition.length= lex->stmt_definition_end -
+                          lex->trg_ordering_clause_end;
+
+    trim_whitespace(thd->charset(), &dd_definition);
+  }
+  else
+  {
+    dd_definition.str= binlog_definition.str;
+    dd_definition.length= binlog_definition.length;
+  }
+
+  return dd_query->append(dd_definition.str, dd_definition.length) ||
+         binlog_query->append(binlog_definition.str, binlog_definition.length);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Creates a new Trigger-instance with the state from the parser. This method is
+  used to create a Trigger-object after CREATE TRIGGER statement is parsed.
+
+  @see also Trigger::create_from_dd()
+
+  @param thd                              Thread context with a valid LEX-tree
+                                          of CREATE TRIGGER statement
+  @param subject_table                    A valid (not fake!) subject
+                                          TABLE-object
+  @param [out] binlog_create_trigger_stmt Store CREATE TRIGGER appropriate to
+                                          writing into the binlog. It should
+                                          have DEFINER clause and should not
+                                          have FOLLOWS/PRECEDES clause.
+*/
+Trigger *Trigger::create_from_parser(THD *thd,
+                                     TABLE *subject_table,
+                                     String *binlog_create_trigger_stmt)
+{
+  LEX *lex= thd->lex;
+
+  /*
+    Fill character set information:
+      - client character set contains charset info only;
+      - connection collation contains pair {character set, collation};
+      - database collation contains pair {character set, collation};
+
+    NOTE: we must allocate strings on Trigger's mem-root.
+  */
+
+  LEX_STRING client_cs_name;
+  LEX_STRING connection_cl_name;
+  LEX_STRING db_cl_name;
+
+  const CHARSET_INFO *default_db_cl=
+    get_default_db_collation(thd, subject_table->s->db.str);
+
+  if (!lex_string_copy(&subject_table->mem_root,
+                       &client_cs_name,
+                       thd->charset()->csname) ||
+      !lex_string_copy(&subject_table->mem_root,
+                       &connection_cl_name,
+                       thd->variables.collation_connection->name) ||
+      !lex_string_copy(&subject_table->mem_root,
+                       &db_cl_name,
+                       default_db_cl->name))
+  {
+    return NULL;
+  }
+
+  // Copy trigger name into the proper mem-root.
+
+  LEX_STRING trigger_name;
+  if (!lex_string_copy(&subject_table->mem_root,
+                       &trigger_name,
+                       lex->spname->m_name))
+    return NULL;
+
+  // Construct two CREATE TRIGGER statements, allocate DEFINER-clause.
+
+  String dd_create_trigger_stmt;
+  dd_create_trigger_stmt.set_charset(system_charset_info);
+
+  LEX_STRING definer;
+  reconstruct_create_trigger_statement(thd,
+                                       &subject_table->mem_root,
+                                       binlog_create_trigger_stmt,
+                                       &dd_create_trigger_stmt,
+                                       &definer);
+
+  // Copy CREATE TRIGGER statement for DD into the proper mem-root.
+
+  LEX_STRING definition;
+  if (!lex_string_copy(&subject_table->mem_root,
+                       &definition,
+                       dd_create_trigger_stmt.c_ptr(),
+                       dd_create_trigger_stmt.length()))
+    return NULL;
+
+  // Calculate timestamp as milliseconds elapsed from 1 Jan 1970 00:00:00.
+
+  struct timeval cur_time= thd->query_start_timeval_trunc(2);
+  longlong created_timestamp= static_cast<longlong>(cur_time.tv_sec) * 1000 +
+                              cur_time.tv_usec / 1000;
+
+  // Create a new Trigger instance.
+
+  Trigger *t=
+    new (&subject_table->mem_root) Trigger(
+      &subject_table->mem_root,
+      subject_table->s->db,
+      subject_table->s->table_name,
+      definition,
+      thd->variables.sql_mode,
+      definer,
+      client_cs_name,
+      connection_cl_name,
+      db_cl_name,
+      lex->sphead->m_trg_chistics.event,
+      lex->sphead->m_trg_chistics.action_time,
+      created_timestamp);
+
+  if (!t)
+    return NULL;
+
+  /*
+    NOTE: sp-head is not set in the new trigger object. That's Ok since we're
+    not going to execute it, but rather use it for store new trigger in the Data
+    Dictionary.
+  */
+
+  // Set trigger name.
+
+  t->set_trigger_name(trigger_name);
+
+  return t;
+}
+
+
+/**
+  Creates a new Trigger-instance with the state loaded from the Data Dictionary.
+
+  @note the Data Dictionary currently stores not all needed information, so the
+  complete state of Trigger-object can be obtained only after parsing the
+  definition (CREATE TRIGGER) statement. In order to do that, Trigger::parse()
+  should be called.
+
+  @see also Trigger::create_from_parser()
+*/
+Trigger *Trigger::create_from_dd(MEM_ROOT *mem_root,
+                                 const LEX_STRING &db_name,
+                                 const LEX_STRING &subject_table_name,
+                                 const LEX_STRING &definition,
+                                 sql_mode_t sql_mode,
+                                 const LEX_STRING &definer,
+                                 const LEX_STRING &client_cs_name,
+                                 const LEX_STRING &connection_cl_name,
+                                 const LEX_STRING &db_cl_name,
+                                 const longlong *created_timestamp)
+{
+  return new (mem_root) Trigger(
+    mem_root,
+    db_name,
+    subject_table_name,
+    definition,
+    sql_mode,
+    definer,
+    client_cs_name,
+    connection_cl_name,
+    db_cl_name,
+    TRG_EVENT_MAX,
+    TRG_ACTION_MAX,
+    created_timestamp ? *created_timestamp : 0);
+}
+
+
+/**
+  Trigger constructor.
+*/
+Trigger::Trigger(MEM_ROOT *mem_root,
+                 const LEX_STRING &db_name,
+                 const LEX_STRING &subject_table_name,
+                 const LEX_STRING &definition,
+                 sql_mode_t sql_mode,
+                 const LEX_STRING &definer,
+                 const LEX_STRING &client_cs_name,
+                 const LEX_STRING &connection_cl_name,
+                 const LEX_STRING &db_cl_name,
+                 enum_trigger_event_type event_type,
+                 enum_trigger_action_time_type action_time,
+                 longlong created_timestamp)
+ :m_mem_root(mem_root),
+  m_db_name(db_name),
+  m_subject_table_name(subject_table_name),
+  m_definition(definition),
+  m_sql_mode(sql_mode),
+  m_definer(definer),
+  m_client_cs_name(client_cs_name),
+  m_connection_cl_name(connection_cl_name),
+  m_db_cl_name(db_cl_name),
+  m_event(event_type),
+  m_action_time(action_time),
+  m_created_timestamp(created_timestamp),
+  m_action_order(0),
+  m_sp(NULL),
+  m_has_parse_error(false)
+{
+  m_trigger_name= NULL_STR;
+  m_on_table_name= NULL_STR;
+
+  m_parse_error_message[0]= 0;
+  memset(&m_subject_table_grant, 0, sizeof (m_subject_table_grant));
+}
+
+
+/**
+  Destroy associated SP (if any).
+*/
+Trigger::~Trigger()
+{
+  delete m_sp;
+}
+
+
+/**
   Execute trigger's body.
 
-  @param [in] thd               Thread handle
+  @param [in] thd   Thread context
 
   @return Operation status
     @retval true   Trigger execution failed or trigger has compilation errors
@@ -182,8 +469,8 @@ bool Trigger::execute(THD *thd)
   thd->lex->current_select= NULL;
   err_status=
     m_sp->execute_trigger(thd,
-                          m_db_name,
-                          m_table_name,
+                          &m_db_name,
+                          &m_subject_table_name,
                           &m_subject_table_grant);
   thd->lex->current_select= save_current_select;
 
@@ -194,95 +481,59 @@ bool Trigger::execute(THD *thd)
 
 
 /**
-  Get information about trigger.
-
-  @param[out] trg_name            trigger name
-  @param[out] trigger_stmt        returns statement of trigger
-  @param[out] sql_mode            returns sql_mode of trigger
-  @param[out] trg_definer         returns definer/creator of trigger
-  @param[out] trg_definition      returns definition of trigger
-  @param[out] client_cs_name      returns client character set
-  @param[out] connection_cl_name  returns connection collation
-  @param[out] db_cl_name          returns database collation
-*/
-
-void Trigger::get_info(LEX_STRING *trg_name,
-                       LEX_STRING *trigger_stmt,
-                       sql_mode_t *sql_mode,
-                       LEX_STRING *trg_definer,
-                       LEX_STRING *trg_definition,
-                       LEX_STRING *client_cs_name,
-                       LEX_STRING *connection_cl_name,
-                       LEX_STRING *db_cl_name) const
-{
-  *trg_name= *m_trigger_name;
-  if (trigger_stmt)
-    *trigger_stmt= m_sp->m_body_utf8;
-  *sql_mode= m_sql_mode;
-
-  if (trg_definer)
-    *trg_definer= *m_definer;
-
-  if (trg_definition)
-    *trg_definition= *m_definition;
-
-  *client_cs_name= *m_client_cs_name;
-  *connection_cl_name= *m_connection_cl_name;
-  *db_cl_name= *m_db_cl_name;
-}
-
-
-/**
   Parse CREATE TRIGGER statement.
 
-  @param [in] thd               thread handle
-  @param [in] table             pointer to the trigger's table
+  @param [in] thd   Thread context
 
-  @return Operation status
-    @retval true   Failure
-    @retval false  Success
+  @return true if a fatal parse error happened (the parser failed to extract
+  even the trigger name), false otherwise (Trigger::has_parse_error() might
+  still return true in this case).
 */
 
-bool Trigger::parse_trigger_body(THD *thd, TABLE *table)
+bool Trigger::parse(THD *thd)
 {
-  LEX *old_lex= thd->lex, lex;
-  sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   sql_mode_t sql_mode_saved= thd->variables.sql_mode;
-  PSI_statement_locker *parent_locker= thd->m_statement_psi;
-  LEX_STRING *trigger_name= NULL;
-  bool result= false;
-
-  DBUG_ENTER("parse_trigger_body");
   thd->variables.sql_mode= m_sql_mode;
 
   Parser_state parser_state;
-  if (parser_state.init(thd, m_definition->str, m_definition->length))
+  if (parser_state.init(thd, m_definition.str, m_definition.length))
   {
     thd->variables.sql_mode= sql_mode_saved;
     return true;
   }
 
+  LEX *lex_saved= thd->lex;
+
+  LEX lex;
   thd->lex= &lex;
+  lex_start(thd);
 
   LEX_STRING current_db_name_saved= {thd->db, thd->db_length};
-  thd->reset_db(m_db_name->str, m_db_name->length);
+  thd->reset_db(m_db_name.str, m_db_name.length);
+
+  Deprecated_trigger_syntax_handler error_handler;
+  thd->push_internal_handler(&error_handler);
+
+  sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
+  thd->sp_runtime_ctx= NULL;
+
+  PSI_statement_locker *statement_locker_saved= thd->m_statement_psi;
+  thd->m_statement_psi= NULL;
 
   Trigger_creation_ctx *creation_ctx=
       Trigger_creation_ctx::create(thd,
-                                   m_db_name->str,
-                                   m_table_name->str,
+                                   m_db_name,
+                                   m_subject_table_name,
                                    m_client_cs_name,
                                    m_connection_cl_name,
                                    m_db_cl_name);
 
-  lex_start(thd);
-  thd->sp_runtime_ctx= NULL;
-
-  Deprecated_trigger_syntax_handler error_handler;
-  thd->push_internal_handler(&error_handler);
-  thd->m_statement_psi= NULL;
   bool parse_error= parse_sql(thd, &parser_state, creation_ctx);
-  thd->m_statement_psi= parent_locker;
+
+  thd->m_statement_psi= statement_locker_saved;
+  thd->sp_runtime_ctx= sp_runtime_ctx_saved;
+  thd->variables.sql_mode= sql_mode_saved;
+
   thd->pop_internal_handler();
 
   /*
@@ -295,121 +546,162 @@ bool Trigger::parse_trigger_body(THD *thd, TABLE *table)
   */
   lex.set_trg_event_type_for_tables();
 
-  const LEX_STRING *trigger_name_ptr= NULL;
+  // Remember parse error message.
 
   if (parse_error)
-  {
     set_parse_error_message(error_handler.get_error_message());
 
-    /* Currently sphead is always set to NULL in case of a parse error */
-    DBUG_ASSERT(lex.sphead == NULL);
+  // Ensure that lex.sp_head is NULL in case of parse errors.
 
-    if (!error_handler.get_trigger_name())
-    {
-      result= true;
-      goto cleanup;
-    }
+  DBUG_ASSERT(!parse_error || (parse_error && lex.sphead == NULL));
 
-    trigger_name_ptr= error_handler.get_trigger_name();
-  }
-  else
-  {
-    trigger_name_ptr= &lex.spname->m_name;
-  }
+  // fatal_parse_error will be returned from this method.
 
-  // Make a copy of trigger name.
+  bool fatal_parse_error= false;
 
-  trigger_name= lex_string_dup(&table->mem_root, trigger_name_ptr);
+  // Set trigger name.
 
-  if (!trigger_name)
-  {
-    result= true;
-    goto cleanup;
-  }
-
-  if (!parse_error)
-  {
-    if (init(thd, &lex, trigger_name, creation_ctx, m_db_name, table))
-    {
-      result= true;
-      goto cleanup;
-    }
-  }
-  else
-    set_trigger_name(trigger_name);
-
-#ifndef DBUG_OFF
-  if (!parse_error)
   {
     /*
-      Let us check that we correctly update trigger definitions when we
-      rename tables with triggers.
-
-      In special cases like "RENAME TABLE `#mysql50#somename` TO `somename`"
-      or "ALTER DATABASE `#mysql50#somename` UPGRADE DATA DIRECTORY NAME"
-      we might be given table or database name with "#mysql50#" prefix (and
-      trigger's definiton contains un-prefixed version of the same name).
-      To remove this prefix we use check_n_cut_mysql50_prefix().
+      Get trigger name:
+        - in case of parse error, trigger name can be fetched from error
+          handler;
+        - otherwise it can be retrieved from the parser.
     */
 
-    char fname[NAME_LEN + 1];
-    DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
-                                lex.query_tables->db, m_db_name->str) ||
-                 (check_n_cut_mysql50_prefix(m_db_name->str,
-                                             fname, sizeof(fname)) &&
-                  !my_strcasecmp(table_alias_charset, lex.query_tables->db, fname))));
-    DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
-                                lex.query_tables->table_name,
-                                m_table_name->str) ||
-                 (check_n_cut_mysql50_prefix(m_table_name->str,
-                                             fname, sizeof(fname)) &&
-                  !my_strcasecmp(table_alias_charset,
-                                 lex.query_tables->table_name,
-                                 fname))));
+    const LEX_STRING *trigger_name_ptr= NULL;
+
+    if (parse_error)
+    {
+      if (!error_handler.get_trigger_name())
+      {
+        // We failed to parse trigger name => fatal error.
+        fatal_parse_error= true;
+        goto cleanup;
+      }
+
+      trigger_name_ptr= error_handler.get_trigger_name();
+    }
+    else
+    {
+      trigger_name_ptr= &lex.spname->m_name;
+    }
+
+    // Make a copy of trigger name and set it.
+
+    LEX_STRING s;
+    if (!lex_string_copy(m_mem_root, &s, *trigger_name_ptr))
+    {
+      fatal_parse_error= true;
+      goto cleanup;
+    }
+
+    set_trigger_name(s);
   }
+
+  // That's it in case of parse error.
+
+  if (parse_error)
+    goto cleanup;
+
+  // Set correct m_event and m_action_time.
+
+  DBUG_ASSERT(m_event == TRG_EVENT_MAX);
+  DBUG_ASSERT(m_action_time == TRG_ACTION_MAX);
+
+  m_event= lex.sphead->m_trg_chistics.event;
+  m_action_time= lex.sphead->m_trg_chistics.action_time;
+
+  /*
+    Remember a pointer to the "ON <table name>" part of the trigger definition.
+    Note, that it is a pointer inside m_definition.str.
+  */
+
+  m_on_table_name.str= (char*) lex.raw_trg_on_table_name_begin;
+  m_on_table_name.length= lex.raw_trg_on_table_name_end -
+                          lex.raw_trg_on_table_name_begin;
+
+  // Take ownership of SP object.
+
+  DBUG_ASSERT(!m_sp);
+
+  m_sp= lex.sphead;
+  lex.sphead= NULL; /* Prevent double cleanup. */
+
+  /*
+    Set some SP attributes.
+
+    NOTE: sp_head::set_info() is required on slave.
+  */
+
+  m_sp->set_info(0, // CREATED timestamp (not used for triggers)
+                 0, // MODIFIED timestamp (not used for triggers)
+                 &lex.sp_chistics,
+                 m_sql_mode);
+
+  DBUG_ASSERT(!m_sp->get_creation_ctx());
+  m_sp->set_creation_ctx(creation_ctx);
+
+  // Set the definer attribute in SP.
+
+  if (!m_definer.length)
+  {
+    DBUG_ASSERT(m_definer.str); // m_definer must be EMPTY_STR here.
+
+    /*
+      This trigger was created/imported in MySQL version, which does not support
+      triggers definers. We should emit warning here.
+    */
+
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
+                        m_db_name.str,
+                        m_trigger_name.str);
+
+    /*
+      Triggers without definer information are executed under the
+      authorization of the invoker.
+    */
+
+    m_sp->m_chistics->suid= SP_IS_NOT_SUID;
+  }
+
+  m_sp->set_definer(m_definer.str, m_definer.length);
+
+#ifndef DBUG_OFF
+  /*
+    Check that we correctly update trigger definitions when we rename tables
+    with triggers.
+
+    In special cases like "RENAME TABLE `#mysql50#somename` TO `somename`"
+    or "ALTER DATABASE `#mysql50#somename` UPGRADE DATA DIRECTORY NAME"
+    we might be given table or database name with "#mysql50#" prefix (and
+    trigger's definiton contains un-prefixed version of the same name).
+    To remove this prefix we use check_n_cut_mysql50_prefix().
+  */
+
+  char fname[NAME_LEN + 1];
+  DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
+                              lex.query_tables->db, m_db_name.str) ||
+               (check_n_cut_mysql50_prefix(m_db_name.str,
+                                           fname, sizeof(fname)) &&
+                !my_strcasecmp(table_alias_charset,
+                               lex.query_tables->db, fname))));
+  DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
+                              lex.query_tables->table_name,
+                              m_subject_table_name.str) ||
+               (check_n_cut_mysql50_prefix(m_subject_table_name.str,
+                                           fname, sizeof(fname)) &&
+                !my_strcasecmp(table_alias_charset,
+                               lex.query_tables->table_name, fname))));
 #endif
 
 cleanup:
   lex_end(&lex);
   thd->reset_db(current_db_name_saved.str, current_db_name_saved.length);
-  thd->lex= old_lex;
-  thd->sp_runtime_ctx= sp_runtime_ctx_saved;
-  thd->variables.sql_mode= sql_mode_saved;
+  thd->lex= lex_saved;
 
-  DBUG_RETURN(result);
-}
-
-
-/**
-  Setup table fields referenced from trigger.
-
-  @param [in] thd               thread handle
-  @param [in] table             pointer to the trigger's table
-  @param [in] dispatcher        table trigger dispatcher
-*/
-
-void Trigger::setup_fields(THD *thd,
-                           TABLE *table,
-                           Table_trigger_dispatcher *dispatcher)
-{
-  if (!m_sp)
-    return;
-
-  /*
-    Also let us bind these objects to Field objects in table being
-    opened.
-
-    We ignore errors here, because if even something is wrong we still
-    will be willing to open table to perform some operations (e.g.
-    SELECT)...
-    Anyway some things can be checked only during trigger execution.
-  */
-  for (Item_trigger_field *trg_field= m_sp->m_trg_table_fields.first;
-       trg_field;
-       trg_field= trg_field->next_trg_field)
-  {
-    trg_field->setup_field(thd, table, dispatcher, &m_subject_table_grant);
-  }
+  return fatal_parse_error;
 }
 
 
@@ -426,6 +718,9 @@ void Trigger::add_tables_and_routines(THD *thd,
                                       Query_tables_list *prelocking_ctx,
                                       TABLE_LIST *table_list)
 {
+  if (has_parse_error())
+    return;
+
   MDL_key key(MDL_key::TRIGGER, m_sp->m_db.str, m_sp->m_name.str);
 
   if (sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
@@ -443,51 +738,81 @@ void Trigger::add_tables_and_routines(THD *thd,
 
 
 /**
-  Check whether any table's fields are used in trigger.
-
-  @param [in] used_fields       bitmap of fields to check
-
-  @return Check result
-    @retval true   Some table fields are used in trigger
-    @retval false  None of table fields are used in trigger
+  Print upgrade warnings (if any).
 */
-
-bool Trigger::is_fields_updated_in_trigger(const MY_BITMAP *used_fields) const
+void Trigger::print_upgrade_warning(THD *thd)
 {
-  Item_trigger_field *trg_field;
-  for (trg_field= m_sp->m_trg_table_fields.first; trg_field;
-       trg_field= trg_field->next_trg_field)
-  {
-    /* We cannot check fields which does not present in table. */
-    if (trg_field->field_idx != (uint)-1)
-    {
-      if (bitmap_is_set(used_fields, trg_field->field_idx) &&
-          trg_field->get_settable_routine_parameter())
-        return true;
-    }
-  }
-  return false;
+  if (m_created_timestamp)
+    return;
+
+  push_warning_printf(thd,
+    Sql_condition::SL_WARNING,
+    ER_WARN_TRIGGER_DOESNT_HAVE_CREATED,
+    ER(ER_WARN_TRIGGER_DOESNT_HAVE_CREATED),
+    get_db_name().str,
+    get_subject_table_name().str,
+    get_trigger_name().str);
 }
 
+
 /**
-  Mark fields of subject table which we read/set in the trigger
+  Handles renaming of the subject table.
 
-  @param [in] trigger_table    pointer to the trigger's table
+  The main duty of this method is to properly update m_definition and
+  m_on_table_name attributes.
+
+  @param thd              Thread context, used for passing into
+                          append_identifier() function, which uses it to know
+                          the way to properly escape identifiers
+  @param new_table_name   New subject table name
 */
-
-void Trigger::mark_field_used(TABLE *trigger_table)
+void Trigger::rename_subject_table(THD *thd, const LEX_STRING &new_table_name)
 {
-  Item_trigger_field *trg_field;
+  /*
+    sql_mode has to be set to the trigger's sql_mode because we're going to
+    build a new CREATE TRIGGER statement and sql_mode affects the way we append
+    identifiers.
+  */
 
-  for (trg_field= m_sp->m_trg_table_fields.first; trg_field;
-       trg_field= trg_field->next_trg_field)
-  {
-    /* We cannot mark fields which does not present in table. */
-    if (trg_field->field_idx != (uint)-1)
-    {
-      bitmap_set_bit(trigger_table->read_set, trg_field->field_idx);
-      if (trg_field->get_settable_routine_parameter())
-        bitmap_set_bit(trigger_table->write_set, trg_field->field_idx);
-    }
-  }
+  sql_mode_t sql_mode_saved= thd->variables.sql_mode;
+  thd->variables.sql_mode= get_sql_mode();
+
+  // Construct a new CREATE TRIGGER statement with the new table name.
+
+  String new_create_stmt;
+  new_create_stmt.length(0);
+
+  // NOTE: 'on_table_name' is supposed to point inside m_definition.
+
+  DBUG_ASSERT(m_on_table_name.str);
+  DBUG_ASSERT(m_on_table_name.str > m_definition.str);
+  DBUG_ASSERT(m_on_table_name.str < (m_definition.str + m_definition.length));
+
+  size_t before_on_len= m_on_table_name.str - m_definition.str;
+
+  new_create_stmt.append(m_definition.str, before_on_len);
+  new_create_stmt.append(STRING_WITH_LEN("ON "));
+
+  append_identifier(thd, &new_create_stmt,
+                    new_table_name.str, new_table_name.length);
+
+  new_create_stmt.append(STRING_WITH_LEN(" "));
+
+  size_t on_q_table_name_len= new_create_stmt.length() - before_on_len;
+
+  new_create_stmt.append(
+    m_on_table_name.str + m_on_table_name.length,
+    m_definition.length - (before_on_len + m_on_table_name.length));
+
+  lex_string_copy(m_mem_root,
+                  &m_definition,
+                  new_create_stmt.ptr(),
+                  new_create_stmt.length());
+
+  lex_string_copy(m_mem_root,
+                  &m_on_table_name,
+                  m_definition.str + before_on_len,
+                  on_q_table_name_len);
+
+  thd->variables.sql_mode= sql_mode_saved;
 }

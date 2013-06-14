@@ -30,6 +30,9 @@
 
 #include <algorithm>
 
+#include "trigger.h"                  // Trigger
+#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+
 ///////////////////////////////////////////////////////////////////////////
 // Static function implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -515,17 +518,15 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
         execution.
       */
 
-      Table_trigger_dispatcher *ttl= sp->m_trg_list;
-      Trigger *trigger= ttl->get_trigger(sp->m_trg_chistics.event,
-                                         sp->m_trg_chistics.action_time);
-      GRANT_INFO *grant_table= trigger->get_subject_table_grant();
+      Trigger *t= sp->m_trg_list->find_trigger(thd->lex->sphead->m_name);
 
-      for (Item_trigger_field *trg_field= sp->m_trg_table_fields.first;
-           trg_field;
-           trg_field= trg_field->next_trg_field)
-      {
-        trg_field->setup_field(thd, ttl->trigger_table, ttl, grant_table);
-      }
+      DBUG_ASSERT(t);
+
+      if (!t)
+        return NULL; // Don't take chances in production.
+
+      sp->setup_trigger_fields(thd, sp->m_trg_list->get_trigger_field_support(),
+                               t->get_subject_table_grant(), false);
     }
 
     // Call after-parsing callback.
@@ -969,7 +970,7 @@ bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
 
   m_trigger_field=
     new (thd->mem_root) Item_trigger_field(thd->lex->current_context(),
-                                           Item_trigger_field::NEW_ROW,
+                                           TRG_NEW_ROW,
                                            m_trigger_field_name.str,
                                            UPDATE_ACL,
                                            false);

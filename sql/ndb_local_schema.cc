@@ -268,15 +268,15 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
   {
     if (!have_mdl_lock())
     {
-      // change_table_name requires an EXLUSIVE mdl lock
+      // change_trigger_table_name() requires an EXLUSIVE mdl lock
       // so if the mdl lock was not aquired, skip this part
       log_warning("Can't rename triggers, no mdl lock");
     }
     else
     {
-      if (Table_trigger_dispatcher::change_table_name(m_thd,
-                                                 m_db, m_name, m_name,
-                                                 new_db, new_name))
+      if (change_trigger_table_name(m_thd,
+                                    m_db, m_name, m_name,
+                                    new_db, new_name))
       {
         log_warning("Failed to rename all triggers");
       }
