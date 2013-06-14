@@ -250,7 +250,7 @@ struct truncate_t {
 	typedef std::vector<index_t> indexes_t;
 
 	/** Space ID of tablespace */
-	table_id_t		m_space_id;
+	ulint			m_space_id;
 
 	/** ID of table that is being truncated. */
 	table_id_t		m_old_table_id;

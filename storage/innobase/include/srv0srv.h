@@ -751,6 +751,16 @@ void
 srv_purge_wakeup(void);
 /*==================*/
 
+/** Check if tablespace is being truncated.
+(Ignore system-tablespace as we don't re-create the tablespace
+and so some of the action that are suppressed by this function
+for independent tablespace are not applicable to system-tablespace).
+@param	space_id	space_id to check for truncate action
+@return true 		if being truncated. */
+
+bool
+srv_is_tablespace_truncated(ulint space_id);
+
 /** Status variables to be passed to MySQL */
 struct export_var_t{
 	ulint innodb_data_pending_reads;	/*!< Pending reads */

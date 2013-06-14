@@ -5715,7 +5715,7 @@ fil_io(
 		} else {
 			if (space->id != srv_sys_space.space_id()
 			    && UT_LIST_GET_LEN(space->chain) == 1
-			    && (srv_trunc_table_fix_up_active
+			    && (srv_is_tablespace_truncated(space->id)
 				|| space->is_being_truncated)
 			    && type == OS_FILE_READ) {
 				/* Handle page which is outside the truncated
