@@ -291,6 +291,7 @@
 #cmakedefine HAVE_THR_YIELD 1
 #cmakedefine HAVE_TIME 1
 #cmakedefine HAVE_TIMES 1
+#cmakedefine HAVE_UCONTEXT 1
 #cmakedefine HAVE_VALLOC 1
 #cmakedefine HAVE_VIDATTR 1
 #define HAVE_VIO_READ_BUFF 1

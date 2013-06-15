@@ -63,8 +63,9 @@
 #define SIGNAL_FMT "signal %d"
 #endif
 
+#include <my_context.h>
 static my_bool non_blocking_api_enabled= 0;
-#if !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY) && !defined(MY_CONTEXT_DISABLE)
 #define WRAP_NONBLOCK_ENABLED non_blocking_api_enabled
 #include "../tests/nonblock-wrappers.h"
 #endif
@@ -5932,8 +5933,10 @@ void do_connect(struct st_command *command)
   if (opt_connect_timeout)
     mysql_options(con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
                   (void *) &opt_connect_timeout);
-
-  mysql_options(con_slot->mysql, MYSQL_OPT_NONBLOCK, 0);
+#ifndef MY_CONTEXT_DISABLE
+  if (mysql_options(con_slot->mysql, MYSQL_OPT_NONBLOCK, 0))
+    die("Failed to initialise non-blocking API");
+#endif
   if (opt_compress || con_compress)
     mysql_options(con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);

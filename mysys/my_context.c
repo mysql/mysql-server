@@ -726,3 +726,37 @@ my_context_continue(struct my_context *c)
 }
 
 #endif  /* MY_CONTEXT_USE_WIN32_FIBERS */
+
+#ifdef MY_CONTEXT_DISABLE
+int
+my_context_continue(struct my_context *c)
+{
+  return -1;
+}
+
+
+int
+my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
+{
+  return -1;
+}
+
+
+int
+my_context_yield(struct my_context *c)
+{
+  return -1;
+}
+
+int
+my_context_init(struct my_context *c, size_t stack_size)
+{
+  return -1;                                  /* Out of memory */
+}
+
+void
+my_context_destroy(struct my_context *c)
+{
+}
+
+#endif

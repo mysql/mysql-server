@@ -30,8 +30,9 @@
   and use poll()/select() to wait for them to complete. This way we can get
   a good coverage testing of the non-blocking API as well.
 */
+#include <my_context.h>
 static my_bool non_blocking_api_enabled= 0;
-#if !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY) && !defined(MY_CONTEXT_DISABLE)
 #define WRAP_NONBLOCK_ENABLED non_blocking_api_enabled
 #include "nonblock-wrappers.h"
 #endif

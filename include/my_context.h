@@ -31,8 +31,10 @@
 #define MY_CONTEXT_USE_X86_64_GCC_ASM
 #elif defined(__GNUC__) && __GNUC__ >= 3 && defined(__i386__)
 #define MY_CONTEXT_USE_I386_GCC_ASM
-#else
+#elif defined(HAVE_UCONTEXT)
 #define MY_CONTEXT_USE_UCONTEXT
+#else
+#define MY_CONTEXT_DISABLE
 #endif
 
 #ifdef MY_CONTEXT_USE_WIN32_FIBERS
@@ -100,6 +102,13 @@ struct my_context {
 #ifndef DBUG_OFF
   void *dbug_state;
 #endif
+};
+#endif
+
+
+#ifdef MY_CONTEXT_DISABLE
+struct my_context {
+  int dummy;
 };
 #endif
 
