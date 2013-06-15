@@ -802,6 +802,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->frm_version= FRM_VER_TRUE_VARCHAR;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+  /*
+    Yuck! Double-bad. Doesn't work with dynamic engine codes.
+    And doesn't lock the plugin. Fixed in 10.0.4
+  */
+  compile_time_assert(MYSQL_VERSION_ID < 100000);
   if (*(head+61) &&
       !(share->default_part_db_type= 
         ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 1, 0)))
