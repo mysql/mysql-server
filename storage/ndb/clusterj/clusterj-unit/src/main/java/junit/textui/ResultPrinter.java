@@ -56,10 +56,17 @@ public class ResultPrinter implements TestListener {
     /** the message buffer */
     StringBuilder messages = new StringBuilder();
 
+    /** constructor with printer to report immediate results */
+    public ResultPrinter(PrintStream printer) {
+        this.printer = printer;
+    }
+
     /** An error (exception) occurred during the execution of the test.
      */
     public void addError(Test test, Throwable t) {
+        // report status immediately
         printer.print("ERROR...");
+        // remember details
         messages.append(testNumber);
         messages.append(": ");
         messages.append(test.toString());
@@ -74,7 +81,9 @@ public class ResultPrinter implements TestListener {
     /** A failure (junit assertion) occurred during the execution of the test.
      */
     public void addFailure(Test test, AssertionFailedError t) {
+        // report status immediately
         printer.print("FAILURE...");
+        // remember details
         messages.append(testNumber);
         messages.append(": ");
         messages.append(test.toString());
@@ -83,26 +92,24 @@ public class ResultPrinter implements TestListener {
         messages.append("\n");
     }
 
-    /** A test ended.
+    /** A test ended. Report immediately.
      */
     public void endTest(Test test) {
         printer.println();
     }
 
-    /** A test started.
+    /** A test started. Report status immediately.
      */
     public void startTest(Test test) {
         testNumber++;
         printer.print(testNumber + ": " + test.toString() + " running...");
     }
 
-    /** Print the results of the test to the report printer.
+    /** Return the results of the tests.
      */
-    public void reportErrors() {
-        if (messages.length() > 0) {
-            printer.println("There were test failures:\n");
-            printer.println(messages.toString());
-        }
+    @Override
+    public String toString() {
+        return messages.toString();
     }
 
 }
