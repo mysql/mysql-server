@@ -1,4 +1,4 @@
-#   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+#   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@ include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 
 clusterj_test_src = $(top_srcdir)/storage/ndb/clusterj/clusterj-test/src/main/java
+
+clusterj_unit_src = $(top_srcdir)/storage/ndb/clusterj/clusterj-unit/src/main/java
 
 clusterj_test_res = $(top_srcdir)/storage/ndb/clusterj/clusterj-test/src/main/resources
 
@@ -174,7 +176,16 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/TimestampAsUtilDateTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/VarbinaryPK.java \
   $(clusterj_test_src)/testsuite/clusterj/model/VarbinaryTypes.java \
-  $(clusterj_test_src)/testsuite/clusterj/model/YearTypes.java
+  $(clusterj_test_src)/testsuite/clusterj/model/YearTypes.java \
+  $(clusterj_unit_src)/junit/framework/AssertionFailedError.java \
+  $(clusterj_unit_src)/junit/framework/Test.java \
+  $(clusterj_unit_src)/junit/framework/TestCase.java \
+  $(clusterj_unit_src)/junit/framework/TestListener.java \
+  $(clusterj_unit_src)/junit/framework/TestResult.java \
+  $(clusterj_unit_src)/junit/framework/TestSuite.java \
+  $(clusterj_unit_src)/junit/textui/ResultPrinter.java \
+  $(clusterj_unit_src)/junit/textui/TestRunner.java \
+  $(clusterj_unit_src)/org/junit/Ignore.java
 
 EXTRA_DIST = \
   src/main/resources/META-INF \
@@ -203,7 +214,9 @@ $(clusterj_test_version_JAR) : classclusterj_test.stamp $(MANIFEST)
 	rm -f $@ ; @JAR@ cvfm $@ $(MANIFEST) \
 	  -C $(clusterj_test_res) META-INF \
 	  -C $(clusterj_test_res) schema.sql \
-	  -C $(JAVAROOT) testsuite/clusterj
+	  -C $(JAVAROOT) testsuite/clusterj \
+	  -C $(JAVAROOT) junit \
+	  -C $(JAVAROOT) org/junit
 
 CLEANFILES= $(clusterj_test_version_JAR) classclusterj_test.stamp
 

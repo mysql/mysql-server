@@ -1,4 +1,4 @@
-#   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+#   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ MANIFEST = MANIFEST.MF
 
 JAVAROOT = $(top_srcdir)/storage/ndb/clusterj/clusterj-jpatest/target/classes
 
-CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):@CLUSTERJ_CLASSPATH@:../clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar
+CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):@CLUSTERJ_CLASSPATH@:../clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:../clusterj-test/clusterj-test-@JAVA_NDB_VERSION@.jar
 
 clusterj_jpatestdir= $(prefix)/share/mysql/java/
 
