@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@ import java.util.jar.JarInputStream;
 import junit.framework.Test;
 import junit.framework.TestResult;
 import junit.framework.TestSuite;
-import junit.textui.ResultPrinter;
 
 /**
  * Run all JUnit tests in a jar file.
@@ -148,21 +147,9 @@ public class AllTests {
             System.out.println("Running all tests in '" + jarFile + "'");
             TestSuite suite = (TestSuite) suite();
             System.out.println("Found '" + suite.testCount() + "' test classes in jar file.");
-            TestResult result = new TestResult();
-            ResultPrinter resultPrinter = new ResultPrinter();
-            result.addListener(resultPrinter);
-            suite.run(result);
+            TestResult res = junit.textui.TestRunner.run(suite);
             System.out.println("Finished running tests in '" + jarFile + "'");
-            if (result.wasSuccessful()) {
-                // nothing to see here; move along
-                System.out.println("All tests suceeded.");
-                System.exit(0);
-            } else {
-                // Print report saying which tests failed
-                resultPrinter.reportErrors();
-                System.out.println("\nSome tests failed.");
-                System.exit(1);
-            }
+            System.exit(res.wasSuccessful() ? 0 : 1);
         } else {
             usage();
         }
