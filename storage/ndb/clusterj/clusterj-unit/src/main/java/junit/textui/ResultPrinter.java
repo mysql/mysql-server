@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,13 +33,17 @@
 package junit.textui;
 
 import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 import junit.framework.AssertionFailedError;
 import junit.framework.Test;
 import junit.framework.TestListener;
 
-/** This class implements the TestListener which monitors the execution of tests and tracks errors and failures.
- * It is implemented as part of the test runner framework.
+/** This class implements TestListener which monitors the execution of tests and tracks errors and failures.
+ * It is implemented as part of the test runner framework. For each error and failure, collect the relevant
+ * information in a message buffer.
+ * When the test is over, the error and failure information is printed in reportErrors();
  */
 public class ResultPrinter implements TestListener {
 
@@ -49,27 +53,56 @@ public class ResultPrinter implements TestListener {
     /** the printer */
     PrintStream printer = System.out;
 
+    /** the message buffer */
+    StringBuilder messages = new StringBuilder();
+
     /** An error (exception) occurred during the execution of the test.
      */
     public void addError(Test test, Throwable t) {
-        t.printStackTrace(printer);
+        printer.print("ERROR...");
+        messages.append(testNumber);
+        messages.append(": ");
+        messages.append(test.toString());
+        messages.append(" FAILED:\n");
+        StringWriter stringWriter = new StringWriter();
+        PrintWriter stackPrinter = new PrintWriter(stringWriter);
+        t.printStackTrace(stackPrinter);
+        messages.append(stringWriter.toString());
+        messages.append("\n");
     }
 
-    /** A failure (assertion) occurred during the execution of the test.
+    /** A failure (junit assertion) occurred during the execution of the test.
      */
     public void addFailure(Test test, AssertionFailedError t) {
-        printer.println(t.getMessage());
+        printer.print("FAILURE...");
+        messages.append(testNumber);
+        messages.append(": ");
+        messages.append(test.toString());
+        messages.append(" FAILED:\n");
+        messages.append(t.getMessage());
+        messages.append("\n");
     }
 
     /** A test ended.
      */
     public void endTest(Test test) {
+        printer.println();
     }
 
     /** A test started.
      */
     public void startTest(Test test) {
         testNumber++;
-        printer.println(testNumber + ":" + test.toString() + " starting.");
+        printer.print(testNumber + ": " + test.toString() + " running...");
     }
+
+    /** Print the results of the test to the report printer.
+     */
+    public void reportErrors() {
+        if (messages.length() > 0) {
+            printer.println("There were test failures:\n");
+            printer.println(messages.toString());
+        }
+    }
+
 }
