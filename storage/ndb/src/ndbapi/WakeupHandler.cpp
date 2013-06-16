@@ -112,6 +112,7 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs, int _cnt, int min_req,
       /* Move that ndb to the start of the array */
       swapNdbsInArray(ndbcnt, numNdbsWithCompletedTrans);
       numNdbsWithCompletedTrans++;
+      assert(numNdbsWithCompletedTrans <= cnt);
     }
   }
 
