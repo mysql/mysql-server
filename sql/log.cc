@@ -3545,7 +3545,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
   for (;;)
   {
-    if ((error= my_delete_allow_opened(linfo.log_file_name, MYF(0))) != 0)
+    if ((error= my_delete(linfo.log_file_name, MYF(0))) != 0)
     {
       if (my_errno == ENOENT) 
       {
@@ -3576,7 +3576,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
   /* Start logging with a new file */
   close(LOG_CLOSE_INDEX | LOG_CLOSE_TO_BE_OPENED);
-  if ((error= my_delete_allow_opened(index_file_name, MYF(0))))	// Reset (open will update)
+  if ((error= my_delete(index_file_name, MYF(0))))	// Reset (open will update)
   {
     if (my_errno == ENOENT) 
     {

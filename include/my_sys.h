@@ -609,13 +609,6 @@ extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
 #ifdef _WIN32
-extern int nt_share_delete(const char *name,myf MyFlags);
-#define my_delete_allow_opened(fname,flags)  nt_share_delete((fname),(flags))
-#else
-#define my_delete_allow_opened(fname,flags)  my_delete((fname),(flags))
-#endif
-
-#ifdef _WIN32
 /* Windows-only functions (CRT equivalents)*/
 extern HANDLE   my_get_osfhandle(File fd);
 extern void     my_osmaperr(unsigned long last_error);
