@@ -19,3 +19,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql
 
 MY_ADD_TESTS(bitmap base64 my_vsnprintf my_atomic my_rdtsc lf my_malloc
              LINK_LIBRARIES mysys)
+
+IF(WIN32)
+  MY_ADD_TESTS(my_delete LINK_LIBRARIES mysys)
+ENDIF()
