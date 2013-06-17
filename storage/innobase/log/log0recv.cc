@@ -1497,6 +1497,13 @@ recv_recover_page_func(
 			}
 		}
 
+		/* Ignore applying the redo logs for tablespace that is
+		truncated. Post recovery there is fixup action that will
+		restore the tablespace back to normal state.
+		Applying redo at this stage can result in error given that
+		redo will have action recorded on page before tablespace
+		was re-inited and that would lead to an error while applying
+		such action. */
 		if (recv->start_lsn >= page_lsn
 		    && !srv_is_tablespace_truncated(recv_addr->space)) {
 
