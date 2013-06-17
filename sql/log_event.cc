@@ -3337,7 +3337,7 @@ static void write_str_with_code_and_len(uchar **dst, const char *src,
   DBUG_ASSERT(src);
   *((*dst)++)= code;
   *((*dst)++)= (uchar) len;
-  bmove(*dst, src, len);
+  memmove(*dst, src, len);
   (*dst)+= len;
 }
 

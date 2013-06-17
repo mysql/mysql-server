@@ -3293,7 +3293,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     if (field->flags & ZEROFILL_FLAG && length < field->length &&
         field->length < 21)
     {
-      bmove_upp(buff+field->length,buff+length, length);
+      memmove(buff + field->length - length, buff, length);
       memset(buff, '0', field->length - length);
       length= field->length;
     }
@@ -3413,8 +3413,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     if (field->flags & ZEROFILL_FLAG && len < field->length &&
         field->length < MAX_DOUBLE_STRING_REP_LENGTH - 1)
     {
-      bmove_upp((uchar*) buff + field->length, (uchar*) buff + len,
-                len);
+      memmove(buff + field->length - len, buff, len);
       memset(buff, '0', field->length - len);
       len= field->length;
     }
