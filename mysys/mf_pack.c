@@ -215,12 +215,6 @@ size_t cleanup_dirname(register char *to, const char *from)
       }
       else if (pos-start > 1 && pos[-1] == FN_CURLIB && pos[-2] == FN_LIBCHAR)
 	pos-=2;					/* Skip /./ */
-      else if (pos > buff+1 && pos[-1] == FN_HOMELIB && pos[-2] == FN_LIBCHAR)
-      {					/* Found ..../~/  */
-	buff[0]=FN_HOMELIB;
-	buff[1]=FN_LIBCHAR;
-	start=buff; pos=buff+1;
-      }
     }
   }
   (void) strmov(to,buff);
