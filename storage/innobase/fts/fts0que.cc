@@ -847,7 +847,7 @@ fts_query_intersect_doc_id(
 	ib_rbt_bound_t	parent;
 	ulint		size = ib_vector_size(query->deleted->doc_ids);
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
-	fts_ranking_t*	ranking;
+	fts_ranking_t*	ranking= NULL;
 
 	/* Check if the doc id is deleted and it's in our set */
 	if (fts_bsearch(array, 0, (int) size, doc_id) < 0) {

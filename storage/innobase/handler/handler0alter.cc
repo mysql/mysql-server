@@ -5593,7 +5593,7 @@ alter_stats_rebuild(
 
 	dberr_t	ret;
 #ifndef DBUG_OFF
-	bool	ibd_file_missing_orig;
+	bool	ibd_file_missing_orig= false;
 #endif /* !DBUG_OFF */
 
 	DBUG_EXECUTE_IF(
