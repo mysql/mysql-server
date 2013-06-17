@@ -59,7 +59,7 @@ enum enum_trigger_order_type
 {
   TRG_ORDER_NONE= 0,
   TRG_ORDER_FOLLOWS= 1,
-  TRG_ORDER_PRECEDES= 2,
+  TRG_ORDER_PRECEDES= 2
 };
 
 /**
