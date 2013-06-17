@@ -2266,6 +2266,9 @@ fil_recreate_tablespace(
 	to re-create. */
 	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
 
+	/* Remove all insert buffer entries for the tablespace */
+	ibuf_delete_for_discarded_space(space_id);
+
 	/* Step-2: truncate tablespace (reset the size back to original or
 	default size) of tablespace. */
 	err = truncate.truncate(
