@@ -2558,7 +2558,16 @@ extern bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                             Item *warn_item, bool *is_null);
-
+static inline bool
+non_zero_date(const MYSQL_TIME *ltime)
+{
+  return ltime->year || ltime->month || ltime->day;
+}
+static inline bool
+check_date(const MYSQL_TIME *ltime, ulonglong flags, int *was_cut)
+{
+  return check_date(ltime, non_zero_date(ltime), flags, was_cut);
+}
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,

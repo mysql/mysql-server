@@ -396,8 +396,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
       l_time->minute > 59 || l_time->second > 59)
     goto err;
 
-  if ((fuzzy_date & TIME_NO_ZERO_DATE) &&
-       (l_time->year == 0 || l_time->month == 0 || l_time->day == 0))
+  int was_cut;
+  if (check_date(l_time, fuzzy_date | TIME_INVALID_DATES, &was_cut))
     goto err;
 
   if (val != val_end)
@@ -799,7 +799,6 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
   res=(longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
   /* Set to NULL if invalid date, but keep the value */
   null_value= check_date(&ltime,
-                         (ltime.year || ltime.month || ltime.day),
                          (TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE),
                          &dummy);
   if (null_value)
@@ -1126,7 +1125,7 @@ bool Item_func_unix_timestamp::get_timestamp_value(my_time_t *seconds,
   }
 
   MYSQL_TIME ltime;
-  if (get_arg0_date(&ltime, 0))
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_IN_DATE))
     return 1;
 
   uint error_code;
@@ -2309,8 +2308,7 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
 
   int unused;
-  if (check_date(ltime, ltime->year || ltime->month || ltime->day,
-                 fuzzy_date, &unused))
+  if (check_date(ltime, fuzzy_date, &unused))
   {
     Lazy_string_time str(ltime);
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
