@@ -733,7 +733,7 @@ call mtr.add_suppression("'Resource temporarily unavailable'");
 call mtr.add_suppression("Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Table '.*' tablespace is set as discarded.");
+call mtr.add_suppression("InnoDB: Table .* tablespace is set as discarded.");
 call mtr.add_suppression("InnoDB: Tablespace '.*' exists in the cache.*");
 call mtr.add_suppression("InnoDB: Freeing existing tablespace '.*' entry from the cache with id.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
