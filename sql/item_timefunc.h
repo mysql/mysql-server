@@ -370,6 +370,7 @@ public:
       decimals= args[0]->decimals;
     set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     max_length=17 + (decimals ? decimals + 1 : 0);
+    set_persist_maybe_null(1);
   }
   void find_num_type() { hybrid_type= decimals ? DECIMAL_RESULT : INT_RESULT; }
   double real_op() { DBUG_ASSERT(0); return 0; }

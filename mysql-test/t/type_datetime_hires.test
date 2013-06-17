@@ -69,3 +69,12 @@ alter table t1 modify b datetime, modify a datetime(6);
 select * from t1;
 drop table t1;
 
+--echo #
+--echo # MDEV-4651 Crash in my_decimal2decimal in a ORDER BY query
+--echo #
+SET @@time_zone='+00:00';
+CREATE TABLE t1 (a DATETIME(4) NOT NULL);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00'),('2000-00-00 00:00:00');
+SELECT UNIX_TIMESTAMP(a) FROM t1 ORDER BY 1;
+DROP TABLE t1;
+SET @@time_zone=DEFAULT;
