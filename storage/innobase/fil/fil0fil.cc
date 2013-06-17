@@ -2500,12 +2500,15 @@ fil_op_log_parse_or_replay(
 			truncate->m_tablename = strdup(name);
 			truncate->m_tablespace_flags = tablespace_flags;
 			truncate->m_format_flags = log_flags;
+			truncate->m_redo_log_lsn = recv_lsn;
 
 			/* old/new table-id, dir-path, indexes array is
 			populated by parse */
 			truncate->parse(&ptr, &end_ptr, tablespace_flags);
 
-			srv_tables_to_truncate.push_back(truncate);
+			if (!parse_only) {
+				srv_tables_to_truncate.push_back(truncate);
+			}
 
 		} else if (type == MLOG_FILE_RENAME) {
 
@@ -6728,16 +6731,33 @@ void truncate_t::drop_indexes(
 	     it != end;
 	     ++it) {
 
+		root_page_no = it->m_root_page_no;
+		ulint   zip_size = fil_space_get_zip_size(space_id);
+
+		{
+			mtr_t	mtr2;
+			mtr_start(&mtr2);
+			mtr_set_log_mode(&mtr2, MTR_LOG_NO_REDO);
+			page_t* root = btr_page_get(
+				space_id, zip_size, root_page_no, RW_X_LATCH,
+				NULL, &mtr2);
+			lsn_t page_lsn = mach_read_from_8(root + FIL_PAGE_LSN);
+			mtr_commit(&mtr2);
+
+			if (page_lsn > this->m_redo_log_lsn) {
+				/* Page has been modified since REDO snapshot
+				was recorded so not safe to drop the index. */
+				continue;
+			}
+
+		}
+
 		mtr_start(&mtr);
 
 		/* Don't log the operation while fixing up table truncate
 		operation as crash at this level can still be sustained with
 		recovery restarting from last checkpoint. */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-
-		root_page_no = it->m_root_page_no;
-
-		ulint   zip_size = fil_space_get_zip_size(space_id);
 
 		if (fil_index_tree_is_freed(space_id, root_page_no, zip_size)) {
 			continue;
