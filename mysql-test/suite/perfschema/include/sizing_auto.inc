@@ -2,7 +2,8 @@
 show variables like "table_definition_cache";
 show variables like "table_open_cache";
 show variables like "max_connections";
-show variables like "open_files_limit";
+# open_files_limit depends on OS configuration (ulimit -n)
+#show variables like "open_files_limit";
 show variables like "%performance_schema%";
 show status like "%performance_schema%";
 
