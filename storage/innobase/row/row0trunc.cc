@@ -859,11 +859,16 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 	- log checkpoint is done before starting truncate table to ensure
 	that previous REDO log entries are not applied if current truncate
-	crashes. Take a case of system-tablespace where-in initial truncate
-	REDO log entry is written and next truncate statement result in crash.
-	On recovery both REDO log entries will be loaded w/o knowledge of which
-	REDO log entry to apply assuming default log check point didn't
-	kicked in between 2 truncates.
+	crashes. Consider following use-case:
+	 - create table .... insert/load table .... truncate table (crash)
+	 - on restart table is restored .... truncate table (crash)
+	 - on restart (assuming default log checkpoint is not done) will have
+	   2 REDO log entries for same table. (Note 2 REDO log entries
+	   for different table is not an issue).
+	For system-tablespace we can't truncate the tablespace so we need
+	to initiate a local cleanup that involves dropping of indexes and
+	re-creating them. If we apply stale entry we might end-up issuing
+	drop on wrong indexes.
 
 	- Insert buffer: TRUNCATE TABLE is analogous to DROP TABLE,
 	so we do not have to remove insert buffer records, as the
