@@ -76,7 +76,7 @@ int main(int argc, char **argv)
   {
     j=i%25 +1;
     sprintf((char*) key,"%6d",j);
-    bmove(record+1,key,6);
+    memmove(record + 1, key, 6);
     error=heap_write(file,record);
     if (heap_check_heap(file,0))
     {
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
   for (i=1 ; i<=25 ; i++)
   {
     sprintf((char*) key,"%6d",i);
-    bmove(record+1,key,6);
+    memmove(record + 1, key, 6);
     my_errno=0;
     error=heap_rkey(file,record,0,key,6,HA_READ_KEY_EXACT);
     if (verbose ||

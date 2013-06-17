@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1176,9 +1176,8 @@ void Field_num::prepend_zeros(String *value)
   int diff;
   if ((diff= (int) (field_length - value->length())) > 0)
   {
-    bmove_upp((uchar*) value->ptr()+field_length,
-              (uchar*) value->ptr()+value->length(),
-	      value->length());
+    memmove(const_cast<char*>(value->ptr()) + field_length - value->length(),
+            value->ptr(), value->length());
     memset(const_cast<char*>(value->ptr()), '0', diff);
     value->length(field_length);
     (void) value->c_ptr_quick();		// Avoid warnings in purify

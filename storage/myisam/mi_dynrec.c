@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -710,7 +710,7 @@ int _mi_write_part_record(MI_INFO *info,
 	/* Make a long block for one write */
   record_end= *record+length-head_length;
   del_length=(res_length ? MI_DYN_DELETE_BLOCK_HEADER : 0);
-  bmove((uchar*) (*record-head_length),(uchar*) temp,head_length);
+  memmove((uchar*) (*record - head_length),(uchar*) temp, head_length);
   memcpy(temp,record_end,(size_t) (extra_length+del_length));
   memset(record_end, 0, extra_length);
 
