@@ -2212,7 +2212,9 @@ loop:
 #endif/* UNIV_LOG_DEBUG */
 
 		} else if (type == MLOG_FILE_TRUNCATE) {
-			/* Do Nothing */
+			fil_op_log_parse_or_replay(
+				body, end_ptr, type, space, page_no,
+				recv_sys->recovered_lsn, false);
 		} else if (type == MLOG_FILE_CREATE
 			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME

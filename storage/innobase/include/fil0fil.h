@@ -91,7 +91,8 @@ struct truncate_t {
 		m_tablename(),
 		m_tablespace_flags(),
 		m_format_flags(),
-		m_indexes()
+		m_indexes(),
+		m_redo_log_lsn()
 	{
 		/* Do nothing */
 	}
@@ -272,6 +273,9 @@ struct truncate_t {
 
 	/** Index meta-data */
 	indexes_t		m_indexes;
+
+	/** LSN of REDO log record. */
+	lsn_t			m_redo_log_lsn;
 };
 
 typedef std::vector<truncate_t*> truncate_tables_t;
