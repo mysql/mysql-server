@@ -1,7 +1,7 @@
 # Test for WL#3771 (audit null plugin)
 # Created by HHunger 2009-09-02
 #
-
+--source include/have_null_audit_plugin.inc
 --source include/not_embedded.inc
 
 # Adjustment to the OS dependent extension of shared libraries.
