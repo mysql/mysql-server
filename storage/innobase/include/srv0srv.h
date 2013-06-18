@@ -661,7 +661,7 @@ extern "C" {
 
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_monitor_thread)(
@@ -671,7 +671,7 @@ DECLARE_THREAD(srv_monitor_thread)(
 
 /*********************************************************************//**
 The master thread controlling the server.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_master_thread)(
@@ -682,7 +682,7 @@ DECLARE_THREAD(srv_master_thread)(
 /*************************************************************************
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_error_monitor_thread)(
@@ -692,7 +692,7 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 
 /*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_purge_coordinator_thread)(
@@ -702,7 +702,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 /*********************************************************************//**
 Worker thread that reads tasks from the work queue and executes them.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_worker_thread)(
@@ -713,7 +713,7 @@ DECLARE_THREAD(srv_worker_thread)(
 
 /**********************************************************************//**
 Get count of tasks in the queue.
-@return number of tasks in queue  */
+@return number of tasks in queue */
 
 ulint
 srv_get_task_queue_length(void);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -503,7 +503,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);
     }
-    bmove_upp((uchar*) endpos+t_length,(uchar*) endpos,(uint) (endpos-key_pos));
+    memmove(key_pos + t_length, key_pos, (size_t) (endpos - key_pos));
   }
   else
   {
@@ -513,7 +513,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);
     }
-    bmove(key_pos,key_pos-t_length,(uint) (endpos-key_pos)+t_length);
+    memmove(key_pos, key_pos - t_length, (uint) (endpos - key_pos) + t_length);
   }
   (*keyinfo->store_key)(keyinfo,key_pos,&s_temp);
   a_length+=t_length;
@@ -822,13 +822,14 @@ static int _mi_balance_page(MI_INFO *info, MI_KEYDEF *keyinfo,
 	     (size_t) (length=new_left_length - left_length - k_length));
       pos=buff+2+length;
       memcpy((uchar*) father_key_pos,(uchar*) pos,(size_t) k_length);
-      bmove((uchar*) buff + 2, (uchar*) pos + k_length, new_right_length - 2);
+      memmove((uchar*) buff + 2,
+              (uchar*) pos + k_length, new_right_length - 2);
     }
     else
     {						/* Move keys -> buff */
 
-      bmove_upp((uchar*) buff+new_right_length,(uchar*) buff+right_length,
-		right_length-2);
+      memmove(buff + new_right_length - right_length + 2,
+              buff + 2, right_length - 2);
       length=new_right_length-right_length-k_length;
       memcpy((uchar*) buff+2+length,father_key_pos,(size_t) k_length);
       pos=curr_buff+new_left_length;
@@ -864,8 +865,9 @@ static int _mi_balance_page(MI_INFO *info, MI_KEYDEF *keyinfo,
   /* Save new parting key */
   memcpy(tmp_part_key, pos-k_length,k_length);
   /* Make place for new keys */
-  bmove_upp((uchar*) buff+new_right_length,(uchar*) pos-k_length,
-	    right_length-extra_length-k_length-2);
+  memmove(buff + new_right_length - right_length + extra_length + k_length + 2,
+          pos - right_length + extra_length + 2,
+          right_length - extra_length - k_length - 2);
   /* Copy keys from left page */
   pos= curr_buff+new_left_length;
   memcpy((uchar*) buff+2,(uchar*) pos+k_length,

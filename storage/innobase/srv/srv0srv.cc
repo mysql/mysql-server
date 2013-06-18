@@ -645,7 +645,7 @@ srv_slot_get_type(
 
 /*********************************************************************//**
 Reserves a slot in the thread table for the current thread.
-@return	reserved slot */
+@return reserved slot */
 static
 srv_slot_t*
 srv_reserve_slot(
@@ -1436,7 +1436,7 @@ srv_export_innodb_status(void)
 
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_monitor_thread)(
@@ -1611,7 +1611,7 @@ exit_func:
 /*********************************************************************//**
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_error_monitor_thread)(
@@ -2240,7 +2240,7 @@ srv_master_sleep(void)
 
 /*********************************************************************//**
 The master thread controlling the server.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_master_thread)(
@@ -2347,7 +2347,7 @@ srv_purge_should_exit(
 
 /*********************************************************************//**
 Fetch and execute a task from the work queue.
-@return	true if a task was executed */
+@return true if a task was executed */
 static
 bool
 srv_task_execute(void)
@@ -2384,7 +2384,7 @@ srv_task_execute(void)
 
 /*********************************************************************//**
 Worker thread that reads tasks from the work queue and executes them.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_worker_thread)(
@@ -2644,7 +2644,7 @@ srv_purge_coordinator_suspend(
 
 /*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_purge_coordinator_thread)(
@@ -2775,7 +2775,7 @@ srv_que_task_enqueue_low(
 
 /**********************************************************************//**
 Get count of tasks in the queue.
-@return number of tasks in queue  */
+@return number of tasks in queue */
 
 ulint
 srv_get_task_queue_length(void)

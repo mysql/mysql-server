@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -802,8 +802,9 @@ static bool get_interval_info(Item *args,
     {
       i++;
       /* Change values[0...i-1] -> values[0...count-1] */
-      bmove_upp((uchar*) (values+count), (uchar*) (values+i),
-		sizeof(*values)*i);
+      size_t len= sizeof(*values) * i;
+      memmove(reinterpret_cast<uchar*> (values+count) - len,
+              reinterpret_cast<uchar*> (values+i) - len, len);
       memset(values, 0, sizeof(*values)*(count-i));
       break;
     }

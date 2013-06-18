@@ -119,7 +119,7 @@ que_thr_move_to_run_state(
 
 /***********************************************************************//**
 Creates a query graph fork node.
-@return	own: fork node */
+@return own: fork node */
 
 que_fork_t*
 que_fork_create(
@@ -156,7 +156,7 @@ que_fork_create(
 
 /***********************************************************************//**
 Creates a query graph thread node.
-@return	own: query thread node */
+@return own: query thread node */
 
 que_thr_t*
 que_thr_create(
@@ -633,7 +633,7 @@ que_graph_free(
 
 /****************************************************************//**
 Performs an execution step on a thr node.
-@return	query thread to run next, or NULL if none */
+@return query thread to run next, or NULL if none */
 static
 que_thr_t*
 que_thr_node_step(
@@ -702,7 +702,7 @@ que_thr_move_to_run_state(
 /**********************************************************************//**
 Stops a query thread if graph or trx is in a state requiring it. The
 conditions are tested in the order (1) graph, (2) trx.
-@return	TRUE if stopped */
+@return TRUE if stopped */
 
 ibool
 que_thr_stop(
@@ -921,7 +921,7 @@ que_thr_stop_for_mysql_no_error(
 /****************************************************************//**
 Get the first containing loop node (e.g. while_node_t or for_node_t) for the
 given node, or NULL if the node is not within a loop.
-@return	containing loop node, or NULL. */
+@return containing loop node, or NULL. */
 
 que_node_t*
 que_node_get_containing_loop_node(
@@ -1239,7 +1239,7 @@ loop:
 
 /*********************************************************************//**
 Evaluate the given SQL.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 que_eval_sql(

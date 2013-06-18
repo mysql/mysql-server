@@ -114,11 +114,11 @@ can be released by page reorganize, then it is reorganized */
 						part header, in bytes */
 
 /** Estimated table level stats from sampled value.
-@param value		sampled stats
-@param index		index being sampled
-@param sample		number of sampled rows
-@param ext_size		external stored data size
-@param not_empty	table not empty
+@param value sampled stats
+@param index index being sampled
+@param sample number of sampled rows
+@param ext_size external stored data size
+@param not_empty table not empty
 @return estimated table wide stats from sampled value */
 #define BTR_TABLE_STATS_FROM_SAMPLE(value, index, sample, ext_size, not_empty)\
 	(((value) * (ib_int64_t) index->stat_n_leaf_pages		\
@@ -198,7 +198,7 @@ btr_rec_free_externally_stored_fields(
 				tree */
 /***********************************************************//**
 Gets the externally stored size of a record, in units of a database page.
-@return	externally stored part, in units of a database page */
+@return externally stored part, in units of a database page */
 static
 ulint
 btr_rec_get_externally_stored_len(
@@ -1090,7 +1090,7 @@ if this is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return	pointer to inserted record if succeed, else NULL */
+@return pointer to inserted record if succeed, else NULL */
 static __attribute__((nonnull, warn_unused_result))
 rec_t*
 btr_cur_insert_if_possible(
@@ -1133,7 +1133,7 @@ btr_cur_insert_if_possible(
 
 /*************************************************************//**
 For an insert, checks the locks and does the undo logging if desired.
-@return	DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
+@return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,5,6)))
 dberr_t
 btr_cur_ins_lock_and_undo(
@@ -1200,7 +1200,7 @@ It is assumed that mtr holds an x-latch on the page. The operation does
 not succeed if there is too little space on the page. If there is just
 one record on the page, the insert will always succeed; this is to
 prevent trying to split a page with just one record.
-@return	DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
+@return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 
 dberr_t
 btr_cur_optimistic_insert(
@@ -1486,7 +1486,7 @@ Performs an insert on a page of an index tree. It is assumed that mtr
 holds an x-latch on the tree and on the cursor page. If the insert is
 made on the leaf level, to avoid deadlocks, mtr must also own x-latches
 to brothers of page, if those brothers exist.
-@return	DB_SUCCESS or error number */
+@return DB_SUCCESS or error number */
 
 dberr_t
 btr_cur_pessimistic_insert(
@@ -1619,7 +1619,7 @@ btr_cur_pessimistic_insert(
 
 /*************************************************************//**
 For an update, checks the locks and does the undo logging.
-@return	DB_SUCCESS, DB_WAIT_LOCK, or error number */
+@return DB_SUCCESS, DB_WAIT_LOCK, or error number */
 UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,6,7)))
 dberr_t
 btr_cur_upd_lock_and_undo(
@@ -1728,7 +1728,7 @@ btr_cur_update_in_place_log(
 
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 btr_cur_parse_update_in_place(
@@ -1811,7 +1811,7 @@ an update-in-place.
 
 @retval false if out of space; IBUF_BITMAP_FREE will be reset
 outside mtr if the page was recompressed
-@retval	true if enough place;
+@retval true if enough place;
 
 IMPORTANT: The caller will have to update IBUF_BITMAP_FREE if this is
 a secondary index leaf page. This has to be done either within the
@@ -2332,7 +2332,7 @@ that mtr holds an x-latch on the tree and on the cursor page. If the
 update is made on the leaf level, to avoid deadlocks, mtr must also
 own x-latches to brothers of page, if those brothers exist. We assume
 here that the ordering fields of the record do not change.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 btr_cur_pessimistic_update(
@@ -2761,7 +2761,7 @@ btr_cur_del_mark_set_clust_rec_log(
 /****************************************************************//**
 Parses the redo log record for delete marking or unmarking of a clustered
 index record.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 btr_cur_parse_del_mark_set_clust_rec(
@@ -2845,7 +2845,7 @@ Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
 of the deleting transaction, and in the roll ptr field pointer to the
 undo log record created.
-@return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
+@return DB_SUCCESS, DB_LOCK_WAIT, or error number */
 
 dberr_t
 btr_cur_del_mark_set_clust_rec(
@@ -2965,7 +2965,7 @@ btr_cur_del_mark_set_sec_rec_log(
 /****************************************************************//**
 Parses the redo log record for delete marking or unmarking of a secondary
 index record.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 btr_cur_parse_del_mark_set_sec_rec(
@@ -3009,7 +3009,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 #ifndef UNIV_HOTBACKUP
 /***********************************************************//**
 Sets a secondary index record delete mark to TRUE or FALSE.
-@return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
+@return DB_SUCCESS, DB_LOCK_WAIT, or error number */
 
 dberr_t
 btr_cur_del_mark_set_sec_rec(
@@ -3090,7 +3090,7 @@ that mtr holds an x-latch on the tree and on the cursor page. To avoid
 deadlocks, mtr must also own x-latches to brothers of page, if those
 brothers exist. NOTE: it is assumed that the caller has reserved enough
 free extents so that the compression will always succeed if done!
-@return	TRUE if compression occurred */
+@return TRUE if compression occurred */
 
 ibool
 btr_cur_compress_if_useful(
@@ -3116,7 +3116,7 @@ btr_cur_compress_if_useful(
 Removes the record on which the tree cursor is positioned on a leaf page.
 It is assumed that the mtr has an x-latch on the page where the cursor is
 positioned, but no latch on the whole tree.
-@return	TRUE if success, i.e., the page did not become too empty */
+@return TRUE if success, i.e., the page did not become too empty */
 
 ibool
 btr_cur_optimistic_delete_func(
@@ -3219,7 +3219,7 @@ or if it is the only page on the level. It is assumed that mtr holds
 an x-latch on the tree and on the cursor page. To avoid deadlocks,
 mtr must also own x-latches to brothers of page, if those brothers
 exist.
-@return	TRUE if compression occurred */
+@return TRUE if compression occurred */
 
 ibool
 btr_cur_pessimistic_delete(
@@ -3436,7 +3436,7 @@ so far and assume that all pages that we did not scan up to slot2->page
 contain the same number of records, then we multiply that average to
 the number of pages between slot1->page and slot2->page (which is
 n_rows_on_prev_level). In this case we set is_n_rows_exact to FALSE.
-@return	number of rows (exact or estimated) */
+@return number of rows (exact or estimated) */
 static
 ib_int64_t
 btr_estimate_n_rows_in_range_on_level(
@@ -3583,7 +3583,7 @@ inexact:
 
 /*******************************************************************//**
 Estimates the number of rows in a given index range.
-@return	estimated number of rows */
+@return estimated number of rows */
 
 ib_int64_t
 btr_estimate_n_rows_in_range(
@@ -4011,7 +4011,7 @@ btr_estimate_number_of_different_key_vals(
 
 /***********************************************************//**
 Gets the offset of the pointer to the externally stored part of a field.
-@return	offset of the pointer to the externally stored part */
+@return offset of the pointer to the externally stored part */
 static
 ulint
 btr_rec_get_field_ref_offs(
@@ -4031,16 +4031,16 @@ btr_rec_get_field_ref_offs(
 }
 
 /** Gets a pointer to the externally stored part of a field.
-@param rec	record
-@param offsets	rec_get_offsets(rec)
-@param n	index of the externally stored field
+@param rec record
+@param offsets rec_get_offsets(rec)
+@param n index of the externally stored field
 @return pointer to the externally stored part */
 #define btr_rec_get_field_ref(rec, offsets, n)			\
 	((rec) + btr_rec_get_field_ref_offs(offsets, n))
 
 /***********************************************************//**
 Gets the externally stored size of a record, in units of a database page.
-@return	externally stored part, in units of a database page */
+@return externally stored part, in units of a database page */
 static
 ulint
 btr_rec_get_externally_stored_len(
@@ -4197,7 +4197,7 @@ btr_cur_unmark_extern_fields(
 Flags the data tuple fields that are marked as extern storage in the
 update vector.  We use this function to remember which fields we must
 mark as extern storage in a record inserted for an update.
-@return	number of flagged external columns */
+@return number of flagged external columns */
 
 ulint
 btr_push_update_extern_fields(
@@ -4277,7 +4277,7 @@ btr_push_update_extern_fields(
 
 /*******************************************************************//**
 Returns the length of a BLOB part stored on the header page.
-@return	part length */
+@return part length */
 static
 ulint
 btr_blob_get_part_len(
@@ -4289,7 +4289,7 @@ btr_blob_get_part_len(
 
 /*******************************************************************//**
 Returns the page number where the next BLOB part is stored.
-@return	page number or FIL_NULL if no more pages */
+@return page number or FIL_NULL if no more pages */
 static
 ulint
 btr_blob_get_next_page_no(
@@ -4345,7 +4345,7 @@ Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
 The fields are stored on pages allocated from leaf node
 file segment of the index tree.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 
 dberr_t
 btr_store_big_rec_extern_fields(
@@ -5169,7 +5169,7 @@ btr_rec_free_updated_extern_fields(
 /*******************************************************************//**
 Copies the prefix of an uncompressed BLOB.  The clustered index record
 that points to this BLOB must be protected by a lock or a page latch.
-@return	number of bytes written to buf */
+@return number of bytes written to buf */
 static
 ulint
 btr_copy_blob_prefix(
@@ -5228,7 +5228,7 @@ btr_copy_blob_prefix(
 /*******************************************************************//**
 Copies the prefix of a compressed BLOB.  The clustered index record
 that points to this BLOB must be protected by a lock or a page latch.
-@return	number of bytes written to buf */
+@return number of bytes written to buf */
 static
 ulint
 btr_copy_zblob_prefix(
@@ -5382,7 +5382,7 @@ func_exit:
 Copies the prefix of an externally stored field of a record.  The
 clustered index record that points to this BLOB must be protected by a
 lock or a page latch.
-@return	number of bytes written to buf */
+@return number of bytes written to buf */
 static
 ulint
 btr_copy_externally_stored_field_prefix_low(
@@ -5471,7 +5471,7 @@ btr_copy_externally_stored_field_prefix(
 /*******************************************************************//**
 Copies an externally stored field of a record to mem heap.  The
 clustered index record must be protected by a lock or a page latch.
-@return	the whole field copied to heap */
+@return the whole field copied to heap */
 
 byte*
 btr_copy_externally_stored_field(
@@ -5522,7 +5522,7 @@ btr_copy_externally_stored_field(
 
 /*******************************************************************//**
 Copies an externally stored field of a record to mem heap.
-@return	the field copied to heap, or NULL if the field is incomplete */
+@return the field copied to heap, or NULL if the field is incomplete */
 
 byte*
 btr_rec_copy_externally_stored_field(

@@ -386,7 +386,7 @@ mtr_memo_release(
 
 /********************************************************//**
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
-@return	value read */
+@return value read */
 
 ulint
 mtr_read_ulint(
@@ -407,7 +407,7 @@ mtr_read_ulint(
 # ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Checks if memo contains the given page.
-@return	TRUE if contains */
+@return TRUE if contains */
 
 ibool
 mtr_memo_contains_page(

@@ -37,7 +37,7 @@ extern ibool	recv_replay_file_ops;
 
 /*******************************************************************//**
 Reads the checkpoint info needed in hot backup.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 recv_read_checkpoint_info_for_backup(
@@ -72,7 +72,7 @@ recv_scan_log_seg_for_backup(
 #endif /* UNIV_HOTBACKUP */
 /*******************************************************************//**
 Returns TRUE if recovery is currently running.
-@return	recv_recovery_on */
+@return recv_recovery_on */
 UNIV_INLINE
 ibool
 recv_recovery_is_on(void);
@@ -96,9 +96,9 @@ recv_recover_page_func(
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
-@param jri	in: TRUE if just read in (the i/o handler calls this for
+@param jri in: TRUE if just read in (the i/o handler calls this for
 a freshly read page)
-@param block	in/out: the buffer block
+@param block in/out: the buffer block
 */
 # define recv_recover_page(jri, block)	recv_recover_page_func(jri, block)
 #else /* !UNIV_HOTBACKUP */
@@ -106,9 +106,9 @@ a freshly read page)
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
-@param jri	in: TRUE if just read in (the i/o handler calls this for
+@param jri in: TRUE if just read in (the i/o handler calls this for
 a freshly read page)
-@param block	in/out: the buffer block
+@param block in/out: the buffer block
 */
 # define recv_recover_page(jri, block)	recv_recover_page_func(block)
 #endif /* !UNIV_HOTBACKUP */
@@ -117,7 +117,7 @@ Recovers from a checkpoint. When this function returns, the database is able
 to start processing of new user transactions, but the function
 recv_recovery_from_checkpoint_finish should be called later to complete
 the recovery and free the resources used in it.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 recv_recovery_from_checkpoint_start(

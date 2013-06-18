@@ -131,7 +131,7 @@ flst_truncate_end(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Gets list length.
-@return	length */
+@return length */
 UNIV_INLINE
 ulint
 flst_get_len(
@@ -140,7 +140,7 @@ flst_get_len(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Gets list first node address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_first(
@@ -149,7 +149,7 @@ flst_get_first(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Gets list last node address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_last(
@@ -158,7 +158,7 @@ flst_get_last(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Gets list next node address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_next_addr(
@@ -167,7 +167,7 @@ flst_get_next_addr(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Gets list prev node address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_prev_addr(
@@ -185,7 +185,7 @@ flst_write_addr(
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Reads a file address.
-@return	file address */
+@return file address */
 UNIV_INLINE
 fil_addr_t
 flst_read_addr(
@@ -194,7 +194,7 @@ flst_read_addr(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Validates a file-based list.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 flst_validate(

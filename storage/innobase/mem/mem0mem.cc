@@ -103,7 +103,7 @@ ibool				mem_block_list_inited;
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string, allocated from a memory heap.
-@return	own: a copy of the string */
+@return own: a copy of the string */
 
 char*
 mem_heap_strdup(
@@ -116,7 +116,7 @@ mem_heap_strdup(
 
 /**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
-@return	own: a copy of the data */
+@return own: a copy of the data */
 
 void*
 mem_heap_dup(
@@ -130,7 +130,7 @@ mem_heap_dup(
 
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
-@return	own: the result */
+@return own: the result */
 
 char*
 mem_heap_strcat(
@@ -156,7 +156,7 @@ mem_heap_strcat(
 
 /****************************************************************//**
 Helper function for mem_heap_printf.
-@return	length of formatted string, including terminating NUL */
+@return length of formatted string, including terminating NUL */
 static
 ulint
 mem_heap_printf_low(
@@ -268,7 +268,7 @@ A simple sprintf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).
-@return	heap-allocated formatted string */
+@return heap-allocated formatted string */
 
 char*
 mem_heap_printf(

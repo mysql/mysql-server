@@ -202,7 +202,7 @@ Common function to fill any of the dynamic tables:
 INFORMATION_SCHEMA.innodb_trx
 INFORMATION_SCHEMA.innodb_locks
 INFORMATION_SCHEMA.innodb_lock_waits
-@return	0 on success */
+@return 0 on success */
 static
 int
 trx_i_s_common_fill_table(
@@ -213,7 +213,7 @@ trx_i_s_common_fill_table(
 
 /*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_common_deinit(
@@ -222,7 +222,7 @@ i_s_common_deinit(
 /*******************************************************************//**
 Auxiliary function to store time_t value in MYSQL_TYPE_DATETIME
 field.
-@return	0 on success */
+@return 0 on success */
 static
 int
 field_store_time_t(
@@ -253,7 +253,7 @@ field_store_time_t(
 
 /*******************************************************************//**
 Auxiliary function to store char* value in MYSQL_TYPE_STRING field.
-@return	0 on success */
+@return 0 on success */
 static
 int
 field_store_string(
@@ -281,7 +281,7 @@ field_store_string(
 /*******************************************************************//**
 Store the name of an index in a MYSQL_TYPE_VARCHAR field.
 Handles the names of incomplete secondary indexes.
-@return	0 on success */
+@return 0 on success */
 static
 int
 field_store_index_name(
@@ -318,7 +318,7 @@ field_store_index_name(
 /*******************************************************************//**
 Auxiliary function to store ulint value in MYSQL_TYPE_LONGLONG field.
 If the value is ULINT_UNDEFINED then the field it set to NULL.
-@return	0 on success */
+@return 0 on success */
 static
 int
 field_store_ulint(
@@ -566,7 +566,7 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 /*******************************************************************//**
 Read data from cache buffer and fill the INFORMATION_SCHEMA.innodb_trx
 table with it.
-@return	0 on success */
+@return 0 on success */
 static
 int
 fill_innodb_trx_from_cache(
@@ -724,7 +724,7 @@ fill_innodb_trx_from_cache(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_trx
-@return	0 on success */
+@return 0 on success */
 static
 int
 innodb_trx_init(
@@ -901,7 +901,7 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 /*******************************************************************//**
 Read data from cache buffer and fill the INFORMATION_SCHEMA.innodb_locks
 table with it.
-@return	0 on success */
+@return 0 on success */
 static
 int
 fill_innodb_locks_from_cache(
@@ -992,7 +992,7 @@ fill_innodb_locks_from_cache(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_locks
-@return	0 on success */
+@return 0 on success */
 static
 int
 innodb_locks_init(
@@ -1109,7 +1109,7 @@ static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 /*******************************************************************//**
 Read data from cache buffer and fill the
 INFORMATION_SCHEMA.innodb_lock_waits table with it.
-@return	0 on success */
+@return 0 on success */
 static
 int
 fill_innodb_lock_waits_from_cache(
@@ -1179,7 +1179,7 @@ fill_innodb_lock_waits_from_cache(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_lock_waits
-@return	0 on success */
+@return 0 on success */
 static
 int
 innodb_lock_waits_init(
@@ -1256,7 +1256,7 @@ Common function to fill any of the dynamic tables:
 INFORMATION_SCHEMA.innodb_trx
 INFORMATION_SCHEMA.innodb_locks
 INFORMATION_SCHEMA.innodb_lock_waits
-@return	0 on success */
+@return 0 on success */
 static
 int
 trx_i_s_common_fill_table(
@@ -1416,7 +1416,7 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 /*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmp or
 innodb_cmp_reset.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_cmp_fill_low(
@@ -1473,7 +1473,7 @@ i_s_cmp_fill_low(
 
 /*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmp.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_cmp_fill(
@@ -1487,7 +1487,7 @@ i_s_cmp_fill(
 
 /*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmp_reset.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_cmp_reset_fill(
@@ -1501,7 +1501,7 @@ i_s_cmp_reset_fill(
 
 /*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmp.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_cmp_init(
@@ -1519,7 +1519,7 @@ i_s_cmp_init(
 
 /*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmp_reset.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_cmp_reset_init(
@@ -1726,7 +1726,7 @@ static ST_FIELD_INFO	i_s_cmp_per_index_fields_info[] =
 Fill the dynamic table
 information_schema.innodb_cmp_per_index or
 information_schema.innodb_cmp_per_index_reset.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_cmp_per_index_fill_low(
@@ -1831,7 +1831,7 @@ i_s_cmp_per_index_fill_low(
 
 /*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmp_per_index.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_cmp_per_index_fill(
@@ -1845,7 +1845,7 @@ i_s_cmp_per_index_fill(
 
 /*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmp_per_index_reset.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_cmp_per_index_reset_fill(
@@ -1859,7 +1859,7 @@ i_s_cmp_per_index_reset_fill(
 
 /*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmp_per_index.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_cmp_per_index_init(
@@ -1877,7 +1877,7 @@ i_s_cmp_per_index_init(
 
 /*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmp_per_index_reset.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_cmp_per_index_reset_init(
@@ -2058,7 +2058,7 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 /*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmpmem or
 innodb_cmpmem_reset.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_cmpmem_fill_low(
@@ -2130,7 +2130,7 @@ i_s_cmpmem_fill_low(
 
 /*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmpmem.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_cmpmem_fill(
@@ -2144,7 +2144,7 @@ i_s_cmpmem_fill(
 
 /*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmpmem_reset.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_cmpmem_reset_fill(
@@ -2158,7 +2158,7 @@ i_s_cmpmem_reset_fill(
 
 /*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmpmem.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_cmpmem_init(
@@ -2176,7 +2176,7 @@ i_s_cmpmem_init(
 
 /*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmpmem_reset.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_cmpmem_reset_init(
@@ -2460,7 +2460,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 
 /**********************************************************************//**
 Fill the information schema metrics table.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_metrics_fill(
@@ -2733,7 +2733,7 @@ i_s_metrics_fill(
 
 /*******************************************************************//**
 Function to fill information schema metrics tables.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_metrics_fill_table(
@@ -2755,7 +2755,7 @@ i_s_metrics_fill_table(
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_metrics
-@return	0 on success */
+@return 0 on success */
 static
 int
 innodb_metrics_init(
@@ -2843,7 +2843,7 @@ static ST_FIELD_INFO	i_s_stopword_fields_info[] =
 
 /*******************************************************************//**
 Fill the dynamic table information_schema.innodb_ft_default_stopword.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_stopword_fill(
@@ -2875,7 +2875,7 @@ i_s_stopword_fill(
 
 /*******************************************************************//**
 Bind the dynamic table information_schema.innodb_ft_default_stopword.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_stopword_init(
@@ -2963,7 +2963,7 @@ static ST_FIELD_INFO	i_s_fts_doc_fields_info[] =
 /*******************************************************************//**
 Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED or
 INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_fts_deleted_generic_fill(
@@ -3031,7 +3031,7 @@ i_s_fts_deleted_generic_fill(
 
 /*******************************************************************//**
 Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_fts_deleted_fill(
@@ -3047,7 +3047,7 @@ i_s_fts_deleted_fill(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_fts_deleted_init(
@@ -3118,7 +3118,7 @@ struct st_mysql_plugin	i_s_innodb_ft_deleted =
 
 /*******************************************************************//**
 Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_fts_being_deleted_fill(
@@ -3134,7 +3134,7 @@ i_s_fts_being_deleted_fill(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_fts_being_deleted_init(
@@ -3267,7 +3267,7 @@ static ST_FIELD_INFO	i_s_fts_index_fields_info[] =
 /*******************************************************************//**
 Go through the Doc Node and its ilist, fill the dynamic table
 INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED for one FTS index on the table.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_fts_index_cache_fill_one_index(
@@ -3351,7 +3351,7 @@ i_s_fts_index_cache_fill_one_index(
 }
 /*******************************************************************//**
 Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_fts_index_cache_fill(
@@ -3401,7 +3401,7 @@ i_s_fts_index_cache_fill(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_fts_index_cache_init(
@@ -3473,7 +3473,7 @@ struct st_mysql_plugin	i_s_innodb_ft_index_cache =
 /*******************************************************************//**
 Go through a FTS index auxiliary table, fetch its rows and fill
 FTS word cache structure.
-@return	DB_SUCCESS on success, otherwise error code */
+@return DB_SUCCESS on success, otherwise error code */
 static
 ulint
 i_s_fts_index_table_fill_selected(
@@ -3560,7 +3560,7 @@ i_s_fts_index_table_fill_selected(
 /*******************************************************************//**
 Go through a FTS index and its auxiliary tables, fetch rows in each table
 and fill INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_fts_index_table_fill_one_index(
@@ -3662,7 +3662,7 @@ i_s_fts_index_table_fill_one_index(
 }
 /*******************************************************************//**
 Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_fts_index_table_fill(
@@ -3706,7 +3706,7 @@ i_s_fts_index_table_fill(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_fts_index_table_init(
@@ -3809,7 +3809,7 @@ static const char* fts_config_key[] = {
 
 /*******************************************************************//**
 Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_fts_config_fill(
@@ -3904,7 +3904,7 @@ i_s_fts_config_fill(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_fts_config_init(
@@ -4046,7 +4046,7 @@ typedef std::vector<temp_table_info_t> temp_table_info_cache_t;
 /*******************************************************************//**
 Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular
 temp-table
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_temp_table_info_fill(
@@ -4123,7 +4123,7 @@ innodb_temp_table_populate_cache(
 /*******************************************************************//**
 This function will iterate over all available table and will fill
 stats for temp-tables to INNODB_TEMP_TABLE_INFO.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_temp_table_info_fill_table(
@@ -4185,7 +4185,7 @@ i_s_innodb_temp_table_info_fill_table(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_temp_table_info_init(
@@ -4554,7 +4554,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_stats_fields_info[] =
 /*******************************************************************//**
 Fill Information Schema table INNODB_BUFFER_POOL_STATS for a particular
 buffer pool
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_stats_fill(
@@ -4684,7 +4684,7 @@ i_s_innodb_stats_fill(
 /*******************************************************************//**
 This is the function that loops through each buffer pool and fetch buffer
 pool stats to information schema  table: I_S_INNODB_BUFFER_POOL_STATS
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_buffer_stats_fill_table(
@@ -4731,7 +4731,7 @@ i_s_innodb_buffer_stats_fill_table(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_buffer_pool_stats_init(
@@ -4992,7 +4992,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_page_fields_info[] =
 /*******************************************************************//**
 Fill Information Schema table INNODB_BUFFER_PAGE with information
 cached in the buf_page_info_t array
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_buffer_page_fill(
@@ -5318,7 +5318,7 @@ i_s_innodb_buffer_page_get_info(
 /*******************************************************************//**
 This is the function that goes through each block of the buffer pool
 and fetch information to information schema tables: INNODB_BUFFER_PAGE.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_fill_buffer_pool(
@@ -5407,7 +5407,7 @@ i_s_innodb_fill_buffer_pool(
 /*******************************************************************//**
 Fill page information for pages in InnoDB buffer pool to the
 dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_buffer_page_fill_table(
@@ -5448,7 +5448,7 @@ i_s_innodb_buffer_page_fill_table(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_buffer_page_init(
@@ -5708,7 +5708,7 @@ static ST_FIELD_INFO	i_s_innodb_buf_page_lru_fields_info[] =
 /*******************************************************************//**
 Fill Information Schema table INNODB_BUFFER_PAGE_LRU with information
 cached in the buf_page_info_t array
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_buf_page_lru_fill(
@@ -5890,7 +5890,7 @@ i_s_innodb_buf_page_lru_fill(
 /*******************************************************************//**
 This is the function that goes through buffer pool's LRU list
 and fetch information to INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_fill_buffer_lru(
@@ -5959,7 +5959,7 @@ exit:
 /*******************************************************************//**
 Fill page information for pages in InnoDB buffer pool to the
 dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_buf_page_lru_fill_table(
@@ -6000,7 +6000,7 @@ i_s_innodb_buf_page_lru_fill_table(
 
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU.
-@return	0 on success, 1 on failure */
+@return 0 on success, 1 on failure */
 static
 int
 i_s_innodb_buffer_page_lru_init(
@@ -6074,7 +6074,7 @@ struct st_mysql_plugin	i_s_innodb_buffer_page_lru =
 
 /*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_common_deinit(
@@ -6170,7 +6170,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 /**********************************************************************//**
 Populate information_schema.innodb_sys_tables table with information
 from SYS_TABLES.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_dict_fill_sys_tables(
@@ -6460,7 +6460,7 @@ static ST_FIELD_INFO	innodb_sys_tablestats_fields_info[] =
 /**********************************************************************//**
 Populate information_schema.innodb_sys_tablestats table with information
 from SYS_TABLES.
-@return	0 on success */
+@return 0 on success */
 static
 int
 i_s_dict_fill_sys_tablestats(

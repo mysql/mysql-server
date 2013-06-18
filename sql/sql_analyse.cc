@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -359,13 +359,9 @@ void field_real::add()
   }
   else
   {
-#ifdef HAVE_SNPRINTF
     buff[sizeof(buff)-1]=0;			// Safety
     snprintf(buff, sizeof(buff)-1, "%-.*f", (int) decs, num);
     length = (uint) strlen(buff);
-#else
-    length= sprintf(buff, "%-.*f", (int) decs, num);
-#endif
 
     // We never need to check further than this
     end = buff + length - 1 - decs + max_notzero_dec_len;

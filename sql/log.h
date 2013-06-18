@@ -1113,7 +1113,6 @@ void error_log_print(enum loglevel level, const char *format, va_list args);
 */
 bool reopen_fstreams(const char *filename, FILE *outstream, FILE *errstream);
 
-void sql_perror(const char *message);
 bool flush_error_log();
 
 #endif /* LOG_H */

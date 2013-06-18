@@ -290,6 +290,10 @@ sp_head::sp_head(enum_sp_type type)
   my_hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   my_hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key,
                0, 0);
+
+  m_trg_chistics.ordering_clause= TRG_ORDER_NONE;
+  m_trg_chistics.anchor_trigger_name.str= NULL;
+  m_trg_chistics.anchor_trigger_name.length= 0;
 }
 
 
@@ -398,6 +402,72 @@ void sp_head::set_body_end(THD *thd)
   m_defstr.length= end_ptr - lip->get_cpp_buf();
   m_defstr.str= thd->strmake(lip->get_cpp_buf(), m_defstr.length);
   trim_whitespace(thd->charset(), & m_defstr);
+}
+
+
+bool sp_head::setup_trigger_fields(THD *thd,
+                                   Table_trigger_field_support *tfs,
+                                   GRANT_INFO *subject_table_grant,
+                                   bool need_fix_fields)
+{
+  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  {
+    f->setup_field(thd, tfs, subject_table_grant);
+
+    if (need_fix_fields &&
+        !f->fixed &&
+        f->fix_fields(thd, (Item **) NULL))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+void sp_head::mark_used_trigger_fields(TABLE *subject_table)
+{
+  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  {
+    if (f->field_idx == (uint) -1)
+    {
+      // We cannot mark fields which does not present in table.
+      continue;
+    }
+
+    bitmap_set_bit(subject_table->read_set, f->field_idx);
+
+    if (f->get_settable_routine_parameter())
+      bitmap_set_bit(subject_table->write_set, f->field_idx);
+  }
+}
+
+
+/**
+  Check whether any table's fields are used in trigger.
+
+  @param [in] used_fields       bitmap of fields to check
+
+  @return Check result
+    @retval true   Some table fields are used in trigger
+    @retval false  None of table fields are used in trigger
+*/
+
+bool sp_head::has_updated_trigger_fields(const MY_BITMAP *used_fields) const
+{
+  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  {
+    // We cannot check fields which does not present in table.
+    if (f->field_idx != (uint) -1)
+    {
+      if (bitmap_is_set(used_fields, f->field_idx) &&
+          f->get_settable_routine_parameter())
+        return true;
+    }
+  }
+
+  return false;
 }
 
 

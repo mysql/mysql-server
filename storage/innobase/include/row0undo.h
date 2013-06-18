@@ -38,7 +38,7 @@ Created 1/8/1997 Heikki Tuuri
 
 /********************************************************************//**
 Creates a row undo node to a query graph.
-@return	own: undo node */
+@return own: undo node */
 
 undo_node_t*
 row_undo_node_create(
@@ -62,7 +62,7 @@ row_undo_search_clust_to_pcur(
 /***********************************************************//**
 Undoes a row operation in a table. This is a high-level function used
 in SQL execution graphs.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 row_undo_step(

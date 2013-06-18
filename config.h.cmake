@@ -39,7 +39,6 @@
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_INTTYPES_H 1
 #cmakedefine HAVE_MALLOC_H 1
-#cmakedefine HAVE_MEMORY_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_PATHS_H 1
 #cmakedefine HAVE_POLL_H 1
@@ -144,14 +143,11 @@
 #cmakedefine HAVE_GETEUID 1
 #cmakedefine HAVE_GETGID 1
 #cmakedefine HAVE_GETEGID 1
-#cmakedefine HAVE_ISNAN 1
 #cmakedefine HAVE_ISINF 1
 #cmakedefine HAVE_LARGE_PAGE_OPTION 1
-#cmakedefine HAVE_LDIV 1
 #cmakedefine HAVE_LRAND48 1
 #cmakedefine HAVE_LOCALTIME_R 1
 #cmakedefine HAVE_LOG2 1
-#cmakedefine HAVE_LONGJMP 1
 #cmakedefine HAVE_LSTAT 1
 #cmakedefine HAVE_MEMALIGN 1
 #cmakedefine HAVE_MLOCK 1
@@ -162,13 +158,10 @@
 #cmakedefine HAVE_DECL_TGOTO 1
 #cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
 #cmakedefine HAVE_MALLOC_INFO 1
-#cmakedefine HAVE_MEMCPY 1
-#cmakedefine HAVE_MEMMOVE 1
 #cmakedefine HAVE_MKSTEMP 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP 1
 #cmakedefine HAVE_MMAP64 1
-#cmakedefine HAVE_PERROR 1
 #cmakedefine HAVE_POLL 1
 #cmakedefine HAVE_POSIX_FALLOCATE 1
 #cmakedefine HAVE_POSIX_MEMALIGN 1
@@ -198,15 +191,12 @@
 #cmakedefine HAVE_SELECT 1
 #cmakedefine HAVE_SETFD 1
 #cmakedefine HAVE_SETENV 1
-#cmakedefine HAVE_SETLOCALE 1
 #cmakedefine HAVE_SIGSET 1
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SIGTHREADMASK 1
 #cmakedefine HAVE_SIGWAIT 1
 #cmakedefine HAVE_SLEEP 1
-#cmakedefine HAVE_SNPRINTF 1
 #cmakedefine HAVE_STPCPY 1
-#cmakedefine HAVE_STRERROR 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
@@ -215,15 +205,12 @@
 #cmakedefine HAVE_STRSEP 1
 #cmakedefine HAVE_STRTOK_R 1
 #cmakedefine HAVE_STRTOLL 1
-#cmakedefine HAVE_STRTOUL 1
-#cmakedefine HAVE_STRTOULL 1
 #cmakedefine HAVE_TELL 1
 #cmakedefine HAVE_TEMPNAM 1
 #cmakedefine HAVE_THR_SETCONCURRENCY 1
 #cmakedefine HAVE_THR_YIELD 1
 #cmakedefine HAVE_TIMES 1
 #cmakedefine HAVE_VASPRINTF 1
-#cmakedefine HAVE_VSNPRINTF 1
 #cmakedefine HAVE_FTRUNCATE 1
 #cmakedefine HAVE_TZNAME 1
 /* Symbols we may use */
@@ -260,25 +247,9 @@
 
 #cmakedefine HAVE_VALGRIND
 
-/* Types we may use */
-#ifdef __APPLE__
-  /*
-    Special handling required for OSX to support universal binaries that 
-    mix 32 and 64 bit architectures.
-  */
-  #if(__LP64__)
-    #define SIZEOF_LONG 8
-  #else
-    #define SIZEOF_LONG 4
-  #endif
-  #define SIZEOF_VOIDP   SIZEOF_LONG
-  #define SIZEOF_CHARP   SIZEOF_LONG
-#else
-/* No indentation, to fetch the lines from verification scripts */
 #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
 #cmakedefine SIZEOF_VOIDP  @SIZEOF_VOIDP@
 #cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
-#endif
 
 #cmakedefine SIZEOF_CHAR @SIZEOF_CHAR@
 #define HAVE_CHAR 1
@@ -314,13 +285,7 @@
 #cmakedefine VOID_SIGHANDLER 1
 #define STRUCT_RLIMIT struct rlimit
 
-#ifdef __APPLE__
-  #if __BIG_ENDIAN
-    #define WORDS_BIGENDIAN 1
-  #endif
-#else
 #cmakedefine WORDS_BIGENDIAN 1 
-#endif
 
 /*
   Define to `__inline__' or `__inline' if that's what the C compiler calls it.

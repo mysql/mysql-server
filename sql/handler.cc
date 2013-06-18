@@ -39,6 +39,7 @@
 #include <pfs_table_provider.h>
 #include <mysql/psi/mysql_table.h>
 #include "debug_sync.h"         // DEBUG_SYNC
+#include "sql_trigger.h"        // TRG_EXT, TRN_EXT
 #include <my_bit.h>
 #include <list>
 

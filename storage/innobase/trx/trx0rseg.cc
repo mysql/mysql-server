@@ -47,7 +47,7 @@ mysql_pfs_key_t	noredo_rseg_mutex_key;
 /****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.
-@return	page number of the created segment, FIL_NULL if fail */
+@return page number of the created segment, FIL_NULL if fail */
 
 ulint
 trx_rseg_header_create(
@@ -176,7 +176,7 @@ Creates and initializes a rollback segment object. The values for the
 fields are read from the header. The object is inserted to the rseg
 list of the trx system object and a pointer is inserted in the rseg
 array in the trx system object.
-@return	own: rollback segment object */
+@return own: rollback segment object */
 static
 trx_rseg_t*
 trx_rseg_mem_create(
