@@ -71,9 +71,9 @@ extern char	btr_search_enabled;
 struct btr_blob_dbg_t;
 
 /** Insert to index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
 
 void
 btr_blob_dbg_rbt_insert(
@@ -84,9 +84,9 @@ btr_blob_dbg_rbt_insert(
 	__attribute__((nonnull));
 
 /** Remove from index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
 
 void
 btr_blob_dbg_rbt_delete(
@@ -159,11 +159,11 @@ btr_blob_dbg_restore(
 	__attribute__((nonnull));
 
 /** Operation that processes the BLOB references of an index record
-@param[in]	rec	record on index page
-@param[in/out]	index	the index tree of the record
-@param[in]	offsets	rec_get_offsets(rec,index)
-@param[in]	ctx	context (for logging)
-@return			number of BLOB references processed */
+@param[in] rec record on index page
+@param[in/out] index the index tree of the record
+@param[in] offsets rec_get_offsets(rec,index)
+@param[in] ctx context (for logging)
+@return number of BLOB references processed */
 typedef ulint (*btr_blob_dbg_op_f)
 (const rec_t* rec,dict_index_t* index,const ulint* offsets,const char* ctx);
 

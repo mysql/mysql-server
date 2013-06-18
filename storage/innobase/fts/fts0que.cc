@@ -451,7 +451,7 @@ fts_query_lcs(
 /*******************************************************************//**
 Compare two fts_ranking_t instance on their rank value and doc ids in
 descending order on the rank and ascending order on doc id.
-@return 0 if p1 == p2, < 0 if p1 <  p2, > 0 if p1 >  p2 */
+@return 0 if p1 == p2, < 0 if p1 < p2, > 0 if p1 > p2 */
 static
 int
 fts_query_compare_rank(
@@ -509,7 +509,7 @@ fts_tolower(
 /*******************************************************************//**
 Do a case insensitive search. Doesn't check for NUL byte end marker
 only relies on len. Convert str2 to lower case before comparing.
-@return 0 if p1 == p2, < 0 if p1 <  p2, > 0 if p1 >  p2 */
+@return 0 if p1 == p2, < 0 if p1 < p2, > 0 if p1 > p2 */
 static
 int
 fts_utf8_strcmp(
@@ -847,7 +847,7 @@ fts_query_intersect_doc_id(
 	ib_rbt_bound_t	parent;
 	ulint		size = ib_vector_size(query->deleted->doc_ids);
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
-	fts_ranking_t*	ranking;
+	fts_ranking_t*	ranking= NULL;
 
 	/* Check if the doc id is deleted and it's in our set */
 	if (fts_bsearch(array, 0, (int) size, doc_id) < 0) {

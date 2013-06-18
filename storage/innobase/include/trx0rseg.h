@@ -33,7 +33,7 @@ Created 3/26/1996 Heikki Tuuri
 
 /******************************************************************//**
 Gets a rollback segment header.
-@return	rollback segment header, page x-latched */
+@return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get(
@@ -45,7 +45,7 @@ trx_rsegf_get(
 	mtr_t*	mtr);		/*!< in: mtr */
 /******************************************************************//**
 Gets a newly created rollback segment header.
-@return	rollback segment header, page x-latched */
+@return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get_new(
@@ -57,7 +57,7 @@ trx_rsegf_get_new(
 	mtr_t*	mtr);		/*!< in: mtr */
 /***************************************************************//**
 Gets the file page number of the nth undo log slot.
-@return	page number of the undo log segment */
+@return page number of the undo log segment */
 UNIV_INLINE
 ulint
 trx_rsegf_get_nth_undo(
@@ -77,7 +77,7 @@ trx_rsegf_set_nth_undo(
 	mtr_t*		mtr);	/*!< in: mtr */
 /****************************************************************//**
 Looks for a free slot for an undo log segment.
-@return	slot index or ULINT_UNDEFINED if not found */
+@return slot index or ULINT_UNDEFINED if not found */
 UNIV_INLINE
 ulint
 trx_rsegf_undo_find_free(
@@ -86,7 +86,7 @@ trx_rsegf_undo_find_free(
 	mtr_t*		mtr);	/*!< in: mtr */
 /******************************************************************//**
 Looks for a rollback segment, based on the rollback segment id.
-@return	rollback segment */
+@return rollback segment */
 UNIV_INLINE
 trx_rseg_t*
 trx_rseg_get_on_id(
@@ -95,7 +95,7 @@ trx_rseg_get_on_id(
 /****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.
-@return	page number of the created segment, FIL_NULL if fail */
+@return page number of the created segment, FIL_NULL if fail */
 
 ulint
 trx_rseg_header_create(

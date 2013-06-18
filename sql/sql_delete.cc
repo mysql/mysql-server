@@ -35,6 +35,7 @@
                                                 // end_read_record
 #include "sql_optimizer.h"                      // remove_eq_conds
 #include "sql_resolver.h"                       // setup_order, fix_inner_refs
+#include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
 
 /**
   Implement DELETE SQL word.

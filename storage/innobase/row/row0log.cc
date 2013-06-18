@@ -79,7 +79,7 @@ struct row_log_buf_t {
 class row_log_table_blob_t {
 public:
 	/** Constructor (declaring a BLOB freed)
-	@param offset_arg	row_log_t::tail::total */
+	@param offset_arg row_log_t::tail::total */
 #ifdef UNIV_DEBUG
 	row_log_table_blob_t(ulonglong offset_arg) :
 		old_offset (0), free_offset (offset_arg),
@@ -90,7 +90,7 @@ public:
 #endif /* UNIV_DEBUG */
 
 	/** Declare a BLOB freed again.
-	@param offset_arg	row_log_t::tail::total */
+	@param offset_arg row_log_t::tail::total */
 #ifdef UNIV_DEBUG
 	void blob_free(ulonglong offset_arg)
 #else /* UNIV_DEBUG */
@@ -104,14 +104,14 @@ public:
 		offset = BLOB_FREED;
 	}
 	/** Declare a freed BLOB reused.
-	@param offset_arg	row_log_t::tail::total */
+	@param offset_arg row_log_t::tail::total */
 	void blob_alloc(ulonglong offset_arg) {
 		ut_ad(free_offset <= offset_arg);
 		ut_d(old_offset = offset);
 		offset = offset_arg;
 	}
 	/** Determine if a BLOB was freed at a given log position
-	@param offset_arg	row_log_t::head::total after the log record
+	@param offset_arg row_log_t::head::total after the log record
 	@return true if freed */
 	bool is_freed(ulonglong offset_arg) const {
 		/* This is supposed to be the offset at the end of the
@@ -854,9 +854,9 @@ row_log_table_update(
 }
 
 /** Gets the old table column of a PRIMARY KEY column.
-@param table	old table (before ALTER TABLE)
-@param col_map	mapping of old column numbers to new ones
-@param col_no	column position in the new table
+@param table old table (before ALTER TABLE)
+@param col_map mapping of old column numbers to new ones
+@param col_no column position in the new table
 @return old table column, or NULL if this is an added column */
 static
 const dict_col_t*
@@ -876,15 +876,15 @@ row_log_table_get_pk_old_col(
 }
 
 /** Maps an old table column of a PRIMARY KEY column.
-@param col	old table column (before ALTER TABLE)
-@param ifield	clustered index field in the new table (after ALTER TABLE)
-@param dfield	clustered index tuple field in the new table
-@param heap	memory heap for allocating dfield contents
-@param rec	clustered index leaf page record in the old table
-@param offsets	rec_get_offsets(rec)
-@param i	rec field corresponding to col
-@param zip_size	compressed page size of the old table, or 0 for uncompressed
-@param max_len	maximum length of dfield
+@param col old table column (before ALTER TABLE)
+@param ifield clustered index field in the new table (after ALTER TABLE)
+@param dfield clustered index tuple field in the new table
+@param heap memory heap for allocating dfield contents
+@param rec clustered index leaf page record in the old table
+@param offsets rec_get_offsets(rec)
+@param i rec field corresponding to col
+@param zip_size compressed page size of the old table, or 0 for uncompressed
+@param max_len maximum length of dfield
 @retval DB_INVALID_NULL if a NULL value is encountered
 @retval DB_TOO_BIG_INDEX_COL if the maximum prefix length is exceeded */
 static
@@ -1245,7 +1245,7 @@ row_log_table_apply_convert_mrec(
 		dfield_t*		dfield
 			= dtuple_get_nth_field(row, col_no);
 		ulint			len;
-		const byte*		data;
+		const byte*		data= NULL;
 
 		if (rec_offs_nth_extern(offsets, i)) {
 			ut_ad(rec_offs_any_extern(offsets));

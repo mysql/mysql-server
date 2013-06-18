@@ -82,15 +82,15 @@ typedef ib_uint64_t os_offset_t;
 /** File handle */
 # define os_file_t	HANDLE
 /** Convert a C file descriptor to a native file handle
-@param fd	file descriptor
-@return		native file handle */
+@param fd file descriptor
+@return native file handle */
 # define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 #else
 /** File handle */
 typedef int	os_file_t;
 /** Convert a C file descriptor to a native file handle
-@param fd	file descriptor
-@return		native file handle */
+@param fd file descriptor
+@return native file handle */
 # define OS_FILE_FROM_FD(fd) fd
 #endif
 
@@ -418,7 +418,7 @@ typedef DIR*	os_file_dir_t;	/*!< directory stream */
 #ifdef _WIN32
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
-@return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
+@return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
 OS_WIN7. */
 
 ulint
@@ -435,7 +435,7 @@ os_io_init_simple(void);
 /***********************************************************************//**
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
-@return	temporary file handle, or NULL on error */
+@return temporary file handle, or NULL on error */
 
 FILE*
 os_file_create_tmpfile(void);
@@ -446,7 +446,7 @@ The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned
 at the first entry. In both Unix and Windows we automatically skip the '.'
 and '..' items at the start of the directory listing.
-@return	directory stream, NULL if error */
+@return directory stream, NULL if error */
 
 os_file_dir_t
 os_file_opendir(
@@ -460,7 +460,7 @@ os_file_opendir(
 					a directory */
 /***********************************************************************//**
 Closes a directory stream.
-@return	0 if success, -1 if failure */
+@return 0 if success, -1 if failure */
 
 int
 os_file_closedir(
@@ -469,7 +469,7 @@ os_file_closedir(
 /***********************************************************************//**
 This function returns information of the next file in the directory. We jump
 over the '.' and '..' entries in the directory.
-@return	0 if ok, -1 if error, 1 if at the end of the directory */
+@return 0 if ok, -1 if error, 1 if at the end of the directory */
 
 int
 os_file_readdir_next_file(
@@ -482,7 +482,7 @@ This function attempts to create a directory named pathname. The new directory
 gets default permissions. On Unix, the permissions are (0770 & ~umask). If the
 directory exists already, nothing is done and the call succeeds, unless the
 fail_if_exists arguments is true.
-@return	TRUE if call succeeds, FALSE on error */
+@return TRUE if call succeeds, FALSE on error */
 
 ibool
 os_file_create_directory(
@@ -562,7 +562,7 @@ os_file_create_func(
 	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
-@return	TRUE if success */
+@return TRUE if success */
 
 bool
 os_file_delete_func(
@@ -572,7 +572,7 @@ os_file_delete_func(
 
 /***********************************************************************//**
 Deletes a file if it exists. The file has to be closed before calling this.
-@return	TRUE if success */
+@return TRUE if success */
 
 bool
 os_file_delete_if_exists_func(
@@ -585,7 +585,7 @@ NOTE! Use the corresponding macro os_file_rename(), not directly
 this function!
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 os_file_rename_func(
@@ -598,7 +598,7 @@ NOTE! Use the corresponding macro os_file_close(), not directly this
 function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 os_file_close_func(
@@ -698,7 +698,7 @@ NOTE! Please use the corresponding macro os_file_read(), not directly
 this function!
 This is the performance schema instrumented wrapper function for
 os_file_read() which requests a synchronous read operation.
-@return	TRUE if request was successful, FALSE if fail */
+@return TRUE if request was successful, FALSE if fail */
 UNIV_INLINE
 ibool
 pfs_os_file_read_func(
@@ -716,7 +716,7 @@ not directly this function!
 This is the performance schema instrumented wrapper function for
 os_file_read_no_error_handling_func() which requests a synchronous
 read operation.
-@return	TRUE if request was successful, FALSE if fail */
+@return TRUE if request was successful, FALSE if fail */
 UNIV_INLINE
 ibool
 pfs_os_file_read_no_error_handling_func(
@@ -762,7 +762,7 @@ NOTE! Please use the corresponding macro os_file_write(), not directly
 this function!
 This is the performance schema instrumented wrapper function for
 os_file_write() which requests a synchronous write operation.
-@return	TRUE if request was successful, FALSE if fail */
+@return TRUE if request was successful, FALSE if fail */
 UNIV_INLINE
 ibool
 pfs_os_file_write_func(
@@ -844,7 +844,7 @@ pfs_os_file_delete_if_exists_func(
 #ifdef UNIV_HOTBACKUP
 /***********************************************************************//**
 Closes a file handle.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 os_file_close_no_error_handling(
@@ -853,7 +853,7 @@ os_file_close_no_error_handling(
 #endif /* UNIV_HOTBACKUP */
 /***********************************************************************//**
 Gets a file size.
-@return	file size, or (os_offset_t) -1 on failure */
+@return file size, or (os_offset_t) -1 on failure */
 
 os_offset_t
 os_file_get_size(
@@ -862,7 +862,7 @@ os_file_get_size(
 	__attribute__((warn_unused_result));
 /***********************************************************************//**
 Write the specified number of zeros to a newly created file.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 os_file_set_size(
@@ -874,7 +874,7 @@ os_file_set_size(
 	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
 Truncates a file at its current position.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 os_file_set_eof(
@@ -883,7 +883,7 @@ os_file_set_eof(
 /***********************************************************************//**
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 os_file_flush_func(
@@ -894,7 +894,7 @@ Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
-@return	error number, or OS error number + 100 */
+@return error number, or OS error number + 100 */
 
 ulint
 os_file_get_last_error(
@@ -904,7 +904,7 @@ os_file_get_last_error(
 /*******************************************************************//**
 NOTE! Use the corresponding macro os_file_read(), not directly this function!
 Requests a synchronous read operation.
-@return	TRUE if request was successful, FALSE if fail */
+@return TRUE if request was successful, FALSE if fail */
 
 ibool
 os_file_read_func(
@@ -929,7 +929,7 @@ NOTE! Use the corresponding macro os_file_read_no_error_handling(),
 not directly this function!
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns FALSE.
-@return	TRUE if request was successful, FALSE if fail */
+@return TRUE if request was successful, FALSE if fail */
 
 ibool
 os_file_read_no_error_handling_func(
@@ -943,7 +943,7 @@ os_file_read_no_error_handling_func(
 NOTE! Use the corresponding macro os_file_write(), not directly this
 function!
 Requests a synchronous write operation.
-@return	TRUE if request was successful, FALSE if fail */
+@return TRUE if request was successful, FALSE if fail */
 
 ibool
 os_file_write_func(
@@ -956,7 +956,7 @@ os_file_write_func(
 	ulint		n);	/*!< in: number of bytes to write */
 /*******************************************************************//**
 Check the existence and type of the given file.
-@return	TRUE if call succeeded */
+@return TRUE if call succeeded */
 
 ibool
 os_file_status(
@@ -991,7 +991,7 @@ returned by dirname and basename for different paths:
        "."	      "."	     "."
        ".."	      "."	     ".."
 
-@return	own: directory component of the pathname */
+@return own: directory component of the pathname */
 
 char*
 os_file_dirname(
@@ -1007,7 +1007,7 @@ the forward slash.  Both input strings are null terminated.
 This function allocates memory to be returned.  It is the callers
 responsibility to free the return value after it is no longer needed.
 
-@return	own: new full pathname */
+@return own: new full pathname */
 
 char*
 os_file_make_new_pathname(
@@ -1026,7 +1026,7 @@ extension. All input and output strings are null-terminated.
 This function allocates memory to be returned.  It is the callers
 responsibility to free the return value after it is no longer needed.
 
-@return	own: A full pathname; data_dir_path/databasename/tablename.ibd */
+@return own: A full pathname; data_dir_path/databasename/tablename.ibd */
 
 char*
 os_file_make_remote_pathname(
@@ -1053,7 +1053,7 @@ os_file_make_data_dir_path(
 	char*	data_dir_path);	/*!< in/out: full path/data_dir_path */
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
-@return	TRUE if call succeeded FALSE otherwise */
+@return TRUE if call succeeded FALSE otherwise */
 
 ibool
 os_file_create_subdirs_if_needed(
@@ -1086,7 +1086,7 @@ os_aio_free(void);
 /*******************************************************************//**
 NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
-@return	TRUE if request was queued successfully, FALSE if fail */
+@return TRUE if request was queued successfully, FALSE if fail */
 
 ibool
 os_aio_func(
@@ -1158,7 +1158,7 @@ for completed requests. The aio array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
-@return	TRUE if the aio operation succeeded */
+@return TRUE if the aio operation succeeded */
 
 ibool
 os_aio_windows_handle(
@@ -1185,7 +1185,7 @@ os_aio_windows_handle(
 /**********************************************************************//**
 Does simulated aio. This function should be called by an i/o-handler
 thread.
-@return	TRUE if the aio operation succeeded */
+@return TRUE if the aio operation succeeded */
 
 ibool
 os_aio_simulated_handle(
@@ -1204,7 +1204,7 @@ os_aio_simulated_handle(
 	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
 /**********************************************************************//**
 Validates the consistency of the aio system.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 os_aio_validate(void);
@@ -1235,7 +1235,7 @@ os_aio_all_slots_free(void);
 
 /*******************************************************************//**
 This function returns information about the specified file
-@return	DB_SUCCESS if all OK */
+@return DB_SUCCESS if all OK */
 
 dberr_t
 os_file_get_status(
@@ -1250,7 +1250,7 @@ os_file_get_status(
 /*********************************************************************//**
 Creates a temporary file that will be deleted on close.
 This function is defined in ha_innodb.cc.
-@return	temporary file descriptor, or < 0 on error */
+@return temporary file descriptor, or < 0 on error */
 
 int
 innobase_mysql_tmpfile(void);
@@ -1266,7 +1266,7 @@ for completed requests. The aio array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
-@return	TRUE if the IO was successful */
+@return TRUE if the IO was successful */
 
 ibool
 os_aio_linux_handle(

@@ -67,7 +67,7 @@ the OS does not support asynchronous i/o.
 @return number of page read requests issued; NOTE that if we read ibuf
 pages, it may happen that the page at the given page number does not
 get read even if we return a positive value!
-@return	number of page read requests issued */
+@return number of page read requests issued */
 
 ulint
 buf_read_ahead_random(
@@ -102,7 +102,7 @@ latches!
 NOTE 3: the calling thread must want access to the page given: this rule is
 set to prevent unintended read-aheads performed by ibuf routines, a situation
 which could result in a deadlock if the OS does not support asynchronous io.
-@return	number of page read requests issued */
+@return number of page read requests issued */
 
 ulint
 buf_read_ahead_linear(

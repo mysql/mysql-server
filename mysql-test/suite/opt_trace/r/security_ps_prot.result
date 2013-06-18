@@ -939,11 +939,11 @@ insert into t3 select * from t3	2496	0
 # Trace exposed body of trigger, and content of t2/t3, which we
 # could see anyway:
 show create trigger trg2;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
 trg2	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` trigger trg2 before insert on t2 for each row 
 begin
 insert into t3 select * from t3;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 select * from t2, t3 limit 1;
 a	a
 first	first

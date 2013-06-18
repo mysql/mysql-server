@@ -12,8 +12,26 @@ SHOW GLOBAL VARIABLES LIKE 'query_cache_type';
 SET GLOBAL query_cache_type=ON;
 --error ER_QUERY_CACHE_DISABLED
 SET GLOBAL query_cache_type=DEMAND;
---error ER_QUERY_CACHE_DISABLED
 SET GLOBAL query_cache_type=OFF;
 SET GLOBAL query_cache_size=1024*1024;
 SHOW GLOBAL VARIABLES LIKE 'query_cache_size';
 SET GLOBAL query_cache_size=DEFAULT;
+
+--echo #
+--echo # BUG#16906827 - CAN'T SET QUERY_CACHE_TYPE TO 0 WHEN IT IS ALREADY 0
+--echo #
+SHOW GLOBAL VARIABLES LIKE 'query_cache_type';
+--echo # This statement will pass if run with the fix and fail with 
+--echo # ER_QUERY_CACHE_DISABLED if run without the fix.
+SET GLOBAL query_cache_type=OFF;
+--error ER_QUERY_CACHE_DISABLED
+SET GLOBAL query_cache_type=ON;
+--error ER_QUERY_CACHE_DISABLED
+SET GLOBAL query_cache_type=DEMAND;
+--echo # This statement will pass if run with the fix and fail with 
+--echo # ER_QUERY_CACHE_DISABLED if run without the fix.
+SET SESSION query_cache_type=OFF;
+--error ER_QUERY_CACHE_DISABLED
+SET SESSION query_cache_type=ON;
+--error ER_QUERY_CACHE_DISABLED
+SET SESSION query_cache_type=DEMAND;

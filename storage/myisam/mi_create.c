@@ -490,7 +490,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     goto err_no_lock;
   }
 
-  bmove(share.state.header.file_version,(uchar*) myisam_file_magic,4);
+  memmove(share.state.header.file_version, (uchar*) myisam_file_magic, 4);
   ci->old_options=options| (ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD ?
 			HA_OPTION_COMPRESS_RECORD |
 			HA_OPTION_TEMP_COMPRESS_RECORD: 0);

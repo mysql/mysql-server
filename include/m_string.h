@@ -35,20 +35,9 @@
 /* need by my_vsnprintf */
 #include <stdarg.h> 
 
-/*  This is needed for the definitions of memcpy... on solaris */
-#if defined(HAVE_MEMORY_H) && !defined(__cplusplus)
-#include <memory.h>
-#endif
-
 #define bfill please_use_memset_rather_than_bfill()
 #define bzero please_use_memset_rather_than_bzero()
-
-#if !defined(HAVE_MEMCPY) && !defined(HAVE_MEMMOVE)
-# define memcpy(d, s, n)	bcopy ((s), (d), (n))
-# define memmove(d, s, n)	bmove ((d), (s), (n))
-#elif defined(HAVE_MEMMOVE)
-# define bmove(d, s, n)		memmove((d), (s), (n))
-#endif
+#define bmove please_use_memmove_rather_than_bmove()
 
 #if defined(__cplusplus)
 extern "C" {
@@ -80,7 +69,6 @@ extern char _dig_vec_lower[];
 
 	/* Prototypes for string functions */
 
-extern	void bmove_upp(uchar *dst,const uchar *src,size_t len);
 extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
 		     size_t new_len,size_t tot_len);
 extern	void strappend(char *s,size_t len,pchar fill);
@@ -146,10 +134,6 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 
 extern char *llstr(longlong value,char *buff);
 extern char *ullstr(longlong value,char *buff);
-#ifndef HAVE_STRTOUL
-extern long strtol(const char *str, char **ptr, int base);
-extern ulong strtoul(const char *str, char **ptr, int base);
-#endif
 
 extern char *int2str(long val, char *dst, int radix, int upcase);
 extern char *int10_to_str(long val,char *dst,int radix);
@@ -162,20 +146,10 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #undef strtoll
 #define strtoll(A,B,C) strtol((A),(B),(C))
 #define strtoull(A,B,C) strtoul((A),(B),(C))
-#ifndef HAVE_STRTOULL
-#define HAVE_STRTOULL
-#endif
-#ifndef HAVE_STRTOLL
-#define HAVE_STRTOLL
-#endif
 #else
 #ifdef HAVE_LONG_LONG
 extern char *ll2str(longlong val,char *dst,int radix, int upcase);
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
-#if !defined(HAVE_STRTOULL)
-extern longlong strtoll(const char *str, char **ptr, int base);
-extern ulonglong strtoull(const char *str, char **ptr, int base);
-#endif
 #endif
 #endif
 #define longlong2str(A,B,C) ll2str((A),(B),(C),1)
