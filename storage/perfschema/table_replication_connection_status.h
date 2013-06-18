@@ -56,11 +56,11 @@ struct st_row_connect_status {
   /** Thread_Id field is declared char instead of int because it shows NULL
       when Service_State= off.
   */
-  char Thread_Id[sizeof(ulonglong)];
-  uint Thread_Id_length;
+  ulonglong Thread_Id;
+  bool Thread_Id_is_null;
   enum_rpl_connect_status_service_state Service_State;
   char* Received_Transaction_Set;
-  uint Received_Transaction_Set_length;
+  int Received_Transaction_Set_length;
   uint Last_Error_Number;
   char Last_Error_Message[MAX_SLAVE_ERRMSG];
   uint Last_Error_Message_length;
@@ -71,7 +71,7 @@ struct st_row_connect_status {
 class table_replication_connection_status: public PFS_engine_table
 {
 private:
-  void fill_rows(Master_info *);
+  void make_row(Master_info *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -79,8 +79,8 @@ private:
   static TABLE_FIELD_DEF m_field_def;
   /** Current row */
   st_row_connect_status m_row;
-  /** True is the table is filled up */
-  bool m_filled;
+  /** True is the current row exists. */
+  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

@@ -38,7 +38,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     {C_STRING_WITH_LEN("Thread_Id")},
-    {C_STRING_WITH_LEN("char(21)")},
+    {C_STRING_WITH_LEN("bigint")},
     {NULL, 0}
   },
   {
@@ -91,7 +91,7 @@ PFS_engine_table* table_replication_execute_status_by_coordinator::create(void)
 table_replication_execute_status_by_coordinator
   ::table_replication_execute_status_by_coordinator()
   : PFS_engine_table(&m_share, &m_pos),
-    m_filled(false), m_pos(0), m_next_pos(0)
+    m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
 table_replication_execute_status_by_coordinator
@@ -103,55 +103,63 @@ void table_replication_execute_status_by_coordinator::reset_position(void)
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
 }
-#ifndef MYSQL_CLIENT
+
 int table_replication_execute_status_by_coordinator::rnd_next(void)
 {
-  Master_info *mi= active_mi;
-
-  if (!m_filled)
+  if (!m_row_exists)
   {
-    if (mi->host[0])
-      fill_rows(active_mi);
+    mysql_mutex_lock(&LOCK_active_mi);
+    if (active_mi->host[0])
+    {
+      make_row(active_mi);
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return 0;
+    }
     else
-      return HA_ERR_END_OF_FILE;
+    {
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return HA_ERR_RECORD_DELETED; /** A record is not there */
+    }
   }
-
-  m_pos.set_at(&m_next_pos);
-  m_next_pos.set_after(&m_pos);
-  if (m_pos.m_index == m_share.m_records)
-    return HA_ERR_END_OF_FILE;
-
-  return 0;
+  return HA_ERR_END_OF_FILE;
 }
-#endif
+
 int table_replication_execute_status_by_coordinator::rnd_pos(const void *pos)
 {
-  Master_info *mi= active_mi;
   set_position(pos);
+
   DBUG_ASSERT(m_pos.m_index < m_share.m_records);
 
-  if (!m_filled)
-    fill_rows(mi);
-  return 0;
+  if (!m_row_exists)
+  {
+    mysql_mutex_lock(&LOCK_active_mi);
+    if (active_mi->host[0])
+    {
+      make_row(active_mi);
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return 0;
+    }
+    else
+    {
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return HA_ERR_RECORD_DELETED; /** A record is not there */
+    }
+  }
+  return HA_ERR_END_OF_FILE;
 }
 
 void table_replication_execute_status_by_coordinator
-  ::fill_rows(Master_info *mi)
+  ::make_row(Master_info *mi)
 {
   mysql_mutex_lock(&mi->rli->data_lock);
 
   if (mi->rli->slave_running)
   {
-    char thread_id_str[sizeof(ulonglong)+1];
-    sprintf(thread_id_str, "%u", (uint) mi->rli->info_thd->thread_id);
-    m_row.Thread_Id_length= strlen(thread_id_str);
-    memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
+    m_row.Thread_Id_is_null= false;
+    m_row.Thread_Id= (ulonglong)mi->rli->info_thd->thread_id;
   }
   else
-  {
-    m_row.Thread_Id_length= strlen("NULL");
-    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length);
-  }
+    m_row.Thread_Id_is_null= true;
 
   if (mi->rli->slave_running)
     m_row.Service_State= PS_RPL_YES;
@@ -179,16 +187,17 @@ void table_replication_execute_status_by_coordinator
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->rli->data_lock);
 
-  m_filled= true;
+  m_row_exists= true;
 }
 
 int table_replication_execute_status_by_coordinator
-  ::read_row_values(TABLE *table, unsigned char *,
+  ::read_row_values(TABLE *table, unsigned char *buf,
                     Field **fields, bool read_all)
 {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  DBUG_ASSERT(table->s->null_bytes == 1);
+  buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
   {
@@ -197,7 +206,10 @@ int table_replication_execute_status_by_coordinator
       switch(f->field_index)
       {
       case 0: /*Thread_Id*/
-        set_field_varchar_utf8(f, m_row.Thread_Id, m_row.Thread_Id_length);
+        //if (!m_row.Thread_Id_is_null)
+          set_field_ulonglong(f, m_row.Thread_Id);
+        //else
+          //f->set_null();
         break;
       case 1: /*Service_State*/
         set_field_enum(f, m_row.Service_State);
