@@ -887,6 +887,10 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 	/*-----------------------------------------------------------------*/
 
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Truncating table %s (table id = %lu) residing in space %u",
+		table->name, table->id, table->space);
+
 	/* Step-1: Perform intiial sanity check to ensure table can be
 	truncated. This would include check for tablespace discard status,
 	ibd file missing, etc .... */
@@ -1174,6 +1178,11 @@ row_fixup_truncate_of_tables()
 		/* Step-1: Drop tablespace (only for single-tablespace),
 		drop indexes and re-create indexes. */
 		truncate_t* tbl = *it;
+
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Fixing up truncate action for table with id (%lu)"
+			" residing in space with id (%lu)",
+			tbl->m_old_table_id, tbl->m_space_id);
 
 		if (!Tablespace::is_system_tablespace(tbl->m_space_id)) {
 
