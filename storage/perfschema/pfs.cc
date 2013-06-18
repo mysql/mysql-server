@@ -4517,7 +4517,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
       if(pfs_thread->m_events_statements_count > 0)
       {
-          PFS_events_statements *parent= pfs--;
+          PFS_events_statements *parent= pfs - 1;
           pfs->m_nesting_event_id= parent->m_event_id;
           pfs->m_nesting_event_type= parent->m_event_type;
           pfs->m_nesting_event_level= parent->m_nesting_event_level + 1;
