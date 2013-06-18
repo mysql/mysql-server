@@ -23,6 +23,8 @@ Data dictionary system
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
+#include <my_sys.h>
+
 #include "dict0dict.h"
 
 #ifdef UNIV_NONINL
@@ -1831,6 +1833,11 @@ undo_size_ok:
 	rw_lock_create(index_tree_rw_lock_key, &new_index->lock,
 		       dict_index_is_ibuf(index)
 		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
+
+	DBUG_EXECUTE_IF(
+		"index_partially_created_should_kick",
+		DEBUG_SYNC_C("index_partially_created");
+	);
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
@@ -4499,7 +4506,13 @@ dict_update_statistics(
 		return;
 	}
 
-	do {
+	for (; index != NULL; index = dict_table_get_next_index(index)) {
+
+		/* Skip incomplete indexes. */
+		if (index->name[0] == TEMP_INDEX_PREFIX) {
+			continue;
+		}
+
 		if (UNIV_LIKELY
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
@@ -4553,9 +4566,7 @@ fake_statistics:
 			       (1 + dict_index_get_n_unique(index))
                                * sizeof(*index->stat_n_non_null_key_vals));
 		}
-
-		index = dict_table_get_next_index(index);
-	} while (index);
+	}
 
 	index = dict_table_get_first_index(table);
 
