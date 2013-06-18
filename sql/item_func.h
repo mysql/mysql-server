@@ -1258,7 +1258,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
-  void fix_length_and_dec() { max_length=1; maybe_null=0; }
+  void fix_length_and_dec() { max_length=1; maybe_null= true; }
   virtual void print(String *str, enum_query_type query_type);
 };
 
