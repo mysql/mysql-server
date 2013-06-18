@@ -46,14 +46,14 @@ Converts the current process id to a number. It is not guaranteed that the
 number is unique. In Linux returns the 'process number' of the current
 thread. That number is the same as one sees in 'top', for example. In Linux
 the thread id is not the same as one sees in 'top'.
-@return	process id as a number */
+@return process id as a number */
 
 ulint
 os_proc_get_number(void);
 /*====================*/
 /****************************************************************//**
 Allocates large pages memory.
-@return	allocated memory */
+@return allocated memory */
 
 void*
 os_mem_alloc_large(

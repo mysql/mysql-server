@@ -60,6 +60,11 @@ TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY}
  ${LIBNSL} ${LIBM} ${LIBRT})
 DTRACE_INSTRUMENT(mysys)
 
+# Need explicit pthread for gcc -fsanitize=address
+IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
+  TARGET_LINK_LIBRARIES(mysys pthread)
+ENDIF()
+
 ADD_EXECUTABLE(thr_lock thr_lock.c)
 TARGET_LINK_LIBRARIES(thr_lock mysys)
 SET_TARGET_PROPERTIES(thr_lock PROPERTIES COMPILE_FLAGS "-DMAIN")

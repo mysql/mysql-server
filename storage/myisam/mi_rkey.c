@@ -51,7 +51,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     */
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length= keypart_map;
-    bmove(key_buff, key, pack_key_length);
+    memmove(key_buff, key, pack_key_length);
     last_used_keyseg= info->s->keyinfo[inx].seg + info->last_used_keyseg;
   }
   else

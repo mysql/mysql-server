@@ -39,7 +39,7 @@ Created 3/26/1996 Heikki Tuuri
 
 /***********************************************************************//**
 Copies the undo record to the heap.
-@return	own: copy of undo log record */
+@return own: copy of undo log record */
 UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_rec_copy(
@@ -48,7 +48,7 @@ trx_undo_rec_copy(
 	mem_heap_t*		heap);		/*!< in: heap where copied */
 /**********************************************************************//**
 Reads the undo log record type.
-@return	record type */
+@return record type */
 UNIV_INLINE
 ulint
 trx_undo_rec_get_type(
@@ -56,7 +56,7 @@ trx_undo_rec_get_type(
 	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
 /**********************************************************************//**
 Reads from an undo log record the record compiler info.
-@return	compiler info */
+@return compiler info */
 UNIV_INLINE
 ulint
 trx_undo_rec_get_cmpl_info(
@@ -64,7 +64,7 @@ trx_undo_rec_get_cmpl_info(
 	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
 /**********************************************************************//**
 Returns TRUE if an undo log record contains an extern storage field.
-@return	TRUE if extern */
+@return TRUE if extern */
 UNIV_INLINE
 ibool
 trx_undo_rec_get_extern_storage(
@@ -72,7 +72,7 @@ trx_undo_rec_get_extern_storage(
 	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
 /**********************************************************************//**
 Reads the undo log record number.
-@return	undo no */
+@return undo no */
 UNIV_INLINE
 undo_no_t
 trx_undo_rec_get_undo_no(
@@ -80,7 +80,7 @@ trx_undo_rec_get_undo_no(
 	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
 /**********************************************************************//**
 Returns the start of the undo record data area.
-@return	offset to the data area */
+@return offset to the data area */
 UNIV_INLINE
 ulint
 trx_undo_rec_get_offset(
@@ -95,7 +95,7 @@ Returns the start of the undo record data area. */
 
 /**********************************************************************//**
 Reads from an undo log record the general parameters.
-@return	remaining part of undo log record after reading these values */
+@return remaining part of undo log record after reading these values */
 
 byte*
 trx_undo_rec_get_pars(
@@ -112,7 +112,7 @@ trx_undo_rec_get_pars(
 	__attribute__((nonnull));
 /*******************************************************************//**
 Builds a row reference from an undo log record.
-@return	pointer to remaining part of undo record */
+@return pointer to remaining part of undo record */
 
 byte*
 trx_undo_rec_get_row_ref(
@@ -129,7 +129,7 @@ trx_undo_rec_get_row_ref(
 				needed is allocated */
 /*******************************************************************//**
 Skips a row reference from an undo log record.
-@return	pointer to remaining part of undo record */
+@return pointer to remaining part of undo record */
 
 byte*
 trx_undo_rec_skip_row_ref(
@@ -140,7 +140,7 @@ trx_undo_rec_skip_row_ref(
 /**********************************************************************//**
 Reads from an undo log update record the system field values of the old
 version.
-@return	remaining part of undo log record after reading these values */
+@return remaining part of undo log record after reading these values */
 
 byte*
 trx_undo_update_rec_get_sys_cols(
@@ -182,7 +182,7 @@ trx_undo_update_rec_get_update(
 Builds a partial row from an update undo log record, for purge.
 It contains the columns which occur as ordering in any index of the table.
 Any missing columns are indicated by col->mtype == DATA_MISSING.
-@return	pointer to remaining part of undo record */
+@return pointer to remaining part of undo record */
 
 byte*
 trx_undo_rec_get_partial_row(
@@ -207,7 +207,7 @@ Writes information to an undo log about an insert, update, or a delete marking
 of a clustered index record. This information is used in a rollback of the
 transaction and in consistent reads that must look to the history of this
 transaction.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 trx_undo_report_row_operation(
@@ -237,7 +237,7 @@ trx_undo_report_row_operation(
 /******************************************************************//**
 Copies an undo record to heap. This function can be called if we know that
 the undo log record exists.
-@return	own: copy of the record */
+@return own: copy of the record */
 
 trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
@@ -272,7 +272,7 @@ trx_undo_prev_version_build(
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of adding an undo log record.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 trx_undo_parse_add_undo_rec(
@@ -282,7 +282,7 @@ trx_undo_parse_add_undo_rec(
 	page_t*	page);	/*!< in: page or NULL */
 /***********************************************************//**
 Parses a redo log record of erasing of an undo page end.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 trx_undo_parse_erase_page_end(

@@ -65,7 +65,7 @@ eval_node_set_int_val(
 	lint		val);	/*!< in: value to set */
 /*****************************************************************//**
 Gets an integer value from an expression node.
-@return	integer value */
+@return integer value */
 UNIV_INLINE
 lint
 eval_node_get_int_val(
@@ -91,7 +91,7 @@ eval_node_copy_val(
 	que_node_t*	node2);	/*!< in: node to copy from */
 /*****************************************************************//**
 Gets a iboolean value from a query node.
-@return	iboolean value */
+@return iboolean value */
 UNIV_INLINE
 ibool
 eval_node_get_ibool_val(
@@ -99,7 +99,7 @@ eval_node_get_ibool_val(
 	que_node_t*	node);	/*!< in: query graph node */
 /*****************************************************************//**
 Evaluates a comparison node.
-@return	the result of the comparison */
+@return the result of the comparison */
 
 ibool
 eval_cmp(

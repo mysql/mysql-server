@@ -41,7 +41,8 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
-#include "sql_trigger.h"
+#include "trigger_loader.h"   // Trigger_loader::trg_file_exists()
+#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"
 #include "sql_prepare.h"
 #include <m_ctype.h>
@@ -3735,9 +3736,18 @@ err:
 
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 {
-  if (Table_triggers_list::check_n_load(thd, share->db.str,
-                                        share->table_name.str, entry, 0))
-    return TRUE;
+  if (Trigger_loader::trg_file_exists(share->db.str, share->table_name.str))
+  {
+    Table_trigger_dispatcher *d= Table_trigger_dispatcher::create(entry);
+
+    if (!d || d->check_n_load(thd, false))
+    {
+      delete d;
+      return true;
+    }
+
+    entry->triggers= d;
+  }
 
   /*
     If we are here, there was no fatal error (but error may be still
@@ -8898,7 +8908,7 @@ static bool check_record(THD *thd, Field **ptr)
                     INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
                     or there isn't a trigger ON INSERT
 */
-inline bool command_invokes_insert_triggers(enum trg_event_type event,
+inline bool command_invokes_insert_triggers(enum enum_trigger_event_type event,
                                             enum_sql_command sql_command)
 {
   /*
@@ -8917,7 +8927,7 @@ inline bool command_invokes_insert_triggers(enum trg_event_type event,
   Execute BEFORE INSERT trigger.
 
   @param thd                        thread context
-  @param triggers                   object holding list of triggers
+  @param table                      TABLE-object holding list of triggers
                                     to be invoked
   @param event                      event type for triggers to be invoked
   @param insert_into_fields_bitmap  Bitmap for fields that is set
@@ -8928,13 +8938,11 @@ inline bool command_invokes_insert_triggers(enum trg_event_type event,
     @retval true    Error occurred
 */
 inline bool call_before_insert_triggers(THD *thd,
-                                        Table_triggers_list *triggers,
-                                        enum trg_event_type event,
+                                        TABLE *table,
+                                        enum enum_trigger_event_type event,
                                         MY_BITMAP *insert_into_fields_bitmap)
 {
-  TABLE *tbl= triggers->trigger_table;
-
-  for (Field** f= tbl->field; *f; ++f)
+  for (Field** f= table->field; *f; ++f)
   {
     if (((*f)->flags & NO_DEFAULT_VALUE_FLAG) &&
         !bitmap_is_set(insert_into_fields_bitmap, (*f)->field_index))
@@ -8943,7 +8951,7 @@ inline bool call_before_insert_triggers(THD *thd,
     }
   }
 
-  return triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
+  return table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
 }
 
 
@@ -8955,7 +8963,7 @@ inline bool call_before_insert_triggers(THD *thd,
   @param fields        Item_fields list to be filled
   @param values        values to fill with
   @param ignore_errors TRUE if we should ignore errors
-  @param triggers      object holding list of triggers to be invoked
+  @param table         TABLE-object holding list of triggers to be invoked
   @param event         event type for triggers to be invoked
 
   NOTE
@@ -8971,8 +8979,8 @@ inline bool call_before_insert_triggers(THD *thd,
 bool
 fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      List<Item> &values, bool ignore_errors,
-                                     Table_triggers_list *triggers,
-                                     enum trg_event_type event,
+                                     TABLE *table,
+                                     enum enum_trigger_event_type event,
                                      int num_fields)
 {
   /*
@@ -8980,11 +8988,11 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     the event is TRG_EVENT_UPDATE and the SQL-command is SQLCOM_INSERT.
   */
 
-  if (triggers)
+  if (table->triggers)
   {
     bool rc;
 
-    triggers->enable_fields_temporary_nullability(thd);
+    table->triggers->enable_fields_temporary_nullability(thd);
 
     if (command_invokes_insert_triggers(event, thd->lex->sql_command))
     {
@@ -8997,7 +9005,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                       &insert_into_fields_bitmap);
 
       if (!rc)
-        rc= call_before_insert_triggers(thd, triggers, event,
+        rc= call_before_insert_triggers(thd, table, event,
                                         &insert_into_fields_bitmap);
 
       bitmap_free(&insert_into_fields_bitmap);
@@ -9005,13 +9013,12 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     else
     {
       rc= fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
-          triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
+          table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
     }
 
-    triggers->disable_fields_temporary_nullability();
+    table->triggers->disable_fields_temporary_nullability();
 
-    return rc ||
-           check_record(thd, triggers->trigger_table->field);
+    return rc || check_record(thd, table->field);
   }
   else
   {
@@ -9105,7 +9112,7 @@ err:
       ptr           NULL-ended array of fields to be filled
       values        values to fill with
       ignore_errors TRUE if we should ignore errors
-      triggers      object holding list of triggers to be invoked
+      table         TABLE-object holding list of triggers to be invoked
       event         event type for triggers to be invoked
 
   NOTE
@@ -9126,18 +9133,18 @@ err:
 bool
 fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      List<Item> &values, bool ignore_errors,
-                                     Table_triggers_list *triggers,
-                                     enum trg_event_type event,
+                                     TABLE *table,
+                                     enum enum_trigger_event_type event,
                                      int num_fields)
 {
   bool rc;
 
-  if (triggers)
+  if (table->triggers)
   {
     DBUG_ASSERT(command_invokes_insert_triggers(event, thd->lex->sql_command));
     DBUG_ASSERT(num_fields);
 
-    triggers->enable_fields_temporary_nullability(thd);
+    table->triggers->enable_fields_temporary_nullability(thd);
 
     MY_BITMAP insert_into_fields_bitmap;
     bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
@@ -9146,11 +9153,11 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                     &insert_into_fields_bitmap);
 
     if (!rc)
-      rc= call_before_insert_triggers(thd, triggers, event,
+      rc= call_before_insert_triggers(thd, table, event,
                                       &insert_into_fields_bitmap);
 
     bitmap_free(&insert_into_fields_bitmap);
-    triggers->disable_fields_temporary_nullability();
+    table->triggers->disable_fields_temporary_nullability();
   }
   else
     rc= fill_record(thd, ptr, values, ignore_errors, NULL, NULL);

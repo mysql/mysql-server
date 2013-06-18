@@ -30,7 +30,6 @@
 #include "sql_view.h"         // check_key_in_view, insert_view_fields
 #include "sql_table.h"        // mysql_create_table_no_lock
 #include "auth_common.h"      // *_ACL, check_grant_all_columns
-#include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"
 #include "rpl_slave.h"
@@ -43,6 +42,7 @@
 #include "sql_tmp_table.h"    // tmp tables
 #include "sql_optimizer.h"    // JOIN
 #include "global_threads.h"
+#include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "sql_partition.h"
 #include "partition_info.h"            // partition_info
@@ -274,6 +274,41 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
     return -1;
   return 0;
 }
+
+/**
+  Validates default value of fields which are not specified in
+  the column list of INSERT statement.
+
+  @Note table->record[0] should be be populated with default values
+        before calling this function.
+  @Note THD->abort_on_warning flag should be set to report an error
+        or a warning if default value is incorrect.
+
+  @param thd              thread context
+  @param table            table to which values are inserted.
+
+  @return
+    @retval false Success.
+    @retval true  Failure.
+*/
+bool validate_default_values_of_unset_fields(THD *thd, TABLE *table)
+{
+  MY_BITMAP *write_set= table->write_set;
+  DBUG_ENTER("validate_default_values_of_unset_fields");
+
+  for (Field **field= table->field; *field; field++)
+  {
+    if (!bitmap_is_set(write_set, (*field)->field_index) &&
+        !((*field)->flags & NO_DEFAULT_VALUE_FLAG))
+    {
+      if ((*field)->validate_stored_val(thd) && thd->is_error())
+        DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
 
 /*
   Prepare triggers  for INSERT-like statement.
@@ -645,9 +680,18 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     {
       restore_record(table,s->default_values);	// Get empty record
 
+      /*
+        Check whether default values of the fields not specified in column list
+        are correct or not.
+      */
+      if (validate_default_values_of_unset_fields(thd, table))
+      {
+        error= 1;
+        break;
+      }
+
       if (fill_record_n_invoke_before_triggers(thd, fields, *values, 0,
-                                               table->triggers,
-                                               TRG_EVENT_INSERT,
+                                               table, TRG_EVENT_INSERT,
                                                table->s->fields))
       {
         DBUG_ASSERT(thd->is_error());
@@ -696,8 +740,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         }
       }
       if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
-                                               table->triggers,
-                                               TRG_EVENT_INSERT,
+                                               table, TRG_EVENT_INSERT,
                                                table->s->fields))
       {
         DBUG_ASSERT(thd->is_error());
@@ -1375,8 +1418,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
                                                  *update->get_changed_columns(),
                                                  *update->update_values,
                                                  ignore_errors,
-                                                 table->triggers,
-                                                 TRG_EVENT_UPDATE, 0))
+                                                 table, TRG_EVENT_UPDATE, 0))
           goto before_trg_err;
 
         bool insert_id_consumed= false;
@@ -1956,12 +1998,16 @@ void select_insert::store_values(List<Item> &values)
 {
   const bool ignore_err= true;
   if (fields->elements)
-    fill_record_n_invoke_before_triggers(thd, *fields, values, ignore_err,
-                                         table->triggers, TRG_EVENT_INSERT,
-                                         table->s->fields);
+  {
+    restore_record(table, s->default_values);
+    if (!validate_default_values_of_unset_fields(thd, table))
+      fill_record_n_invoke_before_triggers(thd, *fields, values, ignore_err,
+                                           table, TRG_EVENT_INSERT,
+                                           table->s->fields);
+  }
   else
     fill_record_n_invoke_before_triggers(thd, table->field, values, ignore_err,
-                                         table->triggers, TRG_EVENT_INSERT,
+                                         table, TRG_EVENT_INSERT,
                                          table->s->fields);
 
   check_that_all_fields_are_given_values(thd, table_list->table, table_list);
@@ -2577,7 +2623,7 @@ void select_create::store_values(List<Item> &values)
 {
   const bool ignore_err= true;
   fill_record_n_invoke_before_triggers(thd, field, values, ignore_err,
-                                       table->triggers, TRG_EVENT_INSERT,
+                                       table, TRG_EVENT_INSERT,
                                        table->s->fields);
 }
 

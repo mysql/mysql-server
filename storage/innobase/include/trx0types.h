@@ -159,17 +159,15 @@ public:
 	{
 	}
 
-	/**
-	Get transaction number
+	/** Get transaction number
 	@return trx_id_t - get transaction number. */
 	trx_id_t get_trx_no() const
 	{
 		return(m_trx_no);
 	}
 
-	/**
-	Add rollback segment.
-	@param rseg - rollback segment to add. */
+	/** Add rollback segment.
+	@param rseg rollback segment to add. */
 	void push_back(trx_rseg_t* rseg)
 	{
 		m_rsegs.push_back(rseg);
@@ -189,8 +187,7 @@ public:
 		return(m_rsegs.end());
 	}
 
-	/**
-	Append rollback segments from referred instance to current instance. */
+	/** Append rollback segments from referred instance to current instance. */
 	void append(const TrxUndoRsegs& append_from)
 	{
 		ut_ad(get_trx_no() == append_from.get_trx_no());
@@ -199,10 +196,9 @@ public:
 			       append_from.m_rsegs.end());
 	}
 
-	/**
-	Compare two TrxUndoRsegs based on trx_no.
-	@param - elem1 - first element to compare
-	@param - elem2 - second element to compare
+	/** Compare two TrxUndoRsegs based on trx_no.
+	@param elem1 first element to compare
+	@param elem2 second element to compare
 	@return true if elem1 > elem2 else false.*/
 	bool operator()(const TrxUndoRsegs& elem1, const TrxUndoRsegs& elem2)
 	{

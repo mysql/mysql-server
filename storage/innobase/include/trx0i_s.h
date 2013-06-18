@@ -246,7 +246,7 @@ trx_i_s_cache_end_write(
 /*******************************************************************//**
 Retrieves the number of used rows in the cache for a given
 INFORMATION SCHEMA table.
-@return	number of rows */
+@return number of rows */
 
 ulint
 trx_i_s_cache_get_rows_used(
@@ -257,7 +257,7 @@ trx_i_s_cache_get_rows_used(
 /*******************************************************************//**
 Retrieves the nth row in the cache for a given INFORMATION SCHEMA
 table.
-@return	row */
+@return row */
 
 void*
 trx_i_s_cache_get_nth_row(
@@ -268,7 +268,7 @@ trx_i_s_cache_get_nth_row(
 
 /*******************************************************************//**
 Update the transactions cache if it has not been read for some time.
-@return	0 - fetched, 1 - not */
+@return 0 - fetched, 1 - not */
 
 int
 trx_i_s_possibly_fetch_data_into_cache(
@@ -278,7 +278,7 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*******************************************************************//**
 Returns TRUE if the data in the cache is truncated due to the memory
 limit posed by TRX_I_S_MEM_LIMIT.
-@return	TRUE if truncated */
+@return TRUE if truncated */
 
 ibool
 trx_i_s_cache_is_truncated(
@@ -295,7 +295,7 @@ Crafts a lock id string from a i_s_locks_row_t object. Returns its
 second argument. This function aborts if there is not enough space in
 lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
 want to be 100% sure that it will not abort.
-@return	resulting lock id */
+@return resulting lock id */
 
 char*
 trx_i_s_create_lock_id(

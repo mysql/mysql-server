@@ -142,7 +142,7 @@ ib_vector_is_empty(
 
 /****************************************************************//**
 Get the n'th element.
-@return	n'th element */
+@return n'th element */
 UNIV_INLINE
 void*
 ib_vector_get(
@@ -161,7 +161,7 @@ ib_vector_get_const(
 	ulint			n);	/* in: element index to get */
 /****************************************************************//**
 Get last element. The vector must not be empty.
-@return	last element */
+@return last element */
 UNIV_INLINE
 void*
 ib_vector_get_last(

@@ -28,6 +28,7 @@
 #include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_parse.h"                       // check_table_access
 #include "sql_admin.h"
+#include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
@@ -644,6 +645,17 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
     result_code = (table->table->file->*operator_func)(thd, check_opt);
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
+
+    /*
+      push_warning() if the table version is lesser than current
+      server version and there are triggers for this table.
+    */
+    if (operator_func == &handler::ha_check &&
+        (check_opt->sql_flags & TT_FOR_UPGRADE) &&
+        table->table->triggers)
+    {
+      table->table->triggers->print_upgrade_warnings(thd);
+    }
 
 send_result:
 

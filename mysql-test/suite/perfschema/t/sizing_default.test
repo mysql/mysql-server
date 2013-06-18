@@ -5,12 +5,26 @@
 --source include/not_valgrind.inc
 --source ../include/have_aligned_memory.inc
 
-# For this test to work,
-# open_files_limit should not be scaled down by OS limitations.
-let $max_open_files_limit= `SELECT @@open_files_limit != 5000`;
+# Skip test if not defaults is used.
+let $max_open_files_limit= `SELECT @@open_files_limit < 5000`;
 if ($max_open_files_limit)
 {
-  skip Need open_files_limit to be exactly 5000;
+  skip Need open_files_limit to be at least 5000;
+}
+let $max_table_open_cache= `SELECT @@table_open_cache != 2000`;
+if ($max_table_open_cache)
+{
+  skip Need table_open_cache to be exactly 2000;
+}
+let $max_table_definition_cache= `SELECT @@table_definition_cache != 1400`;
+if ($max_table_definition_cache)
+{
+  skip Need table_definition_cache to be exactly 1400;
+}
+let $max_connections= `SELECT @@max_connections != 151`;
+if ($max_connections)
+{
+  skip Need max_connections to be exactly 151;
 }
 
 --source ../include/sizing_auto.inc
