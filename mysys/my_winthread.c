@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,6 @@
 ** Simulation of posix threads calls for Windows
 *****************************************************************************/
 #if defined (_WIN32)
-/* SAFE_MUTEX will not work until the thread structure is up to date */
-#undef SAFE_MUTEX
 #include "mysys_priv.h"
 #include <process.h>
 #include <signal.h>
