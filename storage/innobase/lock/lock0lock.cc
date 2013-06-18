@@ -346,8 +346,7 @@ static const ulint MAX_STACK_SIZE = 4096;
 /** Deadlock checker. */
 class DeadlockChecker {
 public:
-	/**
-	Checks if a joining lock request results in a deadlock. If
+	/** Checks if a joining lock request results in a deadlock. If
 	a deadlock is found this function will resolve the deadlock
 	by choosing a victim transaction and rolling it back. It
 	will attempt to resolve all deadlocks. The returned transaction
@@ -355,8 +354,8 @@ public:
 	transaction was chosen as a victim and rolled back or no
 	deadlock found.
 
-	@param lock - lock the transaction is requesting
-	@param trx - transaction requesting the lock
+	@param lock lock the transaction is requesting
+	@param trx transaction requesting the lock
 
 	@return id of transaction chosen as victim or 0 */
 	static const trx_t* check_and_resolve(
@@ -364,11 +363,10 @@ public:
 		const trx_t*	trx);
 
 private:
-	/**
-	Do a shallow copy. Default destructor OK.
-	@param trx - the start transaction (start node)
-	@param wait_lock - lock that a transaction wants
-	@param mark_start - visited node counter */
+	/** Do a shallow copy. Default destructor OK.
+	@param trx the start transaction (start node)
+	@param wait_lock lock that a transaction wants
+	@param mark_start visited node counter */
 	DeadlockChecker(
 		const trx_t*	trx,
 		const lock_t*	wait_lock,
@@ -391,8 +389,8 @@ private:
 	}
 
 	/** Save current state.
-	@param lock - lock to push on the stack.
-	@param heap_no - the heap number to push on the stack.
+	@param lock lock to push on the stack.
+	@param heap_no the heap number to push on the stack.
 	@return false if stack is full. */
 	bool push(const lock_t*	lock, ulint heap_no)
 	{
@@ -417,8 +415,8 @@ private:
 	}
 
 	/** Restore state.
-	@param lock - [out] current lock
-	@param heap_no - [out] current heap_no */
+	@param[out] lock current lock
+	@param[out] heap_no current heap_no */
 	void pop(const lock_t*& lock, ulint& heap_no)
 	{
 		ut_a(m_n_elems > 0);
@@ -431,24 +429,22 @@ private:
 	}
 
 	/** Check whether the node has been visited.
-	@param lock - lock to check
+	@param lock lock to check
 	@return true if the node has been visited */
 	bool is_visited(const lock_t* lock) const
 	{
 		return(lock->trx->lock.deadlock_mark > m_mark_start);
 	}
 
-	/**
-	Get the next lock in the queue that is owned by a transaction whose
-	sub-tree has not already been searched.
+	/** Get the next lock in the queue that is owned by a transaction
+	whose sub-tree has not already been searched.
 	Note: "next" here means PREV for table locks.
-	@param lock - Lock in queue
-	@param heap_no - heap_no if lock is a record lock else ULINT_UNDEFINED
+	@param lock Lock in queue
+	@param heap_no heap_no if lock is a record lock else ULINT_UNDEFINED
 	@return next lock or NULL if at end of queue */
 	const lock_t* get_next_lock(const lock_t* lock, ulint heap_no) const;
 
-	/**
-	Get the first lock to search. The search starts from the current
+	/** Get the first lock to search. The search starts from the current
 	wait_lock. What we are really interested in is an edge from the
 	current wait_lock's owning transaction to another transaction that has
 	a lock ahead in the queue. We skip locks where the owning transaction's
@@ -461,59 +457,50 @@ private:
 	the page and then reposition on the actual heap_no. This is required
 	due to the way the record lock has is implemented.
 
-	@param heap_no - [out] if rec lock, else ULINT_UNDEFINED.
+	@param[out] heap_no if rec lock, else ULINT_UNDEFINED.
 
 	@return first lock or NULL */
 	const lock_t* get_first_lock(ulint* heap_no) const;
 
-	/**
-	Notify that a deadlock has been detected and print the conflicting
+	/** Notify that a deadlock has been detected and print the conflicting
 	transaction info.
-	@param lock - lock causing deadlock */
+	@param lock lock causing deadlock */
 	void notify(const lock_t* lock) const;
 
-	/**
-	Select the victim transaction that should be rolledback.
+	/** Select the victim transaction that should be rolledback.
 	@return victim transaction */
 	const trx_t* select_victim() const;
 
-	/**
-	Rollback transaction selected as the victim. */
+	/** Rollback transaction selected as the victim. */
 	void trx_rollback();
 
-	/**
-	Looks iteratively for a deadlock. Note: the joining transaction may
-	have been granted its lock by the deadlock checks.
+	/** Looks iteratively for a deadlock. Note: the joining transaction
+	may have been granted its lock by the deadlock checks.
 
 	@return 0 if no deadlock else the victim transaction.*/
 	const trx_t* search();
 
-	/**
-	Print transaction data to the deadlock file and possibly to stderr.
-	@param trx - transaction
-	@param max_query_len - max query length to print */
+	/** Print transaction data to the deadlock file and possibly to stderr.
+	@param trx transaction
+	@param max_query_len max query length to print */
 	static void print(const trx_t* trx, ulint max_query_len);
 
-	/**
-	rewind(3) the file used for storing the latest detected deadlock and
-	print a heading message to stderr if printing of all deadlocks to stderr
-	is enabled. */
+	/** rewind(3) the file used for storing the latest detected deadlock
+	and print a heading message to stderr if printing of all deadlocks to
+	stderr is enabled. */
 	static void start_print();
 
-	/**
-	Print lock data to the deadlock file and possibly to stderr.
-	@param lock - record or table type lock */
+	/** Print lock data to the deadlock file and possibly to stderr.
+	@param lock record or table type lock */
 	static void print(const lock_t* lock);
 
-	/**
-	Print a message to the deadlock file and possibly to stderr.
-	@param msg - message to print */
+	/** Print a message to the deadlock file and possibly to stderr.
+	@param msg message to print */
 	static void print(const char* msg);
 
-	/**
-	Print info about transaction that was rolled back.
-	@param trx - transaction rolled back
-	@param lock - lock trx wants */
+	/** Print info about transaction that was rolled back.
+	@param trx transaction rolled back
+	@param lock lock trx wants */
 	static void joining_trx_print(const trx_t* trx, const lock_t* lock);
 
 private:
@@ -569,7 +556,7 @@ mysql_pfs_key_t	lock_wait_mutex_key;
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Validates the lock system.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 bool
 lock_validate();
@@ -577,7 +564,7 @@ lock_validate();
 
 /*********************************************************************//**
 Validates the record lock queues on a page.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 lock_rec_validate_page(
@@ -598,7 +585,7 @@ static FILE*		lock_latest_err_file;
 
 /*********************************************************************//**
 Gets the nth bit of a record lock.
-@return	TRUE if bit set also if i == ULINT_UNDEFINED return FALSE*/
+@return TRUE if bit set also if i == ULINT_UNDEFINED return FALSE*/
 UNIV_INLINE
 ibool
 lock_rec_get_nth_bit(
@@ -649,7 +636,7 @@ lock_report_trx_id_insanity(
 
 /*********************************************************************//**
 Checks that a transaction id is sensible, i.e., not in the future.
-@return	true if ok */
+@return true if ok */
 #ifdef UNIV_DEBUG
 
 #else
@@ -821,7 +808,7 @@ lock_sys_close(void)
 
 /*********************************************************************//**
 Gets the size of a lock struct.
-@return	size in bytes */
+@return size in bytes */
 
 ulint
 lock_get_size(void)
@@ -832,7 +819,7 @@ lock_get_size(void)
 
 /*********************************************************************//**
 Gets the mode of a lock.
-@return	mode */
+@return mode */
 UNIV_INLINE
 enum lock_mode
 lock_get_mode(
@@ -846,7 +833,7 @@ lock_get_mode(
 
 /*********************************************************************//**
 Gets the wait flag of a lock.
-@return	LOCK_WAIT if waiting, 0 if not */
+@return LOCK_WAIT if waiting, 0 if not */
 UNIV_INLINE
 ulint
 lock_get_wait(
@@ -1042,7 +1029,7 @@ lock_reset_lock_and_trx_wait(
 
 /*********************************************************************//**
 Gets the gap flag of a record lock.
-@return	LOCK_GAP or 0 */
+@return LOCK_GAP or 0 */
 UNIV_INLINE
 ulint
 lock_rec_get_gap(
@@ -1057,7 +1044,7 @@ lock_rec_get_gap(
 
 /*********************************************************************//**
 Gets the LOCK_REC_NOT_GAP flag of a record lock.
-@return	LOCK_REC_NOT_GAP or 0 */
+@return LOCK_REC_NOT_GAP or 0 */
 UNIV_INLINE
 ulint
 lock_rec_get_rec_not_gap(
@@ -1072,7 +1059,7 @@ lock_rec_get_rec_not_gap(
 
 /*********************************************************************//**
 Gets the waiting insert flag of a record lock.
-@return	LOCK_INSERT_INTENTION or 0 */
+@return LOCK_INSERT_INTENTION or 0 */
 UNIV_INLINE
 ulint
 lock_rec_get_insert_intention(
@@ -1087,7 +1074,7 @@ lock_rec_get_insert_intention(
 
 /*********************************************************************//**
 Calculates if lock mode 1 is stronger or equal to lock mode 2.
-@return	nonzero if mode1 stronger or equal to mode2 */
+@return nonzero if mode1 stronger or equal to mode2 */
 UNIV_INLINE
 ulint
 lock_mode_stronger_or_eq(
@@ -1103,7 +1090,7 @@ lock_mode_stronger_or_eq(
 
 /*********************************************************************//**
 Calculates if lock mode 1 is compatible with lock mode 2.
-@return	nonzero if mode1 compatible with mode2 */
+@return nonzero if mode1 compatible with mode2 */
 UNIV_INLINE
 ulint
 lock_mode_compatible(
@@ -1119,7 +1106,7 @@ lock_mode_compatible(
 
 /*********************************************************************//**
 Checks if a lock request for a new lock has to wait for request lock2.
-@return	TRUE if new lock has to wait for lock2 to be removed */
+@return TRUE if new lock has to wait for lock2 to be removed */
 UNIV_INLINE
 ibool
 lock_rec_has_to_wait(
@@ -1202,7 +1189,7 @@ lock_rec_has_to_wait(
 
 /*********************************************************************//**
 Checks if a lock request lock1 has to wait for request lock2.
-@return	TRUE if lock1 has to wait for lock2 to be removed */
+@return TRUE if lock1 has to wait for lock2 to be removed */
 
 ibool
 lock_has_to_wait(
@@ -1240,7 +1227,7 @@ lock_has_to_wait(
 
 /*********************************************************************//**
 Gets the number of bits in a record lock bitmap.
-@return	number of bits */
+@return number of bits */
 UNIV_INLINE
 ulint
 lock_rec_get_n_bits(
@@ -1296,32 +1283,29 @@ lock_rec_find_set_bit(
 	return(ULINT_UNDEFINED);
 }
 
-/**********************************************************************//**
-Resets the nth bit of a record lock. */
+/** Reset the nth bit of a record lock.
+@param[in,out] lock record lock
+@param[in] i index of the bit that will be reset
+@return previous value of the bit */
 UNIV_INLINE
-void
+byte
 lock_rec_reset_nth_bit(
-/*===================*/
-	lock_t*	lock,	/*!< in: record lock */
-	ulint	i)	/*!< in: index of the bit which must be set to TRUE
-			when this function is called */
+	lock_t*	lock,
+	ulint	i)
 {
-	ulint	byte_index;
-	ulint	bit_index;
-
-	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 	ut_ad(i < lock->un_member.rec_lock.n_bits);
 
-	byte_index = i / 8;
-	bit_index = i % 8;
-
-	((byte*) &lock[1])[byte_index] &= ~(1 << bit_index);
+	byte*	b = reinterpret_cast<byte*>(&lock[1]) + (i >> 3);
+	byte	mask = 1 << (i & 7);
+	byte	bit = *b & mask;
+	*b &= ~mask;
+	return(bit);
 }
 
 /*********************************************************************//**
 Gets the first or next record lock on a page.
-@return	next lock, NULL if none exists */
+@return next lock, NULL if none exists */
 UNIV_INLINE
 const lock_t*
 lock_rec_get_next_on_page_const(
@@ -1357,7 +1341,7 @@ lock_rec_get_next_on_page_const(
 
 /*********************************************************************//**
 Gets the first or next record lock on a page.
-@return	next lock, NULL if none exists */
+@return next lock, NULL if none exists */
 UNIV_INLINE
 lock_t*
 lock_rec_get_next_on_page(
@@ -1370,7 +1354,7 @@ lock_rec_get_next_on_page(
 /*********************************************************************//**
 Gets the first record lock on a page, where the page is identified by its
 file address.
-@return	first lock, NULL if none exists */
+@return first lock, NULL if none exists */
 UNIV_INLINE
 lock_t*
 lock_rec_get_first_on_page_addr(
@@ -1400,7 +1384,7 @@ lock_rec_get_first_on_page_addr(
 
 /*********************************************************************//**
 Determines if there are explicit record locks on a page.
-@return	an explicit record lock on the page, or NULL if there are none */
+@return an explicit record lock on the page, or NULL if there are none */
 
 lock_t*
 lock_rec_expl_exist_on_page(
@@ -1420,7 +1404,7 @@ lock_rec_expl_exist_on_page(
 /*********************************************************************//**
 Gets the first record lock on a page, where the page is identified by a
 pointer to it.
-@return	first lock, NULL if none exists */
+@return first lock, NULL if none exists */
 UNIV_INLINE
 lock_t*
 lock_rec_get_first_on_page(
@@ -1453,7 +1437,7 @@ lock_rec_get_first_on_page(
 
 /*********************************************************************//**
 Gets the next explicit lock request on a record.
-@return	next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
+@return next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
 UNIV_INLINE
 lock_t*
 lock_rec_get_next(
@@ -1473,7 +1457,7 @@ lock_rec_get_next(
 
 /*********************************************************************//**
 Gets the next explicit lock request on a record.
-@return	next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
+@return next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
 UNIV_INLINE
 const lock_t*
 lock_rec_get_next_const(
@@ -1486,7 +1470,7 @@ lock_rec_get_next_const(
 
 /*********************************************************************//**
 Gets the first explicit lock request on a record.
-@return	first lock, NULL if none exists */
+@return first lock, NULL if none exists */
 UNIV_INLINE
 lock_t*
 lock_rec_get_first(
@@ -1534,7 +1518,7 @@ lock_rec_bitmap_reset(
 
 /*********************************************************************//**
 Copies a record lock to heap.
-@return	copy of lock */
+@return copy of lock */
 static
 lock_t*
 lock_rec_copy(
@@ -1553,7 +1537,7 @@ lock_rec_copy(
 
 /*********************************************************************//**
 Gets the previous record lock set on a record.
-@return	previous lock on the same record, NULL if none exists */
+@return previous lock on the same record, NULL if none exists */
 
 const lock_t*
 lock_rec_get_prev(
@@ -1595,7 +1579,7 @@ lock_rec_get_prev(
 /*********************************************************************//**
 Checks if a transaction has the specified table lock, or stronger. This
 function should only be called by the thread that owns the transaction.
-@return	lock or NULL */
+@return lock or NULL */
 UNIV_INLINE
 const lock_t*
 lock_table_has(
@@ -1646,7 +1630,7 @@ lock_table_has(
 /*********************************************************************//**
 Checks if a transaction has a GRANTED explicit lock on rec stronger or equal
 to precise_mode.
-@return	lock or NULL */
+@return lock or NULL */
 UNIV_INLINE
 lock_t*
 lock_rec_has_expl(
@@ -1696,7 +1680,7 @@ lock_rec_has_expl(
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Checks if some other transaction has a lock request in the queue.
-@return	lock or NULL */
+@return lock or NULL */
 static
 const lock_t*
 lock_rec_other_has_expl_req(
@@ -1737,7 +1721,7 @@ lock_rec_other_has_expl_req(
 /*********************************************************************//**
 Checks if some other transaction has a conflicting explicit lock request
 in the queue, so that we have to wait.
-@return	lock or NULL */
+@return lock or NULL */
 static
 const lock_t*
 lock_rec_other_has_conflicting(
@@ -1774,7 +1758,7 @@ lock_rec_other_has_conflicting(
 Looks for a suitable type record lock struct by the same trx on the same page.
 This can be used to save space when a new record lock should be set on a page:
 no new struct is needed, if a suitable old is found.
-@return	lock or NULL */
+@return lock or NULL */
 UNIV_INLINE
 lock_t*
 lock_rec_find_similar_on_page(
@@ -1804,7 +1788,7 @@ lock_rec_find_similar_on_page(
 /*********************************************************************//**
 Checks if some transaction has an implicit x-lock on a record in a secondary
 index.
-@return	transaction id of the transaction which has the x-lock, or 0;
+@return transaction id of the transaction which has the x-lock, or 0;
 NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
 trx_is_active(). */
@@ -1890,12 +1874,37 @@ lock_number_of_rows_locked(
 	return(n_records);
 }
 
+/*********************************************************************//**
+Return the number of table locks for a transaction.
+The caller must be holding lock_sys->mutex. */
+ulint
+lock_number_of_tables_locked(
+/*=========================*/
+	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
+{
+	const lock_t*	lock;
+	ulint		n_tables = 0;
+
+	ut_ad(lock_mutex_own());
+
+	for (lock = UT_LIST_GET_FIRST(trx_lock->trx_locks);
+	     lock != NULL;
+	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+
+		if (lock_get_type_low(lock) == LOCK_TABLE) {
+			n_tables++;
+		}
+	}
+
+	return(n_tables);
+}
+
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
 
 /*********************************************************************//**
 Creates a new record lock and inserts it to the lock queue. Does NOT check
 for deadlocks or lock compatibility!
-@return	created lock */
+@return created lock */
 static
 lock_t*
 lock_rec_create(
@@ -2133,7 +2142,7 @@ on the record, and the request to be added is not a waiting request, we
 can reuse a suitable record lock object already existing on the same page,
 just setting the appropriate bit in its bitmap. This is a low-level function
 which does NOT check for deadlocks or lock compatibility!
-@return	lock where the bit was set */
+@return lock where the bit was set */
 static
 lock_t*
 lock_rec_add_to_queue(
@@ -2325,7 +2334,7 @@ This is the general, and slower, routine for locking a record. This is a
 low-level function which does NOT look at implicit locks! Checks lock
 compatibility within explicit locks. This function sets a normal next-key
 lock, or in the case of a page supremum record, a gap type lock.
-@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 static
 dberr_t
@@ -2425,7 +2434,7 @@ possible, enqueues a waiting lock request. This is a low-level function
 which does NOT look at implicit locks! Checks lock compatibility within
 explicit locks. This function sets a normal next-key lock, or in the case
 of a page supremum record, a gap type lock.
-@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 static
 dberr_t
@@ -2475,7 +2484,7 @@ lock_rec_lock(
 
 /*********************************************************************//**
 Checks if a waiting record lock request still has to wait in a queue.
-@return	lock that is causing the wait */
+@return lock that is causing the wait */
 static
 const lock_t*
 lock_rec_has_to_wait_in_queue(
@@ -2498,7 +2507,7 @@ lock_rec_has_to_wait_in_queue(
 	heap_no = lock_rec_find_set_bit(wait_lock);
 
 	bit_offset = heap_no / 8;
-	bit_mask = 1 << (heap_no % 8);
+	bit_mask = (ulint) 1 << (heap_no % 8);
 
 	for (lock = lock_rec_get_first_on_page_addr(space, page_no);
 	     lock != wait_lock;
@@ -2957,64 +2966,47 @@ lock_move_reorganize_page(
 		supremum of the page; the infimum may carry locks if an
 		update of a record is occurring on the page, and its locks
 		were temporarily stored on the infimum */
-		page_cur_t	cur1;
-		page_cur_t	cur2;
-
-		page_cur_set_before_first(block, &cur1);
-		page_cur_set_before_first(oblock, &cur2);
+		const rec_t*	rec1 = page_get_infimum_rec(
+			buf_block_get_frame(block));
+		const rec_t*	rec2 = page_get_infimum_rec(
+			buf_block_get_frame(oblock));
 
 		/* Set locks according to old locks */
 		for (;;) {
 			ulint	old_heap_no;
 			ulint	new_heap_no;
 
-			ut_ad(comp || !memcmp(page_cur_get_rec(&cur1),
-					      page_cur_get_rec(&cur2),
-					      rec_get_data_size_old(
-						      page_cur_get_rec(
-							      &cur2))));
-			if (UNIV_LIKELY(comp)) {
-				old_heap_no = rec_get_heap_no_new(
-					page_cur_get_rec(&cur2));
-				new_heap_no = rec_get_heap_no_new(
-					page_cur_get_rec(&cur1));
+			if (comp) {
+				old_heap_no = rec_get_heap_no_new(rec2);
+				new_heap_no = rec_get_heap_no_new(rec1);
+
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+				rec2 = page_rec_get_next_low(rec2, TRUE);
 			} else {
-				old_heap_no = rec_get_heap_no_old(
-					page_cur_get_rec(&cur2));
-				new_heap_no = rec_get_heap_no_old(
-					page_cur_get_rec(&cur1));
+				old_heap_no = rec_get_heap_no_old(rec2);
+				new_heap_no = rec_get_heap_no_old(rec1);
+				ut_ad(!memcmp(rec1, rec2,
+					      rec_get_data_size_old(rec2)));
+
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (lock_rec_get_nth_bit(lock, old_heap_no)) {
-
-				/* Clear the bit in old_lock. */
-				ut_d(lock_rec_reset_nth_bit(lock,
-							    old_heap_no));
-
+			/* Clear the bit in old_lock. */
+			if (old_heap_no < lock->un_member.rec_lock.n_bits
+			    && lock_rec_reset_nth_bit(lock, old_heap_no)) {
 				/* NOTE that the old lock bitmap could be too
 				small for the new heap number! */
 
 				lock_rec_add_to_queue(
 					lock->type_mode, block, new_heap_no,
 					lock->index, lock->trx, FALSE);
-
-				/* if (new_heap_no == PAGE_HEAP_NO_SUPREMUM
-				&& lock_get_wait(lock)) {
-				fprintf(stderr,
-				"---\n--\n!!!Lock reorg: supr type %lu\n",
-				lock->type_mode);
-				} */
 			}
 
-			if (UNIV_UNLIKELY
-			    (new_heap_no == PAGE_HEAP_NO_SUPREMUM)) {
-
+			if (new_heap_no == PAGE_HEAP_NO_SUPREMUM) {
 				ut_ad(old_heap_no == PAGE_HEAP_NO_SUPREMUM);
 				break;
 			}
-
-			page_cur_move_to_next(&cur1);
-			page_cur_move_to_next(&cur2);
 		}
 
 #ifdef UNIV_DEBUG
@@ -3056,6 +3048,9 @@ lock_move_rec_list_end(
 	lock_t*		lock;
 	const ulint	comp	= page_rec_is_comp(rec);
 
+	ut_ad(buf_block_get_frame(block) == page_align(rec));
+	ut_ad(comp == page_is_comp(buf_block_get_frame(new_block)));
+
 	lock_mutex_enter();
 
 	/* Note: when we move locks from record to record, waiting locks
@@ -3066,59 +3061,71 @@ lock_move_rec_list_end(
 
 	for (lock = lock_rec_get_first_on_page(block); lock;
 	     lock = lock_rec_get_next_on_page(lock)) {
-		page_cur_t	cur1;
-		page_cur_t	cur2;
+		const rec_t*	rec1	= rec;
+		const rec_t*	rec2;
 		const ulint	type_mode = lock->type_mode;
 
-		page_cur_position(rec, block, &cur1);
+		if (comp) {
+			if (page_offset(rec1) == PAGE_NEW_INFIMUM) {
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+			}
 
-		if (page_cur_is_before_first(&cur1)) {
-			page_cur_move_to_next(&cur1);
+			rec2 = page_rec_get_next_low(
+				buf_block_get_frame(new_block)
+				+ PAGE_NEW_INFIMUM, TRUE);
+		} else {
+			if (page_offset(rec1) == PAGE_OLD_INFIMUM) {
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+			}
+
+			rec2 = page_rec_get_next_low(
+				buf_block_get_frame(new_block)
+				+ PAGE_OLD_INFIMUM, FALSE);
 		}
-
-		page_cur_set_before_first(new_block, &cur2);
-		page_cur_move_to_next(&cur2);
 
 		/* Copy lock requests on user records to new page and
 		reset the lock bits on the old */
 
-		while (!page_cur_is_after_last(&cur1)) {
-			ulint	heap_no;
+		for (;;) {
+			ulint	rec1_heap_no;
+			ulint	rec2_heap_no;
 
 			if (comp) {
-				heap_no = rec_get_heap_no_new(
-					page_cur_get_rec(&cur1));
+				rec1_heap_no = rec_get_heap_no_new(rec1);
+
+				if (rec1_heap_no == PAGE_HEAP_NO_SUPREMUM) {
+					break;
+				}
+
+				rec2_heap_no = rec_get_heap_no_new(rec2);
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+				rec2 = page_rec_get_next_low(rec2, TRUE);
 			} else {
-				heap_no = rec_get_heap_no_old(
-					page_cur_get_rec(&cur1));
-				ut_ad(!memcmp(page_cur_get_rec(&cur1),
-					 page_cur_get_rec(&cur2),
-					 rec_get_data_size_old(
-						 page_cur_get_rec(&cur2))));
+				rec1_heap_no = rec_get_heap_no_old(rec1);
+
+				if (rec1_heap_no == PAGE_HEAP_NO_SUPREMUM) {
+					break;
+				}
+
+				rec2_heap_no = rec_get_heap_no_old(rec2);
+
+				ut_ad(!memcmp(rec1, rec2,
+					      rec_get_data_size_old(rec2)));
+
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (lock_rec_get_nth_bit(lock, heap_no)) {
-				lock_rec_reset_nth_bit(lock, heap_no);
-
+			if (rec1_heap_no < lock->un_member.rec_lock.n_bits
+			    && lock_rec_reset_nth_bit(lock, rec1_heap_no)) {
 				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 					lock_reset_lock_and_trx_wait(lock);
 				}
 
-				if (comp) {
-					heap_no = rec_get_heap_no_new(
-						page_cur_get_rec(&cur2));
-				} else {
-					heap_no = rec_get_heap_no_old(
-						page_cur_get_rec(&cur2));
-				}
-
 				lock_rec_add_to_queue(
-					type_mode, new_block, heap_no,
+					type_mode, new_block, rec2_heap_no,
 					lock->index, lock->trx, FALSE);
 			}
-
-			page_cur_move_to_next(&cur1);
-			page_cur_move_to_next(&cur2);
 		}
 	}
 
@@ -3154,62 +3161,62 @@ lock_move_rec_list_start(
 
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(new_block->frame == page_align(old_end));
+	ut_ad(comp == page_rec_is_comp(old_end));
 
 	lock_mutex_enter();
 
 	for (lock = lock_rec_get_first_on_page(block); lock;
 	     lock = lock_rec_get_next_on_page(lock)) {
-		page_cur_t	cur1;
-		page_cur_t	cur2;
+		const rec_t*	rec1;
+		const rec_t*	rec2;
 		const ulint	type_mode = lock->type_mode;
 
-		page_cur_set_before_first(block, &cur1);
-		page_cur_move_to_next(&cur1);
-
-		page_cur_position(old_end, new_block, &cur2);
-		page_cur_move_to_next(&cur2);
+		if (comp) {
+			rec1 = page_rec_get_next_low(
+				buf_block_get_frame(block)
+				+ PAGE_NEW_INFIMUM, TRUE);
+			rec2 = page_rec_get_next_low(old_end, TRUE);
+		} else {
+			rec1 = page_rec_get_next_low(
+				buf_block_get_frame(block)
+				+ PAGE_OLD_INFIMUM, FALSE);
+			rec2 = page_rec_get_next_low(old_end, FALSE);
+		}
 
 		/* Copy lock requests on user records to new page and
 		reset the lock bits on the old */
 
-		while (page_cur_get_rec(&cur1) != rec) {
-			ulint	heap_no;
+		while (rec1 != rec) {
+			ulint	rec1_heap_no;
+			ulint	rec2_heap_no;
 
 			if (comp) {
-				heap_no = rec_get_heap_no_new(
-					page_cur_get_rec(&cur1));
+				rec1_heap_no = rec_get_heap_no_new(rec1);
+				rec2_heap_no = rec_get_heap_no_new(rec2);
+
+				rec1 = page_rec_get_next_low(rec1, TRUE);
+				rec2 = page_rec_get_next_low(rec2, TRUE);
 			} else {
-				heap_no = rec_get_heap_no_old(
-					page_cur_get_rec(&cur1));
-				ut_ad(!memcmp(page_cur_get_rec(&cur1),
-					      page_cur_get_rec(&cur2),
-					      rec_get_data_size_old(
-						      page_cur_get_rec(
-							      &cur2))));
+				rec1_heap_no = rec_get_heap_no_old(rec1);
+				rec2_heap_no = rec_get_heap_no_old(rec2);
+
+				ut_ad(!memcmp(rec1, rec2,
+					      rec_get_data_size_old(rec2)));
+
+				rec1 = page_rec_get_next_low(rec1, FALSE);
+				rec2 = page_rec_get_next_low(rec2, FALSE);
 			}
 
-			if (lock_rec_get_nth_bit(lock, heap_no)) {
-				lock_rec_reset_nth_bit(lock, heap_no);
-
+			if (rec1_heap_no < lock->un_member.rec_lock.n_bits
+			    && lock_rec_reset_nth_bit(lock, rec1_heap_no)) {
 				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 					lock_reset_lock_and_trx_wait(lock);
 				}
 
-				if (comp) {
-					heap_no = rec_get_heap_no_new(
-						page_cur_get_rec(&cur2));
-				} else {
-					heap_no = rec_get_heap_no_old(
-						page_cur_get_rec(&cur2));
-				}
-
 				lock_rec_add_to_queue(
-					type_mode, new_block, heap_no,
+					type_mode, new_block, rec2_heap_no,
 					lock->index, lock->trx, FALSE);
 			}
-
-			page_cur_move_to_next(&cur1);
-			page_cur_move_to_next(&cur2);
 		}
 
 #ifdef UNIV_DEBUG
@@ -3650,7 +3657,7 @@ struct TableLockGetNode {
 /*********************************************************************//**
 Creates a table lock object and adds it as the last in the lock queue
 of the table. Does NOT check for deadlocks or lock compatibility.
-@return	own: new lock object */
+@return own: new lock object */
 UNIV_INLINE
 lock_t*
 lock_table_create(
@@ -3949,7 +3956,7 @@ lock_table_enqueue_waiting(
 /*********************************************************************//**
 Checks if other transactions have an incompatible mode lock request in
 the lock queue.
-@return	lock or NULL */
+@return lock or NULL */
 UNIV_INLINE
 const lock_t*
 lock_table_other_has_incompatible(
@@ -3984,7 +3991,7 @@ lock_table_other_has_incompatible(
 /*********************************************************************//**
 Locks the specified database table in the mode given. If the lock cannot
 be granted immediately, the query thread is put to wait.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 
 dberr_t
 lock_table(
@@ -4098,7 +4105,7 @@ lock_table_ix_resurrect(
 
 /*********************************************************************//**
 Checks if a waiting table lock request still has to wait in a queue.
-@return	TRUE if still has to wait */
+@return TRUE if still has to wait */
 static
 ibool
 lock_table_has_to_wait_in_queue(
@@ -4743,7 +4750,7 @@ http://bugs.mysql.com/36942 */
 #ifdef PRINT_NUM_OF_LOCK_STRUCTS
 /*********************************************************************//**
 Calculates the number of record lock structs in the record lock hash table.
-@return	number of record locks */
+@return number of record locks */
 static
 ulint
 lock_get_n_rec_locks(void)
@@ -5276,7 +5283,7 @@ lock_trx_table_locks_find(
 
 /*********************************************************************//**
 Validates the lock queue on a table.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 lock_table_queue_validate(
@@ -5316,7 +5323,7 @@ lock_table_queue_validate(
 
 /*********************************************************************//**
 Validates the lock queue on a single record.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 lock_rec_queue_validate(
@@ -5431,7 +5438,7 @@ func_exit:
 
 /*********************************************************************//**
 Validates the record lock queues on a page.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 lock_rec_validate_page(
@@ -5522,7 +5529,7 @@ function_exit:
 
 /*********************************************************************//**
 Validates the table locks.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 lock_validate_table_locks(
@@ -5638,7 +5645,7 @@ lock_rec_block_validate(
 
 /*********************************************************************//**
 Validates the lock system.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 bool
 lock_validate()
@@ -5691,7 +5698,7 @@ a record. If they do, first tests if the query thread should anyway
 be suspended for some reason; if not, then puts the transaction and
 the query thread to the lock wait state and inserts a waiting request
 for a gap x-lock to the lock queue.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 
 dberr_t
 lock_rec_insert_check_and_lock(
@@ -5929,7 +5936,7 @@ first tests if the query thread should anyway be suspended for some
 reason; if not, then puts the transaction and the query thread to the
 lock wait state and inserts a waiting request for a record x-lock to the
 lock queue.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 
 dberr_t
 lock_clust_rec_modify_check_and_lock(
@@ -5988,7 +5995,7 @@ lock_clust_rec_modify_check_and_lock(
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (delete
 mark or delete unmark) of a secondary index record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 
 dberr_t
 lock_sec_rec_modify_check_and_lock(
@@ -6073,7 +6080,7 @@ lock_sec_rec_modify_check_and_lock(
 /*********************************************************************//**
 Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
-@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 
 dberr_t
@@ -6153,7 +6160,7 @@ if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record.
-@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 
 dberr_t
@@ -6227,7 +6234,7 @@ waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record. This is an alternative version of
 lock_clust_rec_read_check_and_lock() that does not require the parameter
 "offsets".
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 
 dberr_t
 lock_clust_rec_read_check_and_lock_alt(
@@ -6347,7 +6354,7 @@ lock_release_autoinc_locks(
 /*******************************************************************//**
 Gets the type of a lock. Non-inline version for using outside of the
 lock module.
-@return	LOCK_TABLE or LOCK_REC */
+@return LOCK_TABLE or LOCK_REC */
 
 ulint
 lock_get_type(
@@ -6359,7 +6366,7 @@ lock_get_type(
 
 /*******************************************************************//**
 Gets the id of the transaction owning a lock.
-@return	transaction id */
+@return transaction id */
 
 trx_id_t
 lock_get_trx_id(
@@ -6372,7 +6379,7 @@ lock_get_trx_id(
 /*******************************************************************//**
 Gets the mode of a lock in a human readable string.
 The string should not be free()'d or modified.
-@return	lock mode */
+@return lock mode */
 
 const char*
 lock_get_mode_str(
@@ -6419,7 +6426,7 @@ lock_get_mode_str(
 /*******************************************************************//**
 Gets the type of a lock in a human readable string.
 The string should not be free()'d or modified.
-@return	lock type */
+@return lock type */
 
 const char*
 lock_get_type_str(
@@ -6438,7 +6445,7 @@ lock_get_type_str(
 
 /*******************************************************************//**
 Gets the table on which the lock is.
-@return	table */
+@return table */
 UNIV_INLINE
 dict_table_t*
 lock_get_table(
@@ -6460,7 +6467,7 @@ lock_get_table(
 
 /*******************************************************************//**
 Gets the id of the table on which the lock is.
-@return	id of the table */
+@return id of the table */
 
 table_id_t
 lock_get_table_id(
@@ -6477,7 +6484,7 @@ lock_get_table_id(
 /*******************************************************************//**
 Gets the name of the table on which the lock is.
 The string should not be free()'d or modified.
-@return	name of the table */
+@return name of the table */
 
 const char*
 lock_get_table_name(
@@ -6493,7 +6500,7 @@ lock_get_table_name(
 
 /*******************************************************************//**
 For a record lock, gets the index on which the lock is.
-@return	index */
+@return index */
 
 const dict_index_t*
 lock_rec_get_index(
@@ -6510,7 +6517,7 @@ lock_rec_get_index(
 /*******************************************************************//**
 For a record lock, gets the name of the index on which the lock is.
 The string should not be free()'d or modified.
-@return	name of the index */
+@return name of the index */
 
 const char*
 lock_rec_get_index_name(
@@ -6526,7 +6533,7 @@ lock_rec_get_index_name(
 
 /*******************************************************************//**
 For a record lock, gets the tablespace number on which the lock is.
-@return	tablespace number */
+@return tablespace number */
 
 ulint
 lock_rec_get_space_id(
@@ -6540,7 +6547,7 @@ lock_rec_get_space_id(
 
 /*******************************************************************//**
 For a record lock, gets the page number on which the lock is.
-@return	page number */
+@return page number */
 
 ulint
 lock_rec_get_page_no(
@@ -6790,7 +6797,7 @@ lock_table_get_n_locks(
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
 Do an exhaustive check for any locks (table or rec) against the table.
-@return	lock if found */
+@return lock if found */
 static
 const lock_t*
 lock_table_locks_lookup(
@@ -6845,7 +6852,7 @@ lock_table_locks_lookup(
 
 /*******************************************************************//**
 Check if there are any locks (table or rec) against table.
-@return	TRUE if table has either table or record locks. */
+@return TRUE if table has either table or record locks. */
 
 ibool
 lock_table_has_locks(
@@ -6912,7 +6919,7 @@ lock_set_timeout_event()
 /*******************************************************************//**
 Check if the transaction holds any locks on the sys tables
 or its records.
-@return	the strongest lock found on any sys table or 0 for none */
+@return the strongest lock found on any sys table or 0 for none */
 
 const lock_t*
 lock_trx_has_sys_table_locks(
@@ -6978,7 +6985,7 @@ lock_trx_has_sys_table_locks(
 
 /*******************************************************************//**
 Check if the transaction holds an exclusive lock on a record.
-@return	whether the locks are held */
+@return whether the locks are held */
 
 bool
 lock_trx_has_rec_x_lock(
@@ -7001,8 +7008,7 @@ lock_trx_has_rec_x_lock(
 }
 #endif /* UNIV_DEBUG */
 
-/**
-rewind(3) the file used for storing the latest detected deadlock and
+/** rewind(3) the file used for storing the latest detected deadlock and
 print a heading message to stderr if printing of all deadlocks to stderr
 is enabled. */
 void
@@ -7020,9 +7026,8 @@ DeadlockChecker::start_print()
 	}
 }
 
-/**
-Print a message to the deadlock file and possibly to stderr.
-@param msg - message to print */
+/** Print a message to the deadlock file and possibly to stderr.
+@param msg message to print */
 void
 DeadlockChecker::print(const char* msg)
 {
@@ -7033,10 +7038,9 @@ DeadlockChecker::print(const char* msg)
 	}
 }
 
-/**
-Print transaction data to the deadlock file and possibly to stderr.
-@param trx - transaction
-@param max_query_len - max query length to print */
+/** Print transaction data to the deadlock file and possibly to stderr.
+@param trx transaction
+@param max_query_len max query length to print */
 void
 DeadlockChecker::print(const trx_t* trx, ulint max_query_len)
 {
@@ -7059,9 +7063,8 @@ DeadlockChecker::print(const trx_t* trx, ulint max_query_len)
 	mutex_exit(&trx_sys->mutex);
 }
 
-/**
-Print lock data to the deadlock file and possibly to stderr.
-@param lock - record or table type lock */
+/** Print lock data to the deadlock file and possibly to stderr.
+@param lock record or table type lock */
 void
 DeadlockChecker::print(const lock_t* lock)
 {
@@ -7082,13 +7085,12 @@ DeadlockChecker::print(const lock_t* lock)
 	}
 }
 
-/**
-Get the next lock in the queue that is owned by a transaction whose
+/** Get the next lock in the queue that is owned by a transaction whose
 sub-tree has not already been searched.
 Note: "next" here means PREV for table locks.
 
-@param lock - Lock in queue
-@param heap_no - heap_no if lock is a record lock else ULINT_UNDEFINED
+@param lock Lock in queue
+@param heap_no heap_no if lock is a record lock else ULINT_UNDEFINED
 
 @return next lock or NULL if at end of queue */
 const lock_t*
@@ -7116,8 +7118,7 @@ DeadlockChecker::get_next_lock(const lock_t* lock, ulint heap_no) const
 	return(lock);
 }
 
-/**
-Get the first lock to search. The search starts from the current
+/** Get the first lock to search. The search starts from the current
 wait_lock. What we are really interested in is an edge from the
 current wait_lock's owning transaction to another transaction that has
 a lock ahead in the queue. We skip locks where the owning transaction's
@@ -7130,7 +7131,7 @@ For record locks, we first position the "iterator" on the first lock on
 the page and then reposition on the actual heap_no. This is required
 due to the way the record lock has is implemented.
 
-@param heap_no - [out] if rec lock, else ULINT_UNDEFINED.
+@param[out] heap_no if rec lock, else ULINT_UNDEFINED.
 @return first lock or NULL */
 const lock_t*
 DeadlockChecker::get_first_lock(ulint* heap_no) const
@@ -7176,10 +7177,9 @@ DeadlockChecker::get_first_lock(ulint* heap_no) const
 	return(lock);
 }
 
-/**
-Notify that a deadlock has been detected and print the conflicting
+/** Notify that a deadlock has been detected and print the conflicting
 transaction info.
-@param lock - lock causing deadlock */
+@param lock lock causing deadlock */
 void
 DeadlockChecker::notify(const lock_t* lock) const
 {
@@ -7215,8 +7215,7 @@ DeadlockChecker::notify(const lock_t* lock) const
 	DBUG_PRINT("ib_lock", ("deadlock detected"));
 }
 
-/**
-Select the victim transaction that should be rolledback.
+/** Select the victim transaction that should be rolledback.
 @return victim transaction */
 const trx_t*
 DeadlockChecker::select_victim() const
@@ -7235,8 +7234,7 @@ DeadlockChecker::select_victim() const
 	return(m_wait_lock->trx);
 }
 
-/**
-Looks iteratively for a deadlock. Note: the joining transaction may
+/** Looks iteratively for a deadlock. Note: the joining transaction may
 have been granted its lock by the deadlock checks.
 @return 0 if no deadlock else the victim transaction instance.*/
 const trx_t*
@@ -7340,10 +7338,9 @@ DeadlockChecker::search()
 	return(0);
 }
 
-/**
-Print info about transaction that was rolled back.
-@param trx - transaction rolled back
-@param lock - lock trx wants */
+/** Print info about transaction that was rolled back.
+@param trx transaction rolled back
+@param lock lock trx wants */
 void
 DeadlockChecker::joining_trx_print(const trx_t*	trx, const lock_t* lock)
 {
@@ -7366,8 +7363,7 @@ DeadlockChecker::joining_trx_print(const trx_t*	trx, const lock_t* lock)
 	print(lock);
 }
 
-/**
-Rollback transaction selected as the victim. */
+/** Rollback transaction selected as the victim. */
 void
 DeadlockChecker::trx_rollback()
 {
@@ -7386,15 +7382,14 @@ DeadlockChecker::trx_rollback()
 	trx_mutex_exit(trx);
 }
 
-/**
-Checks if a joining lock request results in a deadlock. If a deadlock is
+/** Checks if a joining lock request results in a deadlock. If a deadlock is
 found this function will resolve the deadlock by choosing a victim transaction
 and rolling it back. It will attempt to resolve all deadlocks. The returned
 transaction id will be the joining transaction id or 0 if some other
 transaction was chosen as a victim and rolled back or no deadlock found.
 
-@param lock - lock the transaction is requesting
-@param trx - transaction requesting the lock
+@param lock lock the transaction is requesting
+@param trx transaction requesting the lock
 
 @return transaction instanace chosen as victim or 0 */
 const trx_t*
@@ -7446,4 +7441,3 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 
 	return(victim_trx);
 }
-

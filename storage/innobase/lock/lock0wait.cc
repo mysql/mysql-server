@@ -126,7 +126,7 @@ lock_wait_table_release_slot(
 
 /*********************************************************************//**
 Reserves a slot in the thread table for the current user OS thread.
-@return	reserved slot */
+@return reserved slot */
 static
 srv_slot_t*
 lock_wait_table_reserve_slot(
@@ -475,7 +475,7 @@ lock_wait_check_and_cancel(
 
 /*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(lock_wait_timeout_thread)(

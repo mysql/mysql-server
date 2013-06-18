@@ -53,6 +53,10 @@ bool	fts_need_sync = false;
 /** Variable specifying the total memory allocated for FTS cache */
 ulong	fts_max_total_cache_size;
 
+/** This is FTS result cache limit for each query and would be
+a configurable variable */
+ulong	fts_result_cache_limit;
+
 /** Variable specifying the maximum FTS max token size */
 ulong	fts_max_token_size;
 
@@ -246,7 +250,7 @@ static const char* fts_config_table_insert_values_sql =
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end.
-@return DB_SUCCESS if all OK  */
+@return DB_SUCCESS if all OK */
 static
 dberr_t
 fts_sync(
@@ -316,7 +320,7 @@ fts_update_sync_doc_id(
 	__attribute__((nonnull(1)));
 
 /** Get a character set based on precise type.
-@param prtype	precise type
+@param prtype precise type
 @return the corresponding character set */
 UNIV_INLINE
 CHARSET_INFO*
@@ -338,7 +342,7 @@ fts_get_charset(ulint prtype)
 	}
 #endif /* UNIV_DEBUG */
 
-	uint cs_num = dtype_get_charset_coll(prtype);
+	uint cs_num = (uint) dtype_get_charset_coll(prtype);
 
 	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
 		return(cs);
@@ -2155,7 +2159,7 @@ fts_savepoint_create(
 
 /******************************************************************//**
 Create an FTS trx.
-@return FTS trx  */
+@return FTS trx */
 static
 fts_trx_t*
 fts_trx_create(

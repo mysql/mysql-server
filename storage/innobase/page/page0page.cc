@@ -84,7 +84,7 @@ is 50 x 4 bytes = 200 bytes. */
 
 /***************************************************************//**
 Looks for the directory slot which owns the given record.
-@return	the directory slot number */
+@return the directory slot number */
 
 ulint
 page_dir_find_owner_slot(
@@ -156,7 +156,7 @@ page_dir_find_owner_slot(
 
 /**************************************************************//**
 Used to check the consistency of a directory slot.
-@return	TRUE if succeed */
+@return TRUE if succeed */
 static
 ibool
 page_dir_slot_check(
@@ -234,7 +234,7 @@ page_set_max_trx_id(
 
 /************************************************************//**
 Allocates a block of memory from the heap of an index page.
-@return	pointer to start of allocated buffer, or NULL if allocation fails */
+@return pointer to start of allocated buffer, or NULL if allocation fails */
 
 byte*
 page_mem_alloc_heap(
@@ -292,7 +292,7 @@ page_create_write_log(
 
 /***********************************************************//**
 Parses a redo log record of creating a page.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_parse_create(
@@ -316,7 +316,7 @@ page_parse_create(
 
 /**********************************************************//**
 The index page creation function.
-@return	pointer to the page */
+@return pointer to the page */
 static
 page_t*
 page_create_low(
@@ -469,7 +469,7 @@ page_create_low(
 
 /**********************************************************//**
 Create an uncompressed B-tree index page.
-@return	pointer to the page */
+@return pointer to the page */
 
 page_t*
 page_create(
@@ -485,7 +485,7 @@ page_create(
 
 /**********************************************************//**
 Create a compressed B-tree index page.
-@return	pointer to the page */
+@return pointer to the page */
 
 page_t*
 page_create_zip(
@@ -925,7 +925,7 @@ page_delete_rec_list_write_log(
 
 /**********************************************************//**
 Parses a log record of a record list end or start deletion.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_parse_delete_rec_list(
@@ -1328,7 +1328,7 @@ if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return	TRUE on success; FALSE on compression failure */
+@return TRUE on success; FALSE on compression failure */
 
 ibool
 page_move_rec_list_start(
@@ -1563,7 +1563,7 @@ page_dir_balance_slot(
 /************************************************************//**
 Returns the nth record of the record list.
 This is the inverse function of page_rec_get_n_recs_before().
-@return	nth record */
+@return nth record */
 
 const rec_t*
 page_rec_get_nth_const(
@@ -1616,7 +1616,7 @@ page_rec_get_nth_const(
 /***************************************************************//**
 Returns the number of records before the given record in chain.
 The number includes infimum and supremum records.
-@return	number of records */
+@return number of records */
 
 ulint
 page_rec_get_n_recs_before(
@@ -1877,7 +1877,7 @@ page_print(
 The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and
 the heap_no field.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 page_rec_validate(
@@ -1965,7 +1965,7 @@ page_check_dir(
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 page_simple_validate_old(
@@ -2175,7 +2175,7 @@ func_exit:
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 page_simple_validate_new(
@@ -2384,7 +2384,7 @@ func_exit:
 
 /***************************************************************//**
 This function checks the consistency of an index page.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 page_validate(
@@ -2689,7 +2689,7 @@ func_exit2:
 #ifndef UNIV_HOTBACKUP
 /***************************************************************//**
 Looks in the page record list for a record with the given heap number.
-@return	record, NULL if not found */
+@return record, NULL if not found */
 
 const rec_t*
 page_find_rec_with_heap_no(
@@ -2739,7 +2739,7 @@ page_find_rec_with_heap_no(
 Removes the record from a leaf page. This function does not log
 any changes. It is used by the IMPORT tablespace functions.
 The cursor is moved to the next record after the deleted one.
-@return	true if success, i.e., the page did not become too empty */
+@return true if success, i.e., the page did not become too empty */
 
 bool
 page_delete_rec(

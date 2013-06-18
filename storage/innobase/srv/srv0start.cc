@@ -174,7 +174,7 @@ mysql_pfs_key_t	srv_purge_thread_key;
 
 /*********************************************************************//**
 Check if a file can be opened in read-write mode.
-@return	true if it doesn't exist or can be opened in rw mode. */
+@return true if it doesn't exist or can be opened in rw mode. */
 static
 bool
 srv_file_check_mode(
@@ -232,7 +232,7 @@ srv_file_check_mode(
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 I/o-handler thread function.
-@return	OS_THREAD_DUMMY_RETURN */
+@return OS_THREAD_DUMMY_RETURN */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(io_handler_thread)(
@@ -312,7 +312,7 @@ srv_normalize_path_for_win(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Creates a log file.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 create_log_file(
@@ -363,7 +363,7 @@ create_log_file(
 
 /*********************************************************************//**
 Creates all log files.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 create_log_files(
@@ -510,7 +510,7 @@ create_log_files_rename(
 
 /*********************************************************************//**
 Opens a log file.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 open_log_file(
@@ -538,7 +538,7 @@ open_log_file(
 
 /*********************************************************************//**
 Create undo tablespace.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 srv_undo_tablespace_create(
@@ -601,7 +601,7 @@ srv_undo_tablespace_create(
 }
 /*********************************************************************//**
 Open an undo tablespace.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 srv_undo_tablespace_open(
@@ -673,7 +673,7 @@ srv_undo_tablespace_open(
 
 /********************************************************************
 Opens the configured number of undo tablespaces.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 srv_undo_tablespaces_init(
@@ -1091,7 +1091,7 @@ srv_init_abort_low(
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 innobase_start_or_create_for_mysql(void)
@@ -2366,7 +2366,7 @@ srv_fts_close(void)
 
 /****************************************************************//**
 Shuts down the InnoDB database.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 innobase_shutdown_for_mysql(void)

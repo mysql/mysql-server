@@ -38,7 +38,7 @@ struct ib_wqueue_t {
 
 /****************************************************************//**
 Create a new work queue.
-@return	work queue */
+@return work queue */
 
 ib_wqueue_t*
 ib_wqueue_create(void)
@@ -93,7 +93,7 @@ ib_wqueue_add(
 
 /****************************************************************//**
 Wait for a work item to appear in the queue.
-@return	work item */
+@return work item */
 
 void*
 ib_wqueue_wait(

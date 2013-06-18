@@ -174,9 +174,9 @@ get_page_size(
 		/* uncompressed page. */
 		*physical_page_size= *logical_page_size;
 		DBUG_ASSERT(*physical_page_size >= UNIV_PAGE_SIZE_MIN);
-		*compressed = FALSE;
+		*compressed = false;
 	} else {
-		*compressed = TRUE;
+		*compressed = true;
 	}
 
 }
@@ -387,8 +387,8 @@ Check if page is empty or not.
  @param		[in] page		page to checked for empty.
  @param		[in] len	size of page.
 
- @retval TRUE if page is empty.
- @retval FALSE if page is not empty.
+ @retval true if page is empty.
+ @retval false if page is not empty.
 */
 static
 bool
@@ -398,10 +398,10 @@ is_page_empty(
 {
 	while (len--) {
 		if (*page++) {
-			return (FALSE);
+			return (false);
 		}
         }
-        return (TRUE);
+        return (true);
 }
 
 /********************************************************************//**
@@ -410,8 +410,8 @@ Rewrite the checksum for the page.
 @param	[in] physical_page_size		page size in bytes on disk.
 @param	[in] iscompressed		Is compressed/Uncompressed Page.
 
-@retval TRUE  : do rewrite
-@retval FALSE : skip the rewrite as checksum stored match with
+@retval true  : do rewrite
+@retval false : skip the rewrite as checksum stored match with
 		calculated or page is doublwrite buffer.
 */
 
@@ -428,7 +428,7 @@ update_checksum(
 	ut_ad(page);
 	/* If page is doublewrite buffer, skip the rewrite of checksum. */
 	if (skip_page) {
-		return (FALSE);
+		return (false);
 	}
 
 	memcpy(stored1, page + FIL_PAGE_SPACE_OR_CHKSUM, 4);
@@ -504,19 +504,84 @@ update_checksum(
 	the rewrite of checksum, otherwise return TRUE. */
 	if (iscompressed) {
 		if (!memcmp(stored1, page + FIL_PAGE_SPACE_OR_CHKSUM, 4)) {
-			return (FALSE);
+			return (false);
 		}
-		return (TRUE);
+		return (true);
 	}
 
 	if (!memcmp(stored1, page + FIL_PAGE_SPACE_OR_CHKSUM, 4)
 	    && !memcmp(stored2, page + physical_page_size -
 		       FIL_PAGE_END_LSN_OLD_CHKSUM, 4)) {
-		return (FALSE);
+		return (false);
 
 	}
 
-	return (TRUE);
+	return (true);
+}
+
+/**
+ Write the content to the file
+@param[in]		filename	name of the file.
+@param[in,out]		file		file pointer where content
+					have to be written
+@param[in]		buf		file buffer read
+@param[in]		compressed	Enabled if tablespace is
+					compressed.
+@param[in,out]		pos		current file position.
+@param[in]		page_size	page size in bytes on disk.
+
+@retval true	if successfully written
+@retval false	if a non-recoverable error occurred
+*/
+static
+bool
+write_file(
+	const char*	filename,
+	FILE*		file,
+	byte*		buf,
+	bool		compressed,
+	fpos_t*		pos,
+	ulong		page_size)
+{
+	bool	do_update;
+
+	do_update = update_checksum(buf, page_size, compressed);
+
+	if (file != stdin) {
+		if (do_update) {
+			/* Set the previous file pointer position
+			saved in pos to current file position. */
+			if (0 != fsetpos(file, pos)) {
+				perror("fsetpos");
+				return(false);
+			}
+		} else {
+			/* Store the current file position in pos */
+			if (0 != fgetpos(file, pos)) {
+				perror("fgetpos");
+				return(false);
+			}
+			return(true);
+		}
+	}
+
+	if (page_size
+		!= fwrite(buf, 1, page_size, file == stdin ? stdout : file)) {
+		fprintf(stderr, "Failed to write page %llu to %s: %s\n",
+			cur_page_num, filename, strerror(errno));
+
+		return(false);
+	}
+	if (file != stdin) {
+		fflush(file);
+		/* Store the current file position in pos */
+		if (0 != fgetpos(file, pos)) {
+			perror("fgetpos");
+			return(false);
+		}
+	}
+
+	return(true);
 }
 
 /*
@@ -791,8 +856,10 @@ static struct my_option innochecksum_options[] = {
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Verbose (prints progress every 5 seconds).",
     &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
   {"debug", '#', "Output debug log. See " REFMAN "dbug-package.html",
     &dbug_setting, &dbug_setting, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif /* !DBUG_OFF */
   {"count", 'c', "Print the count of pages in the file and exits.",
     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"start_page", 's', "Start on this page number (0 based).",
@@ -828,9 +895,15 @@ static struct my_option innochecksum_options[] = {
 /* Print out the Innodb version and machine information. */
 static void print_version(void)
 {
+#ifdef DBUG_OFF
 	printf("%s Ver %s, for %s (%s)\n",
 		my_progname, INNODB_VERSION_STR,
 		SYSTEM_TYPE, MACHINE_TYPE);
+#else
+	printf("%s-debug Ver %s, for %s (%s)\n",
+		my_progname, INNODB_VERSION_STR,
+		SYSTEM_TYPE, MACHINE_TYPE);
+#endif /* DBUG_OFF */
 }
 
 static void usage(void)
@@ -854,6 +927,7 @@ innochecksum_get_one_option(
 	char			*argument __attribute__((unused)))
 {
 	switch (optid) {
+#ifndef DBUG_OFF
 	case '#':
 		dbug_setting = argument
 			? argument
@@ -861,20 +935,21 @@ innochecksum_get_one_option(
 				 "d:o,/tmp/innochecksum.trace");
 		DBUG_PUSH(dbug_setting);
 		break;
+#endif /* !DBUG_OFF */
 	case 'e':
-		use_end_page = TRUE;
+		use_end_page = true;
 		break;
 	case 'p':
 		end_page = start_page = do_page;
-		use_end_page = TRUE;
-		do_one_page = TRUE;
+		use_end_page = true;
+		do_one_page = true;
 		break;
 	case 'V':
 		print_version();
 		exit(EXIT_SUCCESS);
 		break;
 	case 'C':
-		strict_verify = TRUE;
+		strict_verify = true;
 		switch ((srv_checksum_algorithm_t) strict_check) {
 
 		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
@@ -895,20 +970,20 @@ innochecksum_get_one_option(
 				SRV_CHECKSUM_ALGORITHM_STRICT_NONE;
 			break;
 		default:
-			return(TRUE);
+			return(true);
 		}
 		break;
 	case 'n':
-		no_check = TRUE;
+		no_check = true;
 		break;
 	case 'a':
 	case 'S':
 		break;
 	case 'w':
-		do_write = TRUE;
+		do_write = true;
 		break;
 	case 'D':
-		page_type_dump = TRUE;
+		page_type_dump = true;
 		break;
 	case 'I':
 	case '?':
@@ -917,26 +992,26 @@ innochecksum_get_one_option(
 		break;
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 static
-int
+bool
 get_options(
 	int	*argc,
 	char	***argv)
 {
 	if (handle_options(argc, argv, innochecksum_options,
 		innochecksum_get_one_option))
-		exit(TRUE);
+		exit(true);
 
 	/* The next arg must be the filename */
 	if (!*argc) {
 		usage();
-		return (TRUE);
+		return (true);
 	}
 
-	return (FALSE);
+	return (false);
 }
 
 int main(
@@ -971,15 +1046,15 @@ int main(
 
 	off_t		offset			= 0;
 	/* enable if tablespace is compressed. */
-	bool		compressed		= FALSE;
+	bool		compressed		= false;
 	/* count the no. of page corrupted. */
 	ulint		mismatch_count		= 0;
 	/* Variable to ack the page is corrupted or not. */
-	bool		is_corrupted		= FALSE;
+	bool		is_corrupted		= false;
 
-	bool		partial_page_read	= FALSE;
+	bool		partial_page_read	= false;
 	/* Enabled when read from stdin is done. */
-	bool		read_from_stdin		= FALSE;
+	bool		read_from_stdin		= false;
 	FILE*		fil_page_type		= NULL;
 	fpos_t		pos;
 
@@ -987,7 +1062,7 @@ int main(
 	then check whether page is doublewrite buffer.*/
 	ulint		space_id = 0UL;
 	/* enable when space_id of given file is zero. */
-	bool		is_system_tablespace = FALSE;
+	bool		is_system_tablespace = false;
 
 	ut_crc32_init();
 	MY_INIT(argv[0]);
@@ -1047,15 +1122,15 @@ int main(
 		/* Reset parameters for each file. */
 		filename = argv[i];
 		memset(&page_type, 0, sizeof(innodb_page_type));
-		is_corrupted = FALSE;
-		partial_page_read = 0;
-		skip_page = FALSE;
+		is_corrupted = false;
+		partial_page_read = false;
+		skip_page = false;
 
 		DBUG_PRINT("info", ("Filename = %s", filename));
 		if (*filename == '-') {
 			/* read from stdin. */
 			fil_in = stdin;
-			read_from_stdin = 1;
+			read_from_stdin = true;
 		}
 
 		/* stat the file to get size and page count. */
@@ -1074,7 +1149,10 @@ int main(
 				DBUG_RETURN(1);
 			}
 			/* Save the current file pointer in pos variable.*/
-			fgetpos(fil_in, &pos);
+			if (0 != fgetpos(fil_in, &pos)) {
+				perror("fgetpos");
+				DBUG_RETURN(1);
+			}
 		}
 
 		/* Testing for lock mechanism. The innochecksum
@@ -1099,7 +1177,7 @@ int main(
 
 		/* Read the minimum page size. */
 		bytes = fread(buf, 1, UNIV_ZIP_SIZE_MIN, fil_in);
-		partial_page_read = 1;
+		partial_page_read = true;
 
 		if (bytes != UNIV_ZIP_SIZE_MIN) {
 			fprintf(stderr, "Error: Was not able to read the "
@@ -1150,7 +1228,7 @@ int main(
 				/* If read is not from stdin, we can use
 				fseeko() to position the file pointer to
 				the desired page. */
-				partial_page_read = 0;
+				partial_page_read = false;
 
 				offset = (off_t)start_page * (off_t)physical_page_size;
 #ifdef _WIN32
@@ -1165,7 +1243,10 @@ int main(
 				}
 				/* Save the current file pointer in
 				pos variable. */
-				fgetpos(fil_in, &pos);
+				if (0 != fgetpos(fil_in, &pos)) {
+					perror("fgetpos");
+					DBUG_RETURN(1);
+				}
 			} else {
 
 				ulong count = 0;
@@ -1186,7 +1267,7 @@ int main(
 							  physical_page_size,
 							  fil_in);
 
-					partial_page_read = 0;
+					partial_page_read = false;
 					count++;
 
 					if (!bytes || feof(fil_in)) {
@@ -1221,7 +1302,7 @@ int main(
 
 			bytes = read_file(buf, partial_page_read,
 					  physical_page_size, fil_in);
-			partial_page_read = 0;
+			partial_page_read = false;
 
 			if (!bytes && feof(fil_in)) {
 				break;
@@ -1246,7 +1327,7 @@ int main(
 				/* enable when page is double write buffer.*/
 				skip_page = is_page_doublewritebuffer(buf);
 			} else {
-				skip_page = FALSE;
+				skip_page = false;
 			}
 
 			/* If no-check is enabled, skip the
@@ -1282,29 +1363,11 @@ int main(
 			}
 
 			/* Rewrite checksum */
-			if (do_write) {
+			if (do_write
+			    && !write_file(filename, fil_in, buf, compressed,
+					   &pos, physical_page_size)) {
 
-				if (read_from_stdin) {
-					update_checksum(
-						buf,
-						physical_page_size, compressed);
-					fwrite(buf,
-					       physical_page_size, 1, stdout);
-				} else {
-					if (update_checksum(
-						buf, physical_page_size,
-						compressed)) {
-						/* Set the previous file pointer
-						saved in pos to current file position. */
-						fsetpos(fil_in, &pos);
-						fwrite(buf, physical_page_size,
-							1, fil_in);
-					}
-					/* Save the current file pointer in pos
-					variable */
-					fflush(fil_in);
-					fgetpos(fil_in, &pos);
-				}
+				DBUG_RETURN(1);
 			}
 
 			/* end if this was the last page we were supposed to check */

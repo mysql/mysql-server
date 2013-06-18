@@ -38,7 +38,7 @@ Created 8/22/1994 Heikki Tuuri
 /*************************************************************//**
 Creates a hash table with at least n array cells.  The actual number
 of cells is chosen to be a prime number slightly bigger than n.
-@return	own: created table */
+@return own: created table */
 
 hash_table_t*
 ib_create(
@@ -152,7 +152,7 @@ Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted. If btr_search_enabled is set to FALSE, we will only allow
 updating existing nodes, but no new node is allowed to be added.
-@return	TRUE if succeed, FALSE if no more memory could be allocated */
+@return TRUE if succeed, FALSE if no more memory could be allocated */
 
 ibool
 ha_insert_for_fold_func(
@@ -384,7 +384,7 @@ ha_remove_all_nodes_to_page(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 ha_validate(

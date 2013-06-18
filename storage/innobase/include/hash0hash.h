@@ -57,7 +57,7 @@ enum hash_table_sync_t {
 /*************************************************************//**
 Creates a hash table with >= n array cells. The actual number
 of cells is chosen to be a prime number slightly bigger than n.
-@return	own: created table */
+@return own: created table */
 
 hash_table_t*
 hash_create(
@@ -89,7 +89,7 @@ hash_table_free(
 	hash_table_t*	table);	/*!< in, own: hash table */
 /**************************************************************//**
 Calculates the hash value from a folded value.
-@return	hashed value */
+@return hashed value */
 UNIV_INLINE
 ulint
 hash_calc_hash(
@@ -231,7 +231,7 @@ do {									\
 
 /************************************************************//**
 Gets the nth cell in a hash table.
-@return	pointer to cell */
+@return pointer to cell */
 UNIV_INLINE
 hash_cell_t*
 hash_get_nth_cell(
@@ -249,7 +249,7 @@ hash_table_clear(
 
 /*************************************************************//**
 Returns the number of cells in a hash table.
-@return	number of cells */
+@return number of cells */
 UNIV_INLINE
 ulint
 hash_get_n_cells(
@@ -343,7 +343,7 @@ do {\
 
 /************************************************************//**
 Gets the sync object index for a fold value in a hash table.
-@return	index */
+@return index */
 UNIV_INLINE
 ulint
 hash_get_sync_obj_index(
@@ -352,7 +352,7 @@ hash_get_sync_obj_index(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Gets the nth heap in a hash table.
-@return	mem heap */
+@return mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_nth_heap(
@@ -361,7 +361,7 @@ hash_get_nth_heap(
 	ulint		i);	/*!< in: index of the heap */
 /************************************************************//**
 Gets the heap for a fold value in a hash table.
-@return	mem heap */
+@return mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_heap(
@@ -370,7 +370,7 @@ hash_get_heap(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Gets the nth mutex in a hash table.
-@return	mutex */
+@return mutex */
 UNIV_INLINE
 ib_mutex_t*
 hash_get_nth_mutex(
@@ -379,7 +379,7 @@ hash_get_nth_mutex(
 	ulint		i);	/*!< in: index of the mutex */
 /************************************************************//**
 Gets the nth rw_lock in a hash table.
-@return	rw_lock */
+@return rw_lock */
 UNIV_INLINE
 rw_lock_t*
 hash_get_nth_lock(
@@ -388,7 +388,7 @@ hash_get_nth_lock(
 	ulint		i);	/*!< in: index of the rw_lock */
 /************************************************************//**
 Gets the mutex for a fold value in a hash table.
-@return	mutex */
+@return mutex */
 UNIV_INLINE
 ib_mutex_t*
 hash_get_mutex(
@@ -397,7 +397,7 @@ hash_get_mutex(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Gets the rw_lock for a fold value in a hash table.
-@return	rw_lock */
+@return rw_lock */
 UNIV_INLINE
 rw_lock_t*
 hash_get_lock(

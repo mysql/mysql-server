@@ -34,7 +34,7 @@ Created 10/13/2010 Jimmy Yang
 #include "btr0cur.h"
 
 /** Read the next record to buffer N.
-@param N	index into array of merge info structure */
+@param N index into array of merge info structure */
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
@@ -354,7 +354,7 @@ row_fts_free_pll_merge_buf(
 
 /*********************************************************************//**
 Tokenize incoming text data and add to the sort buffer.
-@return	TRUE if the record passed, FALSE if out of space */
+@return TRUE if the record passed, FALSE if out of space */
 static
 ibool
 row_merge_fts_doc_tokenize(
@@ -925,7 +925,7 @@ row_fts_start_parallel_merge(
 
 /********************************************************************//**
 Insert processed FTS data to auxillary index tables.
-@return	DB_SUCCESS if insertion runs fine */
+@return DB_SUCCESS if insertion runs fine */
 static __attribute__((nonnull))
 dberr_t
 row_merge_write_fts_word(
@@ -972,7 +972,7 @@ row_merge_write_fts_word(
 
 /*********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
-@return	DB_SUCCESS or error number */
+@return DB_SUCCESS or error number */
 
 void
 row_fts_insert_tuple(
@@ -1151,7 +1151,7 @@ row_fts_sel_tree_propagate(
 
 	sel_tree[parent] = selected;
 
-	return(parent);
+	return((int) parent);
 }
 
 /*********************************************************************//**
@@ -1171,8 +1171,8 @@ row_fts_sel_tree_update(
 	ulint	i;
 
 	for (i = 1; i <= height; i++) {
-		propagated = row_fts_sel_tree_propagate(
-			propagated, sel_tree, mrec, offsets, index);
+		propagated = (ulint) row_fts_sel_tree_propagate(
+			(int) propagated, sel_tree, mrec, offsets, index);
 	}
 
 	return(sel_tree[0]);
@@ -1196,8 +1196,8 @@ row_fts_build_sel_tree_level(
 	ulint	i;
 	ulint	num_item;
 
-	start = (1 << level) - 1;
-	num_item = (1 << level);
+	start = ((ulint) 1 << level) - 1;
+	num_item = ((ulint) 1 << level);
 
 	for (i = 0; i < num_item;  i++) {
 		child_left = sel_tree[(start + i) * 2 + 1];
@@ -1272,8 +1272,9 @@ row_fts_build_sel_tree(
 		sel_tree[i + start] = i;
 	}
 
-	for (i = treelevel - 1; i >=0; i--) {
-		row_fts_build_sel_tree_level(sel_tree, i, mrec, offsets, index);
+	for (i = (int) treelevel - 1; i >=0; i--) {
+		row_fts_build_sel_tree_level(
+			sel_tree, (ulint) i, mrec, offsets, index);
 	}
 
 	return(treelevel);
@@ -1282,7 +1283,7 @@ row_fts_build_sel_tree(
 /*********************************************************************//**
 Read sorted file containing index data tuples and insert these data
 tuples to the index
-@return	DB_SUCCESS or error number */
+@return DB_SUCCESS or error number */
 
 dberr_t
 row_fts_merge_insert(
@@ -1452,7 +1453,7 @@ row_fts_merge_insert(
 					    mrec[i], mrec[min_rec],
 					    offsets[i], offsets[min_rec],
 					    index, NULL) < 0) {
-					min_rec = i;
+					min_rec = (int) i;
 				}
 			}
 		} else {

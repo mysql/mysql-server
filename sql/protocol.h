@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +111,14 @@ public:
   virtual bool store_date(MYSQL_TIME *time)=0;
   virtual bool store_time(MYSQL_TIME *time, uint precision)=0;
   virtual bool store(Field *field)=0;
+
+  inline bool store(const LEX_STRING &s, const CHARSET_INFO *cs)
+  { return store(s.str, s.length, cs); }
+
+  inline bool store(const LEX_STRING &s,
+                    const CHARSET_INFO *fromcs,
+                    const CHARSET_INFO *tocs)
+  { return store(s.str, s.length, fromcs, tocs); }
 
   virtual bool send_out_parameters(List<Item_param> *sp_params)=0;
 #ifdef EMBEDDED_LIBRARY

@@ -743,6 +743,7 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
     - it is a partial key
     - definition of the argument field does not coincide with the
       definition of the corresponding key component
+    - the argument field has different byte ordering from the target table
     - some of the key components are nullable
   */  
   for (i=0; i < ref->key_parts; i++)
@@ -755,6 +756,11 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
       return FALSE;
     if (!key_part->field->eq_def(((Item_field *) item)->field))
       return FALSE;
+    if (((Item_field *) item)->field->table->s->db_low_byte_first !=
+        table->s->db_low_byte_first)
+    {
+      return FALSE;
+    }
     if (key_part->field->maybe_null())
     {
       return FALSE;

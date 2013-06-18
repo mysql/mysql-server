@@ -58,7 +58,7 @@ a = 1103515245 (3^5 * 5 * 7 * 129749)
 c = 12345 (3 * 5 * 823)
 m = 18446744073709551616 (2^64)
 
-@return	number between 0 and 2^64-1 */
+@return number between 0 and 2^64-1 */
 static
 ib_uint64_t
 page_cur_lcg_prng(void)
@@ -83,7 +83,7 @@ page_cur_lcg_prng(void)
 
 /****************************************************************//**
 Tries a search shortcut based on the last insert.
-@return	TRUE on success */
+@return TRUE on success */
 UNIV_INLINE
 ibool
 page_cur_try_search_shortcut(
@@ -170,7 +170,7 @@ exit_func:
 Checks if the nth field in a record is a character type field which extends
 the nth field in tuple, i.e., the field is longer or equal in length and has
 common first characters.
-@return	TRUE if rec field extends tuple field */
+@return TRUE if rec field extends tuple field */
 static
 ibool
 page_cur_rec_field_extends(
@@ -708,7 +708,7 @@ need_extra_info:
 
 /***********************************************************//**
 Parses a log record of a record insert on a page.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_cur_parse_insert_rec(
@@ -901,7 +901,7 @@ page_cur_parse_insert_rec(
 Inserts a record next to page cursor on an uncompressed page.
 Returns pointer to inserted record if succeed, i.e., enough
 space available, NULL otherwise. The cursor stays at the same position.
-@return	pointer to record if succeed, NULL otherwise */
+@return pointer to record if succeed, NULL otherwise */
 
 rec_t*
 page_cur_insert_rec_low(
@@ -1125,7 +1125,7 @@ if this is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return	pointer to record if succeed, NULL otherwise */
+@return pointer to record if succeed, NULL otherwise */
 
 rec_t*
 page_cur_insert_rec_zip(
@@ -1601,7 +1601,7 @@ page_copy_rec_list_to_created_page_write_log(
 
 /**********************************************************//**
 Parses a log record of copying a record list end to a new created page.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 page_parse_copy_rec_list_to_created_page(
@@ -1876,7 +1876,7 @@ page_cur_delete_rec_write_log(
 
 /***********************************************************//**
 Parses log record of a record delete on a page.
-@return	pointer to record end or NULL */
+@return pointer to record end or NULL */
 
 byte*
 page_cur_parse_delete_rec(

@@ -51,7 +51,7 @@ struct mem_area_t{
 
 /********************************************************************//**
 Creates a memory pool.
-@return	memory pool */
+@return memory pool */
 
 mem_pool_t*
 mem_pool_create(
@@ -67,7 +67,7 @@ mem_pool_free(
 /********************************************************************//**
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*!
-@return	own: allocated memory buffer */
+@return own: allocated memory buffer */
 
 void*
 mem_area_alloc(
@@ -89,7 +89,7 @@ mem_area_free(
 	mem_pool_t*	pool);	/*!< in: memory pool */
 /********************************************************************//**
 Returns the amount of reserved memory.
-@return	reserved mmeory in bytes */
+@return reserved mmeory in bytes */
 
 ulint
 mem_pool_get_reserved(
@@ -97,7 +97,7 @@ mem_pool_get_reserved(
 	mem_pool_t*	pool);	/*!< in: memory pool */
 /********************************************************************//**
 Validates a memory pool.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 mem_pool_validate(

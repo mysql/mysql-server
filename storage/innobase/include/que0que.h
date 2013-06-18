@@ -42,7 +42,7 @@ extern ib_mutex_t	que_thr_mutex;
 
 /***********************************************************************//**
 Creates a query graph fork node.
-@return	own: fork node */
+@return own: fork node */
 
 que_fork_t*
 que_fork_create(
@@ -77,7 +77,7 @@ que_node_set_parent(
 	que_node_t*	parent);/*!< in: parent */
 /***********************************************************************//**
 Creates a query graph thread node.
-@return	own: query thread node */
+@return own: query thread node */
 
 que_thr_t*
 que_thr_create(
@@ -107,7 +107,7 @@ que_graph_free(
 Stops a query thread if graph or trx is in a state requiring it. The
 conditions are tested in the order (1) graph, (2) trx. The lock_sys_t::mutex
 has to be reserved.
-@return	TRUE if stopped */
+@return TRUE if stopped */
 
 ibool
 que_thr_stop(
@@ -153,7 +153,7 @@ Moves a suspended query thread to the QUE_THR_RUNNING state and release
 a worker thread to execute it. This function should be used to end
 the wait state of a query thread waiting for a lock or a stored procedure
 completion.
-@return query thread instance of thread to wakeup or NULL  */
+@return query thread instance of thread to wakeup or NULL */
 
 que_thr_t*
 que_thr_end_lock_wait(
@@ -213,7 +213,7 @@ que_node_get_val(
 	que_node_t*	node);	/*!< in: graph node */
 /***********************************************************************//**
 Gets the value buffer size of a graph node.
-@return	val buffer size, not defined if val.data == NULL in node */
+@return val buffer size, not defined if val.data == NULL in node */
 UNIV_INLINE
 ulint
 que_node_get_val_buf_size(
@@ -236,7 +236,7 @@ que_node_get_next(
 	que_node_t*	node);	/*!< in: node in a list */
 /*********************************************************************//**
 Gets the parent node of a query graph node.
-@return	parent node or NULL */
+@return parent node or NULL */
 UNIV_INLINE
 que_node_t*
 que_node_get_parent(
@@ -245,7 +245,7 @@ que_node_get_parent(
 /****************************************************************//**
 Get the first containing loop node (e.g. while_node_t or for_node_t) for the
 given node, or NULL if the node is not within a loop.
-@return	containing loop node, or NULL. */
+@return containing loop node, or NULL. */
 
 que_node_t*
 que_node_get_containing_loop_node(
@@ -253,7 +253,7 @@ que_node_get_containing_loop_node(
 	que_node_t*	node);	/*!< in: node */
 /*********************************************************************//**
 Catenates a query graph node to a list of them, possible empty list.
-@return	one-way list of nodes */
+@return one-way list of nodes */
 UNIV_INLINE
 que_node_t*
 que_node_list_add_last(
@@ -270,7 +270,7 @@ que_node_list_get_last(
 	que_node_t*	node_list);	/* in: node list, or NULL */
 /*********************************************************************//**
 Gets a query graph node list length.
-@return	length, for NULL list 0 */
+@return length, for NULL list 0 */
 UNIV_INLINE
 ulint
 que_node_list_get_len(
@@ -289,7 +289,7 @@ que_thr_peek_stop(
 	que_thr_t*	thr);	/*!< in: query thread */
 /***********************************************************************//**
 Returns TRUE if the query graph is for a SELECT statement.
-@return	TRUE if a select */
+@return TRUE if a select */
 UNIV_INLINE
 ibool
 que_graph_is_select(
@@ -304,7 +304,7 @@ que_node_print_info(
 	que_node_t*	node);	/*!< in: query graph node */
 /*********************************************************************//**
 Evaluate the given SQL
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 que_eval_sql(

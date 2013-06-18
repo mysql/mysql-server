@@ -80,13 +80,14 @@
 #include <m_ctype.h>
 #include <myisam.h>
 #include <my_dir.h>
+#include <dur_prop.h>
 #include "rpl_handler.h"
 
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
-#include "sql_trigger.h"
+#include "sql_trigger.h"      // mysql_create_or_drop_trigger
 #include "transaction.h"
 #include "sql_audit.h"
 #include "sql_prepare.h"
@@ -1289,12 +1290,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_CLOSE:
   {
-    mysqld_stmt_close(thd, packet);
+    mysqld_stmt_close(thd, packet, packet_length);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysqld_stmt_reset(thd, packet);
+    mysqld_stmt_reset(thd, packet, packet_length);
     break;
   }
   case COM_QUERY:
@@ -1525,6 +1526,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     int not_used;
 
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
+
     /*
       Initialize thd->lex since it's used in many base functions, such as
       open_tables(). Otherwise, it remains unitialized and may cause crash
@@ -1573,6 +1580,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     thd->status_var.com_other++;
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
@@ -1659,6 +1671,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (thread_id & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
+    else if (packet_length < 4)
+      my_error(ER_MALFORMED_PACKET, MYF(0));
     else
     {
       thd->status_var.com_stat[SQLCOM_KILL]++;
@@ -1669,6 +1683,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_SET_OPTION:
   {
+    if (packet_length < 2)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     thd->status_var.com_stat[SQLCOM_SET_OPTION]++;
     uint opt_command= uint2korr(packet);
 
@@ -2194,7 +2213,8 @@ mysql_execute_command(THD *thd)
         When dropping a trigger, we need to load its table name
         before checking slave filter rules.
       */
-      add_table_for_trigger(thd, thd->lex->spname, 1, &all_tables);
+      add_table_for_trigger(thd, lex->spname->m_db,
+                            lex->spname->m_name, true, &all_tables);
       
       if (!all_tables)
       {
