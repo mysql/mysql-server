@@ -56,8 +56,8 @@ struct st_row_worker {
   /** Thread_Id field is declared char instead of int because it shows NULL
       when Service_State= off.
   */
-  char Thread_Id[sizeof(ulonglong)+1];
-  uint Thread_Id_length;
+  ulonglong Thread_Id;
+  uint Thread_Id_is_null;
   enum_rpl_yes_no Service_State;
   char Last_Seen_Transaction[Gtid::MAX_TEXT_LENGTH+1];
   uint Last_Seen_Transaction_length;
@@ -71,7 +71,7 @@ struct st_row_worker {
 class table_replication_execute_status_by_worker: public PFS_engine_table
 {
 private:
-  void fill_rows(Slave_worker *);
+  void make_row(Slave_worker *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -79,7 +79,8 @@ private:
   static TABLE_FIELD_DEF m_field_def;
   /** current row*/
   st_row_worker m_row;
-
+  /** True is the current row exists. */
+  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

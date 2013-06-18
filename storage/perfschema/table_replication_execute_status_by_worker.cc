@@ -42,7 +42,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Thread_Id")},
-    {C_STRING_WITH_LEN("char(21)")},
+    {C_STRING_WITH_LEN("bigint")},
     {NULL, 0}
   },
   {
@@ -97,12 +97,14 @@ PFS_engine_table* table_replication_execute_status_by_worker::create(void)
   return new table_replication_execute_status_by_worker();
 }
 
-table_replication_execute_status_by_worker::table_replication_execute_status_by_worker()
+table_replication_execute_status_by_worker
+  ::table_replication_execute_status_by_worker()
   : PFS_engine_table(&m_share, &m_pos),
-    m_pos(0), m_next_pos(0)
+    m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
-table_replication_execute_status_by_worker::~table_replication_execute_status_by_worker()
+table_replication_execute_status_by_worker
+  ::~table_replication_execute_status_by_worker()
 {}
 
 void table_replication_execute_status_by_worker::reset_position(void)
@@ -111,18 +113,21 @@ void table_replication_execute_status_by_worker::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
-#ifndef MYSQL_CLIENT
 int table_replication_execute_status_by_worker::rnd_next(void)
 {
+  Slave_worker *worker;
+
+  mysql_mutex_lock(&LOCK_active_mi);
   Master_info *mi= active_mi;
-  Slave_worker *w;
+  mysql_mutex_unlock(&LOCK_active_mi);
 
   if (mi->host[0])
   {
-    for (m_pos.set_at(&m_next_pos); m_pos.m_index < mi->rli->workers.elements; m_pos.next())
+    for (m_pos.set_at(&m_next_pos);
+         m_pos.m_index < active_mi->rli->workers.elements; m_pos.next())
     {
-      get_dynamic(&mi->rli->workers, (uchar *) &w, m_pos.m_index);
-      fill_rows(w);
+      get_dynamic(&active_mi->rli->workers, (uchar *) &worker, m_pos.m_index);
+      make_row(worker);
       m_next_pos.set_after(&m_pos);
       return 0;
     }
@@ -130,49 +135,58 @@ int table_replication_execute_status_by_worker::rnd_next(void)
 
   m_pos.set_at(&m_next_pos);
   m_next_pos.set_after(&m_pos);
-  if (m_pos.m_index == m_share.get_row_count())
-    return HA_ERR_END_OF_FILE;
+  DBUG_ASSERT (m_pos.m_index < m_share.get_row_count());
 
-  return 0;
+  return HA_ERR_END_OF_FILE;
 }
-#endif
 
 ha_rows table_replication_execute_status_by_worker::get_row_count()
 {
-  return active_mi->rli->workers.elements;
+  mysql_mutex_lock(&LOCK_active_mi);
+  uint row_count= active_mi->rli->workers.elements;
+  mysql_mutex_unlock(&LOCK_active_mi);
+  return row_count;
 }
+
 int table_replication_execute_status_by_worker::rnd_pos(const void *pos)
 {
-  Master_info *mi= active_mi;
-  Slave_worker *w;
+  Slave_worker *worker;
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index < m_share.get_row_count());
+  if (m_pos.m_index >= m_share.get_row_count())
+    return HA_ERR_END_OF_FILE;
 
-  get_dynamic(&mi->rli->workers, (uchar *) &w, m_pos.m_index);
-
-  fill_rows(w);
+  mysql_mutex_lock(&LOCK_active_mi);
+  get_dynamic(&active_mi->rli->workers, (uchar *) &worker, m_pos.m_index);
+  mysql_mutex_unlock(&LOCK_active_mi);
+  make_row(worker);
   return 0;
 }
 
-void table_replication_execute_status_by_worker::fill_rows(Slave_worker *w)
+void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
 {
+  m_row_exists= false;
+
   m_row.Worker_Id= w->id;
   /** Since the thread_id field is declared as char array to accomodate "NULL",
       need to convert the integer value for Thread_Idto a string.
   */
+  m_row.Thread_Id= 0;
   mysql_mutex_lock(&w->jobs_lock);
   if (w->running_status == Slave_worker::RUNNING)
   {
-    char thread_id_str[sizeof(ulonglong)+1];
-    sprintf(thread_id_str, "%u", (uint) w->info_thd->thread_id);
-    m_row.Thread_Id_length= strlen(thread_id_str);
-    memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
+    m_row.Thread_Id= (ulonglong)w->info_thd->thread_id;
+    m_row.Thread_Id_is_null= false;
+    //char thread_id_str[sizeof(ulonglong)+1];
+    //sprintf(thread_id_str, "%u", (uint) w->info_thd->thread_id);
+    //m_row.Thread_Id_length= strlen(thread_id_str);
+    //memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
   }
   else
   {
-    m_row.Thread_Id_length= strlen("NULL");
-    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length+1);
+    //m_row.Thread_Id_length= strlen("NULL");
+    //memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length+1);
+    m_row.Thread_Id_is_null= true;
   }
 
   //TODO: Consider introducing Service_State= idle.
@@ -214,16 +228,21 @@ void table_replication_execute_status_by_worker::fill_rows(Slave_worker *w)
     m_row.Last_Error_Timestamp= w->last_error().skr*1000000;
   }
   mysql_mutex_unlock(&w->jobs_lock);
+
+  m_row_exists= true;
 }
 
-int table_replication_execute_status_by_worker::read_row_values(TABLE *table,
-                                                                unsigned char *,
-                                                                Field **fields,
-                                                                bool read_all)
+int table_replication_execute_status_by_worker
+  ::read_row_values(TABLE *table, unsigned char *buf,  Field **fields,
+                    bool read_all)
 {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
+  DBUG_ASSERT(table->s->null_bytes == 1);
+  buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
   {
@@ -235,7 +254,10 @@ int table_replication_execute_status_by_worker::read_row_values(TABLE *table,
         set_field_ulong(f, m_row.Worker_Id);
         break;
       case 1: /*Thread_Id*/
-        set_field_varchar_utf8(f, m_row.Thread_Id, m_row.Thread_Id_length);
+        if(m_row.Thread_Id_is_null)
+          f->set_null();
+        else
+          set_field_ulonglong(f, m_row.Thread_Id);
         break;
       case 2: /*Service_State*/
         set_field_enum(f, m_row.Service_State);

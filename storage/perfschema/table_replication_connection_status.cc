@@ -47,7 +47,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Thread_Id")},
-    {C_STRING_WITH_LEN("char(21)")},
+    {C_STRING_WITH_LEN("bigint(20)")},
     {NULL, 0}
   },
   {
@@ -104,7 +104,7 @@ PFS_engine_table* table_replication_connection_status::create(void)
 
 table_replication_connection_status::table_replication_connection_status()
   : PFS_engine_table(&m_share, &m_pos),
-    m_filled(false), m_pos(0), m_next_pos(0)
+    m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
 table_replication_connection_status::~table_replication_connection_status()
@@ -118,54 +118,64 @@ void table_replication_connection_status::reset_position(void)
 
 int table_replication_connection_status::rnd_next(void)
 {
-  Master_info *mi= active_mi;
-
-  if (!m_filled)
+  if (!m_row_exists)
   {
-    if (mi->host[0])
-      fill_rows(active_mi);
+    mysql_mutex_lock(&LOCK_active_mi);
+    if (active_mi->host[0])
+    {
+      make_row(active_mi);
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return 0;
+    }
     else
-      return HA_ERR_END_OF_FILE;
+    {
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return HA_ERR_RECORD_DELETED; /** A record is not there */
+    }
   }
-
-  m_pos.set_at(&m_next_pos);
-  m_next_pos.set_after(&m_pos);
-  if (m_pos.m_index == m_share.m_records)
-    return HA_ERR_END_OF_FILE;
-
-  return 0;
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_replication_connection_status::rnd_pos(const void *pos)
 {
-  Master_info *mi= active_mi;
   set_position(pos);
+
   DBUG_ASSERT(m_pos.m_index < m_share.m_records);
 
-  if (!m_filled)
-    fill_rows(mi);
-  return 0;
+  if (!m_row_exists)
+  {
+    mysql_mutex_lock(&LOCK_active_mi);
+    if (active_mi->host[0])
+    {
+      make_row(active_mi);
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return 0;
+    }
+    else
+    {
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return HA_ERR_RECORD_DELETED; /** A record is not there */
+    }
+  }
+  return HA_ERR_END_OF_FILE;
 }
 
-void table_replication_connection_status::fill_rows(Master_info *mi)
+void table_replication_connection_status::make_row(Master_info *mi)
 {
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
 
   memcpy(m_row.Source_UUID, mi->master_uuid, UUID_LENGTH+1);
 
+  m_row.Thread_Id= 0;
+
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
   {
-    char thread_id_str[21];
-    sprintf(thread_id_str, "%llu", (ulonglong) mi->info_thd->thread_id);
-    m_row.Thread_Id_length= strlen(thread_id_str);
-    memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
+    m_row.Thread_Id= (ulonglong) mi->info_thd->thread_id;
+    m_row.Thread_Id_is_null= false;
   }
   else
-  {
-    m_row.Thread_Id_length= strlen("NULL");
-    memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length);
-  }
+    m_row.Thread_Id_is_null= true;
 
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
     m_row.Service_State= PS_RPL_CONNECT_SERVICE_STATE_YES;
@@ -218,17 +228,18 @@ void table_replication_connection_status::fill_rows(Master_info *mi)
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
-  m_filled= true;
+  m_row_exists= true;
 }
 
 int table_replication_connection_status::read_row_values(TABLE *table,
-                                                         unsigned char *,
+                                                         unsigned char *buf,
                                                          Field **fields,
                                                          bool read_all)
 {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  DBUG_ASSERT(table->s->null_bytes == 1);
+  buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
   {
@@ -240,7 +251,10 @@ int table_replication_connection_status::read_row_values(TABLE *table,
         set_field_char_utf8(f, m_row.Source_UUID, UUID_LENGTH+1);
         break;
       case 1: /** Thread_id */
-        set_field_varchar_utf8(f, m_row.Thread_Id, m_row.Thread_Id_length);
+        if(m_row.Thread_Id_is_null)
+          f->set_null();
+        else
+          set_field_ulonglong(f, m_row.Thread_Id);
         break;
       case 2: /** Service_State */
         set_field_enum(f, m_row.Service_State);
