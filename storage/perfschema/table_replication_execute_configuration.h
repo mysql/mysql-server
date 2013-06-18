@@ -35,7 +35,7 @@
 
 /** A row in the table*/
 struct st_row_execute_config {
-  uint32 Desired_Delay;
+  uint Desired_Delay;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_execute_configuration */

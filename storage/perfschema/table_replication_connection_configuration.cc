@@ -45,7 +45,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Port")},
-    {C_STRING_WITH_LEN("int")},
+    {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
@@ -60,7 +60,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Auto_Position")},
-    {C_STRING_WITH_LEN("tinyint(1)")},
+    {C_STRING_WITH_LEN("int(1)")},
     {NULL, 0}
   },
   {
@@ -110,7 +110,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Connection_Retry_Interval")},
-    {C_STRING_WITH_LEN("bigint")},
+    {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
@@ -308,6 +308,7 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
                                m_row.Network_Interface_length);
         break;
       case 4: /** Auto_Position */
+        //consider using set_field_bit()
         set_field_ulong(f, m_row.Auto_Position);
         break;
       case 5: /** SSL_Allowed */
@@ -346,7 +347,7 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
         set_field_ulong(f, m_row.Connection_Retry_Interval);
         break;
       case 15: /** Connect_Retry_Count */
-        set_field_ulong(f, m_row.Connection_Retry_Count);
+        set_field_ulonglong(f, m_row.Connection_Retry_Count);
         break;
       default:
         DBUG_ASSERT(false);

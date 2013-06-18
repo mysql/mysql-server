@@ -57,7 +57,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Last_Error_Number")},
-    {C_STRING_WITH_LEN("bigint")},
+    {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
@@ -132,11 +132,6 @@ int table_replication_execute_status_by_worker::rnd_next(void)
       return 0;
     }
   }
-
-  m_pos.set_at(&m_next_pos);
-  m_next_pos.set_after(&m_pos);
-  DBUG_ASSERT (m_pos.m_index < m_share.get_row_count());
-
   return HA_ERR_END_OF_FILE;
 }
 
@@ -177,17 +172,9 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
   {
     m_row.Thread_Id= (ulonglong)w->info_thd->thread_id;
     m_row.Thread_Id_is_null= false;
-    //char thread_id_str[sizeof(ulonglong)+1];
-    //sprintf(thread_id_str, "%u", (uint) w->info_thd->thread_id);
-    //m_row.Thread_Id_length= strlen(thread_id_str);
-    //memcpy(m_row.Thread_Id, thread_id_str, m_row.Thread_Id_length);
   }
   else
-  {
-    //m_row.Thread_Id_length= strlen("NULL");
-    //memcpy(m_row.Thread_Id, "NULL", m_row.Thread_Id_length+1);
     m_row.Thread_Id_is_null= true;
-  }
 
   //TODO: Consider introducing Service_State= idle.
   if (w->running_status == Slave_worker::RUNNING)
@@ -251,7 +238,7 @@ int table_replication_execute_status_by_worker
       switch(f->field_index)
       {
       case 0: /*Worker_Id*/
-        set_field_ulong(f, m_row.Worker_Id);
+        set_field_ulonglong(f, m_row.Worker_Id);
         break;
       case 1: /*Thread_Id*/
         if(m_row.Thread_Id_is_null)
@@ -273,7 +260,7 @@ int table_replication_execute_status_by_worker
         break;
       case 6: /*Last_Error_Timestamp*/
         set_field_timestamp(f, m_row.Last_Error_Timestamp);
-        break; 
+        break;
       default:
         DBUG_ASSERT(false);
       }

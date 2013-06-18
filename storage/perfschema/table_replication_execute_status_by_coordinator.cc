@@ -48,7 +48,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Last_Error_Number")},
-    {C_STRING_WITH_LEN("bigint")},
+    {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
@@ -206,10 +206,10 @@ int table_replication_execute_status_by_coordinator
       switch(f->field_index)
       {
       case 0: /*Thread_Id*/
-        //if (!m_row.Thread_Id_is_null)
+        if (!m_row.Thread_Id_is_null)
           set_field_ulonglong(f, m_row.Thread_Id);
-        //else
-          //f->set_null();
+        else
+          f->set_null();
         break;
       case 1: /*Service_State*/
         set_field_enum(f, m_row.Service_State);
