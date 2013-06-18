@@ -42,21 +42,18 @@ enum enum_rpl_yes_no {
 };
 #endif
 
-/**
-  A row in the table. The fields with string values have an additional
-  length field denoted by <field_name>_length.
-*/
+/** A row in the table. */
 struct st_row_execute_status {
   enum_rpl_yes_no Service_State;
-  char Remaining_Delay[11];
-  uint Remaining_Delay_length;
+  uint Remaining_Delay;
+  bool Remaining_Delay_is_set;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_execute_status */
 class table_replication_execute_status: public PFS_engine_table
 {
 private:
-  void fill_rows(Master_info *);
+  void make_row(Master_info *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -64,8 +61,8 @@ private:
   static TABLE_FIELD_DEF m_field_def;
   /** Current row */
   st_row_execute_status m_row;
-  /** True is the table is filled up */
-  bool m_filled;
+  /** True is the current row exists. */
+  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

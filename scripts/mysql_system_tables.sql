@@ -1641,11 +1641,11 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_configuration("
-    "Host varchar(60) not null,"
-    "Port bigint not null,"
-    "User varchar(16) not null,"
-    "Network_Interface varchar(60) not null,"
-    "Auto_Position bigint not null,"
+    "Host char(60) collate utf8_bin not null,"
+    "Port integer not null,"
+    "User char(16) collate utf8_bin not null,"
+    "Network_Interface char(60) collate utf8_bin not null,"
+    "Auto_Position tinyint(1) not null,"
     "SSL_Allowed ENUM('Yes','No','Ignored') not null,"
     "SSL_CA_File varchar(512) not null,"
     "SSL_CA_Path varchar(512) not null,"
@@ -1670,7 +1670,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
     "Source_UUID varchar(36) not null,"
-    "Thread_Id char(21) not null,"
+    "Thread_Id bigint unsigned,"
     "Service_State enum('On','Off','Connecting') not null,"
     "Received_Transaction_Set text not null,"
     "Last_Error_Number bigint not null,"
@@ -1688,7 +1688,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_configuration("
-    "Desired_Delay bigint not null"
+    "Desired_Delay integer not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1702,7 +1702,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status("
     "Service_State ENUM('On','Off') not null,"
-    "Remaining_Delay varchar(11) not null"
+    "Remaining_Delay integer unsigned"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1715,7 +1715,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordinator("
-    "Thread_Id char(21) not null,"
+    "Thread_Id bigint unsigned,"
     "Service_State ENUM('On','Off') not null,"
     "Last_Error_Number bigint not null,"
     "Last_Error_Message varchar(1024) not null,"
@@ -1733,7 +1733,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_worker("
     "Worker_Id bigint not null,"
-    "Thread_Id char(21) not null,"
+    "Thread_Id bigint unsigned,"
     "Service_State ENUM('On','Off') not null,"
     "Last_Seen_Transaction char(57) not null,"
     "Last_Error_Number bigint not null,"

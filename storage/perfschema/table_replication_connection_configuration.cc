@@ -40,27 +40,27 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     {C_STRING_WITH_LEN("Host")},
-    {C_STRING_WITH_LEN("varchar(60)")},
+    {C_STRING_WITH_LEN("char(60)")},
     {NULL, 0}
   },
   {
     {C_STRING_WITH_LEN("Port")},
-    {C_STRING_WITH_LEN("bigint")},
+    {C_STRING_WITH_LEN("int")},
     {NULL, 0}
   },
   {
     {C_STRING_WITH_LEN("User")},
-    {C_STRING_WITH_LEN("varchar(16)")},
+    {C_STRING_WITH_LEN("char(16)")},
     {NULL, 0}
   },
   {
     {C_STRING_WITH_LEN("Network_Interface")},
-    {C_STRING_WITH_LEN("varchar(60)")},
+    {C_STRING_WITH_LEN("char(60)")},
     {NULL, 0}
   },
   {
     {C_STRING_WITH_LEN("Auto_Position")},
-    {C_STRING_WITH_LEN("bigint")},
+    {C_STRING_WITH_LEN("tinyint(1)")},
     {NULL, 0}
   },
   {
@@ -149,7 +149,7 @@ PFS_engine_table* table_replication_connection_configuration::create(void)
 table_replication_connection_configuration
   ::table_replication_connection_configuration()
   : PFS_engine_table(&m_share, &m_pos),
-    m_filled(false), m_pos(0), m_next_pos(0)
+    m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
 table_replication_connection_configuration
@@ -164,36 +164,49 @@ void table_replication_connection_configuration::reset_position(void)
 
 int table_replication_connection_configuration::rnd_next(void)
 {
-  Master_info *mi= active_mi;
-
-  if (!m_filled)
+  if (!m_row_exists)
   {
-    if (mi->host[0])
-      fill_rows(active_mi);
+    mysql_mutex_lock(&LOCK_active_mi);
+    if (active_mi->host[0])
+    {
+      make_row(active_mi);
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return 0;
+    }
     else
-      return HA_ERR_END_OF_FILE;
+    {
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return HA_ERR_RECORD_DELETED; /** A record is not there */
+    }
   }
-
-  m_pos.set_at(&m_next_pos);
-  m_next_pos.set_after(&m_pos);
-  if (m_pos.m_index == m_share.m_records)
-    return HA_ERR_END_OF_FILE;
-
-  return 0;
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_replication_connection_configuration::rnd_pos(const void *pos)
 {
-  Master_info *mi= active_mi;
   set_position(pos);
+
   DBUG_ASSERT(m_pos.m_index < m_share.m_records);
 
-  if (!m_filled)
-    fill_rows(mi);
-  return 0;
+  if (!m_row_exists)
+  {
+    mysql_mutex_lock(&LOCK_active_mi);
+    if (active_mi->host[0])
+    {
+      make_row(active_mi);
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return 0;
+    }
+    else
+    {
+      mysql_mutex_unlock(&LOCK_active_mi);
+      return HA_ERR_RECORD_DELETED; /** A record is not there */
+    }
+  }
+  return HA_ERR_END_OF_FILE;
 }
 
-void table_replication_connection_configuration::fill_rows(Master_info *mi)
+void table_replication_connection_configuration::make_row(Master_info *mi)
 {
   char * temp_store;
   mysql_mutex_lock(&mi->data_lock);
@@ -263,9 +276,8 @@ void table_replication_connection_configuration::fill_rows(Master_info *mi)
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
-  m_filled= true;
+  m_row_exists= true;
 }
-
 
 int table_replication_connection_configuration::read_row_values(TABLE *table,
                                                                 unsigned char *,
@@ -283,16 +295,16 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /** Host */
-        set_field_varchar_utf8(f, m_row.Host, m_row.Host_length);
+        set_field_char_utf8(f, m_row.Host, m_row.Host_length);
         break;
       case 1: /** Port */
         set_field_ulong(f, m_row.Port);
         break;
       case 2: /** User */
-        set_field_varchar_utf8(f, m_row.User, m_row.User_length);
+        set_field_char_utf8(f, m_row.User, m_row.User_length);
         break;
       case 3: /** Network_Interface */
-        set_field_varchar_utf8(f, m_row.Network_Interface,
+        set_field_char_utf8(f, m_row.Network_Interface,
                                m_row.Network_Interface_length);
         break;
       case 4: /** Auto_Position */

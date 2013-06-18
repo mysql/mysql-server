@@ -165,7 +165,7 @@ performance_timers	10	Fixed
 replication_connection_configuration	10	Dynamic
 replication_connection_status	10	Dynamic
 replication_execute_configuration	10	Fixed
-replication_execute_status	10	Dynamic
+replication_execute_status	10	Fixed
 replication_execute_status_by_coordinator	10	Dynamic
 replication_execute_status_by_worker	10	Dynamic
 rwlock_instances	10	Dynamic

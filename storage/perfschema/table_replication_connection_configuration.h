@@ -32,8 +32,6 @@
   @addtogroup Performance_schema_tables
   @{
 */
-#define HOST_MAX_LEN  HOSTNAME_LENGTH * SYSTEM_CHARSET_MBMAXLEN
-#define USER_MAX_LEN  USERNAME_CHAR_LENGTH * SYSTEM_CHARSET_MBMAXLEN
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
@@ -55,12 +53,12 @@ enum enum_ssl_allowed {
   length field denoted by <field_name>_length.
 */
 struct st_row_connect_config {
-  char Host[HOST_MAX_LEN];
+  char Host[HOSTNAME_LENGTH];
   uint Host_length;
   uint Port;
-  char User[USER_MAX_LEN];
+  char User[USERNAME_LENGTH];
   uint User_length;
-  char Network_Interface[60];
+  char Network_Interface[HOSTNAME_LENGTH];
   uint Network_Interface_length;
   bool Auto_Position;
   enum_ssl_allowed SSL_Allowed;
@@ -87,7 +85,7 @@ struct st_row_connect_config {
 class table_replication_connection_configuration: public PFS_engine_table
 {
 private:
-  void fill_rows(Master_info *);
+  void make_row(Master_info *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -95,8 +93,8 @@ private:
   static TABLE_FIELD_DEF m_field_def;
   /** Current row */
   st_row_connect_config m_row;
-  /** True is the table is filled up */
-  bool m_filled;
+  /** True is the current row exists. */
+  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

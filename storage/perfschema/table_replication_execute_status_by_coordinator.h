@@ -50,8 +50,8 @@ struct st_row_coordinator {
   /** Thread_Id field is declared char instead of int because it shows NULL
       when Service_State= off.
   */
-  char Thread_Id[sizeof(ulonglong)+1];
-  uint Thread_Id_length;
+  ulonglong Thread_Id;
+  bool Thread_Id_is_null;
   enum_rpl_yes_no Service_State;
   uint Last_Error_Number;
   char Last_Error_Message[MAX_SLAVE_ERRMSG];
@@ -63,7 +63,7 @@ struct st_row_coordinator {
 class table_replication_execute_status_by_coordinator: public PFS_engine_table
 {
 private:
-  void fill_rows(Master_info *);
+  void make_row(Master_info *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -71,8 +71,8 @@ private:
   static TABLE_FIELD_DEF m_field_def;
   /** Current row */
   st_row_coordinator m_row;
-  /** True is the table is filled up */
-  bool m_filled;
+  /** True is the current row exists. */
+  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
