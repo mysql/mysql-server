@@ -218,7 +218,8 @@ static void do_copy_null(Copy_field *copy)
 
 static void do_copy_not_null(Copy_field *copy)
 {
-  if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
+  if (*copy->null_row ||
+      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
     copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                 WARN_DATA_TRUNCATED, 1);
