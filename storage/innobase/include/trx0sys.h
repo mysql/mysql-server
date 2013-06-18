@@ -225,15 +225,7 @@ trx_read_trx_id(
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
 Looks for the trx instance with the given id in the rw trx_list.
-The caller must be holding trx_sys->mutex.
-<<<<<<< TREE
-@return	the trx handle or NULL if not found;
-the pointer must not be dereferenced unless trx_sys->mutex was
-=======
-@return the trx handle or NULL if not found;
-the pointer must not be dereferenced unless lock_sys->mutex was
->>>>>>> MERGE-SOURCE
-acquired before calling this function and is still being held */
+@return	the trx handle or NULL if not found */
 UNIV_INLINE
 trx_t*
 trx_get_rw_trx_by_id(
@@ -250,18 +242,8 @@ trx_id_t
 trx_rw_min_trx_id(void);
 /*===================*/
 /****************************************************************//**
-Checks if a rw transaction with the given id is active. Caller must hold
-trx_sys->mutex in shared mode. If the caller is not holding
-<<<<<<< TREE
-trx_sys->mutex, the transaction may already have been committed.
-@return	transaction instance if active, or NULL;
-the pointer must not be dereferenced unless trx_sys->mutex was
-=======
-lock_sys->mutex, the transaction may already have been committed.
-@return transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
->>>>>>> MERGE-SOURCE
-acquired before calling this function and is still being held */
+Checks if a rw transaction with the given id is active.
+@return transaction instance if active, or NULL */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active_low(
@@ -273,14 +255,7 @@ trx_rw_is_active_low(
 Checks if a rw transaction with the given id is active. If the caller is
 not holding trx_sys->mutex, the transaction may already have been
 committed.
-<<<<<<< TREE
-@return	transaction instance if active, or NULL;
-the pointer must not be dereferenced unless trx_sys->mutex was
-=======
-@return transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
->>>>>>> MERGE-SOURCE
-acquired before calling this function and is still being held */
+@return transaction instance if active, or NULL; */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active(
