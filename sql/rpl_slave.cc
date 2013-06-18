@@ -4584,8 +4584,6 @@ int mts_recovery_groups(Relay_log_info *rli)
 
   DBUG_ENTER("mts_recovery_groups");
 
-  DBUG_ASSERT(rli->slave_parallel_workers == 0);
-
   /* 
      Although mts_recovery_groups() is reentrant it returns
      early if the previous invocation raised any bit in 

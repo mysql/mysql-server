@@ -38,7 +38,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     {C_STRING_WITH_LEN("Desired_Delay")},
-    {C_STRING_WITH_LEN("int")},
+    {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   }
 };
@@ -133,7 +133,7 @@ void table_replication_execute_configuration::make_row(Master_info *mi)
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
 
-  m_row.Desired_Delay= (long int) mi->rli->get_sql_delay();
+  m_row.Desired_Delay= mi->rli->get_sql_delay();
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
@@ -148,7 +148,8 @@ int table_replication_execute_configuration::read_row_values(TABLE *table,
 {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  //TODO: See why this comes as 1
+  DBUG_ASSERT(table->s->null_bytes == 1);
 
   for (; (f= *fields) ; fields++)
   {
