@@ -4193,6 +4193,9 @@ Backup::backupFragmentRef(Signal * signal, BackupFilePtr filePtr)
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
   ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_REF;
+
+  CRASH_INSERTION((10044));
+  CRASH_INSERTION((10045));
   
   BackupFragmentRef * ref = (BackupFragmentRef*)signal->getDataPtrSend();
   ref->backupId = ptr.p->backupId;
@@ -4440,6 +4443,14 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
       jam();
       closeFile(signal, ptr, filePtr);
     }
+
+    if (ptr.p->is_lcp())
+    {
+      jam();
+      /* Close file with error - will delete it */
+      closeFile(signal, ptr, filePtr);
+    }
+   
     return;
   }
 
@@ -4454,6 +4465,38 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   else if (sz > 0)
   {
     jam();
+#ifdef ERROR_INSERT
+    /* Test APPENDREF handling */
+    if (filePtr.p->fileType == BackupFormat::DATA_FILE)
+    {
+      if (ERROR_INSERTED(10045))
+      {
+        ndbout_c("BF_SCAN_THREAD = %u",
+                 (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD));
+      }
+
+      if ((ERROR_INSERTED(10044) &&
+           !(filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD)) ||
+          (ERROR_INSERTED(10045) && 
+           (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD)))
+      { 
+        jam();
+        ndbout_c("REFing on append to data file for table %u, fragment %u, "
+                 "BF_SCAN_THREAD running : %u",
+                 filePtr.p->tableId,
+                 filePtr.p->fragmentNo,
+                 filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD);
+        FsRef* ref = (FsRef *)signal->getDataPtrSend();
+        ref->userPointer = filePtr.i;
+        ref->errorCode = FsRef::fsErrInvalidParameters;
+        ref->osErrorCode = ~0;
+        /* EXEC DIRECT to avoid change in BF_SCAN_THREAD state */
+        EXECUTE_DIRECT(BACKUP, GSN_FSAPPENDREF, signal,
+                       3);
+        return;
+      }
+    }
+#endif
     FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
     req->filePointer   = filePtr.p->filePointer;
     req->userPointer   = filePtr.i;
@@ -5250,6 +5293,26 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
   
   tabPtr.p->fragments.release();
   ptr.p->tables.release();
+
+  if (ptr.p->errorCode != 0)
+  {
+    jam();
+    ndbout_c("Fatal : LCP Frag scan failed with error %u",
+             ptr.p->errorCode);
+    ndbrequire(filePtr.p->errorCode == ptr.p->errorCode);
+    
+    if ((filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD) == 0)
+    {
+      jam();
+      /* No active scan thread to 'find' the file error.
+       * Scan is closed, so let's send backupFragmentRef 
+       * back to LQH now...
+       */
+      backupFragmentRef(signal, filePtr);
+    }
+    return;
+  }
+
   ptr.p->errorCode = 0;
   
   BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
