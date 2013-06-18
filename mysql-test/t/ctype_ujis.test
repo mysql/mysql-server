@@ -1,7 +1,6 @@
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
 -- source include/have_ujis.inc
 
@@ -85,6 +84,10 @@ CREATE TABLE t1 (
   a char(1) NOT NULL default '',
   b enum('¤¢','¤¤') default NULL
 ) CHARACTER SET ujis;
+--disable_query_log
+let $default_engine = `select @@SESSION.default_storage_engine`;
+--enable_query_log
+--replace_result $default_engine default_engine
 SHOW CREATE TABLE t1;
 SHOW COLUMNS FROM t1;
 DROP TABLE t1;
@@ -1277,6 +1280,7 @@ FROM head, tail
 WHERE (head BETWEEN '80' AND 'FF') AND (tail BETWEEN '80' AND 'FF')
 ORDER BY head, tail;
 DROP TEMPORARY TABLE head, tail;
+--replace_result $default_engine default_engine
 SHOW CREATE TABLE t1;
 
 UPDATE t1 SET a=unhex(code) ORDER BY code;
