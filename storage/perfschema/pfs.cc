@@ -1798,7 +1798,12 @@ static void create_file_v1(PSI_file_key key, const char *name, File file)
 */
 struct PFS_spawn_thread_arg
 {
-  PFS_thread *m_parent_thread;
+  ulonglong m_thread_internal_id;
+  char m_username[USERNAME_LENGTH];
+  uint m_username_length;
+  char m_hostname[HOSTNAME_LENGTH];
+  uint m_hostname_length;
+
   PSI_thread_key m_child_key;
   const void *m_child_identity;
   void *(*m_user_start_routine)(void*);
@@ -1820,17 +1825,15 @@ void* pfs_spawn_thread(void *arg)
     pfs= create_thread(klass, typed_arg->m_child_identity, 0);
     if (likely(pfs != NULL))
     {
-      PFS_thread *parent= typed_arg->m_parent_thread;
-
       clear_thread_account(pfs);
 
-      pfs->m_parent_thread_internal_id= parent->m_thread_internal_id;
+      pfs->m_parent_thread_internal_id= typed_arg->m_thread_internal_id;
 
-      memcpy(pfs->m_username, parent->m_username, sizeof(pfs->m_username));
-      pfs->m_username_length= parent->m_username_length;
+      memcpy(pfs->m_username, typed_arg->m_username, sizeof(pfs->m_username));
+      pfs->m_username_length= typed_arg->m_username_length;
 
-      memcpy(pfs->m_hostname, parent->m_hostname, sizeof(pfs->m_hostname));
-      pfs->m_hostname_length= parent->m_hostname_length;
+      memcpy(pfs->m_hostname, typed_arg->m_hostname, sizeof(pfs->m_hostname));
+      pfs->m_hostname_length= typed_arg->m_hostname_length;
 
       set_thread_account(pfs);
     }
@@ -1866,6 +1869,7 @@ static int spawn_thread_v1(PSI_thread_key key,
                            void *(*start_routine)(void*), void *arg)
 {
   PFS_spawn_thread_arg *psi_arg;
+  PFS_thread *parent;
 
   /* psi_arg can not be global, and can not be a local variable. */
   psi_arg= (PFS_spawn_thread_arg*) my_malloc(sizeof(PFS_spawn_thread_arg),
@@ -1873,11 +1877,33 @@ static int spawn_thread_v1(PSI_thread_key key,
   if (unlikely(psi_arg == NULL))
     return EAGAIN;
 
-  psi_arg->m_parent_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   psi_arg->m_child_key= key;
   psi_arg->m_child_identity= (arg ? arg : thread);
   psi_arg->m_user_start_routine= start_routine;
   psi_arg->m_user_arg= arg;
+
+  parent= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (parent != NULL)
+  {
+    /*
+      Make a copy of the parent attributes.
+      This is required, because instrumentation for this thread (the parent)
+      may be destroyed before the child thread instrumentation is created.
+    */
+    psi_arg->m_thread_internal_id= parent->m_thread_internal_id;
+
+    memcpy(psi_arg->m_username, parent->m_username, sizeof(psi_arg->m_username));
+    psi_arg->m_username_length= parent->m_username_length;
+
+    memcpy(psi_arg->m_hostname, parent->m_hostname, sizeof(psi_arg->m_hostname));
+    psi_arg->m_hostname_length= parent->m_hostname_length;
+  }
+  else
+  {
+    psi_arg->m_thread_internal_id= 0;
+    psi_arg->m_username_length= 0;
+    psi_arg->m_hostname_length= 0;
+  }
 
   int result= pthread_create(thread, attr, pfs_spawn_thread, psi_arg);
   if (unlikely(result != 0))
