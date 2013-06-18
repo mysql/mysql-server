@@ -44,7 +44,7 @@ struct big_rec_t;
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Gets pointer to the type struct of SQL data field.
-@return	pointer to the type struct */
+@return pointer to the type struct */
 UNIV_INLINE
 dtype_t*
 dfield_get_type(
@@ -53,7 +53,7 @@ dfield_get_type(
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Gets pointer to the data in a field.
-@return	pointer to data */
+@return pointer to data */
 UNIV_INLINE
 void*
 dfield_get_data(
@@ -75,7 +75,7 @@ dfield_set_type(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Gets length of field data.
-@return	length of data; UNIV_SQL_NULL if SQL null data */
+@return length of data; UNIV_SQL_NULL if SQL null data */
 UNIV_INLINE
 ulint
 dfield_get_len(
@@ -93,7 +93,7 @@ dfield_set_len(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Determines if a field is SQL NULL
-@return	nonzero if SQL null data */
+@return nonzero if SQL null data */
 UNIV_INLINE
 ulint
 dfield_is_null(
@@ -102,7 +102,7 @@ dfield_is_null(
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Determines if a field is externally stored
-@return	nonzero if externally stored */
+@return nonzero if externally stored */
 UNIV_INLINE
 ulint
 dfield_is_ext(
@@ -176,7 +176,7 @@ dfield_dup(
 Tests if two data fields are equal.
 If len==0, tests the data length and content for equality.
 If len>0, tests the first len bytes of the content for equality.
-@return	TRUE if both fields are NULL or if they are equal */
+@return TRUE if both fields are NULL or if they are equal */
 UNIV_INLINE
 ibool
 dfield_datas_are_binary_equal(
@@ -188,7 +188,7 @@ dfield_datas_are_binary_equal(
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Tests if dfield data length and content is equal to the given.
-@return	TRUE if equal */
+@return TRUE if equal */
 UNIV_INLINE
 ibool
 dfield_data_is_binary_equal(
@@ -200,7 +200,7 @@ dfield_data_is_binary_equal(
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets number of fields in a data tuple.
-@return	number of fields */
+@return number of fields */
 UNIV_INLINE
 ulint
 dtuple_get_n_fields(
@@ -210,7 +210,7 @@ dtuple_get_n_fields(
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Gets nth field of a tuple.
-@return	nth field */
+@return nth field */
 UNIV_INLINE
 dfield_t*
 dtuple_get_nth_field(
@@ -222,7 +222,7 @@ dtuple_get_nth_field(
 #endif /* UNIV_DEBUG */
 /*********************************************************************//**
 Gets info bits in a data tuple.
-@return	info bits */
+@return info bits */
 UNIV_INLINE
 ulint
 dtuple_get_info_bits(
@@ -240,7 +240,7 @@ dtuple_set_info_bits(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Gets number of fields used in record comparisons.
-@return	number of fields used in comparisons in rem0cmp.* */
+@return number of fields used in comparisons in rem0cmp.* */
 UNIV_INLINE
 ulint
 dtuple_get_n_fields_cmp(
@@ -268,7 +268,7 @@ Creates a data tuple from an already allocated chunk of memory.
 The size of the chunk must be at least DTUPLE_EST_ALLOC(n_fields).
 The default value for number of fields used in record comparisons
 for this tuple is n_fields.
-@return	created tuple (inside buf) */
+@return created tuple (inside buf) */
 UNIV_INLINE
 dtuple_t*
 dtuple_create_from_mem(
@@ -281,7 +281,7 @@ dtuple_create_from_mem(
 /**********************************************************//**
 Creates a data tuple to a memory heap. The default value for number
 of fields used in record comparisons for this tuple is n_fields.
-@return	own: created tuple */
+@return own: created tuple */
 UNIV_INLINE
 dtuple_t*
 dtuple_create(
@@ -305,7 +305,7 @@ dtuple_set_n_fields(
 /*********************************************************************//**
 Copies a data tuple to another.  This is a shallow copy; if a deep copy
 is desired, dfield_dup() will have to be invoked on each field.
-@return	own: copy of tuple */
+@return own: copy of tuple */
 UNIV_INLINE
 dtuple_t*
 dtuple_copy(
@@ -317,7 +317,7 @@ dtuple_copy(
 /**********************************************************//**
 The following function returns the sum of data lengths of a tuple. The space
 occupied by the field structs or the tuple struct is not counted.
-@return	sum of data lens */
+@return sum of data lens */
 UNIV_INLINE
 ulint
 dtuple_get_data_size(
@@ -327,7 +327,7 @@ dtuple_get_data_size(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Computes the number of externally stored fields in a data tuple.
-@return	number of fields */
+@return number of fields */
 UNIV_INLINE
 ulint
 dtuple_get_n_ext(
@@ -335,8 +335,8 @@ dtuple_get_n_ext(
 	const dtuple_t*	tuple)	/*!< in: tuple */
 	__attribute__((nonnull));
 /** Compare two data tuples.
-@param[in]	tuple1	first data tuple
-@param[in]	tuple2	second data tuple
+@param[in] tuple1 first data tuple
+@param[in] tuple2 second data tuple
 @return positive, 0, negative if tuple1 is greater, equal, less, than tuple2,
 respectively */
 
@@ -347,7 +347,7 @@ dtuple_coll_cmp(
 	__attribute__((nonnull, warn_unused_result));
 /************************************************************//**
 Folds a prefix given as the number of fields of a tuple.
-@return	the folded value */
+@return the folded value */
 UNIV_INLINE
 ulint
 dtuple_fold(
@@ -367,7 +367,7 @@ dtuple_set_types_binary(
 	__attribute__((nonnull));
 /**********************************************************************//**
 Checks if a dtuple contains an SQL null value.
-@return	TRUE if some field is SQL null */
+@return TRUE if some field is SQL null */
 UNIV_INLINE
 ibool
 dtuple_contains_null(
@@ -376,7 +376,7 @@ dtuple_contains_null(
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dfield_check_typed(
@@ -385,7 +385,7 @@ dfield_check_typed(
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dtuple_check_typed(
@@ -394,7 +394,7 @@ dtuple_check_typed(
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************//**
 Checks that a data tuple is typed.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dtuple_check_typed_no_assert(
@@ -405,7 +405,7 @@ dtuple_check_typed_no_assert(
 /**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dtuple_validate(
@@ -441,9 +441,9 @@ dtuple_print(
 	__attribute__((nonnull));
 #ifndef DBUG_OFF
 /** Print the contents of a tuple.
-@param o	output stream
-@param field	array of data fields
-@param n	number of data fields */
+@param o output stream
+@param field array of data fields
+@param n number of data fields */
 
 void
 dfield_print(
@@ -451,8 +451,8 @@ dfield_print(
 	const dfield_t*	field,
 	ulint		n);
 /** Print the contents of a tuple.
-@param o	output stream
-@param tuple	data tuple */
+@param o output stream
+@param tuple data tuple */
 
 void
 dtuple_print(

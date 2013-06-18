@@ -36,7 +36,7 @@ Created December 2006 by Marko Makela
 Allocate a block.  The thread calling this function must hold
 buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
 The buf_pool_mutex may be released and reacquired.
-@return	allocated block, never NULL */
+@return allocated block, never NULL */
 
 void*
 buf_buddy_alloc_low(
@@ -66,7 +66,7 @@ buf_buddy_free_low(
 
 /**********************************************************************//**
 Get the index of buf_pool->zip_free[] for a given block size.
-@return	index of buf_pool->zip_free[], or BUF_BUDDY_SIZES */
+@return index of buf_pool->zip_free[], or BUF_BUDDY_SIZES */
 UNIV_INLINE
 ulint
 buf_buddy_get_slot(
@@ -90,7 +90,7 @@ Allocate a block.  The thread calling this function must hold
 buf_pool->mutex and must not hold buf_pool->zip_mutex or any
 block->mutex.  The buf_pool->mutex may be released and reacquired.
 This function should only be used for allocating compressed page frames.
-@return	allocated block, never NULL */
+@return allocated block, never NULL */
 UNIV_INLINE
 byte*
 buf_buddy_alloc(

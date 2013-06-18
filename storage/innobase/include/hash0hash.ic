@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@ Created 5/20/1997 Heikki Tuuri
 
 /************************************************************//**
 Gets the nth cell in a hash table.
-@return	pointer to cell */
+@return pointer to cell */
 UNIV_INLINE
 hash_cell_t*
 hash_get_nth_cell(
@@ -58,7 +58,7 @@ hash_table_clear(
 
 /*************************************************************//**
 Returns the number of cells in a hash table.
-@return	number of cells */
+@return number of cells */
 UNIV_INLINE
 ulint
 hash_get_n_cells(
@@ -72,7 +72,7 @@ hash_get_n_cells(
 
 /**************************************************************//**
 Calculates the hash value from a folded value.
-@return	hashed value */
+@return hashed value */
 UNIV_INLINE
 ulint
 hash_calc_hash(
@@ -88,7 +88,7 @@ hash_calc_hash(
 #ifndef UNIV_HOTBACKUP
 /************************************************************//**
 Gets the sync object index for a fold value in a hash table.
-@return	index */
+@return index */
 UNIV_INLINE
 ulint
 hash_get_sync_obj_index(
@@ -106,7 +106,7 @@ hash_get_sync_obj_index(
 
 /************************************************************//**
 Gets the nth heap in a hash table.
-@return	mem heap */
+@return mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_nth_heap(
@@ -124,7 +124,7 @@ hash_get_nth_heap(
 
 /************************************************************//**
 Gets the heap for a fold value in a hash table.
-@return	mem heap */
+@return mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_heap(
@@ -148,7 +148,7 @@ hash_get_heap(
 
 /************************************************************//**
 Gets the nth mutex in a hash table.
-@return	mutex */
+@return mutex */
 UNIV_INLINE
 ib_mutex_t*
 hash_get_nth_mutex(
@@ -166,7 +166,7 @@ hash_get_nth_mutex(
 
 /************************************************************//**
 Gets the mutex for a fold value in a hash table.
-@return	mutex */
+@return mutex */
 UNIV_INLINE
 ib_mutex_t*
 hash_get_mutex(
@@ -186,7 +186,7 @@ hash_get_mutex(
 
 /************************************************************//**
 Gets the nth rw_lock in a hash table.
-@return	rw_lock */
+@return rw_lock */
 UNIV_INLINE
 rw_lock_t*
 hash_get_nth_lock(
@@ -204,7 +204,7 @@ hash_get_nth_lock(
 
 /************************************************************//**
 Gets the rw_lock for a fold value in a hash table.
-@return	rw_lock */
+@return rw_lock */
 UNIV_INLINE
 rw_lock_t*
 hash_get_lock(

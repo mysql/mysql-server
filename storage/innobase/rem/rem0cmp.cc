@@ -58,12 +58,12 @@ where two records disagree only in the way that one
 has more fields than the other. */
 
 /** Compare two data fields.
-@param[in]	prtype		precise type
-@param[in]	a		data field
-@param[in]	a_length	length of a, in bytes (not UNIV_SQL_NULL)
-@param[in]	b		data field
-@param[in]	b_length	length of b, in bytes (not UNIV_SQL_NULL)
-@return	positive, 0, negative, if a is greater, equal, less than b,
+@param[in] prtype precise type
+@param[in] a data field
+@param[in] a_length length of a, in bytes (not UNIV_SQL_NULL)
+@param[in] b data field
+@param[in] b_length length of b, in bytes (not UNIV_SQL_NULL)
+@return positive, 0, negative, if a is greater, equal, less than b,
 respectively */
 UNIV_INLINE
 int
@@ -90,7 +90,7 @@ innobase_mysql_cmp(
 	}
 #endif /* UNIV_DEBUG */
 
-	uint cs_num = dtype_get_charset_coll(prtype);
+	uint cs_num = (uint) dtype_get_charset_coll(prtype);
 
 	if (CHARSET_INFO* cs = get_charset(cs_num, MYF(MY_WME))) {
 		return(cs->coll->strnncollsp(
@@ -104,7 +104,7 @@ innobase_mysql_cmp(
 
 /*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
-@return	TRUE if the columns are considered equal in comparisons */
+@return TRUE if the columns are considered equal in comparisons */
 
 ibool
 cmp_cols_are_equal(
@@ -157,11 +157,11 @@ cmp_cols_are_equal(
 
 /** Compare two DATA_DECIMAL (MYSQL_TYPE_DECIMAL) fields.
 TODO: Remove this function. Everything should use MYSQL_TYPE_NEWDECIMAL.
-@param[in]	a		data field
-@param[in]	a_length	length of a, in bytes (not UNIV_SQL_NULL)
-@param[in]	b		data field
-@param[in]	b_length	length of b, in bytes (not UNIV_SQL_NULL)
-@return	positive, 0, negative, if a is greater, equal, less than b,
+@param[in] a data field
+@param[in] a_length length of a, in bytes (not UNIV_SQL_NULL)
+@param[in] b data field
+@param[in] b_length length of b, in bytes (not UNIV_SQL_NULL)
+@return positive, 0, negative, if a is greater, equal, less than b,
 respectively */
 static UNIV_COLD
 int
@@ -228,13 +228,13 @@ cmp_decimal(
 }
 
 /** Compare two data fields.
-@param[in]	mtype		main type
-@param[in]	prtype		precise type
-@param[in]	a		data field
-@param[in]	a_length	length of a, in bytes (not UNIV_SQL_NULL)
-@param[in]	b		data field
-@param[in]	b_length	length of b, in bytes (not UNIV_SQL_NULL)
-@return	positive, 0, negative, if a is greater, equal, less than b,
+@param[in] mtype main type
+@param[in] prtype precise type
+@param[in] a data field
+@param[in] a_length length of a, in bytes (not UNIV_SQL_NULL)
+@param[in] b data field
+@param[in] b_length length of b, in bytes (not UNIV_SQL_NULL)
+@return positive, 0, negative, if a is greater, equal, less than b,
 respectively */
 static
 int
@@ -306,16 +306,16 @@ cmp_whole_field(
 }
 
 /** Compare two data fields.
-@param[in]	mtype	main type
-@param[in]	prtype	precise type
-@param[in]	data1	data field
-@param[in]	len1	length of data1 in bytes, or UNIV_SQL_NULL
-@param[in]	data2	data field
-@param[in]	len2	length of data2 in bytes, or UNIV_SQL_NULL
-@return	the comparison result of data1 and data2
-@retval	0 if data1 is equal to data2
-@retval	negative if data1 is less than data2
-@retval	positive if data1 is greater than data2 */
+@param[in] mtype main type
+@param[in] prtype precise type
+@param[in] data1 data field
+@param[in] len1 length of data1 in bytes, or UNIV_SQL_NULL
+@param[in] data2 data field
+@param[in] len2 length of data2 in bytes, or UNIV_SQL_NULL
+@return the comparison result of data1 and data2
+@retval 0 if data1 is equal to data2
+@retval negative if data1 is less than data2
+@retval positive if data1 is greater than data2 */
 inline
 int
 cmp_data(
@@ -371,7 +371,7 @@ cmp_data(
 		return(cmp);
 	}
 
-	cmp = len1 - len2;
+	cmp = (int) (len1 - len2);
 
 	if (!cmp || pad == ULINT_UNDEFINED) {
 		return(cmp);
@@ -395,16 +395,16 @@ cmp_data(
 }
 
 /** Compare two data fields.
-@param[in]	mtype	main type
-@param[in]	prtype	precise type
-@param[in]	data1	data field
-@param[in]	len1	length of data1 in bytes, or UNIV_SQL_NULL
-@param[in]	data2	data field
-@param[in]	len2	length of data2 in bytes, or UNIV_SQL_NULL
-@return	the comparison result of data1 and data2
-@retval	0 if data1 is equal to data2
-@retval	negative if data1 is less than data2
-@retval	positive if data1 is greater than data2 */
+@param[in] mtype main type
+@param[in] prtype precise type
+@param[in] data1 data field
+@param[in] len1 length of data1 in bytes, or UNIV_SQL_NULL
+@param[in] data2 data field
+@param[in] len2 length of data2 in bytes, or UNIV_SQL_NULL
+@return the comparison result of data1 and data2
+@retval 0 if data1 is equal to data2
+@retval negative if data1 is less than data2
+@retval positive if data1 is greater than data2 */
 
 int
 cmp_data_data(
@@ -419,15 +419,15 @@ cmp_data_data(
 }
 
 /** Compare a data tuple to a physical record.
-@param[in]	dtuple		data tuple
-@param[in]	rec		B-tree record
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in]	n_cmp		number of fields to compare
-@param[in/out]	matched_fields	number of completely matched fields
-@return	the comparison result of dtuple and rec
-@retval	0 if dtuple is equal to rec
-@retval	negative if dtuple is less than rec
-@retval	positive if dtuple is greater than rec */
+@param[in] dtuple data tuple
+@param[in] rec B-tree record
+@param[in] offsets rec_get_offsets(rec)
+@param[in] n_cmp number of fields to compare
+@param[in,out] matched_fields number of completely matched fields
+@return the comparison result of dtuple and rec
+@retval 0 if dtuple is equal to rec
+@retval negative if dtuple is less than rec
+@retval positive if dtuple is greater than rec */
 
 int
 cmp_dtuple_rec_with_match_low(
@@ -507,14 +507,14 @@ order_resolved:
 
 /** Compare a data tuple to a physical record.
 @see cmp_dtuple_rec_with_match
-@param[in]	dtuple		data tuple
-@param[in]	rec		B-tree record
-@param[in]	offsets		rec_get_offsets(rec); may be NULL
+@param[in] dtuple data tuple
+@param[in] rec B-tree record
+@param[in] offsets rec_get_offsets(rec); may be NULL
 for ROW_FORMAT=REDUNDANT
-@return	the comparison result of dtuple and rec
-@retval	0 if dtuple is equal to rec
-@retval	negative if dtuple is less than rec
-@retval	positive if dtuple is greater than rec */
+@return the comparison result of dtuple and rec
+@retval 0 if dtuple is equal to rec
+@retval negative if dtuple is less than rec
+@retval positive if dtuple is greater than rec */
 
 int
 cmp_dtuple_rec(
@@ -532,7 +532,7 @@ cmp_dtuple_rec(
 /**************************************************************//**
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record.
-@return	TRUE if prefix */
+@return TRUE if prefix */
 
 ibool
 cmp_dtuple_is_prefix_of_rec(
@@ -667,20 +667,20 @@ cmp_rec_rec_simple(
 }
 
 /** Compare two B-tree records.
-@param[in]	rec1		B-tree record
-@param[in]	rec2		B-tree record
-@param[in]	offsets1	rec_get_offsets(rec1, index)
-@param[in]	offsets2	rec_get_offsets(rec2, index)
-@param[in]	index		B-tree index
-@param[in]	nulls_unequal	true if this is for index cardinality
+@param[in] rec1 B-tree record
+@param[in] rec2 B-tree record
+@param[in] offsets1 rec_get_offsets(rec1, index)
+@param[in] offsets2 rec_get_offsets(rec2, index)
+@param[in] index B-tree index
+@param[in] nulls_unequal true if this is for index cardinality
 statistics estimation, and innodb_stats_method=nulls_unequal
 or innodb_stats_method=nulls_ignored
-@param[out]	matched_fields	number of completely matched fields
+@param[out] matched_fields number of completely matched fields
 within the first field not completely matched
-@return	the comparison result
-@retval	0 if rec1 is equal to rec2
-@retval	negative if rec1 is less than rec2
-@retval	positive if rec2 is greater than rec2 */
+@return the comparison result
+@retval 0 if rec1 is equal to rec2
+@retval negative if rec1 is less than rec2
+@retval positive if rec2 is greater than rec2 */
 
 int
 cmp_rec_rec_with_match(

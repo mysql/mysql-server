@@ -428,7 +428,6 @@ the word size of the machine, that is on a 32-bit platform 32 bits, and on a
 64-bit platform 64 bits. We also give the printf format for the type as a
 macro ULINTPF. */
 
-
 #ifdef _WIN32
 /* Use the integer types and formatting strings defined in Visual Studio. */
 # define UINT32PF	"%lu"

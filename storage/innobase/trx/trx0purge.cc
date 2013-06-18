@@ -32,22 +32,22 @@ Created 3/26/1996 Heikki Tuuri
 #endif
 
 #include "fsp0fsp.h"
-#include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "read0read.h"
 #include "fut0fut.h"
+#include "mach0data.h"
+#include "mtr0log.h"
+#include "os0thread.h"
 #include "que0que.h"
+#include "read0read.h"
 #include "row0purge.h"
 #include "row0upd.h"
-#include "trx0rec.h"
+#include "srv0mon.h"
+#include "srv0space.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "os0thread.h"
-#include "srv0mon.h"
-#include "mtr0log.h"
-#include "srv0space.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
 
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 ulong		srv_max_purge_lag = 0;
@@ -185,7 +185,7 @@ TrxUndoRsegsIterator::set_next()
 /****************************************************************//**
 Builds a purge 'query' graph. The actual purge is performed by executing
 this query graph.
-@return	own: the query graph */
+@return own: the query graph */
 static
 que_t*
 trx_purge_graph_build(
@@ -852,7 +852,7 @@ trx_purge_choose_next_log(void)
 
 /***********************************************************************//**
 Gets the next record to purge and updates the info in the purge system.
-@return	copy of an undo log record or pointer to the dummy undo log record */
+@return copy of an undo log record or pointer to the dummy undo log record */
 static
 trx_undo_rec_t*
 trx_purge_get_next_rec(
@@ -1022,7 +1022,7 @@ trx_purge_fetch_next_rec(
 
 /*******************************************************************//**
 This function runs a purge batch.
-@return	number of undo log pages handled in the batch */
+@return number of undo log pages handled in the batch */
 static
 ulint
 trx_purge_attach_undo_recs(
@@ -1234,7 +1234,7 @@ trx_purge_truncate(void)
 
 /*******************************************************************//**
 This function runs a purge batch.
-@return	number of undo log pages handled in the batch */
+@return number of undo log pages handled in the batch */
 
 ulint
 trx_purge(

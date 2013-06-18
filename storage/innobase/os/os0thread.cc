@@ -56,7 +56,7 @@ static WinThreadMap win_thread_map;
 
 /***************************************************************//**
 Compares two thread ids for equality.
-@return	TRUE if equal */
+@return TRUE if equal */
 
 ibool
 os_thread_eq(
@@ -82,7 +82,7 @@ os_thread_eq(
 /****************************************************************//**
 Converts an OS thread id to a ulint. It is NOT guaranteed that the ulint is
 unique for the thread though!
-@return	thread identifier as a number */
+@return thread identifier as a number */
 
 ulint
 os_thread_pf(
@@ -96,7 +96,7 @@ os_thread_pf(
 Returns the thread identifier of current thread. Currently the thread
 identifier in Unix is the thread handle itself. Note that in HP-UX
 pthread_t is a struct of 3 fields.
-@return	current thread identifier */
+@return current thread identifier */
 
 os_thread_id_t
 os_thread_get_curr_id(void)
@@ -215,7 +215,7 @@ os_thread_exit(
 	DWORD win_thread_id = GetCurrentThreadId();
 	HANDLE handle = win_thread_map[win_thread_id];
 	CloseHandle(handle);
-	int ret = win_thread_map.erase(win_thread_id);
+	size_t ret = win_thread_map.erase(win_thread_id);
 	ut_a(ret == 1);
 
 	mutex_exit(&thread_mutex);

@@ -5291,9 +5291,14 @@ void tee_write(FILE *file, const char *s, size_t slen, int flags)
           my_win_console_write(charset_info, s, mblen);
         else
 #endif
-        fwrite(s, 1, mblen, file);
-        if (opt_outfile)
-          fwrite(s, 1, mblen, OUTFILE);
+        if (fwrite(s, 1, mblen, file) != (size_t) mblen) {
+          perror("fwrite");
+        }
+        if (opt_outfile) {
+          if (fwrite(s, 1, mblen, OUTFILE) != (size_t) mblen) {
+            perror("fwrite");
+          }
+        }
         s+= mblen - 1;
         continue;
       }

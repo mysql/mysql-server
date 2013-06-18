@@ -86,7 +86,7 @@ mem_heap_validate_or_print(
 				argument, it is ignored */
 /**************************************************************//**
 Validates the contents of a memory heap.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 mem_heap_validate(
@@ -96,7 +96,7 @@ mem_heap_validate(
 #ifdef UNIV_DEBUG
 /**************************************************************//**
 Checks that an object is a memory heap (or a block of it)
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 mem_heap_check(
@@ -106,21 +106,21 @@ mem_heap_check(
 #ifdef UNIV_MEM_DEBUG
 /*****************************************************************//**
 TRUE if no memory is currently allocated.
-@return	TRUE if no heaps exist */
+@return TRUE if no heaps exist */
 
 ibool
 mem_all_freed(void);
 /*===============*/
 /*****************************************************************//**
 Validates the dynamic memory
-@return	TRUE if error */
+@return TRUE if error */
 
 ibool
 mem_validate_no_assert(void);
 /*=========================*/
 /************************************************************//**
 Validates the dynamic memory
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 mem_validate(void);

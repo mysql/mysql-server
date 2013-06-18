@@ -2053,12 +2053,12 @@ static void set_user(const char *user, struct passwd *user_info_arg)
 #endif
   if (setgid(user_info_arg->pw_gid) == -1)
   {
-    sql_perror("setgid");
+    sql_print_error("setgid: %s", strerror(errno));
     unireg_abort(1);
   }
   if (setuid(user_info_arg->pw_uid) == -1)
   {
-    sql_perror("setuid");
+    sql_print_error("setuid: %s", strerror(errno));
     unireg_abort(1);
   }
 #endif
@@ -2072,12 +2072,12 @@ static void set_effective_user(struct passwd *user_info_arg)
   DBUG_ASSERT(user_info_arg != 0);
   if (setregid((gid_t)-1, user_info_arg->pw_gid) == -1)
   {
-    sql_perror("setregid");
+    sql_print_error("setregid: %s", strerror(errno));
     unireg_abort(1);
   }
   if (setreuid((uid_t)-1, user_info_arg->pw_uid) == -1)
   {
-    sql_perror("setreuid");
+    sql_print_error("setreuid: %s", strerror(errno));
     unireg_abort(1);
   }
 #endif
@@ -2090,7 +2090,7 @@ static void set_root(const char *path)
 #if !defined(_WIN32)
   if (chroot(path) == -1)
   {
-    sql_perror("chroot");
+    sql_print_error("chroot: %s", strerror(errno));
     unireg_abort(1);
   }
   my_setwd("/", MYF(0));
@@ -2234,7 +2234,7 @@ static void network_init(void)
 
         if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai))
         {
-          sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));
+          sql_print_error("%s: %s", ER_DEFAULT(ER_IPSOCK_ERROR), strerror(errno));
           sql_print_error("Can't start server: cannot resolve hostname!");
           unireg_abort(1);
         }
@@ -2246,7 +2246,7 @@ static void network_init(void)
     {
       if (getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai))
       {
-        sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
+        sql_print_error("%s: %s", ER_DEFAULT(ER_IPSOCK_ERROR), strerror(errno));
         sql_print_error("Can't start server: cannot resolve hostname!");
         unireg_abort(1);                          /* purecov: tested */
       }
@@ -2288,7 +2288,7 @@ static void network_init(void)
     // Report user-error if we failed to create a socket.
     if (mysql_socket_getfd(ip_sock) == INVALID_SOCKET)
     {
-      sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
+      sql_print_error("%s: %s", ER_DEFAULT(ER_IPSOCK_ERROR), strerror(errno));
       unireg_abort(1);                          /* purecov: tested */
     }
 
@@ -2348,13 +2348,15 @@ static void network_init(void)
     if (ret < 0)
     {
       DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
-      sql_perror("Can't start server: Bind on TCP/IP port");
+      sql_print_error("Can't start server: Bind on TCP/IP port: %s",
+                      strerror(errno));
       sql_print_error("Do you already have another mysqld server running on port: %d ?",mysqld_port);
       unireg_abort(1);
     }
     if (mysql_socket_listen(ip_sock, (int)back_log) < 0)
     {
-      sql_perror("Can't start server: listen() on TCP/IP port");
+      sql_print_error("Can't start server: listen() on TCP/IP port: %s",
+                      strerror(errno));
       sql_print_error("listen() on TCP/IP failed with error %d",
           socket_errno);
       unireg_abort(1);
@@ -2394,7 +2396,8 @@ static void network_init(void)
 
     if (mysql_socket_getfd(unix_sock) < 0)
     {
-      sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
+      sql_print_error("Can't start server: UNIX Socket : %s",
+                      strerror(errno));
       unireg_abort(1);        /* purecov: inspected */
     }
 
@@ -2411,7 +2414,8 @@ static void network_init(void)
     if (mysql_socket_bind(unix_sock, reinterpret_cast<struct sockaddr *> (&UNIXaddr),
                           sizeof(UNIXaddr)) < 0)
     {
-      sql_perror("Can't start server : Bind on unix socket"); /* purecov: tested */
+      sql_print_error("Can't start server : Bind on unix socket: %s",
+                      strerror(errno));
       sql_print_error("Do you already have another mysqld server running on socket: %s ?",mysqld_unix_port);
       unireg_abort(1);          /* purecov: tested */
     }
@@ -3541,7 +3545,8 @@ int init_common_variables()
   binlog_filter= new Rpl_filter;
   if (!rpl_filter || !binlog_filter)
   {
-    sql_perror("Could not allocate replication and binlog filters");
+    sql_print_error("Could not allocate replication and binlog filters: %s",
+                    strerror(errno));
     return 1;
   }
 
@@ -4860,7 +4865,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   {
     if (setreuid((uid_t)-1, 0) == -1)
     {                        // this should never happen
-      sql_perror("setreuid");
+      sql_print_error("setreuid: %s", strerror(errno));
       unireg_abort(1);
     }
     if (mlockall(MCL_CURRENT))
@@ -5074,7 +5079,8 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
-  adjust_related_options();
+  ulong requested_open_files;
+  adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
@@ -5085,7 +5091,7 @@ int mysqld_main(int argc, char **argv)
       pfs_param.m_hints.m_table_definition_cache= table_def_size;
       pfs_param.m_hints.m_table_open_cache= table_cache_size;
       pfs_param.m_hints.m_max_connections= max_connections;
-      pfs_param.m_hints.m_open_files_limit= open_files_limit;
+      pfs_param.m_hints.m_open_files_limit= requested_open_files;
       PSI_hook= initialize_performance_schema(&pfs_param);
       if (PSI_hook == NULL)
       {
@@ -6157,7 +6163,7 @@ void handle_connections_sockets()
       */
       connection_errors_accept++;
       if ((error_count++ & 255) == 0)   // This can happen often
-        sql_perror("Error in accept");
+        sql_print_error("Error in accept: %s", strerror(errno));
       if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
         sleep(1);       // Give other threads some time
       continue;
@@ -6308,8 +6314,8 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
                                   &saPipeSecurity)) ==
     INVALID_HANDLE_VALUE)
       {
-  sql_perror("Can't create new named pipe!");
-  break;          // Abort
+        sql_print_error("Can't create new named pipe!: %s", strerror(errno));
+        break;          // Abort
       }
     }
     hConnectedPipe = hPipe;
@@ -6327,7 +6333,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
          &saPipeSecurity)) ==
   INVALID_HANDLE_VALUE)
     {
-      sql_perror("Can't create new named pipe!");
+      sql_print_error("Can't create new named pipe!: %s", strerror(errno));
       hPipe=hConnectedPipe;
       continue;         // We have to try again
     }
@@ -6549,10 +6555,8 @@ errorconn:
     /* Could not form connection;  Free used handlers/memort and retry */
     if (errmsg)
     {
-      char buff[180];
-      strxmov(buff, "Can't create shared memory connection: ", errmsg, ".",
-        NullS);
-      sql_perror(buff);
+      sql_print_error("Can't create shared memory connection: %s. : %s",
+                      errmsg, strerror(errno));
     }
     if (handle_client_file_map)
       CloseHandle(handle_client_file_map);
@@ -6578,9 +6582,8 @@ error:
 
   if (errmsg)
   {
-    char buff[180];
-    strxmov(buff, "Can't create shared memory service: ", errmsg, ".", NullS);
-    sql_perror(buff);
+    sql_print_error("Can't create shared memory service: %s. : %s",
+                    errmsg, strerror(errno));
   }
   my_security_attr_free(sa_event);
   my_security_attr_free(sa_mapping);
@@ -6662,7 +6665,7 @@ int handle_early_options()
   - @c table_cache_size,
   - the platform max open file limit.
 */
-void adjust_open_files_limit()
+void adjust_open_files_limit(ulong *requested_open_files)
 {
   ulong limit_1;
   ulong limit_2;
@@ -6685,11 +6688,8 @@ void adjust_open_files_limit()
 
   request_open_files= max<ulong>(max<ulong>(limit_1, limit_2), limit_3);
 
+  /* Notice: my_set_max_open_files() may return more than requested. */
   effective_open_files= my_set_max_open_files(request_open_files);
-
-  /* Warning: my_set_max_open_files() may return more than requested. */
-  if (effective_open_files > request_open_files)
-    effective_open_files= request_open_files;
 
   if (effective_open_files < request_open_files)
   {
@@ -6713,13 +6713,15 @@ void adjust_open_files_limit()
   }
 
   open_files_limit= effective_open_files;
+  if (requested_open_files)
+    *requested_open_files= min<ulong>(effective_open_files, request_open_files);
 }
 
-void adjust_max_connections()
+void adjust_max_connections(ulong requested_open_files)
 {
   ulong limit;
 
-  limit= open_files_limit - 10 - TABLE_OPEN_CACHE_MIN * 2;
+  limit= requested_open_files - 10 - TABLE_OPEN_CACHE_MIN * 2;
 
   if (limit < max_connections)
   {
@@ -6734,11 +6736,11 @@ void adjust_max_connections()
   }
 }
 
-void adjust_table_cache_size()
+void adjust_table_cache_size(ulong requested_open_files)
 {
   ulong limit;
 
-  limit= max<ulong>((open_files_limit - 10 - max_connections) / 2,
+  limit= max<ulong>((requested_open_files - 10 - max_connections) / 2,
                     TABLE_OPEN_CACHE_MIN);
 
   if (limit < table_cache_size)
@@ -6770,16 +6772,16 @@ void adjust_table_def_size()
     table_def_size= default_value;
 }
 
-void adjust_related_options()
+void adjust_related_options(ulong *requested_open_files)
 {
   /* In bootstrap, disable grant tables (we are about to create them) */
   if (opt_bootstrap)
     opt_noacl= 1;
 
   /* The order is critical here, because of dependencies. */
-  adjust_open_files_limit();
-  adjust_max_connections();
-  adjust_table_cache_size();
+  adjust_open_files_limit(requested_open_files);
+  adjust_max_connections(*requested_open_files);
+  adjust_table_cache_size(*requested_open_files);
   adjust_table_def_size();
 }
 
@@ -7205,14 +7207,10 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
-  mysql_rwlock_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   var->value= buff;
   *((my_bool *)buff)= (my_bool) (active_mi &&
                                  active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
                                  active_mi->rli->slave_running);
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 
@@ -7222,47 +7220,33 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
     TODO: with multimaster, have one such counter per line in
     SHOW SLAVE STATUS, and have the sum over all lines here.
   */
-  mysql_rwlock_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     var->type= SHOW_LONG;
     var->value= buff;
-    mysql_mutex_lock(&active_mi->rli->data_lock);
     *((long *)buff)= (long)active_mi->rli->retried_trans;
-    mysql_mutex_unlock(&active_mi->rli->data_lock);
   }
   else
     var->type= SHOW_UNDEF;
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 
 static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
 {
-  mysql_rwlock_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     var->type= SHOW_LONGLONG;
     var->value= buff;
-    mysql_mutex_lock(&active_mi->rli->data_lock);
     *((longlong *)buff)= active_mi->received_heartbeats;
-    mysql_mutex_unlock(&active_mi->rli->data_lock);
   }
   else
     var->type= SHOW_UNDEF;
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 
 static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 {
   MYSQL_TIME received_heartbeat_time;
-  mysql_rwlock_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     var->type= SHOW_CHAR;
@@ -7278,16 +7262,12 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
   }
   else
     var->type= SHOW_UNDEF;
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 
 static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 {
   DEBUG_SYNC(thd, "dsync_show_heartbeat_period");
-  mysql_rwlock_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     var->type= SHOW_CHAR;
@@ -7296,8 +7276,6 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   }
   else
     var->type= SHOW_UNDEF;
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 
@@ -9064,7 +9042,8 @@ static void create_pid_file()
     }
     mysql_file_close(file, MYF(0));
   }
-  sql_perror("Can't start server: can't create PID file");
+  sql_print_error("Can't start server: can't create PID file: %s",
+                  strerror(errno));
   exit(1);
 }
 #endif /* EMBEDDED_LIBRARY */

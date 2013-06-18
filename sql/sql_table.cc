@@ -48,13 +48,13 @@
 #include <my_dir.h>
 #include "sp_head.h"
 #include "sp.h"
-#include "sql_trigger.h"
 #include "sql_parse.h"
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
 #include "sql_resolver.h"              // setup_order, fix_inner_refs
 #include "table_cache.h"
+#include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
 
 #ifdef _WIN32
@@ -387,7 +387,8 @@ uint filename_to_tablename(const char *from, char *to, uint to_length
   DBUG_ENTER("filename_to_tablename");
   DBUG_PRINT("enter", ("from '%s'", from));
 
-  if (!memcmp(from, tmp_file_prefix, tmp_file_prefix_length))
+  if (strlen(from) >= tmp_file_prefix_length &&
+      !memcmp(from, tmp_file_prefix, tmp_file_prefix_length))
   {
     /* Temporary table name. */
     res= (strnmov(to, from, to_length) - to);
@@ -2462,8 +2463,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
           non_tmp_table_deleted= TRUE;
-          new_error= Table_triggers_list::drop_all_triggers(thd, db,
-                                                            table->table_name);
+          new_error= drop_all_triggers(thd, db, table->table_name);
         }
         error|= new_error;
         /* Invalidate even if we failed to delete the .FRM file. */
@@ -5042,6 +5042,7 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
                    NO_FRM_RENAME  Don't rename the FRM file
                                   but only the table in the storage engine.
                    NO_HA_TABLE    Don't rename table in engine.
+                   NO_FK_CHECKS   Don't check FK constraints during rename.
 
   @return false    OK
   @return true     Error
@@ -5059,11 +5060,16 @@ mysql_rename_table(handlerton *base, const char *old_db,
   char tmp_name[NAME_LEN+1];
   handler *file;
   int error=0;
+  ulonglong save_bits= thd->variables.option_bits;
   int length;
   bool was_truncated;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
                        old_db, old_name, new_db, new_name));
+
+  // Temporarily disable foreign key checks
+  if (flags & NO_FK_CHECKS) 
+    thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
 
   file= (base == NULL ? 0 :
          get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
@@ -5139,6 +5145,8 @@ mysql_rename_table(handlerton *base, const char *old_db,
   }
 #endif
 
+  // Restore options bits to the original value
+  thd->variables.option_bits= save_bits;
 
   DBUG_RETURN(error != 0);
 }
@@ -6640,12 +6648,12 @@ static bool mysql_inplace_alter_table(THD *thd,
       */
       DBUG_RETURN(true);
     }
-    if (Table_triggers_list::change_table_name(thd,
-                                               alter_ctx->db,
-                                               alter_ctx->alias,
-                                               alter_ctx->table_name,
-                                               alter_ctx->new_db,
-                                               alter_ctx->new_alias))
+    if (change_trigger_table_name(thd,
+                                  alter_ctx->db,
+                                  alter_ctx->alias,
+                                  alter_ctx->table_name,
+                                  alter_ctx->new_db,
+                                  alter_ctx->new_alias))
     {
       /*
         If the rename of trigger files fails, try to rename the table
@@ -6653,7 +6661,7 @@ static bool mysql_inplace_alter_table(THD *thd,
       */
       (void) mysql_rename_table(db_type,
                                 alter_ctx->new_db, alter_ctx->new_alias,
-                                alter_ctx->db, alter_ctx->alias, 0);
+                                alter_ctx->db, alter_ctx->alias, NO_FK_CHECKS);
       DBUG_RETURN(true);
     }
   }
@@ -6899,10 +6907,26 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
           goto err;
 	}
+
 	if ((def->def=alter->def))              // Use new default
+        {
           def->flags&= ~NO_DEFAULT_VALUE_FLAG;
+          /*
+            The defaults are explicitly altered for the TIMESTAMP/DATETIME
+            field, through SET DEFAULT. Hence, set the unireg check
+            appropriately.
+          */
+          if (real_type_with_now_as_default(def->sql_type))
+          {
+            if (def->unireg_check == Field::TIMESTAMP_DNUN_FIELD)
+              def->unireg_check= Field::TIMESTAMP_UN_FIELD;
+            else if (def->unireg_check == Field::TIMESTAMP_DN_FIELD)
+              def->unireg_check= Field::NONE;
+          }
+        }
         else
           def->flags|= NO_DEFAULT_VALUE_FLAG;
+
 	alter_it.remove();
       }
     }
@@ -7629,16 +7653,17 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (mysql_rename_table(old_db_type, alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias, 0))
       error= -1;
-    else if (Table_triggers_list::change_table_name(thd,
-                                                    alter_ctx->db,
-                                                    alter_ctx->alias,
-                                                    alter_ctx->table_name,
-                                                    alter_ctx->new_db,
-                                                    alter_ctx->new_alias))
+    else if (change_trigger_table_name(thd,
+                                       alter_ctx->db,
+                                       alter_ctx->alias,
+                                       alter_ctx->table_name,
+                                       alter_ctx->new_db,
+                                       alter_ctx->new_alias))
     {
       (void) mysql_rename_table(old_db_type,
                                 alter_ctx->new_db, alter_ctx->new_alias,
-                                alter_ctx->db, alter_ctx->table_name, 0);
+                                alter_ctx->db, alter_ctx->table_name, 
+                                NO_FK_CHECKS);
       error= -1;
     }
   }
@@ -8512,27 +8537,31 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     // Rename failed, delete the temporary table.
     (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                           alter_ctx.tmp_name, FN_IS_TMP);
+    
     // Restore the backup of the original table to the old name.
     (void) mysql_rename_table(old_db_type, alter_ctx.db, backup_name,
-                              alter_ctx.db, alter_ctx.alias, FN_FROM_IS_TMP);
+                              alter_ctx.db, alter_ctx.alias, 
+                              FN_FROM_IS_TMP | NO_FK_CHECKS);
+    
     goto err_with_mdl;
   }
 
   // Check if we renamed the table and if so update trigger files.
   if (alter_ctx.is_table_renamed() &&
-      Table_triggers_list::change_table_name(thd,
-                                             alter_ctx.db,
-                                             alter_ctx.alias,
-                                             alter_ctx.table_name,
-                                             alter_ctx.new_db,
-                                             alter_ctx.new_alias))
+      change_trigger_table_name(thd,
+                                alter_ctx.db,
+                                alter_ctx.alias,
+                                alter_ctx.table_name,
+                                alter_ctx.new_db,
+                                alter_ctx.new_alias))
   {
     // Rename succeeded, delete the new table.
     (void) quick_rm_table(thd, new_db_type,
                           alter_ctx.new_db, alter_ctx.new_alias, 0);
     // Restore the backup of the original table to the old name.
     (void) mysql_rename_table(old_db_type, alter_ctx.db, backup_name,
-                              alter_ctx.db, alter_ctx.alias, FN_FROM_IS_TMP);
+                              alter_ctx.db, alter_ctx.alias, 
+                              FN_FROM_IS_TMP | NO_FK_CHECKS);
     goto err_with_mdl;
   }
 

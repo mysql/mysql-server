@@ -354,13 +354,13 @@ static void yy_fatal_error (yyconst char msg[] , yyscan_t yyscanner __attribute_
  */
 #define YY_DO_BEFORE_ACTION \
 	yyg->yytext_ptr = yy_bp; \
-	yyleng = (size_t) (yy_cp - yy_bp); \
+	yyleng = (int) (yy_cp - yy_bp); \
 	yyg->yy_hold_char = *yy_cp; \
 	*yy_cp = '\0'; \
 	yyg->yy_c_buf_p = yy_cp;
 
-#define YY_NUM_RULES 6
-#define YY_END_OF_BUFFER 7
+#define YY_NUM_RULES 7
+#define YY_END_OF_BUFFER 8
 /* This struct is not used in this scanner,
    but its presence is necessary. */
 struct yy_trans_info
@@ -370,7 +370,7 @@ struct yy_trans_info
 	};
 static yyconst flex_int16_t yy_accept[17] =
     {   0,
-        4,    4,    7,    4,    1,    5,    1,    6,    6,    2,
+        4,    4,    8,    4,    1,    6,    1,    5,    5,    2,
         4,    1,    1,    0,    3,    0
     } ;
 
@@ -476,8 +476,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* Required for reentrant parser */
 #define YY_DECL int fts_tlexer(YYSTYPE* val, yyscan_t yyscanner)
 #define exit(A)   ut_error
+
 #define YY_NO_INPUT 1
-#line 480 "fts0tlex.cc"
+#line 481 "fts0tlex.cc"
 
 #define INITIAL 0
 
@@ -496,6 +497,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* Holds the entire state of the reentrant scanner. */
 struct yyguts_t
 {
+
 	/* User-defined. Not touched by flex. */
 	YY_EXTRA_TYPE yyextra_r;
 
@@ -617,8 +619,8 @@ static int input (yyscan_t yyscanner );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		size_t n; \
-		for ( n = 0; n < max_size && \
+		int n; \
+		for ( n = 0; n < (int) max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
 		if ( c == '\n' ) \
@@ -630,7 +632,7 @@ static int input (yyscan_t yyscanner );
 	else \
 		{ \
 		errno=0; \
-		while ( (result = fread(buf, 1, max_size, yyin))==0 && ferror(yyin)) \
+		while ( (result = (int) fread(buf, 1, max_size, yyin))==0 && ferror(yyin)) \
 			{ \
 			if( errno != EINTR) \
 				{ \
@@ -700,10 +702,10 @@ YY_DECL
 	register int yy_act;
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 44 "fts0tlex.l"
+#line 45 "fts0tlex.l"
 
 
-#line 707 "fts0tlex.cc"
+#line 708 "fts0tlex.cc"
 
 	if ( !yyg->yy_init )
 		{
@@ -784,12 +786,12 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 46 "fts0tlex.l"
+#line 47 "fts0tlex.l"
 /* Ignore whitespace */ ;
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 48 "fts0tlex.l"
+#line 49 "fts0tlex.l"
 {
 	val->oper = fts0tget_text(yyscanner)[0];
 
@@ -798,7 +800,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 54 "fts0tlex.l"
+#line 55 "fts0tlex.l"
 {
 	val->token = strdup(fts0tget_text(yyscanner));
 
@@ -807,7 +809,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 60 "fts0tlex.l"
+#line 61 "fts0tlex.l"
 {
 	val->token = strdup(fts0tget_text(yyscanner));
 
@@ -815,17 +817,22 @@ YY_RULE_SETUP
 }
 	YY_BREAK
 case 5:
-/* rule 5 can match eol */
 YY_RULE_SETUP
 #line 66 "fts0tlex.l"
-
+;
 	YY_BREAK
 case 6:
+/* rule 6 can match eol */
 YY_RULE_SETUP
-#line 68 "fts0tlex.l"
+#line 67 "fts0tlex.l"
+
+	YY_BREAK
+case 7:
+YY_RULE_SETUP
+#line 69 "fts0tlex.l"
 ECHO;
 	YY_BREAK
-#line 829 "fts0tlex.cc"
+#line 835 "fts0tlex.cc"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -968,7 +975,7 @@ case YY_STATE_EOF(INITIAL):
  */
 static int yy_get_next_buffer (yyscan_t yyscanner)
 {
-    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	register char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
 	register char *source = yyg->yytext_ptr;
 	register int number_to_move, i;
@@ -1013,7 +1020,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 	else
 		{
-			int num_to_read =
+			int num_to_read = (int)
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
@@ -1027,7 +1034,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			if ( b->yy_is_our_buffer )
 				{
-				int new_size = b->yy_buf_size * 2;
+				int new_size = (int) b->yy_buf_size * 2;
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -1048,7 +1055,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			yyg->yy_c_buf_p = &b->yy_ch_buf[yy_c_buf_p_offset];
 
-			num_to_read = YY_CURRENT_BUFFER_LVALUE->yy_buf_size -
+			num_to_read = (int) YY_CURRENT_BUFFER_LVALUE->yy_buf_size -
 						number_to_move - 1;
 
 			}
@@ -1058,7 +1065,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			yyg->yy_n_chars, (size_t) num_to_read );
+			yyg->yy_n_chars, num_to_read);
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = yyg->yy_n_chars;
 		}
@@ -1101,7 +1108,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 /* yy_get_previous_state - get the state just before the EOB char was reached */
 
-    static yy_state_type yy_get_previous_state (yyscan_t yyscanner)
+static yy_state_type yy_get_previous_state (yyscan_t yyscanner)
 {
 	register yy_state_type yy_current_state;
 	register char *yy_cp;
@@ -1256,9 +1263,9 @@ void fts0trestart  (FILE * input_file , yyscan_t yyscanner)
  * @param new_buffer The new input buffer.
  * @param yyscanner The scanner object.
  */
-    void fts0t_switch_to_buffer  (YY_BUFFER_STATE  new_buffer , yyscan_t yyscanner)
+void fts0t_switch_to_buffer  (YY_BUFFER_STATE  new_buffer , yyscan_t yyscanner)
 {
-    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
 	/* TODO. We should be able to replace this entire function body
 	 * with
@@ -1290,7 +1297,7 @@ void fts0trestart  (FILE * input_file , yyscan_t yyscanner)
 
 static void fts0t_load_buffer_state  (yyscan_t yyscanner)
 {
-    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	yyg->yy_n_chars = YY_CURRENT_BUFFER_LVALUE->yy_n_chars;
 	yyg->yytext_ptr = yyg->yy_c_buf_p = YY_CURRENT_BUFFER_LVALUE->yy_buf_pos;
 	yyin = YY_CURRENT_BUFFER_LVALUE->yy_input_file;
@@ -1367,12 +1374,12 @@ static void fts0t_init_buffer  (YY_BUFFER_STATE  b, FILE * file , yyscan_t yysca
 	 * In that case, we don't want to reset the lineno or column.
 	 */
 	if (b != YY_CURRENT_BUFFER){
-	b->yy_bs_lineno = 1;
-	b->yy_bs_column = 0;
+		b->yy_bs_lineno = 1;
+		b->yy_bs_column = 0;
 	}
 
 	b->yy_is_interactive = 0;
-
+    
 	errno = oerrno;
 }
 
@@ -1491,7 +1498,7 @@ static void fts0tensure_buffer_stack (yyscan_t yyscanner)
 		/* Increase the buffer to prepare for a possible push. */
 		int grow_size = 8 /* arbitrary grow size */;
 
-		num_to_alloc = yyg->yy_buffer_stack_max + grow_size;
+		num_to_alloc = (int) yyg->yy_buffer_stack_max + grow_size;
 		yyg->yy_buffer_stack = (struct yy_buffer_state**)fts0trealloc
 								(yyg->yy_buffer_stack,
 								num_to_alloc * sizeof(struct yy_buffer_state*)
@@ -1509,7 +1516,7 @@ static void fts0tensure_buffer_stack (yyscan_t yyscanner)
  * @param base the character buffer
  * @param size the size in bytes of the character buffer
  * @param yyscanner The scanner object.
- * @return the newly allocated buffer state object. 
+ * @return the newly allocated buffer state object.
  */
 YY_BUFFER_STATE fts0t_scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
 {
@@ -1529,7 +1536,7 @@ YY_BUFFER_STATE fts0t_scan_buffer  (char * base, yy_size_t  size , yyscan_t yysc
 	b->yy_buf_pos = b->yy_ch_buf = base;
 	b->yy_is_our_buffer = 0;
 	b->yy_input_file = 0;
-	b->yy_n_chars = b->yy_buf_size;
+	b->yy_n_chars = (int) b->yy_buf_size;
 	b->yy_is_interactive = 0;
 	b->yy_at_bol = 1;
 	b->yy_fill_buffer = 0;
@@ -1551,7 +1558,7 @@ YY_BUFFER_STATE fts0t_scan_buffer  (char * base, yy_size_t  size , yyscan_t yysc
 YY_BUFFER_STATE fts0t_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 {
 
-	return fts0t_scan_bytes(yystr,strlen(yystr) ,yyscanner);
+	return fts0t_scan_bytes(yystr, (int) strlen(yystr) ,yyscanner);
 }
 
 /** Setup the input buffer state to scan the given bytes. The next call to fts0tlex() will
@@ -1712,7 +1719,7 @@ void fts0tset_lineno (int  line_number , yyscan_t yyscanner)
 
 	/* lineno is only valid if an input buffer exists. */
 	if (! YY_CURRENT_BUFFER )
-		yy_fatal_error( "fts0tset_lineno called with no buffer" , yyscanner); 
+		yy_fatal_error( "fts0tset_lineno called with no buffer" , yyscanner);
 
 	yylineno = line_number;
 }
@@ -1727,7 +1734,7 @@ void fts0tset_column (int  column_no , yyscan_t yyscanner)
 
 	/* column is only valid if an input buffer exists. */
 	if (! YY_CURRENT_BUFFER )
-		yy_fatal_error( "fts0tset_column called with no buffer" , yyscanner); 
+		yy_fatal_error( "fts0tset_column called with no buffer" , yyscanner);
 
 	yycolumn = column_no;
 }
@@ -1818,13 +1825,13 @@ int fts0tlex_init_extra(YY_EXTRA_TYPE yy_user_defined,yyscan_t* ptr_yy_globals )
 		errno = ENOMEM;
 		return 1;
 	}
-    
+
 	/* By setting to 0xAA, we expose bugs in
 	yy_init_globals. Leave at 0x00 for releases. */
 	memset(*ptr_yy_globals,0x00,sizeof(struct yyguts_t));
 
 	fts0tset_extra (yy_user_defined, *ptr_yy_globals);
- 
+
 	return yy_init_globals ( *ptr_yy_globals );
 }
 
@@ -1832,8 +1839,8 @@ static int yy_init_globals (yyscan_t yyscanner)
 {
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	/* Initialization is the same as for the non-reentrant scanner.
-	* This function is called from fts0tlex_destroy(), so don't allocate here.
-	*/
+	 * This function is called from fts0tlex_destroy(), so don't allocate here.
+	 */
 
 	yyg->yy_buffer_stack = 0;
 	yyg->yy_buffer_stack_top = 0;
@@ -1846,7 +1853,7 @@ static int yy_init_globals (yyscan_t yyscanner)
 	yyg->yy_start_stack_depth = 0;
 	yyg->yy_start_stack =  NULL;
 
-	/* Defined in main.c */
+/* Defined in main.c */
 #ifdef YY_STDINIT
 	yyin = stdin;
 	yyout = stdout;
@@ -1939,7 +1946,5 @@ void fts0tfree (void * ptr ,  yyscan_t yyscanner __attribute__((unused)))
 
 #define YYTABLES_NAME "yytables"
 
-#line 68 "fts0tlex.l"
-
-
+#line 69 "fts0tlex.l"
 

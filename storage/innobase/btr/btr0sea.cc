@@ -273,7 +273,7 @@ btr_search_enable(void)
 
 /*****************************************************************//**
 Creates and initializes a search info struct.
-@return	own: search info struct */
+@return own: search info struct */
 
 btr_search_t*
 btr_search_info_create(
@@ -314,7 +314,7 @@ btr_search_info_create(
 /*****************************************************************//**
 Returns the value of ref_count. The value is protected by
 btr_search_latch.
-@return	ref_count value. */
+@return ref_count value. */
 
 ulint
 btr_search_info_get_ref_count(
@@ -440,7 +440,7 @@ set_new_recomm:
 Updates the block search info on hash successes. NOTE that info and
 block->n_hash_helps, n_fields, left_side are NOT protected by any
 semaphore, to save CPU time! Do not assume the fields are consistent.
-@return	TRUE if building a (new) hash index on the block is recommended */
+@return TRUE if building a (new) hash index on the block is recommended */
 static
 ibool
 btr_search_update_block_hash_info(
@@ -642,7 +642,7 @@ btr_search_info_update_slow(
 Checks if a guessed position for a tree cursor is right. Note that if
 mode is PAGE_CUR_LE, which is used in inserts, and the function returns
 TRUE, then cursor->up_match and cursor->low_match both have sensible values.
-@return	TRUE if success */
+@return TRUE if success */
 static
 ibool
 btr_search_check_guess(
@@ -785,7 +785,7 @@ Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns TRUE, then cursor->up_match and cursor->low_match
 both have sensible values.
-@return	TRUE if succeeded */
+@return TRUE if succeeded */
 
 ibool
 btr_search_guess_on_hash(
@@ -1768,7 +1768,7 @@ function_exit:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /********************************************************************//**
 Validates the search system.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 btr_search_validate(void)

@@ -8547,6 +8547,8 @@ static void test_mem_overun()
   buffer[length-2]= ')';
   buffer[--length]= '\0';
 
+  strcat(buffer," ENGINE = MyISAM ");
+  length= strlen(buffer);
   rc= mysql_real_query(mysql, buffer, length);
   myquery(rc);
 
@@ -15502,7 +15504,7 @@ static void test_mysql_insert_id()
   DIE_UNLESS(res == 400);
 
   /* table with auto_increment column */
-  rc= mysql_query(mysql, "create table t2 (f1 int not null primary key auto_increment, f2 varchar(255))");
+  rc= mysql_query(mysql, "create table t2 (f1 int not null primary key auto_increment, f2 varchar(255)) ENGINE = MyISAM");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t2 values (1,'a')");
   myquery(rc);
@@ -15584,7 +15586,7 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table t2");
   myquery(rc);
   rc= mysql_query(mysql, "create table t2 (f1 int not null primary key "
-                  "auto_increment, f2 varchar(255), unique (f2))");
+                  "auto_increment, f2 varchar(255), unique (f2)) ENGINE = MyISAM");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t2 values (null,'e')");
   res= mysql_insert_id(mysql);

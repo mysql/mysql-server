@@ -77,7 +77,7 @@ public:
   key(key_arg), keypart(keypart_arg), optimize(optimize_arg),
   keypart_map(keypart_map_arg), ref_table_rows(ref_table_rows_arg),
   null_rejecting(null_rejecting_arg), cond_guard(cond_guard_arg),
-  sj_pred_no(sj_pred_no_arg)
+  sj_pred_no(sj_pred_no_arg), bound_keyparts(0), rowcount(0), cost(0)
   {}
   TABLE *table;            ///< table owning the index
   Item	*val;              ///< other side of the equality, or value if no field
@@ -114,8 +114,35 @@ public:
 
      Not used if the index is fulltext (such index cannot be used for
      semijoin).
+
+     @see get_semi_join_select_list_index()
   */
   uint         sj_pred_no;
+
+  /*
+    The three members below are different from the rest of Key_use: they are
+    set only by Optimize_table_order, and they change with the currently
+    considered join prefix.
+  */
+
+  /**
+     The key columns which are equal to expressions depending only of earlier
+     tables of the current join prefix.
+     This information is stored only in the first Key_use of the index.
+  */
+  key_part_map bound_keyparts;
+  /**
+     Fanout of the ref access path for this index, in the current join
+     prefix.
+     This information is stored only in the first Key_use of the index.
+  */
+  double rowcount;
+  /**
+     Cost of the ref access path for this index, in the current join
+     prefix.
+     This information is stored only in the first Key_use of the index.
+  */
+  double cost;
 };
 
 

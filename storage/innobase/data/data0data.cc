@@ -55,8 +55,8 @@ ulint	data_dummy;
 
 #ifndef UNIV_HOTBACKUP
 /** Compare two data tuples.
-@param[in]	tuple1	first data tuple
-@param[in]	tuple2	second data tuple
+@param[in] tuple1 first data tuple
+@param[in] tuple2 second data tuple
 @return positive, 0, negative if tuple1 is greater, equal, less, than tuple2,
 respectively */
 
@@ -77,7 +77,7 @@ dtuple_coll_cmp(
 
 	n_fields = dtuple_get_n_fields(tuple1);
 
-	cmp = n_fields - dtuple_get_n_fields(tuple2);
+	cmp = (int) n_fields - (int) dtuple_get_n_fields(tuple2);
 
 	for (i = 0; cmp == 0 && i < n_fields; i++) {
 		const dfield_t*	field1	= dtuple_get_nth_field(tuple1, i);
@@ -106,7 +106,7 @@ dtuple_set_n_fields(
 
 /**********************************************************//**
 Checks that a data field is typed.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 dfield_check_typed_no_assert(
@@ -128,7 +128,7 @@ dfield_check_typed_no_assert(
 
 /**********************************************************//**
 Checks that a data tuple is typed.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dtuple_check_typed_no_assert(
@@ -166,7 +166,7 @@ dump:
 #ifdef UNIV_DEBUG
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dfield_check_typed(
@@ -187,7 +187,7 @@ dfield_check_typed(
 
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dtuple_check_typed(
@@ -210,7 +210,7 @@ dtuple_check_typed(
 /**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 dtuple_validate(
@@ -519,9 +519,9 @@ dtuple_print(
 
 #ifndef DBUG_OFF
 /** Print the contents of a tuple.
-@param o	output stream
-@param field	array of data fields
-@param n	number of data fields */
+@param o output stream
+@param field array of data fields
+@param n number of data fields */
 
 void
 dfield_print(
@@ -558,8 +558,8 @@ dfield_print(
 }
 
 /** Print the contents of a tuple.
-@param o	output stream
-@param tuple	data tuple */
+@param o output stream
+@param tuple data tuple */
 
 void
 dtuple_print(

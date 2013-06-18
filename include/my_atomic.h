@@ -99,13 +99,8 @@
 /*
   transparent_union doesn't work in g++
   Bug ?
-
-  Darwin's gcc doesn't want to put pointers in a transparent_union
-  when built with -arch ppc64. Complains:
-  warning: 'transparent_union' attribute ignored
 */
-#if defined(__GNUC__) && !defined(__cplusplus) && \
-      ! (defined(__APPLE__) && (defined(_ARCH_PPC64) ||defined (_ARCH_PPC)))
+#if defined(__GNUC__) && !defined(__cplusplus)
 /*
   we want to be able to use my_atomic_xxx functions with
   both signed and unsigned integers. But gcc will issue a warning
@@ -255,12 +250,6 @@ make_atomic_store(ptr)
 #ifndef LF_BACKOFF
 #define LF_BACKOFF (1)
 #endif
-
-#define MY_ATOMIC_OK       0
-#define MY_ATOMIC_NOT_1CPU 1
-C_MODE_START
-extern int my_atomic_initialize();
-C_MODE_END
 
 #endif
 

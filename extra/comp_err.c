@@ -381,7 +381,7 @@ static int create_sys_files(struct languages *lang_head,
     /* continue with header of the errmsg.sys file */
     length= ftell(to) - HEADER_LENGTH - row_count * 4;
     memset(head, 0, HEADER_LENGTH);
-    bmove((uchar *) head, (uchar *) file_head, 4);
+    memmove(head, file_head, 4);
     head[4]= 1;
     int4store(head + 6, length);
     int4store(head + 10, row_count);

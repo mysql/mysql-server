@@ -564,7 +564,7 @@ fts_find_index_cache(
 /******************************************************************//**
 Write the table id to the given buffer (including final NUL). Buffer must be
 at least FTS_AUX_MIN_TABLE_ID_LENGTH bytes long.
-@return	number of bytes written */
+@return number of bytes written */
 UNIV_INLINE
 int
 fts_write_object_id(
