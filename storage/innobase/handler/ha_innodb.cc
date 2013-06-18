@@ -8130,6 +8130,8 @@ ha_innobase::info_low(
 
 			prebuilt->trx->op_info = "updating table statistics";
 
+			DEBUG_SYNC_C("info_before_stats_update");
+
 			dict_update_statistics(
 				ib_table,
 				FALSE, /* update even if initialized */
