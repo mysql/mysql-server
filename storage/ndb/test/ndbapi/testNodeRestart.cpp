@@ -4147,6 +4147,157 @@ runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+enum LCPFSStopCases
+{
+  NdbFsError1,
+  NdbFsError2,
+  NUM_CASES
+};
+
+int
+runTestLcpFsErr(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Setup an error insert, then start a checkpoint */
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    g_err << "Insufficient nodes for test." << endl;
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  g_err << "Subscribing to MGMD events..." << endl;
+  
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle = 
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+  
+  int scenario = NdbFsError1;
+  bool failed = false;
+
+  do
+  {
+    g_err << "Injecting fault "
+          << scenario
+          << " to suspend LCP frag scan..." << endl;
+    Uint32 victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+    Uint32 otherNode = 0;
+    do
+    {
+      otherNode = restarter.getNode(NdbRestarter::NS_RANDOM);
+    } while (otherNode == victim);
+
+    bool failed = false;
+    Uint32 lcpsRequired = 2;
+    switch (scenario)
+    {
+    case NdbFsError1:
+    {
+      if (restarter.insertErrorInNode(victim, 10044) != 0)
+      {
+        g_err << "Error insert 10044 failed." << endl;
+        failed = true;
+      }
+      lcpsRequired=6;
+      break;
+    }
+    case NdbFsError2:
+    {
+      if (restarter.insertErrorInNode(victim, 10045) != 0)
+      {
+        g_err << "Error insert 10045 failed." << endl;
+        failed = true;
+      }
+      lcpsRequired=6;
+      break;
+    }
+    }
+    if (failed)
+      break;
+    
+    g_err << "Triggering LCP..." << endl;
+    /* Now trigger LCP, in case the concurrent updates don't */
+    {
+      int startLcpDumpCode = 7099;
+      if (restarter.dumpStateOneNode(victim, &startLcpDumpCode, 1))
+      {
+        g_err << "Dump state failed." << endl;
+        break;
+      }
+    }
+
+    g_err << "Waiting to hear of LCP completion..." << endl;
+    Uint32 completedLcps = 0;
+    Uint64 maxWaitSeconds = (120 * lcpsRequired);
+    Uint64 endTime = NdbTick_CurrentMillisecond() + 
+      (maxWaitSeconds * 1000);
+    struct ndb_logevent event;
+    
+    do
+    {
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointStarted &&
+            NdbTick_CurrentMillisecond() < endTime);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointCompleted &&
+            NdbTick_CurrentMillisecond() < endTime);
+
+      if (NdbTick_CurrentMillisecond() >= endTime)
+        break;
+      
+      completedLcps++;
+      g_err << "LCP " << completedLcps << " completed." << endl;
+      
+      if (completedLcps == lcpsRequired)
+        break;
+
+      /* Request + wait for another... */
+      {
+        int startLcpDumpCode = 7099;
+        if (restarter.dumpStateOneNode(otherNode, &startLcpDumpCode, 1))
+        {
+          g_err << "Dump state failed." << endl;
+          break;
+        }
+      }
+    } while (1);
+    
+    if (completedLcps != lcpsRequired)
+    {
+      g_err << "Some problem while waiting for LCP completion" << endl;
+      break;
+    }
+
+    /* Now wait for the node to recover */
+    g_err << "Waiting for all nodes to be started..." << endl;
+    if (restarter.waitNodesStarted((const int*) &victim, 1, 120) != 0)
+    {
+      g_err << "Failed waiting for node " << victim << "to start" << endl;
+      break;
+    }
+
+    restarter.insertErrorInAllNodes(0);
+
+    {
+      Uint32 count = 0;
+      g_err << "Consuming intervening mgmapi events..." << endl;
+      while(ndb_logevent_get_next(handle, &event, 10) != 0)
+        count++;
+      
+      g_err << count << " events consumed." << endl;
+    }
+  } while (!failed && 
+           ++scenario < NUM_CASES);
+  
+  ctx->stopTest();
+
+  if (failed)
+    return NDBT_FAILED;
+  else
+    return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -4672,6 +4823,13 @@ TESTCASE("MasterFailSlowLCP",
          "DIH Master failure during a slow LCP can cause a crash.")
 {
   INITIALIZER(runMasterFailSlowLCP);
+}
+TESTCASE("TestLCPFSErr", 
+         "Test LCP FS Error handling")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runTestLcpFsErr);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
