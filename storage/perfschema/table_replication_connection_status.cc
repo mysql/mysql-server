@@ -42,7 +42,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     {C_STRING_WITH_LEN("Source_UUID")},
-    {C_STRING_WITH_LEN("varchar(36)")},
+    {C_STRING_WITH_LEN("char(36)")},
     {NULL, 0}
   },
   {
@@ -62,7 +62,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("Last_Error_Number")},
-    {C_STRING_WITH_LEN("bigint")},
+    {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
@@ -248,7 +248,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /** Source_UUID */
-        set_field_char_utf8(f, m_row.Source_UUID, UUID_LENGTH+1);
+        set_field_char_utf8(f, m_row.Source_UUID, UUID_LENGTH);
         break;
       case 1: /** Thread_id */
         if(m_row.Thread_Id_is_null)

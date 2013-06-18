@@ -3,6 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
+call mtr.add_suppression("Master command COM_REGISTER_SLAVE failed.");
 select * from performance_schema.replication_connection_configuration;
 insert into performance_schema.replication_connection_configuration values(1);
 update performance_schema.replication_connection_configuration set Host='';
@@ -28,6 +29,7 @@ stop slave;
 change master to
 master_user='replssl',
 master_password='',
+master_retry_count= 1,
 master_ssl=1,
 master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem',
 master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem',
@@ -43,7 +45,6 @@ start slave;
 # Asserted this: Value returned by SSS and PS table for SSL_Cipher should be same.
 # Asserted this: Value returned by SSS and PS table for SSL_Key should be same.
 # Asserted this: Value returned by SSS and PS table for SSL_Verify_Server_Certificate should be same.
-drop user replssl@localhost;
 include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/rpl_restart_server.inc [server_number=2 gtids=on]
 CHANGE MASTER TO

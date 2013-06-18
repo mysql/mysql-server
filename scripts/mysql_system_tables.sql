@@ -1645,7 +1645,7 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_configuration("
     "Port integer not null,"
     "User char(16) collate utf8_bin not null,"
     "Network_Interface char(60) collate utf8_bin not null,"
-    "Auto_Position tinyint(1) not null,"
+    "Auto_Position int(1) not null,"
     "SSL_Allowed ENUM('Yes','No','Ignored') not null,"
     "SSL_CA_File varchar(512) not null,"
     "SSL_CA_Path varchar(512) not null,"
@@ -1655,8 +1655,8 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_configuration("
     "SSL_Verify_Server_Certificate ENUM('Yes','No') not null,"
     "SSL_Crl_File varchar(255) not null,"
     "SSL_Crl_Path varchar(255) not null,"
-    "Connection_Retry_Interval bigint not null,"
-    "Connection_Retry_Count bigint not null"
+    "Connection_Retry_Interval integer not null,"
+    "Connection_Retry_Count bigint unsigned not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1669,11 +1669,11 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
-    "Source_UUID varchar(36) not null,"
+    "Source_UUID char(36) collate utf8_bin not null,"
     "Thread_Id bigint unsigned,"
     "Service_State enum('On','Off','Connecting') not null,"
     "Received_Transaction_Set text not null,"
-    "Last_Error_Number bigint not null,"
+    "Last_Error_Number integer not null,"
     "Last_Error_Message varchar(1024) not null,"
     "Last_Error_Timestamp timestamp(0) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
@@ -1717,7 +1717,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordinator("
     "Thread_Id bigint unsigned,"
     "Service_State ENUM('On','Off') not null,"
-    "Last_Error_Number bigint not null,"
+    "Last_Error_Number integer not null,"
     "Last_Error_Message varchar(1024) not null,"
     "Last_Error_Timestamp timestamp(0) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
@@ -1732,11 +1732,11 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_worker("
-    "Worker_Id bigint not null,"
+    "Worker_Id bigint unsigned not null,"
     "Thread_Id bigint unsigned,"
     "Service_State ENUM('On','Off') not null,"
     "Last_Seen_Transaction char(57) not null,"
-    "Last_Error_Number bigint not null,"
+    "Last_Error_Number integer not null,"
     "Last_Error_Message varchar(1024) not null,"
     "Last_Error_Timestamp timestamp(0) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
