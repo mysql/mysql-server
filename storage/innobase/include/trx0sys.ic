@@ -381,12 +381,9 @@ trx_rw_min_trx_id(void)
 }
 
 /****************************************************************//**
-Checks if a rw transaction with the given id is active. Caller must hold
-trx_sys->mutex. If the caller is not holding lock_sys->mutex, the
-transaction may already have been committed.
-@return transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
-acquired before calling this function and is still being held */
+Checks if a rw transaction with the given id is active.  If the caller is
+not holding lock_sys->mutex, the transaction may already have been committed.
+@return transaction instance if active, or NULL */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active_low(
@@ -428,9 +425,7 @@ trx_rw_is_active_low(
 Checks if a rw transaction with the given id is active. If the caller is
 not holding lock_sys->mutex, the transaction may already have been
 committed.
-@return transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
-acquired before calling this function and is still being held */
+@return transaction instance if active, or NULL; */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active(
