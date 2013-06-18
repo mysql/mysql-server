@@ -4,19 +4,6 @@ Speciella användbara nya string-rutiner:
   identical to the "len" bytes starting at "s2", non-zero if they are
   different.
 
-  bfill(dst, len, fill) moves "len" fill characters to "dst".
-  Thus to set a buffer to 80 spaces, do bfill(buff, 80, ' ').
-
-  bmove(dst, src, len) moves exactly "len" bytes from the source "src"
-  to the destination "dst".  It does not check for NUL characters as
-  strncpy() and strnmov() do.
-
-  bmove_upp(dst, src, len) moves exactly "len" bytes from the source
- "src-len" to the destination "dst-len" counting downwards.
-
-  bzero(dst, len) moves "len" 0 bytes to "dst".
-  Thus to clear a disc buffer to 0s do bzero(buffer, BUFSIZ).
-
   int2str(dst, radix, val)
   converts the (long) integer "val" to character form and moves it to
   the destination string "dst" followed by a terminating NUL.  The

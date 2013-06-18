@@ -87,6 +87,7 @@ those defined in mysql file ft_global.h */
 #define FTS_EXPAND	4
 #define FTS_PROXIMITY	8
 #define FTS_PHRASE	16
+#define FTS_OPT_RANKING	32
 
 #define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
 
@@ -240,9 +241,10 @@ struct fts_ranking_t {
 
 	fts_rank_t	rank;		/*!< Rank is between 0 .. 1 */
 
-	ib_rbt_t*	words;		/*!< RB Tree of type byte*, this
-					contains the words that were queried
+	byte*		words;		/*!< this contains the words
+					that were queried
 					and found in this document */
+	ulint		words_len;	/*!< words len */
 };
 
 /** Query result. */
@@ -347,6 +349,9 @@ extern ulong		fts_max_cache_size;
 
 /** Variable specifying the total memory allocated for FTS cache */
 extern ulong		fts_max_total_cache_size;
+
+/** Variable specifying the FTS result cache limit for each query */
+extern ulong		fts_result_cache_limit;
 
 /** Variable specifying the maximum FTS max token size */
 extern ulong		fts_max_token_size;

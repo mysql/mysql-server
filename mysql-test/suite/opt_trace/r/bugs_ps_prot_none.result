@@ -1607,7 +1607,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                           "rows": 1,
                                           "cost": 3.3
                                         } /* table_scan */,
-                                        "potential_range_indices": [
+                                        "potential_range_indexes": [
                                           {
                                             "index": "a",
                                             "usable": true,
@@ -1623,7 +1623,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                               "c"
                                             ] /* key_parts */
                                           }
-                                        ] /* potential_range_indices */,
+                                        ] /* potential_range_indexes */,
                                         "best_covering_index_scan": {
                                           "index": "a_2",
                                           "cost": 1.2,

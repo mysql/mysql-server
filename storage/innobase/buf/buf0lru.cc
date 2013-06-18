@@ -175,7 +175,7 @@ incr_LRU_size_in_bytes(
 /******************************************************************//**
 Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
-@return	TRUE if should use unzip_LRU */
+@return TRUE if should use unzip_LRU */
 
 ibool
 buf_LRU_evict_from_unzip_LRU(
@@ -940,7 +940,7 @@ buf_LRU_insert_zip_clean(
 /******************************************************************//**
 Try to free an uncompressed page of a compressed block from the unzip
 LRU list.  The compressed page is preserved, and it need not be clean.
-@return	TRUE if freed */
+@return TRUE if freed */
 UNIV_INLINE
 ibool
 buf_LRU_free_from_unzip_LRU_list(
@@ -988,7 +988,7 @@ buf_LRU_free_from_unzip_LRU_list(
 
 /******************************************************************//**
 Try to free a clean page from the common LRU list.
-@return	TRUE if freed */
+@return TRUE if freed */
 UNIV_INLINE
 ibool
 buf_LRU_free_from_common_LRU_list(
@@ -1040,7 +1040,7 @@ buf_LRU_free_from_common_LRU_list(
 
 /******************************************************************//**
 Try to free a replaceable block.
-@return	TRUE if found and freed */
+@return TRUE if found and freed */
 
 ibool
 buf_LRU_scan_and_free_block(
@@ -1061,7 +1061,7 @@ buf_LRU_scan_and_free_block(
 Returns TRUE if less than 25 % of the buffer pool in any instance is
 available. This can be used in heuristics to prevent huge transactions
 eating up the whole buffer pool for their locks.
-@return	TRUE if less than 25 % of buffer pool left */
+@return TRUE if less than 25 % of buffer pool left */
 
 ibool
 buf_LRU_buf_pool_running_out(void)
@@ -1094,7 +1094,7 @@ buf_LRU_buf_pool_running_out(void)
 /******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
-@return	a free control block, or NULL if the buf_block->free list is empty */
+@return a free control block, or NULL if the buf_block->free list is empty */
 
 buf_block_t*
 buf_LRU_get_free_only(
@@ -1225,7 +1225,7 @@ we put it to free list to be used.
     * scan LRU list even if buf_pool->try_LRU_scan is not set
 * iteration > 1:
   * same as iteration 1 but sleep 100ms
-@return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
+@return the free control block, in state BUF_BLOCK_READY_FOR_USE */
 
 buf_block_t*
 buf_LRU_get_free_block(
@@ -2433,7 +2433,7 @@ buf_LRU_free_one_page(
 
 /**********************************************************************//**
 Updates buf_pool->LRU_old_ratio for one buffer pool instance.
-@return	updated old_pct */
+@return updated old_pct */
 static
 uint
 buf_LRU_old_ratio_update_instance(
@@ -2478,9 +2478,9 @@ buf_LRU_old_ratio_update_instance(
 
 /**********************************************************************//**
 Updates buf_pool->LRU_old_ratio.
-@return	updated old_pct */
+@return updated old_pct */
 
-ulint
+uint
 buf_LRU_old_ratio_update(
 /*=====================*/
 	uint	old_pct,/*!< in: Reserve this percentage of
@@ -2490,7 +2490,7 @@ buf_LRU_old_ratio_update(
 			during the initialization of InnoDB */
 {
 	ulint	i;
-	ulint	new_ratio = 0;
+	uint	new_ratio = 0;
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
@@ -2655,7 +2655,7 @@ buf_LRU_validate_instance(
 
 /**********************************************************************//**
 Validates the LRU list.
-@return	TRUE */
+@return TRUE */
 
 ibool
 buf_LRU_validate(void)

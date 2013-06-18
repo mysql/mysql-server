@@ -38,7 +38,7 @@ btr_search_info_update_slow(
 
 /********************************************************************//**
 Returns search info for an index.
-@return	search info; search mutex reserved */
+@return search info; search mutex reserved */
 UNIV_INLINE
 btr_search_t*
 btr_search_get_info(

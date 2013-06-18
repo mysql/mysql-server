@@ -38,7 +38,7 @@ Created Aug 11, 2011 Vasil Dimov
 Calculates a page CRC32 which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on
 32-bit and 64-bit architectures.
-@return	checksum */
+@return checksum */
 
 ib_uint32_t
 buf_calc_page_crc32(
@@ -49,7 +49,7 @@ buf_calc_page_crc32(
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on
 32-bit and 64-bit architectures.
-@return	checksum */
+@return checksum */
 
 ulint
 buf_calc_page_new_checksum(
@@ -63,7 +63,7 @@ checksum.
 NOTE: we must first store the new formula checksum to
 FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
 because this takes that field as an input!
-@return	checksum */
+@return checksum */
 
 ulint
 buf_calc_page_old_checksum(
@@ -72,7 +72,7 @@ buf_calc_page_old_checksum(
 
 /********************************************************************//**
 Return a printable string describing the checksum algorithm.
-@return	algorithm name */
+@return algorithm name */
 
 const char*
 buf_checksum_algorithm_name(

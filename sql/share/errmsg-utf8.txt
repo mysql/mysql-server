@@ -7056,6 +7056,12 @@ ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
         eng "Column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
         ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
 
+ER_WARN_TRIGGER_DOESNT_HAVE_CREATED
+  eng "Trigger %s.%s.%s does not have CREATED attribute."
+
+ER_REFERENCED_TRG_DOES_NOT_EXIST
+  eng "Referenced trigger '%s' for the given action time and event type does not exist."
+
 #
 #  End of 5.7 error messages.
 #

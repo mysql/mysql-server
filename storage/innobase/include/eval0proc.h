@@ -33,7 +33,7 @@ Created 1/20/1998 Heikki Tuuri
 
 /**********************************************************************//**
 Performs an execution step of a procedure node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 UNIV_INLINE
 que_thr_t*
 proc_step(
@@ -41,7 +41,7 @@ proc_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /**********************************************************************//**
 Performs an execution step of an if-statement node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 if_step(
@@ -49,7 +49,7 @@ if_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /**********************************************************************//**
 Performs an execution step of a while-statement node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 while_step(
@@ -57,7 +57,7 @@ while_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /**********************************************************************//**
 Performs an execution step of a for-loop node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 for_step(
@@ -65,7 +65,7 @@ for_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /**********************************************************************//**
 Performs an execution step of an assignment statement node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 assign_step(
@@ -73,7 +73,7 @@ assign_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /**********************************************************************//**
 Performs an execution step of a procedure call node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 UNIV_INLINE
 que_thr_t*
 proc_eval_step(
@@ -81,7 +81,7 @@ proc_eval_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /**********************************************************************//**
 Performs an execution step of an exit statement node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 exit_step(
@@ -89,7 +89,7 @@ exit_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /**********************************************************************//**
 Performs an execution step of a return-statement node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 return_step(

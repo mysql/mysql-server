@@ -46,7 +46,7 @@ struct Pool {
 	};
 
 	/** Constructor
-	@param size	size of the memory block */
+	@param size size of the memory block */
 	Pool(size_t size)
 		:
 		m_end(),
@@ -124,7 +124,7 @@ struct Pool {
 	}
 
 	/** Add the object to the pool.
-	@param ptr	object to free */
+	@param ptr object to free */
 	static void free(value_type* ptr)
 	{
 		Element*	elem;
@@ -148,7 +148,7 @@ private:
 		pqueue_t;
 
 	/** Release the object to the free pool
-	@param elem	element to free */
+	@param elem element to free */
 	void put(Element* elem)
 	{
 		m_lock_strategy.enter();
@@ -162,9 +162,8 @@ private:
 		m_lock_strategy.exit();
 	}
 
-	/**
-	Initialise the elements.
-	@param n_elems	Number of elements to initialise */
+	/** Initialise the elements.
+	@param n_elems Number of elements to initialise */
 	void init(size_t n_elems)
 	{
 		ut_ad(size_t(m_end - m_last) >= n_elems);
@@ -281,7 +280,7 @@ struct PoolManager {
 
 private:
 	/** Add a new pool
-	@param n_pools	Number of pools that existed when the add pool was
+	@param n_pools Number of pools that existed when the add pool was
 			called.
 	@return true on success */
 	bool add_pool(size_t n_pools)

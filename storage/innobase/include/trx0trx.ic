@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,7 @@ that is serving a running transaction.
 A running transaction must be in trx_sys->ro_trx_list or trx_sys->rw_trx_list
 unless it is a non-locking autocommit read only transaction, which is only
 in trx_sys->mysql_trx_list.
-@return	TRUE if trx->state == state */
+@return TRUE if trx->state == state */
 UNIV_INLINE
 ibool
 trx_state_eq(
@@ -69,7 +69,7 @@ trx_state_eq(
 
 /****************************************************************//**
 Retrieves the error_info field from a trx.
-@return	the error info */
+@return the error info */
 UNIV_INLINE
 const dict_index_t*
 trx_get_error_info(
@@ -82,7 +82,7 @@ trx_get_error_info(
 /*******************************************************************//**
 Retrieves transaction's que state in a human readable string. The string
 should not be free()'d or modified.
-@return	string in the data segment */
+@return string in the data segment */
 UNIV_INLINE
 const char*
 trx_get_que_state_str(
@@ -106,7 +106,7 @@ trx_get_que_state_str(
 
 /**********************************************************************//**
 Determine if a transaction is a dictionary operation.
-@return	dictionary operation mode */
+@return dictionary operation mode */
 UNIV_INLINE
 enum trx_dict_op_t
 trx_get_dict_operation(
@@ -230,8 +230,8 @@ trx_is_rseg_assigned(
 Increase the reference count. If the transaction is in state
 TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered
 committed and the reference count is not incremented.
-@param trx		Transaction that is being referenced
-@param do_ref_count	Increment the reference iff this is true
+@param trx Transaction that is being referenced
+@param do_ref_count Increment the reference iff this is true
 @return transaction instance if it is not committed */
 UNIV_INLINE
 trx_t*
@@ -257,7 +257,7 @@ trx_reference(
 
 /**
 Release the transaction. Decrease the reference count.
-@param trx	Transaction that is being released */
+@param trx Transaction that is being released */
 UNIV_INLINE
 void
 trx_release_reference(

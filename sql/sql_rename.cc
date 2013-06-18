@@ -22,8 +22,8 @@
 #include "sql_rename.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_table.h"                         // build_table_filename
+#include "sql_trigger.h"          // change_trigger_table_name
 #include "sql_view.h"             // mysql_frm_type, mysql_rename_view
-#include "sql_trigger.h"
 #include "lock.h"       // MYSQL_OPEN_SKIP_TEMPORARY
 #include "sql_base.h"   // tdc_remove_table, lock_table_names,
 #include "sql_handler.h"                        // mysql_ha_rm_tables
@@ -279,11 +279,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
         if (!(rc= mysql_rename_table(hton, ren_table->db, old_alias,
                                      new_db, new_alias, 0)))
         {
-          if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
-                                                          old_alias,
-                                                          ren_table->table_name,
-                                                          new_db,
-                                                          new_alias)))
+          if ((rc= change_trigger_table_name(thd, ren_table->db, old_alias,
+                                             ren_table->table_name,
+                                             new_db, new_alias)))
           {
             /*
               We've succeeded in renaming table's .frm and in updating
@@ -292,7 +290,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
               and handler's data and report about failure to rename table.
             */
             (void) mysql_rename_table(hton, new_db, new_alias,
-                                      ren_table->db, old_alias, 0);
+                                      ren_table->db, old_alias, NO_FK_CHECKS);
           }
         }
       }

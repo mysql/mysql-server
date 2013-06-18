@@ -23,14 +23,16 @@ EOF
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
 
+--disable_query_log
 call mtr.add_suppression("InnoDB: Error: trying to open a table, but could not$");
 call mtr.add_suppression("MySQL is trying to open a table handle but the \.ibd file for$");
 call mtr.add_suppression("InnoDB: Table 'test/t'$");
 call mtr.add_suppression("Could not find a valid tablespace file for");
-call mtr.add_suppression("InnoDB: Tablespace open failed for '\"test\"\.\"t\"', ignored");
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table '\"test\"\.\"t\"' in the cache");
+call mtr.add_suppression("InnoDB: Tablespace open failed for \"test\"\.\"t\", ignored");
+call mtr.add_suppression("InnoDB: Failed to find tablespace for table \"test\"\.\"t\" in the cache");
 call mtr.add_suppression("InnoDB: Cannot delete tablespace [0-9]+.*not found");
 call mtr.add_suppression("Table .*t in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
+--enable_query_log
 
 # The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
 # The table does exist, only the tablespace does not exist.

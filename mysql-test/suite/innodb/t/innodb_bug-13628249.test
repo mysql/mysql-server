@@ -19,11 +19,13 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql"."slave_master_info"\' in the cache');
-call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql"."slave_relay_log_info"\' in the cache');
-call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql"."slave_worker_info"\' in the cache');
-call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"test"."t1"\' in the cache');
+--disable_query_log
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."slave_master_info" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."slave_relay_log_info" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."slave_worker_info" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "test"."t1" in the cache');
 call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
+--enable_query_log
 
 ##### Restart the server in force recovery mode
 --echo # Stop server

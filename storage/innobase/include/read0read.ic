@@ -78,7 +78,7 @@ read_view_list_validate(void)
 
 /*********************************************************************//**
 Checks if a read view sees the specified transaction.
-@return	true if sees */
+@return true if sees */
 UNIV_INLINE
 bool
 read_view_sees_trx_id(

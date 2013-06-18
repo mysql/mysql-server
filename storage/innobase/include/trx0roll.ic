@@ -27,7 +27,7 @@ Created 3/26/1996 Heikki Tuuri
 /*******************************************************************//**
 Check if undo numbering is maintained while processing undo records
 for rollback.
-@return	true if undo numbering is maintained. */
+@return true if undo numbering is maintained. */
 UNIV_INLINE
 bool
 trx_roll_check_undo_rec_ordering(

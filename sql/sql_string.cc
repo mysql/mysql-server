@@ -166,7 +166,7 @@ bool String::copy(const String &str)
   if (alloc(str.str_length))
     return TRUE;
   str_length=str.str_length;
-  bmove(Ptr,str.Ptr,str_length);		// May be overlapping
+  memmove(Ptr, str.Ptr, str_length);		// May be overlapping
   Ptr[str_length]=0;
   str_charset=str.str_charset;
   return FALSE;
@@ -628,8 +628,9 @@ bool String::replace(uint32 offset,uint32 arg_length,
     {
       if (to_length)
 	memcpy(Ptr+offset,to,to_length);
-      bmove(Ptr+offset+to_length,Ptr+offset+arg_length,
-	    str_length-offset-arg_length);
+      memmove(Ptr + offset + to_length,
+              Ptr + offset + arg_length,
+              str_length - offset - arg_length);
     }
     else
     {
@@ -637,8 +638,9 @@ bool String::replace(uint32 offset,uint32 arg_length,
       {
 	if (realloc(str_length+(uint32) diff))
 	  return TRUE;
-	bmove_upp((uchar*) Ptr+str_length+diff, (uchar*) Ptr+str_length,
-		  str_length-offset-arg_length);
+        memmove(Ptr + offset + to_length,
+                Ptr + offset + arg_length,
+                str_length - offset - arg_length);
       }
       if (to_length)
 	memcpy(Ptr+offset,to,to_length);

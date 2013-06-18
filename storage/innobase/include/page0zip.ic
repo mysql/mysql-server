@@ -114,7 +114,7 @@ In summary, the compressed page looks like this:
 
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.
-@return	size in bytes */
+@return size in bytes */
 UNIV_INLINE
 ulint
 page_zip_get_size(
@@ -162,7 +162,7 @@ page_zip_set_size(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Determine if a record is so big that it needs to be stored externally.
-@return	FALSE if the entire record can be stored locally on the page */
+@return FALSE if the entire record can be stored locally on the page */
 UNIV_INLINE
 ibool
 page_zip_rec_needs_ext(
@@ -203,7 +203,7 @@ page_zip_rec_needs_ext(
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate a compressed page descriptor.
-@return	TRUE if ok */
+@return TRUE if ok */
 UNIV_INLINE
 ibool
 page_zip_simple_validate(
@@ -287,7 +287,7 @@ page_zip_max_ins_size(
 
 /**********************************************************************//**
 Determine if enough space is available in the modification log.
-@return	TRUE if enough space is available */
+@return TRUE if enough space is available */
 UNIV_INLINE
 ibool
 page_zip_available(
@@ -404,7 +404,7 @@ page_zip_compress_write_log_no_data(
 
 /**********************************************************************//**
 Parses a log record of compressing an index page without the data.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 UNIV_INLINE
 byte*
 page_zip_parse_compress_no_data(
