@@ -2931,7 +2931,7 @@ create table t1 as select concat(benchmark(0,0)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(1) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(sleep(0)));
