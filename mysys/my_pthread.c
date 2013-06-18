@@ -15,8 +15,6 @@
 
 /* Functions to get threads more portable */
 
-#define DONT_REMAP_PTHREAD_FUNCTIONS
-
 #include "mysys_priv.h"
 #include <signal.h>
 #include <m_string.h>
@@ -175,26 +173,6 @@ int sigwait(sigset_t *setp, int *sigp)
 }
 #endif /* HAVE_SIGWAIT */
 
-
-/****************************************************************************
- The following functions fixes that all pthread functions should work
- according to latest posix standard
-****************************************************************************/
-
-/* Undefined wrappers set my_pthread.h so that we call os functions */
-#undef pthread_mutex_init
-#undef pthread_mutex_lock
-#undef pthread_mutex_unlock
-#undef pthread_mutex_destroy
-#undef pthread_mutex_wait
-#undef pthread_mutex_timedwait
-#undef pthread_mutex_trylock
-#undef pthread_mutex_t
-#undef pthread_cond_init
-#undef pthread_cond_wait
-#undef pthread_cond_timedwait
-#undef pthread_cond_t
-#undef pthread_attr_getstacksize
 
 /* Some help functions */
 
