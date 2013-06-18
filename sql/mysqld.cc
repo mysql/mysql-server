@@ -5079,29 +5079,28 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
-  {
-    ulong requested_open_files;
-    adjust_related_options(&requested_open_files);
+  ulong requested_open_files;
+  adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-    if (ho_error == 0)
+  if (ho_error == 0)
+  {
+    if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
     {
-      if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
+      /* Add sizing hints from the server sizing parameters. */
+      pfs_param.m_hints.m_table_definition_cache= table_def_size;
+      pfs_param.m_hints.m_table_open_cache= table_cache_size;
+      pfs_param.m_hints.m_max_connections= max_connections;
+      pfs_param.m_hints.m_open_files_limit= requested_open_files;
+      PSI_hook= initialize_performance_schema(&pfs_param);
+      if (PSI_hook == NULL)
       {
-        /* Add sizing hints from the server sizing parameters. */
-        pfs_param.m_hints.m_table_definition_cache= table_def_size;
-        pfs_param.m_hints.m_table_open_cache= table_cache_size;
-        pfs_param.m_hints.m_max_connections= max_connections;
-	pfs_param.m_hints.m_open_files_limit= requested_open_files;
-        PSI_hook= initialize_performance_schema(&pfs_param);
-        if (PSI_hook == NULL)
-        {
-          pfs_param.m_enabled= false;
-          buffered_logs.buffer(WARNING_LEVEL,
-                               "Performance schema disabled (reason: init failed).");
-        }
+        pfs_param.m_enabled= false;
+        buffered_logs.buffer(WARNING_LEVEL,
+                             "Performance schema disabled (reason: init failed).");
       }
     }
+  }
 #else
   /*
     Other provider of the instrumentation interface should
@@ -5113,7 +5112,6 @@ int mysqld_main(int argc, char **argv)
     these two defines are kept separate.
   */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-  }
 
 #ifdef HAVE_PSI_INTERFACE
   /*
