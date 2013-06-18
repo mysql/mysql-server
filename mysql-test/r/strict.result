@@ -206,7 +206,9 @@ INSERT INTO t1 (col1) VALUES (STR_TO_DATE('15.10.2004','%d.%m.%Y'));
 INSERT INTO t1 (col2) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col3) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
-ERROR HY000: Incorrect datetime value: '31.10.0000 15.30' for function str_to_date
+Warnings:
+Note	1265	Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '31.0.2004 15.30' for function str_to_date
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
@@ -221,8 +223,6 @@ INSERT INTO t1 (col1) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_date
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR HY000: Incorrect datetime value: '00.00.0000' for function str_to_date
-INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
-ERROR HY000: Incorrect datetime value: '31.10.0000 15.30' for function str_to_date
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '31.0.2004 15.30' for function str_to_date
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
@@ -238,7 +238,7 @@ ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_da
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR HY000: Incorrect datetime value: '00.00.0000' for function str_to_date
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
-ERROR HY000: Incorrect datetime value: '31.10.0000 15.30' for function str_to_date
+ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '31.0.2004 15.30' for function str_to_date
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
