@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, 
 SET @sql_mode_orig=@@SESSION.sql_mode;
 SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
 
-CREATE TABLE IF NOT EXISTS innodb_table_stats (
+SET @create_innodb_table_stats="CREATE TABLE IF NOT EXISTS innodb_table_stats (
 	database_name			VARCHAR(64) NOT NULL,
 	table_name			VARCHAR(64) NOT NULL,
 	last_update			TIMESTAMP NOT NULL NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -108,9 +108,9 @@ CREATE TABLE IF NOT EXISTS innodb_table_stats (
 	clustered_index_size		BIGINT UNSIGNED NOT NULL,
 	sum_of_other_index_sizes	BIGINT UNSIGNED NOT NULL,
 	PRIMARY KEY (database_name, table_name)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
+) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0";
 
-CREATE TABLE IF NOT EXISTS innodb_index_stats (
+SET @create_innodb_index_stats="CREATE TABLE IF NOT EXISTS innodb_index_stats (
 	database_name			VARCHAR(64) NOT NULL,
 	table_name			VARCHAR(64) NOT NULL,
 	index_name			VARCHAR(64) NOT NULL,
@@ -124,11 +124,21 @@ CREATE TABLE IF NOT EXISTS innodb_index_stats (
 	sample_size			BIGINT UNSIGNED,
 	stat_description		VARCHAR(1024) NOT NULL,
 	PRIMARY KEY (database_name, table_name, index_name, stat_name)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
-
-SET SESSION sql_mode=@sql_mode_orig;
+) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0";
 
 set @have_innodb= (select count(engine) from information_schema.engines where engine='INNODB' and support != 'NO');
+
+SET @str=IF(@have_innodb <> 0, @create_innodb_table_stats, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_innodb <> 0, @create_innodb_index_stats, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET SESSION sql_mode=@sql_mode_orig;
 
 SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.', 
