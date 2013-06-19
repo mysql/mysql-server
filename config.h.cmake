@@ -92,8 +92,6 @@
 #cmakedefine HAVE_LIBNSL 1
 #cmakedefine HAVE_LIBCRYPT 1
 #cmakedefine HAVE_LIBWRAP 1
-/* Does "struct timespec" have a "sec" and "nsec" field? */
-#cmakedefine HAVE_TIMESPEC_TS_SEC 1
 
 /* Readline */
 #cmakedefine HAVE_HIST_ENTRY 1
@@ -227,7 +225,6 @@
 #cmakedefine ss_family @ss_family@
 #cmakedefine HAVE_SOCKADDR_IN_SIN_LEN 1
 #cmakedefine HAVE_SOCKADDR_IN6_SIN6_LEN 1
-#cmakedefine HAVE_TIMESPEC_TS_SEC 1
 
 #cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine HAVE_EPOLL 1

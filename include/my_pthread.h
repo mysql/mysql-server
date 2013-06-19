@@ -319,21 +319,12 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
   set_timespec_time_nsec((ABSTIME),my_getsystime(),(NSEC))
 #endif /* !set_timespec_nsec */
 
-/* adapt for two different flavors of struct timespec */
-#ifdef HAVE_TIMESPEC_TS_SEC
-#define MY_tv_sec  ts_sec
-#define MY_tv_nsec ts_nsec
-#else
-#define MY_tv_sec  tv_sec
-#define MY_tv_nsec tv_nsec
-#endif /* HAVE_TIMESPEC_TS_SEC */
-
 #ifndef set_timespec_time_nsec
 #define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
   ulonglong nsec= (NSEC);                                               \
   ulonglong now= (TIME) + (nsec/100);                                   \
-  (ABSTIME).MY_tv_sec=  (now / 10000000ULL);                          \
-  (ABSTIME).MY_tv_nsec= (now % 10000000ULL * 100 + (nsec % 100));     \
+  (ABSTIME).tv_sec=  (now / 10000000ULL);                          \
+  (ABSTIME).tv_nsec= (now % 10000000ULL * 100 + (nsec % 100));     \
 } while(0)
 #endif /* !set_timespec_time_nsec */
 
@@ -346,15 +337,6 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 
    @retval -1 If TS1 ends before TS2.
 */
-#ifdef HAVE_TIMESPEC_TS_SEC
-#ifndef cmp_timespec
-#define cmp_timespec(TS1, TS2) \
-  ((TS1.ts_sec > TS2.ts_sec || \
-    (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec > TS2.ts_nsec)) ? 1 : \
-   ((TS1.ts_sec < TS2.ts_sec || \
-     (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec < TS2.ts_nsec)) ? -1 : 0))
-#endif /* !cmp_timespec */
-#else
 #ifndef cmp_timespec
 #define cmp_timespec(TS1, TS2) \
   ((TS1.tv_sec > TS2.tv_sec || \
@@ -362,19 +344,11 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
    ((TS1.tv_sec < TS2.tv_sec || \
      (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
 #endif /* !cmp_timespec */
-#endif /* HAVE_TIMESPEC_TS_SEC */
 
-#ifdef HAVE_TIMESPEC_TS_SEC
-#ifndef diff_timespec
-#define diff_timespec(TS1, TS2) \
-  ((TS1.ts_sec - TS2.ts_sec) * 1000000000ULL + TS1.ts_nsec - TS2.ts_nsec)
-#endif /* !diff_timespec */
-#else
 #ifndef diff_timespec
 #define diff_timespec(TS1, TS2) \
   ((TS1.tv_sec - TS2.tv_sec) * 1000000000ULL + TS1.tv_nsec - TS2.tv_nsec)
 #endif /* !diff_timespec */
-#endif /* HAVE_TIMESPEC_TS_SEC */
 
 	/* safe_mutex adds checking to mutex for easier debugging */
 
