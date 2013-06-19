@@ -4504,10 +4504,12 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
     pack_key(&end_key, tokudb_active_index, prelocked_right_range, key, key_len, COL_POS_INF);
     prelocked_right_range_size = end_key.size;
 
-    error = cursor->c_pre_acquire_range_lock(
+    error = cursor->c_restrict_to_range(
         cursor, 
         &start_key, 
-        &end_key 
+        &end_key,
+        true,
+        (cursor_flags & DB_SERIALIZABLE) != 0 ? DB_NOTFOUND : 0
         );
 
     if (error){ 
@@ -5783,10 +5785,12 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
         prelocked_right_range_size = 0;
     }
 
-    error = cursor->c_pre_acquire_range_lock(
+    error = cursor->c_restrict_to_range(
         cursor, 
         start_key ? &start_dbt_key : share->key_file[tokudb_active_index]->dbt_neg_infty(), 
-        end_key ? &end_dbt_key : share->key_file[tokudb_active_index]->dbt_pos_infty()
+        end_key ? &end_dbt_key : share->key_file[tokudb_active_index]->dbt_pos_infty(),
+        true,
+        (cursor_flags & DB_SERIALIZABLE) != 0 ? DB_NOTFOUND : 0
         );
     if (error){ 
         last_cursor_error = error;
