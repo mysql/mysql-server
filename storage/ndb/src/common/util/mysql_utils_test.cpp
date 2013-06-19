@@ -54,41 +54,60 @@ int test_dbug_utils()
     const int DBUG_BUF_SIZE = 1024;
     char buffer[DBUG_BUF_SIZE];
 
-    const char * s0 = "";
-    const char * s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
-    CHECK(!strcmp(s1, s0));
+    const char * s = "some initial string";
+    const char * const s0 = "";
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s0));
 
-    s1 = dbugExplain(NULL, DBUG_BUF_SIZE);
-    CHECK(s1 == NULL);
+    s = dbugExplain(NULL, DBUG_BUF_SIZE);
+    CHECK(!s);
 
-    s1 = dbugExplain(buffer, 0);
-    CHECK(s1 == NULL);
+    s = dbugExplain(buffer, 0);
+    CHECK(!s);
 
-    s0 = "t";
-    dbugSet(s0);
-    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
-    CHECK(!strcmp(s1, s0));
+    const char * const s1 = "t";
+    dbugSet(s1);
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s1));
 
     dbugSet(NULL);
-    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
-    CHECK(!strcmp(s1, s0));
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s1));
 
-    const char * s2 = "d,jointx:o,/tmp/jointx";
+    const char * const s2 = "d,somename:o,/tmp/somepath";
     dbugPush(s2);
-    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
-    CHECK(!strcmp(s1, s2));
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s2));
 
     dbugPush(NULL);
-    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
-    CHECK(!strcmp(s1, s2));
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s2));
+
+    const char * const s3 = "d,a,b,c,d,e,f";
+    const char * const s4 = "d,f,e,d,c,b,a"; // keywords stored LIFO
+    dbugPush(s3);
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s4));
+
+    dbugPush(s4);
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s3));
 
     dbugPop();
-    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
-    CHECK(!strcmp(s1, s0));
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s4));
+
+    dbugPop();
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s2));
+
+    dbugPop();
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s1));
 
     dbugPush(NULL);
-    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
-    CHECK(!strcmp(s1, s0));
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s1));
 
     return 0;
 }
@@ -282,13 +301,12 @@ int main(int argc, const char** argv)
     // TAP: print number of tests to run
     plan(3);
 
-    // TAP: report test result (args: passed, non-null format string)
-    // XXX investigate crashing dbug unit test on linux rel, s10
-    if (false) {
-        ok(test_dbug_utils() == 0, "subtest: dbug_utils");
-    } else {
-        skip(1, "crashing subtest: dbug_utils");
-    }
+    // init MySQL lib
+    if (my_init())
+        BAIL_OUT("my_init() failed");
+
+    // TAP: report test result: ok(passed, non-null format string)
+    ok(test_dbug_utils() == 0, "subtest: dbug_utils");
     ok(test_decimal_conv() == 0, "subtest: decimal_conv");
     ok(test_charset_map() == 0, "subtest: charset_map");
 
