@@ -67,7 +67,6 @@ int _mi_write_keypage(MI_INFO *info, MI_KEYDEF *keyinfo,
   uint length;
   DBUG_ENTER("_mi_write_keypage");
 
-#ifndef FAST					/* Safety check */
   if (page < info->s->base.keystart ||
       page+keyinfo->block_length > info->state->key_file_length ||
       (page & (MI_MIN_KEY_BLOCK_LENGTH-1)))
@@ -81,7 +80,6 @@ int _mi_write_keypage(MI_INFO *info, MI_KEYDEF *keyinfo,
   }
   DBUG_PRINT("page",("write page at: %lu",(long) page));
   DBUG_DUMP("buff",(uchar*) buff,mi_getint(buff));
-#endif
 
   if ((length=keyinfo->block_length) > IO_SIZE*2 &&
       info->state->key_file_length != page+length)

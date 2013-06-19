@@ -141,9 +141,6 @@
 #endif
 
 #define __EXTENSIONS__ 1	/* We want some extension */
-#ifndef __STDC_EXT__
-#define __STDC_EXT__ 1          /* To get large file support on hpux */
-#endif
 
 /*
   Solaris 9 include file <sys/feature_tests.h> refers to X/Open document
