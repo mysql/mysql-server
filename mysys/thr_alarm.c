@@ -273,7 +273,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
   if (thd_lib_detected == THD_LIB_LT &&
       !pthread_equal(pthread_self(),alarm_thread))
   {
-#if defined(MAIN) && !defined(__bsdi__)
+#if defined(MAIN)
     printf("thread_alarm in process_alarm\n"); fflush(stdout);
 #endif
 #ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
@@ -307,7 +307,7 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
   DBUG_ENTER("process_alarm");
   DBUG_PRINT("info",("sig: %d  active alarms: %d",sig,alarm_queue.elements));
 
-#if defined(MAIN) && !defined(__bsdi__)
+#if defined(MAIN)
   printf("process_alarm\n"); fflush(stdout);
 #endif
   if (alarm_queue.elements)
@@ -359,9 +359,6 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
       }
       if (alarm_queue.elements)
       {
-#ifdef __bsdi__
-	alarm(0);				/* Remove old alarm */
-#endif
 	alarm((uint) (alarm_data->expire_time-now));
         next_alarm_expire_time= alarm_data->expire_time;
       }
