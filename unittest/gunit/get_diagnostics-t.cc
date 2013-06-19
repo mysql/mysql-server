@@ -145,12 +145,11 @@ TEST_F(GetDiagnosticsTest, Cmd)
 
 
 // Verifies death with a DBUG_ASSERT if target item is not settable.
-//
-// Although Google Test recommends DeathTest suffix for classes used
-// in death tests, this is not done to avoid the server being started
-// more than once.
+// Google Test recommends DeathTest suffix for classes used in death tests.
+typedef GetDiagnosticsTest GetDiagnosticsTestDeathTest;
+
 #if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
-TEST_F(GetDiagnosticsTest, DieWhenUnsettableItem)
+TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem)
 {
   Item *var;
   Sql_cmd *cmd;
