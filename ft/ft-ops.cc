@@ -4100,6 +4100,10 @@ int toku_ft_cursor (
     return 0;
 }
 
+void toku_ft_cursor_remove_restriction(FT_CURSOR ftcursor) {
+    ftcursor->out_of_range_error = 0;
+}
+
 void
 toku_ft_cursor_set_temporary(FT_CURSOR ftcursor) {
     ftcursor->is_temporary = true;
@@ -4117,7 +4121,8 @@ toku_ft_cursor_is_leaf_mode(FT_CURSOR ftcursor) {
 
 void
 toku_ft_cursor_set_range_lock(FT_CURSOR cursor, const DBT *left, const DBT *right,
-                               bool left_is_neg_infty, bool right_is_pos_infty)
+                              bool left_is_neg_infty, bool right_is_pos_infty,
+                              int out_of_range_error)
 {
     // Destroy any existing keys and then clone the given left, right keys
     toku_destroy_dbt(&cursor->range_lock_left_key);
@@ -4133,6 +4138,8 @@ toku_ft_cursor_set_range_lock(FT_CURSOR cursor, const DBT *left, const DBT *righ
     } else {
         toku_clone_dbt(&cursor->range_lock_right_key, *right);
     }
+
+    cursor->out_of_range_error = out_of_range_error;
 }
 
 void toku_ft_cursor_close(FT_CURSOR cursor) {
@@ -4690,6 +4697,21 @@ toku_move_ftnode_messages_to_stale(FT ft, FTNODE node) {
     }
 }
 
+static int cursor_check_restricted_range(FT_CURSOR c, bytevec key, ITEMLEN keylen) {
+    if (c->out_of_range_error) {
+        FT ft = c->ft_handle->ft;
+        FAKE_DB(db, &ft->cmp_descriptor);
+        DBT found_key;
+        toku_fill_dbt(&found_key, key, keylen);
+        if ((!c->left_is_neg_infty && ft->compare_fun(&db, &found_key, &c->range_lock_left_key) < 0) ||
+            (!c->right_is_pos_infty && ft->compare_fun(&db, &found_key, &c->range_lock_right_key) > 0)) {
+            invariant(c->out_of_range_error);
+            return c->out_of_range_error;
+        }
+    }
+    return 0;
+}
+
 static int
 ft_cursor_shortcut (
     FT_CURSOR cursor,
@@ -4773,8 +4795,10 @@ got_a_good_value:
                                        &vallen,
                                        &val
             );
-
-        r = getf(keylen, key, vallen, val, getf_v, false);
+        r = cursor_check_restricted_range(ftcursor, key, keylen);
+        if (r==0) {
+            r = getf(keylen, key, vallen, val, getf_v, false);
+        }
         if (r==0 || r == TOKUDB_CURSOR_CONTINUE) {
             ftcursor->leaf_info.to_be.omt   = bn->buffer;
             ftcursor->leaf_info.to_be.index = idx;
@@ -5396,7 +5420,6 @@ static int ft_cursor_compare_next(ft_search_t *search, DBT *x) {
     return compare_k_x(brt, search->k, x) < 0; /* return min xy: kv < xy */
 }
 
-
 static int
 ft_cursor_shortcut (
     FT_CURSOR cursor,
@@ -5435,7 +5458,10 @@ ft_cursor_shortcut (
                 val
                 );
 
-            r = getf(*keylen, *key, *vallen, *val, getf_v, false);
+            r = cursor_check_restricted_range(cursor, *key, *keylen);
+            if (r==0) {
+                r = getf(*keylen, *key, *vallen, *val, getf_v, false);
+            }
             if (r == 0 || r == TOKUDB_CURSOR_CONTINUE) {
                 //Update cursor.
                 cursor->leaf_info.to_be.index = index;

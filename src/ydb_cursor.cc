@@ -700,14 +700,28 @@ toku_c_close(DBC * c) {
 }
 
 static int
-c_pre_acquire_range_lock(DBC *dbc, const DBT *left_key, const DBT *right_key) {
+c_restrict_to_range(DBC *dbc, const DBT *left_key, const DBT *right_key, bool pre_acquire, int out_of_range_error) {
+    if (out_of_range_error != DB_NOTFOUND &&
+        out_of_range_error != TOKUDB_OUT_OF_RANGE &&
+        out_of_range_error != 0) {
+        return toku_ydb_do_error(
+            dbc->dbp->dbenv,
+            EINVAL,
+            "Invalid out_of_range_error [%d] for c_restrict_to_range\n",
+            out_of_range_error
+            );
+    }
+    if (left_key == toku_dbt_negative_infinity() && right_key == toku_dbt_positive_infinity()) {
+        out_of_range_error = 0;
+    }
     DB *db = dbc->dbp;
     DB_TXN *txn = dbc_struct_i(dbc)->txn;
     HANDLE_PANICKED_DB(db);
     toku_ft_cursor_set_range_lock(dbc_struct_i(dbc)->c, left_key, right_key,
                                    (left_key == toku_dbt_negative_infinity()),
-                                   (right_key == toku_dbt_positive_infinity()));
-    if (!db->i->lt || !txn)
+                                   (right_key == toku_dbt_positive_infinity()),
+                                   out_of_range_error);
+    if (!db->i->lt || !txn || !pre_acquire)
         return 0;
     //READ_UNCOMMITTED and READ_COMMITTED transactions do not need read locks.
     if (!dbc_struct_i(dbc)->rmw && dbc_struct_i(dbc)->iso != TOKU_ISO_SERIALIZABLE)
@@ -717,6 +731,16 @@ c_pre_acquire_range_lock(DBC *dbc, const DBT *left_key, const DBT *right_key) {
         toku::lock_request::type::WRITE : toku::lock_request::type::READ;
     int r = toku_db_get_range_lock(db, txn, left_key, right_key, lock_type);
     return r;
+}
+
+static int
+c_pre_acquire_range_lock(DBC *dbc, const DBT *left_key, const DBT *right_key) {
+    return c_restrict_to_range(dbc, left_key, right_key, true, 0);
+}
+
+static void
+c_remove_restriction(DBC *dbc) {
+    toku_ft_cursor_remove_restriction(dbc_struct_i(dbc)->c);
 }
 
 int
@@ -811,6 +835,8 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
     SCRS(c_getf_set_range);
     SCRS(c_getf_set_range_reverse);
     SCRS(c_pre_acquire_range_lock);
+    SCRS(c_restrict_to_range);
+    SCRS(c_remove_restriction);
 #undef SCRS
 
     result->c_get = toku_c_get;
