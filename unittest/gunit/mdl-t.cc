@@ -1576,6 +1576,7 @@ TEST_F(MDLTest, HogLockTest5)
   mdl_thread3.join();
   mdl_thread4.join();
   mdl_thread5.join();
+  mdl_thread6.join();
 
   max_write_lock_count= org_max_write_lock_count;
 }
