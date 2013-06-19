@@ -856,6 +856,7 @@ ACL_USER *decoy_user(const LEX_STRING &username,
   user->ssl_cipher= empty_c_string;
   user->x509_issuer= empty_c_string;
   user->x509_subject= empty_c_string;
+  user->salt_len= 0;
 
   /*
     For now the common default account is used. Improvements might involve
