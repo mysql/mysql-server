@@ -100,6 +100,10 @@ int test_dbug_utils()
     s = dbugExplain(buffer, DBUG_BUF_SIZE);
     CHECK(!s || !strcmp(s, s1));
 
+    dbugPop();
+    s = dbugExplain(buffer, DBUG_BUF_SIZE);
+    CHECK(!s || !strcmp(s, s0));
+
     return 0;
 }
 
