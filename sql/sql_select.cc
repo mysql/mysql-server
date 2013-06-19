@@ -4823,7 +4823,10 @@ void JOIN::clear()
   {
     TABLE *const table= (join_tab+tableno)->table;
     if (table)
-      mark_as_null_row(table);
+    {
+      table->null_row= 1;
+      table->status|= STATUS_NULL_ROW;
+    }
   }
 
   copy_fields(&tmp_table_param);
