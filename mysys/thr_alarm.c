@@ -493,12 +493,6 @@ static sig_handler thread_alarm(int sig __attribute__((unused)))
 }
 
 
-#ifdef HAVE_TIMESPEC_TS_SEC
-#define tv_sec ts_sec
-#define tv_nsec ts_nsec
-#endif
-
-
 /*****************************************************************************
   thr_alarm for win95
 *****************************************************************************/
