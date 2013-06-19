@@ -274,17 +274,17 @@ create table t2 (t2_id int(11) primary key, t1_id int(11), name varchar(32)) ENG
 insert into t2 values (1, 1, 'xxfoo');
 insert into t2 values (2, 1, 'xxbar');
 insert into t2 values (3, 1, 'xxbuz');
-# INNODB_FTS: Note there is no fulltext index on table. InnoDB do not support
-# Fulltext search in such case, will return 1739
---error ER_TABLE_HAS_NO_FT
+# INNODB_FTS: InnoDB do not support MATCH expressions with arguments from 
+# different tables
+--error ER_WRONG_ARGUMENTS
 select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
 
 #
 # Bug #7858: bug with many short (< ft_min_word_len) words in boolean search
 #
 # INNODB_FTS: Note there is no fulltext index on table. InnoDB do not support
-# Fulltext search in such case, will return 1739
---error ER_TABLE_HAS_NO_FT
+# Fulltext search in such case
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 select * from t2 where match name against ('*a*b*c*d*e*f*' in boolean mode);
 drop table t1,t2;
 
@@ -483,12 +483,15 @@ WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 EXPLAIN SELECT * FROM t1 FORCE INDEX(a)
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 EXPLAIN SELECT * FROM t1 IGNORE INDEX(a)
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 EXPLAIN SELECT * FROM t1 USE INDEX(b)
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 EXPLAIN SELECT * FROM t1 FORCE INDEX(b)
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 
@@ -585,7 +588,7 @@ SELECT count(*) FROM t1 WHERE
    WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
   );
 
---echo # should return 0
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 SELECT count(*) FROM t1 WHERE 
   not exists(
    SELECT 1 FROM t2 IGNORE INDEX (b2), t3
