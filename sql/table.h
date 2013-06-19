@@ -2424,6 +2424,7 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
+  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);
