@@ -2189,5 +2189,19 @@ group by t2.c;
 
 drop table tx;
 
+# Bug#15923467 LIKE FUNCTION NOT WORK.
+
+create table a(a varchar(7)) engine=ndb charset=utf8;
+
+insert into a values ('abcdefg');
+
+select * from a;                        
+
+explain extended select * from a where a like 'abcdefg%'; 
+
+select * from a where a like 'abcdefg%'; 
+
+drop table a;
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
