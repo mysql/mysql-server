@@ -2128,5 +2128,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 drop table tx;
+create table a(a varchar(7)) engine=ndb charset=utf8;
+insert into a values ('abcdefg');
+select * from a;
+a
+abcdefg
+explain extended select * from a where a like 'abcdefg%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	ALL	NULL	NULL	NULL	NULL	1	200.00	Using where with pushed condition: (`test`.`a`.`a` like 'abcdefg%')
+Warnings:
+Note	1003	select `test`.`a`.`a` AS `a` from `test`.`a` where (`test`.`a`.`a` like 'abcdefg%')
+select * from a where a like 'abcdefg%';
+a
+abcdefg
+drop table a;
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
