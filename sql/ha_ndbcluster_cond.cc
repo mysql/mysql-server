@@ -1223,7 +1223,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
         str.set(value->get_val(), val_len, field->get_field_charset());
       else
         field->get_field_val_str(&str);
-      uint32 len= str.length();
+      uint32 len=
+        (value->is_const_func() && is_string)?
+        str.length():
+        value->pack_length();
       const char *val=
         (value->is_const_func() && is_string)?
         str.ptr()
@@ -1252,7 +1255,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
         str.set(value->get_val(), val_len, field->get_field_charset());
       else
         field->get_field_val_str(&str);
-      uint32 len= str.length();
+      uint32 len=
+        (value->is_const_func() && is_string)?
+        str.length():
+        value->pack_length();
       const char *val=
         (value->is_const_func() && is_string)?
         str.ptr()
