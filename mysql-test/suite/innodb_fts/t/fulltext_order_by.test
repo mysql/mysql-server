@@ -149,7 +149,7 @@ order by
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc' in boolean mode) desc;
 
---error 1191
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 (select b.id, b.betreff from t3 b) union 
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc') desc;
