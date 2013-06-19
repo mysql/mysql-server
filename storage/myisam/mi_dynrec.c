@@ -1723,16 +1723,12 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
 
   if (info->lock_type == F_UNLCK)
   {
-#ifndef UNSAFE_LOCKING
     if (share->tot_locks == 0)
     {
       if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
 		  MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
 	DBUG_RETURN(my_errno);
     }
-#else
-    info->tmp_lock_type=F_RDLCK;
-#endif
   }
   else
     info_read=1;				/* memory-keyinfoblock is ok */

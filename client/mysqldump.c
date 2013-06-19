@@ -2997,10 +2997,6 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         if (atoi(row[3]) == 1)
         {
           keynr++;
-#ifdef FORCE_PRIMARY_KEY
-          if (atoi(row[1]) == 0 && primary_key == INT_MAX)
-            primary_key=keynr;
-#endif
           if (!strcmp(row[2],"PRIMARY"))
           {
             primary_key=keynr;
@@ -5534,11 +5530,6 @@ static my_bool get_view_structure(char *table, char* db)
     DBUG_RETURN(0);
 
   verbose_msg("-- Retrieving view structure for table %s...\n", table);
-
-#ifdef NOT_REALLY_USED_YET
-  sprintf(insert_pat,"SET SQL_QUOTE_SHOW_CREATE=%d",
-          (opt_quoted || opt_keywords));
-#endif
 
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
