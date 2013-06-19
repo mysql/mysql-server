@@ -159,7 +159,6 @@ int pthread_cancel(pthread_t thread);
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
 
 
-#undef SAFE_MUTEX				/* This will cause conflicts */
 #define pthread_key(T,V)  DWORD V
 #define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
 #define pthread_key_delete(A) TlsFree(A)
@@ -385,26 +384,7 @@ typedef struct st_safe_mutex_t
   const char *file;
   uint line,count;
   pthread_t thread;
-#ifdef SAFE_MUTEX_DETECT_DESTROY
-  struct st_safe_mutex_info_t *info;	/* to track destroying of mutexes */
-#endif
 } safe_mutex_t;
-
-#ifdef SAFE_MUTEX_DETECT_DESTROY
-/*
-  Used to track the destroying of mutexes. This needs to be a seperate
-  structure because the safe_mutex_t structure could be freed before
-  the mutexes are destroyed.
-*/
-
-typedef struct st_safe_mutex_info_t
-{
-  struct st_safe_mutex_info_t *next;
-  struct st_safe_mutex_info_t *prev;
-  const char *init_file;
-  uint32 init_line;
-} safe_mutex_info_t;
-#endif /* SAFE_MUTEX_DETECT_DESTROY */
 
 int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
                     const char *file, uint line);
