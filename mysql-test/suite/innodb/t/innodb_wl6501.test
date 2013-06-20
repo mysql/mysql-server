@@ -17,7 +17,7 @@
 # Will test following scenarios:
 # 1. Test some basic dml action involving truncate of table.
 # 2. Test that truncating reference table is blocked.
-# 3. Test truncate of loaded table that has blob + compression. 
+# 3. Test truncate of loaded table that has blob + compression.
 # 4. Compressed table with small key-block-size.
 #
 ################################################################################
@@ -126,7 +126,7 @@ drop table master;
 
 #-----------------------------------------------------------------------------
 #
-# 3. Test truncate of loaded table that has blob + compression. 
+# 3. Test truncate of loaded table that has blob + compression.
 #
 --echo "3. Test truncate of loaded table that has blob + compression."
 use test;

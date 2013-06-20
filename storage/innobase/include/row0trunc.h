@@ -362,7 +362,7 @@ struct TableLocator : public Callback {
 	}
 
 	/**
-	@return true if table is found */ 
+	@return true if table is found */
 	bool is_table_found()
 	{
 		return(m_table_found);
