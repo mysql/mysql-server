@@ -64,10 +64,13 @@ protected:
     Mock_error_handler handler(thd(), expected_error_code);
     lex_start(thd());
 
-    // The THD DTOR will do my_free() on this.
-    char *db= static_cast<char*>(my_malloc(3, MYF(0)));
-    sprintf(db, "db");
-    thd()->db= db;
+    if (thd()->db == NULL)
+    {
+      // The THD DTOR will do my_free() on this.
+      char *db= static_cast<char*>(my_malloc(3, MYF(0)));
+      sprintf(db, "db");
+      thd()->db= db;
+    }
 
     lex_start(thd());
     mysql_reset_thd_for_next_command(thd());

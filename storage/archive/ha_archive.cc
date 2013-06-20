@@ -989,51 +989,6 @@ int ha_archive::write_row(uchar *buf)
       rc= HA_ERR_FOUND_DUPP_KEY;
       goto error;
     }
-#ifdef DEAD_CODE
-    /*
-      Bad news, this will cause a search for the unique value which is very 
-      expensive since we will have to do a table scan which will lock up 
-      all other writers during this period. This could perhaps be optimized 
-      in the future.
-    */
-    {
-      /* 
-        First we create a buffer that we can use for reading rows, and can pass
-        to get_row().
-      */
-      if (!(read_buf= (uchar*) my_malloc(table->s->reclength, MYF(MY_WME))))
-      {
-        rc= HA_ERR_OUT_OF_MEM;
-        goto error;
-      }
-       /* 
-         All of the buffer must be written out or we won't see all of the
-         data 
-       */
-      azflush(&(share->archive_write), Z_SYNC_FLUSH);
-      /*
-        Set the position of the local read thread to the beginning position.
-      */
-      if (read_data_header(&archive))
-      {
-        rc= HA_ERR_CRASHED_ON_USAGE;
-        goto error;
-      }
-
-      Field *mfield= table->next_number_field;
-
-      while (!(get_row(&archive, read_buf)))
-      {
-        if (!memcmp(read_buf + mfield->offset(record),
-                    table->next_number_field->ptr,
-                    mfield->max_display_length()))
-        {
-          rc= HA_ERR_FOUND_DUPP_KEY;
-          goto error;
-        }
-      }
-    }
-#endif
     else
     {
       if (temp_auto > share->archive_write.auto_increment)

@@ -1064,7 +1064,6 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_INFO *owner,
 void
 thr_lock_merge_status(THR_LOCK_DATA **data, uint count)
 {
-#if !defined(DONT_USE_RW_LOCKS)
   THR_LOCK_DATA **pos= data;
   THR_LOCK_DATA **end= data + count;
   if (count > 1)
@@ -1107,7 +1106,6 @@ thr_lock_merge_status(THR_LOCK_DATA **data, uint count)
 	last_lock=(*pos);
     } while (pos != data);
   }
-#endif
 }
 
   /* free all locks */
