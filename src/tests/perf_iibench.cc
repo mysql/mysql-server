@@ -376,7 +376,7 @@ static void iibench_rangequery_db(DB *db, DB_TXN *txn, ARG arg, uint64_t max_pk)
     dbt_init(&end_key, &end_k, 8);
 
     r = db->cursor(db, txn, &cursor, 0); CKERR(r);
-    r = cursor->c_pre_acquire_range_lock(cursor, &start_key, &end_key); CKERR(r);
+    r = cursor->c_set_bounds(cursor, &start_key, &end_key, true, 0); CKERR(r);
     struct rangequery_cb_extra extra = {
         .rows_read = 0,
         .limit = limit,

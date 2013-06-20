@@ -196,10 +196,12 @@ static void do_inserts_and_queries(DB* db) {
         r = db->cursor(db, read_txn, &cursor, 0);
         CKERR(r);
         if (i == 0) { 
-            r = cursor->c_pre_acquire_range_lock(
+            r = cursor->c_set_bounds(
                 cursor,
                 db->dbt_neg_infty(),
-                db->dbt_pos_infty()
+                db->dbt_pos_infty(),
+                true,
+                0
                 );
             CKERR(r);
         }

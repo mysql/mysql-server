@@ -122,10 +122,12 @@ test_cursor (void) {
     DB_TXN* txn = NULL;
     r = env->txn_begin(env, NULL, &txn, DB_SERIALIZABLE); CKERR(r);
     r = db->cursor(db, txn, &cursor, 0); CKERR(r);
-    r = cursor->c_pre_acquire_range_lock(
+    r = cursor->c_set_bounds(
         cursor, 
         db->dbt_neg_infty(), 
-        db->dbt_pos_infty()
+        db->dbt_pos_infty(),
+        true,
+        0
         );
     r = cursor->c_close(cursor); CKERR(r);
     r = db->close(db, 0); CKERR(r);

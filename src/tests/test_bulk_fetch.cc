@@ -230,10 +230,12 @@ test_bulk_fetch (uint64_t n, bool prelock, bool disable_prefetching) {
     r = db->cursor(db, NULL, &cursor, flags);
     CKERR(r);
     if (prelock) {
-        r = cursor->c_pre_acquire_range_lock(
+        r = cursor->c_set_bounds(
             cursor,
             db->dbt_neg_infty(),
-            db->dbt_pos_infty()
+            db->dbt_pos_infty(),
+            true,
+            0
             );
         CKERR(r);
     }
@@ -257,10 +259,12 @@ test_bulk_fetch (uint64_t n, bool prelock, bool disable_prefetching) {
     r = db->cursor(db, NULL, &cursor, flags);
     CKERR(r);
     if (prelock) {
-        r = cursor->c_pre_acquire_range_lock(
+        r = cursor->c_set_bounds(
             cursor,
             db->dbt_neg_infty(),
-            db->dbt_pos_infty()
+            db->dbt_pos_infty(),
+            true,
+            0
             );
         CKERR(r);
     }
@@ -284,10 +288,12 @@ test_bulk_fetch (uint64_t n, bool prelock, bool disable_prefetching) {
     r = db->cursor(db, NULL, &cursor, flags);
     CKERR(r);
     if (prelock) {
-        r = cursor->c_pre_acquire_range_lock(
+        r = cursor->c_set_bounds(
             cursor,
             db->dbt_neg_infty(),
-            db->dbt_pos_infty()
+            db->dbt_pos_infty(),
+            true,
+            0
             );
         CKERR(r);
     }
@@ -311,10 +317,12 @@ test_bulk_fetch (uint64_t n, bool prelock, bool disable_prefetching) {
     r = db->cursor(db, NULL, &cursor, flags);
     CKERR(r);
     if (prelock) {
-        r = cursor->c_pre_acquire_range_lock(
+        r = cursor->c_set_bounds(
             cursor,
             db->dbt_neg_infty(),
-            db->dbt_pos_infty()
+            db->dbt_pos_infty(),
+            true,
+            0
             );
         CKERR(r);
     }
