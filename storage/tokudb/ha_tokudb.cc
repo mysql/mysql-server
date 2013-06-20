@@ -4504,7 +4504,7 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
     pack_key(&end_key, tokudb_active_index, prelocked_right_range, key, key_len, COL_POS_INF);
     prelocked_right_range_size = end_key.size;
 
-    error = cursor->c_restrict_to_range(
+    error = cursor->c_set_bounds(
         cursor, 
         &start_key, 
         &end_key,
@@ -5785,7 +5785,7 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
         prelocked_right_range_size = 0;
     }
 
-    error = cursor->c_restrict_to_range(
+    error = cursor->c_set_bounds(
         cursor, 
         start_key ? &start_dbt_key : share->key_file[tokudb_active_index]->dbt_neg_infty(), 
         end_key ? &end_dbt_key : share->key_file[tokudb_active_index]->dbt_pos_infty(),
@@ -7842,10 +7842,12 @@ int ha_tokudb::tokudb_add_index(
         // first a global read lock on the main DB, because
         // we intend to scan the entire thing
         //
-        error = tmp_cursor->c_pre_acquire_range_lock(
+        error = tmp_cursor->c_set_bounds(
             tmp_cursor,
             share->file->dbt_neg_infty(),
-            share->file->dbt_pos_infty()
+            share->file->dbt_pos_infty(),
+            true,
+            0
             );
         if (error) { goto cleanup; }
 
