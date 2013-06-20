@@ -5309,6 +5309,8 @@ PSI_v1 PFS_v1=
   pfs_digest_start_v1,
   pfs_digest_add_token_v1,
   pfs_set_thread_connect_attrs_v1
+
+    /* test */
 };
 
 static void* get_interface(int version)
