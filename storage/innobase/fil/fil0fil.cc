@@ -6657,7 +6657,7 @@ truncate_t::index_t::set(
 	}
 
 	/* Original logic set this field differently if page is not leaf.
-	For truncate case this being first page to get created it is 
+	For truncate case this being first page to get created it is
 	always a leaf page and so we don't need that condition here. */
 	m_n_fields = dict_index_get_n_fields(index);
 
