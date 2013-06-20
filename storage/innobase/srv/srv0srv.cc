@@ -2823,7 +2823,7 @@ srv_purge_wakeup(void)
 and so some of the action that are suppressed by this function
 for independent tablespace are not applicable to system-tablespace).
 @param	space_id	space_id to check for truncate action
-@return true 		if being truncated. */
+@return true		if being truncated. */
 
 bool
 srv_is_tablespace_truncated(ulint space_id)
