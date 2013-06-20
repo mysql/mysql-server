@@ -6747,7 +6747,7 @@ void truncate_t::drop_indexes(
 			lsn_t page_lsn = mach_read_from_8(root + FIL_PAGE_LSN);
 			mtr_commit(&mtr2);
 
-			if (page_lsn > this->m_redo_log_lsn) {
+			if (page_lsn > m_redo_log_lsn) {
 				/* Page has been modified since REDO snapshot
 				was recorded so not safe to drop the index. */
 				continue;
