@@ -857,7 +857,7 @@ fts_query_intersect_doc_id(
 		   1. if doc_ids is empty, add doc_id into intersection;
 		   2. if doc_ids contains doc_id, add doc_id into intersection.
 		*/
-		if (rbt_size(query->doc_ids) == 0) {
+		if (rbt_empty(query->doc_ids)) {
 			new_ranking.words = NULL;
 		} else if (rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
 			ranking = rbt_value(fts_ranking_t, parent.last);
@@ -867,7 +867,13 @@ fts_query_intersect_doc_id(
 				rank = 1.0F;
 			}
 
-			ut_a(ranking->words);
+			/* We've just checked the doc id before */
+			if (ranking->words == NULL) {
+				ut_ad(rbt_search(query->intersection, &parent,
+				      ranking) == 0);
+				return;
+			}
+
 			new_ranking.words = ranking->words;
 			new_ranking.words_len = ranking->words_len;
 		} else {
@@ -894,8 +900,6 @@ fts_query_intersect_doc_id(
 
 			query->total_size += SIZEOF_RBT_NODE_ADD
 				+ sizeof(fts_ranking_t);
-		} else {
-			ut_a(0);
 		}
 	}
 }
