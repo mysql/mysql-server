@@ -2853,6 +2853,16 @@ trx_set_rw_mode(
 
 	mutex_enter(&trx_sys->mutex);
 
+	/* Function is promoting existing trx from ro mode to rw mode.
+	In this process it has acquired trx_sys->mutex as it plan to
+	move trx from ro list to rw list. If in future, some other thread
+	looks at this trx object while it is being promoted then ensure
+	that both threads are synced by acquring trx->mutex to avoid decision
+	based on in-consistent view formed during promotion.
+	Note: assigning of rseg and setting of in_ro_trx_list are
+	not atomic and check like assert_trx_in_list can fail if
+	switch happens between these 2 sub-actions. */
+
 	/* From a correctness point of view this can be done
 	outside the trx_sys->mutex. However, we have some
 	debug assertions that rely on the invariant that if
