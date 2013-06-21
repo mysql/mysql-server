@@ -346,6 +346,8 @@ int runPkReadMultiWakeupT2(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 /* Version 2 API tests */
+#define V2_NLOOPS 32
+
 /* Producer thread */
 int runV2MultiWait_Producer(NDBT_Context* ctx, NDBT_Step* step,
                            int thd_id, int nthreads)
@@ -361,7 +363,7 @@ int runV2MultiWait_Producer(NDBT_Context* ctx, NDBT_Step* step,
      producer 1 is slow if (loop & 2)
      consumer is slow if (loop & 4)
   */
-  for (int loop = 0; loop < 8; loop++) 
+  for (int loop = 0; loop < V2_NLOOPS; loop++) 
   {
     ctx->getPropertyWait("LOOP", loop+1);
     bool slow = loop & (thd_id+1);
@@ -422,7 +424,7 @@ int runV2MultiWait_WaitPop_Thread(NDBT_Context* ctx, NDBT_Step* step)
   const char * d[5] = { " fast"," slow"," slow",""," slow" };
   const int timeout[3] = { 100, 1, 0 };
   const int pct_wait[9] = { 0,0,0,50,50,50,100,100,100 };
-  for (int loop = 0; loop < 8; loop++, iter++) 
+  for (int loop = 0; loop < V2_NLOOPS; loop++, iter++) 
   {
     ctx->incProperty("LOOP");
     ndbout << "V2 test: " << d[loop&1] << d[loop&2] << d[loop&4];

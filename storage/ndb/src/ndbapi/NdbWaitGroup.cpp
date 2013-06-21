@@ -78,7 +78,7 @@ NdbWaitGroup::~NdbWaitGroup()
 {
   if(m_active_version == 1) 
   {
-    while (m_pos < m_array_size)
+    while (m_pos < (int) m_array_size)
     {
       m_multiWaitHandler->unregisterNdb(m_array[m_pos++]);
     }
@@ -237,9 +237,12 @@ int NdbWaitGroup::wait(Uint32 timeout_millis, int pct_ready)
      m_pos_ready == m_pos_wait &&    /* Cannot currently pop */
      m_pos_new > m_pos_return)       /* NC > RETURNPOINT */
   {
+    /* hold transpporter lock while messing with array */
+    PollGuard pg(* m_wakeNdb->theImpl); 
     for(Uint32 i = m_pos_wait; i < m_pos_new; i++)
     {
-      m_array[i - m_pos_wait] = m_array[i];
+      m_multiWaitHandler->unregisterNdb(m_array[i]);
+      m_array[i - m_pos_wait] = m_array[i];      
     }
     m_pos_new -= m_pos_wait;
     m_pos_ready = m_pos_wait = 0;         
@@ -291,6 +294,7 @@ Ndb * NdbWaitGroup::pop()
 
 void NdbWaitGroup::resize_list() 
 {
+  PollGuard pg(* m_wakeNdb->theImpl); /* hold transporter lock */
   Uint32 size_required = m_array_size + m_pos_overflow + 1;
   while(m_array_size < size_required)
   {  
