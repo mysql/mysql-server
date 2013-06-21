@@ -159,7 +159,6 @@ int pthread_cancel(pthread_t thread);
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
 
 
-#undef SAFE_MUTEX				/* This will cause conflicts */
 #define pthread_key(T,V)  DWORD V
 #define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
 #define pthread_key_delete(A) TlsFree(A)
@@ -320,21 +319,12 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
   set_timespec_time_nsec((ABSTIME),my_getsystime(),(NSEC))
 #endif /* !set_timespec_nsec */
 
-/* adapt for two different flavors of struct timespec */
-#ifdef HAVE_TIMESPEC_TS_SEC
-#define MY_tv_sec  ts_sec
-#define MY_tv_nsec ts_nsec
-#else
-#define MY_tv_sec  tv_sec
-#define MY_tv_nsec tv_nsec
-#endif /* HAVE_TIMESPEC_TS_SEC */
-
 #ifndef set_timespec_time_nsec
 #define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
   ulonglong nsec= (NSEC);                                               \
   ulonglong now= (TIME) + (nsec/100);                                   \
-  (ABSTIME).MY_tv_sec=  (now / 10000000ULL);                          \
-  (ABSTIME).MY_tv_nsec= (now % 10000000ULL * 100 + (nsec % 100));     \
+  (ABSTIME).tv_sec=  (now / 10000000ULL);                          \
+  (ABSTIME).tv_nsec= (now % 10000000ULL * 100 + (nsec % 100));     \
 } while(0)
 #endif /* !set_timespec_time_nsec */
 
@@ -347,15 +337,6 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 
    @retval -1 If TS1 ends before TS2.
 */
-#ifdef HAVE_TIMESPEC_TS_SEC
-#ifndef cmp_timespec
-#define cmp_timespec(TS1, TS2) \
-  ((TS1.ts_sec > TS2.ts_sec || \
-    (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec > TS2.ts_nsec)) ? 1 : \
-   ((TS1.ts_sec < TS2.ts_sec || \
-     (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec < TS2.ts_nsec)) ? -1 : 0))
-#endif /* !cmp_timespec */
-#else
 #ifndef cmp_timespec
 #define cmp_timespec(TS1, TS2) \
   ((TS1.tv_sec > TS2.tv_sec || \
@@ -363,19 +344,11 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
    ((TS1.tv_sec < TS2.tv_sec || \
      (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
 #endif /* !cmp_timespec */
-#endif /* HAVE_TIMESPEC_TS_SEC */
 
-#ifdef HAVE_TIMESPEC_TS_SEC
-#ifndef diff_timespec
-#define diff_timespec(TS1, TS2) \
-  ((TS1.ts_sec - TS2.ts_sec) * 1000000000ULL + TS1.ts_nsec - TS2.ts_nsec)
-#endif /* !diff_timespec */
-#else
 #ifndef diff_timespec
 #define diff_timespec(TS1, TS2) \
   ((TS1.tv_sec - TS2.tv_sec) * 1000000000ULL + TS1.tv_nsec - TS2.tv_nsec)
 #endif /* !diff_timespec */
-#endif /* HAVE_TIMESPEC_TS_SEC */
 
 	/* safe_mutex adds checking to mutex for easier debugging */
 
@@ -385,26 +358,7 @@ typedef struct st_safe_mutex_t
   const char *file;
   uint line,count;
   pthread_t thread;
-#ifdef SAFE_MUTEX_DETECT_DESTROY
-  struct st_safe_mutex_info_t *info;	/* to track destroying of mutexes */
-#endif
 } safe_mutex_t;
-
-#ifdef SAFE_MUTEX_DETECT_DESTROY
-/*
-  Used to track the destroying of mutexes. This needs to be a seperate
-  structure because the safe_mutex_t structure could be freed before
-  the mutexes are destroyed.
-*/
-
-typedef struct st_safe_mutex_info_t
-{
-  struct st_safe_mutex_info_t *next;
-  struct st_safe_mutex_info_t *prev;
-  const char *init_file;
-  uint32 init_line;
-} safe_mutex_info_t;
-#endif /* SAFE_MUTEX_DETECT_DESTROY */
 
 int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
                     const char *file, uint line);

@@ -1252,9 +1252,6 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 
   if (param->testflag & T_VERBOSE)
   {
-#ifdef USE_RELOC
-    printf("Init-relocation:     %13s\n",llstr(share->base.reloc,llbuff));
-#endif
     printf("Datafile parts:      %13s  Deleted data:       %13s\n",
 	   llstr(share->state.split,llbuff),
 	   llstr(info->state->empty,llbuff2));
