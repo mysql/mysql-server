@@ -1932,9 +1932,14 @@ lock_rec_create(
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
 
+#ifdef UNIV_DEBUG
 	/* Non-locking autocommit read-only transactions should not set
-	any locks. */
-	assert_trx_in_list(trx);
+	any locks. See comment in trx_set_rw_mode explaining why this
+	conditional check is required in debug code. */
+	if (caller_owns_trx_mutex) {
+		assert_trx_in_list(trx);
+	}
+#endif /* UNIV_DEBUG */
 
 	space = buf_block_get_space(block);
 	page_no	= buf_block_get_page_no(block);

@@ -216,7 +216,7 @@ my_bool is_filename_allowed(const char *name __attribute__((unused)),
 } /* is_filename_allowed */
 #endif  /* _WIN32 */
 
-#if defined(_WIN32) || defined(__EMX__)
+#if defined(_WIN32)
 
 
 /*
@@ -262,4 +262,4 @@ int check_if_legal_filename(const char *path)
   DBUG_RETURN(0);
 }
 
-#endif /* defined(_WIN32) || defined(__EMX__) */
+#endif /* defined(_WIN32) */

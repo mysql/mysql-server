@@ -164,6 +164,11 @@ public:
     m_keyuse_vec.reserve(num_elements);
   }
 
+  virtual void TearDown()
+  {
+    delete_dynamic(&m_keyuse_dyn);
+  }
+
   void insert_and_sort_dynamic()
   {
     reset_dynamic(&m_keyuse_dyn);

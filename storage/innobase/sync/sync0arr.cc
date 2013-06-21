@@ -297,16 +297,16 @@ The event of the cell is reset to nonsignalled state.
 sync_cell_t*
 sync_array_reserve_cell(
 /*====================*/
- 	sync_array_t*	arr,	/*!< in: wait array */
- 	void*		object, /*!< in: pointer to the object to wait for */
- 	ulint		type,	/*!< in: lock request type */
- 	const char*	file,	/*!< in: file where requested */
+	sync_array_t*	arr,	/*!< in: wait array */
+	void*		object, /*!< in: pointer to the object to wait for */
+	ulint		type,	/*!< in: lock request type */
+	const char*	file,	/*!< in: file where requested */
 	ulint		line)	/*!< in: line where requested */
- {
- 	sync_cell_t*	cell;
- 
- 	sync_array_enter(arr);
- 
+{
+	sync_cell_t*	cell;
+
+	sync_array_enter(arr);
+
 	if (arr->first_free_slot != ULINT_UNDEFINED) {
 		/* Try and find a slot in the free list */
 		ut_ad(arr->first_free_slot < arr->next_free_slot);
@@ -362,7 +362,7 @@ sync_array_reserve_cell(
 
 	return(cell);
 }
- 
+
 /******************************************************************//**
 Frees the cell. NOTE! sync_array_wait_event frees the cell
 automatically! */
@@ -405,7 +405,7 @@ sync_array_free_cell(
 	sync_array_exit(arr);
 
 	cell = 0;
- }
+}
 
 /******************************************************************//**
 This function should be called when a thread starts to wait on
@@ -525,7 +525,7 @@ sync_array_cell_print(
 
 		fprintf(file,
 			"number of readers %lu, waiters flag %lu, "
-                        "lock_word: %lx\n"
+			"lock_word: %lx\n"
 			"Last time read locked in file %s line %lu\n"
 			"Last time write locked in file %s line %lu\n",
 			(ulong) rw_lock_get_reader_count(rwlock),
@@ -782,12 +782,12 @@ sync_arr_cell_can_wake_up(
 			return(true);
 		}
 
-        } else if (cell->request_type == RW_LOCK_X_WAIT) {
+	} else if (cell->request_type == RW_LOCK_X_WAIT) {
 		rw_lock_t*	lock;
 
 		lock = cell->latch.lock;
 
-                /* lock_word == 0 means all readers have left */
+		/* lock_word == 0 means all readers have left */
 		if (lock->lock_word == 0) {
 
 			return(true);
@@ -797,7 +797,7 @@ sync_arr_cell_can_wake_up(
 
 		lock = cell->latch.lock;
 
-                /* lock_word > 0 means no writer or reserved writer */
+		/* lock_word > 0 means no writer or reserved writer */
 		if (lock->lock_word > 0) {
 
 			return(true);

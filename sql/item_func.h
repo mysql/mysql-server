@@ -1027,17 +1027,17 @@ public:
   {
     item_name= a->item_name;
   }
-  double val_real() { return args[0]->val_real(); }
-  longlong val_int() { return args[0]->val_int(); }
-  String *val_str(String *str) { return args[0]->val_str(str); }
-  my_decimal *val_decimal(my_decimal *dec) { return args[0]->val_decimal(dec); }
+  double val_real();
+  longlong val_int();
+  String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *dec);
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
   {
-    return args[0]->get_date(ltime, fuzzydate);
+    return (null_value= args[0]->get_date(ltime, fuzzydate));
   }
   bool get_time(MYSQL_TIME *ltime)
   {
-    return args[0]->get_time(ltime);
+    return (null_value= args[0]->get_time(ltime));
   }
   const char *func_name() const { return "rollup_const"; }
   bool const_item() const { return 0; }
@@ -1954,6 +1954,42 @@ public:
     return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() & 
       FTS_DOCID_IN_RESULT;
   }
+
+private:
+  /**
+     Check whether storage engine for given table, 
+     allows FTS Boolean search on non-indexed columns.
+
+     @todo A flag should be added to the extended fulltext API so that 
+           it may be checked whether search on non-indexed columns are 
+           supported. Currently, it is not possible to check for such a 
+           flag since @c this->ft_handler is not yet set when this function is 
+           called.  The current hack is to assume that search on non-indexed
+           columns are supported for engines that does not support the extended
+           fulltext API (e.g., MyISAM), while it is not supported for other 
+           engines (e.g., InnoDB)
+
+     @param table_arg Table for which storage engine to check
+
+     @retval true if BOOLEAN search on non-indexed columns is supported
+     @retval false otherwise
+   */
+  bool allows_search_on_non_indexed_columns(TABLE* table_arg)
+  {
+    // Only Boolean search may support non_indexed columns
+    if (!(flags & FT_BOOL))
+      return false;
+
+    DBUG_ASSERT(table_arg && table_arg->file);
+
+    // Assume that if extended fulltext API is not supported,
+    // non-indexed columns are allowed.  This will be true for MyISAM.
+    if ((table_arg->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+      return true;
+
+    return false;
+  }
+
 };
 
 /**
