@@ -23,7 +23,7 @@ The interface to the operating system synchronization primitives.
 Created 2012-09-23 Sunny Bains (Split from include/os0sync.ic)
 *******************************************************/
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <winbase.h>
 #endif
 

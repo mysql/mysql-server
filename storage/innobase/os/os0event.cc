@@ -27,9 +27,9 @@ Created 2012-09-23 Sunny Bains
 #include "ut0mutex.h"
 #include "ha_prototypes.h"
 
-#ifdef __WIN__  
+#ifdef _WIN32  
 #include <windows.h>
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #include <list>
 
@@ -41,7 +41,7 @@ mysql_pfs_key_t	event_mutex_key;
 mysql_pfs_key_t	event_manager_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
-#ifdef __WIN__
+#ifdef _WIN32
 /** Native event (slow) */
 typedef HANDLE			os_win_event_t;
 
@@ -86,7 +86,7 @@ static WakeConditionVariableProc wake_condition_variable;
 #else
 /** Native condition variable */
 typedef pthread_cond_t		os_cond_t;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 typedef std::list<os_event_t> os_event_list_t;
 typedef os_event_list_t::iterator event_iter_t;
@@ -101,7 +101,7 @@ struct os_event {
 	Destroys a condition variable */
 	void destroy() UNIV_NOTHROW
 	{
-#ifdef __WIN__
+#ifdef _WIN32
 		/* Do nothing */
 #else
 		{
@@ -110,17 +110,17 @@ struct os_event {
 			ret = pthread_cond_destroy(&cond_var);
 			ut_a(ret == 0);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	}
 
 	/** Set the event */
 	void set() UNIV_NOTHROW
 	{
-#ifdef __WIN__
+#ifdef _WIN32
 		if (!srv_use_native_conditions) {
 			ut_a(SetEvent(handle));
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 		mutex_enter(&mutex);
 
@@ -133,12 +133,12 @@ struct os_event {
 
 	ib_int64_t reset() UNIV_NOTHROW
 	{
-#ifdef __WIN__
+#ifdef _WIN32
 		if (!srv_use_native_conditions) {
 			ut_a(ResetEvent(handle));
 			return(0);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 		mutex_enter(&mutex);
 
 		if (m_set) {
@@ -194,7 +194,7 @@ private:
 	Initialize a condition variable */
 	void init() UNIV_NOTHROW
 	{
-#ifdef __WIN__
+#ifdef _WIN32
 		ut_a(initialize_condition_variable != NULL);
 		initialize_condition_variable(&cond_var);
 #else
@@ -204,14 +204,14 @@ private:
 			ret = pthread_cond_init(&cond_var, NULL);
 			ut_a(ret == 0);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	}
 
 	/**
 	Wait on condition variable */
 	void wait() UNIV_NOTHROW
 	{
-#ifdef __WIN__
+#ifdef _WIN32
 		ut_a(sleep_condition_variable != NULL);
 		ut_a(sleep_condition_variable(&cond_var, mutex, INFINITE));
 #else
@@ -221,7 +221,7 @@ private:
 			ret = pthread_cond_wait(&cond_var, mutex);
 			ut_a(ret == 0);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	}
 
 	/**
@@ -231,7 +231,7 @@ private:
 		m_set = true;
 		++signal_count;
 
-#ifdef __WIN__
+#ifdef _WIN32
 		ut_a(wake_all_condition_variable != NULL);
 		wake_all_condition_variable(&cond_var);
 #else
@@ -241,14 +241,14 @@ private:
 			ret = pthread_cond_broadcast(&cond_var);
 			ut_a(ret == 0);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	}
 
 	/**
 	Wakes one thread waiting for condition variable */
 	void signal() UNIV_NOTHROW
 	{
-#ifdef __WIN__
+#ifdef _WIN32
 		ut_a(wake_condition_variable != NULL);
 		wake_condition_variable(&cond_var);
 #else
@@ -258,7 +258,7 @@ private:
 			ret = pthread_cond_signal(&cond_var);
 			ut_a(ret == 0);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	}
 
 	/**
@@ -267,18 +267,18 @@ private:
 	@param time_in_ms - timeout in milliseconds.
 	@return true if timed out, false otherwise */
 	bool timed_wait(
-#ifndef __WIN__
+#ifndef _WIN32
 		const timespec*	abstime
 #else
 		DWORD		time_in_ms
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 	);
 
 private:
-#ifdef __WIN__
+#ifdef _WIN32
 	os_win_event_t		handle;		/*!< kernel event object, slow,
 						used on older Windows */
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	EventMutex		mutex;		/*!< this mutex protects
 						the next fields */
 
@@ -304,7 +304,7 @@ protected:
 	os_event& operator=(const os_event&);
 };
 
-#ifdef __WIN__
+#ifdef _WIN32
 /**
 On Windows (Vista and later), load function pointers for condition variable
 handling. Those functions are not available in prior versions, so we have to
@@ -338,7 +338,7 @@ os_win_init()
 	ut_a(wake_all_condition_variable);
 	ut_a(initialize_condition_variable);
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /**
 Do a timed wait on condition variable.
@@ -347,14 +347,14 @@ Do a timed wait on condition variable.
 @return true if timed out */
 bool
 os_event::timed_wait(
-#ifndef __WIN__
+#ifndef _WIN32
 	const timespec*	abstime	
 #else
 	DWORD		time_in_ms
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 )
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	ut_a(sleep_condition_variable != NULL);
 
 	BOOL		ret;
@@ -403,7 +403,7 @@ os_event::timed_wait(
 	}
 
 	return(ret == ETIMEDOUT);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /**
@@ -427,7 +427,7 @@ void
 os_event::wait_low(
 	ib_int64_t	reset_sig_count) UNIV_NOTHROW
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	if (!srv_use_native_conditions) {
 		DWORD	err;
 
@@ -437,7 +437,7 @@ os_event::wait_low(
 
 		return;
 	}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	mutex_enter(&mutex);
 
@@ -470,7 +470,7 @@ os_event::wait_time_low(
 {
 	bool		timed_out = false;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	DWORD		time_in_ms;
 
 	if (!srv_use_native_conditions) {
@@ -532,7 +532,7 @@ os_event::wait_time_low(
 
 	ut_a(abstime.tv_nsec <= 999999999);
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	mutex_enter(&mutex);
 
@@ -546,11 +546,11 @@ os_event::wait_time_low(
 			break;
 		}
 
-#ifndef __WIN__
+#ifndef _WIN32
 		timed_out = timed_wait(&abstime);
 #else
 		timed_out = timed_wait(time_in_ms);
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 
 	} while (!timed_out);
 
@@ -562,7 +562,7 @@ os_event::wait_time_low(
 /** Constructor */
 os_event::os_event(const char* name) UNIV_NOTHROW
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	if (!srv_use_native_conditions) {
 
 		handle = CreateEvent(0, TRUE, FALSE, (LPCTSTR) name);
@@ -575,7 +575,7 @@ os_event::os_event(const char* name) UNIV_NOTHROW
 		}
 
 	} else /* Windows with condition variables */
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	{
 		mutex_create("event_mutex", &mutex);
 
@@ -599,11 +599,11 @@ os_event::os_event(const char* name) UNIV_NOTHROW
 /** Destructor */
 os_event::~os_event() UNIV_NOTHROW
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	if (!srv_use_native_conditions){
 		ut_a(CloseHandle(handle));
 	} else /*Windows with condition variables */
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	{
 		destroy();
 		mutex_destroy(&mutex);
@@ -725,7 +725,7 @@ Initialise the event sub-system. */
 void
 os_event_init()
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	os_win_init();
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }

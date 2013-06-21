@@ -35,13 +35,13 @@ typedef int	lock_word_t;
 typedef ulint	lock_word_t;
 #endif /* HAVE_WINDOWS_ATOMICS */
 
-#ifdef __WIN__
+#ifdef _WIN32
 /** Native mutex */
 typedef CRITICAL_SECTION	sys_mutex_t;
 #else
 /** Native mutex */
 typedef pthread_mutex_t		sys_mutex_t;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /** The new (C++11) syntax allows the following and we should use it when it
 is available on platforms that we support.
