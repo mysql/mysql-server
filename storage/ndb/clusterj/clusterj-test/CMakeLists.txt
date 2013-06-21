@@ -16,7 +16,10 @@
 SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java
+ ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-unit/src/main/java/junit/framework/*.java
+ ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-unit/src/main/java/junit/textui/*.java
+ ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-unit/src/main/java/org/junit/*.java)
 
 SET ( CLASSPATH 
   target/classes
