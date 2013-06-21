@@ -3123,6 +3123,41 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
   return res;
 }
 
+double Item_func_rollup_const::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  double res= args[0]->val_real();
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+  return res;
+}
+
+longlong Item_func_rollup_const::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  longlong res= args[0]->val_int();
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
+
+String *Item_func_rollup_const::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  String *res= args[0]->val_str(str);
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
+
+my_decimal *Item_func_rollup_const::val_decimal(my_decimal *dec)
+{
+  DBUG_ASSERT(fixed == 1);
+  my_decimal *res= args[0]->val_decimal(dec);
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
 
 longlong Item_func_length::val_int()
 {
@@ -6229,6 +6264,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
 
+  bool allows_multi_table_search= true;
   const_item_cache=0;
   for (uint i=1 ; i < arg_count ; i++)
   {
@@ -6240,7 +6276,10 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "AGAINST");
       return TRUE;
     }
+    allows_multi_table_search &= 
+      allows_search_on_non_indexed_columns(((Item_field *)item)->field->table);
   }
+
   /*
     Check that all columns come from the same table.
     We've already checked that columns in MATCH are fields so
@@ -6249,7 +6288,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   if ((used_tables_cache & ~PARAM_TABLE_BIT) != item->used_tables())
     key=NO_SUCH_KEY;
 
-  if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
+  if (key == NO_SUCH_KEY && !allows_multi_table_search)
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return TRUE;
@@ -6347,7 +6386,7 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (flags & FT_BOOL)
+  if (allows_search_on_non_indexed_columns(table))
   {
     key=NO_SUCH_KEY;
     return 0;

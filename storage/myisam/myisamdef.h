@@ -464,12 +464,6 @@ typedef struct st_mi_sort_param
 
 extern mysql_mutex_t THR_LOCK_myisam;
 
-#if defined(DONT_USE_RW_LOCKS)
-#define mysql_rwlock_wrlock(A) {}
-#define mysql_rwlock_rdlock(A) {}
-#define mysql_rwlock_unlock(A) {}
-#endif
-
 	/* Some extern variables */
 
 extern LIST *myisam_open_list;
