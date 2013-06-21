@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,7 +122,11 @@ public:
     option.u_max_value= (uchar**)max_var_ptr();
     if (max_var_ptr())
       *max_var_ptr()= max_val;
-    global_var(T)= def_val;
+
+    // Do not set global_var for Sys_var_keycache objects
+    if (offset >= 0)
+      global_var(T)= def_val;
+
     DBUG_ASSERT(size == sizeof(T));
     DBUG_ASSERT(min_val < max_val);
     DBUG_ASSERT(min_val <= def_val);
@@ -659,12 +663,15 @@ public:
           on_check_function on_check_func,
           keycache_update_function on_update_func,
           const char *substitute=0)
-    : Sys_var_ulonglong(name_arg, comment, flag_args, off, size,
-              getopt, min_val, max_val, def_val,
-              block_size, lock, binlog_status_arg, on_check_func, 0,
-              substitute),
+    : Sys_var_ulonglong(name_arg, comment, flag_args,
+                        -1,     /* offset, see base class CTOR */
+                        size,
+                        getopt, min_val, max_val, def_val,
+                        block_size, lock, binlog_status_arg, on_check_func, 0,
+                        substitute),
     keycache_update(on_update_func)
   {
+    offset= off; /* Remember offset in KEY_CACHE */
     option.var_type|= GET_ASK_ADDR;
     option.value= (uchar**)1; // crash me, please
     keycache_var(dflt_key_cache, off)= def_val;
