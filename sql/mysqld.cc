@@ -1421,7 +1421,6 @@ static void close_connections(void)
   sql_print_information("Forcefully disconnecting %d remaining clients",
                         static_cast<int>(get_thread_count()));
 
-#ifndef __bsdi__ // Bug in BSDI kernel
   DBUG_PRINT("quit", ("Locking LOCK_thread_count"));
   mysql_mutex_lock(&LOCK_thread_count);
   for (it= global_thread_list->begin(); it != global_thread_list->end(); ++it)
@@ -1439,7 +1438,6 @@ static void close_connections(void)
   }
   DBUG_PRINT("quit",("Unlocking LOCK_thread_count"));
   mysql_mutex_unlock(&LOCK_thread_count);
-#endif // Bug in BSDI kernel
 
   /* 
     All threads have now been aborted. Stop event scheduler thread 
@@ -5182,14 +5180,6 @@ int mysqld_main(int argc, char **argv)
     */
     exit (ho_error);
   }
-
-#ifdef _CUSTOMSTARTUPCONFIG_
-  if (_cust_check_startup())
-  {
-    / * _cust_check_startup will report startup failure error * /
-    exit(1);
-  }
-#endif
 
   if (init_common_variables())
     unireg_abort(1);        // Will do exit

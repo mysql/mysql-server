@@ -494,25 +494,6 @@ int main(int argc, char *argv[])
       goto err;
   if (memcmp(read_record2,read_record3,reclength))
      printf("Can't find last record\n");
-#ifdef NOT_ANYMORE
-  if (!silent)
-    puts("- Test read key-part");
-  strmov(key2,key);
-  for(i=strlen(key2) ; i-- > 1 ;)
-  {
-    key2[i]=0;
-
-    /* The following row is just to catch some bugs in the key code */
-    memset(file->lastkey, 0, file->s->base.max_key_length*2);
-    if (mi_rkey(file,read_record,0,key2,(uint) i,HA_READ_PREFIX))
-      goto err;
-    if (memcmp(read_record+start,key,(uint) i))
-    {
-      puts("Didn't find right record");
-      goto end;
-    }
-  }
-#endif
   if (dupp_keys > 2)
   {
     if (!silent)

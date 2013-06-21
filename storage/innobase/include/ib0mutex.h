@@ -82,11 +82,11 @@ struct OSBasicMutex {
 
 		m_policy.init(*this, name, filename, line);
 	}
-	
+
 	/** Destroy the mutex */
 	void destroy() UNIV_NOTHROW
 	{
-                ut_ad(!m_freed);
+		ut_ad(!m_freed);
 #ifdef _WIN32
 		DeleteCriticalSection((LPCRITICAL_SECTION) &m_mutex);
 #else
@@ -135,7 +135,7 @@ struct OSBasicMutex {
 		const char*	filename,
 		ulint		line) UNIV_NOTHROW
 	{
-                ut_ad(!m_freed);
+		ut_ad(!m_freed);
 #ifdef _WIN32
 		EnterCriticalSection((LPCRITICAL_SECTION) &m_mutex);
 #else
@@ -147,7 +147,7 @@ struct OSBasicMutex {
 	/** @return true if locking succeeded */
 	bool try_lock() UNIV_NOTHROW
 	{
-                ut_ad(!m_freed);
+		ut_ad(!m_freed);
 #ifdef _WIN32
 		return(TryEnterCriticalSection(&m_mutex) != 0);
 #else
@@ -165,7 +165,7 @@ struct OSBasicMutex {
 
 #ifdef UNIV_DEBUG
 	/** @return true if some thread owns the mutex. Because these are
-        used by os_event_t we cannot track the ownership reliably. */
+	used by os_event_t we cannot track the ownership reliably. */
 	bool is_owned() const UNIV_NOTHROW
 	{
 		return(m_policy.is_owned());
@@ -185,7 +185,7 @@ struct OSBasicMutex {
 	}
 private:
 #ifdef UNIV_DEBUG
-        /** true if the mutex has been freed/destroyed. */
+	/** true if the mutex has been freed/destroyed. */
 	bool			m_freed;
 #endif /* UNIV_DEBUG */
 
@@ -220,14 +220,14 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 		ulint		line) UNIV_NOTHROW
 	{
 		ut_ad(!m_locked);
-                OSBasicMutex<Policy>::init(name, filename, line);
+		OSBasicMutex<Policy>::init(name, filename, line);
 	}
-	
+
 	/** Destroy the mutex */
 	void destroy() UNIV_NOTHROW
 	{
 		ut_ad(!m_locked);
-                OSBasicMutex<Policy>::destroy();
+		OSBasicMutex<Policy>::destroy();
 	}
 
 	/** Release the muytex. */
@@ -236,7 +236,7 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 		ut_ad(m_locked);
 		ut_d(m_locked = false);
 
-                OSBasicMutex<Policy>::exit();
+		OSBasicMutex<Policy>::exit();
 	}
 
 	/** Acquire the mutex.
@@ -264,7 +264,7 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 			return;
 		}
 #endif /* _WIN32 */
-                OSBasicMutex<Policy>::enter(
+		OSBasicMutex<Policy>::enter(
 			max_spins, max_delay, filename, line);
 
 		ut_ad(!m_locked);
@@ -306,7 +306,7 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 
 private:
 #ifdef UNIV_DEBUG
-        /** true if the mutex has been locked. */
+	/** true if the mutex has been locked. */
 	bool			m_locked;
 #endif /* UNIV_DEBUG */
 };
@@ -867,7 +867,7 @@ private:
 	/**
 	Reserves a mutex for the current thread. If the mutex is reserved,
 	the function spins a preset time (controlled by srv_n_spin_wait_rounds),
-       	waiting for the mutex before suspending the thread.
+	waiting for the mutex before suspending the thread.
 	@param max_spins	max number of spins
 	@param max_delay	max delay per spin
 	@param filename		from where called
@@ -910,7 +910,7 @@ private:
 		/* Declared volatile in the hope that the value is
 		read from memory */
 
-	        volatile ulint*   ptr;
+		volatile ulint*   ptr;
 
 		ptr = &m_waiters;
 
