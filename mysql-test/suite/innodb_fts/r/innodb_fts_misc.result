@@ -711,8 +711,7 @@ CREATE FULLTEXT INDEX i ON t1 (char_column2);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('abc*' IN BOOLEAN MODE);
-id	char_column	char_column2
-NULL	abcde	abcde
+ERROR HY000: Can't find FULLTEXT index matching the column list
 DROP TABLE t1;
 "----------Test22---------"
 CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;

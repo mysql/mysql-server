@@ -15,10 +15,7 @@
 
 /* This file is included by all myisam-merge files */
 
-#ifndef N_MAXKEY
 #include "../myisam/myisamdef.h"
-#endif
-
 #include "myisammrg.h"
 
 extern LIST *myrg_open_list;

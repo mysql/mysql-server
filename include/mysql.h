@@ -34,9 +34,6 @@ extern "C" {
 #ifndef MYSQL_ABI_CHECK
 #include <sys/types.h>
 #endif
-#ifdef __LCC__
-#include <winsock2.h>				/* For windows */
-#endif
 typedef char my_bool;
 #if !defined(_WIN32)
 #define STDCALL
