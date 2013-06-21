@@ -3109,3 +3109,4 @@ storage/ndb/include/ndb_config.h
 storage/ndb/memcache/memcached_path.pl
 storage/ndb/memcache/sandbo*
 storage/ndb/memcache/include/ndbmemcache_config.h
+storage/ndb/test/dox
