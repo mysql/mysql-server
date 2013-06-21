@@ -13,8 +13,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef TABLE_ESMS_BY_ROUTINE_H
-#define TABLE_ESMS_BY_ROUTINE_H
+#ifndef TABLE_ESMS_BY_PROGRAM_H
+#define TABLE_ESMS_BY_PROGRAM_H
 
 /**
   @file storage/perfschema/table_esms_by_program.h
