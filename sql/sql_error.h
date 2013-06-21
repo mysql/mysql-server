@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,11 +151,8 @@ private:
   /** Set the SQLSTATE of this condition. */
   void set_sqlstate(const char* sqlstate);
 
-  /** Set the CLASS_ORIGIN of this condition. */
-  void set_class_origin();
-
-  /** Set the SUBCLASS_ORIGIN of this condition. */
-  void set_subclass_origin();
+  /** Set the CLASS_ORIGIN and SUBCLASS_ORIGIN of this condition. */
+  void set_class_origins();
 
   /**
     Clear this SQL condition.
