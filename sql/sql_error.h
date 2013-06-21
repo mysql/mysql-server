@@ -145,11 +145,8 @@ private:
     m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
   }
 
-  /** Set the CLASS_ORIGIN of this condition. */
-  void set_class_origin();
-
-  /** Set the SUBCLASS_ORIGIN of this condition. */
-  void set_subclass_origin();
+  /** Set the CLASS_ORIGIN and SUBCLASS_ORIGIN of this condition. */
+  void set_class_origins();
 
 private:
   /** SQL CLASS_ORIGIN condition item. */
