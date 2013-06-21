@@ -38,14 +38,18 @@ bool flag_programs= true;
 /** Current index in Stat array where new record is to be inserted. */
 volatile uint32 program_index= 0;
 
+/** Max size of the program array. */
 ulong program_max= 0;
+/** Number of stored program instanes lost. */
 ulong program_lost= 0;
+/** True when program array is full. */
+bool program_full;
 
 LF_HASH program_hash;                                                           
 static bool program_hash_inited= false;
 
 /**
-  Initialize table EVENTS_STATEMENTS_SUMMARY_BY_ROUTINE.
+  Initialize table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM.
   @param param performance schema sizing
 */
 int init_program(const PFS_global_param *param)
@@ -56,6 +60,7 @@ int init_program(const PFS_global_param *param)
   */
   program_max= param->m_program_sizing;
   program_lost= 0;
+  program_full= false;
 
   if (program_max == 0)
     return 0;
@@ -202,9 +207,17 @@ find_or_create_program(PFS_thread *thread,
                       const char *schema_name,
                       uint schema_name_length)
 {
+  bool is_enabled, is_timed;
+
   if (program_array == NULL || program_max == 0 ||
       object_name_length ==0 || schema_name_length == 0)
     return NULL;
+
+  if(program_full)
+  {
+    program_lost++;
+    return NULL;
+  }
 
   LF_PINS *pins= get_program_hash_pins(thread);
   if (unlikely(pins == NULL))
@@ -239,6 +252,15 @@ search:
   
   lf_hash_search_unpin(pins);
 
+  /* 
+     First time while inserting this record to program array we need to
+     find out if it is enabled and timed.
+  */
+  lookup_setup_object(thread, object_type,
+                      schema_name, schema_name_length,
+                      object_name, object_name_length,
+                      &is_enabled, &is_timed);
+
   /* Else create a new record in program stat array. */
   while (++attempts <= program_max)
   {
@@ -258,15 +280,9 @@ search:
         pfs->m_object_name_length= object_name_length;
         pfs->m_schema_name= pfs->m_object_name + object_name_length + 1;
         pfs->m_schema_name_length= schema_name_length;
+        pfs->m_enabled= is_enabled;
+        pfs->m_timed= is_timed;
 
-        /* 
-           First time while inserting this record to program array we need to
-           find out if it is enabled and timed.
-        */
-        lookup_setup_object(thread, pfs->m_type,
-                            pfs->m_schema_name, pfs->m_schema_name_length,
-                            pfs->m_object_name, pfs->m_object_name_length,
-                            &pfs->m_enabled, &pfs->m_timed);
       
         /* Insert this record. */
         int res= lf_hash_insert(&program_hash, pins, &pfs);
@@ -297,6 +313,7 @@ search:
     }
   }
   program_lost++;
+  program_full= true;
   return NULL;
 }
 
@@ -330,6 +347,7 @@ void drop_program(PFS_thread *thread,
     lf_hash_delete(&program_hash, pins,
                    key.m_hash_key, key.m_key_length);
     pfs->m_lock.allocated_to_free();
+    program_full= false;
   }
   
   lf_hash_search_unpin(pins);

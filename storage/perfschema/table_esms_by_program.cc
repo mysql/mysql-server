@@ -15,7 +15,7 @@
 
 /**
   @file storage/perfschema/table_esms_by_program.cc
-  Table EVENTS_STATEMENTS_SUMMARY_BY_ROUTINE (implementation).
+  Table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM (implementation).
 */
 
 #include "my_global.h"

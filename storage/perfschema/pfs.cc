@@ -4555,12 +4555,18 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
         PFS_program *parent_sp= reinterpret_cast<PFS_program*>(sp_share);
         pfs->m_sp_type= parent_sp->m_type;
         memcpy(pfs->m_schema_name, parent_sp->m_schema_name,
-               parent_sp->m_schema_name_length);   
-        pfs->m_schema_name_length= parent_sp->m_schema_name_length;                         
+               parent_sp->m_schema_name_length);
+        pfs->m_schema_name_length= parent_sp->m_schema_name_length;
         memcpy(pfs->m_object_name, parent_sp->m_object_name,
                parent_sp->m_object_name_length);
-        pfs->m_object_name_length= parent_sp->m_object_name_length;                       
-      }  
+        pfs->m_object_name_length= parent_sp->m_object_name_length;
+      }
+      else
+      {
+        pfs->m_sp_type= OBJECT_TYPE_NONE;
+        pfs->m_schema_name_length= 0;
+        pfs->m_object_name_length= 0;
+      }
 
       state->m_statement= pfs;
       flags|= STATE_FLAG_EVENT;
@@ -5153,28 +5159,32 @@ void pfs_release_sp_share_v1(PSI_sp_share* sp_share)
 
 PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state, PSI_sp_share *sp_share)
 {
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
-  if (unlikely(pfs_thread == NULL))                                             
+  DBUG_ASSERT(state != NULL);
+  if (! flag_global_instrumentation)
     return NULL;
 
-  PFS_program *pfs_program= reinterpret_cast<PFS_program*>(sp_share);
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
+    if (unlikely(pfs_thread == NULL))                                             
+      return NULL;
+  }
+
   /* 
     sp share might be null in case when stat array is full and no new
     stored program stats are being inserted into it.
   */
+  PFS_program *pfs_program= reinterpret_cast<PFS_program*>(sp_share);
   if (pfs_program == NULL || !pfs_program->m_enabled)
     return NULL;
 
-  state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
-
-  ulonglong timer_start= 0;
+  state->m_flags= 0;
 
   if(pfs_program->m_timed)
   {
-    state->m_flags |= STATE_FLAG_TIMED;
-    timer_start= get_timer_raw_value_and_function(statement_timer, 
+    state->m_flags|= STATE_FLAG_TIMED;
+    state->m_timer_start= get_timer_raw_value_and_function(statement_timer, 
                                                   & state->m_timer);
-    state->m_timer_start= timer_start;
   }
 
   state->m_sp_share= sp_share;
@@ -5187,8 +5197,8 @@ void pfs_end_sp_v1(PSI_sp_locker *locker)
   PSI_sp_locker_state *state= reinterpret_cast<PSI_sp_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  ulonglong timer_end= 0;
-  ulonglong wait_time= 0;
+  ulonglong timer_end;
+  ulonglong wait_time;
 
   PFS_program *pfs_program= reinterpret_cast<PFS_program *>(state->m_sp_share);
   PFS_sp_stat *stat= &pfs_program->m_sp_stat;

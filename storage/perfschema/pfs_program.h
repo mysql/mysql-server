@@ -13,8 +13,8 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef PFS_ROUTINE_H
-#define PFS_ROUTINE_H
+#ifndef PFS_PROGRAM_H
+#define PFS_PROGRAM_H
 
 /**
   @file storage/perfschema/pfs_program.h
@@ -46,7 +46,7 @@ struct PFS_program_key
   uint m_key_length;
 }; 
 
-struct PFS_program : public PFS_instr
+struct PFS_ALIGNED PFS_program : public PFS_instr
 {
   /** Object type. */
   enum_object_type m_type;
