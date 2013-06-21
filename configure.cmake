@@ -630,22 +630,6 @@ int main()
 HAVE_SELECT)
 
 #
-# Check if timespec has ts_sec and ts_nsec fields
-#
-
-CHECK_C_SOURCE_COMPILES("
-#include <pthread.h>
-
-int main(int ac, char **av)
-{
-  struct timespec abstime;
-  abstime.ts_sec = time(NULL)+1;
-  abstime.ts_nsec = 0;
-}
-" HAVE_TIMESPEC_TS_SEC)
-
-
-#
 # Check return type of qsort()
 #
 CHECK_C_SOURCE_COMPILES("

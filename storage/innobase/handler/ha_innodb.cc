@@ -106,7 +106,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
 static ulong commit_threads = 0;
-static mysql_mutex_t commit_threads_m;
 static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
 static bool innodb_inited = 0;
@@ -260,12 +259,10 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
 static mysql_pfs_key_t	innobase_share_mutex_key;
-static mysql_pfs_key_t	commit_threads_m_key;
 static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-	PSI_KEY(commit_threads_m),
 	PSI_KEY(commit_cond_mutex),
 	PSI_KEY(innobase_share_mutex)
 };
@@ -3181,8 +3178,6 @@ innobase_change_buffering_inited_ok:
 	mysql_mutex_init(innobase_share_mutex_key,
 			 &innobase_share_mutex,
 			 MY_MUTEX_INIT_FAST);
-	mysql_mutex_init(commit_threads_m_key,
-			 &commit_threads_m, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
 	mysql_cond_init(commit_cond_key, &commit_cond, NULL);
@@ -3247,7 +3242,6 @@ innobase_end(
 		innobase_space_shutdown();
 
 		mysql_mutex_destroy(&innobase_share_mutex);
-		mysql_mutex_destroy(&commit_threads_m);
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
 	}
