@@ -128,7 +128,7 @@ mkdir $mysql/build.debug
 if [ $? != 0 ] ; then exit 1; fi
 pushd $mysql/build.debug
 if [ $? != 0 ] ; then exit 1; fi
-extra_cmake_options=
+extra_cmake_options="-DCMAKE_LINK_DEPENDS_NO_SHARED=ON"
 if (( $cmake_valgrind )) ; then
     extra_cmake_options+=" -DUSE_VALGRIND=ON"
 fi
