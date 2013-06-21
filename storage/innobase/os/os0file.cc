@@ -348,9 +348,9 @@ os_get_os_version(void)
 
 	if (os_info.dwPlatformId == VER_PLATFORM_WIN32s) {
 		return(OS_WIN31);
-	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
+	} else if (os_info.dwPlatformId == VER_PLATFORM__WIN32WINDOWS) {
 		return(OS_WIN95);
-	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
+	} else if (os_info.dwPlatformId == VER_PLATFORM__WIN32NT) {
 		switch (os_info.dwMajorVersion) {
 		case 3:
 		case 4:
@@ -815,7 +815,7 @@ os_file_opendir(
 {
 	os_file_dir_t		dir;
 #ifdef _WIN32
-	LPWIN32_FIND_DATA	lpFindFileData;
+	LP_WIN32FIND_DATA	lpFindFileData;
 	char			path[OS_FILE_MAX_PATH + 3];
 
 	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
@@ -827,8 +827,8 @@ os_file_opendir(
 	the first entry in the directory. Since it is '.', that is no problem,
 	as we will skip over the '.' and '..' entries anyway. */
 
-	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
-		ut_malloc(sizeof(WIN32_FIND_DATA)));
+	lpFindFileData = static_cast<LP_WIN32FIND_DATA>(
+		ut_malloc(sizeof(_WIN32FIND_DATA)));
 
 	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
 
@@ -902,11 +902,11 @@ os_file_readdir_next_file(
 	os_file_stat_t*	info)	/*!< in/out: buffer where the info is returned */
 {
 #ifdef _WIN32
-	LPWIN32_FIND_DATA	lpFindFileData;
+	LP_WIN32FIND_DATA	lpFindFileData;
 	BOOL			ret;
 
-	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
-		ut_malloc(sizeof(WIN32_FIND_DATA)));
+	lpFindFileData = static_cast<LP_WIN32FIND_DATA>(
+		ut_malloc(sizeof(_WIN32FIND_DATA)));
 next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 

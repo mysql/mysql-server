@@ -31,9 +31,9 @@ Created 2012-09-23 Sunny bains (split from os0event.h)
 struct os_event;
 typedef struct os_event* os_event_t;
 
-#ifdef __WIN__
+#ifdef _WIN32
 extern bool	srv_use_native_conditions;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /** Denotes an infinite delay for os_event_wait_time() */
 #define OS_SYNC_INFINITE_TIME   ULINT_UNDEFINED

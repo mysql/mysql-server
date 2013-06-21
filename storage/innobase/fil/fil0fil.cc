@@ -323,7 +323,7 @@ static fil_system_t*	fil_system	= NULL;
 	 == SRV_UNIX_O_DIRECT_NO_FSYNC)
 #else /* _WIN32 */
 # define fil_buffering_disabled(s)	(0)
-#endif /* _WIN32_ */
+#endif /* __WIN32 */
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
