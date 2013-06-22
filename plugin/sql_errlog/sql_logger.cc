@@ -21,10 +21,12 @@
 
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 
+#ifdef HAVE_PSI_INTERFACE
 /* These belong to the service initialization */
 static PSI_mutex_key key_LOCK_logger_service;
 static PSI_mutex_info mutex_list[]=
 {{ &key_LOCK_logger_service, "logger_service_file_st::lock", PSI_FLAG_GLOBAL}};
+#endif
 
 typedef struct logger_handle_st {
   File file;
@@ -188,7 +190,9 @@ int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...)
 
 void init_logger_mutexes()
 {
+#ifdef HAVE_PSI_INTERFACE
   if (PSI_server)
     PSI_server->register_mutex("sql_logger", mutex_list, 1);
+#endif
 }
 

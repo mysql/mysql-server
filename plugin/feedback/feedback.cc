@@ -38,6 +38,7 @@ mysql_cond_t sleep_condition;
 volatile bool shutdown_plugin;
 static pthread_t sender_thread;
 
+#ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_sleep_mutex;
 static PSI_mutex_info mutex_list[]=
 {{ &key_sleep_mutex, "sleep_mutex", PSI_FLAG_GLOBAL}};
@@ -49,6 +50,7 @@ static PSI_cond_info cond_list[]=
 static PSI_thread_key key_sender_thread;
 static PSI_thread_info	thread_list[] =
 {{&key_sender_thread, "sender_thread", 0}};
+#endif
 
 Url **urls;             ///< list of urls to send the report to
 uint url_count;
@@ -231,8 +233,12 @@ static int init(void *p)
   i_s_feedback->fill_table= fill_feedback;    ///< how to fill the I_S table
   i_s_feedback->idx_field1 = 0;               ///< virtual index on the 1st col
 
+#ifdef HAVE_PSI_INTERFACE
 #define PSI_register(X) \
   if(PSI_server) PSI_server->register_ ## X("feedback", X ## _list, array_elements(X ## _list))
+#else
+#define PSI_register(X) /* no-op */
+#endif
 
   PSI_register(mutex);
   PSI_register(cond);

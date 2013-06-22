@@ -52,6 +52,7 @@ static bool threadpool_started= false;
 */
  
  
+#ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_group_mutex;
 static PSI_mutex_key key_timer_mutex;
 static PSI_mutex_info mutex_list[]=
@@ -79,6 +80,9 @@ static PSI_thread_info	thread_list[] =
 /* Macro to simplify performance schema registration */ 
 #define PSI_register(X) \
  if(PSI_server) PSI_server->register_ ## X("threadpool", X ## _list, array_elements(X ## _list))
+#else
+#define PSI_register(X) /* no-op */
+#endif
 
 
 struct thread_group_t;

@@ -72,14 +72,18 @@ struct Worker_thread_context
 
   void save()
   {
+#ifdef HAVE_PSI_INTERFACE
     psi_thread=  PSI_server?PSI_server->get_thread():0;
+#endif
     mysys_var= (st_my_thread_var *)pthread_getspecific(THR_KEY_mysys);
   }
 
   void restore()
   {
+#ifdef HAVE_PSI_INTERFACE
     if (PSI_server)
       PSI_server->set_thread(psi_thread);
+#endif
     pthread_setspecific(THR_KEY_mysys,mysys_var);
     pthread_setspecific(THR_THD, 0);
     pthread_setspecific(THR_MALLOC, 0);
@@ -95,8 +99,10 @@ static bool thread_attach(THD* thd)
   pthread_setspecific(THR_KEY_mysys,thd->mysys_var);
   thd->thread_stack=(char*)&thd;
   thd->store_globals();
+#ifdef HAVE_PSI_INTERFACE
   if (PSI_server)
     PSI_server->set_thread(thd->event_scheduler.m_psi);
+#endif
   return 0;
 }
 
@@ -123,11 +129,13 @@ int threadpool_add_connection(THD *thd)
   }
 
   /* Create new PSI thread for use with the THD. */
+#ifdef HAVE_PSI_INTERFACE
   if (PSI_server)
   {
     thd->event_scheduler.m_psi = 
       PSI_server->new_thread(key_thread_one_connection, thd, thd->thread_id);
   }
+#endif
 
 
   /* Login. */
