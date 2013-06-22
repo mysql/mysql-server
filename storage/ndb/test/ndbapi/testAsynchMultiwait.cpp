@@ -463,7 +463,7 @@ int runMiscUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped() == false) {
     int r = 0;
-    switch(i % 4) {
+    switch(i % 5) {
       case 0:  // batch size = 2, random = 1
         r = hugoTrans.pkReadRecords(ndb, records / 20, 2, 
                                     NdbOperation::LM_Read, 1);
@@ -476,6 +476,9 @@ int runMiscUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
         break;
       case 3:
         r = hugoTrans.scanUpdateRecords(ndb, records / 10);
+        break;
+      case 4:
+        NdbSleep_MilliSleep(records);
         break;
     }
     if(r != 0) return NDBT_FAILED;
