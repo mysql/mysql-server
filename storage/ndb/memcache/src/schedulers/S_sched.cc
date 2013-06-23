@@ -48,13 +48,13 @@ extern "C" {
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 /* Lock that protects online reconfiguration */
-pthread_rwlock_t reconf_lock = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_rwlock_t reconf_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /* Scheduler Global singleton */
-S::SchedulerGlobal * s_global;
+static S::SchedulerGlobal * s_global;
 
 /* Global scheduler generation number */
-int sched_generation_number;
+static int sched_generation_number;
 
 /* SchedulerGlobal methods */
 S::SchedulerGlobal::SchedulerGlobal(Configuration *cf) : 
