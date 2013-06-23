@@ -37,9 +37,11 @@
 
 #include "schedulers/Stockholm.h"
 #include "schedulers/S_sched.h"
+#include "schedulers/Scheduler73.h"
+
 #include "ndb_error_logger.h"
 
-#define DEFAULT_SCHEDULER S::SchedulerWorker
+#define DEFAULT_SCHEDULER Scheduler73::Worker
 
 /* globals (exported; also used by workitem.c) */
 int workitem_class_id;

@@ -106,6 +106,7 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/workqueue.c
     src/schedulers/S_sched.cc
     src/schedulers/Stockholm.cc
+    src/schedulers/Scheduler73.cc
     ${CACHE_SRC}/items.c
     ${CACHE_SRC}/assoc.c
     ${CACHE_SRC}/slabs.c
