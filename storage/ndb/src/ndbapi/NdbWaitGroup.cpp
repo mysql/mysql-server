@@ -92,15 +92,15 @@ void NdbWaitGroup::wakeup()
 /*  Old-API addNdb() 
 */
 bool NdbWaitGroup::addNdb(Ndb *ndb)
-{  
+{
   if(unlikely(ndb->theNode != Uint32(m_nodeId)))
   {
-    return false;   // Ndb belongs to wrong ndb_cluster_connection
+    return false; // Ndb belongs to wrong ndb_cluster_connection
   }
 
   if(unlikely(m_pos == 0))
   {
-    return false;   // array is full
+    return false; // array is full
   }
 
   m_array[--m_pos] = ndb;
@@ -197,13 +197,17 @@ bool NdbWaitGroup::push(Ndb *ndb)
 
 
 /* wait() takes the lock before and after wait (not during).
+   In 7.2, shifting or resizing the list requires a PollGuard,
+   but in 7.3, the underlying wakeupHandler will only touch the 
+   array during wait() so no lock is needed.
 */
 int NdbWaitGroup::wait(Uint32 timeout_millis, int pct_ready) 
 {
   int nready, nwait;
+  m_active_version = 2;
+  assert(pct_ready >=0 && pct_ready <= 100);
 
   lock();
-  m_active_version = 2;
 
   /* Resize list if full */
   if(unlikely(m_pos_new == m_array_size))
@@ -282,3 +286,4 @@ void NdbWaitGroup::resize_list()
     m_array[m_pos_new++] = m_overflow[--m_pos_overflow];
   }    
 }
+
