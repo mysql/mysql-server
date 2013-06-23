@@ -638,6 +638,21 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                             (int)is_on());
     }
 
+    /* Calcuate the waiting period. */
+#ifdef __WIN__
+      abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
+      abstime.max_timeout_msec= (long)wait_timeout_;
+#else
+      abstime.tv_sec = start_ts.tv_sec + wait_timeout_ / TIME_THOUSAND;
+      abstime.tv_nsec = start_ts.tv_nsec +
+        (wait_timeout_ % TIME_THOUSAND) * TIME_MILLION;
+      if (abstime.tv_nsec >= TIME_BILLION)
+      {
+        abstime.tv_sec++;
+        abstime.tv_nsec -= TIME_BILLION;
+      }
+#endif /* __WIN__ */
+
     while (is_on())
     {
       if (reply_file_name_inited_)
@@ -686,22 +701,6 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                                 kWho, wait_file_name_, (unsigned long)wait_file_pos_);
       }
 
-      /* Calcuate the waiting period. */
-#ifdef __WIN__
-      abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
-      abstime.max_timeout_msec= (long)wait_timeout_;
-#else
-      unsigned long long diff_nsecs =
-        start_ts.tv_nsec + (unsigned long long)wait_timeout_ * TIME_MILLION;
-      abstime.tv_sec = start_ts.tv_sec;
-      while (diff_nsecs >= TIME_BILLION)
-      {
-        abstime.tv_sec++;
-        diff_nsecs -= TIME_BILLION;
-      }
-      abstime.tv_nsec = diff_nsecs;
-#endif /* __WIN__ */
-      
       /* In semi-synchronous replication, we wait until the binlog-dump
        * thread has received the reply on the relevant binlog segment from the
        * replication slave.
