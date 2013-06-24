@@ -119,7 +119,7 @@ struct lt_on_create_callback_extra {
     DB_TXN *txn;
     FT_HANDLE ft_handle;
 };
-void toku_db_lt_on_create_callback(toku::locktree *lt, void *extra);
+int toku_db_lt_on_create_callback(toku::locktree *lt, void *extra);
 void toku_db_lt_on_destroy_callback(toku::locktree *lt);
 
 /* db methods */

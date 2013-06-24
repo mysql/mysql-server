@@ -405,7 +405,7 @@ db_on_redirect_callback(FT_HANDLE ft_handle, void* extra) {
 
 // when a locktree is created, clone a ft handle and store it
 // as userdata so we can close it later.
-void toku_db_lt_on_create_callback(toku::locktree *lt, void *extra) {
+int toku_db_lt_on_create_callback(toku::locktree *lt, void *extra) {
     int r;
     struct lt_on_create_callback_extra *info = (struct lt_on_create_callback_extra *) extra;
     TOKUTXN ttxn = info->txn ? db_txn_struct_i(info->txn)->tokutxn : NULL;
@@ -413,10 +413,11 @@ void toku_db_lt_on_create_callback(toku::locktree *lt, void *extra) {
 
     FT_HANDLE cloned_ft_handle;
     r = toku_ft_handle_clone(&cloned_ft_handle, ft_handle, ttxn);
-    invariant_zero(r);
-
-    assert(lt->get_userdata() == NULL);
-    lt->set_userdata(cloned_ft_handle);
+    if (r == 0) {
+        assert(lt->get_userdata() == NULL);
+        lt->set_userdata(cloned_ft_handle);
+    }
+    return r;
 }
 
 // when a locktree is about to be destroyed, 
@@ -499,7 +500,12 @@ toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t fla
                 db->cmp_descriptor,
                 toku_ft_get_bt_compare(db->i->ft_handle),
                 &on_create_extra);
-        invariant_notnull(db->i->lt);
+        if (db->i->lt == nullptr) {
+            r = errno;
+            if (r == 0)
+                r = EINVAL;
+            goto error_cleanup;
+        }
     }
     return 0;
  

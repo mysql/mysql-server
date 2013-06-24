@@ -111,6 +111,9 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       mvcc-create-table
       mvcc-many-committed
       mvcc-read-committed
+      openlimit17
+      openlimit17-locktree
+      openlimit17-metafiles
       perf_checkpoint_var
       perf_child_txn
       perf_cursor_nop

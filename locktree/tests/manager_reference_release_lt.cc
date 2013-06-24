@@ -92,11 +92,12 @@ PATENT RIGHTS GRANT:
 
 namespace toku {
 
-static void create_cb(locktree *lt, void *extra) {
+static int create_cb(locktree *lt, void *extra) {
     lt->set_userdata(extra);
     bool *k = (bool *) extra;
     invariant(!(*k));
     (*k) = true;
+    return 0;
 }
 
 static void destroy_cb(locktree *lt) {
