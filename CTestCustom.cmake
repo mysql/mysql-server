@@ -29,6 +29,8 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/loader-cleanup-test3.tdb
   ydb/loader-stress-test4.tdb
   ydb/maxsize-for-loader-B.tdb
+  ydb/openlimit17.tdb
+  ydb/openlimit17-locktree.tdb
   ydb/preload-db-nested.tdb
   ydb/stress-gc.tdb
   ydb/stress-gc2.tdb
