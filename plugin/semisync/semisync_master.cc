@@ -647,7 +647,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     }
 
     /* Calcuate the waiting period. */
-#ifdef __WIN__
+#ifdef _WIN32
       abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
       abstime.max_timeout_msec= (long)wait_timeout_;
 #else
@@ -659,7 +659,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         abstime.tv_sec++;
         abstime.tv_nsec -= TIME_BILLION;
       }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
     while (is_on())
     {
