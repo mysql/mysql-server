@@ -6960,6 +6960,24 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         error = 0;
         goto cleanup;
     }
+    
+    // validate the fields in the table. If the table has fields
+    // we do not support that came from an old version of MySQL,
+    // gracefully return an error
+    for (uint32_t i = 0; i < form->s->fields; i++) {
+        Field* field = table_share->field[i];
+        if (!field_valid_for_tokudb_table(field)) {
+            sql_print_error("Table %s has an invalid field %s, that was created "
+                "with an old version of MySQL. This field is no longer supported. "
+                "This is probably due to an alter table engine=TokuDB. To load this "
+                "table, do a dump and load",
+                name,
+                field->field_name
+                );
+            error = HA_ERR_UNSUPPORTED;
+            goto cleanup;
+        }
+    }
 
     newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
