@@ -875,10 +875,16 @@ The following options may be given as the first argument:
  lock wait timeout, before giving up and stopping
  --slave-type-conversions=name 
  Set of slave type conversions that are enabled. Legal
- values are: ALL_LOSSY to enable lossy conversions and
- ALL_NON_LOSSY to enable non-lossy conversions. If the
- variable is assigned the empty set, no conversions are
- allowed and it is expected that the types match exactly.
+ values are: ALL_LOSSY to enable lossy conversions,
+ ALL_NON_LOSSY to enable non-lossy conversions,
+ ALL_UNSIGNED to treat all integer column type data to be
+ unsigned values, and ALL_SIGNED to treat all integer
+ column type data to be signed values. Default treatment
+ is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are
+ specifed, ALL_SIGNED will take high priority than
+ ALL_UNSIGNED. If the variable is assigned the empty set,
+ no conversions are allowed and it is expected that the
+ types match exactly.
  --slow-launch-time=# 
  If creating the thread takes longer than this value (in
  seconds), the Slow_launch_threads counter will be
