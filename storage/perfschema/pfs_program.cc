@@ -213,12 +213,6 @@ find_or_create_program(PFS_thread *thread,
       object_name_length ==0 || schema_name_length == 0)
     return NULL;
 
-  if(program_full)
-  {
-    program_lost++;
-    return NULL;
-  }
-
   LF_PINS *pins= get_program_hash_pins(thread);
   if (unlikely(pins == NULL))
     return NULL;
@@ -251,6 +245,12 @@ search:
   }
   
   lf_hash_search_unpin(pins);
+
+  if(program_full)
+  {
+    program_lost++;
+    return NULL;
+  }
 
   /* 
      First time while inserting this record to program array we need to

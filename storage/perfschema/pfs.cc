@@ -5157,7 +5157,8 @@ void pfs_release_sp_share_v1(PSI_sp_share* sp_share)
   return;
 }
 
-PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state, PSI_sp_share *sp_share)
+PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
+                               PSI_sp_share *sp_share)
 {
   DBUG_ASSERT(state != NULL);
   if (! flag_global_instrumentation)
@@ -5165,8 +5166,10 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state, PSI_sp_share *sp_shar
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
-    if (unlikely(pfs_thread == NULL))                                             
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
       return NULL;
   }
 
