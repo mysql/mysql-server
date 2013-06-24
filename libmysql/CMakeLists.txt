@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -180,6 +180,12 @@ IF(MSVC)
  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
 
+MACRO(GET_TARGET_NAME target out_name)
+  GET_TARGET_PROPERTY(location ${target} LOCATION)
+  GET_FILENAME_COMPONENT(name ${location} NAME)
+  SET(${out_name} ${name})
+ENDMACRO()
+
 IF(UNIX)
   MACRO(GET_VERSIONED_LIBNAME LIBNAME EXTENSION VERSION OUTNAME)
     SET(DOT_VERSION ".${VERSION}")
@@ -192,7 +198,13 @@ IF(UNIX)
       SET(${OUTNAME} ${LIBNAME}${EXTENSION}${DOT_VERSION})
     ENDIF() 
   ENDMACRO()
-  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a mysqlclient ${INSTALL_LIBDIR} Development)
+ENDIF()
+
+IF(UNIX)
+  GET_TARGET_NAME(mysqlclient lib_name)
+  INSTALL_SYMLINK(mysqlclient
+    ${lib_name} ${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a
+    ${INSTALL_LIBDIR} Development)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
@@ -205,10 +217,9 @@ IF(NOT DISABLE_SHARED)
     # libtool compatability
     IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)
       SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
-    ELSEIF(CMAKE_SYSTEM_NAME MATCHES "HP-UX")
-      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}.0")
     ELSE()
-      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}.0.0")
+      SET(OS_SHARED_LIB_VERSION
+        "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.0")
     ENDIF()
     # Name of shared library is mysqlclient on Unix
     SET_TARGET_PROPERTIES(libmysql PROPERTIES 
@@ -239,8 +250,13 @@ IF(NOT DISABLE_SHARED)
       "${CMAKE_SHARED_LIBRARY_SUFFIX}"
       ""
       linkname)
-    INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} SharedLibraries)
-    SET(OS_SHARED_LIB_SYMLINKS "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
+    GET_TARGET_NAME(libmysql lib_name)
+    GET_FILENAME_COMPONENT(lib_name_we ${lib_name} NAME_WE)
+    INSTALL_SYMLINK(libmysql
+      ${lib_name} ${linkname}
+      ${INSTALL_LIBDIR} SharedLibraries)
+    SET(OS_SHARED_LIB_SYMLINKS
+      "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
     LIST(REMOVE_DUPLICATES OS_SHARED_LIB_SYMLINKS)
     FOREACH(ver ${OS_SHARED_LIB_SYMLINKS})
       GET_VERSIONED_LIBNAME(
@@ -248,7 +264,11 @@ IF(NOT DISABLE_SHARED)
         "${CMAKE_SHARED_LIBRARY_SUFFIX}"
         "${ver}"
         linkname)
-      INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} SharedLibraries)
+      GET_VERSIONED_LIBNAME(
+        ${lib_name_we} "${CMAKE_SHARED_LIBRARY_SUFFIX}" "${ver}" lib_name_ver)
+      INSTALL_SYMLINK(libmysql
+        ${lib_name_ver} ${linkname}
+        ${INSTALL_LIBDIR} SharedLibraries)
     ENDFOREACH()
   ENDIF()
 ENDIF()
