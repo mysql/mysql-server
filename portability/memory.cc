@@ -203,10 +203,8 @@ set_max(uint64_t sum_used, uint64_t sum_freed) {
 
 size_t 
 toku_memory_footprint(void * p, size_t touched) {
-    static size_t pagesize = 0;
     size_t rval = 0;
-    if (!pagesize)
-	pagesize = sysconf(_SC_PAGESIZE);
+    size_t pagesize = toku_os_get_pagesize();
     if (p) {
 	size_t usable = my_malloc_usable_size(p);
 	if (usable >= status.mmap_threshold) {

@@ -842,6 +842,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     bool newenv;  // true iff creating a new environment
     uint32_t unused_flags=flags;
     CHECKPOINTER cp;
+    DB_TXN *txn = NULL;
 
     if (env_opened(env)) {
         r = toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
@@ -1006,12 +1007,13 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         if (!toku_logger_rollback_is_open(env->i->logger)) {
             bool create_new_rollback_file = newenv | upgrade_in_progress;
             r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
-            assert(r==0);
+            if (r != 0) {
+                r = toku_ydb_do_error(env, r, "cant open rollback");
+                goto cleanup;
+            }
         }
     }
 
-    DB_TXN *txn;
-    txn=NULL;
     if (using_txns) {
         r = toku_txn_begin(env, 0, &txn, 0);
         assert_zero(r);
@@ -1023,7 +1025,10 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         r = db_use_builtin_key_cmp(env->i->persistent_environment);
         assert_zero(r);
         r = toku_db_open_iname(env->i->persistent_environment, txn, toku_product_name_strings.environmentdictionary, DB_CREATE, mode);
-        assert_zero(r);
+        if (r != 0) {
+            r = toku_ydb_do_error(env, r, "cant open persistent env");
+            goto cleanup;
+        }
         if (newenv) {
             // create new persistent_environment
             DBT key, val;
@@ -1058,7 +1063,10 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         r = db_use_builtin_key_cmp(env->i->directory);
         assert_zero(r);
         r = toku_db_open_iname(env->i->directory, txn, toku_product_name_strings.fileopsdirectory, DB_CREATE, mode);
-        assert_zero(r);
+        if (r != 0) {
+            r = toku_ydb_do_error(env, r, "cant open %s", toku_product_name_strings.fileopsdirectory);
+            goto cleanup;
+        }
     }
     if (using_txns) {
         r = locked_txn_commit(txn, 0);
@@ -1072,6 +1080,9 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     env_fsync_log_cron_init(env);
 cleanup:
     if (r!=0) {
+        if (txn) {
+            locked_txn_abort(txn);
+        }
         if (env && env->i) {
             unlock_single_process(env);
         }

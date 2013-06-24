@@ -204,10 +204,17 @@ locktree *locktree::manager::get_lt(DICTIONARY_ID dict_id, DESCRIPTOR desc,
         // new locktree created - call the on_create callback
         // and put it in the locktree map
         if (m_lt_create_callback) {
-            m_lt_create_callback(lt, on_create_extra);
+            int r = m_lt_create_callback(lt, on_create_extra);
+            if (r != 0) {
+                (void) toku_sync_sub_and_fetch(&lt->m_reference_count, 1);
+                lt->destroy();
+                toku_free(lt);
+                lt = nullptr;
+            }
         }
-
-        locktree_map_put(lt);
+        if (lt) {
+            locktree_map_put(lt);
+        }
     } else {
         reference_lt(lt);
     }

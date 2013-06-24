@@ -91,19 +91,13 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 #include <sys/resource.h>
 
-// try to open N databases when N > open file limit.  should fail gracefully.
+// create 200 databases and close them.  set the open file limit to 100 and try to open all of them.
+// eventually, the locktree can not clone fractal tree, and the db open fails.
 
 int test_main (int argc __attribute__((__unused__)), char *const argv[] __attribute__((__unused__))) {
     int r;
 
-    const int N = 100;
-
-    struct rlimit nofile_limit = { N, N };
-    r = setrlimit(RLIMIT_NOFILE, &nofile_limit);
-    // assert(r == 0); // valgrind does not like this
-    if (r != 0) {
-        printf("warning: set nofile limit to %d failed %d %s\n", N, errno, strerror(errno));
-    }
+    const int N = 200;
 
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
     r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
@@ -120,22 +114,45 @@ int test_main (int argc __attribute__((__unused__)), char *const argv[] __attrib
     for (int i = 0; i < N; i++) {
         dbs[i] = NULL;
     }
-    bool emfile_happened = false;
     for (int i = 0; i < N; i++) {
         r = db_create(&dbs[i], env, 0);
         assert(r == 0);
 
         char dbname[32]; sprintf(dbname, "%d.test", i);
         r = dbs[i]->open(dbs[i], NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT+DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);
+        assert(r == 0);
+    }
+
+    for (int i = 0; i < N; i++) {
+        if (dbs[i]) {
+            r = dbs[i]->close(dbs[i], 0);
+            assert(r == 0);
+        }
+    }
+
+    struct rlimit nofile_limit = { N/2, N/2 };
+    r = setrlimit(RLIMIT_NOFILE, &nofile_limit);
+    // assert(r == 0); // valgrind does not like this
+    if (r != 0) {
+        printf("warning: set nofile limit to %d failed %d %s\n", N, errno, strerror(errno));
+    }
+
+    for (int i = 0; i < N; i++) {
+        dbs[i] = NULL;
+    }
+    bool emfile_happened = false;
+    for (int i = 0; i < N; i++) {
+        r = db_create(&dbs[i], env, 0);
+        assert(r == 0);
+
+        char dbname[32]; sprintf(dbname, "%d.test", i);
+        r = dbs[i]->open(dbs[i], NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT, S_IRWXU+S_IRWXG+S_IRWXO);
         if (r == EMFILE) {
             emfile_happened = true;
             break;
         }
-        assert(r == 0);
     }
-
     assert(emfile_happened);
-
     for (int i = 0; i < N; i++) {
         if (dbs[i]) {
             r = dbs[i]->close(dbs[i], 0);

@@ -203,7 +203,7 @@ public:
 
     class manager {
     public:
-        typedef void (*lt_create_cb)(locktree *lt, void *extra);
+        typedef int  (*lt_create_cb)(locktree *lt, void *extra);
         typedef void (*lt_destroy_cb)(locktree *lt);
         typedef void (*lt_escalate_cb)(TXNID txnid, const locktree *lt, const range_buffer &buffer, void *extra);
 

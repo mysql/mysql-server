@@ -89,21 +89,13 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "test.h"
+#include <fcntl.h>
 #include <sys/resource.h>
 
-// try to open N databases when N > open file limit.  should fail gracefully.
+// try to open the environment with a small number of unused file descriptors
 
 int test_main (int argc __attribute__((__unused__)), char *const argv[] __attribute__((__unused__))) {
     int r;
-
-    const int N = 100;
-
-    struct rlimit nofile_limit = { N, N };
-    r = setrlimit(RLIMIT_NOFILE, &nofile_limit);
-    // assert(r == 0); // valgrind does not like this
-    if (r != 0) {
-        printf("warning: set nofile limit to %d failed %d %s\n", N, errno, strerror(errno));
-    }
 
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
     r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
@@ -112,41 +104,56 @@ int test_main (int argc __attribute__((__unused__)), char *const argv[] __attrib
     DB_ENV *env;
     r = db_env_create(&env, 0);
     assert(r == 0);
-
     r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
     assert(r == 0);
-
-    DB **dbs = new DB *[N];
-    for (int i = 0; i < N; i++) {
-        dbs[i] = NULL;
-    }
-    bool emfile_happened = false;
-    for (int i = 0; i < N; i++) {
-        r = db_create(&dbs[i], env, 0);
-        assert(r == 0);
-
-        char dbname[32]; sprintf(dbname, "%d.test", i);
-        r = dbs[i]->open(dbs[i], NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT+DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);
-        if (r == EMFILE) {
-            emfile_happened = true;
-            break;
-        }
-        assert(r == 0);
-    }
-
-    assert(emfile_happened);
-
-    for (int i = 0; i < N; i++) {
-        if (dbs[i]) {
-            r = dbs[i]->close(dbs[i], 0);
-            assert(r == 0);
-        }
-    }
-
     r = env->close(env, 0);
     assert(r == 0);
 
-    delete [] dbs;
+
+    struct rlimit nofile_limit;
+    r = getrlimit(RLIMIT_NOFILE, &nofile_limit);
+    assert(r == 0);
+
+    const int N = 100;
+    nofile_limit.rlim_cur = N;
+    r = setrlimit(RLIMIT_NOFILE, &nofile_limit);
+    assert(r == 0);
+
+    // compute the number of unused file descriptors    
+    int fds[N];
+    for (int i = 0; i < N; i++) {
+        fds[i] = -1;
+    }
+    int unused = 0;
+    for (int i = 0; i < N; i++, unused++) {
+        fds[i] = open("/dev/null", O_RDONLY);
+        if (fds[i] == -1)
+            break;
+    }
+    for (int i = 0; i < N; i++) {
+        if (fds[i] != -1) {
+            close(fds[i]);
+        }
+    }
+
+    // try to open the environment with a constrained number of unused file descriptors. the env open should return an error rather than crash.
+    for (int n = N - unused; n < N; n++) {
+        nofile_limit.rlim_cur = n;
+        r = setrlimit(RLIMIT_NOFILE, &nofile_limit);
+        assert(r == 0);
+        
+        r = db_env_create(&env, 0);
+        assert(r == 0);
+        r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_MPOOL|DB_CREATE|DB_THREAD|DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
+        if (r == 0) {
+            r = env->close(env, 0);
+            assert(r == 0);
+            break;
+        }
+        assert(r == EMFILE);
+        r = env->close(env, 0);
+        assert(r == 0);
+    }
 
     return 0;
 }

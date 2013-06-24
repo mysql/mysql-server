@@ -135,8 +135,9 @@ toku_portability_init(void) {
     int r = toku_memory_startup();
     if (r == 0) {
         uint64_t hz;
-        r = toku_os_get_processor_frequency(&hz);
+        r = toku_os_get_processor_frequency(&hz); // get and cache freq
     }
+    (void) toku_os_get_pagesize(); // get and cache pagesize
     return r;
 }
 
@@ -185,9 +186,18 @@ toku_os_get_number_active_processors(void) {
     return n;
 }
 
+int toku_cached_pagesize = 0;
+
 int
 toku_os_get_pagesize(void) {
-    return sysconf(_SC_PAGESIZE);
+    int pagesize = toku_cached_pagesize;
+    if (pagesize == 0) {
+        pagesize = sysconf(_SC_PAGESIZE);
+        if (pagesize) {
+            toku_cached_pagesize = pagesize;
+        }
+    }
+    return pagesize;
 }
 
 uint64_t
@@ -456,4 +466,5 @@ void __attribute__((constructor)) toku_portability_helgrind_ignore(void);
 void
 toku_portability_helgrind_ignore(void) {
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&toku_cached_hz, sizeof toku_cached_hz);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&toku_cached_pagesize, sizeof toku_cached_pagesize);
 }
