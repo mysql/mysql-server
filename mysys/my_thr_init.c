@@ -240,7 +240,7 @@ void my_thread_global_end(void)
                                     &abstime);
     if (error == ETIMEDOUT || error == ETIME)
     {
-#ifdef HAVE_PTHREAD_KILL
+#ifndef _WIN32
       /*
         We shouldn't give an error here, because if we don't have
         pthread_kill(), programs like mysqld can't ensure that all threads
