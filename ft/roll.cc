@@ -194,7 +194,6 @@ toku_rollback_fcreate (FILENUM    filenum,
     // is not an error, but a missing file outside of recovery is.
     r = toku_cachefile_of_filenum(ct, filenum, &cf);
     if (r == ENOENT) {
-        assert(txn->for_recovery);
         r = 0;
         goto done;
     }

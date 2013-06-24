@@ -133,6 +133,10 @@ PATENT RIGHTS GRANT:
 int
 toku_portability_init(void) {
     int r = toku_memory_startup();
+    if (r == 0) {
+        uint64_t hz;
+        r = toku_os_get_processor_frequency(&hz);
+    }
     return r;
 }
 
@@ -368,30 +372,37 @@ toku_get_processor_frequency_sysctl(const char * const cmd, uint64_t *hzret) {
     if (!fp) {
         r = EINVAL;  // popen doesn't return anything useful in errno,
                      // gotta pick something
-        goto exit;
-    }
-    r = fscanf(fp, "%" SCNu64, hzret);
-    if (r != 1) {
-        r = get_maybe_error_errno();
     } else {
-        r = 0;
+        r = fscanf(fp, "%" SCNu64, hzret);
+        if (r != 1) {
+            r = get_maybe_error_errno();
+        } else {
+            r = 0;
+        }
+        pclose(fp);
     }
-    pclose(fp);
-
-exit:
     return r;
 }
 
-int
+static uint64_t toku_cached_hz; // cache the value of hz so that we avoid opening files to compute it later
+
+int 
 toku_os_get_processor_frequency(uint64_t *hzret) {
     int r;
-    r = toku_get_processor_frequency_sys(hzret);
-    if (r != 0)
-        r = toku_get_processor_frequency_cpuinfo(hzret);
-    if (r != 0)
-        r = toku_get_processor_frequency_sysctl("sysctl -n hw.cpufrequency", hzret);
-    if (r != 0)
-        r = toku_get_processor_frequency_sysctl("sysctl -n machdep.tsc_freq", hzret);
+    if (toku_cached_hz) {
+        *hzret = toku_cached_hz;
+        r = 0;
+    } else {
+        r = toku_get_processor_frequency_sys(hzret);
+        if (r != 0)
+            r = toku_get_processor_frequency_cpuinfo(hzret);
+        if (r != 0)
+            r = toku_get_processor_frequency_sysctl("sysctl -n hw.cpufrequency", hzret);
+        if (r != 0)
+            r = toku_get_processor_frequency_sysctl("sysctl -n machdep.tsc_freq", hzret);
+        if (r == 0)
+            toku_cached_hz = *hzret;
+    }
     return r;
 }
 
@@ -438,4 +449,11 @@ double tokutime_to_seconds(tokutime_t t) {
 	seconds_per_clock = 1.0/hz;
     }
     return t*seconds_per_clock;
+}
+
+#include <toku_race_tools.h>
+void __attribute__((constructor)) toku_portability_helgrind_ignore(void);
+void
+toku_portability_helgrind_ignore(void) {
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&toku_cached_hz, sizeof toku_cached_hz);
 }

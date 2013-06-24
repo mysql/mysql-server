@@ -3534,10 +3534,13 @@ static int ft_create_file(FT_HANDLE UU(brt), const char *fname, int *fdp) {
     }
 
     r = toku_fsync_directory(fname);
-    resource_assert_zero(r);
-
-    *fdp = fd;
-    return 0;
+    if (r == 0) {
+        *fdp = fd;
+    } else {
+        int rr = close(fd);
+        assert_zero(rr);
+    }
+    return r;
 }
 
 // open a file for use by the brt.  if the file does not exist, error
@@ -3687,7 +3690,7 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
             txn_created = (bool)(txn!=NULL);
             toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, ft_h->options.flags, ft_h->options.nodesize, ft_h->options.basementnodesize, ft_h->options.compression_method);
             r = ft_create_file(ft_h, fname_in_cwd, &fd);
-            assert_zero(r);
+            if (r) { goto exit; }
         }
         if (r) { goto exit; }
         r=toku_cachetable_openfd_with_filenum(&cf, cachetable, fd, fname_in_env, reserved_filenum);
