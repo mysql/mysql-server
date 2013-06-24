@@ -25,11 +25,6 @@
 -- source include/not_embedded.inc
 -- source include/have_innodb_16k.inc
 
-if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
-{
--- source include/have_open_file_limit_more_than_5000.inc 
-}
-
 if (`select $PS_PROTOCOL != 0`)
 {
    --skip Test requires: ps-protocol disabled
@@ -46,7 +41,7 @@ echo '##'
 SELECT COUNT(@@GLOBAL.table_open_cache);
 --echo 1 Expected
 
-SELECT @@GLOBAL.table_open_cache;
+SELECT IF(@@open_files_limit < 5000, 2000, @@GLOBAL.table_open_cache);
 --echo 2000 Expected
 
 

@@ -400,6 +400,7 @@ void LEX::reset()
   select_lex= NULL;
   current_select= NULL;
   all_selects_list= NULL;
+  load_set_str_list.empty();
   value_list.empty();
   update_list.empty();
   set_var_list.empty();
