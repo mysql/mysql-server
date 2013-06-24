@@ -96,7 +96,7 @@ PATENT RIGHTS GRANT:
 int test_main (int argc __attribute__((__unused__)), char *const argv[] __attribute__((__unused__))) {
     int r;
 
-    const int N = 100;
+    const int N = 200;
 
     struct rlimit nofile_limit = { N, N };
     r = setrlimit(RLIMIT_NOFILE, &nofile_limit);
@@ -120,7 +120,7 @@ int test_main (int argc __attribute__((__unused__)), char *const argv[] __attrib
     for (int i = 0; i < N; i++) {
         dbs[i] = NULL;
     }
-    bool emfile_happened = false;
+    bool emfile_happened = false; // should happen since there are less than N unused file descriptors
     for (int i = 0; i < N; i++) {
         r = db_create(&dbs[i], env, 0);
         assert(r == 0);

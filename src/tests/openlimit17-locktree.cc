@@ -140,7 +140,7 @@ int test_main (int argc __attribute__((__unused__)), char *const argv[] __attrib
     for (int i = 0; i < N; i++) {
         dbs[i] = NULL;
     }
-    bool emfile_happened = false;
+    bool emfile_happened = false; // should happen since there are less than N unused file descriptors
     for (int i = 0; i < N; i++) {
         r = db_create(&dbs[i], env, 0);
         assert(r == 0);

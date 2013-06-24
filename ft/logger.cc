@@ -300,6 +300,8 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create)
         bool is_empty;
         is_empty = toku_ft_is_empty_fast(t);
         assert(is_empty);
+    } else {
+        toku_ft_handle_close(t);
     }
     return r;
 }

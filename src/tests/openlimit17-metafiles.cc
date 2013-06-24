@@ -109,11 +109,9 @@ int test_main (int argc __attribute__((__unused__)), char *const argv[] __attrib
     r = env->close(env, 0);
     assert(r == 0);
 
-
     struct rlimit nofile_limit;
     r = getrlimit(RLIMIT_NOFILE, &nofile_limit);
     assert(r == 0);
-
     const int N = 100;
     nofile_limit.rlim_cur = N;
     r = setrlimit(RLIMIT_NOFILE, &nofile_limit);
