@@ -93,6 +93,61 @@ PATENT RIGHTS GRANT:
 #error "WORDS_BIGENDIAN not supported"
 #endif
 
+// returns true if the field is a valid field to be used
+// in a TokuDB table. The non-valid fields are those
+// that have been deprecated since before 5.1, and can
+// only exist through upgrades of old versions of MySQL
+bool field_valid_for_tokudb_table(Field* field) {
+    bool ret_val = false;
+    enum_field_types mysql_type = field->real_type();
+    switch (mysql_type) {
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_YEAR:
+    case MYSQL_TYPE_NEWDATE:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DOUBLE:
+    case MYSQL_TYPE_FLOAT:
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    case MYSQL_TYPE_DATETIME2:
+    case MYSQL_TYPE_TIMESTAMP2:
+    case MYSQL_TYPE_TIME2:
+#endif
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+        ret_val = true;
+        goto exit;
+    //
+    // I believe these are old types that are no longer
+    // in any 5.1 tables, so tokudb does not need
+    // to worry about them
+    // Putting in this assert in case I am wrong.
+    // Do not support geometry yet.
+    //
+    case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_NULL:
+        ret_val = false;
+    }
+exit:
+    return ret_val;
+}
+
 void get_var_field_info(
     uint32_t* field_len, // output: length of field
     uint32_t* start_offset, // output, length of offset where data starts

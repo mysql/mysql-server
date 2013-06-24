@@ -197,6 +197,8 @@ typedef struct st_key_and_col_info {
     uint32_t num_offset_bytes; //number of bytes needed to encode the offset
 } KEY_AND_COL_INFO;
 
+bool field_valid_for_tokudb_table(Field* field);
+
 void get_var_field_info(
     uint32_t* field_len, 
     uint32_t* start_offset, 
