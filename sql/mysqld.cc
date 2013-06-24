@@ -1509,13 +1509,11 @@ void kill_mysql(void)
     */
   }
 #endif
-#elif defined(HAVE_PTHREAD_KILL)
+#else
   if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
   {
     DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
   }
-#else 
-  kill(current_pid, MYSQL_KILL_SIGNAL);
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;     // Safety if kill didn't work
@@ -3028,7 +3026,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       error=0;
     }
     else
-      while ((error=my_sigwait(&set,&sig)) == EINTR) ;
+      while ((error=sigwait(&set,&sig)) == EINTR) ;
     if (cleanup_done)
     {
       my_thread_end();
