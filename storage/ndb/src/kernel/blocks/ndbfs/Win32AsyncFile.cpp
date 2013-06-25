@@ -92,6 +92,12 @@ void Win32AsyncFile::openReq(Request* request)
 
   if(INVALID_HANDLE_VALUE == hFile) {
     request->error = GetLastError();
+  
+    if((ERROR_FILE_EXISTS == request->error) && (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE))) {
+      request->error = FsRef::fsErrFileExists;
+      return;
+    }
+
     if(((ERROR_PATH_NOT_FOUND == request->error) || (ERROR_INVALID_NAME == request->error))
 		&& (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE))) {
       createDirectories();
