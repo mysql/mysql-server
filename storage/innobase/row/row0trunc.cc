@@ -257,7 +257,7 @@ Look for table-id in SYS_XXXX tables without loading the table.
 
 @param mtr	mini-transaction covering the read
 @param pcur	persistent cursor used for reading
-@return DB_SUCCESS or error code */
+@return DB_SUCCESS */
 dberr_t
 TableLocator::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 {
@@ -268,13 +268,16 @@ TableLocator::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 
 /**
 Rollback the transaction and release the index locks.
-Drop indexes if marking table as corrupted so that drop/create
+Drop indexes if table is corrupted so that drop/create
 sequence works as expected.
 
-@param table		table to truncate
-@param trx		transaction covering the TRUNCATE
-@param corrupted	table corrupted status
-@param unlock_index	if true then unlock indexes before executing action */
+@param table			table to truncate
+@param trx			transaction covering the TRUNCATE
+@param new_id			new table id that was suppose to get assigned
+				to the table if truncate executed successfully.
+@param has_internal_doc_id	indicate existence of fts index
+@param corrupted		table corrupted status
+@param unlock_index		if true then unlock indexes before action */
 static
 void
 row_truncate_rollback(
@@ -352,7 +355,11 @@ Finish the TRUNCATE operations for both commit and rollback.
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
 dberr_t
-row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
+row_truncate_complete(
+	dict_table_t* table,
+	trx_t* trx,
+	ulint flags,
+	dberr_t err)
 {
 	row_mysql_unlock_data_dictionary(trx);
 
@@ -452,9 +459,6 @@ row_truncate_fts(dict_table_t* table, table_id_t new_id, trx_t* trx)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to truncate FTS index for table %s",
 			table_name);
-
-		table->corrupted = true;
-
 	} else {
 		ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 	}
@@ -597,7 +601,6 @@ Truncate also results in assignment of new table id, update the system
 SYSTEM TABLES with the new id.
 @param table,			table being truncated
 @param new_id,			new table id
-@param old_space,		old space id
 @param has_internal_doc_id,	has doc col (fts)
 @param trx)			transaction handle
 @return	error code or DB_SUCCESS */
@@ -769,7 +772,8 @@ Do some sanity checks before starting the actual TRUNCATE.
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
 dberr_t
-row_truncate_sanity_checks(const dict_table_t* table)
+row_truncate_sanity_checks(
+	const dict_table_t* table)
 {
 	if (srv_sys_space.created_new_raw()) {
 

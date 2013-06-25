@@ -765,8 +765,7 @@ handle_new_error:
 			"The database cannot continue operation because"
 			" of lack of space. You must add a new data file"
 			" to my.cnf and restart the database.");
-		ut_ad(0);
-		exit(1);
+		break;
 
 	case DB_CORRUPTION:
 		ib_logf(IB_LOG_LEVEL_ERROR,
