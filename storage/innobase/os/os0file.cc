@@ -348,9 +348,9 @@ os_get_os_version(void)
 
 	if (os_info.dwPlatformId == VER_PLATFORM_WIN32s) {
 		return(OS_WIN31);
-	} else if (os_info.dwPlatformId == VER_PLATFORM__WIN32WINDOWS) {
+	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
 		return(OS_WIN95);
-	} else if (os_info.dwPlatformId == VER_PLATFORM__WIN32NT) {
+	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
 		switch (os_info.dwMajorVersion) {
 		case 3:
 		case 4:
