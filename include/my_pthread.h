@@ -660,18 +660,6 @@ extern uint my_thread_end_wait_time;
 #if defined(_WIN32)
 #define my_winerr my_thread_var->thr_winerr
 #endif
-/*
-  Keep track of shutdown,signal, and main threads so that my_end() will not
-  report errors with them
-*/
-
-/* Which kind of thread library is in use */
-
-#define THD_LIB_OTHER 1
-#define THD_LIB_NPTL  2
-#define THD_LIB_LT    4
-
-extern uint thd_lib_detected;
 
 /*
   thread_safe_xxx functions are for critical statistic or counters.

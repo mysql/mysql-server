@@ -26,8 +26,6 @@
 #define SCHED_POLICY SCHED_OTHER
 #endif
 
-uint thd_lib_detected= 0;
-
 /* To allow use of pthread_getspecific with two arguments */
 
 /* localtime_r for SCO 3.2V4.2 */

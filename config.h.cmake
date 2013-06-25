@@ -149,7 +149,6 @@
 #cmakedefine HAVE_LSTAT 1
 #cmakedefine HAVE_MEMALIGN 1
 #cmakedefine HAVE_MLOCK 1
-#cmakedefine HAVE_NPTL 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_DECL_MADVISE 1
