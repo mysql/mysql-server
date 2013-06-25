@@ -153,7 +153,7 @@ performance killer causing calling thread to context switch. Besides, InnoDB
 is preallocating large number (often millions) of os_events. With kernel event
 objects it takes a big chunk out of non-paged pool, which is better suited
 for tasks like IO than for storing idle event objects. */
-ibool	srv_use_native_conditions = FALSE;
+bool	srv_use_native_conditions = false;
 #endif /* _WIN32 */
 
 /*------------------------- LOG FILES ------------------------ */

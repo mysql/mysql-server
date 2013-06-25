@@ -215,7 +215,7 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
 #ifdef _WIN32
-extern ibool	srv_use_native_conditions;
+extern bool	srv_use_native_conditions;
 #endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
