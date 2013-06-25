@@ -609,8 +609,6 @@ let $mgm_cmd = $mgm_cmd --verbose=0;
 --echo # Trying to start another backup as nowait with same id should not return error
 --exec $mgm_cmd -e "start backup $the_backup_id nowait"
 
-# Disabling two testcases until Win problem with different error message fixed
-if (0) {
 --echo # Trying to start another backup as wait started with same id should return error
 --error 255
 --exec $mgm_cmd -e "start backup $the_backup_id wait started"
@@ -618,4 +616,3 @@ if (0) {
 --echo # Trying to start another backup as wait completed with same id should return error
 --error 255
 --exec $mgm_cmd -e "start backup $the_backup_id wait completed"
-}
