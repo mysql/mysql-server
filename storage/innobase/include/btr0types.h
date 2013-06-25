@@ -224,7 +224,7 @@ struct btr_create_t {
 	/** The length of the encoded meta-data */
 	ulint			field_len;
 
-	/** Column meta-data, encoded. */
+	/** Field meta-data, encoded. */
 	const byte* const	fields;
 
 	/** Position of trx-id column. */

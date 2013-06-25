@@ -24,7 +24,7 @@ call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
 #    is commenced.
 # 2. Hit crash point after data is updated to system-table and in-memory dict.
 # 3. Post truncate recovery, abruptly shutdown the server.
-#    On restart ensure table state is maintained. 
+#    On restart ensure table state is maintained.
 #
 ################################################################################
 
@@ -74,6 +74,7 @@ check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+select * from t where f < 2.5;
 drop table t;
 
 #-----------------------------------------------------------------------------
@@ -109,12 +110,13 @@ check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
+select * from t where f < 2.5;
 drop table t;
 
 #-----------------------------------------------------------------------------
 #
 # 3. Post truncate recovery, abruptly shutdown the server.
-#    On restart ensure table state is maintained. 
+#    On restart ensure table state is maintained.
 #
 --echo "3. Post truncate recovery, abruptly shutdown the server."
 --echo "   On restart ensure table state is maintained."
@@ -154,6 +156,7 @@ insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 #
 check table t;
 select * from t;
+select * from t where f < 2.5;
 drop table t;
 
 #-----------------------------------------------------------------------------
