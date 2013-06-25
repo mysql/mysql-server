@@ -3795,16 +3795,17 @@ UNIV_INTERN
 int
 ha_innobase::open(
 /*==============*/
-	const char*	name,		/*!< in: table name */
-	int		mode,		/*!< in: not used */
-	uint		test_if_locked)	/*!< in: not used */
+	const char*		name,		/*!< in: table name */
+	int			mode,		/*!< in: not used */
+	uint			test_if_locked)	/*!< in: not used */
 {
-	dict_table_t*	ib_table;
-	char		norm_name[1000];
-	THD*		thd;
-	char*		is_part = NULL;
-	ibool		par_case_name_set = FALSE;
-	char		par_case_name[MAX_FULL_NAME_LEN + 1];
+	dict_table_t*		ib_table;
+	char			norm_name[1000];
+	THD*			thd;
+	char*			is_part = NULL;
+	ibool			par_case_name_set = FALSE;
+	char			par_case_name[MAX_FULL_NAME_LEN + 1];
+	dict_err_ignore_t	ignore_err = DICT_ERR_IGNORE_NONE;
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -3841,8 +3842,15 @@ ha_innobase::open(
 	is_part = strstr(norm_name, "#P#");
 #endif /* __WIN__ */
 
+	/* Check whether FOREIGN_KEY_CHECKS is set to 0. If so, the table
+	can be opened even if some FK indexes are missing. If not, the table
+	can't be opened in the same situation */
+	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
+		ignore_err = DICT_ERR_IGNORE_FK_NOKEY;
+	}
+
 	/* Get pointer to a table object in InnoDB dictionary cache */
-	ib_table = dict_table_get(norm_name, TRUE);
+	ib_table = dict_table_get(norm_name, TRUE, ignore_err);
 
 	if (NULL == ib_table) {
 		if (is_part) {
@@ -3886,7 +3894,7 @@ ha_innobase::open(
 				}
 
 				ib_table = dict_table_get(
-					par_case_name, FALSE);
+					par_case_name, FALSE, ignore_err);
 			}
 			if (ib_table) {
 #ifndef __WIN__
@@ -7301,7 +7309,8 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_get(norm_name, FALSE);
+	innobase_table = dict_table_get(norm_name, FALSE,
+					DICT_ERR_IGNORE_NONE);
 
 	DBUG_ASSERT(innobase_table != 0);
 

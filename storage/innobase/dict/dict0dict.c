@@ -752,15 +752,18 @@ UNIV_INTERN
 dict_table_t*
 dict_table_get(
 /*===========*/
-	const char*	table_name,	/*!< in: table name */
-	ibool		inc_mysql_count)/*!< in: whether to increment the open
-					handle count on the table */
+	const char*		table_name,	/*!< in: table name */
+	ibool			inc_mysql_count,/*!< in: whether to increment
+						the open handle count on the
+						table */
+	dict_err_ignore_t	ignore_err)	/*!< in: errors to ignore when
+						loading the table */
 {
 	dict_table_t*	table;
 
 	mutex_enter(&(dict_sys->mutex));
 
-	table = dict_table_get_low(table_name);
+	table = dict_table_get_low(table_name, ignore_err);
 
 	if (inc_mysql_count && table) {
 		table->n_mysql_handles_opened++;
@@ -2752,9 +2755,11 @@ UNIV_INTERN
 ulint
 dict_foreign_add_to_cache(
 /*======================*/
-	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
-	ibool		check_charsets)	/*!< in: TRUE=check charset
-					compatibility */
+	dict_foreign_t*		foreign,	/*!< in, own: foreign key
+						constraint */
+	ibool			check_charsets,	/*!< in: TRUE=check charset
+						compatibility */
+	dict_err_ignore_t	ignore_err)	/*!< in: error to be ignored */
 {
 	dict_table_t*	for_table;
 	dict_table_t*	ref_table;
@@ -2794,7 +2799,8 @@ dict_foreign_add_to_cache(
 			for_in_cache->n_fields, for_in_cache->foreign_index,
 			check_charsets, FALSE);
 
-		if (index == NULL) {
+		if (index == NULL
+		    && !(ignore_err & DICT_ERR_IGNORE_FK_NOKEY)) {
 			dict_foreign_error_report(
 				ef, for_in_cache,
 				"there is no index in referenced table"
@@ -2829,7 +2835,8 @@ dict_foreign_add_to_cache(
 			& (DICT_FOREIGN_ON_DELETE_SET_NULL
 			   | DICT_FOREIGN_ON_UPDATE_SET_NULL));
 
-		if (index == NULL) {
+		if (index == NULL
+		    && !(ignore_err & DICT_ERR_IGNORE_FK_NOKEY)) {
 			dict_foreign_error_report(
 				ef, for_in_cache,
 				"there is no index in the table"
@@ -3218,7 +3225,7 @@ dict_scan_table_name(
 	            2 = Store as given, compare in lower; case semi-sensitive */
 	if (innobase_get_lower_case_table_names() == 2) {
 		innobase_casedn_str(ref);
-		*table = dict_table_get_low(ref);
+		*table = dict_table_get_low(ref, DICT_ERR_IGNORE_NONE);
 		memcpy(ref, database_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
@@ -3231,7 +3238,7 @@ dict_scan_table_name(
 #else
 		innobase_casedn_str(ref);
 #endif /* !__WIN__ */
-		*table = dict_table_get_low(ref);
+		*table = dict_table_get_low(ref, DICT_ERR_IGNORE_NONE);
 	}
 
 	*success = TRUE;
@@ -3499,7 +3506,7 @@ dict_create_foreign_constraints_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	table = dict_table_get_low(name);
+	table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		mutex_enter(&dict_foreign_err_mutex);
@@ -4642,7 +4649,7 @@ dict_table_print_by_name(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	table = dict_table_get_low(name);
+	table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 
 	ut_a(table);
 

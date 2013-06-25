@@ -328,9 +328,11 @@ UNIV_INTERN
 ulint
 dict_foreign_add_to_cache(
 /*======================*/
-	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
-	ibool		check_charsets);/*!< in: TRUE=check charset
-					compatibility */
+	dict_foreign_t*		foreign,	/*!< in, own: foreign key
+						constraint */
+	ibool			check_charsets,	/*!< in: TRUE=check charset
+						compatibility */
+	dict_err_ignore_t	ignore_err);	/*!< in: error to be ignored */
 /*********************************************************************//**
 Check if the index is referenced by a foreign key, if TRUE return the
 matching instance NULL otherwise.
@@ -426,10 +428,14 @@ UNIV_INTERN
 dict_table_t*
 dict_table_get(
 /*===========*/
-	const char*	table_name,	/*!< in: table name */
-	ibool		inc_mysql_count);
+	const char*		table_name,
+					/*!< in: table name */
+	ibool			inc_mysql_count,
 					/*!< in: whether to increment the open
 					handle count on the table */
+	dict_err_ignore_t	ignore_err);
+					/*!< in: errors to ignore when loading
+					the table */
 /**********************************************************************//**
 Returns a index object, based on table and index id, and memoryfixes it.
 @return	index, NULL if does not exist */
@@ -454,21 +460,12 @@ function.
 @return	table, NULL if not found */
 UNIV_INLINE
 dict_table_t*
-dict_table_get_low_ignore_err(
-/*===========================*/
+dict_table_get_low(
+/*===============*/
 	const char*	table_name,	/*!< in: table name */
 	dict_err_ignore_t
 			ignore_err);	/*!< in: error to be ignored when
 					loading a table definition */
-/**********************************************************************//**
-Gets a table; loads it to the dictionary cache if necessary. A low-level
-function.
-@return	table, NULL if not found */
-UNIV_INLINE
-dict_table_t*
-dict_table_get_low(
-/*===============*/
-	const char*	table_name);	/*!< in: table name */
 /**********************************************************************//**
 Returns a table object based on table id.
 @return	table, NULL if does not exist */
