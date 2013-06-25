@@ -1767,11 +1767,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "8"
 #else
     /**
-     * NOTE: The actual maximum number of threads is 50...
+     * NOTE: The actual maximum number of threads is 98...
      *   but that config is so weird so it's only possible to get
      *   by using ThreadConfig
      */
-    "36"
+    "72"
 #endif
   },
 
@@ -4951,7 +4951,7 @@ checkThreadPrioSpec(InitConfigFileParser::Context & ctx, const char * unused)
 #include "../kernel/vm/mt_thr_config.hpp"
 
 static bool
-check_2n_number_less_16(Uint32 num)
+check_2n_number_less_32(Uint32 num)
 {
   switch (num)
   {
@@ -4959,9 +4959,12 @@ check_2n_number_less_16(Uint32 num)
     case 1:
     case 2:
     case 4:
+    case 6:
     case 8:
     case 12:
     case 16:
+    case 24:
+    case 32:
       return true;
     default:
       return false;
@@ -4992,15 +4995,15 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   ctx.m_currentSection->get("__ndbmt_classic", &classic);
   ctx.m_currentSection->get("NoOfFragmentLogParts", &ndbLogParts);
 
-  if (!check_2n_number_less_16(lqhThreads))
+  if (!check_2n_number_less_32(lqhThreads))
   {
-    ctx.reportError("NumLqhThreads must be 0, 1,2,4,8,12 or 16");
+    ctx.reportError("NumLqhThreads must be 0,1,2,4,6,8,12,16,24 or 32");
     return false;
   }
-  if (!check_2n_number_less_16(ndbLogParts) ||
+  if (!check_2n_number_less_32(ndbLogParts) ||
       ndbLogParts < 4)
   {
-    ctx.reportError("NoOfLogParts must be 4,8,12 or 16");
+    ctx.reportError("NoOfLogParts must be 4,6,8,12,16,24 or 32");
     return false;
   }
   if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
