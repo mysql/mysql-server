@@ -1027,17 +1027,17 @@ public:
   {
     item_name= a->item_name;
   }
-  double val_real() { return args[0]->val_real(); }
-  longlong val_int() { return args[0]->val_int(); }
-  String *val_str(String *str) { return args[0]->val_str(str); }
-  my_decimal *val_decimal(my_decimal *dec) { return args[0]->val_decimal(dec); }
+  double val_real();
+  longlong val_int();
+  String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *dec);
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
   {
-    return args[0]->get_date(ltime, fuzzydate);
+    return (null_value= args[0]->get_date(ltime, fuzzydate));
   }
   bool get_time(MYSQL_TIME *ltime)
   {
-    return args[0]->get_time(ltime);
+    return (null_value= args[0]->get_time(ltime));
   }
   const char *func_name() const { return "rollup_const"; }
   bool const_item() const { return 0; }

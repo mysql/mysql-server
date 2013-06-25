@@ -192,27 +192,20 @@ JOIN::optimize()
   if (first_optimization)
   {
     /*
-      The following code will allocate the new items in a permanent
-      MEMROOT for prepared statements and stored procedures.
+      These are permanent transformations, so new items must be
+      allocated in the statement mem root
     */
-
-    Query_arena *arena= thd->stmt_arena, backup;
-    if (arena->is_conventional())
-      arena= 0;                                   // For easier test
-    else
-      thd->set_n_backup_active_arena(arena, &backup);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     /* Convert all outer joins to inner joins if possible */
     if (simplify_joins(this, join_list, conds, true, false, &conds))
     {
       DBUG_PRINT("error",("Error from simplify_joins"));
-      thd->restore_active_arena(arena, &backup);
       DBUG_RETURN(1);
     }
     if (record_join_nest_info(select_lex, join_list))
     {
       DBUG_PRINT("error",("Error from record_join_nest_info"));
-      thd->restore_active_arena(arena, &backup);
       DBUG_RETURN(1);
     }
     build_bitmap_for_nested_joins(join_list, 0);
@@ -232,9 +225,6 @@ JOIN::optimize()
     */
     select_lex->prep_where=
       conds ? conds->copy_andor_structure(thd, true) : NULL;
-
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
   }
 
   /*

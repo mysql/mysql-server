@@ -3123,6 +3123,41 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
   return res;
 }
 
+double Item_func_rollup_const::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  double res= args[0]->val_real();
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+  return res;
+}
+
+longlong Item_func_rollup_const::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  longlong res= args[0]->val_int();
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
+
+String *Item_func_rollup_const::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  String *res= args[0]->val_str(str);
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
+
+my_decimal *Item_func_rollup_const::val_decimal(my_decimal *dec)
+{
+  DBUG_ASSERT(fixed == 1);
+  my_decimal *res= args[0]->val_decimal(dec);
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
 
 longlong Item_func_length::val_int()
 {

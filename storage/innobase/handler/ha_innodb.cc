@@ -2419,21 +2419,18 @@ innobase_convert_identifier(
 	ibool		file_id)/*!< in: TRUE=id is a table or database name;
 				FALSE=id is an UTF-8 string */
 {
-	char nz[NAME_LEN + 1];
-	char nz2[NAME_LEN + 1 + EXPLAIN_FILENAME_MAX_EXTRA_LENGTH];
-
 	const char*	s	= id;
 	int		q;
 
 	if (file_id) {
+
+		char nz[MAX_TABLE_NAME_LEN + 1];
+		char nz2[MAX_TABLE_NAME_LEN + 1];
+
 		/* Decode the table name.  The MySQL function expects
 		a NUL-terminated string.  The input and output strings
 		buffers must not be shared. */
-
-		if (UNIV_UNLIKELY(idlen > (sizeof nz) - 1)) {
-			idlen = (sizeof nz) - 1;
-		}
-
+		ut_a(idlen <= MAX_TABLE_NAME_LEN);
 		memcpy(nz, id, idlen);
 		nz[idlen] = 0;
 
@@ -8324,6 +8321,9 @@ err_col:
 	}
 
 	mem_heap_free(heap);
+
+	DBUG_EXECUTE_IF("ib_create_err_tablespace_exist",
+			err = DB_TABLESPACE_EXISTS;);
 
 	if (err == DB_DUPLICATE_KEY || err == DB_TABLESPACE_EXISTS) {
 		char display_name[FN_REFLEN];
