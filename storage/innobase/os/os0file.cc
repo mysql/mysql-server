@@ -2192,9 +2192,9 @@ os_file_set_eof(
 /***********************************************************************//**
 Truncates a file to a specified size in bytes. Do nothing if the size
 preserved is smaller or equal than current size of file.
-@return TRUE if success */
+@return true if success */
 
-ibool
+bool
 os_file_truncate(
 /*=============*/
 	const char*     pathname,	/*!< in: file path */

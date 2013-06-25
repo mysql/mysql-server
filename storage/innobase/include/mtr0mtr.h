@@ -191,7 +191,7 @@ For 1 - 8 bytes, the flag value must give the length also! @{ */
 #define MLOG_FILE_TRUNCATE	((byte)54)	/*!< log record about an .ibd
 						file truncation. The type can
 						not be known by ibbackup when
-						it relays on an older versions.
+						it relies on an older versions.
 						ibbackup should be fixed to
 						flexibly handle unknown types */
 #define MLOG_BIGGEST_TYPE	((byte)54)	/*!< biggest value (used in
@@ -266,7 +266,7 @@ mtr_set_log_mode(
 /********************************************************//**
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
 @return value read */
-
+UNIV_INLINE
 ulint
 mtr_read_ulint(
 /*===========*/
@@ -276,7 +276,7 @@ mtr_read_ulint(
 /********************************************************//**
 Reads 8 bytes from a file page buffered in the buffer pool.
 @return	value read */
-
+UNIV_INLINE
 ib_id_t
 mtr_read_ull(
 /*=========*/

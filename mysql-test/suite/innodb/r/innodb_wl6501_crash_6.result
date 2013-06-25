@@ -6,15 +6,17 @@ set global innodb_file_per_table = on;
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
 engine=innodb row_format=redundant
 key_block_size=16;
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -25,24 +27,30 @@ check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "2. Hit crash point on completion of redo log write."
 use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
-create  table t (i int)
+create  table t (
+i int, f float, c char,
+primary key pk(i), unique findex(f), index ck(c))
 engine = innodb row_format = redundant
 key_block_size = 16;
-insert into t values (1), (2), (3);
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -53,13 +61,17 @@ check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 select * from t;
-i
-insert into t values (1), (2), (3);
+i	f	c
+insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 select * from t;
-i
-1
-2
-3
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "3. Hit crash point while dropping indexes."
 use test;
@@ -93,6 +105,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -125,6 +141,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -157,6 +177,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "4. Hit crash point on completing drop of all indexes before creation"
 "   of index is commenced."
@@ -191,6 +215,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "5. Hit crash point while creating indexes."
 use test;
@@ -224,6 +252,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -256,6 +288,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -288,6 +324,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "6. Hit crash point after data is updated to system-table and"
 "   in-memory dict."
@@ -322,6 +362,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "7. Hit crash point before/after log checkpoint is done."
 use test;
@@ -350,6 +394,10 @@ test.t	check	status	OK
 select * from t;
 i	f	c
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -382,6 +430,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;

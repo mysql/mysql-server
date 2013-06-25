@@ -3020,7 +3020,7 @@ fil_delete_tablespace(
 }
 
 /*******************************************************************//**
-Check if an index tree is freed by a descriptor bit of index root page.
+Check if an index tree is freed by checking a descriptor bit of index root page.
 @return true if the index tree is freed */
 
 bool

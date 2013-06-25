@@ -35,6 +35,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "2. Hit crash point after data is updated to system-table and"
 "   in-memory dict."
@@ -69,6 +73,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "3. Post truncate recovery, abruptly shutdown the server."
 "   On restart ensure table state is maintained."
@@ -107,6 +115,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
@@ -147,6 +159,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "2. Hit crash point after data is updated to system-table and"
 "   in-memory dict."
@@ -181,6 +197,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "3. Post truncate recovery, abruptly shutdown the server."
 "   On restart ensure table state is maintained."
@@ -219,6 +239,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
@@ -259,6 +283,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "2. Hit crash point after data is updated to system-table and"
 "   in-memory dict."
@@ -293,6 +321,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 "3. Post truncate recovery, abruptly shutdown the server."
 "   On restart ensure table state is maintained."
@@ -331,6 +363,10 @@ i	f	c
 1	1.1	a
 2	2.2	b
 3	3.3	c
+select * from t where f < 2.5;
+i	f	c
+1	1.1	a
+2	2.2	b
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
