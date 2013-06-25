@@ -13097,10 +13097,17 @@ load_data_set_elem:
           simple_ident_nospvar equal expr_or_default
           {
             LEX *lex= Lex;
-            if (lex->update_list.push_back($1) || 
-                lex->value_list.push_back($3))
+            uint length= (uint) (@3.end - @2.start);
+            String *val= new (YYTHD->mem_root) String(@2.start,
+                                                      length,
+                                                      YYTHD->charset());
+            if (val == NULL)
+              MYSQL_YYABORT;
+            if (lex->update_list.push_back($1) ||
+                lex->value_list.push_back($3) ||
+                lex->load_set_str_list.push_back(val))
                 MYSQL_YYABORT;
-            $3->item_name.copy(@2.start, (uint) (@3.end - @2.start), YYTHD->charset());
+            $3->item_name.copy(@2.start, length, YYTHD->charset());
           }
         ;
 

@@ -722,7 +722,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
   DBUG_PRINT("info",("Starting signal and alarm handling thread"));
   for(;;)
   {
-    while ((error=my_sigwait(&set,&sig)) == EINTR)
+    while ((error=sigwait(&set,&sig)) == EINTR)
       printf("sigwait restarted\n");
     if (error)
     {
