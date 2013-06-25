@@ -487,6 +487,11 @@ TransporterFacade::wakeup_send_thread(void)
 
 void TransporterFacade::threadMainSend(void)
 {
+  while (theSendThread == NULL)
+  {
+    /* Wait until theSendThread have been set */
+    NdbSleep_MilliSleep(10);
+  }
   theTransporterRegistry->startSending();
   if (theTransporterRegistry->start_clients() == 0){
     ndbout_c("Unable to start theTransporterRegistry->start_clients");
@@ -654,6 +659,7 @@ TransporterFacade::unset_recv_thread_cpu(Uint32 recv_thread_id)
     return -1;
   }
   unlock_recv_thread_cpu();
+  recv_thread_cpu_id = NO_RECV_THREAD_CPU_ID;
   return 0;
 }
 
@@ -728,6 +734,12 @@ void TransporterFacade::threadMainReceive(void)
   bool check_cluster_mgr;
   NDB_TICKS currTime = NdbTick_CurrentMillisecond();
   NDB_TICKS lastTime = currTime;
+
+  while (theReceiveThread == NULL)
+  {
+    /* Wait until theReceiveThread have been set */
+    NdbSleep_MilliSleep(10);
+  }
   theTransporterRegistry->startReceiving();
 #ifdef NDB_SHM_TRANSPORTER
   NdbThread_set_shm_sigmask(TRUE);
