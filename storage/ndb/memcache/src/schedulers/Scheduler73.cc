@@ -235,9 +235,17 @@ ENGINE_ERROR_CODE Scheduler73::Worker::schedule(workitem *item) {
 }
 
 
-void Scheduler73::Worker::reschedule(workitem *item) const {
-  DEBUG_ENTER();
-  item->base.reschedule = 1;
+void Scheduler73::Worker::prepare(NdbTransaction * tx, 
+                                  NdbTransaction::ExecType execType, 
+                                  NdbAsynchCallback callback, 
+                                  workitem * item, prepare_flags flags) { 
+  Ndb *ndb = tx->getNdb();
+  Uint64 nwaitsPre = ndb->getClientStat(Ndb::WaitExecCompleteCount);
+  tx->executeAsynch(execType, callback, (void *) item);
+  Uint64 nwaitsPost = ndb->getClientStat(Ndb::WaitExecCompleteCount);
+  assert(nwaitsPost == nwaitsPre);
+
+  if(flags == RESCHEDULE) item->base.reschedule = 1;
 }
 
 
@@ -411,9 +419,8 @@ ENGINE_ERROR_CODE Scheduler73::WorkerConnection::schedule(const KeyPrefix *pfx,
   // Build the NDB transaction
   op_status_t op_status = worker_prepare_operation(item);
 
-  if(op_status == op_async_prepared) {
+  if(op_status == op_prepared) {
     /* Success */
-    inst->db->sendPreparedTransactions(false);
     cluster->pollgroup->push(inst->db);
     cluster->pollgroup->wakeup();
     response_code = ENGINE_EWOULDBLOCK;
@@ -432,10 +439,6 @@ ENGINE_ERROR_CODE Scheduler73::WorkerConnection::schedule(const KeyPrefix *pfx,
         DEBUG_PRINT("op_status is op_overflow");
         response_code = ENGINE_E2BIG;
         break;
-      case op_async_sent:
-        DEBUG_PRINT("op_async_sent could be a bug");
-        response_code = ENGINE_FAILED;
-        break;      
       case op_failed:
         DEBUG_PRINT("op_status is op_failed");
         response_code = ENGINE_FAILED;
@@ -545,7 +548,6 @@ void * Scheduler73::Cluster::run_wait_thread() {
       if(inst->wqitem->base.reschedule) {
         DEBUG_PRINT("Rescheduling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);
         inst->wqitem->base.reschedule = 0;
-        db->sendPreparedTransactions(false);
         pollgroup->push(db);
       }
       else {     // Operation is complete

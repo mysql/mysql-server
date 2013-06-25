@@ -104,6 +104,7 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/timing.c
     src/workitem.c
     src/workqueue.c
+    src/Scheduler.cc
     src/schedulers/S_sched.cc
     src/schedulers/Stockholm.cc
     src/schedulers/Scheduler73.cc
