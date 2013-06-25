@@ -117,11 +117,6 @@ MACRO(INSTALL_SYMLINK target target_name link_name destination component)
 IF(UNIX)
   GET_TARGET_PROPERTY(location ${target} LOCATION)
   GET_FILENAME_COMPONENT(path ${location} PATH)
-  MESSAGE(STATUS "target ${target}")
-  MESSAGE(STATUS "link_name ${link_name}")
-  MESSAGE(STATUS "target_name ${target_name}")
-  MESSAGE(STATUS "path ${path}")
-  MESSAGE(STATUS "")
 
   SET(output ${path}/${link_name})
   ADD_CUSTOM_COMMAND(
