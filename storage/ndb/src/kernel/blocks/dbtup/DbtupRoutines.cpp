@@ -2481,10 +2481,6 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   Uint32* outBuffer = outBuf + ((outPos - 1) >> 2);
   
   Uint32 sz;
-  const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE;
-  SignalT<DataSz> signalT;
-  Signal * signal = new (&signalT) Signal(0);
-  bzero(signal, sizeof(signalT));
   switch(attrId){
   case AttributeHeader::READ_LCP:
     return read_lcp(inBuffer, inPos, req_struct, outBuf);
@@ -2517,6 +2513,11 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     break;
   case AttributeHeader::ROW_COUNT:
   case AttributeHeader::COMMIT_COUNT:
+  {
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
     
@@ -2525,7 +2526,13 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[2] = signal->theData[1];
     sz = 2;
     break;
+  }
   case AttributeHeader::RANGE_NO:
+  {
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
     
@@ -2533,6 +2540,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[1] = signal->theData[0];
     sz = 1;
     break;
+  }
   case AttributeHeader::DISK_REF:
   {
     Uint32 *ref= req_struct->m_tuple_ptr->get_disk_ref_ptr(req_struct->tablePtrP);
@@ -2542,6 +2550,11 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     break;
   }
   case AttributeHeader::RECORDS_IN_RANGE:
+  {
+    const Uint32 DataSz = 4;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
     
@@ -2552,9 +2565,14 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[4] = signal->theData[3];
     sz = 4;
     break;
+  }
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
   {
+    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
 
@@ -2660,6 +2678,10 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::CORR_FACTOR32:
   {
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     jam();
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = AttributeHeader::CORR_FACTOR64;
@@ -2670,6 +2692,10 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::CORR_FACTOR64:
   {
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     jam();
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = AttributeHeader::CORR_FACTOR64;
@@ -2696,6 +2722,11 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     break;
   }
   case AttributeHeader::LOCK_REF:
+  {
+    const Uint32 DataSz = 3;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
     
@@ -2705,7 +2736,13 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[3] = signal->theData[2];
     sz = 3;
     break;
+  }
   case AttributeHeader::OP_ID:
+  {
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
     
@@ -2714,6 +2751,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[2] = signal->theData[1];
     sz = 2;
     break;
+  }
   default:
     return -ZATTRIBUTE_ID_ERROR;
   }
