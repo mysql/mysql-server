@@ -1985,7 +1985,7 @@ err_exit:
 		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs(" because tablespace full\n", stderr);
 
-		if (dict_table_get_low(table->name)) {
+		if (dict_table_get_low(table->name, DICT_ERR_IGNORE_NONE)) {
 
 			row_drop_table_for_mysql(table->name, trx, FALSE);
 			trx_commit_for_mysql(trx);
@@ -2067,7 +2067,7 @@ row_create_index_for_mysql(
 	que_run_threads()) and thus index->table_name is not available. */
 	table_name = mem_strdup(index->table_name);
 
-	table = dict_table_get_low(table_name);
+	table = dict_table_get_low(table_name, DICT_ERR_IGNORE_NONE);
 
 	trx_start_if_not_started(trx);
 
@@ -2176,7 +2176,8 @@ row_table_add_foreign_constraints(
 					      name, reject_fks);
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, FALSE, TRUE);
+		err = dict_load_foreigns(name, FALSE, TRUE,
+					 DICT_ERR_IGNORE_NONE);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -2278,7 +2279,7 @@ loop:
 	}
 
 	mutex_enter(&(dict_sys->mutex));
-	table = dict_table_get_low(drop->table_name);
+	table = dict_table_get_low(drop->table_name, DICT_ERR_IGNORE_NONE);
 	mutex_exit(&(dict_sys->mutex));
 
 	if (table == NULL) {
@@ -2446,7 +2447,7 @@ row_discard_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_get_low(name);
+	table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -2636,7 +2637,7 @@ row_import_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_get_low(name);
+	table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		ut_print_timestamp(stderr);
@@ -3157,7 +3158,7 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_get_low_ignore_err(
+	table = dict_table_get_low(
 		name, DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT);
 
 	if (!table) {
@@ -3677,7 +3678,7 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_get_low(table_name);
+		table = dict_table_get_low(table_name, DICT_ERR_IGNORE_NONE);
 
 		ut_a(table);
 
@@ -3866,7 +3867,7 @@ row_rename_table_for_mysql(
 	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
 	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
 
-	table = dict_table_get_low(old_name);
+	table = dict_table_get_low(old_name, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -4121,7 +4122,8 @@ end:
 		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
-			new_name, FALSE, !old_is_tmp || trx->check_foreigns);
+			new_name, FALSE, !old_is_tmp || trx->check_foreigns,
+			DICT_ERR_IGNORE_NONE);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);

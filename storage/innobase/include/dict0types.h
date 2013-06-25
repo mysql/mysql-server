@@ -53,6 +53,8 @@ enum dict_err_ignore {
         DICT_ERR_IGNORE_INDEX_ROOT = 1, /*!< ignore error if index root
 					page is FIL_NULL or incorrect value */
 	DICT_ERR_IGNORE_CORRUPT = 2,	/*!< skip corrupted indexes */
+	DICT_ERR_IGNORE_FK_NOKEY = 4,	/*!< ignore error if any foreign
+					key is missing */
         DICT_ERR_IGNORE_ALL = 0xFFFF	/*!< ignore all errors */
 };
 
