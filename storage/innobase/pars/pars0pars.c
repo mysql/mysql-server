@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2013, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -569,7 +569,7 @@ pars_retrieve_table_def(
 
 	table_name = (const char*) sym_node->name;
 
-	sym_node->table = dict_table_get_low(table_name);
+	sym_node->table = dict_table_get_low(table_name, DICT_ERR_IGNORE_NONE);
 
 	ut_a(sym_node->table);
 }
