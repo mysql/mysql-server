@@ -328,8 +328,8 @@ static ulint		srv_n_rows_read_old		= 0;
 ulint	srv_truncated_status_writes	= 0;
 ulint	srv_available_undo_logs         = 0;
 
-truncate_tables_t	srv_tables_to_truncate;
-bool			truncate_t::m_trunc_table_fix_up_active = false;
+truncate_t::truncate_tables_t	truncate_t::m_tables_to_truncate;
+bool				truncate_t::m_trunc_table_fix_up_active = false;
 
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
@@ -2833,8 +2833,14 @@ srv_is_tablespace_truncated(ulint space_id)
 		return(false);
 	}
 
-	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
-		if (srv_tables_to_truncate[i]->m_space_id == space_id) {
+	truncate_t::truncate_tables_t::iterator end =
+		truncate_t::m_tables_to_truncate.end();
+	for (truncate_t::truncate_tables_t::iterator it =
+	     	truncate_t::m_tables_to_truncate.begin();
+	     it != end;
+	     ++it) {
+		truncate_t* tbl = *it;
+		if (tbl->m_space_id == space_id) {
 			return(true);
 		}
 	}
