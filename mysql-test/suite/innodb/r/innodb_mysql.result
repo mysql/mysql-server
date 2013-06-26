@@ -2600,7 +2600,7 @@ f1	f2	f3	f4
 EXPLAIN SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
 ORDER BY f1 DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	f2,f4	f4	1	NULL	22	Using where
+1	SIMPLE	t1	range	f2,f4	f4	1	NULL	22	Using index condition; Using where
 DROP TABLE t1;
 #
 # Bug#54117 crash in thr_multi_unlock, temporary table
