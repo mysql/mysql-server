@@ -68,7 +68,13 @@ Logger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 		const dict_index_t* dict_index = find(index.m_id);
 
 		if (dict_index != NULL) {
-			index.set(dict_index);
+
+			dberr_t err;
+			err = index.set(dict_index);
+			if (err != DB_SUCCESS) {
+				m_truncate.m_indexes.clear();
+				return(err);
+			}
 		} else {
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Index id "IB_ID_FMT " not found",
@@ -1025,7 +1031,14 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 		err = SysIndexIterator().for_each(logger);
 
-		ut_ad(err == DB_SUCCESS);
+		if (err != DB_SUCCESS) {
+			row_truncate_rollback(
+				table, trx, new_id, has_internal_doc_id,
+				false, true);
+			return(row_truncate_complete(
+					table, trx, flags, DB_ERROR));
+
+		}
 
 		ut_ad(logger.debug());
 
