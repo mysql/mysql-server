@@ -1277,7 +1277,7 @@ page_zip_compress(
 		     == PAGE_NEW_SUPREMUM);
 	}
 
-	if (srv_trunc_table_fix_up_active) {
+	if (truncate_t::m_trunc_table_fix_up_active) {
 		ut_ad(page_comp_info != NULL);
 		n_fields = page_comp_info->n_fields;
 		ind_id = page_comp_info->index_id;
@@ -1411,7 +1411,7 @@ page_zip_compress(
 	}
 
 	c_stream.avail_out -= (uInt) (n_dense * slot_size);
-	if (srv_trunc_table_fix_up_active) {
+	if (truncate_t::m_trunc_table_fix_up_active) {
 		ut_ad(page_comp_info != NULL);
 		c_stream.avail_in = (uInt) page_comp_info->field_len;
 		for (ulint i = 0; i < page_comp_info->field_len; i++) {
@@ -1580,7 +1580,7 @@ err_exit:
 	}
 
 	if (page_is_leaf(page)
-	    && !srv_trunc_table_fix_up_active) {
+	    && !truncate_t::m_trunc_table_fix_up_active) {
 		dict_index_zip_success(index);
 	}
 #endif /* !UNIV_HOTBACKUP */
