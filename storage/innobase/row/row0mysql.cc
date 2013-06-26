@@ -5268,6 +5268,25 @@ row_rename_table_for_mysql(
 		}
 	}
 
+	if (dict_table_has_fts_index(table)
+	    && !dict_tables_have_same_db(old_name, new_name)) {
+		err = fts_rename_aux_tables(table, new_name, trx);
+
+		if (err != DB_SUCCESS
+		    && !Tablespace::is_system_tablespace(table->space)) {
+			char*	orig_name = table->name;
+
+			/* If rename fails and table has its own tablespace,
+			we need to call fts_rename_aux_tables again to
+			revert the ibd file rename, which is not under the
+			control of trx. Also notice the parent table name
+			in cache is not changed yet. */
+			table->name = const_cast<char*>(new_name);
+			fts_rename_aux_tables(table, old_name, trx);
+			table->name = orig_name;
+		}
+	}
+
 end:
 	if (err != DB_SUCCESS) {
 		if (err == DB_DUPLICATE_KEY) {
@@ -5372,7 +5391,6 @@ end:
 	}
 
 funct_exit:
-
 	if (table != NULL) {
 		dict_table_close(table, dict_locked, FALSE);
 	}
