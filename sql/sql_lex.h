@@ -779,7 +779,11 @@ public:
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
-  int nest_level;     /* nesting level of select */
+  /**
+    Nesting level of query block, outer-most query block has level 0,
+    its subqueries have level 1, etc. @see also sql/item_sum.h.
+  */
+  int nest_level;
   /* Circularly linked list of sum func in nested selects */
   Item_sum *inner_sum_func_list;
   uint with_wild; /* item list contain '*' */

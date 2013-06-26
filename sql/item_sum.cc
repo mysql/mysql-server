@@ -146,7 +146,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     greater than the current value of max_arg_level.
     max_arg_level cannot be greater than nest level.
     nest level is always >= 0  
-  */ 
+  */
   if (nest_level == max_arg_level)
   {
     /*
@@ -309,31 +309,21 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
 
 bool Item_sum::register_sum_func(THD *thd, Item **ref)
 {
-  SELECT_LEX *sl;
   nesting_map allow_sum_func= thd->lex->allow_sum_func;
-  for (sl= thd->lex->current_select->master_unit()->outer_select() ;
-       sl && sl->nest_level > max_arg_level;
-       sl= sl->master_unit()->outer_select() )
+
+  // Find the outer-most query block where this function can be aggregated.
+
+  for (SELECT_LEX *sl= thd->lex->current_select->outer_select();
+       sl && sl->nest_level >= max_arg_level;
+       sl= sl->outer_select())
   {
-    if (aggr_level < 0 &&
-        (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
+    if (allow_sum_func & ((nesting_map)1 << sl->nest_level))
     {
-      /* Found the most nested subquery where the function can be aggregated */
       aggr_level= sl->nest_level;
       aggr_sel= sl;
     }
   }
-  if (sl && (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
-  {
-    /* 
-      We reached the subquery of level max_arg_level and checked
-      that the function can be aggregated here. 
-      The set function will be aggregated in this subquery.
-    */   
-    aggr_level= sl->nest_level;
-    aggr_sel= sl;
 
-  }
   if (aggr_level >= 0)
   {
     ref_by= ref;
@@ -346,7 +336,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       aggr_sel->inner_sum_func_list->next= this;
     }
     aggr_sel->inner_sum_func_list= this;
-    aggr_sel->with_sum_func= 1;
+    aggr_sel->with_sum_func= true;
 
     /* 
       Mark Item_subselect(s) as containing aggregate function all the way up
@@ -360,16 +350,16 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       or through intermediate items to an aggregate function that is calculated
       in a context "outside" of the Item (e.g. in the current or outer select).
 
-      with_sum_func being set for an st_select_lex means that this st_select_lex
-      has aggregate functions directly referenced (i.e. not through a sub-select).
+      with_sum_func being set for an st_select_lex means that this query block
+      has aggregate functions directly referenced (i.e. not through a subquery).
     */
-    for (sl= thd->lex->current_select; 
+    for (SELECT_LEX *sl= thd->lex->current_select; 
          sl && sl != aggr_sel && sl->master_unit()->item;
-         sl= sl->master_unit()->outer_select() )
-      sl->master_unit()->item->with_sum_func= 1;
+         sl= sl->outer_select())
+      sl->master_unit()->item->with_sum_func= true;
   }
   thd->lex->current_select->mark_as_dependent(aggr_sel);
-  return FALSE;
+  return false;
 }
 
 
