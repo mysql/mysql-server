@@ -21,9 +21,6 @@
 extern "C" {
 #endif
 
-#define USE_ONE_SIGNAL_HAND		/* One must call process_alarm */
-#define THR_SERVER_ALARM SIGALRM
-
 typedef struct st_alarm_info
 {
   ulong next_alarm_time;
@@ -41,6 +38,9 @@ typedef struct st_thr_alarm_entry
 
 #else /* System with posix threads */
 
+static const int thr_server_alarm= SIGALRM;
+static const int thr_client_alarm= SIGUSR1;
+
 typedef int thr_alarm_entry;
 
 #define thr_got_alarm(thr_alarm) (**(thr_alarm))
@@ -57,7 +57,6 @@ typedef struct st_alarm {
   my_bool malloced;
 } ALARM;
 
-extern uint thr_client_alarm;
 extern pthread_t alarm_thread;
 
 #define thr_alarm_init(A) (*(A))=0
