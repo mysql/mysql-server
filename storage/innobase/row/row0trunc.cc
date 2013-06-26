@@ -839,9 +839,9 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 	Since purge and rollback look for the table based on the table id,
 	they see the table as 'dropped' and discard their operations.
 
-	Step-8: REDO log information about tablespace which mainly includes
-	table and index information. In event of crash post REDO log will
-	be parsed and then used for fixup post recovery.
+	Step-8: REDO log information about tablespace which includes
+	table and index information. If there is a crash in the next step
+	then during recovery we will attempt to redo the operation.
 
 	Step-9: Drop all indexes (this include freeing of the pages
 	associated with them).
@@ -850,7 +850,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 	Step-11: Update new table-id to in-memory cache (dictionary),
 	on-disk (INNODB_SYS_TABLES). INNODB_SYS_INDEXES also needs to
-	get updated to reflect updated page-no of new index created
+	be updated to reflect updated root-page-no of new index created
 	and updated table-id.
 
 	Step-12: Cleanup Stage. Reset auto-inc value to 1.
@@ -859,7 +859,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 	Notes:
 	- On error, log checkpoint is done which nullifies effect of REDO
-	log and so even if server crashes post truncate, REDO log is not read.
+	log and so even if server crashes after truncate, REDO log is not read.
 
 	- log checkpoint is done before starting truncate table to ensure
 	that previous REDO log entries are not applied if current truncate
@@ -978,13 +978,13 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		dict_table_has_fts_index(table)
 		|| DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 
-	/* Step-8: REDO log information about tablespace which mainly includes
-	table and index information. In event of crash post REDO log will
-	be parsed and then used for fixup post recovery. */
+	/* Step-8: REDO log information about tablespace which includes
+	table and index information. If there is a crash in the next step
+	then during recovery we will attempt to redo the operation. */
 
 	/* Lock all index trees for this table, as we will truncate
 	the table/index and possibly change their metadata. All
-	DML/DDL are blocked by table level lock, with a few exceptions
+	DML/DDL are blocked by table level X lock, with a few exceptions
 	such as queries into information schema about the table,
 	MySQL could try to access index stats for this kind of query,
 	we need to use index locks to sync up */
@@ -1037,8 +1037,8 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			os_thread_sleep(3000000);
 			DBUG_SUICIDE(););
 
-	/* Step-9: Drop all indexes (this include freeing of the pages
-	associated with them). */
+	/* Step-9: Drop all indexes (free index pages associated with these
+	indexes) */
 	if (!dict_table_is_temporary(table)) {
 
 		DropIndex	dropIndex(table);
@@ -1123,7 +1123,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 
 	/* Step-11: Update new table-id to in-memory cache (dictionary),
 	on-disk (INNODB_SYS_TABLES). INNODB_SYS_INDEXES also needs to
-	get updated to reflect updated page-no of new index created
+	be updated to reflect updated root-page-no of new index created
 	and updated table-id. */
 	if (dict_table_is_temporary(table)) {
 
@@ -1168,7 +1168,7 @@ indexes) and for single-tablespace re-creating tablespace.
 @return error code or DB_SUCCESS */
 
 dberr_t
-row_fixup_truncate_of_tables()
+row_truncate_fixup_tables()
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -1184,7 +1184,7 @@ row_fixup_truncate_of_tables()
 		truncate_t* tbl = *it;
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Fixing up truncate action for table with id (%lu)"
+			"Completing truncate for table with id (%lu)"
 			" residing in space with id (%lu)",
 			tbl->m_old_table_id, tbl->m_space_id);
 
@@ -1210,9 +1210,9 @@ row_fixup_truncate_of_tables()
 					and table is dropped and then we might
 					still have REDO entries for this table
 					which are INVALID. Ignore them. */
-					ib_logf(IB_LOG_LEVEL_INFO,
+					ib_logf(IB_LOG_LEVEL_WARN,
 						"Failed to create tablespace"
-						" for %lu space-id\n",
+						" for %lu space-id",
 						tbl->m_space_id);
 					err = DB_ERROR;
 					break;
