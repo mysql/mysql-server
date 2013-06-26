@@ -290,6 +290,7 @@ int test_main(int argc, char * const argv[]) {
                     check(env, db, start_key, skip_len, true, false);
                 }
             }
+            teardown(env, db);
         }
     }
 
