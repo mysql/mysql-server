@@ -23,7 +23,7 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 --source include/count_sessions.inc
 
 --exec $MYSQL --xml test -e "select * from t1"
---exec $MYSQL_DUMP --xml --skip-create test
+--exec $MYSQL_DUMP --xml --skip-create-options test
 
 --exec $MYSQL --xml test -e "select count(*) from t1"
 --exec $MYSQL --xml test -e "select 1 < 2 from dual"
