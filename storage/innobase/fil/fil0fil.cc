@@ -2506,7 +2506,8 @@ fil_op_log_parse_or_replay(
 			truncate->parse(&ptr, &end_ptr, tablespace_flags);
 
 			if (!parse_only) {
-				srv_tables_to_truncate.push_back(truncate);
+				truncate_t::m_tables_to_truncate.push_back(
+					truncate);
 			}
 
 		} else if (type == MLOG_FILE_RENAME) {
