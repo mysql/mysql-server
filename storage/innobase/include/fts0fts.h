@@ -1008,6 +1008,17 @@ fts_drop_index(
 	trx_t*		trx)	/*!< in: Transaction for the drop */
 	__attribute__((nonnull));
 
+/****************************************************************//**
+Rename auxiliary tables for all fts index for a table
+@return DB_SUCCESS or error code */
+
+dberr_t
+fts_rename_aux_tables(
+/*==================*/
+	dict_table_t*	table,		/*!< in: user Table */
+	const char*	new_name,	/*!< in: new table name */
+	trx_t*		trx);		/*!< in: transaction */
+
 /*******************************************************************//**
 Check indexes in the fts->indexes is also present in index cache and
 table->indexes list
