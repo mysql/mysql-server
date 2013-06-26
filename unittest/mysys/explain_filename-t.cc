@@ -158,6 +158,6 @@ int main()
          "\"test\".\"t@0023#\"",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
-  return 0;
+  return exit_status();
 }
 
