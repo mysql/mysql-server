@@ -5479,13 +5479,18 @@ loop:
 	switch (ret) {
 	case DB_SUCCESS:
 		break;
+	case DB_DEADLOCK:
+	case DB_LOCK_TABLE_FULL:
 	case DB_LOCK_WAIT_TIMEOUT:
 		goto func_exit;
 	default:
+	{
+		const char* doing = check_keys? "CHECK TABLE" : "COUNT(*)";
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"CHECK TABLE on index %s of table %s returned %d\n",
-			index->name, index->table_name, ret);
+			"%s on index %s of table %s returned %d\n",
+			doing, index->name, index->table_name, ret);
 		/* fall through (this error is ignored by CHECK TABLE) */
+	}
 	case DB_END_OF_INDEX:
 		ret = DB_SUCCESS;
 func_exit:
