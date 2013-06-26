@@ -39,8 +39,9 @@ Created 2013-04-25 Krunal Bauskar
 
 /**
 Iterator over the the raw records in an index, doesn't support MVCC. */
-struct IndexIterator {
+class IndexIterator {
 
+public:
 	/**
 	Iterate over an indexes records
 	@param index		index to iterate over */
@@ -117,8 +118,9 @@ struct IndexIterator {
 };
 
 /** SysIndex table iterator, iterate over records for a table. */
-struct SysIndexIterator {
+class SysIndexIterator {
 
+public:
 	/**
 	Iterate over all the records that match the table id.
 	@return DB_SUCCESS or error code */
@@ -151,8 +153,10 @@ struct SysIndexIterator {
 };
 
 /** Generic callback abstract class. */
-struct Callback
+class Callback
 {
+
+public:
 	/**
 	Constructor
 	@param	table_id		id of the table being operated.
@@ -217,8 +221,9 @@ protected:
 Creates a TRUNCATE log record with space id, table name, data directory path,
 tablespace flags, table format, index ids, index types, number of index fields
 and index field information of the table. */
-struct Logger : public Callback {
+class Logger : public Callback {
 
+public:
 	/**
 	Constructor
 
@@ -294,7 +299,9 @@ private:
 };
 
 /** Callback to drop indexes during TRUNCATE */
-struct DropIndex : public Callback {
+class DropIndex : public Callback {
+
+public:
 	/**
 	Constructor
 
@@ -319,8 +326,9 @@ private:
 };
 
 /** Callback to create the indexes during TRUNCATE */
-struct CreateIndex : public Callback {
+class CreateIndex : public Callback {
 
+public:
 	/**
 	Constructor
 
@@ -348,8 +356,9 @@ private:
 };
 
 /** Check for presence of table-id in SYS_XXXX tables. */
-struct TableLocator : public Callback {
+class TableLocator : public Callback {
 
+public:
 	/**
 	Constructor
 	@param table_id	table_id to look for */
@@ -397,7 +406,7 @@ indexes) and for single-tablespace re-creating tablespace.
 @return	error code or DB_SUCCESS */
 
 dberr_t
-row_fixup_truncate_of_tables();
+row_truncate_fixup_tables();
 
 #endif
 

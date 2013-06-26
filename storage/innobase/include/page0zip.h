@@ -146,9 +146,8 @@ page_zip_compress(
 						/*!< in: used for applying
 						MLOG_FILE_TRUNCATE redo log
 						record during recovery */
-	mtr_t*			mtr)		/*!< in/out: mini-transaction,
+	mtr_t*			mtr);		/*!< in/out: mini-transaction,
 						or NULL */
-	__attribute__((nonnull(1,2,3)));
 
 /**********************************************************************//**
 Write the index information for the compressed page.
