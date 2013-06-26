@@ -276,6 +276,11 @@ struct truncate_t {
 
 	/** LSN of REDO log record. */
 	lsn_t			m_redo_log_lsn;
+
+	/** Vector of tables to truncate. */
+	// typedef	std::vector<truncate_t*>	truncate_tables_t;
+	// static	truncate_tables_t		m_tables_to_truncate;
+	static	bool				m_trunc_table_fix_up_active;
 };
 
 typedef std::vector<truncate_t*> truncate_tables_t;

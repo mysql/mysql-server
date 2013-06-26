@@ -128,10 +128,6 @@ ulint	fil_n_pending_tablespace_flushes	= 0;
 /** Number of files currently open */
 ulint	fil_n_file_opened			= 0;
 
-/* If true, indicate that table is being fixed for left over
-truncate action on serve restart post crash. */
-bool			fil_trunc_table_fix_up_active		= false;
-
 /** The null file address */
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
@@ -2222,8 +2218,8 @@ fil_recreate_table(
 		return;
 	}
 
-	ut_ad(!srv_trunc_table_fix_up_active);
-	srv_trunc_table_fix_up_active = true;
+	ut_ad(!truncate_t::m_trunc_table_fix_up_active);
+	truncate_t::m_trunc_table_fix_up_active = true;
 
 	/* Step-1: Scan for active indexes from REDO logs and drop
 	all the indexes using low level function that take root_page_no
@@ -2237,7 +2233,7 @@ fil_recreate_table(
 		return;
 	}
 
-	srv_trunc_table_fix_up_active = false;
+	truncate_t::m_trunc_table_fix_up_active = false;
 }
 
 /********************************************************//**
@@ -2259,8 +2255,8 @@ fil_recreate_tablespace(
 	dberr_t			err;
 	mtr_t			mtr;
 
-	ut_ad(!srv_trunc_table_fix_up_active);
-	srv_trunc_table_fix_up_active = true;
+	ut_ad(!truncate_t::m_trunc_table_fix_up_active);
+	truncate_t::m_trunc_table_fix_up_active = true;
 
 	/* Step-1: Invalidate buffer pool pages belonging to the tablespace
 	to re-create. */
@@ -2414,7 +2410,7 @@ fil_recreate_tablespace(
 	}
 
 	mtr_commit(&mtr);
-	srv_trunc_table_fix_up_active = false;
+	truncate_t::m_trunc_table_fix_up_active = false;
 	return;
 }
 
