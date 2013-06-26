@@ -363,8 +363,6 @@ extern ibool	srv_priority_boost;
 extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
 
-extern truncate_tables_t	srv_tables_to_truncate;
-
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 

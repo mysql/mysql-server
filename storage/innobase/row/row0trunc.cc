@@ -1174,8 +1174,10 @@ row_truncate_fixup_tables()
 
 	/* Using the info cached during REDO log scan phase fix the
 	table truncate. */
-	truncate_tables_t::iterator end = srv_tables_to_truncate.end();
-	for (truncate_tables_t::iterator it = srv_tables_to_truncate.begin();
+	truncate_t::truncate_tables_t::iterator end =
+		truncate_t::m_tables_to_truncate.end();
+	for (truncate_t::truncate_tables_t::iterator it =
+		truncate_t::m_tables_to_truncate.begin();
 	     it != end;
 	     ++it) {
 
@@ -1255,14 +1257,15 @@ row_truncate_fixup_tables()
 		}
 	}
 
-	if (err == DB_SUCCESS && (srv_tables_to_truncate.size() > 0)) {
+	if (err == DB_SUCCESS
+	    && (truncate_t::m_tables_to_truncate.size() > 0)) {
 		log_make_checkpoint_at(LSN_MAX, TRUE);
 	}
 
-	for (ulint i = 0; i < srv_tables_to_truncate.size(); i++) {
-		delete(srv_tables_to_truncate[i]);
+	for (ulint i = 0; i < truncate_t::m_tables_to_truncate.size(); i++) {
+		delete(truncate_t::m_tables_to_truncate[i]);
 	}
-	srv_tables_to_truncate.clear();
+	truncate_t::m_tables_to_truncate.clear();
 
 	return(err);
 }
