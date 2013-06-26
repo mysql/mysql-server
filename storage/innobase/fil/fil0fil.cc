@@ -2464,68 +2464,62 @@ fil_op_log_parse_or_replay(
 	/* Step-1a: Parse initial information which include
 	flags and name of table. Other field viz. type, space-id, page-no are
 	pre-parsed before invocation of this function */
-	{
-		if (type == MLOG_FILE_CREATE2 || type == MLOG_FILE_TRUNCATE) {
-			if (end_ptr < ptr + 4) {
+	if (type == MLOG_FILE_CREATE2 || type == MLOG_FILE_TRUNCATE) {
+		if (end_ptr < ptr + 4) {
 
-				return(NULL);
-			}
-
-			tablespace_flags = mach_read_from_4(ptr);
-			ptr += 4;
+			return(NULL);
 		}
+
+		tablespace_flags = mach_read_from_4(ptr);
+		ptr += 4;
+	}
+
+	if (end_ptr < ptr + 2) {
+		return(NULL);
+	}
+
+	name_len = mach_read_from_2(ptr);
+	ptr += 2;
+	if (end_ptr < ptr + name_len) {
+		return(NULL);
+	}
+
+	name = (const char*) ptr;
+	ptr += name_len;
+
+	/* Step-1b: Parse remaining field in type specific form. */
+	if (type == MLOG_FILE_TRUNCATE) {
+
+		truncate = new truncate_t();
+		truncate->m_space_id = space_id;
+		truncate->m_tablename = strdup(name);
+		truncate->m_tablespace_flags = tablespace_flags;
+		truncate->m_format_flags = log_flags;
+		truncate->m_redo_log_lsn = recv_lsn;
+
+		/* old/new table-id, dir-path, indexes array is
+		populated by parse */
+		truncate->parse(&ptr, &end_ptr, tablespace_flags);
+
+		if (!parse_only) {
+			truncate_t::m_tables_to_truncate.push_back(truncate);
+		}
+
+	} else if (type == MLOG_FILE_RENAME) {
 
 		if (end_ptr < ptr + 2) {
 			return(NULL);
 		}
 
-		name_len = mach_read_from_2(ptr);
+		new_name_len = mach_read_from_2(ptr);
 		ptr += 2;
-		if (end_ptr < ptr + name_len) {
+
+		if (end_ptr < ptr + new_name_len) {
 			return(NULL);
 		}
 
-		name = (const char*) ptr;
-		ptr += name_len;
-	}
-
-
-	/* Step-1b: Parse remaining field in type specific form. */
-	{
-		if (type == MLOG_FILE_TRUNCATE) {
-
-			truncate = new truncate_t();
-			truncate->m_space_id = space_id;
-			truncate->m_tablename = strdup(name);
-			truncate->m_tablespace_flags = tablespace_flags;
-			truncate->m_format_flags = log_flags;
-			truncate->m_redo_log_lsn = recv_lsn;
-
-			/* old/new table-id, dir-path, indexes array is
-			populated by parse */
-			truncate->parse(&ptr, &end_ptr, tablespace_flags);
-
-			if (!parse_only) {
-				truncate_t::m_tables_to_truncate.push_back(
-					truncate);
-			}
-
-		} else if (type == MLOG_FILE_RENAME) {
-
-			if (end_ptr < ptr + 2) {
-				return(NULL);
-			}
-
-			new_name_len = mach_read_from_2(ptr);
-			ptr += 2;
-
-			if (end_ptr < ptr + new_name_len) {
-				return(NULL);
-			}
-
-			new_name = (const char*) ptr;
-			ptr += new_name_len;
-		}
+		new_name = (const char*) ptr;
+		ptr += new_name_len;
 	}
 
 	/* Condition to check if replay of log record is demanded by caller. */
@@ -6877,120 +6871,110 @@ truncate_t::write(
 
 	/* Type, Space-ID, format-flag (also know as log_flag. Stored in page_no
 	field), tablespace flags */
-	{
-		log_ptr = mlog_write_initial_log_record_for_file_op(
-			MLOG_FILE_TRUNCATE, space_id, format_flags,
-			log_ptr, &mtr);
+	log_ptr = mlog_write_initial_log_record_for_file_op(
+		MLOG_FILE_TRUNCATE, space_id, format_flags,
+		log_ptr, &mtr);
 
-		mach_write_to_4(log_ptr, flags);
-		log_ptr += 4;
-	}
+	mach_write_to_4(log_ptr, flags);
+	log_ptr += 4;
 
 	/* Name of the table. */
-	{
-		/* Include the NUL in the log record. */
-		ulint	len = strlen(tablename) + 1;
+	/* Include the NUL in the log record. */
+	ulint	len = strlen(tablename) + 1;
 
-		mach_write_to_2(log_ptr, len);
-		log_ptr += 2;
+	mach_write_to_2(log_ptr, len);
+	log_ptr += 2;
 
-		mlog_close(&mtr, log_ptr);
+	mlog_close(&mtr, log_ptr);
 
-		mlog_catenate_string(
-			&mtr, reinterpret_cast<const byte*>(tablename), len);
-	}
+	mlog_catenate_string(
+		&mtr, reinterpret_cast<const byte*>(tablename), len);
 
 	DBUG_EXECUTE_IF("ib_trunc_crash_while_writing_redo_log",
 			DBUG_SUICIDE(););
 
 	/* Old/New Table-ID, Number of Indexes and Tablespace dir-path-name. */
-	{
-		/* Write the remote directory of the table into mtr log */
-		ulint len = m_dir_path != NULL ? strlen(m_dir_path) + 1 : 0;
+	/* Write the remote directory of the table into mtr log */
+	len = m_dir_path != NULL ? strlen(m_dir_path) + 1 : 0;
 
-		log_ptr = mlog_open(&mtr, 8 + 8 + 2 + 2);
+	log_ptr = mlog_open(&mtr, 8 + 8 + 2 + 2);
 
-		/* Write out old-table-id. */
-		mach_write_to_8(log_ptr, m_old_table_id);
-		log_ptr += 8;
+	/* Write out old-table-id. */
+	mach_write_to_8(log_ptr, m_old_table_id);
+	log_ptr += 8;
 
-		/* Write out new-table-id. */
-		mach_write_to_8(log_ptr, m_new_table_id);
-		log_ptr += 8;
+	/* Write out new-table-id. */
+	mach_write_to_8(log_ptr, m_new_table_id);
+	log_ptr += 8;
 
-		/* Write out the number of indexes. */
-		mach_write_to_2(log_ptr, m_indexes.size());
-		log_ptr += 2;
+	/* Write out the number of indexes. */
+	mach_write_to_2(log_ptr, m_indexes.size());
+	log_ptr += 2;
 
-		/* Write the length (NUL included) of the .ibd path. */
-		mach_write_to_2(log_ptr, len);
-		log_ptr += 2;
+	/* Write the length (NUL included) of the .ibd path. */
+	mach_write_to_2(log_ptr, len);
+	log_ptr += 2;
 
-		mlog_close(&mtr, log_ptr);
+	mlog_close(&mtr, log_ptr);
 
-		if (m_dir_path != NULL) {
+	if (m_dir_path != NULL) {
 
-			/* Must be NUL terminated. */
-			ut_ad(m_dir_path[len - 1] == 0);
+		/* Must be NUL terminated. */
+		ut_ad(m_dir_path[len - 1] == 0);
 
-			const byte*	path;
-			path = reinterpret_cast<const byte*>(m_dir_path);
+		const byte*	path;
+		path = reinterpret_cast<const byte*>(m_dir_path);
 
-			mlog_catenate_string(&mtr, path, len);
-		}
+		mlog_catenate_string(&mtr, path, len);
 	}
 
 	/* Indexes information (id, type) */
-	{
-		/* Write index ids, type, root-page-no into mtr log */
-		for (ulint i = 0; i < m_indexes.size(); ++i) {
+	/* Write index ids, type, root-page-no into mtr log */
+	for (ulint i = 0; i < m_indexes.size(); ++i) {
 
-			log_ptr = mlog_open(&mtr, 8 + 4 + 4 + 4);
+		log_ptr = mlog_open(&mtr, 8 + 4 + 4 + 4);
 
-			mach_write_to_8(log_ptr, m_indexes[i].m_id);
-			log_ptr += 8;
+		mach_write_to_8(log_ptr, m_indexes[i].m_id);
+		log_ptr += 8;
 
-			mach_write_to_4(log_ptr, m_indexes[i].m_type);
-			log_ptr += 4;
+		mach_write_to_4(log_ptr, m_indexes[i].m_type);
+		log_ptr += 4;
 
-			mach_write_to_4(log_ptr, m_indexes[i].m_root_page_no);
-			log_ptr += 4;
+		mach_write_to_4(log_ptr, m_indexes[i].m_root_page_no);
+		log_ptr += 4;
 
-			mach_write_to_4(log_ptr, m_indexes[i].m_trx_id_pos);
-			log_ptr += 4;
+		mach_write_to_4(log_ptr, m_indexes[i].m_trx_id_pos);
+		log_ptr += 4;
 
-			mlog_close(&mtr, log_ptr);
-		}
+		mlog_close(&mtr, log_ptr);
 	}
 
 	/* If tablespace compressed then field info of each index. */
-	{
-		if (fsp_flags_is_compressed(flags)) {
+	if (fsp_flags_is_compressed(flags)) {
 
-			/* Write the number of index fields into mtr log */
-			for (ulint i = 0; i < m_indexes.size(); ++i) {
+		/* Write the number of index fields into mtr log */
+		for (ulint i = 0; i < m_indexes.size(); ++i) {
 
-				ulint len = m_indexes[i].m_fields.size();
+			ulint len = m_indexes[i].m_fields.size();
 
-				log_ptr = mlog_open(&mtr, 2 + 2);
+			log_ptr = mlog_open(&mtr, 2 + 2);
 
-				mach_write_to_2(
-					log_ptr, m_indexes[i].m_n_fields);
-				log_ptr += 2;
+			mach_write_to_2(
+				log_ptr, m_indexes[i].m_n_fields);
+			log_ptr += 2;
 
-				/* Must be NUL terminated. */
-				mach_write_to_2(log_ptr, len);
-				log_ptr += 2;
+			/* Must be NUL terminated. */
+			mach_write_to_2(log_ptr, len);
+			log_ptr += 2;
 
-				mlog_close(&mtr, log_ptr);
+			mlog_close(&mtr, log_ptr);
 
-				const byte*	ptr = &m_indexes[i].m_fields[0];
+			const byte*	ptr = &m_indexes[i].m_fields[0];
 
-				/* Must be NUL terminated. */
-				ut_ad(ptr[len - 1] == 0);
+			/* Must be NUL terminated. */
+			ut_ad(ptr[len - 1] == 0);
 
-				mlog_catenate_string(&mtr, ptr, len);
-			}
+			mlog_catenate_string(&mtr, ptr, len);
 		}
 	}
 
