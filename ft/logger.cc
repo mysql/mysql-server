@@ -1473,8 +1473,6 @@ toku_get_version_of_logs_on_disk(const char *log_dir, bool *found_any_logs, uint
                     highest_version = highest_version > this_log_version ? highest_version : this_log_version;
             }
         }
-    }
-    {
         int r2 = closedir(d);
         if (r==0) r = r2;
     }
