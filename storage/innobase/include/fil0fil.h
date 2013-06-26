@@ -136,8 +136,9 @@ struct truncate_t {
 		}
 
 		/**
-		Set the truncate redo log values for a compressed table. */
-		void set(const dict_index_t* index);
+		Set the truncate redo log values for a compressed table.
+		@return DB_CORRUPTION or error code */
+		dberr_t set(const dict_index_t* index);
 
 		/** Index id */
 		index_id_t	m_id;
@@ -194,17 +195,25 @@ struct truncate_t {
 	@param format_flags	page format flags
 	@return DB_SUCCESS or error code. */
 	dberr_t create_indexes(
-		const char*		table_name,
-		ulint			space_id,
-		ulint			zip_size,
-		ulint			flags,
-		ulint			format_flags);
+		const char*	table_name,
+		ulint		space_id,
+		ulint		zip_size,
+		ulint		flags,
+		ulint		format_flags);
+
+	/** Check if index has been modified since REDO log snapshot
+	was recorded.
+	@param space_id	space_id where table/indexes resides.
+	@return true if modified else false */
+	bool is_index_modified_since_redologged(
+		ulint	space_id,
+		ulint	root_page_no) const;
 
 	/** Drop indexes for a table.
 	@param space_id		space_id where table/indexes resides.
 	@return DB_SUCCESS or error code. */
 	void drop_indexes(
-		ulint			space_id) const;
+		ulint	space_id) const;
 
 	/**
 	Parses MLOG_FILE_TRUNCATE redo record during recovery

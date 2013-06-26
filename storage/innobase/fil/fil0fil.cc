@@ -6632,8 +6632,9 @@ fil_mtr_rename_log(
 }
 
 /**
-Set the truncate redo log values for a compressed table. */
-void
+Set the truncate redo log values for a compressed table.
+@return DB_CORRUPTION or error code */
+dberr_t
 truncate_t::index_t::set(
 /*=====================*/
 	const dict_index_t* index)
@@ -6656,6 +6657,10 @@ truncate_t::index_t::set(
 	ulint	encoded_buf_size = (m_n_fields + 1) * 2;
 	byte*	encoded_buf = new (std::nothrow) byte[encoded_buf_size];
 
+	if (encoded_buf == 0) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
 	ulint len = page_zip_fields_encode(
 		m_n_fields, index, m_trx_id_pos, encoded_buf);
 	ut_a(len <= encoded_buf_size);
@@ -6667,6 +6672,8 @@ truncate_t::index_t::set(
 	m_fields.push_back(0);
 
 	delete[] encoded_buf;
+
+	return(DB_SUCCESS);
 }
 
 /**
@@ -6710,6 +6717,35 @@ truncate_t::create_index(
 	return(root_page_no);
 }
 
+/** Check if index has been modified since REDO log snapshot
+was recorded.
+@param space_id		space_id where table/indexes resides.
+@return true if modified else false */
+bool truncate_t::is_index_modified_since_redologged(
+/*================================================*/
+	ulint		space_id,
+	ulint		root_page_no) const
+{
+	mtr_t	mtr;
+	ulint   zip_size = fil_space_get_zip_size(space_id);
+
+	mtr_start(&mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
+	page_t* root = btr_page_get(
+		space_id, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
+
+	lsn_t page_lsn = mach_read_from_8(root + FIL_PAGE_LSN);
+
+	mtr_commit(&mtr);
+
+	if (page_lsn > m_redo_log_lsn) {
+		return(true);
+	}
+
+	return(false);
+}
+
 /** Drop indexes for a table.
 @param space_id		space_id where table/indexes resides. */
 void truncate_t::drop_indexes(
@@ -6728,23 +6764,12 @@ void truncate_t::drop_indexes(
 		root_page_no = it->m_root_page_no;
 		ulint   zip_size = fil_space_get_zip_size(space_id);
 
-		{
-			mtr_t	mtr2;
-			mtr_start(&mtr2);
-			mtr_set_log_mode(&mtr2, MTR_LOG_NO_REDO);
-			page_t* root = btr_page_get(
-				space_id, zip_size, root_page_no, RW_X_LATCH,
-				NULL, &mtr2);
-			lsn_t page_lsn = mach_read_from_8(root + FIL_PAGE_LSN);
-			mtr_commit(&mtr2);
-
-			if (page_lsn > m_redo_log_lsn) {
-				/* Page has been modified since REDO snapshot
-				was recorded so not safe to drop the index. */
-				continue;
-			}
-
-		}
+		if (is_index_modified_since_redologged(
+			space_id, root_page_no)) {
+			/* Page has been modified since REDO snapshot
+			was recorded so not safe to drop the index. */
+			continue;
+		} 
 
 		mtr_start(&mtr);
 
