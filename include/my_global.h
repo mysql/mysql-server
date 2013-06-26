@@ -947,7 +947,7 @@ typedef unsigned long my_off_t;
   TODO Convert these to use Bitmap class.
  */
 typedef ulonglong table_map;          /* Used for table bits in join */
-typedef ulong nesting_map;  /* Used for flags of nesting constructs */
+typedef ulonglong nesting_map;  /* Used for flags of nesting constructs */
 
 #if defined(__WIN__)
 #define socket_errno	WSAGetLastError()
