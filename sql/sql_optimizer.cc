@@ -7898,11 +7898,8 @@ static bool make_join_select(JOIN *join, Item *cond)
               }
 
               if (usable_keys.is_clear_all())
-              {
-                // No usable keys
-                recheck_reason= DONT_RECHECK;
-                break;
-              }
+                recheck_reason= DONT_RECHECK; // No usable keys
+
               /*
                 If the current plan is to use a range access on an
                 index that provides the order dictated by the ORDER BY
