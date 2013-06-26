@@ -465,7 +465,7 @@ use warnings;
 use Fcntl qw(:DEFAULT :flock);
 my $ibd_file = $ENV{'t1_IBD'};
 my $count = 0;
-open(MYFILE, "$ibd_file") || die "Unable to open $ibd_file";
+open(MYFILE, "+< $ibd_file") || die "Unable to open $ibd_file";
 while(1) {
  if(flock(MYFILE, LOCK_EX) == 1) {
         last;
