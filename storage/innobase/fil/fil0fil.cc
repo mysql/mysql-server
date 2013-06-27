@@ -2228,12 +2228,16 @@ fil_recreate_table(
 	truncate.drop_indexes(space_id);
 
 	/* Step-2: Scan for active indexes and re-create them. */
-	dberr_t	err = truncate.create_indexes(
+	dberr_t err = truncate.create_indexes(
 		name, space_id, zip_size, flags, format_flags);
-
-	if (err == DB_SUCCESS) {
-		truncate_t::s_fix_up_active = false;
+	if (err != DB_SUCCESS) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Failed to create indexes for the table '%s' with"
+			" tablespace %lu while fixing up truncate action",
+			name, space_id);
 	}
+
+	truncate_t::s_fix_up_active = false;
 }
 
 /********************************************************//**
@@ -2496,15 +2500,15 @@ fil_op_log_parse_or_replay(
 			space_id, name, tablespace_flags, log_flags, recv_lsn);
 
 		if (truncate == NULL) {
-			// FIXME: Handle OOM, could be difficult, optional.
 			return(NULL);
 		}
 
-		/* old/new table-id, dir-path, indexes array is
-		populated by parse */
-
-		// FIXME: Check return value.
-		truncate->parse(&ptr, &end_ptr, tablespace_flags);
+		/* old/new table-id, dir-path, indexes array is populated
+		by parse */
+		if (!truncate->parse(&ptr, &end_ptr, tablespace_flags)) {
+			delete truncate;
+			return(NULL);
+		}
 
 		if (parse_only) {
 			delete truncate;
