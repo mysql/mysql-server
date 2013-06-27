@@ -863,7 +863,7 @@ row_truncate_fts(dict_table_t* table, table_id_t new_id, trx_t* trx)
 Update system table to reflect new table id.
 @param old_table_id		old table id
 @param new_table_id		new table id
-@param reserve_dict_mutex	if true, acquire/release
+@param reserve_dict_mutex	if TRUE, acquire/release
 				dict_sys->mutex around call to pars_sql.
 @param trx			transaction
 @return error code or DB_SUCCESS */
@@ -922,15 +922,17 @@ Update system table to reflect new table id and root page number.
 @param truncate_t		old/new table id of table to truncate
 				and updated root_page_no of indexes.
 @param new_table_id		new table id
-@param reserve_dict_mutex	if true, acquire/release
+@param reserve_dict_mutex	if TRUE, acquire/release
 				dict_sys->mutex around call to pars_sql.
+@param mark_index_corrupted	if true, then mark index corrupted.
 @return error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
 row_truncate_update_sys_tables_during_fix_up(
 	const truncate_t&	truncate,
 	ulint			new_table_id,
-	ibool			reserve_dict_mutex)
+	ibool			reserve_dict_mutex,
+	bool			mark_index_corrupted)
 {
 	trx_t*		trx = trx_allocate_for_background();
 
@@ -943,7 +945,7 @@ row_truncate_update_sys_tables_during_fix_up(
 	dberr_t	err;
 
 	err = truncate.update_root_page_no(
-		trx, table_id, reserve_dict_mutex);
+		trx, table_id, reserve_dict_mutex, mark_index_corrupted);
 
 	if (err != DB_SUCCESS) {
 		return(err);
@@ -1170,7 +1172,9 @@ Truncates a table for MySQL.
 @return	error code or DB_SUCCESS */
 
 dberr_t
-row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
+row_truncate_table_for_mysql(
+	dict_table_t* table,
+	trx_t* trx)
 {
 	dberr_t		err;
 #ifdef UNIV_DEBUG
@@ -1601,7 +1605,7 @@ truncate_t::fixup_tables()
 
 			ut_ad(fil_tablespace_exists_in_mem((*it)->m_space_id));
 
-			fil_recreate_tablespace(
+			err = fil_recreate_tablespace(
 				(*it)->m_space_id,
 				(*it)->m_format_flags,
 				(*it)->m_tablespace_flags,
@@ -1618,7 +1622,7 @@ truncate_t::fixup_tables()
 			/* System table is always loaded. */
 			ut_ad(fil_tablespace_exists_in_mem((*it)->m_space_id));
 
-			fil_recreate_table(
+			err = fil_recreate_table(
 				(*it)->m_space_id,
 				(*it)->m_format_flags,
 				(*it)->m_tablespace_flags,
@@ -1633,7 +1637,7 @@ truncate_t::fixup_tables()
 		dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);
 
 		err = row_truncate_update_sys_tables_during_fix_up(
-			**it, new_id, TRUE);
+			**it, new_id, TRUE, (err == DB_SUCCESS) ? false : true);
 
 		if (err != DB_SUCCESS) {
 			break;
@@ -1763,15 +1767,17 @@ Update root page number in SYS_XXXX tables.
 @param trx			transaction object
 @param table_id			table id for which information needs to
 				be updated.
-@param reserve_dict_mutex	if true, acquire/release
+@param reserve_dict_mutex	if TRUE, acquire/release
 				dict_sys->mutex around call to pars_sql.
+@param mark_index_corrupted	if true, then mark index corrupted.
 @return DB_SUCCESS or error code */
 
 dberr_t
 truncate_t::update_root_page_no(
 	trx_t*		trx,
 	table_id_t	table_id,
-	bool		reserve_dict_mutex) const
+	ibool		reserve_dict_mutex,
+	bool		mark_index_corrupted) const
 {
 	indexes_t::const_iterator end = m_indexes.end();
 
@@ -1788,7 +1794,9 @@ truncate_t::update_root_page_no(
 
 		pars_info_add_ull_literal(info, "table_id", table_id);
 
-		pars_info_add_ull_literal(info, "index_id", it->m_id);
+		pars_info_add_ull_literal(
+			info, "index_id",
+			(mark_index_corrupted ? -1 : it->m_id));
 
 		err = que_eval_sql(
 			info,
@@ -1951,6 +1959,7 @@ truncate_t::parse(
 
 /**
 Set the truncate redo log values for a compressed table.
+@param index	index from which recreate infoormation needs to be extracted
 @return DB_CORRUPTION or error code */
 
 dberr_t
@@ -1997,13 +2006,13 @@ truncate_t::index_t::set(
 /**
 Create an index for a table.
 
-@param table_name	table name, for which to create the index
-@param space_id		space id where we have to create the index
-@param zip_size		page size of the .ibd file
-@param index_type	type of index to truncate
-@param index_id		id of index to truncate
-@param btr_create_info	control info for ::btr_create()
-@param mtr		mini-transaction covering the create index
+@param table_name		table name, for which to create the index
+@param space_id			space id where we have to create the index
+@param zip_size			page size of the .ibd file
+@param index_type		type of index to truncate
+@param index_id			id of index to truncate
+@param btr_redo_create_info	control info for ::btr_create()
+@param mtr			mini-transaction covering the create index
 @return root page no or FIL_NULL on failure */
 
 ulint
@@ -2013,12 +2022,12 @@ truncate_t::create_index(
 	ulint		zip_size,
 	ulint		index_type,
 	index_id_t	index_id,
-	btr_create_t&	btr_create_info,
+	btr_create_t&	btr_redo_create_info,
 	mtr_t*		mtr) const
 {
 	ulint	root_page_no = btr_create(
 		index_type, space_id, zip_size, index_id,
-		NULL, &btr_create_info, mtr);
+		NULL, &btr_redo_create_info, mtr);
 
 	if (root_page_no == FIL_NULL) {
 
@@ -2038,7 +2047,9 @@ truncate_t::create_index(
 /** Check if index has been modified since REDO log snapshot
 was recorded.
 @param space_id		space_id where table/indexes resides.
+@param root_page_no	root page of index that needs to be verified.
 @return true if modified else false */
+
 bool
 truncate_t::is_index_modified_since_redologged(
 	ulint		space_id,
@@ -2088,7 +2099,7 @@ truncate_t::drop_indexes(
 			/* Page has been modified since REDO snapshot
 			was recorded so not safe to drop the index. */
 			continue;
-		} 
+		}
 
 		mtr_start(&mtr);
 
@@ -2155,21 +2166,22 @@ truncate_t::create_indexes(
 	     it != end;
 	     ++it) {
 
-		btr_create_t    btr_create_info(&it->m_fields[0]);
+		btr_create_t    btr_redo_create_info(&it->m_fields[0]);
 
-		btr_create_info.format_flags = format_flags;
+		btr_redo_create_info.format_flags = format_flags;
 
 		if (fsp_flags_is_compressed(flags)) {
 
-			btr_create_info.n_fields = it->m_n_fields;
+			btr_redo_create_info.n_fields = it->m_n_fields;
 			/* Skip the NUL appended field */
-			btr_create_info.field_len = it->m_fields.size() - 1;
-			btr_create_info.trx_id_pos = it->m_trx_id_pos;
+			btr_redo_create_info.field_len =
+				it->m_fields.size() - 1;
+			btr_redo_create_info.trx_id_pos = it->m_trx_id_pos;
 		}
 
 		root_page_no = create_index(
 			table_name, space_id, zip_size, it->m_type, it->m_id,
-			btr_create_info, &mtr);
+			btr_redo_create_info, &mtr);
 
 		if (root_page_no == FIL_NULL) {
 			break;

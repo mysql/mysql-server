@@ -156,24 +156,29 @@ public:
 	@param trx			transaction object
 	@param table_id			table id for which information needs to
 					be updated.
-	@param reserve_dict_mutex       if true, acquire/release
+	@param reserve_dict_mutex       if TRUE, acquire/release
 					dict_sys->mutex around call to pars_sql.
+	@param mark_index_corrupted	if true, then mark index corrupted
 	@return DB_SUCCESS or error code */
 	dberr_t update_root_page_no(
 		trx_t*		trx,
 		table_id_t	table_id,
-		bool		reserve_dict_mutex) const;
+		ibool		reserve_dict_mutex,
+		bool		mark_index_corrupted) const;
 
 	/**
 	Create an index for a table.
 
-	@param table_name	table name, for which to create the index
-	@param space_id		space id where we have to create the index
-	@param zip_size		page size of the .ibd file
-	@param index_type	type of index to truncate
-	@param index_id		id of index to truncate
-	@param btr_create_info	control info for ::btr_create()
-	@param mtr		mini-transaction covering the create index
+	@param table_name		table name, for which to create
+					the index
+	@param space_id			space id where we have to create
+					the index
+	@param zip_size			page size of the .ibd file
+	@param index_type		type of index to truncate
+	@param index_id			id of index to truncate
+	@param btr_redo_create_info	control info for ::btr_create()
+	@param mtr			mini-transaction covering the
+					create index
 	@return root page no or FIL_NULL on failure */
 	ulint create_index(
 		const char*	table_name,
@@ -181,7 +186,7 @@ public:
 		ulint		zip_size,
 		ulint		index_type,
 		index_id_t      index_id,
-		btr_create_t&	btr_create_info,
+		btr_create_t&	btr_redo_create_info,
 		mtr_t*		mtr) const;
 
 	/** Create the indexes for a table
@@ -320,7 +325,9 @@ Truncates a table for MySQL.
 @return	error code or DB_SUCCESS */
 
 dberr_t
-row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx);
+row_truncate_table_for_mysql(
+	dict_table_t* table,
+	trx_t* trx);
 
 #endif /* row0trunc_h */
 

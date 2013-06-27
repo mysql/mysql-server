@@ -403,7 +403,8 @@ btr_create(
 	dict_index_t*		index,		/*!< in: index, or NULL when
 						applying MLOG_FILE_TRUNCATE
 						redo record during recovery */
-	const btr_create_t*	btr_create_info,/*!< in: used for applying
+	const btr_create_t*	btr_redo_create_info,
+						/*!< in: used for applying
 						MLOG_FILE_TRUNCATE redo record
 						during recovery */
 	mtr_t*			mtr);		/*!< in: mini-transaction

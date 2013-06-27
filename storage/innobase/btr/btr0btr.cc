@@ -1536,7 +1536,8 @@ btr_create(
 	dict_index_t*		index,		/*!< in: index, or NULL when
 						applying MLOG_FILE_TRUNCATE
 						redo record during recovery */
-	const btr_create_t*	btr_create_info,/*!< in: used for applying
+	const btr_create_t*	btr_redo_create_info,
+						/*!< in: used for applying
 						MLOG_FILE_TRUNCATE redo record
 						during recovery */
 	mtr_t*			mtr)		/*!< in: mini-transaction
@@ -1633,14 +1634,25 @@ btr_create(
 		} else {
 			/* Create a compressed index page when applying
 			MLOG_FILE_TRUNCATE log record during recovery */
-			ut_ad(btr_create_info != NULL);
+			ut_ad(btr_redo_create_info != NULL);
+
 			redo_page_compress_t	page_comp_info;
+
 			page_comp_info.type = type;
+
 			page_comp_info.index_id = index_id;
-			page_comp_info.n_fields = btr_create_info->n_fields;
-			page_comp_info.field_len = btr_create_info->field_len;
-			page_comp_info.fields = btr_create_info->fields;
-			page_comp_info.trx_id_pos = btr_create_info->trx_id_pos;
+
+			page_comp_info.n_fields =
+				btr_redo_create_info->n_fields;
+
+			page_comp_info.field_len =
+				btr_redo_create_info->field_len;
+
+			page_comp_info.fields = btr_redo_create_info->fields;
+
+			page_comp_info.trx_id_pos =
+				btr_redo_create_info->trx_id_pos;
+
 			page = page_create_zip(block, NULL, 0, 0,
 					       &page_comp_info, mtr);
 		}
@@ -1649,9 +1661,9 @@ btr_create(
 			page = page_create(block, mtr,
 					   dict_table_is_comp(index->table));
 		} else {
-			ut_ad(btr_create_info != NULL);
-			page = page_create(block, mtr,
-					   btr_create_info->format_flags);
+			ut_ad(btr_redo_create_info != NULL);
+			page = page_create(
+				block, mtr, btr_redo_create_info->format_flags);
 		}
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, 0, mtr);
