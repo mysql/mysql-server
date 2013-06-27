@@ -36,6 +36,7 @@ Created June 2005 by Marko Makela
 #include "btr0cur.h"
 #include "page0types.h"
 #include "log0recv.h"
+#include "row0trunc.h"
 #include "zlib.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0buf.h"
@@ -1277,7 +1278,7 @@ page_zip_compress(
 		     == PAGE_NEW_SUPREMUM);
 	}
 
-	if (truncate_t::m_trunc_table_fix_up_active) {
+	if (truncate_t::s_fix_up_active) {
 		ut_ad(page_comp_info != NULL);
 		n_fields = page_comp_info->n_fields;
 		ind_id = page_comp_info->index_id;
@@ -1411,7 +1412,7 @@ page_zip_compress(
 	}
 
 	c_stream.avail_out -= (uInt) (n_dense * slot_size);
-	if (truncate_t::m_trunc_table_fix_up_active) {
+	if (truncate_t::s_fix_up_active) {
 		ut_ad(page_comp_info != NULL);
 		c_stream.avail_in = (uInt) page_comp_info->field_len;
 		for (ulint i = 0; i < page_comp_info->field_len; i++) {
@@ -1579,8 +1580,7 @@ err_exit:
 		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 
-	if (page_is_leaf(page)
-	    && !truncate_t::m_trunc_table_fix_up_active) {
+	if (page_is_leaf(page) && !truncate_t::s_fix_up_active) {
 		dict_index_zip_success(index);
 	}
 #endif /* !UNIV_HOTBACKUP */

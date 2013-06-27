@@ -62,6 +62,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "srv0space.h"
 #include "srv0start.h"
 #include "row0mysql.h"
+#include "row0trunc.h"
 #include "trx0i_s.h"
 #include "srv0mon.h"
 #include "ut0crc32.h"
@@ -327,9 +328,6 @@ static ulint		srv_n_rows_read_old		= 0;
 
 ulint	srv_truncated_status_writes	= 0;
 ulint	srv_available_undo_logs         = 0;
-
-truncate_t::truncate_tables_t	truncate_t::m_tables_to_truncate;
-bool				truncate_t::m_trunc_table_fix_up_active = false;
 
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
@@ -2833,19 +2831,8 @@ srv_is_tablespace_truncated(ulint space_id)
 		return(false);
 	}
 
-	truncate_t::truncate_tables_t::iterator end =
-		truncate_t::m_tables_to_truncate.end();
-	for (truncate_t::truncate_tables_t::iterator it =
-	     	truncate_t::m_tables_to_truncate.begin();
-	     it != end;
-	     ++it) {
-		truncate_t* tbl = *it;
-		if (tbl->m_space_id == space_id) {
-			return(true);
-		}
-	}
+	return(truncate_t::is_tablespace_truncated(space_id));
 
-	return(false);
 }
 
 
