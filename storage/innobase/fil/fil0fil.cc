@@ -2502,6 +2502,8 @@ fil_op_log_parse_or_replay(
 
 		/* old/new table-id, dir-path, indexes array is
 		populated by parse */
+
+		// FIXME: Check return value.
 		truncate->parse(&ptr, &end_ptr, tablespace_flags);
 
 		if (parse_only) {

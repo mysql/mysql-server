@@ -1794,9 +1794,9 @@ Parses MLOG_FILE_TRUNCATE redo record during recovery
 @param flags		tablespace flags
 
 @return true if successfully parsed the MLOG_FILE_TRUNCATE record */
+
 bool
 truncate_t::parse(
-/*==============*/
 	byte**		ptr,
 	const byte**	end_ptr,
 	ulint		flags)
@@ -1909,9 +1909,9 @@ truncate_t::parse(
 /**
 Set the truncate redo log values for a compressed table.
 @return DB_CORRUPTION or error code */
+
 dberr_t
 truncate_t::index_t::set(
-/*=====================*/
 	const dict_index_t* index)
 {
 	/* Get trx-id column position (set only for clustered index) */
@@ -1962,9 +1962,9 @@ Create an index for a table.
 @param btr_create_info	control info for ::btr_create()
 @param mtr		mini-transaction covering the create index
 @return root page no or FIL_NULL on failure */
+
 ulint
 truncate_t::create_index(
-/*=====================*/
 	const char*	table_name,
 	ulint		space_id,
 	ulint		zip_size,
@@ -1996,8 +1996,8 @@ truncate_t::create_index(
 was recorded.
 @param space_id		space_id where table/indexes resides.
 @return true if modified else false */
-bool truncate_t::is_index_modified_since_redologged(
-/*================================================*/
+bool
+truncate_t::is_index_modified_since_redologged(
 	ulint		space_id,
 	ulint		root_page_no) const
 {
@@ -2023,8 +2023,8 @@ bool truncate_t::is_index_modified_since_redologged(
 
 /** Drop indexes for a table.
 @param space_id		space_id where table/indexes resides. */
-void truncate_t::drop_indexes(
-/*==========================*/
+void
+truncate_t::drop_indexes(
 	ulint		space_id) const
 {
 	mtr_t           mtr;
@@ -2085,9 +2085,9 @@ void truncate_t::drop_indexes(
 @param flags		tablespace flags
 @param format_flags	page format flags
 @return DB_SUCCESS or error code. */
+
 dberr_t
 truncate_t::create_indexes(
-/*=======================*/
 	const char*		table_name,
 	ulint			space_id,
 	ulint			zip_size,
@@ -2146,9 +2146,9 @@ Write a redo log record for truncating a single-table tablespace.
 			format of InnoDB
 @param flags		tablespace flags
 @param format_flags	page format */
+
 void
 truncate_t::write(
-/*==============*/
 	ulint		space_id,
 	const char*	tablename,
 	ulint		flags,
