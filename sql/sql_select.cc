@@ -3473,8 +3473,8 @@ const_expression_in_where(Item *cond, Item *comp_item, Field *comp_field,
     -1   Reverse key can be used
 */
 
-static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
-				uint *used_key_parts= NULL)
+int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
+                         uint *used_key_parts)
 {
   KEY_PART_INFO *key_part,*key_part_end;
   key_part=table->key_info[idx].key_part;
