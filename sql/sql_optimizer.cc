@@ -9752,12 +9752,15 @@ void JOIN::refine_best_rowcount()
     return;
 
   /*
-    Setting estimate to 1 row would mark a derived table as const.
+    If a derived table, or a member of a UNION which itself forms a derived
+    table:
+    setting estimate to 0 or 1 row would mark the derived table as const.
     The row count is bumped to the nearest higher value, so that the
     query block will not be evaluated during optimization.
   */
-  if (select_lex->linkage == DERIVED_TABLE_TYPE &&
-      best_rowcount <= 1)
+  if (best_rowcount <= 1 &&
+      select_lex->master_unit()->first_select()->linkage ==
+      DERIVED_TABLE_TYPE)
     best_rowcount= 2;
 
   /*
