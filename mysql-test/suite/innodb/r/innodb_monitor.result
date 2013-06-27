@@ -195,10 +195,13 @@ innodb_dblwr_pages_written	disabled
 innodb_page_size	disabled
 innodb_rwlock_s_spin_waits	disabled
 innodb_rwlock_x_spin_waits	disabled
+innodb_rwlock_sx_spin_waits	disabled
 innodb_rwlock_s_spin_rounds	disabled
 innodb_rwlock_x_spin_rounds	disabled
+innodb_rwlock_sx_spin_rounds	disabled
 innodb_rwlock_s_os_waits	disabled
 innodb_rwlock_x_os_waits	disabled
+innodb_rwlock_sx_os_waits	disabled
 dml_reads	disabled
 dml_inserts	disabled
 dml_deletes	disabled
@@ -248,10 +251,13 @@ lock_row_lock_waits	disabled
 lock_row_lock_time_avg	disabled
 innodb_rwlock_s_spin_waits	disabled
 innodb_rwlock_x_spin_waits	disabled
+innodb_rwlock_sx_spin_waits	disabled
 innodb_rwlock_s_spin_rounds	disabled
 innodb_rwlock_x_spin_rounds	disabled
+innodb_rwlock_sx_spin_rounds	disabled
 innodb_rwlock_s_os_waits	disabled
 innodb_rwlock_x_os_waits	disabled
+innodb_rwlock_sx_os_waits	disabled
 set global innodb_monitor_enable = "%lock*";
 ERROR 42000: Variable 'innodb_monitor_enable' can't be set to the value of '%lock*'
 set global innodb_monitor_enable="%%%%%%%%%%%%%%%%%%%%%%%%%%%";

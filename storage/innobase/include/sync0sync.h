@@ -738,7 +738,18 @@ or row lock! */
 #define RW_LOCK_EXCLUSIVE	351
 #define RW_LOCK_SHARED		352
 #define RW_LOCK_WAIT_EX		353
-#define SYNC_MUTEX		354
+#define RW_LOCK_SX		354
+#define SYNC_MUTEX		355
+
+#ifdef UNIV_SYNC_DEBUG
+/* Flags to specify lock types for rw_lock_own_flagged() */
+enum rw_lock_flag_t {
+	RW_LOCK_FLAG_S  = 1 << 0,
+	RW_LOCK_FLAG_X  = 1 << 1,
+	RW_LOCK_FLAG_SX = 1 << 2
+};
+typedef ulint rw_lock_flags_t;
+#endif /* UNIV_SYNC_DEBUG */
 
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock

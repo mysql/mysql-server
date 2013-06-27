@@ -471,10 +471,12 @@ sync_array_cell_print(
 
 	} else if (type == RW_LOCK_EX
 		   || type == RW_LOCK_WAIT_EX
+		   || type == RW_LOCK_SX
 		   || type == RW_LOCK_SHARED) {
 
 		fputs(type == RW_LOCK_EX ? "X-lock on"
 		      : type == RW_LOCK_WAIT_EX ? "X-lock (wait_ex) on"
+		      : type == RW_LOCK_SX ? "SX-lock on"
 		      : "S-lock on", file);
 
 		rwlock = cell->old_wait_rw_lock;
@@ -489,8 +491,8 @@ sync_array_cell_print(
 				"a writer (thread id %lu) has"
 				" reserved it in mode %s",
 				(ulong) os_thread_pf(rwlock->writer_thread),
-				writer == RW_LOCK_EX
-				? " exclusive\n"
+				writer == RW_LOCK_EX ? " exclusive\n"
+				: writer == RW_LOCK_SX ? " SX\n"
 				: " wait exclusive\n");
 		}
 
@@ -618,7 +620,8 @@ sync_array_detect_deadlock(
 		return(FALSE); /* No deadlock here */
 	}
 
-	if (cell->request_type == SYNC_MUTEX) {
+	switch (cell->request_type) {
+	case SYNC_MUTEX:
 
 		mutex = static_cast<ib_mutex_t*>(cell->wait_object);
 
@@ -649,8 +652,8 @@ sync_array_detect_deadlock(
 
 		return(FALSE); /* No deadlock */
 
-	} else if (cell->request_type == RW_LOCK_EX
-		   || cell->request_type == RW_LOCK_WAIT_EX) {
+	case RW_LOCK_EX:
+	case RW_LOCK_WAIT_EX:
 
 		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
@@ -660,17 +663,21 @@ sync_array_detect_deadlock(
 
 			thread = debug->thread_id;
 
-			if (((debug->lock_type == RW_LOCK_EX)
-			     && !os_thread_eq(thread, cell->thread))
-			    || ((debug->lock_type == RW_LOCK_WAIT_EX)
-				&& !os_thread_eq(thread, cell->thread))
-			    || (debug->lock_type == RW_LOCK_SHARED)) {
+			switch (debug->lock_type) {
+			case RW_LOCK_EX:
+			case RW_LOCK_WAIT_EX:
+			case RW_LOCK_SX:
+				if (os_thread_eq(thread, cell->thread)) {
+					break;
+				}
+				/* fall through */
+			case RW_LOCK_SHARED:
 
 				/* The (wait) x-lock request can block
 				infinitely only if someone (can be also cell
 				thread) is holding s-lock, or someone
-				(cannot be cell thread) (wait) x-lock, and
-				he is blocked by start thread */
+				(cannot be cell thread) (wait) x-lock or
+				sx-lock, and he is blocked by start thread */
 
 				ret = sync_array_deadlock_step(
 					arr, start, thread, debug->pass,
@@ -688,7 +695,41 @@ print:
 
 		return(FALSE);
 
-	} else if (cell->request_type == RW_LOCK_SHARED) {
+	case RW_LOCK_SX:
+
+		lock = static_cast<rw_lock_t*>(cell->wait_object);
+
+		for (debug = UT_LIST_GET_FIRST(lock->debug_list);
+		     debug != 0;
+		     debug = UT_LIST_GET_NEXT(list, debug)) {
+
+			thread = debug->thread_id;
+
+			switch (debug->lock_type) {
+			case RW_LOCK_EX:
+			case RW_LOCK_WAIT_EX:
+			case RW_LOCK_SX:
+				if (os_thread_eq(thread, cell->thread)) {
+					break;
+				}
+
+				/* The sx-lock request can block infinitely
+				only if someone (can be also cell thread) is
+				holding (wait) x-lock or sx-lock, and he is
+				blocked by start thread */
+
+				ret = sync_array_deadlock_step(
+					arr, start, thread, debug->pass,
+					depth);
+				if (ret) {
+					goto print;
+				}
+			}
+		}
+
+		return(FALSE);
+
+	case RW_LOCK_SHARED:
 
 		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
@@ -717,12 +758,9 @@ print:
 
 		return(FALSE);
 
-	} else {
+	default:
 		ut_error;
 	}
-
-	return(TRUE);	/* Execution never reaches this line: for compiler
-			fooling only */
 }
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -737,7 +775,8 @@ sync_arr_cell_can_wake_up(
 	ib_mutex_t*	mutex;
 	rw_lock_t*	lock;
 
-	if (cell->request_type == SYNC_MUTEX) {
+	switch (cell->request_type) {
+	case SYNC_MUTEX:
 
 		mutex = static_cast<ib_mutex_t*>(cell->wait_object);
 
@@ -746,26 +785,35 @@ sync_arr_cell_can_wake_up(
 			return(TRUE);
 		}
 
-	} else if (cell->request_type == RW_LOCK_EX) {
+		break;
+
+	case RW_LOCK_EX:
+	case RW_LOCK_SX:
 
 		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
-		if (lock->lock_word > 0) {
+		if (lock->lock_word > X_LOCK_HALF_DECR) {
 		/* Either unlocked or only read locked. */
 
 			return(TRUE);
 		}
 
-        } else if (cell->request_type == RW_LOCK_WAIT_EX) {
+		break;
+
+	case RW_LOCK_WAIT_EX:
 
 		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
-                /* lock_word == 0 means all readers have left */
+                /* lock_word == 0 means all readers or sx have left */
 		if (lock->lock_word == 0) {
 
 			return(TRUE);
 		}
-	} else if (cell->request_type == RW_LOCK_SHARED) {
+
+		break;
+
+	case RW_LOCK_SHARED:
+
 		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
                 /* lock_word > 0 means no writer or reserved writer */
