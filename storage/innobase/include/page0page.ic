@@ -447,6 +447,46 @@ page_rec_is_infimum(
 }
 
 /************************************************************//**
+true if the record is the first user record on a page.
+@return true if the first user record */
+UNIV_INLINE
+bool
+page_rec_is_first(
+/*==============*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+{
+	return(page_rec_get_next_const(page_get_infimum_rec(page)) == rec);
+}
+
+/************************************************************//**
+true if the record is the second user record on a page.
+@return true if the second user record */
+UNIV_INLINE
+bool
+page_rec_is_second(
+/*===============*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+{
+	return(page_rec_get_next_const(
+		page_rec_get_next_const(page_get_infimum_rec(page))) == rec);
+}
+
+/************************************************************//**
+true if the record is the last user record on a page.
+@return true if the last user record */
+UNIV_INLINE
+bool
+page_rec_is_last(
+/*=============*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+{
+	return(page_rec_get_next_const(rec) == page_get_supremum_rec(page));
+}
+
+/************************************************************//**
 Returns the nth record of the record list.
 This is the inverse function of page_rec_get_n_recs_before().
 @return nth record */

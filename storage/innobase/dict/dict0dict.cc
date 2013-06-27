@@ -2041,7 +2041,7 @@ dict_index_too_big_for_undo(
 		if (fixed_size) {
 			/* Fixed-size columns are stored locally. */
 			max_size = fixed_size;
-		} else if (max_size <= BTR_EXTERN_FIELD_REF_SIZE * 2) {
+		} else if (max_size <= BTR_EXTERN_LOCAL_STORED_MAX_SIZE) {
 			/* Short columns are stored locally. */
 		} else if (!col->ord_part
 			   || (col->max_prefix
@@ -2103,6 +2103,94 @@ is_ord_part:
 	return(undo_page_len >= UNIV_PAGE_SIZE);
 }
 #endif
+
+/****************************************************************//**
+Return maximum size of the node pointer record.
+@return maximum size of the record in bytes */
+
+ulint
+dict_index_node_ptr_max_size(
+/*=========================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ulint	zip_size;
+	ulint	comp;
+	ulint	i;
+	/* maximum possible storage size of a record */
+	ulint	rec_max_size;
+
+	if (dict_index_is_univ(index)) {
+		/* cannot estimate accurately */
+		/* This is universal index for change buffer.
+		The max size of the entry is about max key length * 2.
+		(index key + primary key to be inserted to the index)
+		(The max key length is UNIV_PAGE_SIZE / 16 * 3 at
+		 ha_innobase::max_supported_key_length(),
+		 considering MAX_KEY_LENGTH = 3072 at MySQL imposes
+		 the 3500 historical InnoDB value for 16K page size case.)
+		For the universal index, node_ptr contains most of the entry.
+		And 512 is enough to contain ibuf columns and meta-data */
+		return(UNIV_PAGE_SIZE / 8 * 3 + 512);
+	}
+
+	comp = dict_table_is_comp(index->table);
+	zip_size = dict_table_zip_size(index->table);
+
+	if (zip_size && zip_size < UNIV_PAGE_SIZE) {
+		/* On a compressed page, there is a two-byte entry in
+		the dense page directory for every record.  But there
+		is no record header. */
+		rec_max_size = REC_NODE_PTR_SIZE + 2;
+	} else {
+		/* Each record has a header. */
+		rec_max_size = comp
+			? REC_NODE_PTR_SIZE + REC_N_NEW_EXTRA_BYTES
+			: REC_NODE_PTR_SIZE + REC_N_OLD_EXTRA_BYTES;
+	}
+
+	if (comp) {
+		/* Include the "null" flags in the
+		maximum possible record size. */
+		rec_max_size += UT_BITS_IN_BYTES(index->n_nullable);
+	} else {
+		/* For each column, include a 2-byte offset and a
+		"null" flag. */
+		rec_max_size += 2 * index->n_fields;
+	}
+
+	/* Compute the maximum possible record size. */
+	for (i = 0; i < dict_index_get_n_unique_in_tree(index); i++) {
+		const dict_field_t*	field
+			= dict_index_get_nth_field(index, i);
+		const dict_col_t*	col
+			= dict_field_get_col(field);
+		ulint			field_max_size;
+
+		/* Determine the maximum length of the index field. */
+
+		field_max_size = dict_col_get_fixed_size(col, comp);
+		if (field_max_size) {
+			/* dict_index_add_col() should guarantee this */
+			ut_ad(!field->prefix_len
+			      || field->fixed_len == field->prefix_len);
+			/* Fixed lengths are not encoded
+			in ROW_FORMAT=COMPACT. */
+			rec_max_size += field_max_size;
+			continue;
+		}
+
+		field_max_size = dict_col_get_max_size(col);
+
+		if (field->prefix_len
+		    && field->prefix_len < field_max_size) {
+			field_max_size = field->prefix_len;
+		}
+
+		rec_max_size += field_max_size;
+	}
+
+	return(rec_max_size);
+}
 
 /****************************************************************//**
 If a record of this index might not fit on a single B-tree page,
@@ -2193,7 +2281,7 @@ dict_index_too_big_for_tree(
 		ulint			field_ext_max_size;
 
 		/* In dtuple_convert_big_rec(), variable-length columns
-		that are longer than BTR_EXTERN_FIELD_REF_SIZE * 2
+		that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
 		may be chosen for external storage.
 
 		Fixed-length columns, and all columns of secondary
@@ -2222,16 +2310,16 @@ dict_index_too_big_for_tree(
 			if (field->prefix_len < field_max_size) {
 				field_max_size = field->prefix_len;
 			}
-		} else if (field_max_size > BTR_EXTERN_FIELD_REF_SIZE * 2
+		} else if (field_max_size > BTR_EXTERN_LOCAL_STORED_MAX_SIZE
 			   && dict_index_is_clust(new_index)) {
 
 			/* In the worst case, we have a locally stored
-			column of BTR_EXTERN_FIELD_REF_SIZE * 2 bytes.
+			column of BTR_EXTERN_LOCAL_STORED_MAX_SIZE bytes.
 			The length can be stored in one byte.  If the
 			column were stored externally, the lengths in
 			the clustered index page would be
 			BTR_EXTERN_FIELD_REF_SIZE and 2. */
-			field_max_size = BTR_EXTERN_FIELD_REF_SIZE * 2;
+			field_max_size = BTR_EXTERN_LOCAL_STORED_MAX_SIZE;
 			field_ext_max_size = 1;
 		}
 
@@ -2367,7 +2455,7 @@ too_big:
 			= dict_field_get_col(field);
 
 		/* In dtuple_convert_big_rec(), variable-length columns
-		that are longer than BTR_EXTERN_FIELD_REF_SIZE * 2
+		that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
 		may be chosen for external storage.  If the column appears
 		in an ordering column of an index, a longer prefix determined
 		by dict_max_field_len_store_undo() will be copied to the undo
@@ -2381,7 +2469,7 @@ too_big:
 			|| field->prefix_len > col->max_prefix)
 		    && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
 		    && dict_col_get_max_size(col)
-		    > BTR_EXTERN_FIELD_REF_SIZE * 2 /* long enough */) {
+		    > BTR_EXTERN_LOCAL_STORED_MAX_SIZE /* long enough */) {
 
 			if (dict_index_too_big_for_undo(table, new_index)) {
 				/* An undo log record might not fit in

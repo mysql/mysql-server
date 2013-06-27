@@ -959,7 +959,7 @@ dict_stats_analyze_index_level(
 		     index->table->name, index->name, level);
 
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_S_LOCK));
+				MTR_MEMO_SX_LOCK));
 
 	n_uniq = dict_index_get_n_unique(index);
 
@@ -993,7 +993,7 @@ dict_stats_analyze_index_level(
 	on the desired level. */
 
 	btr_pcur_open_at_index_side(
-		true, index, BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED,
+		true, index, BTR_SEARCH_TREE | BTR_ALREADY_S_LATCHED,
 		&pcur, true, level, mtr);
 	btr_pcur_move_to_next_on_page(&pcur);
 
@@ -1545,7 +1545,7 @@ dict_stats_analyze_index_for_n_prefix(
 #endif
 
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_S_LOCK));
+				MTR_MEMO_SX_LOCK));
 
 	/* if some of those is 0 then this means that there is exactly one
 	page in the B-tree and it is empty and we should have done full scan
@@ -1560,7 +1560,7 @@ dict_stats_analyze_index_for_n_prefix(
 	on the desired level. */
 
 	btr_pcur_open_at_index_side(
-		true, index, BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED,
+		true, index, BTR_SEARCH_TREE | BTR_ALREADY_S_LATCHED,
 		&pcur, true, level, mtr);
 	btr_pcur_move_to_next_on_page(&pcur);
 
@@ -1787,7 +1787,7 @@ dict_stats_analyze_index(
 
 	mtr_start(&mtr);
 
-	mtr_s_lock(dict_index_get_lock(index), &mtr);
+	mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
 	root_level = btr_height_get(index, &mtr);
 
@@ -1867,7 +1867,7 @@ dict_stats_analyze_index(
 		other threads to do some work too. */
 		mtr_commit(&mtr);
 		mtr_start(&mtr);
-		mtr_s_lock(dict_index_get_lock(index), &mtr);
+		mtr_sx_lock(dict_index_get_lock(index), &mtr);
 		if (root_level != btr_height_get(index, &mtr)) {
 			/* Just quit if the tree has changed beyond
 			recognition here. The old stats from previous

@@ -368,7 +368,7 @@ mtr_memo_release(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	/* We cannot release a page that has been written to in the
 	middle of a mini-transaction. */
-	ut_ad(!mtr->modifications || type != MTR_MEMO_PAGE_X_FIX);
+	ut_ad(!mtr->modifications || !(type & MTR_MEMO_PAGE_X_FIX));
 
 	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
 	     block;
@@ -384,7 +384,7 @@ mtr_memo_release(
 		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
 
 		while (slot-- != start) {
-			if (object == slot->object && type == slot->type) {
+			if (object == slot->object && (type & slot->type)) {
 				mtr_memo_slot_release(mtr, slot);
 				return(true);
 			}
@@ -422,16 +422,16 @@ mtr_release_block_at_savepoint(
 
 	slot->object = NULL;
 }
+
 /**********************************************************//**
-Relax the block latch in an mtr memo after a savepoint
-from X to SX. */
+X-latches the not yet latched block after a savepoint. */
 
 void
-mtr_block_x_to_sx_at_savepoint(
+mtr_block_x_latch_at_savepoint(
 /*===========================*/
 	mtr_t*		mtr,		/*!< in: mtr */
 	ulint		savepoint,	/*!< in: savepoint */
-	buf_block_t*	block)		/*!< in: block to relax latch */
+	buf_block_t*	block)		/*!< in: block to X latch */
 {
 	mtr_memo_slot_t* slot;
 	dyn_array_t*	memo;
@@ -439,6 +439,10 @@ mtr_block_x_to_sx_at_savepoint(
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(!mtr_memo_contains_flagged(mtr, block,
+					 MTR_MEMO_PAGE_S_FIX
+					 | MTR_MEMO_PAGE_X_FIX
+					 | MTR_MEMO_PAGE_SX_FIX));
 
 	memo = &mtr->memo;
 
@@ -446,10 +450,54 @@ mtr_block_x_to_sx_at_savepoint(
 		dyn_array_get_element(memo, savepoint));
 
 	ut_a(slot->object == block);
-	ut_a(slot->type == MTR_MEMO_PAGE_X_FIX);
+	ut_a(slot->type == MTR_MEMO_BUF_FIX); /* == RW_NO_LATCH */
+
+	rw_lock_x_lock(&block->lock);
+
+	if (!mtr->made_dirty) {
+		mtr->made_dirty =
+			mtr_block_dirtied(block);
+	}
+
+	slot->type = MTR_MEMO_PAGE_X_FIX;
+}
+
+/**********************************************************//**
+SX-latches the not yet latched block after a savepoint. */
+
+void
+mtr_block_sx_latch_at_savepoint(
+/*============================*/
+	mtr_t*		mtr,		/*!< in: mtr */
+	ulint		savepoint,	/*!< in: savepoint */
+	buf_block_t*	block)		/*!< in: block to SX latch */
+{
+	mtr_memo_slot_t* slot;
+	dyn_array_t*	memo;
+
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(!mtr_memo_contains_flagged(mtr, block,
+					 MTR_MEMO_PAGE_S_FIX
+					 | MTR_MEMO_PAGE_X_FIX
+					 | MTR_MEMO_PAGE_SX_FIX));
+
+	memo = &mtr->memo;
+
+	slot = static_cast<mtr_memo_slot_t*>(
+		dyn_array_get_element(memo, savepoint));
+
+	ut_a(slot->object == block);
+	ut_a(slot->type == MTR_MEMO_BUF_FIX); /* == RW_NO_LATCH */
 
 	rw_lock_sx_lock(&block->lock);
-	rw_lock_x_unlock(&block->lock);
+
+	if (!mtr->made_dirty) {
+		mtr->made_dirty =
+			mtr_block_dirtied(block);
+	}
+
 	slot->type = MTR_MEMO_PAGE_SX_FIX;
 }
 #endif /* !UNIV_HOTBACKUP */
