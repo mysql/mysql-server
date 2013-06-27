@@ -34,13 +34,26 @@ This class handles the recovery stage of TRUNCATE table. */
 class truncate_t {
 
 public:
-	/** FIXME: Document args */
+	/**
+	Constructor
+
+	@param old_table_id	old table id assigned to table before truncate
+	@param new_table_id	new table id that will be assigned to table
+				after truncate
+	@param dir_path		directory path */
 	truncate_t(
 		ulint		old_table_id,
 		ulint		new_table_id,
 		const char*	dir_path);
 
-	/** FIXME: Document args */
+	/**
+	Consturctor
+
+	@param space_id		space in which table reisde
+	@param name		table name
+	@param tablespace_flags	tablespace flags use for recreating tablespace
+	@param log_flags	page format flag
+	@param recv_lsn		lsn of redo log record. */
 	truncate_t(
 		ulint		space_id,
 		const char*	name,
@@ -48,6 +61,7 @@ public:
 		ulint		log_flags,
 		lsn_t		recv_lsn);
 
+	/** Destructor */
 	~truncate_t();
 
 	/** The index information of MLOG_FILE_TRUNCATE redo record */
@@ -97,41 +111,58 @@ public:
 		return(m_dir_path);
 	}
 
-	// FIXME: Document args
+	/**
+	Register index information
+
+	@param index	index information logged as part of truncate redo. */
 	void add(index_t& index)
 	{
 		m_indexes.push_back(index);
 	}
 
-	// FIXME: Document args
+	/**
+	Add table to truncate post recovery.
+
+	@param ptr	table information need to complete truncate of table. */
 	static void add(truncate_t* ptr)
 	{
 		s_tables.push_back(ptr);
 	}
 
-	// FIXME: Document args
+	/**
+	Clear registered index vector */
 	void clear()
 	{
 		m_indexes.clear();
 	}
 
-	// FIXME: Document args
+	/**
+	@return old table id of the table to truncate */
 	table_id_t old_table_id() const
 	{
 		return(m_old_table_id);
 	}
 
-	// FIXME: Document
+	/**
+	@return new table id of the table to truncate */
 	table_id_t new_table_id() const
 	{
 		return(m_new_table_id);
 	}
 
-	// FIXME: Document args
+	/**
+	Update root page number in SYS_XXXX tables.
+
+	@param trx			transaction object
+	@param table_id			table id for which information needs to
+					be updated.
+	@param reserve_dict_mutex       if true, acquire/release
+					dict_sys->mutex around call to pars_sql.
+	@return DB_SUCCESS or error code */
 	dberr_t update_root_page_no(
 		trx_t*		trx,
 		table_id_t	table_id,
-		bool		own_dict_mutex) const;
+		bool		reserve_dict_mutex) const;
 
 	/**
 	Create an index for a table.
@@ -276,7 +307,7 @@ private:
 	/** Vector of tables to truncate. */
 	typedef	std::vector<truncate_t*> tables_t;
 
-	// FIXME: Document these
+	/** Information about tables to truncate post recovery */
 	static	tables_t	s_tables;
 public:
 	static	bool		s_fix_up_active;

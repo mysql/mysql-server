@@ -1655,6 +1655,14 @@ truncate_t::fixup_tables()
 	return(err);
 }
 
+/**
+Constructor
+
+@param old_table_id	old table id assigned to table before truncate
+@param new_table_id	new table id that will be assigned to table
+			after truncate
+@param dir_path		directory path */
+
 truncate_t::truncate_t(
 	ulint		old_table_id,
 	ulint		new_table_id,
@@ -1675,6 +1683,15 @@ truncate_t::truncate_t(
 	}
 }
 
+/**
+Consturctor
+
+@param space_id		space in which table reisde
+@param name		table name
+@param tablespace_flags	tablespace flags use for recreating tablespace
+@param log_flags	page format flag
+@param recv_lsn		lsn of redo log record. */
+
 truncate_t::truncate_t(
 	ulint		space_id,
 	const char*	name,
@@ -1692,8 +1709,14 @@ truncate_t::truncate_t(
 	m_redo_log_lsn(recv_lsn)
 {
 	m_tablename = ::strdup(name);
-	// FIXME: Should we handle OOM?
+
+	if (m_tablename == NULL) {
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Failed creating truncate_t; out of memory");
+	}
 }
+
+/** Destructor */
 
 truncate_t::~truncate_t()
 {
@@ -1710,6 +1733,8 @@ truncate_t::~truncate_t()
 	m_indexes.clear();
 }
 
+/** Constructor */
+
 truncate_t::index_t::index_t()
 	:
 	m_id(),
@@ -1723,17 +1748,30 @@ truncate_t::index_t::index_t()
 	/* Do nothing */
 }
 
+/**
+@return number of indexes parsed from the redo log record */
+
 size_t
 truncate_t::indexes() const
 {
 	return(m_indexes.size());
 }
 
+/**
+Update root page number in SYS_XXXX tables.
+
+@param trx			transaction object
+@param table_id			table id for which information needs to
+				be updated.
+@param reserve_dict_mutex	if true, acquire/release
+				dict_sys->mutex around call to pars_sql.
+@return DB_SUCCESS or error code */
+
 dberr_t
 truncate_t::update_root_page_no(
 	trx_t*		trx,
 	table_id_t	table_id,
-	bool		own_dict_mutex) const
+	bool		reserve_dict_mutex) const
 {
 	indexes_t::const_iterator end = m_indexes.end();
 
@@ -1760,7 +1798,7 @@ truncate_t::update_root_page_no(
 			" SET PAGE_NO = :page_no\n"
 			" WHERE TABLE_ID = :table_id"
 			" AND ID = :index_id;\n"
-			"END;\n", own_dict_mutex, trx);
+			"END;\n", reserve_dict_mutex, trx);
 
 		if (err != DB_SUCCESS) {
 			break;
@@ -1769,6 +1807,11 @@ truncate_t::update_root_page_no(
 
 	return(err);
 }
+
+/**
+Check whether a tablespace was truncated during recovery
+@param space_id	tablespace id to check
+@return true if the tablespace was truncated */
 
 bool
 truncate_t::is_tablespace_truncated(ulint space_id)
@@ -2023,6 +2066,7 @@ truncate_t::is_index_modified_since_redologged(
 
 /** Drop indexes for a table.
 @param space_id		space_id where table/indexes resides. */
+
 void
 truncate_t::drop_indexes(
 	ulint		space_id) const
@@ -2280,3 +2324,5 @@ truncate_t::write(
 
 	mtr_commit(&mtr);
 }
+
+
