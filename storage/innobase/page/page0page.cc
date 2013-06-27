@@ -33,6 +33,7 @@ Created 2/2/1994 Heikki Tuuri
 #include "page0zip.h"
 #include "buf0buf.h"
 #include "btr0btr.h"
+#include "row0trunc.h"
 #ifndef UNIV_HOTBACKUP
 # include "srv0srv.h"
 # include "lock0lock.h"
@@ -517,7 +518,7 @@ page_create_zip(
 	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
 	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
-	if (truncate_t::m_trunc_table_fix_up_active) {
+	if (truncate_t::s_fix_up_active) {
 		/* Compress the index page created when applying
                 MLOG_FILE_TRUNCATE log record during recovery */
 		if (!page_zip_compress(page_zip, page, index, page_zip_level,
@@ -526,13 +527,12 @@ page_create_zip(
 			page should always succeed. */
 			ut_error;
 		}
-	} else {
-		if (!page_zip_compress(page_zip, page, index,
-				       page_zip_level, NULL, mtr)) {
-			/* The compression of a newly created
-			page should always succeed. */
-			ut_error;
-		}
+
+	} else if (!page_zip_compress(page_zip, page, index,
+				      page_zip_level, NULL, mtr)) {
+		/* The compression of a newly created
+		page should always succeed. */
+		ut_error;
 	}
 
 	return(page);
