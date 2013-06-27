@@ -109,7 +109,7 @@ buf_read_page_low(
 			from a non-existent tablespace, a tablespace which
 			is just now being dropped, or a tablespace which is
 			truncated */
-	bool	sync,	/*!< in: TRUE if synchronous aio is desired */
+	bool	sync,	/*!< in: true if synchronous aio is desired */
 	ulint	mode,	/*!< in: BUF_READ_IBUF_PAGES_ONLY, ...,
 			ORed to OS_AIO_SIMULATED_WAKE_LATER (see below
 			at read-ahead functions) */

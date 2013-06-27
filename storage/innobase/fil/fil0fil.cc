@@ -2195,9 +2195,10 @@ fil_op_write_log(
 
 /********************************************************//**
 Recreates table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery. */
+MLOG_FILE_TRUNCATE redo record during recovery.
+@return DB_SUCCESS or error code */
 
-void
+dberr_t
 fil_recreate_table(
 /*===============*/
 	ulint		space_id,	/*!< in: space id */
@@ -2208,6 +2209,7 @@ fil_recreate_table(
 					MLOG_FILE_TRUNCATE record */
 {
 	ulint		zip_size;
+	dberr_t		err = DB_SUCCESS;
 
 	zip_size = fil_space_get_zip_size(space_id);
 
@@ -2216,7 +2218,7 @@ fil_recreate_table(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Missing .ibd file for table '%s' with"
 			" tablespace %lu", name, space_id);
-		return;
+		return(DB_ERROR);
 	}
 
 	ut_ad(!truncate_t::s_fix_up_active);
@@ -2228,23 +2230,27 @@ fil_recreate_table(
 	truncate.drop_indexes(space_id);
 
 	/* Step-2: Scan for active indexes and re-create them. */
-	dberr_t err = truncate.create_indexes(
+	err = truncate.create_indexes(
 		name, space_id, zip_size, flags, format_flags);
 	if (err != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Failed to create indexes for the table '%s' with"
 			" tablespace %lu while fixing up truncate action",
 			name, space_id);
+		return(err);
 	}
 
 	truncate_t::s_fix_up_active = false;
+
+	return(err);
 }
 
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery. */
+MLOG_FILE_TRUNCATE redo record during recovery. 
+@return DB_SUCCESS or error code */
 
-void
+dberr_t
 fil_recreate_tablespace(
 /*====================*/
 	ulint		space_id,	/*!< in: space id */
@@ -2256,7 +2262,7 @@ fil_recreate_tablespace(
 	lsn_t		recv_lsn)	/*!< in: the end LSN of
 						the log record */
 {
-	dberr_t		err;
+	dberr_t		err = DB_SUCCESS;
 	mtr_t		mtr;
 
 	ut_ad(!truncate_t::s_fix_up_active);
@@ -2279,7 +2285,7 @@ fil_recreate_tablespace(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Cannot access .ibd file for table '%s' with"
 			" tablespace %lu while truncating", name, space_id);
-		return;
+		return(DB_ERROR);
 	}
 
 	ulint zip_size = fil_space_get_zip_size(space_id);
@@ -2288,7 +2294,7 @@ fil_recreate_tablespace(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Missing .ibd file for table '%s' with"
 			" tablespace %lu", name, space_id);
-		return;
+		return(DB_ERROR);
 	}
 
 	/* Step-3: Initialize Header. */
@@ -2326,6 +2332,8 @@ fil_recreate_tablespace(
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Failed to clean header of the table '%s' with"
 				" tablespace %lu", name, space_id);
+			mem_free(buf);
+			return(err);
 		}
 
 		mem_free(buf);
@@ -2348,7 +2356,7 @@ fil_recreate_tablespace(
 	err = truncate.create_indexes(
 		name, space_id, zip_size, flags, format_flags);
 	if (err != DB_SUCCESS) {
-		return;
+		return(err);
 	}
 
 	/* Step-5: Write new created pages into ibd file handle and
@@ -2417,6 +2425,8 @@ fil_recreate_tablespace(
 	mtr_commit(&mtr);
 
 	truncate_t::s_fix_up_active = false;
+
+	return(err);
 }
 
 /*******************************************************************//**
@@ -6650,7 +6660,6 @@ in the memory cache.
 @param dir_path			directory path
 @param tablename		the table name in the usual
 				databasename/tablename format of InnoDB
-@param path			data directory path
 @param flags			tablespace flags
 @param trunc_to_default		truncate to default size if tablespace
 				is being newly re-initialized.
