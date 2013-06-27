@@ -306,9 +306,6 @@ public:
 	/** Latching order checks start when this is set true */
 	bool			m_enabled;
 
-	/** This variable is set to true when sync_init is called */
-	bool			m_initialised;
-
 	/** Thread specific data. */
 	ThreadMap		m_threads;
 };
