@@ -1029,8 +1029,8 @@ buf_flush_page(
 
 		is_s_latched = (bpage->buf_fix_count == 0);
 		if (is_s_latched && is_uncompressed) {
-			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
-					   BUF_IO_WRITE);
+			rw_lock_sx_lock_gen(&((buf_block_t*) bpage)->lock,
+					    BUF_IO_WRITE);
 		}
 
 		mutex_exit(block_mutex);
@@ -1046,8 +1046,8 @@ buf_flush_page(
 			buf_dblwr_flush_buffered_writes();
 
 			if (is_uncompressed) {
-				rw_lock_s_lock_gen(&((buf_block_t*) bpage)
-						   ->lock, BUF_IO_WRITE);
+				rw_lock_sx_lock_gen(&((buf_block_t*) bpage)
+						    ->lock, BUF_IO_WRITE);
 			}
 		}
 
@@ -1067,8 +1067,8 @@ buf_flush_page(
 		holding locks on other pages. */
 
 		if (is_uncompressed) {
-			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
-					   BUF_IO_WRITE);
+			rw_lock_sx_lock_gen(&((buf_block_t*) bpage)->lock,
+					    BUF_IO_WRITE);
 		}
 
 		/* Note that the s-latch is acquired before releasing the

@@ -473,7 +473,7 @@ btr_pcur_open_with_no_init_func(
 {
 	btr_cur_t*	btr_cursor;
 
-	cursor->latch_mode = latch_mode;
+	cursor->latch_mode = BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 	cursor->search_mode = mode;
 
 	/* Search with the tree cursor */

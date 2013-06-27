@@ -100,10 +100,12 @@ struct rw_lock_stats_t {
 numerical values smaller than 30 (smaller than BTR_MODIFY_TREE and
 MTR_MEMO_MODIFY) and the order of the numerical values like below! and they
 should be 2pow value to be used also as ORed combination of flag. */
-#define RW_S_LATCH	1
-#define	RW_X_LATCH	2
-#define	RW_SX_LATCH	4
-#define	RW_NO_LATCH	8
+enum rw_lock_type_t {
+	RW_S_LATCH = 1,
+	RW_X_LATCH = 2,
+	RW_SX_LATCH = 4,
+	RW_NO_LATCH = 8
+};
 
 #ifndef UNIV_HOTBACKUP
 /* We decrement lock_word by X_LOCK_DECR for each x_lock. It is also the

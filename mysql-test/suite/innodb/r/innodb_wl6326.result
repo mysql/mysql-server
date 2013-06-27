@@ -1,0 +1,252 @@
+drop table if exists t1;
+set global innodb_adaptive_hash_index = false;
+set global innodb_stats_persistent = false;
+CREATE TABLE t1 (
+a00 char(255) not null default 'a',
+a01 char(255) not null default 'a',
+a02 char(255) not null default 'a',
+a03 char(255) not null default 'a',
+a04 char(255) not null default 'a',
+a05 char(255) not null default 'a',
+a06 char(255) not null default 'a',
+a07 char(255) not null default 'a',
+b int not null default 0
+) engine=InnoDB;
+ALTER TABLE t1 ADD CONSTRAINT pkey PRIMARY KEY(
+a00,
+a01,
+a02,
+a03,
+a04,
+a05,
+a06,
+a07
+);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+1
+set global innodb_limit_optimistic_insert_debug = 5;
+insert into t1 (a00) values ('aa');
+insert into t1 (a00) values ('ab');
+insert into t1 (a00) values ('ac');
+insert into t1 (a00) values ('ad');
+insert into t1 (a00) values ('ae');
+insert into t1 (a00) values ('af');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+3
+insert into t1 (a00) values ('ag');
+insert into t1 (a00) values ('ah');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+4
+insert into t1 (a00) values ('ai');
+insert into t1 (a00) values ('aj');
+insert into t1 (a00) values ('ak');
+insert into t1 (a00) values ('al');
+insert into t1 (a00) values ('am');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+5
+insert into t1 (a00) values ('an');
+insert into t1 (a00) values ('ao');
+insert into t1 (a00) values ('ap');
+insert into t1 (a00) values ('aq');
+insert into t1 (a00) values ('ar');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+6
+insert into t1 (a00) values ('as');
+insert into t1 (a00) values ('at');
+insert into t1 (a00) values ('au');
+insert into t1 (a00) values ('av');
+insert into t1 (a00) values ('aw');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+9
+insert into t1 (a00) values ('ax');
+insert into t1 (a00) values ('ay');
+insert into t1 (a00) values ('az');
+insert into t1 (a00) values ('ba');
+insert into t1 (a00) values ('bb');
+insert into t1 (a00) values ('bc');
+insert into t1 (a00) values ('bd');
+insert into t1 (a00) values ('be');
+insert into t1 (a00) values ('bf');
+insert into t1 (a00) values ('bg');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+12
+insert into t1 (a00) values ('bh');
+insert into t1 (a00) values ('bi');
+insert into t1 (a00) values ('bj');
+insert into t1 (a00) values ('bk');
+insert into t1 (a00) values ('bl');
+insert into t1 (a00) values ('bm');
+insert into t1 (a00) values ('bn');
+insert into t1 (a00) values ('bo');
+insert into t1 (a00) values ('bp');
+insert into t1 (a00) values ('bq');
+insert into t1 (a00) values ('br');
+insert into t1 (a00) values ('bs');
+insert into t1 (a00) values ('bt');
+insert into t1 (a00) values ('bu');
+insert into t1 (a00) values ('bv');
+insert into t1 (a00) values ('bw');
+insert into t1 (a00) values ('bx');
+insert into t1 (a00) values ('by');
+insert into t1 (a00) values ('bz');
+insert into t1 (a00) values ('ca');
+insert into t1 (a00) values ('cb');
+insert into t1 (a00) values ('cc');
+insert into t1 (a00) values ('cd');
+insert into t1 (a00) values ('ce');
+insert into t1 (a00) values ('cf');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+18
+insert into t1 (a00) values ('cg');
+insert into t1 (a00) values ('ch');
+insert into t1 (a00) values ('ci');
+insert into t1 (a00) values ('cj');
+insert into t1 (a00) values ('ck');
+insert into t1 (a00) values ('cl');
+insert into t1 (a00) values ('cm');
+insert into t1 (a00) values ('cn');
+insert into t1 (a00) values ('co');
+insert into t1 (a00) values ('cp');
+insert into t1 (a00) values ('cq');
+insert into t1 (a00) values ('cr');
+insert into t1 (a00) values ('cs');
+insert into t1 (a00) values ('ct');
+insert into t1 (a00) values ('cu');
+insert into t1 (a00) values ('cv');
+insert into t1 (a00) values ('cw');
+insert into t1 (a00) values ('cx');
+insert into t1 (a00) values ('cy');
+insert into t1 (a00) values ('cz');
+insert into t1 (a00) values ('da');
+insert into t1 (a00) values ('db');
+insert into t1 (a00) values ('dc');
+insert into t1 (a00) values ('dd');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+22
+set global innodb_limit_optimistic_insert_debug = 0;
+TEST START
+set DEBUG_SYNC='RESET';
+insert into t1 (a00) values ('ara');
+insert into t1 (a00) values ('arb');
+set DEBUG_SYNC='before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
+insert into t1 (a00) values ('arc');
+set DEBUG_SYNC='now WAIT_FOR reached';
+select a00,a01 from t1 where a00 = 'aa';
+a00	a01
+aa	a
+select a00,a01 from t1 where a00 = 'ag';
+a00	a01
+ag	a
+select a00,a01 from t1 where a00 = 'bh';
+a00	a01
+bh	a
+select a00,a01 from t1 where a00 = 'cf';
+a00	a01
+cf	a
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait1';
+select a00,a01 from t1 where a00 = 'ah';
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait2';
+select a00,a01 from t1 where a00 = 'bf';
+set DEBUG_SYNC='now WAIT_FOR lockwait1';
+set DEBUG_SYNC='now WAIT_FOR lockwait2';
+set DEBUG_SYNC='now SIGNAL continue';
+a00	a01
+ah	a
+a00	a01
+bf	a
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+23
+set DEBUG_SYNC='RESET';
+insert into t1 (a00) values ('bla');
+insert into t1 (a00) values ('blb');
+set DEBUG_SYNC='before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
+insert into t1 (a00) values ('blc');
+set DEBUG_SYNC='now WAIT_FOR reached';
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait1';
+select a00,a01 from t1 where a00 = 'aa';
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait2';
+select a00,a01 from t1 where a00 = 'cf';
+set DEBUG_SYNC='now WAIT_FOR lockwait1';
+set DEBUG_SYNC='now WAIT_FOR lockwait2';
+set DEBUG_SYNC='now SIGNAL continue';
+a00	a01
+aa	a
+a00	a01
+cf	a
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+24
+set DEBUG_SYNC='RESET';
+insert into t1 (a00) values ('cza');
+insert into t1 (a00) values ('czb');
+set DEBUG_SYNC='before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
+insert into t1 (a00) values ('czc');
+set DEBUG_SYNC='now WAIT_FOR reached';
+select a00,a01 from t1 where a00 = 'aa';
+a00	a01
+aa	a
+select a00,a01 from t1 where a00 = 'ce';
+a00	a01
+ce	a
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait1';
+select a00,a01 from t1 where a00 = 'cf';
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait2';
+select a00,a01 from t1 where a00 = 'cz';
+set DEBUG_SYNC='now WAIT_FOR lockwait1';
+set DEBUG_SYNC='now WAIT_FOR lockwait2';
+set DEBUG_SYNC='now SIGNAL continue';
+a00	a01
+cf	a
+a00	a01
+cz	a
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+25
+set DEBUG_SYNC='RESET';
+drop table t1;

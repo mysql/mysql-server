@@ -1,0 +1,396 @@
+#
+# WL#6326: InnoDB: fix index->lock contention
+#
+
+-- source include/have_innodb.inc
+-- source include/have_debug.inc
+-- source include/have_debug_sync.inc
+
+--disable_query_log
+set @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
+set @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
+set @old_innodb_stats_persistent = @@innodb_stats_persistent;
+--enable_query_log
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+set global innodb_adaptive_hash_index = false;
+set global innodb_stats_persistent = false;
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+
+CREATE TABLE t1 (
+  a00 char(255) not null default 'a',
+  a01 char(255) not null default 'a',
+  a02 char(255) not null default 'a',
+  a03 char(255) not null default 'a',
+  a04 char(255) not null default 'a',
+  a05 char(255) not null default 'a',
+  a06 char(255) not null default 'a',
+  a07 char(255) not null default 'a',
+  b int not null default 0
+) engine=InnoDB;
+
+ALTER TABLE t1 ADD CONSTRAINT pkey PRIMARY KEY(
+  a00,
+  a01,
+  a02,
+  a03,
+  a04,
+  a05,
+  a06,
+  a07
+);
+
+#
+# prepare primary key index tree to be used for this test
+#
+
+#only root (1)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+# make the first records sparse artificially,
+# not to cause modify_tree by single node_ptr insert operation.
+set global innodb_limit_optimistic_insert_debug = 5;
+
+insert into t1 (a00) values ('aa');
+insert into t1 (a00) values ('ab');
+insert into t1 (a00) values ('ac');
+insert into t1 (a00) values ('ad');
+insert into t1 (a00) values ('ae');
+insert into t1 (a00) values ('af');
+# raise root (1-2)
+# (aa,ac)
+# (aa,ab)(ac,ad,ae,af)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+insert into t1 (a00) values ('ag');
+insert into t1 (a00) values ('ah');
+# split leaf (1-3)
+# (aa,ac,ah)
+# (aa,ab)(ac,ad,ae,af,ag)(ah)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+insert into t1 (a00) values ('ai');
+insert into t1 (a00) values ('aj');
+insert into t1 (a00) values ('ak');
+insert into t1 (a00) values ('al');
+insert into t1 (a00) values ('am');
+# split leaf (1-4)
+# (aa,ac,ah,am)
+# (aa,ab)(ac,ad,ae,af,ag)(ah,ai,aj,ak,al)(am)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+insert into t1 (a00) values ('an');
+insert into t1 (a00) values ('ao');
+insert into t1 (a00) values ('ap');
+insert into t1 (a00) values ('aq');
+insert into t1 (a00) values ('ar');
+# split leaf (1-5)
+# (aa,ac,ah,am,ar)
+# (aa,ab)(ac,ad,ae,af,ag)(ah,ai,aj,ak,al)(am,an,ao,ap,aq)(ar)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+insert into t1 (a00) values ('as');
+insert into t1 (a00) values ('at');
+insert into t1 (a00) values ('au');
+insert into t1 (a00) values ('av');
+insert into t1 (a00) values ('aw');
+# raise root (1-2-6)
+# (aa,ah)
+# (aa,ac)      (ah,am,ar,aw)
+# (aa,ab)(ac..)(ah..)(am..)(ar..)(aw)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+insert into t1 (a00) values ('ax');
+insert into t1 (a00) values ('ay');
+insert into t1 (a00) values ('az');
+insert into t1 (a00) values ('ba');
+insert into t1 (a00) values ('bb');
+
+insert into t1 (a00) values ('bc');
+insert into t1 (a00) values ('bd');
+insert into t1 (a00) values ('be');
+insert into t1 (a00) values ('bf');
+insert into t1 (a00) values ('bg');
+# split also at level 1 (1-3-8)
+# (aa,ah,bg)
+# (aa,ac)      (ah,am,ar,aw,bb)              (bg)
+# (aa,ab)(ac..)(ah..)(am..)(ar..)(aw..)(bb..)(bg)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+insert into t1 (a00) values ('bh');
+insert into t1 (a00) values ('bi');
+insert into t1 (a00) values ('bj');
+insert into t1 (a00) values ('bk');
+insert into t1 (a00) values ('bl');
+
+insert into t1 (a00) values ('bm');
+insert into t1 (a00) values ('bn');
+insert into t1 (a00) values ('bo');
+insert into t1 (a00) values ('bp');
+insert into t1 (a00) values ('bq');
+
+insert into t1 (a00) values ('br');
+insert into t1 (a00) values ('bs');
+insert into t1 (a00) values ('bt');
+insert into t1 (a00) values ('bu');
+insert into t1 (a00) values ('bv');
+
+insert into t1 (a00) values ('bw');
+insert into t1 (a00) values ('bx');
+insert into t1 (a00) values ('by');
+insert into t1 (a00) values ('bz');
+insert into t1 (a00) values ('ca');
+
+insert into t1 (a00) values ('cb');
+insert into t1 (a00) values ('cc');
+insert into t1 (a00) values ('cd');
+insert into t1 (a00) values ('ce');
+insert into t1 (a00) values ('cf');
+# current tree form (1-4-13)
+# (aa,ah,bg,cf)
+# (aa,ac)      (ah,am,ar,aw,bb)              (bg,bl,bq,bv,ca)              (cf)
+# (aa,ab)(ac..)(ah..)(am..)(ar..)(aw..)(bb..)(bg..)(bl..)(bq..)(bv..)(ca..)(cf)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+insert into t1 (a00) values ('cg');
+insert into t1 (a00) values ('ch');
+insert into t1 (a00) values ('ci');
+insert into t1 (a00) values ('cj');
+insert into t1 (a00) values ('ck');
+
+insert into t1 (a00) values ('cl');
+insert into t1 (a00) values ('cm');
+insert into t1 (a00) values ('cn');
+insert into t1 (a00) values ('co');
+insert into t1 (a00) values ('cp');
+
+insert into t1 (a00) values ('cq');
+insert into t1 (a00) values ('cr');
+insert into t1 (a00) values ('cs');
+insert into t1 (a00) values ('ct');
+insert into t1 (a00) values ('cu');
+
+insert into t1 (a00) values ('cv');
+insert into t1 (a00) values ('cw');
+insert into t1 (a00) values ('cx');
+insert into t1 (a00) values ('cy');
+insert into t1 (a00) values ('cz');
+
+insert into t1 (a00) values ('da');
+insert into t1 (a00) values ('db');
+insert into t1 (a00) values ('dc');
+insert into t1 (a00) values ('dd');
+
+# current tree form (1-4-17)
+# (aa,ah,bg,cf)
+# (aa,ac)      (ah,am,ar,aw,bb)              (bg,bl,bq,bv,ca)              (cf,ck,cp,cu,cz)
+# (aa,ab)(ac..)(ah..)(am..)(ar..)(aw..)(bb..)(bg..)(bl..)(bq..)(bv..)(ca..)(cf..)...(cz..)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+# insert the rest of records normally
+set global innodb_limit_optimistic_insert_debug = 0;
+
+
+echo TEST START;
+
+# (1) Insert records to leaf page (ar..) and cause modify_page.
+#     - root page is not X latched
+#     - latched from level 1 page (ah,am,ar,aw,bb)
+
+set DEBUG_SYNC='RESET';
+
+# filling leaf page (ar..)
+insert into t1 (a00) values ('ara');
+insert into t1 (a00) values ('arb');
+
+connection con1;
+set DEBUG_SYNC='before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
+# cause modify_tree
+--send insert into t1 (a00) values ('arc')
+
+connection con2;
+set DEBUG_SYNC='now WAIT_FOR reached';
+# not blocked searches
+select a00,a01 from t1 where a00 = 'aa';
+select a00,a01 from t1 where a00 = 'ag';
+# "where a00 = 'bg'" is blocked because searching from smaller ('bg','a','a',..).
+select a00,a01 from t1 where a00 = 'bh';
+select a00,a01 from t1 where a00 = 'cf';
+
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait1';
+# blocked
+--send select a00,a01 from t1 where a00 = 'ah'
+
+connection con3;
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait2';
+# blocked
+--send select a00,a01 from t1 where a00 = 'bf'
+
+connection default;
+set DEBUG_SYNC='now WAIT_FOR lockwait1';
+set DEBUG_SYNC='now WAIT_FOR lockwait2';
+set DEBUG_SYNC='now SIGNAL continue';
+
+connection con1;
+--reap
+
+connection con2;
+--reap
+
+connection con3;
+--reap
+
+connection default;
+
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+
+# (2) Insert records to leaf page (bl..) and cause modify_page
+#     - root page is X latched, because node_ptr for 'bl'
+#       is 2nd record for (bg,bl,bq,bv,ca)
+#
+# * ordinary pessimitic insert might be done by pessistic update
+#   and we should consider possibility node_ptr to be deleted.
+
+set DEBUG_SYNC='RESET';
+
+# filling leaf page (bl..)
+insert into t1 (a00) values ('bla');
+insert into t1 (a00) values ('blb');
+
+connection con1;
+set DEBUG_SYNC='before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
+# cause modify_tree
+--send insert into t1 (a00) values ('blc')
+
+connection con2;
+set DEBUG_SYNC='now WAIT_FOR reached';
+# all searches are blocked because root page is X latched
+
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait1';
+# blocked
+--send select a00,a01 from t1 where a00 = 'aa'
+
+connection con3;
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait2';
+# blocked
+--send select a00,a01 from t1 where a00 = 'cf'
+
+connection default;
+set DEBUG_SYNC='now WAIT_FOR lockwait1';
+set DEBUG_SYNC='now WAIT_FOR lockwait2';
+set DEBUG_SYNC='now SIGNAL continue';
+
+connection con1;
+--reap
+
+connection con2;
+--reap
+
+connection con3;
+--reap
+
+connection default;
+
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+
+# (3) Insert records to rightmost leaf page (cz..) and cause modify_page
+#     - root page is not X latched, because node_ptr for 'cz' is the last record
+#       of the level 1 though it is last record in the page.
+#     - lathed from level 1 page (cf,ck,cp,cu,cz)
+
+set DEBUG_SYNC='RESET';
+
+# filling leaf page (cz..)
+insert into t1 (a00) values ('cza');
+insert into t1 (a00) values ('czb');
+
+connection con1;
+set DEBUG_SYNC='before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
+# cause modify_tree
+--send insert into t1 (a00) values ('czc')
+
+connection con2;
+set DEBUG_SYNC='now WAIT_FOR reached';
+# not blocked searches
+select a00,a01 from t1 where a00 = 'aa';
+select a00,a01 from t1 where a00 = 'ce';
+
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait1';
+# blocked
+--send select a00,a01 from t1 where a00 = 'cf'
+
+connection con3;
+set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait2';
+# blocked
+--send select a00,a01 from t1 where a00 = 'cz'
+
+connection default;
+set DEBUG_SYNC='now WAIT_FOR lockwait1';
+set DEBUG_SYNC='now WAIT_FOR lockwait2';
+set DEBUG_SYNC='now SIGNAL continue';
+
+connection con1;
+--reap
+
+connection con2;
+--reap
+
+connection con3;
+--reap
+
+connection default;
+
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
+
+
+set DEBUG_SYNC='RESET';
+
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+
+drop table t1;
+
+--disable_query_log
+set global innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
+set global innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
+set global innodb_stats_persistent = @old_innodb_stats_persistent;
+--enable_query_log
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

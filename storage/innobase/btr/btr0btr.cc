@@ -749,8 +749,8 @@ btr_root_block_get(
 }
 
 /**************************************************************//**
-Gets the root node of a tree and x-latches it.
-@return root page, x-latched */
+Gets the root node of a tree and sx-latches it for segment access.
+@return root page, sx-latched */
 
 page_t*
 btr_root_get(
@@ -758,7 +758,10 @@ btr_root_get(
 	const dict_index_t*	index,	/*!< in: index tree */
 	mtr_t*			mtr)	/*!< in: mtr */
 {
-	return(buf_block_get_frame(btr_root_block_get(index, RW_X_LATCH,
+	/* Intended to be used for segment list access.
+	SX lock doesn't block reading user data by other threads.
+	And block the segment list access by others.*/
+	return(buf_block_get_frame(btr_root_block_get(index, RW_SX_LATCH,
 						      mtr)));
 }
 
@@ -778,10 +781,10 @@ btr_height_get(
 	buf_block_t*	root_block;
 
 	ut_ad(srv_read_only_mode
-	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-				   MTR_MEMO_S_LOCK)
-	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-				   MTR_MEMO_X_LOCK));
+	      || mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+					   MTR_MEMO_S_LOCK
+					   | MTR_MEMO_X_LOCK
+					   | MTR_MEMO_SX_LOCK));
 
         /* S latches the page */
         root_block = btr_root_block_get(index, RW_S_LATCH, mtr);
@@ -1361,8 +1364,8 @@ btr_node_ptr_set_child_page_no(
 }
 
 /************************************************************//**
-Returns the child page of a node pointer and x-latches it.
-@return child page, x-latched */
+Returns the child page of a node pointer and sx-latches it.
+@return child page, sx-latched */
 static
 buf_block_t*
 btr_node_ptr_get_child(
@@ -1380,12 +1383,12 @@ btr_node_ptr_get_child(
 	page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 
 	return(btr_block_get(space, dict_table_zip_size(index->table),
-			     page_no, RW_X_LATCH, index, mtr));
+			     page_no, RW_SX_LATCH, index, mtr));
 }
 
 /************************************************************//**
 Returns the upper level node pointer to a page. It is assumed that mtr holds
-an x-latch on the tree.
+an sx-latch on the tree.
 @return rec_get_offsets() of the node pointer record */
 static
 ulint*
@@ -1396,6 +1399,8 @@ btr_page_get_father_node_ptr_func(
 	btr_cur_t*	cursor,	/*!< in: cursor pointing to user record,
 				out: cursor on node pointer record,
 				its page x-latched */
+	ulint		latch_mode,/*!< in: BTR_CONT_MODIFY_TREE
+				or BTR_CONT_SEARCH_TREE */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
@@ -1407,12 +1412,16 @@ btr_page_get_father_node_ptr_func(
 	ulint		page_no;
 	dict_index_t*	index;
 
+	ut_ad(latch_mode == BTR_CONT_MODIFY_TREE
+	      || latch_mode == BTR_CONT_SEARCH_TREE);
+
 	page_no = buf_block_get_page_no(btr_cur_get_block(cursor));
 	index = btr_cur_get_index(cursor);
 
 	ut_ad(srv_read_only_mode
-	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-				   MTR_MEMO_X_LOCK));
+	      || mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+					   MTR_MEMO_X_LOCK
+					   | MTR_MEMO_SX_LOCK));
 
 	ut_ad(dict_index_get_page(index) != page_no);
 
@@ -1423,7 +1432,7 @@ btr_page_get_father_node_ptr_func(
 	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap, level);
 
 	btr_cur_search_to_nth_level(index, level + 1, tuple, PAGE_CUR_LE,
-				    BTR_CONT_MODIFY_TREE, cursor, 0,
+				    latch_mode, cursor, 0,
 				    file, line, mtr);
 
 	node_ptr = btr_cur_get_rec(cursor);
@@ -1471,7 +1480,12 @@ btr_page_get_father_node_ptr_func(
 }
 
 #define btr_page_get_father_node_ptr(of,heap,cur,mtr)			\
-	btr_page_get_father_node_ptr_func(of,heap,cur,__FILE__,__LINE__,mtr)
+	btr_page_get_father_node_ptr_func(				\
+		of,heap,cur,BTR_CONT_MODIFY_TREE,__FILE__,__LINE__,mtr)
+
+#define btr_page_get_father_node_ptr_for_validate(of,heap,cur,mtr)	\
+	btr_page_get_father_node_ptr_func(				\
+		of,heap,cur,BTR_CONT_SEARCH_TREE,__FILE__,__LINE__,mtr)
 
 /************************************************************//**
 Returns the upper level node pointer to a page. It is assumed that mtr holds
@@ -2164,8 +2178,9 @@ btr_root_raise_and_insert(
 
 	ut_a(dict_index_get_page(index) == page_get_page_no(root));
 #endif /* UNIV_BTR_DEBUG */
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+					MTR_MEMO_X_LOCK
+					| MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, root_block, MTR_MEMO_PAGE_X_FIX));
 
 	/* Allocate a new page to the tree. Root splitting is done by first
@@ -2679,6 +2694,8 @@ btr_attach_half_pages(
 	page_zip_des_t*	upper_page_zip;
 	dtuple_t*	node_ptr_upper;
 	mem_heap_t*	heap;
+	buf_block_t*	prev_block = NULL;
+	buf_block_t*	next_block = NULL;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, new_block, MTR_MEMO_PAGE_X_FIX));
@@ -2720,6 +2737,22 @@ btr_attach_half_pages(
 		upper_page_zip = buf_block_get_page_zip(new_block);
 	}
 
+	/* Get the previous and next pages of page */
+	prev_page_no = btr_page_get_prev(page, mtr);
+	next_page_no = btr_page_get_next(page, mtr);
+	space = buf_block_get_space(block);
+	zip_size = buf_block_get_zip_size(block);
+
+	/* for consistency, both blocks should be locked, before change */
+	if (prev_page_no != FIL_NULL && direction == FSP_DOWN) {
+		prev_block = btr_block_get(space, zip_size, prev_page_no,
+					   RW_X_LATCH, index, mtr);
+	}
+	if (next_page_no != FIL_NULL && direction != FSP_DOWN) {
+		next_block = btr_block_get(space, zip_size, next_page_no,
+					   RW_X_LATCH, index, mtr);
+	}
+
 	/* Get the level of the split pages */
 	level = btr_page_get_level(buf_block_get_frame(block), mtr);
 	ut_ad(level
@@ -2740,18 +2773,9 @@ btr_attach_half_pages(
 	/* Free the memory heap */
 	mem_heap_free(heap);
 
-	/* Get the previous and next pages of page */
-
-	prev_page_no = btr_page_get_prev(page, mtr);
-	next_page_no = btr_page_get_next(page, mtr);
-	space = buf_block_get_space(block);
-	zip_size = buf_block_get_zip_size(block);
-
 	/* Update page links of the level */
 
-	if (prev_page_no != FIL_NULL) {
-		buf_block_t*	prev_block = btr_block_get(
-			space, zip_size, prev_page_no, RW_X_LATCH, index, mtr);
+	if (prev_block) {
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(prev_block->frame) == page_is_comp(page));
 		ut_a(btr_page_get_next(prev_block->frame, mtr)
@@ -2763,9 +2787,7 @@ btr_attach_half_pages(
 				  lower_page_no, mtr);
 	}
 
-	if (next_page_no != FIL_NULL) {
-		buf_block_t*	next_block = btr_block_get(
-			space, zip_size, next_page_no, RW_X_LATCH, index, mtr);
+	if (next_block) {
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(next_block->frame) == page_is_comp(page));
 		ut_a(btr_page_get_prev(next_block->frame, mtr)
@@ -2777,11 +2799,24 @@ btr_attach_half_pages(
 				  upper_page_no, mtr);
 	}
 
-	btr_page_set_prev(lower_page, lower_page_zip, prev_page_no, mtr);
-	btr_page_set_next(lower_page, lower_page_zip, upper_page_no, mtr);
+	if (direction == FSP_DOWN) {
+		/* lower_page is new */
+		btr_page_set_prev(lower_page, lower_page_zip,
+				  prev_page_no, mtr);
+	} else {
+		ut_ad(btr_page_get_prev(lower_page, mtr) == prev_page_no);
+	}
 
+	btr_page_set_next(lower_page, lower_page_zip, upper_page_no, mtr);
 	btr_page_set_prev(upper_page, upper_page_zip, lower_page_no, mtr);
-	btr_page_set_next(upper_page, upper_page_zip, next_page_no, mtr);
+
+	if (direction != FSP_DOWN) {
+		/* upper_page is new */
+		btr_page_set_next(upper_page, upper_page_zip,
+				  next_page_no, mtr);
+	} else {
+		ut_ad(btr_page_get_next(upper_page, mtr) == next_page_no);
+	}
 }
 
 /*************************************************************//**
@@ -2869,13 +2904,16 @@ func_start:
 	mem_heap_empty(*heap);
 	*offsets = NULL;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(cursor->index),
-				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains_flagged(mtr,
+					dict_index_get_lock(cursor->index),
+					MTR_MEMO_X_LOCK
+					| MTR_MEMO_SX_LOCK));
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || (flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(cursor->index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(cursor->index), RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(dict_index_get_lock(cursor->index),
+				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	block = btr_cur_get_block(cursor);
@@ -3003,7 +3041,11 @@ insert_empty:
 	    && !dict_index_is_online_ddl(cursor->index)) {
 
 		mtr_memo_release(mtr, dict_index_get_lock(cursor->index),
-				 MTR_MEMO_X_LOCK);
+				 MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK);
+
+		/* TODO: If the root page was relaxed to SX-latch already
+		and no more external data modification, we can release
+		also root block SX-latch here. */
 	}
 
 	/* 5. Move then the records to the new page */
@@ -3581,6 +3623,9 @@ btr_compress(
 	mem_heap_t*	heap;
 	ulint*		offsets;
 	ulint		nth_rec = 0; /* remove bogus warning */
+#ifdef UNIV_DEBUG
+	bool		leftmost_child;
+#endif
 	DBUG_ENTER("btr_compress");
 
 	block = btr_cur_get_block(cursor);
@@ -3589,8 +3634,9 @@ btr_compress(
 
 	btr_assert_not_corrupted(block, index);
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+					MTR_MEMO_X_LOCK
+					| MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
@@ -3622,6 +3668,13 @@ btr_compress(
 		merge_block = btr_lift_page_up(index, block, mtr);
 		goto func_exit;
 	}
+
+	ut_d(leftmost_child =
+		left_page_no != FIL_NULL
+		&& (page_rec_get_next(
+			page_get_infimum_rec(
+				btr_cur_get_page(&father_cursor)))
+		    == btr_cur_get_rec(&father_cursor)));
 
 	/* Decide the page to which we try to merge and which will inherit
 	the locks */
@@ -3819,7 +3872,11 @@ btr_compress(
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
 
-	ut_ad(btr_check_node_ptr(index, merge_block, mtr));
+	/* btr_check_node_ptr() needs parent block latched.
+	If the merge_block's parent block is not same,
+	we cannot use btr_check_node_ptr() */
+	ut_ad(leftmost_child
+	      || btr_check_node_ptr(index, merge_block, mtr));
 func_exit:
 	mem_heap_free(heap);
 
@@ -3940,17 +3997,25 @@ btr_discard_page(
 	buf_block_t*	block;
 	page_t*		page;
 	rec_t*		node_ptr;
+#ifdef UNIV_DEBUG
+	btr_cur_t	father_cursor;
+	bool		parent_is_different = false;
+#endif
 
 	block = btr_cur_get_block(cursor);
 	index = btr_cur_get_index(cursor);
 
 	ut_ad(dict_index_get_page(index) != buf_block_get_page_no(block));
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+					MTR_MEMO_X_LOCK
+					| MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
 
+#ifdef UNIV_DEBUG
+	btr_page_get_father(index, block, mtr, &father_cursor);
+#endif
 	/* Decide the page which will inherit the locks */
 
 	left_page_no = btr_page_get_prev(buf_block_get_frame(block), mtr);
@@ -3964,6 +4029,12 @@ btr_discard_page(
 		ut_a(btr_page_get_next(merge_page, mtr)
 		     == buf_block_get_page_no(block));
 #endif /* UNIV_BTR_DEBUG */
+		ut_d(parent_is_different =
+			(page_rec_get_next(
+				page_get_infimum_rec(
+					btr_cur_get_page(
+						&father_cursor)))
+			 == btr_cur_get_rec(&father_cursor)));
 	} else if (right_page_no != FIL_NULL) {
 		merge_block = btr_block_get(space, zip_size, right_page_no,
 					    RW_X_LATCH, index, mtr);
@@ -3972,6 +4043,8 @@ btr_discard_page(
 		ut_a(btr_page_get_prev(merge_page, mtr)
 		     == buf_block_get_page_no(block));
 #endif /* UNIV_BTR_DEBUG */
+		ut_d(parent_is_different = page_rec_is_supremum(
+			page_rec_get_next(btr_cur_get_rec(&father_cursor))));
 	} else {
 		btr_discard_only_page_on_level(index, block, mtr);
 
@@ -4025,7 +4098,11 @@ btr_discard_page(
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
 
-	ut_ad(btr_check_node_ptr(index, merge_block, mtr));
+	/* btr_check_node_ptr() needs parent block latched.
+	If the merge_block's parent block is not same,
+	we cannot use btr_check_node_ptr() */
+	ut_ad(parent_is_different
+	      || btr_check_node_ptr(index, merge_block, mtr));
 }
 
 #ifdef UNIV_BTR_PRINT
@@ -4088,7 +4165,7 @@ btr_print_recursive(
 	ulint		i	= 0;
 	mtr_t		mtr2;
 
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_SX_FIX));
 	fprintf(stderr, "NODE ON LEVEL %lu page number %lu\n",
 		(ulong) btr_page_get_level(page, mtr),
 		(ulong) buf_block_get_page_no(block));
@@ -4152,7 +4229,7 @@ btr_print_index(
 
 	mtr_start(&mtr);
 
-	root = btr_root_block_get(index, RW_X_LATCH, &mtr);
+	root = btr_root_block_get(index, RW_SX_LATCH, &mtr);
 
 	btr_print_recursive(index, root, width, &heap, &offsets, &mtr);
 	if (heap) {
@@ -4161,7 +4238,7 @@ btr_print_index(
 
 	mtr_commit(&mtr);
 
-	btr_validate_index(index, 0);
+	btr_validate_index(index, 0, false);
 }
 #endif /* UNIV_BTR_PRINT */
 
@@ -4441,7 +4518,8 @@ btr_validate_level(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index tree */
 	const trx_t*	trx,	/*!< in: transaction or NULL */
-	ulint		level)	/*!< in: level number */
+	ulint		level,	/*!< in: level number */
+	bool		lockout)/*!< in: true if X-latch index is intended */
 {
 	ulint		space;
 	ulint		space_flags;
@@ -4467,14 +4545,22 @@ btr_validate_level(
 #ifdef UNIV_ZIP_DEBUG
 	page_zip_des_t*	page_zip;
 #endif /* UNIV_ZIP_DEBUG */
+	ulint		savepoint = 0;
+	ulint		father_page_no = FIL_NULL;
+	ulint		father_right_page_no = FIL_NULL;
+	bool		rightmost_child = false;
 
 	mtr_start(&mtr);
 
 	if (!srv_read_only_mode) {
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
+		if (lockout) {
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			mtr_sx_lock(dict_index_get_lock(index), &mtr);
+		}
 	}
 
-	block = btr_root_block_get(index, RW_X_LATCH, &mtr);
+	block = btr_root_block_get(index, RW_SX_LATCH, &mtr);
 	page = buf_block_get_frame(block);
 	seg = page + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 
@@ -4537,7 +4623,11 @@ loop:
 	mem_heap_empty(heap);
 	offsets = offsets2 = NULL;
 	if (!srv_read_only_mode) {
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
+		if (lockout) {
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			mtr_sx_lock(dict_index_get_lock(index), &mtr);
+		}
 	}
 
 #ifdef UNIV_ZIP_DEBUG
@@ -4587,8 +4677,9 @@ loop:
 
 	if (right_page_no != FIL_NULL) {
 		const rec_t*	right_rec;
+		savepoint = mtr_set_savepoint(&mtr);
 		right_block = btr_block_get(space, zip_size, right_page_no,
-					    RW_X_LATCH, index, &mtr);
+					    RW_SX_LATCH, index, &mtr);
 		right_page = buf_block_get_frame(right_block);
 		if (btr_page_get_prev(right_page, &mtr)
 		    != page_get_page_no(page)) {
@@ -4657,16 +4748,25 @@ loop:
 
 		rec_t*	node_ptr;
 
-		offsets = btr_page_get_father_block(offsets, heap, index,
-						    block, &mtr, &node_cur);
+		btr_cur_position(
+			index, page_rec_get_next(page_get_infimum_rec(page)),
+			block, &node_cur);
+		offsets = btr_page_get_father_node_ptr_for_validate(
+			offsets, heap, &node_cur, &mtr);
+
 		father_page = btr_cur_get_page(&node_cur);
 		node_ptr = btr_cur_get_rec(&node_cur);
+
+		father_page_no = page_get_page_no(father_page);
+		father_right_page_no = btr_page_get_next(father_page, &mtr);
+		rightmost_child = page_rec_is_supremum(
+					page_rec_get_next(node_ptr));
 
 		btr_cur_position(
 			index, page_rec_get_prev(page_get_supremum_rec(page)),
 			block, &node_cur);
-		offsets = btr_page_get_father_node_ptr(offsets, heap,
-						       &node_cur, &mtr);
+		offsets = btr_page_get_father_node_ptr_for_validate(
+				offsets, heap, &node_cur, &mtr);
 
 		if (node_ptr != btr_cur_get_rec(&node_cur)
 		    || btr_node_ptr_get_child_page_no(node_ptr, offsets)
@@ -4742,9 +4842,29 @@ loop:
 			const rec_t*	right_node_ptr
 				= page_rec_get_next(node_ptr);
 
-			offsets = btr_page_get_father_block(
-				offsets, heap, index, right_block,
-				&mtr, &right_node_cur);
+			if (!lockout && rightmost_child) {
+				/* To obey latch order of tree blocks,
+				we should release the right_block once to
+				obtain lock of the uncle block. */
+				mtr_release_block_at_savepoint(
+					&mtr, savepoint, right_block);
+				btr_block_get(space, zip_size,
+					      father_right_page_no,
+					      RW_SX_LATCH, index, &mtr);
+				right_block = btr_block_get(space, zip_size,
+							    right_page_no,
+							    RW_SX_LATCH, index,
+							    &mtr);
+			}
+
+			btr_cur_position(
+				index, page_rec_get_next(
+					page_get_infimum_rec(
+						buf_block_get_frame(
+							right_block))),
+				right_block, &right_node_cur);
+			offsets = btr_page_get_father_node_ptr_for_validate(
+					offsets, heap, &right_node_cur, &mtr);
 			if (right_node_ptr
 			    != page_get_supremum_rec(father_page)) {
 
@@ -4838,9 +4958,23 @@ node_ptr_fails:
 
 		mtr_start(&mtr);
 
+		if (!lockout) {
+			if (rightmost_child) {
+				if (father_right_page_no != FIL_NULL) {
+					btr_block_get(space, zip_size,
+						      father_right_page_no,
+						      RW_SX_LATCH, index, &mtr);
+				}
+			} else if (father_page_no != FIL_NULL) {
+				btr_block_get(space, zip_size,
+					      father_page_no,
+					      RW_SX_LATCH, index, &mtr);
+			}
+		}
+
 		block = btr_block_get(
 			space, zip_size, right_page_no,
-			RW_X_LATCH, index, &mtr);
+			RW_SX_LATCH, index, &mtr);
 
 		page = buf_block_get_frame(block);
 
@@ -4860,7 +4994,8 @@ bool
 btr_validate_index(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index */
-	const trx_t*	trx)	/*!< in: transaction or NULL */
+	const trx_t*	trx,	/*!< in: transaction or NULL */
+	bool		lockout)/*!< in: true if X-latch index is intended */
 {
 	/* Full Text index are implemented by auxiliary tables,
 	not the B-tree */
@@ -4873,7 +5008,11 @@ btr_validate_index(
 	mtr_start(&mtr);
 
 	if (!srv_read_only_mode) {
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
+		if (lockout) {
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			mtr_sx_lock(dict_index_get_lock(index), &mtr);
+		}
 	}
 
 	bool	ok = true;
@@ -4882,7 +5021,7 @@ btr_validate_index(
 
 	for (ulint i = 0; i <= n; ++i) {
 
-		if (!btr_validate_level(index, trx, n - i)) {
+		if (!btr_validate_level(index, trx, n - i, lockout)) {
 			ok = false;
 			break;
 		}

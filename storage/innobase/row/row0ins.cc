@@ -2492,6 +2492,8 @@ err_exit:
 				goto err_exit;
 			}
 
+			DEBUG_SYNC_C("before_insert_pessimitic_row_ins_clust");
+
 			err = btr_cur_optimistic_insert(
 				flags, &cursor,
 				&offsets, &offsets_heap,
@@ -2568,7 +2570,7 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	if (search_mode & BTR_ALREADY_S_LATCHED) {
 		mtr_s_lock(dict_index_get_lock(index), mtr);
 	} else {
-		mtr_x_lock(dict_index_get_lock(index), mtr);
+		mtr_sx_lock(dict_index_get_lock(index), mtr);
 	}
 
 	switch (index->online_status) {
@@ -2653,7 +2655,7 @@ row_ins_sec_index_entry_low(
 			search_mode |= BTR_ALREADY_S_LATCHED;
 			mtr_s_lock(dict_index_get_lock(index), &mtr);
 		} else {
-			mtr_x_lock(dict_index_get_lock(index), &mtr);
+			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 		}
 
 		if (row_log_online_op_try(
