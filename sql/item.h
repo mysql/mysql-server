@@ -4145,6 +4145,11 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
+  virtual table_map resolved_used_tables() const
+  {
+    return example ? example->resolved_used_tables() : used_table_map;
+  }
+
   virtual bool allocate(uint i) { return 0; }
   virtual bool setup(Item *item)
   {
