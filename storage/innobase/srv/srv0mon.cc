@@ -1209,7 +1209,7 @@ ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 #ifndef HAVE_ATOMIC_BUILTINS_64
 /** Mutex protecting atomic operations on platforms that lack
 built-in operations for atomic memory access */
-UNIV_INTERN ib_mutex_t	monitor_mutex;
+ib_mutex_t	monitor_mutex;
 
 #ifdef HAVE_PSI_INTERFACE
 /** Key to register monitor_mutex with performance schema */
