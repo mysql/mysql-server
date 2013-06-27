@@ -66,7 +66,11 @@ enum btr_latch_mode {
 	/** Search the previous record. */
 	BTR_SEARCH_PREV = 35,
 	/** Modify the previous record. */
-	BTR_MODIFY_PREV = 36
+	BTR_MODIFY_PREV = 36,
+	/** Start searching the entire B-tree. */
+	BTR_SEARCH_TREE = 37,
+	/** Continue searching the entire B-tree. */
+	BTR_CONT_SEARCH_TREE = 38
 };
 
 /* BTR_INSERT, BTR_DELETE and BTR_DELETE_MARK are mutually exclusive. */
@@ -97,13 +101,27 @@ buffer when the record is not in the buffer pool. */
 already holding an S latch on the index tree */
 #define BTR_ALREADY_S_LATCHED	16384
 
+/** In the case of BTR_MODIFY_TREE, the caller specifies the intention
+to insert record only. It is used to optimize block->lock range.*/
+#define BTR_LATCH_FOR_INSERT	32768
+
+/** In the case of BTR_MODIFY_TREE, the caller specifies the intention
+to delete record only. It is used to optimize block->lock range.*/
+#define BTR_LATCH_FOR_DELETE	65536
+
 #define BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)	\
 	((latch_mode) & ~(BTR_INSERT			\
 			  | BTR_DELETE_MARK		\
 			  | BTR_DELETE			\
 			  | BTR_ESTIMATE		\
 			  | BTR_IGNORE_SEC_UNIQUE	\
-			  | BTR_ALREADY_S_LATCHED))
+			  | BTR_ALREADY_S_LATCHED	\
+			  | BTR_LATCH_FOR_INSERT	\
+			  | BTR_LATCH_FOR_DELETE))
+
+#define BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode)	\
+	((latch_mode) & ~(BTR_LATCH_FOR_INSERT		\
+			  | BTR_LATCH_FOR_DELETE))
 #endif /* UNIV_HOTBACKUP */
 
 /**************************************************************//**
@@ -213,8 +231,8 @@ btr_blob_dbg_owner(
 #endif /* UNIV_BLOB_DEBUG */
 
 /**************************************************************//**
-Gets the root node of a tree and x-latches it.
-@return root page, x-latched */
+Gets the root node of a tree and sx-latches it for segment access.
+@return root page, sx-latched */
 
 page_t*
 btr_root_get(
@@ -759,8 +777,9 @@ Checks the consistency of an index tree.
 bool
 btr_validate_index(
 /*===============*/
-	dict_index_t*	index,			/*!< in: index */
-	const trx_t*	trx)			/*!< in: transaction or 0 */
+	dict_index_t*	index,	/*!< in: index */
+	const trx_t*	trx,	/*!< in: transaction or 0 */
+	bool		lockout)/*!< in: true if X-latch index is intended */
 	__attribute__((nonnull(1), warn_unused_result));
 
 #define BTR_N_LEAF_PAGES	1

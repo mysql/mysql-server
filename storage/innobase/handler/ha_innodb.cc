@@ -11122,7 +11122,7 @@ ha_innobase::check(
 		/* If this is an index being created or dropped, break */
 		if (*index->name == TEMP_INDEX_PREFIX) {
 			break;
-		} else if (!btr_validate_index(index, prebuilt->trx)) {
+		} else if (!btr_validate_index(index, prebuilt->trx, false)) {
 			is_ok = FALSE;
 
 			innobase_format_name(

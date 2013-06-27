@@ -675,7 +675,7 @@ dtuple_convert_big_rec(
 			    || dfield_is_ext(dfield)
 			    || dfield_get_len(dfield) <= local_len
 			    || dfield_get_len(dfield)
-			    <= BTR_EXTERN_FIELD_REF_SIZE * 2) {
+			    <= BTR_EXTERN_LOCAL_STORED_MAX_SIZE) {
 				goto skip_field;
 			}
 

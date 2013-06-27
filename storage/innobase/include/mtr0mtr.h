@@ -250,19 +250,27 @@ mtr_release_block_at_savepoint(
 	ulint		savepoint,	/*!< in: savepoint */
 	buf_block_t*	block);		/*!< in: block to release */
 /**********************************************************//**
-Relax the block latch in an mtr memo after a savepoint
-from X to SX. */
+X-latches the not yet latched block after a savepoint. */
 
 void
-mtr_block_x_to_sx_at_savepoint(
+mtr_block_x_latch_at_savepoint(
 /*===========================*/
 	mtr_t*		mtr,		/*!< in: mtr */
 	ulint		savepoint,	/*!< in: savepoint */
-	buf_block_t*	block);		/*!< in: block to relax latch */
+	buf_block_t*	block);		/*!< in: block to X latch */
+/**********************************************************//**
+SX-latches the not yet latched block after a savepoint. */
+
+void
+mtr_block_sx_latch_at_savepoint(
+/*============================*/
+	mtr_t*		mtr,		/*!< in: mtr */
+	ulint		savepoint,	/*!< in: savepoint */
+	buf_block_t*	block);		/*!< in: block to SX latch */
 #else /* !UNIV_HOTBACKUP */
 # define mtr_release_s_latch_at_savepoint(mtr,savepoint,lock) ((void) 0)
 # define mtr_release_block_at_savepoint(mtr,savepoint,lock) ((void) 0)
-# define mtr_block_x_to_sx_at_savepoint(mtr,savepoint,lock) ((void) 0)
+# define mtr_block_latch_at_savepoint(mtr,savepoint,lock,type) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 /***************************************************************//**
 Gets the logging mode of a mini-transaction.

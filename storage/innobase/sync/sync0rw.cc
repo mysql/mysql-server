@@ -449,6 +449,8 @@ lock_loop:
 		lock->count_os_wait++;
 		rw_lock_stats.rw_s_os_wait_count.add(counter_index, 1);
 
+		DEBUG_SYNC_C("rw_s_lock_waiting");
+
 		sync_array_wait_event(sync_arr, index);
 
 		i = 0;
