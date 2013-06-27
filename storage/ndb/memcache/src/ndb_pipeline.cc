@@ -186,6 +186,10 @@ void * scheduler_initialize(ndb_pipeline *self, scheduler_options *options) {
     s = new S::SchedulerWorker;
     options->config_string = & cf[1];
   }
+  else if(!strncasecmp(cf,"73", 2)) {
+    s = new Scheduler73::Worker;
+    options->config_string = & cf[2];
+  }
   else {
     return NULL;
   }
