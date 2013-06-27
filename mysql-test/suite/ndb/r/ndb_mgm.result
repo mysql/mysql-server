@@ -173,3 +173,8 @@ Severities enabled: INFO WARNING ERROR CRITICAL ALERT
 Invalid severity level: bogus1
 # Should list default
 Severities enabled: INFO WARNING ERROR CRITICAL ALERT 
+# Bug 16585455: start backup with backup ID out of range
+Invalid command: BACKUP 201303271430 WAIT COMPLETED
+Backup ID out of range [1 - 4294967294]
+Type HELP for help.
+
