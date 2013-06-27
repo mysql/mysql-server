@@ -815,7 +815,7 @@ os_file_opendir(
 {
 	os_file_dir_t		dir;
 #ifdef _WIN32
-	LP_WIN32FIND_DATA	lpFindFileData;
+	LPWIN32FIND_DATA	lpFindFileData;
 	char			path[OS_FILE_MAX_PATH + 3];
 
 	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
@@ -827,7 +827,7 @@ os_file_opendir(
 	the first entry in the directory. Since it is '.', that is no problem,
 	as we will skip over the '.' and '..' entries anyway. */
 
-	lpFindFileData = static_cast<LP_WIN32FIND_DATA>(
+	lpFindFileData = static_cast<LPWIN32FIND_DATA>(
 		ut_malloc(sizeof(_WIN32FIND_DATA)));
 
 	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
@@ -902,10 +902,10 @@ os_file_readdir_next_file(
 	os_file_stat_t*	info)	/*!< in/out: buffer where the info is returned */
 {
 #ifdef _WIN32
-	LP_WIN32FIND_DATA	lpFindFileData;
+	LPWIN32FIND_DATA	lpFindFileData;
 	BOOL			ret;
 
-	lpFindFileData = static_cast<LP_WIN32FIND_DATA>(
+	lpFindFileData = static_cast<LPWIN32FIND_DATA>(
 		ut_malloc(sizeof(_WIN32FIND_DATA)));
 next_file:
 	ret = FindNextFile(dir, lpFindFileData);
@@ -2411,16 +2411,15 @@ os_file_pread(
 	64-bit address */
 	offs = (off_t) offset;
 
-	if (sizeof(off_t) <= 4) {
-		if (UNIV_UNLIKELY(offset != (os_offset_t) offs)) {
-			fprintf(stderr,
-				"InnoDB: Error: file read at offset > 4 GB\n");
-		}
+	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"File read at offset > 4 GB");
 	}
 
 	os_n_file_reads++;
 
 #if defined(HAVE_PREAD)
+
 # if defined(HAVE_ATOMIC_BUILTINS)
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
@@ -2431,7 +2430,7 @@ os_file_pread(
 	os_n_pending_reads++;
 	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	mutex_exit(&os_file_count_mutex);
-# endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD == 8 */
+# endif /* HAVE_ATOMIC_BUILTINS */
 
 	read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
 
@@ -2448,51 +2447,46 @@ os_file_pread(
 # endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(read_bytes);
-#else
-	{
-# ifndef UNIV_HOTBACKUP
-		ulint	i;
-# endif /* !UNIV_HOTBACKUP */
+#else /* HAVE_PREAD */
 
 # ifdef HAVE_ATOMIC_BUILTINS
-		(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
-		MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
+	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
+	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 # else
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_reads++;
-		MONITOR_INC(MONITOR_OS_PENDING_READS);
-		mutex_exit(&os_file_count_mutex);
+	mutex_enter(&os_file_count_mutex);
+	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
+	mutex_exit(&os_file_count_mutex);
 # endif /* HAVE_ATOMIC_BUILTINS */
 
 # ifndef UNIV_HOTBACKUP
-		/* Protect the seek / read operation with a mutex */
-		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
+	/* Protect the seek / read operation with a mutex */
+	ulint	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
-		mutex_enter(os_file_seek_mutexes[i]);
+	mutex_enter(os_file_seek_mutexes[i]);
 # endif /* !UNIV_HOTBACKUP */
 
-		read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
+	read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
 
 # ifndef UNIV_HOTBACKUP
-		mutex_exit(os_file_seek_mutexes[i]);
+	mutex_exit(os_file_seek_mutexes[i]);
 # endif /* !UNIV_HOTBACKUP */
 
 # ifdef HAVE_ATOMIC_BUILTINS
-		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
-		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
+	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
 # else
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_reads--;
-		MONITOR_DEC(MONITOR_OS_PENDING_READS);
-		mutex_exit(&os_file_count_mutex);
+	mutex_enter(&os_file_count_mutex);
+	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
+	mutex_exit(&os_file_count_mutex);
 # endif /* HAVE_ATOMIC_BUILTINS */
 
-		return(read_bytes);
-	}
-# endif /* !UNIV_HOTBACKUP */
-
+	return(read_bytes);
 #endif /* HAVE_PREAD */
 }
+
+# endif /* _WIN32*/
 
 /*******************************************************************//**
 Does a synchronous write operation in Posix.
