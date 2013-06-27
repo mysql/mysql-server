@@ -46,22 +46,45 @@ Created 9/11/1995 Heikki Tuuri
 	=============================
 The status of a rw_lock is held in lock_word. The initial value of lock_word is
 X_LOCK_DECR. lock_word is decremented by 1 for each s-lock and by X_LOCK_DECR
-for each x-lock. This describes the lock state for each value of lock_word:
+or 1 for each x-lock. This describes the lock state for each value of lock_word:
 
-lock_word == X_LOCK_DECR:      Unlocked.
-0 < lock_word < X_LOCK_DECR:   Read locked, no waiting writers.
-			       (X_LOCK_DECR - lock_word) is the
-			       number of readers that hold the lock.
-lock_word == 0:		       Write locked
--X_LOCK_DECR < lock_word < 0:  Read locked, with a waiting writer.
-			       (-lock_word) is the number of readers
-			       that hold the lock.
-lock_word <= -X_LOCK_DECR:     Recursively write locked. lock_word has been
-			       decremented by X_LOCK_DECR for the first lock
-			       and the first recursive lock, then by 1 for
-			       each recursive lock thereafter.
-			       So the number of locks is:
-			       (lock_copy == 0) ? 1 : 2 - (lock_copy + X_LOCK_DECR)
+lock_word == X_LOCK_DECR:	Unlocked.
+X_LOCK_HALF_DECR < lock_word < X_LOCK_DECR:
+				S locked, no waiting writers.
+				(X_LOCK_DECR - lock_word) is the number
+				of S locks.
+lock_word == X_LOCK_HALF_DECR:	SX locked, no waiting writers.
+0 < lock_word < X_LOCK_HALF_DECR:
+				SX locked AND S locked, no waiting writers.
+				(X_LOCK_HALF_DECR - lock_word) is the number
+				of S locks.
+lock_word == 0:			X locked, no waiting writers.
+-X_LOCK_HALF_DECR < lock_word < 0:
+				S locked, with a waiting writer.
+				(-lock_word) is the number of S locks.
+lock_word == -X_LOCK_HALF_DECR:	X locked and SX locked, no waiting writers.
+-X_LOCK_DECR < lock_word < -X_LOCK_HALF_DECR:
+				S locked, with a waiting writer
+				which has SX lock.
+				-(lock_word + X_LOCK_HALF_DECR) is the number
+				of S locks.
+lock_word == -X_LOCK_DECR:	X locked with recursive X lock (2 X locks).
+-(X_LOCK_DECR + X_LOCK_HALF_DECR) < lock_word < -X_LOCK_DECR:
+				X locked. The number of the X locks is:
+				2 - (lock_word + X_LOCK_DECR)
+lock_word == -(X_LOCK_DECR + X_LOCK_HALF_DECR):
+				X locked with recursive X lock (2 X locks)
+				and SX locked.
+lock_word < -(X_LOCK_DECR + X_LOCK_HALF_DECR):
+				X locked and SX locked.
+				The number of the X locks is:
+				2 - (lock_word + X_LOCK_DECR + X_LOCK_HALF_DECR)
+
+ LOCK COMPATIBILITY MATRIX
+    S SX  X
+ S  +  +  -
+ SX +  -  -
+ X  -  -  -
 
 The lock_word is always read and updated atomically and consistently, so that
 it always represents the state of the lock, and the state of the lock changes
@@ -69,12 +92,13 @@ with a single atomic operation. This lock_word holds all of the information
 that a thread needs in order to determine if it is eligible to gain the lock
 or if it must spin or sleep. The one exception to this is that writer_thread
 must be verified before recursive write locks: to solve this scenario, we make
-writer_thread readable by all threads, but only writeable by the x-lock holder.
+writer_thread readable by all threads, but only writeable by the x-lock or
+sx-lock holder.
 
 The other members of the lock obey the following rules to remain consistent:
 
 recursive:	This and the writer_thread field together control the
-		behaviour of recursive x-locking.
+		behaviour of recursive x-locking or sx-locking.
 		lock->recursive must be FALSE in following states:
 			1) The writer_thread contains garbage i.e.: the
 			lock has just been initialized.
@@ -243,6 +267,7 @@ rw_lock_create_func(
 	contains garbage at initialization and cannot be used for
 	recursive x-locking. */
 	lock->recursive = FALSE;
+	lock->sx_recursive = 0;
 	/* Silence Valgrind when UNIV_DEBUG_VALGRIND is not enabled. */
 	memset((void*) &lock->writer_thread, 0, sizeof lock->writer_thread);
 	UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
@@ -330,7 +355,7 @@ simultaneous shared and exclusive locks.
 ibool
 rw_lock_validate(
 /*=============*/
-	rw_lock_t*	lock)	/*!< in: rw-lock */
+	const rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 	ulint	waiters;
 	lint	lock_word;
@@ -448,7 +473,7 @@ rw_lock_x_lock_move_ownership(
 {
 	ut_ad(rw_lock_is_locked(lock, RW_LOCK_EX));
 
-	rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
+	rw_lock_set_writer_id_and_recursion_flag(lock, true);
 }
 
 /******************************************************************//**
@@ -456,13 +481,14 @@ Function for the next writer to call. Waits for readers to exit.
 The caller must have already decremented lock_word by X_LOCK_DECR. */
 UNIV_INLINE
 void
-rw_lock_x_lock_wait(
-/*================*/
+rw_lock_x_lock_wait_func(
+/*=====================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 #ifdef UNIV_SYNC_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 #endif
+	lint		threshold,/*!< in: threshold to wait for */
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
@@ -476,9 +502,9 @@ rw_lock_x_lock_wait(
 
 	counter_index = (size_t) os_thread_get_curr_id();
 
-	ut_ad(lock->lock_word <= 0);
+	ut_ad(lock->lock_word <= threshold);
 
-	while (lock->lock_word < 0) {
+	while (lock->lock_word < threshold) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
@@ -499,7 +525,7 @@ rw_lock_x_lock_wait(
 		i = 0;
 
 		/* Check lock_word to ensure wake-up isn't missed.*/
-		if (lock->lock_word < 0) {
+		if (lock->lock_word < threshold) {
 
 			/* these stats may not be accurate */
 			lock->count_os_wait++;
@@ -526,6 +552,13 @@ rw_lock_x_lock_wait(
 	}
 	rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
 }
+#ifdef UNIV_SYNC_DEBUG
+# define rw_lock_x_lock_wait(L, P, T, F, O)		\
+	rw_lock_x_lock_wait_func(L, P, T, F, O)
+#else
+# define rw_lock_x_lock_wait(L, P, T, F, O)		\
+	rw_lock_x_lock_wait_func(L, T, F, O)
+#endif
 
 /******************************************************************//**
 Low-level function for acquiring an exclusive lock.
@@ -540,7 +573,7 @@ rw_lock_x_lock_low(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	if (rw_lock_lock_word_decr(lock, X_LOCK_DECR)) {
+	if (rw_lock_lock_word_decr(lock, X_LOCK_DECR, X_LOCK_HALF_DECR)) {
 
 		/* lock->recursive also tells us if the writer_thread
 		field is stale or active. As we are going to write
@@ -550,25 +583,42 @@ rw_lock_x_lock_low(
 
 		/* Decrement occurred: we are writer or next-writer. */
 		rw_lock_set_writer_id_and_recursion_flag(
-			lock, pass ? FALSE : TRUE);
+			lock, !pass);
 
-		rw_lock_x_lock_wait(lock,
-#ifdef UNIV_SYNC_DEBUG
-				    pass,
-#endif
-				    file_name, line);
+		rw_lock_x_lock_wait(lock, pass,
+				    0, file_name, line);
 
 	} else {
 		os_thread_id_t	thread_id = os_thread_get_curr_id();
 
-		/* Decrement failed: relock or failed lock */
+		/* Decrement failed: An X or SX lock is held by either
+		this thread or another. Try to relock. */
 		if (!pass && lock->recursive
 		    && os_thread_eq(lock->writer_thread, thread_id)) {
-			/* Relock */
-			if (lock->lock_word == 0) {
-				lock->lock_word -= X_LOCK_DECR;
+			/* Other s-locks can be allowed. If it is request x
+			recursively while holding sx lock, this x lock should
+			be along with the latching-order. */
+
+			/* The existing X or SX lock is from this thread */
+			if (rw_lock_lock_word_decr(lock, X_LOCK_DECR, 0)) {
+				/* There is at least one SX-lock from this
+				thread, but no X-lock. */
+
+				/* Wait for any the other S-locks to be
+				released. */
+				rw_lock_x_lock_wait(lock, pass,
+						    -X_LOCK_HALF_DECR,
+						    file_name, line);
 			} else {
-				--lock->lock_word;
+				/* At least one X lock by this thread already
+				exists. Add another. */
+				if (lock->lock_word == 0
+				    || lock->lock_word == -X_LOCK_HALF_DECR) {
+					lock->lock_word -= X_LOCK_DECR;
+				} else {
+					ut_ad(lock->lock_word <= -X_LOCK_DECR);
+					--lock->lock_word;
+				}
 			}
 
 		} else {
@@ -579,6 +629,83 @@ rw_lock_x_lock_low(
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_add_debug_info(lock, pass, RW_LOCK_EX, file_name, line);
 #endif
+	lock->last_x_file_name = file_name;
+	lock->last_x_line = (unsigned int) line;
+
+	return(TRUE);
+}
+
+/******************************************************************//**
+Low-level function for acquiring an sx lock.
+@return FALSE if did not succeed, TRUE if success. */
+UNIV_INLINE
+ibool
+rw_lock_sx_lock_low(
+/*================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	if (rw_lock_lock_word_decr(lock, X_LOCK_HALF_DECR, X_LOCK_HALF_DECR)) {
+
+		/* lock->recursive also tells us if the writer_thread
+		field is stale or active. As we are going to write
+		our own thread id in that field it must be that the
+		current writer_thread value is not active. */
+		ut_a(!lock->recursive);
+
+		/* Decrement occurred: we are the SX lock owner. */
+		rw_lock_set_writer_id_and_recursion_flag(
+			lock, !pass);
+
+		lock->sx_recursive = 1;
+
+	} else {
+		os_thread_id_t	thread_id = os_thread_get_curr_id();
+
+		/* Decrement failed: It already has an X or SX lock by this
+		thread or another thread. If it is this thread, relock,
+		else fail. */
+		if (!pass && lock->recursive
+		    && os_thread_eq(lock->writer_thread, thread_id)) {
+			/* This thread owns an X or SX lock */
+			if (lock->sx_recursive++ == 0) {
+				/* This thread is making first SX-lock request
+				and it must be holding at least one X-lock here
+				because:
+
+				* There can't be a WAIT_EX thread because we are
+				  the thread which has it's thread_id written in
+				  the writer_thread field and we are not waiting.
+
+				* Any other X-lock thread cannot exist because
+				  it must update recursive flag only after
+				  updating the thread_id. Had there been
+				  a concurrent X-locking thread which succeeded
+				  in decrementing the lock_word it must have
+				  written it's thread_id before setting the
+				  recursive flag. As we cleared the if()
+				  condition above therefore we must be the only
+				  thread working on this lock and it is safe to
+				  read and write to the lock_word. */
+
+				ut_ad((lock->lock_word == 0)
+				      || ((lock->lock_word <= -X_LOCK_DECR)
+					  && (lock->lock_word
+					      > -(X_LOCK_DECR
+						  + X_LOCK_HALF_DECR))));
+				lock->lock_word -= X_LOCK_HALF_DECR;
+			}
+		} else {
+			/* Another thread locked before us */
+			return(FALSE);
+		}
+	}
+#ifdef UNIV_SYNC_DEBUG
+	rw_lock_add_debug_info(lock, pass, RW_LOCK_SX, file_name, line);
+#endif /* UNIV_SYNC_DEBUG */
 	lock->last_x_file_name = file_name;
 	lock->last_x_line = (unsigned int) line;
 
@@ -607,7 +734,7 @@ rw_lock_x_lock_func(
 	ulint		i;	/*!< spin round count */
 	ulint		index;	/*!< index of the reserved wait cell */
 	sync_array_t*	sync_arr;
-	ibool		spinning = FALSE;
+	bool		spinning = false;
 	size_t		counter_index;
 
 	/* We reuse the thread id to index into the counter, cache
@@ -632,7 +759,7 @@ lock_loop:
 	} else {
 
 		if (!spinning) {
-			spinning = TRUE;
+			spinning = true;
 
 			rw_lock_stats.rw_x_spin_wait_count.add(
 				counter_index, 1);
@@ -640,7 +767,7 @@ lock_loop:
 
 		/* Spin waiting for the lock_word to become free */
 		while (i < SYNC_SPIN_ROUNDS
-		       && lock->lock_word <= 0) {
+		       && lock->lock_word <= X_LOCK_HALF_DECR) {
 			if (srv_spin_wait_delay) {
 				ut_delay(ut_rnd_interval(0,
 							 srv_spin_wait_delay));
@@ -674,6 +801,103 @@ lock_loop:
 	/* these stats may not be accurate */
 	lock->count_os_wait++;
 	rw_lock_stats.rw_x_os_wait_count.add(counter_index, 1);
+
+	sync_array_wait_event(sync_arr, index);
+
+	i = 0;
+	goto lock_loop;
+}
+
+/******************************************************************//**
+NOTE! Use the corresponding macro, not directly this function! Lock an
+rw-lock in SX mode for the current thread. If the rw-lock is locked
+in exclusive mode, or there is an exclusive lock request waiting,
+the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
+for the lock, before suspending the thread. If the same thread has an x-lock
+on the rw-lock, locking succeed, with the following exception: if pass != 0,
+only a single sx-lock may be taken on the lock. NOTE: If the same thread has
+an s-lock, locking does not succeed! */
+
+void
+rw_lock_sx_lock_func(
+/*=================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+
+{
+	ulint		i;	/*!< spin round count */
+	ulint		index;	/*!< index of the reserved wait cell */
+	sync_array_t*	sync_arr;
+	ibool		spinning = false;
+	size_t		counter_index;
+
+	/* We reuse the thread id to index into the counter, cache
+	it here for efficiency. */
+
+	counter_index = (size_t) os_thread_get_curr_id();
+
+	ut_ad(rw_lock_validate(lock));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	i = 0;
+
+lock_loop:
+
+	if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
+		rw_lock_stats.rw_sx_spin_round_count.add(counter_index, i);
+
+		return;	/* Locking succeeded */
+
+	} else {
+
+		if (!spinning) {
+			spinning = true;
+
+			rw_lock_stats.rw_sx_spin_wait_count.add(
+				counter_index, 1);
+		}
+
+		/* Spin waiting for the lock_word to become free */
+		while (i < SYNC_SPIN_ROUNDS
+		       && lock->lock_word <= X_LOCK_HALF_DECR) {
+			if (srv_spin_wait_delay) {
+				ut_delay(ut_rnd_interval(0,
+							 srv_spin_wait_delay));
+			}
+
+			i++;
+		}
+		if (i == SYNC_SPIN_ROUNDS) {
+			os_thread_yield();
+		} else {
+			goto lock_loop;
+		}
+	}
+
+	rw_lock_stats.rw_sx_spin_round_count.add(counter_index, i);
+
+	sync_arr = sync_array_get();
+
+	sync_array_reserve_cell(
+		sync_arr, lock, RW_LOCK_SX, file_name, line, &index);
+
+	/* Waiters must be set before checking lock_word, to ensure signal
+	is sent. This could lead to a few unnecessary wake-up signals. */
+	rw_lock_set_waiter_flag(lock);
+
+	if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
+		sync_array_free_cell(sync_arr, index);
+		return; /* Locking succeeded */
+	}
+
+	/* these stats may not be accurate */
+	lock->count_os_wait++;
+	rw_lock_stats.rw_sx_os_wait_count.add(counter_index, 1);
 
 	sync_array_wait_event(sync_arr, index);
 
@@ -758,9 +982,16 @@ rw_lock_add_debug_info(
 	rw_lock_debug_mutex_exit();
 
 	if ((pass == 0) && (lock_type != RW_LOCK_WAIT_EX)) {
+		/* recursive x while holding sx
+		(lock_type == RW_LOCK_EX && lock_word == -X_LOCK_HALF_DECR)
+		is treated as not-relock (new lock). */
+		lint	lock_word = lock->lock_word;
 		sync_thread_add_level(lock, lock->level,
-				      lock_type == RW_LOCK_EX
-				      && lock->lock_word < 0);
+				      (lock_type == RW_LOCK_EX
+				       && lock_word < -X_LOCK_HALF_DECR)
+				      || (lock_type == RW_LOCK_SX
+					  && (lock_word < 0
+					      || lock->sx_recursive > 1)));
 	}
 }
 
@@ -850,37 +1081,88 @@ rw_lock_own(
 
 	return(FALSE);
 }
-#endif /* UNIV_SYNC_DEBUG */
 
 /******************************************************************//**
-Checks if somebody has locked the rw-lock in the specified mode.
-@return TRUE if locked */
+Checks if the thread has locked the rw-lock in the specified mode, with
+the pass value == 0.
+@return true if locked */
 
-ibool
-rw_lock_is_locked(
-/*==============*/
-	rw_lock_t*	lock,		/*!< in: rw-lock */
-	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
-					RW_LOCK_EX */
+bool
+rw_lock_own_flagged(
+/*================*/
+	const rw_lock_t*	lock,	/*!< in: rw-lock */
+	rw_lock_flags_t		flags)	/*!< in: specify lock types with
+					OR of the rw_lock_flag_t values */
 {
-	ibool	ret	= FALSE;
+	rw_lock_debug_t*	info;
 
 	ut_ad(lock);
 	ut_ad(rw_lock_validate(lock));
 
-	if (lock_type == RW_LOCK_SHARED) {
-		if (rw_lock_get_reader_count(lock) > 0) {
-			ret = TRUE;
+	rw_lock_debug_mutex_enter();
+
+	info = UT_LIST_GET_FIRST(lock->debug_list);
+
+	while (info != NULL) {
+
+		if (os_thread_eq(info->thread_id, os_thread_get_curr_id())
+		    && (info->pass == 0)) {
+			ulint	flag = 0;
+
+			switch (info->lock_type) {
+			case RW_LOCK_SHARED:
+				flag = RW_LOCK_FLAG_S;
+				break;
+			case RW_LOCK_EX:
+				flag = RW_LOCK_FLAG_X;
+				break;
+			case RW_LOCK_SX:
+				flag = RW_LOCK_FLAG_SX;
+			}
+
+			if (flags & flag) {
+				rw_lock_debug_mutex_exit();
+				/* Found! */
+
+				return(true);
+			}
 		}
-	} else if (lock_type == RW_LOCK_EX) {
-		if (rw_lock_get_writer(lock) == RW_LOCK_EX) {
-			ret = TRUE;
-		}
-	} else {
+
+		info = UT_LIST_GET_NEXT(list, info);
+	}
+	rw_lock_debug_mutex_exit();
+
+	return(false);
+}
+#endif /* UNIV_SYNC_DEBUG */
+
+/******************************************************************//**
+Checks if somebody has locked the rw-lock in the specified mode.
+@return true if locked */
+
+bool
+rw_lock_is_locked(
+/*==============*/
+	rw_lock_t*	lock,		/*!< in: rw-lock */
+	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
+					RW_LOCK_EX or RW_LOCK_SX */
+{
+	ut_ad(lock);
+	ut_ad(rw_lock_validate(lock));
+
+	switch (lock_type) {
+	case RW_LOCK_SHARED:
+		return(rw_lock_get_reader_count(lock) > 0);
+
+	case RW_LOCK_EX:
+		return(rw_lock_get_writer(lock) == RW_LOCK_EX);
+
+	case RW_LOCK_SX:
+		return(rw_lock_get_sx_lock_count(lock) > 0);
+
+	default:
 		ut_error;
 	}
-
-	return(ret);
 }
 
 #ifdef UNIV_SYNC_DEBUG
@@ -997,15 +1279,24 @@ rw_lock_debug_print(
 	fprintf(f, "Locked: thread %lu file %s line %lu  ",
 		(ulong) os_thread_pf(info->thread_id), info->file_name,
 		(ulong) info->line);
-	if (rwt == RW_LOCK_SHARED) {
+
+	switch (rwt) {
+	case RW_LOCK_SHARED:
 		fputs("S-LOCK", f);
-	} else if (rwt == RW_LOCK_EX) {
+		break;
+	case RW_LOCK_EX:
 		fputs("X-LOCK", f);
-	} else if (rwt == RW_LOCK_WAIT_EX) {
+		break;
+	case RW_LOCK_SX:
+		fputs("SX-LOCK", f);
+		break;
+	case RW_LOCK_WAIT_EX:
 		fputs("WAIT X-LOCK", f);
-	} else {
+		break;
+	default:
 		ut_error;
 	}
+
 	if (info->pass != 0) {
 		fprintf(f, " pass value %lu", (ulong) info->pass);
 	}

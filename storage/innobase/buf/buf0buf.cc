@@ -4442,7 +4442,10 @@ buf_pool_validate_instance(
 assert_s_latched:
 						ut_a(rw_lock_is_locked(
 							     &block->lock,
-								     RW_LOCK_SHARED));
+							     RW_LOCK_SHARED)
+						     || rw_lock_is_locked(
+								&block->lock,
+								RW_LOCK_SX));
 						break;
 					case BUF_FLUSH_LIST:
 						n_list_flush++;
