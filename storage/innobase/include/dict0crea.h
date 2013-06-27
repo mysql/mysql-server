@@ -130,7 +130,7 @@ dict_recreate_index_tree(
 
 /*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table.
-@return index root page number of FIL_NULL if it was already freed. */
+@return index root page number or FIL_NULL if it was already freed. */
 
 ulint
 dict_drop_index_tree(

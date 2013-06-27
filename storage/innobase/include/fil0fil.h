@@ -396,9 +396,10 @@ fil_create_directory_for_tablename(
 				'databasename/tablename' format */
 /********************************************************//**
 Recreates table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery. */
+MLOG_FILE_TRUNCATE redo record during recovery.
+@return DB_SUCCESS or error code */
 
-void
+dberr_t
 fil_recreate_table(
 /*===============*/
 	ulint			space_id,	/*!< in: space id */
@@ -409,9 +410,10 @@ fil_recreate_table(
 						MLOG_FILE_TRUNCATE record */
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery. */
+MLOG_FILE_TRUNCATE redo record during recovery.
+@return DB_SUCCESS or error code */
 
-void
+dberr_t
 fil_recreate_tablespace(
 /*====================*/
 	ulint			space_id,	/*!< in: space id */
