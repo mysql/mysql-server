@@ -815,7 +815,7 @@ os_file_opendir(
 {
 	os_file_dir_t		dir;
 #ifdef _WIN32
-	LPWIN32FIND_DATA	lpFindFileData;
+	LPWIN32_FIND_DATA	lpFindFileData;
 	char			path[OS_FILE_MAX_PATH + 3];
 
 	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
@@ -827,8 +827,8 @@ os_file_opendir(
 	the first entry in the directory. Since it is '.', that is no problem,
 	as we will skip over the '.' and '..' entries anyway. */
 
-	lpFindFileData = static_cast<LPWIN32FIND_DATA>(
-		ut_malloc(sizeof(_WIN32FIND_DATA)));
+	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
+		ut_malloc(sizeof(WIN32_FIND_DATA)));
 
 	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
 
@@ -902,11 +902,11 @@ os_file_readdir_next_file(
 	os_file_stat_t*	info)	/*!< in/out: buffer where the info is returned */
 {
 #ifdef _WIN32
-	LPWIN32FIND_DATA	lpFindFileData;
+	LPWIN32_FIND_DATA	lpFindFileData;
 	BOOL			ret;
 
-	lpFindFileData = static_cast<LPWIN32FIND_DATA>(
-		ut_malloc(sizeof(_WIN32FIND_DATA)));
+	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
+		ut_malloc(sizeof(WIN32_FIND_DATA)));
 next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 
@@ -2486,8 +2486,6 @@ os_file_pread(
 #endif /* HAVE_PREAD */
 }
 
-# endif /* _WIN32*/
-
 /*******************************************************************//**
 Does a synchronous write operation in Posix.
 @return number of bytes written, -1 if error */
@@ -2548,6 +2546,8 @@ os_file_pwrite(
 	}
 #endif /* HAVE_PWRITE */
 }
+
+# endif /* _WIN32*/
 
 /*******************************************************************//**
 NOTE! Use the corresponding macro os_file_read(), not directly this
