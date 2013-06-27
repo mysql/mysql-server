@@ -66,6 +66,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 #include "srv0space.h"
+#include "row0trunc.h"
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
 # include "os0proc.h"
@@ -1970,7 +1971,8 @@ files_checked:
 
 		/* Fix-up truncate of table if server crashed while truncate
 		was active. */
-		err = row_truncate_fixup_tables();
+		err = truncate_t::fixup_tables();
+
 		if (err != DB_SUCCESS) {
 			return(srv_init_abort(err));
 		}
