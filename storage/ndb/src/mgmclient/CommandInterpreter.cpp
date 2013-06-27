@@ -1037,9 +1037,11 @@ CommandInterpreter::execute(const char *_line, int try_reconnect,
 }
 
 static void
-invalid_command(const char *cmd)
+invalid_command(const char *cmd, const char *msg=0)
 {
   ndbout << "Invalid command: " << cmd << endl;
+  if(msg)
+      ndbout << msg << endl;
   ndbout << "Type HELP for help." << endl << endl;
 }
 
@@ -2921,7 +2923,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
 {
   struct ndb_mgm_reply reply;
   unsigned int backupId;
-  unsigned int input_backupId = 0;
+  unsigned long long int input_backupId = 0;
 
   Vector<BaseString> args;
   if (parameters)
@@ -2951,11 +2953,16 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   */
   for (int i= 1; i < sz; i++)
   {
-    if (i == 1 && sscanf(args[1].c_str(), "%u", &input_backupId) == 1) {
-      if (input_backupId > 0 && input_backupId < MAX_BACKUPS)
+    if (i == 1 && sscanf(args[1].c_str(), "%llu", &input_backupId) == 1) {
+      char out[1024];
+      BaseString::snprintf(out, sizeof(out), "%u: ", MAX_BACKUPS);
+      // to detect wraparound due to overflow, check if number of digits in 
+      // input backup ID <= number of digits in max backup ID
+      if (input_backupId > 0 && input_backupId < MAX_BACKUPS && args[1].length() <= strlen(out))
         continue;
       else {
-        invalid_command(parameters);
+        BaseString::snprintf(out, sizeof(out), "Backup ID out of range [1 - %u]", MAX_BACKUPS-1);
+        invalid_command(parameters, out);
         return -1;
       }
     }
