@@ -328,7 +328,7 @@ Obsoletes:      mysql < %{version}-%{release}
 Obsoletes:      mysql-advanced < %{version}-%{release}
 Obsoletes:      MySQL-client-classic MySQL-client-community MySQL-client-enterprise
 Obsoletes:      MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
-Provides:       mysql
+Provides:       mysql = %{version}-%{release} 
 
 
 %description -n MySQL-client%{product_suffix}
