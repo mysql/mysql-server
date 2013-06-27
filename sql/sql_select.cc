@@ -3476,7 +3476,16 @@ int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
   for (; order ; order=order->next, const_key_parts>>=1)
   {
-    Field *field=((Item_field*) (*order->item)->real_item())->field;
+
+    /*
+      Since only fields can be indexed, ORDER BY <something> that is
+      not a field cannot be resolved by using an index.
+    */
+    Item *real_itm= (*order->item)->real_item();
+    if (real_itm->type() != Item::FIELD_ITEM)
+      DBUG_RETURN(0);
+
+    Field *field= static_cast<Item_field*>(real_itm)->field;
     int flag;
 
     /*
