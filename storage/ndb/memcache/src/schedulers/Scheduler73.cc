@@ -66,6 +66,7 @@ void Scheduler73::Global::init(const scheduler_options *sched_opts) {
   /* Set member variables */
   nthreads = sched_opts->nthreads;
   options.max_clients = sched_opts->max_clients;
+  parse_config_string(sched_opts->config_string);
 
   /* Fetch or initialize clusters */
   nclusters = conf->nclusters;
@@ -101,6 +102,37 @@ void Scheduler73::Global::init(const scheduler_options *sched_opts) {
   /* Now Running */
   running = true;
 }
+
+void Scheduler73::Global::parse_config_string(const char *str) {
+
+  /* Initialize the configuration default values */
+  options.separate_send = true;
+  if(str) {
+    const char *s = str;
+    char letter;
+    int value;
+    
+    /* tolerate a ':' at the start of the string */
+    if( *s == ':') s++;
+    
+    while(*s != '\0' && sscanf(s, "%c%d", &letter, &value) == 2) {
+      switch(letter) {
+        case 's':
+          options.separate_send = value;
+          break;
+      }
+      /* Skip over the part just read */
+      s += 1;                   // the letter
+      while(isdigit(*s)) s++;   // the value
+      
+      /* Now tolerate a comma */
+      if(*s == ',') s++;
+    }
+  }
+  
+  /* Test validity of configuration */
+}
+
 
 
 void Scheduler73::Global::reconfigure(Configuration * new_cf) {
@@ -240,8 +272,14 @@ void Scheduler73::Worker::prepare(NdbTransaction * tx,
                                   NdbAsynchCallback callback, 
                                   workitem * item, prepare_flags flags) { 
   Ndb *ndb = tx->getNdb();
+
   Uint64 nwaitsPre = ndb->getClientStat(Ndb::WaitExecCompleteCount);
-  tx->executeAsynch(execType, callback, (void *) item);
+
+  if(s_global->options.separate_send)
+    tx->executeAsynchPrepare(execType, callback, (void *) item);
+  else
+    tx->executeAsynch(execType, callback, (void *) item);
+    
   Uint64 nwaitsPost = ndb->getClientStat(Ndb::WaitExecCompleteCount);
   assert(nwaitsPost == nwaitsPre);
 
@@ -421,6 +459,8 @@ ENGINE_ERROR_CODE Scheduler73::WorkerConnection::schedule(const KeyPrefix *pfx,
 
   if(op_status == op_prepared) {
     /* Success */
+   if(s_global->options.separate_send) 
+     inst->db->sendPreparedTransactions(false);
     cluster->pollgroup->push(inst->db);
     cluster->pollgroup->wakeup();
     response_code = ENGINE_EWOULDBLOCK;
@@ -548,6 +588,8 @@ void * Scheduler73::Cluster::run_wait_thread() {
       if(inst->wqitem->base.reschedule) {
         DEBUG_PRINT("Rescheduling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);
         inst->wqitem->base.reschedule = 0;
+        if(s_global->options.separate_send) 
+          db->sendPreparedTransactions(false);
         pollgroup->push(db);
       }
       else {     // Operation is complete
