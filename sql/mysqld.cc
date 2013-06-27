@@ -332,10 +332,6 @@ static PSI_rwlock_key key_rwlock_openssl;
 #endif
 #endif /* HAVE_PSI_INTERFACE */
 
-#ifdef HAVE_NPTL
-volatile sig_atomic_t ld_assume_kernel_is_set= 0;
-#endif
-
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
@@ -1509,13 +1505,11 @@ void kill_mysql(void)
     */
   }
 #endif
-#elif defined(HAVE_PTHREAD_KILL)
+#else
   if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
   {
     DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
   }
-#else 
-  kill(current_pid, MYSQL_KILL_SIGNAL);
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;     // Safety if kill didn't work
@@ -1598,7 +1592,6 @@ static void __cdecl kill_server(int sig_ptr)
 }
 
 
-#if defined(USE_ONE_SIGNAL_HAND)
 pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 {
   my_thread_init();       // Initialize new thread
@@ -1609,7 +1602,6 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
   return 0;
   /* purecov: end */
 }
-#endif
 
 
 extern "C" sig_handler print_signal_warning(int sig)
@@ -2862,7 +2854,7 @@ void my_init_signals(void)
   struct sigaction sa;
   DBUG_ENTER("my_init_signals");
 
-  my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
+  my_sigset(thr_server_alarm,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -2911,8 +2903,7 @@ void my_init_signals(void)
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-  if (thd_lib_detected != THD_LIB_LT)
-    sigaddset(&set,THR_SERVER_ALARM);
+  sigaddset(&set,thr_server_alarm);
   if (test_flags & TEST_SIGINT)
   {
     my_sigset(thr_kill_signal, end_thread_signal);
@@ -2977,16 +2968,14 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     but the +10 should be quite safe.
   */
   init_thr_alarm(thread_scheduler->max_threads + 10);
-  if (thd_lib_detected != THD_LIB_LT && (test_flags & TEST_SIGINT))
+  if (test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);     // Setup up SIGINT for debug
     (void) sigaddset(&set,SIGINT);    // For debugging
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
   (void) sigemptyset(&set);     // Setup up SIGINT for debug
-#ifdef USE_ONE_SIGNAL_HAND
-  (void) sigaddset(&set,THR_SERVER_ALARM);  // For alarms
-#endif
+  (void) sigaddset(&set,thr_server_alarm);  // For alarms
   (void) sigaddset(&set,SIGQUIT);
   (void) sigaddset(&set,SIGHUP);
   (void) sigaddset(&set,SIGTERM);
@@ -3028,7 +3017,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       error=0;
     }
     else
-      while ((error=my_sigwait(&set,&sig)) == EINTR) ;
+      while ((error=sigwait(&set,&sig)) == EINTR) ;
     if (cleanup_done)
     {
       my_thread_end();
@@ -3054,16 +3043,12 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
         /* Delete the instrumentation for the signal thread */
         PSI_THREAD_CALL(delete_current_thread)();
 #endif
-#ifdef USE_ONE_SIGNAL_HAND
         pthread_t tmp;
         if ((error= mysql_thread_create(0, /* Not instrumented */
                                         &tmp, &connection_attrib,
                                         kill_server_thread, (void*) &sig)))
           sql_print_error("Can't create thread to kill server (errno= %d)",
                           error);
-#else
-        kill_server((void*) sig); // MIT THREAD has a alarm thread
-#endif
       }
       break;
     case SIGHUP:
@@ -3080,11 +3065,9 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       /* reenable query logs after the options were reloaded */
       query_logger.set_handlers(log_output_options);
       break;
-#ifdef USE_ONE_SIGNAL_HAND
-    case THR_SERVER_ALARM:
+    case thr_server_alarm:
       process_alarm(sig);     // Trigger alarms.
       break;
-#endif
     default:
 #ifdef EXTRA_DEBUG
       sql_print_warning("Got signal: %d  error: %d",sig,error); /* purecov: tested */
@@ -5033,9 +5016,6 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname= argv[0];
-#ifdef HAVE_NPTL
-  ld_assume_kernel_is_set= (getenv("LD_ASSUME_KERNEL") != 0);
-#endif
 
 #ifndef _WIN32
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -5147,7 +5127,7 @@ int mysqld_main(int argc, char **argv)
 
   /* Set signal used to kill MySQL */
 #if defined(SIGUSR2)
-  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+  thr_kill_signal= SIGUSR2;
 #else
   thr_kill_signal= SIGINT;
 #endif
@@ -5605,7 +5585,7 @@ default_service_handling(char **argv,
 
   /* We have to quote filename if it contains spaces */
   pos= add_quoted_string(path_and_service, file_path, end);
-  if (*extra_opt)
+  if (extra_opt && *extra_opt)
   {
     /*
      Add option after file_path. There will be zero or one extra option.  It's

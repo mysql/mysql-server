@@ -5595,6 +5595,10 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
   DML_prelocking_strategy prelocking_strategy;
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_normal_and_derived_tables");
+
+  DBUG_EXECUTE_IF("open_normal_and_derived_tables__out_of_memory",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
   if (open_tables(thd, &tables, &thd->lex->table_count, flags,
                   &prelocking_strategy) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))

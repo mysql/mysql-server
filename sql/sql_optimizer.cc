@@ -192,27 +192,20 @@ JOIN::optimize()
   if (first_optimization)
   {
     /*
-      The following code will allocate the new items in a permanent
-      MEMROOT for prepared statements and stored procedures.
+      These are permanent transformations, so new items must be
+      allocated in the statement mem root
     */
-
-    Query_arena *arena= thd->stmt_arena, backup;
-    if (arena->is_conventional())
-      arena= 0;                                   // For easier test
-    else
-      thd->set_n_backup_active_arena(arena, &backup);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     /* Convert all outer joins to inner joins if possible */
     if (simplify_joins(this, join_list, conds, true, false, &conds))
     {
       DBUG_PRINT("error",("Error from simplify_joins"));
-      thd->restore_active_arena(arena, &backup);
       DBUG_RETURN(1);
     }
     if (record_join_nest_info(select_lex, join_list))
     {
       DBUG_PRINT("error",("Error from record_join_nest_info"));
-      thd->restore_active_arena(arena, &backup);
       DBUG_RETURN(1);
     }
     build_bitmap_for_nested_joins(join_list, 0);
@@ -232,9 +225,6 @@ JOIN::optimize()
     */
     select_lex->prep_where=
       conds ? conds->copy_andor_structure(thd, true) : NULL;
-
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
   }
 
   /*
@@ -7859,57 +7849,57 @@ static bool make_join_select(JOIN *join, Item *cond)
             if (recheck_reason == LOW_LIMIT)
             {
               /*
-                If rechecking index usage due to a LIMIT lower than
-                the number of rows estimated to be read for this
-                table, it only makes sense to check the indexes that
-                provide the necessary order.
+                When optimizing for ORDER BY ... LIMIT, only indexes
+                that give correct ordering are of interest. The block
+                below removes all other indexes from usable_keys so
+                the range optimizer (see test_quick_select() below)
+                does not consider them.
               */
-              for (ORDER *tmp_order= join->order;
-                   tmp_order ;
-                   tmp_order=tmp_order->next)
+              for (uint idx= 0; idx < tab->table->s->keys; idx++)
               {
-                Item *item= (*tmp_order->item)->real_item();
-                if (item->type() != Item::FIELD_ITEM)
+                /*
+                  No need to check if indexes that we're not allowed
+                  to use can provide required ordering.
+                */
+                if (!usable_keys.is_set(idx))
+                  continue;
+
+                const int read_direction=
+                  test_if_order_by_key(join->order, tab->table, idx);
+                if (read_direction == 0)
                 {
-                  recheck_reason= DONT_RECHECK;
-                  break;
+                  // The index cannot provide required ordering
+                  usable_keys.clear_bit(idx);
+                  continue;
                 }
 
                 /*
-                  No index can provide the necessary order if ordering
-                  on fields that do not belong to 'tab' (the first
-                  non-const table)
+                  Currently, only ASC ordered indexes are availabe,
+                  which means that if ordering can be achieved by
+                  reading the index in forward direction, then we have
+                  ORDER BY... ASC. Likewise, if ordering can be
+                  achieved by reading the index in backward direction,
+                  then we have ORDER BY ... DESC.
+
+                  Furthermore, if correct order can be achieved by
+                  reading one index in either forward or backward
+                  direction, then all other applicable indexes will
+                  need to be read in the same direction (so no reason
+                  to check that read_direction is the same for all
+                  applicable indexes).
+
+                  If DESC/mixed ordered indexes will be possible in
+                  the future, the implied connection between index
+                  read direction and ASC/DESC ordering will no longer
+                  hold.
                 */
-                Item_field *fld_item= static_cast<Item_field*>(item);
-                if (fld_item->field->table != tab->table)
-                {
-                  recheck_reason= DONT_RECHECK;
-                  break;
-                }
-
-                if ((interesting_order != ORDER::ORDER_NOT_RELEVANT) &&
-                    (interesting_order != tmp_order->direction))
-                {
-                  /*
-                    MySQL currently does not support multi-column
-                    indexes with a mix of ASC and DESC ordering, so if
-                    ORDER BY contains both, no index can provide
-                    correct order.
-                  */
-                  recheck_reason= DONT_RECHECK;
-                  break;
-                }
-
-                usable_keys.intersect(fld_item->field->part_of_sortkey);
-                interesting_order= tmp_order->direction;
-
-                if (usable_keys.is_clear_all())
-                {
-                  // No usable keys
-                  recheck_reason= DONT_RECHECK;
-                  break;
-                }
+                interesting_order= (read_direction == -1 ? ORDER::ORDER_DESC :
+                                                           ORDER::ORDER_ASC);
               }
+
+              if (usable_keys.is_clear_all())
+                recheck_reason= DONT_RECHECK; // No usable keys
+
               /*
                 If the current plan is to use a range access on an
                 index that provides the order dictated by the ORDER BY

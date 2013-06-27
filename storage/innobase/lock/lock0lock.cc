@@ -5858,10 +5858,15 @@ lock_rec_convert_impl_to_expl_for_trx(
 {
 	ut_ad(trx_is_referenced(trx));
 
+	DEBUG_SYNC_C("before_lock_rec_convert_impl_to_expl_for_trx");
+
 	lock_mutex_enter();
 
-	if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
-			       block, heap_no, trx)) {
+	ut_ad(!trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+
+	if (!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)
+	    && !lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
+				  block, heap_no, trx)) {
 
 		ulint	type_mode;
 
@@ -5887,6 +5892,8 @@ lock_rec_convert_impl_to_expl_for_trx(
 	lock_mutex_exit();
 
 	trx_release_reference(trx);
+
+	DEBUG_SYNC_C("after_lock_rec_convert_impl_to_expl_for_trx");
 }
 
 /*********************************************************************//**
@@ -6227,6 +6234,8 @@ lock_clust_rec_read_check_and_lock(
 	lock_mutex_exit();
 
 	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
+
+	DEBUG_SYNC_C("after_lock_clust_rec_read_check_and_lock");
 
 	return(err);
 }
@@ -6666,6 +6675,8 @@ lock_trx_release_locks(
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 	}
 
+	DEBUG_SYNC_C("before_trx_state_committed_in_memory");
+
 	/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
 	is protected by both the lock_sys->mutex and the trx->mutex. */
 	lock_mutex_enter();
@@ -6697,6 +6708,8 @@ lock_trx_release_locks(
 		while (trx_is_referenced(trx)) {
 
 			trx_mutex_exit(trx);
+
+			DEBUG_SYNC_C("waiting_trx_is_not_referenced");
 
 			/** Doing an implicit to explicit conversion
 			should not be expensive. */
