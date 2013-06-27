@@ -535,9 +535,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #define double2ulonglong(A) ((ulonglong) (double) (A))
 #endif
 
-#ifndef offsetof
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif
 #define ulong_to_double(X) ((double) (ulong) (X))
 
 #ifndef STACK_DIRECTION
