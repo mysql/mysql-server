@@ -82,11 +82,15 @@ public:
   
   struct options {
     int max_clients;       /** memcached max allowed connections */
+    bool separate_send;
   } options;
 
 private:
   WorkerConnection ** workerConnections;
   bool running;
+
+private:
+  void parse_config_string(const char *config_string);
 };
 
 /* For each connected cluster, there is one Cluster,
