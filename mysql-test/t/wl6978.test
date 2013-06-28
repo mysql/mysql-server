@@ -2,7 +2,7 @@
 -- source include/not_embedded.inc
 
 --echo #
---echo # WL#6951: Deprecare unique option prefixes
+--echo # WL#6951: Deprecate unique option prefixes
 --echo #
 
 --echo # Test unique option prefixes in client

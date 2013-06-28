@@ -219,7 +219,6 @@ int my_handle_options(int *argc, char ***argv,
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
-  const char *UNINIT_VAR(prev_found);
   const struct my_option *optp;
   void *value;
   int error, i;
@@ -870,10 +869,8 @@ ret:
   Find option
 
   IMPLEMENTATION
-    Go through all options in the my_option struct. Return number
-    of options found that match the pattern and in the argument
-    list the option found, if any. In case of ambiguous option, store
-    the name in ffname argument
+    Go through all options in the my_option struct. Return true
+    if an option is found. sets opt_res to the option found, if any. 
 
     @param         optpat   name of option to find (with - or _)
     @param         length   Length of optpat
