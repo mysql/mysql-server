@@ -3328,6 +3328,8 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
+    DBUG_ASSERT(pfs_thread->m_events_statements_count == 0);
+
     if (global_idle_class.m_timed)
     {
       timer_start= get_timer_raw_value_and_function(idle_timer, &state->m_timer);
@@ -4524,20 +4526,23 @@ refine_statement_v1(PSI_statement_locker *locker,
   klass= reinterpret_cast<PFS_statement_class*> (state->m_class);
   DBUG_ASSERT(klass->m_flags & PSI_FLAG_MUTABLE);
   klass= find_statement_class(key);
-  if (unlikely(klass == NULL))
-  {
-    /* FIXME : pop statement stack */
-    state->m_discarded= true;
-    return NULL;
-  }
-  if (! klass->m_enabled)
-  {
-    /* FIXME : pop statement stack */
-    state->m_discarded= true;
-    return NULL;
-  }
 
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
+
+  if (unlikely(klass == NULL) || !klass->m_enabled)
+  {
+    /* pop statement stack */
+    if (flags & STATE_FLAG_THREAD)
+    {
+      PFS_thread *pfs_thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+      DBUG_ASSERT(pfs_thread != NULL);
+      if (pfs_thread->m_events_statements_count > 0)
+        pfs_thread->m_events_statements_count--;
+    }
+
+    state->m_discarded= true;
+    return NULL;
+  }
 
   if ((flags & STATE_FLAG_TIMED) && ! klass->m_timed)
     flags= flags & ~STATE_FLAG_TIMED;
