@@ -214,6 +214,22 @@ ulong convert_month_to_period(ulong month)
 }
 
 
+bool
+check_date_with_warn(const MYSQL_TIME *ltime, ulonglong fuzzy_date,
+                     timestamp_type ts_type)
+{
+  int dummy_warnings;
+  if (check_date(ltime, fuzzy_date, &dummy_warnings))
+  {
+    ErrConvTime str(ltime);
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 &str, ts_type, 0);
+    return true;
+  }
+  return false;
+}
+
+
 /*
   Convert a string to 8-bit representation,
   for use in str_to_time/str_to_date/str_to_date.

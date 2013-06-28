@@ -121,5 +121,7 @@ check_date(const MYSQL_TIME *ltime, ulonglong flags, int *was_cut)
 {
  return check_date(ltime, non_zero_date(ltime), flags, was_cut);
 }
+bool check_date_with_warn(const MYSQL_TIME *ltime, ulonglong fuzzy_date,
+                          timestamp_type ts_type);
     
 #endif /* SQL_TIME_INCLUDED */

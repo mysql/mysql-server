@@ -486,6 +486,11 @@ select * from t2 left join t1 on t1.a=t2.c where t1.b is null;
 
 drop table t1,t2;
 
+--echo #
+--echo # MDEV-4634 Crash in CONVERT_TZ
+--echo #
+SELECT CONVERT_TZ(GREATEST(TIMESTAMP('2021-00-00'),TIMESTAMP('2022-00-00')),'+00:00','+7:5');
+
 --echo End of 5.3 tests
 
 --echo #
