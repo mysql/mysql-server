@@ -9268,6 +9268,11 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     range->start_key.length= min_key_length;
     range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
     range->start_key.flag=  (ha_rkey_function) (cur->min_key_flag ^ GEOM_FLAG);
+    /*
+      Spatial operators are only allowed on spatial indexes, and no
+      spatial index can at the moment return rows in ROWID order
+    */
+    DBUG_ASSERT(!param->is_ror_scan);
   }
   else
   {
