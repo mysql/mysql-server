@@ -1485,15 +1485,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     Check the nullability of the subquery. The subquery should return
     only one column, so we check the nullability of the first item in
     SELECT_LEX::item_list. In case the subquery is a union, check the
-    nullability of the first item of each SELECT_LEX belonging to the
+    nullability of the first item of each query block belonging to the
     union.
   */
-  for (SELECT_LEX* lex= select_lex->master_unit()->first_select();
-       lex != NULL && lex->master_unit() == select_lex->master_unit();
-       lex= lex->next_select())
-    if (lex->item_list.head()->maybe_null)
-      subquery_maybe_null= true;
-
+  for (SELECT_LEX *sel= select_lex->master_unit()->first_select();
+       sel != NULL;
+       sel= sel->next_select())
+  {
+    if ((subquery_maybe_null= sel->item_list.head()->maybe_null))
+      break;
+  }
   /*
     If this is an ALL/ANY single-value subquery predicate, try to rewrite
     it with a MIN/MAX subquery.
