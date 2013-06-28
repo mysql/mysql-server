@@ -2568,6 +2568,8 @@ check_date(const MYSQL_TIME *ltime, ulonglong flags, int *was_cut)
 {
   return check_date(ltime, non_zero_date(ltime), flags, was_cut);
 }
+bool check_date_with_warn(const MYSQL_TIME *ltime, uint fuzzy_date,
+                          timestamp_type ts_type);
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,

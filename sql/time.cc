@@ -213,6 +213,22 @@ ulong convert_month_to_period(ulong month)
 }
 
 
+bool
+check_date_with_warn(const MYSQL_TIME *ltime, uint fuzzy_date,
+                     timestamp_type ts_type)
+{
+  int dummy_warnings;
+  if (check_date(ltime, fuzzy_date, &dummy_warnings))
+  {
+    Lazy_string_time str(ltime);
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 &str, MYSQL_TIMESTAMP_ERROR, 0);
+    return true;
+  }
+  return false;
+}
+
+
 /*
   Convert a timestamp string to a MYSQL_TIME value and produce a warning 
   if string was truncated during conversion.

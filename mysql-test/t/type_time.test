@@ -123,3 +123,11 @@ insert into t1 values ('23:38:57');
 select f1, f1 = '2010-10-11 23:38:57' from t1;
 drop table t1;
 
+--echo #
+--echo # MDEV-4634 Crash in CONVERT_TZ
+--echo #
+SELECT CONVERT_TZ(GREATEST(TIME('00:00:00'),TIME('00:00:00')),'+00:00','+7:5');
+
+--echo #
+--echo # End of 5.3 tests
+--echo #

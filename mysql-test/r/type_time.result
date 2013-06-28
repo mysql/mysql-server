@@ -173,3 +173,14 @@ select f1, f1 = '2010-10-11 23:38:57' from t1;
 f1	f1 = '2010-10-11 23:38:57'
 23:38:57	0
 drop table t1;
+#
+# MDEV-4634 Crash in CONVERT_TZ
+#
+SELECT CONVERT_TZ(GREATEST(TIME('00:00:00'),TIME('00:00:00')),'+00:00','+7:5');
+CONVERT_TZ(GREATEST(TIME('00:00:00'),TIME('00:00:00')),'+00:00','+7:5')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
+#
+# End of 5.3 tests
+#

@@ -298,3 +298,14 @@ insert t1 values ('2010-10-10 15:foobar');
 Warnings:
 Warning	1265	Data truncated for column 'f1' at row 1
 drop table t1;
+#
+# MDEV-4634 Crash in CONVERT_TZ
+#
+SELECT CONVERT_TZ(GREATEST(DATE('2021-00-00'),DATE('2022-00-00')),'+00:00','+7:5');
+CONVERT_TZ(GREATEST(DATE('2021-00-00'),DATE('2022-00-00')),'+00:00','+7:5')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2022-00-00 00:00:00'
+#
+# End of 5.3 tests
+#
