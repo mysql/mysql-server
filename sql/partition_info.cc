@@ -336,7 +336,7 @@ bool partition_info::can_prune_insert(THD* thd,
     */
     if (update.function_defaults_apply_on_columns(&full_part_field_set))
       DBUG_RETURN(false);
- 
+
     /*
       TODO: add check for static update values, which can be pruned.
     */
@@ -721,7 +721,7 @@ end:
     The external routine needing this code is check_partition_info
 */
 
-bool partition_info::set_up_default_subpartitions(handler *file, 
+bool partition_info::set_up_default_subpartitions(handler *file,
                                                   HA_CREATE_INFO *info)
 {
   uint i, j;
@@ -787,7 +787,7 @@ end:
 */
 
 bool partition_info::set_up_defaults_for_partitioning(handler *file,
-                                                      HA_CREATE_INFO *info, 
+                                                      HA_CREATE_INFO *info,
                                                       uint start_no)
 {
   DBUG_ENTER("partition_info::set_up_defaults_for_partitioning");
@@ -797,7 +797,7 @@ bool partition_info::set_up_defaults_for_partitioning(handler *file,
     default_partitions_setup= TRUE;
     if (use_default_partitions)
       DBUG_RETURN(set_up_default_partitions(file, info, start_no));
-    if (is_sub_partitioned() && 
+    if (is_sub_partitioned() &&
         use_default_subpartitions)
       DBUG_RETURN(set_up_default_subpartitions(file, info));
   }
@@ -1617,14 +1617,14 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
         fix_parser_data(thd))
       goto end;
   }
-  if (unlikely(!is_sub_partitioned() && 
+  if (unlikely(!is_sub_partitioned() &&
                !(use_default_subpartitions && use_default_num_subpartitions)))
   {
     my_error(ER_SUBPARTITION_ERROR, MYF(0));
     goto end;
   }
   if (unlikely(is_sub_partitioned() &&
-              (!(part_type == RANGE_PARTITION || 
+              (!(part_type == RANGE_PARTITION ||
                  part_type == LIST_PARTITION))))
   {
     /* Only RANGE and LIST partitioning can be subpartitioned */
@@ -1646,7 +1646,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   /*
     if NOT specified ENGINE = <engine>:
       If Create, always use create_info->db_type
-      else, use previous tables db_type 
+      else, use previous tables db_type
       either ALL or NONE partition should be set to
       default_engine_type when not table_engine_set
       Note: after a table is created its storage engines for
@@ -2063,11 +2063,11 @@ error:
 
   SYNOPSIS
     check_partition_dirs()
-    part_info               partition_info struct 
+    part_info               partition_info struct
 
   RETURN VALUES
-    0	ok
-    1	error  
+    0   ok
+    1   error
 */
 
 bool check_partition_dirs(partition_info *part_info)
@@ -2181,7 +2181,7 @@ bool partition_info::is_field_in_part_expr(List<Item> &fields)
   }
   DBUG_RETURN(false);
 }
- 
+
 
 /**
   Check if all partitioning fields are included.
@@ -2203,7 +2203,7 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
     Item *item;
     Item_field *field;
     bool found= false;
-  
+
     while ((item= it++))
     {
       field= item->field_for_view_update();
@@ -2219,7 +2219,7 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
   } while (*(++part_field));
   DBUG_RETURN(true);
 }
- 
+
 
 /**
   Create a new column value in current list with maxvalue.
@@ -2252,7 +2252,7 @@ bool partition_info::add_max_value()
     @retval  != 0  A part_column_list_val object which have been
                    inserted into its list
     @retval  NULL  Memory allocation failure
-    
+
   @note Called from parser.
 */
 
@@ -2504,7 +2504,7 @@ bool partition_info::reorganize_into_single_field_col_val()
 
 /**
   This function handles the case of function-based partitioning.
-  
+
   It fixes some data structures created in the parser and puts
   them in the format required by the rest of the partitioning
   code.
@@ -2627,7 +2627,7 @@ Item* partition_info::get_column_item(Item *item, Field *field)
   @return Operation status
     @retval TRUE   Error
     @retval FALSE  Success
-  
+
   @note Fix column VALUES and store in memory array adapted to the data type.
 */
 
@@ -3045,7 +3045,7 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info)
                 sub_part_elem->nodegroup_id !=
                   new_sub_part_elem->nodegroup_id)
               DBUG_RETURN(false);
-  
+
             if (strcmp_null(sub_part_elem->data_file_name,
                             new_sub_part_elem->data_file_name) ||
                 strcmp_null(sub_part_elem->index_file_name,
