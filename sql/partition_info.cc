@@ -3025,7 +3025,7 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info)
             partition_element *new_sub_part_elem= new_sub_part_it++;
             /* new_part_elem may not have engine_type set! */
             if (new_sub_part_elem->engine_type &&
-                sub_part_elem->engine_type != new_part_elem->engine_type)
+                sub_part_elem->engine_type != new_sub_part_elem->engine_type)
               DBUG_RETURN(false);
 
             if (strcmp(sub_part_elem->partition_name,
