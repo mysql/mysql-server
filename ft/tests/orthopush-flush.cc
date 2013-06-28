@@ -696,7 +696,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
         struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
         const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
         bool msgs_applied;
-        toku_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds, &msgs_applied);
+        toku_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds, &msgs_applied, -1);
 
         FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
                      {
@@ -921,7 +921,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
         .upper_bound_inclusive = toku_clone_dbt(&ubi, childkeys[7])
     };
     bool msgs_applied;
-    toku_apply_ancestors_messages_to_node(t, child, &ancestors, &bounds, &msgs_applied);
+    toku_apply_ancestors_messages_to_node(t, child, &ancestors, &bounds, &msgs_applied, -1);
 
     FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
                  {
@@ -1104,7 +1104,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
     const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
     bool msgs_applied;
-    toku_apply_ancestors_messages_to_node(t, child2, &ancestors, &infinite_bounds, &msgs_applied);
+    toku_apply_ancestors_messages_to_node(t, child2, &ancestors, &infinite_bounds, &msgs_applied, -1);
 
     FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
                  {
