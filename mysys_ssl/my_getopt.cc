@@ -950,7 +950,7 @@ static int findopt(char *optpat, uint length,
                              "Using unique option prefix %.*s instead of %s "
                              "is deprecated and will be removed in a future "
                              "release. Please use the full name instead.",
-        length, optpat, *ffname);
+                             length, optpat, *ffname);
   return count;
 }
 
