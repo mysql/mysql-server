@@ -26,16 +26,14 @@ my $bits = $ENV{MYSQL_SYSTEM_ARCHITECTURE};
 
 if(!IS_WINDOWS)
 {
-  push(@arch_paths, ('/usr/lib/jvm/java/bin', '/usr/lib64/jvm/java/bin'));
+  push(@arch_paths, ('/usr/bin', '/usr/lib/jvm/java/bin', '/usr/lib64/jvm/java/bin'));
+  push(@arch_paths, ('/usr/lib/jvm/default-java/bin'));
+  push(@arch_paths, ('/usr/local/jdk/bin', '/usr/local/java/bin', '/usr/local/java/jdk/bin'));
 
+  $java_args = "-d32";
   if ($bits == 64) {
-    map { $_ . "-64" } @arch_paths;
     $java_args = "-d64";
-    push(@arch_paths, ('/usr/bin', '/usr/local/jdk/bin', '/usr/local/java/bin', '/usr/local/java/jdk/bin'));
     push(@arch_paths, ('/usr/java-local/jdk-64/bin', '/usr/local/jdk-64/bin', '/usr/local/java/jdk-64/bin'));
-  } else {
-    $java_args = "-d32";
-    push(@arch_paths, ('/usr/bin', '/usr/local/jdk/bin', '/usr/local/java/bin', '/usr/local/java/jdk/bin'));
   }
 }
 else
@@ -50,7 +48,7 @@ else
   push(@arch_paths, 'C:\Windows\System32');
 }
 
-my @java_paths = ($ENV{MTR_JAVA});
+my @java_paths = ($ENV{MTR_JAVA} . $pathsep . "bin");
 push(@java_paths, @arch_paths);
 push(@java_paths, "*"); # last resort: empty path marker for "java on PATH variable"
 
@@ -66,6 +64,7 @@ sub java_exists {
    my $devnull = "/dev/null";
    $devnull = "NUL" if IS_WINDOWS;
 
+   system("echo trying: $exists");
    system("\"$exists\" " . $java_args . " -version > " . $devnull);
   
    my $ret =  $exists if ($? == 0);
@@ -79,9 +78,10 @@ sub java_exists {
    return $ret;
 }
 
+system("echo Looking for a suitable Java...");
 foreach my $path (@java_paths) 
 {
-  if (!defined $path || $path eq '') {
+  if (!defined $path || $path eq ($pathsep . "bin")) {
     # no MTR_JAVA case
     next;
   }
@@ -102,7 +102,7 @@ foreach my $path (@java_paths)
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $F = IO::File->new("$vardir/tmp/have_java_result.inc", "w") or die;
 if ($java_loc eq '') {
-  print $F "--die Could not find Java executable; please install Java in one of the above paths or set env MTR_JAVA;\n";
+  print $F "--die Could not find Java executable; please install Java in one of the above paths or set env MTR_JAVA to the preferred JAVA HOME;\n";
 } else {
   print $F "--let \MTR_JAVA= $java_loc\n";
   print $F "--let \MTR_JAVA_ARGS= $java_args\n";
