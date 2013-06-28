@@ -2247,7 +2247,7 @@ fil_recreate_table(
 
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery. 
+MLOG_FILE_TRUNCATE redo record during recovery.
 @return DB_SUCCESS or error code */
 
 dberr_t
