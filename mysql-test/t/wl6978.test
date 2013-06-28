@@ -2,23 +2,17 @@
 -- source include/not_embedded.inc
 
 --echo #
---echo # WL#6951: Deprecare unique option prefixes
+--echo # WL#6951: Deprecate unique option prefixes
 --echo #
-
---echo # Suppress server warning
-call mtr.add_suppression("Using unique option prefix .* instead");
-
---echo # Test unique option prefixes with server
-
---echo # Should return 100k, as specified in the -master file
-select @@sort_buffer_size;
 
 --echo # Test unique option prefixes in client
 
---echo # should not fail due to wrong option, but must return a warning
+--echo # should fail due to wrong option
+--disable_result_log
+--error 7
 --exec $MYSQL test --init-comman="CREATE TABLE wl6951(a int)" -e "SELECT 1 AS CMD" 2>&1
+--enable_result_log
 
---echo # table must exist
+--echo # table must not exist
+--error ER_NO_SUCH_TABLE
 SELECT * FROM wl6951;
-
-DROP TABLE wl6951;
