@@ -44,6 +44,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   if(BDB_FOUND)
     set(bdb_dontrun_srcs
       backwards_10_each_le_and_msg
+      bigtxn27
       blackhole
       blocking-prelock-range
       blocking-set-range-reverse-0
