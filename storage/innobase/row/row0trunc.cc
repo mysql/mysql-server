@@ -811,7 +811,10 @@ Handle FTS truncate issues.
 @return DB_SUCCESS or error code. */
 static __attribute__((warn_unused_result))
 dberr_t
-row_truncate_fts(dict_table_t* table, table_id_t new_id, trx_t* trx)
+row_truncate_fts(
+	dict_table_t* 	table,
+	table_id_t 	new_id,
+	trx_t*		trx)
 {
 	dict_table_t	fts_table;
 
@@ -1960,7 +1963,7 @@ truncate_t::parse(
 /**
 Set the truncate redo log values for a compressed table.
 @param index	index from which recreate infoormation needs to be extracted
-@return DB_CORRUPTION or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 truncate_t::index_t::set(
