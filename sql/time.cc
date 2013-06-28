@@ -222,7 +222,7 @@ check_date_with_warn(const MYSQL_TIME *ltime, uint fuzzy_date,
   {
     Lazy_string_time str(ltime);
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                 &str, MYSQL_TIMESTAMP_ERROR, 0);
+                                 &str, ts_type, 0);
     return true;
   }
   return false;
