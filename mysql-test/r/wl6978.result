@@ -1,5 +1,5 @@
 #
-# WL#6951: Deprecare unique option prefixes
+# WL#6951: Deprecate unique option prefixes
 #
 # Test unique option prefixes in client
 # should fail due to wrong option
