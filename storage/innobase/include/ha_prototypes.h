@@ -344,10 +344,7 @@ innobase_mysql_fts_get_token(
 	const byte*	start,		/*!< in: start of text */
 	const byte*	end,		/*!< in: one character past end of
 					text */
-	fts_string_t*	token,		/*!< out: token's text */
-	ulint*		offset);	/*!< out: offset to token,
-					measured as characters from
-					'start' */
+	fts_string_t*	token);		/*!< out: token's text */
 
 /******************************************************************//**
 compare two character string case insensitively according to their charset. */
