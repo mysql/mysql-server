@@ -310,18 +310,12 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 /* static variables */
 
 #ifdef HAVE_PSI_INTERFACE
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 static PSI_thread_key key_thread_handle_con_namedpipes;
 static PSI_cond_key key_COND_handler_count;
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if defined(HAVE_SMEM) && !defined(EMBEDDED_LIBRARY)
 static PSI_thread_key key_thread_handle_con_sharedmem;
-#endif /* HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
 static PSI_thread_key key_thread_handle_con_sockets;
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 
 #ifdef _WIN32
 static PSI_thread_key key_thread_handle_shutdown;
@@ -1187,7 +1181,7 @@ int deny_severity = LOG_WARNING;
 #endif /* HAVE_LIBWRAP */
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 char *shared_memory_base_name= default_shared_memory_base_name;
 my_bool opt_enable_shared_memory;
 HANDLE smem_event_connect_request= 0;
@@ -1246,7 +1240,7 @@ static bool read_init_file(char *file_name);
 #ifdef _WIN32
 pthread_handler_t handle_connections_namedpipes(void *arg);
 #endif
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 pthread_handler_t handle_connections_shared_memory(void *arg);
 #endif
 pthread_handler_t handle_slave(void *arg);
@@ -1553,7 +1547,7 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER_DEFAULT(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
-#if defined(HAVE_SMEM) && defined(_WIN32)
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   /*
    Send event to smem_event_connect_request for aborting
    */
@@ -4892,7 +4886,7 @@ static void create_shutdown_thread()
 #endif /* EMBEDDED_LIBRARY */
 
 
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static void handle_connections_methods()
 {
   pthread_t hThread;
@@ -4933,7 +4927,7 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (opt_enable_shared_memory)
   {
     handler_count++;
@@ -4964,7 +4958,7 @@ void decrement_handler_count()
 }
 #else
 #define decrement_handler_count()
-#endif /* defined(_WIN32) || defined(HAVE_SMEM) */
+#endif /* defined(_WIN32) && !defined(EMBEDDED_LIBRARY) */
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -5468,11 +5462,11 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
 
-#if defined(_WIN32) || defined(HAVE_SMEM)
+#if defined(_WIN32)
   handle_connections_methods();
 #else
   handle_connections_sockets();
-#endif /* _WIN32 || HAVE_SMEM */
+#endif /* _WIN32 */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
 
@@ -6330,10 +6324,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
   decrement_handler_count();
   return 0;
 }
-#endif /* _WIN32 */
 
-
-#ifdef HAVE_SMEM
 
 /**
   Thread of shared memory's service.
@@ -6565,8 +6556,8 @@ error:
   decrement_handler_count();
   return 0;
 }
-#endif /* HAVE_SMEM */
-#endif /* EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
+#endif /* !EMBEDDED_LIBRARY */
 
 
 /****************************************************************************
@@ -8097,7 +8088,7 @@ static int mysql_init_variables(void)
   ssl_acceptor_fd= 0;
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
@@ -9258,9 +9249,9 @@ PSI_cond_key key_gtid_ensure_index_cond;
 
 static PSI_cond_info all_server_conds[]=
 {
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
   { &key_COND_handler_count, "COND_handler_count", PSI_FLAG_GLOBAL},
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 #ifdef HAVE_MMAP
   { &key_PAGE_cond, "PAGE::cond", 0},
   { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
@@ -9300,17 +9291,11 @@ PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
 
 static PSI_thread_info all_server_threads[]=
 {
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   { &key_thread_handle_con_namedpipes, "con_named_pipes", PSI_FLAG_GLOBAL},
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if defined(HAVE_SMEM) && !defined(EMBEDDED_LIBRARY)
   { &key_thread_handle_con_sharedmem, "con_shared_mem", PSI_FLAG_GLOBAL},
-#endif /* HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 
 #ifdef _WIN32
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
