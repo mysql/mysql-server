@@ -1,4 +1,4 @@
-9how databases;
+show databases;
 Database
 information_schema
 mtr
