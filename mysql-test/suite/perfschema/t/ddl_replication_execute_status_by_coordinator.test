@@ -1,0 +1,69 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/master-slave.inc
+
+connection master;
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.replication_execute_status_by_coordinator
+  add column foo integer;
+
+-- error ER_WRONG_PERFSCHEMA_USAGE
+truncate table performance_schema.replication_execute_status_by_coordinator;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.replication_execute_status_by_coordinator
+  ADD INDEX test_index(thread_id);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON
+  performance_schema.replication_execute_status_by_coordinator(thread_id);
+
+connection slave;
+
+# Test with slave in single threaded mode.
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.replication_execute_status_by_coordinator
+  add column foo integer;
+
+-- error ER_WRONG_PERFSCHEMA_USAGE
+truncate table performance_schema.replication_execute_status_by_coordinator;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.replication_execute_status_by_coordinator
+  ADD INDEX test_index(thread_id);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON
+  performance_schema.replication_execute_status_by_coordinator(thread_id);
+
+# Test with slave in multi-threaded mode.
+source include/stop_slave.inc;
+SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
+SET @@global.slave_parallel_workers=1;
+source include/start_slave.inc;
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.replication_execute_status_by_coordinator
+  add column foo integer;
+
+-- error ER_WRONG_PERFSCHEMA_USAGE
+truncate table performance_schema.replication_execute_status_by_coordinator;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.replication_execute_status_by_coordinator
+  ADD INDEX test_index(thread_id);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON
+  performance_schema.replication_execute_status_by_coordinator(thread_id);
+
+#Cleanup
+source include/stop_slave.inc;
+SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
+SET @@global.slave_parallel_workers=0;
+source include/start_slave.inc;
+
+--source include/rpl_end.inc

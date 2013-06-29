@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,28 +42,25 @@ enum enum_rpl_yes_no {
 };
 #endif
 
-/**
+/*
   A row in coordinator's table. The fields with string values have an
    additional length field denoted by <field_name>_length.
 */
 struct st_row_coordinator {
-  /** Thread_Id field is declared char instead of int because it shows NULL
-      when Service_State= off.
-  */
-  ulonglong Thread_Id;
-  bool Thread_Id_is_null;
-  enum_rpl_yes_no Service_State;
-  uint Last_Error_Number;
-  char Last_Error_Message[MAX_SLAVE_ERRMSG];
-  uint Last_Error_Message_length;
-  ulonglong Last_Error_Timestamp;
+  ulonglong thread_id;
+  bool thread_id_is_null;
+  enum_rpl_yes_no service_state;
+  uint last_error_number;
+  char last_error_message[MAX_SLAVE_ERRMSG];
+  uint last_error_message_length;
+  ulonglong last_error_timestamp;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_execute_status_by_coordinator */
 class table_replication_execute_status_by_coordinator: public PFS_engine_table
 {
 private:
-  void make_row(Master_info *);
+  void make_row();
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

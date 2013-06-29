@@ -4,10 +4,10 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 call mtr.add_suppression("Master command COM_REGISTER_SLAVE failed.");
-select * from performance_schema.replication_connection_configuration;
-insert into performance_schema.replication_connection_configuration values(1);
-update performance_schema.replication_connection_configuration set Host='';
-delete from performance_schema.replication_connection_configuration;
+
+# Verify that SELECT works for every field and produces an output
+# similar to the corresponding field in SHOW SLAVE STATUS(SSS).
+
 # Asserted this: Value returned by SSS and PS table for Host should be same.
 # Asserted this: Value returned by SSS and PS table for Port should be same.
 # Asserted this: Value returned by SSS and PS table for User should be same.
@@ -24,6 +24,10 @@ delete from performance_schema.replication_connection_configuration;
 # Asserted this: Value returned by SSS and PS table for SSL_Crl_Path should be same.
 # Asserted this: Value returned by SSS and PS table for Connection_Retry_Interval should be same.
 # Asserted this: Value returned by SSS and PS table for Connection_Retry_Count should be same.
+
+# Change configuration parameters and verify that these changes
+# are shown correctly by SELECTs from PS table.
+
 grant replication slave on *.* to replssl@localhost require ssl;
 stop slave;
 change master to
@@ -38,6 +42,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 start slave;
+
+# Checking SSL parameters, they were empty in tests done in the
+# previous section.
+
 # Asserted this: Value returned by SSS and PS table for SSL_Allowed should be same.
 # Asserted this: Value returned by SSS and PS table for SSL_CA_File should be same.
 # Asserted this: Value returned by SSS and PS table for SSL_CA_Path should be same.
@@ -45,13 +53,23 @@ start slave;
 # Asserted this: Value returned by SSS and PS table for SSL_Cipher should be same.
 # Asserted this: Value returned by SSS and PS table for SSL_Key should be same.
 # Asserted this: Value returned by SSS and PS table for SSL_Verify_Server_Certificate should be same.
+
+# Test with servers in gtid-mode=on.
+
 include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/rpl_restart_server.inc [server_number=2 gtids=on]
+
+# 1) Test for Auto_position= 0.
+
+# Asserted this: Value returned by SSS and PS table for Auto_Position should be same.
 CHANGE MASTER TO
 master_user = 'root',
 master_auto_position= 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+
+# 2) Test for Auto_position= 1.
+
 # Asserted this: Value returned by SSS and PS table for Auto_Position should be same.
 include/rpl_end.inc

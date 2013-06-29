@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,16 +44,16 @@ enum enum_rpl_yes_no {
 
 /** A row in the table. */
 struct st_row_execute_status {
-  enum_rpl_yes_no Service_State;
-  uint Remaining_Delay;
-  bool Remaining_Delay_is_set;
+  enum_rpl_yes_no service_state;
+  uint remaining_delay;
+  bool remaining_delay_is_set;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_execute_status */
 class table_replication_execute_status: public PFS_engine_table
 {
 private:
-  void make_row(Master_info *);
+  void make_row();
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

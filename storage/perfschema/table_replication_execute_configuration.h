@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,14 +35,15 @@
 
 /** A row in the table*/
 struct st_row_execute_config {
-  uint Desired_Delay;
+  uint desired_delay;
+  bool desired_delay_is_set;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_execute_configuration */
 class table_replication_execute_configuration: public PFS_engine_table
 {
 private:
-  void make_row(Master_info *);
+  void make_row();
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

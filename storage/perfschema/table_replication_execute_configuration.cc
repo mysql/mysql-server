@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ THR_LOCK table_replication_execute_configuration::m_table_lock;
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
-    {C_STRING_WITH_LEN("Desired_Delay")},
+    {C_STRING_WITH_LEN("DESIRED_DELAY")},
     {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   }
@@ -86,21 +86,15 @@ void table_replication_execute_configuration::reset_position(void)
 
 int table_replication_execute_configuration::rnd_next(void)
 {
-  if (!m_row_exists)
+  m_pos.set_at(& m_next_pos);
+
+  if (m_pos.m_index == 0)
   {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi->host[0])
-    {
-      make_row(active_mi);
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return 0;
-    }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return HA_ERR_RECORD_DELETED; /** A record is not there */
-    }
+    make_row();
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
+
   return HA_ERR_END_OF_FILE;
 }
 
@@ -108,48 +102,56 @@ int table_replication_execute_configuration::rnd_pos(const void *pos)
 {
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index < m_share.m_records);
+  DBUG_ASSERT(m_pos.m_index < 1);
 
-  if (!m_row_exists)
-  {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi->host[0])
-    {
-      make_row(active_mi);
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return 0;
-    }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return HA_ERR_RECORD_DELETED; /** A record is not there */
-    }
-  }
-  return HA_ERR_END_OF_FILE;
+  make_row();
+
+  return 0;
 }
 
-void table_replication_execute_configuration::make_row(Master_info *mi)
+void table_replication_execute_configuration::make_row()
 {
-  mysql_mutex_lock(&mi->data_lock);
-  mysql_mutex_lock(&mi->rli->data_lock);
+  m_row_exists= false;
 
-  m_row.Desired_Delay= mi->rli->get_sql_delay();
+  mysql_mutex_lock(&LOCK_active_mi);
 
-  mysql_mutex_unlock(&mi->rli->data_lock);
-  mysql_mutex_unlock(&mi->data_lock);
+  DBUG_ASSERT(active_mi != NULL);
+  DBUG_ASSERT(active_mi->rli != NULL);
+
+  mysql_mutex_lock(&active_mi->data_lock);
+  mysql_mutex_lock(&active_mi->rli->data_lock);
+
+  m_row.desired_delay= active_mi->rli->get_sql_delay();
+
+  mysql_mutex_unlock(&active_mi->rli->data_lock);
+  mysql_mutex_unlock(&active_mi->data_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
 
   m_row_exists= true;
 }
 
 int table_replication_execute_configuration::read_row_values(TABLE *table,
-                                                             unsigned char *,
+                                                             unsigned char *buf,
                                                              Field **fields,
                                                              bool read_all)
 {
   Field *f;
 
-  //TODO: See why this comes as 1
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
+  /*
+    Note:
+    There are no NULL columns in this table,
+    so there are no null bits reserved for NULL flags per column.
+    There are no VARCHAR columns either, so the record is not
+    in HA_OPTION_PACK_RECORD format as most other performance_schema tables.
+    When HA_OPTION_PACK_RECORD is not set,
+    the table record reserves an extra null byte, see open_binary_frm().
+  */
+
   DBUG_ASSERT(table->s->null_bytes == 1);
+  buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
   {
@@ -157,8 +159,8 @@ int table_replication_execute_configuration::read_row_values(TABLE *table,
     {
       switch(f->field_index)
       {
-      case 0: /** Desired_Delay */
-        set_field_ulong(f, m_row.Desired_Delay);
+      case 0: /** desired_delay */
+        set_field_ulong(f, m_row.desired_delay);
         break;
       default:
         DBUG_ASSERT(false);

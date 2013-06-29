@@ -1,0 +1,37 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/master-slave.inc
+
+connection master;
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.replication_connection_status
+  add column foo integer;
+
+-- error ER_WRONG_PERFSCHEMA_USAGE
+truncate table performance_schema.replication_connection_status;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.replication_connection_status ADD INDEX test_index(Thread_Id);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.replication_connection_status(Thread_Id);
+
+connection slave;
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.replication_connection_status
+  add column foo integer;
+
+-- error ER_WRONG_PERFSCHEMA_USAGE
+truncate table performance_schema.replication_connection_status;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.replication_connection_status ADD INDEX test_index(Thread_Id);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.replication_connection_status(Thread_Id);
+
+--source include/rpl_end.inc

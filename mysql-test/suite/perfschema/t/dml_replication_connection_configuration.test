@@ -1,0 +1,83 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/master-slave.inc
+
+connection master;
+
+--disable_result_log
+select * from performance_schema.replication_connection_configuration
+  limit 1;
+
+select * from performance_schema.replication_connection_configuration
+  where user='FOO' or host='BAR';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.replication_connection_configuration
+  set user='FOO', host='BAR',
+  port=1, connection_retry_count=2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.replication_connection_configuration
+  set connection_retry_interval=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.replication_connection_configuration
+  set connection_retry_interval=12 where host like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.replication_connection_configuration
+  where connection_retry_count=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.replication_connection_configuration;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_configuration READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_configuration WRITE;
+UNLOCK TABLES;
+
+connection slave;
+
+--disable_result_log
+select * from performance_schema.replication_connection_configuration
+  limit 1;
+
+select * from performance_schema.replication_connection_configuration
+  where user='FOO' or host='BAR';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.replication_connection_configuration
+  set user='FOO', host='BAR',
+  port=1, connection_retry_count=2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.replication_connection_configuration
+  set connection_retry_interval=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.replication_connection_configuration
+  set connection_retry_interval=12 where host like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.replication_connection_configuration
+  where connection_retry_count=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.replication_connection_configuration;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_configuration READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_configuration WRITE;
+UNLOCK TABLES;
+
+--source include/rpl_end.inc
