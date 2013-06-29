@@ -471,9 +471,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     classpath="$CLASSPATH"
   fi
 
-  # needed for junit test compile: 
-  #   junit-4.7.jaropenjpa-1.2.1.jar
- 
   # needed for OpenJPA compile:
   #   openjpa-x.y.z.jar:geronimo-jpa_x.y_spec-x.y.jar
 
@@ -486,15 +483,9 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   # needed for PCEnhancement:
   #   serp-x.y.z.jar:commons-lang-x.y.jar:geronimo-jta_x.y_spec-x.y.jar:commons-collections-x.y.jar
   
-  have_junit=no
   have_openjpa_jar=no
   TMP_CLASSPATH=`echo $classpath | sed 's/:/ /'`;
   for i in $TMP_CLASSPATH; do
-    if `echo $i | egrep "junit-(.+)\.jar" 1>/dev/null 2>&1`
-    then
-      AC_MSG_RESULT([-- junit found: activating clusterj tests])
-      have_junit=yes
-    fi
     if `echo $i | egrep "openjpa-(.+)\.jar" 1>/dev/null 2>&1`
     then
       AC_MSG_RESULT([-- openjpa jar found: activating clusterjpa])
@@ -559,17 +550,14 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
            [chmod +x storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_smoke.sh])
   fi
 
+  CLUSTERJ_TESTS="clusterj-test"
+
   if test x"$have_openjpa" = xyes  
   then
     OPENJPA_OPT="clusterj-openjpa"
   fi
 
-  if test x"$have_junit" == xyes 
-  then
-    CLUSTERJ_TESTS="clusterj-test"
-  fi
-
-  if test X"$have_openjpa" != Xno && test X"$have_junit" = Xyes
+  if test X"$have_openjpa" != Xno
   then
     CLUSTERJ_TESTS="$CLUSTERJ_TESTS clusterj-jpatest"
   fi
