@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -31,90 +31,86 @@
 
 THR_LOCK table_replication_connection_configuration::m_table_lock;
 
-#define max(x, y) ((x) > (y) ? (x) : (y))
-
-/*
-  Numbers in varchar count utf8 characters.
-*/
+/* Numbers in varchar count utf8 characters. */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
-    {C_STRING_WITH_LEN("Host")},
+    {C_STRING_WITH_LEN("HOST")},
     {C_STRING_WITH_LEN("char(60)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Port")},
+    {C_STRING_WITH_LEN("PORT")},
     {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("User")},
+    {C_STRING_WITH_LEN("USER")},
     {C_STRING_WITH_LEN("char(16)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Network_Interface")},
+    {C_STRING_WITH_LEN("NETWORK_INTERFACE")},
     {C_STRING_WITH_LEN("char(60)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Auto_Position")},
-    {C_STRING_WITH_LEN("int(1)")},
+    {C_STRING_WITH_LEN("AUTO_POSITION")},
+    {C_STRING_WITH_LEN("enum('1','0')")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("SSL_Allowed")},
-    {C_STRING_WITH_LEN("enum('Yes','No','Ignored')")},
+    {C_STRING_WITH_LEN("SSL_ALLOWED")},
+    {C_STRING_WITH_LEN("enum('YES','NO','IGNORED')")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("SSL_CA_File")},
+    {C_STRING_WITH_LEN("SSL_CA_FILE")},
     {C_STRING_WITH_LEN("varchar(512)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("SSL_CA_Path")},
+    {C_STRING_WITH_LEN("SSL_CA_PATH")},
     {C_STRING_WITH_LEN("varchar(512)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("SSL_Certificate")},
+    {C_STRING_WITH_LEN("SSL_CERTIFICATE")},
     {C_STRING_WITH_LEN("varchar(512)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("SSL_Cipher")},
+    {C_STRING_WITH_LEN("SSL_CIPHER")},
     {C_STRING_WITH_LEN("varchar(512)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("SSL_Key")},
+    {C_STRING_WITH_LEN("SSL_KEY")},
     {C_STRING_WITH_LEN("varchar(512)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("SSL_Verify_Server_Certificate")},
-    {C_STRING_WITH_LEN("enum('Yes','No')")},
+    {C_STRING_WITH_LEN("SSL_VERIFY_SERVER_CERTIFICATE")},
+    {C_STRING_WITH_LEN("enum('YES','NO')")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("SSL_Crl_File")},
+    {C_STRING_WITH_LEN("SSL_CRL_FILE")},
     {C_STRING_WITH_LEN("varchar(255)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("SSL_Crl_Path")},
+    {C_STRING_WITH_LEN("SSL_CRL_PATH")},
     {C_STRING_WITH_LEN("varchar(255)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Connection_Retry_Interval")},
+    {C_STRING_WITH_LEN("CONNECTION_RETRY_INTERVAL")},
     {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Connection_Retry_Count")},
+    {C_STRING_WITH_LEN("CONNECTION_RETRY_COUNT")},
     {C_STRING_WITH_LEN("bigint")},
     {NULL, 0}
   }
@@ -132,8 +128,8 @@ table_replication_connection_configuration::m_share=
   &table_replication_connection_configuration::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL,
-  1,
+  NULL, /* get_row_count */
+  1, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -164,21 +160,15 @@ void table_replication_connection_configuration::reset_position(void)
 
 int table_replication_connection_configuration::rnd_next(void)
 {
-  if (!m_row_exists)
+  m_pos.set_at(&m_next_pos);
+
+  if (m_pos.m_index == 0)
   {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi->host[0])
-    {
-      make_row(active_mi);
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return 0;
-    }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return HA_ERR_RECORD_DELETED; /** A record is not there */
-    }
+    make_row();
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
+
   return HA_ERR_END_OF_FILE;
 }
 
@@ -186,95 +176,91 @@ int table_replication_connection_configuration::rnd_pos(const void *pos)
 {
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index < m_share.m_records);
+  DBUG_ASSERT(m_pos.m_index < 1);
 
-  if (!m_row_exists)
-  {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi->host[0])
-    {
-      make_row(active_mi);
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return 0;
-    }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return HA_ERR_RECORD_DELETED; /** A record is not there */
-    }
-  }
-  return HA_ERR_END_OF_FILE;
+  make_row();
+
+  return 0;
 }
 
-void table_replication_connection_configuration::make_row(Master_info *mi)
+void table_replication_connection_configuration::make_row()
 {
   char * temp_store;
-  mysql_mutex_lock(&mi->data_lock);
-  mysql_mutex_lock(&mi->rli->data_lock);
 
-  m_row.Host_length= strlen(mi->host);
-  memcpy(m_row.Host, mi->host, m_row.Host_length);
+  m_row_exists= false;
 
-  m_row.Port= (unsigned int) mi->port;
+  mysql_mutex_lock(&LOCK_active_mi);
 
-  temp_store= (char*)mi->get_user();
-  m_row.User_length= strlen(temp_store);
-  memcpy(m_row.User, temp_store, m_row.User_length);
+  DBUG_ASSERT(active_mi != NULL);
+  DBUG_ASSERT(active_mi->rli != NULL);
 
-  temp_store= (char*)mi->bind_addr;
-  m_row.Network_Interface_length= strlen(temp_store);
-  memcpy(m_row.Network_Interface, temp_store, m_row.Network_Interface_length);
+  mysql_mutex_lock(&active_mi->data_lock);
+  mysql_mutex_lock(&active_mi->rli->data_lock);
 
-  if (mi->is_auto_position())
-    m_row.Auto_Position= 1;
+  m_row.host_length= strlen(active_mi->host);
+  memcpy(m_row.host, active_mi->host, m_row.host_length);
+
+  m_row.port= (unsigned int) active_mi->port;
+
+  temp_store= (char*)active_mi->get_user();
+  m_row.user_length= strlen(temp_store);
+  memcpy(m_row.user, temp_store, m_row.user_length);
+
+  temp_store= (char*)active_mi->bind_addr;
+  m_row.network_interface_length= strlen(temp_store);
+  memcpy(m_row.network_interface, temp_store, m_row.network_interface_length);
+
+  if (active_mi->is_auto_position())
+    m_row.auto_position= PS_RPL_YES;
   else
-    m_row.Auto_Position= 0;
+    m_row.auto_position= PS_RPL_NO;
 
 #ifdef HAVE_OPENSSL
-  m_row.SSL_Allowed= mi->ssl? PS_SSL_ALLOWED_YES:PS_SSL_ALLOWED_NO;
+  m_row.ssl_allowed= active_mi->ssl? PS_SSL_ALLOWED_YES:PS_SSL_ALLOWED_NO;
 #else
-  m_row.SSL_Allowed= mi->ssl? PS_SSL_ALLOWED_IGNORED:PS_SSL_ALLOWED_NO;
+  m_row.ssl_allowed= active_mi->ssl? PS_SSL_ALLOWED_IGNORED:PS_SSL_ALLOWED_NO;
 #endif
 
-  temp_store= (char*)mi->ssl_ca;
-  m_row.SSL_CA_File_length= strlen(temp_store);
-  memcpy(m_row.SSL_CA_File, temp_store, m_row.SSL_CA_File_length);
+  temp_store= (char*)active_mi->ssl_ca;
+  m_row.ssl_ca_file_length= strlen(temp_store);
+  memcpy(m_row.ssl_ca_file, temp_store, m_row.ssl_ca_file_length);
 
-  temp_store= (char*)mi->ssl_capath;
-  m_row.SSL_CA_Path_length= strlen(temp_store);
-  memcpy(m_row.SSL_CA_Path, temp_store, m_row.SSL_CA_Path_length);
+  temp_store= (char*)active_mi->ssl_capath;
+  m_row.ssl_ca_path_length= strlen(temp_store);
+  memcpy(m_row.ssl_ca_path, temp_store, m_row.ssl_ca_path_length);
 
-  temp_store= (char*)mi->ssl_cert;
-  m_row.SSL_Certificate_length= strlen(temp_store);
-  memcpy(m_row.SSL_Certificate, temp_store, m_row.SSL_Certificate_length);
+  temp_store= (char*)active_mi->ssl_cert;
+  m_row.ssl_certificate_length= strlen(temp_store);
+  memcpy(m_row.ssl_certificate, temp_store, m_row.ssl_certificate_length);
 
-  temp_store= (char*)mi->ssl_cipher;
-  m_row.SSL_Cipher_length= strlen(temp_store);
-  memcpy(m_row.SSL_Cipher, temp_store, m_row.SSL_Cipher_length);
+  temp_store= (char*)active_mi->ssl_cipher;
+  m_row.ssl_cipher_length= strlen(temp_store);
+  memcpy(m_row.ssl_cipher, temp_store, m_row.ssl_cipher_length);
 
-  temp_store= (char*)mi->ssl_key;
-  m_row.SSL_Key_length= strlen(temp_store);
-  memcpy(m_row.SSL_Key, temp_store, m_row.SSL_Key_length);
+  temp_store= (char*)active_mi->ssl_key;
+  m_row.ssl_key_length= strlen(temp_store);
+  memcpy(m_row.ssl_key, temp_store, m_row.ssl_key_length);
 
-  if (mi->ssl_verify_server_cert)
-    m_row.SSL_Verify_Server_Certificate= PS_RPL_YES;
+  if (active_mi->ssl_verify_server_cert)
+    m_row.ssl_verify_server_certificate= PS_RPL_YES;
   else
-    m_row.SSL_Verify_Server_Certificate= PS_RPL_NO;
+    m_row.ssl_verify_server_certificate= PS_RPL_NO;
 
-  temp_store= (char*)mi->ssl_crl;
-  m_row.SSL_Crl_File_length= strlen(temp_store);
-  memcpy(m_row.SSL_Crl_File, temp_store, m_row.SSL_Crl_File_length);
+  temp_store= (char*)active_mi->ssl_crl;
+  m_row.ssl_crl_file_length= strlen(temp_store);
+  memcpy(m_row.ssl_crl_file, temp_store, m_row.ssl_crl_file_length);
 
-  temp_store= (char*)mi->ssl_crlpath;
-  m_row.SSL_Crl_Path_length= strlen(temp_store);
-  memcpy(m_row.SSL_Crl_Path, m_row.SSL_Crl_Path, m_row.SSL_Crl_Path_length);
+  temp_store= (char*)active_mi->ssl_crlpath;
+  m_row.ssl_crl_path_length= strlen(temp_store);
+  memcpy(m_row.ssl_crl_path, m_row.ssl_crl_path, m_row.ssl_crl_path_length);
 
-  m_row.Connection_Retry_Interval= (unsigned int) mi->connect_retry;
+  m_row.connection_retry_interval= (unsigned int) active_mi->connect_retry;
 
-  m_row.Connection_Retry_Count= (ulong) mi->retry_count;
+  m_row.connection_retry_count= (ulong) active_mi->retry_count;
 
-  mysql_mutex_unlock(&mi->rli->data_lock);
-  mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(&active_mi->rli->data_lock);
+  mysql_mutex_unlock(&active_mi->data_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
 
   m_row_exists= true;
 }
@@ -286,6 +272,9 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
 {
   Field *f;
 
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
   DBUG_ASSERT(table->s->null_bytes == 0);
 
   for (; (f= *fields) ; fields++)
@@ -294,60 +283,59 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
     {
       switch(f->field_index)
       {
-      case 0: /** Host */
-        set_field_char_utf8(f, m_row.Host, m_row.Host_length);
+      case 0: /** host */
+        set_field_char_utf8(f, m_row.host, m_row.host_length);
         break;
-      case 1: /** Port */
-        set_field_ulong(f, m_row.Port);
+      case 1: /** port */
+        set_field_ulong(f, m_row.port);
         break;
-      case 2: /** User */
-        set_field_char_utf8(f, m_row.User, m_row.User_length);
+      case 2: /** user */
+        set_field_char_utf8(f, m_row.user, m_row.user_length);
         break;
-      case 3: /** Network_Interface */
-        set_field_char_utf8(f, m_row.Network_Interface,
-                               m_row.Network_Interface_length);
+      case 3: /** network_interface */
+        set_field_char_utf8(f, m_row.network_interface,
+                               m_row.network_interface_length);
         break;
-      case 4: /** Auto_Position */
-        //consider using set_field_bit()
-        set_field_ulong(f, m_row.Auto_Position);
+      case 4: /** auto_position */
+        set_field_enum(f, m_row.auto_position);
         break;
-      case 5: /** SSL_Allowed */
-        set_field_enum(f, m_row. SSL_Allowed);
+      case 5: /** ssl_allowed */
+        set_field_enum(f, m_row. ssl_allowed);
         break;
-      case 6: /**SSL_CA_File */
-        set_field_varchar_utf8(f, m_row.SSL_CA_File,
-                               m_row.SSL_CA_File_length);
+      case 6: /**ssl_ca_file */
+        set_field_varchar_utf8(f, m_row.ssl_ca_file,
+                               m_row.ssl_ca_file_length);
         break;
-      case 7: /** SSL_CA_Path */
-        set_field_varchar_utf8(f, m_row.SSL_CA_Path,
-                               m_row.SSL_CA_Path_length);
+      case 7: /** ssl_ca_path */
+        set_field_varchar_utf8(f, m_row.ssl_ca_path,
+                               m_row.ssl_ca_path_length);
         break;
-      case 8: /** SSL_Certificate */
-        set_field_varchar_utf8(f, m_row.SSL_Certificate,
-                                m_row.SSL_Certificate_length);
+      case 8: /** ssl_certificate */
+        set_field_varchar_utf8(f, m_row.ssl_certificate,
+                               m_row.ssl_certificate_length);
         break;
-      case 9: /** SSL_Cipher */
-        set_field_varchar_utf8(f, m_row.SSL_Cipher, m_row.SSL_Cipher_length);
+      case 9: /** ssl_cipher */
+        set_field_varchar_utf8(f, m_row.ssl_cipher, m_row.ssl_cipher_length);
         break;
-      case 10: /** SSL_Key */
-        set_field_varchar_utf8(f, m_row.SSL_Key, m_row.SSL_Key_length);
+      case 10: /** ssl_key */
+        set_field_varchar_utf8(f, m_row.ssl_key, m_row.ssl_key_length);
         break;
-      case 11: /** SSL_Verify_Server_Certificate */
-        set_field_enum(f, m_row.SSL_Verify_Server_Certificate);
+      case 11: /** ssl_verify_server_certificate */
+        set_field_enum(f, m_row.ssl_verify_server_certificate);
         break;
-      case 12: /** SSL_Crl_File */
-        set_field_varchar_utf8(f, m_row.SSL_Crl_File,
-                               m_row.SSL_Crl_File_length);
+      case 12: /** ssl_crl_file */
+        set_field_varchar_utf8(f, m_row.ssl_crl_file,
+                               m_row.ssl_crl_file_length);
         break;
-      case 13: /** SSL_Crl_Path */
-        set_field_varchar_utf8(f, m_row.SSL_Crl_Path,
-                               m_row.SSL_Crl_Path_length);
+      case 13: /** ssl_crl_path */
+        set_field_varchar_utf8(f, m_row.ssl_crl_path,
+                               m_row.ssl_crl_path_length);
         break;
-      case 14: /** Connection_Retry_Interval */
-        set_field_ulong(f, m_row.Connection_Retry_Interval);
+      case 14: /** connection_retry_interval */
+        set_field_ulong(f, m_row.connection_retry_interval);
         break;
-      case 15: /** Connect_Retry_Count */
-        set_field_ulonglong(f, m_row.Connection_Retry_Count);
+      case 15: /** connect_retry_count */
+        set_field_ulonglong(f, m_row.connection_retry_count);
         break;
       default:
         DBUG_ASSERT(false);

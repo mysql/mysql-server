@@ -1,0 +1,56 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+select * from performance_schema.replication_connection_configuration
+limit 1;
+select * from performance_schema.replication_connection_configuration
+where user='FOO' or host='BAR';
+insert into performance_schema.replication_connection_configuration
+set user='FOO', host='BAR',
+port=1, connection_retry_count=2;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+update performance_schema.replication_connection_configuration
+set connection_retry_interval=12;
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+update performance_schema.replication_connection_configuration
+set connection_retry_interval=12 where host like "FOO";
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+delete from performance_schema.replication_connection_configuration
+where connection_retry_count=1;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+delete from performance_schema.replication_connection_configuration;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+LOCK TABLES performance_schema.replication_connection_configuration READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.replication_connection_configuration WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+UNLOCK TABLES;
+select * from performance_schema.replication_connection_configuration
+limit 1;
+select * from performance_schema.replication_connection_configuration
+where user='FOO' or host='BAR';
+insert into performance_schema.replication_connection_configuration
+set user='FOO', host='BAR',
+port=1, connection_retry_count=2;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+update performance_schema.replication_connection_configuration
+set connection_retry_interval=12;
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+update performance_schema.replication_connection_configuration
+set connection_retry_interval=12 where host like "FOO";
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+delete from performance_schema.replication_connection_configuration
+where connection_retry_count=1;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+delete from performance_schema.replication_connection_configuration;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+LOCK TABLES performance_schema.replication_connection_configuration READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.replication_connection_configuration WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_connection_configuration'
+UNLOCK TABLES;
+include/rpl_end.inc

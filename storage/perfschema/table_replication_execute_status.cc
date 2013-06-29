@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -37,12 +37,12 @@ THR_LOCK table_replication_execute_status::m_table_lock;
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
-    {C_STRING_WITH_LEN("Service_State")},
-    {C_STRING_WITH_LEN("enum('On','Off')")},
+    {C_STRING_WITH_LEN("SERVICE_STATE")},
+    {C_STRING_WITH_LEN("enum('ON','OFF')")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Remaining_Delay")},
+    {C_STRING_WITH_LEN("REMAINING_DELAY")},
     {C_STRING_WITH_LEN("int")},
     {NULL, 0}
   },
@@ -90,80 +90,70 @@ void table_replication_execute_status::reset_position(void)
 
 int table_replication_execute_status::rnd_next(void)
 {
-  if (!m_row_exists)
+  m_pos.set_at(&m_next_pos);
+
+  if (m_pos.m_index == 0)
   {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi->host[0])
-    {
-      make_row(active_mi);
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return 0;
-    }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return HA_ERR_RECORD_DELETED; /** A record is not there */
-    }
+    make_row();
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
+
   return HA_ERR_END_OF_FILE;
 }
+
 
 int table_replication_execute_status::rnd_pos(const void *pos)
 {
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index < m_share.m_records);
+  DBUG_ASSERT(m_pos.m_index < 1);
 
-  if (!m_row_exists)
-  {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi->host[0])
-    {
-      make_row(active_mi);
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return 0;
-    }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return HA_ERR_RECORD_DELETED; /** A record is not there */
-    }
-  }
-  return HA_ERR_END_OF_FILE;
+  make_row();
+
+  return 0;
 }
 
-void table_replication_execute_status::make_row(Master_info *mi)
+void table_replication_execute_status::make_row()
 {
   char *slave_sql_running_state= NULL;
 
-  mysql_mutex_lock(&mi->rli->info_thd_lock);
+  m_row_exists= false;
+
+  mysql_mutex_lock(&LOCK_active_mi);
+
+  DBUG_ASSERT(active_mi != NULL);
+  DBUG_ASSERT(active_mi->rli != NULL);
+
+  mysql_mutex_lock(&active_mi->rli->info_thd_lock);
   slave_sql_running_state= const_cast<char *>
-                           (mi->rli->info_thd ?
-                            mi->rli->info_thd->get_proc_info() : "");
-  mysql_mutex_unlock(&mi->rli->info_thd_lock);
+                           (active_mi->rli->info_thd ?
+                            active_mi->rli->info_thd->get_proc_info() : "");
+  mysql_mutex_unlock(&active_mi->rli->info_thd_lock);
 
 
-  mysql_mutex_lock(&mi->data_lock);
-  mysql_mutex_lock(&mi->rli->data_lock);
+  mysql_mutex_lock(&active_mi->data_lock);
+  mysql_mutex_lock(&active_mi->rli->data_lock);
 
-  if (mi->rli->slave_running)
-    m_row.Service_State= PS_RPL_YES;
+  if (active_mi->rli->slave_running)
+    m_row.service_state= PS_RPL_YES;
   else
-    m_row.Service_State= PS_RPL_NO;
+    m_row.service_state= PS_RPL_NO;
 
-  m_row.Remaining_Delay= 0;
+  m_row.remaining_delay= 0;
   if (slave_sql_running_state == stage_sql_thd_waiting_until_delay.m_name)
   {
-    time_t t= my_time(0), sql_delay_end= mi->rli->get_sql_delay_end();
-    m_row.Remaining_Delay= (uint)(t < sql_delay_end ?
+    time_t t= my_time(0), sql_delay_end= active_mi->rli->get_sql_delay_end();
+    m_row.remaining_delay= (uint)(t < sql_delay_end ?
                                       sql_delay_end - t : 0);
-    m_row.Remaining_Delay_is_set= true;
+    m_row.remaining_delay_is_set= true;
   }
   else
-    m_row.Remaining_Delay_is_set= false;
+    m_row.remaining_delay_is_set= false;
 
-  mysql_mutex_unlock(&mi->rli->data_lock);
-  mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(&active_mi->rli->data_lock);
+  mysql_mutex_unlock(&active_mi->data_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
 
   m_row_exists= true;
 }
@@ -175,6 +165,9 @@ int table_replication_execute_status::read_row_values(TABLE *table,
 {
   Field *f;
 
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0]= 0;
 
@@ -184,12 +177,12 @@ int table_replication_execute_status::read_row_values(TABLE *table,
     {
       switch(f->field_index)
       {
-      case 0: /* Service_State */
-        set_field_enum(f, m_row.Service_State);
+      case 0: /* service_state */
+        set_field_enum(f, m_row.service_state);
         break;
-      case 1: /* Remaining_Delay */
-        if (m_row.Remaining_Delay_is_set)
-          set_field_ulong(f, m_row.Remaining_Delay);
+      case 1: /* remaining_delay */
+        if (m_row.remaining_delay_is_set)
+          set_field_ulong(f, m_row.remaining_delay);
         else
           f->set_null();
         break;

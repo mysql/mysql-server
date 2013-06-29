@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,10 +36,10 @@
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
-/** enumerated values for Service_State of worker thread*/
+/** enumerated values for service_state of worker thread*/
 enum enum_rpl_yes_no {
-  PS_RPL_YES= 1, /* Service_State= on */
-  PS_RPL_NO /* Service_State= off */
+  PS_RPL_YES= 1, /* service_state= on */
+  PS_RPL_NO /* service_state= off */
 };
 #endif
 
@@ -48,23 +48,20 @@ enum enum_rpl_yes_no {
   length field denoted by <field_name>_length.
 */
 struct st_row_worker {
-  /** Worker_Id is added to the table because thread is killed at STOP SLAVE
+  /** worker_id is added to the table because thread is killed at STOP SLAVE
       but the status needs to show up, so worker_id is used as a permanent
       identifier.
   */
-  ulonglong Worker_Id;
-  /** Thread_Id field is declared char instead of int because it shows NULL
-      when Service_State= off.
-  */
-  ulonglong Thread_Id;
-  uint Thread_Id_is_null;
-  enum_rpl_yes_no Service_State;
-  char Last_Seen_Transaction[Gtid::MAX_TEXT_LENGTH+1];
-  uint Last_Seen_Transaction_length;
-  uint Last_Error_Number;
-  char Last_Error_Message[MAX_SLAVE_ERRMSG];
-  uint Last_Error_Message_length;
-  ulonglong Last_Error_Timestamp;
+  ulonglong worker_id;
+  ulonglong thread_id;
+  uint thread_id_is_null;
+  enum_rpl_yes_no service_state;
+  char last_seen_transaction[Gtid::MAX_TEXT_LENGTH+1];
+  uint last_seen_transaction_length;
+  uint last_error_number;
+  char last_error_message[MAX_SLAVE_ERRMSG];
+  uint last_error_message_length;
+  ulonglong last_error_timestamp;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_execute_status_by_worker */

@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved
+-- Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -1641,22 +1641,22 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_configuration("
-    "Host char(60) collate utf8_bin not null,"
-    "Port integer not null,"
-    "User char(16) collate utf8_bin not null,"
-    "Network_Interface char(60) collate utf8_bin not null,"
-    "Auto_Position int(1) not null,"
-    "SSL_Allowed ENUM('Yes','No','Ignored') not null,"
-    "SSL_CA_File varchar(512) not null,"
-    "SSL_CA_Path varchar(512) not null,"
-    "SSL_Certificate varchar(512) not null,"
-    "SSL_Cipher varchar(512) not null,"
-    "SSL_Key varchar(512) not null,"
-    "SSL_Verify_Server_Certificate ENUM('Yes','No') not null,"
-    "SSL_Crl_File varchar(255) not null,"
-    "SSL_Crl_Path varchar(255) not null,"
-    "Connection_Retry_Interval integer not null,"
-    "Connection_Retry_Count bigint unsigned not null"
+    "HOST CHAR(60) collate utf8_bin not null,"
+    "PORT INTEGER not null,"
+    "USER CHAR(16) collate utf8_bin not null,"
+    "NETWORK_INTERFACE CHAR(60) collate utf8_bin not null,"
+    "AUTO_POSITION ENUM('1','0') not null,"
+    "SSL_ALLOWED ENUM('YES','NO','IGNORED') not null,"
+    "SSL_CA_FILE VARCHAR(512) not null,"
+    "SSL_CA_PATH VARCHAR(512) not null,"
+    "SSL_CERTIFICATE VARCHAR(512) not null,"
+    "SSL_CIPHER VARCHAR(512) not null,"
+    "SSL_KEY VARCHAR(512) not null,"
+    "SSL_VERIFY_SERVER_CERTIFICATE ENUM('YES','NO') not null,"
+    "SSL_CRL_FILE VARCHAR(255) not null,"
+    "SSL_CRL_PATH VARCHAR(255) not null,"
+    "CONNECTION_RETRY_INTERVAL INTEGER not null,"
+    "CONNECTION_RETRY_COUNT BIGINT unsigned NOT NULL"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1669,13 +1669,13 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
-    "Source_UUID char(36) collate utf8_bin not null,"
-    "Thread_Id bigint unsigned,"
-    "Service_State enum('On','Off','Connecting') not null,"
-    "Received_Transaction_Set text not null,"
-    "Last_Error_Number integer not null,"
-    "Last_Error_Message varchar(1024) not null,"
-    "Last_Error_Timestamp timestamp(0) not null"
+    "SOURCE_UUID CHAR(36) collate utf8_bin not null,"
+    "THREAD_ID BIGINT unsigned,"
+    "SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,"
+    "RECEIVED_TRANSACTION_SET TEXT not null,"
+    "LAST_ERROR_NUMBER INTEGER not null,"
+    "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
+    "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1688,7 +1688,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_configuration("
-    "Desired_Delay integer not null"
+    "DESIRED_DELAY INTEGER not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1701,8 +1701,8 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status("
-    "Service_State ENUM('On','Off') not null,"
-    "Remaining_Delay integer unsigned"
+    "SERVICE_STATE ENUM('ON','OFF') not null,"
+    "REMAINING_DELAY INTEGER unsigned"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1715,11 +1715,11 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordinator("
-    "Thread_Id bigint unsigned,"
-    "Service_State ENUM('On','Off') not null,"
-    "Last_Error_Number integer not null,"
-    "Last_Error_Message varchar(1024) not null,"
-    "Last_Error_Timestamp timestamp(0) not null"
+    "THREAD_ID BIGINT UNSIGNED,"
+    "SERVICE_STATE ENUM('ON','OFF') not null,"
+    "LAST_ERROR_NUMBER INTEGER not null,"
+    "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
+    "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1732,13 +1732,13 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_worker("
-    "Worker_Id bigint unsigned not null,"
-    "Thread_Id bigint unsigned,"
-    "Service_State ENUM('On','Off') not null,"
-    "Last_Seen_Transaction char(57) not null,"
-    "Last_Error_Number integer not null,"
-    "Last_Error_Message varchar(1024) not null,"
-    "Last_Error_Timestamp timestamp(0) not null"
+    "WORKER_ID BIGINT UNSIGNED not null,"
+    "THREAD_ID BIGINT UNSIGNED,"
+    "SERVICE_STATE ENUM('ON','OFF') not null,"
+    "LAST_SEEN_TRANSACTION CHAR(57) not null,"
+    "LAST_ERROR_NUMBER INTEGER not null,"
+    "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
+    "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
