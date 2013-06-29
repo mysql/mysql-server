@@ -326,10 +326,6 @@ static PSI_rwlock_key key_rwlock_openssl;
 #endif
 #endif /* HAVE_PSI_INTERFACE */
 
-#ifdef HAVE_NPTL
-volatile sig_atomic_t ld_assume_kernel_is_set= 0;
-#endif
-
 /**
   Statement instrumentation key for replication.
 */
