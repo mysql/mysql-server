@@ -92,6 +92,8 @@ PATENT RIGHTS GRANT:
 #include <pthread.h>
 
 // verify that a commit of a big txn does not block the commits of other txn's
+// commit writer happens before bigtxn commit happens before checkpoint
+static int state = 0;
 
 static void *checkpoint_thread(void *arg) {
     sleep(1);
@@ -100,6 +102,7 @@ static void *checkpoint_thread(void *arg) {
     int r = env->txn_checkpoint(env, 0, 0, 0);
     assert(r == 0);
     printf("%s done\n", __FUNCTION__);
+    assert(toku_sync_fetch_and_add(&state, 1) == 2);
     return arg;
 }
 
@@ -129,6 +132,7 @@ static void *w_thread(void *arg) {
     r = txn->commit(txn, 0);
     assert(r == 0);
     printf("%s done\n", __FUNCTION__);
+    assert(toku_sync_fetch_and_add(&state, 1) == 0);
     return arg;
 }
 
@@ -182,6 +186,13 @@ int test_main (int argc __attribute__((__unused__)), char *const argv[] __attrib
     assert(r == 0);
 
     r = bigtxn->commit_with_progress(bigtxn, 0, bigtxn_progress, NULL);
+    assert(r == 0);
+    assert(toku_sync_fetch_and_add(&state, 1) == 1);
+
+    void *ret;
+    r = pthread_join(w_tid, &ret);
+    assert(r == 0);
+    r = pthread_join(checkpoint_tid, &ret);
     assert(r == 0);
 
     r = db->close(db, 0);
