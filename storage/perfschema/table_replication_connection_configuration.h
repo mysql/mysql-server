@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,48 +53,48 @@ enum enum_ssl_allowed {
   length field denoted by <field_name>_length.
 */
 struct st_row_connect_config {
-  char Host[HOSTNAME_LENGTH];
-  uint Host_length;
-  uint Port;
-  char User[USERNAME_LENGTH];
-  uint User_length;
-  char Network_Interface[HOSTNAME_LENGTH];
-  uint Network_Interface_length;
-  bool Auto_Position;
-  enum_ssl_allowed SSL_Allowed;
-  char SSL_CA_File[FN_REFLEN];
-  uint SSL_CA_File_length;
-  char SSL_CA_Path[FN_REFLEN];
-  uint SSL_CA_Path_length;
-  char SSL_Certificate[FN_REFLEN];
-  uint SSL_Certificate_length;
-  char SSL_Cipher[FN_REFLEN];
-  uint SSL_Cipher_length;
-  char SSL_Key[FN_REFLEN];
-  uint SSL_Key_length;
-  enum_rpl_yes_no SSL_Verify_Server_Certificate;
-  char SSL_Crl_File[FN_REFLEN];
-  uint SSL_Crl_File_length;
-  char SSL_Crl_Path[FN_REFLEN];
-  uint SSL_Crl_Path_length;
-  uint Connection_Retry_Interval;
-  ulong Connection_Retry_Count;
+  char host[HOSTNAME_LENGTH];
+  uint host_length;
+  uint port;
+  char user[USERNAME_LENGTH];
+  uint user_length;
+  char network_interface[HOSTNAME_LENGTH];
+  uint network_interface_length;
+  enum_rpl_yes_no auto_position;
+  enum_ssl_allowed ssl_allowed;
+  char ssl_ca_file[FN_REFLEN];
+  uint ssl_ca_file_length;
+  char ssl_ca_path[FN_REFLEN];
+  uint ssl_ca_path_length;
+  char ssl_certificate[FN_REFLEN];
+  uint ssl_certificate_length;
+  char ssl_cipher[FN_REFLEN];
+  uint ssl_cipher_length;
+  char ssl_key[FN_REFLEN];
+  uint ssl_key_length;
+  enum_rpl_yes_no ssl_verify_server_certificate;
+  char ssl_crl_file[FN_REFLEN];
+  uint ssl_crl_file_length;
+  char ssl_crl_path[FN_REFLEN];
+  uint ssl_crl_path_length;
+  uint connection_retry_interval;
+  ulong connection_retry_count;
 };
 
 /** Table PERFORMANCE_SCHEMA.TABLE_REPLICATION_CONNECTION_CONFIGURATION. */
 class table_replication_connection_configuration: public PFS_engine_table
 {
 private:
-  void make_row(Master_info *);
+  void make_row();
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-  /** Current row */
-  st_row_connect_config m_row;
   /** True is the current row exists. */
   bool m_row_exists;
+  /** Current row */
+  st_row_connect_config m_row;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

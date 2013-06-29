@@ -3,17 +3,25 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
-select * from performance_schema.replication_connection_status;
-insert into performance_schema.replication_connection_status values(1);
-update performance_schema.replication_connection_status set Master_UUID='';
-delete from performance_schema.replication_connection_status;
+
+# Verify that SELECT works for every field and produces an output similar
+# to the corresponding field in SHOW SLAVE STATUS(SSS). For thread_id
+# field in this PS table, there is no corresponding field in SSS.
+# So, the value of thread_id field is matched with the IO thread_id taken
+# from SHOW PROCESSLIST.
+
 # Asserted this: Value returned by SSS and PS table for Source_UUID should be same.
+io thread id extracted from SHOW PROCESSLIST and PS table match correctly.
+# End of perl code for thread_id testing.
+# Asserted this: SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "On".
 # Asserted this: Value returned by SSS and PS table for Received_Transaction_Set should be same.
 # Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
 # Asserted this: Value returned by SSS and PS table for Last_Error_Message should be same.
 # Asserted this: Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.
-# Asserted this: SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "On".
-io thread id extracted from SHOW PROCESSLIST and PS table match correctly.
+
+# We now introduce an error in the IO thread and check for the correctness
+# of error number, message and timestamp fields.
+
 include/stop_slave.inc
 change master to
 master_user='replssl',
@@ -23,13 +31,36 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 start slave io_thread;
 include/wait_for_slave_param.inc [Last_IO_Errno]
+
+# Extract the error related fields from SSS and PS table and compare
+# them for correctness.
+
 # Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
 Value returned by SSS and PS table for Last_Error_Message is same.
 # Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+
+# Verify that source_UUID and the error related fields are preserved
+# after STOP SLAVE, thread_id changes to NULL and service_state to "off".
+
 include/stop_slave.inc
+
+# 1. Verify that thread_id changes to NULL and service_state to "off" on
+#    STOP SLAVE.
+
+# Asserted this: After STOP SLAVE, thread_id should be NULL
+# Asserted this: SSS shows Slave_IO_Running as "No". So, Service_State from this PS table should be "Off".
+
+# 2. Extract the source_UUID and the error related fields from SSS and PS
+#    table and compare them. These fields should preserve their values.
+
+# Asserted this: Value returned by SSS and PS table for Source_UUID should be same.
 # Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
 Value returned by SSS and PS table for Last_Error_Message is same.
 # Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+
+# Restart the master and slave servers in gtid-mode=on, execute some
+# transactions and verify the 'Received_Transaction_Set' field.
+
 include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/rpl_restart_server.inc [server_number=2 gtids=on]
 CHANGE MASTER TO
@@ -43,4 +74,11 @@ use test;
 create table t(a int);
 insert into t values(1);
 # Asserted this: Value returned by SSS and PS table for Received_Transaction_Set should be same.
+
+# Verify that the value for 'Received_Transaction_Set' field is preserved
+# after STOP SLAVE.
+
+include/stop_slave.inc
+# Asserted this: Value returned by SSS and PS table for Received_Transaction_Set should be same.
+include/start_slave.inc
 include/rpl_end.inc

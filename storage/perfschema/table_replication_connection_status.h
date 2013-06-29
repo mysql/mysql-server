@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,40 +47,37 @@ enum enum_rpl_connect_status_service_state {
   PS_RPL_CONNECT_SERVICE_STATE_CONNECTING
 };
 
-/**
+/*
   A row in worker's table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
 struct st_row_connect_status {
-  char Source_UUID[UUID_LENGTH];
-  /** Thread_Id field is declared char instead of int because it shows NULL
-      when Service_State= off.
-  */
-  ulonglong Thread_Id;
-  bool Thread_Id_is_null;
-  enum_rpl_connect_status_service_state Service_State;
-  char* Received_Transaction_Set;
-  int Received_Transaction_Set_length;
-  uint Last_Error_Number;
-  char Last_Error_Message[MAX_SLAVE_ERRMSG];
-  uint Last_Error_Message_length;
-  ulonglong Last_Error_Timestamp;
+  char source_uuid[UUID_LENGTH];
+  ulonglong thread_id;
+  bool thread_id_is_null;
+  enum_rpl_connect_status_service_state service_state;
+  char* received_transaction_set;
+  int received_transaction_set_length;
+  uint last_error_number;
+  char last_error_message[MAX_SLAVE_ERRMSG];
+  uint last_error_message_length;
+  ulonglong last_error_timestamp;
 };
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_STATUS. */
 class table_replication_connection_status: public PFS_engine_table
 {
 private:
-  void make_row(Master_info *);
+  void make_row();
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
+  /** True if the current row exists. */
+  bool m_row_exists;
   /** Current row */
   st_row_connect_status m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

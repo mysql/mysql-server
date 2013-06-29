@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -37,27 +37,27 @@ THR_LOCK table_replication_execute_status_by_coordinator::m_table_lock;
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
-    {C_STRING_WITH_LEN("Thread_Id")},
+    {C_STRING_WITH_LEN("THREAD_ID")},
     {C_STRING_WITH_LEN("bigint")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Service_State")},
-    {C_STRING_WITH_LEN("enum('On','Off')")},
+    {C_STRING_WITH_LEN("SERVICE_STATE")},
+    {C_STRING_WITH_LEN("enum('ON','OFF')")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Last_Error_Number")},
+    {C_STRING_WITH_LEN("LAST_ERROR_NUMBER")},
     {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Last_Error_Message")},
+    {C_STRING_WITH_LEN("LAST_ERROR_MESSAGE")},
     {C_STRING_WITH_LEN("varchar(1024)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("Last_Error_Timestamp")},
+    {C_STRING_WITH_LEN("LAST_ERROR_TIMESTAMP")},
     { C_STRING_WITH_LEN("timestamp") },
     { NULL, 0}
   },
@@ -106,21 +106,15 @@ void table_replication_execute_status_by_coordinator::reset_position(void)
 
 int table_replication_execute_status_by_coordinator::rnd_next(void)
 {
-  if (!m_row_exists)
+  m_pos.set_at(&m_next_pos);
+
+  if (m_pos.m_index == 0)
   {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi->host[0])
-    {
-      make_row(active_mi);
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return 0;
-    }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return HA_ERR_RECORD_DELETED; /** A record is not there */
-    }
+    make_row();
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
+
   return HA_ERR_END_OF_FILE;
 }
 
@@ -128,64 +122,58 @@ int table_replication_execute_status_by_coordinator::rnd_pos(const void *pos)
 {
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index < m_share.m_records);
+  DBUG_ASSERT(m_pos.m_index < 1);
 
-  if (!m_row_exists)
-  {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi->host[0])
-    {
-      make_row(active_mi);
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return 0;
-    }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return HA_ERR_RECORD_DELETED; /** A record is not there */
-    }
-  }
-  return HA_ERR_END_OF_FILE;
+  make_row();
+
+  return 0;
 }
 
-void table_replication_execute_status_by_coordinator
-  ::make_row(Master_info *mi)
+void table_replication_execute_status_by_coordinator::make_row()
 {
-  mysql_mutex_lock(&mi->rli->data_lock);
+  m_row_exists= false;
 
-  if (mi->rli->slave_running)
+  mysql_mutex_lock(&LOCK_active_mi);
+
+  DBUG_ASSERT(active_mi != NULL);
+  DBUG_ASSERT(active_mi->rli != NULL);
+
+  mysql_mutex_lock(&active_mi->rli->data_lock);
+
+  if (active_mi->rli->slave_running)
   {
-    m_row.Thread_Id_is_null= false;
-    m_row.Thread_Id= (ulonglong)mi->rli->info_thd->thread_id;
+    m_row.thread_id_is_null= false;
+    m_row.thread_id= (ulonglong)active_mi->rli->info_thd->thread_id;
   }
   else
-    m_row.Thread_Id_is_null= true;
+    m_row.thread_id_is_null= true;
 
-  if (mi->rli->slave_running)
-    m_row.Service_State= PS_RPL_YES;
+  if (active_mi->rli->slave_running)
+    m_row.service_state= PS_RPL_YES;
   else
-    m_row.Service_State= PS_RPL_NO;
+    m_row.service_state= PS_RPL_NO;
 
-  mysql_mutex_lock(&mi->rli->err_lock);
+  mysql_mutex_lock(&active_mi->rli->err_lock);
 
-  m_row.Last_Error_Number= (long int) mi->rli->last_error().number;
-  m_row.Last_Error_Message_length= 0;
-  m_row.Last_Error_Timestamp= 0;
+  m_row.last_error_number= (long int) active_mi->rli->last_error().number;
+  m_row.last_error_message_length= 0;
+  m_row.last_error_timestamp= 0;
 
-  /** If error, set error message and timestamp */
-  if (m_row.Last_Error_Number)
+  /** if error, set error message and timestamp */
+  if (m_row.last_error_number)
   {
-    char *temp_store= (char*) mi->rli->last_error().message;
-    m_row.Last_Error_Message_length= strlen(temp_store);
-    memcpy(m_row.Last_Error_Message, temp_store,
-           m_row.Last_Error_Message_length);
+    char *temp_store= (char*) active_mi->rli->last_error().message;
+    m_row.last_error_message_length= strlen(temp_store);
+    memcpy(m_row.last_error_message, temp_store,
+           m_row.last_error_message_length);
 
     /** time in millisecond since epoch */
-    m_row.Last_Error_Timestamp= mi->rli->last_error().skr*1000000;
+    m_row.last_error_timestamp= active_mi->rli->last_error().skr*1000000;
   }
 
-  mysql_mutex_unlock(&mi->rli->err_lock);
-  mysql_mutex_unlock(&mi->rli->data_lock);
+  mysql_mutex_unlock(&active_mi->rli->err_lock);
+  mysql_mutex_unlock(&active_mi->rli->data_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
 
   m_row_exists= true;
 }
@@ -196,6 +184,9 @@ int table_replication_execute_status_by_coordinator
 {
   Field *f;
 
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0]= 0;
 
@@ -205,24 +196,24 @@ int table_replication_execute_status_by_coordinator
     {
       switch(f->field_index)
       {
-      case 0: /*Thread_Id*/
-        if (!m_row.Thread_Id_is_null)
-          set_field_ulonglong(f, m_row.Thread_Id);
+      case 0: /*thread_id*/
+        if (!m_row.thread_id_is_null)
+          set_field_ulonglong(f, m_row.thread_id);
         else
           f->set_null();
         break;
-      case 1: /*Service_State*/
-        set_field_enum(f, m_row.Service_State);
+      case 1: /*service_state*/
+        set_field_enum(f, m_row.service_state);
         break;
-      case 2: /*Last_Error_Number*/
-        set_field_ulong(f, m_row.Last_Error_Number);
+      case 2: /*last_error_number*/
+        set_field_ulong(f, m_row.last_error_number);
         break;
-      case 3: /*Last_Error_Message*/
-        set_field_varchar_utf8(f, m_row.Last_Error_Message,
-                               m_row.Last_Error_Message_length);
+      case 3: /*last_error_message*/
+        set_field_varchar_utf8(f, m_row.last_error_message,
+                               m_row.last_error_message_length);
         break;
-      case 4: /*Last_Error_Timestamp*/
-        set_field_timestamp(f, m_row.Last_Error_Timestamp);
+      case 4: /*last_error_timestamp*/
+        set_field_timestamp(f, m_row.last_error_timestamp);
         break;
       default:
         DBUG_ASSERT(false);
