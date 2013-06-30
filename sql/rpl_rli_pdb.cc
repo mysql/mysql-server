@@ -1453,7 +1453,13 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
       2) Error reporting by the worker that errored out.
       C does not allow using the same va_list twice without making a copy.
       Hence the use of va_copy().
+      Since va_copy() macro is not defined in windows vrsions, added an explicit
+      definition for the same.
     */
+    #ifndef va_copy
+    #define va_copy(dst, src) memcpy(&(dst), &(src), sizeof(va_list))
+    #endif
+
     va_copy(args_copy, args);
     /* Error reporting by the coordinator. */
     c_rli->va_report(level, err_code, msg, args);
