@@ -12,9 +12,8 @@ call mtr.add_suppression("Request to stop slave SQL Thread received while applyi
 include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 include/start_slave.inc
-Warnings:
-Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 # Asserted this: Worker_Id should be 0
 worker thread id extracted from SHOW PROCESSLIST and PS table match.
 # Asserted this: Service_State should be "On" on a fresh slave server.
@@ -74,9 +73,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 start slave;
-Warnings:
-Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 create database d1;
 create table d1.t1(a int);
 insert into d1.t1 values(1);
@@ -92,7 +90,7 @@ Last_Seen_Transaction	MASTER_UUID:3
 
 # Cleanup.
 
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers= 0;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 include/start_slave.inc
 include/rpl_end.inc

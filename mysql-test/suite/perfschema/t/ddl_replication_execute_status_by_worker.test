@@ -26,6 +26,8 @@ connection slave;
 source include/stop_slave.inc;
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
+# to avoid warnings
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 source include/start_slave.inc;
 
 -- error ER_DBACCESS_DENIED_ERROR
@@ -45,8 +47,8 @@ CREATE UNIQUE INDEX test_index ON
 
 #Cleanup
 source include/stop_slave.inc;
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=0;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 source include/start_slave.inc;
 
 --source include/rpl_end.inc
