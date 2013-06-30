@@ -303,6 +303,8 @@ eval change master to
   master_user='root';
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
+# to avoid warnings
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 start slave;
 
 # To verify that the coordinator's thread_id is correctly shown by PS table,
@@ -375,9 +377,8 @@ source include/rpl_assert.inc;
 --echo
 
 source include/stop_slave.inc;
-
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=0;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 source include/start_slave.inc;
 
 source include/rpl_end.inc;

@@ -28,9 +28,8 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 include/start_slave.inc
-Warnings:
-Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 alter table performance_schema.replication_execute_status_by_coordinator
 add column foo integer;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
@@ -43,7 +42,7 @@ CREATE UNIQUE INDEX test_index ON
 performance_schema.replication_execute_status_by_coordinator(thread_id);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 include/stop_slave.inc
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=0;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 include/start_slave.inc
 include/rpl_end.inc
