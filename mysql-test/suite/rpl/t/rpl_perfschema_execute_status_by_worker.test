@@ -51,6 +51,8 @@ call mtr.add_suppression("Request to stop slave SQL Thread received while applyi
 source include/stop_slave.inc;
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
+# to avoid warnings
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 source include/start_slave.inc;
 
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_execute_status_by_worker, Worker_Id, 1);
@@ -303,6 +305,8 @@ replace_column 2 ####;
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
+# to avoid warnings
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 start slave;
 
 --connection master
@@ -329,8 +333,8 @@ query_vertical select Last_Seen_Transaction from performance_schema.replication_
 --echo # Cleanup.
 --echo
 
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers= 0;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 source include/start_slave.inc;
 
 source include/rpl_end.inc;
