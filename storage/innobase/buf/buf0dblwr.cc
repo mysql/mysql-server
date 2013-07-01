@@ -690,7 +690,6 @@ buf_dblwr_assert_on_corrupt_block(
 {
 	buf_page_print(block->frame, 0, BUF_PAGE_PRINT_NO_CRASH);
 
-	ut_print_timestamp(stderr);
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Apparent corruption of an index page n:o %lu in space"
 		" %lu to be written to data file. We intentionally crash"
