@@ -136,12 +136,12 @@ toku_txn_destroy(DB_TXN *txn) {
 static int
 toku_txn_commit(DB_TXN * txn, uint32_t flags,
                 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                bool release_mo_lock) {
+                bool release_mo_lock, bool big_txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
     if (db_txn_struct_i(txn)->child) {
         //commit of child sets the child pointer to NULL
-        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags, NULL, NULL, false);
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags, NULL, NULL, false, false);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
             env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
         }
@@ -192,7 +192,11 @@ toku_txn_commit(DB_TXN * txn, uint32_t flags,
     // begin checkpoint logs these associations, so we must be protect
     // the changing of these associations with checkpointing
     if (release_mo_lock) {
-        toku_multi_operation_client_unlock();
+        if (big_txn) {
+            toku_big_multi_operation_client_unlock();
+        } else {
+            toku_multi_operation_client_unlock();
+        }
     }
     toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync);
     if (flags!=0) {
@@ -218,7 +222,7 @@ toku_txn_abort(DB_TXN * txn,
     //Recursively kill off children (abort or commit are both correct, commit is cheaper)
     if (db_txn_struct_i(txn)->child) {
         //commit of child sets the child pointer to NULL
-        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, DB_TXN_NOSYNC, NULL, NULL, false);
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, DB_TXN_NOSYNC, NULL, NULL, false, false);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
             env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent abort.\n");
         }
@@ -270,7 +274,7 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
         //commit of child sets the child pointer to NULL
 
         // toku_txn_commit will take the mo_lock if not held and a non-readonly txn is found.
-        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, 0, NULL, NULL, false);
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, 0, NULL, NULL, false, false);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
             env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
         }
@@ -324,18 +328,24 @@ static int
 locked_txn_commit_with_progress(DB_TXN *txn, uint32_t flags,
                                 TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     bool holds_mo_lock = false;
-    if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
-        // A readonly transaction does no logging, and therefore does not
-        // need the MO lock.
-        toku_multi_operation_client_lock();
+    bool big_txn = false;
+    TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
+    if (!toku_txn_is_read_only(tokutxn)) {
+        // A readonly transaction does no logging, and therefore does not need the MO lock.
         holds_mo_lock = true;
+        if (toku_txn_has_spilled_rollback(tokutxn)) {
+            big_txn = true;
+            toku_big_multi_operation_client_lock();
+        } else {
+            toku_multi_operation_client_lock();
+        }
     }
     // cannot begin a checkpoint.
     // the multi operation lock is taken the first time we
     // see a non-readonly txn in the recursive commit.
     // But released in the first-level toku_txn_commit (if taken),
     // this way, we don't hold it while we fsync the log.
-    int r = toku_txn_commit(txn, flags, poll, poll_extra, holds_mo_lock);
+    int r = toku_txn_commit(txn, flags, poll, poll_extra, holds_mo_lock, big_txn);
     return r;
 }
 
@@ -347,15 +357,25 @@ locked_txn_abort_with_progress(DB_TXN *txn,
     // see a non-readonly txn in the abort (or recursive commit).
     // But released here so we don't have to hold additional state.
     bool holds_mo_lock = false;
-    if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
-        // A readonly transaction does no logging, and therefore does not
-        // need the MO lock.
-        toku_multi_operation_client_lock();
+    bool big_txn = false;
+    TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
+    if (!toku_txn_is_read_only(tokutxn)) {
+        // A readonly transaction does no logging, and therefore does not need the MO lock.
         holds_mo_lock = true;
+        if (toku_txn_has_spilled_rollback(tokutxn)) {
+            big_txn = true;
+            toku_big_multi_operation_client_lock();
+        } else {
+            toku_multi_operation_client_lock();
+        }
     }
     int r = toku_txn_abort(txn, poll, poll_extra);
     if (holds_mo_lock) {
-        toku_multi_operation_client_unlock();
+        if (big_txn) {
+            toku_big_multi_operation_client_unlock();
+        } else {
+            toku_multi_operation_client_unlock();
+        }
     }
     return r;
 }
