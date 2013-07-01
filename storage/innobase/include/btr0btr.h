@@ -772,7 +772,7 @@ btr_index_rec_validate(
 	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Checks the consistency of an index tree.
-@return TRUE if ok */
+@return true if ok */
 
 bool
 btr_validate_index(
