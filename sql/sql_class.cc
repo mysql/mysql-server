@@ -1679,8 +1679,8 @@ void THD::awake(killed_state state_to_set)
           mysql_mutex_unlock(mysys_var->current_mutex);
           break;
         }
+        my_sleep(1000000L / WAIT_FOR_KILL_TRY_TIMES);
       }
-      my_sleep(1000000L / WAIT_FOR_KILL_TRY_TIMES);
     }
     mysql_mutex_unlock(&mysys_var->mutex);
   }
