@@ -7516,6 +7516,9 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   }//for
 
   cmasterNodeId = tnewMasterId;
+
+  if (ERROR_INSERTED(8098))
+    SET_ERROR_INSERT_VALUE(8099);  /* Disable 8098 on node failure */
   
   HostRecordPtr myHostPtr;
 
@@ -10817,6 +10820,67 @@ void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
   conf->senderData = c_gcp_ref;
   conf->gci_hi = Uint32(gci >> 32);
   conf->gci_lo = Uint32(gci);
+  conf->tcFailNo = cfailure_nr; /* Indicate highest handled failno in GCP */
+
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(8098))
+  {
+    if (cmasterNodeId == getOwnNodeId())
+    {
+      bool multi = ((gci&1) == 1);
+      bool kill_me = ((gci&3) == 1);
+      /* Kill multi 'assumes' NoOfReplicas=2, and skipping one
+       * live node at a time avoids taking out a nodegroup
+       */
+      ndbout_c("TC killing multi : %u  me : %u", multi, kill_me);
+      Uint32 start = getOwnNodeId();
+      bool skip = !kill_me;
+      Uint32 pos = start;
+      do
+      {
+        NodeInfo ni = getNodeInfo(pos);
+        if ((ni.getType() == NODE_TYPE_DB) &&
+            ni.m_connected)
+        {
+          /* Found a db node... */
+          if (!skip)
+          {
+            ndbout_c("TC : Killing node %u", pos);
+            signal->theData[0] = 9999;
+            sendSignal(numberToRef(CMVMI, pos), GSN_DUMP_STATE_ORD, signal,
+                       1, JBA);
+            if (!multi)
+              break;
+            skip = true;
+          }
+          else
+          {
+            ndbout_c("TC : Skipping node %u", pos);
+            skip = false;
+          }
+        }
+
+        pos++;
+        if (pos == MAX_NDB_NODES)
+          pos = 1;
+      } while (pos != start);
+    }
+
+    /* Keep delaying GCP_TCFINISHED, but don't kill anymore */
+    SET_ERROR_INSERT_VALUE(8099);
+  }
+
+  if (ERROR_INSERTED(8099))
+  {
+    /* Slow it down */
+    ndbout_c("TC : Sending delayed GCP_TCFINISHED (%u/%u), failNo %u to local DIH(%x)",
+             conf->gci_hi, conf->gci_lo, cfailure_nr, cdihblockref);
+    sendSignalWithDelay(cdihblockref, GSN_GCP_TCFINISHED, signal,
+                        2000, GCPTCFinished::SignalLength);
+    return;
+  }
+#endif
+
   sendSignal(cdihblockref, GSN_GCP_TCFINISHED, signal, 
              GCPTCFinished::SignalLength, JBB);
 }//Dbtc::gcpTcfinished()
