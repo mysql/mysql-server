@@ -4885,15 +4885,12 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 
 void JOIN::clear()
 {
-  for (uint tableno= 0; tableno < primary_tables; tableno++)
-  {
-    TABLE *const table= (join_tab+tableno)->table;
-    if (table)
-    {
-      table->null_row= 1;
-      table->status|= STATUS_NULL_ROW;
-    }
-  }
+  /* 
+    must clear only the non-const tables, as const tables
+    are not re-calculated.
+  */
+  for (uint tableno= const_tables; tableno < primary_tables; tableno++)
+    mark_as_null_row(join_tab[tableno].table);  // All fields are NULL
 
   copy_fields(&tmp_table_param);
 
