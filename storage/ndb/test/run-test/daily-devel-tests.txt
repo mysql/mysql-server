@@ -138,3 +138,8 @@ max-time: 600
 cmd: testNodeRestart
 args: -n TestLCPFSErr --record=100000 T1
 
+# GCP node failure
+max-time: 1800
+cmd: testNodeRestart
+args: -n NodeFailGCPOpen T1
+
