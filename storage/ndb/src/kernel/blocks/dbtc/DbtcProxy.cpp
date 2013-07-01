@@ -226,6 +226,7 @@ DbtcProxy::execGCP_NOMORETRANS(Signal* signal)
   Ss_GCP_NOMORETRANS& ss = ssSeize<Ss_GCP_NOMORETRANS>(1);
 
   ss.m_req = *(GCPNoMoreTrans*)signal->getDataPtr();
+  ss.m_minTcFailNo = ~Uint32(0);
   sendREQ(signal, ss);
 }
 
@@ -249,6 +250,11 @@ DbtcProxy::execGCP_TCFINISHED(Signal* signal)
   GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtr();
   Uint32 ssId = conf->senderData;
   Ss_GCP_NOMORETRANS& ss = ssFind<Ss_GCP_NOMORETRANS>(ssId);
+
+  /* Record minimum handled failure number seen from TC workers */
+  if (conf->tcFailNo < ss.m_minTcFailNo)
+    ss.m_minTcFailNo = conf->tcFailNo;
+  
   recvCONF(signal, ss);
 }
 
@@ -264,6 +270,7 @@ DbtcProxy::sendGCP_TCFINISHED(Signal* signal, Uint32 ssId)
   conf->senderData = ss.m_req.senderData;
   conf->gci_hi = ss.m_req.gci_hi;
   conf->gci_lo = ss.m_req.gci_lo;
+  conf->tcFailNo = ss.m_minTcFailNo;
   sendSignal(ss.m_req.senderRef, GSN_GCP_TCFINISHED,
              signal, GCPTCFinished::SignalLength, JBB);
 
