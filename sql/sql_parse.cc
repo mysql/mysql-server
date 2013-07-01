@@ -1461,6 +1461,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd_proc_info(thd, "cleaning up");
   thd->reset_query();
   thd->command=COM_SLEEP;
+  thd->set_time();
   dec_thread_running();
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory

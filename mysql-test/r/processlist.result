@@ -7,3 +7,9 @@ SELECT INFO,TIME,TIME_MS FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO IS NULL;
 SET DEBUG_SYNC = 'now SIGNAL fill_schema_proceed';
 INFO	TIME	TIME_MS
 NULL	0	0.000
+select sleep(5);
+sleep(5)
+0
+select command, time < 5 from information_schema.processlist where id != connection_id();
+command	time < 5
+Sleep	1

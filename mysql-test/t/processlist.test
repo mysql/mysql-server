@@ -18,5 +18,18 @@ SET DEBUG_SYNC = 'now SIGNAL fill_schema_proceed';
 
 connection con1;
 reap;
+connection default;
+
+#
+# MDEV-4683 query start_time not reset when going to sleep
+#
+
+connection con1;
+select sleep(5); #run a query that will take some time
+connection default;
+
+# verify that the time in COM_SLEEP doesn't include the query run time
+select command, time < 5 from information_schema.processlist where id != connection_id();
+
 disconnect con1;
 
