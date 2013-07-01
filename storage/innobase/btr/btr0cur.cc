@@ -79,7 +79,7 @@ enum btr_op_t {
 	BTR_DELMARK_OP			/*!< Mark a record for deletion */
 };
 
-/** Modifying intention types for the B-tree operation. */
+/** Modification types for the B-tree operation. */
 enum btr_intention_t {
 	BTR_INTENTION_DELETE,
 	BTR_INTENTION_BOTH,
@@ -422,13 +422,14 @@ btr_cur_will_modify_tree(
 	mtr_t*		mtr)
 {
 	ut_ad(!page_is_leaf(page));
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_SX_LOCK));
+	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+					MTR_MEMO_X_LOCK
+					| MTR_MEMO_SX_LOCK));
 
 	/* Pessimistic delete of the first record causes delete & insert
-	of node_ptr at upper level. And a subsequent page compression(btr) is
+	of node_ptr at upper level. And a subsequent page shrink is
 	possible. It causes delete of node_ptr at the upper level.
-	So we should pay attention also for 2nd record not only
+	So we should pay attention also to 2nd record not only
 	first record and last record. Because if the "delete & insert" are
 	done for the different page, the 2nd record become
 	first record and following compress might delete the record and causes
@@ -732,15 +733,26 @@ btr_cur_search_to_nth_level(
 
 	switch (latch_mode) {
 	case BTR_MODIFY_TREE:
-		mtr_sx_lock(dict_index_get_lock(index), mtr);
+		/* Most of delete-intended operations are not by users.
+		Especially for purge operation, free blocks and read IO
+		bandwidth should be prior for them. */
+		if (lock_intention == BTR_INTENTION_DELETE
+		    && trx_sys->rseg_history_len > 100000
+		    && buf_get_n_pending_read_ios()) {
+			mtr_x_lock(dict_index_get_lock(index), mtr);
+		} else {
+			mtr_sx_lock(dict_index_get_lock(index), mtr);
+		}
 		upper_rw_latch = RW_X_LATCH;
 		break;
 	case BTR_CONT_MODIFY_TREE:
 	case BTR_CONT_SEARCH_TREE:
 		/* Do nothing */
 		ut_ad(srv_read_only_mode
-		      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-					   MTR_MEMO_SX_LOCK));
+		      || mtr_memo_contains_flagged(mtr,
+						   dict_index_get_lock(index),
+						   MTR_MEMO_X_LOCK
+						   | MTR_MEMO_SX_LOCK));
 		upper_rw_latch = RW_NO_LATCH;
 		break;
 	default:
@@ -907,7 +919,7 @@ retry_page_get:
 	}
 
 	if (retrying_for_search_prev && height != 0) {
-		/* latch also left sibling */
+		/* also latch left sibling */
 		ulint		left_page_no;
 		buf_block_t*	get_block;
 
@@ -955,7 +967,8 @@ retry_page_get:
 	    && page_is_leaf(page)
 	    && rw_latch != RW_NO_LATCH
 	    && rw_latch != root_leaf_rw_latch) {
-		/* We should retry to get the page */
+		/* We should retry to get the page, because the root page
+		is latched with different level as a leaf page. */
 		ut_ad(root_leaf_rw_latch != RW_NO_LATCH);
 		ut_ad(rw_latch == RW_S_LATCH);
 
@@ -1080,7 +1093,7 @@ retry_page_get:
 			    && page_rec_is_last(node_ptr, page)))) {
 			ut_ad(upper_rw_latch == RW_X_LATCH);
 			/* release all blocks */
-			for (; n_releases < n_blocks; n_releases++) {
+			for (; n_releases <= n_blocks; n_releases++) {
 				mtr_release_block_at_savepoint(
 					mtr, tree_savepoints[n_releases],
 					tree_blocks[n_releases]);
@@ -1445,7 +1458,16 @@ btr_cur_open_at_index_side_func(
 		upper_rw_latch = RW_NO_LATCH;
 		break;
 	case BTR_MODIFY_TREE:
-		mtr_sx_lock(dict_index_get_lock(index), mtr);
+		/* Most of delete-intended operations are not by users.
+		Especially for purge operation, free blocks and read IO
+		bandwidth should be prior for them. */
+		if (lock_intention == BTR_INTENTION_DELETE
+		    && trx_sys->rseg_history_len > 100000
+		    && buf_get_n_pending_read_ios()) {
+			mtr_x_lock(dict_index_get_lock(index), mtr);
+		} else {
+			mtr_sx_lock(dict_index_get_lock(index), mtr);
+		}
 		upper_rw_latch = RW_X_LATCH;
 		break;
 	default:
@@ -1508,7 +1530,8 @@ btr_cur_open_at_index_side_func(
 		    && btr_page_get_level(page, mtr) == 0
 		    && rw_latch != RW_NO_LATCH
 		    && rw_latch != root_leaf_rw_latch) {
-			/* We should retry to get the page */
+			/* We should retry to get the page, because the root page
+			is latched with different level as a leaf page. */
 			ut_ad(root_leaf_rw_latch != RW_NO_LATCH);
 			ut_ad(rw_latch == RW_S_LATCH);
 
@@ -1657,7 +1680,7 @@ btr_cur_open_at_index_side_func(
 			    && page_rec_is_last(node_ptr, page)))) {
 			ut_ad(upper_rw_latch == RW_X_LATCH);
 			/* release all blocks */
-			for (; n_releases < n_blocks; n_releases++) {
+			for (; n_releases <= n_blocks; n_releases++) {
 				mtr_release_block_at_savepoint(
 					mtr, tree_savepoints[n_releases],
 					tree_blocks[n_releases]);
@@ -1775,7 +1798,16 @@ btr_cur_open_at_rnd_pos_func(
 
 	switch (latch_mode) {
 	case BTR_MODIFY_TREE:
-		mtr_sx_lock(dict_index_get_lock(index), mtr);
+		/* Most of delete-intended operations are not by users.
+		Especially for purge operation, free blocks and read IO
+		bandwidth should be prior for them. */
+		if (lock_intention == BTR_INTENTION_DELETE
+		    && trx_sys->rseg_history_len > 100000
+		    && buf_get_n_pending_read_ios()) {
+			mtr_x_lock(dict_index_get_lock(index), mtr);
+		} else {
+			mtr_sx_lock(dict_index_get_lock(index), mtr);
+		}
 		upper_rw_latch = RW_X_LATCH;
 		break;
 	case BTR_SEARCH_PREV:
@@ -1836,7 +1868,8 @@ btr_cur_open_at_rnd_pos_func(
 		    && btr_page_get_level(page, mtr) == 0
 		    && rw_latch != RW_NO_LATCH
 		    && rw_latch != root_leaf_rw_latch) {
-			/* We should retry to get the page */
+			/* We should retry to get the page, because the root page
+			is latched with different level as a leaf page. */
 			ut_ad(root_leaf_rw_latch != RW_NO_LATCH);
 			ut_ad(rw_latch == RW_S_LATCH);
 
@@ -1919,7 +1952,7 @@ btr_cur_open_at_rnd_pos_func(
 			    && page_rec_is_last(node_ptr, page)))) {
 			ut_ad(upper_rw_latch == RW_X_LATCH);
 			/* release all blocks */
-			for (; n_releases < n_blocks; n_releases++) {
+			for (; n_releases <= n_blocks; n_releases++) {
 				mtr_release_block_at_savepoint(
 					mtr, tree_savepoints[n_releases],
 					tree_blocks[n_releases]);
@@ -2435,9 +2468,9 @@ btr_cur_pessimistic_insert(
 
 	*big_rec = NULL;
 
-	ut_ad(mtr_memo_contains(mtr,
-				dict_index_get_lock(btr_cur_get_index(cursor)),
-				MTR_MEMO_SX_LOCK));
+	ut_ad(mtr_memo_contains_flagged(
+		mtr, dict_index_get_lock(btr_cur_get_index(cursor)),
+		MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!dict_index_is_online_ddl(index)
@@ -3295,8 +3328,9 @@ btr_cur_pessimistic_update(
 	page_zip = buf_block_get_page_zip(block);
 	index = cursor->index;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_SX_LOCK));
+	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+					MTR_MEMO_X_LOCK |
+					MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
@@ -3508,6 +3542,18 @@ make_external:
 			This is the same block which was skipped by
 			BTR_KEEP_IBUF_BITMAP. */
 			ibuf_update_free_bits_zip(block, mtr);
+		}
+
+		if (!srv_read_only_mode
+		    && !big_rec_vec
+		    && page_is_leaf(page)
+		    && !dict_index_is_online_ddl(index)) {
+
+			mtr_memo_release(mtr, dict_index_get_lock(index),
+					 MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK);
+
+			/* NOTE: We cannot release root block latch here, because it
+			has segment header and already modified in most of cases.*/
 		}
 
 		err = DB_SUCCESS;
@@ -4013,9 +4059,9 @@ btr_cur_compress_if_useful(
 				cursor position even if compression occurs */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ut_ad(mtr_memo_contains(mtr,
-				dict_index_get_lock(btr_cur_get_index(cursor)),
-				MTR_MEMO_SX_LOCK));
+	ut_ad(mtr_memo_contains_flagged(
+		mtr, dict_index_get_lock(btr_cur_get_index(cursor)),
+		MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 
@@ -4175,8 +4221,9 @@ btr_cur_pessimistic_delete(
 	ut_ad(!dict_index_is_online_ddl(index)
 	      || dict_index_is_clust(index)
 	      || (flags & BTR_CREATE_FLAG));
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_SX_LOCK));
+	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+					MTR_MEMO_X_LOCK
+					| MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	if (!has_reserved_extents) {
 		/* First reserve enough free space for the file segments
@@ -4288,6 +4335,17 @@ return_after_reservations:
 
 	if (ret == FALSE) {
 		ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
+	}
+
+	if (!srv_read_only_mode
+	    && page_is_leaf(page)
+	    && !dict_index_is_online_ddl(index)) {
+
+		mtr_memo_release(mtr, dict_index_get_lock(index),
+				 MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK);
+
+		/* NOTE: We cannot release root block latch here, because it
+		has segment header and already modified in most of cases.*/
 	}
 
 	if (n_reserved > 0) {
@@ -5303,8 +5361,9 @@ btr_store_big_rec_extern_fields(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_any_extern(offsets));
 	ut_ad(btr_mtr);
-	ut_ad(mtr_memo_contains(btr_mtr, dict_index_get_lock(index),
-				MTR_MEMO_SX_LOCK));
+	ut_ad(mtr_memo_contains_flagged(btr_mtr, dict_index_get_lock(index),
+					MTR_MEMO_X_LOCK
+					| MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(btr_mtr, rec_block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(buf_block_get_frame(rec_block) == page_align(rec));
 	ut_a(dict_index_is_clust(index));
@@ -5830,8 +5889,9 @@ btr_free_externally_stored_field(
 	mtr_t		mtr;
 
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
-				MTR_MEMO_SX_LOCK));
+	ut_ad(mtr_memo_contains_flagged(local_mtr, dict_index_get_lock(index),
+					MTR_MEMO_X_LOCK
+					| MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains_page(local_mtr, field_ref,
 				     MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
