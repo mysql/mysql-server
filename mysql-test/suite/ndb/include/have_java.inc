@@ -40,8 +40,10 @@ else
 # IS_WINDOWS
 {
   if ($bits == 64) {
+    push(@arch_paths, 'C:\java\jdk-64\bin');
     $java_args = "-server";
   } else {
+    push(@arch_paths, 'C:\java\jdk\bin');
     $java_args = "-client"; 
   }
   push(@arch_paths, 'C:\Windows\SysWOW64');
