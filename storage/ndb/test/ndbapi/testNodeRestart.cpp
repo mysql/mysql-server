@@ -5346,6 +5346,65 @@ runTestLcpFsErr(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int
+runNodeFailGCPOpen(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Use an error insert to cause node failures, 
+   * then bring the cluster back up
+   */
+  NdbRestarter restarter;
+  int i = 0;
+  while (i < 10 &&
+         !ctx->isTestStopped())
+  {
+    /* Wait a moment or two */
+    ndbout_c("Waiting...");
+    NdbSleep_SecSleep(10);
+    /* Insert error in all nodes */
+    ndbout_c("Inserting error...");
+    restarter.insertErrorInAllNodes(8098);
+    
+    /* Wait for failure... */
+    ndbout_c("Waiting to hear of node failure %u...", i);
+    int timeout = 120;
+    while ((restarter.waitClusterStarted(1) == 0) &&
+           timeout--);
+
+    if (timeout == 0)
+    {
+      g_err << "Timed out waiting for node failure" << endl;
+    }
+
+    ndbout_c("Clearing error...");
+    restarter.insertErrorInAllNodes(0);
+
+    ndbout_c("Waiting for node recovery...");
+    timeout = 120;
+    while ((restarter.waitClusterStarted(1) != 0) &&
+           (restarter.startAll() == 0) &&
+           timeout--);
+
+    ndbout_c("Done.");
+
+    if (timeout == 0)
+    {
+      g_err << "Timed out waiting for recovery" << endl;
+      return NDBT_FAILED;
+    }
+
+    if (restarter.waitClusterStarted(1) != 0)
+    {
+      g_err << "Failed waiting for cluster to start." << endl;
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+
+  ctx->stopTest();
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -5924,6 +5983,16 @@ TESTCASE("Bug16834416", "")
 {
   INITIALIZER(runBug16834416);
 }
+TESTCASE("NodeFailGCPOpen",
+         "Test behaviour of code to keep GCP open for node failure "
+         " handling")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runNodeFailGCPOpen);
+  FINALIZER(runClearTable);
+}
+
 NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){
