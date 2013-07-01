@@ -187,7 +187,7 @@ int get_ER_error_msg(uint code, const char **name_ptr, const char **msg_ptr)
   return 0;
 }
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 static my_bool print_win_error_msg(DWORD error, my_bool verbose)
 {
   LPTSTR s;
@@ -247,7 +247,7 @@ int main(int argc,char *argv[])
   const char *msg;
   const char *name;
   char *unknown_error = 0;
-#if defined(__WIN__)
+#if defined(_WIN32)
   my_bool skip_win_message= 0;
 #endif
   MY_INIT(argv[0]);
@@ -345,17 +345,17 @@ int main(int argc,char *argv[])
       }
       if (!found)
       {
-#if defined(__WIN__)
+#if defined(_WIN32)
         if (!(skip_win_message= !print_win_error_msg((DWORD)code, verbose)))
         {
 #endif
           fprintf(stderr,"Illegal error code: %d\n",code);
           error=1;
-#if defined(__WIN__)
+#if defined(_WIN32)
         }
 #endif
       }
-#if defined(__WIN__)
+#if defined(_WIN32)
       if (!skip_win_message)
         print_win_error_msg((DWORD)code, verbose);
 #endif

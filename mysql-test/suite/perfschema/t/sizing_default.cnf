@@ -11,7 +11,6 @@
 # table_open_cache = 2000
 # table_definition_cache = 400 + 2000/2 = 1400
 # max_connections = 151
-# open_files_limit = 5000
 
 # Automated sizing for everything
 

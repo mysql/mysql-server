@@ -1373,6 +1373,16 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     /* Reading record from mysql.user */
     ACL_USER user;
     memset(&user, 0, sizeof(user));
+
+    /*
+      All accounts can authenticate per default. This will change when
+      we add a new field to the user table.
+
+      Currently this flag is only set to false when authentication is attempted
+      using an unknown user name.
+    */
+    user.can_authenticate= true;
+
     user.host.update_hostname(get_field(&global_acl_memory,
                                         table->field[MYSQL_USER_FIELD_HOST]));
     user.user= get_field(&global_acl_memory,
@@ -2382,6 +2392,14 @@ void acl_insert_user(const char *user, const char *host,
   int hash_not_ok;
 
   mysql_mutex_assert_owner(&acl_cache->lock);
+  /*
+     All accounts can authenticate per default. This will change when
+     we add a new field to the user table.
+
+     Currently this flag is only set to false when authentication is attempted
+     using an unknown user name.
+  */
+  acl_user.can_authenticate= true;
 
   acl_user.user= *user ? strdup_root(&global_acl_memory,user) : 0;
   acl_user.host.update_hostname(*host ? strdup_root(&global_acl_memory, host) : 0);
@@ -2539,6 +2557,50 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
 
   mysql_mutex_unlock(&acl_cache->lock);
 }
+
+
+
+/**
+  Update the security context when updating the user
+
+  Helper function.
+  Update only if the security context is pointing to the same user.
+  And return true if the update happens (i.e. we're operating on the
+  user account of the current user).
+  Normalize the names for a safe compare.
+
+  @param sctx           The security context to update
+  @param acl_user_ptr   User account being updated
+  @param expired        new value of the expiration flag
+  @return               did the update happen ?
+ */
+bool
+update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr, bool expired)
+{
+  const char *acl_host= acl_user_ptr->host.get_host();
+  const char *acl_user= acl_user_ptr->user;
+  const char *sctx_user= sctx->priv_user;
+  const char *sctx_host= sctx->priv_host;
+
+  if (!acl_host)
+    acl_host= "";
+  if(!acl_user)
+    acl_user= "";
+  if (!sctx_host)
+    sctx_host= "";
+  if (!sctx_user)
+    sctx_user= "";
+
+  if (!strcmp(acl_user, sctx_user) && !strcmp(acl_host, sctx_host))
+  {
+    sctx->password_expired= expired;
+    return true;
+  }
+
+  return false;
+}
+
+
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 

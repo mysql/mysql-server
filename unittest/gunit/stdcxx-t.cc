@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -19,7 +19,7 @@
 
 #if defined(__GNUC__) && __GNUC__ > 3
 #include <tr1/unordered_map>
-#elif defined(__WIN__)
+#elif defined(_WIN32)
 #include <hash_map>
 #elif  defined(__SUNPRO_CC)
 #include <hash_map>
@@ -33,7 +33,7 @@ struct MyHashMap
 {
 #if defined(__GNUC__) && __GNUC__ > 3
   typedef std::tr1::unordered_map<K, T> Type;
-#elif defined(__WIN__)
+#elif defined(_WIN32)
   typedef stdext::hash_map<K, T> Type;
 #elif defined(__SUNPRO_CC)
   typedef std::hash_map<K, T> Type;

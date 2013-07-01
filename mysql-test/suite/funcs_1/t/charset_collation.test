@@ -1,14 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # suite/funcs_1/t/charset_collation.test
 #
 # Tests checking the content of the information_schema tables
 #      character_sets
 #      collations
 #      collation_character_set_applicability
+# This test is not dedicated to check some storage engine. 
 #
 # Created:
 # 2009-04-28 mleich Replace the charset_collation_* test which failed too often
@@ -105,8 +101,10 @@ ORDER BY collation_name, character_set_name;
 
 
 # Cleanup
---echo # Switch to connection default + disconnect con
-connection default;
+connection con;
 disconnect con;
+--source include/wait_until_disconnected.inc
+--echo # Switch to connection default
+connection default;
 DROP USER dbdict_test@localhost;
 

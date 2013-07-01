@@ -300,9 +300,15 @@ least(1,2,3) | greatest(16,32,8)	least(5,4)*1	greatest(-1.0,1.0)*1	least(3,2,1)*
 select decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000);
 decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000)
 1
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select decode(encode("abcdef","monty"),"monty")="abcdef";
 decode(encode("abcdef","monty"),"monty")="abcdef"
 1
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select quote('\'\"\\test');
 quote('\'\"\\test')
 '\'"\\test'
@@ -717,6 +723,8 @@ insert(_latin2'abcd',2,3,_latin2'ef'),
 replace(_latin2'abcd',_latin2'b',_latin2'B'),
 encode('abcd','ab')
 ;
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1442,52 +1450,84 @@ set @my_data="clear text to encode";
 select md5(encode(@my_data, "password"));
 md5(encode(@my_data, "password"))
 44320fd2b4a0ec92faa2da2122def917
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select md5(encode(@my_data, _utf8 "password"));
 md5(encode(@my_data, _utf8 "password"))
 44320fd2b4a0ec92faa2da2122def917
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select md5(encode(@my_data, binary "password"));
 md5(encode(@my_data, binary "password"))
 44320fd2b4a0ec92faa2da2122def917
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select md5(encode(@my_data, _latin1 "password"));
 md5(encode(@my_data, _latin1 "password"))
 44320fd2b4a0ec92faa2da2122def917
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select md5(encode(@my_data, _koi8r "password"));
 md5(encode(@my_data, _koi8r "password"))
 44320fd2b4a0ec92faa2da2122def917
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select md5(encode(@my_data, (select "password" from dual)));
 md5(encode(@my_data, (select "password" from dual)))
 44320fd2b4a0ec92faa2da2122def917
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select md5(encode(@my_data, concat("pass", "word")));
 md5(encode(@my_data, concat("pass", "word")))
 44320fd2b4a0ec92faa2da2122def917
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select md5(encode(@my_data, @password));
 md5(encode(@my_data, @password))
 44320fd2b4a0ec92faa2da2122def917
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 set @my_data="binary encoded data";
 select md5(decode(@my_data, "password"));
 md5(decode(@my_data, "password"))
 5bea8c394368dbc03b76684483b7756b
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select md5(decode(@my_data, _utf8 "password"));
 md5(decode(@my_data, _utf8 "password"))
 5bea8c394368dbc03b76684483b7756b
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select md5(decode(@my_data, binary "password"));
 md5(decode(@my_data, binary "password"))
 5bea8c394368dbc03b76684483b7756b
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select md5(decode(@my_data, _latin1 "password"));
 md5(decode(@my_data, _latin1 "password"))
 5bea8c394368dbc03b76684483b7756b
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select md5(decode(@my_data, _koi8r "password"));
 md5(decode(@my_data, _koi8r "password"))
 5bea8c394368dbc03b76684483b7756b
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select md5(decode(@my_data, (select "password" from dual)));
 md5(decode(@my_data, (select "password" from dual)))
 5bea8c394368dbc03b76684483b7756b
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select md5(decode(@my_data, concat("pass", "word")));
 md5(decode(@my_data, concat("pass", "word")))
 5bea8c394368dbc03b76684483b7756b
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 select md5(decode(@my_data, @password));
 md5(decode(@my_data, @password))
 5bea8c394368dbc03b76684483b7756b
+Warnings:
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 set @dec=5;
 select format(pi(), (1+1));
 format(pi(), (1+1))
@@ -2573,14 +2613,23 @@ SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP 
 FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
 DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
 secret
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 SELECT DECODE((SELECT ENCODE('secret', 'ABC') FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
 FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
 DECODE((SELECT ENCODE('secret', 'ABC') FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
 secret
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), 'ABC')
 FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
 DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), 'ABC')
 secret
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 INSERT INTO t1 VALUES ('EDF', 3), ('BCD', 2), ('ABC', 1);
@@ -2589,6 +2638,11 @@ SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP 
 FROM t2 WHERE t2.b = 1 GROUP BY t2.b;
 DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b LIMIT 1), t2.a)
 secret
+Warnings:
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 DROP TABLE t1, t2;
 #
 # Bug#52164 Assertion failed: param.sort_length, file .\filesort.cc, line 149

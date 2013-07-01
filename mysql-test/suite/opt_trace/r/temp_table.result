@@ -52,7 +52,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 8,
-                  "cost": 2
+                  "cost": 1
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -68,12 +68,12 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
                     {
                       "access_type": "scan",
                       "rows": 8,
-                      "cost": 3.6391,
+                      "cost": 2.6,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 3.6391,
+                "cost_for_plan": 2.6,
                 "rows_for_plan": 8,
                 "chosen": true
               }
@@ -215,7 +215,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 8,
-                  "cost": 2
+                  "cost": 1
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -231,16 +231,16 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                     {
                       "access_type": "scan",
                       "rows": 8,
-                      "cost": 3.6391,
+                      "cost": 2.6,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 3.6391,
+                "cost_for_plan": 2.6,
                 "rows_for_plan": 8,
                 "sort_cost": 8,
-                "new_cost_for_plan": 11.639,
+                "new_cost_for_plan": 10.6,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -384,7 +384,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 16,
-                  "cost": 2
+                  "cost": 1
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -400,16 +400,16 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                     {
                       "access_type": "scan",
                       "rows": 16,
-                      "cost": 5.2781,
+                      "cost": 4.2,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 5.2781,
+                "cost_for_plan": 4.2,
                 "rows_for_plan": 16,
                 "sort_cost": 16,
-                "new_cost_for_plan": 21.278,
+                "new_cost_for_plan": 20.2,
                 "chosen": true
               }
             ] /* considered_execution_plans */

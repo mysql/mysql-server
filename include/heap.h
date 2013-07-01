@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -244,21 +244,7 @@ extern uchar * heap_find(HP_INFO *info,int inx,const uchar *key);
 extern int heap_check_heap(HP_INFO *info, my_bool print_status);
 extern uchar *heap_position(HP_INFO *info);
 
-/* The following is for programs that uses the old HEAP interface where
-   pointer to rows where a long instead of a (uchar*).
-*/
-
-#if defined(WANT_OLD_HEAP_VERSION) || defined(OLD_HEAP_VERSION)
-extern int heap_rrnd_old(HP_INFO *info,uchar *buf,ulong pos);
-extern ulong heap_position_old(HP_INFO *info);
-#endif
-#ifdef OLD_HEAP_VERSION
-typedef ulong HEAP_PTR;
-#define heap_position(A) heap_position_old(A)
-#define heap_rrnd(A,B,C) heap_rrnd_old(A,B,C)
-#else
 typedef uchar *HEAP_PTR;
-#endif
 
 #ifdef	__cplusplus
 }

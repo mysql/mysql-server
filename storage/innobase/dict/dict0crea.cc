@@ -23,6 +23,8 @@ Database object creation
 Created 1/8/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "dict0crea.h"
 
 #ifdef UNIV_NONINL
@@ -45,12 +47,11 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0priv.h"
 #include "fts0priv.h"
 #include "srv0space.h"
-#include "ha_prototypes.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
 in the SYS_TABLES system table.
-@return	the tuple which should be inserted */
+@return the tuple which should be inserted */
 static
 dtuple_t*
 dict_create_sys_tables_tuple(
@@ -155,7 +156,7 @@ dict_create_sys_tables_tuple(
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
 in the SYS_COLUMNS system table.
-@return	the tuple which should be inserted */
+@return the tuple which should be inserted */
 static
 dtuple_t*
 dict_create_sys_columns_tuple(
@@ -246,7 +247,7 @@ dict_create_sys_columns_tuple(
 
 /***************************************************************//**
 Builds a table definition to insert.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_build_table_def_step(
@@ -274,8 +275,8 @@ dict_build_table_def_step(
 
 /***************************************************************//**
 Builds a tablespace, if configured (using file-per-table=1).
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@return DB_SUCCESS or error code */
+
 dberr_t
 dict_build_tablespace(
 /*===================*/
@@ -383,7 +384,7 @@ dict_build_col_def_step(
 /*****************************************************************//**
 Based on an index object, this function builds the entry to be inserted
 in the SYS_INDEXES system table.
-@return	the tuple which should be inserted */
+@return the tuple which should be inserted */
 static
 dtuple_t*
 dict_create_sys_indexes_tuple(
@@ -483,7 +484,7 @@ dict_create_sys_indexes_tuple(
 /*****************************************************************//**
 Based on an index object, this function builds the entry to be inserted
 in the SYS_FIELDS system table.
-@return	the tuple which should be inserted */
+@return the tuple which should be inserted */
 static
 dtuple_t*
 dict_create_sys_fields_tuple(
@@ -565,7 +566,7 @@ dict_create_sys_fields_tuple(
 /*****************************************************************//**
 Creates the tuple with which the index entry is searched for writing the index
 tree root page number, if such a tree is created.
-@return	the tuple for search */
+@return the tuple for search */
 static
 dtuple_t*
 dict_create_search_tuple(
@@ -600,7 +601,7 @@ dict_create_search_tuple(
 
 /***************************************************************//**
 Builds an index definition row to insert.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_build_index_def_step(
@@ -657,8 +658,8 @@ dict_build_index_def_step(
 
 /***************************************************************//**
 Builds an index definition without updating SYSTEM TABLES.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@return DB_SUCCESS or error code */
+
 void
 dict_build_index_def(
 /*=================*/
@@ -707,7 +708,7 @@ dict_build_field_def_step(
 
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_create_index_tree_step(
@@ -781,8 +782,8 @@ dict_create_index_tree_step(
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYSTEM TABLES.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-UNIV_INTERN
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+
 dberr_t
 dict_create_index_tree(
 /*====================*/
@@ -836,7 +837,7 @@ dict_create_index_tree(
 
 /*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table. */
-UNIV_INTERN
+
 void
 dict_drop_index_tree_step(
 /*======================*/
@@ -899,7 +900,7 @@ dict_drop_index_tree_step(
 
 /*******************************************************************//**
 Drops the index tree but don't update SYS_INDEXES table. */
-UNIV_INTERN
+
 void
 dict_drop_index_tree(
 /*=================*/
@@ -940,8 +941,8 @@ dict_drop_index_tree(
 
 /*******************************************************************//**
 Truncates the index tree associated with a row in SYS_INDEXES table.
-@return	new root page number, or FIL_NULL on failure */
-UNIV_INTERN
+@return new root page number, or FIL_NULL on failure */
+
 ulint
 dict_truncate_index_tree_step(
 /*==========================*/
@@ -1056,11 +1057,15 @@ create:
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (index->id == index_id && !(index->type & DICT_FTS)) {
-			root_page_no = btr_create(type, space, zip_size,
-						  index_id, index, mtr);
-			index->page = root_page_no;
-			return(root_page_no);
+		if (index->id == index_id) {
+			if (index->type & DICT_FTS) {
+				return(FIL_NULL);
+			} else {
+				root_page_no = btr_create(type, space, zip_size,
+							  index_id, index, mtr);
+				index->page = (unsigned int) root_page_no;
+				return(root_page_no);
+			}
 		}
 	}
 
@@ -1076,7 +1081,7 @@ create:
 
 /*******************************************************************//**
 Truncates the index tree but don't update SYSTEM TABLES. */
-UNIV_INTERN
+
 void
 dict_truncate_index_tree(
 /*=====================*/
@@ -1152,8 +1157,8 @@ dict_truncate_index_tree(
 
 /*********************************************************************//**
 Creates a table create graph.
-@return	own: table create node */
-UNIV_INTERN
+@return own: table create node */
+
 tab_node_t*
 tab_create_graph_create(
 /*====================*/
@@ -1195,8 +1200,8 @@ tab_create_graph_create(
 
 /*********************************************************************//**
 Creates an index create graph.
-@return	own: index create node */
-UNIV_INTERN
+@return own: index create node */
+
 ind_node_t*
 ind_create_graph_create(
 /*====================*/
@@ -1239,8 +1244,8 @@ ind_create_graph_create(
 
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
-@return	query thread to run next or NULL */
-UNIV_INTERN
+@return query thread to run next or NULL */
+
 que_thr_t*
 dict_create_table_step(
 /*===================*/
@@ -1342,8 +1347,8 @@ function_exit:
 /***********************************************************//**
 Creates an index. This is a high-level function used in SQL execution
 graphs.
-@return	query thread to run next or NULL */
-UNIV_INTERN
+@return query thread to run next or NULL */
+
 que_thr_t*
 dict_create_index_step(
 /*===================*/
@@ -1551,8 +1556,8 @@ dict_check_if_system_table_exists(
 Creates the foreign key constraints system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
 not of the right form.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@return DB_SUCCESS or error code */
+
 dberr_t
 dict_create_or_check_foreign_constraint_tables(void)
 /*================================================*/
@@ -1690,7 +1695,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 /****************************************************************//**
 Evaluate the given foreign key SQL statement.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_foreign_eval_sql(
@@ -1756,7 +1761,7 @@ dict_foreign_eval_sql(
 /********************************************************************//**
 Add a single foreign key field definition to the data dictionary tables in
 the database.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_create_add_foreign_field_to_dictionary(
@@ -1766,6 +1771,8 @@ dict_create_add_foreign_field_to_dictionary(
 	const dict_foreign_t*	foreign,	/*!< in: foreign */
 	trx_t*			trx)		/*!< in/out: transaction */
 {
+	DBUG_ENTER("dict_create_add_foreign_field_to_dictionary");
+
 	pars_info_t*	info = pars_info_create();
 
 	pars_info_add_str_literal(info, "id", foreign->id);
@@ -1778,7 +1785,7 @@ dict_create_add_foreign_field_to_dictionary(
 	pars_info_add_str_literal(info, "ref_col_name",
 				  foreign->referenced_col_names[field_nr]);
 
-	return(dict_foreign_eval_sql(
+	DBUG_RETURN(dict_foreign_eval_sql(
 		       info,
 		       "PROCEDURE P () IS\n"
 		       "BEGIN\n"
@@ -1790,8 +1797,8 @@ dict_create_add_foreign_field_to_dictionary(
 
 /********************************************************************//**
 Add a foreign key definition to the data dictionary tables.
-@return	error code or DB_SUCCESS */
-UNIV_INTERN
+@return error code or DB_SUCCESS */
+
 dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
@@ -1800,6 +1807,9 @@ dict_create_add_foreign_to_dictionary(
 	trx_t*			trx)	/*!< in/out: dictionary transaction */
 {
 	dberr_t		error;
+
+	DBUG_ENTER("dict_create_add_foreign_to_dictionary");
+
 	pars_info_t*	info = pars_info_create();
 
 	pars_info_add_str_literal(info, "id", foreign->id);
@@ -1812,6 +1822,11 @@ dict_create_add_foreign_to_dictionary(
 	pars_info_add_int4_literal(info, "n_cols",
 				   foreign->n_fields + (foreign->type << 24));
 
+	DBUG_PRINT("dict_create_add_foreign_to_dictionary",
+		   ("'%s', '%s', '%s', %d", foreign->id, name,
+		    foreign->referenced_table_name,
+		    foreign->n_fields + (foreign->type << 24)));
+
 	error = dict_foreign_eval_sql(info,
 				      "PROCEDURE P () IS\n"
 				      "BEGIN\n"
@@ -1822,7 +1837,7 @@ dict_create_add_foreign_to_dictionary(
 
 	if (error != DB_SUCCESS) {
 
-		return(error);
+		DBUG_RETURN(error);
 	}
 
 	for (ulint i = 0; i < foreign->n_fields; i++) {
@@ -1831,17 +1846,17 @@ dict_create_add_foreign_to_dictionary(
 
 		if (error != DB_SUCCESS) {
 
-			return(error);
+			DBUG_RETURN(error);
 		}
 	}
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /********************************************************************//**
 Adds foreign key definitions to data dictionary tables in the database.
-@return	error code or DB_SUCCESS */
-UNIV_INTERN
+@return error code or DB_SUCCESS */
+
 dberr_t
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/
@@ -1906,8 +1921,8 @@ dict_create_add_foreigns_to_dictionary(
 Creates the tablespaces and datafiles system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
 not of the right form.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@return DB_SUCCESS or error code */
+
 dberr_t
 dict_create_or_check_sys_tablespace(void)
 /*=====================================*/
@@ -2028,8 +2043,8 @@ dict_create_or_check_sys_tablespace(void)
 /********************************************************************//**
 Add a single tablespace definition to the data dictionary tables in the
 database.
-@return	error code or DB_SUCCESS */
-UNIV_INTERN
+@return error code or DB_SUCCESS */
+
 dberr_t
 dict_create_add_tablespace_to_dictionary(
 /*=====================================*/

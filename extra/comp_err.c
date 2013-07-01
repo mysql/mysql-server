@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include <my_getopt.h>
 #include <assert.h>
 #include <my_dir.h>
+#include <mysql_version.h>
 
 #define MAX_ROWS  1000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
@@ -182,6 +183,23 @@ int main(int argc, char *argv[])
       fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);
       DBUG_RETURN(1);
     }
+#if MYSQL_VERSION_ID >= 50100 && MYSQL_VERSION_ID < 50500
+/* Number of error messages in 5.1 - do not change this number! */
+#define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 641
+#elif MYSQL_VERSION_ID >= 50500 && MYSQL_VERSION_ID < 50600
+/* Number of error messages in 5.5 - do not change this number! */
+#define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 728
+#endif
+#if MYSQL_OLD_GA_ERROR_MESSAGE_COUNT
+    if (row_count != MYSQL_OLD_GA_ERROR_MESSAGE_COUNT)
+    {
+      fprintf(stderr, "Can only add new error messages to latest GA. ");
+      fprintf(stderr, "Use ER_UNKNOWN_ERROR instead.\n");
+      fprintf(stderr, "Expected %u messages, found %u.\n",
+              MYSQL_OLD_GA_ERROR_MESSAGE_COUNT, row_count);
+      DBUG_RETURN(1);
+    }
+#endif
     if (lang_head == NULL || error_head == NULL)
     {
       fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);
@@ -363,7 +381,7 @@ static int create_sys_files(struct languages *lang_head,
     /* continue with header of the errmsg.sys file */
     length= ftell(to) - HEADER_LENGTH - row_count * 4;
     memset(head, 0, HEADER_LENGTH);
-    bmove((uchar *) head, (uchar *) file_head, 4);
+    memmove(head, file_head, 4);
     head[4]= 1;
     int4store(head + 6, length);
     int4store(head + 10, row_count);

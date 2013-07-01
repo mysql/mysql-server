@@ -284,7 +284,7 @@
 que_node_t */
 
 #include "univ.i"
-#include <math.h>				/* Can't be before univ.i */
+#include <math.h>
 #include "pars0pars.h"
 #include "mem0mem.h"
 #include "que0types.h"

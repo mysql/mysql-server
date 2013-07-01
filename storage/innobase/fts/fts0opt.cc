@@ -25,6 +25,8 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 ***********************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "fts0fts.h"
 #include "row0sel.h"
 #include "que0types.h"
@@ -34,7 +36,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "srv0start.h"
 #include "zlib.h"
 
-#ifndef UNIV_NONINL
+#ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif
@@ -229,10 +231,10 @@ struct fts_msg_t {
 };
 
 /** The number of words to read and optimize in a single pass. */
-UNIV_INTERN ulong	fts_num_word_optimize;
+ulong	fts_num_word_optimize;
 
 // FIXME
-UNIV_INTERN char	fts_enable_diag_print;
+char	fts_enable_diag_print;
 
 /** ZLib compressed block size.*/
 static ulint FTS_ZIP_BLOCK_SIZE	= 1024;
@@ -335,7 +337,7 @@ fts_zip_init(
 /**********************************************************************//**
 Create a fts_optimizer_word_t instance.
 @return new instance */
-UNIV_INTERN
+
 fts_word_t*
 fts_word_init(
 /*==========*/
@@ -420,7 +422,7 @@ fts_optimize_read_node(
 /**********************************************************************//**
 Callback function to fetch the rows in an FTS INDEX record.
 @return always returns non-NULL */
-UNIV_INTERN
+
 ibool
 fts_optimize_index_fetch_node(
 /*==========================*/
@@ -461,7 +463,7 @@ fts_optimize_index_fetch_node(
 /**********************************************************************//**
 Read the rows from the FTS inde.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_index_fetch_nodes(
 /*==================*/
@@ -600,7 +602,7 @@ fts_zip_read_word(
 					zip->zp->avail_in =
 						FTS_MAX_WORD_LEN;
 				} else {
-					zip->zp->avail_in = zip->block_sz;
+					zip->zp->avail_in = (uInt) zip->block_sz;
 				}
 
 				++zip->pos;
@@ -701,7 +703,7 @@ fts_fetch_index_words(
 			ib_vector_push(zip->blocks, &block);
 
 			zip->zp->next_out = block;
-			zip->zp->avail_out = zip->block_sz;
+			zip->zp->avail_out = (uInt) zip->block_sz;
 		}
 
 		switch (zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
@@ -957,7 +959,7 @@ fts_fetch_doc_ids(
 /**********************************************************************//**
 Read the rows from a FTS common auxiliary table.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_table_fetch_doc_ids(
 /*====================*/
@@ -1024,7 +1026,7 @@ fts_table_fetch_doc_ids(
 Do a binary search for a doc id in the array
 @return +ve index if found -ve index where it should be inserted
         if not found */
-UNIV_INTERN
+
 int
 fts_bsearch(
 /*========*/
@@ -1061,7 +1063,7 @@ fts_bsearch(
 	}
 
 	/* Not found. */
-	return( (lower == 0) ? -1 : -lower);
+	return( (lower == 0) ? -1 : -(lower));
 }
 
 /**********************************************************************//**
@@ -1079,10 +1081,10 @@ fts_optimize_lookup(
 	doc_id_t	last_doc_id)	/*!< in: doc id to lookup */
 {
 	int		pos;
-	int		upper = ib_vector_size(doc_ids);
+	int		upper = (int) ib_vector_size(doc_ids);
 	fts_update_t*	array = (fts_update_t*) doc_ids->data;
 
-	pos = fts_bsearch(array, lower, upper, first_doc_id);
+	pos = fts_bsearch(array, (int) lower, upper, first_doc_id);
 
 	ut_a(abs(pos) <= upper + 1);
 
@@ -1509,7 +1511,7 @@ fts_optimize_write_word(
 
 /**********************************************************************//**
 Free fts_optimizer_word_t instanace.*/
-UNIV_INTERN
+
 void
 fts_word_free(
 /*==========*/
@@ -2423,7 +2425,7 @@ fts_optimize_table_bk(
 /*********************************************************************//**
 Run OPTIMIZE on the given table.
 @return DB_SUCCESS if all OK */
-UNIV_INTERN
+
 dberr_t
 fts_optimize_table(
 /*===============*/
@@ -2545,7 +2547,7 @@ fts_optimize_create_msg(
 
 /**********************************************************************//**
 Add the table to add to the OPTIMIZER's list. */
-UNIV_INTERN
+
 void
 fts_optimize_add_table(
 /*===================*/
@@ -2567,7 +2569,7 @@ fts_optimize_add_table(
 
 /**********************************************************************//**
 Optimize a table. */
-UNIV_INTERN
+
 void
 fts_optimize_do_table(
 /*==================*/
@@ -2588,7 +2590,7 @@ fts_optimize_do_table(
 /**********************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
 acknowledgement from the consumer of the message. */
-UNIV_INTERN
+
 void
 fts_optimize_remove_table(
 /*======================*/
@@ -2913,7 +2915,7 @@ fts_optimize_need_sync(
 /**********************************************************************//**
 Optimize all FTS tables.
 @return Dummy return */
-UNIV_INTERN
+
 os_thread_ret_t
 fts_optimize_thread(
 /*================*/
@@ -3093,7 +3095,7 @@ fts_optimize_thread(
 
 /**********************************************************************//**
 Startup the optimize thread and create the work queue. */
-UNIV_INTERN
+
 void
 fts_optimize_init(void)
 /*===================*/
@@ -3113,7 +3115,7 @@ fts_optimize_init(void)
 /**********************************************************************//**
 Check whether the work queue is initialized.
 @return TRUE if optimze queue is initialized. */
-UNIV_INTERN
+
 ibool
 fts_optimize_is_init(void)
 /*======================*/
@@ -3123,7 +3125,7 @@ fts_optimize_is_init(void)
 
 /**********************************************************************//**
 Signal the optimize thread to prepare for shutdown. */
-UNIV_INTERN
+
 void
 fts_optimize_start_shutdown(void)
 /*=============================*/
@@ -3162,7 +3164,7 @@ fts_optimize_start_shutdown(void)
 
 /**********************************************************************//**
 Reset the work queue. */
-UNIV_INTERN
+
 void
 fts_optimize_end(void)
 /*==================*/

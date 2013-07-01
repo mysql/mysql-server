@@ -31,7 +31,7 @@
 #include "rt_index.h"
 #include <m_ctype.h>
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <fcntl.h>
 #endif
 

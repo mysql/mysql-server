@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # suite/funcs_1/t/is_cml_myisam.test
 #
 # Check the content of information_schema.columns about tables using
@@ -19,6 +14,7 @@
 # are expected within result sets.
 --source include/not_embedded.inc
 
+--source include/have_myisam.inc
 let $engine_type= MyISAM;
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 USE test;

@@ -1895,8 +1895,8 @@ static uint join_same_trees(HUFF_COUNTS *huff_counts, uint trees)
 	    my_free(j->tree->element_buffer);
 	    j->tree->element_buffer=0;
 	    j->tree=i->tree;
-	    bmove((uchar*) i->counts,(uchar*) count.counts,
-		  sizeof(count.counts[0])*256);
+	    memmove((uchar*) i->counts, (uchar*) count.counts,
+                    sizeof(count.counts[0]) * 256);
 	    if (make_huff_tree(i->tree,i))
 	      return (uint) -1;
 	  }
@@ -2777,7 +2777,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
       /* Correct file buffer if the header was smaller */
       if (pack_length != max_pack_length)
       {
-	bmove(record_pos+pack_length,record_pos+max_pack_length,length);
+	memmove(record_pos + pack_length, record_pos + max_pack_length, length);
 	file_buffer.pos-= (max_pack_length-pack_length);
       }
       if (length < (ulong) min_record_length)

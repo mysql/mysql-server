@@ -271,7 +271,7 @@ extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern struct my_option my_long_early_options[];
 int handle_early_options();
-void adjust_related_options();
+void adjust_related_options(ulong *requested_open_files);
 extern int mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
@@ -329,6 +329,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_done;
 extern PSI_mutex_key key_BINLOG_LOCK_flush_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_index;
 extern PSI_mutex_key key_BINLOG_LOCK_log;
+extern PSI_mutex_key key_BINLOG_LOCK_binlog_end_pos;
 extern PSI_mutex_key key_BINLOG_LOCK_sync;
 extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_xids;
@@ -535,11 +536,16 @@ extern PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
 */
 extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
 
+/**
+  Statement instrumentation key for replication.
+*/
+extern PSI_statement_info stmt_info_rpl;
+
 void init_sql_statement_info();
 void init_com_statement_info();
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
-#ifndef __WIN__
+#ifndef _WIN32
 extern pthread_t signal_thread;
 #endif
 

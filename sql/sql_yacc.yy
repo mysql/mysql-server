@@ -443,7 +443,7 @@ static bool set_trigger_new_row(THD *thd,
 
   Item_trigger_field *trg_fld=
     new (thd->mem_root) Item_trigger_field(lex->current_context(),
-                                           Item_trigger_field::NEW_ROW,
+                                           TRG_NEW_ROW,
                                            trigger_field_name.str,
                                            UPDATE_ACL, false);
 
@@ -937,6 +937,12 @@ bool match_authorized_user(Security_context *ctx, LEX_USER *user)
   List<Condition_information_item> *cond_info_list;
   bool is_not_empty;
   Set_signal_information *signal_item_list;
+  enum enum_trigger_order_type trigger_action_order_type;
+  struct
+  {
+    enum enum_trigger_order_type ordering_clause;
+    LEX_STRING anchor_trigger_name;
+  } trg_characteristics;
 }
 
 %{
@@ -1148,6 +1154,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  FLOAT_NUM
 %token  FLOAT_SYM                     /* SQL-2003-R */
 %token  FLUSH_SYM
+%token  FOLLOWS_SYM                  /* MYSQL */
 %token  FORCE_SYM
 %token  FOREIGN                       /* SQL-2003-R */
 %token  FOR_SYM                       /* SQL-2003-R */
@@ -1361,6 +1368,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  POLYGON
 %token  PORT_SYM
 %token  POSITION_SYM                  /* SQL-2003-N */
+%token  PRECEDES_SYM                  /* MYSQL */
 %token  PRECISION                     /* SQL-2003-R */
 %token  PREPARE_SYM                   /* SQL-2003-R */
 %token  PRESERVE_SYM
@@ -1802,7 +1810,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         view_algorithm view_or_trigger_or_sp_or_event
         definer_tail no_definer_tail
         view_suid view_tail view_list_opt view_list view_select
-        view_check_option trigger_tail sp_tail sf_tail udf_tail event_tail
+        view_check_option trigger_tail
+        sp_tail sf_tail udf_tail event_tail
         install uninstall partition_entry binlog_base64_event
         init_key_options normal_key_options normal_key_opts all_key_opt 
         spatial_key_options fulltext_key_options normal_key_opt 
@@ -1845,6 +1854,9 @@ END_OF_INPUT
 %type <cond_info_list> condition_information;
 %type <signal_item_list> signal_information_item_list;
 %type <signal_item_list> opt_set_signal_information;
+
+%type <trg_characteristics> trigger_follows_precedes_clause;
+%type <trigger_action_order_type> trigger_action_order; 
 
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
@@ -2302,14 +2314,15 @@ create:
             lex->sql_command= SQLCOM_CREATE_TABLE;
             if (!lex->select_lex->add_table_to_list(thd, $5, NULL,
                                                     TL_OPTION_UPDATING,
-                                                    TL_WRITE, MDL_EXCLUSIVE))
+                                                    TL_WRITE, MDL_SHARED))
               MYSQL_YYABORT;
             /*
-              For CREATE TABLE, an non-existing table is not an error.
-              Instruct open_tables() to just take an MDL lock if the
-              table does not exist.
+              Instruct open_table() to acquire SHARED lock to check the
+              existance of table. If the table does not exist then
+              it will be upgraded EXCLUSIVE MDL lock. If table exist
+              then open_table() will return with an error or warning.
             */
-            lex->query_tables->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+            lex->query_tables->open_strategy= TABLE_LIST::OPEN_FOR_CREATE;
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->change=NullS;
@@ -3022,6 +3035,7 @@ sp_decl:
             }
             if(pctx->add_condition(thd, $2, $5))
               MYSQL_YYABORT;
+            lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // DECLARE COND FOR
             $$.vars= $$.hndlrs= $$.curs= 0;
             $$.conds= 1;
           }
@@ -3044,7 +3058,7 @@ sp_decl:
             sp_instr_hpush_jump *i=
               new (thd->mem_root)
                 sp_instr_hpush_jump(sp->instructions(), handler_pctx, h);
-            
+
             if (!i || sp->add_instr(thd, i))
               MYSQL_YYABORT;
 
@@ -3064,6 +3078,8 @@ sp_decl:
             {
               MYSQL_YYABORT;
             }
+
+            lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // DECL HANDLER FOR
           }
           sp_hcond_list sp_proc_stmt
           {
@@ -3427,6 +3443,7 @@ resignal_stmt:
             LEX *lex= thd->lex;
 
             lex->sql_command= SQLCOM_RESIGNAL;
+            lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // RESIGNAL doesn't clear diagnostics
             lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_resignal($2, $3);
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
@@ -3440,6 +3457,7 @@ get_diagnostics:
 
             info->set_which_da($2);
 
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // GET DIAGS doesn't clear them.
             Lex->sql_command= SQLCOM_GET_DIAGNOSTICS;
             Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_get_diagnostics(info);
 
@@ -4978,8 +4996,8 @@ ts_wait:
         ;
 
 size_number:
-          real_ulong_num { $$= $1;}
-        | IDENT
+          real_ulonglong_num { $$= $1;}
+        | IDENT_sys
           {
             ulonglong number;
             uint text_shift_number= 0;
@@ -10295,6 +10313,17 @@ variable_aux:
             }
             if (!($$= get_system_var(YYTHD, $2, $3, $4)))
               MYSQL_YYABORT;
+            if (!my_strcasecmp(system_charset_info, $3.str, "warning_count") ||
+                !my_strcasecmp(system_charset_info, $3.str, "error_count"))
+            {
+              /*
+                "Diagnostics variable" used in a non-diagnostics statement.
+                Save the information we need for the former, but clear the
+                rest of the diagnostics area on account of the latter.
+                See reset_condition_info().
+              */
+              Lex->keep_diagnostics= DA_KEEP_COUNTS;
+            }
             if (!((Item_func_get_system_var*) $$)->is_written_to_binlog())
               Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
           }
@@ -11163,6 +11192,12 @@ olap_opt:
                        "global union parameters");
               MYSQL_YYABORT;
             }
+            if (lex->current_select->options & SELECT_DISTINCT)
+            {
+              // DISTINCT+ROLLUP does not work
+              my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP", "DISTINCT");
+              MYSQL_YYABORT;
+            }
             lex->current_select->olap= ROLLUP_TYPE;
           }
         ;
@@ -11428,7 +11463,8 @@ procedure_analyse_clause:
 
             if ((lex->proc_analyse= new Proc_analyse_params) == NULL)
             {
-              my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR));
+              my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+                       sizeof(Proc_analyse_params));
               MYSQL_YYABORT;
             }
             
@@ -12371,13 +12407,25 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
           }
         | COUNT_SYM '(' '*' ')' WARNINGS
-          { (void) create_select_for_variable("warning_count"); }
+          {
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
+            (void) create_select_for_variable("warning_count");
+          }
         | COUNT_SYM '(' '*' ')' ERRORS
-          { (void) create_select_for_variable("error_count"); }
+          {
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
+            (void) create_select_for_variable("error_count");
+          }
         | WARNINGS opt_limit_clause_init
-          { Lex->sql_command = SQLCOM_SHOW_WARNS;}
+          {
+            Lex->sql_command = SQLCOM_SHOW_WARNS;
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
+          }
         | ERRORS opt_limit_clause_init
-          { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
+          {
+            Lex->sql_command = SQLCOM_SHOW_ERRORS;
+            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
+          }
         | PROFILES_SYM
           {
             push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
@@ -12388,10 +12436,6 @@ show_param:
           }
         | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
           {
-            push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                ER_WARN_DEPRECATED_SYNTAX,
-                                ER(ER_WARN_DEPRECATED_SYNTAX),
-                                "SHOW PROFILE", "Performance Schema");
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_PROFILE;
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
@@ -13053,10 +13097,17 @@ load_data_set_elem:
           simple_ident_nospvar equal expr_or_default
           {
             LEX *lex= Lex;
-            if (lex->update_list.push_back($1) || 
-                lex->value_list.push_back($3))
+            uint length= (uint) (@3.end - @2.start);
+            String *val= new (YYTHD->mem_root) String(@2.start,
+                                                      length,
+                                                      YYTHD->charset());
+            if (val == NULL)
+              MYSQL_YYABORT;
+            if (lex->update_list.push_back($1) ||
+                lex->value_list.push_back($3) ||
+                lex->load_set_str_list.push_back(val))
                 MYSQL_YYABORT;
-            $3->item_name.copy(@2.start, (uint) (@3.end - @2.start), YYTHD->charset());
+            $3->item_name.copy(@2.start, length, YYTHD->charset());
           }
         ;
 
@@ -13514,9 +13565,7 @@ simple_ident_q:
                 !(new_row && sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE);
               trg_fld= new (thd->mem_root)
                          Item_trigger_field(Lex->current_context(),
-                                            new_row ?
-                                              Item_trigger_field::NEW_ROW:
-                                              Item_trigger_field::OLD_ROW,
+                                            new_row ? TRG_NEW_ROW : TRG_OLD_ROW,
                                             $3.str,
                                             SELECT_ACL,
                                             read_only);
@@ -13904,6 +13953,7 @@ keyword:
         | END                   {}
         | EXECUTE_SYM           {}
         | FLUSH_SYM             {}
+        | FOLLOWS_SYM           {}
         | FORMAT_SYM            {}
         | HANDLER_SYM           {}
         | HELP_SYM              {}
@@ -13916,6 +13966,7 @@ keyword:
         | OWNER_SYM             {}
         | PARSER_SYM            {}
         | PORT_SYM              {}
+        | PRECEDES_SYM          {}
         | PREPARE_SYM           {}
         | REMOVE_SYM            {}
         | REPAIR                {}
@@ -14608,7 +14659,6 @@ option_value_no_option_type:
             lex->var_list.push_back(var);
             lex->autocommit= TRUE;
             lex->is_set_password_sql= true;
-            lex->is_change_password= TRUE;
 
             if (sp)
               sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
@@ -14627,30 +14677,6 @@ option_value_no_option_type:
             lex->is_set_password_sql= true;
             if (lex->sphead)
               lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-            /*
-              'is_change_password' should be set if the user is setting his
-              own password. This is later used to determine if the password
-              expiration flag should be reset.
-              Either the user exactly matches the currently authroized user or
-              the CURRENT_USER keyword was used.
-
-              If CURRENT_USER was used for the <user> rule then
-              user->user.str=0. See rule below:
-              
-              user:
-                 [..]
-              | CURRENT_USER optional_braces
-                {
-                 [..]
-                  memset($$, 0, sizeof(LEX_USER));
-                }
-            */
-            if (user->user.str ||
-                match_authorized_user(&current_thd->main_security_ctx,
-                                      user))
-              lex->is_change_password= TRUE;
-            else
-              lex->is_change_password= FALSE;
           }
         ;
 
@@ -15986,6 +16012,28 @@ view_check_option:
 
 **************************************************************************/
 
+trigger_action_order:
+            FOLLOWS_SYM
+            { $$= TRG_ORDER_FOLLOWS; }
+          | PRECEDES_SYM
+            { $$= TRG_ORDER_PRECEDES; }
+          ;
+
+trigger_follows_precedes_clause: 
+            /* empty */
+            {
+              $$.ordering_clause= TRG_ORDER_NONE;
+              $$.anchor_trigger_name.str= NULL;
+              $$.anchor_trigger_name.length= 0;
+            }
+          |
+            trigger_action_order ident_or_text
+            {
+              $$.ordering_clause= $1;
+              $$.anchor_trigger_name= $2;
+            }
+          ;
+
 trigger_tail:
           TRIGGER_SYM       /* $1 */
           sp_name           /* $2 */
@@ -15996,7 +16044,8 @@ trigger_tail:
           FOR_SYM           /* $7 */
           EACH_SYM          /* $8 */
           ROW_SYM           /* $9 */
-          {                 /* $10 */
+          trigger_follows_precedes_clause /* $10 */
+          {                 /* $11 */
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
 
@@ -16009,13 +16058,30 @@ trigger_tail:
             lex->raw_trg_on_table_name_begin= @5.raw_start;
             lex->raw_trg_on_table_name_end= @7.raw_start;
 
+            if (@10.start == @9.start)
+            {
+              /*
+                @10.start == @9.start when a clause PRECEDES/FOLLOWS is absent.
+              */
+              lex->trg_ordering_clause_begin= NULL;
+              lex->trg_ordering_clause_end= NULL;
+            }
+            else
+            {
+              lex->trg_ordering_clause_begin= @10.start;
+              lex->trg_ordering_clause_end= @10.end;
+            }
+
             sp_head *sp= sp_start_parsing(thd, SP_TYPE_TRIGGER, $2);
 
             if (!sp)
               MYSQL_YYABORT;
 
-            sp->m_trg_chistics.action_time= (enum trg_action_time_type) $3;
-            sp->m_trg_chistics.event= (enum trg_event_type) $4;
+            sp->m_trg_chistics.action_time= (enum enum_trigger_action_time_type) $3;
+            sp->m_trg_chistics.event= (enum enum_trigger_event_type) $4;
+            sp->m_trg_chistics.ordering_clause= $10.ordering_clause;
+            sp->m_trg_chistics.anchor_trigger_name= $10.anchor_trigger_name;
+
             lex->stmt_definition_begin= @1.start;
             lex->ident.str= const_cast<char *>(@6.start);
             lex->ident.length= @8.start - @6.start;
@@ -16028,8 +16094,8 @@ trigger_tail:
 
             sp->set_body_start(thd, @9.end);
           }
-          sp_proc_stmt /* $11 */
-          { /* $12 */
+          sp_proc_stmt /* $12 */
+          { /* $13 */
             THD *thd= YYTHD;
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;

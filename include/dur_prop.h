@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*  File   : bmove.c
-    Author : Michael widenius
-    Updated: 1987-03-20
-    Defines: bmove_upp()
+#ifndef _my_dur_prop_h
+#define _my_dur_prop_h
 
-    bmove_upp(dst, src, len) moves exactly "len" bytes from the source
-    "src-len" to the destination "dst-len" counting downwards.
-*/
-
-#include <my_global.h>
-#include "m_string.h"
-
-void bmove_upp(uchar *dst, const uchar *src,
-               size_t len)
+enum durability_properties
 {
-  while (len-- != 0) *--dst = *--src;
-}
+  /*
+    Preserves the durability properties defined by the engine
+  */
+  HA_REGULAR_DURABILITY= 0,
+  /*
+     Ignore the durability properties defined by the engine and
+     write only in-memory entries.
+  */
+  HA_IGNORE_DURABILITY= 1
+};
+
+#endif /* _my_dur_prop_h */

@@ -27,7 +27,7 @@ int my_rename(const char *from, const char *to, myf MyFlags)
   DBUG_ENTER("my_rename");
   DBUG_PRINT("my",("from %s to %s MyFlags %d", from, to, MyFlags));
 
-#if defined(__WIN__)
+#if defined(_WIN32)
   if(!MoveFileEx(from, to, MOVEFILE_COPY_ALLOWED|
                            MOVEFILE_REPLACE_EXISTING))
   {

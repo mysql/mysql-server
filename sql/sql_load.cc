@@ -36,8 +36,7 @@
 #include <m_ctype.h>
 #include "rpl_mi.h"
 #include "rpl_slave.h"
-#include "sp_head.h"
-#include "sql_trigger.h"
+#include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql_show.h"
 #include <algorithm>
 
@@ -379,9 +378,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   else
 #endif
   {
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-    ex->file_name+=dirname_length(ex->file_name);
-#endif
     if (!dirname_length(ex->file_name))
     {
       strxnmov(name, FN_REFLEN-1, mysql_real_data_home, tdb, NullS);
@@ -426,7 +422,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
     }
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
     MY_STAT stat_info;
     if (!my_stat(name, &stat_info, MYF(MY_WME)))
       DBUG_RETURN(TRUE);
@@ -691,7 +687,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                       *p= NULL;
   size_t               pl= 0;
   List<Item>           fv;
-  Item                *item, *val;
+  Item                *item;
+  String              *str;
   String               pfield, pfields;
   int                  n;
   const char          *tbl= table_name_arg;
@@ -747,19 +744,19 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   if (!thd->lex->update_list.is_empty())
   {
     List_iterator<Item> lu(thd->lex->update_list);
-    List_iterator<Item> lv(thd->lex->value_list);
+    List_iterator<String> ls(thd->lex->load_set_str_list);
 
     pfields.append(" SET ");
     n= 0;
 
     while ((item= lu++))
     {
-      val= lv++;
+      str= ls++;
       if (n++)
         pfields.append(", ");
       append_identifier(thd, &pfields, item->item_name.ptr(),
                         strlen(item->item_name.ptr()));
-      pfields.append(val->item_name.ptr());
+      pfields.append((char *)str->ptr());
     }
   }
 
@@ -830,6 +827,16 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
     restore_record(table, s->default_values);
     /*
+      Check whether default values of the fields not specified in column list
+      are correct or not.
+    */
+    if (validate_default_values_of_unset_fields(thd, table))
+    {
+      read_info.error= 1;
+      break;
+    }
+
+    /*
       There is no variables in fields_vars list in this format so
       this conversion is safe.
     */
@@ -884,8 +891,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
-                                             table->triggers,
-                                             TRG_EVENT_INSERT,
+                                             table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -950,6 +956,15 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     restore_record(table, s->default_values);
+    /*
+      Check whether default values of the fields not specified in column list
+      are correct or not.
+    */
+    if (validate_default_values_of_unset_fields(thd, table))
+    {
+      read_info.error= 1;
+      break;
+    }
 
     while ((item= it++))
     {
@@ -1113,8 +1128,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
-                                             table->triggers,
-                                             TRG_EVENT_INSERT,
+                                             table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1220,6 +1234,15 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 #endif
     
     restore_record(table, s->default_values);
+    /*
+      Check whether default values of the fields not specified in column list
+      are correct or not.
+    */
+    if (validate_default_values_of_unset_fields(thd, table))
+    {
+      read_info.error= 1;
+      break;
+    }
     
     while ((item= it++))
     {
@@ -1312,8 +1335,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
-                                             table->triggers,
-                                             TRG_EVENT_INSERT,
+                                             table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1548,11 +1570,7 @@ int READ_INFO::read_field()
         PUSH(chr);
         chr= escape_char;
       }
-#ifdef ALLOW_LINESEPARATOR_IN_STRINGS
-      if (chr == line_term_char)
-#else
       if (chr == line_term_char && found_enclosed_char == INT_MAX)
-#endif
       {
 	if (terminator(line_term_ptr,line_term_length))
 	{					// Maybe unexpected linefeed

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,16 +23,15 @@ Mini-transaction logging routines
 Created 12/7/1995 Heikki Tuuri
 *******************************************************/
 
-#include "mach0data.h"
-#include "ut0lst.h"
 #include "buf0buf.h"
 #include "buf0dblwr.h"
 #include "fsp0types.h"
+#include "mach0data.h"
 #include "trx0sys.h"
 
 /********************************************************//**
 Opens a buffer to mlog. It must be closed with mlog_close.
-@return	buffer, NULL if log mode MTR_LOG_NONE or MTR_LOG_NO_REDO */
+@return buffer, NULL if log mode MTR_LOG_NONE or MTR_LOG_NO_REDO */
 UNIV_INLINE
 byte*
 mlog_open(
@@ -173,7 +172,7 @@ mlog_catenate_ull_compressed(
 Writes the initial part of a log record (3..11 bytes).
 If the implementation of this function is changed, all
 size parameters to mlog_open() should be adjusted accordingly!
-@return	new value of log_ptr */
+@return new value of log_ptr */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_fast(
@@ -251,7 +250,7 @@ mlog_write_initial_log_record_fast(
 
 /********************************************************//**
 Writes a log record about an .ibd file create/delete/rename.
-@return	new value of log_ptr */
+@return new value of log_ptr */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_for_file_op(

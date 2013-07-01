@@ -34,6 +34,7 @@ DECLARE v17 DECIMAL(64, 2) DEFAULT 12;
 DECLARE v18 DECIMAL(64, 2) DEFAULT 12.123;
 DECLARE v19 DECIMAL(64, 2) DEFAULT 11 + 1;
 DECLARE v20 DECIMAL(64, 2) DEFAULT 12 + 0.123;
+SHOW WARNINGS;
 SELECT v1, v1u, v2, v2u, v3, v3u, v4, v4u;
 SELECT v5, v5u, v6, v6u;
 SELECT v7, v8, v9, v10, v11, v12, v13, v14, v15, v16;
@@ -67,10 +68,12 @@ SELECT u1, u2, u3, u4;
 SET d1 = 1234;
 SET d2 = 1234.12;
 SET d3 = 1234.1234;
+SHOW WARNINGS;
 SELECT d1, d2, d3;
 SET d1 = 12 * 100 + 34;
 SET d2 = 12 * 100 + 34 + 0.12;
 SET d3 = 12 * 100 + 34 + 0.1234;
+SHOW WARNINGS;
 SELECT d1, d2, d3;
 END|
 CREATE FUNCTION sp_vars_check_ret1() RETURNS TINYINT
@@ -101,6 +104,8 @@ Calling the routines, created in ANSI mode.
 ---------------------------------------------------------------
 
 CALL sp_vars_check_dflt();
+Level	Code	Message
+Note	1265	Data truncated for column 'v20' at row 1
 v1	v1u	v2	v2u	v3	v3u	v4	v4u
 127	255	-128	0	127	255	-128	0
 v5	v5u	v6	v6u
@@ -109,8 +114,6 @@ v7	v8	v9	v10	v11	v12	v13	v14	v15	v16
 10	10	10	0	0	10	10	10	10	0
 v17	v18	v19	v20
 12.00	12.12	12.00	12.12
-Warnings:
-Note	1265	Data truncated for column 'v20' at row 1
 CALL sp_vars_check_assignment();
 i1	i2	i3	i4
 127	-128	127	-128
@@ -120,12 +123,14 @@ u1	u2	u3	u4
 255	0	255	0
 u1	u2	u3	u4
 255	0	200	200
-d1	d2	d3
-1234.00	1234.12	1234.12
-d1	d2	d3
-1234.00	1234.12	1234.12
-Warnings:
+Level	Code	Message
 Note	1265	Data truncated for column 'd3' at row 1
+d1	d2	d3
+1234.00	1234.12	1234.12
+Level	Code	Message
+Note	1265	Data truncated for column 'd3' at row 1
+d1	d2	d3
+1234.00	1234.12	1234.12
 SELECT sp_vars_check_ret1();
 sp_vars_check_ret1()
 127
@@ -156,6 +161,8 @@ Calling in TRADITIONAL mode the routines, created in ANSI mode.
 ---------------------------------------------------------------
 
 CALL sp_vars_check_dflt();
+Level	Code	Message
+Note	1265	Data truncated for column 'v20' at row 1
 v1	v1u	v2	v2u	v3	v3u	v4	v4u
 127	255	-128	0	127	255	-128	0
 v5	v5u	v6	v6u
@@ -164,8 +171,6 @@ v7	v8	v9	v10	v11	v12	v13	v14	v15	v16
 10	10	10	0	0	10	10	10	10	0
 v17	v18	v19	v20
 12.00	12.12	12.00	12.12
-Warnings:
-Note	1265	Data truncated for column 'v20' at row 1
 CALL sp_vars_check_assignment();
 i1	i2	i3	i4
 127	-128	127	-128
@@ -175,12 +180,14 @@ u1	u2	u3	u4
 255	0	255	0
 u1	u2	u3	u4
 255	0	200	200
-d1	d2	d3
-1234.00	1234.12	1234.12
-d1	d2	d3
-1234.00	1234.12	1234.12
-Warnings:
+Level	Code	Message
 Note	1265	Data truncated for column 'd3' at row 1
+d1	d2	d3
+1234.00	1234.12	1234.12
+Level	Code	Message
+Note	1265	Data truncated for column 'd3' at row 1
+d1	d2	d3
+1234.00	1234.12	1234.12
 SELECT sp_vars_check_ret1();
 sp_vars_check_ret1()
 127
@@ -239,6 +246,7 @@ DECLARE v17 DECIMAL(64, 2) DEFAULT 12;
 DECLARE v18 DECIMAL(64, 2) DEFAULT 12.123;
 DECLARE v19 DECIMAL(64, 2) DEFAULT 11 + 1;
 DECLARE v20 DECIMAL(64, 2) DEFAULT 12 + 0.123;
+SHOW WARNINGS;
 SELECT v1, v1u, v2, v2u, v3, v3u, v4, v4u;
 SELECT v5, v5u, v6, v6u;
 SELECT v7, v8, v9, v10, v11, v12, v13, v14, v15, v16;
@@ -272,10 +280,12 @@ SELECT u1, u2, u3, u4;
 SET d1 = 1234;
 SET d2 = 1234.12;
 SET d3 = 1234.1234;
+SHOW WARNINGS;
 SELECT d1, d2, d3;
 SET d1 = 12 * 100 + 34;
 SET d2 = 12 * 100 + 34 + 0.12;
 SET d3 = 12 * 100 + 34 + 0.1234;
+SHOW WARNINGS;
 SELECT d1, d2, d3;
 END|
 CREATE FUNCTION sp_vars_check_ret1() RETURNS TINYINT
@@ -351,6 +361,7 @@ DECLARE v10 BIT(8) DEFAULT 'x 128';
 SET v1 = v4;
 SET v2 = 0;
 SET v5 = v4; # check overflow
+SHOW WARNINGS;
 SET v6 = v3; # check padding
 SELECT HEX(v1);
 SELECT HEX(v2);
@@ -364,6 +375,8 @@ SELECT HEX(v9);
 SELECT HEX(v10);
 END|
 CALL p1();
+Level	Code	Message
+Warning	1264	Out of range value for column 'v5' at row 1
 HEX(v1)
 1
 HEX(v2)
@@ -384,8 +397,6 @@ HEX(v9)
 FF
 HEX(v10)
 FF
-Warnings:
-Warning	1264	Out of range value for column 'v5' at row 1
 DROP PROCEDURE p1;
 
 ---------------------------------------------------------------
@@ -887,17 +898,18 @@ CREATE PROCEDURE p1()
 BEGIN
 DECLARE sp_var INTEGER;
 SELECT col INTO sp_var FROM t1 LIMIT 1;
+SHOW WARNINGS;
 SET @user_var = sp_var;
 SELECT sp_var;
 SELECT @user_var;
 END|
 CALL p1();
+Level	Code	Message
+Warning	1366	Incorrect integer value: 'Hello, world!' for column 'sp_var' at row 1
 sp_var
 0
 @user_var
 0
-Warnings:
-Warning	1366	Incorrect integer value: 'Hello, world!' for column 'sp_var' at row 1
 DROP PROCEDURE p1;
 DROP TABLE t1;
 
@@ -941,6 +953,7 @@ END|
 CREATE PROCEDURE p2(arg ENUM('a', 'b'))
 BEGIN
 DECLARE var ENUM('c', 'd') DEFAULT arg;
+SHOW WARNINGS;
 SELECT arg, var;
 END|
 CREATE FUNCTION f1(arg ENUM('a', 'b')) RETURNS ENUM('c', 'd')
@@ -953,10 +966,10 @@ arg
 Warnings:
 Warning	1265	Data truncated for column 'arg' at row 1
 CALL p2('a');
+Level	Code	Message
+Warning	1265	Data truncated for column 'var' at row 1
 arg	var
 a	
-Warnings:
-Warning	1265	Data truncated for column 'var' at row 1
 SELECT f1('a');
 f1('a')
 

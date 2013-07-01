@@ -31,7 +31,7 @@ Created  Wed 13 Oct 2010 16:10:14 EST Sunny Bains
 /**********************************************************************//**
 Gets a table; loads it to the dictionary cache if necessary. A low-level
 function.
-@return	table, NULL if not found */
+@return table, NULL if not found */
 UNIV_INLINE
 dict_table_t*
 dict_table_get_low(
@@ -68,7 +68,7 @@ dict_table_get_low(
 
 /**********************************************************************//**
 Returns a table object based on table id.
-@return	table, NULL if does not exist */
+@return table, NULL if does not exist */
 UNIV_INLINE
 dict_table_t*
 dict_table_open_on_id_low(
@@ -101,7 +101,7 @@ dict_table_open_on_id_low(
 
 /**********************************************************************//**
 Checks if a table is in the dictionary cache.
-@return	table, NULL if not found */
+@return table, NULL if not found */
 UNIV_INLINE
 dict_table_t*
 dict_table_check_if_in_cache_low(
@@ -110,6 +110,10 @@ dict_table_check_if_in_cache_low(
 {
 	dict_table_t*	table;
 	ulint		table_fold;
+
+	DBUG_ENTER("dict_table_check_if_in_cache_low");
+	DBUG_PRINT("dict_table_check_if_in_cache_low",
+		   ("table: '%s'", table_name));
 
 	ut_ad(table_name);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -120,6 +124,6 @@ dict_table_check_if_in_cache_low(
 	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
 		    dict_table_t*, table, ut_ad(table->cached),
 		    !strcmp(table->name, table_name));
-	return(table);
+	DBUG_RETURN(table);
 }
 #endif /*! UNIV_HOTBACKUP */

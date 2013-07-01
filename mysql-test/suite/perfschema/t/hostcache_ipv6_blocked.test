@@ -32,7 +32,7 @@ disconnect con1;
 set global debug= "+d,vio_peer_addr_fake_ipv6,getnameinfo_fake_ipv6,getaddrinfo_fake_good_ipv6,native_password_bad_reply";
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_HANDSHAKE_ERROR
 connect (con2a,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
@@ -40,7 +40,7 @@ connect (con2a,"::1",quota,,test,$MASTER_MYPORT,);
 --source ../include/hostcache_dump.inc
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_HANDSHAKE_ERROR
 connect (con2b,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
@@ -48,7 +48,7 @@ connect (con2b,"::1",quota,,test,$MASTER_MYPORT,);
 --source ../include/hostcache_dump.inc
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_HANDSHAKE_ERROR
 connect (con2c,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
@@ -75,7 +75,7 @@ connect (con2e,"::1",quota,,test,$MASTER_MYPORT,);
 flush hosts;
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_HANDSHAKE_ERROR
 connect (con2c,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 

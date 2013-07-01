@@ -481,14 +481,15 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
   - 1 for "statement/com/new_packet", for unknown enum_server_command
   - 1 for "statement/com/Error", for invalid enum_server_command
   - SQLCOM_END for all regular "statement/sql/...",
-  - 1 for "statement/sql/error", for invalid enum_sql_command.
+  - 1 for "statement/sql/error", for invalid enum_sql_command
+  - 1 for "statement/rpl/relay_log", for replicated statements.
 */
 static Sys_var_ulong Sys_pfs_max_statement_classes(
        "performance_schema_max_statement_classes",
        "Maximum number of statement instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 3),
+       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 4),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_long_size(
@@ -2360,7 +2361,7 @@ static Sys_var_ulong Sys_query_prealloc_size(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_thd_mem_root));
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static Sys_var_mybool Sys_shared_memory(
        "shared_memory", "Enable the shared memory",
        READ_ONLY GLOBAL_VAR(opt_enable_shared_memory), CMD_LINE(OPT_ARG),
@@ -2424,7 +2425,7 @@ static Sys_var_ulong Sys_thread_stack(
 static Sys_var_charptr Sys_tmpdir(
        "tmpdir", "Path for temporary files. Several paths may "
        "be specified, separated by a "
-#if defined(__WIN__)
+#if defined(_WIN32)
        "semicolon (;)"
 #else
        "colon (:)"
@@ -2515,7 +2516,13 @@ static Sys_var_ulong Sys_query_cache_min_res_unit(
 static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };
 static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
 {
-  if (query_cache.is_disabled())
+  /*
+   Setting it to 0 (or OFF) is always OK, even if the query cache
+   is disabled.
+  */
+  if (var->save_result.ulonglong_value == 0)
+    return false;
+  else if (query_cache.is_disabled())
   {
     my_error(ER_QUERY_CACHE_DISABLED, MYF(0));
     return true;
@@ -3543,7 +3550,7 @@ static Sys_var_session_special Sys_rand_seed2(
 
 static ulonglong read_error_count(THD *thd)
 {
-  return thd->get_stmt_da()->error_count();
+  return thd->get_stmt_da()->error_count(thd);
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_error_count(
@@ -3555,7 +3562,7 @@ static Sys_var_session_special Sys_error_count(
 
 static ulonglong read_warning_count(THD *thd)
 {
-  return thd->get_stmt_da()->warn_count();
+  return thd->get_stmt_da()->warn_count(thd);
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_warning_count(

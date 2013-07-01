@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
  The strongness of this crypt is large based on how good the random
  generator is.	It should be ok for short strings, but for communication one
  needs something like 'ssh'.
+
+ WARNING: This class is deprecated and will be removed in the next
+ server version. Please use AES encrypt/decrypt instead
 */
 
 #include "sql_priv.h"

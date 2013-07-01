@@ -36,6 +36,7 @@ protected:
 	{
 		if (!innodb_inited) {
 			srv_max_n_threads = srv_sync_array_size + 1;
+			os_sync_init();
 			sync_init();
 			mem_init(1024);
 
@@ -99,6 +100,8 @@ TEST_F(mem0mem, memheapreplace)
 	const ulint	p3_size = 64;
 	void*		p4;
 	const ulint	p4_size = 128;
+	void*		p5;
+	const ulint	p5_size = 256;
 
 	heap = mem_heap_create(1024);
 
@@ -113,6 +116,17 @@ TEST_F(mem0mem, memheapreplace)
 
 	EXPECT_EQ(p3, p4);
 	EXPECT_TRUE(mem_heap_is_top(heap, p4, p4_size));
+
+	p5 = mem_heap_replace(heap, p4, p4_size - 5, p5_size);
+
+#ifdef UNIV_MEM_DEBUG
+	/* In UNIV_MEM_DEBUG we need to specify the correct size of the
+	old top in order for it to get replaced. */
+	EXPECT_NE(p4, p5);
+#else /* UNIV_MEM_DEBUG */
+	EXPECT_EQ(p4, p5);
+#endif /* UNIV_MEM_DEBUG */
+	EXPECT_TRUE(mem_heap_is_top(heap, p5, p5_size));
 
 	mem_heap_free(heap);
 }

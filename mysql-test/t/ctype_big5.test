@@ -1,7 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+# Test takes long time to run on valgrind due to Bug#17022890
+# Run on valgrind only if --big-test is specified
+# This has to be removed along with the fix for Bug#17022890
+-- source include/no_valgrind_without_big.inc
 
 -- source include/have_big5.inc
 
@@ -124,6 +124,10 @@ FROM head, tail
 WHERE (head BETWEEN '80' AND 'FF') AND (tail BETWEEN '20' AND 'FF')
 ORDER BY head, tail;
 DROP TEMPORARY TABLE head, tail;
+--disable_query_log
+let $default_engine = `select @@SESSION.default_storage_engine`;
+--enable_query_log
+--replace_result $default_engine default_engine
 SHOW CREATE TABLE t1;
 SELECT COUNT(*) FROM t1;
 UPDATE t1 SET a=unhex(code) ORDER BY code;

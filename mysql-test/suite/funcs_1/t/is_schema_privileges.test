@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # suite/funcs_1/t/is_schema_privileges.test
 #
 # Check the layout of information_schema.schema_privileges and the impact of
@@ -25,8 +20,9 @@
 # privileges.
 --source include/not_embedded.inc
 
-let $engine_type       = MEMORY;
-let $other_engine_type = MyISAM;
+--source include/have_innodb.inc
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
 
 let $is_table = SCHEMA_PRIVILEGES;
 
@@ -97,6 +93,7 @@ DROP DATABASE IF EXISTS db_datadict_3;
 CREATE DATABASE db_datadict_1;
 CREATE DATABASE db_datadict_2;
 CREATE DATABASE db_datadict_3;
+--replace_result $engine_type <engine_type>
 eval
 CREATE TABLE db_datadict_2.t1(f1 INT, f2 INT, f3 INT)
 ENGINE = $engine_type;

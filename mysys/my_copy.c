@@ -114,7 +114,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
       }
       goto err;
     }
-#if !defined(__WIN__)
+#if !defined(_WIN32)
     /* Copy ownership */
     if (chown(to, stat_buff.st_uid, stat_buff.st_gid))
     {

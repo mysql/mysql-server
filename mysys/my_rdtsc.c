@@ -68,7 +68,7 @@
 #else
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
-#elif defined(HAVE_TIME_H)
+#else
 #include <time.h>
 #endif
 #endif

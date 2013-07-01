@@ -332,7 +332,13 @@ handler_close_thd(
 /*==============*/
 	void*		my_thd)		/*!< in: THD */
 {
-	delete (static_cast<THD*>(my_thd));
+	THD*	thd = static_cast<THD*>(my_thd);
+
+	/* destructor will not free it, because net.vio is 0. */
+	net_end(&thd->net);
+
+	thd->release_resources();
+	delete (thd);
 
 	/* Don't have a THD anymore */
 	my_pthread_setspecific_ptr(THR_THD,  0);
