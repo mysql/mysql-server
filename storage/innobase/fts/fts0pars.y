@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011,  Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013,  Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -193,6 +193,10 @@ term	: FTS_TERM	{
 		free($1);
 	}
 
+	/* Ignore leading '*' */
+	| '*' term {
+		$$  = $2;
+	}
 	;
 
 text	: FTS_TEXT	{
