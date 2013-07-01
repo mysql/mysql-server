@@ -1391,3 +1391,31 @@ DROP TABLE t1;
 SET GLOBAL query_cache_size= @qc;
 --echo #
 
+--echo
+--echo # WL5928: Most statements should clear the diagnostic area
+--echo #         Show this also works when we serve from query-cache!
+--echo #
+SELECT @@session.query_cache_type INTO @qc_type;
+SET SESSION query_cache_type=2;
+
+CREATE TABLE t1 (f1 VARCHAR(16));
+INSERT INTO t1 VALUES ("cat"),("dog"),("wombat"),("elephant");
+
+--echo
+--error ER_BAD_TABLE_ERROR
+DROP TABLE no_such_table;
+# result set generated. should clear DA.
+SELECT SQL_CACHE * FROM t1;
+SHOW WARNINGS;
+
+--echo
+--error ER_BAD_TABLE_ERROR
+DROP TABLE no_such_table;
+# result set from cache. should still clear DA.
+SELECT SQL_CACHE * FROM t1;
+SHOW WARNINGS;
+
+--echo
+DROP TABLE t1;
+
+SET SESSION query_cache_type=@qc_type;

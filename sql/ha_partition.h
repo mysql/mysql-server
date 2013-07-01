@@ -132,8 +132,8 @@ private:
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
   uint m_open_test_lock;                // Open test_if_locked
-  char *m_file_buffer;                  // Content of the .par file 
-  char *m_name_buffer_ptr;		// Pointer to first partition name
+  char *m_file_buffer;                  // Content of the .par file
+  char *m_name_buffer_ptr;              // Pointer to first partition name
   plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
   uint m_file_tot_parts;                // Debug
@@ -193,13 +193,13 @@ private:
   bool m_is_sub_partitioned;             // Is subpartitioned
   bool m_ordered_scan_ongoing;
 
-  /* 
+  /*
     If set, this object was created with ha_partition::clone and doesn't
     "own" the m_part_info structure.
   */
   ha_partition *m_is_clone_of;
   MEM_ROOT *m_clone_mem_root;
-  
+
   /*
     We keep track if all underlying handlers are MyISAM since MyISAM has a
     great number of extra flags not needed by other handlers.
@@ -315,7 +315,7 @@ public:
   virtual int delete_table(const char *from);
   virtual int rename_table(const char *from, const char *to);
   virtual int create(const char *name, TABLE *form,
-		     HA_CREATE_INFO *create_info);
+                     HA_CREATE_INFO *create_info);
   virtual int create_handler_files(const char *name,
                                    const char *old_name, int action_flag,
                                    HA_CREATE_INFO *create_info);
@@ -348,7 +348,7 @@ private:
     delete_table and rename_table uses very similar logic which
     is packed into this routine.
   */
-  uint del_ren_table(const char *from, const char *to);
+  int del_ren_table(const char *from, const char *to);
   /*
     One method to create the table_name.par file containing the names of the
     underlying partitions, their engine and the number of partitions.
@@ -409,7 +409,7 @@ public:
     -------------------------------------------------------------------------
   */
   virtual THR_LOCK_DATA **store_lock(THD * thd, THR_LOCK_DATA ** to,
-				     enum thr_lock_type lock_type);
+                                     enum thr_lock_type lock_type);
   virtual int external_lock(THD * thd, int lock_type);
   /*
     When table is locked a statement is started by calling start_stmt
@@ -592,7 +592,7 @@ public:
     read_first_row is virtual method but is only implemented by
     handler.cc, no storage engine has implemented it so neither
     will the partition handler.
-    
+
     virtual int read_first_row(uchar *buf, uint primary_key);
   */
 
@@ -606,8 +606,8 @@ public:
 
 
   virtual int read_range_first(const key_range * start_key,
-			       const key_range * end_key,
-			       bool eq_range, bool sorted);
+                               const key_range * end_key,
+                               bool eq_range, bool sorted);
   virtual int read_range_next();
 
 private:
@@ -711,7 +711,7 @@ public:
     Used by optimiser to calculate cost of using a particular index.
   */
   virtual ha_rows records_in_range(uint inx, key_range * min_key,
-				   key_range * max_key);
+                                   key_range * max_key);
 
   /*
     Upper bound of number records returned in scan is sum of all
@@ -950,7 +950,7 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    /* 
+    /*
       TODO: sergefp: Support Index Condition Pushdown in this table handler.
     */
     return m_file[0]->index_flags(inx, part, all_parts) &
@@ -972,7 +972,7 @@ public:
 
     The maximum supported values is the minimum of all handlers in the table
   */
-  uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const; 
+  uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const;
   virtual uint max_supported_record_length() const;
   virtual uint max_supported_keys() const;
   virtual uint max_supported_key_parts() const;

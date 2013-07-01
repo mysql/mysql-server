@@ -155,14 +155,25 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
     if (error)
       ha_rollback_trans(thd, FALSE);
     else
-      ha_commit_trans(thd, FALSE);
-
+    {
+      /*
+        To make the commit not to block with global read lock set
+        "ignore_global_read_lock" flag to true.
+       */
+      ha_commit_trans(thd, FALSE, TRUE);
+    }
     if (saved_current_thd != current_thd)
     {
       if (error)
         ha_rollback_trans(thd, TRUE);
       else
-        ha_commit_trans(thd, TRUE);
+      {
+        /*
+          To make the commit not to block with global read lock set
+          "ignore_global_read_lock" flag to true.
+         */
+        ha_commit_trans(thd, TRUE, TRUE);
+      }
     }
     /*
       In order not to break execution of current statement we have to

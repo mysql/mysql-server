@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   Bug#68477    Suboptimal code in skip_trailing_space()
@@ -63,11 +63,7 @@ protected:
     m_length= m_string.length();
     // The first byte will allways be aligned:
     ulonglong foo= reinterpret_cast<ulonglong>(m_string.c_str());
-#if defined(_WIN32)
     const ulonglong expected_alignment= 0x3ULL;
-#else
-    const ulonglong expected_alignment= 0x7ULL;
-#endif
     EXPECT_EQ(0ULL, foo & expected_alignment);
   }
   size_t m_length;

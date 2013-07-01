@@ -485,8 +485,9 @@ int rea_create_table(THD *thd, const char *path,
 {
   DBUG_ENTER("rea_create_table");
 
-  char frm_name[FN_REFLEN];
-  strxmov(frm_name, path, reg_ext, NullS);
+  char frm_name[FN_REFLEN + 1];
+  strxnmov(frm_name, sizeof(frm_name) - 1, path, reg_ext, NullS);
+
   if (mysql_create_frm(thd, frm_name, db, table_name, create_info,
                        create_fields, keys, key_info, file))
 

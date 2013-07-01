@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/install_semisync.inc
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
@@ -65,8 +65,10 @@ include/assert.inc [Table is empty right now.]
 include/assert.inc [rpl_semi_sync_master_yes_tx was not increased]
 include/assert.inc [rpl_semi_sync_master_no_tx was not increased]
 SET DEBUG_SYNC= "now SIGNAL end";
-SET DEBUG_SYNC= "RESET";
 [connection server_1]
+SET DEBUG_SYNC= "RESET";
+[connection master]
+SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 [connection master]
@@ -131,8 +133,10 @@ include/assert.inc [Table is empty right now.]
 include/assert.inc [rpl_semi_sync_master_yes_tx was not increased]
 include/assert.inc [rpl_semi_sync_master_no_tx was not increased]
 SET DEBUG_SYNC= "now SIGNAL end";
-SET DEBUG_SYNC= "RESET";
 [connection server_1]
+SET DEBUG_SYNC= "RESET";
+[connection master]
+SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 [connection master]

@@ -138,7 +138,7 @@ static uint my_end_arg;
 static const char* sock= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name= 0;
 #endif
 static char* user = 0;
@@ -1512,7 +1512,7 @@ static struct my_option my_long_options[] =
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES character_set' to the output.", &charset,
    &charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name,
@@ -1890,7 +1890,7 @@ static Exit_status safe_connect()
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
   if (opt_bind_addr)
     mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
@@ -2648,7 +2648,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       stdin in binary mode. Errors on setting this mode result in 
       halting the function and printing an error message to stderr.
     */
-#if defined (__WIN__) || (_WIN64)
+#if defined(_WIN32)
     if (_setmode(fileno(stdin), O_BINARY) == -1)
     {
       error("Could not set binary mode on stdin.");
@@ -3038,3 +3038,4 @@ int main(int argc, char** argv)
 #include "uuid.cc"
 #include "rpl_gtid_set.cc"
 #include "rpl_gtid_specification.cc"
+#include "rpl_tblmap.cc"

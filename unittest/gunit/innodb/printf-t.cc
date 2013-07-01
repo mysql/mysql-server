@@ -61,7 +61,7 @@ TEST(hainnodb, UtMySnprintf)
 	ib_uint64_t b;
 	ib_int64_t c;
 
-#ifndef __WIN__ /* TODO: Fix Bug#16559254 */
+#ifndef _WIN32 /* TODO: Fix Bug#16559254 */
 #define ARGS buf, bufsz, UINT32PF"/"UINT64PF"/"INT64PF"/"UINT64PFx"*", a,b,c,b
 
 	a = 0, b = 1, c = 2;
@@ -84,7 +84,7 @@ TEST(hainnodb, UtMySnprintf)
 		"3060399406/9681311963833008406/-8765432109876543210/"
 		"865aedeff4018116*", ARGS);
 #undef ARGS
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 }
 
 }

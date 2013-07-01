@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -267,8 +267,6 @@ void queue_replaced(QUEUE *queue)
 }
 #endif
 
-#ifndef OLD_VERSION
-
 void _downheap(QUEUE *queue, uint idx)
 {
   uchar *element;
@@ -316,43 +314,6 @@ void _downheap(QUEUE *queue, uint idx)
   }
   queue->root[idx]=element;
 }
-
-#else
-  /*
-    The old _downheap version is kept for comparisons with the benchmark
-    suit or new benchmarks anyone wants to run for comparisons.
-  */
-	/* Fix heap when index have changed */
-void _downheap(QUEUE *queue, uint idx)
-{
-  uchar *element;
-  uint elements,half_queue,next_index,offset_to_key;
-
-  offset_to_key=queue->offset_to_key;
-  element=queue->root[idx];
-  half_queue=(elements=queue->elements) >> 1;
-
-  while (idx <= half_queue)
-  {
-    next_index=idx+idx;
-    if (next_index < elements &&
-	(queue->compare(queue->first_cmp_arg,
-			queue->root[next_index]+offset_to_key,
-			queue->root[next_index+1]+offset_to_key) *
-	 queue->max_at_top) > 0)
-      next_index++;
-    if ((queue->compare(queue->first_cmp_arg,
-                        queue->root[next_index]+offset_to_key,
-                        element+offset_to_key) * queue->max_at_top) >= 0)
-      break;
-    queue->root[idx]=queue->root[next_index];
-    idx=next_index;
-  }
-  queue->root[idx]=element;
-}
-
-
-#endif
 
 /*
   Fix heap when every element was changed.

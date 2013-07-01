@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,15 +39,15 @@ typedef	byte	dict_hdr_t;
 
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
-@return	pointer to the dictionary header, page x-latched */
-UNIV_INTERN
+@return pointer to the dictionary header, page x-latched */
+
 dict_hdr_t*
 dict_hdr_get(
 /*=========*/
 	mtr_t*	mtr);	/*!< in: mtr */
 /**********************************************************************//**
 Returns a new table, index, or space id. */
-UNIV_INTERN
+
 void
 dict_hdr_get_new_id(
 /*================*/
@@ -64,20 +64,20 @@ dict_hdr_get_new_id(
 /**********************************************************************//**
 Writes the current value of the row id counter to the dictionary header file
 page. */
-UNIV_INTERN
+
 void
 dict_hdr_flush_row_id(void);
 /*=======================*/
 /**********************************************************************//**
 Returns a new row id.
-@return	the new id */
+@return the new id */
 UNIV_INLINE
 row_id_t
 dict_sys_get_new_row_id(void);
 /*=========================*/
 /**********************************************************************//**
 Reads a row id from a record or other 6-byte stored form.
-@return	row id */
+@return row id */
 UNIV_INLINE
 row_id_t
 dict_sys_read_row_id(
@@ -95,7 +95,7 @@ dict_sys_write_row_id(
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created.
 @return DB_SUCCESS or error code. */
-UNIV_INTERN
+
 dberr_t
 dict_boot(void)
 /*===========*/
@@ -104,7 +104,7 @@ dict_boot(void)
 /*****************************************************************//**
 Creates and initializes the data dictionary at the server bootstrap.
 @return DB_SUCCESS or error code. */
-UNIV_INTERN
+
 dberr_t
 dict_create(void)
 /*=============*/

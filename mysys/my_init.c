@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include <m_ctype.h>
 #include <signal.h>
 #include <mysql/psi/mysql_stage.h>
-#ifdef __WIN__
+#ifdef _WIN32
 #ifdef _MSC_VER
 #include <locale.h>
 #include <crtdbg.h>
@@ -107,7 +107,7 @@ my_bool my_init(void)
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
     my_win_init();
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
-#ifdef __WIN__
+#ifdef _WIN32
     win32_init_tcp_ip();
 #endif
     DBUG_RETURN(0);
@@ -184,7 +184,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 	      rus.ru_msgsnd, rus.ru_msgrcv, rus.ru_nsignals,
 	      rus.ru_nvcsw, rus.ru_nivcsw);
 #endif
-#if defined(__WIN__) && defined(_MSC_VER)
+#if defined(_WIN32) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
    _CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
    _CrtSetReportMode( _CRT_ERROR, _CRTDBG_MODE_FILE );
@@ -212,16 +212,16 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
                  (FILE *) 0);
 #endif /* defined(SAFE_MUTEX) */
 
-#ifdef __WIN__
+#ifdef _WIN32
   if (have_tcpip)
     WSACleanup();
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
   my_init_done=0;
 } /* my_end */
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 
 /*
@@ -450,7 +450,7 @@ static my_bool win32_init_tcp_ip()
   }
   return(0);
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 PSI_stage_info stage_waiting_for_table_level_lock=
 {0, "Waiting for table level lock", 0};

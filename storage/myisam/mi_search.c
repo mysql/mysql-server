@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -835,14 +835,14 @@ uint _mi_get_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
 	if (tot_length >= 255 && *start != 255)
 	{
 	  /* length prefix changed from a length of one to a length of 3 */
-	  bmove_upp(key+length+3, key+length+1, length);
+	  memmove(key + 3, key + 1, length);
 	  *key=255;
 	  mi_int2store(key+1,tot_length);
 	  key+=3+length;
 	}
 	else if (tot_length < 255 && *start == 255)
 	{
-	  bmove(key+1,key+3,length);
+	  memmove(key + 1, key + 3, length);
 	  *key=tot_length;
 	  key+=1+length;
 	}
@@ -901,7 +901,7 @@ uint _mi_get_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
     page+=length;
   }
   length=keyseg->length+nod_flag;
-  bmove((uchar*) key,(uchar*) page,length);
+  memmove((uchar*) key, (uchar*) page, length);
   *page_pos= page+length;
   return ((uint) (key-start_key)+keyseg->length);
 } /* _mi_get_pack_key */
@@ -1056,7 +1056,7 @@ uchar *_mi_get_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
   nod_flag=mi_test_if_nod(page);
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
-    bmove((uchar*) key,(uchar*) keypos,keyinfo->keylength+nod_flag);
+    memmove((uchar*) key, (uchar*) keypos, keyinfo->keylength + nod_flag);
     DBUG_RETURN(keypos+keyinfo->keylength+nod_flag);
   }
   else
@@ -1094,8 +1094,8 @@ static my_bool _mi_get_prev_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
     *return_key_length=keyinfo->keylength;
-    bmove((uchar*) key,(uchar*) keypos- *return_key_length-nod_flag,
-          *return_key_length);
+    memmove((uchar*) key, (uchar*) keypos - *return_key_length - nod_flag,
+            *return_key_length);
     DBUG_RETURN(0);
   }
   else
@@ -1136,7 +1136,8 @@ uchar *_mi_get_last_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
     lastpos=endpos-keyinfo->keylength-nod_flag;
     *return_key_length=keyinfo->keylength;
     if (lastpos > page)
-      bmove((uchar*) lastkey,(uchar*) lastpos,keyinfo->keylength+nod_flag);
+      memmove((uchar*) lastkey,
+              (uchar*) lastpos, keyinfo->keylength + nod_flag);
   }
   else
   {
@@ -1862,8 +1863,8 @@ void _mi_store_var_pack_key(MI_KEYDEF *keyinfo  __attribute__((unused)),
     /* Not packed against previous key */
     store_pack_length(s_temp->pack_marker == 128,key_pos,s_temp->key_length);
   }
-  bmove((uchar*) key_pos,(uchar*) s_temp->key,
-        (length=s_temp->totlength-(uint) (key_pos-start)));
+  memmove((uchar*) key_pos, (uchar*) s_temp->key,
+          (length= s_temp->totlength - (uint) (key_pos - start)));
 
   if (!s_temp->next_key_pos)                    /* No following key */
     return;

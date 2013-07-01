@@ -156,16 +156,11 @@ extern char *my_strndup(const char *from, size_t length,
   Switch to my_malloc() if the memory block to be allocated is bigger than
   max_alloca_sz.
 */
-#ifndef HAVE_ALLOCA
-#define my_safe_alloca(size, max_alloca_sz) my_alloca(size)
-#define my_safe_afree(ptr, size, max_alloca_sz) my_afree(ptr)
-#else
 #define my_safe_alloca(size, max_alloca_sz) ((size <= max_alloca_sz) ? \
                                              my_alloca(size) : \
                                              my_malloc(size, MYF(0)))
 #define my_safe_afree(ptr, size, max_alloca_sz) if (size > max_alloca_sz) \
                                                my_free(ptr)
-#endif                                          /* #ifndef HAVE_ALLOCA */
 
 #if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
 /**
@@ -208,16 +203,11 @@ extern void my_large_free(uchar *ptr);
 #define my_large_free(A) my_free((A))
 #endif /* HAVE_LARGE_PAGES */
 
-#ifdef HAVE_ALLOCA
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
 #endif /* GNUC */
 #define my_alloca(SZ) alloca((size_t) (SZ))
 #define my_afree(PTR) {}
-#else
-#define my_alloca(SZ) my_malloc(SZ,MYF(MY_FAE))
-#define my_afree(PTR) my_free(PTR)
-#endif /* HAVE_ALLOCA */
 
 #include <errno.h>			/* errno is a define */
 
@@ -613,12 +603,12 @@ extern int      my_access(const char *path, int amode);
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
-#ifdef __WIN__
+#ifdef _WIN32
 extern my_bool is_filename_allowed(const char *name, size_t length,
                    my_bool allow_current_dir);
-#else /* __WIN__ */
+#else /* _WIN32 */
 # define is_filename_allowed(name, length, allow_cwd) (TRUE)
-#endif /* __WIN__ */ 
+#endif /* _WIN32 */ 
 
 #ifdef _WIN32
 extern int nt_share_delete(const char *name,myf MyFlags);
@@ -919,7 +909,7 @@ extern void add_compiled_collation(CHARSET_INFO *cs);
 extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);
-#ifdef __WIN__
+#ifdef _WIN32
 #define BACKSLASH_MBTAIL
 /* File system character set */
 extern CHARSET_INFO *fs_character_set(void);
@@ -931,7 +921,7 @@ extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 extern void thd_increment_bytes_sent(ulong length);
 extern void thd_increment_bytes_received(ulong length);
 
-#ifdef __WIN__
+#ifdef _WIN32
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
 
 /* implemented in my_windac.c */
@@ -950,7 +940,7 @@ void my_win_console_fputs(const CHARSET_INFO *cs, const char *data);
 void my_win_console_putc(const CHARSET_INFO *cs, int c);
 void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args);
 int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***av);
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 #include <mysql/psi/psi.h>
 
@@ -962,18 +952,6 @@ void my_init_mysys_psi_keys(void);
 
 struct st_mysql_file;
 extern struct st_mysql_file *mysql_stdin;
-
-enum durability_properties
-{
-  /*
-    Preserves the durability properties defined by the engine */
-  HA_REGULAR_DURABILITY= 0,
-  /* 
-     Ignore the durability properties defined by the engine and
-     write only in-memory entries.
-  */
-  HA_IGNORE_DURABILITY= 1
-};
 
 C_MODE_END
 #endif /* _my_sys_h */

@@ -25,21 +25,6 @@ uchar *heap_position(HP_INFO *info)
 }
 
 
-#ifdef WANT_OLD_HEAP_VERSION
-
-/*
-  The following should NOT be used anymore as this can't be used together with
-   heap_rkey()
-*/
-
-ulong heap_position_old(HP_INFO *info)
-{
-  return ((info->update & HA_STATE_AKTIV) ? info->current_record :
-	  (ulong) ~0L);
-}
-
-#endif /* WANT_OLD_HEAP_CODE */
-
 /* Note that heap_info does NOT return information about the
    current position anymore;  Use heap_position instead */
 

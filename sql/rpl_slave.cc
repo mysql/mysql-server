@@ -24,6 +24,7 @@
   replication slave.
 */
 
+#ifdef HAVE_REPLICATION
 #include "sql_priv.h"
 #include "my_global.h"
 #include "rpl_slave.h"
@@ -54,8 +55,6 @@
 #include "dynamic_ids.h"
 #include "rpl_rli_pdb.h"
 #include "global_threads.h"
-
-#ifdef HAVE_REPLICATION
 
 #include "rpl_tblmap.h"
 #include "debug_sync.h"
@@ -488,6 +487,13 @@ int init_recovery(Master_info* mi, const char** errmsg)
     rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
   }
 
+  /*
+    Clear the retrieved GTID set so that events that are written partially
+    will be fetched again.
+    */
+  global_sid_lock->wrlock();
+  (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
+  global_sid_lock->unlock();
   DBUG_RETURN(error);
 }
 
@@ -2644,6 +2650,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
     mysql_mutex_lock(&mi->err_lock);
     mysql_mutex_lock(&mi->rli->err_lock);
 
+    DEBUG_SYNC(thd, "wait_after_lock_active_mi_and_rli_data_lock_is_acquired");
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->get_user(), &my_charset_bin);
     protocol->store((uint32) mi->port);
@@ -3093,7 +3100,8 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       goto err;
     uchar* ptr_buffer= command_buffer;
   
-    int4store(ptr_buffer, mi->get_master_log_pos());
+    int4store(ptr_buffer, DBUG_EVALUATE_IF("request_master_log_pos_3", 3,
+                                           mi->get_master_log_pos()));
     ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
     // See comment regarding binlog_flags above.
     int2store(ptr_buffer, binlog_flags);
@@ -5523,10 +5531,9 @@ pthread_handler_t handle_slave_sql(void *arg)
       init_relay_log_pos() called above). Maybe the assertion would be
       meaningful if we held rli->data_lock between the my_b_seek() and the
       DBUG_ASSERT().
+
+      DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->get_event_relay_log_pos());
     */
-#ifdef SHOULD_BE_CHECKED
-    DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->get_event_relay_log_pos());
-#endif
   }
 #endif
   DBUG_ASSERT(rli->info_thd == thd);

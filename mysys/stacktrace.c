@@ -16,7 +16,7 @@
 #include <my_global.h>
 #include <my_stacktrace.h>
 
-#ifndef __WIN__
+#ifndef _WIN32
 #include <signal.h>
 #include <my_pthread.h>
 #include <m_string.h>
@@ -262,7 +262,7 @@ void my_write_core(int sig)
 #endif
 }
 
-#else /* __WIN__*/
+#else /* _WIN32*/
 
 #include <dbghelp.h>
 #include <tlhelp32.h>
@@ -548,10 +548,10 @@ void my_safe_puts_stderr(const char *val, int len)
     my_safe_printf_stderr("%s", "is an invalid string pointer\n");
   }
 }
-#endif /*__WIN__*/
+#endif /* _WIN32 */
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 size_t my_write_stderr(const void *buf, size_t count)
 {
   DWORD bytes_written;

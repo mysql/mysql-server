@@ -35,11 +35,8 @@ Created 9/5/1995 Heikki Tuuri
 #define sync0sync_h
 
 #include "univ.i"
-#include "sync0types.h"
-#include "ut0lst.h"
 #include "ut0mem.h"
 #include "os0thread.h"
-#include "os0sync.h"
 #include "sync0arr.h"
 
 #if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
@@ -94,10 +91,11 @@ extern mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 extern mysql_pfs_key_t	mem_pool_mutex_key;
 extern mysql_pfs_key_t	mutex_list_mutex_key;
-extern mysql_pfs_key_t	purge_sys_bh_mutex_key;
+extern mysql_pfs_key_t	purge_sys_pq_mutex_key;
 extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	recv_writer_mutex_key;
-extern mysql_pfs_key_t	rseg_mutex_key;
+extern mysql_pfs_key_t	redo_rseg_mutex_key;
+extern mysql_pfs_key_t	noredo_rseg_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 extern mysql_pfs_key_t	rw_lock_debug_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
@@ -114,6 +112,8 @@ extern mysql_pfs_key_t	sync_thread_mutex_key;
 extern mysql_pfs_key_t	buf_dblwr_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
+extern mysql_pfs_key_t	trx_pool_mutex_key;
+extern mysql_pfs_key_t	trx_pools_mutex_key;
 extern mysql_pfs_key_t	lock_mutex_key;
 extern mysql_pfs_key_t	lock_wait_mutex_key;
 extern mysql_pfs_key_t	trx_sys_mutex_key;
@@ -133,13 +133,13 @@ extern mysql_pfs_key_t  zip_pad_mutex_key;
 
 /******************************************************************//**
 Initializes the synchronization data structures. */
-UNIV_INTERN
+
 void
 sync_init(void);
 /*===========*/
 /******************************************************************//**
 Frees the resources in synchronization data structures. */
-UNIV_INTERN
+
 void
 sync_close(void);
 /*===========*/
@@ -225,7 +225,7 @@ Creates, or rather, initializes a mutex object in a specified memory
 location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
-UNIV_INTERN
+
 void
 mutex_create_func(
 /*==============*/
@@ -244,7 +244,7 @@ NOTE! Use the corresponding macro mutex_free(), not directly this function!
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
 is checked to be in the reset state. */
-UNIV_INTERN
+
 void
 mutex_free_func(
 /*============*/
@@ -272,8 +272,8 @@ mutex_enter_func(
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
 acquired immediately, returns with return value 1.
-@return	0 if succeed, 1 if not */
-UNIV_INTERN
+@return 0 if succeed, 1 if not */
+
 ulint
 mutex_enter_nowait_func(
 /*====================*/
@@ -329,7 +329,7 @@ NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
 this function!
 This is a performance schema instrumented wrapper function for
 mutex_enter_nowait_func.
-@return	0 if succeed, 1 if not */
+@return 0 if succeed, 1 if not */
 UNIV_INLINE
 ulint
 pfs_mutex_enter_nowait_func(
@@ -366,8 +366,8 @@ pfs_mutex_free_func(
 /******************************************************************//**
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version.
-@return	TRUE if no mutexes and rw-locks reserved */
-UNIV_INTERN
+@return TRUE if no mutexes and rw-locks reserved */
+
 ibool
 sync_all_freed(void);
 /*================*/
@@ -376,14 +376,14 @@ sync_all_freed(void);
 FUNCTION PROTOTYPES FOR DEBUGGING */
 /*******************************************************************//**
 Prints wait info of the sync system. */
-UNIV_INTERN
+
 void
 sync_print_wait_info(
 /*=================*/
 	FILE*	file);		/*!< in: file where to print */
 /*******************************************************************//**
 Prints info of the sync system. */
-UNIV_INTERN
+
 void
 sync_print(
 /*=======*/
@@ -391,8 +391,8 @@ sync_print(
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks that the mutex has been initialized.
-@return	TRUE */
-UNIV_INTERN
+@return TRUE */
+
 ibool
 mutex_validate(
 /*===========*/
@@ -400,8 +400,8 @@ mutex_validate(
 /******************************************************************//**
 Checks that the current thread owns the mutex. Works only
 in the debug version.
-@return	TRUE if owns */
-UNIV_INTERN
+@return TRUE if owns */
+
 ibool
 mutex_own(
 /*======*/
@@ -413,7 +413,7 @@ mutex_own(
 Adds a latch and its level in the thread level array. Allocates the memory
 for the array if called first time for this OS thread. Makes the checks
 against other latch levels stored in the array for this thread. */
-UNIV_INTERN
+
 void
 sync_thread_add_level(
 /*==================*/
@@ -427,7 +427,7 @@ Removes a latch from the thread level array if it is found there.
 @return TRUE if found in the array; it is no error if the latch is
 not found, as we presently are not able to determine the level for
 every latch reservation the program does */
-UNIV_INTERN
+
 ibool
 sync_thread_reset_level(
 /*====================*/
@@ -435,8 +435,8 @@ sync_thread_reset_level(
 /******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
-@return	a matching latch, or NULL if not found */
-UNIV_INTERN
+@return a matching latch, or NULL if not found */
+
 void*
 sync_thread_levels_contains(
 /*========================*/
@@ -444,8 +444,8 @@ sync_thread_levels_contains(
 					(SYNC_DICT, ...)*/
 /******************************************************************//**
 Checks that the level array for the current thread is empty.
-@return	a latch, or NULL if empty except the exceptions specified below */
-UNIV_INTERN
+@return a latch, or NULL if empty except the exceptions specified below */
+
 void*
 sync_thread_levels_nonempty_gen(
 /*============================*/
@@ -460,8 +460,8 @@ except for data dictionary latches. */
 /******************************************************************//**
 Checks if the level array for the current thread is empty,
 except for the btr_search_latch.
-@return	a latch, or NULL if empty except the exceptions specified below */
-UNIV_INTERN
+@return a latch, or NULL if empty except the exceptions specified below */
+
 void*
 sync_thread_levels_nonempty_trx(
 /*============================*/
@@ -472,7 +472,7 @@ sync_thread_levels_nonempty_trx(
 
 /******************************************************************//**
 Gets the debug information for a reserved mutex. */
-UNIV_INTERN
+
 void
 mutex_get_debug_info(
 /*=================*/
@@ -483,8 +483,8 @@ mutex_get_debug_info(
 					the mutex */
 /******************************************************************//**
 Counts currently reserved mutexes. Works only in the debug version.
-@return	number of reserved mutexes */
-UNIV_INTERN
+@return number of reserved mutexes */
+
 ulint
 mutex_n_reserved(void);
 /*==================*/
@@ -501,7 +501,7 @@ mutex_get_lock_word(
 /******************************************************************//**
 NOT to be used outside this module except in debugging! Gets the waiters
 field in a mutex.
-@return	value to set */
+@return value to set */
 UNIV_INLINE
 ulint
 mutex_get_waiters(
@@ -679,7 +679,8 @@ or row lock! */
 #define SYNC_TREE_NODE		890
 #define	SYNC_PURGE_LATCH	800
 #define	SYNC_TRX_UNDO		700
-#define SYNC_RSEG		600
+#define SYNC_REDO_RSEG		600
+#define SYNC_NOREDO_RSEG	599
 #define SYNC_RSEG_HEADER_NEW	591
 #define SYNC_RSEG_HEADER	590
 #define SYNC_TRX_UNDO_PAGE	570
@@ -725,6 +726,8 @@ or row lock! */
 #define	SYNC_BUF_BLOCK		146	/* Block mutex */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140
+#define SYNC_POOL_MANAGER	139
+#define SYNC_POOL		138
 #define	SYNC_ANY_LATCH		135
 #define	SYNC_MEM_HASH		131
 #define	SYNC_MEM_POOL		130
@@ -802,9 +805,9 @@ extern ibool	sync_order_checks_on;
 extern ibool	sync_initialized;
 
 /** Global list of database mutexes (not OS mutexes) created. */
-typedef UT_LIST_BASE_NODE_T(ib_mutex_t)  ut_list_base_node_t;
+typedef UT_LIST_BASE_NODE_T(ib_mutex_t) mutex_list_t;
 /** Global list of database mutexes (not OS mutexes) created. */
-extern ut_list_base_node_t  mutex_list;
+extern mutex_list_t mutex_list;
 
 /** Mutex protecting the mutex_list variable */
 extern ib_mutex_t mutex_list_mutex;

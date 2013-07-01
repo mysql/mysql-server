@@ -187,7 +187,7 @@ select * from t1;
 #
 use test;
 show tables;
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_READ_ONLY
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
 
 #-----------------------------------------------------------------------------

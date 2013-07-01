@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # suite/funcs_1/t/is_triggers.test
 #
 # Check the layout of information_schema.triggers and the impact of
@@ -20,5 +15,8 @@
 #                   Create this script based on older scripts and new code.
 #
 
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
+--source include/have_innodb.inc
 --source include/not_embedded.inc
 --source suite/funcs_1/datadict/is_triggers.inc

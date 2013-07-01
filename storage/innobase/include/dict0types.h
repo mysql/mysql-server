@@ -80,4 +80,7 @@ enum ib_quiesce_t {
 #define TEMP_FILE_PREFIX_LENGTH		4
 #define TEMP_FILE_PREFIX_INNODB		"#sql-ib"
 
+#define TEMP_TABLE_PREFIX                "#sql"
+#define TEMP_TABLE_PATH_PREFIX           "/" TEMP_TABLE_PREFIX
+
 #endif

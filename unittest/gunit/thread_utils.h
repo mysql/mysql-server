@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ class Thread
 {
 public:
   Thread() : m_thread_id(0)
-#ifdef __WIN__
+#ifdef _WIN32
     , m_thread_handle(NULL)
 #endif
   {}
@@ -69,7 +69,7 @@ protected:
 
 private:
   pthread_t m_thread_id;
-#ifdef __WIN__
+#ifdef _WIN32
   // We need an open handle to the thread in order to join() it.
   HANDLE m_thread_handle;
 #endif

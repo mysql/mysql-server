@@ -2059,7 +2059,17 @@ sub executable_setup () {
   }
   else
   {
-    $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+    if ( defined $ENV{'MYSQL_TEST'} )
+    {
+      $exe_mysqltest=$ENV{'MYSQL_TEST'};
+      print "===========================================================\n";
+      print "WARNING:The mysqltest binary is fetched from $exe_mysqltest\n";
+      print "===========================================================\n";
+    }
+    else
+    {
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+    }
   }
 
 }
@@ -2471,6 +2481,15 @@ sub environment_setup {
 		   "$path_client_bindir/my_print_defaults",
 		   "$basedir/extra/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute innochecksum
+  # ----------------------------------------------------
+  my $exe_innochecksum=
+    mtr_exe_exists(vs_config_dirs('extra', 'innochecksum'),
+                   "$path_client_bindir/innochecksum",
+                   "$basedir/extra/innochecksum");
+  $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
 
   # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk

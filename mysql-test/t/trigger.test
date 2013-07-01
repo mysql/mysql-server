@@ -330,8 +330,6 @@ create trigger trg before insert on t2 for each row set @a:=1;
 create trigger trg before insert on t1 for each row set @a:=1;
 --error ER_TRG_ALREADY_EXISTS
 create trigger trg after insert on t1 for each row set @a:=1;
---error ER_NOT_SUPPORTED_YET
-create trigger trg2 before insert on t1 for each row set @a:=1;
 --error ER_TRG_ALREADY_EXISTS
 create trigger trg before insert on t3 for each row set @a:=1;
 create trigger trg2 before insert on t3 for each row set @a:=1;

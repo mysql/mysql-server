@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,34 +32,34 @@ Created 1/30/1994 Heikki Tuuri
 #define ut_error	assert(0)
 #else /* !UNIV_INNOCHECKSUM */
 
-#include "univ.i"
-#include <stdlib.h>
+/* Do not include univ.i because univ.i includes this. */
+
 #include "os0thread.h"
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
 /** Test if an assertion fails.
-@param EXPR	assertion expression
-@return		nonzero if EXPR holds, zero if not */
+@param EXPR assertion expression
+@return nonzero if EXPR holds, zero if not */
 # define UT_DBG_FAIL(EXPR) UNIV_UNLIKELY(!((ulint)(EXPR)))
 #else
 /** This is used to eliminate compiler warnings */
 extern ulint	ut_dbg_zero;
 /** Test if an assertion fails.
-@param EXPR	assertion expression
-@return		nonzero if EXPR holds, zero if not */
+@param EXPR assertion expression
+@return nonzero if EXPR holds, zero if not */
 # define UT_DBG_FAIL(EXPR) !((ulint)(EXPR) + ut_dbg_zero)
 #endif
 
 /*************************************************************//**
 Flush stderr and stdout, then abort execution. */
-UNIV_INTERN
+
 void
 ut_abort(void)
 	UNIV_COLD __attribute__((noreturn));
 
 /*************************************************************//**
 Report a failed assertion. */
-UNIV_INTERN
+
 void
 ut_dbg_assertion_failed(
 /*====================*/
@@ -69,7 +69,7 @@ ut_dbg_assertion_failed(
 	UNIV_COLD __attribute__((nonnull(2)));
 
 /** Abort execution if EXPR does not evaluate to nonzero.
-@param EXPR	assertion expression that should hold */
+@param EXPR assertion expression that should hold */
 #define ut_a(EXPR) do {						\
 	if (UT_DBG_FAIL(EXPR)) {				\
 		ut_dbg_assertion_failed(#EXPR,			\
@@ -88,7 +88,7 @@ ut_dbg_assertion_failed(
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)	ut_a(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
-#define ut_d(EXPR)	do {EXPR;} while (0)
+#define ut_d(EXPR)	EXPR
 #else
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)
@@ -97,7 +97,7 @@ ut_dbg_assertion_failed(
 #endif
 
 /** Silence warnings about an unused variable by doing a null assignment.
-@param A	the unused variable */
+@param A the unused variable */
 #define UT_NOT_USED(A)	A = A
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
@@ -114,7 +114,7 @@ struct speedo_t {
 
 /*******************************************************************//**
 Resets a speedo (records the current time in it). */
-UNIV_INTERN
+
 void
 speedo_reset(
 /*=========*/
@@ -123,7 +123,7 @@ speedo_reset(
 /*******************************************************************//**
 Shows the time elapsed and usage statistics since the last reset of a
 speedo. */
-UNIV_INTERN
+
 void
 speedo_show(
 /*========*/

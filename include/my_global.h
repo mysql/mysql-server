@@ -19,11 +19,6 @@
 
 /* This is the include file that should be included 'first' in every C file. */
 
-/* Client library users on Windows need this macro defined here. */
-#if !defined(__WIN__) && defined(_WIN32)
-#define __WIN__
-#endif
-
 /*
   InnoDB depends on some MySQL internals which other plugins should not
   need.  This is because of InnoDB's foreign key support, "safe" binlog
@@ -60,7 +55,7 @@
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 /* Make it easier to add conditional code in _expressions_ */
-#ifdef __WIN__
+#ifdef _WIN32
 #define IF_WIN(A,B) A
 #else
 #define IF_WIN(A,B) B
@@ -70,11 +65,6 @@
 #define IF_PURIFY(A,B) A
 #else
 #define IF_PURIFY(A,B) B
-#endif
-
-#ifndef EMBEDDED_LIBRARY
-#define HAVE_REPLICATION
-#define HAVE_EXTERNAL_CLIENT
 #endif
 
 #if defined (_WIN32)
@@ -114,42 +104,9 @@
 #define F_TO_EOF 0x3FFFFFFF
 
 /* Shared memory and named pipe connections are supported. */
-#define HAVE_SMEM 1
-#define HAVE_NAMED_PIPE 1
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
 #endif /* _WIN32*/
-
-/*
-  The macros below are used to allow build of Universal/fat binaries of
-  MySQL and MySQL applications under darwin. 
-*/
-#if defined(__APPLE__) && defined(__MACH__)
-#  undef SIZEOF_CHARP 
-#  undef SIZEOF_SHORT 
-#  undef SIZEOF_INT 
-#  undef SIZEOF_LONG 
-#  undef SIZEOF_LONG_LONG 
-#  undef SIZEOF_OFF_T 
-#  undef WORDS_BIGENDIAN
-#  define SIZEOF_SHORT 2
-#  define SIZEOF_INT 4
-#  define SIZEOF_LONG_LONG 8
-#  define SIZEOF_OFF_T 8
-#  if defined(__i386__) || defined(__ppc__)
-#    define SIZEOF_CHARP 4
-#    define SIZEOF_LONG 4
-#  elif defined(__x86_64__) || defined(__ppc64__)
-#    define SIZEOF_CHARP 8
-#    define SIZEOF_LONG 8
-#  else
-#    error Building FAT binary for an unknown architecture.
-#  endif
-#  if defined(__ppc__) || defined(__ppc64__)
-#    define WORDS_BIGENDIAN
-#  endif
-#endif /* defined(__APPLE__) && defined(__MACH__) */
-
 
 /*
   The macros below are borrowed from include/linux/compiler.h in the
@@ -182,9 +139,6 @@
 #endif
 
 #define __EXTENSIONS__ 1	/* We want some extension */
-#ifndef __STDC_EXT__
-#define __STDC_EXT__ 1          /* To get large file support on hpux */
-#endif
 
 /*
   Solaris 9 include file <sys/feature_tests.h> refers to X/Open document
@@ -218,7 +172,7 @@
 #endif
 #endif
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
@@ -229,7 +183,7 @@
 #define _THREAD_SAFE            /* Required for OSF1 */
 #endif
 #include <pthread.h>
-#endif /* !defined(__WIN__) */
+#endif /* !defined(_WIN32) */
 
 #if defined(_lint) && !defined(lint)
 #define lint
@@ -239,20 +193,12 @@
 #include <stdio.h>
 #endif
 #include <stdarg.h>
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>
-#endif
 
 #include <math.h>
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
-#ifdef HAVE_FLOAT_H
 #include <float.h>
-#endif
 #ifdef HAVE_FENV_H
 #include <fenv.h> /* For fesetround() */
 #endif
@@ -453,12 +399,12 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
 /* additional file share flags for win32 */
-#ifdef __WIN__
+#ifdef _WIN32
 #define _SH_DENYRWD     0x110    /* deny read/write mode & delete */
 #define _SH_DENYWRD     0x120    /* deny write mode & delete      */
 #define _SH_DENYRDD     0x130    /* deny read mode & delete       */
 #define _SH_DENYDEL     0x140    /* deny delete only              */
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
 /* General constants */
@@ -550,15 +496,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define KEY_CACHE_BLOCK_SIZE	(uint) 1024
 
 
-	/* Some things that this system doesn't have */
-
-#ifdef _WIN32
-#define NO_DIR_LIBRARY		/* Not standard dir-library */
-#endif
-
 /* Some defines of functions for portability */
 
-#ifndef __WIN__
+#ifndef _WIN32
 #define closesocket(A)	close(A)
 #endif
 
@@ -593,9 +533,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #define double2ulonglong(A) ((ulonglong) (double) (A))
 #endif
 
-#ifndef offsetof
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif
 #define ulong_to_double(X) ((double) (ulong) (X))
 
 #ifndef STACK_DIRECTION
@@ -668,9 +605,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #endif /* isfinite */
 
 #include <math.h>
-#ifndef HAVE_ISNAN
-#define isnan(x) ((x) != (x))
-#endif
 C_MODE_START
 extern double my_double_isnan(double x);
 C_MODE_END
@@ -738,36 +672,17 @@ typedef long long	my_ptrdiff_t;
 
 /* Typdefs for easyier portability */
 
-#ifndef HAVE_UCHAR
 typedef unsigned char	uchar;	/* Short for unsigned char */
-#endif
-
-#ifndef HAVE_INT8
 typedef signed char int8;       /* Signed integer >= 8  bits */
-#endif
-#ifndef HAVE_UINT8
 typedef unsigned char uint8;    /* Unsigned integer >= 8  bits */
-#endif
-#ifndef HAVE_INT16
 typedef short int16;
-#endif
-#ifndef HAVE_UINT16
 typedef unsigned short uint16;
-#endif
 #if SIZEOF_INT == 4
-#ifndef HAVE_INT32
 typedef int int32;
-#endif
-#ifndef HAVE_UINT32
 typedef unsigned int uint32;
-#endif
 #elif SIZEOF_LONG == 4
-#ifndef HAVE_INT32
 typedef long int32;
-#endif
-#ifndef HAVE_UINT32
 typedef unsigned long uint32;
-#endif
 #else
 #error Neither int or long is of 4 bytes width
 #endif
@@ -789,16 +704,10 @@ typedef unsigned long	ulonglong;	  /* ulong or unsigned long long */
 typedef long		longlong;
 #endif
 #endif
-#ifndef HAVE_INT64
 typedef longlong int64;
-#endif
-#ifndef HAVE_UINT64
 typedef ulonglong uint64;
-#endif
 
-#if defined(NO_CLIENT_LONG_LONG)
-typedef unsigned long my_ulonglong;
-#elif defined (__WIN__)
+#if defined (_WIN32)
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
@@ -833,9 +742,9 @@ typedef unsigned long my_off_t;
   TODO Convert these to use Bitmap class.
  */
 typedef ulonglong table_map;          /* Used for table bits in join */
-typedef ulong nesting_map;  /* Used for flags of nesting constructs */
+typedef ulonglong nesting_map;  /* Used for flags of nesting constructs */
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
@@ -985,8 +894,6 @@ typedef char		my_bool; /* Small bool */
 #  else
 #    define __func__ __FUNCTION__
 #  endif
-#elif defined(__BORLANDC__)
-#  define __func__ __FUNC__
 #else
 #  define __func__ "<unknown>"
 #endif
@@ -1049,7 +956,6 @@ static inline double rint(double x)
 /* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
 
 #undef HAVE_OPENSSL
-#undef HAVE_SMEM				/* No shared memory */
 
 #endif /* EMBEDDED_LIBRARY */
 

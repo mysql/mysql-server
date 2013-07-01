@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -215,7 +215,8 @@ void sp_rcontext::pop_handler_frame(THD *thd)
   // Also pop matching DA and copy new conditions.
   DBUG_ASSERT(thd->get_stmt_da() == &frame->handler_da);
   thd->pop_diagnostics_area();
-  thd->get_stmt_da()->reset_condition_info(thd->query_id);
+  // Out with the old, in with the new!
+  thd->get_stmt_da()->reset_condition_info(thd);
   thd->get_stmt_da()->copy_new_sql_conditions(thd, &frame->handler_da);
 
   delete frame;
@@ -309,9 +310,21 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
     Diagnostics_area::Sql_condition_iterator it= da->sql_conditions();
     const Sql_condition *c;
 
-    // Here we need to find the last warning/note from the stack.
-    // In MySQL most substantial warning is the last one.
-    // (We could have used a reverse iterator here if one existed)
+    /*
+      Here we need to find the last warning/note from the stack.
+      In MySQL most substantial warning is the last one.
+      (We could have used a reverse iterator here if one existed.)
+      We ignore preexisting conditions so we don't throw for them
+      again if the next statement isn't one that pre-clears the
+      DA. (Critically, that includes hpush_jump, i.e. any handlers
+      declared within the one we're calling. At that point, the
+      catcher for our throw would become very hard to predict!)
+      One benefit of not simply clearing the DA as we enter a handler
+      (instead of resetting the condition cound further down in this
+      exact function as we do now) and forcing the user to utilize
+      GET STACKED DIAGNOSTICS is that this way, we can make
+      SHOW WARNINGS|ERRORS work.
+    */
 
     while ((c= it++))
     {
@@ -379,8 +392,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   /* Add a frame to handler-call-stack. */
   Handler_call_frame *frame= new Handler_call_frame(found_handler,
                                                     found_condition,
-                                                    continue_ip,
-                                                    da->statement_id());
+                                                    continue_ip);
   m_activated_handlers.append(frame);
 
   /* End aborted result set. */
@@ -399,6 +411,8 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
     were added during handler execution (if any).
   */
   frame->handler_da.mark_preexisting_sql_conditions();
+
+  frame->handler_da.reset_statement_cond_count();
 
   *ip= handler_entry->first_ip;
 

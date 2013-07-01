@@ -246,6 +246,7 @@ SET(TESTS
   mysys_my_rdtsc
   mysys_my_vsnprintf
   mysys_my_write
+  prealloced_array
   sql_list
   sql_plist
   sql_string
@@ -262,6 +263,7 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  debug_sync
   explain_filename
   field
   get_diagnostics

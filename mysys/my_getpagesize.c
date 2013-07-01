@@ -17,7 +17,7 @@
 
 #ifndef HAVE_GETPAGESIZE
 
-#if defined __WIN__
+#if defined _WIN32
 
 int my_getpagesize(void)
 {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ Created 3/26/1996 Heikki Tuuri
 
 /******************************************************************//**
 Gets a rollback segment header.
-@return	rollback segment header, page x-latched */
+@return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get(
@@ -53,7 +53,7 @@ trx_rsegf_get(
 
 /******************************************************************//**
 Gets a newly created rollback segment header.
-@return	rollback segment header, page x-latched */
+@return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get_new(
@@ -77,7 +77,7 @@ trx_rsegf_get_new(
 
 /***************************************************************//**
 Gets the file page number of the nth undo log slot.
-@return	page number of the undo log segment */
+@return page number of the undo log segment */
 UNIV_INLINE
 ulint
 trx_rsegf_get_nth_undo(
@@ -121,7 +121,7 @@ trx_rsegf_set_nth_undo(
 
 /****************************************************************//**
 Looks for a free slot for an undo log segment.
-@return	slot index or ULINT_UNDEFINED if not found */
+@return slot index or ULINT_UNDEFINED if not found */
 UNIV_INLINE
 ulint
 trx_rsegf_undo_find_free(
@@ -153,7 +153,7 @@ trx_rsegf_undo_find_free(
 
 /******************************************************************//**
 Looks for a rollback segment, based on the rollback segment id.
-@return	rollback segment */
+@return rollback segment */
 UNIV_INLINE
 trx_rseg_t*
 trx_rseg_get_on_id(

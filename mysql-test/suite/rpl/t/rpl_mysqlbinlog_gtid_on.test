@@ -171,6 +171,31 @@ let $UUID= `SELECT @@SERVER_UUID`;
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000001
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000002
 
+--echo ==== --read-from-remote-master skip the binlog without Previous_gtid_log_event
+
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= --gtid-mode=0
+--source include/rpl_restart_server.inc
+INSERT INTO t1 VALUES(20);
+INSERT INTO t1 VALUES(21);
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--let $rpl_server_parameters=
+--source include/rpl_restart_server.inc
+
+--let $con_args= --user=root --host=127.0.0.1 --port=$MASTER_MYPORT
+--exec $MYSQL_BINLOG $con_args --read-from-remote-server $binlog_file > $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+
+# BINLOG-DUMP-NON-GTID can dump the binlog without Previous_gtid_log_event,
+# so it cause a duplicate error
+--error 1 # Duplicate Key (20)
+--exec $MYSQL $con_args < $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+
+# BINLOG-DUMP-GTID skips the binlog without Previous_gtid_log_event, Only
+# Format_description_event is dumped, so it doesn't cause a duplicate error.
+--exec $MYSQL_BINLOG $con_args --read-from-remote-master=BINLOG-DUMP-GTID $binlog_file > $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+--exec $MYSQL $con_args < $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+
 #
 # cleanup
 #

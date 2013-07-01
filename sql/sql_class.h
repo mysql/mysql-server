@@ -35,6 +35,7 @@
                                      THR_LOCK_INFO */
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include "rpl_gtid.h"
+#include "dur_prop.h"
 
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
@@ -902,7 +903,7 @@ public:
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
     CURRENTLY NOT IMPLEMENTED!
   */
-  void close_transient_cursors();
+  void close_transient_cursors() { }
   void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
   void reset();
@@ -2256,7 +2257,7 @@ public:
   } transaction;
   Global_read_lock global_read_lock;
   Field      *dup_field;
-#ifndef __WIN__
+#ifndef _WIN32
   sigset_t signals;
 #endif
 
@@ -3269,16 +3270,31 @@ public:
   { return get_stmt_da()->stacked_da(); }
 
   /**
+    Returns thread-local Diagnostics Area for parsing.
+    We need to have a clean DA in case errors or warnings are thrown
+    during parsing, but we can't just reset the main DA in case we
+    have a diagnostic statement on our hand that needs the old DA
+    to answer questions about the previous execution.
+    Keeping a static per-thread DA for parsing is less costly than
+    allocating a temporary one for each statement we parse.
+  */
+  Diagnostics_area *get_parser_da()
+  { return &m_parser_da; }
+
+  /**
     Push the given Diagnostics Area on top of the stack, making
     it the new first Diagnostics Area. Conditions in the new second
     Diagnostics Area will be copied to the new first Diagnostics Area.
 
     @param da   Diagnostics Area to be come the top of
                 the Diagnostics Area stack.
+    @param copy_conditions
+                Copy the conditions from the new second Diagnostics Area
+                to the new first Diagnostics Area, as per SQL standard.
   */
-  void push_diagnostics_area(Diagnostics_area *da)
+  void push_diagnostics_area(Diagnostics_area *da, bool copy_conditions= true)
   {
-    get_stmt_da()->push_diagnostics_area(this, da);
+    get_stmt_da()->push_diagnostics_area(this, da, copy_conditions);
     m_stmt_da= da;
   }
 
@@ -3810,6 +3826,7 @@ private:
   */
   MEM_ROOT main_mem_root;
   Diagnostics_area main_da;
+  Diagnostics_area m_parser_da;              /**< cf. get_parser_da() */
   Diagnostics_area *m_stmt_da;
 
   /**
@@ -3912,11 +3929,28 @@ my_eof(THD *thd)
 
 #define reenable_binlog(A)   (A)->variables.option_bits= tmp_disable_binlog__save_options;}
 
-
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
                      LEX_STRING *lex_str, const char* str, uint length,
                      bool allocate_lex_string);
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const char *src, uint src_len)
+{
+  return make_lex_string_root(root, dst, src, src_len, false);
+}
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const LEX_STRING &src)
+{
+  return make_lex_string_root(root, dst, src.str, src.length, false);
+}
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const char *src)
+{
+  return make_lex_string_root(root, dst, src, strlen(src), false);
+}
 
 /*
   Used to hold information about file and file structure in exchange
@@ -5030,6 +5064,8 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
   return thd->lex->current_select->add_group_to_list(thd, item, asc);
 }
+
+/*************************************************************************/
 
 #endif /* MYSQL_SERVER */
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -51,7 +51,7 @@ Created 12/21/1997 Heikki Tuuri
 
 /*******************************************************************//**
 Inverts a comparison operator.
-@return	the equivalent operator when the order of the arguments is switched */
+@return the equivalent operator when the order of the arguments is switched */
 static
 int
 opt_invert_cmp_op(
@@ -80,7 +80,7 @@ opt_invert_cmp_op(
 Checks if the value of an expression can be calculated BEFORE the nth table
 in a join is accessed. If this is the case, it can possibly be used in an
 index search for the nth table.
-@return	TRUE if already determined */
+@return TRUE if already determined */
 static
 ibool
 opt_check_exp_determined_before(
@@ -139,7 +139,7 @@ opt_check_exp_determined_before(
 /*******************************************************************//**
 Looks in a comparison condition if a column value is already restricted by
 it BEFORE the nth table is accessed.
-@return	expression restricting the value of the column, or NULL if not known */
+@return expression restricting the value of the column, or NULL if not known */
 static
 que_node_t*
 opt_look_for_col_in_comparison_before(
@@ -245,7 +245,7 @@ Looks in a search condition if a column value is already restricted by the
 search condition BEFORE the nth table is accessed. Takes into account that
 if we will fetch in an ascending order, we cannot utilize an upper limit for
 a column value; in a descending order, respectively, a lower limit.
-@return	expression restricting the value of the column, or NULL if not known */
+@return expression restricting the value of the column, or NULL if not known */
 static
 que_node_t*
 opt_look_for_col_in_cond_before(
@@ -324,7 +324,7 @@ already know exactly in the query. If we have a comparison condition for
 an additional field, 2 point are added. If the index is unique, and we know
 all the unique fields for the index we add 1024 points. For a clustered index
 we add 1 point.
-@return	goodness */
+@return goodness */
 static
 ulint
 opt_calc_index_goodness(
@@ -412,7 +412,7 @@ opt_calc_index_goodness(
 
 /*******************************************************************//**
 Calculates the number of matched fields based on an index goodness.
-@return	number of excatly or partially matched fields */
+@return number of excatly or partially matched fields */
 UNIV_INLINE
 ulint
 opt_calc_n_fields_from_goodness(
@@ -425,7 +425,7 @@ opt_calc_n_fields_from_goodness(
 /*******************************************************************//**
 Converts a comparison operator to the corresponding search mode PAGE_CUR_GE,
 ...
-@return	search mode */
+@return search mode */
 UNIV_INLINE
 ulint
 opt_op_to_search_mode(
@@ -466,7 +466,7 @@ opt_op_to_search_mode(
 
 /*******************************************************************//**
 Determines if a node is an argument node of a function node.
-@return	TRUE if is an argument */
+@return TRUE if is an argument */
 static
 ibool
 opt_is_arg(
@@ -775,10 +775,10 @@ opt_find_test_conds(
 	fclass = opt_classify_comparison(sel_node, i, cond);
 
 	if (fclass == OPT_END_COND) {
-		UT_LIST_ADD_LAST(cond_list, plan->end_conds, cond);
+		UT_LIST_ADD_LAST(plan->end_conds, cond);
 
 	} else if (fclass == OPT_TEST_COND) {
-		UT_LIST_ADD_LAST(cond_list, plan->other_conds, cond);
+		UT_LIST_ADD_LAST(plan->other_conds, cond);
 
 	}
 }
@@ -840,8 +840,8 @@ opt_determine_and_normalize_test_conds(
 
 	plan = sel_node_get_nth_plan(sel_node, i);
 
-	UT_LIST_INIT(plan->end_conds);
-	UT_LIST_INIT(plan->other_conds);
+	UT_LIST_INIT(plan->end_conds, &func_node_t::cond_list);
+	UT_LIST_INIT(plan->other_conds, &func_node_t::cond_list);
 
 	/* Recursively go through the conjuncts and classify them */
 
@@ -863,7 +863,7 @@ already exist in the list. If the column is already in the list, puts a value
 indirection to point to the occurrence in the column list, except if the
 column occurrence we are looking at is in the column list, in which case
 nothing is done. */
-UNIV_INTERN
+
 void
 opt_find_all_cols(
 /*==============*/
@@ -942,7 +942,7 @@ opt_find_all_cols(
 
 	/* The same column did not occur in the list: add it */
 
-	UT_LIST_ADD_LAST(col_var_list, *col_list, sym_node);
+	UT_LIST_ADD_LAST(*col_list, sym_node);
 
 	sym_node->copy_val = copy_val;
 
@@ -1036,7 +1036,7 @@ opt_classify_cols(
 
 	plan->must_get_clust = FALSE;
 
-	UT_LIST_INIT(plan->columns);
+	UT_LIST_INIT(plan->columns, &sym_node_t::col_var_list);
 
 	/* All select list columns should be copied: therefore TRUE as the
 	first argument */
@@ -1138,7 +1138,7 @@ opt_clust_access(
 Optimizes a select. Decides which indexes to tables to use. The tables
 are accessed in the order that they were written to the FROM part in the
 select statement. */
-UNIV_INTERN
+
 void
 opt_search_plan(
 /*============*/
@@ -1215,7 +1215,7 @@ opt_search_plan(
 
 /********************************************************************//**
 Prints info of a query plan. */
-UNIV_INTERN
+
 void
 opt_print_query_plan(
 /*=================*/

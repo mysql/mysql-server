@@ -48,14 +48,14 @@ C_MODE_START
 #include <sys/ioctl.h>
 #endif
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #endif
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define O_NONBLOCK 1    /* For emulation of fcntl() */
 
 /*

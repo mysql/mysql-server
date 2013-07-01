@@ -346,6 +346,7 @@ SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
 # Check that the replication succeeded.
 
 SHOW TABLES LIKE 't_';
+--replace_column 6 #
 SHOW TRIGGERS;
 SELECT * FROM t1;
 SELECT * FROM t2;
@@ -376,6 +377,7 @@ RESET SLAVE;
 
 connection master;
 SHOW TABLES LIKE 't_';
+--replace_column 6 #
 SHOW TRIGGERS;
 
 RESET MASTER;
@@ -537,6 +539,39 @@ let $diff_tables= master:log, slave:log;
 connection master;
 drop table t1, log;
 sync_slave_with_master;
+
+--echo #
+--echo # WL#3253: Multiple triggers with the same value TIME/ACTION per table 
+--echo #
+
+connection master;
+--source include/rpl_reset.inc
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:00');
+CREATE TABLE t1 (a INT);
+
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr0_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr1_bi SET @a:=0;
+CREATE TRIGGER tr1_1_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=11;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @b:=1;
+CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @b:=2;
+--echo
+--echo ---> Synchronizing slave with master...
+
+--sync_slave_with_master
+
+--echo ---> connection: slave
+connection slave;
+
+SHOW TRIGGERS;
+
+SELECT trigger_name, action_order, created FROM information_schema.triggers WHERE trigger_schema='test';
+
+connection master;
+
+DROP TABLE t1;
+--sync_slave_with_master
 
 #
 # End of tests

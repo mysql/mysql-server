@@ -30,6 +30,9 @@
 
 #include <algorithm>
 
+#include "trigger.h"                  // Trigger
+#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+
 ///////////////////////////////////////////////////////////////////////////
 // Static function implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -515,17 +518,15 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
         execution.
       */
 
-      Table_triggers_list *ttl= sp->m_trg_list;
-      int event= sp->m_trg_chistics.event;
-      int action_time= sp->m_trg_chistics.action_time;
-      GRANT_INFO *grant_table= &ttl->subject_table_grants[event][action_time];
+      Trigger *t= sp->m_trg_list->find_trigger(thd->lex->sphead->m_name);
 
-      for (Item_trigger_field *trg_field= sp->m_trg_table_fields.first;
-           trg_field;
-           trg_field= trg_field->next_trg_field)
-      {
-        trg_field->setup_field(thd, ttl->trigger_table, grant_table);
-      }
+      DBUG_ASSERT(t);
+
+      if (!t)
+        return NULL; // Don't take chances in production.
+
+      sp->setup_trigger_fields(thd, sp->m_trg_list->get_trigger_field_support(),
+                               t->get_subject_table_grant(), false);
     }
 
     // Call after-parsing callback.
@@ -827,9 +828,6 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
   thd->set_query(query_backup);
   thd->query_name_consts= 0;
 
-  if (!thd->is_error())
-    thd->get_stmt_da()->reset_diagnostics_area();
-
   return rc || thd->is_error();
 }
 
@@ -860,7 +858,7 @@ void sp_instr_stmt::print(String *str)
   }
   if (m_query.length > SP_STMT_PRINT_MAXLEN)
     str->qs_append(STRING_WITH_LEN("...")); /* Indicate truncated string */
-  str->qs_append('"');
+  str->qs_append(STRING_WITH_LEN("\""));
 }
 
 
@@ -972,7 +970,7 @@ bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
 
   m_trigger_field=
     new (thd->mem_root) Item_trigger_field(thd->lex->current_context(),
-                                           Item_trigger_field::NEW_ROW,
+                                           TRG_NEW_ROW,
                                            m_trigger_field_name.str,
                                            UPDATE_ACL,
                                            false);
@@ -1221,14 +1219,6 @@ bool sp_instr_jump_case_when::build_expr_items(THD *thd)
 bool sp_instr_freturn::exec_core(THD *thd, uint *nextp)
 {
   /*
-    RETURN is a "procedure statement" (in terms of the SQL standard).
-    That means, Diagnostics Area should be clean before its execution.
-  */
-
-  Diagnostics_area *da= thd->get_stmt_da();
-  da->reset_condition_info(da->statement_id());
-
-  /*
     Change <next instruction pointer>, so that this will be the last
     instruction in the stored function.
   */
@@ -1283,17 +1273,7 @@ void sp_instr_hpush_jump::print(String *str)
   str->qs_append(' ');
   str->qs_append(m_frame);
 
-  switch (m_handler->type) {
-  case sp_handler::EXIT:
-    str->qs_append(STRING_WITH_LEN(" EXIT"));
-    break;
-  case sp_handler::CONTINUE:
-    str->qs_append(STRING_WITH_LEN(" CONTINUE"));
-    break;
-  default:
-    // The handler type must be either CONTINUE or EXIT.
-    DBUG_ASSERT(0);
-  }
+  m_handler->print(str);
 }
 
 
@@ -1492,6 +1472,9 @@ void sp_instr_cpop::print(String *str)
 
 bool sp_instr_copen::execute(THD *thd, uint *nextp)
 {
+  // Manipulating a CURSOR with an expression should clear DA.
+  clear_da(thd);
+
   *nextp= get_ip() + 1;
 
   // Get the cursor pointer.
@@ -1560,6 +1543,9 @@ void sp_instr_copen::print(String *str)
 
 bool sp_instr_cclose::execute(THD *thd, uint *nextp)
 {
+  // Manipulating a CURSOR with an expression should clear DA.
+  clear_da(thd);
+
   *nextp= get_ip() + 1;
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
@@ -1596,6 +1582,9 @@ void sp_instr_cclose::print(String *str)
 
 bool sp_instr_cfetch::execute(THD *thd, uint *nextp)
 {
+  // Manipulating a CURSOR with an expression should clear DA.
+  clear_da(thd);
+
   *nextp= get_ip() + 1;
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);

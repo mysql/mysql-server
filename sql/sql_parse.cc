@@ -80,13 +80,14 @@
 #include <m_ctype.h>
 #include <myisam.h>
 #include <my_dir.h>
+#include <dur_prop.h>
 #include "rpl_handler.h"
 
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
-#include "sql_trigger.h"
+#include "sql_trigger.h"      // mysql_create_or_drop_trigger
 #include "transaction.h"
 #include "sql_audit.h"
 #include "sql_prepare.h"
@@ -919,7 +920,9 @@ bool do_command(THD *thd)
 
   /*
     XXX: this code is here only to clear possible errors of init_connect. 
-    Consider moving to init_connect() instead.
+    Consider moving to prepare_new_connection_state() instead.
+    That requires making sure the DA is cleared before non-parsing statements
+    such as COM_QUIT.
   */
   thd->clear_error();				// Clear error message
   thd->get_stmt_da()->reset_diagnostics_area();
@@ -1230,17 +1233,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* acl_authenticate() takes the data from net->read_pos */
     net->read_pos= (uchar*)packet;
 
-    uint save_db_length= thd->db_length;
-    char *save_db= thd->db;
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
+    char *save_db= thd->db;
+    uint save_db_length= thd->db_length;
     Security_context save_security_ctx= *thd->security_ctx;
-    const CHARSET_INFO *save_character_set_client=
-      thd->variables.character_set_client;
-    const CHARSET_INFO *save_collation_connection=
-      thd->variables.collation_connection;
-    const CHARSET_INFO *save_character_set_results=
-      thd->variables.character_set_results;
 
     auth_rc= acl_authenticate(thd, packet_length);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
@@ -1249,11 +1246,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->set_user_connect(save_user_connect);
-      thd->reset_db (save_db, save_db_length);
-      thd->variables.character_set_client= save_character_set_client;
-      thd->variables.collation_connection= save_collation_connection;
-      thd->variables.character_set_results= save_character_set_results;
-      thd->update_charset();
+      thd->reset_db(save_db, save_db_length);
+
+      my_error(ER_ACCESS_DENIED_CHANGE_USER_ERROR, MYF(0),
+               thd->security_ctx->user,
+               thd->security_ctx->host_or_ip,
+               (thd->password ? ER(ER_YES) : ER(ER_NO)));
+      thd->killed= THD::KILL_CONNECTION;
+      error=true;
     }
     else
     {
@@ -1264,6 +1264,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
       my_free(save_db);
       my_free(save_security_ctx.user);
+
     }
     break;
   }
@@ -1289,12 +1290,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_CLOSE:
   {
-    mysqld_stmt_close(thd, packet);
+    mysqld_stmt_close(thd, packet, packet_length);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysqld_stmt_reset(thd, packet);
+    mysqld_stmt_reset(thd, packet, packet_length);
     break;
   }
   case COM_QUERY:
@@ -1525,6 +1526,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     int not_used;
 
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
+
     /*
       Initialize thd->lex since it's used in many base functions, such as
       open_tables(). Otherwise, it remains unitialized and may cause crash
@@ -1573,6 +1580,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     thd->status_var.com_other++;
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
@@ -1659,6 +1671,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (thread_id & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
+    else if (packet_length < 4)
+      my_error(ER_MALFORMED_PACKET, MYF(0));
     else
     {
       thd->status_var.com_stat[SQLCOM_KILL]++;
@@ -1669,6 +1683,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_SET_OPTION:
   {
+    if (packet_length < 2)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     thd->status_var.com_stat[SQLCOM_SET_OPTION]++;
     uint opt_command= uint2korr(packet);
 
@@ -2153,7 +2172,7 @@ mysql_execute_command(THD *thd)
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt);
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
-    check that it is first table in global list and relink it first in 
+    check that it is first table in global list and relink it first in
     queries_tables list if it is necessary (we need such relinking only
     for queries with subqueries in select list, in this case tables of
     subqueries will go to global list first)
@@ -2172,16 +2191,17 @@ mysql_execute_command(THD *thd)
   /* set context for commands which do not use setup_tables */
   select_lex->context.resolve_in_table_list_only(select_lex->get_table_list());
 
-  /*
-    Reset warning count for each query that uses tables
-    A better approach would be to reset this for any commands
-    that is not a SHOW command or a select that only access local
-    variables, but for now this is probably good enough.
-  */
-  if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) == 0)
+  thd->get_stmt_da()->reset_diagnostics_area();
+  if ((thd->lex->keep_diagnostics != DA_KEEP_PARSE_ERROR) &&
+      (thd->lex->keep_diagnostics != DA_KEEP_DIAGNOSTICS))
   {
-    if (all_tables)
-      thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
+    /*
+      No parse errors, and it's not a diagnostic statement:
+      remove the sql conditions from the DA!
+      For diagnostic statements we need to keep the conditions
+      around so we can inspec them.
+    */
+    thd->get_stmt_da()->reset_condition_info(thd);
   }
 
 #ifdef HAVE_REPLICATION
@@ -2193,7 +2213,8 @@ mysql_execute_command(THD *thd)
         When dropping a trigger, we need to load its table name
         before checking slave filter rules.
       */
-      add_table_for_trigger(thd, thd->lex->spname, 1, &all_tables);
+      add_table_for_trigger(thd, lex->spname->m_db,
+                            lex->spname->m_name, true, &all_tables);
       
       if (!all_tables)
       {
@@ -4988,6 +5009,7 @@ void THD::reset_for_next_command()
   thd->clear_error();
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->reset_statement_cond_count();
+
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
 
@@ -5078,6 +5100,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 {
   int error __attribute__((unused));
   DBUG_ENTER("mysql_parse");
+  DBUG_PRINT("mysql_parse", ("query: '%s'", rawbuf));
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
@@ -5195,7 +5218,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
           if (unlikely(thd->security_ctx->password_expired &&
-                       !lex->is_change_password &&
+                       !lex->is_set_password_sql &&
                        lex->sql_command != SQLCOM_SET_OPTION))
           {
             my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
@@ -6728,7 +6751,66 @@ bool parse_sql(THD *thd,
 
   /* Parse the query. */
 
+  /*
+    Use a temporary DA while parsing. We don't know until after parsing
+    whether the current command is a diagnostic statement, in which case
+    we'll need to have the previous DA around to answer questions about it.
+  */
+  Diagnostics_area *parser_da= thd->get_parser_da();
+  Diagnostics_area *da=        thd->get_stmt_da();
+
+  thd->push_diagnostics_area(parser_da, false);
+
+  parser_da->reset_diagnostics_area();
+  parser_da->reset_condition_info(thd);
+
   bool mysql_parse_status= MYSQLparse(thd) != 0;
+
+  /*
+    Unwind diagnostics area.
+
+    If any issues occurred during parsing, they will become
+    the sole conditions for the current statement.
+
+    Otherwise, if we have a diagnostic statement on our hands,
+    we'll preserve the previous diagnostics area here so we
+    can answer questions about it.  This specifically means
+    that repeatedly asking about a DA won't clear it.
+
+    Otherwise, it's a regular command with no issues during
+    parsing, so we'll just clear the DA in preparation for
+    the processing of this command.
+  */
+
+  if (parser_da->current_statement_cond_count() != 0)
+  {
+    /*
+      Error/warning during parsing: top DA should contain parse error(s)!
+      Any pre-existing conditions will be replaced.
+    */
+    da->reset_condition_info(thd);
+
+    /*
+      We need to put any errors in the DA as well as the condition list.
+    */
+    if (parser_da->is_error())
+    {
+      da->set_error_status(parser_da->mysql_errno(),
+                           parser_da->message_text(),
+                           parser_da->returned_sqlstate());
+    }
+
+    da->copy_sql_conditions_from_da(thd, parser_da);
+
+    /*
+      Do not clear the condition list when starting execution as it
+      now contains not the results of the previous executions, but
+      a non-zero number of errors/warnings thrown during parsing!
+    */
+    thd->lex->keep_diagnostics= DA_KEEP_PARSE_ERROR;
+  }
+
+  thd->pop_diagnostics_area();
 
   /*
     Check that if MYSQLparse() failed either thd->is_error() is set, or an

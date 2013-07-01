@@ -46,12 +46,10 @@
 #define LFACTOR1  ULL(10000000000)
 #define LFACTOR2  ULL(100000000000)
 
+#ifdef HAVE_CHARSET_mb2_or_mb4
 static unsigned long lfactor[9]=
 { 1L, 10L, 100L, 1000L, 10000L, 100000L, 1000000L, 10000000L, 100000000L };
 
-
-
-#ifdef HAVE_CHARSET_mb2_or_mb4
 static inline int
 my_bincmp(const uchar *s, const uchar *se,
           const uchar *t, const uchar *te)

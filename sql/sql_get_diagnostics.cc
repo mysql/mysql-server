@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "sql_list.h"                 // Sql_alloc, List, List_iterator
 #include "sql_cmd.h"                  // Sql_cmd
@@ -44,7 +44,7 @@ bool
 Sql_cmd_get_diagnostics::execute(THD *thd)
 {
   bool rc;
-  Diagnostics_area new_stmt_da(thd->query_id, false);
+  Diagnostics_area new_stmt_da(false);
   Diagnostics_area *first_da= thd->get_stmt_da();
   const Diagnostics_area *second_da= thd->get_stacked_da();
   DBUG_ENTER("Sql_cmd_get_diagnostics::execute");

@@ -26,6 +26,7 @@ Created 5/24/1996 Heikki Tuuri
 #ifndef db0err_h
 #define db0err_h
 
+/* Do not include univ.i because univ.i includes this. */
 
 enum dberr_t {
 	DB_SUCCESS_LOCKED_REC = 9,	/*!< like DB_SUCCESS, but a new
@@ -125,6 +126,8 @@ enum dberr_t {
 
 	DB_IO_ERROR,			/*!< Generic IO error */
 	DB_IDENTIFIER_TOO_LONG,		/*!< Identifier name too long */
+	DB_FTS_EXCEED_RESULT_CACHE_LIMIT,	/*!< FTS query memory
+					exceeds result cache limit */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
@@ -139,7 +142,7 @@ enum dberr_t {
 					foreign key dropped */
 
 
-        /* The following are API only error codes. */
+	/* The following are API only error codes. */
 	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed
 					because the types mismatch */
 

@@ -123,7 +123,7 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
 update performance_schema.setup_instruments set enabled='YES', timed='YES'
   where name in ('statement/sql/select',
                  'statement/sql/insert',
-                 'statement/com/',
+                 'statement/com/new_packet',
                  'statement/com/Query',
                  'statement/com/Quit',
                  'statement/com/error');

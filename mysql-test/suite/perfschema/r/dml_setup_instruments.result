@@ -78,3 +78,5 @@ UNLOCK TABLES;
 
 UPDATE performance_schema.setup_instruments SET timed='NO'
 ORDER BY RAND();
+update performance_schema.setup_instruments
+set enabled='YES', TIMED='YES';

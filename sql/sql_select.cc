@@ -398,7 +398,6 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
   {
     JOIN_TAB *const tab= join->join_tab + tableno;
     POSITION *const pos= tab->position;
-    uint keylen, keyno;
     if (pos->sj_strategy == SJ_OPT_NONE)
     {
       tableno++;  // nothing to do
@@ -434,13 +433,17 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           else
             tab->select->set_quick(NULL);
         }
-        /* Calculate key length */
-        keylen= 0;
-        keyno= pos->loosescan_key;
-        for (uint kp=0; kp < pos->loosescan_parts; kp++)
-          keylen += tab->table->key_info[keyno].key_part[kp].store_length;
 
+        const uint keyno= pos->loosescan_key;
+        DBUG_ASSERT(tab->keys.is_set(keyno));
+        tab->index= keyno;
+
+        /* Calculate key length */
+        uint keylen= 0;
+        for (uint kp= 0; kp < pos->loosescan_parts; kp++)
+          keylen+= tab->table->key_info[keyno].key_part[kp].store_length;
         tab->loosescan_key_len= keylen;
+
         if (pos->n_sj_tables > 1)
         {
           last_sj_tab->firstmatch_return= tab;
@@ -1494,13 +1497,7 @@ bool JOIN::set_access_methods()
       continue;                      // Handled in make_join_statistics()
 
     Key_use *const keyuse= tab->position->key;
-    if (tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
-    {
-      DBUG_ASSERT(tab->keys.is_set(tab->position->loosescan_key));
-      tab->type= JT_ALL; // @todo is this consistent for a LooseScan table ?
-      tab->index= tab->position->loosescan_key;
-     }
-    else if (!keyuse)
+    if (!keyuse)
     {
       tab->type= JT_ALL;
       if (tableno > const_tables)
@@ -2115,7 +2112,18 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
       idx_cond->update_used_tables();
       if ((idx_cond->used_tables() & tab->table->map) == 0)
       {
-        DBUG_ASSERT(other_tbls_ok || idx_cond->const_item());
+        /*
+          The following assert is to check that we only skip pushing the
+          index condition for the following situations:
+          1. We actually are allowed to generate an index condition on another
+             table.
+          2. The index condition is a constant item.
+          3. The index condition contains an updatable user variable
+             (test this by checking that the RAND_TABLE_BIT is set).
+        */
+        DBUG_ASSERT(other_tbls_ok ||                                  // 1
+                    idx_cond->const_item() ||                         // 2
+                    (idx_cond->used_tables() & RAND_TABLE_BIT) );     // 3
         DBUG_VOID_RETURN;
       }
 
@@ -3465,8 +3473,8 @@ const_expression_in_where(Item *cond, Item *comp_item, Field *comp_field,
     -1   Reverse key can be used
 */
 
-static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
-				uint *used_key_parts= NULL)
+int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
+                         uint *used_key_parts)
 {
   KEY_PART_INFO *key_part,*key_part_end;
   key_part=table->key_info[idx].key_part;
@@ -3479,7 +3487,16 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
   for (; order ; order=order->next, const_key_parts>>=1)
   {
-    Field *field=((Item_field*) (*order->item)->real_item())->field;
+
+    /*
+      Since only fields can be indexed, ORDER BY <something> that is
+      not a field cannot be resolved by using an index.
+    */
+    Item *real_itm= (*order->item)->real_item();
+    if (real_itm->type() != Item::FIELD_ITEM)
+      DBUG_RETURN(0);
+
+    Field *field= static_cast<Item_field*>(real_itm)->field;
     int flag;
 
     /*
@@ -4868,12 +4885,12 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 
 void JOIN::clear()
 {
-  for (uint tableno= 0; tableno < primary_tables; tableno++)
-  {
-    TABLE *const table= (join_tab+tableno)->table;
-    if (table)
-      mark_as_null_row(table);
-  }
+  /* 
+    must clear only the non-const tables, as const tables
+    are not re-calculated.
+  */
+  for (uint tableno= const_tables; tableno < primary_tables; tableno++)
+    mark_as_null_row(join_tab[tableno].table);  // All fields are NULL
 
   copy_fields(&tmp_table_param);
 
