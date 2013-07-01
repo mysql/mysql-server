@@ -84,7 +84,9 @@ let $message= trigger privilege on user level for create:;
         connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	select current_user;
         use priv_db;
+--replace_column 6 #
         show triggers;
+--replace_column 17 #
 	select * from information_schema.triggers;
 	--error ER_TABLEACCESS_DENIED_ERROR
         drop trigger trg1_1;

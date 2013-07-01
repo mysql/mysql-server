@@ -1670,6 +1670,29 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
   DBUG_PRINT("qcache", ("Query in query hash 0x%lx", (ulong)query_block));
 
+  /*
+    We only need to clear the diagnostics area when we actually
+    find the query, as in all other cases, we'll go through
+    regular parsing and execution, where the DA will be reset
+    as needed, anyway.
+
+    We're not pushing/popping a private DA here the way we do for
+    parsing; if we got this far, we know we've got a SELECT on our
+    hands and not a diagnotics statement that might need the
+    previous statement's diagnostics area, so we just clear the DA.
+
+    We're doing it here and not in the caller as there's three of
+    them (PS, SP, interactive).  Doing it any earlier in this routine
+    would reset the DA in "SELECT @@error_count"/"SELECT @@warning_count"
+    before we can save the counts we'll need later (QC will see the
+    SELECT go into this branch, but since we haven't parsed yet, we
+    don't know yet that it's one of those legacy variables that require
+    saving and basically turn SELECT into a sort of, sort of not
+    diagnostics command.  Ugly stuff.
+  */
+  thd->get_stmt_da()->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_condition_info(thd);
+
   /* Now lock and test that nothing changed while blocks was unlocked */
   BLOCK_LOCK_RD(query_block);
 

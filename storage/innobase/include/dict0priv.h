@@ -26,10 +26,12 @@ Created  Fri 2 Jul 2010 13:30:38 EST - Sunny Bains
 #ifndef dict0priv_h
 #define dict0priv_h
 
+#include "univ.i"
+
 /**********************************************************************//**
 Gets a table; loads it to the dictionary cache if necessary. A low-level
 function. Note: Not to be called from outside dict0*c functions.
-@return	table, NULL if not found */
+@return table, NULL if not found */
 UNIV_INLINE
 dict_table_t*
 dict_table_get_low(
@@ -38,7 +40,7 @@ dict_table_get_low(
 
 /**********************************************************************//**
 Checks if a table is in the dictionary cache.
-@return	table, NULL if not found */
+@return table, NULL if not found */
 UNIV_INLINE
 dict_table_t*
 dict_table_check_if_in_cache_low(
@@ -47,7 +49,7 @@ dict_table_check_if_in_cache_low(
 
 /**********************************************************************//**
 Returns a table object based on table id.
-@return	table, NULL if does not exist */
+@return table, NULL if does not exist */
 UNIV_INLINE
 dict_table_t*
 dict_table_open_on_id_low(

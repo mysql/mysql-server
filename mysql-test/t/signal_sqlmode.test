@@ -21,6 +21,7 @@ create procedure p()
 begin
   declare utf8_var VARCHAR(128) CHARACTER SET UTF8;
   set utf8_var = concat(repeat('A', 128), 'X');
+  show warnings;
   select length(utf8_var), utf8_var;
 end
 $$

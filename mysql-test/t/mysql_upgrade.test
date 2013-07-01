@@ -154,5 +154,22 @@ SET PASSWORD FOR 'bug13586336'@'localhost' = OLD_PASSWORD('a');
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 DROP USER 'bug13586336'@'localhost';
 
+
+--echo #
+--echo # WL#7010: Remove unused --basedir and --datadir options
+--echo #   from mysql_upgrade
+--echo #
+
+--echo Run mysql_upgrade with --datadir : should fail
+--replace_regex /.*mysql_upgrade.*: unk/mysql_upgrade: unk/
+--error 1
+--exec $MYSQL_UPGRADE --skip-verbose --force --datadir=somedir 2>&1
+
+--echo Run mysql_upgrade with --basedir : should fail
+--replace_regex /.*mysql_upgrade.*: unk/mysql_upgrade: unk/
+--error 1
+--exec $MYSQL_UPGRADE --skip-verbose --force --basedir=somedir 2>&1
+
+
 --echo
 --echo End of tests

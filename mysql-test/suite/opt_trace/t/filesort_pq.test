@@ -1,8 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+#Start server with MyISAM
 --source include/force_myisam_default.inc
-
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 # The main testing script

@@ -580,7 +580,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
     return 1;
   }
 
-  adjust_related_options();
+  ulong requested_open_files_dummy;
+  adjust_related_options(&requested_open_files_dummy);
 
   if (init_common_variables())
   {
@@ -593,7 +594,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   /* Get default temporary directory */
   opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#if defined(__WIN__)
+#if defined(_WIN32)
   if (!opt_mysql_tmpdir)
     opt_mysql_tmpdir=getenv("TEMP");
   if (!opt_mysql_tmpdir)

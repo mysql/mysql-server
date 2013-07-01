@@ -843,12 +843,7 @@ cnv:
 **	 1 if matched with wildcard
 */
 
-#ifdef LIKE_CMP_TOUPPER
-#define likeconv(s,A) (uchar) my_toupper(s,A)
-#else
 #define likeconv(s,A) (uchar) (s)->sort_order[(uchar) (A)]
-#endif
-
 #define INC_PTR(cs,A,B) (A)++
 
 static

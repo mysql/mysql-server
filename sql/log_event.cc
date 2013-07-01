@@ -44,6 +44,7 @@
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
+#include <mysql/psi/mysql_statement.h>
 
 #endif /* MYSQL_CLIENT */
 
@@ -187,12 +188,12 @@ bool get_binlog_rewrite_db(const char* db)
     @param[in]     event_len          length of the event
     @param[in]     description_event  error, warning or info
 
-    @retval        true               returns if the space is not allocated.
-    @retval        false              if rewrite is successful or no rewrite
-                                      for the event.
+    @retval        0                  incase of no change to the event length
+    @retval        -1                 incase of memory full error.
+    @retval        >0                 return the new length of the event.
 
 */
-bool rewrite_buffer(char **buf, int event_len,
+int rewrite_buffer(char **buf, int event_len,
                     const Format_description_log_event
                     *description_event)
 {
@@ -203,7 +204,7 @@ bool rewrite_buffer(char **buf, int event_len,
   uchar const *const ptr_dblen= (uchar const*)temp_vpart + 0;
 
   if(!(get_binlog_rewrite_db((const char*)ptr_dblen + 1)))
-    return false;
+    return 0;
   int temp_length_l= common_header_len + post_header_len;
   size_t old_db_len= *(uchar*) ptr_dblen;
   size_t rewrite_db_len= strlen(rewrite_to_db);
@@ -212,7 +213,7 @@ bool rewrite_buffer(char **buf, int event_len,
   int replace_segment= rewrite_db_len - old_db_len;
   if (!(temp_rewrite_buf= (char*) my_malloc(event_len + replace_segment,
                                             MYF(MY_WME))))
-    return true;
+    return -1;
 
   memcpy(temp_rewrite_buf, *buf, temp_length_l);
   char* temp_ptr=temp_rewrite_buf + temp_length_l + 0;
@@ -224,7 +225,7 @@ bool rewrite_buffer(char **buf, int event_len,
   memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
 
   *buf= temp_rewrite_buf;
-  return false;
+  return (event_len + replace_segment);
 }
 
 #endif
@@ -300,6 +301,8 @@ static const char *HA_ERR(int i)
   case HA_ERR_LOGGING_IMPOSSIBLE: return "HA_ERR_LOGGING_IMPOSSIBLE";
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
+  case HA_ERR_FK_DEPTH_EXCEEDED : return "HA_ERR_FK_DEPTH_EXCEEDED";
+  case HA_ERR_INNODB_READ_ONLY: return "HA_ERR_INNODB_READ_ONLY";
   }
   return "No Error!";
 }
@@ -1487,10 +1490,16 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
 #if defined(MYSQL_CLIENT)
   if(option_rewrite_set && buf[EVENT_TYPE_OFFSET] == TABLE_MAP_EVENT)
   {
-    if (rewrite_buffer(&buf, data_len, description_event))
+    int rewrite= rewrite_buffer(&buf, data_len, description_event);
+    if(rewrite == -1)
     {
       error= "Out of memory";
       goto err;
+    }
+    else if(rewrite > 0)
+    {
+      *(buf+EVENT_LEN_OFFSET)= rewrite;
+      data_len= uint4korr(buf+EVENT_LEN_OFFSET);
     }
   }
 #endif
@@ -3405,7 +3414,7 @@ static void write_str_with_code_and_len(uchar **dst, const char *src,
   DBUG_ASSERT(src);
   *((*dst)++)= code;
   *((*dst)++)= (uchar) len;
-  bmove(*dst, src, len);
+  memmove(*dst, src, len);
   (*dst)+= len;
 }
 
@@ -4913,6 +4922,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
       {
+        thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
+                                                    stmt_info_rpl.m_key,
+                                                    thd->db, thd->db_length,
+                                                    thd->charset());
+        THD_STAGE_INFO(thd, stage_init);
+        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
+
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
         /* Finalize server status flags after executing a statement. */
         thd->update_server_status();
@@ -5104,6 +5120,11 @@ end:
   thd->reset_query();
   thd->lex->sql_command= SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
+
+  /* Mark the statement completed. */
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->m_statement_psi= NULL;
+
   /*
     As a disk space optimization, future masters will not log an event for
     LAST_INSERT_ID() if that function returned 0 (and thus they will be able
@@ -6528,7 +6549,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   {
     thd->set_time(&when);
     thd->set_query_id(next_query_id());
-    thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
+    DBUG_ASSERT(!thd->get_stmt_da()->is_set());
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
@@ -8376,7 +8397,16 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
 
 err:
   if (error)
+  {
     end_io_cache(&file);
+    /*
+      Error occured. Delete .info and .data files if they are created.
+    */
+    strmov(ext,".info");
+    mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
+    strmov(ext,".data");
+    mysql_file_delete(key_file_log_event_data, fname_buf, MYF(0));
+  }
   if (fd >= 0)
     mysql_file_close(fd, MYF(0));
   return error != 0;
@@ -8838,12 +8868,16 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
     end_io_cache(&file);
     fd= -1;
   }
-  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
-  memcpy(ext, ".data", 6);
-  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   error = 0;
 
 err:
+  DBUG_EXECUTE_IF("simulate_file_open_error_exec_event",
+                  {
+                     strmov(ext, ".info");
+                  });
+  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
+  strmov(ext, ".data");
+  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   delete lev;
   if (fd >= 0)
   {
@@ -10184,7 +10218,7 @@ int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *r
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
-      thd->get_stmt_da()->reset_condition_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       *err= 0;
       if (idempotent_error == 0)
@@ -11374,7 +11408,7 @@ AFTER_MAIN_EXEC_ROW_LOOP:
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
-      thd->get_stmt_da()->reset_condition_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }

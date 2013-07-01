@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ TEST(DebugDeathTest, Suicide)
 #endif
 
 
-#if !defined(DBUG_OFF) && !defined(__WIN__)
+#if !defined(DBUG_OFF) && !defined(_WIN32)
 class DbugGcovThread : public Thread
 {
 public:

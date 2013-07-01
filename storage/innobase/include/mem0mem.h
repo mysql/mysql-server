@@ -33,7 +33,6 @@ Created 6/9/1994 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "sync0sync.h"
 #endif /* UNIV_HOTBACKUP */
-#include "ut0lst.h"
 #include "mach0data.h"
 
 /* -------------------- MEMORY HEAPS ----------------------------- */
@@ -80,14 +79,14 @@ is the maximum size for a single allocated buffer: */
 
 /******************************************************************//**
 Initializes the memory system. */
-UNIV_INTERN
+
 void
 mem_init(
 /*=====*/
 	ulint	size);	/*!< in: common pool size in bytes */
 /******************************************************************//**
 Closes the memory system. */
-UNIV_INTERN
+
 void
 mem_close(void);
 /*===========*/
@@ -140,7 +139,7 @@ mem_heap_free_func(
 	ulint		line);		/*!< in: line where freed */
 /***************************************************************//**
 Allocates and zero-fills n bytes of memory from a memory heap.
-@return	allocated, zero-filled storage */
+@return allocated, zero-filled storage */
 UNIV_INLINE
 void*
 mem_heap_zalloc(
@@ -163,7 +162,7 @@ mem_heap_alloc(
 				<= MEM_MAX_ALLOC_IN_BUF */
 /*****************************************************************//**
 Returns a pointer to the heap top.
-@return	pointer to the heap top */
+@return pointer to the heap top */
 UNIV_INLINE
 byte*
 mem_heap_get_heap_top(
@@ -189,7 +188,7 @@ mem_heap_empty(
 /*****************************************************************//**
 Returns a pointer to the topmost element in a memory heap.
 The size of the element must be given.
-@return	pointer to the topmost element */
+@return pointer to the topmost element */
 UNIV_INLINE
 void*
 mem_heap_get_top(
@@ -200,7 +199,7 @@ mem_heap_get_top(
 Checks if a given chunk of memory is the topmost element stored in the
 heap. If this is the case, then calling mem_heap_free_top() would free
 that element from the heap.
-@return	true if topmost */
+@return true if topmost */
 UNIV_INLINE
 bool
 mem_heap_is_top(
@@ -287,7 +286,7 @@ NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
 the C compiler. Is like malloc of C. The buffer must be freed
 with mem_free.
-@return	own: free storage */
+@return own: free storage */
 UNIV_INLINE
 void*
 mem_alloc_func(
@@ -317,7 +316,7 @@ mem_free_func(
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string.
-@return	own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
 char*
 mem_strdup(
@@ -325,7 +324,7 @@ mem_strdup(
 	const char*	str);	/*!< in: string to be copied */
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
-@return	own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
 char*
 mem_strdupl(
@@ -335,8 +334,8 @@ mem_strdupl(
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string, allocated from a memory heap.
-@return	own: a copy of the string */
-UNIV_INTERN
+@return own: a copy of the string */
+
 char*
 mem_heap_strdup(
 /*============*/
@@ -345,7 +344,7 @@ mem_heap_strdup(
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string,
 allocated from a memory heap.
-@return	own: a copy of the string */
+@return own: a copy of the string */
 UNIV_INLINE
 char*
 mem_heap_strdupl(
@@ -356,8 +355,8 @@ mem_heap_strdupl(
 
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
-@return	own: the result */
-UNIV_INTERN
+@return own: the result */
+
 char*
 mem_heap_strcat(
 /*============*/
@@ -367,8 +366,8 @@ mem_heap_strcat(
 
 /**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
-@return	own: a copy of the data */
-UNIV_INTERN
+@return own: a copy of the data */
+
 void*
 mem_heap_dup(
 /*=========*/
@@ -381,8 +380,8 @@ A simple sprintf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).
-@return	heap-allocated formatted string */
-UNIV_INTERN
+@return heap-allocated formatted string */
+
 char*
 mem_heap_printf(
 /*============*/
@@ -394,7 +393,7 @@ mem_heap_printf(
 /******************************************************************//**
 Goes through the list of all allocated mem blocks, checks their magic
 numbers, and reports possible corruption. */
-UNIV_INTERN
+
 void
 mem_validate_all_blocks(void);
 /*=========================*/
@@ -454,5 +453,105 @@ struct mem_block_info_t {
 #ifndef UNIV_NONINL
 #include "mem0mem.ic"
 #endif
+
+/** A C++ wrapper class to the mem_heap_t routines, so that it can be used
+as an STL allocator */
+template<typename T>
+class mem_heap_allocator
+{
+public:
+	typedef		T		value_type;
+	typedef		size_t		size_type;
+	typedef		ptrdiff_t	difference_type;
+	typedef		T*		pointer;
+	typedef		const T*	const_pointer;
+	typedef		T&		reference;
+	typedef		const T&	const_reference;
+
+	mem_heap_allocator(mem_heap_t* h): heap(h) {
+	}
+
+	~mem_heap_allocator() {
+		heap = 0;
+	}
+
+	mem_heap_allocator(const mem_heap_allocator& that): heap (that.heap) {
+	}
+
+	template <typename U>
+	mem_heap_allocator (const mem_heap_allocator<U> &other)
+	: heap (other.heap) {
+	}
+
+	size_type max_size() const {
+		return(ULONG_MAX / sizeof(T));
+	}
+
+	/** This function returns a pointer to the first element of a newly
+	allocated array large enough to contain n objects of type T; only the
+	memory is allocated, and the objects are not constructed. Moreover,
+	an optional pointer argument (that points to an object already
+	allocated by mem_heap_allocator) can be used as a hint to the
+	implementation about where the new memory should be allocated in
+	order to improve locality. */
+	pointer	allocate(size_type n, const_pointer hint = 0) {
+		DBUG_ENTER("mem_heap_allocator::allocate");
+
+#ifdef UNIV_DEBUG
+		DBUG_ASSERT(mem_heap_check(heap));
+#endif /* UNIV_DEBUG */
+
+		DBUG_RETURN((pointer) mem_heap_alloc(heap, n*sizeof(T)));
+	}
+
+	void deallocate(pointer p, size_type n) {
+	}
+
+	pointer address (reference r) const {
+		return(&r);
+	}
+
+	const_pointer address (const_reference r) const {
+		return(&r);
+	}
+
+	void construct(pointer p, const_reference t) {
+		new (reinterpret_cast<void*>(p)) T(t);
+	}
+
+	void destroy(pointer p) {
+		(reinterpret_cast<T*>(p))->~T();
+	}
+
+	/** Allocators are required to supply the below template class member
+	which enables the possibility of obtaining a related allocator,
+	parametrized in terms of a different type. For example, given an
+	allocator type IntAllocator for objects of type int, a related
+	allocator type for objects of type long could be obtained using
+	IntAllocator::rebind<long>::other */
+	template <typename U>
+	struct rebind
+	{
+		typedef mem_heap_allocator<U> other ;
+	};
+
+private:
+	mem_heap_t*	heap;
+	template <typename U> friend class mem_heap_allocator;
+};
+
+template <class T>
+bool operator== (const mem_heap_allocator<T>& left,
+		 const mem_heap_allocator<T>& right)
+{
+	return(left.heap == right.heap);
+}
+
+template <class T>
+bool operator!= (const mem_heap_allocator<T>& left,
+		 const mem_heap_allocator<T>& right)
+{
+	return(left.heap != right.heap);
+}
 
 #endif

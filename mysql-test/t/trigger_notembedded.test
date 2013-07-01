@@ -329,6 +329,7 @@ INSERT INTO t1 VALUES(6);
 # Check that SHOW TRIGGERS statement provides "Definer" column.
 #
 
+--replace_column 6 #
 SHOW TRIGGERS;
 
 #
@@ -387,6 +388,7 @@ SELECT trigger_name, definer FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_n
 
 --echo
 
+--replace_column 17 #
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
 
 #

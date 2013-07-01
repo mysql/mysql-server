@@ -23,6 +23,8 @@ Doublwrite buffer module
 Created 2011/12/19
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "buf0dblwr.h"
 
 #ifdef UNIV_NONINL
@@ -40,20 +42,20 @@ Created 2011/12/19
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register the mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	buf_dblwr_mutex_key;
+mysql_pfs_key_t	buf_dblwr_mutex_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 /** The doublewrite buffer */
-UNIV_INTERN buf_dblwr_t*	buf_dblwr = NULL;
+buf_dblwr_t*	buf_dblwr = NULL;
 
 /** Set to TRUE when the doublewrite buffer is being created */
-UNIV_INTERN ibool	buf_dblwr_being_created = FALSE;
+ibool	buf_dblwr_being_created = FALSE;
 
 /****************************************************************//**
 Determines if a page number is located inside the doublewrite buffer.
 @return TRUE if the location is inside the two blocks of the
 doublewrite buffer */
-UNIV_INTERN
+
 ibool
 buf_dblwr_page_inside(
 /*==================*/
@@ -82,7 +84,7 @@ buf_dblwr_page_inside(
 /****************************************************************//**
 Calls buf_page_get() on the TRX_SYS_PAGE and returns a pointer to the
 doublewrite buffer within it.
-@return	pointer to the doublewrite buffer within the filespace header
+@return pointer to the doublewrite buffer within the filespace header
 page. */
 UNIV_INLINE
 byte*
@@ -174,7 +176,7 @@ buf_dblwr_init(
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
 doublewrite buffer is placed on the trx system header page.
 @return true if successful, false if not. */
-UNIV_INTERN __attribute__((warn_unused_result))
+__attribute__((warn_unused_result))
 bool
 buf_dblwr_create(void)
 /*==================*/
@@ -354,7 +356,7 @@ upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
 recovery, this function uses a possible doublewrite buffer to restore
 half-written pages in the data files. */
-UNIV_INTERN
+
 void
 buf_dblwr_init_or_restore_pages(
 /*============================*/
@@ -558,7 +560,7 @@ leave_func:
 
 /****************************************************************//**
 Frees doublewrite buffer. */
-UNIV_INTERN
+
 void
 buf_dblwr_free(void)
 /*================*/
@@ -586,7 +588,7 @@ buf_dblwr_free(void)
 
 /********************************************************************//**
 Updates the doublewrite buffer when an IO request is completed. */
-UNIV_INTERN
+
 void
 buf_dblwr_update(
 /*=============*/
@@ -688,7 +690,6 @@ buf_dblwr_assert_on_corrupt_block(
 {
 	buf_page_print(block->frame, 0, BUF_PAGE_PRINT_NO_CRASH);
 
-	ut_print_timestamp(stderr);
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Apparent corruption of an index page n:o %lu in space"
 		" %lu to be written to data file. We intentionally crash"
@@ -774,7 +775,7 @@ and also wakes up the aio thread if simulated aio is used. It is very
 important to call this function after a batch of writes has been posted,
 and also when we may have to wait for a page latch! Otherwise a deadlock
 of threads can occur. */
-UNIV_INTERN
+
 void
 buf_dblwr_flush_buffered_writes(void)
 /*=================================*/
@@ -917,7 +918,7 @@ flush:
 Posts a buffer page for writing. If the doublewrite memory buffer is
 full, calls buf_dblwr_flush_buffered_writes and waits for for free
 space to appear. */
-UNIV_INTERN
+
 void
 buf_dblwr_add_to_batch(
 /*====================*/
@@ -1004,7 +1005,7 @@ flushes in the doublewrite buffer are in use we wait here for one to
 become free. We are guaranteed that a slot will become free because any
 thread that is using a slot must also release the slot before leaving
 this function. */
-UNIV_INTERN
+
 void
 buf_dblwr_write_single_page(
 /*========================*/

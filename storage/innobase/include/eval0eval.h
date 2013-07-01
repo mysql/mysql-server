@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,7 +36,7 @@ Created 12/29/1997 Heikki Tuuri
 Free the buffer from global dynamic memory for a value of a que_node,
 if it has been allocated in the above function. The freeing for pushed
 column values is done in sel_col_prefetch_buf_free. */
-UNIV_INTERN
+
 void
 eval_node_free_val_buf(
 /*===================*/
@@ -65,7 +65,7 @@ eval_node_set_int_val(
 	lint		val);	/*!< in: value to set */
 /*****************************************************************//**
 Gets an integer value from an expression node.
-@return	integer value */
+@return integer value */
 UNIV_INLINE
 lint
 eval_node_get_int_val(
@@ -91,7 +91,7 @@ eval_node_copy_val(
 	que_node_t*	node2);	/*!< in: node to copy from */
 /*****************************************************************//**
 Gets a iboolean value from a query node.
-@return	iboolean value */
+@return iboolean value */
 UNIV_INLINE
 ibool
 eval_node_get_ibool_val(
@@ -99,8 +99,8 @@ eval_node_get_ibool_val(
 	que_node_t*	node);	/*!< in: query graph node */
 /*****************************************************************//**
 Evaluates a comparison node.
-@return	the result of the comparison */
-UNIV_INTERN
+@return the result of the comparison */
+
 ibool
 eval_cmp(
 /*=====*/

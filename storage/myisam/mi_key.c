@@ -22,8 +22,6 @@
 #include <ieeefp.h>
 #endif
 
-#define CHECK_KEYS                              /* Enable safety checks */
-
 #define FIX_LENGTH(cs, pos, length, char_length)                            \
             do {                                                            \
               if (length > char_length)                                     \
@@ -146,7 +144,6 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
     }
     else if (keyseg->flag & HA_SWAP_KEY)
     {						/* Numerical column */
-#ifdef HAVE_ISNAN
       if (type == HA_KEYTYPE_FLOAT)
       {
 	float nr;
@@ -170,7 +167,6 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
 	  continue;
 	}
       }
-#endif
       pos+=length;
       while (length--)
       {
@@ -370,10 +366,8 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr,
     {
       uint length;
       get_key_length(length,key);
-#ifdef CHECK_KEYS
       if (length > keyseg->length || key+length > key_end)
 	goto err;
-#endif
       pos= record+keyseg->start;
       if (keyseg->type != (int) HA_KEYTYPE_NUM)
       {
@@ -396,10 +390,8 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr,
     {
       uint length;
       get_key_length(length,key);
-#ifdef CHECK_KEYS
       if (length > keyseg->length || key+length > key_end)
 	goto err;
-#endif
       /* Store key length */
       if (keyseg->bit_start == 1)
         *(uchar*) (record+keyseg->start)= (uchar) length;
@@ -413,10 +405,8 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr,
     {
       uint length;
       get_key_length(length,key);
-#ifdef CHECK_KEYS
       if (length > keyseg->length || key+length > key_end)
 	goto err;
-#endif
       if (unpack_blobs)
       {
         memcpy(record+keyseg->start+keyseg->bit_start,
@@ -434,10 +424,8 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr,
     {
       uchar *to=  record+keyseg->start+keyseg->length;
       uchar *end= key+keyseg->length;
-#ifdef CHECK_KEYS
       if (end > key_end)
 	goto err;
-#endif
       do
       {
 	 *--to= *key++;
@@ -446,10 +434,8 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr,
     }
     else
     {
-#ifdef CHECK_KEYS
       if (key+keyseg->length > key_end)
 	goto err;
-#endif
       memcpy(record+keyseg->start,(uchar*) key,
 	     (size_t) keyseg->length);
       key+= keyseg->length;

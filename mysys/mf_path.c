@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ char * my_path(char * to, const char *progname,
 	/* test if file without filename is found in path */
 	/* Returns to if found and to has dirpart if found, else NullS */
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define F_OK 0
 #define PATH_SEP ';'
 #define PROGRAM_EXTENSION ".exe"
@@ -107,7 +107,7 @@ static char *find_file_in_path(char *to, const char *name)
       }
     }
   }
-#ifdef __WIN__
+#ifdef _WIN32
   to[0]=FN_CURLIB;
   strxmov(to+1,dir,name,ext,NullS);
   if (!access(to,F_OK))			/* Test in current dir */

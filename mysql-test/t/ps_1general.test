@@ -332,7 +332,9 @@ prepare stmt4 from ' show create table t2 ';
 prepare stmt4 from ' show master status ';
 prepare stmt4 from ' show master logs ';
 prepare stmt4 from ' show slave status ';
+--error ER_UNSUPPORTED_PS
 prepare stmt4 from ' show warnings limit 20 ';
+--error ER_UNSUPPORTED_PS
 prepare stmt4 from ' show errors limit 20 ';
 prepare stmt4 from ' show storage engines ';
 # The output depends upon the precise order in which

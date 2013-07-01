@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static longlong opt_ignore_lines= -1;
 #include <sslopt-vars.h>
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 
@@ -141,7 +141,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -161,7 +161,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replace", 'r', "If duplicate unique key was found, replace old row.",
    &replace, &replace, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -236,7 +236,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password= 1;
     break;
-#ifdef __WIN__
+#ifdef _WIN32
   case 'W':
     opt_protocol = MYSQL_PROTOCOL_PIPE;
     opt_local_file=1;
@@ -314,11 +314,7 @@ static int write_to_table(char *filename, MYSQL *mysql)
   {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
-#ifdef HAVE_SNPRINTF
     snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
-#else
-    sprintf(sql_statement, "DELETE FROM %s", tablename);
-#endif
     if (mysql_query(mysql, sql_statement))
     {
       db_error_with_table(mysql, tablename);
@@ -438,7 +434,7 @@ static MYSQL *db_connect(char *host, char *database,
     mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(mysql,MYSQL_OPT_BIND,opt_bind_addr);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -700,7 +696,7 @@ int main(int argc, char **argv)
     db_disconnect(current_host, mysql);
   }
   my_free(opt_password);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(argv_to_free);

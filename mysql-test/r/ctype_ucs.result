@@ -1224,7 +1224,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(64) CHARACTER SET ucs2 DEFAULT NULL,
   `s2` varchar(64) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=default_engine DEFAULT CHARSET=latin1
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
@@ -2022,7 +2022,7 @@ create table t1 as select concat(benchmark(0,0)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+  `c1` varchar(1) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(sleep(0)));

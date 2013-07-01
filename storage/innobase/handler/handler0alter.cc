@@ -21,14 +21,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
-#include <unireg.h>
-#include <mysqld_error.h>
-#include <log.h>
+/* Include necessary SQL headers */
+#include "ha_prototypes.h"
 #include <debug_sync.h>
-#include <mysql/innodb_priv.h>
-#include <sql_alter.h>
+#include <log.h>
 #include <sql_class.h>
 
+/* Include necessary InnoDB headers */
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
@@ -41,12 +40,10 @@ Smart ALTER TABLE
 #include "srv0space.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
-#include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "srv0mon.h"
 #include "fts0priv.h"
 #include "pars0pars.h"
-
 #include "ha_innodb.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
@@ -167,8 +164,8 @@ my_error_innodb(
 }
 
 /** Determine if fulltext indexes exist in a given table.
-@param table		MySQL table
-@return			whether fulltext indexes exist on the table */
+@param table MySQL table
+@return whether fulltext indexes exist on the table */
 static
 bool
 innobase_fulltext_exist(
@@ -186,7 +183,7 @@ innobase_fulltext_exist(
 
 /*******************************************************************//**
 Determine if ALTER TABLE needs to rebuild the table.
-@param ha_alter_info		the DDL operation
+@param ha_alter_info the DDL operation
 @return whether it is necessary to rebuild the table */
 static __attribute__((nonnull, warn_unused_result))
 bool
@@ -208,20 +205,20 @@ innobase_need_rebuild(
 }
 
 /** Check if InnoDB supports a particular alter table in-place
-@param altered_table	TABLE object for new version of table.
-@param ha_alter_info	Structure describing changes to be done
+@param altered_table TABLE object for new version of table.
+@param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
 
-@retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
-@retval HA_ALTER_INPLACE_NO_LOCK	Supported
+@retval HA_ALTER_INPLACE_NOT_SUPPORTED Not supported
+@retval HA_ALTER_INPLACE_NO_LOCK Supported
 @retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE Supported, but requires
 lock during main phase and exclusive lock during prepare phase.
-@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE	Supported, prepare phase
+@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
 requires exclusive lock (any transactions that have accessed the table
 must commit or roll back first, and no transactions can access the table
 while prepare_inplace_alter_table() is executing)
 */
-UNIV_INTERN
+
 enum_alter_inplace_result
 ha_innobase::check_if_supported_inplace_alter(
 /*==========================================*/
@@ -677,7 +674,7 @@ innobase_set_foreign_key_option(
 /*******************************************************************//**
 Check if a foreign key constraint can make use of an index
 that is being created.
-@return	useable index, or NULL if none found */
+@return useable index, or NULL if none found */
 static __attribute__((nonnull, warn_unused_result))
 const KEY*
 innobase_find_equiv_index(
@@ -806,6 +803,8 @@ innobase_get_foreign_key_info(
 	ulint		num_fk = 0;
 	Alter_info*	alter_info = ha_alter_info->alter_info;
 
+	DBUG_ENTER("innobase_get_foreign_key_info");
+
 	*n_add_fk = 0;
 
 	List_iterator<Key> key_iterator(alter_info->key_list);
@@ -826,7 +825,7 @@ innobase_get_foreign_key_info(
 		char*		tbl_namep = NULL;
 		ulint		db_name_len = 0;
 		ulint		tbl_name_len = 0;
-#ifdef __WIN__
+#ifdef _WIN32
 		char		db_name[MAX_DATABASE_NAME_LEN];
 		char		tbl_name[MAX_TABLE_NAME_LEN];
 #endif
@@ -863,7 +862,7 @@ innobase_get_foreign_key_info(
 			/* Check whether there exist such
 			index in the the index create clause */
 			if (!index && !innobase_find_equiv_index(
-				    column_names, i,
+				    column_names, (uint) i,
 				    ha_alter_info->key_info_buffer,
 				    ha_alter_info->index_add_buffer,
 				    ha_alter_info->index_add_count)) {
@@ -881,7 +880,7 @@ innobase_get_foreign_key_info(
 
 		add_fk[num_fk] = dict_mem_foreign_create();
 
-#ifndef __WIN__
+#ifndef _WIN32
 		tbl_namep = fk_key->ref_table.str;
 		tbl_name_len = fk_key->ref_table.length;
 		db_namep = fk_key->ref_db.str;
@@ -1007,7 +1006,7 @@ innobase_get_foreign_key_info(
 
 	*n_add_fk = num_fk;
 
-	return(true);
+	DBUG_RETURN(true);
 err_exit:
 	for (ulint i = 0; i <= num_fk; i++) {
 		if (add_fk[i]) {
@@ -1015,7 +1014,7 @@ err_exit:
 		}
 	}
 
-	return(false);
+	DBUG_RETURN(false);
 }
 
 /*************************************************************//**
@@ -1110,7 +1109,7 @@ innobase_col_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_rec_to_mysql(
 /*==================*/
@@ -1162,7 +1161,7 @@ null_field:
 
 /*************************************************************//**
 Copies an InnoDB index entry to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_fields_to_mysql(
 /*=====================*/
@@ -1205,7 +1204,7 @@ innobase_fields_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB row to table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_row_to_mysql(
 /*==================*/
@@ -1241,7 +1240,7 @@ innobase_row_to_mysql(
 
 /*************************************************************//**
 Resets table->record[0]. */
-UNIV_INTERN
+
 void
 innobase_rec_reset(
 /*===============*/
@@ -1257,7 +1256,7 @@ innobase_rec_reset(
 
 /*******************************************************************//**
 This function checks that index keys are sensible.
-@return	0 or error number */
+@return 0 or error number */
 static __attribute__((nonnull, warn_unused_result))
 int
 innobase_check_index_keys(
@@ -1603,8 +1602,8 @@ innobase_fts_check_doc_id_col(
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
-@return	the status of the FTS_DOC_ID index */
-UNIV_INTERN
+@return the status of the FTS_DOC_ID index */
+
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
@@ -1690,9 +1689,9 @@ innobase_fts_check_doc_id_index(
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column in MySQL create index definition.
-@return	FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+@return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-UNIV_INTERN
+
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index_in_def(
 /*===================================*/
@@ -1737,7 +1736,7 @@ ELSE
 
 ENDIF
 
-@return	key definitions */
+@return key definitions */
 static __attribute__((nonnull, warn_unused_result, malloc))
 index_def_t*
 innobase_create_key_defs(
@@ -1956,7 +1955,7 @@ created_clustered:
 
 /*******************************************************************//**
 Check each index column size, make sure they do not exceed the max limit
-@return	true if index column size exceeds limit */
+@return true if index column size exceeds limit */
 static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_check_column_length(
@@ -2169,9 +2168,9 @@ online_retry_drop_indexes_with_trx(
 }
 
 /** Determines if InnoDB is dropping a foreign key constraint.
-@param foreign		the constraint
-@param drop_fk		constraints being dropped
-@param n_drop_fk	number of constraints that are being dropped
+@param foreign the constraint
+@param drop_fk constraints being dropped
+@param n_drop_fk number of constraints that are being dropped
 @return whether the constraint is being dropped */
 inline __attribute__((pure, nonnull, warn_unused_result))
 bool
@@ -2192,13 +2191,13 @@ innobase_dropping_foreign(
 
 /** Determines if an InnoDB FOREIGN KEY constraint depends on a
 column that is being dropped or modified to NOT NULL.
-@param user_table	InnoDB table as it is before the ALTER operation
-@param col_name		Name of the column being altered
-@param drop_fk		constraints being dropped
-@param n_drop_fk	number of constraints that are being dropped
-@param drop		true=drop column, false=set NOT NULL
-@retval true		Not allowed (will call my_error())
-@retval false		Allowed
+@param user_table InnoDB table as it is before the ALTER operation
+@param col_name Name of the column being altered
+@param drop_fk constraints being dropped
+@param n_drop_fk number of constraints that are being dropped
+@param drop true=drop column, false=set NOT NULL
+@retval true Not allowed (will call my_error())
+@retval false Allowed
 */
 static __attribute__((pure, nonnull, warn_unused_result))
 bool
@@ -2284,14 +2283,14 @@ innobase_check_foreigns_low(
 
 /** Determines if an InnoDB FOREIGN KEY constraint depends on a
 column that is being dropped or modified to NOT NULL.
-@param ha_alter_info	Data used during in-place alter
-@param altered_table	MySQL table that is being altered
-@param old_table	MySQL table as it is before the ALTER operation
-@param user_table	InnoDB table as it is before the ALTER operation
-@param drop_fk		constraints being dropped
-@param n_drop_fk	number of constraints that are being dropped
-@retval true		Not allowed (will call my_error())
-@retval false		Allowed
+@param ha_alter_info Data used during in-place alter
+@param altered_table MySQL table that is being altered
+@param old_table MySQL table as it is before the ALTER operation
+@param user_table InnoDB table as it is before the ALTER operation
+@param drop_fk constraints being dropped
+@param n_drop_fk number of constraints that are being dropped
+@retval true Not allowed (will call my_error())
+@retval false Allowed
 */
 static __attribute__((pure, nonnull, warn_unused_result))
 bool
@@ -2334,10 +2333,10 @@ innobase_check_foreigns(
 
 /** Convert a default value for ADD COLUMN.
 
-@param heap	Memory heap where allocated
-@param dfield	InnoDB data field to copy to
-@param field	MySQL value for the column
-@param comp	nonzero if in compact format */
+@param heap Memory heap where allocated
+@param dfield InnoDB data field to copy to
+@param field MySQL value for the column
+@param comp nonzero if in compact format */
 static __attribute__((nonnull))
 void
 innobase_build_col_map_add(
@@ -2363,14 +2362,14 @@ innobase_build_col_map_add(
 /** Construct the translation table for reordering, dropping or
 adding columns.
 
-@param ha_alter_info	Data used during in-place alter
-@param altered_table	MySQL table that is being altered
-@param table		MySQL table as it is before the ALTER operation
-@param new_table	InnoDB table corresponding to MySQL altered_table
-@param old_table	InnoDB table corresponding to MYSQL table
-@param add_cols		Default values for ADD COLUMN, or NULL if no ADD COLUMN
-@param heap		Memory heap where allocated
-@return	array of integers, mapping column numbers in the table
+@param ha_alter_info Data used during in-place alter
+@param altered_table MySQL table that is being altered
+@param table MySQL table as it is before the ALTER operation
+@param new_table InnoDB table corresponding to MySQL altered_table
+@param old_table InnoDB table corresponding to MYSQL table
+@param add_cols Default values for ADD COLUMN, or NULL if no ADD COLUMN
+@param heap Memory heap where allocated
+@return array of integers, mapping column numbers in the table
 to column numbers in altered_table */
 static __attribute__((nonnull(1,2,3,4,5,7), warn_unused_result))
 const ulint*
@@ -2472,9 +2471,9 @@ found_col:
 
 /** Drop newly create FTS index related auxiliary table during
 FIC create index process, before fts_add_index is called
-@param table    table that was being rebuilt online
-@param trx	transaction
-@return		DB_SUCCESS if successful, otherwise last error code
+@param table table that was being rebuilt online
+@param trx transaction
+@return DB_SUCCESS if successful, otherwise last error code
 */
 static
 dberr_t
@@ -2503,10 +2502,10 @@ innobase_drop_fts_index_table(
 }
 
 /** Get the new column names if any columns were renamed
-@param ha_alter_info	Data used during in-place alter
-@param altered_table	MySQL table that is being altered
-@param user_table	InnoDB table as it is before the ALTER operation
-@param heap		Memory heap for the allocation
+@param ha_alter_info Data used during in-place alter
+@param altered_table MySQL table that is being altered
+@param user_table InnoDB table as it is before the ALTER operation
+@param heap Memory heap for the allocation
 @return array of new column names in rebuilt_table, or NULL if not renamed */
 static __attribute__((nonnull, warn_unused_result))
 const char**
@@ -2546,18 +2545,18 @@ innobase_get_col_names(
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
-@param ha_alter_info	Data used during in-place alter
-@param altered_table	MySQL table that is being altered
-@param old_table	MySQL table as it is before the ALTER operation
-@param table_name	Table name in MySQL
-@param flags		Table and tablespace flags
-@param flags2		Additional table flags
-@param fts_doc_id_col	The column number of FTS_DOC_ID
-@param add_fts_doc_id	Flag: add column FTS_DOC_ID?
+@param ha_alter_info Data used during in-place alter
+@param altered_table MySQL table that is being altered
+@param old_table MySQL table as it is before the ALTER operation
+@param table_name Table name in MySQL
+@param flags Table and tablespace flags
+@param flags2 Additional table flags
+@param fts_doc_id_col The column number of FTS_DOC_ID
+@param add_fts_doc_id Flag: add column FTS_DOC_ID?
 @param add_fts_doc_id_idx Flag: add index FTS_DOC_ID_INDEX (FTS_DOC_ID)?
 
-@retval true		Failure
-@retval false		Success
+@retval true Failure
+@retval false Success
 */
 static __attribute__((warn_unused_result, nonnull(1,2,3,4)))
 bool
@@ -2988,7 +2987,9 @@ prepare_inplace_alter_table_dict(
 			error = DB_OUT_OF_MEMORY;
 			goto error_handling;
 		}
+	}
 
+	if (ctx->online) {
 		/* Assign a consistent read view for
 		row_merge_read_clustered_index(). */
 		trx_assign_read_view(ctx->prebuilt->trx);
@@ -3262,8 +3263,8 @@ innobase_check_foreign_key_index(
 /**
 Rename a given index in the InnoDB data dictionary.
 
-@param index       index to rename
-@param new_name    new name of the index
+@param index index to rename
+@param new_name new name of the index
 @param[in,out] trx dict transaction to use, not going to be committed here
 
 @retval true Failure
@@ -3331,10 +3332,10 @@ rename_index_in_data_dictionary(
 Rename all indexes in data dictionary of a given table that are
 specified in ha_alter_info.
 
-@param ctx           alter context, used to fetch the list of indexes to
+@param ctx alter context, used to fetch the list of indexes to
 rename
 @param ha_alter_info fetch the new names from here
-@param[in,out] trx   dict transaction to use, not going to be committed here
+@param[in,out] trx dict transaction to use, not going to be committed here
 
 @retval true Failure
 @retval false Success */
@@ -3373,7 +3374,7 @@ rename_indexes_in_data_dictionary(
 Rename a given index in the InnoDB data dictionary cache.
 
 @param[in,out] index index to rename
-@param new_name      new index name
+@param new_name new index name
 */
 static
 void
@@ -3419,7 +3420,7 @@ rename_index_in_cache(
 Rename all indexes in data dictionary cache of a given table that are
 specified in ha_alter_info.
 
-@param ctx alter     context, used to fetch the list of indexes to rename
+@param ctx alter context, used to fetch the list of indexes to rename
 @param ha_alter_info fetch the new names from here
 */
 static
@@ -3452,14 +3453,14 @@ writes blocked (provided that check_if_supported_inplace_alter()
 did not return HA_ALTER_INPLACE_NO_LOCK).
 This will be invoked before inplace_alter_table().
 
-@param altered_table	TABLE object for new version of table.
-@param ha_alter_info	Structure describing changes to be done
+@param altered_table TABLE object for new version of table.
+@param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
 
-@retval true		Failure
-@retval false		Success
+@retval true Failure
+@retval false Success
 */
-UNIV_INTERN
+
 bool
 ha_innobase::prepare_inplace_alter_table(
 /*=====================================*/
@@ -4069,14 +4070,14 @@ specified using Alter_inplace_info.
 The level of concurrency allowed during this operation depends
 on the return value from check_if_supported_inplace_alter().
 
-@param altered_table	TABLE object for new version of table.
-@param ha_alter_info	Structure describing changes to be done
+@param altered_table TABLE object for new version of table.
+@param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
 
-@retval true		Failure
-@retval false		Success
+@retval true Failure
+@retval false Success
 */
-UNIV_INTERN
+
 bool
 ha_innobase::inplace_alter_table(
 /*=============================*/
@@ -4206,7 +4207,7 @@ oom:
 }
 
 /** Free the modification log for online table rebuild.
-@param table	table that was being rebuilt online */
+@param table table that was being rebuilt online */
 static
 void
 innobase_online_rebuild_log_free(
@@ -4237,10 +4238,10 @@ innobase_online_rebuild_log_free(
 
 /** Rollback a secondary index creation, drop the indexes with
 temparary index prefix
-@param user_table	InnoDB table
-@param table		the TABLE
-@param locked		TRUE=table locked, FALSE=may need to do a lazy drop
-@param trx		the transaction
+@param user_table InnoDB table
+@param table the TABLE
+@param locked TRUE=table locked, FALSE=may need to do a lazy drop
+@param trx the transaction
 */
 static __attribute__((nonnull))
 void
@@ -4270,11 +4271,11 @@ for inplace_alter_table() and thus might be higher than during
 prepare_inplace_alter_table(). (E.g concurrent writes were blocked
 during prepare, but might not be during commit).
 
-@param ha_alter_info	Data used during in-place alter.
-@param table		the TABLE
-@param prebuilt		the prebuilt struct
-@retval true		Failure
-@retval false		Success
+@param ha_alter_info Data used during in-place alter.
+@param table the TABLE
+@param prebuilt the prebuilt struct
+@retval true Failure
+@retval false Success
 */
 inline __attribute__((nonnull, warn_unused_result))
 bool
@@ -4392,11 +4393,11 @@ func_exit:
 }
 
 /** Drop a FOREIGN KEY constraint from the data dictionary tables.
-@param trx		data dictionary transaction
-@param table_name	Table name in MySQL
-@param foreign_id	Foreign key constraint identifier
-@retval true		Failure
-@retval false		Success */
+@param trx data dictionary transaction
+@param table_name Table name in MySQL
+@param foreign_id Foreign key constraint identifier
+@retval true Failure
+@retval false Success */
 static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_drop_foreign_try(
@@ -4445,15 +4446,15 @@ innobase_drop_foreign_try(
 }
 
 /** Rename a column in the data dictionary tables.
-@param user_table	InnoDB table that was being altered
-@param trx		data dictionary transaction
-@param table_name	Table name in MySQL
-@param nth_col		0-based index of the column
-@param from		old column name
-@param to		new column name
-@param new_clustered	whether the table has been rebuilt
-@retval true		Failure
-@retval false		Success */
+@param user_table InnoDB table that was being altered
+@param trx data dictionary transaction
+@param table_name Table name in MySQL
+@param nth_col 0-based index of the column
+@param from old column name
+@param to new column name
+@param new_clustered whether the table has been rebuilt
+@retval true Failure
+@retval false Success */
 static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_rename_column_try(
@@ -4631,13 +4632,13 @@ rename_foreign:
 }
 
 /** Rename columns in the data dictionary tables.
-@param ha_alter_info	Data used during in-place alter.
-@param ctx		In-place ALTER TABLE context
-@param table		the TABLE
-@param trx		data dictionary transaction
-@param table_name	Table name in MySQL
-@retval true		Failure
-@retval false		Success */
+@param ha_alter_info Data used during in-place alter.
+@param ctx In-place ALTER TABLE context
+@param table the TABLE
+@param trx data dictionary transaction
+@param table_name Table name in MySQL
+@retval true Failure
+@retval false Success */
 static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_rename_columns_try(
@@ -4684,13 +4685,13 @@ processed_field:
 }
 
 /** Enlarge a column in the data dictionary tables.
-@param user_table	InnoDB table that was being altered
-@param trx		data dictionary transaction
-@param table_name	Table name in MySQL
-@param nth_col		0-based index of the column
-@param new_len		new column length, in bytes
-@retval true		Failure
-@retval false		Success */
+@param user_table InnoDB table that was being altered
+@param trx data dictionary transaction
+@param table_name Table name in MySQL
+@param nth_col 0-based index of the column
+@param new_len new column length, in bytes
+@retval true Failure
+@retval false Success */
 static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_enlarge_column_try(
@@ -4763,13 +4764,13 @@ innobase_enlarge_column_try(
 }
 
 /** Enlarge columns in the data dictionary tables.
-@param ha_alter_info	Data used during in-place alter.
-@param table		the TABLE
-@param user_table	InnoDB table that was being altered
-@param trx		data dictionary transaction
-@param table_name	Table name in MySQL
-@retval true		Failure
-@retval false		Success */
+@param ha_alter_info Data used during in-place alter.
+@param table the TABLE
+@param user_table InnoDB table that was being altered
+@param trx data dictionary transaction
+@param table_name Table name in MySQL
+@retval true Failure
+@retval false Success */
 static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_enlarge_columns_try(
@@ -4806,9 +4807,9 @@ innobase_enlarge_columns_try(
 
 /** Rename or enlarge columns in the data dictionary cache
 as part of commit_cache_norebuild().
-@param ha_alter_info	Data used during in-place alter.
-@param table		the TABLE
-@param user_table	InnoDB table that was being altered */
+@param ha_alter_info Data used during in-place alter.
+@param table the TABLE
+@param user_table InnoDB table that was being altered */
 static __attribute__((nonnull))
 void
 innobase_rename_or_enlarge_columns_cache(
@@ -4851,10 +4852,10 @@ innobase_rename_or_enlarge_columns_cache(
 }
 
 /** Get the auto-increment value of the table on commit.
-@param ha_alter_info	Data used during in-place alter
-@param ctx		In-place ALTER TABLE context
-@param altered_table	MySQL table that is being altered
-@param old_table	MySQL table as it is before the ALTER operation
+@param ha_alter_info Data used during in-place alter
+@param ctx In-place ALTER TABLE context
+@param altered_table MySQL table that is being altered
+@param old_table MySQL table as it is before the ALTER operation
 @return the next auto-increment value (0 if not present) */
 static __attribute__((nonnull, warn_unused_result))
 ulonglong
@@ -4908,12 +4909,12 @@ commit_get_autoinc(
 
 /** Add or drop foreign key constraints to the data dictionary tables,
 but do not touch the data dictionary cache.
-@param ha_alter_info	Data used during in-place alter
-@param ctx		In-place ALTER TABLE context
-@param trx		Data dictionary transaction
-@param table_name	Table name in MySQL
-@retval true		Failure
-@retval false		Success
+@param ha_alter_info Data used during in-place alter
+@param ctx In-place ALTER TABLE context
+@param trx Data dictionary transaction
+@param table_name Table name in MySQL
+@retval true Failure
+@retval false Success
 */
 static __attribute__((nonnull, warn_unused_result))
 bool
@@ -4995,8 +4996,8 @@ innobase_update_foreign_try(
 
 /** Update the foreign key constraint definitions in the data dictionary cache
 after the changes to data dictionary tables were committed.
-@param ctx	In-place ALTER TABLE context
-@return		InnoDB error code (should always be DB_SUCCESS) */
+@param ctx In-place ALTER TABLE context
+@return InnoDB error code (should always be DB_SUCCESS) */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 innobase_update_foreign_cache(
@@ -5004,8 +5005,11 @@ innobase_update_foreign_cache(
 	ha_innobase_inplace_ctx*	ctx)
 {
 	dict_table_t*	user_table;
+	dberr_t		err = DB_SUCCESS;
 
 	DBUG_ENTER("innobase_update_foreign_cache");
+
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	user_table = ctx->old_table;
 
@@ -5038,22 +5042,29 @@ innobase_update_foreign_cache(
 	/* Load the old or added foreign keys from the data dictionary
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
-	DBUG_RETURN(dict_load_foreigns(user_table->name,
-				       ctx->col_names, false, true,
-				       DICT_ERR_IGNORE_NONE));
+	dict_names_t	fk_tables;
+
+	err = dict_load_foreigns(user_table->name,
+				 ctx->col_names, false, true,
+				 DICT_ERR_IGNORE_NONE,
+				 fk_tables);
+
+	ut_ad(fk_tables.empty());
+
+	DBUG_RETURN(err);
 }
 
 /** Commit the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the data dictionary tables,
 when rebuilding the table.
-@param ha_alter_info	Data used during in-place alter
-@param ctx		In-place ALTER TABLE context
-@param altered_table	MySQL table that is being altered
-@param old_table	MySQL table as it is before the ALTER operation
-@param trx		Data dictionary transaction
-@param table_name	Table name in MySQL
-@retval true		Failure
-@retval false		Success
+@param ha_alter_info Data used during in-place alter
+@param ctx In-place ALTER TABLE context
+@param altered_table MySQL table that is being altered
+@param old_table MySQL table as it is before the ALTER operation
+@param trx Data dictionary transaction
+@param table_name Table name in MySQL
+@retval true Failure
+@retval false Success
 */
 inline __attribute__((nonnull, warn_unused_result))
 bool
@@ -5216,7 +5227,7 @@ commit_try_rebuild(
 
 /** Apply the changes made during commit_try_rebuild(),
 to the data dictionary cache and the file system.
-@param ctx	In-place ALTER TABLE context */
+@param ctx In-place ALTER TABLE context */
 inline __attribute__((nonnull))
 void
 commit_cache_rebuild(
@@ -5249,13 +5260,13 @@ commit_cache_rebuild(
 /** Commit the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the data dictionary tables,
 when not rebuilding the table.
-@param ha_alter_info	Data used during in-place alter
-@param ctx		In-place ALTER TABLE context
-@param old_table	MySQL table as it is before the ALTER operation
-@param trx		Data dictionary transaction
-@param table_name	Table name in MySQL
-@retval true		Failure
-@retval false		Success
+@param ha_alter_info Data used during in-place alter
+@param ctx In-place ALTER TABLE context
+@param old_table MySQL table as it is before the ALTER operation
+@param trx Data dictionary transaction
+@param table_name Table name in MySQL
+@retval true Failure
+@retval false Success
 */
 inline __attribute__((nonnull, warn_unused_result))
 bool
@@ -5376,9 +5387,9 @@ commit_try_norebuild(
 
 /** Commit the changes to the data dictionary cache
 after a successful commit_try_norebuild() call.
-@param ctx		In-place ALTER TABLE context
-@param table		the TABLE before the ALTER
-@param trx		Data dictionary transaction object
+@param ctx In-place ALTER TABLE context
+@param table the TABLE before the ALTER
+@param trx Data dictionary transaction object
 (will be started and committed)
 @return whether all replacements were found for dropped indexes */
 inline __attribute__((nonnull, warn_unused_result))
@@ -5462,11 +5473,11 @@ commit_cache_norebuild(
 /** Adjust the persistent statistics after non-rebuilding ALTER TABLE.
 Remove statistics for dropped indexes, add statistics for created indexes
 and rename statistics for renamed indexes.
-@param ha_alter_info	Data used during in-place alter
-@param ctx		In-place ALTER TABLE context
-@param altered_table	MySQL table that is being altered
-@param table_name	Table name in MySQL
-@param thd		MySQL connection
+@param ha_alter_info Data used during in-place alter
+@param ctx In-place ALTER TABLE context
+@param altered_table MySQL table that is being altered
+@param table_name Table name in MySQL
+@param thd MySQL connection
 */
 static
 void
@@ -5561,9 +5572,9 @@ alter_stats_norebuild(
 /** Adjust the persistent statistics after rebuilding ALTER TABLE.
 Remove statistics for dropped indexes, add statistics for created indexes
 and rename statistics for renamed indexes.
-@param table		InnoDB table that was rebuilt by ALTER TABLE
-@param table_name	Table name in MySQL
-@param thd		MySQL connection
+@param table InnoDB table that was rebuilt by ALTER TABLE
+@param table_name Table name in MySQL
+@param thd MySQL connection
 */
 static
 void
@@ -5582,7 +5593,7 @@ alter_stats_rebuild(
 
 	dberr_t	ret;
 #ifndef DBUG_OFF
-	bool	ibd_file_missing_orig;
+	bool	ibd_file_missing_orig= false;
 #endif /* !DBUG_OFF */
 
 	DBUG_EXECUTE_IF(
@@ -5629,14 +5640,14 @@ during this operation will be the same as for
 inplace_alter_table() and thus might be higher than during
 prepare_inplace_alter_table(). (E.g concurrent writes were
 blocked during prepare, but might not be during commit).
-@param altered_table	TABLE object for new version of table.
-@param ha_alter_info	Structure describing changes to be done
+@param altered_table TABLE object for new version of table.
+@param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
-@param commit		true => Commit, false => Rollback.
-@retval true		Failure
-@retval false		Success
+@param commit true => Commit, false => Rollback.
+@retval true Failure
+@retval false Success
 */
-UNIV_INTERN
+
 bool
 ha_innobase::commit_inplace_alter_table(
 /*====================================*/
@@ -5882,7 +5893,7 @@ ha_innobase::commit_inplace_alter_table(
 				DBUG_SUICIDE(););
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
-		ut_ad(trx->insert_undo || trx->update_undo);
+		ut_ad(trx_is_rseg_updated(trx));
 
 		/* The following call commits the
 		mini-transaction, making the data dictionary
@@ -5965,6 +5976,9 @@ ha_innobase::commit_inplace_alter_table(
 			because WL#6049 (FK MDL) has not been
 			implemented yet. */
 			ctx->old_table->to_be_dropped = true;
+
+			DBUG_PRINT("to_be_dropped",
+				   ("table: %s", ctx->old_table->name));
 
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
@@ -6216,10 +6230,10 @@ foreign_fail:
 }
 
 /**
-@param thd - the session
-@param start_value - the lower bound
-@param max_value - the upper bound (inclusive) */
-UNIV_INTERN
+@param thd the session
+@param start_value the lower bound
+@param max_value the upper bound (inclusive) */
+
 ib_sequence_t::ib_sequence_t(
 	THD*		thd,
 	ulonglong	start_value,
@@ -6256,7 +6270,7 @@ ib_sequence_t::ib_sequence_t(
 /**
 Postfix increment
 @return the next value to insert */
-UNIV_INTERN
+
 ulonglong
 ib_sequence_t::operator++(int) UNIV_NOTHROW
 {

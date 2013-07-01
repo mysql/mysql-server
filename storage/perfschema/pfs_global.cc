@@ -30,7 +30,7 @@
 #include <unistd.h>
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
   #include <winsock2.h>
 #else
   #include <arpa/inet.h>
@@ -147,7 +147,7 @@ uint pfs_get_socket_address(char *host,
       if (host_len < INET_ADDRSTRLEN+1)
         return 0;
       struct sockaddr_in *sa4= (struct sockaddr_in *)(src_addr);
-    #ifdef __WIN__
+    #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
       getnameinfo((struct sockaddr *)sa4, sizeof(struct sockaddr_in),
                   host, host_len, NULL, 0, NI_NUMERICHOST);
@@ -164,7 +164,7 @@ uint pfs_get_socket_address(char *host,
       if (host_len < INET6_ADDRSTRLEN+1)
         return 0;
       struct sockaddr_in6 *sa6= (struct sockaddr_in6 *)(src_addr);
-    #ifdef __WIN__
+    #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
       getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in6),
                   host, host_len, NULL, 0, NI_NUMERICHOST);

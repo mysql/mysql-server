@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -19,7 +19,7 @@
 #include <gmock/gmock.h>
 
 // Ignore test on windows, as we are mocking away a unix function, see below.
-#ifndef __WIN__
+#ifndef _WIN32
 namespace mysys_my_write_unittest {
 
 using ::testing::_;

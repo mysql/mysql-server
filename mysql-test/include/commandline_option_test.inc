@@ -31,8 +31,9 @@ use lib "include";
 use server_option_test;
 use strict;
 init_bootstrap() if not -d "$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap";
-commandline_bootstrap("$ENV{'TEST_OPTION'}");
+commandline_bootstrap("$ENV{'TEST_OPTION'}","$ENV{'ADDITIONAL_OPTIONS'}");
 my $found= check_bootstrap_log("$ENV{'LOG_PATTERN'}");
+printf "Additional options: %-60s\n","$ENV{'ADDITIONAL_OPTIONS'}" if $ENV{'ADDITIONAL_OPTIONS'} ne "";
 printf "%-60s %-20s". ($found==1 ? " passed\n" : " failed\n"), "'$ENV{'TEST_OPTION'}'", "on commandline:";
 EOF
 

@@ -3283,63 +3283,6 @@ int ha_federated::external_lock(THD *thd, int lock_type)
   /*
     Support for transactions disabled until WL#2952 fixes it.
   */
-#ifdef XXX_SUPERCEDED_BY_WL2952
-  if (lock_type != F_UNLCK)
-  {
-    ha_federated *trx= (ha_federated *)thd_get_ha_data(thd, ht);
-
-    DBUG_PRINT("info",("federated not lock F_UNLCK"));
-    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
-    {
-      DBUG_PRINT("info",("federated autocommit"));
-      /* 
-        This means we are doing an autocommit
-      */
-      error= connection_autocommit(TRUE);
-      if (error)
-      {
-        DBUG_PRINT("info", ("error setting autocommit TRUE: %d", error));
-        DBUG_RETURN(error);
-      }
-      trans_register_ha(thd, FALSE, ht);
-    }
-    else 
-    { 
-      DBUG_PRINT("info",("not autocommit"));
-      if (!trx)
-      {
-        /* 
-          This is where a transaction gets its start
-        */
-        error= connection_autocommit(FALSE);
-        if (error)
-        { 
-          DBUG_PRINT("info", ("error setting autocommit FALSE: %d", error));
-          DBUG_RETURN(error);
-        }
-        thd_set_ha_data(thd, ht, this);
-        trans_register_ha(thd, TRUE, ht);
-        /*
-          Send a lock table to the remote end.
-          We do not support this at the moment
-        */
-        if (thd->options & (OPTION_TABLE_LOCK))
-        {
-          DBUG_PRINT("info", ("We do not support lock table yet"));
-        }
-      }
-      else
-      {
-        ha_federated *ptr;
-        for (ptr= trx; ptr; ptr= ptr->trx_next)
-          if (ptr == this)
-            break;
-          else if (!ptr->trx_next)
-            ptr->trx_next= this;
-      }
-    }
-  }
-#endif /* XXX_SUPERCEDED_BY_WL2952 */
   DBUG_RETURN(error);
 }
 

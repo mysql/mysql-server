@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -94,7 +94,7 @@ btr_page_set_index_id(
 
 /**************************************************************//**
 Gets the index id field of a page.
-@return	index id */
+@return index id */
 UNIV_INLINE
 index_id_t
 btr_page_get_index_id(
@@ -107,7 +107,7 @@ btr_page_get_index_id(
 #ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Gets the node level field in an index page.
-@return	level, leaf level == 0 */
+@return level, leaf level == 0 */
 UNIV_INLINE
 ulint
 btr_page_get_level_low(
@@ -153,7 +153,7 @@ btr_page_set_level(
 
 /********************************************************//**
 Gets the next index page number.
-@return	next page number */
+@return next page number */
 UNIV_INLINE
 ulint
 btr_page_get_next(
@@ -193,7 +193,7 @@ btr_page_set_next(
 
 /********************************************************//**
 Gets the previous index page number.
-@return	prev page number */
+@return prev page number */
 UNIV_INLINE
 ulint
 btr_page_get_prev(
@@ -234,7 +234,7 @@ NOTE: the offsets array must contain all offsets for the record since
 we read the last field according to offsets and assume that it contains
 the child page number. In other words offsets must have been retrieved
 with rec_get_offsets(n_fields=ULINT_UNDEFINED).
-@return	child node address */
+@return child node address */
 UNIV_INLINE
 ulint
 btr_node_ptr_get_child_page_no(

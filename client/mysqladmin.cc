@@ -52,7 +52,7 @@ static uint opt_enable_cleartext_plugin= 0;
 static my_bool using_opt_enable_cleartext_plugin= 0;
 static my_bool opt_show_warnings= 0;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -165,7 +165,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -183,7 +183,7 @@ static struct my_option my_long_options[] =
    "Currently only works with extended-status.",
    &opt_relative, &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
   0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -266,7 +266,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     option_silent++;
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
@@ -373,7 +373,7 @@ int main(int argc,char *argv[])
 #endif
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -504,7 +504,7 @@ int main(int argc,char *argv[])
   mysql_close(&mysql);
   my_free(opt_password);
   my_free(user);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(save_argv);
@@ -988,7 +988,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
       if (typed_password[0])
       {
-#ifdef __WIN__
+#ifdef _WIN32
         size_t pw_len= strlen(typed_password);
         if (pw_len > 1 && typed_password[0] == '\'' &&
             typed_password[pw_len-1] == '\'')

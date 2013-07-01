@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -33,6 +33,13 @@ Created 04/12/2011 Jimmy Yang
 #include "innodb_config.h"
 #include "innodb_cb_api.h"
 #include "innodb_utility.h"
+
+/** Configure options enum IDs, their "names" and their default value */
+option_t	config_option_names[] =
+{
+        {OPTION_ID_COL_SEP, COLUMN_SEPARATOR, {"|", 1}},
+        {OPTION_ID_TBL_MAP_SEP, TABLE_MAP_SEPARATOR, {".", 1}}
+};
 
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
@@ -1070,7 +1077,7 @@ innodb_verify(
 	info->cas_enabled = false;
 	info->exp_enabled = false;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	sprintf(table_name, "%s\%s", dbname, name);
 #else
 	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);

@@ -15,7 +15,7 @@
 # In the test scenario, there can be orphaned .frm files.
 # These are expected.  So suppressing the associated warnings.
 call mtr.add_suppression("InnoDB: Error: table .* does not exist "
-                         "in the InnoDB internal");
+			 "in the InnoDB internal");
 
 ################################################################################
 #

@@ -29,7 +29,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "rem0types.h"
 #include "fsp0fsp.h"
 #include "srv0srv.h"
-#include "sync0rw.h" /* RW_S_LATCH */
+#include "sync0rw.h"
 
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
@@ -92,7 +92,7 @@ dict_col_copy_type(
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Assert that a column and a data type match.
-@return	TRUE */
+@return TRUE */
 UNIV_INLINE
 ibool
 dict_col_type_assert_equal(
@@ -117,7 +117,7 @@ dict_col_type_assert_equal(
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Returns the minimum size of the column.
-@return	minimum size */
+@return minimum size */
 UNIV_INLINE
 ulint
 dict_col_get_min_size(
@@ -129,7 +129,7 @@ dict_col_get_min_size(
 }
 /***********************************************************************//**
 Returns the maximum size of the column.
-@return	maximum size */
+@return maximum size */
 UNIV_INLINE
 ulint
 dict_col_get_max_size(
@@ -141,7 +141,7 @@ dict_col_get_max_size(
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************************//**
 Returns the size of a fixed size column, 0 if not a fixed size column.
-@return	fixed size, or 0 */
+@return fixed size, or 0 */
 UNIV_INLINE
 ulint
 dict_col_get_fixed_size(
@@ -155,7 +155,7 @@ dict_col_get_fixed_size(
 /***********************************************************************//**
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
 For fixed length types it is the fixed length of the type, otherwise 0.
-@return	SQL null storage size in ROW_FORMAT=REDUNDANT */
+@return SQL null storage size in ROW_FORMAT=REDUNDANT */
 UNIV_INLINE
 ulint
 dict_col_get_sql_null_size(
@@ -168,7 +168,7 @@ dict_col_get_sql_null_size(
 
 /*********************************************************************//**
 Gets the column number.
-@return	col->ind, table column position (starting from 0) */
+@return col->ind, table column position (starting from 0) */
 UNIV_INLINE
 ulint
 dict_col_get_no(
@@ -210,7 +210,7 @@ dict_col_get_clust_pos(
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the first index on the table (the clustered index).
-@return	index, NULL if none exists */
+@return index, NULL if none exists */
 UNIV_INLINE
 dict_index_t*
 dict_table_get_first_index(
@@ -225,7 +225,7 @@ dict_table_get_first_index(
 
 /********************************************************************//**
 Gets the last index on the table.
-@return	index, NULL if none exists */
+@return index, NULL if none exists */
 UNIV_INLINE
 dict_index_t*
 dict_table_get_last_index(
@@ -241,7 +241,7 @@ dict_table_get_last_index(
 
 /********************************************************************//**
 Gets the next index on the table.
-@return	index, NULL if none left */
+@return index, NULL if none left */
 UNIV_INLINE
 dict_index_t*
 dict_table_get_next_index(
@@ -258,7 +258,7 @@ dict_table_get_next_index(
 
 /********************************************************************//**
 Check whether the index is the clustered index.
-@return	nonzero for clustered index, zero for other indexes */
+@return nonzero for clustered index, zero for other indexes */
 UNIV_INLINE
 ulint
 dict_index_is_clust(
@@ -272,7 +272,7 @@ dict_index_is_clust(
 }
 /********************************************************************//**
 Check whether the index is unique.
-@return	nonzero for unique index, zero for other indexes */
+@return nonzero for unique index, zero for other indexes */
 UNIV_INLINE
 ulint
 dict_index_is_unique(
@@ -287,7 +287,7 @@ dict_index_is_unique(
 
 /********************************************************************//**
 Check whether the index is the insert buffer tree.
-@return	nonzero for insert buffer, zero for other indexes */
+@return nonzero for insert buffer, zero for other indexes */
 UNIV_INLINE
 ulint
 dict_index_is_ibuf(
@@ -302,7 +302,7 @@ dict_index_is_ibuf(
 
 /********************************************************************//**
 Check whether the index is an universal index tree.
-@return	nonzero for universal tree, zero for other indexes */
+@return nonzero for universal tree, zero for other indexes */
 UNIV_INLINE
 ulint
 dict_index_is_univ(
@@ -317,7 +317,7 @@ dict_index_is_univ(
 
 /********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
-@return	nonzero for insert buffer, zero for other indexes */
+@return nonzero for insert buffer, zero for other indexes */
 UNIV_INLINE
 ulint
 dict_index_is_sec_or_ibuf(
@@ -337,7 +337,7 @@ dict_index_is_sec_or_ibuf(
 /********************************************************************//**
 Gets the number of user-defined columns in a table in the dictionary
 cache.
-@return	number of user-defined (e.g., not ROW_ID) columns of a table */
+@return number of user-defined (e.g., not ROW_ID) columns of a table */
 UNIV_INLINE
 ulint
 dict_table_get_n_user_cols(
@@ -352,7 +352,7 @@ dict_table_get_n_user_cols(
 
 /********************************************************************//**
 Gets the number of system columns in a table in the dictionary cache.
-@return	number of system (e.g., ROW_ID) columns of a table */
+@return number of system (e.g., ROW_ID) columns of a table */
 UNIV_INLINE
 ulint
 dict_table_get_n_sys_cols(
@@ -369,7 +369,7 @@ dict_table_get_n_sys_cols(
 /********************************************************************//**
 Gets the number of all columns (also system) in a table in the dictionary
 cache.
-@return	number of columns of a table */
+@return number of columns of a table */
 UNIV_INLINE
 ulint
 dict_table_get_n_cols(
@@ -384,7 +384,7 @@ dict_table_get_n_cols(
 
 /********************************************************************//**
 Gets the approximately estimated number of rows in the table.
-@return	estimated number of rows */
+@return estimated number of rows */
 UNIV_INLINE
 ib_uint64_t
 dict_table_get_n_rows(
@@ -435,7 +435,7 @@ dict_table_n_rows_dec(
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the nth column of a table.
-@return	pointer to column object */
+@return pointer to column object */
 UNIV_INLINE
 dict_col_t*
 dict_table_get_nth_col(
@@ -452,7 +452,7 @@ dict_table_get_nth_col(
 
 /********************************************************************//**
 Gets the given system column of a table.
-@return	pointer to column object */
+@return pointer to column object */
 UNIV_INLINE
 dict_col_t*
 dict_table_get_sys_col(
@@ -477,7 +477,7 @@ dict_table_get_sys_col(
 
 /********************************************************************//**
 Gets the given system column number of a table.
-@return	column number */
+@return column number */
 UNIV_INLINE
 ulint
 dict_table_get_sys_col_no(
@@ -494,7 +494,7 @@ dict_table_get_sys_col_no(
 
 /********************************************************************//**
 Check whether the table uses the compact page format.
-@return	TRUE if table uses the compact page format */
+@return TRUE if table uses the compact page format */
 UNIV_INLINE
 ibool
 dict_table_is_comp(
@@ -526,7 +526,7 @@ dict_table_has_fts_index(
 
 /********************************************************************//**
 Validate the table flags.
-@return	true if valid. */
+@return true if valid. */
 UNIV_INLINE
 bool
 dict_tf_is_valid(
@@ -580,7 +580,7 @@ dict_tf_is_valid(
 
 /********************************************************************//**
 Validate a SYS_TABLES TYPE field and return it.
-@return	Same as input after validating it as a SYS_TABLES TYPE field.
+@return Same as input after validating it as a SYS_TABLES TYPE field.
 If there is an error, return ULINT_UNDEFINED. */
 UNIV_INLINE
 ulint
@@ -655,7 +655,7 @@ dict_sys_tables_type_validate(
 Determine the file format from dict_table_t::flags
 The low order bit will be zero for REDUNDANT and 1 for COMPACT. For any
 other row_format, file_format is > 0 and DICT_TF_COMPACT will also be set.
-@return	file format version */
+@return file format version */
 UNIV_INLINE
 rec_format_t
 dict_tf_get_rec_format(
@@ -681,7 +681,7 @@ dict_tf_get_rec_format(
 
 /********************************************************************//**
 Determine the file format from a dict_table_t::flags.
-@return	file format version */
+@return file format version */
 UNIV_INLINE
 ulint
 dict_tf_get_format(
@@ -697,7 +697,7 @@ dict_tf_get_format(
 
 /********************************************************************//**
 Determine the file format of a table.
-@return	file format version */
+@return file format version */
 UNIV_INLINE
 ulint
 dict_table_get_format(
@@ -757,7 +757,7 @@ the translation of the low order bit.  Other bits are the same.
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
-@return	tablespace flags (fil_space_t::flags) */
+@return tablespace flags (fil_space_t::flags) */
 UNIV_INLINE
 ulint
 dict_tf_to_fsp_flags(
@@ -797,7 +797,7 @@ Other bits are the same.
 SYS_TABLES.TYPE     |     1     |    1    |     1
 dict_table_t::flags |     0     |    1    |     1
 ==================================================================
-@return	ulint containing SYS_TABLES.TYPE */
+@return ulint containing SYS_TABLES.TYPE */
 UNIV_INLINE
 ulint
 dict_sys_tables_type_to_tf(
@@ -828,7 +828,7 @@ the low order bit.  Other bits are the same.
 dict_table_t::flags |     0     |    1    |     1
 SYS_TABLES.TYPE     |     1     |    1    |     1
 ==================================================================
-@return	ulint containing SYS_TABLES.TYPE */
+@return ulint containing SYS_TABLES.TYPE */
 UNIV_INLINE
 ulint
 dict_tf_to_sys_tables_type(
@@ -853,7 +853,7 @@ dict_tf_to_sys_tables_type(
 /********************************************************************//**
 Extract the compressed page size from dict_table_t::flags.
 These flags are in memory, so assert that they are valid.
-@return	compressed page size, or 0 if not compressed */
+@return compressed page size, or 0 if not compressed */
 UNIV_INLINE
 ulint
 dict_tf_get_zip_size(
@@ -872,7 +872,7 @@ dict_tf_get_zip_size(
 
 /********************************************************************//**
 Check whether the table uses the compressed compact page format.
-@return	compressed page size, or 0 if not compressed */
+@return compressed page size, or 0 if not compressed */
 UNIV_INLINE
 ulint
 dict_table_zip_size(
@@ -932,7 +932,7 @@ dict_table_x_unlock_indexes(
 /********************************************************************//**
 Gets the number of fields in the internal representation of an index,
 including fields added by the dictionary system.
-@return	number of fields */
+@return number of fields */
 UNIV_INLINE
 ulint
 dict_index_get_n_fields(
@@ -952,7 +952,7 @@ Gets the number of fields in the internal representation of an index
 that uniquely determine the position of an index entry in the index, if
 we do not take multiversioning into account: in the B-tree use the value
 returned by dict_index_get_n_unique_in_tree.
-@return	number of fields */
+@return number of fields */
 UNIV_INLINE
 ulint
 dict_index_get_n_unique(
@@ -971,7 +971,7 @@ dict_index_get_n_unique(
 Gets the number of fields in the internal representation of an index
 which uniquely determine the position of an index entry in the index, if
 we also take multiversioning into account.
-@return	number of fields */
+@return number of fields */
 UNIV_INLINE
 ulint
 dict_index_get_n_unique_in_tree(
@@ -996,7 +996,7 @@ Gets the number of user-defined ordering fields in the index. In the internal
 representation of clustered indexes we add the row id to the ordering fields
 to make a clustered index unique, but this function returns the number of
 fields the user defined in the index as ordering fields.
-@return	number of fields */
+@return number of fields */
 UNIV_INLINE
 ulint
 dict_index_get_n_ordering_defined_by_user(
@@ -1010,7 +1010,7 @@ dict_index_get_n_ordering_defined_by_user(
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the nth field of an index.
-@return	pointer to field object */
+@return pointer to field object */
 UNIV_INLINE
 dict_field_t*
 dict_index_get_nth_field(
@@ -1028,7 +1028,7 @@ dict_index_get_nth_field(
 
 /********************************************************************//**
 Returns the position of a system column in an index.
-@return	position, ULINT_UNDEFINED if not contained */
+@return position, ULINT_UNDEFINED if not contained */
 UNIV_INLINE
 ulint
 dict_index_get_sys_col_pos(
@@ -1053,7 +1053,7 @@ dict_index_get_sys_col_pos(
 
 /*********************************************************************//**
 Gets the field column.
-@return	field->col, pointer to the table column */
+@return field->col, pointer to the table column */
 UNIV_INLINE
 const dict_col_t*
 dict_field_get_col(
@@ -1067,7 +1067,7 @@ dict_field_get_col(
 
 /********************************************************************//**
 Gets pointer to the nth column in an index.
-@return	column */
+@return column */
 UNIV_INLINE
 const dict_col_t*
 dict_index_get_nth_col(
@@ -1080,7 +1080,7 @@ dict_index_get_nth_col(
 
 /********************************************************************//**
 Gets the column number the nth field in an index.
-@return	column number */
+@return column number */
 UNIV_INLINE
 ulint
 dict_index_get_nth_col_no(
@@ -1108,7 +1108,7 @@ dict_index_get_nth_col_pos(
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Returns the minimum data size of an index record.
-@return	minimum data size in bytes */
+@return minimum data size in bytes */
 UNIV_INLINE
 ulint
 dict_index_get_min_size(
@@ -1128,7 +1128,7 @@ dict_index_get_min_size(
 
 /*********************************************************************//**
 Gets the space id of the root of the index tree.
-@return	space id */
+@return space id */
 UNIV_INLINE
 ulint
 dict_index_get_space(
@@ -1158,7 +1158,7 @@ dict_index_set_space(
 
 /*********************************************************************//**
 Gets the page number of the root of the index tree.
-@return	page number */
+@return page number */
 UNIV_INLINE
 ulint
 dict_index_get_page(
@@ -1173,7 +1173,7 @@ dict_index_get_page(
 
 /*********************************************************************//**
 Gets the read-write lock of the index tree.
-@return	read-write lock */
+@return read-write lock */
 UNIV_INLINE
 rw_lock_t*
 dict_index_get_lock(
@@ -1190,7 +1190,7 @@ dict_index_get_lock(
 Returns free space reserved for future updates of records. This is
 relevant only in the case of many consecutive inserts, as updates
 which make the records bigger might fragment the index.
-@return	number of free bytes on page, reserved for updates */
+@return number of free bytes on page, reserved for updates */
 UNIV_INLINE
 ulint
 dict_index_get_space_reserve(void)
@@ -1365,7 +1365,7 @@ dict_table_prevent_eviction(
 
 /********************************************************************//**
 Check whether the table is corrupted.
-@return	nonzero for corrupted table, zero for valid tables */
+@return nonzero for corrupted table, zero for valid tables */
 UNIV_INLINE
 ulint
 dict_table_is_corrupted(
@@ -1380,7 +1380,7 @@ dict_table_is_corrupted(
 
 /********************************************************************//**
 Check whether the index is corrupted.
-@return	nonzero for corrupted index, zero for valid indexes */
+@return nonzero for corrupted index, zero for valid indexes */
 UNIV_INLINE
 ulint
 dict_index_is_corrupted(
@@ -1396,7 +1396,7 @@ dict_index_is_corrupted(
 
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.
-@return	true if the tablespace has been discarded. */
+@return true if the tablespace has been discarded. */
 UNIV_INLINE
 bool
 dict_table_is_discarded(
@@ -1408,7 +1408,7 @@ dict_table_is_discarded(
 
 /********************************************************************//**
 Check if it is a temporary table.
-@return	true if temporary table flag is set. */
+@return true if temporary table flag is set. */
 UNIV_INLINE
 bool
 dict_table_is_temporary(

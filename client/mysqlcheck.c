@@ -51,7 +51,7 @@ static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
 static char *opt_skip_database;
 DYNAMIC_ARRAY tables4repair, tables4rebuild, alter_table_cmds;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -149,7 +149,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given, it's solicited on the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -173,7 +173,7 @@ static struct my_option my_long_options[] =
   {"repair", 'r',
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -317,7 +317,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_upgrade= 1;
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
@@ -889,7 +889,7 @@ static int dbConnect(char *host, char *user, char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection, MYSQL_OPT_BIND, opt_bind_addr);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -1009,7 +1009,7 @@ int main(int argc, char **argv)
     delete_dynamic(&tables4rebuild);
   }
   my_free(opt_password);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   my_end(my_end_arg);

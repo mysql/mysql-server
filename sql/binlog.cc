@@ -29,6 +29,7 @@
 #include "sql_show.h"
 #include "sql_parse.h"
 #include "rpl_mi.h"
+#include "dur_prop.h"
 #include <list>
 #include <string>
 #include <m_ctype.h>				// For is_number
@@ -835,7 +836,7 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
   {
     Group_cache::enum_add_group_status status= 
       group_cache.add_logged_group(thd, get_byte_position());
-    if (status == Group_cache::ERROR)
+    if (status == Group_cache::ERROR_GROUP)
       DBUG_RETURN(1);
     else if (status == Group_cache::APPEND_NEW_GROUP)
     {
@@ -905,7 +906,7 @@ static int write_one_empty_group_to_cache(THD *thd,
 #ifdef NON_ERROR_GTID
   IO_CACHE *cache= &cache_data->cache_log;
   Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
-  if (status == Group_cache::ERROR)
+  if (status == Group_cache::ERROR_GROUP)
     DBUG_RETURN(1);
   DBUG_ASSERT(status == Group_cache::APPEND_NEW_GROUP);
   Gtid_specification spec= { GTID_GROUP, gtid };
@@ -1487,15 +1488,15 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     rollback.
    */
   if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT)
-    if (int error= ha_rollback_low(thd, all))
-      DBUG_RETURN(error);
+    if ((error= ha_rollback_low(thd, all)))
+      goto end;
 
   /*
     If there is no cache manager, or if there is nothing in the
     caches, there are no caches to roll back, so we're trivially done.
    */
   if (cache_mngr == NULL || cache_mngr->is_binlog_empty())
-    DBUG_RETURN(0);
+    goto end;
 
   DBUG_PRINT("debug",
              ("all.cannot_safely_rollback(): %s, trx_cache_empty: %s",
@@ -1517,8 +1518,8 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   }
   else if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
-    if (int error= cache_mngr->stmt_cache.finalize(thd))
-      DBUG_RETURN(error);
+    if ((error= cache_mngr->stmt_cache.finalize(thd)))
+      goto end;
     stuff_logged= true;
   }
 
@@ -1607,8 +1608,15 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       a cache and need to be rolled back.
     */
     error |= cache_mngr->trx_cache.truncate(thd, all);
-    DBUG_RETURN(error);
   }
+
+end:
+  /*
+    When a statement errors out on auto-commit mode it is rollback
+    implicitly, so the same should happen to its GTID.
+  */
+  if (!thd->in_active_multi_stmt_transaction())
+    gtid_rollback(thd);
 
   DBUG_PRINT("return", ("error: %d", error));
   DBUG_RETURN(error);
@@ -2394,6 +2402,7 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_mutex_destroy(&LOCK_index);
     mysql_mutex_destroy(&LOCK_commit);
     mysql_mutex_destroy(&LOCK_sync);
+    mysql_mutex_destroy(&LOCK_binlog_end_pos);
     mysql_mutex_destroy(&LOCK_xids);
     mysql_cond_destroy(&update_cond);
     my_atomic_rwlock_destroy(&m_prep_xids_lock);
@@ -2412,6 +2421,8 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(m_key_LOCK_commit, &LOCK_commit, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(m_key_LOCK_binlog_end_pos, &LOCK_binlog_end_pos,
+                   MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
   my_atomic_rwlock_init(&m_prep_xids_lock);
@@ -3441,6 +3452,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   close_purge_index_file();
 #endif
 
+  update_binlog_end_pos();
   DBUG_RETURN(0);
 
 err:
@@ -5009,7 +5021,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     log rotation should give the waiting thread a signal to
     discover EOF and move on to the next log.
   */
-  signal_update();
+  flush_io_cache(&log_file);
+  update_binlog_end_pos();
 
   old_name=name;
   name=0;				// Don't free name
@@ -5928,7 +5941,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
     if (!error && !(error= flush_and_sync()))
     {
       bool check_purge= false;
-      signal_update();
+      update_binlog_end_pos();
       error= rotate(true, &check_purge);
       if (!error && check_purge)
         purge();
@@ -6040,7 +6053,6 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         goto err;
       }
 
-      thd->variables.gtid_next.set_undefined();
       global_sid_lock->rdlock();
       if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
       {
@@ -6125,9 +6137,9 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
   DBUG_ENTER("wait_for_update_bin_log");
 
   if (!timeout)
-    mysql_cond_wait(&update_cond, &LOCK_log);
+    mysql_cond_wait(&update_cond, &LOCK_binlog_end_pos);
   else
-    ret= mysql_cond_timedwait(&update_cond, &LOCK_log,
+    ret= mysql_cond_timedwait(&update_cond, &LOCK_binlog_end_pos,
                               const_cast<struct timespec *>(timeout));
   DBUG_RETURN(ret);
 }
@@ -6164,7 +6176,8 @@ void MYSQL_BIN_LOG::close(uint exiting)
                   relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       s.write(&log_file);
       bytes_written+= s.data_written;
-      signal_update();
+      flush_io_cache(&log_file);
+      update_binlog_end_pos();
     }
 #endif /* HAVE_REPLICATION */
 
@@ -6248,15 +6261,6 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
   if (is_open())
     max_size= max_size_arg;
   mysql_mutex_unlock(&LOCK_log);
-  DBUG_VOID_RETURN;
-}
-
-
-void MYSQL_BIN_LOG::signal_update()
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
-  signal_cnt++;
-  mysql_cond_broadcast(&update_cond);
   DBUG_VOID_RETURN;
 }
 
@@ -6996,7 +7000,6 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
   else if (thd->transaction.flags.xid_written)
     dec_prep_xids(thd);
 
-  thd->variables.gtid_next.set_undefined();
   /*
     Remove committed GTID from owned_gtids, it was already logged on
     MYSQL_BIN_LOG::write_cache().
@@ -7019,18 +7022,17 @@ static inline int call_after_sync_hook(THD *queue_head)
 {
   const char *log_file= NULL;
   my_off_t pos= 0;
-  THD *tail= NULL;
+
+  if (NO_HOOK(binlog_storage))
+    return 0;
 
   DBUG_ASSERT(queue_head != NULL);
-  while (queue_head)
-  {
-    tail= queue_head;
-    queue_head= queue_head->next_to_commit;
-  }
+  for (THD *thd= queue_head; thd != NULL; thd= thd->next_to_commit)
+    if (likely(thd->commit_error == THD::CE_NONE))
+      thd->get_trans_fixed_pos(&log_file, &pos);
 
-  tail->get_trans_pos(&log_file, &pos);
   if (DBUG_EVALUATE_IF("simulate_after_sync_hook_error", 1, 0) ||
-      RUN_HOOK(binlog_storage, after_sync, (tail, log_file, pos)))
+      RUN_HOOK(binlog_storage, after_sync, (queue_head, log_file, pos)))
   {
     sql_print_error("Failed to run 'after_sync' hooks");
     return ER_ERROR_ON_WRITE;
@@ -7170,7 +7172,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       flush_error= ER_ERROR_ON_WRITE;
     }
 
-    signal_update();
+    update_binlog_end_pos();
     DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
 

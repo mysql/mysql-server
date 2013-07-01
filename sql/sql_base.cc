@@ -41,7 +41,8 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
-#include "sql_trigger.h"
+#include "trigger_loader.h"   // Trigger_loader::trg_file_exists()
+#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"
 #include "sql_prepare.h"
 #include <m_ctype.h>
@@ -52,7 +53,7 @@
 #include "datadict.h"   // dd_frm_type()
 #include "sql_hset.h"   // Hash_set
 #include "sql_tmp_table.h" // free_tmp_table
-#ifdef  __WIN__
+#ifdef  _WIN32
 #include <io.h>
 #endif
 #include "table_cache.h" // Table_cache_manager, Table_cache
@@ -2711,7 +2712,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
 
 
-  if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS)
+  if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS ||
+      table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
   {
     bool exists;
 
@@ -2719,7 +2721,31 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       DBUG_RETURN(TRUE);
 
     if (!exists)
+    {
+      if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE &&
+          ! (flags & (MYSQL_OPEN_FORCE_SHARED_MDL |
+                      MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL)))
+      {
+        MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
+
+        thd->push_internal_handler(&mdl_deadlock_handler);
+
+        DEBUG_SYNC(thd, "before_upgrading_lock_from_S_to_X_for_create_table");
+        bool wait_result= thd->mdl_context.upgrade_shared_lock(
+                                 table_list->mdl_request.ticket,
+                                 MDL_EXCLUSIVE,
+                                 thd->variables.lock_wait_timeout);
+
+        thd->pop_internal_handler();
+        DEBUG_SYNC(thd, "after_upgrading_lock_from_S_to_X_for_create_table");
+
+        /* Deadlock or timeout occurred while upgrading the lock. */
+        if (wait_result)
+          DBUG_RETURN(TRUE);
+      }
+
       DBUG_RETURN(FALSE);
+    }
 
     /* Table exists. Let us try to open it. */
   }
@@ -3710,9 +3736,18 @@ err:
 
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 {
-  if (Table_triggers_list::check_n_load(thd, share->db.str,
-                                        share->table_name.str, entry, 0))
-    return TRUE;
+  if (Trigger_loader::trg_file_exists(share->db.str, share->table_name.str))
+  {
+    Table_trigger_dispatcher *d= Table_trigger_dispatcher::create(entry);
+
+    if (!d || d->check_n_load(thd, false))
+    {
+      delete d;
+      return true;
+    }
+
+    entry->triggers= d;
+  }
 
   /*
     If we are here, there was no fatal error (but error may be still
@@ -3972,7 +4007,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->get_stmt_da()->reset_condition_info(thd->query_id);
+        thd->get_stmt_da()->reset_condition_info(thd);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;
@@ -4567,8 +4602,11 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
 
 /**
   Acquire upgradable (SNW, SNRW) metadata locks on tables used by
-  LOCK TABLES or by a DDL statement. Under LOCK TABLES, we can't take
-  new locks, so use open_tables_check_upgradable_mdl() instead.
+  LOCK TABLES or by a DDL statement.
+  Acquire lock "S" on table being created in CREATE TABLE statement.
+
+  @note  Under LOCK TABLES, we can't take new locks, so use
+         open_tables_check_upgradable_mdl() instead.
 
   @param thd               Thread context.
   @param tables_start      Start of list of tables on which upgradable locks
@@ -4597,7 +4635,8 @@ lock_table_names(THD *thd,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
+    if ((table->mdl_request.type < MDL_SHARED_UPGRADABLE &&
+         table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE) ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
@@ -4834,7 +4873,8 @@ restart:
       for (table= *start; table && table != thd->lex->first_not_own_table();
            table= table->next_global)
       {
-        if (table->mdl_request.type >= MDL_SHARED_UPGRADABLE)
+        if (table->mdl_request.type >= MDL_SHARED_UPGRADABLE ||
+            table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
           table->mdl_request.ticket= NULL;
       }
     }
@@ -5555,6 +5595,10 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
   DML_prelocking_strategy prelocking_strategy;
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_normal_and_derived_tables");
+
+  DBUG_EXECUTE_IF("open_normal_and_derived_tables__out_of_memory",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
   if (open_tables(thd, &tables, &thd->lex->table_count, flags,
                   &prelocking_strategy) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))
@@ -8868,7 +8912,7 @@ static bool check_record(THD *thd, Field **ptr)
                     INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
                     or there isn't a trigger ON INSERT
 */
-inline bool command_invokes_insert_triggers(enum trg_event_type event,
+inline bool command_invokes_insert_triggers(enum enum_trigger_event_type event,
                                             enum_sql_command sql_command)
 {
   /*
@@ -8887,7 +8931,7 @@ inline bool command_invokes_insert_triggers(enum trg_event_type event,
   Execute BEFORE INSERT trigger.
 
   @param thd                        thread context
-  @param triggers                   object holding list of triggers
+  @param table                      TABLE-object holding list of triggers
                                     to be invoked
   @param event                      event type for triggers to be invoked
   @param insert_into_fields_bitmap  Bitmap for fields that is set
@@ -8898,13 +8942,11 @@ inline bool command_invokes_insert_triggers(enum trg_event_type event,
     @retval true    Error occurred
 */
 inline bool call_before_insert_triggers(THD *thd,
-                                        Table_triggers_list *triggers,
-                                        enum trg_event_type event,
+                                        TABLE *table,
+                                        enum enum_trigger_event_type event,
                                         MY_BITMAP *insert_into_fields_bitmap)
 {
-  TABLE *tbl= triggers->trigger_table;
-
-  for (Field** f= tbl->field; *f; ++f)
+  for (Field** f= table->field; *f; ++f)
   {
     if (((*f)->flags & NO_DEFAULT_VALUE_FLAG) &&
         !bitmap_is_set(insert_into_fields_bitmap, (*f)->field_index))
@@ -8913,7 +8955,7 @@ inline bool call_before_insert_triggers(THD *thd,
     }
   }
 
-  return triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
+  return table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
 }
 
 
@@ -8925,7 +8967,7 @@ inline bool call_before_insert_triggers(THD *thd,
   @param fields        Item_fields list to be filled
   @param values        values to fill with
   @param ignore_errors TRUE if we should ignore errors
-  @param triggers      object holding list of triggers to be invoked
+  @param table         TABLE-object holding list of triggers to be invoked
   @param event         event type for triggers to be invoked
 
   NOTE
@@ -8941,8 +8983,8 @@ inline bool call_before_insert_triggers(THD *thd,
 bool
 fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      List<Item> &values, bool ignore_errors,
-                                     Table_triggers_list *triggers,
-                                     enum trg_event_type event,
+                                     TABLE *table,
+                                     enum enum_trigger_event_type event,
                                      int num_fields)
 {
   /*
@@ -8950,11 +8992,11 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     the event is TRG_EVENT_UPDATE and the SQL-command is SQLCOM_INSERT.
   */
 
-  if (triggers)
+  if (table->triggers)
   {
     bool rc;
 
-    triggers->enable_fields_temporary_nullability(thd);
+    table->triggers->enable_fields_temporary_nullability(thd);
 
     if (command_invokes_insert_triggers(event, thd->lex->sql_command))
     {
@@ -8967,7 +9009,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                       &insert_into_fields_bitmap);
 
       if (!rc)
-        rc= call_before_insert_triggers(thd, triggers, event,
+        rc= call_before_insert_triggers(thd, table, event,
                                         &insert_into_fields_bitmap);
 
       bitmap_free(&insert_into_fields_bitmap);
@@ -8975,13 +9017,12 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     else
     {
       rc= fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
-          triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
+          table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
     }
 
-    triggers->disable_fields_temporary_nullability();
+    table->triggers->disable_fields_temporary_nullability();
 
-    return rc ||
-           check_record(thd, triggers->trigger_table->field);
+    return rc || check_record(thd, table->field);
   }
   else
   {
@@ -9075,7 +9116,7 @@ err:
       ptr           NULL-ended array of fields to be filled
       values        values to fill with
       ignore_errors TRUE if we should ignore errors
-      triggers      object holding list of triggers to be invoked
+      table         TABLE-object holding list of triggers to be invoked
       event         event type for triggers to be invoked
 
   NOTE
@@ -9096,18 +9137,18 @@ err:
 bool
 fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      List<Item> &values, bool ignore_errors,
-                                     Table_triggers_list *triggers,
-                                     enum trg_event_type event,
+                                     TABLE *table,
+                                     enum enum_trigger_event_type event,
                                      int num_fields)
 {
   bool rc;
 
-  if (triggers)
+  if (table->triggers)
   {
     DBUG_ASSERT(command_invokes_insert_triggers(event, thd->lex->sql_command));
     DBUG_ASSERT(num_fields);
 
-    triggers->enable_fields_temporary_nullability(thd);
+    table->triggers->enable_fields_temporary_nullability(thd);
 
     MY_BITMAP insert_into_fields_bitmap;
     bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
@@ -9116,11 +9157,11 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                     &insert_into_fields_bitmap);
 
     if (!rc)
-      rc= call_before_insert_triggers(thd, triggers, event,
+      rc= call_before_insert_triggers(thd, table, event,
                                       &insert_into_fields_bitmap);
 
     bitmap_free(&insert_into_fields_bitmap);
-    triggers->disable_fields_temporary_nullability();
+    table->triggers->disable_fields_temporary_nullability();
   }
   else
     rc= fill_record(thd, ptr, values, ignore_errors, NULL, NULL);

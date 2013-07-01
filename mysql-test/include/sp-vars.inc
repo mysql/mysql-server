@@ -34,6 +34,8 @@ BEGIN
   DECLARE v19 DECIMAL(64, 2) DEFAULT 11 + 1;
   DECLARE v20 DECIMAL(64, 2) DEFAULT 12 + 0.123;
 
+  SHOW WARNINGS;
+
   SELECT v1, v1u, v2, v2u, v3, v3u, v4, v4u;
   SELECT v5, v5u, v6, v6u;
   SELECT v7, v8, v9, v10, v11, v12, v13, v14, v15, v16;
@@ -80,11 +82,15 @@ BEGIN
   SET d2 = 1234.12;
   SET d3 = 1234.1234;
 
+  SHOW WARNINGS;
+
   SELECT d1, d2, d3;
 
   SET d1 = 12 * 100 + 34;
   SET d2 = 12 * 100 + 34 + 0.12;
   SET d3 = 12 * 100 + 34 + 0.1234;
+
+  SHOW WARNINGS;
 
   SELECT d1, d2, d3;
 END|

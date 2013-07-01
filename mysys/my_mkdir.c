@@ -17,7 +17,7 @@
 #include "mysys_err.h"
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef __WIN__
+#ifdef _WIN32
 #include <direct.h>
 #endif
 
@@ -26,7 +26,7 @@ int my_mkdir(const char *dir, int Flags, myf MyFlags)
   DBUG_ENTER("my_dir");
   DBUG_PRINT("enter",("dir: %s",dir));
 
-#if  defined(__WIN__)
+#if defined(_WIN32)
   if (mkdir((char*) dir))
 #else
   if (mkdir((char*) dir, Flags & my_umask_dir))

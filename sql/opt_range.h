@@ -29,6 +29,7 @@
 */
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"                            /* Item */
+#include "prealloced_array.h"
 
 #include <algorithm>
 
@@ -380,15 +381,17 @@ class PARAM;
 class SEL_ARG;
 
 
+typedef Prealloced_array<QUICK_RANGE*, 16> Quick_ranges;
+
 /*
   MRR range sequence, array<QUICK_RANGE> implementation: sequence traversal
   context.
 */
 typedef struct st_quick_range_seq_ctx
 {
-  QUICK_RANGE **first;
-  QUICK_RANGE **cur;
-  QUICK_RANGE **last;
+  Quick_ranges::const_iterator first;
+  Quick_ranges::const_iterator cur;
+  Quick_ranges::const_iterator last;
 } QUICK_RANGE_SEQ_CTX;
 
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags);
@@ -405,6 +408,8 @@ protected:
   handler *file;
   /* Members to deal with case when this quick select is a ROR-merged scan */
   bool in_ror_merged_scan;
+
+  // TODO: pre-allocate space to avoid malloc/free for small number of columns.
   MY_BITMAP column_bitmap;
 
   friend class TRP_ROR_INTERSECT;
@@ -430,7 +435,7 @@ protected:
   friend class QUICK_ROR_INTERSECT_SELECT;
   friend class QUICK_GROUP_MIN_MAX_SELECT;
 
-  DYNAMIC_ARRAY ranges;     /* ordered array of range ptrs */
+  Quick_ranges ranges;     /* ordered array of range ptrs */
   bool free_file;   /* TRUE <=> this->file is "owned" by this quick select */
 
   /* Range pointers to be used when not using MRR interface */
@@ -818,7 +823,7 @@ private:
   uint min_max_arg_len;  /* The length of the MIN/MAX argument field */
   uchar *key_infix;       /* Infix of constants from equality predicates. */
   uint key_infix_len;
-  DYNAMIC_ARRAY min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
+  Quick_ranges min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
   uint real_prefix_len; /* Length of key prefix extended with key_infix. */
   uint real_key_parts;  /* A number of keyparts in the above value.      */
   List<Item_sum> *min_functions;

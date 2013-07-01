@@ -39,7 +39,7 @@ Created 12/7/1995 Heikki Tuuri
 
 /********************************************************//**
 Catenates n bytes to the mtr log. */
-UNIV_INTERN
+
 void
 mlog_catenate_string(
 /*=================*/
@@ -63,7 +63,7 @@ mlog_catenate_string(
 Writes the initial part of a log record consisting of one-byte item
 type and four-byte space and page numbers. Also pushes info
 to the mtr memo that a buffer page has been modified. */
-UNIV_INTERN
+
 void
 mlog_write_initial_log_record(
 /*==========================*/
@@ -94,8 +94,8 @@ mlog_write_initial_log_record(
 
 /********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
-@return	parsed record end, NULL if not a complete record */
-UNIV_INTERN
+@return parsed record end, NULL if not a complete record */
+
 byte*
 mlog_parse_initial_log_record(
 /*==========================*/
@@ -134,8 +134,8 @@ mlog_parse_initial_log_record(
 
 /********************************************************//**
 Parses a log record written by mlog_write_ulint or mlog_write_ull.
-@return	parsed record end, NULL if not a complete record or a corrupt record */
-UNIV_INTERN
+@return parsed record end, NULL if not a complete record or a corrupt record */
+
 byte*
 mlog_parse_nbytes(
 /*==============*/
@@ -242,7 +242,7 @@ mlog_parse_nbytes(
 /********************************************************//**
 Writes 1, 2 or 4 bytes to a file page. Writes the corresponding log
 record to the mini-transaction log if mtr is not NULL. */
-UNIV_INTERN
+
 void
 mlog_write_ulint(
 /*=============*/
@@ -288,7 +288,7 @@ mlog_write_ulint(
 /********************************************************//**
 Writes 8 bytes to a file page. Writes the corresponding log
 record to the mini-transaction log, only if mtr is not NULL */
-UNIV_INTERN
+
 void
 mlog_write_ull(
 /*===========*/
@@ -321,7 +321,7 @@ mlog_write_ull(
 /********************************************************//**
 Writes a string to a file page buffered in the buffer pool. Writes the
 corresponding log record to the mini-transaction log. */
-UNIV_INTERN
+
 void
 mlog_write_string(
 /*==============*/
@@ -341,7 +341,7 @@ mlog_write_string(
 /********************************************************//**
 Logs a write of a string to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
-UNIV_INTERN
+
 void
 mlog_log_string(
 /*============*/
@@ -378,8 +378,8 @@ mlog_log_string(
 
 /********************************************************//**
 Parses a log record written by mlog_write_string.
-@return	parsed record end, NULL if not a complete record */
-UNIV_INTERN
+@return parsed record end, NULL if not a complete record */
+
 byte*
 mlog_parse_string(
 /*==============*/
@@ -430,8 +430,8 @@ mlog_parse_string(
 /********************************************************//**
 Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index.
-@return	buffer, NULL if log mode MTR_LOG_NONE */
-UNIV_INTERN
+@return buffer, NULL if log mode MTR_LOG_NONE */
+
 byte*
 mlog_open_and_write_index(
 /*======================*/
@@ -528,8 +528,8 @@ mlog_open_and_write_index(
 
 /********************************************************//**
 Parses a log record written by mlog_open_and_write_index.
-@return	parsed record end, NULL if not a complete record */
-UNIV_INTERN
+@return parsed record end, NULL if not a complete record */
+
 byte*
 mlog_parse_index(
 /*=============*/

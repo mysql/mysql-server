@@ -23,15 +23,13 @@ Data types
 Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
-#include <string.h> /* strlen() */
-
 #include "mach0data.h"
 #ifndef UNIV_HOTBACKUP
 # include "ha_prototypes.h"
 
 /*********************************************************************//**
 Gets the MySQL charset-collation code for MySQL string types.
-@return	MySQL charset-collation code */
+@return MySQL charset-collation code */
 UNIV_INLINE
 ulint
 dtype_get_charset_coll(
@@ -45,7 +43,7 @@ dtype_get_charset_coll(
 Determines if a MySQL string type is a subset of UTF-8.  This function
 may return false negatives, in case further character-set collation
 codes are introduced in MySQL later.
-@return	TRUE if a subset of UTF-8 */
+@return TRUE if a subset of UTF-8 */
 UNIV_INLINE
 ibool
 dtype_is_utf8(
@@ -68,7 +66,7 @@ dtype_is_utf8(
 
 /*********************************************************************//**
 Gets the MySQL type code from a dtype.
-@return	MySQL type code; this is NOT an InnoDB type code! */
+@return MySQL type code; this is NOT an InnoDB type code! */
 UNIV_INLINE
 ulint
 dtype_get_mysql_type(
@@ -180,7 +178,7 @@ dtype_copy(
 
 /*********************************************************************//**
 Gets the SQL main data type.
-@return	SQL main data type */
+@return SQL main data type */
 UNIV_INLINE
 ulint
 dtype_get_mtype(
@@ -194,7 +192,7 @@ dtype_get_mtype(
 
 /*********************************************************************//**
 Gets the precise data type.
-@return	precise data type */
+@return precise data type */
 UNIV_INLINE
 ulint
 dtype_get_prtype(
@@ -208,7 +206,7 @@ dtype_get_prtype(
 
 /*********************************************************************//**
 Gets the type length.
-@return	fixed length of the type, in bytes, or 0 if variable-length */
+@return fixed length of the type, in bytes, or 0 if variable-length */
 UNIV_INLINE
 ulint
 dtype_get_len(
@@ -246,48 +244,6 @@ dtype_get_mbmaxlen(
 {
 	ut_ad(type);
 	return(DATA_MBMAXLEN(type->mbminmaxlen));
-}
-
-/*********************************************************************//**
-Gets the padding character code for a type.
-@return	padding character code, or ULINT_UNDEFINED if no padding specified */
-UNIV_INLINE
-ulint
-dtype_get_pad_char(
-/*===============*/
-	ulint	mtype,		/*!< in: main type */
-	ulint	prtype)		/*!< in: precise type */
-{
-	switch (mtype) {
-	case DATA_FIXBINARY:
-	case DATA_BINARY:
-		if (dtype_get_charset_coll(prtype)
-		    == DATA_MYSQL_BINARY_CHARSET_COLL) {
-			/* Starting from 5.0.18, do not pad
-			VARBINARY or BINARY columns. */
-			return(ULINT_UNDEFINED);
-		}
-		/* Fall through */
-	case DATA_CHAR:
-	case DATA_VARCHAR:
-	case DATA_MYSQL:
-	case DATA_VARMYSQL:
-		/* Space is the padding character for all char and binary
-		strings, and starting from 5.0.3, also for TEXT strings. */
-
-		return(0x20);
-	case DATA_GEOMETRY:
-                /* DATA_GEOMETRY is binary data, not ASCII-based. */
-	        return(ULINT_UNDEFINED);
-	case DATA_BLOB:
-		if (!(prtype & DATA_BINARY_TYPE)) {
-			return(0x20);
-		}
-		/* Fall through */
-	default:
-		/* No padding specified */
-		return(ULINT_UNDEFINED);
-	}
 }
 
 /**********************************************************************//**
@@ -519,7 +475,7 @@ dtype_sql_name(
 
 /***********************************************************************//**
 Returns the size of a fixed size data type, 0 if not a fixed size type.
-@return	fixed size, or 0 */
+@return fixed size, or 0 */
 UNIV_INLINE
 ulint
 dtype_get_fixed_size_low(
@@ -598,7 +554,7 @@ dtype_get_fixed_size_low(
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Returns the minimum size of a data type.
-@return	minimum size */
+@return minimum size */
 UNIV_INLINE
 ulint
 dtype_get_min_size_low(
@@ -667,7 +623,7 @@ dtype_get_min_size_low(
 /***********************************************************************//**
 Returns the maximum size of a data type. Note: types in system tables may be
 incomplete and return incorrect information.
-@return	maximum size */
+@return maximum size */
 UNIV_INLINE
 ulint
 dtype_get_max_size_low(
@@ -702,7 +658,7 @@ dtype_get_max_size_low(
 /***********************************************************************//**
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a type.
 For fixed length types it is the fixed length of the type, otherwise 0.
-@return	SQL null storage size in ROW_FORMAT=REDUNDANT */
+@return SQL null storage size in ROW_FORMAT=REDUNDANT */
 UNIV_INLINE
 ulint
 dtype_get_sql_null_size(

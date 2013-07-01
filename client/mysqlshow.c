@@ -39,7 +39,7 @@ static uint opt_verbose=0;
 static char *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
-#ifdef HAVE_SMEM 
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -132,7 +132,7 @@ int main(int argc, char **argv)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -174,7 +174,7 @@ int main(int argc, char **argv)
   }
   mysql_close(&mysql);			/* Close & free connection */
   my_free(opt_password);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   my_end(my_end_arg);
@@ -237,14 +237,14 @@ static struct my_option my_long_options[] =
    &opt_mysql_port,
    &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"protocol", OPT_MYSQL_PROTOCOL, 
    "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
@@ -320,7 +320,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       tty_password=1;
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
@@ -657,7 +657,7 @@ list_table_status(MYSQL *mysql,const char *db,const char *wild)
   len= sizeof(query);
   len-= my_snprintf(query, len, "show table status from `%s`", db);
   if (wild && wild[0] && len)
-    strxnmov(query + strlen(query), len, " like '", wild, "'", NullS);
+    strxnmov(query + strlen(query), len - 1, " like '", wild, "'", NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
   {
     fprintf(stderr,"%s: Cannot get status for db: %s, table: %s: %s\n",
@@ -720,7 +720,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   len-= my_snprintf(query, len, "show /*!32332 FULL */ columns from `%s`",
                     table);
   if (wild && wild[0] && len)
-    strxnmov(query + strlen(query), len, " like '", wild, "'", NullS);
+    strxnmov(query + strlen(query), len - 1, " like '", wild, "'", NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
   {
     fprintf(stderr,"%s: Cannot list columns in db: %s, table: %s: %s\n",

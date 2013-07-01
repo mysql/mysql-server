@@ -28,6 +28,7 @@
 #include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_parse.h"                       // check_table_access
 #include "sql_admin.h"
+#include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
@@ -353,7 +354,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           because it's already known that the table is badly damaged.
         */
 
-        Diagnostics_area tmp_da(thd->query_id, false);
+        Diagnostics_area tmp_da(false);
         thd->push_diagnostics_area(&tmp_da);
 
         open_error= open_temporary_tables(thd, table);
@@ -645,6 +646,17 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     result_code = (table->table->file->*operator_func)(thd, check_opt);
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
 
+    /*
+      push_warning() if the table version is lesser than current
+      server version and there are triggers for this table.
+    */
+    if (operator_func == &handler::ha_check &&
+        (check_opt->sql_flags & TT_FOR_UPGRADE) &&
+        table->table->triggers)
+    {
+      table->table->triggers->print_upgrade_warnings(thd);
+    }
+
 send_result:
 
     lex->cleanup_after_one_table_open();
@@ -665,7 +677,7 @@ send_result:
         if (protocol->write())
           goto err;
       }
-      thd->get_stmt_da()->reset_condition_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd);
     }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);

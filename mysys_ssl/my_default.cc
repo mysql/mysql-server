@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@
 #include "m_ctype.h"
 #include <my_dir.h>
 #include <my_aes.h>
-#ifdef __WIN__
+#ifdef _WIN32
 #include <winbase.h>
 #endif
 
@@ -123,7 +123,7 @@ static my_bool is_login_file= FALSE;
 #define DEFAULT_DIRS_SIZE (MAX_DEFAULT_DIRS + 1)  /* Terminate with NULL */
 static const char **default_directories = NULL;
 
-#ifdef __WIN__
+#ifdef _WIN32
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
 #define NEWLINE "\r\n"
 #else
@@ -1295,7 +1295,7 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
 }
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 /*
   This wrapper for GetSystemWindowsDirectory() will dynamically bind to the
   function if it is available, emulate it on NT4 Terminal Server by stripping
@@ -1360,7 +1360,7 @@ static const char *my_get_module_parent(char *buf, size_t size)
 
   return buf;
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
 static const char **init_default_directories(MEM_ROOT *alloc)
@@ -1374,7 +1374,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
     return NULL;
   memset(dirs, 0, DEFAULT_DIRS_SIZE * sizeof(char *));
 
-#ifdef __WIN__
+#ifdef _WIN32
 
   {
     char fname_buffer[FN_REFLEN];
@@ -1408,7 +1408,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   /* Placeholder for --defaults-extra-file=<path> */
   errors += add_directory(alloc, "", dirs);
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   errors += add_directory(alloc, "~/", dirs);
 #endif
 
@@ -1464,7 +1464,7 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
 */
 static int check_file_permissions(const char *file_name)
 {
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   MY_STAT stat_info;
 
   if (!my_stat(file_name,&stat_info,MYF(0)))

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # suite/funcs_1/t/is_user_privileges.test
 #
 # Check the layout of information_schema.user_privileges, permissions and
@@ -25,8 +20,9 @@
 # privileges.
 --source include/not_embedded.inc
 
-let $engine_type       = MEMORY;
-let $other_engine_type = MyISAM;
+--source include/have_innodb.inc
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
 
 let $is_table = USER_PRIVILEGES;
 

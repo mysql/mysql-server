@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
@@ -875,7 +875,7 @@ t1
 t2
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t1	INSERT INTO t2 VALUES(CURRENT_USER())	AFTER	NULL			latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1	INSERT	t1	INSERT INTO t2 VALUES(CURRENT_USER())	AFTER	#			latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT * FROM t1;
 c
 1
@@ -990,4 +990,36 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:log, slave:log]
 drop table t1, log;
+#
+# WL#3253: Multiple triggers with the same value TIME/ACTION per table 
+#
+include/rpl_reset.inc
+SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:00');
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
+CREATE TRIGGER tr0_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr1_bi SET @a:=0;
+CREATE TRIGGER tr1_1_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=11;
+CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @b:=1;
+CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @b:=2;
+
+---> Synchronizing slave with master...
+---> connection: slave
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr0_bi	INSERT	t1	SET @a:=0	BEFORE	2013-01-31 09:00:00.00	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_bi	INSERT	t1	SET @a:=1	BEFORE	2013-01-31 09:00:00.00	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_1_bi	INSERT	t1	SET @a:=11	BEFORE	2013-01-31 09:00:00.00	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr2_bi	INSERT	t1	SET @a:=2	BEFORE	2013-01-31 09:00:00.00	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_bu	UPDATE	t1	SET @b:=1	BEFORE	2013-01-31 09:00:00.00	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr2_bu	UPDATE	t1	SET @b:=2	BEFORE	2013-01-31 09:00:00.00	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT trigger_name, action_order, created FROM information_schema.triggers WHERE trigger_schema='test';
+trigger_name	action_order	created
+tr0_bi	1	2013-01-31 09:00:00.00
+tr1_bi	2	2013-01-31 09:00:00.00
+tr1_1_bi	3	2013-01-31 09:00:00.00
+tr2_bi	4	2013-01-31 09:00:00.00
+tr1_bu	1	2013-01-31 09:00:00.00
+tr2_bu	2	2013-01-31 09:00:00.00
+DROP TABLE t1;
 include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -2525,7 +2525,7 @@ public:
   */
   enum enum_add_group_status
   {
-    EXTEND_EXISTING_GROUP, APPEND_NEW_GROUP, ERROR
+    EXTEND_EXISTING_GROUP, APPEND_NEW_GROUP, ERROR_GROUP
   };
 #ifndef MYSQL_CLIENT
   enum_add_group_status
@@ -2752,6 +2752,14 @@ gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
   @param thd THD object for the session.
 */
 enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd);
+
+/**
+  Check if the current statement terminates a transaction, and if so
+  set GTID_NEXT.type to UNDEFINED_GROUP.
+
+  @param thd THD object for the session.
+*/
+void gtid_post_statement_checks(THD *thd);
 
 /**
   When a transaction is rolled back, this function releases ownership

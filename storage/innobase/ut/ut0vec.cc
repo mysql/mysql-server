@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,7 +31,7 @@ Created 4/6/2006 Osku Salerma
 
 /********************************************************************
 Create a new vector with the given initial size. */
-UNIV_INTERN
+
 ib_vector_t*
 ib_vector_create(
 /*=============*/
@@ -61,7 +61,7 @@ ib_vector_create(
 /********************************************************************
 Resize the vector, currently the vector can only grow and we
 expand the number of elements it can hold by 2 times. */
-UNIV_INTERN
+
 void
 ib_vector_resize(
 /*=============*/

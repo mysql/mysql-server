@@ -306,17 +306,26 @@ bool change_password(THD *thd, const char *host, const char *user,
       password_field= MYSQL_USER_FIELD_AUTHENTICATION_STRING;
       if (new_password_len < CRYPT_MAX_PASSWORD_SIZE + 1)
       {
+        /*
+          Since we're changing the password for the user we need to reset the
+          expiration flag.
+        */
+        if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
+            thd->security_ctx->password_expired)
+        {
+          /* the current user is not the same as the user we operate on */
+          my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+          result= 1;
+          mysql_mutex_unlock(&acl_cache->lock);
+          goto end;
+        }
+
+        acl_user->password_expired= false;
         /* copy string including \0 */
         acl_user->auth_string.str= (char *) memdup_root(&global_acl_memory,
                                                        new_password,
                                                        new_password_len + 1);
         acl_user->auth_string.length= new_password_len;
-        /*
-          Since we're changing the password for the user we need to reset the
-          expiration flag.
-        */
-        acl_user->password_expired= false;
-        thd->security_ctx->password_expired= false;
       }
     } else
     {
@@ -398,7 +407,15 @@ bool change_password(THD *thd, const char *host, const char *user,
       mysql_mutex_unlock(&acl_cache->lock);
       goto end;  
     }
-    thd->security_ctx->password_expired= false;
+    if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
+        thd->security_ctx->password_expired)
+    {
+      /* the current user is not the same as the user we operate on */
+      my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+      result= 1;
+      mysql_mutex_unlock(&acl_cache->lock);
+      goto end;
+    }
   }
   else
   {
