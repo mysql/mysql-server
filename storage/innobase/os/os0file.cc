@@ -5068,7 +5068,6 @@ retry:
 	}
 
 	/* All other errors should cause a trap for now. */
-	ut_print_timestamp(stderr);
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Unexpected ret_code[%d] from io_getevents()!",	ret);
 }
