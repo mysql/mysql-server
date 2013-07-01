@@ -481,14 +481,15 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
   - 1 for "statement/com/new_packet", for unknown enum_server_command
   - 1 for "statement/com/Error", for invalid enum_server_command
   - SQLCOM_END for all regular "statement/sql/...",
-  - 1 for "statement/sql/error", for invalid enum_sql_command.
+  - 1 for "statement/sql/error", for invalid enum_sql_command
+  - 1 for "statement/rpl/relay_log", for replicated statements.
 */
 static Sys_var_ulong Sys_pfs_max_statement_classes(
        "performance_schema_max_statement_classes",
        "Maximum number of statement instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 3),
+       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 4),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_long_size(
@@ -2360,7 +2361,7 @@ static Sys_var_ulong Sys_query_prealloc_size(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_thd_mem_root));
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static Sys_var_mybool Sys_shared_memory(
        "shared_memory", "Enable the shared memory",
        READ_ONLY GLOBAL_VAR(opt_enable_shared_memory), CMD_LINE(OPT_ARG),
