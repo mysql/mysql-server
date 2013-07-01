@@ -135,8 +135,10 @@ void toku_checkpoint_safe_client_unlock(void);
  *****/
 
 void toku_multi_operation_client_lock(void);
+void toku_big_multi_operation_client_lock(void);
 
 void toku_multi_operation_client_unlock(void);
+void toku_big_multi_operation_client_unlock(void);
 
 
 // Initialize the checkpoint mechanism, must be called before any client operations.

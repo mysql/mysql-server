@@ -786,7 +786,9 @@ void toku_txn_unpin_live_txn(TOKUTXN txn) {
     toku_txn_unlock_state(txn);
 }
 
-
+bool toku_txn_has_spilled_rollback(TOKUTXN txn) {
+    return txn_has_spilled_rollback_logs(txn);
+}
 
 #include <toku_race_tools.h>
 void __attribute__((__constructor__)) toku_txn_status_helgrind_ignore(void);

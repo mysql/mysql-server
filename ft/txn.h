@@ -216,4 +216,6 @@ void toku_txn_unlock_state(TOKUTXN txn);
 void toku_txn_pin_live_txn_unlocked(TOKUTXN txn);
 void toku_txn_unpin_live_txn(TOKUTXN txn);
 
+bool toku_txn_has_spilled_rollback(TOKUTXN txn);
+
 #endif //TOKUTXN_H

@@ -183,6 +183,7 @@ static LSN last_completed_checkpoint_lsn;
 
 static toku_pthread_rwlock_t checkpoint_safe_lock;
 static toku_pthread_rwlock_t multi_operation_lock;
+static toku_pthread_rwlock_t big_multi_operation_lock;
 
 static bool initialized = false;     // sanity check
 static volatile bool locked_mo = false;       // true when the multi_operation write lock is held (by checkpoint)
@@ -203,7 +204,8 @@ multi_operation_lock_init(void) {
     // TODO: need to figure out how to make writer-preferential rwlocks
     // happen on osx
 #endif
-    toku_pthread_rwlock_init(&multi_operation_lock, &attr); 
+    toku_pthread_rwlock_init(&multi_operation_lock, &attr);
+    toku_pthread_rwlock_init(&big_multi_operation_lock, &attr);
     pthread_rwlockattr_destroy(&attr);
     locked_mo = false;
 }
@@ -211,10 +213,12 @@ multi_operation_lock_init(void) {
 static void
 multi_operation_lock_destroy(void) {
     toku_pthread_rwlock_destroy(&multi_operation_lock);
+    toku_pthread_rwlock_destroy(&big_multi_operation_lock);
 }
 
 static void 
 multi_operation_checkpoint_lock(void) {
+    toku_pthread_rwlock_wrlock(&big_multi_operation_lock);
     toku_pthread_rwlock_wrlock(&multi_operation_lock);   
     locked_mo = true;
 }
@@ -222,7 +226,8 @@ multi_operation_checkpoint_lock(void) {
 static void 
 multi_operation_checkpoint_unlock(void) {
     locked_mo = false;
-    toku_pthread_rwlock_wrunlock(&multi_operation_lock); 
+    toku_pthread_rwlock_wrunlock(&multi_operation_lock);
+    toku_pthread_rwlock_wrunlock(&big_multi_operation_lock);    
 }
 
 static void
@@ -262,6 +267,14 @@ toku_multi_operation_client_lock(void) {
 void 
 toku_multi_operation_client_unlock(void) {
     toku_pthread_rwlock_rdunlock(&multi_operation_lock); 
+}
+
+void toku_big_multi_operation_client_lock(void) {
+    toku_pthread_rwlock_rdlock(&big_multi_operation_lock);
+}
+
+void toku_big_multi_operation_client_unlock(void) {
+    toku_pthread_rwlock_rdunlock(&big_multi_operation_lock);
 }
 
 void 
