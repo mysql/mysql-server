@@ -1126,7 +1126,8 @@ row_log_table_blob_free(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SX));
+	ut_ad(rw_lock_own_flagged(&index->lock,
+				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_no != FIL_NULL);
 
@@ -1171,7 +1172,8 @@ row_log_table_blob_alloc(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SX));
+	ut_ad(rw_lock_own_flagged(&index->lock,
+				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_no != FIL_NULL);
 

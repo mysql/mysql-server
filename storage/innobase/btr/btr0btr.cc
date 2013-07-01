@@ -3043,9 +3043,8 @@ insert_empty:
 		mtr_memo_release(mtr, dict_index_get_lock(cursor->index),
 				 MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK);
 
-		/* TODO: If the root page was relaxed to SX-latch already
-		and no more external data modification, we can release
-		also root block SX-latch here. */
+		/* NOTE: We cannot release root block latch here, because it
+		has segment header and already modified in most of cases.*/
 	}
 
 	/* 5. Move then the records to the new page */
@@ -4988,7 +4987,7 @@ node_ptr_fails:
 
 /**************************************************************//**
 Checks the consistency of an index tree.
-@return TRUE if ok */
+@return true if ok */
 
 bool
 btr_validate_index(
