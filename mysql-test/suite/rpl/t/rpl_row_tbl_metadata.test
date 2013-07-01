@@ -328,7 +328,7 @@ while($ntables)
 -- echo ###            detect failure. Before the patch mysqlbinlog would find 
 -- echo ###            a corrupted event, thence would fail.
 -- let $MYSQLD_DATADIR= `SELECT @@datadir`
--- exec $MYSQL_BINLOG -v --hex $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug50018.binlog
+-- exec $MYSQL_BINLOG -v --hexdump $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug50018.binlog
 
 ## clean up
 ## For debugging purposes you might want not to remove these
