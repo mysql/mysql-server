@@ -6669,7 +6669,7 @@ ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
   eng "The system variable @@SESSION.GTID_NEXT has the value %.200s, which is not listed in @@SESSION.GTID_NEXT_LIST."
 
 ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL
-  eng "When @@SESSION.GTID_NEXT_LIST == NULL, the system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
+  eng "The system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
 
 ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
   eng "The statement 'SET %.200s' cannot invoke a stored function."
@@ -6699,7 +6699,7 @@ ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
   eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON."
 
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-  eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC or @@SESSION.GTID_NEXT_LIST != NULL."
+  eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC."
 
 ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
   eng "@@GLOBAL.GTID_MODE = ON or UPGRADE_STEP_2 requires @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
