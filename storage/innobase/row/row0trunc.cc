@@ -812,8 +812,8 @@ Handle FTS truncate issues.
 static __attribute__((warn_unused_result))
 dberr_t
 row_truncate_fts(
-	dict_table_t* 	table,
-	table_id_t 	new_id,
+	dict_table_t*	table,
+	table_id_t	new_id,
 	trx_t*		trx)
 {
 	dict_table_t	fts_table;

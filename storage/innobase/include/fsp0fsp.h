@@ -725,7 +725,7 @@ xdes_get_descriptor(
 				free limit, we try to add new extents
 				to the space free list */
 	mtr_t*	mtr)		/*!< in/out: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Gets a descriptor bit of a page.
 @return TRUE if free */
