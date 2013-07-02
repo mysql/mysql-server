@@ -3242,6 +3242,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     DBUG_RETURN(1);
   }
 
+  DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
+
 #ifdef HAVE_REPLICATION
   if (open_purge_index_file(TRUE) ||
       register_create_index_entry(log_file_name) ||
@@ -4984,13 +4986,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     }
     bytes_written += r.data_written;
   }
-  /*
-    Update needs to be signalled even if there is no rotate event
-    log rotation should give the waiting thread a signal to
-    discover EOF and move on to the next log.
-  */
   flush_io_cache(&log_file);
-  update_binlog_end_pos();
+  DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
   old_name=name;
   name=0;				// Don't free name
