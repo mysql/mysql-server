@@ -2802,10 +2802,11 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
   @return      true if error
                false otherwise
  */
-bool mts_assign_parent_group_id(Log_event* ev, Relay_log_info* rli)
+bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
 {
   char llbuff[22];
-  if (rli->current_mts_submode->assign_group_parent_id(rli, ev))
+  // Check if we can schedule this event
+  if (rli->current_mts_submode->schedule_next_event(rli, ev))
   {
     llstr(rli->get_event_relay_log_pos(), llbuff);
     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
@@ -2815,11 +2816,6 @@ bool mts_assign_parent_group_id(Log_event* ev, Relay_log_info* rli)
      "to a transaaction.");
     return true;
   }
-  // Check if we can schedule this event
-  if (rli->current_mts_submode->schedule_next_event(rli, ev))
-    /* The previous group of events encountered an error and the slave
-      cannot continue. */
-    return true;
   return false;
 }
 
@@ -2943,7 +2939,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
-        if (mts_assign_parent_group_id(this, rli))
+        if (schedule_next_event(this, rli))
         {
           rli->abort_slave= 1;
           DBUG_RETURN(NULL);
@@ -2962,7 +2958,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
-      if (mts_assign_parent_group_id(this, rli))
+      if (schedule_next_event(this, rli))
       {
         rli->abort_slave= 1;
         DBUG_RETURN(NULL);
@@ -2972,7 +2968,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(starts_group());
       DBUG_RETURN (ret_worker);
     }
-    if (mts_assign_parent_group_id(this, rli))
+    if (schedule_next_event(this, rli))
     {
       rli->abort_slave= 1;
       DBUG_RETURN(NULL);
@@ -2980,7 +2976,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   }
 
   ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
-  if (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_BGC)
+  if (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
   {
     mts_group_idx= gaq->assigned_group_index;
     /* Get least occupied worker */
@@ -3108,7 +3104,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_RETURN (ret_worker);
     }
   }
-  rli->current_mts_submode->assign_group_parent_id(rli, this);
+//  rli->current_mts_submode->assign_group_parent_id(rli, this);
   // T-event: Commit, Xid, a DDL query or dml query of B-less group.4
   if (ends_group() || !rli->curr_group_seen_begin)
   {
@@ -3307,7 +3303,7 @@ int Log_event::apply_event(Relay_log_info *rli)
               */
               (rli->curr_group_seen_begin && rli->curr_group_seen_gtid
                && ends_group()) ||
-              rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC ||
+              rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
               rli->last_assigned_worker ||
               /*
                 Begin_load_query can be logged w/o db info and within

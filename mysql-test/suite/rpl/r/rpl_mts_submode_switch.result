@@ -1,9 +1,9 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SET GLOBAL slave_parallel_type=MASTER_PARALLEL;
+SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
 include/stop_slave.inc
 #setup the databases and tables
@@ -46,7 +46,7 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
-SET GLOBAL slave_parallel_type='MASTER_PARALLEL';
+SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc

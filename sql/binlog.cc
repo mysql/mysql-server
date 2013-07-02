@@ -5801,7 +5801,6 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
         if (do_checksum)
         {
           if (remains != 0)
-
           {
             /*
               finish off with remains of the last event that crawls
@@ -6475,6 +6474,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   int error= RESULT_SUCCESS;
   bool stuff_logged= false;
+
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
                        (ulonglong) thd, YESNO(all), (ulonglong) xid,
                        (ulonglong) cache_mngr));
@@ -6553,7 +6553,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   if (!error && !cache_mngr->trx_cache.is_binlog_empty() &&
       ending_trans(thd, all))
   {
-    bool real_trans= (all || thd->transaction.all.ha_list == 0);
+   const bool real_trans= (all || thd->transaction.all.ha_list == 0);
     /*
       We are committing an XA transaction if it is a "real" transaction
       and have an XID assigned (because some handlerton registered). A
@@ -9064,7 +9064,7 @@ void THD::issue_unsafe_warnings()
   DBUG_VOID_RETURN;
 }
 
-Logical_clock_state::Logical_clock_state()
+ Logical_clock:: Logical_clock()
 {
   mysql_mutex_init(key_state_lock, &state_LOCK, NULL);
   init();
@@ -9077,10 +9077,10 @@ SYNOPSIS:
   @ret_val: current timestamp
  */
 int64
-Logical_clock_state::step()
+ Logical_clock::step()
 {
   int64 retval;
-  DBUG_ENTER("Logical_clock_state::step_clock");
+  DBUG_ENTER(" Logical_clock::step_clock");
   mysql_mutex_lock(&state_LOCK);
   retval= (state+= clock_step);
   if (retval == (INT_MAX64 - 1))
@@ -9094,10 +9094,10 @@ SYNOPSIS:
   Atomically fetch the current state
  */
 int64
-Logical_clock_state::get_timestamp()
+ Logical_clock::get_timestamp()
 {
   int64 retval= 0;
-  DBUG_ENTER("Logical_clock_state::step_clock");
+  DBUG_ENTER(" Logical_clock::step_clock");
   mysql_mutex_lock(&state_LOCK);
   retval= state;
   mysql_mutex_unlock(&state_LOCK);

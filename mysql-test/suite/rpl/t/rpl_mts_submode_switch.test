@@ -9,7 +9,7 @@
 
 # must error out since the slave is running
 --error ER_SLAVE_MUST_STOP
-SET GLOBAL slave_parallel_type=MASTER_PARALLEL;
+SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
 
 --source include/stop_slave.inc
 
@@ -117,8 +117,8 @@ DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
 
-# DATABASE ==========> MASTER_PARALLEL
-SET GLOBAL slave_parallel_type='MASTER_PARALLEL';
+# DATABASE ==========> LOGICAL_CLOCK
+SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
@@ -129,7 +129,7 @@ DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
 
-# MASTER_PARALLEL ==========> DATABASE
+# LOGICAL_CLOCK ==========> DATABASE
 SET GLOBAL slave_parallel_type='DATABASE';
 --source include/start_slave.inc
 --connection master
