@@ -1746,7 +1746,6 @@ row_update_for_mysql(
 	UT_NOT_USED(mysql_rec);
 
 	if (prebuilt->table->ibd_file_missing) {
-		ut_print_timestamp(stderr);
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"MySQL is trying to use a table handle but the .ibd"
 			" file for table %s does not exist. Have you deleted"
