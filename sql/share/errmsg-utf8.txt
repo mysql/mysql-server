@@ -7062,6 +7062,8 @@ ER_WARN_TRIGGER_DOESNT_HAVE_CREATED
 ER_REFERENCED_TRG_DOES_NOT_EXIST
   eng "Referenced trigger '%s' for the given action time and event type does not exist."
 
+ER_EXPLAIN_NOT_SUPPORTED
+        eng "EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE"
 #
 #  End of 5.7 error messages.
 #

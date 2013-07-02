@@ -7771,6 +7771,91 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
       }
     },
     {
+      "join_optimization": {
+        "select#": 2,
+        "steps": [
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 500,
+                  "cost": 4
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 500,
+                      "cost": 104.44,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "cost_for_plan": 104.44,
+                "rows_for_plan": 500,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "1",
+              "items": [
+                {
+                  "item": "`t1`.`f1`"
+                }
+              ],
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "1"
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`",
+                "access_type": "table_scan"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "join_execution": {
         "select#": 1,
         "steps": [
@@ -7778,91 +7863,6 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
             "subselect_execution": {
               "select#": 2,
               "steps": [
-                {
-                  "join_optimization": {
-                    "select#": 2,
-                    "steps": [
-                      {
-                        "table_dependencies": [
-                          {
-                            "table": "`t1`",
-                            "row_may_be_null": false,
-                            "map_bit": 0,
-                            "depends_on_map_bits": [
-                            ]
-                          }
-                        ]
-                      },
-                      {
-                        "rows_estimation": [
-                          {
-                            "table": "`t1`",
-                            "table_scan": {
-                              "rows": 500,
-                              "cost": 4
-                            }
-                          }
-                        ]
-                      },
-                      {
-                        "considered_execution_plans": [
-                          {
-                            "plan_prefix": [
-                            ],
-                            "table": "`t1`",
-                            "best_access_path": {
-                              "considered_access_paths": [
-                                {
-                                  "access_type": "scan",
-                                  "rows": 500,
-                                  "cost": 104.44,
-                                  "chosen": true
-                                }
-                              ]
-                            },
-                            "cost_for_plan": 104.44,
-                            "rows_for_plan": 500,
-                            "chosen": true
-                          }
-                        ]
-                      },
-                      {
-                        "attaching_conditions_to_tables": {
-                          "original_condition": null,
-                          "attached_conditions_computation": [
-                          ],
-                          "attached_conditions_summary": [
-                            {
-                              "table": "`t1`",
-                              "attached": null
-                            }
-                          ]
-                        }
-                      },
-                      {
-                        "clause_processing": {
-                          "clause": "ORDER BY",
-                          "original_clause": "1",
-                          "items": [
-                            {
-                              "item": "`t1`.`f1`"
-                            }
-                          ],
-                          "resulting_clause_is_simple": true,
-                          "resulting_clause": "1"
-                        }
-                      },
-                      {
-                        "refine_plan": [
-                          {
-                            "table": "`t1`",
-                            "access_type": "table_scan"
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                },
                 {
                   "join_execution": {
                     "select#": 2,
@@ -11521,6 +11521,91 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
       }
     },
     {
+      "join_optimization": {
+        "select#": 2,
+        "steps": [
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 500,
+                  "cost": 4
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 500,
+                      "cost": 104.44,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "cost_for_plan": 104.44,
+                "rows_for_plan": 500,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "1",
+              "items": [
+                {
+                  "item": "`t1`.`f1`"
+                }
+              ],
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "1"
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`",
+                "access_type": "table_scan"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "join_execution": {
         "select#": 1,
         "steps": [
@@ -11528,91 +11613,6 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
             "subselect_execution": {
               "select#": 2,
               "steps": [
-                {
-                  "join_optimization": {
-                    "select#": 2,
-                    "steps": [
-                      {
-                        "table_dependencies": [
-                          {
-                            "table": "`t1`",
-                            "row_may_be_null": false,
-                            "map_bit": 0,
-                            "depends_on_map_bits": [
-                            ]
-                          }
-                        ]
-                      },
-                      {
-                        "rows_estimation": [
-                          {
-                            "table": "`t1`",
-                            "table_scan": {
-                              "rows": 500,
-                              "cost": 4
-                            }
-                          }
-                        ]
-                      },
-                      {
-                        "considered_execution_plans": [
-                          {
-                            "plan_prefix": [
-                            ],
-                            "table": "`t1`",
-                            "best_access_path": {
-                              "considered_access_paths": [
-                                {
-                                  "access_type": "scan",
-                                  "rows": 500,
-                                  "cost": 104.44,
-                                  "chosen": true
-                                }
-                              ]
-                            },
-                            "cost_for_plan": 104.44,
-                            "rows_for_plan": 500,
-                            "chosen": true
-                          }
-                        ]
-                      },
-                      {
-                        "attaching_conditions_to_tables": {
-                          "original_condition": null,
-                          "attached_conditions_computation": [
-                          ],
-                          "attached_conditions_summary": [
-                            {
-                              "table": "`t1`",
-                              "attached": null
-                            }
-                          ]
-                        }
-                      },
-                      {
-                        "clause_processing": {
-                          "clause": "ORDER BY",
-                          "original_clause": "1",
-                          "items": [
-                            {
-                              "item": "`t1`.`f1`"
-                            }
-                          ],
-                          "resulting_clause_is_simple": true,
-                          "resulting_clause": "1"
-                        }
-                      },
-                      {
-                        "refine_plan": [
-                          {
-                            "table": "`t1`",
-                            "access_type": "table_scan"
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                },
                 {
                   "join_execution": {
                     "select#": 2,

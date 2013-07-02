@@ -842,7 +842,7 @@ void prepare_new_connection_state(THD* thd)
                         sctx->host_or_ip, "init_connect command failed");
       sql_print_warning("%s", thd->get_stmt_da()->message_text());
 
-      thd->lex->current_select= 0;
+      thd->lex->set_current_select(0);
       my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
       thd->clear_error();
       net_new_transaction(net);

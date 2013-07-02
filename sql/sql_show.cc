@@ -3472,7 +3472,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
 
 
 end:
-  lex->unit->cleanup();
+  lex->unit->cleanup(true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);
@@ -6879,7 +6879,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   tmp_table_param->table_charset= cs;
   tmp_table_param->field_count= field_count;
   tmp_table_param->schema_table= 1;
-  SELECT_LEX *select_lex= thd->lex->current_select;
+  SELECT_LEX *select_lex= thd->lex->current_select();
   if (!(table= create_tmp_table(thd, tmp_table_param,
                                 field_list, (ORDER*) 0, 0, 0, 
                                 (select_lex->options | thd->variables.option_bits |
@@ -6938,7 +6938,7 @@ int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   char tmp[128];
   LEX *lex= thd->lex;
-  SELECT_LEX *sel= lex->current_select;
+  SELECT_LEX *sel= lex->current_select();
   Name_resolution_context *context= &sel->context;
 
   if (!sel->item_list.elements)
@@ -7134,7 +7134,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
 
   if (table_list->schema_table_reformed) // show command
   {
-    SELECT_LEX *sel= lex->current_select;
+    SELECT_LEX *sel= lex->current_select();
     Item *item;
     Field_translator *transl, *org_transl;
 
