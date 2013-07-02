@@ -342,6 +342,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZMIN_PAGE_LIMIT_TUP_COMMITREQ 2
 
 #define ZSKIP_TUX_TRIGGERS 0x1 // flag for TUP_ABORTREQ
+#define ZABORT_DEALLOC     0x2 // flag for TUP_ABORTREQ
 
 #endif
 
