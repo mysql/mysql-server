@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11399,7 +11399,7 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
 
   LEX *old_lex= thd->lex, newlex;
   thd->lex= &newlex;
-  newlex.current_select= NULL;
+  newlex.set_current_select(NULL);
   lex_start(thd);
   int res= ha_create_table_from_engine(thd, db_buf, table_name_buf);
   thd->lex= old_lex;

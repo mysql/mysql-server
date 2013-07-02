@@ -400,7 +400,7 @@ EXPLAIN SELECT count(*)
 FROM wp, t1 
 WHERE MATCH(title, text) AGAINST ('database');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	NULL	1	Using where
+1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	NULL
 SELECT count(*)
 FROM wp, t1 
@@ -412,7 +412,7 @@ EXPLAIN SELECT COUNT(title)
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	NULL	1	Using where
+1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
 SELECT COUNT(title) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
@@ -423,7 +423,7 @@ EXPLAIN SELECT COUNT(title)
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	NULL	1	Using where
+1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
 SELECT COUNT(title) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
@@ -434,7 +434,7 @@ EXPLAIN SELECT COUNT(dummy)
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	NULL	1	Using where
+1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
 SELECT COUNT(dummy) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
@@ -814,7 +814,7 @@ EXPLAIN SELECT COUNT(*)
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	NULL	1	Using where
+1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
 FLUSH STATUS;
 SELECT COUNT(*) 
 FROM wp 
