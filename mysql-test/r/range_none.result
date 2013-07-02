@@ -605,7 +605,7 @@ a
 18446744073709551615
 explain select * from t1 where a < -1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select * from t1 where a < -1;
 a
 drop table t1;
@@ -1726,7 +1726,7 @@ pk	i4
 EXPLAIN
 SELECT * FROM t1 WHERE i4 BETWEEN 100 AND 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE i4 BETWEEN 100 AND 0;
 pk	i4
 EXPLAIN
@@ -1741,7 +1741,7 @@ pk	i4
 EXPLAIN
 SELECT * FROM t1 WHERE i4 BETWEEN 999999999999999 AND 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE i4 BETWEEN 999999999999999 AND 30;
 pk	i4
 EXPLAIN

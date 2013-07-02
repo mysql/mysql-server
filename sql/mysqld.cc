@@ -3292,6 +3292,8 @@ SHOW_VAR com_status_vars[]= {
   {"drop_view",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_VIEW]), SHOW_LONG_STATUS},
   {"empty_query",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EMPTY_QUERY]), SHOW_LONG_STATUS},
   {"execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]), SHOW_LONG_STATUS},
+  {"explain_other",        (char*) offsetof(STATUS_VAR, com_stat[(uint)
+  SQLCOM_EXPLAIN_OTHER]), SHOW_LONG_STATUS},
   {"flush",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_FLUSH]), SHOW_LONG_STATUS},
   {"get_diagnostics",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GET_DIAGNOSTICS]), SHOW_LONG_STATUS},
   {"grant",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GRANT]), SHOW_LONG_STATUS},
@@ -9125,7 +9127,7 @@ PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
-  key_LOCK_log_throttle_qni;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan;
 PSI_mutex_key key_LOCK_thread_remove;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
@@ -9210,7 +9212,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_thread_remove, "LOCK_thread_remove", PSI_FLAG_GLOBAL},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
-  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL},
+  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL },
+  { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0}
 };
 

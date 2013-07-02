@@ -127,7 +127,7 @@ create table t2 (c2 double) engine=innodb;
 explain select 1 from t2 where c2 = any (select log10(null) from t1 where c6 <null)  ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 drop table t1, t2;
 # 
 # BUG#42742: crash in setup_sj_materialization, Copy_field::set
