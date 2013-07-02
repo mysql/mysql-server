@@ -1383,8 +1383,8 @@ page_zip_compress(
 				ut_ad(trx_id_col > 0);
 				ut_ad(trx_id_col != ULINT_UNDEFINED);
 			} else if (page_comp_info
-				   && (page_comp_info->type &
-					DICT_CLUSTERED)) {
+				   && (page_comp_info->type
+				       & DICT_CLUSTERED)) {
 				trx_id_col = page_comp_info->trx_id_pos;
 			}
 
