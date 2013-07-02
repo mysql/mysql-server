@@ -810,10 +810,11 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
             *
             * Therefore we call TUP_ABORTREQ already now.  Diskdata etc
             * should be in memory and timeslicing cannot occur.  We must
-            * skip TUX abort triggers since TUX is already aborted.
+            * skip TUX abort triggers since TUX is already aborted.  We
+            * will dealloc the fixed and var parts if necessary.
             */
            signal->theData[0] = operPtr.i;
-           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
+           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
            tupkeyErrorLab(&req_struct);
            return;
          }
@@ -2058,10 +2059,17 @@ update_error:
     regOperPtr.p->m_tuple_location.setNull();
   }
 exit_error:
+  if (!regOperPtr.p->m_tuple_location.isNull())
+  {
+    jam();
+    /* Memory allocated, abort insert, releasing memory if appropriate */
+    do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
+  }
   tupkeyErrorLab(req_struct);
   return -1;
 
 disk_prealloc_error:
+  jam();
   base->m_header_bits |= Tuple_header::FREED;
   goto exit_error;
 }
