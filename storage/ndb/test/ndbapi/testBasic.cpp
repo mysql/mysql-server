@@ -25,6 +25,7 @@
 #include <random.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbConfig.hpp>
+#include <BlockNumbers.h>
 
 /**
  * TODO 
@@ -1120,6 +1121,36 @@ f_tup_errors[] =
   { -1, 0, 0 }
 };
 
+static
+int
+compare(unsigned block,
+        struct ndb_mgm_events * time0,
+        struct ndb_mgm_events * time1)
+{
+  int diff = 0;
+  for (int i = 0; i < time0->no_of_events; i++)
+  {
+    if (time0->events[i].MemoryUsage.block != block)
+      continue;
+
+    unsigned node = time0->events[i].source_nodeid;
+
+    for (int j = 0; j < time1->no_of_events; j++)
+    {
+      if (time1->events[j].MemoryUsage.block != block)
+        continue;
+
+      if (time1->events[j].source_nodeid != node)
+        continue;
+
+      diff +=
+        time0->events[i].MemoryUsage.pages_used -
+        time1->events[j].MemoryUsage.pages_used;
+    }
+  }
+  return diff;
+}
+
 int
 runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -1174,6 +1205,15 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     
     g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
     restarter.insertErrorInAllNodes(f_tup_errors[i].error);
+
+    struct ndb_mgm_events * before =
+      ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+    if (before == 0)
+    {
+      ndbout_c("ERROR: failed to fetch report!");
+      return NDBT_FAILED;;
+    }
+
     if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
     {
       
@@ -1187,11 +1227,32 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     {
       return NDBT_FAILED;
     }      
+
+    struct ndb_mgm_events * after =
+      ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+    if (after == 0)
+    {
+      ndbout_c("ERROR: failed to fetch report!");
+      return NDBT_FAILED;;
+    }
+
+    /**
+     * check memory leak
+     */
+    if (compare(DBTUP, before, after) != 0)
+    {
+      ndbout_c("memleak detected!!");
+      return NDBT_FAILED;;
+    }
+    free(before);
+    free(after);
   }
 
   /**
    * update
    */
+  struct ndb_mgm_events * before =
+    ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
   hugoTrans.loadTable(pNdb, 5);
   for(i = 0; f_tup_errors[i].op != -1; i++)
   {
@@ -1224,7 +1285,24 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
   }
-  
+  if (hugoTrans.clearTable(pNdb) != 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  struct ndb_mgm_events * after =
+    ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+
+  int diff = compare(DBTUP, before, after);
+  free(before);
+  free(after);
+
+  if (diff != 0)
+  {
+    ndbout_c("memleak detected!!");
+    return NDBT_FAILED;;
+  }
+
   return NDBT_OK;
 }
 
