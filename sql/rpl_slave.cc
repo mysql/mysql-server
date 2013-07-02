@@ -825,33 +825,6 @@ static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
   }
 }
 
-/*
-  SYNOPSIS:
-  Auxiliary function to destroy the current mts submode.
-  @param
-     mts_submode reference to  current Mts submode
-
- */
-void destroy_mts_submode(Mts_submode **mts_submode)
-{
-  if (*mts_submode)
-  {
-    switch ((*mts_submode)->get_type())
-    {
-    case MTS_PARALLEL_TYPE_BGC:
-      delete static_cast<Mts_submode_master*>(*mts_submode);
-      break;
-    case MTS_PARALLEL_TYPE_DB_NAME:
-      delete static_cast<Mts_submode_database*>(*mts_submode);
-      break;
-    default:
-      DBUG_ASSERT(0);
-      break;
-    }
-    *mts_submode= NULL;
-  }
-}
-
 int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
 {
   DBUG_ENTER("terminate_slave_threads");
@@ -872,11 +845,11 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
                                       need_lock_term)) &&
         !force_all)
     {
-      destroy_mts_submode(&(mi->rli->current_mts_submode));
+      delete mi->rli->current_mts_submode;
       DBUG_RETURN(error);
     }
     else
-      destroy_mts_submode(&(mi->rli->current_mts_submode));
+      delete mi->rli->current_mts_submode;
     mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay-log info file."));
@@ -4989,10 +4962,12 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     The workers have completed  cnt jobs from the gaq. This means that we
     should increment C->jobs_done by cnt.
   */
-  if (!is_mts_worker(rli->info_thd))
+  if (!is_mts_worker(rli->info_thd) &&
+      rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
   {
     DBUG_PRINT("info", ("jobs_done this itr=%ld", cnt));
-    rli->jobs_done+= cnt;
+    static_cast<Mts_submode_logical_clock*>
+      (rli->current_mts_submode)->jobs_done+= cnt;
   }
 
 
@@ -5331,7 +5306,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     }
     // free the current submode object
     mysql_mutex_unlock(&w->jobs_lock);
-    destroy_mts_submode(&w->current_mts_submode);
+    delete w->current_mts_submode;
     delete_dynamic_element(&rli->workers, i);
     delete w;
   }
@@ -5413,9 +5388,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   rli->current_mts_submode=
    (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)?
        (Mts_submode*) new Mts_submode_database():
-       (Mts_submode*) new Mts_submode_master();
-  rli->jobs_done= 0;
-  rli->delegated_jobs= 0;
+       (Mts_submode*) new Mts_submode_logical_clock();
 
   mysql_mutex_unlock(&rli->info_thd_lock);
 

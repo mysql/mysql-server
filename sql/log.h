@@ -1070,7 +1070,7 @@ enum enum_mts_parallel_type {
   /* Parallel slave based on Database name */
   MTS_PARALLEL_TYPE_DB_NAME= 0,
   /* Parallel slave based on group information from Binlog group commit */
-  MTS_PARALLEL_TYPE_BGC=     1
+  MTS_PARALLEL_TYPE_LOGICAL_CLOCK= 1
 };
 
 

@@ -190,30 +190,18 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
   DBUG_RETURN(worker);
 }
 
-/**
- Logic to assign the parent id to the transaction
- @param rli Relay_log_info of the coordinator
- @return true is error
-         false otherwise
- @return: true if error
-          false otherwise
-*/
-bool
-Mts_submode_database::assign_group_parent_id(Relay_log_info* rli,
-                                             Log_event * ev)
-{
-  return false;
-}
-
 /* MTS submode master Default constructor */
-Mts_submode_master::Mts_submode_master()
+Mts_submode_logical_clock::Mts_submode_logical_clock()
 {
-  type= MTS_PARALLEL_TYPE_BGC;
+  type= MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
   first_event= true;
   mts_last_known_commit_parent= SEQ_UNINIT;
-  mts_last_known_parent_group_id= -1;
+  mts_last_known_parent_group_id= SEQ_UNINIT;
   force_new_group= false;
   defer_new_group= false;
+  is_new_group= true;
+  delegated_jobs = 0;
+  jobs_done= 0;
 }
 
 /**
@@ -223,9 +211,13 @@ Mts_submode_master::Mts_submode_master()
           FALSE if no error
  */
 bool
-Mts_submode_master::schedule_next_event(Relay_log_info* rli, Log_event *ev)
+Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli, Log_event *ev)
 {
-  DBUG_ENTER("Mts_submode_master::schedule_next_event");
+  DBUG_ENTER("Mts_submode_logical_clock::schedule_next_event");
+
+  if (assign_group_parent_id(rli, ev))
+    DBUG_RETURN (true);
+
   if (ev->get_type_code() == GTID_LOG_EVENT)
     DBUG_RETURN (false);
   /*
@@ -234,8 +226,8 @@ Mts_submode_master::schedule_next_event(Relay_log_info* rli, Log_event *ev)
     data locks are handled for a short duration while updating the
     log positions.
   */
-  if (!rli->is_new_group)
-    rli->delegated_jobs++;
+  if (!is_new_group)
+    delegated_jobs++;
   else
   {
     /*
@@ -246,19 +238,16 @@ Mts_submode_master::schedule_next_event(Relay_log_info* rli, Log_event *ev)
     // the next transaction
     if (sql_slave_killed(rli->info_thd, rli))
       DBUG_RETURN(true);
-    DBUG_PRINT("info",("delegated %d, jobs_done %d", rli->delegated_jobs, rli->jobs_done));
-    while (rli->delegated_jobs > rli->jobs_done)
+    DBUG_PRINT("info",("delegated %d, jobs_done %d", delegated_jobs, jobs_done));
+    while (delegated_jobs > jobs_done)
     {
       if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
-      {
         DBUG_RETURN(true);
-      }
     }
     DBUG_PRINT("info",("delegated %d, jobs_done %d, we can schedule "
-                       "the next group.", rli->delegated_jobs, rli->jobs_done));
-    //DBUG_ASSERT(rli->delegated_jobs == rli->jobs_done);
-    rli->delegated_jobs= 1;
-    rli->jobs_done= 0;
+                       "the next group.", delegated_jobs, jobs_done));
+    delegated_jobs= 1;
+    jobs_done= 0;
   }
   DBUG_RETURN(false);
 }
@@ -272,12 +261,12 @@ Mts_submode_master::schedule_next_event(Relay_log_info* rli, Log_event *ev)
  @return: void
  */
 void
-Mts_submode_master::attach_temp_tables(THD *thd, const Relay_log_info* rli,
+Mts_submode_logical_clock::attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                        Query_log_event * ev)
 {
   bool shifted= false;
   TABLE *table, *cur_table;
-  DBUG_ENTER("Mts_submode_master::attach_temp_tables");
+  DBUG_ENTER("Mts_submode_logical_clock::attach_temp_tables");
   if (!is_mts_worker(thd) || (ev->ends_group() || ev->starts_group()))
     DBUG_VOID_RETURN;
   /* fetch coordinator's rli */
@@ -334,10 +323,10 @@ Mts_submode_master::attach_temp_tables(THD *thd, const Relay_log_info* rli,
  @return: void
  */
 void
-Mts_submode_master::detach_temp_tables( THD *thd, const Relay_log_info* rli,
+Mts_submode_logical_clock::detach_temp_tables( THD *thd, const Relay_log_info* rli,
                                         Query_log_event * ev)
 {
-  DBUG_ENTER("Mts_submode_master::detach_temp_tables");
+  DBUG_ENTER("Mts_submode_logical_clock::detach_temp_tables");
   if (!is_mts_worker(thd))
     DBUG_VOID_RETURN;
   /*
@@ -364,14 +353,14 @@ Mts_submode_master::detach_temp_tables( THD *thd, const Relay_log_info* rli,
  */
 
 Slave_worker *
-Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
+Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
                                               DYNAMIC_ARRAY *ws,
                                               Log_event * ev)
 {
   Slave_committed_queue *gaq= rli->gaq;
   Slave_worker *worker= NULL;
   Slave_job_group* ptr_group;
-  DBUG_ENTER("Mts_submode_master::get_least_occupied_worker");
+  DBUG_ENTER("Mts_submode_logical_clock::get_least_occupied_worker");
 #ifndef DBUG_OFF
 
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
@@ -394,7 +383,7 @@ Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
        workers
       -If the i-th transaction is being scheduled in this group where "i" >
        number of available workers then schedule this to the forst worker that
-       becomes free..
+       becomes free..Ankit
    */
   if (rli->last_assigned_worker)
     worker= rli->last_assigned_worker;
@@ -433,7 +422,7 @@ Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
          false otherwise
 */
 bool
-Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
+Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
                                             Log_event *ev)
 {
   Slave_committed_queue *gaq= rli->gaq;
@@ -485,7 +474,7 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
     if (ev->get_type_code() == GTID_LOG_EVENT)
       defer_new_group= true;
     else
-      rli->is_new_group= true;
+      is_new_group= true;
     force_new_group= false;
   }
   else
@@ -494,11 +483,11 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
       mts_last_known_parent_group_id;
     if (defer_new_group)
     {
-      rli->is_new_group= true;
+      is_new_group= true;
       defer_new_group= false;
     }
     else
-      rli->is_new_group= false;
+     is_new_group= false;
   }
   DBUG_PRINT("info", ("MTS::slave c=%lld, pid= %lld", commit_seq_no,
                       mts_last_known_parent_group_id));
@@ -512,7 +501,7 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
   any free workers.
  */
 Slave_worker*
-Mts_submode_master::get_free_worker(Relay_log_info *rli)
+Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli)
 {
   Slave_worker *w_i;
   for (uint i= 0; i < rli->workers.elements; i++)
@@ -533,7 +522,7 @@ Mts_submode_master::get_free_worker(Relay_log_info *rli)
             function only for temp tables.
  */
 std::pair<uint, my_thread_id>
-Mts_submode_master::get_server_and_thread_id(TABLE* table)
+Mts_submode_logical_clock::get_server_and_thread_id(TABLE* table)
 {
   DBUG_ENTER("get_server_and_thread_id");
   char* extra_string= table->s->table_cache_key.str;

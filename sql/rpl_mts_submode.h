@@ -20,7 +20,7 @@
 #include "rpl_rli.h"
 
 class Mts_submode_database;
-class Mts_submode_master;
+class Mts_submode_logical_clock;
 
 // Extend the following class as per requirement for each sub mode
 class Mts_submode
@@ -31,7 +31,6 @@ protected:
   /* Parallel type */
   enum_mts_parallel_type  type;
 public:
-  /* default constructor */
   Mts_submode(){}
   inline enum_mts_parallel_type get_type(){return type;}
   // pure virtual methods. Should be extended in the derieved class
@@ -54,8 +53,7 @@ public:
                                                   DYNAMIC_ARRAY *ws,
                                                   Log_event *ev)= 0;
 
-  /* assigns the parent id to the group. Should be extended in the derieved class  */
-  virtual bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev)= 0;
+  virtual ~Mts_submode(){}
 };
 
 /**
@@ -76,25 +74,57 @@ public:
                                                       Query_log_event *ev);
   Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                           DYNAMIC_ARRAY *ws, Log_event *ev);
-  bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev);
+  ~Mts_submode_database(){}
 };
 
 /**
   Parallelization using Master parallelization information
   For significance of each method check definition of Mts_submode
  */
-class Mts_submode_master: public Mts_submode
+class Mts_submode_logical_clock: public Mts_submode
 {
 private:
   uint worker_seq;
   bool first_event, force_new_group, defer_new_group;
   int64 mts_last_known_commit_parent;
   int64 mts_last_known_parent_group_id;
+  /*
+     The following are used to check if the last group has been applied
+     completely, Here is how this works.
+
+     if (!is_new_group)
+     {
+       delegated_jobs++;
+       // schedule this group.
+     }
+     else
+     {
+       while (delegated_jobs > jobs_done)
+         mts check_point_routine()...
+      delegated_jobs = 1;
+      jobs_done= 0;
+      //schedule next event...
+     }
+
+     in mts_checkpoint routine
+     {
+       for every job completed by a worker,
+       job_done++;
+     }
+     Also since both these are being done by the coordinator, we
+     don't need any locks.
+   */
+  bool is_new_group;
+  uint delegated_jobs;
+public:
+  uint jobs_done;
+
 protected:
   std::pair<uint, my_thread_id> get_server_and_thread_id(TABLE* table);
   Slave_worker* get_free_worker(Relay_log_info *rli);
+  bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev);
 public:
-  Mts_submode_master();
+  Mts_submode_logical_clock();
   bool schedule_next_event(Relay_log_info* rli, Log_event *ev);
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
@@ -102,7 +132,7 @@ public:
                                                       Query_log_event *ev);
   Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                           DYNAMIC_ARRAY *ws, Log_event *ev);
-  bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev);
+  ~Mts_submode_logical_clock(){}
 };
 
 #endif /*MTS_SUBMODE_H*/
