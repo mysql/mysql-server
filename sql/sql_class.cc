@@ -884,6 +884,7 @@ THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0), rli_slave(NULL),
+   query_plan(this),
    in_sub_stmt(0),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
@@ -951,7 +952,8 @@ THD::THD(bool enable_plugins)
   m_row_count_func= -1;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
-  lex->current_select= 0;
+  lex->thd= NULL;
+  lex->set_current_select(0);
   user_time.tv_sec= 0;
   user_time.tv_usec= 0;
   start_time.tv_sec= 0;
@@ -990,6 +992,7 @@ THD::THD(bool enable_plugins)
   transaction.flags.enabled= true;
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -1256,17 +1259,17 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     is_slave_error=  1; // needed to catch query errors during replication
 
     /*
-      thd->lex->current_select == 0 if lex structure is not inited
+      thd->lex->current_select() == 0 if lex structure is not inited
       (not query command (COM_QUERY))
     */
-    if (lex->current_select &&
-        lex->current_select->no_error && !is_fatal_error)
+    if (lex->current_select() &&
+        lex->current_select()->no_error && !is_fatal_error)
     {
       DBUG_PRINT("error",
                  ("Error converted to warning: current_select: no_error %d  "
                   "fatal_error: %d",
-                  (lex->current_select ?
-                   lex->current_select->no_error : 0),
+                  (lex->current_select() ?
+                   lex->current_select()->no_error : 0),
                   (int) is_fatal_error));
     }
     else
@@ -1548,6 +1551,7 @@ void THD::release_resources()
 
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_query_plan);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
@@ -1558,6 +1562,10 @@ void THD::release_resources()
     net.vio= NULL;
   }
 #endif
+
+  /* modification plan for UPDATE/DELETE should be freed. */
+  DBUG_ASSERT(!query_plan.get_plan());
+  mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
 
   stmt_map.reset();                     /* close all prepared statements */
@@ -1595,6 +1603,7 @@ THD::~THD()
   my_free(db);
   db= NULL;
   free_root(&transaction.mem_root,MYF(0));
+  mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
@@ -2366,9 +2375,8 @@ void THD::rollback_item_tree_changes()
 *****************************************************************************/
 
 select_result::select_result():
-  estimated_rowcount(0)
+  thd(current_thd), unit(NULL), estimated_rowcount(0)
 {
-  thd=current_thd;
 }
 
 void select_result::send_error(uint errcode,const char *err)
@@ -3061,7 +3069,7 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   Item *val_item;
   for (uint i= 0; (val_item= li++); i++)
     it->store(i, val_item);
-  it->assigned(1);
+  it->assigned(true);
   DBUG_RETURN(0);
 }
 
@@ -3115,7 +3123,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
     cache->store(val_item);
     it->store(0, cache);
   }
-  it->assigned(1);
+  it->assigned(true);
   DBUG_RETURN(0);
 }
 
@@ -3228,7 +3236,7 @@ bool select_exists_subselect::send_data(List<Item> &items)
     set elsewhere.
   */
   it->value= 1;
-  it->assigned(1);
+  it->assigned(true);
   DBUG_RETURN(0);
 }
 
@@ -4479,8 +4487,8 @@ void mark_transaction_to_rollback(THD *thd, bool all)
       flow, even in presence
       of IGNORE clause.
     */
-    if (thd->lex->current_select)
-      thd->lex->current_select->no_error= FALSE;
+    if (thd->lex->current_select())
+      thd->lex->current_select()->no_error= FALSE;
   }
 }
 /***************************************************************************
@@ -4709,4 +4717,15 @@ void THD::time_out_user_resource_limits()
   }
 
   DBUG_VOID_RETURN;
+}
+
+
+void THD::Query_plan::set_query_plan(enum_sql_command sql_cmd,
+                                     LEX *lex_arg, bool ps)
+{
+  mysql_mutex_lock(&thd->LOCK_query_plan);
+  sql_command= sql_cmd;
+  lex= lex_arg;
+  is_ps= ps;
+  mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
