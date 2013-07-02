@@ -586,8 +586,17 @@ void Item_sum::update_used_tables ()
 
     used_tables_cache&= PSEUDO_TABLE_BITS;
 
-    /* the aggregate function is aggregated into its local context */
-    used_tables_cache|= ((table_map)1 << aggr_sel->join->tables) - 1;
+    /*
+     if the function is aggregated into its local context, it can
+     be calculated only after evaluating the full join, thus it
+     depends on all tables of this join. Otherwise, it depends on
+     outer tables, even if its arguments args[] do not explicitly
+     reference an outer table, like COUNT (*) or COUNT(123).
+    */
+    used_tables_cache|= aggr_level == nest_level ?
+      ((table_map)1 << aggr_sel->join->tables) - 1 :
+      OUTER_REF_TABLE_BIT;
+
   }
 }
 
