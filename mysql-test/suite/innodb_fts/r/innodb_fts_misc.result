@@ -1344,6 +1344,10 @@ id	title	body
 3	Optimizing MySQL	In this tutorial we will show ...
 5	MySQL vs. YourSQL	In the following database comparison ...
 DROP TABLE articles;
+CREATE TABLE t1(a TEXT CHARACTER SET LATIN1, FULLTEXT INDEX(a)) ENGINE=INNODB;
+SELECT * FROM t1 WHERE MATCH(a) AGAINST("*");
+ERROR 42000: syntax error, unexpected $end, expecting FTS_TERM or FTS_NUMB or '*'
+DROP TABLE t1;
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),

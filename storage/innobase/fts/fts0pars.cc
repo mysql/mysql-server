@@ -1895,7 +1895,7 @@ ftserror(
 /*=====*/
 	const char*	p)
 {
-	fprintf(stderr, "%s\n", p);
+	my_printf_error(ER_PARSE_ERROR, "%s", MYF(0), p);
 	return(0);
 }
 
