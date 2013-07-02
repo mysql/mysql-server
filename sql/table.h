@@ -1894,6 +1894,9 @@ public:
 
   MDL_request mdl_request;
 
+  /// if true, EXPLAIN can't explain view due to insufficient rights.
+  bool view_no_explain;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* List to carry partition names from PARTITION (...) clause in statement */
   List<String> *partition_names;

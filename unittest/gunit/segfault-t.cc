@@ -61,6 +61,9 @@ TEST_F(FatalSignalDeathTest, Segfault)
    gtest library instead.
   */
   EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
+#elif defined(__SANITIZE_ADDRESS__)
+  /* gcc 4.8.1 with '-fsanitize=address -O1' */
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
 #else
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.

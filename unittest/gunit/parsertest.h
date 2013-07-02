@@ -1,6 +1,6 @@
 #ifndef PARSERTEST_INCLUDED
 #define PARSERTEST_INCLUDED
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ protected:
     mysql_reset_thd_for_next_command(thd());
     bool err= parse_sql(thd(), &state, NULL);
     EXPECT_FALSE(err);
-    return thd()->lex->current_select;
+    return thd()->lex->current_select();
   }
 
 };

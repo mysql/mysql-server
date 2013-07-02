@@ -3919,7 +3919,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
     if (view->select_lex->ftfunc_list->elements)
     {
       Item_func_match *ifm;
-      SELECT_LEX *current_select= thd->lex->current_select;
+      SELECT_LEX *current_select= thd->lex->current_select();
       List_iterator_fast<Item_func_match>
         li(*(view->select_lex->ftfunc_list));
       while ((ifm= li++))
@@ -3973,7 +3973,7 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
         evaluation of check_option when we insert/update/delete a row.
         So we must forbid semijoin transformation in fix_fields():
       */
-      Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+      Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
                                st_select_lex::RESOLVE_NONE,
                                effective_with_check != VIEW_CHECK_NONE);
 
@@ -4693,7 +4693,7 @@ Item *Natural_join_column::create_item(THD *thd)
   if (view_field)
   {
     DBUG_ASSERT(table_field == NULL);
-    SELECT_LEX *select= thd->lex->current_select;
+    SELECT_LEX *select= thd->lex->current_select();
     return create_view_field(thd, table_ref, &view_field->item,
                              view_field->name, &select->context);
   }
@@ -4763,7 +4763,7 @@ const char *Field_iterator_table::name()
 
 Item *Field_iterator_table::create_item(THD *thd)
 {
-  SELECT_LEX *select= thd->lex->current_select;
+  SELECT_LEX *select= thd->lex->current_select();
 
   Item_field *item= new Item_field(thd, &select->context, *ptr);
   /*
@@ -4778,8 +4778,8 @@ Item *Field_iterator_table::create_item(THD *thd)
       item->push_to_non_agg_fields(select);
       select->set_non_agg_field_used(true);
     }
-    if (thd->lex->current_select->with_sum_func &&
-        !thd->lex->current_select->group_list.elements)
+    if (thd->lex->current_select()->with_sum_func &&
+        !thd->lex->current_select()->group_list.elements)
       item->maybe_null= true;
   }
   return item;
@@ -4794,7 +4794,7 @@ const char *Field_iterator_view::name()
 
 Item *Field_iterator_view::create_item(THD *thd)
 {
-  SELECT_LEX *select= thd->lex->current_select;
+  SELECT_LEX *select= thd->lex->current_select();
   return create_view_field(thd, view, &ptr->item, ptr->name,
                            &select->context);
 }
@@ -4819,17 +4819,17 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   }
 
   DBUG_ASSERT(field);
-  thd->lex->current_select->no_wrap_view_item= TRUE;
+  thd->lex->current_select()->no_wrap_view_item= TRUE;
   if (!field->fixed)
   {
     if (field->fix_fields(thd, field_ref))
     {
-      thd->lex->current_select->no_wrap_view_item= save_wrapper;
+      thd->lex->current_select()->no_wrap_view_item= save_wrapper;
       DBUG_RETURN(0);
     }
     field= *field_ref;
   }
-  thd->lex->current_select->no_wrap_view_item= save_wrapper;
+  thd->lex->current_select()->no_wrap_view_item= save_wrapper;
   if (save_wrapper)
   {
     DBUG_RETURN(field);
@@ -5032,7 +5032,7 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
     /* The field belongs to a stored table. */
     Field *tmp_field= table_field_it.field();
     Item_field *tmp_item=
-      new Item_field(thd, &thd->lex->current_select->context, tmp_field);
+      new Item_field(thd, &thd->lex->current_select()->context, tmp_field);
     if (!tmp_item)
       return NULL;
     nj_col= new Natural_join_column(tmp_item, table_ref);
