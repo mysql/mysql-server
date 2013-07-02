@@ -180,8 +180,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   current_mts_submode=
    (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)?
        (Mts_submode*) new Mts_submode_database():
-       (Mts_submode*) new Mts_submode_master();
-  this->jobs_done= 0;
+       (Mts_submode*) new Mts_submode_logical_clock();
 
   DBUG_RETURN(0);
 }
@@ -744,7 +743,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
   DBUG_ASSERT(!rli->last_assigned_worker ||
               rli->last_assigned_worker == last_worker);
-  DBUG_ASSERT(rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC);
+  DBUG_ASSERT(rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_LOGICAL_CLOCK);
 
   if (!inited_hash_workers)
     DBUG_RETURN(NULL);
@@ -1833,7 +1832,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   }
   else if (!is_gtid_event(ev) &&
           // no need to address partioning in BGC mode
-          (rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC))
+          (rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_LOGICAL_CLOCK))
   {
     if ((part_event=
          ev->contains_partition_info(worker->end_group_sets_max_dbs)))
@@ -1877,7 +1876,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
     p-events of B/T-less {p,g} group (see legends of
     Log_event::get_slave_worker) obviously can't commit.
    */
-  (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_BGC ||
+  (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
    part_event) && !is_gtid_event(ev)))
   {
     DBUG_PRINT("slave_worker_exec_job:",

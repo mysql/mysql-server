@@ -28,7 +28,7 @@ class Format_description_log_event;
 /**
   Logical timestamp generator for binlog Prepare stage.
  */
-class Logical_clock_state
+class  Logical_clock
 {
 private:
   mysql_mutex_t state_LOCK;
@@ -38,7 +38,7 @@ private:
 protected:
   virtual inline void init(){state= 0; clock_step= 1;}
 public:
-  Logical_clock_state();
+   Logical_clock();
   int64 step();
   int64 get_timestamp();
 };
@@ -559,7 +559,7 @@ public:
 
 public:
   /* Clock to timestamp the commits */
-  Logical_clock_state commit_clock;
+   Logical_clock commit_clock;
 
   /**
     Find the oldest binary log that contains any GTID that
