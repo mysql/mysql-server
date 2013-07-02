@@ -204,7 +204,7 @@ extern const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
 applying MLOG_FILE_TRUNCATE redo record during recovery */
 struct btr_create_t {
 
-	btr_create_t(const byte* const ptr)
+	explicit btr_create_t(const byte* const ptr)
 		:
 		format_flags(),
 		n_fields(),

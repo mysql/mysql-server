@@ -2475,9 +2475,9 @@ fil_op_log_parse_or_replay(
 
 	/* Step-1: Parse the log records. */
 
-	/* Step-1a: Parse initial information which include
-	flags and name of table. Other field viz. type, space-id, page-no are
-	pre-parsed before invocation of this function */
+	/* Step-1a: Parse flags and name of table.
+	Other fields (type, space-id, page-no) are parsed before
+	invocation of this function */
 	if (type == MLOG_FILE_CREATE2 || type == MLOG_FILE_TRUNCATE) {
 		if (end_ptr < ptr + 4) {
 
@@ -2500,6 +2500,7 @@ fil_op_log_parse_or_replay(
 
 	name = (const char*) ptr;
 	ptr += name_len;
+	ut_ad(strlen(name) == name_len - 1);
 
 	/* Step-1b: Parse remaining field in type specific form. */
 	if (type == MLOG_FILE_TRUNCATE) {
@@ -2541,6 +2542,7 @@ fil_op_log_parse_or_replay(
 
 		new_name = (const char*) ptr;
 		ptr += new_name_len;
+		ut_ad(strlen(new_name) == new_name_len - 1);
 	}
 
 	/* Condition to check if replay of log record is demanded by caller. */
@@ -2906,14 +2908,13 @@ fil_delete_tablespace(
 					on the tables pages in the buffer
 					pool */
 {
-	dberr_t		err;
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
 	ut_a(!Tablespace::is_system_tablespace(id));
 
-	err = fil_check_pending_operations(id, FIL_OPERATION_DELETE,
-					   &space, &path);
+	dberr_t err = fil_check_pending_operations(
+		id, FIL_OPERATION_DELETE, &space, &path);
 
 	if (err != DB_SUCCESS) {
 
@@ -3059,6 +3060,7 @@ fil_index_tree_is_freed(
 	    || (descr != NULL
 		&& xdes_get_bit(descr, XDES_FREE_BIT,
 			root_page_no % FSP_EXTENT_SIZE)) == TRUE) {
+
 		mtr_commit(&mtr);
 		/* The tree has already been freed */
 		return(true);

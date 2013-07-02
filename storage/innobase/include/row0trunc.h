@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file row/row0trunc.cc
+@file include/row0trunc.h
 TRUNCATE implementation
 
 Created 2013-04-25 Krunal Bauskar
@@ -325,9 +325,7 @@ Truncates a table for MySQL.
 @return	error code or DB_SUCCESS */
 
 dberr_t
-row_truncate_table_for_mysql(
-	dict_table_t* table,
-	trx_t* trx);
+row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx);
 
 #endif /* row0trunc_h */
 
