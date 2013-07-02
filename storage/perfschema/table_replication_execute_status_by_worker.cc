@@ -143,12 +143,15 @@ int table_replication_execute_status_by_worker::rnd_next(void)
 
 ha_rows table_replication_execute_status_by_worker::get_row_count()
 {
+  uint row_count= 0;
   mysql_mutex_lock(&LOCK_active_mi);
 
   DBUG_ASSERT(active_mi != NULL);
   DBUG_ASSERT(active_mi->rli != NULL);
 
-  uint row_count= active_mi->rli->workers.elements;
+  if (active_mi->rli->workers_array_initialized)
+    row_count= active_mi->rli->workers.elements;
+
   mysql_mutex_unlock(&LOCK_active_mi);
   return row_count;
 }
