@@ -1,5 +1,5 @@
 # ************************************************************
-# wl6504: This testcase is to check the functionality of the 
+# wl6504: This testcase is to check the functionality of the
 # innodb_buffer_pool_dump_pct flag.
 # step 1.set innodb_buffer_pool_dump_pct=100 and take the dump
 # spep 2.set innodb_buffer_pool_dump_pct=50 and take the dump
@@ -7,6 +7,7 @@
 # here if the size of step 1 > size of step 2 (pass) esle Fail
 #*************************************************************
 --source include/have_innodb.inc
+#--source include/not_parallel.inc
 
 --echo # set the environmental variables
 let MYSQLD_DATADIR = `SELECT @@datadir`;
@@ -75,12 +76,10 @@ while (my $file = readdir(DIR))
 
   if ($file =~ m/\ib_buffer_pool50$/) {
     $size50 = -s "$dir/$file";
-    #print "The size of the dump file 50% : $size50\n";
   } elsif ($file =~ m/\ib_buffer_pool100$/) {
     $size100 = -s "$dir/$file";
-    #print "The size of the dump file 100% : $size100\n";
   }
-  
+
 }
 #check the size of the dump files ,here size100 should always be greater
  if ($size50 < $size100) {
@@ -96,7 +95,7 @@ EOF
 --echo # reset the default value
 SET GLOBAL innodb_buffer_pool_dump_pct=Default;
 
---echo #cleanup 
+--echo #cleanup
 --remove_file $MYSQL_TMP_DIR/ib_buffer_pool100
 --remove_file $MYSQL_TMP_DIR/ib_buffer_pool50
 --remove_file $MYSQLD_DATADIR/ib_buffer_pool
