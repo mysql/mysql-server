@@ -25,7 +25,7 @@
 
 #define MYSQL_AUDIT_CLASS_MASK_SIZE 1
 
-#define MYSQL_AUDIT_INTERFACE_VERSION 0x0300
+#define MYSQL_AUDIT_INTERFACE_VERSION 0x0301
 
 
 /*************************************************************************
@@ -59,6 +59,10 @@ struct mysql_event_general
   struct charset_info_st *general_charset;
   unsigned long long general_time;
   unsigned long long general_rows;
+  MYSQL_LEX_STRING general_host;
+  MYSQL_LEX_STRING general_sql_command;
+  MYSQL_LEX_STRING general_external_user;
+  MYSQL_LEX_STRING general_ip;
 };
 
 
