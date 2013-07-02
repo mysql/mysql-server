@@ -263,6 +263,9 @@ CREATE TABLE t2 (i INT);
 --let $query =  INSERT INTO t2 SELECT * FROM t1
 --let $select =                SELECT * FROM t1
 --source include/explain_utils.inc
+--let $query =  INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i)
+--let $select =                SELECT * FROM t1 JOIN t1 AS tt USING(i)
+--source include/explain_utils.inc
 DROP TABLE t1, t2;
 
 --echo #26

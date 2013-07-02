@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,41 +24,6 @@
 #include "sql_class.h"
 
 struct st_join_table;
-
-
-/**
-  Names for different query parse tree parts
-*/
-
-enum Explain_context_enum
-{
-  CTX_NONE= 0, ///< Empty value
-  CTX_MESSAGE, ///< "No tables used" messages etc.
-  CTX_TABLE, ///< for single-table UPDATE/DELETE
-  CTX_SELECT_LIST, ///< SELECT (subquery), (subquery)...
-  CTX_UPDATE_VALUE_LIST, ///< UPDATE ... SET field=(subquery)...
-  CTX_JOIN,
-  CTX_JOIN_TAB,
-  CTX_MATERIALIZATION,
-  CTX_DUPLICATES_WEEDOUT,
-  CTX_DERIVED, ///< "Derived" subquery
-  CTX_WHERE, ///< Subquery in WHERE clause item tree
-  CTX_HAVING, ///< Subquery in HAVING clause item tree
-  CTX_ORDER_BY, ///< ORDER BY clause execution context
-  CTX_GROUP_BY, ///< GROUP BY clause execution context
-  CTX_SIMPLE_ORDER_BY, ///< ORDER BY clause execution context
-  CTX_SIMPLE_GROUP_BY, ///< GROUP BY clause execution context
-  CTX_DISTINCT, ///< DISTINCT clause execution context
-  CTX_SIMPLE_DISTINCT, ///< DISTINCT clause execution context
-  CTX_BUFFER_RESULT, ///< see SQL_BUFFER_RESULT in the manual
-  CTX_ORDER_BY_SQ, ///< Subquery in ORDER BY clause item tree
-  CTX_GROUP_BY_SQ, ///< Subquery in GROUP BY clause item tree
-  CTX_OPTIMIZED_AWAY_SUBQUERY, ///< Subquery executed once during optimization
-  CTX_UNION,
-  CTX_UNION_RESULT, ///< Pseudo-table context for UNION result
-  CTX_QUERY_SPEC ///< Inner SELECTs of UNION expression
-};
-
 
 /**
   Types of traditional "extra" column parts and property names for hierarchical
@@ -131,9 +96,9 @@ public:
 */
 struct Explain_context : Sql_alloc
 {
-  Explain_context_enum type; ///< type tag
+  enum_parsing_context type; ///< type tag
 
-  explicit Explain_context(Explain_context_enum type_arg) : type(type_arg) {}
+  explicit Explain_context(enum_parsing_context type_arg) : type(type_arg) {}
 };
 
 
@@ -141,6 +106,10 @@ namespace opt_explain_json_namespace // for forward declaration of "context"
 {
   class context;
 }
+
+
+// Table modification type
+enum enum_mod_type { MT_NONE, MT_INSERT, MT_UPDATE, MT_DELETE, MT_REPLACE };
 
 /**
   Helper class for table property buffering
@@ -352,18 +321,16 @@ public:
   bool is_dependent;
   bool is_cacheable;
   bool using_temporary;
+  enum_mod_type mod_type;
   bool is_materialized_from_subquery;
-  bool is_update; //< UPDATE modified this table
-  bool is_delete; //< DELETE modified this table
 
   qep_row() :
     query_block_id(0),
     is_dependent(false),
     is_cacheable(true),
     using_temporary(false),
-    is_materialized_from_subquery(false),
-    is_update(false),
-    is_delete(false)
+    mod_type(MT_NONE),
+    is_materialized_from_subquery(false)
   {}
 
   virtual ~qep_row() {}
@@ -394,9 +361,8 @@ public:
     is_dependent= false;
     is_cacheable= true;
     using_temporary= false;
+    mod_type= MT_NONE;
     is_materialized_from_subquery= false;
-    is_update= false;
-    is_delete= false;
   }
 
   /**
@@ -428,10 +394,10 @@ public:
 struct Explain_subquery_marker
 {
   class qep_row *destination; ///< hosting TABLE/JOIN_TAB
-  Explain_context_enum type; ///< CTX_WHERE/CTX_HAVING/CTX_ORDER_BY/CTX_GROUP_BY
+  enum_parsing_context type; ///< CTX_WHERE/CTX_HAVING/CTX_ORDER_BY/CTX_GROUP_BY
 
   Explain_subquery_marker(qep_row *destination_arg,
-                          Explain_context_enum type_arg)
+                          enum_parsing_context type_arg)
   : destination(destination_arg), type(type_arg)
   {}
 };
@@ -570,7 +536,7 @@ public:
     @param context      context type
     @param subquery     for CTX_WHERE: unit of the subquery
   */
-  virtual bool begin_context(Explain_context_enum context,
+  virtual bool begin_context(enum_parsing_context context,
                              SELECT_LEX_UNIT *subquery = 0,
                              const Explain_format_flags *flags= NULL)= 0;
 
@@ -579,7 +545,7 @@ public:
 
     @param context      current context type (for validation/debugging)
   */
-  virtual bool end_context(Explain_context_enum context)= 0;
+  virtual bool end_context(enum_parsing_context context)= 0;
  
   /**
     Flush TABLE/JOIN_TAB property set
