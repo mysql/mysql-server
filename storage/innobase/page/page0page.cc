@@ -636,7 +636,6 @@ page_copy_rec_list_end_no_locks(
 				       BUF_PAGE_PRINT_NO_CRASH);
 			buf_page_print(page_align(rec), 0,
 				       BUF_PAGE_PRINT_NO_CRASH);
-			ut_print_timestamp(stderr);
 
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"rec offset %lu, cur1 offset %lu,"
