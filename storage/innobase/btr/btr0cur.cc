@@ -4861,7 +4861,6 @@ btr_check_blob_fil_page_type(
 		}
 #endif /* !UNIV_DEBUG */
 
-		ut_print_timestamp(stderr);
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"FIL_PAGE_TYPE=%lu on BLOB %s space %lu"
 			" page %lu flags %lx",

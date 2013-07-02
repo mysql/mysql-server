@@ -13,26 +13,26 @@ INSERT INTO t1 VALUES (NULL);
 COMMIT;
 ==== FULL FILE ====
 include/diff_tables.inc [master:t1, slave:t1]
-==== --include-gtid ====
+==== --include-gtids ====
 INSERT INTO t1 VALUES (NULL) /* 4 */;
 INSERT INTO t1 VALUES (NULL);
 INSERT INTO t1 VALUES (NULL);
 include/diff_tables.inc [master:t1, slave:t1]
-==== --skip-gtid + --exclude-gtid  ====
+==== --skip-gtids + --exclude-gtids  ====
 INSERT INTO t1 VALUES (NULL) /* 7 */;
 INSERT INTO t1 VALUES (NULL);
 include/diff_tables.inc [master:t1, slave:t1]
-==== --exclude-gtid ====
+==== --exclude-gtids ====
 INSERT INTO t1 VALUES (NULL) /* 9 */;
 include/diff_tables.inc [master:t1, slave:t1]
-==== --skip-gtid ====
+==== --skip-gtids ====
 FLUSH LOGS;
 INSERT INTO t1 VALUES (NULL) /* 10 */;
 include/diff_tables.inc [master:t1, slave:t1]
 ==== --read-from-remote-master ====
 FLUSH LOGS;
-==== --read-from-remote-master with --exclude-gtid ====
-==== --read-from-remote-master with --include-gtid ====
+==== --read-from-remote-master with --exclude-gtids ====
+==== --read-from-remote-master with --include-gtids ====
 ==== --read-from-remote-master skip the binlog without Previous_gtid_log_event
 include/rpl_restart_server.inc [server_number=1 parameters: --gtid-mode=0]
 INSERT INTO t1 VALUES(20);

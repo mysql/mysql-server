@@ -170,8 +170,6 @@ lock_wait_table_reserve_slot(
 		}
 	}
 
-	ut_print_timestamp(stderr);
-
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"There appear to be %lu user threads currently waiting"
 		" inside InnoDB, which is the upper limit."
