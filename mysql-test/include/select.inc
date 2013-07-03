@@ -3410,6 +3410,7 @@ while ($n)
   dec $n;
 }
 --disable_warnings
+--error 0,1436
 eval EXPLAIN SELECT c1 FROM t1 WHERE $q > 0;
 --enable_warnings
 
