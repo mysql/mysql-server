@@ -7076,6 +7076,12 @@ ER_ACCESS_DENIED_CHANGE_USER_ERROR 28000
 ER_INNODB_READ_ONLY
   eng "InnoDB is in read only mode."
 
+ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
+
+ER_STOP_SLAVE_IO_THREAD_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
+
 #
 #  End of 5.6 error messages.
 #

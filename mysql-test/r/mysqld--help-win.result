@@ -792,6 +792,9 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
+ --rpl-stop-slave-timeout=# 
+ Timeout in seconds to wait for slave to stop before
+ returning a warning.
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
@@ -1217,6 +1220,7 @@ report-host (No default value)
 report-password (No default value)
 report-port 0
 report-user (No default value)
+rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
 secure-file-priv (No default value)
