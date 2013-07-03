@@ -69,7 +69,7 @@ Note	###	Storing MySQL user name or password information in the master.info repo
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-start slave;
+include/start_slave.inc
 coordinator's thread id extracted from SHOW PROCESSLIST and PS table match.
 # Asserted this: SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "On".
 # Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
