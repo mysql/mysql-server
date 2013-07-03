@@ -7,7 +7,7 @@
 # here if the size of step 1 > size of step 2 (pass) esle Fail
 #*************************************************************
 --source include/have_innodb.inc
-#--source include/not_parallel.inc
+--source include/not_parallel.inc
 
 --echo # set the environmental variables
 let MYSQLD_DATADIR = `SELECT @@datadir`;
@@ -41,7 +41,7 @@ AND variable_value like '%completed%';
 --file_exists $MYSQLD_DATADIR/ib_buffer_pool
 
 --echo # move a copy of dump file
---copy_file $MYSQLD_DATADIR/ib_buffer_pool $MYSQL_TMP_DIR/ib_buffer_pool100
+--copy_file $MYSQLD_DATADIR/ib_buffer_pool $MYSQLD_DATADIR/ib_buffer_pool100
 
 --echo # set the value 50
 SET GLOBAL innodb_buffer_pool_dump_pct=50;
@@ -63,13 +63,16 @@ AND variable_value like '%completed%';
 --file_exists $MYSQLD_DATADIR/ib_buffer_pool
 
 --echo # move a copy of dump file
---copy_file $MYSQLD_DATADIR/ib_buffer_pool $MYSQL_TMP_DIR/ib_buffer_pool50
+--copy_file $MYSQLD_DATADIR/ib_buffer_pool $MYSQLD_DATADIR/ib_buffer_pool50
 
+--echo # cleanup
+--remove_file $MYSQLD_DATADIR/ib_buffer_pool
 
 --echo # get the size of the dump files & compare
 perl;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLD_DATADIR'};
 my $size;
+print "$dir\n";
 opendir(DIR, $dir) or die $!;
 while (my $file = readdir(DIR))
 {
@@ -83,9 +86,9 @@ while (my $file = readdir(DIR))
 }
 #check the size of the dump files ,here size100 should always be greater
  if ($size50 < $size100) {
-   print "wl6504 test PASS \n";
+   print "wl6504 test PASS\n";
  } else {
-   print "wl6504 test FAIL \n";
+   print "wl6504 test FAIL\n";
  }
 
  close(DIR);
@@ -96,7 +99,6 @@ EOF
 SET GLOBAL innodb_buffer_pool_dump_pct=Default;
 
 --echo #cleanup
---remove_file $MYSQL_TMP_DIR/ib_buffer_pool100
---remove_file $MYSQL_TMP_DIR/ib_buffer_pool50
---remove_file $MYSQLD_DATADIR/ib_buffer_pool
+--remove_file $MYSQLD_DATADIR/ib_buffer_pool100
+--remove_file $MYSQLD_DATADIR/ib_buffer_pool50
 DROP TABLE tab5;
