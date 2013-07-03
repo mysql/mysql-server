@@ -1339,13 +1339,16 @@ bool JOIN::get_best_combination()
       # of semi-join nests for materialization +
       1? + // For GROUP BY
       1? + // For DISTINCT
+      1? + // For aggregation functions aggregated in outer query
+           // when used with distinct
       1? + // For ORDER BY
       1?   // buffer result
     Up to 2 tmp tables are actually used, but it's hard to tell exact number
     at this stage.
   */
   uint tmp_tables= (group_list ? 1 : 0) +
-                   (select_distinct ? 1 : 0) +
+                   (select_distinct ?
+                    (tmp_table_param.outer_sum_func_count ? 2 : 1) : 0) +
                    (order ? 1 : 0) +
        (select_options & (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT) ? 1 : 0) ;
   if (tmp_tables > 2)
@@ -4365,8 +4368,11 @@ count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param,
   List_iterator<Item> li(fields);
   Item *field;
 
-  param->field_count=param->sum_func_count=param->func_count=
-    param->hidden_field_count=0;
+  param->field_count= 0;
+  param->sum_func_count= 0;
+  param->func_count= 0;
+  param->hidden_field_count= 0;
+  param->outer_sum_func_count= 0;
   param->quick_group=1;
   while ((field=li++))
   {
@@ -4401,6 +4407,8 @@ count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param,
       param->func_count++;
       if (reset_with_sum_func)
 	field->with_sum_func=0;
+      if (field->with_sum_func)
+        param->outer_sum_func_count++;
     }
   }
 }
@@ -5041,9 +5049,9 @@ bool JOIN::make_tmp_tables_info()
       like SEC_TO_TIME(SUM(...)).
     */
 
-    if ((group_list && 
+    if ((group_list &&
          (!test_if_subpart(group_list, order) || select_distinct)) ||
-        (select_distinct && tmp_table_param.using_indirect_summary_function))
+        (select_distinct && tmp_table_param.using_outer_summary_function))
     {					/* Must copy to another table */
       DBUG_PRINT("info",("Creating group table"));
       
