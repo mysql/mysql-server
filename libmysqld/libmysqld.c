@@ -49,7 +49,7 @@
 
 extern ulong net_buffer_length;
 extern ulong max_allowed_packet;
-struct Master_info;
+
 struct Master_info *active_mi;
 
 #if defined(__WIN__)
