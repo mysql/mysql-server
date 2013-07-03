@@ -114,6 +114,8 @@ int table_replication_execute_status::rnd_pos(const void *pos)
   return 0;
 }
 
+#ifndef EMBEDDED_LIBRARY
+
 void table_replication_execute_status::make_row()
 {
   char *slave_sql_running_state= NULL;
@@ -157,6 +159,8 @@ void table_replication_execute_status::make_row()
 
   m_row_exists= true;
 }
+
+#endif /* EMBEDDED_LIBRARY */
 
 int table_replication_execute_status::read_row_values(TABLE *table,
                                        unsigned char *buf,

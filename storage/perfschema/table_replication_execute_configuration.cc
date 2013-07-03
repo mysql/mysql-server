@@ -25,7 +25,7 @@
 #include "pfs_instr.h"
 #include "rpl_slave.h"
 #include "rpl_info.h"
-#include  "rpl_rli.h"
+#include "rpl_rli.h"
 #include "rpl_mi.h"
 #include "sql_parse.h"
 
@@ -109,6 +109,8 @@ int table_replication_execute_configuration::rnd_pos(const void *pos)
   return 0;
 }
 
+#ifndef EMBEDDED_LIBRARY
+
 void table_replication_execute_configuration::make_row()
 {
   m_row_exists= false;
@@ -129,6 +131,8 @@ void table_replication_execute_configuration::make_row()
 
   m_row_exists= true;
 }
+
+#endif /* EMBEDDED_LIBRARY */
 
 int table_replication_execute_configuration::read_row_values(TABLE *table,
                                                              unsigned char *buf,

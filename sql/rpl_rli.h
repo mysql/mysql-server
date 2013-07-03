@@ -619,6 +619,35 @@ public:
   time_t mts_last_online_stat;
   /* end of MTS statistics */
 
+  /*Returns the number of elements in workers array*/
+  inline uint get_worker_count()
+  {
+    mysql_mutex_assert_owner(&LOCK_active_mi);
+
+    if (workers_array_initialized)
+      return workers.elements;
+    else
+      return 0;
+  }
+
+  /* Returns a pointer to the worker instance at index n in workers array. */
+  inline Slave_worker* get_worker(uint n)
+  {
+    mysql_mutex_assert_owner(&LOCK_active_mi);
+
+    if (workers_array_initialized)
+    {
+      if (n >= workers.elements)
+        return NULL;
+
+      Slave_worker *ret_worker;
+      get_dynamic(&workers, (uchar *) &ret_worker, n);
+      return ret_worker;
+    }
+    else
+      return NULL;
+  }  
+
   /* most of allocation in the coordinator rli is there */
   void init_workers(ulong);
 
