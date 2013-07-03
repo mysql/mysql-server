@@ -136,7 +136,7 @@ toku_txn_destroy(DB_TXN *txn) {
 static int
 toku_txn_commit(DB_TXN * txn, uint32_t flags,
                 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                bool release_mo_lock, bool big_txn) {
+                bool release_mo_lock, bool low_priority) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
     if (db_txn_struct_i(txn)->child) {
@@ -192,8 +192,8 @@ toku_txn_commit(DB_TXN * txn, uint32_t flags,
     // begin checkpoint logs these associations, so we must be protect
     // the changing of these associations with checkpointing
     if (release_mo_lock) {
-        if (big_txn) {
-            toku_big_multi_operation_client_unlock();
+        if (low_priority) {
+            toku_low_priority_multi_operation_client_unlock();
         } else {
             toku_multi_operation_client_unlock();
         }
@@ -328,14 +328,14 @@ static int
 locked_txn_commit_with_progress(DB_TXN *txn, uint32_t flags,
                                 TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     bool holds_mo_lock = false;
-    bool big_txn = false;
+    bool low_priority = false;
     TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
     if (!toku_txn_is_read_only(tokutxn)) {
         // A readonly transaction does no logging, and therefore does not need the MO lock.
         holds_mo_lock = true;
         if (toku_txn_has_spilled_rollback(tokutxn)) {
-            big_txn = true;
-            toku_big_multi_operation_client_lock();
+            low_priority = true;
+            toku_low_priority_multi_operation_client_lock();
         } else {
             toku_multi_operation_client_lock();
         }
@@ -345,7 +345,7 @@ locked_txn_commit_with_progress(DB_TXN *txn, uint32_t flags,
     // see a non-readonly txn in the recursive commit.
     // But released in the first-level toku_txn_commit (if taken),
     // this way, we don't hold it while we fsync the log.
-    int r = toku_txn_commit(txn, flags, poll, poll_extra, holds_mo_lock, big_txn);
+    int r = toku_txn_commit(txn, flags, poll, poll_extra, holds_mo_lock, low_priority);
     return r;
 }
 
@@ -357,22 +357,22 @@ locked_txn_abort_with_progress(DB_TXN *txn,
     // see a non-readonly txn in the abort (or recursive commit).
     // But released here so we don't have to hold additional state.
     bool holds_mo_lock = false;
-    bool big_txn = false;
+    bool low_priority = false;
     TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
     if (!toku_txn_is_read_only(tokutxn)) {
         // A readonly transaction does no logging, and therefore does not need the MO lock.
         holds_mo_lock = true;
         if (toku_txn_has_spilled_rollback(tokutxn)) {
-            big_txn = true;
-            toku_big_multi_operation_client_lock();
+            low_priority = true;
+            toku_low_priority_multi_operation_client_lock();
         } else {
             toku_multi_operation_client_lock();
         }
     }
     int r = toku_txn_abort(txn, poll, poll_extra);
     if (holds_mo_lock) {
-        if (big_txn) {
-            toku_big_multi_operation_client_unlock();
+        if (low_priority) {
+            toku_low_priority_multi_operation_client_unlock();
         } else {
             toku_multi_operation_client_unlock();
         }
