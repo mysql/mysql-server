@@ -2790,7 +2790,7 @@ innobase_init(
 	if (sizeof(ulint) == 4) {
 		if (innobase_buffer_pool_size > UINT_MAX32) {
 			sql_print_error(
-				"innobase_buffer_pool_size can't be over 4GB"
+				"innodb_buffer_pool_size can't be over 4GB"
 				" on 32-bit systems");
 
 			DBUG_RETURN(innobase_init_abort());

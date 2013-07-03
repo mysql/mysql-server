@@ -204,7 +204,7 @@ void Server_side_cursor::operator delete(void *ptr, size_t size)
 Materialized_cursor::Materialized_cursor(select_result *result_arg,
                                          TABLE *table_arg)
   :Server_side_cursor(&table_arg->mem_root, result_arg),
-  fake_unit(),
+  fake_unit(CTX_NONE),
   table(table_arg),
   fetch_limit(0),
   fetch_count(0),

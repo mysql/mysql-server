@@ -777,7 +777,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 err:
   THD_STAGE_INFO(thd, stage_end);
   lex->link_first_table_back(view, link_to_local);
-  unit->cleanup();
+  unit->cleanup(true);
   DBUG_RETURN(res || thd->is_error());
 }
 
@@ -1356,6 +1356,8 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
     lex_start(thd);
     view_select= lex->select_lex;
 
+    // Needed for correct units markup for EXPLAIN
+    lex->describe= old_lex->describe;
     sql_mode_t saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
@@ -1416,46 +1418,49 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       // If executing prepared statement: see "Optimizer trace" note above.
       opt_trace_disable_if_no_view_access(thd, table, view_tables);
 
+      /*
+        The user we run EXPLAIN as (either the connected user who issued
+        the EXPLAIN statement, or the definer of a SUID stored routine
+        which contains the EXPLAIN) should have both SHOW_VIEW_ACL and
+        SELECT_ACL on the view being opened as well as on all underlying
+        views since EXPLAIN will disclose their structure. This user also
+        should have SELECT_ACL on all underlying tables of the view since
+        this EXPLAIN will disclose information about the number of rows in
+        it.
+
+        To perform this privilege check we create auxiliary TABLE_LIST
+        object for the view in order a) to avoid trashing "table->grant"
+        member for original table list element, which contents can be
+        important at later stage for column-level privilege checking
+        b) get TABLE_LIST object with "security_ctx" member set to 0,
+        i.e. forcing check_table_access() to use active user's security
+        context.
+
+        There is no need for creating similar copies of table list elements
+        for underlying tables since they are just have been constructed and
+        thus have TABLE_LIST::security_ctx == 0 and fresh TABLE_LIST::grant
+        member.
+
+        Finally at this point making sure we have SHOW_VIEW_ACL on the views
+        will suffice as we implicitly require SELECT_ACL anyway.
+      */
+      
+      TABLE_LIST view_no_suid;
+      memset(static_cast<void *>(&view_no_suid), 0, sizeof(TABLE_LIST));
+      view_no_suid.db= table->db;
+      view_no_suid.table_name= table->table_name;
+
+      DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
+
+      if (check_table_access(thd, SELECT_ACL, view_tables,
+                             FALSE, UINT_MAX, TRUE) ||
+          check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid,
+                             FALSE, UINT_MAX, TRUE))
+        table->view_no_explain= true;
+
       if (old_lex->describe && is_explainable_query(old_lex->sql_command))
       {
-        /*
-          The user we run EXPLAIN as (either the connected user who issued
-          the EXPLAIN statement, or the definer of a SUID stored routine
-          which contains the EXPLAIN) should have both SHOW_VIEW_ACL and
-          SELECT_ACL on the view being opened as well as on all underlying
-          views since EXPLAIN will disclose their structure. This user also
-          should have SELECT_ACL on all underlying tables of the view since
-          this EXPLAIN will disclose information about the number of rows in
-          it.
-
-          To perform this privilege check we create auxiliary TABLE_LIST
-          object for the view in order a) to avoid trashing "table->grant"
-          member for original table list element, which contents can be
-          important at later stage for column-level privilege checking
-          b) get TABLE_LIST object with "security_ctx" member set to 0,
-          i.e. forcing check_table_access() to use active user's security
-          context.
-
-          There is no need for creating similar copies of table list elements
-          for underlying tables since they are just have been constructed and
-          thus have TABLE_LIST::security_ctx == 0 and fresh TABLE_LIST::grant
-          member.
-
-          Finally at this point making sure we have SHOW_VIEW_ACL on the views
-          will suffice as we implicitly require SELECT_ACL anyway.
-        */
-        
-        TABLE_LIST view_no_suid;
-        memset(static_cast<void *>(&view_no_suid), 0, sizeof(TABLE_LIST));
-        view_no_suid.db= table->db;
-        view_no_suid.table_name= table->table_name;
-
-        DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
-
-        if (check_table_access(thd, SELECT_ACL, view_tables,
-                               FALSE, UINT_MAX, TRUE) ||
-            check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid,
-                               FALSE, UINT_MAX, TRUE))
+        if (table->view_no_explain)
         {
           my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
           goto err;
