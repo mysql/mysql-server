@@ -1739,6 +1739,13 @@ public:
   virtual bool has_stored_program() const { return with_stored_program; }
   /// Whether this Item was created by the IN->EXISTS subquery transformation
   virtual bool created_by_in2exists() const { return false; }
+  void mark_subqueries_optimized_away()
+  {
+    if (has_subquery())
+      walk(&Item::subq_opt_away_processor, false, NULL);
+  }
+private:
+  virtual bool subq_opt_away_processor(uchar *arg) { return false; }
 };
 
 
@@ -4176,6 +4183,8 @@ public:
     decimals= item->decimals;
     collation.set(item->collation);
     unsigned_flag= item->unsigned_flag;
+    with_subselect|= item->has_subquery();
+    with_stored_program|= item->has_stored_program();
     if (item->type() == FIELD_ITEM)
       cached_field= ((Item_field *)item)->field;
     return 0;

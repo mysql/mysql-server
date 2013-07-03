@@ -511,7 +511,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	table1	ALL	col_int_key	NULL	NULL	NULL	19	NULL
 1	PRIMARY	table3	ALL	col_varchar_key	NULL	NULL	NULL	19	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	table2	ref	col_varchar_key	col_varchar_key	4	test.table3.col_varchar_key	2	Using index
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT table1.col_int_nokey
 FROM t1 AS table1 STRAIGHT_JOIN (
 t1 AS table2 INNER JOIN t1 AS table3
@@ -540,8 +540,8 @@ WHERE t1.pk < 317 AND 2 IN (SELECT COUNT(t2.c1)
 FROM t2)
 ORDER BY t1.c2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 SELECT t1.c1
 FROM t1
 WHERE t1.pk < 317 AND 2 IN (SELECT COUNT(t2.c1)
@@ -856,7 +856,7 @@ WHERE t1.c1 > t2.c1
 XOR i1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT i1
 FROM t3
 WHERE c1 IN

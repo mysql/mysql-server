@@ -810,11 +810,222 @@ let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
-# Cleanup
 --echo # Restart the server
 --source include/start_mysqld.inc
 
 DROP TABLE tab1;
 DROP TABLE tab2;
-SET GLOBAL innodb_file_per_table=default;
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+insert into t1 values(1,"i");
+insert into t1 values(2,"am");
+insert into t1 values(3,"compressed table");
+
+--echo # Shutdown the Server
+--source include/shutdown_mysqld.inc
+
+--echo [35]: Test for --log option , generate the output in mtrchecksum.log file
+--exec $INNOCHECKSUM --log="$MYSQLTEST_VARDIR/mtrchecksum.log" $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.log';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to # and complete file path to file name.
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmpfile", "$dir/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents of log file.
+cat_file $MYSQLTEST_VARDIR/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/mtrchecksum.log
+
+--echo [36]: test for --log option with --strict-check=innodb for innochecksum
+--echo : With verbose long option.
+--exec $INNOCHECKSUM --verbose --log="$MYSQLTEST_VARDIR/tmp/mtrchecksum.log" --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.log';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to # and complete file path to file name.
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+
+$file= 'ver_output';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+   unless ($_=~ /^debug.*$/) {
+     $_=~ s/\d+/#/g;
+     $_=~ s/crc#/crc32/g;
+     $_=~ s/log(\s+)(.*log)/log$1mtrchecksum.log/g;
+     print OUT_FILE $_;
+   }
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the verbose output
+cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
+--remove_file $MYSQLTEST_VARDIR/tmp/ver_output
+
+--echo # Print the contents of log file
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
+
+--echo [37]: Test for --allow-mismatches =99
+--exec $INNOCHECKSUM --log="$MYSQLTEST_VARDIR/tmp/mtrchecksum.log" --allow-mismatches=99 --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
+
+--echo # Expect the fails for checksum mismatches. Print the error message.
+#cat_file $SEARCH_FILE;
+--cat_file $MYSQLTEST_VARDIR/log/my_restart.err
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.log';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents of log file.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
+
+--echo [4]: Test checksum check for page: 2 to page:5
+--exec $INNOCHECKSUM --log="$MYSQLTEST_VARDIR/tmp/mtrchecksum.log" -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.log';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to # and file path to file name.
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents of log file.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
+
+--echo [5]: Test for checksum check for only pageno.= 2
+--exec $INNOCHECKSUM --log="$MYSQLTEST_VARDIR/tmp/mtrchecksum.log" -p 2 $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.log';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ # Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the contents of log file.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
+
+--echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
+--source include/start_mysqld.inc
+
+# cleanup
+DROP TABLE t1;
+DROP TABLE tab1;
 SET GLOBAL innodb_file_format=default;
+SET GLOBAL innodb_file_per_table=default;
