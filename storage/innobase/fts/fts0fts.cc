@@ -48,6 +48,13 @@ Full Text Search interface
 a configurable variable */
 UNIV_INTERN ulong	fts_max_cache_size;
 
+/** Whether the total memory used for FTS cache is exhausted, and we will
+need a sync to free some memory */
+UNIV_INTERN bool       fts_need_sync = false;
+
+/** Variable specifying the total memory allocated for FTS cache */
+UNIV_INTERN ulong      fts_max_total_cache_size;
+
 /** This is FTS result cache limit for each query and would be
 a configurable variable */
 UNIV_INTERN ulong	fts_result_cache_limit;
@@ -647,6 +654,8 @@ fts_cache_create(
 	/* This is a transient heap, used for storing sync data. */
 	cache->sync_heap = ib_heap_allocator_create(heap);
 	cache->sync_heap->arg = NULL;
+
+	fts_need_sync = false;
 
 	cache->sync = static_cast<fts_sync_t*>(
 		mem_heap_zalloc(heap, sizeof(fts_sync_t)));
@@ -3537,7 +3546,8 @@ fts_add_doc_by_id(
 					fts_sync(cache->sync);
 				);
 
-				if (cache->total_size > fts_max_cache_size) {
+				if (cache->total_size > fts_max_cache_size
+				    || fts_need_sync) {
 					fts_sync(cache->sync);
 				}
 
