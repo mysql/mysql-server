@@ -18011,6 +18011,7 @@ static void test_bug43560(void)
   rc= mysql_stmt_prepare(stmt, insert_str, strlen(insert_str));
   check_execute(stmt, rc);
 
+  memset(&bind, 0, sizeof(bind));
   bind.buffer_type= MYSQL_TYPE_STRING;
   bind.buffer_length= BUFSIZE;
   bind.buffer= buffer;

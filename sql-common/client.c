@@ -226,6 +226,16 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
 }
 
 /**
+  Is this NET instance initialized?
+  @c my_net_init() and net_end()
+ */
+
+my_bool my_net_is_inited(NET *net)
+{
+  return net->buff != NULL;
+}
+
+/**
   Clear possible error state of struct NET
 
   @param net  clear the state of the argument
@@ -2994,7 +3004,12 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
 
   compile_time_assert(CR_OK == -1);
   compile_time_assert(CR_ERROR == 0);
-  if (res > CR_OK && mysql->net.read_pos[0] != 254)
+
+  /*
+    The connection may be closed. If so: do not try to read from the buffer.
+  */
+  if (res > CR_OK && 
+      (!my_net_is_inited(&mysql->net) || mysql->net.read_pos[0] != 254))
   {
     /*
       the plugin returned an error. write it down in mysql,
