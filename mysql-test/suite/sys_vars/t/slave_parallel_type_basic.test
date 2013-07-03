@@ -6,7 +6,7 @@ SELECT @@global.slave_parallel_type;
 SET GLOBAL slave_parallel_type= 'DATABASE';
 SELECT @@global.slave_parallel_type;
 
-SET GLOBAL slave_parallel_type= 'MASTER_PARALLEL';
+SET GLOBAL slave_parallel_type= 'LOGICAL_CLOCK';
 SELECT @@global.slave_parallel_type;
 
 SET GLOBAL slave_parallel_type= DEFAULT;
@@ -32,7 +32,7 @@ SELECT @@global.slave_parallel_type;
 
 # THIS IS NOT A SESSION VARIABLES
 --error ER_GLOBAL_VARIABLE
-SET SESSION slave_parallel_type= 'MASTER_PARALLEL';
+SET SESSION slave_parallel_type= 'LOGICAL_CLOCK';
 SELECT @@global.slave_parallel_type;
 
 # RESTORE INITIAL VALUE
