@@ -959,7 +959,12 @@ public:
   FT_SELECT(THD *thd, TABLE *table, uint key, bool *error) :
       QUICK_RANGE_SELECT (thd, table, key, 1, NULL, error) { (void) init(); }
   ~FT_SELECT() { file->ft_end(); }
-  int init() { return file->ft_init(); }
+  int init()
+  {
+    // No estimation is done for FTS, return 1 for compatibility.
+    records= 1;
+    return file->ft_init();
+  }
   int reset() { return 0; }
   int get_next() { return file->ft_read(record); }
   int get_type() { return QS_TYPE_FULLTEXT; }

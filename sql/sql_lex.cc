@@ -398,7 +398,7 @@ void LEX::reset()
   context_stack.empty();
   unit= NULL;
   select_lex= NULL;
-  current_select= NULL;
+  m_current_select= NULL;
   all_selects_list= NULL;
   load_set_str_list.empty();
   value_list.empty();
@@ -507,6 +507,8 @@ st_select_lex *LEX::new_empty_query_block()
     new (thd->mem_root) st_select_lex(NULL, NULL, NULL, NULL, NULL, NULL, 0);
   if (select == NULL)
     return NULL;             /* purecov: inspected */
+  if (describe)
+  select_lex->options|= SELECT_DESCRIBE;
 
   select->parent_lex= this;
 
@@ -527,8 +529,8 @@ bool LEX::new_query()
 {
   DBUG_ENTER("LEX::new_query");
 
-  if (current_select != NULL &&
-      current_select->nest_level >= (int) MAX_SELECT_NESTING)
+  if (current_select() != NULL &&
+      current_select()->nest_level >= (int) MAX_SELECT_NESTING)
   {
     my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
     DBUG_RETURN(true);
@@ -540,17 +542,18 @@ bool LEX::new_query()
   if (!select)
     DBUG_RETURN(true);       /* purecov: inspected */
 
-  SELECT_LEX_UNIT *const sel_unit= new (thd->mem_root) SELECT_LEX_UNIT();
+  SELECT_LEX_UNIT *const sel_unit=
+    new (thd->mem_root) SELECT_LEX_UNIT(current_select() ?
+                                        current_select()->parsing_place :
+                                        CTX_NONE);
   if (!sel_unit)
     DBUG_RETURN(true);       /* purecov: inspected */
 
   sel_unit->thd= thd;
 
   // Link the new "unit" below the current select_lex, if any
-  if (current_select != NULL)
-    sel_unit->include_down(this, current_select);
-
-  sel_unit->global_parameters= select;
+  if (current_select() != NULL)
+    sel_unit->include_down(this, current_select());
 
   select->include_down(this, sel_unit);
 
@@ -565,7 +568,7 @@ bool LEX::new_query()
   if (select_lex == NULL)    // Outer-most query block
   {
   }
-  else if (select->outer_select()->parsing_place == IN_ON)
+  else if (select->outer_select()->parsing_place == CTX_ON)
   {
     /*
       This subquery is part of an ON clause, so we need to link the
@@ -589,7 +592,7 @@ bool LEX::new_query()
   {
     select->context.outer_context= &select->outer_select()->context;
   }
-  current_select= select;
+  set_current_select(select);
   /*
     in subquery is SELECT query and we allow resolution of names in SELECT
     list
@@ -617,7 +620,7 @@ bool LEX::new_union_query(bool distinct)
   DBUG_ASSERT(unit != NULL && select_lex != NULL);
 
   // Is this the outer-most query expression?
-  bool const outer_most= current_select->master_unit() == unit;
+  bool const outer_most= current_select()->master_unit() == unit;
   /*
      Only the last SELECT can have INTO. Since the grammar won't allow INTO in
      a nested SELECT, we make this check only when creating a query block on
@@ -634,16 +637,17 @@ bool LEX::new_union_query(bool distinct)
     DBUG_RETURN(true);
   }
 
-  SELECT_LEX *const select= new_empty_query_block();
-  if (!select)
-    DBUG_RETURN(true);       /* purecov: inspected */
-
-  if (current_select->order_list.first && !current_select->braces)
+  if (current_select()->order_list.first && !current_select()->braces)
   {
     my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
     DBUG_RETURN(true);
   }
-  select->include_neighbour(this, current_select);
+
+  SELECT_LEX *const select= new_empty_query_block();
+  if (!select)
+    DBUG_RETURN(true);       /* purecov: inspected */
+
+  select->include_neighbour(this, current_select());
 
   SELECT_LEX_UNIT *const sel_unit= select->master_unit();
 
@@ -653,8 +657,6 @@ bool LEX::new_union_query(bool distinct)
   if (select->set_context(sel_unit->first_select()->context.outer_context))
     DBUG_RETURN(true);       /* purecov: inspected */
 
-  sel_unit->global_parameters= select;
-
   select->include_in_global(&all_selects_list);
 
   select->linkage= UNION_TYPE;
@@ -662,7 +664,7 @@ bool LEX::new_union_query(bool distinct)
   if (distinct)           /* UNION DISTINCT - remember position */
     sel_unit->union_distinct= select;
 
-  current_select= select;
+  set_current_select(select);
   /*
     By default we assume that this is a regular subquery, in which resolution
     of names in SELECT list is allowed.
@@ -687,7 +689,7 @@ bool LEX::new_top_level_query()
   // Assure that the LEX does not contain any query expression already
   DBUG_ASSERT(unit == NULL &&
               select_lex == NULL &&
-              current_select == NULL);
+              current_select() == NULL);
 
   // Check for the special situation when using INTO OUTFILE and LOAD DATA.
   DBUG_ASSERT(result == 0);
@@ -696,8 +698,8 @@ bool LEX::new_top_level_query()
   if (status)
     DBUG_RETURN(status);     /* purecov: inspected */
 
-  select_lex= current_select;
-  unit=       current_select->master_unit();
+  select_lex= current_select();
+  unit=       current_select()->master_unit();
 
   DBUG_RETURN(false);
 }
@@ -725,13 +727,11 @@ void LEX::new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select)
 
   reset();
 
-  DBUG_ASSERT(unit == NULL && select_lex == NULL && current_select == NULL);
+  DBUG_ASSERT(unit == NULL && select_lex == NULL && current_select() == NULL);
 
   select->parent_lex= this;
 
   sel_unit->thd= thd;
-  sel_unit->global_parameters= select;
-
   select->include_down(this, sel_unit);
 
   select->include_in_global(&all_selects_list);
@@ -741,7 +741,7 @@ void LEX::new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select)
   select_lex= select;
   unit= sel_unit;
 
-  current_select= select;
+  set_current_select(select);
 
   select->context.resolve_in_select_list= true;
 
@@ -1978,11 +1978,13 @@ void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
   Construct and initialize st_select_lex_unit object.
 */
 
-st_select_lex_unit::st_select_lex_unit() :
+st_select_lex_unit::st_select_lex_unit(enum_parsing_context parsing_context) :
   next(NULL),
   prev(NULL),
   master(NULL),
   slave(NULL),
+  explain_marker(CTX_NONE),
+  prepared(false),
   result_table_list(),
   union_result(NULL),
   table(NULL),
@@ -1990,22 +1992,42 @@ st_select_lex_unit::st_select_lex_unit() :
   found_rows_for_union(0),
   saved_error(false),
   uncacheable(0),
-  prepared(false),
   optimized(false),
   executed(false),
-  cleaned(false),
+  cleaned(UC_DIRTY),
   item_list(),
   types(),
-  global_parameters(NULL),
   select_limit_cnt(HA_POS_ERROR),
   offset_limit_cnt(0),
   item(NULL),
   thd(NULL),
   fake_select_lex(NULL),
-  union_distinct(NULL),
-  describe(false),
-  explain_marker(0)
+  union_distinct(NULL)
 {
+  switch (parsing_context)
+  {
+    case CTX_ORDER_BY:
+      explain_marker= CTX_ORDER_BY_SQ; // A subquery in ORDER BY
+      break;
+    case CTX_GROUP_BY:
+      explain_marker= CTX_GROUP_BY_SQ; // A subquery in GROUP BY
+      break;
+    case CTX_ON:
+      explain_marker= CTX_WHERE;
+      break;
+    case CTX_HAVING:                         // A subquery elsewhere
+    case CTX_SELECT_LIST:
+    case CTX_UPDATE_VALUE_LIST:
+    case CTX_WHERE:
+    case CTX_DERIVED:
+    case CTX_NONE:                           // A subquery in a non-select
+      explain_marker= parsing_context;
+      break;
+    default:
+      /* Subquery can't happen outside of those ^. */
+      DBUG_ASSERT(false); /* purecov: inspected */
+      break;
+  }
 }
 
 
@@ -2067,7 +2089,7 @@ st_select_lex::st_select_lex
   between_count(0),
   max_equal_elems(0),
   select_n_where_fields(0),
-  parsing_place(NO_MATTER),
+  parsing_place(CTX_NONE),
   with_sum_func(false),
   table_join_options(0),
   in_sum_expr(0),
@@ -2132,6 +2154,11 @@ bool st_select_lex::set_context(Name_resolution_context *outer_context)
 */
 void st_select_lex_unit::exclude_level()
 {
+  /*
+    Changing unit tree should be done only when LOCK_query_plan mutex is
+    taken. This is needed to provide stable tree for EXPLAIN FOR CONNECTION.
+  */
+  mysql_mutex_lock(&thd->LOCK_query_plan);
   SELECT_LEX_UNIT *units= 0, **units_last= &units;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
@@ -2168,6 +2195,7 @@ void st_select_lex_unit::exclude_level()
     if (next)
       next->prev= prev;
   }
+  mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
 
 
@@ -2248,6 +2276,30 @@ bool st_select_lex::test_limit()
 }
 
 
+enum_parsing_context st_select_lex_unit::get_explain_marker() const
+{
+  mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+  return explain_marker;
+}
+
+
+void st_select_lex_unit::set_explain_marker(enum_parsing_context m)
+{
+  mysql_mutex_lock(&thd->LOCK_query_plan);
+  explain_marker= m;
+  mysql_mutex_unlock(&thd->LOCK_query_plan);
+}
+
+
+void st_select_lex_unit::
+set_explain_marker_from(const st_select_lex_unit *u)
+{
+  mysql_mutex_lock(&thd->LOCK_query_plan);
+  explain_marker= u->explain_marker;
+  mysql_mutex_unlock(&thd->LOCK_query_plan);
+}
+
+
 bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 {
   return add_to_list(thd, order_list, item, asc);
@@ -2318,7 +2370,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
                       select_n_having_items,
                       select_n_where_fields,
                       order_group_num));
-  if (!ref_pointer_array.is_null())
+  if (!ref_pointer_array.is_null() && ref_pointer_array.size() >= n_elems)
   {
     /*
       The Query may have been permanently transformed by removal of
@@ -2339,6 +2391,10 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     if (ref_pointer_array.size() == n_elems)
       return false;
   }
+  /*
+    ref_pointer_array could become bigger when a subquery gets transformed
+    into a MIN/MAX subquery. Reallocate array in this case.
+  */
   Item **array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));
   if (array != NULL)
     ref_pointer_array= Ref_ptr_array(array, n_elems);
@@ -2366,7 +2422,7 @@ void st_select_lex_unit::print(String *str, enum_query_type query_type)
     if (sl->braces)
       str->append(')');
   }
-  if (fake_select_lex == global_parameters)
+  if (fake_select_lex)
   {
     if (fake_select_lex->order_list.elements)
     {
@@ -2409,7 +2465,7 @@ void st_select_lex::print_limit(THD *thd,
   SELECT_LEX_UNIT *unit= master_unit();
   Item_subselect *item= unit->item;
 
-  if (item && unit->global_parameters == this)
+  if (item && unit->global_parameters() == this)
   {
     Item_subselect::subs_type subs_type= item->substype();
     if (subs_type == Item_subselect::EXISTS_SUBS ||
@@ -2706,15 +2762,13 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   else
     str->append(STRING_WITH_LEN("select "));
 
-  if (!thd->lex->describe && join && join->need_tmp)
+  if (master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN)
   {
     /*
-      Items have been repointed to columns of an internal temporary table, it
-      is possible that the JOIN has gone through exec() and join_free(),
-      so items may have been freed by [tmp_JOIN_TAB]::cleanup(full=true),
-      and thus may not be printable. Unless this is EXPLAIN, in which case the
-      freeing is delayed by JOIN::join_free().
+     In order to provide inf for EXPLAIN FOR CONNECTION units aren't
+     completely cleaned till the end of the query.
     */
+    DBUG_ASSERT(false); /* purecov: inspected */
     str->append(STRING_WITH_LEN("<already_cleaned_up>"));
     return;
   }
@@ -2971,7 +3025,7 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), option_type(OPT_DEFAULT),
+  :result(0), thd(NULL), option_type(OPT_DEFAULT),
   is_set_password_sql(false), is_lex_started(0)
 {
 
@@ -3016,8 +3070,8 @@ bool LEX::can_be_merged()
     {
       if (tmp_unit->first_select()->parent_lex == this &&
           (tmp_unit->item == 0 ||
-           (tmp_unit->item->place() != IN_WHERE &&
-            tmp_unit->item->place() != IN_ON)))
+           (tmp_unit->item->place() != CTX_WHERE &&
+            tmp_unit->item->place() != CTX_ON)))
       {
         selects_allow_merge= 0;
         break;
@@ -3667,7 +3721,7 @@ void LEX::cleanup_after_one_table_open()
     for (SELECT_LEX_UNIT *un= select_lex->first_inner_unit();
          un;
          un= un->next_unit())
-      un->cleanup();
+      un->cleanup(true);
     /* reduce all selects list to default state */
     all_selects_list= select_lex;
     /* remove underlying units (units of VIEW) subtree */
@@ -3947,11 +4001,12 @@ bool st_select_lex::handle_derived(LEX *lex,
 }
 
 
-st_select_lex::type_enum st_select_lex::type(const THD *thd)
+st_select_lex::type_enum st_select_lex::type()
 {
   if (master_unit()->fake_select_lex == this)
     return SLT_UNION_RESULT;
-  else if (thd->lex->select_lex == this) 
+  else if (!master_unit()->outer_select() &&
+           master_unit()->first_select() == this) 
   {
     if (first_inner_unit() || next_select())
       return SLT_PRIMARY;
@@ -4082,6 +4137,14 @@ void st_select_lex::include_chain_in_global(st_select_lex **start)
   last_select->link_next->link_prev= &last_select->link_next;
   link_prev= start;
   *start= this;
+}
+
+
+void st_select_lex::set_join(JOIN *join_arg)
+{
+  mysql_mutex_lock(&master_unit()->thd->LOCK_query_plan);
+  join= join_arg;
+  mysql_mutex_unlock(&master_unit()->thd->LOCK_query_plan);
 }
 
 

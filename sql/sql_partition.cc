@@ -198,7 +198,7 @@ static int cmp_rec_and_tuple_prune(part_column_list_val *val,
 Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs)
 {
   THD *thd= current_thd;
-  Name_resolution_context *context= &thd->lex->current_select->context;
+  Name_resolution_context *context= &thd->lex->current_select()->context;
   TABLE_LIST *save_list= context->table_list;
   const char *save_where= thd->where;
 
@@ -1003,7 +1003,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   int error;
   LEX *old_lex= thd->lex;
   LEX lex;
-  st_select_lex_unit unit;
+  st_select_lex_unit unit(CTX_NONE);
   st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
   lex.new_static_query(&unit, &select);
 
@@ -1032,8 +1032,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     of interesting side effects, both desirable and undesirable.
   */
   {
-    const bool save_agg_field= thd->lex->current_select->non_agg_field_used();
-    const bool save_agg_func=  thd->lex->current_select->agg_func_used();
+    const bool save_agg_field= thd->lex->current_select()->non_agg_field_used();
+    const bool save_agg_func=  thd->lex->current_select()->agg_func_used();
     const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
     thd->lex->allow_sum_func= 0;
 
@@ -1043,8 +1043,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
       Restore agg_field/agg_func  and allow_sum_func,
       fix_fields should not affect mysql_select later, see Bug#46923.
     */
-    thd->lex->current_select->set_non_agg_field_used(save_agg_field);
-    thd->lex->current_select->set_agg_func_used(save_agg_func);
+    thd->lex->current_select()->set_non_agg_field_used(save_agg_field);
+    thd->lex->current_select()->set_agg_func_used(save_agg_func);
     thd->lex->allow_sum_func= saved_allow_sum_func;
   }
   if (unlikely(error))
@@ -4341,7 +4341,7 @@ bool mysql_unpack_partition(THD *thd,
     thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
-  st_select_lex_unit unit;
+  st_select_lex_unit unit(CTX_NONE);
   st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
   lex.new_static_query(&unit, &select);
 

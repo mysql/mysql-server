@@ -54,7 +54,7 @@
   $content.="log-error=error.log\n";
   $content.="port=5620\n";
   $content.="user=root\n";
-  $content.="core\n";
+  $content.="core-file\n";
   $content.="log-bin\n";
   open(FILE_CNF, ">$cnf1") or die("Unable to create $cnf1: $!\n");
   print FILE_CNF $content;
@@ -93,7 +93,7 @@ EOF
   my $content= "[mysqld]\n";
   $content.="basedir=$basedir\n";
   $content.="port=5620\n";
-  $content.="core\n";
+  $content.="core-file\n";
   open(FILE_CNF, ">$cnf2") or die("Unable to create $cnf2: $!\n");
   print FILE_CNF $content;
   close(FILE_CNF);

@@ -361,7 +361,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
       key read.
     */
 
-    m_lex->unit->cleanup();
+    m_lex->unit->cleanup(true);
 
     /* Here we also commit or rollback the current statement. */
 

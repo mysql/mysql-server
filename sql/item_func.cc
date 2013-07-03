@@ -174,10 +174,10 @@ Item_func::fix_fields(THD *thd, Item **ref)
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 
-  Switch_resolve_place SRP(thd->lex->current_select ?
-                           &thd->lex->current_select->resolve_place : NULL,
+  Switch_resolve_place SRP(thd->lex->current_select() ?
+                           &thd->lex->current_select()->resolve_place : NULL,
                            st_select_lex::RESOLVE_NONE,
-                           thd->lex->current_select);
+                           thd->lex->current_select());
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
   const_item_cache=1;

@@ -128,6 +128,7 @@ allow-mismatches                  0
 write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
+log                               (No default value)
 [21]: test for --verbose option with --strict-check=innodb for innochecksum
 : With verbose long option.
 # Print the verbose output
@@ -146,6 +147,7 @@ allow-mismatches                  0
 write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
+log                               (No default value)
 [22]: Test for --allow-mismatches =99
 # Expect the fails for checksum mismatches. Print the error message.
 Fail: page 0 invalid
@@ -335,5 +337,133 @@ Filename::tab#.ibd
 # Restart the server
 DROP TABLE tab1;
 DROP TABLE tab2;
-SET GLOBAL innodb_file_per_table=default;
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+insert into t1 values(1,"i");
+insert into t1 values(2,"am");
+insert into t1 values(3,"compressed table");
+# Shutdown the Server
+[35]: Test for --log option , generate the output in mtrchecksum.log file
+# Print the contents of log file.
+InnoDB File Checksum Utility.
+Filename = tab1.ibd
+Innochecksum: checking pages in range # to #
+page::#; log sequence number:first = #; second = #
+page::#; old style : calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
+page::#; old style : calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
+page::#; old style : calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
+page::#; old style : calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
+page::#; old style : calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
+Page::# is empty and uncorrupted
+page::#; log sequence number:first = #; second = #
+Page::# is empty and uncorrupted
+[36]: test for --log option with --strict-check=innodb for innochecksum
+: With verbose long option.
+# Print the verbose output
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+count                             FALSE
+start-page                        #
+end-page                          #
+page                              #
+strict-check                      innodb
+no-check                          FALSE
+allow-mismatches                  #
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+log                               mtrchecksum.log
+# Print the contents of log file
+InnoDB File Checksum Utility.
+Filename = tab1.ibd
+file tab1.ibd = # bytes (# pages)
+page::#; log sequence number:first = #; second = #
+page::#; old style:calculated = #; recorded checksum = #
+page::#; new style: calculated = #; recorded checksum  = #
+page::#; log sequence number:first = #; second = #
+page::#; old style:calculated = #; recorded checksum = #
+page::#; new style: calculated = #; recorded checksum  = #
+page::#; log sequence number:first = #; second = #
+page::#; old style:calculated = #; recorded checksum = #
+page::#; new style: calculated = #; recorded checksum  = #
+page::#; log sequence number:first = #; second = #
+page::#; old style:calculated = #; recorded checksum = #
+page::#; new style: calculated = #; recorded checksum  = #
+page::#; log sequence number:first = #; second = #
+page::#; old style:calculated = #; recorded checksum = #
+page::#; new style: calculated = #; recorded checksum  = #
+page::#; log sequence number:first = #; second = #
+Page::# is empty and uncorrupted
+page::#; log sequence number:first = #; second = #
+Page::# is empty and uncorrupted
+[37]: Test for --allow-mismatches =99
+# Expect the fails for checksum mismatches. Print the error message.
+Fail: page 0 invalid
+Fail: page 1 invalid
+Fail: page 2 invalid
+Fail: page 3 invalid
+Fail: page 4 invalid
+# Print the contents of log file.
+InnoDB File Checksum Utility.
+Filename = tab1.ibd
+Innochecksum: checking pages in range # to #
+page::#; log sequence number:first = #; second = #
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; log sequence number:first = #; second = #
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; log sequence number:first = #; second = #
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; log sequence number:first = #; second = #
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; log sequence number:first = #; second = #
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; log sequence number:first = #; second = #
+Page::# is empty and uncorrupted
+page::#; log sequence number:first = #; second = #
+Page::# is empty and uncorrupted
+[4]: Test checksum check for page: 2 to page:5
+# Print the contents of log file.
+InnoDB File Checksum Utility.
+Filename = tab1.ibd
+Innochecksum: checking pages in range # to #
+page::#; log sequence number:first = #; second = #
+page::#; old style : calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
+page::#; old style : calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
+page::#; old style : calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
+Page::# is empty and uncorrupted
+[5]: Test for checksum check for only pageno.= 2
+# Print the contents of log file.
+InnoDB File Checksum Utility.
+Filename = tab1.ibd
+Innochecksum: checking pages in range # to #
+page::#; log sequence number:first = #; second = #
+page::#; old style : calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+DROP TABLE t1;
+DROP TABLE tab1;
 SET GLOBAL innodb_file_format=default;
+SET GLOBAL innodb_file_per_table=default;
