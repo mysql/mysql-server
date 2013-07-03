@@ -212,9 +212,8 @@ class RemoteClusterHost(ABClusterHost):
 
         contents = None
         if (stdinFile != None):
-            stdin = self.open(stdinFile)
-            contents = stdin.read()
-            stdin.close()
+            with self.open(stdinFile) as stdin:
+                contents = stdin.read()
 
         with contextlib.closing(self.client.get_transport().open_session()) as chan:
             chan.set_combine_stderr(True)

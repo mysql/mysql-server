@@ -242,10 +242,13 @@ def handle_appendFileReq(req, body):
         dp = ch.path_module.join(df['path'], df['name'])
 
         assert (ch.file_exists(dp)), 'File ' + dp + ' does not exist on host ' + ch.host
-        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
+        content = None
+        with ch.open(sp) as sourceFile:
+                content = sourceFile.read()
 
-        with seq_acting((ch.open(sp), ch.open(dp, 'a+')), 'close') as (sourceFile, destinationFile):
-            destinationFile.write(sourceFile.read())
+        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host        
+        with ch.open(dp, 'a+') as destinationFile:
+            destinationFile.write(content)
 
     return make_rep(req)
 
