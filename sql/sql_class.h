@@ -4440,7 +4440,20 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  /**
+    Number of outer_sum_funcs i.e the number of set functions that are
+    aggregated in a query block outer to this subquery.
+
+    @see count_field_types
+  */
+  uint  outer_sum_func_count;
+  /**
+    Enabled when we have atleast one outer_sum_func. Needed when used
+    along with distinct.
+
+    @see create_tmp_table
+  */
+  bool  using_outer_summary_function;
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4467,8 +4480,8 @@ public:
 
   TMP_TABLE_PARAM()
     :copy_field(0), copy_field_end(0), group_parts(0),
-     group_length(0), group_null_parts(0),
-     using_indirect_summary_function(0),
+     group_length(0), group_null_parts(0), outer_sum_func_count(0),
+     using_outer_summary_function(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
      skip_create_table(FALSE), bit_fields_as_long(0)
   {}
