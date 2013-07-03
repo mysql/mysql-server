@@ -868,7 +868,7 @@ static void make_sortkey(register SORTPARAM *param,
           else
           {
             MYSQL_TIME buf;
-            if (item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES))
+            if (item->get_date_result(&buf, TIME_INVALID_DATES))
             {
               DBUG_ASSERT(maybe_null);
               DBUG_ASSERT(item->null_value);

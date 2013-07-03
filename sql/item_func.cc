@@ -2538,7 +2538,7 @@ double Item_func_min_max::val_real()
   if (compare_as_dates)
   {
     MYSQL_TIME ltime;
-    if (get_date(&ltime, TIME_FUZZY_DATE))
+    if (get_date(&ltime, 0))
       return 0;
 
     return TIME_to_double(&ltime);
@@ -2567,7 +2567,7 @@ longlong Item_func_min_max::val_int()
   if (compare_as_dates)
   {
     MYSQL_TIME ltime;
-    if (get_date(&ltime, TIME_FUZZY_DATE))
+    if (get_date(&ltime, 0))
       return 0;
 
     return TIME_to_ulonglong(&ltime);
@@ -2597,7 +2597,7 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
   if (compare_as_dates)
   {
     MYSQL_TIME ltime;
-    if (get_date(&ltime, TIME_FUZZY_DATE))
+    if (get_date(&ltime, 0))
       return 0;
 
     return date2my_decimal(&ltime, dec);

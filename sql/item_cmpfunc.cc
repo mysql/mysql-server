@@ -713,7 +713,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   bool value;
   int error;
   enum_mysql_timestamp_type timestamp_type;
-  int flags= TIME_FUZZY_DATE | MODE_INVALID_DATES;
+  int flags= TIME_FUZZY_DATES | MODE_INVALID_DATES;
 
   if (warn_type == MYSQL_TIMESTAMP_TIME)
     flags|= TIME_TIME_ONLY;
@@ -885,7 +885,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   else
   {
     MYSQL_TIME ltime;
-    uint fuzzydate= TIME_FUZZY_DATE | TIME_INVALID_DATES;
+    uint fuzzydate= TIME_FUZZY_DATES | TIME_INVALID_DATES;
     if (f_type == MYSQL_TYPE_TIME)
       fuzzydate|= TIME_TIME_ONLY;
     if (item->get_date(&ltime, fuzzydate))

@@ -586,7 +586,7 @@ TIME_FORMAT("25:00:00", '%l %p')
 1 AM
 SELECT DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896);
 DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896)
-1151414896
+NULL
 Warnings:
 Warning	1292	Incorrect datetime value: '%Y-%m-%d %H:%i:%s'
 select str_to_date('04 /30/2004', '%m /%d/%Y');

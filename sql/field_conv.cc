@@ -413,7 +413,7 @@ static void do_field_decimal(Copy_field *copy)
 static void do_field_temporal(Copy_field *copy)
 {
   MYSQL_TIME ltime;
-  copy->from_field->get_date(&ltime, TIME_FUZZY_DATE);
+  copy->from_field->get_date(&ltime, 0);
   copy->to_field->store_time_dec(&ltime, copy->from_field->decimals());
 }
 
@@ -884,7 +884,7 @@ int field_conv(Field *to,Field *from)
   if (from->cmp_type() == TIME_RESULT)
   {
     MYSQL_TIME ltime;
-    if (from->get_date(&ltime, TIME_FUZZY_DATE))
+    if (from->get_date(&ltime, 0))
       return to->reset();
     else
       return to->store_time_dec(&ltime, from->decimals());

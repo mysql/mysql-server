@@ -1239,14 +1239,13 @@ DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
-NULL
-Warnings:
-Error	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
+22:10:00
 select str_to_date("1997-00-04 22:23:00","%Y-%m-%D") + interval 10 minute;
 str_to_date("1997-00-04 22:23:00","%Y-%m-%D") + interval 10 minute
 NULL
 Warnings:
-Error	1411	Incorrect datetime value: '1997-00-04 22:23:00' for function str_to_date
+Warning	1292	Truncated incorrect date value: '1997-00-04 22:23:00'
+Warning	1292	Incorrect datetime value: '1997-00-04'
 create table t1 (field DATE);
 insert into t1 values ('2006-11-06');
 select * from t1 where field < '2006-11-06 04:08:36.0';
@@ -1452,13 +1451,15 @@ MAKEDATE(11111111,1)
 NULL
 SELECT WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1);
 WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1)
-0
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 #
 # Bug#12584302 AFTER FIX FOR #12403504: ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP > 0,
 #
 DO WEEK((DATE_ADD((CAST(0 AS DATE)), INTERVAL 1 YEAR_MONTH)), 5);
 Warnings:
-Warning	1292	Incorrect datetime value: '0'
+Warning	1292	Incorrect datetime value: '0000-00-00'
 #
 # BUG#13458237 INCONSISTENT HANDLING OF INVALIDE DATES WITH ZERO DAY
 # SIMILAR TO '2009-10-00' 
@@ -1755,7 +1756,7 @@ Warnings:
 Warning	1441	Datetime function: time field overflow
 select cast('131415.123e0' as time);
 cast('131415.123e0' as time)
-00:00:00
+NULL
 Warnings:
 Warning	1292	Truncated incorrect time value: '131415.123e0'
 select cast('2010-01-02 03:04:05' as datetime) between null and '2010-01-02 03:04:04';
@@ -1775,12 +1776,12 @@ unix_timestamp(null)
 NULL
 select truncate(date('2010-40-10'), 6);
 truncate(date('2010-40-10'), 6)
-0.000000
+NULL
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-40-10'
 select extract(month from '2010-40-50');
 extract(month from '2010-40-50')
-0
+NULL
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-40-50'
 select subtime('0000-00-10 10:10:10', '30 10:00:00');
@@ -1858,6 +1859,8 @@ insert into t1 values ('0000-00-00');
 select timestampadd(week, 1, f1) from t1;
 timestampadd(week, 1, f1)
 NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 select timestampadd(week, 1, date("0000-00-00"));
 timestampadd(week, 1, date("0000-00-00"))
 NULL
