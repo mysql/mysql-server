@@ -2165,6 +2165,7 @@ dict_index_node_ptr_max_size(
 		const dict_col_t*	col
 			= dict_field_get_col(field);
 		ulint			field_max_size;
+		ulint			field_ext_max_size;
 
 		/* Determine the maximum length of the index field. */
 
@@ -2180,10 +2181,18 @@ dict_index_node_ptr_max_size(
 		}
 
 		field_max_size = dict_col_get_max_size(col);
+		field_ext_max_size = field_max_size < 256 ? 1 : 2;
 
 		if (field->prefix_len
 		    && field->prefix_len < field_max_size) {
 			field_max_size = field->prefix_len;
+		}
+
+		if (comp) {
+			/* Add the extra size for ROW_FORMAT=COMPACT.
+			For ROW_FORMAT=REDUNDANT, these bytes were
+			added to rec_max_size before this loop. */
+			rec_max_size += field_ext_max_size;
 		}
 
 		rec_max_size += field_max_size;
