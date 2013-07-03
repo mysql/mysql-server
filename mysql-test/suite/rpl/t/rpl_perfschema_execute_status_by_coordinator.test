@@ -305,7 +305,7 @@ SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
 # to avoid warnings
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-start slave;
+source include/start_slave.inc;
 
 # To verify that the coordinator's thread_id is correctly shown by PS table,
 # find the row in SHOW PROCESSLIST that corresponds to SQL thread and extract
