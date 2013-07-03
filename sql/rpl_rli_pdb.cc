@@ -178,7 +178,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
 
   /* create mts submode for each of the the workers. */
   current_mts_submode=
-   (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)?
+    (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)?
        (Mts_submode*) new Mts_submode_database():
        (Mts_submode*) new Mts_submode_logical_clock();
 
