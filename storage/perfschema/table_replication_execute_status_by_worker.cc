@@ -113,6 +113,8 @@ void table_replication_execute_status_by_worker::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
+#ifndef EMBEDDED_LIBRARY
+
 int table_replication_execute_status_by_worker::rnd_next(void)
 {
   Slave_worker *worker;
@@ -123,10 +125,10 @@ int table_replication_execute_status_by_worker::rnd_next(void)
   DBUG_ASSERT(active_mi->rli != NULL);
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < active_mi->rli->workers.elements;
+       m_pos.m_index < active_mi->rli->get_worker_count();
        m_pos.next())
   {
-    get_dynamic(&active_mi->rli->workers, (uchar *) &worker, m_pos.m_index);
+    worker= active_mi->rli->get_worker(m_pos.m_index);
 
     if (worker != NULL)
     {
@@ -143,14 +145,12 @@ int table_replication_execute_status_by_worker::rnd_next(void)
 
 ha_rows table_replication_execute_status_by_worker::get_row_count()
 {
-  uint row_count= 0;
   mysql_mutex_lock(&LOCK_active_mi);
 
   DBUG_ASSERT(active_mi != NULL);
   DBUG_ASSERT(active_mi->rli != NULL);
 
-  if (active_mi->rli->workers_array_initialized)
-    row_count= active_mi->rli->workers.elements;
+  uint row_count= active_mi->rli->get_worker_count();
 
   mysql_mutex_unlock(&LOCK_active_mi);
   return row_count;
@@ -165,9 +165,9 @@ int table_replication_execute_status_by_worker::rnd_pos(const void *pos)
 
   DBUG_ASSERT(active_mi != NULL);
   DBUG_ASSERT(active_mi->rli != NULL);
-  DBUG_ASSERT(m_pos.m_index < active_mi->rli->workers.elements);
+  DBUG_ASSERT(m_pos.m_index < active_mi->rli->get_worker_count());
 
-  get_dynamic(&active_mi->rli->workers, (uchar *) &worker, m_pos.m_index);
+  worker= active_mi->rli->get_worker(m_pos.m_index);
 
   if(worker != NULL)
   {
@@ -238,6 +238,8 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
 
   m_row_exists= true;
 }
+
+#endif /* EMBEDDED_LIBRARY */
 
 int table_replication_execute_status_by_worker
   ::read_row_values(TABLE *table, unsigned char *buf,  Field **fields,
