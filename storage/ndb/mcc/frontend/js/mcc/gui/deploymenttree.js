@@ -88,10 +88,15 @@ mcc.gui.deploymenttree.resetDeploymentTreeItem = resetDeploymentTreeItem;
 /******************************* Internal data ********************************/
 
 var deploymentTree = null;
-var treeExpanded = false; 
-var statusPoller = null;
-var stopPollOnError = true;
-var pollMgmdId = null;
+var treeExpanded = false;
+ 
+var timeoutPending = false;
+var NO_POLLING = 0;
+var POLL_UNTIL_ERROR = 1;
+var POLL_UNCONDITIONALLY = 2;
+var pollMode = NO_POLLING;
+var mgmdArray = null;
+var pollMgmdIx = 0; 
 
 // Keep track of the selected item in the tree
 var deploymentTreeItem= {
@@ -102,6 +107,19 @@ var deploymentTreeItem= {
 };
 
 /****************************** Implementation ********************************/
+
+// Schedule a status poll
+function schedulePoll(timeout) {
+    mcc.util.dbg("schedule status poll in "+timeout+" ms");
+    if (timeoutPending) { 
+        mcc.util.dbg("Skipping since another poll is already scheduled"); 
+        return; 
+    }
+    
+    timeoutPending = true;
+    setTimeout(doPoll, timeout);
+}
+
 
 // Wrap a tree or store item into a storage item for convenience
 function getStorageItem(item) {
@@ -460,36 +478,25 @@ function receiveStatusReply(reply) {
                 }
             });
         }
+        if (pollMode > NO_POLLING) {
+            schedulePoll(2000);
+        }
     } else {
         receiveStatusError("No mgmd reply", null);
     }
 }
 
+
 // Receive error reply
 function receiveStatusError(errMsg, reply) {
     mcc.util.dbg("Error while retrieving status: " + errMsg);
-    // Select another mgmd to poll
-    mcc.storage.processTypeStorage().getItems({name: "ndb_mgmd"}).then(function (mgmdType) {
-        mcc.storage.processStorage().getItems({processtype: mgmdType[0].getId()}).then(function (mgmds) {
-            function sp() { if (stopPollOnError) { stopPollOnError = false; clearInterval(statusPoller); } }
-            if (!pollMgmdId) {
-                pollMgmdId = mgmds[0].getId();
-                mcc.util.dbg("Select mgmd to poll: " + pollMgmdId);
-            } else if (mgmds.length > 1) {
-                for (var i in mgmds) {
-                    if (i + 1 == mgmds.length) { sp(); }
-                    if (mgmds[i].getId() == pollMgmdId) {
-                        pollMgmdId = mgmds[(+i + 1) % mgmds.length].getId();
-                        break;
-                    }
-                }
-                mcc.util.dbg("Select new mgmd to poll: " + pollMgmdId);
-            } else {
-                sp();
-            }
-        });
-    });
-    
+
+    ++pollMgmdIx;
+    if (pollMode > NO_POLLING && pollMgmdIx < mgmdArray.length) {
+        doPoll();
+        return;  // Try another mgmd
+    }
+    // None of the mgmds returned status    
     // Reset all status information in the process tree
     mcc.storage.processStorage().getItems().then(function (processes) {
         for (var p in processes) {
@@ -498,46 +505,59 @@ function receiveStatusError(errMsg, reply) {
             });
         }
     });
+
+    pollMgmdIx = 0; 
+    if (pollMode == POLL_UNCONDITIONALLY) {
+        // try again in 2 sek
+        schedulePoll(2000);
+    }
 }
 
 // Poll the mgmd for status
 function doPoll() {
-    // Pick an mgmd, get hostname and port, send status command
-    mcc.storage.processStorage().getItem(pollMgmdId).then(function (mgmd) {
-        if (mgmd) {
-            // Get the appropriate hostname and port number
-            var host = mgmd.getValue("HostName");
-            var port = mgmd.getValue("Portnumber");
+    timeoutPending = false;
+    var mgmd = mgmdArray[pollMgmdIx];
+
+    // Get the appropriate hostname and port number
+    var host = mgmd.getValue("HostName");
+    var port = mgmd.getValue("Portnumber");
             
-            // If not overridden, get predefined host
-            if (!host) {
-                host = mcc.configuration.getPara("management", 
-                    mgmd.getId(), "HostName", "defaultValueInstance");
-            }
-            // If not overridden, get predefined port
-            if (!port) {
-                port = mcc.configuration.getPara("management", 
-                    mgmd.getId(), "Portnumber", "defaultValueInstance");
-            }
-            mcc.server.runMgmdCommandReq(host, port, "get status", 
-                receiveStatusReply, receiveStatusError);
-        } else {
-            pollMgmdId = null;
-            receiveStatusError("No mgmd selected yet");
-        }
-    });
+    // If not overridden, get predefined host
+    if (!host) {
+        host = mcc.configuration.getPara("management", 
+                                         mgmd.getId(), "HostName", "defaultValueInstance");
+    }
+    // If not overridden, get predefined port
+    if (!port) {
+        port = mcc.configuration.getPara("management", 
+                                         mgmd.getId(), "Portnumber", "defaultValueInstance");
+    }
+    mcc.server.runMgmdCommandReq(host, port, "get status", 
+                                 receiveStatusReply, receiveStatusError);
 }
+
+
+// Get list of mgmds from store. 
+function getMgmdArray() {
+    return mcc.storage.processTypeStorage().getItems({name: "ndb_mgmd"}).then(
+        function (mgmdType) {
+            mcc.storage.processStorage().getItems({processtype: mgmdType[0].getId()}).then(
+                function(mgmds) { mgmdArray = mgmds; });
+        });
+}
+
 
 // Start polling the mgmd for status
 function startStatusPoll(stopOnError) {
-    stopPollOnError = stopOnError;
-    statusPoller = setInterval(doPoll, 2000);
+    pollMode = stopOnError ? POLL_UNTIL_ERROR : POLL_UNCONDITIONALLY;
+    mcc.util.dbg("startStatusPoll("+stopOnError+") -> pollmode: "+pollMode);
+    getMgmdArray().then(function() { if (!timeoutPending) { pollMgmdIx = 0; doPoll(); }});
 }
 
 // Stop status polling
 function stopStatusPoll() {
-    stopPollOnError = true;
-    clearInterval(statusPoller);
+    pollMode = 0;
+    mcc.util.dbg("stopStatusPoll()");
 }
 
 /******************************** Initialize  *********************************/
